@@ -38,7 +38,7 @@
             }
             else if (input == "2")
             {
-                Item? item = player.OpenInventory();
+                Item? item = player.Inventory.Open();
                 item?.Use(player);
             }
             else if (input == "3")

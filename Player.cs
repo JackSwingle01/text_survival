@@ -9,14 +9,13 @@
         private const float MAX_HUNGER = 3000.0F; // calories
         private const float MAX_THIRST = 3000.0F; // mL
 
-        private List<Item> _inventory = new List<Item>();
-
         public float Hunger { get; private set; }
         public float Thirst { get; private set; }
         public float Health { get; private set; }
         public float BodyTemperature { get; private set; }
         public Place Location { get; set; }
         public float ClothingInsulation { get; set; }
+        public Container Inventory { get; set; }
 
         public Player(Place location)
         {
@@ -26,10 +25,8 @@
             BodyTemperature = 98.6F;
             Location = location;
             ClothingInsulation = 10;
+            Inventory = new Container("Backpack", 10);
         }
-
-        public List<Item> Inventory { get => _inventory; private set => _inventory = value; }
-
 
         public string GetStats()
         {
@@ -59,23 +56,36 @@
             Inventory.Remove(food);
             Update(1);
         }
-        private void UpdateHungerAndThirst(int minutes)
+        private void UpdateHunger(int minutes)
         {
             for (int i = 0; i < minutes; i++)
             {
-                UpdateHungerAndThirstTick();
+                UpdateHungerTick();
+            }
+        }
+        private void UpdateThirst(int minutes)
+        {
+            for (int i = 0; i < minutes; i++)
+            {
+                UpdateThirstTick();
             }
         }
 
-        private void UpdateHungerAndThirstTick()
+        private void UpdateHungerTick()
         {
             Hunger -= HUNGER_RATE;
-            Thirst -= THIRST_RATE;
+
             if (Hunger <= 0)
             {
                 Hunger = 0;
                 this.Damage(1);
             }
+
+        }
+        private void UpdateThirstTick()
+        {
+            Thirst -= THIRST_RATE;
+
             if (Thirst <= 0)
             {
                 Thirst = 0;
@@ -87,54 +97,15 @@
         public void Update(int minutes)
         {
             World.Update(minutes);
-            UpdateHungerAndThirst(minutes);
+            UpdateHunger(minutes);
+            UpdateThirst(minutes);
             UpdateTemperature(minutes);
         }
 
-        public Item? GetItemFromInventory(int index)
-        {
-            if (index < 0 || index >= Inventory.Count)
-            {
-                return null;
-            }
-            return Inventory[index];
-        }
 
-        public string GetInventoryToString()
-        {
-            if (Inventory.Count == 0)
-            {
-                return "Inventory is empty!";
-            }
-            string str = "";
-            int count = 1;
-            foreach (Item item in Inventory)
-            {
-                str += count + ". ";
-                str += item.ToString();
-                str += "\n";
-                count++;
-            }
-            return str;
-        }
-        public Item? OpenInventory()
-        {
-            Utils.Write("Inventory:");
-            Utils.Write(GetInventoryToString());
-            if (Inventory.Count == 0)
-            {
-                return null;
-            }
-            Utils.Write("Enter the number of the item you want to use or type 'exit' to exit");
-            string? input = Console.ReadLine();
-            if (input == "exit" || input == null)
-            {
-                return null;
-            }
-            int index = int.Parse(input) - 1;
-            return GetItemFromInventory(index);
 
-        }
+
+
 
         public void Damage(float damage)
         {
@@ -164,7 +135,7 @@
             {
                 UpdateTemperatureTick();
             }
-            
+
             if (BodyTemperature >= 97.0 && BodyTemperature < 99.7)
             {
                 // Normal body temperature, no effects
@@ -206,11 +177,11 @@
             float skinTemp = BodyTemperature - 8.4F;
             float rate = 1F / 100F;
             float feelsLike = Location.GetTemperature();
-            feelsLike += ClothingInsulation;  
+            feelsLike += ClothingInsulation;
             float tempChange = (skinTemp - feelsLike) * rate;
             BodyTemperature -= tempChange;
 
-           
+
             if (BodyTemperature < 82.4)
             {
                 // Severe hypothermia effects

@@ -5,7 +5,7 @@
         private int _calories;
         private int _waterContent;
 
-        public FoodItem(string name, int calories, int waterContent = 0, int weight = 1, uses = 1) : base(name, weight, uses)
+        public FoodItem(string name, int calories, int waterContent = 0, int weight = 1, int uses = 1) : base(name, weight, uses)
         {
             this.Calories = calories;
             this.WaterContent = waterContent;
