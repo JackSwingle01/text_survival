@@ -5,7 +5,7 @@
         private int _calories;
         private int _waterContent;
 
-        public FoodItem(string name, int calories, int waterContent = 0, int weight = 1) : base(name, weight)
+        public FoodItem(string name, int calories, int waterContent = 0, int weight = 1, uses = 1) : base(name, weight, uses)
         {
             this.Calories = calories;
             this.WaterContent = waterContent;
@@ -32,7 +32,7 @@
 
         public override void Use(Player player)
         {
-            Utils.Write("You consume the " + Name);
+            Utils.Write("You eat the " + Name);
             UseEffect?.Invoke(player);
         }
 
