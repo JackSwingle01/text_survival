@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public class Item
     {
@@ -13,13 +6,13 @@ namespace text_survival
         public int Weight { get; set; }
         public Action<Player> UseEffect { get; set; }
 
-        public Item(string name, int weight = 1) 
+        public Item(string name, int weight = 1)
         {
             this.Name = name;
             this.Weight = weight;
             UseEffect = (player) => { Utils.Write("Nothing happened."); };
         }
-        
+
         public override string ToString()
         {
             string str = "";

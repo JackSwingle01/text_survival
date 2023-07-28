@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
     internal class Game
     {
@@ -28,13 +22,13 @@ namespace text_survival
         }
         public void Act()
         {
-            Utils.Write(player.GetStats(),100);
-            Utils.Write("You are in a " + currentPlace.Name,100);
+            Utils.Write(player.GetStats(), 100);
+            Utils.Write("You are in a " + currentPlace.Name, 100);
             Utils.Write("What would you like to do?");
-            Utils.Write("1. Forage",100);
-            Utils.Write("2. Use an item",100);
-            Utils.Write("3. Travel",100);
-            Utils.Write("4. Quit",100);
+            Utils.Write("1. Forage", 100);
+            Utils.Write("2. Use an item", 100);
+            Utils.Write("3. Travel", 100);
+            Utils.Write("4. Quit", 100);
             string? input = Utils.Read();
             if (input == "1")
             {
@@ -86,7 +80,7 @@ namespace text_survival
             {
                 Utils.Write("Invalid input");
             }
-            
+
             Utils.Write("You travel for 1 hour");
             player.Update(60);
             Utils.Write("You are now at " + currentPlace.Name);

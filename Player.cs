@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.ConstrainedExecution;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public class Player
     {
@@ -20,13 +13,16 @@ namespace text_survival
 
         public float Hunger { get; private set; }
         public float Thirst { get; private set; }
-        public float Health { get; private set; } 
+        public float Health { get; private set; }
+        public float BodyTemperature { get; private set; }
+        public Place Location { get; set; }
 
         public Player()
         {
             Hunger = MAX_HUNGER;
             Thirst = MAX_THIRST;
             Health = MAX_HEALTH;
+            BodyTemperature = 98.6F;
         }
 
         public List<Item> Inventory { get => _inventory; private set => _inventory = value; }
@@ -35,11 +31,11 @@ namespace text_survival
         public string GetStats()
         {
             string stats = "";
-            stats += "Health: " + (int) Health + "%";
+            stats += "Health: " + (int)Health + "%";
             stats += "\n";
-            stats += "Hunger: " + (int) ((Hunger / MAX_HUNGER) * 100) + "%";
+            stats += "Hunger: " + (int)((Hunger / MAX_HUNGER) * 100) + "%";
             stats += "\n";
-            stats += "Thirst: " + (int) ((Thirst / MAX_THIRST) * 100) + "%";
+            stats += "Thirst: " + (int)((Thirst / MAX_THIRST) * 100) + "%";
             stats += "\n";
             return stats;
         }
@@ -49,7 +45,7 @@ namespace text_survival
             if (Hunger + food.Calories > MAX_HUNGER)
             {
                 Utils.Write("You are too full to finish it.");
-                food.Calories -= (int) (MAX_HUNGER - Hunger);
+                food.Calories -= (int)(MAX_HUNGER - Hunger);
                 Hunger = MAX_HUNGER;
                 return;
             }
@@ -66,17 +62,18 @@ namespace text_survival
             if (Hunger <= 0)
             {
                 Hunger = 0;
-                Health -= 1;
+                this.Damage(1);
             }
             if (Thirst <= 0)
             {
                 Thirst = 0;
-                Health -= 1;
+                this.Damage(1);
             }
             if (Health <= 0)
             {
                 Health = 0;
             }
+            UpdateTemperature(BodyTemperature - 0.1F)
         }
 
         public void Update(int minutes)
@@ -147,7 +144,7 @@ namespace text_survival
                 Health = 0;
             }
         }
-        
+
         public void Heal(float heal)
         {
             Health += heal;
@@ -157,6 +154,44 @@ namespace text_survival
             }
         }
 
-        
+        public void UpdateTemperature(float temperatureChange)
+        {
+            BodyTemperature += temperatureChange;
+            if (BodyTemperature >= 98.6 && BodyTemperature < 99.7)
+            {
+                // Normal body temperature, no effects
+                Utils.Write("You feel warm.");
+            }
+            else if (BodyTemperature >= 95.0 && BodyTemperature < 98.6)
+            {
+                // Mild hypothermia effects
+                Utils.Write("You feel cold.");
+            }
+            else if (BodyTemperature >= 82.4 && BodyTemperature < 95.0)
+            {
+                // Moderate hypothermia effects
+                Utils.Write("You feel very cold.");
+            }
+            else if (BodyTemperature < 82.4)
+            {
+                // Severe hypothermia effects
+                Utils.Write("You are freezing cold.");
+                Damage(1);
+            }
+            else if (BodyTemperature >= 99.7 && BodyTemperature < 104.0)
+            {
+                // Heat exhaustion effects
+                Utils.Write("You feel hot.");
+            }
+            else if (BodyTemperature >= 104.0)
+            {
+                // Heat stroke effects
+                Utils.Write("You are burning up.");
+                Damage(1);
+            }
+
+
+        }
+
     }
 }

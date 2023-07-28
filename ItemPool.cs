@@ -1,16 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public class ItemPool
     {
         private List<Item> _items = new();
         private List<Item> Items { get => _items; set => _items = value; }
-        public ItemPool(){}
+        public ItemPool() { }
         public ItemPool(List<Item> items)
         {
             Items = items;
@@ -27,7 +21,7 @@ namespace text_survival
 
         public void Remove(Item item)
         {
-              Items.Remove(item);
+            Items.Remove(item);
         }
         public void RemoveAt(int index)
         {

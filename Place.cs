@@ -1,17 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public class Place
     {
-        private string _name = "";
-        private string? _description;
-        private ItemPool _items = new();
-        
+
+
+        public string Name { get; set; }
+        public string Description { get; set; }
+        private ItemPool Items { get; set; }
+        public float BaseTemperature { get; set; }
+
         public Place(string name, string description, ItemPool items)
         {
             this.Name = name;
@@ -23,20 +20,20 @@ namespace text_survival
         {
             this.Name = name;
             this.Description = description;
+            Items = new ItemPool();
         }
 
         public Place(string name)
         {
             this.Name = name;
+            this.Description = "";
+            Items = new ItemPool();
         }
 
-        public string Name { get => _name; set => _name = value; }
-        public string? Description { get => _description; set => _description = value; }
-        internal ItemPool Items { get => _items; set => _items = value; }
 
         public override string ToString()
         {
-              string str = "";
+            string str = "";
             str += "Name: " + Name;
             str += "\n";
             str += "Description: " + Description;

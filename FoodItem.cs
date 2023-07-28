@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public class FoodItem : Item
     {
@@ -40,7 +34,7 @@ namespace text_survival
         {
             Utils.Write("You consume the " + Name);
             UseEffect?.Invoke(player);
-            player.Update(1); 
+            player.Update(1);
         }
 
     }
