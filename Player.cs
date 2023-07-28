@@ -2,11 +2,11 @@
 {
     public class Player
     {
-        private float HUNGER_RATE = (2000 / (24 * 60)); // calories per minute
-        private float THIRST_RATE = (4000 / (24 * 60)); // mL per minute
+        private float HUNGER_RATE = (2500F / (24F * 60F)); // calories per minute
+        private float THIRST_RATE = (4000F / (24F * 60F)); // mL per minute
 
         private const float MAX_HEALTH = 100.0F; // percent
-        private const float MAX_HUNGER = 2500.0F; // calories
+        private const float MAX_HUNGER = 3000.0F; // calories
         private const float MAX_THIRST = 3000.0F; // mL
 
         private List<Item> _inventory = new List<Item>();
@@ -25,7 +25,7 @@
             Health = MAX_HEALTH;
             BodyTemperature = 98.6F;
             Location = location;
-            ClothingInsulation = 5;
+            ClothingInsulation = 10;
         }
 
         public List<Item> Inventory { get => _inventory; private set => _inventory = value; }
@@ -165,12 +165,12 @@
                 UpdateTemperatureTick();
             }
             
-            if (BodyTemperature >= 97.6 && BodyTemperature < 99.7)
+            if (BodyTemperature >= 97.0 && BodyTemperature < 99.7)
             {
                 // Normal body temperature, no effects
                 Utils.Write("You feel warm.");
             }
-            else if (BodyTemperature >= 95.0 && BodyTemperature < 97.6)
+            else if (BodyTemperature >= 95.0 && BodyTemperature < 97.0)
             {
                 // Mild hypothermia effects
                 Utils.Write("You feel cold.");
@@ -178,7 +178,7 @@
             else if (BodyTemperature >= 82.4 && BodyTemperature < 95.0)
             {
                 // Moderate hypothermia effects
-                Utils.Write("You feel very cold.");
+                Utils.Write("You feel cold.");
             }
             else if (BodyTemperature < 82.4)
             {
@@ -203,35 +203,19 @@
             {
                 BodyTemperature += CalcTemperatureChange(HUNGER_RATE);
             }
-
+            float skinTemp = BodyTemperature - 8.4F;
+            float rate = 1F / 100F;
             float feelsLike = Location.GetTemperature();
-            feelsLike += ClothingInsulation;
-            float tempDiff = feelsLike - BodyTemperature;
-            float tempChange = tempDiff / 60;
-            BodyTemperature += tempChange;
+            feelsLike += ClothingInsulation;  
+            float tempChange = (skinTemp - feelsLike) * rate;
+            BodyTemperature -= tempChange;
 
-            //if (BodyTemperature >= 98.6 && BodyTemperature < 99.7)
-            //{
-            //    // Normal body temperature, no effects
-            //}
-            //else if (BodyTemperature >= 95.0 && BodyTemperature < 98.6)
-            //{
-            //    // Mild hypothermia effects
-            //}
-            //else if (BodyTemperature >= 82.4 && BodyTemperature < 95.0)
-            //{
-            //    // Moderate hypothermia effects
-            //}
-            //else
+           
             if (BodyTemperature < 82.4)
             {
                 // Severe hypothermia effects
                 Damage(1);
             }
-            //else if (BodyTemperature >= 99.7 && BodyTemperature < 104.0)
-            //{
-            //    //Heat exhaustion effects
-            //}
             else if (BodyTemperature >= 104.0)
             {
                 // Heat stroke effects
@@ -250,7 +234,7 @@
             // c = specific heat capacity (J/kg*C)
             // deltaT = change in temperature (C)
             // 1 kcal = 4184 J
-            int m = 70; // kg
+            float m = 70F; // kg
             float c = 3600.0F; // Specific heat of human body
             float Q = calories * 4184.0F; // J
             float deltaT = Q / (m * c);

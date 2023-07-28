@@ -64,15 +64,16 @@
             {
                 Utils.Write((i + 1) + ". " + options[i].ToString());
             }
-
             string? input = Utils.Read();
-
             if (int.TryParse(input, out int index))
             {
                 if (index > 0 && index <= options.Count)
                 {
+                    Utils.Write("You travel for 1 hour");
+                    player.Update(60);
                     currentPlace = options[index - 1];
                     player.Location = currentPlace;
+                    Utils.Write("You are now at " + currentPlace.Name);
                 }
                 else
                 {
@@ -83,11 +84,6 @@
             {
                 Utils.Write("Invalid input");
             }
-
-            Utils.Write("You travel for 1 hour");
-            player.Update(60);
-            Utils.Write("You are now at " + currentPlace.Name);
-
         }
     }
 }
