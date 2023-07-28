@@ -5,11 +5,13 @@
         public string Name { get; set; }
         public int Weight { get; set; }
         public Action<Player> UseEffect { get; set; }
+        public int Uses { get; set; }
 
-        public Item(string name, int weight = 1)
+        public Item(string name, int weight = 1, int uses = 1)
         {
             this.Name = name;
             this.Weight = weight;
+            this.Uses = uses;
             UseEffect = (player) => { Utils.Write("Nothing happened."); };
         }
 
@@ -26,6 +28,11 @@
         {
             Utils.Write("You use the " + Name);
             UseEffect?.Invoke(player);
+            Uses -= 1;
+            if (Uses == 0)
+            {
+                player.Inventory.Remove(this);
+            }
             player.Update(1);
         }
     }
