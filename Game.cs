@@ -10,8 +10,9 @@
             places.Add(Places.GetForest());
             places.Add(Places.GetShack());
             places.Add(Places.GetCave());
-            player = new Player();
             currentPlace = places[0];
+            player = new Player(currentPlace);
+            World.Time = new TimeOnly(hour:12, minute:0);
         }
         public void Start()
         {
@@ -24,6 +25,7 @@
         {
             Utils.Write(player.GetStats(), 100);
             Utils.Write("You are in a " + currentPlace.Name, 100);
+            Utils.Write("Its " + World.Time + " and " + currentPlace.GetTemperature() + " degrees");
             Utils.Write("What would you like to do?");
             Utils.Write("1. Forage", 100);
             Utils.Write("2. Use an item", 100);
@@ -41,7 +43,7 @@
             }
             else if (input == "3")
             {
-                Travel();
+                Travel(player);
             }
             else if (input == "4")
             {
@@ -53,7 +55,7 @@
             }
 
         }
-        public void Travel()
+        public void Travel(Player player)
         {
             Utils.Write("Where would you like to go?");
             List<Place> options = new List<Place>();
@@ -70,6 +72,7 @@
                 if (index > 0 && index <= options.Count)
                 {
                     currentPlace = options[index - 1];
+                    player.Location = currentPlace;
                 }
                 else
                 {

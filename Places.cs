@@ -4,7 +4,7 @@
     {
         public static Place GetShack()
         {
-            Place shack = new Place("Shack", "An abandoned shack. Doesn't look like there's much here.", CreateShackItemPool());
+            Place shack = new Place("Shack", "An abandoned shack. Doesn't look like there's much here", CreateShackItemPool());
             shack.BaseTemperature = 75.0F;
             return shack;
         }

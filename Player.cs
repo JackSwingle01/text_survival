@@ -16,13 +16,16 @@
         public float Health { get; private set; }
         public float BodyTemperature { get; private set; }
         public Place Location { get; set; }
+        public float ClothingInsulation { get; set; }
 
-        public Player()
+        public Player(Place location)
         {
             Hunger = MAX_HUNGER;
             Thirst = MAX_THIRST;
             Health = MAX_HEALTH;
             BodyTemperature = 98.6F;
+            Location = location;
+            ClothingInsulation = 5;
         }
 
         public List<Item> Inventory { get => _inventory; private set => _inventory = value; }
@@ -36,6 +39,8 @@
             stats += "Hunger: " + (int)((Hunger / MAX_HUNGER) * 100) + "%";
             stats += "\n";
             stats += "Thirst: " + (int)((Thirst / MAX_THIRST) * 100) + "%";
+            stats += "\n";
+            stats += "Body Temperature: " + BodyTemperature + "°F";
             stats += "\n";
             return stats;
         }
@@ -54,8 +59,15 @@
             Inventory.Remove(food);
             Update(1);
         }
+        private void UpdateHungerAndThirst(int minutes)
+        {
+            for (int i = 0; i < minutes; i++)
+            {
+                UpdateHungerAndThirstTick();
+            }
+        }
 
-        private void UpdateOneMinute()
+        private void UpdateHungerAndThirstTick()
         {
             Hunger -= HUNGER_RATE;
             Thirst -= THIRST_RATE;
@@ -69,24 +81,14 @@
                 Thirst = 0;
                 this.Damage(1);
             }
-            if (Health <= 0)
-            {
-                Health = 0;
-            }
-            UpdateTemperature(BodyTemperature - 0.1F)
         }
+
 
         public void Update(int minutes)
         {
-            for (int i = 0; i < minutes; i++)
-            {
-                UpdateOneMinute();
-                if (Health <= 0)
-                {
-                    Utils.Write("You died");
-                    break;
-                }
-            }
+            World.Update(minutes);
+            UpdateHungerAndThirst(minutes);
+            UpdateTemperature(minutes);
         }
 
         public Item? GetItemFromInventory(int index)
@@ -137,11 +139,13 @@
         public void Damage(float damage)
         {
             Health -= damage;
-            Utils.Write("You took " + damage + " damage!");
+            //Utils.Write("You took " + damage + " damage!");
             if (Health <= 0)
             {
                 Utils.Write("You died!");
                 Health = 0;
+                // end program
+                System.Environment.Exit(0);
             }
         }
 
@@ -154,15 +158,19 @@
             }
         }
 
-        public void UpdateTemperature(float temperatureChange)
+        private void UpdateTemperature(int minutes)
         {
-            BodyTemperature += temperatureChange;
-            if (BodyTemperature >= 98.6 && BodyTemperature < 99.7)
+            for (int i = 0; i < minutes; i++)
+            {
+                UpdateTemperatureTick();
+            }
+            
+            if (BodyTemperature >= 97.6 && BodyTemperature < 99.7)
             {
                 // Normal body temperature, no effects
                 Utils.Write("You feel warm.");
             }
-            else if (BodyTemperature >= 95.0 && BodyTemperature < 98.6)
+            else if (BodyTemperature >= 95.0 && BodyTemperature < 97.6)
             {
                 // Mild hypothermia effects
                 Utils.Write("You feel cold.");
@@ -176,22 +184,79 @@
             {
                 // Severe hypothermia effects
                 Utils.Write("You are freezing cold.");
-                Damage(1);
             }
             else if (BodyTemperature >= 99.7 && BodyTemperature < 104.0)
             {
-                // Heat exhaustion effects
+                //Heat exhaustion effects
                 Utils.Write("You feel hot.");
             }
             else if (BodyTemperature >= 104.0)
             {
                 // Heat stroke effects
                 Utils.Write("You are burning up.");
-                Damage(1);
+            }
+        }
+        private void UpdateTemperatureTick()
+        {
+            // body heats based on calories burned
+            if (BodyTemperature < 98.6)
+            {
+                BodyTemperature += CalcTemperatureChange(HUNGER_RATE);
             }
 
+            float feelsLike = Location.GetTemperature();
+            feelsLike += ClothingInsulation;
+            float tempDiff = feelsLike - BodyTemperature;
+            float tempChange = tempDiff / 60;
+            BodyTemperature += tempChange;
 
+            //if (BodyTemperature >= 98.6 && BodyTemperature < 99.7)
+            //{
+            //    // Normal body temperature, no effects
+            //}
+            //else if (BodyTemperature >= 95.0 && BodyTemperature < 98.6)
+            //{
+            //    // Mild hypothermia effects
+            //}
+            //else if (BodyTemperature >= 82.4 && BodyTemperature < 95.0)
+            //{
+            //    // Moderate hypothermia effects
+            //}
+            //else
+            if (BodyTemperature < 82.4)
+            {
+                // Severe hypothermia effects
+                Damage(1);
+            }
+            //else if (BodyTemperature >= 99.7 && BodyTemperature < 104.0)
+            //{
+            //    //Heat exhaustion effects
+            //}
+            else if (BodyTemperature >= 104.0)
+            {
+                // Heat stroke effects
+                Damage(1);
+            }
         }
+        private float ConvertCelsiusToFahrenheit(float celsius)
+        {
+            return (celsius * (9.0F / 5.0F));
+        }
+        private float CalcTemperatureChange(float calories)
+        {
+            // Q = m * c * deltaT
+            // Q = calories
+            // m = mass (kg)
+            // c = specific heat capacity (J/kg*C)
+            // deltaT = change in temperature (C)
+            // 1 kcal = 4184 J
+            int m = 70; // kg
+            float c = 3600.0F; // Specific heat of human body
+            float Q = calories * 4184.0F; // J
+            float deltaT = Q / (m * c);
+            return ConvertCelsiusToFahrenheit(deltaT);
+        }
+
 
     }
 }

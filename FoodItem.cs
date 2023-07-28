@@ -34,7 +34,6 @@
         {
             Utils.Write("You consume the " + Name);
             UseEffect?.Invoke(player);
-            player.Update(1);
         }
 
     }

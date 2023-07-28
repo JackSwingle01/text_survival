@@ -8,6 +8,7 @@
         public string Description { get; set; }
         private ItemPool Items { get; set; }
         public float BaseTemperature { get; set; }
+        public bool IsShelter { get; set; }
 
         public Place(string name, string description, ItemPool items)
         {
@@ -30,6 +31,33 @@
             Items = new ItemPool();
         }
 
+        public float GetTemperature()
+        {
+            float effect = 0;
+            if (World.GetTimeOfDay() == World.TimeOfDay.Morning)
+            {
+                effect -= 5;
+            }
+            else if (World.GetTimeOfDay() == World.TimeOfDay.Afternoon)
+            {
+                effect += 10;
+            }
+            else if (World.GetTimeOfDay() == World.TimeOfDay.Evening)
+            {
+                effect += 5;
+            }
+            else if (World.GetTimeOfDay() == World.TimeOfDay.Night)
+            {
+                effect -= 10;
+            }
+            effect += new Random().Next(-3, 3);
+            if (IsShelter)
+            {
+                effect = effect / 2;
+            }
+           
+            return effect + BaseTemperature;
+        }
 
         public override string ToString()
         {
