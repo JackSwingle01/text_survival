@@ -30,7 +30,8 @@
             Utils.Write("1. Forage", 100);
             Utils.Write("2. Use an item", 100);
             Utils.Write("3. Travel", 100);
-            Utils.Write("4. Quit", 100);
+            Utils.Write("4. Sleep", 100);
+            Utils.Write("9. Quit", 100);
             string? input = Utils.Read();
             if (input == "1")
             {
@@ -46,6 +47,19 @@
                 Travel(player);
             }
             else if (input == "4")
+            {
+                Utils.Write("How many hours would you like to sleep?");
+                string? hours = Utils.Read();
+                if (int.TryParse(hours, out int h))
+                {
+                    player.Sleep(h);
+                }
+                else
+                {
+                    Utils.Write("Invalid input");
+                }
+            }
+            else if (input == "9")
             {
                 player.Damage(999);
             }
