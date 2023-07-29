@@ -1,23 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public static class Utils
     {
-   
+
         public static string? Read()
         {
             return Console.ReadLine();
         }
         public static int ReadInt()
         {
-            while(true)
+            while (true)
             {
-                string input = Console.ReadLine();
+                string? input = Console.ReadLine();
                 if (int.TryParse(input, out int result))
                 {
                     return result;
@@ -30,7 +24,7 @@ namespace text_survival
         }
         public static int ReadInt(int low, int high)
         {
-              while(true)
+            while (true)
             {
                 int input = ReadInt();
                 if (input >= low && input <= high)

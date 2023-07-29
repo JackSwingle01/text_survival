@@ -1,6 +1,6 @@
 ﻿namespace text_survival
 {
-    public class Player : ICharacter
+    public class Player : IActor
     {
         private float HUNGER_RATE = (2500F / (24F * 60F)); // calories per minute
         private float THIRST_RATE = (4000F / (24F * 60F)); // mL per minute
@@ -23,6 +23,7 @@
         public Container Inventory { get; set; }
         public float Strength { get; set; }
         public float Defense { get; set; }
+        public int Speed { get; set; }
 
 
         public Player(Place location)
@@ -39,6 +40,7 @@
             Inventory = new Container("Backpack", 10);
             Strength = 10;
             Defense = 10;
+            Speed = 10;
         }
 
         public string SurvivalStatsToString()
@@ -80,9 +82,11 @@
                 if (Exaustion <= 0)
                 {
                     Utils.Write("You wake up feeling refreshed.");
+                    Heal(i/6);
                     return;
                 }
             }
+            Heal(minutes/6);
         }
         private void SleepTick()
         {

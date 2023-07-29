@@ -54,7 +54,7 @@
             }
             else if (input == 5)
             {
-                Combat.CombatLoop(player, new NPC("Wolf", 10, 10, 5));
+                Combat.CombatLoop(player, currentPlace.NPCs.GetRandomNPC());
             }
 
             else if (input == 9)

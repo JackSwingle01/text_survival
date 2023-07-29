@@ -2,9 +2,11 @@
 {
     public class ItemPool
     {
-        private List<Item> _items = new();
-        private List<Item> Items { get => _items; set => _items = value; }
-        public ItemPool() { }
+        private List<Item> Items { get; set; }
+        public ItemPool() 
+        {
+            Items = new List<Item>();
+        }
         public ItemPool(List<Item> items)
         {
             Items = items;

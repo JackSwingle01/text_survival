@@ -1,34 +1,31 @@
-﻿namespace text_survival
+﻿using System.ComponentModel;
+
+namespace text_survival
 {
     public class Place
     {
-
-
         public string Name { get; set; }
         public string Description { get; set; }
-        private ItemPool Items { get; set; }
+        public ItemPool Items { get; set; }
+        public NPCPool NPCs { get; set; }
         public float BaseTemperature { get; set; }
         public bool IsShelter { get; set; }
-
-        public Place(string name, string description, ItemPool items)
-        {
-            this.Name = name;
-            this.Description = description;
-            this.Items = items;
-        }
 
         public Place(string name, string description)
         {
             this.Name = name;
             this.Description = description;
-            Items = new ItemPool();
+            this.Items = new ItemPool();
+            this.NPCs = new NPCPool();
         }
+
 
         public Place(string name)
         {
             this.Name = name;
             this.Description = "";
             Items = new ItemPool();
+            NPCs = new NPCPool();
         }
 
         public float GetTemperature()
@@ -62,7 +59,7 @@
         public override string ToString()
         {
             string str = "";
-            str += "Name: " + Name;
+            str += Name;
             str += "\n";
             str += "Description: " + Description;
             str += "\n";
@@ -82,6 +79,7 @@
             Utils.Write("You found " + item.Name);
             player.Inventory.Add(item);
         }
+
 
 
     }
