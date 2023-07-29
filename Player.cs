@@ -16,6 +16,7 @@
         public float Health { get; private set; }
         public float Exaustion { get; private set; }
         public float BodyTemperature { get; private set; }
+        public TemperatureEnum TemperatureEffect { get; private set; }
         public Place Location { get; set; }
         public float ClothingInsulation { get; set; }
         public Container Inventory { get; set; }
@@ -109,7 +110,7 @@
             UpdateStat(UpdateThirstTick, minutes);
             UpdateStat(UpdateExaustionTick, minutes);
             UpdateStat(UpdateHungerTick, minutes);
-            UpdateStat(UpdateTemperatureTick, minutes);
+            UpdateTemperature(minutes);
         }
 
         private void UpdateStat(Action statUpdater, int minutes)
@@ -153,42 +154,91 @@
             }
         }
 
+        public enum TemperatureEnum
+        {
+            Warm,
+            Cool,
+            Cold,
+            Freezing,
+            Hot,
+            HeatExhaustion,
+        }
+
         private void UpdateTemperature(int minutes)
         {
+            TemperatureEnum oldTemperature = TemperatureEffect;
             for (int i = 0; i < minutes; i++)
             {
                 UpdateTemperatureTick();
             }
-
+            if (oldTemperature != TemperatureEffect)
+            {
+                Utils.Write(TemperatureEffect.ToString());
+            }
+            
+        }
+        private void UpdateTemperatureEffect()
+        {
             if (BodyTemperature >= 97.0 && BodyTemperature < 99.7)
             {
                 // Normal body temperature, no effects
-                Utils.Write("You feel warm.");
+                TemperatureEffect = TemperatureEnum.Warm;
             }
             else if (BodyTemperature >= 95.0 && BodyTemperature < 97.0)
             {
                 // Mild hypothermia effects
-                Utils.Write("You feel cold.");
+                TemperatureEffect = TemperatureEnum.Cool;
             }
             else if (BodyTemperature >= 82.4 && BodyTemperature < 95.0)
             {
                 // Moderate hypothermia effects
-                Utils.Write("You feel cold.");
+                TemperatureEffect = TemperatureEnum.Cold;
             }
             else if (BodyTemperature < 82.4)
             {
                 // Severe hypothermia effects
-                Utils.Write("You are freezing cold.");
+                TemperatureEffect = TemperatureEnum.Freezing;
             }
             else if (BodyTemperature >= 99.7 && BodyTemperature < 104.0)
             {
                 //Heat exhaustion effects
-                Utils.Write("You feel hot.");
+                TemperatureEffect = TemperatureEnum.Hot;
             }
             else if (BodyTemperature >= 104.0)
             {
                 // Heat stroke effects
-                Utils.Write("You are burning up.");
+                TemperatureEffect = TemperatureEnum.HeatExhaustion;
+            }
+        }
+        public string GetTemperatureEffectMessage(TemperatureEnum tempEnum)
+        {
+            if (tempEnum == TemperatureEnum.Warm)
+            {
+                return "You feel normal.";
+            }
+            else if (tempEnum == TemperatureEnum.Cool)
+            {
+                return "You feel cool.";
+            }
+            else if (tempEnum == TemperatureEnum.Cold)
+            {
+                return "You feel cold.";
+            }
+            else if (tempEnum == TemperatureEnum.Freezing)
+            {
+                return "You are freezing cold.";
+            }
+            else if (tempEnum == TemperatureEnum.Hot)
+            {
+                return "You feel hot.";
+            }
+            else if (tempEnum == TemperatureEnum.HeatExhaustion)
+            {
+                return "You are burning up.";
+            }
+            else
+            {
+                return "You feel normal.";
             }
         }
         private void UpdateTemperatureTick()
@@ -208,6 +258,8 @@
             feelsLike += ClothingInsulation;
             float tempChange = (skinTemp - feelsLike) * rate;
             BodyTemperature -= tempChange;
+
+            UpdateTemperatureEffect();
 
             if (BodyTemperature < 82.4)
             {
