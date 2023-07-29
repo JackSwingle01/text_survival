@@ -70,7 +70,7 @@ namespace text_survival
             int minutes = new Random().Next(1, 60);
             Utils.Write("You looked for " + minutes + " minutes");
             player.Update(minutes);
-            if (new Random().Next(100) < 75)
+            if (new Random().Next(100) < 50)
             {
                 Utils.Write("You found nothing");
                 return;

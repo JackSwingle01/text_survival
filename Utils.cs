@@ -43,5 +43,20 @@
             System.Threading.Thread.Sleep(delay);
         }
 
+        public static int Roll(int sides)
+        {
+            Random rand = new Random();
+            return rand.Next(1, sides + 1);
+        }
+        public static int Rand(int low, int high)
+        {
+           Random rand = new Random();
+           return rand.Next(low, high + 1);
+        }
+        public static bool flipCoin()
+        {
+            Random rand = new Random();
+            return rand.Next(2) == 0;
+        }
     }
 }

@@ -11,8 +11,8 @@
         private const float MAX_EXAUSTION = 480.0F; // minutes (8 hours)
 
         public string Name { get; set; }
-        public float Hunger { get; private set; }
-        public float Thirst { get; private set; }
+        public float Hunger { get; set; }
+        public float Thirst { get; set; }
         public float Health { get; set; }
         public float Exaustion { get; private set; }
         public float BodyTemperature { get; private set; }
@@ -24,6 +24,7 @@
         public float Strength { get; set; }
         public float Defense { get; set; }
         public int Speed { get; set; }
+        public List<EquipableItem> EquipedItems { get; set; }
 
 
         public Player(Place location)
@@ -41,6 +42,7 @@
             Strength = 10;
             Defense = 10;
             Speed = 10;
+            EquipedItems = new List<EquipableItem>();
         }
 
         public string SurvivalStatsToString()
@@ -184,7 +186,7 @@
             }
             if (oldTemperature != TemperatureEffect)
             {
-                Utils.Write(TemperatureEffect.ToString());
+                Utils.Write(GetTemperatureEffectMessage(TemperatureEffect));
             }
             
         }

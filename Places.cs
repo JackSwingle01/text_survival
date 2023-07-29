@@ -7,10 +7,11 @@
             Shack,
             Forest,
             Cave,
+            River,
         }
         public static Place GetShack()
         {
-            Place shack = new Place("Shack", "An abandoned shack. Doesn't look like there's much here");
+            Place shack = new Place("Shack", "An abandoned shack.");
             shack.Items = CreateItemPool(EnvironmentType.Shack);
             shack.NPCs = CreateNPCPool(EnvironmentType.Shack);
             shack.BaseTemperature = 75.0F;
@@ -27,109 +28,118 @@
         }
         public static Place GetCave()
         {
-            Place cave = new Place("Cave", "A cave. Something sparkles in the dark");
+            Place cave = new Place("Cave", "A dark cold cave.");
             cave.Items = CreateItemPool(EnvironmentType.Cave);
             cave.NPCs = CreateNPCPool(EnvironmentType.Cave);
             cave.BaseTemperature = 50.0F;
             return cave;
         }
+        public static Place GetRiver()
+        {
+            Place river = new Place("River", "A river with fresh water.");
+            river.Items = CreateItemPool(EnvironmentType.River);
+            river.NPCs = CreateNPCPool(EnvironmentType.River);
+            river.BaseTemperature = 60.0F;
+            return river;
+        }
+
 
         private static Dictionary<string, Item> itemDefinitions = new()
         {
-            { "Mushroom", new FoodItem("Mushroom", 25, 5){
-                UseEffect = (player) =>{
-                    player.Heal(2);
-                    Utils.Write("You feel better");
-                }}},
-            { "Apple", new FoodItem("Apple", 90, 50) },
-            { "Bread", new FoodItem("Bread", 300, -10) },
-            { "Berry", new FoodItem("Berry", 50, 20) },
-            { "Carrot", new FoodItem("Carrot", 50, 30) },
-            { "Water", new FoodItem("Water", 0, 500) },
-            { "Stick", new Item("Stick") },
-            { "Wood", new Item("Wood") },
-            { "Rock", new Item("Rock"){
-                UseEffect =  (player) =>{
-                    player.Strength += 5;
-                    Utils.Write("This will make a good weapon");
-                }}},
-            { "Gemstone", new Item("Gemstone") },
-            { "Coin", new Item("Coin") },
-            { "Sword", new Item("Sword")
-            {
-                UseEffect = (player) =>
-                {
-                    player.Strength += 10;
-                    Utils.Write("You feel stronger");
-                }}},
-            { "Shield", new Item("Shield")
-            {
-                UseEffect = (player) =>
-                {
-                    player.Defense += 10;
-                    Utils.Write("You feel more protected");
-                }}},
-            { "Armor", new Item("Armor")
-            {
-                UseEffect = (player) =>
-                {
-                    player.Defense += 10;
-                    player.ClothingInsulation += 1;
-                    Utils.Write("You feel more protected");
-                }}},
-            { "Potion", new Item("Health Potion")
-            {
-                UseEffect = (player) =>
-                {
-                    player.Heal(10);
-                    Utils.Write("You feel better");
-                }}},
-            { "Bandage", new Item("Bandage")
-            {
-                UseEffect = (player) =>
-                {
-                    player.Heal(5);
-                    Utils.Write("You feel better");
-                }}},
-            { "Torch", new Item("Torch")
-            {
-                UseEffect = (player) =>
-                {
-                    player.ClothingInsulation += 5;
-                    Utils.Write("You feel warmer");
-                }}},
+            { "Mushroom", ItemFactory.MakeMushroom() },
+            { "Apple", ItemFactory.MakeApple() },
+            { "Bread", ItemFactory.MakeBread() },
+            { "Berry", ItemFactory.MakeBerry() },
+            { "Carrot", ItemFactory.MakeCarrot() },
+            { "Water", ItemFactory.MakeWater() },
+            { "Stick", ItemFactory.MakeStick() },
+            { "Wood", ItemFactory.MakeWood() },
+            { "Rock", ItemFactory.MakeRock() },
+            { "Gemstone", ItemFactory.MakeGemstone() },
+            { "Coin", ItemFactory.MakeCoin() },
+            { "Sword", ItemFactory.MakeSword() },
+            { "Shield", ItemFactory.MakeShield() },
+            { "Armor", ItemFactory.MakeArmor() },
+            { "Health Potion", ItemFactory.MakeHealthPotion() },
+            { "Bandage", ItemFactory.MakeBandage() },
+            { "Torch", ItemFactory.MakeTorch() },
+            { "Fish", ItemFactory.MakeFish() }
+        };
 
-            };
+
 
         private static Dictionary<EnvironmentType, List<string>> environmentItems = new()
         {
-            { EnvironmentType.Shack, new List<string> { "Apple", "Bread", "Coin", "Sword", "Shield", "Bandage", "Health Potion" } },
-            { EnvironmentType.Forest, new List<string> { "Berry", "Carrot", "Water", "Mushroom", "Stick", "Wood" } },
-            { EnvironmentType.Cave, new List<string> { "Mushroom", "Rock", "Gemstone" } },
-
+            { EnvironmentType.Shack, new List<string> { 
+                "Apple", 
+                "Bread", 
+                "Coin", 
+                "Sword", 
+                "Shield", 
+                "Bandage", 
+                "Health Potion", 
+                "Armor" 
+            } },
+            { EnvironmentType.Forest, new List<string> { 
+                "Berry",
+                "Carrot", 
+                "Water", 
+                "Mushroom", 
+                "Stick", 
+                "Wood" 
+            } },
+            { EnvironmentType.Cave, new List<string> { 
+                "Mushroom", 
+                "Rock", 
+                "Gemstone", 
+                "Torch" 
+            } },
+            { EnvironmentType.River, new List<string>
+            {
+                "Fish", 
+                "Water" 
+            } },
 
         };
 
         private static Dictionary<string, NPC> npcDefinitions = new()
         {
-            // ("Name", Health, Strength, Defense, Speed)
-            { "Rat", new NPC("Rat", 5, 5, 2, 10) },
-            { "Wolf", new NPC("Wolf", 10, 10, 5, 18) },
-            { "Bear", new NPC("Bear", 20, 20, 20, 7) },
-            { "Snake", new NPC("Snake", 5, 5, 2, 11) },
-            { "Bat", new NPC("Bat", 5, 5, 2, 16) },
-            { "Spider", new NPC("Spider", 1, 1, 0, 5) },
-            { "Goblin", new NPC("Goblin", 10, 10, 5, 10) },
-            { "Dragon", new NPC("Dragon", 50, 50, 50, 3) },
-            { "Skeleton", new NPC("Skeleton", 10, 10, 10, 10) }
-
+            { "Rat", NPCFactory.MakeRat() },
+            { "Wolf", NPCFactory.MakeWolf() },
+            { "Bear", NPCFactory.MakeBear() },
+            { "Snake", NPCFactory.MakeSnake() },
+            { "Bat", NPCFactory.MakeBat() },
+            { "Spider", NPCFactory.MakeSpider() },
+            { "Goblin", NPCFactory.MakeGoblin() },
+            { "Dragon", NPCFactory.MakeDragon() },
+            { "Skeleton", NPCFactory.MakeSkeleton() },
+            { "Crocodile", NPCFactory.MakeCrocodile() },
+            
+            
         };
+
 
         private static Dictionary<EnvironmentType, List<string>> environmentNPCs = new()
         {
-            { EnvironmentType.Forest, new List<string> { "Wolf", "Bear", "Snake" , "Goblin" } },
-            { EnvironmentType.Cave, new List<string> { "Bat", "Spider", "Snake", "Dragon", "Skeleton" } },
-            { EnvironmentType.Shack, new List<string> { "Rat" } },
+            { EnvironmentType.Forest, new List<string> { 
+                "Wolf",
+                "Bear",
+                "Snake",
+                "Goblin" 
+            } },
+            { EnvironmentType.Cave, new List<string> { 
+                "Bat", 
+                "Spider", 
+                "Snake", 
+                "Dragon", 
+                "Skeleton" } },
+            { EnvironmentType.Shack, new List<string> { 
+                "Rat"
+            } },
+            { EnvironmentType.River, new List<string>
+            {
+                "Crocodile" 
+            } },
         };
 
         private static NPCPool CreateNPCPool(EnvironmentType environment)

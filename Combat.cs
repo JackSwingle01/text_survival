@@ -38,8 +38,38 @@
             else if (enemy.Health <= 0)
             {
                 Utils.Write("You killed " + enemy.Name + "!");
+                if (enemy.Loot.Count() > 0)
+                {
+                    GetLoot(player, enemy);
+                }
             }
-
+        }
+        public static void GetLoot(Player player, NPC npc)
+        {
+            if (npc == null)
+            {
+                return;
+            }
+            if (npc.Loot.Count() == 0)
+            {
+                Utils.Write(npc.Name + " has no loot.");
+                return;
+            }
+            Utils.Write(npc.Name + " dropped:");
+            Item item = npc.Loot[Utils.Rand(0, npc.Loot.Count()-1)];
+            Utils.Write(item.ToString());
+            Utils.Write("Do you want to pick it up?");
+            Utils.Write("1. Yes");
+            Utils.Write("2. No");
+            int choice = Utils.ReadInt(1, 2);
+            if (choice == 1)
+            {
+                player.Inventory.Add(item);
+            }
+            else
+            {
+                Utils.Write("You left the " + item.Name + " on the ground.");
+            }
         }
         public static void PrintBattleInfo(IActor combatant1, IActor combatant2)
         {

@@ -14,6 +14,7 @@ namespace text_survival
         public float Strength { get; set; }
         public float Defense { get; set; }
         public int Speed { get; set; }
+        public List<Item> Loot { get; set; }
 
         public NPC(string name, int health=10, int strength = 10, int defense = 10, int speed=10)
         {
@@ -23,6 +24,7 @@ namespace text_survival
             Strength = strength;
             Defense = defense;
             Speed = speed;
+            Loot = new List<Item>();
         }
 
         public override string ToString()
