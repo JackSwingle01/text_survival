@@ -56,8 +56,12 @@
         }
         public NPC GetRandomNPC()
         {
+            if (NPCs.Count == 0)
+            {
+                return new NPC("Ghost", 1, 1, 1, 1);
+            }
             Random rand = new Random();
-            int index = rand.Next(NPCs.Count);
+            int index = rand.Next(NPCs.Count) - 1;
             return NPCs[index];
         }
     }

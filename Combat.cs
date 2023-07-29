@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.ExceptionServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public static class Combat
     {
@@ -14,17 +6,16 @@ namespace text_survival
         {
             if (enemy.Speed > player.Speed)
             {
+                PrintBattleInfo(player, enemy);
                 Attack(enemy, player);
             }
             while (player.Health > 0 && enemy.Health > 0)
             {
-                Utils.Write(CombatStatsToString(player));
-                Utils.Write("VS");
-                Utils.Write(CombatStatsToString(enemy));
+                PrintBattleInfo(player, enemy);
                 Utils.Write("What do you want to do?");
                 Utils.Write("1. Attack");
                 Utils.Write("2. Run");
-                int choice = Utils.ReadInt(1,2);
+                int choice = Utils.ReadInt(1, 2);
                 if (choice == 1)
                 {
                     Attack(player, enemy);
@@ -48,7 +39,13 @@ namespace text_survival
             {
                 Utils.Write("You killed " + enemy.Name + "!");
             }
-            
+
+        }
+        public static void PrintBattleInfo(IActor combatant1, IActor combatant2)
+        {
+            Utils.Write(CombatStatsToString(combatant1));
+            Utils.Write("VS");
+            Utils.Write(CombatStatsToString(combatant2));
         }
         public static void Attack(IActor attacker, IActor defender)
         {
@@ -77,8 +74,7 @@ namespace text_survival
         public static float CalcDamage(IActor attacker, IActor defender)
         {
             // base damage - defense percentage
-            float damage = attacker.Strength - ((defender.Defense /100) * attacker.Strength);
-            // dodge chance based on speed 
+            float damage = attacker.Strength - ((defender.Defense / 100) * attacker.Strength);
             if (damage < 0)
             {
                 damage = 0;
