@@ -23,7 +23,7 @@
         }
         public void Act()
         {
-            Utils.Write(player.GetStats(), 100);
+            Utils.Write(player.SurvivalStatsToString(), 100);
             Utils.Write("You are in a " + currentPlace.Name, 100);
             Utils.Write("Its " + World.Time + " and " + currentPlace.GetTemperature() + " degrees");
             Utils.Write("What would you like to do?");
@@ -31,35 +31,33 @@
             Utils.Write("2. Use an item", 100);
             Utils.Write("3. Travel", 100);
             Utils.Write("4. Sleep", 100);
+            Utils.Write("5. Fight", 100);
             Utils.Write("9. Quit", 100);
-            string? input = Utils.Read();
-            if (input == "1")
+            int input = Utils.ReadInt();
+            if (input == 1)
             {
                 currentPlace.Forage(player);
             }
-            else if (input == "2")
+            else if (input == 2)
             {
                 Item? item = player.Inventory.Open();
                 item?.Use(player);
             }
-            else if (input == "3")
+            else if (input == 3)
             {
                 Travel(player);
             }
-            else if (input == "4")
+            else if (input == 4)
             {
                 Utils.Write("How many hours would you like to sleep?");
-                string? hours = Utils.Read();
-                if (int.TryParse(hours, out int h))
-                {
-                    player.Sleep(h);
-                }
-                else
-                {
-                    Utils.Write("Invalid input");
-                }
+                player.Sleep(Utils.ReadInt());
             }
-            else if (input == "9")
+            else if (input == 5)
+            {
+                Combat.CombatLoop(player, new NPC("Wolf", 10, 10, 5));
+            }
+
+            else if (input == 9)
             {
                 player.Damage(999);
             }

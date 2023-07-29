@@ -1,39 +1,47 @@
 ﻿namespace text_survival
 {
-    public class Player
+    public class Player : ICharacter
     {
         private float HUNGER_RATE = (2500F / (24F * 60F)); // calories per minute
         private float THIRST_RATE = (4000F / (24F * 60F)); // mL per minute
         private float EXAUSTION_RATE = (480F / (24F * 60F)); // minutes per minute (8 hours per 24)
 
-        private const float MAX_HEALTH = 100.0F; // percent
         private const float MAX_HUNGER = 3000.0F; // calories
         private const float MAX_THIRST = 3000.0F; // mL
         private const float MAX_EXAUSTION = 480.0F; // minutes (8 hours)
 
+        public string Name { get; set; }
         public float Hunger { get; private set; }
         public float Thirst { get; private set; }
-        public float Health { get; private set; }
+        public float Health { get; set; }
         public float Exaustion { get; private set; }
         public float BodyTemperature { get; private set; }
         public TemperatureEnum TemperatureEffect { get; private set; }
         public Place Location { get; set; }
         public float ClothingInsulation { get; set; }
+        public float MaxHealth { get; set; }
         public Container Inventory { get; set; }
+        public float Strength { get; set; }
+        public float Defense { get; set; }
+
 
         public Player(Place location)
         {
+            Name = "Player";
             Hunger = 0;
             Thirst = 0;
-            Health = MAX_HEALTH;
+            MaxHealth = 100;
+            Health = MaxHealth;
             Exaustion = 0;
             BodyTemperature = 98.6F;
             Location = location;
             ClothingInsulation = 10;
             Inventory = new Container("Backpack", 10);
+            Strength = 10;
+            Defense = 10;
         }
 
-        public string GetStats()
+        public string SurvivalStatsToString()
         {
             string stats = "";
             stats += "Health: " + (int)Health + "%";
@@ -48,7 +56,7 @@
             stats += "\n";
             return stats;
         }
-
+       
         public void Eat(FoodItem food)
         {
             if (Hunger + food.Calories < 0)
@@ -85,7 +93,6 @@
         public void Damage(float damage)
         {
             Health -= damage;
-            //Utils.Write("You took " + damage + " damage!");
             if (Health <= 0)
             {
                 Utils.Write("You died!");
@@ -98,9 +105,9 @@
         public void Heal(float heal)
         {
             Health += heal;
-            if (Health > MAX_HEALTH)
+            if (Health > MaxHealth)
             {
-                Health = MAX_HEALTH;
+                Health = MaxHealth;
             }
         }
 
