@@ -32,6 +32,7 @@
             Utils.Write("2. Use an item", 100);
             Utils.Write("3. Travel", 100);
             Utils.Write("4. Sleep", 100);
+            Utils.Write("8. Check Equipment.", 100);
             Utils.Write("9. Quit", 100);
             int input = Utils.ReadInt();
             if (input == 1)
@@ -40,6 +41,7 @@
             }
             else if (input == 2)
             {
+                Utils.Write(player.EquipedItemsToString(), 100);
                 Item? item = player.Inventory.Open();
                 item?.Use(player);
             }
@@ -50,7 +52,13 @@
             else if (input == 4)
             {
                 Utils.Write("How many hours would you like to sleep?");
-                player.Sleep(Utils.ReadInt());
+                player.Sleep(Utils.ReadInt()*60);
+            }
+            else if (input == 8)
+            {
+                Utils.Write(player.EquipedItemsToString(), 100);
+                Utils.Write("Press any key to continue");
+                Utils.Read();
             }
             else if (input == 9)
             {

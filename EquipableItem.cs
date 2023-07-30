@@ -1,16 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public class EquipableItem : Item
     {
         public int Strength { get; set; }
         public int Defense { get; set; }
         public int Speed { get; set; }
+        public float Warmth { get; set; }
+
         public EquipSpots EquipSpot { get; set; }
 
         public enum EquipSpots
@@ -23,12 +19,13 @@ namespace text_survival
             Weapon
         }
 
-        public EquipableItem(string name, int strength, int defense, int speed) : base(name)
+        public EquipableItem(string name, int strength = 0, int defense = 0, int speed = 0, float warmth = 0) : base(name)
         {
             Strength = strength;
             Defense = defense;
             Speed = speed;
-            UseEffect = (player) => Equip(player);
+            Warmth = warmth;
+            UseEffect = (player) => EquipTo(player);
         }
 
         public override string ToString()
@@ -39,9 +36,9 @@ namespace text_survival
                 "Speed: " + Speed;
         }
 
-        public void Equip(Player player)
+        public void EquipTo(Player player)
         {
-            if(player.EquipedItems.Any(item => item.EquipSpot == this.EquipSpot))
+            if (player.EquipedItems.Any(item => item.EquipSpot == this.EquipSpot))
             {
                 EquipableItem? item = player.EquipedItems.Find(item => item.EquipSpot == this.EquipSpot);
                 item?.Unequip(player);
@@ -61,12 +58,14 @@ namespace text_survival
             player.Strength += Strength;
             player.Defense += Defense;
             player.Speed += Speed;
+            player.WarmthBonus += Warmth;
         }
         private void RemoveStats(Player player)
         {
             player.Strength -= Strength;
             player.Defense -= Defense;
             player.Speed -= Speed;
+            player.WarmthBonus -= Warmth;
         }
     }
 }

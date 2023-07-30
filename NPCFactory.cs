@@ -10,7 +10,7 @@ namespace text_survival
     {
         public static NPC MakeRat()
         {
-            NPC rat = new NPC("Rat", 5, 5, 2, 10);
+            NPC rat = new NPC("Rat", 5, 5, 2, 12);
             rat.Loot.Add(ItemFactory.MakeSmallMeat());
             return rat;
 
@@ -34,24 +34,24 @@ namespace text_survival
         {
             NPC snake = new NPC("Snake", 5, 5, 2, 11);
             snake.Loot.Add(ItemFactory.MakeSmallMeat());
-            //snake.Loot.Add(ItemFactory.MakeSnakeSkin());
-            //snake.Loot.Add(ItemFactory.MakeVenomVial());
+            snake.Loot.Add(ItemFactory.MakeSnakeSkin());
+            snake.Loot.Add(ItemFactory.MakeVenomVial());
             return snake;
         }
 
         public static NPC MakeBat()
         {
             NPC bat = new NPC("Bat", 5, 5, 2, 16);
-            //bat.Loot.Add(ItemFactory.MakeBatWing());
-            //bat.Loot.Add(ItemFactory.MakeGuano());
+            bat.Loot.Add(ItemFactory.MakeBatWing());
+            bat.Loot.Add(ItemFactory.MakeGuano());
             return bat;
         }
 
         public static NPC MakeSpider()
         {
             NPC spider = new NPC("Spider", 1, 1, 0, 5);
-            //spider.Loot.Add(ItemFactory.MakeSpiderSilk());
-            //spider.Loot.Add(ItemFactory.MakeVenomVial());
+            spider.Loot.Add(ItemFactory.MakeSpiderSilk());
+            spider.Loot.Add(ItemFactory.MakeVenomVial());
             return spider;
         }
 

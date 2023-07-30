@@ -82,11 +82,11 @@
             } },
             { EnvironmentType.Forest, new List<string> { 
                 "Berry",
-                "Carrot", 
+                //"Carrot", 
                 "Water", 
                 "Mushroom", 
-                "Stick", 
-                "Wood" 
+                "Stick",
+                //"Wood" 
             } },
             { EnvironmentType.Cave, new List<string> { 
                 "Mushroom", 
@@ -114,7 +114,6 @@
             { "Dragon", NPCFactory.MakeDragon() },
             { "Skeleton", NPCFactory.MakeSkeleton() },
             { "Crocodile", NPCFactory.MakeCrocodile() },
-            
             
         };
 

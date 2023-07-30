@@ -18,7 +18,7 @@
         public float BodyTemperature { get; private set; }
         public TemperatureEnum TemperatureEffect { get; private set; }
         public Place Location { get; set; }
-        public float ClothingInsulation { get; set; }
+        public float WarmthBonus { get; set; }
         public float MaxHealth { get; set; }
         public Container Inventory { get; set; }
         public float Strength { get; set; }
@@ -37,30 +37,55 @@
             Exaustion = 0;
             BodyTemperature = 98.6F;
             Location = location;
-            ClothingInsulation = 10;
             Inventory = new Container("Backpack", 10);
             Strength = 10;
             Defense = 10;
             Speed = 10;
-            EquipedItems = new List<EquipableItem>();
+            EquipedItems = new List<EquipableItem> ();
+            ItemFactory.MakeClothShirt().EquipTo(this);
+            ItemFactory.MakeClothPants().EquipTo(this);
+            ItemFactory.MakeBoots().EquipTo(this);
+             
         }
 
         public string SurvivalStatsToString()
         {
             string stats = "";
-            stats += "Health: " + (int)Health + "%";
-            stats += "\n";
-            stats += "Hunger: " + (int)((Hunger / MAX_HUNGER) * 100) + "%";
-            stats += "\n";
-            stats += "Thirst: " + (int)((Thirst / MAX_THIRST) * 100) + "%";
-            stats += "\n";
-            stats += "Exaustion: " + (int)((Exaustion / MAX_EXAUSTION) * 100) + "%";
-            stats += "\n";
-            stats += "Body Temperature: " + BodyTemperature.ToString("0.0") + "°F";
-            stats += "\n";
+            stats += "Health: " + (int)Health + "%\n";
+            stats += "Hunger: " + (int)((Hunger / MAX_HUNGER) * 100) + "%\n";
+            stats += "Thirst: " + (int)((Thirst / MAX_THIRST) * 100) + "%\n";
+            stats += "Exaustion: " + (int)((Exaustion / MAX_EXAUSTION) * 100) + "%\n";
+            stats += "Body Temperature: " + BodyTemperature.ToString("0.0") + "°F\n";
             return stats;
         }
        
+        public string EquipedItemsToString()
+        {
+            string items = "";
+            foreach (EquipableItem item in EquipedItems)
+            {
+                items += item.EquipSpot + ": " + item.Name + " => ";
+                if (item.Strength != 0)
+                {
+                    items += "Str: " + item.Strength;
+                }
+                if (item.Defense != 0)
+                {
+                    items += " Def: " + item.Defense;
+                }
+                if (item.Speed != 0)
+                {
+                    items += " Spd: " + item.Speed;
+                }
+                if (item.Warmth != 0)
+                {
+                    items += " Warmth: " + item.Warmth;
+                }
+                items += "\n";
+            }
+            return items;
+        }
+
         public void Eat(FoodItem food)
         {
             if (Hunger + food.Calories < 0)
@@ -186,7 +211,7 @@
             }
             if (oldTemperature != TemperatureEffect)
             {
-                Utils.Write(GetTemperatureEffectMessage(TemperatureEffect));
+                Utils.Write(GetTemperatureEffectMessage(TemperatureEffect)) ;
             }
             
         }
@@ -268,7 +293,7 @@
             float skinTemp = BodyTemperature - 8.4F;
             float rate = 1F / 100F;
             float feelsLike = Location.GetTemperature();
-            feelsLike += ClothingInsulation;
+            feelsLike += WarmthBonus;
             float tempChange = (skinTemp - feelsLike) * rate;
             BodyTemperature -= tempChange;
 

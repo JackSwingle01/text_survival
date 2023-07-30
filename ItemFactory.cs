@@ -34,7 +34,7 @@
 
         public static FoodItem MakeBerry()
         {
-            return new FoodItem("Berry", 50, 20);
+            return new FoodItem("Berries", 120, 100);
         }
 
         public static FoodItem MakeCarrot()
@@ -44,12 +44,43 @@
 
         public static FoodItem MakeWater()
         {
-            return new FoodItem("Water", 0, 500);
+            return new FoodItem("Water", 0, 1000);
         }
 
         public static Item MakeStick()
         {
-            return new Item("Stick");
+            Item stick = new Item("Stick");
+            stick.UseEffect = (Player) =>
+            {
+                Utils.Write("You can make this into a torch or a spear.");
+                Utils.Write("What would you like to make?");
+                Utils.Write("1. Torch");
+                Utils.Write("2. Spear");
+                Utils.Write("3. Nothing");
+                int choice = Utils.ReadInt(1, 3);
+                if (choice == 1)
+                {
+                    Player.Inventory.Remove(stick);
+                    Player.Inventory.Add(MakeTorch());
+                    Utils.Write("You made a torch!");
+                }
+                else if (choice == 2)
+                {
+                    Player.Inventory.Remove(stick);
+                    Player.Inventory.Add(MakeSpear());
+                    Utils.Write("You made a spear!");
+                }
+                else
+                {
+                    Utils.Write("You decide to keep the stick.");
+                }
+            };
+            return stick;
+        }
+        public static Item MakeSpear()
+        {
+            EquipableItem spear = new EquipableItem("Spear", 7, 0, -1, 0);
+            return spear;
         }
 
         public static Item MakeWood()
@@ -109,14 +140,9 @@
             return bandage;
         }
 
-        public static Item MakeTorch()
+        public static EquipableItem MakeTorch()
         {
-            var torch = new Item("Torch");
-            torch.UseEffect = (player) =>
-            {
-                player.ClothingInsulation += 5;
-                Utils.Write("You feel warmer");
-            };
+            EquipableItem torch = new EquipableItem("Torch", 0, 0, 0, 5);
             return torch;
         }
 
@@ -150,7 +176,22 @@
 
         public static Item MakeVenomVial()
         {
-            return new Item("Venom Vial");
+            Item vial = new Item("Venom Vial");
+            vial.UseEffect = (player) =>
+            {
+                Utils.Write("You can use this to poison your weapon.");
+                if (player.EquipedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
+                {
+                    EquipableItem weapon = player.EquipedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
+                    weapon.Strength += 2;
+                    player.Inventory.Remove(vial);
+                }
+                else
+                {
+                    Utils.Write("You don't have any weapons to poison.");
+                }
+            };
+            return vial;
         }
 
         public static Item MakeBatWing()
@@ -165,7 +206,22 @@
 
         public static Item MakeSpiderSilk()
         {
-            return new Item("Spider Silk");
+            Item silk = new Item("Spider Silk");
+            silk.UseEffect = (player) =>
+            {
+                Utils.Write("You can use this to improve your clothing.");
+                if (player.EquipedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
+                {
+                    EquipableItem armor = player.EquipedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
+                    armor.Warmth += 2;
+                    player.Inventory.Remove(silk);
+                } else
+                {
+                    Utils.Write("You don't have any clothing to improve.");
+                }
+            };
+            return silk;
+
         }
 
         public static EquipableItem MakeGoblinSword()
@@ -184,12 +240,34 @@
 
         public static Item MakeDragonScale()
         {
-            return new Item("Dragon Scale");
+            Item scale = new Item("Dragon Scale");
+            scale.UseEffect = (player) =>
+            {
+                Utils.Write("You can use this to improve your armor.");
+                if (player.EquipedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
+                {
+                    EquipableItem armor = player.EquipedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
+                    armor.Defense += 6;
+                    player.Inventory.Remove(scale);
+                }
+            };
+            return scale;
         }
 
         public static Item MakeDragonTooth()
         {
-            return new Item("Dragon Tooth");
+            Item tooth = new Item("Dragon Tooth");
+            tooth.UseEffect = (player) =>
+            {
+                Utils.Write("You can use this to improve your weapon.");
+                if (player.EquipedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
+                {
+                    EquipableItem weapon = player.EquipedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
+                    weapon.Strength += 6;
+                    player.Inventory.Remove(tooth);
+                }
+            };
+            return tooth;
         }
 
         public static Item MakeLargeCoinPouch()
@@ -223,6 +301,7 @@
         public static Item MakeCrocodileSkin()
         {
             return new Item("Crocodile Skin");
+
         }
 
         public static Item MakeCrocodileTooth()
@@ -230,6 +309,25 @@
             return new Item("Crocodile Tooth");
         }
 
+        public static EquipableItem MakeClothShirt()
+        {
+            EquipableItem shirt = new EquipableItem("Cloth Shirt", 0, 1, 0, 1);
+            shirt.EquipSpot = EquipableItem.EquipSpots.Chest;
+            return shirt;
+        }
+        public static EquipableItem MakeClothPants()
+        {
+            EquipableItem pants = new EquipableItem("Cloth Pants", 0, 1, 0, .5F);
+            pants.EquipSpot = EquipableItem.EquipSpots.Legs;
+            return pants;
+        }
+
+        public static EquipableItem MakeBoots()
+        {
+            EquipableItem shoes = new EquipableItem("Boots", 0, 1, 0, .5F);
+            shoes.EquipSpot = EquipableItem.EquipSpots.Feet;
+            return shoes;
+        }
     }
 
 }
