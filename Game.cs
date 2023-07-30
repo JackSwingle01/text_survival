@@ -10,6 +10,7 @@
             places.Add(Places.GetForest());
             places.Add(Places.GetShack());
             places.Add(Places.GetCave());
+            places.Add(Places.GetRiver());
             currentPlace = places[0];
             player = new Player(currentPlace);
             World.Time = new TimeOnly(hour:12, minute:0);
@@ -27,16 +28,15 @@
             Utils.Write("You are in a " + currentPlace.Name, 100);
             Utils.Write("Its " + World.Time + " and " + currentPlace.GetTemperature() + " degrees");
             Utils.Write("What would you like to do?");
-            Utils.Write("1. Forage", 100);
+            Utils.Write("1. Explore", 100);
             Utils.Write("2. Use an item", 100);
             Utils.Write("3. Travel", 100);
             Utils.Write("4. Sleep", 100);
-            Utils.Write("5. Fight", 100);
             Utils.Write("9. Quit", 100);
             int input = Utils.ReadInt();
             if (input == 1)
             {
-                currentPlace.Forage(player);
+                currentPlace.Explore(player);
             }
             else if (input == 2)
             {
@@ -52,11 +52,6 @@
                 Utils.Write("How many hours would you like to sleep?");
                 player.Sleep(Utils.ReadInt());
             }
-            else if (input == 5)
-            {
-                Combat.CombatLoop(player, currentPlace.NPCs.GetRandomNPC());
-            }
-
             else if (input == 9)
             {
                 player.Damage(999);

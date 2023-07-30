@@ -53,7 +53,7 @@
            Random rand = new Random();
            return rand.Next(low, high + 1);
         }
-        public static bool flipCoin()
+        public static bool FlipCoin()
         {
             Random rand = new Random();
             return rand.Next(2) == 0;

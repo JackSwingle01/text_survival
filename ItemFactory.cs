@@ -8,7 +8,7 @@
             mushroom.UseEffect = (player) =>
             {
                 player.Eat(mushroom);
-                if (Utils.flipCoin())
+                if (Utils.FlipCoin())
                 {
                     player.Heal(1);
                     Utils.Write("You feel better");

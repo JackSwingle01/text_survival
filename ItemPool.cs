@@ -1,5 +1,5 @@
 ﻿namespace text_survival
-{
+{ 
     public class ItemPool
     {
         private List<Item> Items { get; set; }

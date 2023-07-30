@@ -3,13 +3,16 @@
     public class NPCPool
     {
         private List<NPC> NPCs { get; set; }
+        private List<NPC> Graveyard { get; set; }
         public NPCPool()
         {
             NPCs = new List<NPC>();
+            Graveyard = new List<NPC>();
         }
         public NPCPool(List<NPC> npcs)
         {
             NPCs = npcs;
+            Graveyard = new List<NPC>();
         }
         public void Add(NPC npc)
         {
@@ -58,11 +61,33 @@
         {
             if (NPCs.Count == 0)
             {
+                Refresh();
                 return new NPC("Ghost", 1, 1, 1, 1);
             }
-            Random rand = new Random();
-            int index = rand.Next(NPCs.Count) - 1;
+            int index = Utils.Rand(0,NPCs.Count-1);
             return NPCs[index];
         }
+        public List<NPC>.Enumerator GetEnumerator()
+        {
+            return NPCs.GetEnumerator();
+        }
+        public void Refresh()
+        {
+            foreach (NPC npc in Graveyard)
+            {
+                NPCs.Add(npc);
+            }
+            Graveyard.Clear();
+            foreach (NPC npc in NPCs)
+            {
+                npc.Health = npc.MaxHealth;
+            }
+        }
+        public void Kill(NPC npc)
+        {
+            Graveyard.Add(npc);
+            NPCs.Remove(npc);
+        }
     }
+
 }
