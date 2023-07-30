@@ -30,12 +30,17 @@
 
         public override string ToString()
         {
-            return Name + ":\n" +
-                "Strength: " + Strength + "\n" +
-                "Defense: " + Defense + "\n" +
-                "Speed: " + Speed;
+            return Name;
         }
-
+        public void Write()
+        {
+            Utils.Write(this,": ", Description, "\n");
+            Utils.Write("Weight: ", Weight);
+            Utils.Write(", Strength: ", Strength);
+            Utils.Write(", Defense: ", Defense);
+            Utils.Write(", Speed: ", Speed);
+            Utils.Write(", Warmth: ", Warmth, "\n");
+        }
         public void EquipTo(Player player)
         {
             if (player.EquipedItems.Any(item => item.EquipSpot == this.EquipSpot))

@@ -13,7 +13,7 @@
             places.Add(Places.GetRiver());
             currentPlace = places[0];
             player = new Player(currentPlace);
-            World.Time = new TimeOnly(hour:12, minute:0);
+            World.Time = new TimeOnly(hour:9, minute:0);
         }
         public void Start()
         {
@@ -24,16 +24,16 @@
         }
         public void Act()
         {
-            Utils.Write(player.SurvivalStatsToString(), 100);
-            Utils.Write("You are in a " + currentPlace.Name, 100);
-            Utils.Write("Its " + World.Time + " and " + currentPlace.GetTemperature() + " degrees");
-            Utils.Write("What would you like to do?");
-            Utils.Write("1. Explore", 100);
-            Utils.Write("2. Use an item", 100);
-            Utils.Write("3. Travel", 100);
-            Utils.Write("4. Sleep", 100);
-            Utils.Write("8. Check Equipment.", 100);
-            Utils.Write("9. Quit", 100);
+            player.WriteSurvivalStats();
+            Utils.Write("Location: ", currentPlace, "\n");
+            Utils.Write("Time: ", World.Time, " Temp: ", currentPlace.GetTemperature(), "°F\n");
+            Utils.Write("What would you like to do?\n");
+            Utils.Write("1. Explore\n");
+            Utils.Write("2. Use an item\n");
+            Utils.Write("3. Travel\n");
+            Utils.Write("4. Sleep\n");
+            Utils.Write("8. Check Equipment\n");
+            Utils.Write("9. Quit\n");
             int input = Utils.ReadInt();
             if (input == 1)
             {
@@ -41,7 +41,7 @@
             }
             else if (input == 2)
             {
-                Utils.Write(player.EquipedItemsToString(), 100);
+                Utils.Write(player.EquipedItemsToString());
                 Item? item = player.Inventory.Open();
                 item?.Use(player);
             }
@@ -51,13 +51,13 @@
             }
             else if (input == 4)
             {
-                Utils.Write("How many hours would you like to sleep?");
+                Utils.Write("How many hours would you like to sleep?\n");
                 player.Sleep(Utils.ReadInt()*60);
             }
             else if (input == 8)
             {
-                Utils.Write(player.EquipedItemsToString(), 100);
-                Utils.Write("Press any key to continue");
+                Utils.Write(player.EquipedItemsToString(),"\n");
+                Utils.Write("Press any key to continue\n");
                 Utils.Read();
             }
             else if (input == 9)
@@ -66,38 +66,38 @@
             }
             else
             {
-                Utils.Write("Invalid input");
+                Utils.Write("Invalid input\n");
             }
 
         }
         public void Travel(Player player)
         {
-            Utils.Write("Where would you like to go?");
+            Utils.Write("Where would you like to go?\n");
             List<Place> options = new List<Place>();
             options.AddRange(places.FindAll(p => p != currentPlace));
             for (int i = 0; i < options.Count; i++)
             {
-                Utils.Write((i + 1) + ". " + options[i].ToString());
+                Utils.Write((i + 1) + ". ", options[i],"\n");
             }
             string? input = Utils.Read();
             if (int.TryParse(input, out int index))
             {
                 if (index > 0 && index <= options.Count)
                 {
-                    Utils.Write("You travel for 1 hour");
+                    Utils.Write("You travel for 1 hour\n");
                     player.Update(60);
                     currentPlace = options[index - 1];
                     player.Location = currentPlace;
-                    Utils.Write("You are now at " + currentPlace.Name);
+                    Utils.Write("You are now at ", currentPlace.Name,"\n");
                 }
                 else
                 {
-                    Utils.Write("Invalid input");
+                    Utils.Write("Invalid input\n");
                 }
             }
             else
             {
-                Utils.Write("Invalid input");
+                Utils.Write("Invalid input\n");
             }
         }
     }

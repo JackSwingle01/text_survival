@@ -13,7 +13,6 @@ namespace text_survival
             NPC rat = new NPC("Rat", 5, 5, 2, 12);
             rat.Loot.Add(ItemFactory.MakeSmallMeat());
             return rat;
-
         }
 
         public static NPC MakeWolf()

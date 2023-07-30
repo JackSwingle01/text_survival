@@ -15,7 +15,7 @@
         public int WaterContent { get => _waterContent; set => _waterContent = value; }
         public int Calories { get => _calories; set => _calories = value; }
 
-        public override string ToString()
+        public string StatsToString()
         {
             string str = "";
             str += "Name: " + Name;
@@ -29,13 +29,32 @@
             }
             return str;
         }
+        public override string ToString()
+        {
+            return Name;
+        }
+        public override void Write()
+        {
 
+            if (WaterContent == 0)
+            {
+                Utils.Write(Name, " => Cal: ", Calories, "\n");
+            }
+            else
+            {
+                Utils.Write(Name, " => Cal: ", Calories, " Water: ", WaterContent, "\n");
+            }
+            if (Description != "")
+            {
+                Utils.Write(Description, "\n");
+            }
+        }
         public override void Use(Player player)
         {
-            Utils.Write("You eat the " + Name);
+            Utils.Write("You eat the ", Name, "\n");
             UseEffect?.Invoke(player);
         }
 
-       
+
     }
 }

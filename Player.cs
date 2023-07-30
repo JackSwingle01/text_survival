@@ -41,24 +41,21 @@
             Strength = 10;
             Defense = 10;
             Speed = 10;
-            EquipedItems = new List<EquipableItem> ();
+            EquipedItems = new List<EquipableItem>();
             ItemFactory.MakeClothShirt().EquipTo(this);
             ItemFactory.MakeClothPants().EquipTo(this);
             ItemFactory.MakeBoots().EquipTo(this);
-             
+
+        }
+        public void WriteSurvivalStats()
+        {
+            Utils.Write("Health: ", (int)(Health), "%\n",
+                "Hunger: ", (int)((Hunger / MAX_HUNGER) * 100), "%\n",
+                "Thirst: ", (int)((Thirst / MAX_THIRST) * 100), "%\n",
+                "Exaustion: ", (int)((Exaustion / MAX_EXAUSTION) * 100), "%\n",
+                "Body Temperature: ", Math.Round(BodyTemperature, 1), "°F\n");
         }
 
-        public string SurvivalStatsToString()
-        {
-            string stats = "";
-            stats += "Health: " + (int)Health + "%\n";
-            stats += "Hunger: " + (int)((Hunger / MAX_HUNGER) * 100) + "%\n";
-            stats += "Thirst: " + (int)((Thirst / MAX_THIRST) * 100) + "%\n";
-            stats += "Exaustion: " + (int)((Exaustion / MAX_EXAUSTION) * 100) + "%\n";
-            stats += "Body Temperature: " + BodyTemperature.ToString("0.0") + "°F\n";
-            return stats;
-        }
-       
         public string EquipedItemsToString()
         {
             string items = "";
@@ -90,7 +87,7 @@
         {
             if (Hunger + food.Calories < 0)
             {
-                Utils.Write("You are too full to finish it.");
+                Utils.Write("You are too full to finish it.\n");
                 food.Calories -= (int)(0 - Hunger);
                 Hunger = 0;
                 return;
@@ -108,12 +105,12 @@
                 SleepTick();
                 if (Exaustion <= 0)
                 {
-                    Utils.Write("You wake up feeling refreshed.");
-                    Heal(i/6);
+                    Utils.Write("You wake up feeling refreshed.\n");
+                    Heal(i / 6);
                     return;
                 }
             }
-            Heal(minutes/6);
+            Heal(minutes / 6);
         }
         private void SleepTick()
         {
@@ -126,7 +123,7 @@
             Health -= damage;
             if (Health <= 0)
             {
-                Utils.Write("You died!");
+                Utils.Write("You died!\n");
                 Health = 0;
                 // end program
                 Environment.Exit(0);
@@ -211,9 +208,9 @@
             }
             if (oldTemperature != TemperatureEffect)
             {
-                Utils.Write(GetTemperatureEffectMessage(TemperatureEffect)) ;
+                WriteTemperatureEffectMessage(TemperatureEffect);
             }
-            
+
         }
         private void UpdateTemperatureEffect()
         {
@@ -248,35 +245,35 @@
                 TemperatureEffect = TemperatureEnum.HeatExhaustion;
             }
         }
-        public string GetTemperatureEffectMessage(TemperatureEnum tempEnum)
+        public static void WriteTemperatureEffectMessage(TemperatureEnum tempEnum)
         {
             if (tempEnum == TemperatureEnum.Warm)
             {
-                return "You feel normal.";
+                Utils.Write("You feel normal.");
             }
             else if (tempEnum == TemperatureEnum.Cool)
             {
-                return "You feel cool.";
+                Utils.WriteWarning("You feel cool.");
             }
             else if (tempEnum == TemperatureEnum.Cold)
             {
-                return "You feel cold.";
+                Utils.WriteWarning("You feel cold.");
             }
             else if (tempEnum == TemperatureEnum.Freezing)
             {
-                return "You are freezing cold.";
+                Utils.WriteDanger("You are freezing cold.");
             }
             else if (tempEnum == TemperatureEnum.Hot)
             {
-                return "You feel hot.";
+                Utils.WriteWarning("You feel hot.");
             }
             else if (tempEnum == TemperatureEnum.HeatExhaustion)
             {
-                return "You are burning up.";
+                Utils.WriteDanger("You are burning up.");
             }
             else
             {
-                return "You feel normal.";
+                Utils.WriteDanger("Error: Temperature effect not found.");
             }
         }
         private void UpdateTemperatureTick()
@@ -309,7 +306,10 @@
             }
         }
 
-
+        public override string ToString()
+        {
+            return Name;
+        }
 
 
 

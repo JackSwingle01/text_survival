@@ -4,17 +4,18 @@
     {
         public static void CombatLoop(Player player, NPC enemy)
         {
+            Utils.Write("You encounter a ", enemy, "!\n");
+
             if (enemy.Speed > player.Speed)
             {
-                PrintBattleInfo(player, enemy);
                 Attack(enemy, player);
             }
             while (player.Health > 0 && enemy.Health > 0)
             {
                 PrintBattleInfo(player, enemy);
-                Utils.Write("What do you want to do?");
-                Utils.Write("1. Attack");
-                Utils.Write("2. Run");
+                Utils.Write("What do you want to do?\n");
+                Utils.Write("1. Attack\n");
+                Utils.Write("2. Run\n");
                 int choice = Utils.ReadInt(1, 2);
                 if (choice == 1)
                 {
@@ -26,18 +27,18 @@
                 }
                 else if (choice == 2)
                 {
-                    Utils.Write("You ran away!");
+                    Utils.Write("You ran away!\n");
                     break;
                 }
                 player.Update(1);
             }
             if (player.Health <= 0)
             {
-                Utils.Write("You died!");
+                Utils.Write("You died!\n");
             }
             else if (enemy.Health <= 0)
             {
-                Utils.Write("You killed " + enemy.Name + "!");
+                Utils.Write("You killed ", enemy, "!\n");
                 if (enemy.Loot.Count() > 0)
                 {
                     GetLoot(player, enemy);
@@ -52,15 +53,15 @@
             }
             if (npc.Loot.Count() == 0)
             {
-                Utils.Write(npc.Name + " has no loot.");
+                Utils.Write(npc.Name + " has no loot.\n");
                 return;
             }
-            Utils.Write(npc.Name + " dropped:");
-            Item item = npc.Loot[Utils.Rand(0, npc.Loot.Count()-1)];
-            Utils.Write(item.ToString());
-            Utils.Write("Do you want to pick it up?");
-            Utils.Write("1. Yes");
-            Utils.Write("2. No");
+            Utils.Write(npc.Name + " dropped: ");
+            Item item = npc.Loot[Utils.Rand(0, npc.Loot.Count() - 1)];
+            item.Write();
+            Utils.Write("\nDo you want to pick it up?\n");
+            Utils.Write("1. Yes\n");
+            Utils.Write("2. No\n");
             int choice = Utils.ReadInt(1, 2);
             if (choice == 1)
             {
@@ -68,25 +69,25 @@
             }
             else
             {
-                Utils.Write("You left the " + item.Name + " on the ground.");
+                Utils.Write("You left the " + item + " on the ground.\n");
             }
         }
         public static void PrintBattleInfo(IActor combatant1, IActor combatant2)
         {
-            Utils.Write(CombatStatsToString(combatant1));
-            Utils.Write("VS");
-            Utils.Write(CombatStatsToString(combatant2));
+            WriteCombatStats(combatant1);
+            Utils.Write("VS\n");
+            WriteCombatStats(combatant2);
         }
         public static void Attack(IActor attacker, IActor defender)
         {
             float damage = CalcDamage(attacker, defender);
             if (DetermineDodge(attacker, defender))
             {
-                Utils.Write(defender.Name + " dodged the attack!");
+                Utils.Write(defender, " dodged the attack!\n");
                 return;
             }
             defender.Damage(damage);
-            Utils.Write(attacker.Name + " attacked " + defender.Name + " for " + damage.ToString("0.0") + " damage!");
+            Utils.Write(attacker, " attacked ", defender, " for ", Math.Round(damage, 1), " damage!\n");
         }
         public static bool DetermineDodge(IActor attacker, IActor defender)
         {
@@ -111,15 +112,13 @@
             }
             return damage;
         }
-        public static string CombatStatsToString(IActor c)
+        public static void WriteCombatStats(IActor c)
         {
-            string stats = "";
-            stats += c.Name + ":\n";
-            stats += "Health: " + c.Health + "/" + c.MaxHealth + "\n";
-            stats += "Strength: " + c.Strength + "\n";
-            stats += "Defense: " + c.Defense + "\n";
-            stats += "Speed: " + c.Speed + "\n";
-            return stats;
+            Utils.Write(c.Name, " => ",
+                "HP: ", Math.Round(c.Health, 2), "/", c.MaxHealth,
+                ", Str: ", c.Strength,
+                ", Def: ", c.Defense,
+                ", Spd: ", c.Speed, "\n");
         }
     }
 }

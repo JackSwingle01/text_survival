@@ -1,6 +1,4 @@
-﻿using System.ComponentModel;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public class Place
     {
@@ -52,41 +50,54 @@ namespace text_survival
             {
                 effect = effect / 2;
             }
-           
+
             return effect + BaseTemperature;
         }
 
         public override string ToString()
         {
-            string str = "";
-            str += Name;
-            str += "\n";
-            str += "Description: " + Description;
-            str += "\n";
-            return str;
+            return Name;
+        }
+        public void WriteInfo()
+        {
+            Utils.Write(Name);
+            Utils.Write(Description);
+            Utils.Write("Temperature: ", GetTemperature());
+            Utils.Write("Items: ");
+            foreach (Item item in Items)
+            {
+               item.Write();
+            }
+            Utils.Write("NPCs: ");
+            foreach (NPC npc in NPCs)
+            {
+                npc.Write();
+            }
         }
         public void Explore(Player player)
         {
             int minutes = new Random().Next(1, 60);
-            Utils.Write("You explore for " + minutes + " minutes");
+            Utils.Write("You explore for ", minutes, " minutes\n");
+            Utils.Write("...\n");
+            Thread.Sleep(1000);
             player.Update(minutes);
             if (Utils.FlipCoin())
             {
-                Utils.Write("You found nothing");
+                Utils.Write("You don't find anything interesting.\n");
                 return;
             }
             if (Utils.FlipCoin())
             {
                 // find item
                 Item item = this.Items.GetRandomItem();
-                Utils.Write("You found " + item.Name);
+                Utils.Write("You found: ", item, "!\n");
                 player.Inventory.Add(item);
                 return;
-            } else
+            }
+            else
             {
                 // find enemy
                 NPC npc = this.NPCs.GetRandomNPC();
-                Utils.Write("You encounter a " + npc.Name + "!");
                 Combat.CombatLoop(player, npc);
                 if (npc.Health <= 0)
                 {

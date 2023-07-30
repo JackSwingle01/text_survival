@@ -27,12 +27,20 @@ namespace text_survival
             Loot = new List<Item>();
         }
 
-        public override string ToString()
+        public string StatsToString()
         {
               return Name + ":\n" +
                 "Health: " + Health + "/" + MaxHealth + "\n" +
                 "Strength: " + Strength + "\n" +
                 "Defense: " + Defense;
+        }
+        public override string ToString()
+        {
+            return Name;
+        }
+        public void Write()
+        {
+            Utils.Write(this);
         }
         
         public void Damage(float damage)

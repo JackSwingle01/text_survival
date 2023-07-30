@@ -38,13 +38,13 @@
         {
             foreach (Item item in Items)
             {
-                Utils.Write(item.ToString());
+                item.Write();
             }
         }
 
         public void Print(int index)
         {
-            Utils.Write(Items[index].ToString());
+            Items[index].Write();
         }
 
         public Item GetRandomItem()
@@ -54,5 +54,9 @@
             return Items[index];
         }
 
+        public  List<Item>.Enumerator GetEnumerator()
+        {
+            return Items.GetEnumerator();
+        }
     }
 }

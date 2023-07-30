@@ -9,7 +9,7 @@ namespace text_survival
     public class Container
     {
         public float MaxWeight { get; set; }
-        private List<Item> Items { get; set; }
+        protected List<Item> Items { get; set; }
         public string Name { get; set; }
 
         public Container(string name, float maxWeight)
@@ -19,7 +19,7 @@ namespace text_survival
             Items = new List<Item>();
         }
 
-        public Item? GetItemFromInventory(int index)
+        public Item? GetItem(int index)
         {
             if (index < 0 || index >= Items.Count)
             {
@@ -30,46 +30,47 @@ namespace text_survival
 
         public Item? Open()
         {
-            Utils.Write(this.ToString());
+            this.Write();
             if (Items.Count == 0)
             {
                 return null;
             }
-            Utils.Write("Enter the number of the item you want or type 'exit' to exit");
-            string? input = Console.ReadLine();
-            if (input == "exit" || input == null)
+            Utils.Write("Enter the number of the item you want or type '0' to exit.\n");
+            int input = Utils.ReadInt(0, Items.Count);
+            if (input == 0)
             {
                 return null;
             }
-            int index = int.Parse(input) - 1;
-            return GetItemFromInventory(index);
-
+            int index = input- 1;
+            return GetItem(index);
         }
 
         public override string ToString()
         {
-            Utils.Write(this.Name + ":");
+            return Name;
+        }
+        public void Write()
+        {
+            Utils.Write(this.Name + ":\n");
             if (Items.Count == 0)
             {
-                return this.Name + " is empty!";
+                Utils.Write(Name, " is empty!\n");
             }
             string str = "";
             int count = 1;
             foreach (Item item in Items)
             {
-                str += count + ". ";
-                str += item.ToString();
-                str += "\n";
+                Utils.Write(count, ". ");
+                item.Write();
                 count++;
             }
-            return str;
         }
 
         public void Add(Item item)
         {
             if (item.Weight + GetWeight() > MaxWeight)
             {
-                Utils.Write("You can't carry that much!");
+                Utils.Write("The ", this, "is full!\n");
                 return;
             }
             Items.Add(item);
