@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace text_survival
+namespace text_survival.Actors
 {
     public interface IActor
     {
@@ -15,6 +15,6 @@ namespace text_survival
         public float Defense { get; set; }
         public int Speed { get; set; }
 
-        public void Damage(float damage); 
+        public void Damage(float damage);
     }
 }

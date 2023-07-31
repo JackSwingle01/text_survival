@@ -1,29 +1,35 @@
-﻿namespace text_survival
+﻿using text_survival.Actors;
+using text_survival.Items;
+
+namespace text_survival.Environments
 {
-    public class Place
+    public class Area
     {
         public string Name { get; set; }
         public string Description { get; set; }
         public ItemPool Items { get; set; }
         public NPCPool NPCs { get; set; }
+        public List<Location> Locations { get; set; }
         public float BaseTemperature { get; set; }
         public bool IsShelter { get; set; }
 
-        public Place(string name, string description)
+        public Area(string name, string description)
         {
-            this.Name = name;
-            this.Description = description;
-            this.Items = new ItemPool();
-            this.NPCs = new NPCPool();
+            Name = name;
+            Description = description;
+            Items = new ItemPool();
+            NPCs = new NPCPool();
+            Locations = new List<Location>();
         }
 
 
-        public Place(string name)
+        public Area(string name)
         {
-            this.Name = name;
-            this.Description = "";
+            Name = name;
+            Description = "";
             Items = new ItemPool();
             NPCs = new NPCPool();
+            Locations = new List<Location>();
         }
 
         public float GetTemperature()
@@ -63,16 +69,7 @@
             Utils.Write(Name);
             Utils.Write(Description);
             Utils.Write("Temperature: ", GetTemperature());
-            Utils.Write("Items: ");
-            foreach (Item item in Items)
-            {
-               item.Write();
-            }
-            Utils.Write("NPCs: ");
-            foreach (NPC npc in NPCs)
-            {
-                npc.Write();
-            }
+
         }
         public void Explore(Player player)
         {
@@ -81,28 +78,40 @@
             Utils.Write("...\n");
             Thread.Sleep(1000);
             player.Update(minutes);
-            if (Utils.FlipCoin())
+            int roll = Utils.Roll(4);
+            if (roll == 1)
             {
                 Utils.Write("You don't find anything interesting.\n");
                 return;
             }
-            if (Utils.FlipCoin())
+            else if (roll == 2)
             {
                 // find item
-                Item item = this.Items.GetRandomItem();
+                Item item = Items.GetRandomItem();
                 Utils.Write("You found: ", item, "!\n");
                 player.Inventory.Add(item);
                 return;
             }
-            else
+            else if (roll == 3)
             {
                 // find enemy
-                NPC npc = this.NPCs.GetRandomNPC();
+                NPC npc = NPCs.GetRandomNPC();
                 Combat.CombatLoop(player, npc);
                 if (npc.Health <= 0)
                 {
                     NPCs.Kill(npc);
                 }
+            }
+            else if (roll == 4)
+            {
+                // find location
+                if (Locations.Count == 0)
+                {
+                    Utils.Write("You don't find anything interesting.\n");
+                    return;
+                }
+                Location location = Locations[Utils.Rand(0, Locations.Count - 1)];
+                location.Enter(player);
             }
         }
 

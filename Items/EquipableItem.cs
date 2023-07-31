@@ -1,4 +1,4 @@
-﻿namespace text_survival
+﻿namespace text_survival.Items
 {
     public class EquipableItem : Item
     {
@@ -32,9 +32,9 @@
         {
             return Name;
         }
-        public void Write()
+        public override void Write()
         {
-            Utils.Write(this,": ", Description, "\n");
+            Utils.Write(this, ": ", Description, "\n");
             Utils.Write("Weight: ", Weight);
             Utils.Write(", Strength: ", Strength);
             Utils.Write(", Defense: ", Defense);
@@ -43,9 +43,9 @@
         }
         public void EquipTo(Player player)
         {
-            if (player.EquipedItems.Any(item => item.EquipSpot == this.EquipSpot))
+            if (player.EquipedItems.Any(item => item.EquipSpot == EquipSpot))
             {
-                EquipableItem? item = player.EquipedItems.Find(item => item.EquipSpot == this.EquipSpot);
+                EquipableItem? item = player.EquipedItems.Find(item => item.EquipSpot == EquipSpot);
                 item?.Unequip(player);
             }
             player.EquipedItems.Add(this);

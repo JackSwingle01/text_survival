@@ -1,9 +1,9 @@
-﻿namespace text_survival
-{ 
+﻿namespace text_survival.Items
+{
     public class ItemPool
     {
         private List<Item> Items { get; set; }
-        public ItemPool() 
+        public ItemPool()
         {
             Items = new List<Item>();
         }
@@ -54,9 +54,31 @@
             return Items[index];
         }
 
-        public  List<Item>.Enumerator GetEnumerator()
+        public List<Item>.Enumerator GetEnumerator()
         {
             return Items.GetEnumerator();
+        }
+        public Item? GetItemByName(string name)
+        {
+            foreach (Item item in Items)
+            {
+                if (item.Name == name)
+                {
+                    return item;
+                }
+            }
+            return null;
+        }
+        public void Write()
+        {
+            foreach (Item item in Items)
+            {
+                item.Write();
+            }
+        }
+        public int Count()
+        {
+            return Items.Count;
         }
     }
 }

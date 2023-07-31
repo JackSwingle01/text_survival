@@ -1,4 +1,4 @@
-﻿namespace text_survival
+﻿namespace text_survival.Items
 {
     public class ItemFactory
     {
@@ -215,7 +215,8 @@
                     EquipableItem armor = player.EquipedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
                     armor.Warmth += 2;
                     player.Inventory.Remove(silk);
-                } else
+                }
+                else
                 {
                     Utils.Write("You don't have any clothing to improve.");
                 }

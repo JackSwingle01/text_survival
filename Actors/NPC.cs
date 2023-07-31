@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using text_survival.Items;
 
-namespace text_survival
+namespace text_survival.Actors
 {
     public class NPC : IActor
     {
@@ -15,8 +16,9 @@ namespace text_survival
         public float Defense { get; set; }
         public int Speed { get; set; }
         public List<Item> Loot { get; set; }
+        public bool IsAlive { get { return Health > 0; } }
 
-        public NPC(string name, int health=10, int strength = 10, int defense = 10, int speed=10)
+        public NPC(string name, int health = 10, int strength = 10, int defense = 10, int speed = 10)
         {
             Name = name;
             Health = health;
@@ -29,10 +31,10 @@ namespace text_survival
 
         public string StatsToString()
         {
-              return Name + ":\n" +
-                "Health: " + Health + "/" + MaxHealth + "\n" +
-                "Strength: " + Strength + "\n" +
-                "Defense: " + Defense;
+            return Name + ":\n" +
+              "Health: " + Health + "/" + MaxHealth + "\n" +
+              "Strength: " + Strength + "\n" +
+              "Defense: " + Defense;
         }
         public override string ToString()
         {
@@ -42,7 +44,7 @@ namespace text_survival
         {
             Utils.Write(this);
         }
-        
+
         public void Damage(float damage)
         {
             Health -= damage;

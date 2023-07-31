@@ -1,4 +1,4 @@
-﻿namespace text_survival
+﻿namespace text_survival.Items
 {
     public class Item
     {
@@ -9,9 +9,9 @@
 
         public Item(string name, float weight = 1, int uses = 1)
         {
-            this.Name = name;
-            this.Weight = weight;
-            this.Description = "";
+            Name = name;
+            Weight = weight;
+            Description = "";
             UseEffect = (player) =>
             {
                 Utils.Write("Nothing happened.\n");

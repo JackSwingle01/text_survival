@@ -1,11 +1,19 @@
-﻿namespace text_survival
+﻿using text_survival.Actors;
+using text_survival.Items;
+
+namespace text_survival
 {
     public static class Utils
     {
-
-        public static string? Read()
+        static Random random = new Random();
+        public static string Read()
         {
-            return Console.ReadLine();
+            string? input = Console.ReadLine();
+            if (input == null)
+            {
+                return "";
+            }
+            return input;
         }
         public static int ReadInt()
         {
@@ -37,13 +45,6 @@
                 }
             }
         }
-        //public static void Write(string str, int delay = 1000, ConsoleColor color = ConsoleColor.White)
-        //{
-        //    Console.ForegroundColor = color;
-        //    Console.WriteLine(str);
-        //    Thread.Sleep(delay);
-        //}
-
 
         public static ConsoleColor DetermineTextColor(object x)
         {
@@ -113,18 +114,15 @@
 
         public static int Roll(int sides)
         {
-            Random rand = new Random();
-            return rand.Next(1, sides + 1);
+            return random.Next(1, sides + 1);
         }
         public static int Rand(int low, int high)
         {
-            Random rand = new Random();
-            return rand.Next(low, high + 1);
+            return random.Next(low, high + 1);
         }
         public static bool FlipCoin()
         {
-            Random rand = new Random();
-            return rand.Next(2) == 0;
+            return random.Next(2) == 0;
         }
     }
 }

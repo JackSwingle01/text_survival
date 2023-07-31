@@ -1,4 +1,4 @@
-﻿namespace text_survival
+﻿namespace text_survival.Items
 {
     public class FoodItem : Item
     {
@@ -7,8 +7,8 @@
 
         public FoodItem(string name, int calories, int waterContent = 0, int weight = 1, int uses = 1) : base(name, weight, uses)
         {
-            this.Calories = calories;
-            this.WaterContent = waterContent;
+            Calories = calories;
+            WaterContent = waterContent;
             UseEffect = (player) => { player.Eat(this); };
         }
 

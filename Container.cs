@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using text_survival.Items;
 
 namespace text_survival
 {
@@ -56,7 +57,6 @@ namespace text_survival
             {
                 Utils.Write(Name, " is empty!\n");
             }
-            string str = "";
             int count = 1;
             foreach (Item item in Items)
             {

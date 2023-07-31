@@ -1,4 +1,4 @@
-﻿namespace text_survival
+﻿namespace text_survival.Actors
 {
     public class NPCPool
     {
@@ -30,11 +30,8 @@
         {
             NPCs.RemoveAt(index);
         }
-        public NPC GetNPC(int index)
-        {
-            return NPCs[index];
-        }
-        public NPC? GetNPC(string name)
+        
+        public NPC? GetNPCByName(string name)
         {
             foreach (NPC npc in NPCs)
             {
@@ -46,25 +43,22 @@
             return null;
         }
 
-        public void Print()
+        public void Write()
         {
             foreach (NPC npc in NPCs)
             {
-                Utils.Write(npc.ToString());
+                Utils.Write(npc);
             }
-        }
-        public void Print(int index)
-        {
-            Utils.Write(NPCs[index].ToString());
         }
         public NPC GetRandomNPC()
         {
+            Update();
             if (NPCs.Count == 0)
             {
                 Refresh();
                 return new NPC("Ghost", 1, 1, 1, 1);
             }
-            int index = Utils.Rand(0,NPCs.Count-1);
+            int index = Utils.Rand(0, NPCs.Count - 1);
             return NPCs[index];
         }
         public List<NPC>.Enumerator GetEnumerator()
@@ -73,6 +67,7 @@
         }
         public void Refresh()
         {
+            Update();
             foreach (NPC npc in Graveyard)
             {
                 NPCs.Add(npc);
@@ -87,6 +82,31 @@
         {
             Graveyard.Add(npc);
             NPCs.Remove(npc);
+        }
+        public bool IsEmpty()
+        {
+            Update();
+            return NPCs.Count == 0;
+        }
+        public int Count()
+        {
+            Update();
+            return NPCs.Count;
+        }
+        public void Update()
+        {
+            List<NPC> dead = new List<NPC>();
+            foreach (var npc in NPCs)
+            {
+                if (!npc.IsAlive)
+                {
+                    dead.Add(npc);
+                }
+            }
+            foreach (var npc in dead)
+            {
+                Kill(npc);
+            }
         }
     }
 

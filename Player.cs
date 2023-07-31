@@ -1,4 +1,8 @@
-﻿namespace text_survival
+﻿using text_survival.Actors;
+using text_survival.Environments;
+using text_survival.Items;
+
+namespace text_survival
 {
     public class Player : IActor
     {
@@ -17,7 +21,9 @@
         public float Exaustion { get; private set; }
         public float BodyTemperature { get; private set; }
         public TemperatureEnum TemperatureEffect { get; private set; }
-        public Place Location { get; set; }
+        public Area CurrentArea { get; set; }
+        public Location? CurrentLocation { get; set; }
+
         public float WarmthBonus { get; set; }
         public float MaxHealth { get; set; }
         public Container Inventory { get; set; }
@@ -27,7 +33,7 @@
         public List<EquipableItem> EquipedItems { get; set; }
 
 
-        public Player(Place location)
+        public Player(Area area)
         {
             Name = "Player";
             Hunger = 0;
@@ -36,7 +42,8 @@
             Health = MaxHealth;
             Exaustion = 0;
             BodyTemperature = 98.6F;
-            Location = location;
+            CurrentArea = area;
+            CurrentLocation = null;
             Inventory = new Container("Backpack", 10);
             Strength = 10;
             Defense = 10;
@@ -289,7 +296,7 @@
             }
             float skinTemp = BodyTemperature - 8.4F;
             float rate = 1F / 100F;
-            float feelsLike = Location.GetTemperature();
+            float feelsLike = CurrentArea.GetTemperature();
             feelsLike += WarmthBonus;
             float tempChange = (skinTemp - feelsLike) * rate;
             BodyTemperature -= tempChange;
@@ -311,7 +318,7 @@
             return Name;
         }
 
-
+        
 
 
     }

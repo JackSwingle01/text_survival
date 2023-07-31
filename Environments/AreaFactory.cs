@@ -1,6 +1,9 @@
-﻿namespace text_survival
+﻿using text_survival.Actors;
+using text_survival.Items;
+
+namespace text_survival.Environments
 {
-    public static class Places
+    public static class AreaFactory
     {
         private enum EnvironmentType
         {
@@ -9,34 +12,40 @@
             Cave,
             River,
         }
-        public static Place GetShack()
+        public static Area GetShack()
         {
-            Place shack = new Place("Shack", "An abandoned shack.");
+            Area shack = new Area("Shack", "An abandoned shack.");
             shack.Items = CreateItemPool(EnvironmentType.Shack);
             shack.NPCs = CreateNPCPool(EnvironmentType.Shack);
             shack.BaseTemperature = 75.0F;
             return shack;
         }
 
-        public static Place GetForest()
+        public static Area GetForest()
         {
-            Place forest = new Place("Forest", "A forest with dense vegitation");
+            Area forest = new Area("Forest", "A forest with dense vegitation");
             forest.Items = CreateItemPool(EnvironmentType.Forest);
             forest.NPCs = CreateNPCPool(EnvironmentType.Forest);
             forest.BaseTemperature = 70.0F;
+            Location grove = new Location("Grove", "A small clearing in the forest.");
+            grove.Items.Add(new Item("Mushroom", 0.1F));
+            grove.NPCPool.Add(new NPC("Deer", 10, 0, 5, 20));
+            grove.NPCPool.Add(new NPC("Rabbit", 5, 0, 2, 10));
+            grove.NPCPool.Add(NPCFactory.MakeWolf());
+            forest.Locations.Add(grove);
             return forest;
         }
-        public static Place GetCave()
+        public static Area GetCave()
         {
-            Place cave = new Place("Cave", "A dark cold cave.");
+            Area cave = new Area("Cave", "A dark cold cave.");
             cave.Items = CreateItemPool(EnvironmentType.Cave);
             cave.NPCs = CreateNPCPool(EnvironmentType.Cave);
             cave.BaseTemperature = 50.0F;
             return cave;
         }
-        public static Place GetRiver()
+        public static Area GetRiver()
         {
-            Place river = new Place("River", "A river with fresh water.");
+            Area river = new Area("River", "A river with fresh water.");
             river.Items = CreateItemPool(EnvironmentType.River);
             river.NPCs = CreateNPCPool(EnvironmentType.River);
             river.BaseTemperature = 60.0F;
@@ -70,34 +79,34 @@
 
         private static Dictionary<EnvironmentType, List<string>> environmentItems = new()
         {
-            { EnvironmentType.Shack, new List<string> { 
-                "Apple", 
-                "Bread", 
-                "Coin", 
-                "Sword", 
-                "Shield", 
-                "Bandage", 
-                "Health Potion", 
-                "Armor" 
+            { EnvironmentType.Shack, new List<string> {
+                "Apple",
+                "Bread",
+                "Coin",
+                "Sword",
+                "Shield",
+                "Bandage",
+                "Health Potion",
+                "Armor"
             } },
-            { EnvironmentType.Forest, new List<string> { 
+            { EnvironmentType.Forest, new List<string> {
                 "Berry",
                 //"Carrot", 
-                "Water", 
-                "Mushroom", 
+                "Water",
+                "Mushroom",
                 "Stick",
                 //"Wood" 
             } },
-            { EnvironmentType.Cave, new List<string> { 
-                "Mushroom", 
-                "Rock", 
-                "Gemstone", 
-                "Torch" 
+            { EnvironmentType.Cave, new List<string> {
+                "Mushroom",
+                "Rock",
+                "Gemstone",
+                "Torch"
             } },
             { EnvironmentType.River, new List<string>
             {
-                "Fish", 
-                "Water" 
+                "Fish",
+                "Water"
             } },
 
         };
@@ -114,30 +123,30 @@
             { "Dragon", NPCFactory.MakeDragon() },
             { "Skeleton", NPCFactory.MakeSkeleton() },
             { "Crocodile", NPCFactory.MakeCrocodile() },
-            
+
         };
 
 
         private static Dictionary<EnvironmentType, List<string>> environmentNPCs = new()
         {
-            { EnvironmentType.Forest, new List<string> { 
+            { EnvironmentType.Forest, new List<string> {
                 "Wolf",
                 "Bear",
                 "Snake",
-                "Goblin" 
+                "Goblin"
             } },
-            { EnvironmentType.Cave, new List<string> { 
-                "Bat", 
-                "Spider", 
-                "Snake", 
-                "Dragon", 
+            { EnvironmentType.Cave, new List<string> {
+                "Bat",
+                "Spider",
+                "Snake",
+                "Dragon",
                 "Skeleton" } },
-            { EnvironmentType.Shack, new List<string> { 
+            { EnvironmentType.Shack, new List<string> {
                 "Rat"
             } },
             { EnvironmentType.River, new List<string>
             {
-                "Crocodile" 
+                "Crocodile"
             } },
         };
 

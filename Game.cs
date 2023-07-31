@@ -1,18 +1,21 @@
-﻿namespace text_survival
+﻿using text_survival.Environments;
+using text_survival.Items;
+
+namespace text_survival
 {
     internal class Game
     {
-        List<Place> places = new List<Place>();
-        Place currentPlace;
+        List<Area> areas = new List<Area>();
+
+
         Player player;
         public Game()
         {
-            places.Add(Places.GetForest());
-            places.Add(Places.GetShack());
-            places.Add(Places.GetCave());
-            places.Add(Places.GetRiver());
-            currentPlace = places[0];
-            player = new Player(currentPlace);
+            areas.Add(AreaFactory.GetForest());
+            areas.Add(AreaFactory.GetShack());
+            areas.Add(AreaFactory.GetCave());
+            areas.Add(AreaFactory.GetRiver());
+            player = new Player(areas[0]);
             World.Time = new TimeOnly(hour:9, minute:0);
         }
         public void Start()
@@ -25,8 +28,8 @@
         public void Act()
         {
             player.WriteSurvivalStats();
-            Utils.Write("Location: ", currentPlace, "\n");
-            Utils.Write("Time: ", World.Time, " Temp: ", currentPlace.GetTemperature(), "°F\n");
+            Utils.Write("CurrentArea: ", player.CurrentArea, "\n");
+            Utils.Write("Time: ", World.Time, " Temp: ", player.CurrentArea.GetTemperature(), "°F\n");
             Utils.Write("What would you like to do?\n");
             Utils.Write("1. Explore\n");
             Utils.Write("2. Use an item\n");
@@ -37,11 +40,16 @@
             int input = Utils.ReadInt();
             if (input == 1)
             {
-                currentPlace.Explore(player);
+                if (player.CurrentLocation == null)
+                {
+                    player.CurrentArea.Explore(player);
+                } else
+                {
+                    player.CurrentLocation.Explore(player);
+                }
             }
             else if (input == 2)
             {
-                Utils.Write(player.EquipedItemsToString());
                 Item? item = player.Inventory.Open();
                 item?.Use(player);
             }
@@ -73,8 +81,8 @@
         public void Travel(Player player)
         {
             Utils.Write("Where would you like to go?\n");
-            List<Place> options = new List<Place>();
-            options.AddRange(places.FindAll(p => p != currentPlace));
+            List<Area> options = new List<Area>();
+            options.AddRange(areas.FindAll(p => p != player.CurrentArea));
             for (int i = 0; i < options.Count; i++)
             {
                 Utils.Write((i + 1) + ". ", options[i],"\n");
@@ -86,9 +94,9 @@
                 {
                     Utils.Write("You travel for 1 hour\n");
                     player.Update(60);
-                    currentPlace = options[index - 1];
-                    player.Location = currentPlace;
-                    Utils.Write("You are now at ", currentPlace.Name,"\n");
+                    player.CurrentArea = options[index - 1];
+                    player.CurrentArea = player.CurrentArea;
+                    Utils.Write("You are now at ", player.CurrentArea.Name,"\n");
                 }
                 else
                 {
