@@ -6,19 +6,19 @@ namespace text_survival
 {
     public class Player : IActor
     {
-        private float HUNGER_RATE = (2500F / (24F * 60F)); // calories per minute
-        private float THIRST_RATE = (4000F / (24F * 60F)); // mL per minute
-        private float EXAUSTION_RATE = (480F / (24F * 60F)); // minutes per minute (8 hours per 24)
+        private float _hungerRate = (2500F / (24F * 60F)); // calories per minute
+        private float _thirstRate = (4000F / (24F * 60F)); // mL per minute
+        private float _exaustionRate = (480F / (24F * 60F)); // minutes per minute (8 hours per 24)
 
-        private const float MAX_HUNGER = 3000.0F; // calories
-        private const float MAX_THIRST = 3000.0F; // mL
-        private const float MAX_EXAUSTION = 480.0F; // minutes (8 hours)
+        private const float MaxHunger = 3000.0F; // calories
+        private const float MaxThirst = 3000.0F; // mL
+        private const float MaxExaustion = 480.0F; // minutes (8 hours)
 
         public string Name { get; set; }
         public float Hunger { get; set; }
         public float Thirst { get; set; }
         public float Health { get; set; }
-        public float Exaustion { get; private set; }
+        public float Exhaustion { get; private set; }
         public float BodyTemperature { get; private set; }
         public TemperatureEnum TemperatureEffect { get; private set; }
         public Area CurrentArea { get; set; }
@@ -30,8 +30,8 @@ namespace text_survival
         public float Strength { get; set; }
         public float Defense { get; set; }
         public int Speed { get; set; }
-        public List<EquipableItem> EquipedItems { get; set; }
-
+        public List<EquipableItem> EquippedItems { get; set; }
+        
 
         public Player(Area area)
         {
@@ -40,7 +40,7 @@ namespace text_survival
             Thirst = 0;
             MaxHealth = 100;
             Health = MaxHealth;
-            Exaustion = 0;
+            Exhaustion = 0;
             BodyTemperature = 98.6F;
             CurrentArea = area;
             CurrentLocation = null;
@@ -48,7 +48,7 @@ namespace text_survival
             Strength = 10;
             Defense = 10;
             Speed = 10;
-            EquipedItems = new List<EquipableItem>();
+            EquippedItems = new List<EquipableItem>();
             ItemFactory.MakeClothShirt().EquipTo(this);
             ItemFactory.MakeClothPants().EquipTo(this);
             ItemFactory.MakeBoots().EquipTo(this);
@@ -57,37 +57,19 @@ namespace text_survival
         public void WriteSurvivalStats()
         {
             Utils.Write("Health: ", (int)(Health), "%\n",
-                "Hunger: ", (int)((Hunger / MAX_HUNGER) * 100), "%\n",
-                "Thirst: ", (int)((Thirst / MAX_THIRST) * 100), "%\n",
-                "Exaustion: ", (int)((Exaustion / MAX_EXAUSTION) * 100), "%\n",
+                "Hunger: ", (int)((Hunger / MaxHunger) * 100), "%\n",
+                "Thirst: ", (int)((Thirst / MaxThirst) * 100), "%\n",
+                "Exhaustion: ", (int)((Exhaustion / MaxExaustion) * 100), "%\n",
                 "Body Temperature: ", Math.Round(BodyTemperature, 1), "°F\n");
         }
 
-        public string EquipedItemsToString()
+        public void WriteEquipedItems()
         {
-            string items = "";
-            foreach (EquipableItem item in EquipedItems)
+            foreach (EquipableItem item in EquippedItems)
             {
-                items += item.EquipSpot + ": " + item.Name + " => ";
-                if (item.Strength != 0)
-                {
-                    items += "Str: " + item.Strength;
-                }
-                if (item.Defense != 0)
-                {
-                    items += " Def: " + item.Defense;
-                }
-                if (item.Speed != 0)
-                {
-                    items += " Spd: " + item.Speed;
-                }
-                if (item.Warmth != 0)
-                {
-                    items += " Warmth: " + item.Warmth;
-                }
-                items += "\n";
+                Utils.Write(item.EquipSpot, " => ");
+                item.Write();
             }
-            return items;
         }
 
         public void Eat(FoodItem food)
@@ -110,7 +92,7 @@ namespace text_survival
             for (int i = 0; i < minutes; i++)
             {
                 SleepTick();
-                if (Exaustion <= 0)
+                if (Exhaustion <= 0)
                 {
                     Utils.Write("You wake up feeling refreshed.\n");
                     Heal(i / 6);
@@ -121,7 +103,7 @@ namespace text_survival
         }
         private void SleepTick()
         {
-            Exaustion -= 1 + EXAUSTION_RATE; // 1 minute plus negatet exaustion rate for update
+            Exhaustion -= 1 + _exaustionRate; // 1 minute plus negatet exaustion rate for update
             Update(1);
         }
 
@@ -166,20 +148,20 @@ namespace text_survival
 
         private void UpdateHungerTick()
         {
-            Hunger += HUNGER_RATE;
-            if (Hunger >= MAX_HUNGER)
+            Hunger += _hungerRate;
+            if (Hunger >= MaxHunger)
             {
-                Hunger = MAX_HUNGER;
+                Hunger = MaxHunger;
                 this.Damage(1);
             }
 
         }
         private void UpdateThirstTick()
         {
-            Thirst += THIRST_RATE;
-            if (Thirst >= MAX_THIRST)
+            Thirst += _thirstRate;
+            if (Thirst >= MaxThirst)
             {
-                Thirst = MAX_THIRST;
+                Thirst = MaxThirst;
                 this.Damage(1);
             }
         }
@@ -187,11 +169,11 @@ namespace text_survival
 
         private void UpdateExaustionTick()
         {
-            Exaustion += EXAUSTION_RATE;
+            Exhaustion += _exaustionRate;
 
-            if (Exaustion >= MAX_EXAUSTION)
+            if (Exhaustion >= MaxExaustion)
             {
-                Exaustion = MAX_EXAUSTION;
+                Exhaustion = MaxExaustion;
                 this.Damage(1);
             }
         }
@@ -288,7 +270,7 @@ namespace text_survival
             // body heats based on calories burned
             if (BodyTemperature < 98.6)
             {
-                float joulesBurned = Physics.CaloriesToJoules(HUNGER_RATE);
+                float joulesBurned = Physics.CaloriesToJoules(_hungerRate);
                 float specificHeatOfHuman = 3500F;
                 float weight = 70F;
                 float tempChangeCelcius = Physics.TempChange(weight, specificHeatOfHuman, joulesBurned);

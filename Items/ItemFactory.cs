@@ -11,68 +11,83 @@
                 if (Utils.FlipCoin())
                 {
                     player.Heal(1);
-                    Utils.Write("You feel better");
+                    Utils.Write("You feel better\n");
                 }
                 else
                 {
                     player.Damage(1);
-                    Utils.Write("You feel sick");
+                    Utils.Write("You feel sick\n");
                 }
             };
+            mushroom.Description = "A mushroom of unknown origin. It looks edible, but you're not sure.";
+            mushroom.Weight = 0.1F;
             return mushroom;
         }
 
         public static FoodItem MakeApple()
         {
-            return new FoodItem("Apple", 90, 50);
+            var apple = new FoodItem("Apple", 90, 50);
+            apple.Description = "A red apple. It looks delicious.";
+            apple.Weight = 0.2F;
+            return apple;
         }
 
         public static FoodItem MakeBread()
         {
-            return new FoodItem("Bread", 300, -10);
+            var item = new FoodItem("Bread", 300, -10);
+            item.Description = "A loaf of bread. Looks kind of stale.";
+            item.Weight = 0.5F;
+            return item;
         }
 
         public static FoodItem MakeBerry()
         {
-            return new FoodItem("Berries", 120, 100);
+            var item = new FoodItem("Berries", 120, 100);
+            string color = Utils.FlipCoin() ? "red" : "blue";
+            item.Description = "A handful of " + color + " berries.";
+            item.Weight = 0.1F;
+            return item;
         }
 
         public static FoodItem MakeCarrot()
         {
-            return new FoodItem("Carrot", 50, 30);
+            var item = new FoodItem("Carrot", 50, 30);
+            return item;
         }
 
         public static FoodItem MakeWater()
         {
-            return new FoodItem("Water", 0, 1000);
+            var item = new FoodItem("Water", 0, 1000);
+            item.Description = "Some water. You store it in your waterskin.";
+            return item;
         }
 
         public static Item MakeStick()
         {
             Item stick = new Item("Stick");
-            stick.UseEffect = (Player) =>
+            stick.UseEffect = (player) =>
             {
-                Utils.Write("You can make this into a torch or a spear.");
-                Utils.Write("What would you like to make?");
-                Utils.Write("1. Torch");
-                Utils.Write("2. Spear");
-                Utils.Write("3. Nothing");
+                Utils.Write("You can make this into a torch or a spear.\n");
+                Utils.Write("What would you like to make?\n");
+                Utils.Write("1. Torch\n");
+                Utils.Write("2. Spear\n");
+                Utils.Write("3. Nothing\n");
                 int choice = Utils.ReadInt(1, 3);
                 if (choice == 1)
                 {
-                    Player.Inventory.Remove(stick);
-                    Player.Inventory.Add(MakeTorch());
-                    Utils.Write("You made a torch!");
+                    player.Inventory.Remove(stick);
+                    player.Inventory.Add(MakeTorch());
+                    Utils.Write("You made a torch!\n");
                 }
                 else if (choice == 2)
                 {
-                    Player.Inventory.Remove(stick);
-                    Player.Inventory.Add(MakeSpear());
-                    Utils.Write("You made a spear!");
+                    player.Inventory.Remove(stick);
+                    player.Inventory.Add(MakeSpear());
+                    Utils.Write("You made a spear!\n");
                 }
                 else
                 {
-                    Utils.Write("You decide to keep the stick.");
+                    Utils.Write("You decide to keep the stick.\n");
                 }
             };
             return stick;
@@ -80,42 +95,56 @@
         public static Item MakeSpear()
         {
             EquipableItem spear = new EquipableItem("Spear", 7, 0, -1, 0);
+            spear.EquipSpot = EquipableItem.EquipSpots.Weapon;
             return spear;
         }
 
         public static Item MakeWood()
         {
-            return new Item("Wood");
+            var item = new Item("Wood");
+            return item;
         }
 
         public static Item MakeRock()
         {
-            return new Item("Rock");
+            var item = new Item("Rock");
+            return item;
         }
 
         public static Item MakeGemstone()
         {
-            return new Item("Gemstone");
+            var item = new Item("Gemstone");
+            return item;
         }
 
         public static Item MakeCoin()
         {
-            return new Item("Coin");
+            var item = new Item("Coin");
+            return item;
         }
 
         public static EquipableItem MakeSword()
         {
-            return new EquipableItem("Sword", 20, 2, 0);
+            EquipableItem sword = new EquipableItem("Sword", 20, 2, 0);
+            sword.EquipSpot = EquipableItem.EquipSpots.Weapon;
+            sword.Description = "A sword that does 20 damage";
+            return sword;
         }
 
         public static EquipableItem MakeShield()
         {
-            return new EquipableItem("Shield", 0, 10, -1);
+            EquipableItem shield =  new EquipableItem("Shield", 0, 10, -1);
+            shield.EquipSpot = EquipableItem.EquipSpots.Hands;
+            shield.Description = "A shield that blocks 10% damage";
+            return shield;
         }
 
         public static EquipableItem MakeArmor()
         {
-            return new EquipableItem("Armor", 0, 20, -5);
+            EquipableItem armor = new EquipableItem("Armor", 0, 20, -5);
+            armor.EquipSpot = EquipableItem.EquipSpots.Chest;
+            armor.Description = "Armor that blocks 20% damage but slows you down";
+            return armor;
         }
 
         public static Item MakeHealthPotion()
@@ -124,8 +153,9 @@
             potion.UseEffect = (player) =>
             {
                 player.Heal(10);
-                Utils.Write("You feel better");
+                Utils.Write("You feel better\n");
             };
+            potion.Description = "A potion that heals you for 10 health";
             return potion;
         }
 
@@ -135,43 +165,52 @@
             bandage.UseEffect = (player) =>
             {
                 player.Heal(5);
-                Utils.Write("You feel better");
+                Utils.Write("You feel better\n");
             };
+            bandage.Description = "A bandage that heals you for 5 health";
             return bandage;
         }
 
         public static EquipableItem MakeTorch()
         {
             EquipableItem torch = new EquipableItem("Torch", 0, 0, 0, 5);
+            torch.EquipSpot = EquipableItem.EquipSpots.Hands;
+            torch.Description = "A torch that warms you";
             return torch;
         }
 
         public static FoodItem MakeFish()
         {
-            return new FoodItem("Fish", 200, 0);
+            var item = new FoodItem("Fish", 200, 0);
+            return item;
         }
 
         public static FoodItem MakeLargeMeat()
         {
-            return new FoodItem("Large Meat", 600, 0);
+            var item = new FoodItem("Large Meat", 600, 0);
+            return item;
         }
         public static FoodItem MakeSmallMeat()
         {
-            return new FoodItem("Small Meat", 200, 0);
+            var item = new FoodItem("Small Meat", 200, 0);
+            return item;
         }
         public static FoodItem MakeCheese()
         {
-            return new FoodItem("Cheese", 150, 30);
+            var item = new FoodItem("Cheese", 150, 30);
+            return item;
         }
 
         public static Item MakeCopperCoin()
         {
-            return new Item("Copper Coin");
+            var item = new Item("Copper Coin");
+            return item;
         }
 
         public static Item MakeSnakeSkin()
         {
-            return new Item("Snake Skin");
+            var item = new Item("Snake Skin");
+            return item;
         }
 
         public static Item MakeVenomVial()
@@ -179,16 +218,16 @@
             Item vial = new Item("Venom Vial");
             vial.UseEffect = (player) =>
             {
-                Utils.Write("You can use this to poison your weapon.");
-                if (player.EquipedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
+                Utils.Write("You can use this to poison your weapon.\n");
+                if (player.EquippedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
                 {
-                    EquipableItem weapon = player.EquipedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
+                    EquipableItem weapon = player.EquippedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
                     weapon.Strength += 2;
                     player.Inventory.Remove(vial);
                 }
                 else
                 {
-                    Utils.Write("You don't have any weapons to poison.");
+                    Utils.Write("You don't have any weapons to poison.\n");
                 }
             };
             return vial;
@@ -196,12 +235,14 @@
 
         public static Item MakeBatWing()
         {
-            return new Item("Bat Wing");
+            var item = new Item("Bat Wing");
+            return item;
         }
 
         public static Item MakeGuano()
         {
-            return new Item("Guano");
+            var item = new Item("Guano");
+            return item;
         }
 
         public static Item MakeSpiderSilk()
@@ -209,16 +250,16 @@
             Item silk = new Item("Spider Silk");
             silk.UseEffect = (player) =>
             {
-                Utils.Write("You can use this to improve your clothing.");
-                if (player.EquipedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
+                Utils.Write("You can use this to improve your clothing.\n");
+                if (player.EquippedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
                 {
-                    EquipableItem armor = player.EquipedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
+                    EquipableItem armor = player.EquippedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
                     armor.Warmth += 2;
                     player.Inventory.Remove(silk);
                 }
                 else
                 {
-                    Utils.Write("You don't have any clothing to improve.");
+                    Utils.Write("You don't have any clothing to improve.\n");
                 }
             };
             return silk;
@@ -244,10 +285,10 @@
             Item scale = new Item("Dragon Scale");
             scale.UseEffect = (player) =>
             {
-                Utils.Write("You can use this to improve your armor.");
-                if (player.EquipedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
+                Utils.Write("You can use this to improve your armor.\n");
+                if (player.EquippedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
                 {
-                    EquipableItem armor = player.EquipedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
+                    EquipableItem armor = player.EquippedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
                     armor.Defense += 6;
                     player.Inventory.Remove(scale);
                 }
@@ -260,10 +301,10 @@
             Item tooth = new Item("Dragon Tooth");
             tooth.UseEffect = (player) =>
             {
-                Utils.Write("You can use this to improve your weapon.");
-                if (player.EquipedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
+                Utils.Write("You can use this to improve your weapon.\n");
+                if (player.EquippedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
                 {
-                    EquipableItem weapon = player.EquipedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
+                    EquipableItem weapon = player.EquippedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
                     weapon.Strength += 6;
                     player.Inventory.Remove(tooth);
                 }
@@ -277,7 +318,7 @@
             item.UseEffect = (player) =>
             {
                 int num = Utils.Rand(3, 5);
-                Utils.Write("It contained " + num + " coins");
+                Utils.Write("It contained " + num + " coins\n");
                 for (int i = 0; i < num; i++)
                 {
                     player.Inventory.Add(MakeCoin());
@@ -289,7 +330,8 @@
 
         public static Item MakeBoneFragments()
         {
-            return new Item("Bone Fragments");
+            var item = new Item("Bone Fragments");
+            return item;
         }
 
         public static EquipableItem MakeRustySword()
@@ -301,13 +343,34 @@
 
         public static Item MakeCrocodileSkin()
         {
-            return new Item("Crocodile Skin");
-
+            Item skin = new Item("Crocodile Skin");
+            skin.UseEffect = (player) =>
+            {
+                Utils.Write("You can use this to improve your armor.\n");
+                if (player.EquippedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
+                {
+                    EquipableItem armor = player.EquippedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
+                    armor.Defense += 2;
+                    player.Inventory.Remove(skin);
+                }
+            };
+            return skin;
         }
 
         public static Item MakeCrocodileTooth()
         {
-            return new Item("Crocodile Tooth");
+            Item tooth = new Item("Crocodile Tooth");
+            tooth.UseEffect = (player) =>
+            {
+                Utils.Write("You can use this to improve your weapon.\n");
+                if (player.EquippedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
+                {
+                    EquipableItem weapon = player.EquippedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
+                    weapon.Strength += 2;
+                    player.Inventory.Remove(tooth);
+                }
+            };
+            return tooth;
         }
 
         public static EquipableItem MakeClothShirt()

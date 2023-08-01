@@ -2,83 +2,27 @@
 {
     public class ItemPool
     {
-        private List<Item> Items { get; set; }
+        private List<Func<Item>> ItemMethods { get; set; }
         public ItemPool()
         {
-            Items = new List<Item>();
+            ItemMethods = new List<Func<Item>>();
         }
-        public ItemPool(List<Item> items)
+        
+        public void Add(Func<Item> item)
         {
-            Items = items;
+            ItemMethods.Add(item);
         }
 
-        public void Add(Item item)
+        public void Remove(Func<Item> itemFactoryMethod)
         {
-            Items.Add(item);
+            ItemMethods.Remove(itemFactoryMethod);
         }
-        public void Add(List<Item> items)
-        {
-            Items.AddRange(items);
-        }
-
-        public void Remove(Item item)
-        {
-            Items.Remove(item);
-        }
-        public void RemoveAt(int index)
-        {
-            Items.RemoveAt(index);
-        }
-        public Item GetItem(int index)
-        {
-            return Items[index];
-        }
-
-        public void Print()
-        {
-            foreach (Item item in Items)
-            {
-                item.Write();
-            }
-        }
-
-        public void Print(int index)
-        {
-            Items[index].Write();
-        }
-
         public Item GetRandomItem()
         {
             Random rand = new Random();
-            int index = rand.Next(Items.Count);
-            return Items[index];
+            int index = rand.Next(ItemMethods.Count);
+            return ItemMethods[index].Invoke();
         }
 
-        public List<Item>.Enumerator GetEnumerator()
-        {
-            return Items.GetEnumerator();
-        }
-        public Item? GetItemByName(string name)
-        {
-            foreach (Item item in Items)
-            {
-                if (item.Name == name)
-                {
-                    return item;
-                }
-            }
-            return null;
-        }
-        public void Write()
-        {
-            foreach (Item item in Items)
-            {
-                item.Write();
-            }
-        }
-        public int Count()
-        {
-            return Items.Count;
-        }
     }
 }

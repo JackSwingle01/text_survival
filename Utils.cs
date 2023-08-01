@@ -5,15 +5,17 @@ namespace text_survival
 {
     public static class Utils
     {
-        static Random random = new Random();
+        private static readonly Random Random;
+
+        static Utils()
+        {
+            Random = new Random();
+        }
+
         public static string Read()
         {
             string? input = Console.ReadLine();
-            if (input == null)
-            {
-                return "";
-            }
-            return input;
+            return input ?? "";
         }
         public static int ReadInt()
         {
@@ -48,42 +50,16 @@ namespace text_survival
 
         public static ConsoleColor DetermineTextColor(object x)
         {
-            if (x is string)
+            return x switch
             {
-                return ConsoleColor.Gray;
-            }
-            else if (x is int || x is float || x is double)
-            {
-                return ConsoleColor.Green;
-            }
-            else if (x is NPC)
-            {
-                return ConsoleColor.Red;
-            }
-            else if (x is FoodItem)
-            {
-                return ConsoleColor.Cyan;
-            }
-            else if (x is EquipableItem)
-            {
-                return ConsoleColor.DarkCyan;
-            }
-            else if (x is Item)
-            {
-                return ConsoleColor.Blue;
-            }
-            else if (x is Container)
-            {
-                return ConsoleColor.Yellow;
-            }
-            else if (x is Player)
-            {
-                return ConsoleColor.DarkYellow;
-            }
-            else
-            {
-                return ConsoleColor.White;
-            }
+                string => ConsoleColor.Gray,
+                int or float or double => ConsoleColor.Green,
+                Npc => ConsoleColor.Red,
+                FoodItem or EquipableItem or Item => ConsoleColor.Cyan,
+                Container => ConsoleColor.Yellow,
+                Player => ConsoleColor.Green,
+                _ => ConsoleColor.White,
+            };
         }
         public static void Write(params object[] args)
         {
@@ -114,15 +90,15 @@ namespace text_survival
 
         public static int Roll(int sides)
         {
-            return random.Next(1, sides + 1);
+            return Random.Next(1, sides + 1);
         }
         public static int Rand(int low, int high)
         {
-            return random.Next(low, high + 1);
+            return Random.Next(low, high + 1);
         }
         public static bool FlipCoin()
         {
-            return random.Next(2) == 0;
+            return Random.Next(2) == 0;
         }
     }
 }

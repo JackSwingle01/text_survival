@@ -9,14 +9,19 @@ namespace text_survival.Environments
         {
             Name = name;
             Description = description;
-            NPCPool = new NPCPool();
-            Items = new ItemPool();
+            NpcPool = new NpcPool();
+            ItemPool = new ItemPool();
             Containers = new List<Container>();
+            Items = new List<Item>();
+            Npcs = new List<Npc>();
+            
         }
         public string Name { get; set; }
         public string Description { get; set; }
-        public NPCPool NPCPool { get; set; }
-        public ItemPool Items { get; set; }
+        public List<Npc> Npcs { get; set; }
+        public List<Item> Items { get; set; }
+        public ItemPool ItemPool { get; set; }
+        public NpcPool NpcPool { get; set; }
         public List<Container> Containers { get; set; }
 
         public void Write()
@@ -42,25 +47,25 @@ namespace text_survival.Environments
                 Utils.Write(container, "\n");
             }
             Utils.Write("You see:\n");
-            foreach (var npc in NPCPool)
+            foreach (var npc in Npcs)
             {
                 Utils.Write(npc, "\n");
             }
         }
         public void Explore(Player player)
         {
-            if (NPCPool.Count() == 0 && Items.Count() == 0 && Containers.Count == 0)
+            switch (Npcs.Count)
             {
-                Utils.Write("There is nothing to do here.\n");
-                return;
+                case 0 when Items.Count == 0 && Containers.Count == 0:
+                    Utils.Write("There is nothing to do here.\n");
+                    return;
+                case > 0:
+                    Combat.CombatLoop(player, NpcPool.GetRandomNpc());
+                    return;
             }
-            if (NPCPool.Count() > 0)
-            {
-                Combat.CombatLoop(player, NPCPool.GetRandomNPC());
-                return;
-            }
+
             Utils.Write("You see:\n");
-            Items.Write();
+            Items.ForEach(item => Utils.Write(item, "\n"));
             foreach (var c in Containers)
             {
                 Utils.Write(c, "\n");
@@ -68,8 +73,7 @@ namespace text_survival.Environments
             Utils.Write("Enter the name of the item you want or the name of the container you want to open.\n");
             string input = Utils.Read();
             Item? item = null;
-            Container? container = null;
-            item = Items.GetItemByName(input);
+            item = Items.FirstOrDefault(i => i.Name == input);
             if (item is not null)
             {
                 Items.Remove(item);
@@ -77,25 +81,16 @@ namespace text_survival.Environments
                 Utils.Write("You pick up ", item, ".\n");
                 return;
             }
-            foreach (var c in Containers)
-            {
-                if (c.Name == input)
-                {
-                    container = c;
-                    break;
-                }
-            }
-            if (container is not null)
-            {
-                item = container.Open();
-                if (item is not null)
-                {
-                    container.Remove(item);
-                    player.Inventory.Add(item);
-                    Utils.Write("You take the ", item, ".\n");
-                }
-            }
-            return;
+
+            Container? container = Containers.FirstOrDefault(c => c.Name == input);
+            if (container is null) return;
+
+            item = container.Open();
+            if (item is null) return;
+
+            container.Remove(item);
+            player.Inventory.Add(item);
+            Utils.Write("You take the ", item, ".\n");
         }
         public void Exit(Player player)
         {

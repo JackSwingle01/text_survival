@@ -5,7 +5,7 @@ namespace text_survival
 {
     public static class Combat
     {
-        public static void CombatLoop(Player player, NPC enemy)
+        public static void CombatLoop(Player player, Npc enemy)
         {
             Utils.Write("You encounter a ", enemy, "!\n");
 
@@ -48,7 +48,7 @@ namespace text_survival
                 }
             }
         }
-        public static void GetLoot(Player player, NPC npc)
+        public static void GetLoot(Player player, Npc npc)
         {
             if (npc == null)
             {

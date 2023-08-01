@@ -5,7 +5,7 @@
         private int _calories;
         private int _waterContent;
 
-        public FoodItem(string name, int calories, int waterContent = 0, int weight = 1, int uses = 1) : base(name, weight, uses)
+        public FoodItem(string name, int calories, int waterContent = 0, int weight = 1, int uses = 1) : base(name, weight)
         {
             Calories = calories;
             WaterContent = waterContent;
@@ -38,11 +38,11 @@
 
             if (WaterContent == 0)
             {
-                Utils.Write(Name, " => Cal: ", Calories, "\n");
+                Utils.Write(this, " => Cal: ", Calories, "\n");
             }
             else
             {
-                Utils.Write(Name, " => Cal: ", Calories, " Water: ", WaterContent, "\n");
+                Utils.Write(this, " => Cal: ", Calories, " Water: ", WaterContent, "\n");
             }
             if (Description != "")
             {

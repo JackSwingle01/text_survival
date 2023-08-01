@@ -6,13 +6,25 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using text_survival.Environments;
 
 namespace text_survival
 {
     public static class World
     {
+        public static List<Area> Areas { get; set; }
         public static TimeOnly Time { get; set; }
         public static int Days { get; set; }
+
+        static World()
+        {
+            Areas = new List<Area>();
+            Areas.Add(AreaFactory.GetForest());
+            Areas.Add(AreaFactory.GetShack());
+            Areas.Add(AreaFactory.GetCave());
+            Areas.Add(AreaFactory.GetRiver());
+
+        }
 
         public static void Update(int minutes)
         {

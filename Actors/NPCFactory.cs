@@ -7,88 +7,90 @@ using text_survival.Items;
 
 namespace text_survival.Actors
 {
-    public static class NPCFactory
+    public static class NpcFactory
     {
-        public static NPC MakeRat()
+        public static Npc MakeRat()
         {
-            NPC rat = new NPC("Rat", 5, 5, 2, 12);
+            Npc rat = new Animal("Rat", 5, 5, 2, 12);
+            rat.Description = "A rat with fleas.";
             rat.Loot.Add(ItemFactory.MakeSmallMeat());
             return rat;
         }
 
-        public static NPC MakeWolf()
+        public static Npc MakeWolf()
         {
-            NPC wolf = new NPC("Wolf", 10, 10, 5, 18);
+            Npc wolf = new Animal("Wolf", 10, 10, 5, 18);
             wolf.Loot.Add(ItemFactory.MakeLargeMeat());
+            wolf.Description = "A wolf.";
             return wolf;
         }
 
-        public static NPC MakeBear()
+        public static Npc MakeBear()
         {
-            NPC bear = new NPC("Bear", 20, 20, 20, 7);
+            Npc bear = new Animal("Bear", 20, 20, 20, 7);
             bear.Loot.Add(ItemFactory.MakeLargeMeat());
+            bear.Description = "A bear.";
             return bear;
         }
 
-        public static NPC MakeSnake()
+        public static Npc MakeSnake()
         {
-            NPC snake = new NPC("Snake", 5, 5, 2, 11);
+            Npc snake = new Animal("Snake", 5, 5, 2, 11);
             snake.Loot.Add(ItemFactory.MakeSmallMeat());
             snake.Loot.Add(ItemFactory.MakeSnakeSkin());
             snake.Loot.Add(ItemFactory.MakeVenomVial());
             return snake;
         }
 
-        public static NPC MakeBat()
+        public static Npc MakeBat()
         {
-            NPC bat = new NPC("Bat", 5, 5, 2, 16);
+            Npc bat = new Animal("Bat", 5, 5, 2, 16);
             bat.Loot.Add(ItemFactory.MakeBatWing());
             bat.Loot.Add(ItemFactory.MakeGuano());
             return bat;
         }
 
-        public static NPC MakeSpider()
+        public static Npc MakeSpider()
         {
-            NPC spider = new NPC("Spider", 1, 1, 0, 5);
+            Npc spider = new Animal("Spider", 1, 1, 0, 5);
             spider.Loot.Add(ItemFactory.MakeSpiderSilk());
             spider.Loot.Add(ItemFactory.MakeVenomVial());
             return spider;
         }
 
-        public static NPC MakeGoblin()
+        public static Npc MakeGoblin()
         {
-            NPC goblin = new NPC("Goblin", 10, 10, 5, 10);
+            Npc goblin = new Npc("Goblin", 10, 10, 5, 10);
             goblin.Loot.Add(ItemFactory.MakeGoblinSword());
             goblin.Loot.Add(ItemFactory.MakeCoin());
             //goblin.Loot.Add(ItemFactory.MakeTatteredCloth());
             return goblin;
         }
 
-        public static NPC MakeDragon()
+        public static Npc MakeDragon()
         {
-            NPC dragon = new NPC("Dragon", 50, 50, 50, 3);
+            Npc dragon = new Npc("Dragon", 50, 50, 50, 3);
             dragon.Loot.Add(ItemFactory.MakeDragonScale());
             dragon.Loot.Add(ItemFactory.MakeDragonTooth());
             dragon.Loot.Add(ItemFactory.MakeLargeCoinPouch());
             return dragon;
         }
 
-        public static NPC MakeSkeleton()
+        public static Npc MakeSkeleton()
         {
-            NPC skeleton = new NPC("Skeleton", 10, 10, 10, 10);
+            Npc skeleton = new Npc("Skeleton", 10, 10, 10, 10);
             skeleton.Loot.Add(ItemFactory.MakeBoneFragments());
             skeleton.Loot.Add(ItemFactory.MakeRustySword());
             return skeleton;
         }
 
-        public static NPC MakeCrocodile()
+        public static Npc MakeCrocodile()
         {
-            NPC crocodile = new NPC("Crocodile", 20, 20, 20, 5);
+            Npc crocodile = new Animal("Crocodile", 20, 20, 20, 5);
             crocodile.Loot.Add(ItemFactory.MakeCrocodileSkin());
             crocodile.Loot.Add(ItemFactory.MakeCrocodileTooth());
             return crocodile;
         }
-
     }
 
 }

@@ -2,16 +2,19 @@
 {
     public class Item
     {
-        public string Name { get; set; }
-        public float Weight { get; set; }
+        public string Name { get; set; } 
+        public float Weight { get; set; } // in kg
         public Action<Player> UseEffect { get; set; }
         public string Description { get; set; }
+        public int Quality { get; set; } // percentage 0% being extremely poor quality, 100% being perfect quality
 
-        public Item(string name, float weight = 1, int uses = 1)
+        public Item(string name, float weight = 1)
         {
             Name = name;
             Weight = weight;
             Description = "";
+            Quality = Utils.Rand(0, 100);
+
             UseEffect = (player) =>
             {
                 Utils.Write("Nothing happened.\n");
@@ -35,5 +38,6 @@
             Utils.Write("Weight: ", Weight, "\n");
         }
 
+       
     }
 }

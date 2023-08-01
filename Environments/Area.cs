@@ -7,8 +7,10 @@ namespace text_survival.Environments
     {
         public string Name { get; set; }
         public string Description { get; set; }
-        public ItemPool Items { get; set; }
-        public NPCPool NPCs { get; set; }
+        //public List<Item> Items { get; set; }
+        public ItemPool ItemPool { get; set; }
+        //public List<Npc> Npcs { get; set; }
+        public NpcPool NpcPool { get; set; }
         public List<Location> Locations { get; set; }
         public float BaseTemperature { get; set; }
         public bool IsShelter { get; set; }
@@ -17,21 +19,10 @@ namespace text_survival.Environments
         {
             Name = name;
             Description = description;
-            Items = new ItemPool();
-            NPCs = new NPCPool();
+            ItemPool = new ItemPool();
+            NpcPool = new NpcPool();
             Locations = new List<Location>();
         }
-
-
-        public Area(string name)
-        {
-            Name = name;
-            Description = "";
-            Items = new ItemPool();
-            NPCs = new NPCPool();
-            Locations = new List<Location>();
-        }
-
         public float GetTemperature()
         {
             float effect = 0;
@@ -87,7 +78,7 @@ namespace text_survival.Environments
             else if (roll == 2)
             {
                 // find item
-                Item item = Items.GetRandomItem();
+                Item item = ItemPool.GetRandomItem();
                 Utils.Write("You found: ", item, "!\n");
                 player.Inventory.Add(item);
                 return;
@@ -95,12 +86,8 @@ namespace text_survival.Environments
             else if (roll == 3)
             {
                 // find enemy
-                NPC npc = NPCs.GetRandomNPC();
+                Npc npc = NpcPool.GetRandomNpc();
                 Combat.CombatLoop(player, npc);
-                if (npc.Health <= 0)
-                {
-                    NPCs.Kill(npc);
-                }
             }
             else if (roll == 4)
             {
