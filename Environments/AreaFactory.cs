@@ -1,57 +1,101 @@
 ﻿using text_survival.Actors;
 using text_survival.Items;
+using static text_survival.Environments.Area;
 
 namespace text_survival.Environments
 {
     public static class AreaFactory
     {
-        private enum EnvironmentType
+        public enum EnvironmentType
         {
-            Shack,
+            AbandonedBuilding,
             Forest,
             Cave,
             River,
-        }
-        public static Area GetShack()
-        {
-            Area shack = new Area("Shack", "An abandoned shack.");
-            shack.ItemPool = CreateItemPool(EnvironmentType.Shack);
-            shack.NpcPool = CreateNpcPool(EnvironmentType.Shack);
-            shack.BaseTemperature = 75.0F;
-            return shack;
+            Road
         }
 
-        public static Area GetForest()
+      
+
+        public static string GetRandomAreaName(EnvironmentType environmentType)
         {
-            Area forest = new Area("Forest", "A forest with dense vegitation");
-            forest.ItemPool = CreateItemPool(EnvironmentType.Forest);
-            forest.NpcPool = CreateNpcPool(EnvironmentType.Forest);
-            forest.BaseTemperature = 70.0F;
-            Location grove = new Location("Grove", "A small clearing in the forest.");
-            grove.Items.Add(ItemFactory.MakeMushroom());
-            grove.NpcPool.Add(NpcFactory.MakeWolf);
-            forest.Locations.Add(grove);
-            return forest;
-        }
-        public static Area GetCave()
-        {
-            Area cave = new Area("Cave", "A dark cold cave.");
-            cave.ItemPool = CreateItemPool(EnvironmentType.Cave);
-            cave.NpcPool = CreateNpcPool(EnvironmentType.Cave);
-            cave.BaseTemperature = 50.0F;
-            return cave;
-        }
-        public static Area GetRiver()
-        {
-            Area river = new Area("River", "A river with fresh water.");
-            river.ItemPool = CreateItemPool(EnvironmentType.River);
-            river.NpcPool = CreateNpcPool(EnvironmentType.River);
-            river.BaseTemperature = 60.0F;
-            return river;
+            string name = "";
+            List<string> names;
+            switch (environmentType)
+            {
+                case EnvironmentType.Forest:
+                    names = new List<string>()
+                    {
+                        "Forest",
+                        "Clearing",
+                        "Grove",
+                        "Lake",
+                        "Trail",
+                        "Abandoned Campsite",
+                        "Dark Forest",
+                    };
+                    break;
+                case EnvironmentType.Cave:
+                    names = new List<string>()
+                    {
+                        "Cave",
+                        "Cavern",
+                        "Tunnel",
+                        "Mine",
+                        "Abandoned Mine",
+                        "Dark Cave",
+                    };
+                    break;
+                case EnvironmentType.AbandonedBuilding:
+                    names = new List<string>()
+                    {
+                        "Abandoned Building",
+                        "Abandoned House",
+                        "Abandoned Shack",
+                        "Abandoned Cabin",
+                        "Abandoned Church",
+
+                    };
+                    break;
+                case EnvironmentType.Road:
+                    names = new List<string>()
+                    {
+                        "Road",
+                        "Path",
+                        "Trail",
+                        "Dirt Road",
+                        "Gravel Road",
+                        "Paved Road",
+                    };
+                    break;
+                default:
+                    names = new List<string>()
+                    {
+                        "Location"
+                    };
+                    break;
+            }
+            name = names[Utils.Rand(0, names.Count - 1)];
+            return name;
         }
 
+        public static Area GenerateArea(EnvironmentType type, int numItems = 1, int numNpcs = 1)
+        {
+            Area area = new Area(GetRandomAreaName((type)),"");
+            ItemPool itemPool = CreateItemPool(type);
+            NpcPool npcPool = CreateNpcPool(type);
+            for (int i = 0; i < numItems; i++)
+            {
+                area.Items.Add(itemPool.GenerateRandomItem());
+            }
+            for (int i = 0; i < numNpcs; i++)
+            {
+                area.Npcs.Add(npcPool.GenerateRandomNpc());
+            }
+            return area;
+        }
 
-        private static readonly Dictionary<string, Func<Item>> ItemDefinitions = new()
+    private static readonly Dictionary<string, Func<Item>> ItemDefinitions = new()
         {
             { "Mushroom", ItemFactory.MakeMushroom },
             { "Apple", ItemFactory.MakeApple },
@@ -77,7 +121,7 @@ namespace text_survival.Environments
 
         private static readonly Dictionary<EnvironmentType, List<string>> EnvironmentItems = new()
         {
-            { EnvironmentType.Shack, new List<string> {
+            { EnvironmentType.AbandonedBuilding, new List<string> {
                 "Apple",
                 "Bread",
                 "Coin",
@@ -139,7 +183,7 @@ namespace text_survival.Environments
                 "Snake",
                 "Dragon",
                 "Skeleton" } },
-            { EnvironmentType.Shack, new List<string> {
+            { EnvironmentType.AbandonedBuilding, new List<string> {
                 "Rat"
             } },
             { EnvironmentType.River, new List<string>
@@ -164,7 +208,6 @@ namespace text_survival.Environments
             var itemList = EnvironmentItems[environment];
             foreach (string itemName in itemList)
             {
-                //Item item = _itemDefinitions[itemName];
                 items.Add(ItemDefinitions[itemName]);
             }
             return items;

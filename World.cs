@@ -19,10 +19,10 @@ namespace text_survival
         static World()
         {
             Areas = new List<Area>();
-            Areas.Add(AreaFactory.GetForest());
-            Areas.Add(AreaFactory.GetShack());
-            Areas.Add(AreaFactory.GetCave());
-            Areas.Add(AreaFactory.GetRiver());
+            Areas.Add(AreaFactory.GenerateArea(AreaFactory.EnvironmentType.Forest));
+            Areas.Add(AreaFactory.GenerateArea(AreaFactory.EnvironmentType.AbandonedBuilding));
+            Areas.Add(AreaFactory.GenerateArea(AreaFactory.EnvironmentType.Cave));
+            Areas.Add(AreaFactory.GenerateArea(AreaFactory.EnvironmentType.River));
 
         }
 

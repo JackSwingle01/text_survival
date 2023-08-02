@@ -7,21 +7,26 @@ namespace text_survival.Environments
     {
         public string Name { get; set; }
         public string Description { get; set; }
-        //public List<Item> Items { get; set; }
-        public ItemPool ItemPool { get; set; }
-        //public List<Npc> Npcs { get; set; }
-        public NpcPool NpcPool { get; set; }
-        public List<Location> Locations { get; set; }
+        public List<Item> Items { get; set; }
+       // public ItemPool ItemPool { get; set; }
+        public List<Npc> Npcs { get; set; }
+        //public NpcPool NpcPool { get; set; }
         public float BaseTemperature { get; set; }
         public bool IsShelter { get; set; }
 
+        public enum EnvironmentType
+        {
+            Forest,
+            Cave,
+            AbandonedBuilding,
+            Road,
+        }
         public Area(string name, string description)
         {
             Name = name;
             Description = description;
-            ItemPool = new ItemPool();
-            NpcPool = new NpcPool();
-            Locations = new List<Location>();
+            Items = new List<Item>();
+            Npcs = new List<Npc>();
         }
         public float GetTemperature()
         {
@@ -45,7 +50,7 @@ namespace text_survival.Environments
             effect += new Random().Next(-3, 3);
             if (IsShelter)
             {
-                effect = effect / 2;
+                effect /= 2;
             }
 
             return effect + BaseTemperature;
@@ -62,45 +67,76 @@ namespace text_survival.Environments
             Utils.Write("Temperature: ", GetTemperature());
 
         }
-        public void Explore(Player player)
-        {
-            int minutes = new Random().Next(1, 60);
-            Utils.Write("You explore for ", minutes, " minutes\n");
-            Utils.Write("...\n");
-            Thread.Sleep(1000);
-            player.Update(minutes);
-            int roll = Utils.Roll(4);
-            if (roll == 1)
-            {
-                Utils.Write("You don't find anything interesting.\n");
-                return;
-            }
-            else if (roll == 2)
-            {
-                // find item
-                Item item = ItemPool.GetRandomItem();
-                Utils.Write("You found: ", item, "!\n");
-                player.Inventory.Add(item);
-                return;
-            }
-            else if (roll == 3)
-            {
-                // find enemy
-                Npc npc = NpcPool.GetRandomNpc();
-                Combat.CombatLoop(player, npc);
-            }
-            else if (roll == 4)
-            {
-                // find location
-                if (Locations.Count == 0)
-                {
-                    Utils.Write("You don't find anything interesting.\n");
-                    return;
-                }
-                Location location = Locations[Utils.Rand(0, Locations.Count - 1)];
-                location.Enter(player);
-            }
-        }
 
+       
+        
+        
+        //public void Explore(Player player)
+        //{
+        //    int minutes = new Random().Next(1, 60);
+        //    Utils.Write("You explore for ", minutes, " minutes\n");
+        //    Utils.Write("...\n");
+        //    Thread.Sleep(1000);
+        //    player.Update(minutes);
+        //    int roll = Utils.Roll(4);
+        //    if (roll == 1)
+        //    {
+        //        Utils.Write("You don't find anything interesting.\n");
+        //        return;
+        //    }
+        //    else if (roll == 2)
+        //    {
+        //        //// find item
+        //        //Item item = ItemPool.GetRandomItem();
+        //        //Utils.Write("You found: ", item, "!\n");
+        //        //player.Inventory.Add(item);
+        //        //return;
+        //    }
+        //    else if (roll == 3)
+        //    {
+        //        //// find enemy
+        //        //Npc npc = NpcPool.GetRandomNpc();
+        //        //Combat.CombatLoop(player, npc);
+        //    }
+        //    else if (roll == 4)
+        //    {
+        //        //// find location
+        //        //if (Locations.Count == 0)
+        //        //{
+        //        //    Utils.Write("You don't find anything interesting.\n");
+        //        //    return;
+        //        //}
+        //        //Location location = Locations[Utils.Rand(0, Locations.Count - 1)];
+        //        //location.Enter(player);
+        //    }
+        //}
+        public void Enter(Player player)
+        {
+            player.CurrentArea = this;
+            Utils.WriteLine("You enter ", this);
+            Utils.WriteLine(Description);
+            if (Items.Count > 0)
+            {
+                Utils.WriteLine("You see:");
+                foreach (var item in Items)
+                {
+                    Utils.WriteLine(item);
+                }
+            }
+            if (Npcs.Count > 0)
+            {
+                Utils.WriteLine("You see:");
+                foreach (var npc in Npcs)
+                {
+                    Utils.WriteLine(npc);
+                }
+            }
+           
+        }
+        public void Exit(Player player)
+        {
+            Utils.WriteLine("You leave the ", this, ".");
+            player.CurrentArea = null;
+        }
     }
 }

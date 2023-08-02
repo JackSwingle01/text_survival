@@ -12,7 +12,7 @@ namespace text_survival
 
         private const float MaxHunger = 3000.0F; // calories
         private const float MaxThirst = 3000.0F; // mL
-        private const float MaxExaustion = 480.0F; // minutes (8 hours)
+        private const float MaxExhaustion = 480.0F; // minutes (8 hours)
 
         public string Name { get; set; }
         public float Hunger { get; set; }
@@ -22,7 +22,6 @@ namespace text_survival
         public float BodyTemperature { get; private set; }
         public TemperatureEnum TemperatureEffect { get; private set; }
         public Area CurrentArea { get; set; }
-        public Location? CurrentLocation { get; set; }
 
         public float WarmthBonus { get; set; }
         public float MaxHealth { get; set; }
@@ -42,8 +41,6 @@ namespace text_survival
             Health = MaxHealth;
             Exhaustion = 0;
             BodyTemperature = 98.6F;
-            CurrentArea = area;
-            CurrentLocation = null;
             Inventory = new Container("Backpack", 10);
             Strength = 10;
             Defense = 10;
@@ -52,6 +49,7 @@ namespace text_survival
             ItemFactory.MakeClothShirt().EquipTo(this);
             ItemFactory.MakeClothPants().EquipTo(this);
             ItemFactory.MakeBoots().EquipTo(this);
+            area.Enter(this);
 
         }
         public void WriteSurvivalStats()
@@ -59,7 +57,7 @@ namespace text_survival
             Utils.Write("Health: ", (int)(Health), "%\n",
                 "Hunger: ", (int)((Hunger / MaxHunger) * 100), "%\n",
                 "Thirst: ", (int)((Thirst / MaxThirst) * 100), "%\n",
-                "Exhaustion: ", (int)((Exhaustion / MaxExaustion) * 100), "%\n",
+                "Exhaustion: ", (int)((Exhaustion / MaxExhaustion) * 100), "%\n",
                 "Body Temperature: ", Math.Round(BodyTemperature, 1), "°F\n");
         }
 
@@ -112,7 +110,7 @@ namespace text_survival
             Health -= damage;
             if (Health <= 0)
             {
-                Utils.Write("You died!\n");
+                Utils.WriteLine("You died!");
                 Health = 0;
                 // end program
                 Environment.Exit(0);
@@ -132,7 +130,7 @@ namespace text_survival
         {
             World.Update(minutes);
             UpdateStat(UpdateThirstTick, minutes);
-            UpdateStat(UpdateExaustionTick, minutes);
+            UpdateStat(UpdateExhaustionTick, minutes);
             UpdateStat(UpdateHungerTick, minutes);
             UpdateTemperature(minutes);
         }
@@ -167,13 +165,13 @@ namespace text_survival
         }
 
 
-        private void UpdateExaustionTick()
+        private void UpdateExhaustionTick()
         {
             Exhaustion += _exaustionRate;
 
-            if (Exhaustion >= MaxExaustion)
+            if (Exhaustion >= MaxExhaustion)
             {
-                Exhaustion = MaxExaustion;
+                Exhaustion = MaxExhaustion;
                 this.Damage(1);
             }
         }

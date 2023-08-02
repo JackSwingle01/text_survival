@@ -17,12 +17,13 @@
         {
             ItemMethods.Remove(itemFactoryMethod);
         }
-        public Item GetRandomItem()
+        public Item GenerateRandomItem()
         {
-            Random rand = new Random();
-            int index = rand.Next(ItemMethods.Count);
-            return ItemMethods[index].Invoke();
+            int index = Utils.Rand(0, ItemMethods.Count-1);
+            Item item = ItemMethods[index].Invoke();
+            return item;
         }
+        
 
     }
 }

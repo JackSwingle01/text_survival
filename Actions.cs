@@ -12,7 +12,8 @@ namespace text_survival
 {
     public enum ActionType
     {
-        Explore,
+        Fight,
+        PickUpItem,
         OpenInventory,
         Travel,
         Sleep,
@@ -35,12 +36,14 @@ namespace text_survival
             this.AvailableActions = new List<ActionType>();
             this.actionDict = new Dictionary<ActionType, Action>()
             {
-                { ActionType.Explore, this.Explore },
+                { ActionType.Fight, this.Fight },
                 { ActionType.OpenInventory, this.OpenInventory },
                 { ActionType.Travel , this.Travel },
                 { ActionType.Sleep, this.Sleep },
                 { ActionType.CheckGear, this.CheckGear },
-                { ActionType.Quit, this.Quit }
+                { ActionType.Quit, this.Quit },
+                { ActionType.PickUpItem , this.PickUpItem }
+
                 // Add more actions as necessary
             };
         }
@@ -49,23 +52,27 @@ namespace text_survival
         {
             // Clear the available actions
             AvailableActions.Clear();
-            AvailableActions.Add(ActionType.Explore);
+
+            if (_player.CurrentArea.Npcs.Count > 0)
+            {
+                AvailableActions.Add(ActionType.Fight);
+            }
+            if (_player.CurrentArea.Items.Count > 0)
+            {
+                AvailableActions.Add(ActionType.PickUpItem);
+            }
+            
             AvailableActions.Add(ActionType.OpenInventory);
             AvailableActions.Add(ActionType.Travel);
             if (_player.Exhaustion > 0)
                 AvailableActions.Add(ActionType.Sleep);
             AvailableActions.Add(ActionType.CheckGear);
             AvailableActions.Add(ActionType.Quit);
-            // Check conditions and add actions as necessary
-            //if (_player.CurrentLocation is null) return;
-            //if (_player.CurrentLocation.Items.Count == 0)
-            //    AvailableActions.Add(ActionType.PickUpItem);
-
-            //if (_player.CurrentLocation.Npcs.Count == 0)
-            //    AvailableActions.Add(ActionType.EnterCombat);
-
+            
+           
+            
         }
-
+        
         public void Act()
         {
             // Display the available actions
@@ -83,10 +90,16 @@ namespace text_survival
             actionDict[actionType].Invoke();
         }
 
-
-        private void Explore()
+        private void Fight()
         {
-            _player.CurrentArea.Explore(_player);
+            Npc enemy = _player.CurrentArea.Npcs.First();
+            Combat.CombatLoop(_player, enemy);
+        }
+
+        private void PickUpItem()
+        {
+            Item item = _player.CurrentArea.Items.First();
+            _player.Inventory.Add(item);
         }
 
         private void OpenInventory()
@@ -112,9 +125,9 @@ namespace text_survival
                 {
                     Utils.Write("You travel for 1 hour\n");
                     _player.Update(60);
-                    if (_player.CurrentLocation is not null)
+                    if (_player.CurrentArea is not null)
                     {
-                        _player.CurrentLocation.Exit(_player);
+                        _player.CurrentArea.Exit(_player);
                     }
                     _player.CurrentArea = options[index - 1];
                     _player.CurrentArea = _player.CurrentArea;

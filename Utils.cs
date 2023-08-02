@@ -72,6 +72,19 @@ namespace text_survival
             Console.ResetColor();
             Thread.Sleep(100);
         }
+
+        public static void WriteLine(params object[] args)
+        {
+            foreach (var arg in args)
+            {
+                Console.ForegroundColor = DetermineTextColor(arg);
+                Console.Write(arg.ToString());
+            }
+            // Reset color to default after writing
+            Console.ResetColor();
+            Console.WriteLine();
+            Thread.Sleep(100);
+        }
         public static void WriteWarning(string str)
         {
             ConsoleColor oldColor = Console.ForegroundColor;

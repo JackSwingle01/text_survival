@@ -19,7 +19,7 @@
             NPCs.Remove(npcFactoryMethod);
         }
 
-        public Npc GetRandomNpc()
+        public Npc GenerateRandomNpc()
         {
             if (NPCs.Count == 0)
             {
