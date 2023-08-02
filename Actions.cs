@@ -17,9 +17,10 @@ namespace text_survival
         OpenInventory,
         Travel,
         Sleep,
+        CheckStats,
         CheckGear,
+        LookAround,
         Quit
-
         // Add more actions as necessary
     }
 
@@ -42,7 +43,9 @@ namespace text_survival
                 { ActionType.Sleep, this.Sleep },
                 { ActionType.CheckGear, this.CheckGear },
                 { ActionType.Quit, this.Quit },
-                { ActionType.PickUpItem , this.PickUpItem }
+                { ActionType.PickUpItem , this.PickUpItem },
+                { ActionType.LookAround, this.LookAround },
+                { ActionType.CheckStats, this.CheckStats }
 
                 // Add more actions as necessary
             };
@@ -61,16 +64,16 @@ namespace text_survival
             {
                 AvailableActions.Add(ActionType.PickUpItem);
             }
-            
-            AvailableActions.Add(ActionType.OpenInventory);
+            if (_player.Inventory.Count() > 0)
+                AvailableActions.Add(ActionType.OpenInventory);
             AvailableActions.Add(ActionType.Travel);
             if (_player.Exhaustion > 0)
                 AvailableActions.Add(ActionType.Sleep);
-            AvailableActions.Add(ActionType.CheckGear);
+            if (_player.EquippedItems.Count > 0)
+                AvailableActions.Add(ActionType.CheckGear);
+            AvailableActions.Add(ActionType.CheckStats);
+            AvailableActions.Add(ActionType.LookAround);
             AvailableActions.Add(ActionType.Quit);
-            
-           
-            
         }
         
         public void Act()
@@ -90,6 +93,11 @@ namespace text_survival
             actionDict[actionType].Invoke();
         }
 
+        private void CheckStats()
+        {
+            _player.WriteSurvivalStats();
+        }
+
         private void Fight()
         {
             Npc enemy = _player.CurrentArea.Npcs.First();
@@ -98,6 +106,11 @@ namespace text_survival
 
         private void PickUpItem()
         {
+            if (_player.CurrentArea.Npcs.Count > 0)
+            {
+                Utils.WriteLine("Its too dangerous with enemies nearby!");
+                return;
+            }
             Item item = _player.CurrentArea.Items.First();
             _player.Inventory.Add(item);
         }
@@ -123,19 +136,16 @@ namespace text_survival
             {
                 if (index > 0 && index <= options.Count)
                 {
-                    Utils.Write("You travel for 1 hour\n");
-                    _player.Update(60);
-                    if (_player.CurrentArea is not null)
-                    {
-                        _player.CurrentArea.Exit(_player);
-                    }
+                    int minutes = Utils.Rand(30, 60);
+                    Utils.WriteLine("You travel for ", minutes, "minutes...");
+                    _player.Update(minutes);
                     _player.CurrentArea = options[index - 1];
                     _player.CurrentArea = _player.CurrentArea;
-                    Utils.Write("You are now at ", _player.CurrentArea.Name, "\n");
+                    Utils.WriteLine("You are now at ", _player.CurrentArea.Name);
                 }
                 else
                 {
-                    Utils.Write("Invalid input\n");
+                    Utils.WriteLine("Invalid input");
                 }
             }
             else
@@ -157,6 +167,27 @@ namespace text_survival
             Utils.Read();
         }
 
+        private void LookAround()
+        {
+            Utils.WriteLine("You take in your surroundings");
+            Utils.WriteLine("You're in a ", _player.CurrentArea, ", ", _player.CurrentArea.Description);
+            Utils.WriteLine("Its ", World.GetTimeOfDay(), " and ", _player.CurrentArea.GetTemperature(), " degrees.");
+            if (_player.CurrentArea.Npcs.Count == 0 && _player.CurrentArea.Items.Count == 0)
+            {
+                Utils.WriteLine("You see nothing of interest, time to move on.");
+                return;
+            }
+            
+            Utils.WriteLine("You see the following things:");
+            foreach (var item in _player.CurrentArea.Items)
+            {
+                Utils.WriteLine(item);
+            }
+            foreach (var npc in _player.CurrentArea.Npcs)
+            {
+                Utils.WriteLine(npc);
+            }
+        }
         private void Quit()
         {
             _player.Damage(999);

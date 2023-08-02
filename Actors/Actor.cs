@@ -16,5 +16,6 @@ namespace text_survival.Actors
         public int Speed { get; set; }
 
         public void Damage(float damage);
+        
     }
 }

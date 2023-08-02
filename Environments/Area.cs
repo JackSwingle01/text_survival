@@ -8,9 +8,7 @@ namespace text_survival.Environments
         public string Name { get; set; }
         public string Description { get; set; }
         public List<Item> Items { get; set; }
-       // public ItemPool ItemPool { get; set; }
         public List<Npc> Npcs { get; set; }
-        //public NpcPool NpcPool { get; set; }
         public float BaseTemperature { get; set; }
         public bool IsShelter { get; set; }
 
@@ -25,8 +23,11 @@ namespace text_survival.Environments
         {
             Name = name;
             Description = description;
+            BaseTemperature = 70;
             Items = new List<Item>();
             Npcs = new List<Npc>();
+            EventAggregator.Subscribe<ItemTakenEvent>(OnItemTaken);
+            EventAggregator.Subscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
         }
         public float GetTemperature()
         {
@@ -67,49 +68,6 @@ namespace text_survival.Environments
             Utils.Write("Temperature: ", GetTemperature());
 
         }
-
-       
-        
-        
-        //public void Explore(Player player)
-        //{
-        //    int minutes = new Random().Next(1, 60);
-        //    Utils.Write("You explore for ", minutes, " minutes\n");
-        //    Utils.Write("...\n");
-        //    Thread.Sleep(1000);
-        //    player.Update(minutes);
-        //    int roll = Utils.Roll(4);
-        //    if (roll == 1)
-        //    {
-        //        Utils.Write("You don't find anything interesting.\n");
-        //        return;
-        //    }
-        //    else if (roll == 2)
-        //    {
-        //        //// find item
-        //        //Item item = ItemPool.GetRandomItem();
-        //        //Utils.Write("You found: ", item, "!\n");
-        //        //player.Inventory.Add(item);
-        //        //return;
-        //    }
-        //    else if (roll == 3)
-        //    {
-        //        //// find enemy
-        //        //Npc npc = NpcPool.GetRandomNpc();
-        //        //Combat.CombatLoop(player, npc);
-        //    }
-        //    else if (roll == 4)
-        //    {
-        //        //// find location
-        //        //if (Locations.Count == 0)
-        //        //{
-        //        //    Utils.Write("You don't find anything interesting.\n");
-        //        //    return;
-        //        //}
-        //        //Location location = Locations[Utils.Rand(0, Locations.Count - 1)];
-        //        //location.Enter(player);
-        //    }
-        //}
         public void Enter(Player player)
         {
             player.CurrentArea = this;
@@ -133,10 +91,20 @@ namespace text_survival.Environments
             }
            
         }
-        public void Exit(Player player)
+
+        private void OnEnemyDefeated(EnemyDefeatedEvent e)
         {
-            Utils.WriteLine("You leave the ", this, ".");
-            player.CurrentArea = null;
+            if (!Npcs.Contains(e.DefeatedEnemy)) return;
+            this.Npcs.Remove(e.DefeatedEnemy);
+            //Utils.WriteWarning("enemy defeated");
         }
+
+        private void OnItemTaken(ItemTakenEvent e)
+        {
+            if (!Items.Contains(e.TakenItem)) return;
+            this.Items.Remove(e.TakenItem);
+            //Utils.WriteWarning("item taken");
+        }
+        
     }
 }

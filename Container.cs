@@ -74,6 +74,8 @@ namespace text_survival
                 return;
             }
             Items.Add(item);
+            EventAggregator.Publish(new ItemTakenEvent(item));
+            Utils.WriteLine("You put the ", item, " in your ", this);
         }
 
         public void Remove(Item item)
@@ -90,6 +92,11 @@ namespace text_survival
                 sum += item.Weight;
             }
             return sum;
+        }
+
+        public int Count()
+        {
+            return Items.Count;
         }
 
 

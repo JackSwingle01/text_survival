@@ -52,6 +52,10 @@ namespace text_survival.Actors
         public void Damage(float damage)
         {
             Health -= damage;
+            if (Health < 0)
+            {
+                EventAggregator.Publish(new EnemyDefeatedEvent(this));
+            }
         }
 
     }

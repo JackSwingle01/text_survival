@@ -42,19 +42,16 @@ namespace text_survival
             else if (enemy.Health <= 0)
             {
                 Utils.Write("You killed ", enemy, "!\n");
-                if (enemy.Loot.Count() > 0)
+                if (enemy.Loot.Count > 0)
                 {
                     GetLoot(player, enemy);
                 }
+                
             }
         }
         public static void GetLoot(Player player, Npc npc)
         {
-            if (npc == null)
-            {
-                return;
-            }
-            if (npc.Loot.Count() == 0)
+            if (npc.Loot.Count == 0)
             {
                 Utils.Write(npc.Name + " has no loot.\n");
                 return;
@@ -78,7 +75,7 @@ namespace text_survival
         public static void PrintBattleInfo(IActor combatant1, IActor combatant2)
         {
             WriteCombatStats(combatant1);
-            Utils.Write("VS\n");
+            Utils.WriteLine("VS");
             WriteCombatStats(combatant2);
         }
         public static void Attack(IActor attacker, IActor defender)
@@ -97,13 +94,9 @@ namespace text_survival
             int baseDodge = 10;
             int speedDiff = defender.Speed - attacker.Speed;
             int chance = baseDodge + speedDiff;
-            Random rand = new Random();
-            int roll = rand.Next(0, 100);
-            if (roll <= chance)
-            {
-                return true;
-            }
-            return false;
+            
+            int roll = Utils.Rand(0, 100);
+            return roll <= chance;
         }
         public static float CalcDamage(IActor attacker, IActor defender)
         {
