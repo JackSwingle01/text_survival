@@ -298,8 +298,5 @@ namespace text_survival
             return Name;
         }
 
-        
-
-
     }
 }

@@ -12,18 +12,11 @@ namespace text_survival
 {
     public static class World
     {
-        public static List<Area> Areas { get; set; }
         public static TimeOnly Time { get; set; }
         public static int Days { get; set; }
 
         static World()
         {
-            Areas = new List<Area>();
-            Areas.Add(AreaFactory.GenerateArea(AreaFactory.EnvironmentType.Forest));
-            Areas.Add(AreaFactory.GenerateArea(AreaFactory.EnvironmentType.AbandonedBuilding));
-            Areas.Add(AreaFactory.GenerateArea(AreaFactory.EnvironmentType.Cave));
-            Areas.Add(AreaFactory.GenerateArea(AreaFactory.EnvironmentType.River));
-
         }
 
         public static void Update(int minutes)

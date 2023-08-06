@@ -52,6 +52,8 @@
         public static FoodItem MakeCarrot()
         {
             var item = new FoodItem("Carrot", 50, 30);
+            item.Description = "A carrot. It looks like it was just pulled from the ground.";
+            item.Weight = 0.1F;
             return item;
         }
 
@@ -59,6 +61,7 @@
         {
             var item = new FoodItem("Water", 0, 1000);
             item.Description = "Some water. You store it in your waterskin.";
+            item.Weight = 1;
             return item;
         }
 
@@ -90,12 +93,16 @@
                     Utils.Write("You decide to keep the stick.\n");
                 }
             };
+            stick.Description = "A stick. Useful.";
+            stick.Weight = 1;
             return stick;
         }
         public static Item MakeSpear()
         {
-            EquipableItem spear = new EquipableItem("Spear", 7, 0, -1, 0);
+            EquipableItem spear = new EquipableItem("Spear", 7, 0, 0, 0);
             spear.EquipSpot = EquipableItem.EquipSpots.Weapon;
+            spear.Description = "A makeshift spear.";
+            spear.Weight = 1;
             return spear;
         }
 
@@ -114,12 +121,15 @@
         public static Item MakeGemstone()
         {
             var item = new Item("Gemstone");
+            item.Description = "A shiny gemstone.";
+            item.Weight = .1F;
             return item;
         }
 
         public static Item MakeCoin()
         {
             var item = new Item("Coin");
+            item.Weight = 0.01F;
             return item;
         }
 
@@ -128,6 +138,7 @@
             EquipableItem sword = new EquipableItem("Sword", 20, 2, 0);
             sword.EquipSpot = EquipableItem.EquipSpots.Weapon;
             sword.Description = "A sword that does 20 damage";
+            sword.Weight = 2;
             return sword;
         }
 
@@ -136,6 +147,7 @@
             EquipableItem shield =  new EquipableItem("Shield", 0, 10, -1);
             shield.EquipSpot = EquipableItem.EquipSpots.Hands;
             shield.Description = "A shield that blocks 10% damage";
+            shield.Weight = 2.5F;
             return shield;
         }
 
@@ -143,7 +155,8 @@
         {
             EquipableItem armor = new EquipableItem("Armor", 0, 20, -5);
             armor.EquipSpot = EquipableItem.EquipSpots.Chest;
-            armor.Description = "Armor that blocks 20% damage but slows you down";
+            armor.Description = "Heavy armor that blocks 20% damage but slows you down";
+            armor.Weight = 5;
             return armor;
         }
 
@@ -152,10 +165,11 @@
             var potion = new Item("Health Potion");
             potion.UseEffect = (player) =>
             {
-                player.Heal(10);
+                player.Heal(50);
                 Utils.Write("You feel better\n");
             };
-            potion.Description = "A potion that heals you for 10 health";
+            potion.Description = "A potent healing potion";
+            potion.Weight = 0.4F;
             return potion;
         }
 
@@ -164,10 +178,11 @@
             var bandage = new Item("Bandage");
             bandage.UseEffect = (player) =>
             {
-                player.Heal(5);
+                player.Heal(10);
                 Utils.Write("You feel better\n");
             };
-            bandage.Description = "A bandage that heals you for 5 health";
+            bandage.Description = "A cloth bandage. It might help a bit.";
+            bandage.Weight = 0.1F;
             return bandage;
         }
 
@@ -182,34 +197,40 @@
         public static FoodItem MakeFish()
         {
             var item = new FoodItem("Fish", 200, 0);
+            item.Weight = 0.3F;
             return item;
         }
 
         public static FoodItem MakeLargeMeat()
         {
             var item = new FoodItem("Large Meat", 600, 0);
+            item.Weight = .6F;
             return item;
         }
         public static FoodItem MakeSmallMeat()
         {
             var item = new FoodItem("Small Meat", 200, 0);
+            item.Weight = .2F;
             return item;
         }
         public static FoodItem MakeCheese()
         {
             var item = new FoodItem("Cheese", 150, 30);
+            item.Weight = .1F;
             return item;
         }
 
         public static Item MakeCopperCoin()
         {
             var item = new Item("Copper Coin");
+            item.Weight = 0.01F;
             return item;
         }
 
         public static Item MakeSnakeSkin()
         {
             var item = new Item("Snake Skin");
+            item.Weight = 0.1F;
             return item;
         }
 
@@ -230,6 +251,8 @@
                     Utils.Write("You don't have any weapons to poison.\n");
                 }
             };
+            vial.Description = "A vial of snake venom.";
+            vial.Weight = 0.1F;
             return vial;
         }
 
@@ -384,7 +407,7 @@
             EquipableItem pants = new EquipableItem("Cloth Pants", 0, 1, 0, .5F);
             pants.EquipSpot = EquipableItem.EquipSpots.Legs;
             return pants;
-        }
+        } 
 
         public static EquipableItem MakeBoots()
         {

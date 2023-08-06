@@ -11,13 +11,16 @@ namespace text_survival.Environments
         public List<Npc> Npcs { get; set; }
         public float BaseTemperature { get; set; }
         public bool IsShelter { get; set; }
+        public bool Visited { get; set; }
+        public List<Area> NearbyAreas { get; set; }
 
         public enum EnvironmentType
         {
             Forest,
             Cave,
             AbandonedBuilding,
-            Road,
+           // Road,
+            River
         }
         public Area(string name, string description)
         {
@@ -28,6 +31,7 @@ namespace text_survival.Environments
             Npcs = new List<Npc>();
             EventAggregator.Subscribe<ItemTakenEvent>(OnItemTaken);
             EventAggregator.Subscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
+            NearbyAreas = new List<Area>();
         }
         public float GetTemperature()
         {
@@ -70,26 +74,27 @@ namespace text_survival.Environments
         }
         public void Enter(Player player)
         {
+            if (player.CurrentArea != null)
+            {
+                this.NearbyAreas.Add(player.CurrentArea);
+            }
             player.CurrentArea = this;
+            Visited = true;
+            GenerateNearbyAreas();
             Utils.WriteLine("You enter ", this);
             Utils.WriteLine(Description);
-            if (Items.Count > 0)
+            Utils.WriteLine("You should probably look around.");
+        }
+
+        private void GenerateNearbyAreas(int count = 3)
+        {
+            Array types = Enum.GetValuesAsUnderlyingType(typeof(EnvironmentType));
+            
+            for (int i = 0; i < count; i++)
             {
-                Utils.WriteLine("You see:");
-                foreach (var item in Items)
-                {
-                    Utils.WriteLine(item);
-                }
+                EnvironmentType type = (EnvironmentType)Utils.Rand(0, (types.Length - 1));
+                NearbyAreas.Add(AreaFactory.GenerateArea(type));
             }
-            if (Npcs.Count > 0)
-            {
-                Utils.WriteLine("You see:");
-                foreach (var npc in Npcs)
-                {
-                    Utils.WriteLine(npc);
-                }
-            }
-           
         }
 
         private void OnEnemyDefeated(EnemyDefeatedEvent e)

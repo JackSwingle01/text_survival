@@ -5,25 +5,21 @@ namespace text_survival
 {
     internal class Game
     {
-        Player player;
+        private Player _player;
         public Game()
         {
-            player = new Player(World.Areas[0]);
+            _player = new Player(AreaFactory.GenerateArea(Area.EnvironmentType.Forest));
             World.Time = new TimeOnly(hour: 9, minute: 0);
         }
         public void Start()
         {
-            Actions actions = new Actions(player);
-            while (player.Health > 0)
+            Actions actions = new Actions(_player);
+            while (_player.Health > 0)
             {
-                Act(actions);
+                actions.Act();
             }
         }
-        public void Act(Actions actions)
-        {
-            actions.UpdatePossibleActions();
-            actions.Act();
-        }
+      
        
     }
 }

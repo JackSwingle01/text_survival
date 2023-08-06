@@ -6,17 +6,6 @@ namespace text_survival.Environments
 {
     public static class AreaFactory
     {
-        public enum EnvironmentType
-        {
-            AbandonedBuilding,
-            Forest,
-            Cave,
-            River,
-            Road
-        }
-
-      
-
         public static string GetRandomAreaName(EnvironmentType environmentType)
         {
             string name = "";
@@ -57,15 +46,27 @@ namespace text_survival.Environments
 
                     };
                     break;
-                case EnvironmentType.Road:
+                //case EnvironmentType.Road:
+                //    names = new List<string>()
+                //    {
+                //        "Road",
+                //        "Path",
+                //        "Trail",
+                //        "Dirt Road",
+                //        "Gravel Road",
+                //        "Paved Road",
+                //    };
+                //    break;
+                case EnvironmentType.River:
                     names = new List<string>()
                     {
-                        "Road",
-                        "Path",
-                        "Trail",
-                        "Dirt Road",
-                        "Gravel Road",
-                        "Paved Road",
+                        "River",
+                        "Stream",
+                        "Creek",
+                        "Waterfall",
+                        "Lake",
+                        "Pond",
+                        "Water",
                     };
                     break;
                 default:

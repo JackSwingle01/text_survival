@@ -87,7 +87,9 @@ namespace text_survival
                 return;
             }
             defender.Damage(damage);
-            Utils.Write(attacker, " attacked ", defender, " for ", Math.Round(damage, 1), " damage!\n");
+            Thread.Sleep(1000);
+            Utils.WriteLine(attacker, " attacked ", defender, " for ", Math.Round(damage, 1), " damage!");
+            Thread.Sleep(1000);
         }
         public static bool DetermineDodge(IActor attacker, IActor defender)
         {
