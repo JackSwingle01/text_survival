@@ -13,7 +13,7 @@
             Name = name;
             Weight = weight;
             Description = "";
-            Quality = Utils.Rand(0, 100);
+            Quality = Utils.RandInt(0, 100);
 
             UseEffect = (player) =>
             {
@@ -34,8 +34,7 @@
         }
         public virtual void Write()
         {
-            Utils.Write(this, "\n", Description);
-            Utils.Write("Weight: ", Weight, "\n");
+            Utils.WriteLine(this, " => ", Description, ", Weight: ", Weight);
         }
 
 

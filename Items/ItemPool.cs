@@ -19,7 +19,7 @@
         }
         public Item GenerateRandomItem()
         {
-            int index = Utils.Rand(0, ItemMethods.Count - 1);
+            int index = Utils.RandInt(0, ItemMethods.Count - 1);
             Item item = ItemMethods[index].Invoke();
             return item;
         }

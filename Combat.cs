@@ -7,7 +7,7 @@ namespace text_survival
     {
         public static void CombatLoop(Player player, Npc enemy)
         {
-            Utils.Write("You encounter a ", enemy, "!\n");
+            Utils.WriteLine("You encounter: ", enemy, "!");
 
             if (enemy.Speed > player.Speed)
             {
@@ -16,9 +16,9 @@ namespace text_survival
             while (player.Health > 0 && enemy.Health > 0)
             {
                 PrintBattleInfo(player, enemy);
-                Utils.Write("What do you want to do?\n");
-                Utils.Write("1. Attack\n");
-                Utils.Write("2. Run\n");
+                Utils.WriteLine("What do you want to do?");
+                Utils.WriteLine(1, ". Attack");
+                Utils.WriteLine(2, ". Run");
                 int choice = Utils.ReadInt(1, 2);
                 if (choice == 1)
                 {
@@ -53,15 +53,14 @@ namespace text_survival
         {
             if (npc.Loot.Count == 0)
             {
-                Utils.Write(npc.Name + " has no loot.\n");
+                Utils.WriteLine(npc.Name + " has no loot.");
                 return;
             }
             Utils.Write(npc.Name + " dropped: ");
-            Item item = npc.Loot[Utils.Rand(0, npc.Loot.Count - 1)];
+            Item item = npc.Loot[Utils.RandInt(0, npc.Loot.Count - 1)];
             item.Write();
-            Utils.Write("\nDo you want to pick it up?\n");
-            Utils.Write("1. Yes\n");
-            Utils.Write("2. No\n");
+            Utils.WriteLine("\nDo you want to pick it up?\n", 1, ". Yes\n", 2, ". No");
+
             int choice = Utils.ReadInt(1, 2);
             if (choice == 1)
             {
@@ -69,6 +68,7 @@ namespace text_survival
             }
             else
             {
+                player.CurrentArea.Items.Add(item);
                 Utils.Write("You left the " + item + " on the ground.\n");
             }
         }
@@ -85,13 +85,14 @@ namespace text_survival
             int speedDiff = defender.Speed - attacker.Speed;
             int chance = baseDodge + speedDiff;
 
-            int roll = Utils.Rand(0, 100);
+            int roll = Utils.RandInt(0, 100);
             return roll <= chance;
         }
         public static float CalcDamage(IActor attacker, IActor defender)
         {
             // base damage - defense percentage
             float damage = attacker.Strength - ((defender.Defense / 100) * attacker.Strength);
+            damage *= Utils.RandFloat(.5F, 1.5F);
             if (damage < 0)
             {
                 damage = 0;
@@ -100,9 +101,9 @@ namespace text_survival
         }
         public static void WriteCombatStats(IActor c)
         {
-            Utils.Write(c.Name, " => ",
+            Utils.Write(c, " => ",
                 "HP: ", Math.Round(c.Health, 2), "/", c.MaxHealth,
-                ", Str: ", c.Strength,
+                "\nStr: ", c.Strength,
                 ", Def: ", c.Defense,
                 ", Spd: ", c.Speed, "\n");
         }

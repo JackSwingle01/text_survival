@@ -240,9 +240,9 @@
             vial.UseEffect = (player) =>
             {
                 Utils.Write("You can use this to poison your weapon.\n");
-                if (player.EquippedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
+                if (player.Gear.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
                 {
-                    EquipableItem weapon = player.EquippedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
+                    EquipableItem weapon = player.Gear.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
                     weapon.Strength += 2;
                     player.Inventory.Remove(vial);
                 }
@@ -274,9 +274,9 @@
             silk.UseEffect = (player) =>
             {
                 Utils.Write("You can use this to improve your clothing.\n");
-                if (player.EquippedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
+                if (player.Gear.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
                 {
-                    EquipableItem armor = player.EquippedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
+                    EquipableItem armor = player.Gear.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
                     armor.Warmth += 2;
                     player.Inventory.Remove(silk);
                 }
@@ -309,9 +309,9 @@
             scale.UseEffect = (player) =>
             {
                 Utils.Write("You can use this to improve your armor.\n");
-                if (player.EquippedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
+                if (player.Gear.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
                 {
-                    EquipableItem armor = player.EquippedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
+                    EquipableItem armor = player.Gear.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
                     armor.Defense += 6;
                     player.Inventory.Remove(scale);
                 }
@@ -325,9 +325,9 @@
             tooth.UseEffect = (player) =>
             {
                 Utils.Write("You can use this to improve your weapon.\n");
-                if (player.EquippedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
+                if (player.Gear.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
                 {
-                    EquipableItem weapon = player.EquippedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
+                    EquipableItem weapon = player.Gear.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
                     weapon.Strength += 6;
                     player.Inventory.Remove(tooth);
                 }
@@ -340,7 +340,7 @@
             Item item = new Item("Large Coin Pouch");
             item.UseEffect = (player) =>
             {
-                int num = Utils.Rand(3, 5);
+                int num = Utils.RandInt(3, 5);
                 Utils.Write("It contained " + num + " coins\n");
                 for (int i = 0; i < num; i++)
                 {
@@ -370,9 +370,9 @@
             skin.UseEffect = (player) =>
             {
                 Utils.Write("You can use this to improve your armor.\n");
-                if (player.EquippedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
+                if (player.Gear.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Chest))
                 {
-                    EquipableItem armor = player.EquippedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
+                    EquipableItem armor = player.Gear.First(i => i.EquipSpot == EquipableItem.EquipSpots.Chest);
                     armor.Defense += 2;
                     player.Inventory.Remove(skin);
                 }
@@ -386,9 +386,9 @@
             tooth.UseEffect = (player) =>
             {
                 Utils.Write("You can use this to improve your weapon.\n");
-                if (player.EquippedItems.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
+                if (player.Gear.Any(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon))
                 {
-                    EquipableItem weapon = player.EquippedItems.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
+                    EquipableItem weapon = player.Gear.First(i => i.EquipSpot == EquipableItem.EquipSpots.Weapon);
                     weapon.Strength += 2;
                     player.Inventory.Remove(tooth);
                 }

@@ -91,7 +91,7 @@ namespace text_survival.Environments
 
             for (int i = 0; i < count; i++)
             {
-                EnvironmentType type = (EnvironmentType)Utils.Rand(0, (types.Length - 1));
+                EnvironmentType type = (EnvironmentType)Utils.RandInt(0, (types.Length - 1));
                 NearbyAreas.Add(AreaFactory.GenerateArea(type));
             }
         }

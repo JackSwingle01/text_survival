@@ -1,4 +1,5 @@
 ﻿using text_survival.Actors;
+using text_survival.Environments;
 using text_survival.Items;
 
 namespace text_survival
@@ -48,6 +49,22 @@ namespace text_survival
             }
         }
 
+        public static int GetSelectionFromList<T>(List<T> list, bool cancelOption = false)
+        {
+            list.ForEach(i => Utils.WriteLine(list.IndexOf(i) + 1, ". ", i));
+            int input;
+            if (cancelOption)
+            {
+                Utils.WriteLine(0, ". Cancel");
+                input = Utils.ReadInt(0, list.Count);
+            }
+            else
+            {
+                input = Utils.ReadInt(1, list.Count);
+            }
+            return input;
+        }
+
         public static ConsoleColor DetermineTextColor(object x)
         {
             return x switch
@@ -58,6 +75,8 @@ namespace text_survival
                 FoodItem or EquipableItem or Item => ConsoleColor.Cyan,
                 Container => ConsoleColor.Yellow,
                 Player => ConsoleColor.Green,
+                Area => ConsoleColor.Blue,
+                Enum => ConsoleColor.White,
                 _ => ConsoleColor.White,
             };
         }
@@ -105,9 +124,14 @@ namespace text_survival
         {
             return Random.Next(1, sides + 1);
         }
-        public static int Rand(int low, int high)
+        public static int RandInt(int low, int high)
         {
             return Random.Next(low, high + 1);
+        }
+
+        public static float RandFloat(float low, float high)
+        {
+            return (float)Random.NextDouble() * (high - low) + low;
         }
         public static bool FlipCoin()
         {

@@ -36,22 +36,20 @@
 
             if (WaterContent == 0)
             {
-                Utils.Write(this, " => Cal: ", Calories, "\n");
+                Utils.Write(this, " => Cal: ", Calories, " ");
             }
             else
             {
-                Utils.Write(this, " => Cal: ", Calories, " Water: ", WaterContent, "\n");
+                Utils.Write(this, " => Cal: ", Calories, " Water: ", WaterContent, " ");
             }
+            Utils.Write("Weight: ", Weight, " ");
             if (Description != "")
             {
-                Utils.Write(Description, "\n");
+                Utils.Write(Description);
             }
+            Utils.Write("\n");
         }
-        public override void Use(Player player)
-        {
-            Utils.Write("You eat the ", Name, "\n");
-            UseEffect?.Invoke(player);
-        }
+
 
 
     }

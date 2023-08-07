@@ -43,18 +43,18 @@
         }
         public void EquipTo(Player player)
         {
-            if (player.EquippedItems.Any(item => item.EquipSpot == EquipSpot))
+            if (player.Gear.Any(item => item.EquipSpot == EquipSpot))
             {
-                EquipableItem? item = player.EquippedItems.Find(item => item.EquipSpot == EquipSpot);
+                EquipableItem? item = player.Gear.Find(item => item.EquipSpot == EquipSpot);
                 item?.Unequip(player);
             }
-            player.EquippedItems.Add(this);
+            player.Gear.Add(this);
             ApplyStats(player);
             player.Inventory.Remove(this);
         }
         public void Unequip(Player player)
         {
-            player.EquippedItems.Remove(this);
+            player.Gear.Remove(this);
             RemoveStats(player);
             player.Inventory.Add(this);
         }

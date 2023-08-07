@@ -106,7 +106,7 @@ namespace text_survival
             AvailableActions.Add(ActionType.Travel);
             if (_player.Exhaustion > 0)
                 AvailableActions.Add(ActionType.Sleep);
-            if (_player.EquippedItems.Count > 0)
+            if (_player.Gear.Count > 0)
                 AvailableActions.Add(ActionType.CheckGear);
 
             // last action
@@ -118,11 +118,13 @@ namespace text_survival
             UpdatePossibleActions();
             //CheckStats();
             Utils.WriteLine("What would you like to do?");
-            ActionType actionType = GetActionsByNum();
+            int input = Utils.GetSelectionFromList(AvailableActions);
+            ActionType actionType = AvailableActions[input - 1];
 
             if (AvailableActions.Contains(actionType))
             {
                 _actionDict[actionType].Invoke();
+                _player.Update(1);
             }
             else
             {
@@ -142,17 +144,6 @@ namespace text_survival
             // Return the ActionType
             return actionType;
         }
-
-        private ActionType GetActionsByNum()
-        {
-            foreach (var action in AvailableActions)
-            {
-                Utils.WriteLine($"{AvailableActions.IndexOf(action) + 1}. {action}");
-            }
-            int input = Utils.ReadInt(1, AvailableActions.Count);
-            return AvailableActions[input - 1];
-        }
-
 
         private void Help()
         {
@@ -199,6 +190,7 @@ namespace text_survival
         private void CheckStats()
         {
             _player.WriteSurvivalStats();
+            _player.WriteCombatStats();
         }
 
         private void Fight()
@@ -214,7 +206,17 @@ namespace text_survival
                 Utils.WriteLine("Its too dangerous with enemies nearby!");
                 return;
             }
-            Item item = _player.CurrentArea.Items.First();
+            var items = _player.CurrentArea.Items;
+            Item item = items.First();
+            if (items.Count > 1)
+            {
+                Utils.WriteLine("Which item would you like to pick up?");
+                int input = Utils.GetSelectionFromList(items, cancelOption: true);
+                if (input == 0)
+                    return;
+                item = items[input - 1];
+
+            }
             _player.Inventory.Add(item);
         }
 
@@ -249,7 +251,7 @@ namespace text_survival
 
             if (input == 0) return;
 
-            int minutes = Utils.Rand(30, 60);
+            int minutes = Utils.RandInt(30, 60);
             Utils.WriteLine("You travel for ", minutes, " minutes...");
             _player.Update(minutes);
             options[input - 1].Enter(_player);

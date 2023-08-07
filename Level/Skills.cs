@@ -40,7 +40,6 @@
                     Utils.WriteWarning("Invalid experience gain type");
                     break;
             }
-            Utils.WriteLine("gained xp!");
         }
 
     }

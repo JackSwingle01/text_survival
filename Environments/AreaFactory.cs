@@ -109,7 +109,7 @@ namespace text_survival.Environments
                         "Ruins",
                         "Old Ruins",
                         "Abandoned Ruins",
-                        
+
 
                     },
                 //case EnvironmentType.Road:
@@ -159,15 +159,16 @@ namespace text_survival.Environments
                         "Location"
                     },
             };
-            name = names[Utils.Rand(0, names.Count - 1)];
+            name = names[Utils.RandInt(0, names.Count - 1)];
             return name;
         }
 
         public static Area GenerateArea(EnvironmentType type, int numItems = 1, int numNpcs = 1)
         {
-            Area area = new Area(GetRandomAreaName((type)), "");
+            Area area = new(GetRandomAreaName((type)), "");
             ItemPool itemPool = CreateItemPool(type);
             NpcPool npcPool = CreateNpcPool(type);
+            area.BaseTemperature = GetAreaBaseTemperature(type);
             for (int i = 0; i < numItems; i++)
             {
                 area.Items.Add(itemPool.GenerateRandomItem());
@@ -277,6 +278,18 @@ namespace text_survival.Environments
                 "Snake",
             } },
         };
+
+        private static float GetAreaBaseTemperature(EnvironmentType environment)
+        {
+            return environment switch
+            {
+                EnvironmentType.Forest => 70,
+                EnvironmentType.Cave => 50,
+                EnvironmentType.AbandonedBuilding => 75,
+                EnvironmentType.River => 70,
+                _ => 70,
+            };
+        }
 
         private static NpcPool CreateNpcPool(EnvironmentType environment)
         {

@@ -25,7 +25,7 @@
             {
                 return new Npc("Ghost", 1, 1, 1, 1);
             }
-            int index = Utils.Rand(0, Npcs.Count - 1);
+            int index = Utils.RandInt(0, Npcs.Count - 1);
             return Npcs[index].Invoke();
         }
 

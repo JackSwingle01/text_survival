@@ -26,10 +26,16 @@ namespace text_survival
         public float WarmthBonus { get; set; }
         public float MaxHealth { get; set; }
         public Container Inventory { get; set; }
+        private float BaseStrength => Strength - GearStrength;
+        private float BaseDefense => Defense - GearDefense;
+        private int BaseSpeed => Speed - GearSpeed;
+        private float GearStrength => Gear.Sum(g => g.Strength);
+        private float GearDefense => Gear.Sum(g => g.Defense);
+        private int GearSpeed => Gear.Sum(g => g.Speed);
         public float Strength { get; set; }
         public float Defense { get; set; }
         public int Speed { get; set; }
-        public List<EquipableItem> EquippedItems { get; set; }
+        public List<EquipableItem> Gear { get; set; }
 
         public Level.Skills Skills { get; set; }
 
@@ -46,7 +52,7 @@ namespace text_survival
             Strength = 10;
             Defense = 10;
             Speed = 10;
-            EquippedItems = new List<EquipableItem>();
+            Gear = new List<EquipableItem>();
             ItemFactory.MakeClothShirt().EquipTo(this);
             ItemFactory.MakeClothPants().EquipTo(this);
             ItemFactory.MakeBoots().EquipTo(this);
@@ -99,9 +105,16 @@ namespace text_survival
                 "Body Temperature: ", Math.Round(BodyTemperature, 1), "°F\n");
         }
 
+        public void WriteCombatStats()
+        {
+            Utils.WriteLine("Strength: ", Strength, " (base: ", BaseStrength, ", gear: ", GearStrength, ")\n",
+                               "Defense: ", Defense, " (base: ", BaseDefense, ", gear: ", GearDefense, ")\n",
+                               "Speed: ", Speed, " (base: ", BaseSpeed, ", gear: ", GearSpeed, ")");
+        }
+
         public void WriteEquippedItems()
         {
-            foreach (EquipableItem item in EquippedItems)
+            foreach (EquipableItem item in Gear)
             {
                 Utils.Write(item.EquipSpot, " => ");
                 item.Write();
