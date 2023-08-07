@@ -20,6 +20,39 @@ namespace text_survival.Environments
                         "Trail",
                         "Abandoned Campsite",
                         "Dark Forest",
+                        "Dark Grove",
+                        "Dark Trail",
+                        "Open Field",
+                        "Field",
+                        "Meadow",
+                        "Grassland",
+                        "Plains",
+                        "Woods",
+                        "Dark Woods",
+                        "Dark Forest",
+                        "Hollow",
+                        "Dark Hollow",
+                        "Hill",
+                        "Valley",
+                        "Dark Valley",
+                        "Ominous Forest",
+                        "Shady Forest",
+                        "Lonely Tree",
+                        "Ancient Tree",
+                        "Ancient Forest",
+                        "Ancient Woods",
+                        "Ancient Grove",
+                        "Old Growth Forest",
+                        "Abandoned Camp",
+                        "Abandoned Cornfield",
+                        "Grassy Field",
+                        "Dirt Path",
+                        "Dirt Trail",
+                        "Gravel Path",
+                        "Gravel Trail",
+                        "Path",
+
+
                     },
                 EnvironmentType.Cave => new List<string>()
                     {
@@ -29,6 +62,37 @@ namespace text_survival.Environments
                         "Mine",
                         "Abandoned Mine",
                         "Dark Cave",
+                        "Den",
+                        "Lair",
+                        "Coal Mine",
+                        "Iron Mine",
+                        "Gold Mine",
+                        "Empty Mine",
+                        "Abandoned Hideout",
+                        "Dark Cavern",
+                        "Dark Tunnel",
+                        "Dark Mine",
+                        "Collapsed Mine",
+                        "Collapsed Tunnel",
+                        "Cool Cave",
+                        "Cool Cavern",
+                        "Breezy Cave",
+                        "Breezy Cavern",
+                        "Breezy Tunnel",
+                        "Breezy Mine",
+                        "Quiet Cave",
+                        "Quiet Cavern",
+                        "Quiet Tunnel",
+                        "Quiet Mine",
+                        "Shallow Ravine",
+                        "Deep Ravine",
+                        "Echoing Cave",
+                        "Echoing Cavern",
+                        "Echoing Tunnel",
+                        "Echoing Mine",
+
+
+
                     },
                 EnvironmentType.AbandonedBuilding => new List<string>()
                     {
@@ -37,6 +101,15 @@ namespace text_survival.Environments
                         "Abandoned Shack",
                         "Abandoned Cabin",
                         "Abandoned Church",
+                        "Old Hut",
+                        "Old House",
+                        "Old Shack",
+                        "Old Cabin",
+                        "Old Church",
+                        "Ruins",
+                        "Old Ruins",
+                        "Abandoned Ruins",
+                        
 
                     },
                 //case EnvironmentType.Road:
@@ -59,6 +132,27 @@ namespace text_survival.Environments
                         "Lake",
                         "Pond",
                         "Water",
+                        "Swamp",
+                        "Marsh",
+                        "Bog",
+                        "Wetland",
+                        "Wetlands",
+                        "Wet Swamp",
+                        "Shallow River",
+                        "Brook",
+                        "Shallow Creek",
+                        "Shallow Stream",
+                        "Deep River",
+                        "Deep Creek",
+                        "Deep Stream",
+                        "Rapids",
+                        "Shallow Rapids",
+                        "Deep Rapids",
+                        "Small Waterfall",
+                        "Large Waterfall",
+                        "Huge Waterfall",
+                        "Shimmering Pond",
+                        "Shimmering Lake",
                     },
                 _ => new List<string>()
                     {
@@ -174,11 +268,13 @@ namespace text_survival.Environments
                 "Dragon",
                 "Skeleton" } },
             { EnvironmentType.AbandonedBuilding, new List<string> {
-                "Rat"
+                "Rat",
+                "Spider"
             } },
             { EnvironmentType.River, new List<string>
             {
-                "Crocodile"
+                "Crocodile",
+                "Snake",
             } },
         };
 
