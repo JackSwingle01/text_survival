@@ -11,7 +11,7 @@ namespace text_survival
 
             if (enemy.Speed > player.Speed)
             {
-                Attack(enemy, player);
+                enemy.Attack(player);
             }
             while (player.Health > 0 && enemy.Health > 0)
             {
@@ -22,10 +22,10 @@ namespace text_survival
                 int choice = Utils.ReadInt(1, 2);
                 if (choice == 1)
                 {
-                    Attack(player, enemy);
+                    player.Attack(enemy);
                     if (enemy.Health > 0)
                     {
-                        Attack(enemy, player);
+                        enemy.Attack(player);
                     }
                 }
                 else if (choice == 2)
@@ -46,7 +46,7 @@ namespace text_survival
                 {
                     GetLoot(player, enemy);
                 }
-                
+
             }
         }
         public static void GetLoot(Player player, Npc npc)
@@ -57,7 +57,7 @@ namespace text_survival
                 return;
             }
             Utils.Write(npc.Name + " dropped: ");
-            Item item = npc.Loot[Utils.Rand(0, npc.Loot.Count() - 1)];
+            Item item = npc.Loot[Utils.Rand(0, npc.Loot.Count - 1)];
             item.Write();
             Utils.Write("\nDo you want to pick it up?\n");
             Utils.Write("1. Yes\n");
@@ -78,25 +78,13 @@ namespace text_survival
             Utils.WriteLine("VS");
             WriteCombatStats(combatant2);
         }
-        public static void Attack(IActor attacker, IActor defender)
-        {
-            float damage = CalcDamage(attacker, defender);
-            if (DetermineDodge(attacker, defender))
-            {
-                Utils.Write(defender, " dodged the attack!\n");
-                return;
-            }
-            defender.Damage(damage);
-            Thread.Sleep(1000);
-            Utils.WriteLine(attacker, " attacked ", defender, " for ", Math.Round(damage, 1), " damage!");
-            Thread.Sleep(1000);
-        }
+
         public static bool DetermineDodge(IActor attacker, IActor defender)
         {
             const int baseDodge = 10;
             int speedDiff = defender.Speed - attacker.Speed;
             int chance = baseDodge + speedDiff;
-            
+
             int roll = Utils.Rand(0, 100);
             return roll <= chance;
         }

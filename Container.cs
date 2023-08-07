@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using text_survival.Items;
+﻿using text_survival.Items;
 
 namespace text_survival
 {
@@ -42,7 +37,7 @@ namespace text_survival
             {
                 return null;
             }
-            int index = input- 1;
+            int index = input - 1;
             return GetItem(index);
         }
 

@@ -144,7 +144,7 @@
 
         public static EquipableItem MakeShield()
         {
-            EquipableItem shield =  new EquipableItem("Shield", 0, 10, -1);
+            EquipableItem shield = new EquipableItem("Shield", 0, 10, -1);
             shield.EquipSpot = EquipableItem.EquipSpots.Hands;
             shield.Description = "A shield that blocks 10% damage";
             shield.Weight = 2.5F;
@@ -407,7 +407,7 @@
             EquipableItem pants = new EquipableItem("Cloth Pants", 0, 1, 0, .5F);
             pants.EquipSpot = EquipableItem.EquipSpots.Legs;
             return pants;
-        } 
+        }
 
         public static EquipableItem MakeBoots()
         {

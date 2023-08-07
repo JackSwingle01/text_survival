@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using text_survival.Items;
+﻿using text_survival.Items;
+using text_survival.Level;
 
 namespace text_survival.Actors
 {
@@ -33,6 +29,27 @@ namespace text_survival.Actors
             Description = "";
         }
 
+        public void Attack(IActor target)
+        {
+            float damage = Combat.CalcDamage(this, target);
+            if (Combat.DetermineDodge(this, target))
+            {
+                Utils.Write(target, " dodged the attack!\n");
+                if (target is Player)
+                {
+                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Speed));
+                }
+                return;
+            }
+            Thread.Sleep(1000);
+            Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
+            target.Damage(damage);
+            if (target is Player)
+            {
+                EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Defense));
+            }
+            Thread.Sleep(1000);
+        }
         public string StatsToString()
         {
             return Name + ":\n" +

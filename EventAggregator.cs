@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using text_survival.Actors;
+﻿using text_survival.Actors;
 using text_survival.Items;
-using text_survival.Skills;
+using text_survival.Level;
 
 namespace text_survival
 {
@@ -37,6 +32,18 @@ namespace text_survival
         public SkillLevelUpEvent(Skill skill)
         {
             Skill = skill;
+        }
+    }
+
+    public class GainExperienceEvent : EventBase
+    {
+        public int Experience { get; set; }
+        public SkillType Type { get; set; }
+
+        public GainExperienceEvent(int experience, SkillType type)
+        {
+            Experience = experience;
+            Type = type;
         }
     }
     public static class EventAggregator

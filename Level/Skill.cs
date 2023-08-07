@@ -1,19 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿
 
-namespace text_survival.Skills
+namespace text_survival.Level
 {
     public class Skill
     {
         private int _points;
         private int _level;
-        public string Name { get; set; }
+        public SkillType Type { get; set; }
 
-        public Skill(string name) {
-            Name = name;
+        public Skill(SkillType type)
+        {
+            Type = type;
             _points = 0;
             _level = 0;
         }
@@ -34,8 +31,19 @@ namespace text_survival.Skills
         {
             _level++;
             EventAggregator.Publish(new SkillLevelUpEvent(this));
-            Utils.WriteLine("You leveled up " + Name + " to level " + _level + "!");
+            Utils.WriteLine("You leveled up ", this, " to level ", _level, "!");
         }
+
+        public override string ToString()
+        {
+            return Type.ToString();
+        }
+
+        public void Write()
+        {
+            Utils.Write(this, ": ", _level, " (", _points, "/", LevelUpThreshold, ")");
+        }
+
 
 
     }

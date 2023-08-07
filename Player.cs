@@ -1,7 +1,7 @@
 ﻿using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Items;
-
+using text_survival.Level;
 namespace text_survival
 {
     public class Player : IActor
@@ -30,7 +30,8 @@ namespace text_survival
         public float Defense { get; set; }
         public int Speed { get; set; }
         public List<EquipableItem> EquippedItems { get; set; }
-        
+
+        public Level.Skills Skills { get; set; }
 
         public Player(Area area)
         {
@@ -50,22 +51,37 @@ namespace text_survival
             ItemFactory.MakeClothPants().EquipTo(this);
             ItemFactory.MakeBoots().EquipTo(this);
             EventAggregator.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
+            CurrentArea = area;
             area.Enter(this);
-
+            Skills = new Skills();
 
         }
 
+        public void Attack(IActor target)
+        {
+            float damage = Combat.CalcDamage(this, target);
+            if (Combat.DetermineDodge(this, target))
+            {
+                Utils.Write(target, " dodged the attack!\n");
+                return;
+            }
+            Thread.Sleep(1000);
+            Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
+            EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Strength));
+            target.Damage(damage);
+            Thread.Sleep(1000);
+        }
         private void OnSkillLeveledUp(SkillLevelUpEvent e)
         {
-            switch (e.Skill.Name)
+            switch (e.Skill.Type)
             {
-                case "Strength":
+                case SkillType.Strength:
                     Strength += 1;
                     break;
-                case "Defense":
+                case SkillType.Defense:
                     Defense += 1;
                     break;
-                case "Speed":
+                case SkillType.Speed:
                     Speed += 1;
                     break;
                 default:
@@ -94,6 +110,7 @@ namespace text_survival
 
         public void Eat(FoodItem food)
         {
+            Utils.Write("You eat the ", food, ".\n");
             if (Hunger + food.Calories < 0)
             {
                 Utils.Write("You are too full to finish it.\n");
@@ -147,19 +164,16 @@ namespace text_survival
         public void Update(int minutes)
         {
             World.Update(minutes);
-            UpdateStat(UpdateThirstTick, minutes);
-            UpdateStat(UpdateExhaustionTick, minutes);
-            UpdateStat(UpdateHungerTick, minutes);
+            for (int i = 0; i < minutes; i++)
+            {
+                UpdateThirstTick();
+                UpdateHungerTick();
+                UpdateExhaustionTick();
+            }
             UpdateTemperature(minutes);
         }
 
-        private void UpdateStat(Action statUpdater, int minutes)
-        {
-            for (int i = 0; i < minutes; i++)
-            {
-                statUpdater.Invoke();
-            }
-        }
+
 
 
         private void UpdateHungerTick()
@@ -183,11 +197,9 @@ namespace text_survival
         {
             Exhaustion += ExhaustionRate;
 
-            if (Exhaustion >= MaxExhaustion)
-            {
-                Exhaustion = MaxExhaustion;
-                this.Damage(1);
-            }
+            if (!(Exhaustion >= MaxExhaustion)) return;
+            Exhaustion = MaxExhaustion;
+            this.Damage(1);
         }
 
         public enum TemperatureEnum
@@ -215,43 +227,44 @@ namespace text_survival
         }
         private void UpdateTemperatureEffect()
         {
-            if (BodyTemperature >= 97.0 && BodyTemperature < 99.7)
+            if (BodyTemperature >= 97.7 && BodyTemperature <= 99.5)
             {
                 // Normal body temperature, no effects
                 TemperatureEffect = TemperatureEnum.Warm;
             }
-            else if (BodyTemperature >= 95.0 && BodyTemperature < 97.0)
+            else if (BodyTemperature >= 95.0 && BodyTemperature < 97.7)
             {
                 // Mild hypothermia effects
                 TemperatureEffect = TemperatureEnum.Cool;
             }
-            else if (BodyTemperature >= 82.4 && BodyTemperature < 95.0)
+            else if (BodyTemperature >= 89.6 && BodyTemperature < 95.0)
             {
                 // Moderate hypothermia effects
                 TemperatureEffect = TemperatureEnum.Cold;
             }
-            else if (BodyTemperature < 82.4)
+            else if (BodyTemperature < 89.6)
             {
                 // Severe hypothermia effects
                 TemperatureEffect = TemperatureEnum.Freezing;
             }
-            else if (BodyTemperature >= 99.7 && BodyTemperature < 104.0)
+            else if (BodyTemperature > 99.5 && BodyTemperature <= 104.0)
             {
-                //Heat exhaustion effects
+                // Heat exhaustion effects
                 TemperatureEffect = TemperatureEnum.Hot;
             }
-            else if (BodyTemperature >= 104.0)
+            else if (BodyTemperature > 104.0)
             {
                 // Heat stroke effects
                 TemperatureEffect = TemperatureEnum.HeatExhaustion;
             }
         }
+
         public static void WriteTemperatureEffectMessage(TemperatureEnum tempEnum)
         {
             switch (tempEnum)
             {
                 case TemperatureEnum.Warm:
-                    Utils.Write("You feel normal.");
+                    Utils.WriteLine("You feel normal.");
                     break;
                 case TemperatureEnum.Cool:
                     Utils.WriteWarning("You feel cool.");

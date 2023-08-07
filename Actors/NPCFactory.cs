@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using text_survival.Items;
+﻿using text_survival.Items;
 
 namespace text_survival.Actors
 {
@@ -60,7 +55,7 @@ namespace text_survival.Actors
 
         public static Npc MakeGoblin()
         {
-            Npc goblin = new Npc("Goblin", 10, 10, 5, 10);
+            Npc goblin = new("Goblin", 10, 10, 5, 10);
             goblin.Loot.Add(ItemFactory.MakeGoblinSword());
             goblin.Loot.Add(ItemFactory.MakeCoin());
             //goblin.Loot.Add(ItemFactory.MakeTatteredCloth());
@@ -69,7 +64,7 @@ namespace text_survival.Actors
 
         public static Npc MakeDragon()
         {
-            Npc dragon = new Npc("Dragon", 50, 50, 50, 3);
+            Npc dragon = new("Dragon", 50, 50, 50, 3);
             dragon.Loot.Add(ItemFactory.MakeDragonScale());
             dragon.Loot.Add(ItemFactory.MakeDragonTooth());
             dragon.Loot.Add(ItemFactory.MakeLargeCoinPouch());
@@ -78,7 +73,7 @@ namespace text_survival.Actors
 
         public static Npc MakeSkeleton()
         {
-            Npc skeleton = new Npc("Skeleton", 10, 10, 10, 10);
+            Npc skeleton = new("Skeleton", 10, 10, 10, 10);
             skeleton.Loot.Add(ItemFactory.MakeBoneFragments());
             skeleton.Loot.Add(ItemFactory.MakeRustySword());
             return skeleton;

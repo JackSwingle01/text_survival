@@ -9,11 +9,9 @@ namespace text_survival.Environments
         public static string GetRandomAreaName(EnvironmentType environmentType)
         {
             string name = "";
-            List<string> names;
-            switch (environmentType)
+            List<string> names = environmentType switch
             {
-                case EnvironmentType.Forest:
-                    names = new List<string>()
+                EnvironmentType.Forest => new List<string>()
                     {
                         "Forest",
                         "Clearing",
@@ -22,10 +20,8 @@ namespace text_survival.Environments
                         "Trail",
                         "Abandoned Campsite",
                         "Dark Forest",
-                    };
-                    break;
-                case EnvironmentType.Cave:
-                    names = new List<string>()
+                    },
+                EnvironmentType.Cave => new List<string>()
                     {
                         "Cave",
                         "Cavern",
@@ -33,10 +29,8 @@ namespace text_survival.Environments
                         "Mine",
                         "Abandoned Mine",
                         "Dark Cave",
-                    };
-                    break;
-                case EnvironmentType.AbandonedBuilding:
-                    names = new List<string>()
+                    },
+                EnvironmentType.AbandonedBuilding => new List<string>()
                     {
                         "Abandoned Building",
                         "Abandoned House",
@@ -44,8 +38,7 @@ namespace text_survival.Environments
                         "Abandoned Cabin",
                         "Abandoned Church",
 
-                    };
-                    break;
+                    },
                 //case EnvironmentType.Road:
                 //    names = new List<string>()
                 //    {
@@ -57,8 +50,7 @@ namespace text_survival.Environments
                 //        "Paved Road",
                 //    };
                 //    break;
-                case EnvironmentType.River:
-                    names = new List<string>()
+                EnvironmentType.River => new List<string>()
                     {
                         "River",
                         "Stream",
@@ -67,22 +59,19 @@ namespace text_survival.Environments
                         "Lake",
                         "Pond",
                         "Water",
-                    };
-                    break;
-                default:
-                    names = new List<string>()
+                    },
+                _ => new List<string>()
                     {
                         "Location"
-                    };
-                    break;
-            }
+                    },
+            };
             name = names[Utils.Rand(0, names.Count - 1)];
             return name;
         }
 
         public static Area GenerateArea(EnvironmentType type, int numItems = 1, int numNpcs = 1)
         {
-            Area area = new Area(GetRandomAreaName((type)),"");
+            Area area = new Area(GetRandomAreaName((type)), "");
             ItemPool itemPool = CreateItemPool(type);
             NpcPool npcPool = CreateNpcPool(type);
             for (int i = 0; i < numItems; i++)
@@ -96,7 +85,7 @@ namespace text_survival.Environments
             return area;
         }
 
-    private static readonly Dictionary<string, Func<Item>> ItemDefinitions = new()
+        private static readonly Dictionary<string, Func<Item>> ItemDefinitions = new()
         {
             { "Mushroom", ItemFactory.MakeMushroom },
             { "Apple", ItemFactory.MakeApple },

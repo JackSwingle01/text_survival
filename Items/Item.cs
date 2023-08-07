@@ -2,7 +2,7 @@
 {
     public class Item
     {
-        public string Name { get; set; } 
+        public string Name { get; set; }
         public float Weight { get; set; } // in kg
         public Action<Player> UseEffect { get; set; }
         public string Description { get; set; }
@@ -38,6 +38,6 @@
             Utils.Write("Weight: ", Weight, "\n");
         }
 
-       
+
     }
 }

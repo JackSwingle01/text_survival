@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival.Actors
+﻿namespace text_survival.Actors
 {
     public interface IActor
     {
@@ -16,6 +10,7 @@ namespace text_survival.Actors
         public int Speed { get; set; }
 
         public void Damage(float damage);
-        
+        public void Attack(IActor target);
+
     }
 }

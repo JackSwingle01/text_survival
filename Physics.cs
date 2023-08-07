@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public static class Physics
     {
@@ -18,7 +12,7 @@ namespace text_survival
             return deltaT;
         }
         public static float CaloriesToJoules(float calories)
-        {   
+        {
             return calories * 4184.0F;
         }
 

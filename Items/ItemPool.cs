@@ -7,7 +7,7 @@
         {
             ItemMethods = new List<Func<Item>>();
         }
-        
+
         public void Add(Func<Item> item)
         {
             ItemMethods.Add(item);
@@ -19,11 +19,11 @@
         }
         public Item GenerateRandomItem()
         {
-            int index = Utils.Rand(0, ItemMethods.Count-1);
+            int index = Utils.Rand(0, ItemMethods.Count - 1);
             Item item = ItemMethods[index].Invoke();
             return item;
         }
-        
+
 
     }
 }

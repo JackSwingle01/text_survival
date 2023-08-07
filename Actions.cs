@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-using text_survival.Actors;
+﻿using text_survival.Actors;
 
 using text_survival.Environments;
 using text_survival.Items;
@@ -96,7 +90,7 @@ namespace text_survival
             //AvailableActions.Add(ActionType.Help);
             AvailableActions.Add(ActionType.LookAround);
             AvailableActions.Add(ActionType.CheckStats);
-            
+
 
             // conditional actions
             if (_player.CurrentArea.Npcs.Count > 0)
@@ -115,22 +109,17 @@ namespace text_survival
             if (_player.EquippedItems.Count > 0)
                 AvailableActions.Add(ActionType.CheckGear);
 
+            // last action
             AvailableActions.Add(ActionType.Quit);
         }
-        
+
         public void Act()
         {
             UpdatePossibleActions();
             //CheckStats();
             Utils.WriteLine("What would you like to do?");
-            ActionType actionType = GetActionsByNum();//GetActionsFreeform();
-            
-            //if (actionType == null)
-            //{
-            //    Utils.WriteLine("Hmmm, I don't know how to do that, use 'help', 'h', or '?' To see available actions.");
-            //    return;
-            //}
-            // Execute the chosen action
+            ActionType actionType = GetActionsByNum();
+
             if (AvailableActions.Contains(actionType))
             {
                 _actionDict[actionType].Invoke();
@@ -140,13 +129,12 @@ namespace text_survival
                 Utils.WriteLine("You can't do that right now.");
             }
         }
-        
+
         private ActionType? GetActionsFreeform()
         {
             // Try to get the ActionType from the input
             string input = Utils.Read();
-            ActionType actionType;
-            if (!InputToActionTypes.TryGetValue(input, out actionType))
+            if (!InputToActionTypes.TryGetValue(input, out var actionType))
             {
                 // If the input is not a valid action, return ActionType.None
                 return null;
@@ -171,9 +159,9 @@ namespace text_survival
             Utils.WriteLine("Help:");
             Utils.WriteLine("Type the name of the action you want to perform.");
             Utils.WriteLine("Common actions include: look, fight, pick up, travel, sleep, etc... you can also just type the first letter of an action.");
-           Utils.WriteLine("Available actions:");
-           PrintActionsAndInputs();
-        
+            Utils.WriteLine("Available actions:");
+            PrintActionsAndInputs();
+
         }
         private void PrintActionsAndInputs()
         {
@@ -196,17 +184,15 @@ namespace text_survival
             foreach (var group in groups)
             {
                 // Check if this ActionType should be printed
-                if (actionTypesToPrint.Contains(group.Key))
-                {
-                    // Use group.Key for ActionType
-                    Console.Write($"{group.Key} => ");
+                if (!actionTypesToPrint.Contains(group.Key)) continue;
+                // Use group.Key for ActionType
+                Console.Write($"{group.Key} => ");
 
-                    // Get a list of inputs for this ActionType
-                    var inputs = group.Select(kv => $"'{kv.Key}'").ToList();
+                // Get a list of inputs for this ActionType
+                var inputs = group.Select(kv => $"'{kv.Key}'").ToList();
 
-                    // Use string.Join to concatenate inputs into a string
-                    Console.WriteLine(string.Join(", ", inputs));
-                }
+                // Use string.Join to concatenate inputs into a string
+                Console.WriteLine(string.Join(", ", inputs));
             }
         }
 
@@ -234,7 +220,7 @@ namespace text_survival
 
         private void OpenInventory()
         {
-            Item? item = _player.Inventory.Open(); 
+            Item? item = _player.Inventory.Open();
             item?.Use(_player);
         }
 
@@ -247,16 +233,22 @@ namespace text_survival
             options.AddRange(_player
                             .CurrentArea
                             .NearbyAreas
-                            .FindAll(p => 
+                            .FindAll(p =>
                                 p != _player.CurrentArea));
 
-            options.ForEach(opt => 
-                Utils.WriteLine(options.IndexOf(opt)+1, ". ", opt)); // "1. Name"
+            options.ForEach(opt =>
+            {
+                Utils.Write(options.IndexOf(opt) + 1, ". ", opt); // "1. Name"
+                if (opt.Visited)
+                    Utils.Write(" (Visited)");
+                Utils.WriteLine();
+            });
+
             Utils.WriteLine("0. Cancel");
-            int input = Utils.ReadInt(0,options.Count);
+            int input = Utils.ReadInt(0, options.Count);
 
             if (input == 0) return;
-            
+
             int minutes = Utils.Rand(30, 60);
             Utils.WriteLine("You travel for ", minutes, " minutes...");
             _player.Update(minutes);
@@ -264,12 +256,12 @@ namespace text_survival
 
             Utils.WriteLine("You are now at ", _player.CurrentArea.Name);
         }
-    
+
 
         private void Sleep()
         {
             Utils.WriteLine("How many hours would you like to sleep?");
-            _player.Sleep(Utils.ReadInt()* 60);
+            _player.Sleep(Utils.ReadInt() * 60);
         }
 
         private void CheckGear()
@@ -289,7 +281,7 @@ namespace text_survival
                 Utils.WriteLine("You see nothing of interest, time to move on.");
                 return;
             }
-            
+
             Utils.WriteLine("You see the following things:");
             foreach (var item in _player.CurrentArea.Items)
             {

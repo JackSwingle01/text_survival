@@ -19,7 +19,7 @@ namespace text_survival.Environments
             Forest,
             Cave,
             AbandonedBuilding,
-           // Road,
+            // Road,
             River
         }
         public Area(string name, string description)
@@ -63,7 +63,8 @@ namespace text_survival.Environments
 
         public override string ToString()
         {
-            return Name;
+            string str = Name;
+            return str;
         }
         public void WriteInfo()
         {
@@ -74,19 +75,20 @@ namespace text_survival.Environments
         }
         public void Enter(Player player)
         {
-            this.NearbyAreas.Add(player.CurrentArea);
-            player.CurrentArea = this;
-            Visited = true;
-            GenerateNearbyAreas();
             Utils.WriteLine("You enter ", this);
             Utils.WriteLine(Description);
+            this.NearbyAreas.Add(player.CurrentArea);
+            player.CurrentArea = this;
+            if (!Visited)
+                GenerateNearbyAreas();
+            Visited = true;
             Utils.WriteLine("You should probably look around.");
         }
 
         private void GenerateNearbyAreas(int count = 3)
         {
             Array types = Enum.GetValuesAsUnderlyingType(typeof(EnvironmentType));
-            
+
             for (int i = 0; i < count; i++)
             {
                 EnvironmentType type = (EnvironmentType)Utils.Rand(0, (types.Length - 1));
@@ -105,6 +107,6 @@ namespace text_survival.Environments
             if (!Items.Contains(e.TakenItem)) return;
             this.Items.Remove(e.TakenItem);
         }
-        
+
     }
 }
