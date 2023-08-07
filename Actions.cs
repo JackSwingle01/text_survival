@@ -274,7 +274,7 @@ namespace text_survival
 
         private void CheckGear()
         {
-            _player.WriteEquipedItems();
+            _player.WriteEquippedItems();
             Utils.WriteLine("Press any key to continue");
             Utils.Read();
         }

@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using text_survival.Actors;
 using text_survival.Items;
+using text_survival.Skills;
 
 namespace text_survival
 {
@@ -29,18 +30,27 @@ namespace text_survival
 
     }
 
+    public class SkillLevelUpEvent : EventBase
+    {
+        public Skill Skill { get; set; }
+
+        public SkillLevelUpEvent(Skill skill)
+        {
+            Skill = skill;
+        }
+    }
     public static class EventAggregator
     {
-        private static readonly Dictionary<Type, List<Action<EventBase>>> _eventHandlers = new Dictionary<Type, List<Action<EventBase>>>();
+        private static readonly Dictionary<Type, List<Action<EventBase>>> EventHandlers = new();
 
         public static void Subscribe<TEvent>(Action<TEvent> eventHandler) where TEvent : EventBase
         {
             var eventType = typeof(TEvent);
 
-            if (!_eventHandlers.TryGetValue(eventType, out var handlers))
+            if (!EventHandlers.TryGetValue(eventType, out var handlers))
             {
                 handlers = new List<Action<EventBase>>();
-                _eventHandlers.Add(eventType, handlers);
+                EventHandlers.Add(eventType, handlers);
             }
 
             handlers.Add((e) => eventHandler((TEvent)e));
@@ -50,12 +60,11 @@ namespace text_survival
         {
             var eventType = typeof(TEvent);
 
-            if (_eventHandlers.TryGetValue(eventType, out var handlers))
+            if (!EventHandlers.TryGetValue(eventType, out var handlers)) return;
+
+            foreach (var handler in handlers)
             {
-                foreach (var handler in handlers)
-                {
-                    handler(evt);
-                }
+                handler(evt);
             }
         }
     }

@@ -6,9 +6,9 @@ namespace text_survival
 {
     public class Player : IActor
     {
-        private float _hungerRate = (2500F / (24F * 60F)); // calories per minute
-        private float _thirstRate = (4000F / (24F * 60F)); // mL per minute
-        private float _exaustionRate = (480F / (24F * 60F)); // minutes per minute (8 hours per 24)
+        private const float HungerRate = (2500F / (24F * 60F)); // calories per minute
+        private const float ThirstRate = (4000F / (24F * 60F)); // mL per minute
+        private const float ExhaustionRate = (480F / (24F * 60F)); // minutes per minute (8 hours per 24)
 
         private const float MaxHunger = 3000.0F; // calories
         private const float MaxThirst = 3000.0F; // mL
@@ -49,9 +49,31 @@ namespace text_survival
             ItemFactory.MakeClothShirt().EquipTo(this);
             ItemFactory.MakeClothPants().EquipTo(this);
             ItemFactory.MakeBoots().EquipTo(this);
+            EventAggregator.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
             area.Enter(this);
 
+
         }
+
+        private void OnSkillLeveledUp(SkillLevelUpEvent e)
+        {
+            switch (e.Skill.Name)
+            {
+                case "Strength":
+                    Strength += 1;
+                    break;
+                case "Defense":
+                    Defense += 1;
+                    break;
+                case "Speed":
+                    Speed += 1;
+                    break;
+                default:
+                    Utils.WriteWarning("Error skill not found.");
+                    break;
+            }
+        }
+
         public void WriteSurvivalStats()
         {
             Utils.Write("Health: ", (int)(Health), "%\n",
@@ -61,7 +83,7 @@ namespace text_survival
                 "Body Temperature: ", Math.Round(BodyTemperature, 1), "°F\n");
         }
 
-        public void WriteEquipedItems()
+        public void WriteEquippedItems()
         {
             foreach (EquipableItem item in EquippedItems)
             {
@@ -90,31 +112,27 @@ namespace text_survival
             for (int i = 0; i < minutes; i++)
             {
                 SleepTick();
-                if (Exhaustion <= 0)
-                {
-                    Utils.Write("You wake up feeling refreshed.\n");
-                    Heal(i / 6);
-                    return;
-                }
+                if (!(Exhaustion <= 0)) continue;
+                Utils.Write("You wake up feeling refreshed.\n");
+                Heal(i / 6);
+                return;
             }
             Heal(minutes / 6);
         }
         private void SleepTick()
         {
-            Exhaustion -= 1 + _exaustionRate; // 1 minute plus negatet exaustion rate for update
+            Exhaustion -= 1 + ExhaustionRate; // 1 minute plus negate exhaustion rate for update
             Update(1);
         }
 
         public void Damage(float damage)
         {
             Health -= damage;
-            if (Health <= 0)
-            {
-                Utils.WriteLine("You died!");
-                Health = 0;
-                // end program
-                Environment.Exit(0);
-            }
+            if (!(Health <= 0)) return;
+            Utils.WriteLine("You died!");
+            Health = 0;
+            // end program
+            Environment.Exit(0);
         }
 
         public void Heal(float heal)
@@ -146,28 +164,24 @@ namespace text_survival
 
         private void UpdateHungerTick()
         {
-            Hunger += _hungerRate;
-            if (Hunger >= MaxHunger)
-            {
-                Hunger = MaxHunger;
-                this.Damage(1);
-            }
+            Hunger += HungerRate;
+            if (!(Hunger >= MaxHunger)) return;
+            Hunger = MaxHunger;
+            this.Damage(1);
 
         }
         private void UpdateThirstTick()
         {
-            Thirst += _thirstRate;
-            if (Thirst >= MaxThirst)
-            {
-                Thirst = MaxThirst;
-                this.Damage(1);
-            }
+            Thirst += ThirstRate;
+            if (!(Thirst >= MaxThirst)) return;
+            Thirst = MaxThirst;
+            this.Damage(1);
         }
 
 
         private void UpdateExhaustionTick()
         {
-            Exhaustion += _exaustionRate;
+            Exhaustion += ExhaustionRate;
 
             if (Exhaustion >= MaxExhaustion)
             {
@@ -234,33 +248,29 @@ namespace text_survival
         }
         public static void WriteTemperatureEffectMessage(TemperatureEnum tempEnum)
         {
-            if (tempEnum == TemperatureEnum.Warm)
+            switch (tempEnum)
             {
-                Utils.Write("You feel normal.");
-            }
-            else if (tempEnum == TemperatureEnum.Cool)
-            {
-                Utils.WriteWarning("You feel cool.");
-            }
-            else if (tempEnum == TemperatureEnum.Cold)
-            {
-                Utils.WriteWarning("You feel cold.");
-            }
-            else if (tempEnum == TemperatureEnum.Freezing)
-            {
-                Utils.WriteDanger("You are freezing cold.");
-            }
-            else if (tempEnum == TemperatureEnum.Hot)
-            {
-                Utils.WriteWarning("You feel hot.");
-            }
-            else if (tempEnum == TemperatureEnum.HeatExhaustion)
-            {
-                Utils.WriteDanger("You are burning up.");
-            }
-            else
-            {
-                Utils.WriteDanger("Error: Temperature effect not found.");
+                case TemperatureEnum.Warm:
+                    Utils.Write("You feel normal.");
+                    break;
+                case TemperatureEnum.Cool:
+                    Utils.WriteWarning("You feel cool.");
+                    break;
+                case TemperatureEnum.Cold:
+                    Utils.WriteWarning("You feel cold.");
+                    break;
+                case TemperatureEnum.Freezing:
+                    Utils.WriteDanger("You are freezing cold.");
+                    break;
+                case TemperatureEnum.Hot:
+                    Utils.WriteWarning("You feel hot.");
+                    break;
+                case TemperatureEnum.HeatExhaustion:
+                    Utils.WriteDanger("You are burning up.");
+                    break;
+                default:
+                    Utils.WriteDanger("Error: Temperature effect not found.");
+                    break;
             }
         }
         private void UpdateTemperatureTick()
@@ -268,11 +278,11 @@ namespace text_survival
             // body heats based on calories burned
             if (BodyTemperature < 98.6)
             {
-                float joulesBurned = Physics.CaloriesToJoules(_hungerRate);
+                float joulesBurned = Physics.CaloriesToJoules(HungerRate);
                 float specificHeatOfHuman = 3500F;
                 float weight = 70F;
-                float tempChangeCelcius = Physics.TempChange(weight, specificHeatOfHuman, joulesBurned);
-                BodyTemperature += Physics.DeltaCelsiusToDeltaFahrenheit(tempChangeCelcius);
+                float tempChangeCelsius = Physics.TempChange(weight, specificHeatOfHuman, joulesBurned);
+                BodyTemperature += Physics.DeltaCelsiusToDeltaFahrenheit(tempChangeCelsius);
             }
             float skinTemp = BodyTemperature - 8.4F;
             float rate = 1F / 100F;
