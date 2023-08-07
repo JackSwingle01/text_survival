@@ -51,7 +51,10 @@ namespace text_survival
 
         public static int GetSelectionFromList<T>(List<T> list, bool cancelOption = false)
         {
-            list.ForEach(i => Utils.WriteLine(list.IndexOf(i) + 1, ". ", i));
+            list.ForEach(i =>
+            {
+                if (i != null) Utils.WriteLine(list.IndexOf(i) + 1, ". ", i);
+            });
             int input;
             if (cancelOption)
             {
@@ -88,15 +91,15 @@ namespace text_survival
                 switch (arg)
                 {
                     case float f:
-                    {
-                        Console.Write($"{f:F1}");
-                        break;
-                    }
+                        {
+                            Console.Write($"{f:F1}");
+                            break;
+                        }
                     case double d:
-                    {
-                        Console.Write($"{d:F1}");
-                        break;
-                    }
+                        {
+                            Console.Write($"{d:F1}");
+                            break;
+                        }
                     default:
                         Console.Write(arg.ToString());
                         break;
@@ -116,15 +119,15 @@ namespace text_survival
                 switch (arg)
                 {
                     case float f:
-                    {
-                        Console.Write($"{f:F1}");
-                        break;
-                    }
+                        {
+                            Console.Write($"{f:F1}");
+                            break;
+                        }
                     case double d:
-                    {
-                        Console.Write($"{d:F1}");
-                        break;
-                    }
+                        {
+                            Console.Write($"{d:F1}");
+                            break;
+                        }
                     default:
                         Console.Write(arg.ToString());
                         break;

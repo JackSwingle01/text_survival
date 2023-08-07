@@ -47,7 +47,7 @@
                 Utils.Write("Water: ", WaterContent, "ml ");
             }
             Utils.Write("Weight: ", Weight, "kg ");
-            
+
             Utils.Write("\n");
         }
 

@@ -104,7 +104,7 @@ namespace text_survival
             if (_player.Inventory.Count() > 0)
                 AvailableActions.Add(ActionType.OpenInventory);
             AvailableActions.Add(ActionType.Travel);
-            if (_player.Exhaustion > 0)
+            if (_player.Exhaustion.Amount > 0)
                 AvailableActions.Add(ActionType.Sleep);
             if (_player.Gear.Count > 0)
                 AvailableActions.Add(ActionType.CheckGear);
@@ -189,8 +189,8 @@ namespace text_survival
 
         private void CheckStats()
         {
-            _player.WriteSurvivalStats();
-            _player.WriteCombatStats();
+            Examine.ExamineSurvivalStats(_player);
+            Examine.ExamineCombatStats(_player);
         }
 
         private void Fight()
@@ -266,7 +266,7 @@ namespace text_survival
 
         private void CheckGear()
         {
-            _player.WriteEquippedItems();
+            Examine.ExamineGear(_player);
             Utils.WriteLine("Press any key to continue");
             Utils.Read();
         }

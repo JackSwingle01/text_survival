@@ -6,35 +6,41 @@ namespace text_survival
 {
     public class Player : IActor
     {
-        private const float HungerRate = (2500F / (24F * 60F)); // calories per minute
-        private const float ThirstRate = (4000F / (24F * 60F)); // mL per minute
-        private const float ExhaustionRate = (480F / (24F * 60F)); // minutes per minute (8 hours per 24)
+        
+        public const float ThirstRate = (4000F / (24F * 60F)); // mL per minute
+        public const float ExhaustionRate = (480F / (24F * 60F)); // minutes per minute (8 hours per 24)
 
-        private const float MaxHunger = 3000.0F; // calories
-        private const float MaxThirst = 3000.0F; // mL
-        private const float MaxExhaustion = 480.0F; // minutes (8 hours)
+        
+        public const float MaxThirst = 3000.0F; // mL
+        public const float MaxExhaustion = 480.0F; // minutes (8 hours)
 
         public string Name { get; set; }
-        public float Hunger { get; set; }
-        public float Thirst { get; set; }
+
+        // Survival stats
+
+        public Thirst Thirst { get; set; }
+        public Exhaustion Exhaustion { get; set; }
         public float Health { get; set; }
-        public float Exhaustion { get; private set; }
-        public float BodyTemperature { get; private set; }
-        public TemperatureEnum TemperatureEffect { get; private set; }
+        public Temperature Temperature { get; set; }
+        public Hunger Hunger { get; set; }
+
+        // area
         public Area CurrentArea { get; set; }
 
         public float WarmthBonus { get; set; }
         public float MaxHealth { get; set; }
         public Container Inventory { get; set; }
-        private float BaseStrength => Strength - GearStrength;
-        private float BaseDefense => Defense - GearDefense;
-        private float BaseSpeed => Speed - GearSpeed;
-        private float GearStrength => Gear.Sum(g => g.Strength);
-        private float GearDefense => Gear.Sum(g => g.Defense);
-        private float GearSpeed => Gear.Sum(g => g.Speed);
+        public float BaseStrength => Strength - GearStrength;
+        public float BaseDefense => Defense - GearDefense;
+        public float BaseSpeed => Speed - GearSpeed;
+        public float GearStrength => Gear.Sum(g => g.Strength);
+        public float GearDefense => Gear.Sum(g => g.Defense);
+        public float GearSpeed => Gear.Sum(g => g.Speed);
         public float Strength { get; set; }
         public float Defense { get; set; }
         public float Speed { get; set; }
+
+
         public List<EquipableItem> Gear { get; set; }
 
         public Level.Skills Skills { get; set; }
@@ -42,12 +48,12 @@ namespace text_survival
         public Player(Area area)
         {
             Name = "Player";
-            Hunger = 0;
-            Thirst = 0;
+            Hunger = new Hunger(this);
+            Thirst = new Thirst(this);
+            Exhaustion = new Exhaustion(this);
             MaxHealth = 100;
             Health = MaxHealth;
-            Exhaustion = 0;
-            BodyTemperature = 98.6F;
+            Temperature = new Temperature(this);
             Inventory = new Container("Backpack", 10);
             Strength = 5;
             Defense = 5;
@@ -97,44 +103,18 @@ namespace text_survival
             }
         }
 
-        public void WriteSurvivalStats()
-        {
-            Utils.WriteLine("Health: ", (int)(Health), "%");
-            Utils.WriteLine("Hunger: ", (int)((Hunger / MaxHunger) * 100), "%");
-            Utils.WriteLine("Thirst: ", (int)((Thirst / MaxThirst) * 100), "%");
-            Utils.WriteLine("Exhaustion: ", (int)((Exhaustion / MaxExhaustion) * 100), "%");
-            Utils.WriteLine("Body Temperature: ", Math.Round(BodyTemperature, 1), "°F (", TemperatureEffect, ")");
-     
-        }
-
-        public void WriteCombatStats()
-        {
-            Utils.WriteLine("Strength: ", Strength, " (base: ", BaseStrength, ", gear: ", GearStrength, ")\n",
-                               "Defense: ", Defense, " (base: ", BaseDefense, ", gear: ", GearDefense, ")\n",
-                               "Speed: ", Speed, " (base: ", BaseSpeed, ", gear: ", GearSpeed, ")");
-        }
-
-        public void WriteEquippedItems()
-        {
-            foreach (EquipableItem item in Gear)
-            {
-                Utils.Write(item.EquipSpot, " => ");
-                item.Write();
-            }
-        }
-
         public void Eat(FoodItem food)
         {
             Utils.Write("You eat the ", food, ".\n");
-            if (Hunger + food.Calories < 0)
+            if (Hunger.Amount - food.Calories < 0)
             {
                 Utils.Write("You are too full to finish it.\n");
-                food.Calories -= (int)(0 - Hunger);
-                Hunger = 0;
+                food.Calories -= (int)(0 - Hunger.Amount);
+                Hunger.Amount = 0;
                 return;
             }
-            Hunger -= food.Calories;
-            Thirst -= food.WaterContent;
+            Hunger.Amount -= food.Calories;
+            Thirst.Amount -= food.WaterContent;
             Inventory.Remove(food);
             Update(1);
         }
@@ -143,18 +123,14 @@ namespace text_survival
         {
             for (int i = 0; i < minutes; i++)
             {
-                SleepTick();
-                if (!(Exhaustion <= 0)) continue;
+                Exhaustion.Amount -= 1 + ExhaustionRate; // 1 minute plus negate exhaustion rate for update
+                Update(1);
+                if (!(Exhaustion.Amount <= 0)) continue;
                 Utils.Write("You wake up feeling refreshed.\n");
                 Heal(i / 6);
                 return;
             }
             Heal(minutes / 6);
-        }
-        private void SleepTick()
-        {
-            Exhaustion -= 1 + ExhaustionRate; // 1 minute plus negate exhaustion rate for update
-            Update(1);
         }
 
         public void Damage(float damage)
@@ -175,161 +151,20 @@ namespace text_survival
                 Health = MaxHealth;
             }
         }
-
         public void Update(int minutes)
         {
             World.Update(minutes);
             for (int i = 0; i < minutes; i++)
             {
-                UpdateThirstTick();
-                UpdateHungerTick();
-                UpdateExhaustionTick();
+                Hunger.Update();
+                Thirst.Update();
+                Exhaustion.Update();
             }
-            UpdateTemperature(minutes);
+            Temperature.Update(minutes);
         }
+        
 
-
-
-
-        private void UpdateHungerTick()
-        {
-            Hunger += HungerRate;
-            if (!(Hunger >= MaxHunger)) return;
-            Hunger = MaxHunger;
-            this.Damage(1);
-
-        }
-        private void UpdateThirstTick()
-        {
-            Thirst += ThirstRate;
-            if (!(Thirst >= MaxThirst)) return;
-            Thirst = MaxThirst;
-            this.Damage(1);
-        }
-
-
-        private void UpdateExhaustionTick()
-        {
-            Exhaustion += ExhaustionRate;
-
-            if (!(Exhaustion >= MaxExhaustion)) return;
-            Exhaustion = MaxExhaustion;
-            this.Damage(1);
-        }
-
-        public enum TemperatureEnum
-        {
-            Warm,
-            Cool,
-            Cold,
-            Freezing,
-            Hot,
-            HeatExhaustion,
-        }
-
-        private void UpdateTemperature(int minutes)
-        {
-            TemperatureEnum oldTemperature = TemperatureEffect;
-            for (int i = 0; i < minutes; i++)
-            {
-                UpdateTemperatureTick();
-            }
-            if (oldTemperature != TemperatureEffect)
-            {
-                WriteTemperatureEffectMessage(TemperatureEffect);
-            }
-
-        }
-        private void UpdateTemperatureEffect()
-        {
-            if (BodyTemperature >= 97.7 && BodyTemperature <= 99.5)
-            {
-                // Normal body temperature, no effects
-                TemperatureEffect = TemperatureEnum.Warm;
-            }
-            else if (BodyTemperature >= 95.0 && BodyTemperature < 97.7)
-            {
-                // Mild hypothermia effects
-                TemperatureEffect = TemperatureEnum.Cool;
-            }
-            else if (BodyTemperature >= 89.6 && BodyTemperature < 95.0)
-            {
-                // Moderate hypothermia effects
-                TemperatureEffect = TemperatureEnum.Cold;
-            }
-            else if (BodyTemperature < 89.6)
-            {
-                // Severe hypothermia effects
-                TemperatureEffect = TemperatureEnum.Freezing;
-            }
-            else if (BodyTemperature > 99.5 && BodyTemperature <= 104.0)
-            {
-                // Heat exhaustion effects
-                TemperatureEffect = TemperatureEnum.Hot;
-            }
-            else if (BodyTemperature > 104.0)
-            {
-                // Heat stroke effects
-                TemperatureEffect = TemperatureEnum.HeatExhaustion;
-            }
-        }
-
-        public static void WriteTemperatureEffectMessage(TemperatureEnum tempEnum)
-        {
-            switch (tempEnum)
-            {
-                case TemperatureEnum.Warm:
-                    Utils.WriteLine("You feel normal.");
-                    break;
-                case TemperatureEnum.Cool:
-                    Utils.WriteWarning("You feel cool.");
-                    break;
-                case TemperatureEnum.Cold:
-                    Utils.WriteWarning("You feel cold.");
-                    break;
-                case TemperatureEnum.Freezing:
-                    Utils.WriteDanger("You are freezing cold.");
-                    break;
-                case TemperatureEnum.Hot:
-                    Utils.WriteWarning("You feel hot.");
-                    break;
-                case TemperatureEnum.HeatExhaustion:
-                    Utils.WriteDanger("You are burning up.");
-                    break;
-                default:
-                    Utils.WriteDanger("Error: Temperature effect not found.");
-                    break;
-            }
-        }
-        private void UpdateTemperatureTick()
-        {
-            // body heats based on calories burned
-            if (BodyTemperature < 98.6)
-            {
-                float joulesBurned = Physics.CaloriesToJoules(HungerRate);
-                float specificHeatOfHuman = 3500F;
-                float weight = 70F;
-                float tempChangeCelsius = Physics.TempChange(weight, specificHeatOfHuman, joulesBurned);
-                BodyTemperature += Physics.DeltaCelsiusToDeltaFahrenheit(tempChangeCelsius);
-            }
-            float skinTemp = BodyTemperature - 8.4F;
-            float rate = 1F / 100F;
-            float feelsLike = CurrentArea.GetTemperature();
-            feelsLike += WarmthBonus;
-            float tempChange = (skinTemp - feelsLike) * rate;
-            BodyTemperature -= tempChange;
-
-            UpdateTemperatureEffect();
-
-            if (BodyTemperature < 82.4)
-            {
-                Damage(1);
-            }
-            else if (BodyTemperature >= 104.0)
-            {
-                Damage(1);
-            }
-        }
+        
 
         public override string ToString()
         {
