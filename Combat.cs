@@ -82,8 +82,8 @@ namespace text_survival
         public static bool DetermineDodge(IActor attacker, IActor defender)
         {
             const int baseDodge = 10;
-            int speedDiff = defender.Speed - attacker.Speed;
-            int chance = baseDodge + speedDiff;
+            float speedDiff = defender.Speed - attacker.Speed;
+            float chance = baseDodge + speedDiff;
 
             int roll = Utils.RandInt(0, 100);
             return roll <= chance;

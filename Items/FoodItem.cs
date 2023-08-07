@@ -33,20 +33,21 @@
         }
         public override void Write()
         {
-
-            if (WaterContent == 0)
-            {
-                Utils.Write(this, " => Cal: ", Calories, " ");
-            }
-            else
-            {
-                Utils.Write(this, " => Cal: ", Calories, " Water: ", WaterContent, " ");
-            }
-            Utils.Write("Weight: ", Weight, " ");
+            Utils.Write(this, " => ");
             if (Description != "")
             {
                 Utils.Write(Description);
             }
+            if (Calories > 0)
+            {
+                Utils.Write("Cal: ", Calories, " ");
+            }
+            if (WaterContent > 0)
+            {
+                Utils.Write("Water: ", WaterContent, "ml ");
+            }
+            Utils.Write("Weight: ", Weight, "kg ");
+            
             Utils.Write("\n");
         }
 

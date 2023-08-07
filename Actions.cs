@@ -255,8 +255,6 @@ namespace text_survival
             Utils.WriteLine("You travel for ", minutes, " minutes...");
             _player.Update(minutes);
             options[input - 1].Enter(_player);
-
-            Utils.WriteLine("You are now at ", _player.CurrentArea.Name);
         }
 
 

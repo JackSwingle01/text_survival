@@ -357,10 +357,12 @@
             return item;
         }
 
-        public static EquipableItem MakeRustySword()
+        public static Weapon MakeRustySword()
         {
-            EquipableItem sword = new EquipableItem("Rusty Sword", 3, 1, 0);
+            Weapon sword = new Weapon(WeaponType.Sword, Material.Iron);
             sword.EquipSpot = EquipableItem.EquipSpots.Weapon;
+            sword.Description = "A rusty sword.";
+            sword.Weight = 2.0F;
             return sword;
         }
 

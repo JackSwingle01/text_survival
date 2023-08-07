@@ -28,13 +28,13 @@ namespace text_survival
         public Container Inventory { get; set; }
         private float BaseStrength => Strength - GearStrength;
         private float BaseDefense => Defense - GearDefense;
-        private int BaseSpeed => Speed - GearSpeed;
+        private float BaseSpeed => Speed - GearSpeed;
         private float GearStrength => Gear.Sum(g => g.Strength);
         private float GearDefense => Gear.Sum(g => g.Defense);
-        private int GearSpeed => Gear.Sum(g => g.Speed);
+        private float GearSpeed => Gear.Sum(g => g.Speed);
         public float Strength { get; set; }
         public float Defense { get; set; }
-        public int Speed { get; set; }
+        public float Speed { get; set; }
         public List<EquipableItem> Gear { get; set; }
 
         public Level.Skills Skills { get; set; }
@@ -49,8 +49,8 @@ namespace text_survival
             Exhaustion = 0;
             BodyTemperature = 98.6F;
             Inventory = new Container("Backpack", 10);
-            Strength = 10;
-            Defense = 10;
+            Strength = 5;
+            Defense = 5;
             Speed = 10;
             Gear = new List<EquipableItem>();
             ItemFactory.MakeClothShirt().EquipTo(this);
@@ -60,7 +60,8 @@ namespace text_survival
             CurrentArea = area;
             area.Enter(this);
             Skills = new Skills();
-
+            Weapon weapon = Weapon.GenerateRandomWeapon();
+            weapon.EquipTo(this);
         }
 
         public void Attack(IActor target)
@@ -98,11 +99,12 @@ namespace text_survival
 
         public void WriteSurvivalStats()
         {
-            Utils.Write("Health: ", (int)(Health), "%\n",
-                "Hunger: ", (int)((Hunger / MaxHunger) * 100), "%\n",
-                "Thirst: ", (int)((Thirst / MaxThirst) * 100), "%\n",
-                "Exhaustion: ", (int)((Exhaustion / MaxExhaustion) * 100), "%\n",
-                "Body Temperature: ", Math.Round(BodyTemperature, 1), "°F\n");
+            Utils.WriteLine("Health: ", (int)(Health), "%");
+            Utils.WriteLine("Hunger: ", (int)((Hunger / MaxHunger) * 100), "%");
+            Utils.WriteLine("Thirst: ", (int)((Thirst / MaxThirst) * 100), "%");
+            Utils.WriteLine("Exhaustion: ", (int)((Exhaustion / MaxExhaustion) * 100), "%");
+            Utils.WriteLine("Body Temperature: ", Math.Round(BodyTemperature, 1), "°F (", TemperatureEffect, ")");
+     
         }
 
         public void WriteCombatStats()

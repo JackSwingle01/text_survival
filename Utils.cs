@@ -85,7 +85,23 @@ namespace text_survival
             foreach (var arg in args)
             {
                 Console.ForegroundColor = DetermineTextColor(arg);
-                Console.Write(arg.ToString());
+                switch (arg)
+                {
+                    case float f:
+                    {
+                        Console.Write($"{f:F1}");
+                        break;
+                    }
+                    case double d:
+                    {
+                        Console.Write($"{d:F1}");
+                        break;
+                    }
+                    default:
+                        Console.Write(arg.ToString());
+                        break;
+                }
+
             }
             // Reset color to default after writing
             Console.ResetColor();
@@ -97,7 +113,22 @@ namespace text_survival
             foreach (var arg in args)
             {
                 Console.ForegroundColor = DetermineTextColor(arg);
-                Console.Write(arg.ToString());
+                switch (arg)
+                {
+                    case float f:
+                    {
+                        Console.Write($"{f:F1}");
+                        break;
+                    }
+                    case double d:
+                    {
+                        Console.Write($"{d:F1}");
+                        break;
+                    }
+                    default:
+                        Console.Write(arg.ToString());
+                        break;
+                }
             }
             // Reset color to default after writing
             Console.ResetColor();
@@ -137,5 +168,12 @@ namespace text_survival
         {
             return Random.Next(2) == 0;
         }
+
+        public static T GetRandomEnum<T>() where T : Enum
+        {
+            Array values = Enum.GetValues(typeof(T));
+            return (T)values.GetValue(RandInt(0, values.Length - 1));
+        }
+
     }
 }

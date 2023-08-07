@@ -2,9 +2,9 @@
 {
     public class EquipableItem : Item
     {
-        public int Strength { get; set; }
-        public int Defense { get; set; }
-        public int Speed { get; set; }
+        public float Strength { get; set; }
+        public float Defense { get; set; }
+        public float Speed { get; set; }
         public float Warmth { get; set; }
 
         public EquipSpots EquipSpot { get; set; }

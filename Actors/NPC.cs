@@ -11,7 +11,7 @@ namespace text_survival.Actors
         public float MaxHealth { get; set; }
         public float Strength { get; set; }
         public float Defense { get; set; }
-        public int Speed { get; set; }
+        public float Speed { get; set; }
         public bool IsHostile { get; set; }
         public List<Item> Loot { get; set; }
         public bool IsAlive => Health > 0;
