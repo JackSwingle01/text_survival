@@ -2,9 +2,6 @@
 {
     public class FoodItem : Item
     {
-        private int _calories;
-        private int _waterContent;
-
         public FoodItem(string name, int calories, int waterContent = 0, int weight = 1, int uses = 1) : base(name, weight)
         {
             Calories = calories;
@@ -12,8 +9,9 @@
             UseEffect = (player) => { player.Eat(this); };
         }
 
-        public int WaterContent { get => _waterContent; set => _waterContent = value; }
-        public int Calories { get => _calories; set => _calories = value; }
+        public int WaterContent { get; set; }
+
+        public int Calories { get; set; }
 
         public string StatsToString()
         {

@@ -84,15 +84,9 @@ namespace text_survival
             Items.Remove(item);
         }
 
-
         public float GetWeight()
         {
-            float sum = 0;
-            foreach (Item item in Items)
-            {
-                sum += item.Weight;
-            }
-            return sum;
+            return Items.Sum(item => item.Weight);
         }
 
         public int Count()

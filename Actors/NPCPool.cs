@@ -2,41 +2,41 @@
 {
     public class NpcPool
     {
-        private List<Func<Npc>> NPCs { get; set; }
+        private List<Func<Npc>> Npcs { get; set; }
 
         public NpcPool()
         {
-            NPCs = new List<Func<Npc>>();
+            Npcs = new List<Func<Npc>>();
         }
 
         public void Add(Func<Npc> npcFactoryMethod)
         {
-            NPCs.Add(npcFactoryMethod);
+            Npcs.Add(npcFactoryMethod);
         }
 
         public void Remove(Func<Npc> npcFactoryMethod)
         {
-            NPCs.Remove(npcFactoryMethod);
+            Npcs.Remove(npcFactoryMethod);
         }
 
         public Npc GenerateRandomNpc()
         {
-            if (NPCs.Count == 0)
+            if (Npcs.Count == 0)
             {
                 return new Npc("Ghost", 1, 1, 1, 1);
             }
-            int index = Utils.Rand(0, NPCs.Count - 1);
-            return NPCs[index].Invoke();
+            int index = Utils.Rand(0, Npcs.Count - 1);
+            return Npcs[index].Invoke();
         }
 
         public bool IsEmpty()
         {
-            return NPCs.Count == 0;
+            return Npcs.Count == 0;
         }
 
         public int Count()
         {
-            return NPCs.Count;
+            return Npcs.Count;
         }
     }
 }

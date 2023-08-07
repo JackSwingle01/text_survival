@@ -74,10 +74,7 @@ namespace text_survival.Environments
         }
         public void Enter(Player player)
         {
-            if (player.CurrentArea != null)
-            {
-                this.NearbyAreas.Add(player.CurrentArea);
-            }
+            this.NearbyAreas.Add(player.CurrentArea);
             player.CurrentArea = this;
             Visited = true;
             GenerateNearbyAreas();
@@ -101,14 +98,12 @@ namespace text_survival.Environments
         {
             if (!Npcs.Contains(e.DefeatedEnemy)) return;
             this.Npcs.Remove(e.DefeatedEnemy);
-            //Utils.WriteWarning("enemy defeated");
         }
 
         private void OnItemTaken(ItemTakenEvent e)
         {
             if (!Items.Contains(e.TakenItem)) return;
             this.Items.Remove(e.TakenItem);
-            //Utils.WriteWarning("item taken");
         }
         
     }

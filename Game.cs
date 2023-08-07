@@ -5,7 +5,7 @@ namespace text_survival
 {
     internal class Game
     {
-        private Player _player;
+        private readonly Player _player;
         public Game()
         {
             _player = new Player(AreaFactory.GenerateArea(Area.EnvironmentType.Forest));
@@ -13,7 +13,7 @@ namespace text_survival
         }
         public void Start()
         {
-            Actions actions = new Actions(_player);
+            Actions actions = new(_player);
             while (_player.Health > 0)
             {
                 actions.Act();

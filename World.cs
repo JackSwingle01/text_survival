@@ -38,26 +38,14 @@ namespace text_survival
 
         public static TimeOfDay GetTimeOfDay()
         {
-            if (Time.Hour < 5)
+            return Time.Hour switch
             {
-                return TimeOfDay.Night;
-            }
-            else if (Time.Hour < 12)
-            {
-                return TimeOfDay.Morning;
-            }
-            else if (Time.Hour < 18)
-            {
-                return TimeOfDay.Afternoon;
-            }
-            else if (Time.Hour < 23)
-            {
-                return TimeOfDay.Evening;
-            }
-            else
-            {
-                return TimeOfDay.Night;
-            }
+                < 5 => TimeOfDay.Night,
+                < 12 => TimeOfDay.Morning,
+                < 18 => TimeOfDay.Afternoon,
+                < 23 => TimeOfDay.Evening,
+                _ => TimeOfDay.Night
+            };
         }
 
     }

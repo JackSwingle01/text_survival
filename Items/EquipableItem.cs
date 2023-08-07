@@ -25,7 +25,7 @@
             Defense = defense;
             Speed = speed;
             Warmth = warmth;
-            UseEffect = (player) => EquipTo(player);
+            UseEffect = EquipTo;
         }
 
         public override string ToString()

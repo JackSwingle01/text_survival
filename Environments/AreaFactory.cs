@@ -205,7 +205,7 @@ namespace text_survival.Environments
         }
         private static ItemPool CreateItemPool(EnvironmentType environment)
         {
-            ItemPool items = new ItemPool();
+            ItemPool items = new();
             var itemList = EnvironmentItems[environment];
             foreach (string itemName in itemList)
             {
