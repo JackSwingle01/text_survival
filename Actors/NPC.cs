@@ -15,24 +15,37 @@ namespace text_survival.Actors
         public bool IsAlive => Health > 0;
         public Attributes Attributes { get; set; }
 
-        public Npc(string name, int health = 10, int strength = 10, int defense = 10, int speed = 10)
+        public Npc(string name, Attributes? attributes = null)
         {
             Name = name;
-            MaxHealth = health;
+            Attributes = attributes ?? new Attributes();
+            MaxHealth = (int)(((Attributes.Strength + Attributes.Endurance) / 10) * 2);
             Health = MaxHealth;
-            ArmorRating = defense;
-
-            Attributes = new Attributes();
-            Buff buff = new()
-            {
-                Strength = strength,
-                Speed = speed
-            };
-            Attributes.ApplyBuff(buff);
-
             Loot = new List<Item>();
             IsHostile = true;
             Description = "";
+        }
+
+        public double DetermineDamage()
+        {
+            double strengthModifier = (Attributes.Strength + 75) / 100;
+            double damage = strengthModifier;
+            damage *= Utils.RandDouble(.5, 2);
+            if (damage < 0)
+            {
+                damage = 0;
+            }
+            return damage;
+        }
+
+        public double DetermineHitChance()
+        {
+            return 1;
+        }
+        public double DetermineDodgeChance()
+        {
+            double chance = ((Attributes.Agility) + (Attributes.Luck / 10)) / 100;
+            return chance;
         }
 
         public void Attack(ICombatant target)
@@ -49,7 +62,7 @@ namespace text_survival.Actors
                 Utils.Write(target, " dodged the attack!\n");
                 if (target is Player)
                 {
-                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Speed));
+                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Dodge));
                 }
                 return;
             }
@@ -58,7 +71,7 @@ namespace text_survival.Actors
             target.Damage(damage);
             if (target is Player)
             {
-                EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Defense));
+                EventAggregator.Publish(new GainExperienceEvent(1, SkillType.HeavyArmor));
             }
             Thread.Sleep(1000);
         }

@@ -4,26 +4,26 @@ namespace text_survival.Level
 {
     public class Skill
     {
-        private int _xp;
+        public int Xp;
         public int Level { get; private set; }
         public SkillType Type { get; set; }
+        public int LevelUpThreshold => (Level) * 10;
 
         public Skill(SkillType type)
         {
             Type = type;
-            _xp = 0;
+            Xp = 0;
             Level = 0;
         }
 
-        private int LevelUpThreshold => (Level + 1) * 10;
 
         public void GainExperience(int xp)
         {
-            _xp += xp;
+            Xp += xp;
 
-            if (_xp < LevelUpThreshold) return;
+            if (Xp < LevelUpThreshold) return;
             // else level up
-            _xp -= LevelUpThreshold;
+            Xp -= LevelUpThreshold;
             LevelUp();
         }
 
@@ -41,7 +41,7 @@ namespace text_survival.Level
 
         public void Write()
         {
-            Utils.Write(this, ": ", Level, " (", _xp, "/", LevelUpThreshold, ")");
+            Utils.Write(this, ": ", Level, " (", Xp, "/", LevelUpThreshold, ")");
         }
 
 

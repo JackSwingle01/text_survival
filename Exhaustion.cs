@@ -8,7 +8,7 @@
         private Player Player { get; set; }
         public Exhaustion(Player player)
         {
-            Amount = Max;
+            Amount = 0;
             Player = player;
         }
         public void Update()

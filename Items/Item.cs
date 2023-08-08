@@ -19,13 +19,12 @@
         public string Description { get; set; }
         public int Quality { get; set; } // percentage 0% being extremely poor quality, 100% being perfect quality
 
-        public Item(string name, double weight = 1)
+        public Item(string name, double weight = 1, int quality = 50)
         {
             Name = name;
             Weight = weight;
             Description = "";
-            Quality = Utils.RandInt(0, 100);
-
+            Quality = quality;
             UseEffect = (player) =>
             {
                 Utils.Write("Nothing happened.\n"); // just a default

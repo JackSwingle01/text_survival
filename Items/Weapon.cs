@@ -11,22 +11,22 @@
         public double Accuracy { get; set; }
         public double BlockChance { get; set; }
 
-        public Weapon(WeaponType type, WeaponMaterial weaponMaterial) : base("default")
+        public Weapon(WeaponType type, WeaponMaterial weaponMaterial, string name="", int quality = 50) : base(name)
         {
             SetBaseStats(type);
             ApplyMaterialModifier(weaponMaterial);
             ApplyQualityModifier();
             DamageType = GetDamageTypeFromWeaponType(type);
-            Name = $"{GetQualityEnumFromQuality(Quality)} {weaponMaterial} {type}";
+            if (Name == "")
+                Name = $"{GetQualityEnumFromQuality(Quality)} {weaponMaterial} {type}";
             WeaponType = type;
             WeaponMaterial = weaponMaterial;
         }
 
         private void ApplyQualityModifier()
         {
-            Damage *= (((double)Quality) / 100);
-            //Defense *= (((float)Quality) / 100F);
-            //Speed *= (((float)Quality) / 100F);
+            Damage *= (double)(Quality * 2) / 100;
+            BlockChance *= (double)(Quality * 2) / 100;
         }
         private void ApplyMaterialModifier(WeaponMaterial weaponMaterial)
         {
@@ -78,6 +78,7 @@
                     //Speed *= .5F;
                     Weight *= 1.5F;
                     break;
+                case WeaponMaterial.Other:
                 default:
                     break;
             }
@@ -141,6 +142,14 @@
                     //Defense = 14;
                     //Speed = 2;
                     Weight = 2;
+                    break;
+                case WeaponType.Unarmed:
+                    Damage = 2;
+                    BlockChance = .2;
+                    Accuracy = 1.5;
+                    //Defense = 0;
+                    //Speed = 3;
+                    Weight = 0;
                     break;
                 default:
                     break;

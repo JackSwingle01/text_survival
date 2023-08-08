@@ -2,6 +2,7 @@
 
 using text_survival.Environments;
 using text_survival.Items;
+using static text_survival.Attributes;
 
 namespace text_survival
 {
@@ -16,7 +17,7 @@ namespace text_survival
         CheckGear,
         LookAround,
         Quit,
-        Help,
+        LevelUp,
 
         // Add more actions as necessary
     }
@@ -43,43 +44,10 @@ namespace text_survival
                 { ActionType.PickUpItem , this.PickUpItem },
                 { ActionType.LookAround, this.LookAround },
                 { ActionType.CheckStats, this.CheckStats },
-                { ActionType.Help, this.Help },
-
+                { ActionType.LevelUp, this.LevelUp },
                 // Add more actions as necessary
             };
         }
-
-        public Dictionary<string, ActionType> InputToActionTypes = new Dictionary<string, ActionType>()
-        {
-            { "inventory", ActionType.OpenInventory },
-            { "inv", ActionType.OpenInventory },
-            { "i", ActionType.OpenInventory },
-            { "travel", ActionType.Travel },
-            { "t", ActionType.Travel },
-            { "sleep", ActionType.Sleep },
-            { "s", ActionType.Sleep },
-            { "check gear", ActionType.CheckGear },
-            { "gear", ActionType.CheckGear },
-            { "g", ActionType.CheckGear },
-            { "check stats", ActionType.CheckStats },
-            { "stats", ActionType.CheckStats },
-            { "stat", ActionType.CheckStats },
-            { "look around", ActionType.LookAround },
-            { "look", ActionType.LookAround },
-            { "l", ActionType.LookAround },
-            { "quit", ActionType.Quit },
-            { "q", ActionType.Quit },
-            { "pick up item", ActionType.PickUpItem },
-            { "pick up", ActionType.PickUpItem },
-            { "pickup", ActionType.PickUpItem },
-            { "pick", ActionType.PickUpItem },
-            { "p", ActionType.PickUpItem },
-            { "fight", ActionType.Fight },
-            { "f", ActionType.Fight },
-            { "help", ActionType.Help },
-            { "h", ActionType.Help },
-            { "?", ActionType.Help }
-        };
 
         public void UpdatePossibleActions()
         {
@@ -87,12 +55,15 @@ namespace text_survival
             AvailableActions.Clear();
 
             // always available actions
-            //AvailableActions.Add(ActionType.Help);
             AvailableActions.Add(ActionType.LookAround);
             AvailableActions.Add(ActionType.CheckStats);
 
 
             // conditional actions
+            if (_player.SkillPoints > 0)
+            {
+                AvailableActions.Add(ActionType.LevelUp);
+            }
             if (_player.CurrentArea.Npcs.Count > 0)
             {
                 AvailableActions.Add(ActionType.Fight);
@@ -116,7 +87,7 @@ namespace text_survival
         public void Act()
         {
             UpdatePossibleActions();
-            //CheckStats();
+            Examine.ExamineSurvivalStats(_player);
             Utils.WriteLine("What would you like to do?");
             int input = Utils.GetSelectionFromList(AvailableActions);
             ActionType actionType = AvailableActions[input - 1];
@@ -132,65 +103,63 @@ namespace text_survival
             }
         }
 
-        private ActionType? GetActionsFreeform()
+        private void LevelUp()
         {
-            // Try to get the ActionType from the input
-            string input = Utils.Read();
-            if (!InputToActionTypes.TryGetValue(input, out var actionType))
+            Utils.WriteLine("You have ", _player.SkillPoints, " points.");
+            while (_player.SkillPoints > 0)
             {
-                // If the input is not a valid action, return ActionType.None
-                return null;
-            }
-            // Return the ActionType
-            return actionType;
-        }
-
-        private void Help()
-        {
-            Utils.WriteLine("Help:");
-            Utils.WriteLine("Type the name of the action you want to perform.");
-            Utils.WriteLine("Common actions include: look, fight, pick up, travel, sleep, etc... you can also just type the first letter of an action.");
-            Utils.WriteLine("Available actions:");
-            PrintActionsAndInputs();
-
-        }
-        private void PrintActionsAndInputs()
-        {
-            var groups = InputToActionTypes.GroupBy(x => x.Value)
-                .OrderBy(x => x.Key);
-
-            foreach (var group in groups)
-            {
-                var action = group.Key;
-                var inputs = string.Join(", ", group.Select(x => $"'{x.Key}'").ToArray());
-
-                Console.WriteLine($"{action} => {inputs}");
-            }
-        }
-        public void PrintActionsAndInputs(List<ActionType> actionTypesToPrint)
-        {
-            // Group by ActionType
-            var groups = InputToActionTypes.GroupBy(kv => kv.Value);
-
-            foreach (var group in groups)
-            {
-                // Check if this ActionType should be printed
-                if (!actionTypesToPrint.Contains(group.Key)) continue;
-                // Use group.Key for ActionType
-                Console.Write($"{group.Key} => ");
-
-                // Get a list of inputs for this ActionType
-                var inputs = group.Select(kv => $"'{kv.Key}'").ToList();
-
-                // Use string.Join to concatenate inputs into a string
-                Console.WriteLine(string.Join(", ", inputs));
+                Utils.WriteLine("Select an attribute to improve:");
+                Utils.WriteLine("1. ", _player.Attributes.Strength);
+                Utils.WriteLine("2. ", _player.Attributes.Intelligence);
+                Utils.WriteLine("3. ", _player.Attributes.Speed);
+                Utils.WriteLine("4. ", _player.Attributes.Endurance);
+                Utils.WriteLine("5. ", _player.Attributes.Agility);
+                Utils.WriteLine("6. ", _player.Attributes.Luck);
+                Utils.WriteLine("7. ", _player.Attributes.Willpower);
+                Utils.WriteLine("8. ", _player.Attributes.Personality);
+                Utils.WriteLine("0. Cancel");
+                int input = Utils.ReadInt(0, 8);
+                switch (input)
+                {
+                    case 0:
+                        return;
+                    case 1:
+                        _player.Attributes.IncreaseBase(PrimaryAttributes.Strength, 1);
+                        break;
+                    case 2:
+                        _player.Attributes.IncreaseBase(PrimaryAttributes.Intelligence, 1);
+                        break;
+                    case 3:
+                        _player.Attributes.IncreaseBase(PrimaryAttributes.Speed, 1);
+                        break;
+                    case 4:
+                        _player.Attributes.IncreaseBase(PrimaryAttributes.Endurance, 1);
+                        break;
+                    case 5:
+                        _player.Attributes.IncreaseBase(PrimaryAttributes.Agility, 1);
+                        break;
+                    case 6:
+                        _player.Attributes.IncreaseBase(PrimaryAttributes.Luck, 1);
+                        break;
+                    case 7:
+                        _player.Attributes.IncreaseBase(PrimaryAttributes.Willpower, 1);
+                        break;
+                    case 8:
+                        _player.Attributes.IncreaseBase(PrimaryAttributes.Personality, 1);
+                        break;
+                }
+                _player.SkillPoints--;
             }
         }
 
         private void CheckStats()
         {
-            Examine.ExamineSurvivalStats(_player);
-            //Examine.ExamineCombatStats(_player);
+            Examine.ExamineLevel(_player);
+            Examine.ExaminePrimaryAttributes(_player);
+            Examine.ExamineSecondaryAttributes(_player);
+            Examine.ExamineSkills(_player);
+            Utils.WriteLine("Press any key to continue...");
+            Console.ReadKey(true);
         }
 
         private void Fight()

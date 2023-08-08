@@ -9,7 +9,7 @@
 
         public Hunger(Player player)
         {
-            Amount = Max;
+            Amount = 0;
             Player = player;
         }
 

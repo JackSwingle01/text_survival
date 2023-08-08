@@ -7,9 +7,16 @@ namespace text_survival
     public class Player : ICombatant
     {
         public string Name { get; set; }
-        // Health
+        // Health and Energy
         public double Health { get; set; }
         public double MaxHealth { get; set; }
+        public double Energy { get; set; }
+        public double MaxEnergy { get; set; }
+        public double EnergyRegen { get; set; }
+        public double Psych { get; set; }
+        public double MaxPsych { get; set; }
+        public double PsychRegen { get; set; }
+
 
         // Survival stats
         public Hunger Hunger { get; set; }
@@ -30,7 +37,8 @@ namespace text_survival
         // skills and level
         public int Level { get; set; }
         public int Experience { get; set; }
-        public int ExperienceToNextLevel => (Level + 1) * 20;
+        public int ExperienceToNextLevel => (Level + 1) * 10;
+        public int SkillPoints { get; set; }
 
         public Attributes Attributes { get; set; }
         public Skills Skills { get; set; }
@@ -43,6 +51,12 @@ namespace text_survival
         {
             Name = "Player";
             Attributes = new Attributes();
+            MaxEnergy = 100;
+            Energy = MaxEnergy;
+            EnergyRegen = 1;
+            Psych = 100;
+            MaxPsych = 100;
+            PsychRegen = 1;
             Hunger = new Hunger(this);
             Thirst = new Thirst(this);
             Exhaustion = new Exhaustion(this);
@@ -58,9 +72,12 @@ namespace text_survival
             CurrentArea = area;
             area.Enter(this);
             Skills = new Skills();
-            Weapon weapon = Weapon.GenerateRandomWeapon();
+            Weapon weapon = new Weapon(WeaponType.Unarmed, WeaponMaterial.Other, "Fists");
             this.Equip(weapon);
             Level = 0;
+            Experience = 0;
+            SkillPoints = 0;
+
         }
 
 
@@ -167,7 +184,7 @@ namespace text_survival
         public double DetermineDamage()
         {
             double strengthModifier = (Attributes.Strength + 75) / 100;
-            double exhaustionModifier = ((Exhaustion.Amount / Exhaustion.Max) + 1) / 2; ;
+            double exhaustionModifier = (2- Exhaustion.Amount / Exhaustion.Max) / 2; ;
             double weaponDamage = Weapon?.Damage ?? 1; // change to unarmed skill once implemented
             double damage = weaponDamage * strengthModifier * exhaustionModifier;
             damage *= Utils.RandDouble(.5, 2);
@@ -176,6 +193,17 @@ namespace text_survival
                 damage = 0;
             }
             return damage;
+        }
+
+        public double DetermineHitChance()
+        {
+            return 1;
+        }
+
+        public double DetermineDodgeChance()
+        {
+            double chance = ((Skills.Dodge.Level + Attributes.Agility) / 2 + (Attributes.Luck / 10)) / 100;
+            return chance;
         }
 
         public void Attack(ICombatant target)
@@ -189,7 +217,7 @@ namespace text_survival
             }
             Thread.Sleep(1000);
             Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
-            EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Strength));
+            EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Blade));
             target.Damage(damage);
             Thread.Sleep(1000);
         }
@@ -227,6 +255,9 @@ namespace text_survival
             Level++;
             Health += (Attributes.Endurance / 10);
             Utils.WriteLine("You leveled up to level ", Level, "!");
+            Utils.WriteLine("You gained ", (Attributes.Endurance / 10), " health!");
+            Utils.WriteLine("You gained 1 skill point!");
+            SkillPoints++;
         }
 
         // UPDATE //
@@ -247,21 +278,6 @@ namespace text_survival
 
         private void OnSkillLeveledUp(SkillLevelUpEvent e)
         {
-            switch (e.Skill.Type)
-            {
-                //case SkillType.Strength:
-                //    Strength += 1;
-                //    break;
-                //case SkillType.Defense:
-                //    Defense += 1;
-                //    break;
-                //case SkillType.Speed:
-                //    Speed += 1;
-                //    break;
-                default:
-                    Utils.WriteWarning("Error skill not found.");
-                    break;
-            }
             GainExperience(1 * e.Skill.Level);
         }
 

@@ -2,6 +2,17 @@
 {
     public class Attributes
     {
+        public enum PrimaryAttributes
+        {
+            Strength,
+            Intelligence,
+            Willpower,
+            Agility,
+            Speed,
+            Endurance,
+            Personality,
+            Luck
+        }
         // base
         private double _baseStrength;
         private double _baseIntelligence;
@@ -34,22 +45,56 @@
         public double Luck => _baseLuck + LuckBuff;
 
 
-        public Attributes()
+        public Attributes(int STR = 40, int INT = 40, int WIL = 40, int AGI = 40, int SPD = 40, int END = 40, int PER = 40,
+            int LUC = 50)
         {
-            _baseStrength = 15;
-            _baseIntelligence = 15;
-            _baseWillpower = 15;
-            _baseAgility = 15;
-            _baseSpeed = 15;
-            _baseEndurance = 15;
-            _basePersonality = 15;
-            _baseLuck = 15;
+            _baseStrength = STR;
+            _baseIntelligence = INT;
+            _baseWillpower = WIL;
+            _baseAgility = AGI;
+            _baseSpeed = SPD;
+            _baseEndurance = END;
+            _basePersonality = PER;
+            _baseLuck = LUC;
             _buffs = new List<Buff>();
         }
+
+
 
         public void ApplyBuff(Buff buff)
         {
             _buffs.Add(buff);
+        }
+
+        public void IncreaseBase(PrimaryAttributes primaryAttribute, int amount)
+        {
+            switch (primaryAttribute)
+            {
+                case PrimaryAttributes.Strength:
+                    _baseStrength += amount;
+                    break;
+                case PrimaryAttributes.Intelligence:
+                    _baseIntelligence += amount;
+                    break;
+                case PrimaryAttributes.Willpower:
+                    _baseWillpower += amount;
+                    break;
+                case PrimaryAttributes.Agility:
+                    _baseAgility += amount;
+                    break;
+                case PrimaryAttributes.Speed:
+                    _baseSpeed += amount;
+                    break;
+                case PrimaryAttributes.Endurance:
+                    _baseEndurance += amount;
+                    break;
+                case PrimaryAttributes.Personality:
+                    _basePersonality += amount;
+                    break;
+                case PrimaryAttributes.Luck:
+                    _baseLuck += amount;
+                    break;
+            }
         }
 
 

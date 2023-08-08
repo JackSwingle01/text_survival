@@ -9,6 +9,7 @@
         Hammer,
         Dagger,
         Staff,
+        Unarmed,
     }
 
     public enum DamageType
@@ -42,7 +43,8 @@
         Iron,
         Steel,
         Silver,
-        Golden
+        Golden,
+        Other
     }
 
 

@@ -10,6 +10,12 @@
 
         public void Damage(double damage);
         public void Attack(ICombatant target);
+        public double DetermineDamage();
+        public double DetermineHitChance();
+        public double DetermineDodgeChance();
+
+
+
 
     }
 }

@@ -23,7 +23,7 @@
         {
             if (Npcs.Count == 0)
             {
-                return new Npc("Ghost", 1, 1, 1, 1);
+                return new Npc("Ghost");
             }
             int index = Utils.RandInt(0, Npcs.Count - 1);
             return Npcs[index].Invoke();

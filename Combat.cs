@@ -74,9 +74,9 @@ namespace text_survival
         }
         public static void PrintBattleInfo(ICombatant combatant1, ICombatant combatant2)
         {
-            WriteCombatStats(combatant1);
+            Examine.ExamineCombatant(combatant1);
             Utils.WriteLine("VS");
-            WriteCombatStats(combatant2);
+            Examine.ExamineCombatant(combatant2);
         }
 
         public static bool DetermineDodge(ICombatant attacker, ICombatant defender)

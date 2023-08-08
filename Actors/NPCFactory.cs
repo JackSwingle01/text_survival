@@ -6,7 +6,8 @@ namespace text_survival.Actors
     {
         public static Npc MakeRat()
         {
-            Npc rat = new Animal("Rat", 5, 5, 2, 12);
+            Npc rat = new Animal("Rat");
+            rat.Attributes = new Attributes(5, 10, 15, 50, 40, 5, 0, 70);
             rat.Description = "A rat with fleas.";
             rat.Loot.Add(ItemFactory.MakeSmallMeat());
             return rat;
@@ -14,7 +15,8 @@ namespace text_survival.Actors
 
         public static Npc MakeWolf()
         {
-            Npc wolf = new Animal("Wolf", 10, 10, 5, 18);
+            Npc wolf = new Animal("Wolf");
+
             wolf.Loot.Add(ItemFactory.MakeLargeMeat());
             wolf.Description = "A wolf.";
             return wolf;
@@ -22,7 +24,7 @@ namespace text_survival.Actors
 
         public static Npc MakeBear()
         {
-            Npc bear = new Animal("Bear", 20, 20, 20, 7);
+            Npc bear = new Animal("Bear");
             bear.Loot.Add(ItemFactory.MakeLargeMeat());
             bear.Description = "A bear.";
             return bear;
@@ -30,7 +32,7 @@ namespace text_survival.Actors
 
         public static Npc MakeSnake()
         {
-            Npc snake = new Animal("Snake", 5, 5, 2, 11);
+            Npc snake = new Animal("Snake");
             snake.Loot.Add(ItemFactory.MakeSmallMeat());
             snake.Loot.Add(ItemFactory.MakeSnakeSkin());
             snake.Loot.Add(ItemFactory.MakeVenomVial());
@@ -39,7 +41,7 @@ namespace text_survival.Actors
 
         public static Npc MakeBat()
         {
-            Npc bat = new Animal("Bat", 5, 5, 2, 16);
+            Npc bat = new Animal("Bat");
             bat.Loot.Add(ItemFactory.MakeBatWing());
             bat.Loot.Add(ItemFactory.MakeGuano());
             return bat;
@@ -47,7 +49,7 @@ namespace text_survival.Actors
 
         public static Npc MakeSpider()
         {
-            Npc spider = new Animal("Spider", 1, 1, 0, 5);
+            Npc spider = new Animal("Spider");
             spider.Loot.Add(ItemFactory.MakeSpiderSilk());
             spider.Loot.Add(ItemFactory.MakeVenomVial());
             return spider;
@@ -55,7 +57,7 @@ namespace text_survival.Actors
 
         public static Npc MakeGoblin()
         {
-            Npc goblin = new("Goblin", 10, 10, 5, 10);
+            Npc goblin = new("Goblin");
             goblin.Loot.Add(ItemFactory.MakeGoblinSword());
             goblin.Loot.Add(ItemFactory.MakeCoin());
             //goblin.Loot.Add(ItemFactory.MakeTatteredCloth());
@@ -64,7 +66,7 @@ namespace text_survival.Actors
 
         public static Npc MakeDragon()
         {
-            Npc dragon = new("Dragon", 50, 50, 50, 3);
+            Npc dragon = new("Dragon");
             dragon.Loot.Add(ItemFactory.MakeDragonScale());
             dragon.Loot.Add(ItemFactory.MakeDragonTooth());
             dragon.Loot.Add(ItemFactory.MakeLargeCoinPouch());
@@ -73,7 +75,7 @@ namespace text_survival.Actors
 
         public static Npc MakeSkeleton()
         {
-            Npc skeleton = new("Skeleton", 10, 10, 10, 10);
+            Npc skeleton = new("Skeleton");
             skeleton.Loot.Add(ItemFactory.MakeBoneFragments());
             skeleton.Loot.Add(ItemFactory.MakeRustySword());
             return skeleton;
@@ -81,7 +83,7 @@ namespace text_survival.Actors
 
         public static Npc MakeCrocodile()
         {
-            Npc crocodile = new Animal("Crocodile", 20, 20, 20, 5);
+            Npc crocodile = new Animal("Crocodile");
             crocodile.Loot.Add(ItemFactory.MakeCrocodileSkin());
             crocodile.Loot.Add(ItemFactory.MakeCrocodileTooth());
             return crocodile;
