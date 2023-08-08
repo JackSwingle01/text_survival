@@ -3,7 +3,7 @@ using text_survival.Level;
 
 namespace text_survival.Actors
 {
-    public class Npc : IActor
+    public class Npc : ICombatant
     {
         public string Name { get; set; }
         public string Description { get; set; }
@@ -29,7 +29,7 @@ namespace text_survival.Actors
             Description = "";
         }
 
-        public void Attack(IActor target)
+        public void Attack(ICombatant target)
         {
             float damage = Combat.CalcDamage(this, target);
             if (Combat.DetermineDodge(this, target))

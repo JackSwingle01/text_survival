@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public class Temperature
     {
@@ -108,7 +102,7 @@ namespace text_survival
             // body heats based on calories burned
             if (BodyTemperature < 98.6)
             {
-                float joulesBurned = Physics.CaloriesToJoules(Player.Hunger.HungerRate);
+                float joulesBurned = Physics.CaloriesToJoules(Player.Hunger.Rate);
                 float specificHeatOfHuman = 3500F;
                 float weight = 70F;
                 float tempChangeCelsius = Physics.TempChange(weight, specificHeatOfHuman, joulesBurned);

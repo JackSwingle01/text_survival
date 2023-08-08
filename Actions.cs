@@ -190,7 +190,7 @@ namespace text_survival
         private void CheckStats()
         {
             Examine.ExamineSurvivalStats(_player);
-            Examine.ExamineCombatStats(_player);
+            //Examine.ExamineCombatStats(_player);
         }
 
         private void Fight()

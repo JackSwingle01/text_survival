@@ -16,7 +16,7 @@
             Defense = defense;
             Speed = speed;
             Warmth = warmth;
-            UseEffect = EquipTo;
+            UseEffect = player => player.Equip(this);
         }
 
         public override string ToString()
@@ -32,42 +32,6 @@
             Utils.Write(", Defense: ", Defense);
             Utils.Write(", Speed: ", Speed);
             Utils.Write(", Warmth: ", Warmth, "\n");
-        }
-
-        public void EquipTo(Player player)
-        {
-            if (player.Gear.Any(item => item.EquipSpot == EquipSpot))
-            {
-                EquipableItem? item = player.Gear.Find(item => item.EquipSpot == EquipSpot);
-                item?.Unequip(player);
-            }
-
-            player.Gear.Add(this);
-            ApplyStats(player);
-            player.Inventory.Remove(this);
-        }
-
-        public void Unequip(Player player)
-        {
-            player.Gear.Remove(this);
-            RemoveStats(player);
-            player.Inventory.Add(this);
-        }
-
-        private void ApplyStats(Player player)
-        {
-            player.Strength += Strength;
-            player.Defense += Defense;
-            player.Speed += Speed;
-            player.WarmthBonus += Warmth;
-        }
-
-        private void RemoveStats(Player player)
-        {
-            player.Strength -= Strength;
-            player.Defense -= Defense;
-            player.Speed -= Speed;
-            player.WarmthBonus -= Warmth;
         }
     }
 }

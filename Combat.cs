@@ -72,14 +72,14 @@ namespace text_survival
                 Utils.Write("You left the " + item + " on the ground.\n");
             }
         }
-        public static void PrintBattleInfo(IActor combatant1, IActor combatant2)
+        public static void PrintBattleInfo(ICombatant combatant1, ICombatant combatant2)
         {
             WriteCombatStats(combatant1);
             Utils.WriteLine("VS");
             WriteCombatStats(combatant2);
         }
 
-        public static bool DetermineDodge(IActor attacker, IActor defender)
+        public static bool DetermineDodge(ICombatant attacker, ICombatant defender)
         {
             const int baseDodge = 10;
             float speedDiff = defender.Speed - attacker.Speed;
@@ -88,7 +88,7 @@ namespace text_survival
             int roll = Utils.RandInt(0, 100);
             return roll <= chance;
         }
-        public static float CalcDamage(IActor attacker, IActor defender)
+        public static float CalcDamage(ICombatant attacker, ICombatant defender)
         {
             // base damage - defense percentage
             float damage = attacker.Strength - ((defender.Defense / 100) * attacker.Strength);
@@ -99,7 +99,7 @@ namespace text_survival
             }
             return damage;
         }
-        public static void WriteCombatStats(IActor c)
+        public static void WriteCombatStats(ICombatant c)
         {
             Utils.Write(c, " => ",
                 "HP: ", Math.Round(c.Health, 2), "/", c.MaxHealth,

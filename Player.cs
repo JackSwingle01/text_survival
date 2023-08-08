@@ -4,46 +4,35 @@ using text_survival.Items;
 using text_survival.Level;
 namespace text_survival
 {
-    public class Player : IActor
+    public class Player : ICombatant
     {
-        
-        public const float ThirstRate = (4000F / (24F * 60F)); // mL per minute
-        public const float ExhaustionRate = (480F / (24F * 60F)); // minutes per minute (8 hours per 24)
-
-        
-        public const float MaxThirst = 3000.0F; // mL
-        public const float MaxExhaustion = 480.0F; // minutes (8 hours)
-
         public string Name { get; set; }
+        // Health
+        public float Health { get; set; }
+        public float MaxHealth { get; set; }
 
         // Survival stats
-
+        public Hunger Hunger { get; set; }
         public Thirst Thirst { get; set; }
         public Exhaustion Exhaustion { get; set; }
-        public float Health { get; set; }
         public Temperature Temperature { get; set; }
-        public Hunger Hunger { get; set; }
+        public float WarmthBonus { get; set; }
 
         // area
         public Area CurrentArea { get; set; }
 
-        public float WarmthBonus { get; set; }
-        public float MaxHealth { get; set; }
+        // inventory
         public Container Inventory { get; set; }
-        public float BaseStrength => Strength - GearStrength;
-        public float BaseDefense => Defense - GearDefense;
-        public float BaseSpeed => Speed - GearSpeed;
-        public float GearStrength => Gear.Sum(g => g.Strength);
-        public float GearDefense => Gear.Sum(g => g.Defense);
-        public float GearSpeed => Gear.Sum(g => g.Speed);
-        public float Strength { get; set; }
-        public float Defense { get; set; }
-        public float Speed { get; set; }
-
-
         public List<EquipableItem> Gear { get; set; }
 
+        // skills
         public Level.Skills Skills { get; set; }
+
+        // stats
+        public float Strength { get; set; }
+        public float Defense => Gear.Sum(g => g.Defense);
+        public float Speed { get; set; }
+        
 
         public Player(Area area)
         {
@@ -56,52 +45,21 @@ namespace text_survival
             Temperature = new Temperature(this);
             Inventory = new Container("Backpack", 10);
             Strength = 5;
-            Defense = 5;
             Speed = 10;
             Gear = new List<EquipableItem>();
-            ItemFactory.MakeClothShirt().EquipTo(this);
-            ItemFactory.MakeClothPants().EquipTo(this);
-            ItemFactory.MakeBoots().EquipTo(this);
+            this.Equip(ItemFactory.MakeClothShirt());
+            this.Equip(ItemFactory.MakeClothPants());
+            this.Equip(ItemFactory.MakeBoots());
             EventAggregator.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
             CurrentArea = area;
             area.Enter(this);
             Skills = new Skills();
             Weapon weapon = Weapon.GenerateRandomWeapon();
-            weapon.EquipTo(this);
+            this.Equip(weapon);
         }
 
-        public void Attack(IActor target)
-        {
-            float damage = Combat.CalcDamage(this, target);
-            if (Combat.DetermineDodge(this, target))
-            {
-                Utils.Write(target, " dodged the attack!\n");
-                return;
-            }
-            Thread.Sleep(1000);
-            Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
-            EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Strength));
-            target.Damage(damage);
-            Thread.Sleep(1000);
-        }
-        private void OnSkillLeveledUp(SkillLevelUpEvent e)
-        {
-            switch (e.Skill.Type)
-            {
-                case SkillType.Strength:
-                    Strength += 1;
-                    break;
-                case SkillType.Defense:
-                    Defense += 1;
-                    break;
-                case SkillType.Speed:
-                    Speed += 1;
-                    break;
-                default:
-                    Utils.WriteWarning("Error skill not found.");
-                    break;
-            }
-        }
+
+        // ACTIONS //
 
         public void Eat(FoodItem food)
         {
@@ -123,7 +81,7 @@ namespace text_survival
         {
             for (int i = 0; i < minutes; i++)
             {
-                Exhaustion.Amount -= 1 + ExhaustionRate; // 1 minute plus negate exhaustion rate for update
+                Exhaustion.Amount -= 1 + Exhaustion.Rate; // 1 minute plus negate exhaustion rate for update
                 Update(1);
                 if (!(Exhaustion.Amount <= 0)) continue;
                 Utils.Write("You wake up feeling refreshed.\n");
@@ -131,6 +89,42 @@ namespace text_survival
                 return;
             }
             Heal(minutes / 6);
+        }
+
+        public void Equip(EquipableItem item)
+        {
+            var oldItem = this.Gear.FirstOrDefault(i => i.EquipSpot == item.EquipSpot);
+            if (oldItem != null)
+            {
+                this.Unequip(oldItem);
+            }
+            this.Gear.Add(item);
+            this.Inventory.Remove(item);
+        }
+
+
+        public void Unequip(EquipableItem item)
+        {
+            this.Gear.Remove(item);
+            this.Inventory.Add(item);
+        }
+
+        // COMBAT //
+
+        public void Attack(ICombatant target)
+        {
+            // base damage - defense percentage
+            float damage = Combat.CalcDamage(this, target);
+            if (Combat.DetermineDodge(this, target))
+            {
+                Utils.Write(target, " dodged the attack!\n");
+                return;
+            }
+            Thread.Sleep(1000);
+            Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
+            EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Strength));
+            target.Damage(damage);
+            Thread.Sleep(1000);
         }
 
         public void Damage(float damage)
@@ -151,6 +145,9 @@ namespace text_survival
                 Health = MaxHealth;
             }
         }
+
+        // UPDATE //
+
         public void Update(int minutes)
         {
             World.Update(minutes);
@@ -162,14 +159,35 @@ namespace text_survival
             }
             Temperature.Update(minutes);
         }
-        
 
-        
+        // EVENTS //
+
+        private void OnSkillLeveledUp(SkillLevelUpEvent e)
+        {
+            switch (e.Skill.Type)
+            {
+                //case SkillType.Strength:
+                //    Strength += 1;
+                //    break;
+                //case SkillType.Defense:
+                //    Defense += 1;
+                //    break;
+                //case SkillType.Speed:
+                //    Speed += 1;
+                //    break;
+                default:
+                    Utils.WriteWarning("Error skill not found.");
+                    break;
+            }
+        }
+
+        /// OTHER ///
 
         public override string ToString()
         {
             return Name;
         }
 
+        
     }
 }

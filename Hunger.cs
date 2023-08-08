@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public class Hunger
     {
@@ -15,8 +9,8 @@ namespace text_survival
 
         public Hunger(Player player)
         {
-              Amount = Max;
-              Player = player;
+            Amount = Max;
+            Player = player;
         }
 
         public void Update()
@@ -26,7 +20,7 @@ namespace text_survival
             Amount = Max;
             Player.Damage(1);
         }
-        
+
     }
-   
+
 }

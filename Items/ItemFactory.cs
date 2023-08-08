@@ -402,27 +402,27 @@
             return tooth;
         }
 
-    public static EquipableItem MakeClothShirt()
-    {
-        EquipableItem shirt = new EquipableItem("Cloth Shirt", 0, 1, 0, 1)
+        public static EquipableItem MakeClothShirt()
         {
-            EquipSpot = EquipSpots.Chest
-        };
-        return shirt;
-    }
-    public static EquipableItem MakeClothPants()
-    {
-        EquipableItem pants = new EquipableItem("Cloth Pants", 0, 1, 0, .5F);
-        pants.EquipSpot = EquipSpots.Legs;
-        return pants;
-    }
+            EquipableItem shirt = new EquipableItem("Cloth Shirt", 0, 1, 0, 1)
+            {
+                EquipSpot = EquipSpots.Chest
+            };
+            return shirt;
+        }
+        public static EquipableItem MakeClothPants()
+        {
+            EquipableItem pants = new EquipableItem("Cloth Pants", 0, 1, 0, .5F);
+            pants.EquipSpot = EquipSpots.Legs;
+            return pants;
+        }
 
-    public static EquipableItem MakeBoots()
-    {
-        EquipableItem shoes = new EquipableItem("Boots", 0, 1, 0, .5F);
-        shoes.EquipSpot = EquipSpots.Feet;
-        return shoes;
+        public static EquipableItem MakeBoots()
+        {
+            EquipableItem shoes = new EquipableItem("Boots", 0, 1, 0, .5F);
+            shoes.EquipSpot = EquipSpots.Feet;
+            return shoes;
+        }
     }
-}
 
 }
