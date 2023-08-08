@@ -75,7 +75,7 @@ namespace text_survival
                 string => ConsoleColor.Gray,
                 int or float or double => ConsoleColor.Green,
                 Npc => ConsoleColor.Red,
-                FoodItem or EquipableItem or Item => ConsoleColor.Cyan,
+                Item => ConsoleColor.Cyan,
                 Container => ConsoleColor.Yellow,
                 Player => ConsoleColor.Green,
                 Area => ConsoleColor.Blue,

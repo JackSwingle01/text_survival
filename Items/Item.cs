@@ -1,14 +1,25 @@
 ﻿namespace text_survival.Items
 {
+    //public interface IItem
+    //{
+    //    string Name { get; set; }
+    //    double Weight { get; set; } // in kg
+    //    Action<Player> UseEffect { get; set; }
+    //    string Description { get; set; }
+    //    int Quality { get; set; } // percentage 0% being extremely poor quality, 100% being perfect quality
+    //    string ToString();
+    //    void Use(Player player);
+    //}
+
     public class Item
     {
         public string Name { get; set; }
-        public float Weight { get; set; } // in kg
+        public double Weight { get; set; } // in kg
         public Action<Player> UseEffect { get; set; }
         public string Description { get; set; }
         public int Quality { get; set; } // percentage 0% being extremely poor quality, 100% being perfect quality
 
-        public Item(string name, float weight = 1)
+        public Item(string name, double weight = 1)
         {
             Name = name;
             Weight = weight;
@@ -17,7 +28,7 @@
 
             UseEffect = (player) =>
             {
-                Utils.Write("Nothing happened.\n");
+                Utils.Write("Nothing happened.\n"); // just a default
             };
         }
 

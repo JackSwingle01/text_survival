@@ -1,5 +1,4 @@
-﻿using text_survival.Actors;
-using text_survival.Items;
+﻿using text_survival.Items;
 
 namespace text_survival
 {
@@ -13,10 +12,21 @@ namespace text_survival
         //}
         public static void ExamineGear(Player player)
         {
-            foreach (EquipableItem item in player.Gear)
+            if (player.Weapon is not null)
             {
-                Utils.Write(item.EquipSpot, " => ");
-                item.Write();
+                Utils.Write("Weapon => ");
+                ExamineItem(player.Weapon);
+            }
+            foreach (Armor armor in player.Armor)
+            {
+                Utils.Write(armor.EquipSpot, " => ");
+                ExamineItem(armor);
+            }
+
+            if (player.HeldItem is not null)
+            {
+                Utils.Write("Held Item => ");
+                ExamineItem(player.HeldItem);
             }
         }
         public static void ExamineSurvivalStats(Player player)
@@ -27,6 +37,32 @@ namespace text_survival
             Utils.WriteLine("Exhaustion: ", (int)((player.Exhaustion.Amount / player.Exhaustion.Max) * 100), "%");
             Utils.WriteLine("Body Temperature: ", Math.Round(player.Temperature.BodyTemperature, 1), "°F (", player.Temperature.BodyTemperature, ")");
         }
-
+        public static void ExamineItem(Item item)
+        {
+            Utils.Write(item, " => ");
+            Utils.Write("Weight: ", item.Weight);
+            if (item is Weapon weapon)
+            {
+                Utils.Write(", Damage: ", weapon.Damage);
+                Utils.Write(", Accuracy: ", weapon.Accuracy);
+                if (weapon.BlockChance != 0)
+                {
+                    Utils.Write(", BlockChance: ", weapon.BlockChance);
+                }
+            }
+            else if (item is Armor armor)
+            {
+                if (armor.Rating != 0)
+                    Utils.Write(", Defense: ", armor.Rating);
+                
+                if (armor.Warmth != 0)
+                    Utils.Write(", Warmth: ", armor.Warmth);
+            }
+            Utils.WriteLine();
+            //Utils.Write(", Strength: ", item.Strength);
+            //Utils.Write(", Defense: ", Defense);
+            //Utils.Write(", Speed: ", Speed);
+            //Utils.Write(", Warmth: ", Warmth, "\n");
+        }
     }
 }

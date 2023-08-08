@@ -38,7 +38,7 @@ namespace text_survival
                 return null;
             }
             int index = input - 1;
-            return GetItem(index);
+            return GetItem(index) as Item;
         }
 
         public override string ToString()
@@ -79,7 +79,7 @@ namespace text_survival
             Items.Remove(item);
         }
 
-        public float GetWeight()
+        public double GetWeight()
         {
             return Items.Sum(item => item.Weight);
         }

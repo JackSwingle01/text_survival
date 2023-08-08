@@ -1,14 +1,15 @@
 ﻿namespace text_survival.Items
 {
 
-    public class Weapon : EquipableItem
+    public class Weapon : Item
     {
         //public WeaponClass WeaponClass { get; set; }
         public DamageType DamageType { get; set; }
         public WeaponMaterial WeaponMaterial { get; set; }
         public WeaponType WeaponType { get; set; }
-        public int Damage { get; set; }
-
+        public double Damage { get; set; }
+        public double Accuracy { get; set; }
+        public double BlockChance { get; set; }
 
         public Weapon(WeaponType type, WeaponMaterial weaponMaterial) : base("default")
         {
@@ -19,59 +20,62 @@
             Name = $"{GetQualityEnumFromQuality(Quality)} {weaponMaterial} {type}";
             WeaponType = type;
             WeaponMaterial = weaponMaterial;
-            EquipSpot = EquipSpots.Weapon;
         }
 
         private void ApplyQualityModifier()
         {
-            Strength *= (((float)Quality) / 100F);
-            Defense *= (((float)Quality) / 100F);
-            Speed *= (((float)Quality) / 100F);
+            Damage *= (((double)Quality) / 100);
+            //Defense *= (((float)Quality) / 100F);
+            //Speed *= (((float)Quality) / 100F);
         }
         private void ApplyMaterialModifier(WeaponMaterial weaponMaterial)
         {
             switch (weaponMaterial)
             {
                 case WeaponMaterial.Wooden:
-                    Strength *= .1F;
-                    Defense *= .7F;
-                    Speed *= 1.2F;
+                    Damage *= .1F;
+                    BlockChance *= .7;
+                    //Speed *= 1.2F;
                     Weight *= .5F;
                     break;
                 case WeaponMaterial.Stone:
-                    Strength *= .7F;
-                    Defense *= .6F;
-                    Speed *= .1F;
+                    Damage *= .7F;
+                    BlockChance *= .6;
+                    //Speed *= .1F;
                     Weight *= 1.5F;
                     break;
                 case WeaponMaterial.Bronze:
-                    Strength *= .9F;
-                    Defense *= .9F;
-                    Speed *= 1.1F;
+                    Damage *= .9F;
+                    BlockChance *= .9;
+                    //Speed *= 1.1F;
                     Weight *= .9F;
                     break;
                 case WeaponMaterial.Iron:
-                    Strength *= 1F;
-                    Defense *= 1F;
-                    Speed *= .7F;
+                    Damage *= 1F;
+                    BlockChance *= 1;
+                    //Defense *= 1F;
+                    //Speed *= .7F;
                     Weight *= 1.4F;
                     break;
                 case WeaponMaterial.Steel:
-                    Strength *= 1F;
-                    Defense *= 1F;
-                    Speed *= 1F;
+                    Damage *= 1F;
+                    BlockChance *= 1;
+                    //Defense *= 1F;
+                    //Speed *= 1F;
                     Weight *= 1F;
                     break;
                 case WeaponMaterial.Silver:
-                    Strength *= 1.2F;
-                    Defense *= 1.1F;
-                    Speed *= 1F;
+                    Damage *= 1.2F;
+                    BlockChance *= 1.1;
+                    //Defense *= 1.1F;
+                    //Speed *= 1F;
                     Weight *= 1.1F;
                     break;
                 case WeaponMaterial.Golden:
-                    Strength *= 1.5F;
-                    Defense *= .5F;
-                    Speed *= .5F;
+                    Damage *= 1.5F;
+                    BlockChance *= .5;
+                    //Defense *= .5F;
+                    //Speed *= .5F;
                     Weight *= 1.5F;
                     break;
                 default:
@@ -83,45 +87,59 @@
             switch (type)
             {
                 case WeaponType.Sword:
-                    Strength = 12;
-                    Defense = 4;
-                    Speed = 1;
+                    Damage = 12;
+                    BlockChance = .1;
+                    Accuracy = 1;
+                    //Defense = 4;
+                    //Speed = 1;
                     Weight = 2;
                     break;
                 case WeaponType.Axe:
-                    Strength = 18;
-                    Defense = 0;
-                    Speed = -3;
+                    Damage = 18;
+                    BlockChance = .04;
+                    Accuracy = .8;
+                    //Defense = 0;
+                    //Speed = -3;
                     Weight = 4;
                     break;
                 case WeaponType.Spear:
-                    Strength = 8;
-                    Defense = 8;
-                    Speed = -1;
+                    Damage = 8;
+                    BlockChance = .08;
+                    Accuracy = 1.2;
+                    //Defense = 8;
+                    //Speed = -1;
                     Weight = 1;
                     break;
                 case WeaponType.Mace:
-                    Strength = 14;
-                    Defense = 4;
-                    Speed = -1;
+                    Damage = 14;
+                    BlockChance = .04;
+                    Accuracy = .7;
+                    //Defense = 4;
+                    //Speed = -1;
                     Weight = 2;
                     break;
                 case WeaponType.Hammer:
-                    Strength = 20;
-                    Defense = 2;
-                    Speed = -4;
+                    Damage = 20;
+                    BlockChance = .1;
+                    Accuracy = .5;
+                    //Defense = 2;
+                    //Speed = -4;
                     Weight = 5;
                     break;
                 case WeaponType.Dagger:
-                    Strength = 6;
-                    Defense = 0;
-                    Speed = 6;
+                    Damage = 6;
+                    BlockChance = .01;
+                    Accuracy = 1.5;
+                    //Defense = 0;
+                    //Speed = 6;
                     Weight = .5F;
                     break;
                 case WeaponType.Staff:
-                    Strength = 4;
-                    Defense = 14;
-                    Speed = 2;
+                    Damage = 4;
+                    BlockChance = .14;
+                    Accuracy = 1.2;
+                    //Defense = 14;
+                    //Speed = 2;
                     Weight = 2;
                     break;
                 default:

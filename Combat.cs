@@ -57,7 +57,7 @@ namespace text_survival
                 return;
             }
             Utils.Write(npc.Name + " dropped: ");
-            Item item = npc.Loot[Utils.RandInt(0, npc.Loot.Count - 1)];
+            Item item = npc.Loot[Utils.RandInt(0, npc.Loot.Count - 1)] as Item;
             item.Write();
             Utils.WriteLine("\nDo you want to pick it up?\n", 1, ". Yes\n", 2, ". No");
 
@@ -91,7 +91,7 @@ namespace text_survival
         public static double CalcDamage(ICombatant attacker, ICombatant defender)
         {
             // base damage - defense percentage
-            double damage = attacker.Attributes.Strength - ((defender.Defense / 100) * attacker.Attributes.Strength);
+            double damage = attacker.Attributes.Strength - ((defender.ArmorRating / 100) * attacker.Attributes.Strength);
             damage *= Utils.RandFloat(.5F, 1.5F);
             if (damage < 0)
             {
@@ -104,7 +104,7 @@ namespace text_survival
             Utils.Write(c, " => ",
                 "HP: ", Math.Round(c.Health, 2), "/", c.MaxHealth,
                 "\nStr: ", c.Attributes.Strength,
-                ", Def: ", c.Defense,
+                ", Def: ", c.ArmorRating,
                 ", Spd: ", c.Attributes.Speed, "\n");
         }
     }

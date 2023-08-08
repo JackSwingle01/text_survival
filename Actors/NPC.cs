@@ -9,7 +9,7 @@ namespace text_survival.Actors
         public string Description { get; set; }
         public double Health { get; set; }
         public double MaxHealth { get; set; }
-        public float Defense { get; set; }
+        public double ArmorRating { get; set; }
         public bool IsHostile { get; set; }
         public List<Item> Loot { get; set; }
         public bool IsAlive => Health > 0;
@@ -20,7 +20,7 @@ namespace text_survival.Actors
             Name = name;
             MaxHealth = health;
             Health = MaxHealth;
-            Defense = defense;
+            ArmorRating = defense;
 
             Attributes = new Attributes();
             Buff buff = new()
@@ -29,7 +29,7 @@ namespace text_survival.Actors
                 Speed = speed
             };
             Attributes.ApplyBuff(buff);
-            
+
             Loot = new List<Item>();
             IsHostile = true;
             Description = "";
@@ -62,7 +62,7 @@ namespace text_survival.Actors
             }
             Thread.Sleep(1000);
         }
-        
+
         public override string ToString()
         {
             return Name;

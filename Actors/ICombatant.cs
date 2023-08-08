@@ -5,7 +5,7 @@
         public string Name { get; }
         public double Health { get; }
         public double MaxHealth { get; }
-        public float Defense { get; }
+        public double ArmorRating { get; }
         public Attributes Attributes { get; }
 
         public void Damage(double damage);

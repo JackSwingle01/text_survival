@@ -1,5 +1,4 @@
-﻿using Microsoft.VisualBasic.CompilerServices;
-using text_survival.Actors;
+﻿using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Items;
 using text_survival.Level;
@@ -24,7 +23,9 @@ namespace text_survival
 
         // inventory
         public Container Inventory { get; set; }
-        public List<EquipableItem> Gear { get; set; }
+        public List<Armor> Armor { get; set; }
+        public Gear HeldItem { get; set; }
+        public Weapon Weapon { get; set; }
 
         // skills and level
         public int Level { get; set; }
@@ -35,7 +36,7 @@ namespace text_survival
         public Skills Skills { get; set; }
 
         // stats
-        public float Defense => Gear.Sum(g => g.Defense);
+        public double ArmorRating => Armor.Sum(g => g.Rating);
 
 
         public Player(Area area)
@@ -49,7 +50,7 @@ namespace text_survival
             Health = MaxHealth;
             Temperature = new Temperature(this);
             Inventory = new Container("Backpack", 10);
-            Gear = new List<EquipableItem>();
+            Armor = new List<Armor>();
             this.Equip(ItemFactory.MakeClothShirt());
             this.Equip(ItemFactory.MakeClothPants());
             this.Equip(ItemFactory.MakeBoots());
@@ -95,22 +96,70 @@ namespace text_survival
             Heal(minutes / 6);
         }
 
-        public void Equip(EquipableItem item)
+        public void Equip(Item item)
         {
-            var oldItem = this.Gear.FirstOrDefault(i => i.EquipSpot == item.EquipSpot);
-            if (oldItem != null)
+            if (item is Weapon weapon)
             {
-                this.Unequip(oldItem);
+                if (Weapon != null)
+                {
+                    this.Unequip(Weapon);
+                }
+                Weapon = weapon;
+                this.Inventory.Remove(weapon);
+                return;
             }
-            this.Gear.Add(item);
-            this.Inventory.Remove(item);
+            else if (item is Armor armor)
+            {
+                var oldItem = this.Armor.FirstOrDefault(i => i.EquipSpot == armor.EquipSpot);
+                if (oldItem != null)
+                {
+                    this.Unequip(oldItem);
+                }
+                this.Armor.Add(armor);
+                this.Inventory.Remove(item);
+                return;
+            }
+            else if (item is Gear gear)
+            {
+                if (HeldItem != null)
+                {
+                    this.Unequip(HeldItem);
+                }
+                HeldItem = gear;
+                this.Inventory.Remove(gear);
+                return;
+            }
+            else
+            {
+                Utils.WriteLine("You can't equip that.");
+            }
+
         }
 
 
-        public void Unequip(EquipableItem item)
+        public void Unequip(Item item)
         {
-            this.Gear.Remove(item);
-            this.Inventory.Add(item);
+            if (item is Weapon weapon)
+            {
+                Weapon = null;
+                this.Inventory.Add(weapon);
+
+            }
+            else if (item is Armor armor)
+            {
+                this.Armor.Remove(armor);
+                this.Inventory.Add(armor);
+            }
+            else if (item is Gear gear)
+            {
+                HeldItem = null;
+                this.Inventory.Add(gear);
+            }
+            else
+            {
+                Utils.WriteLine("You can't unequip that.");
+            }
+
         }
 
         // COMBAT //
@@ -118,8 +167,8 @@ namespace text_survival
         public double DetermineDamage()
         {
             double strengthModifier = (Attributes.Strength + 75) / 100;
-            double exhaustionModifier = ((Exhaustion.Amount / Exhaustion.Max) + 1) / 2;
-            double weaponDamage = Gear.FirstOrDefault(i => i is Weapon)?.Strength ?? 1; // change to unarmed skill once implemented
+            double exhaustionModifier = ((Exhaustion.Amount / Exhaustion.Max) + 1) / 2; ;
+            double weaponDamage = Weapon?.Damage ?? 1; // change to unarmed skill once implemented
             double damage = weaponDamage * strengthModifier * exhaustionModifier;
             damage *= Utils.RandDouble(.5, 2);
             if (damage < 0)

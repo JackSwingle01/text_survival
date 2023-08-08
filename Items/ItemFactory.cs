@@ -99,8 +99,7 @@
         }
         public static Item MakeSpear()
         {
-            EquipableItem spear = new EquipableItem("Spear", 7, 0, 0, 0);
-            spear.EquipSpot = EquipSpots.Weapon;
+            Weapon spear = new Weapon(WeaponType.Spear, WeaponMaterial.Wooden);
             spear.Description = "A makeshift spear.";
             spear.Weight = 1;
             return spear;
@@ -136,26 +135,25 @@
         public static Weapon MakeSword()
         {
             Weapon sword = new Weapon(WeaponType.Sword, WeaponMaterial.Steel);
-            sword.EquipSpot = EquipSpots.Weapon;
             sword.Description = "A steel sword.";
             sword.Weight = 2;
             return sword;
         }
 
-        public static EquipableItem MakeShield()
+        public static Armor MakeShield()
         {
-            EquipableItem shield = new EquipableItem("Shield", 0, 10, -1);
+            Armor shield = new Armor("Shield", .1, EquipSpots.Hands);
             shield.EquipSpot = EquipSpots.Hands;
             shield.Description = "A shield that blocks 10% damage";
             shield.Weight = 2.5F;
             return shield;
         }
 
-        public static EquipableItem MakeArmor()
+        public static Armor MakeArmor()
         {
-            EquipableItem armor = new EquipableItem("Armor", 0, 20, -5);
+            Armor armor = new Armor("Armor", .5, EquipSpots.Chest, 1);
             armor.EquipSpot = EquipSpots.Chest;
-            armor.Description = "Heavy armor that blocks 20% damage but slows you down";
+            armor.Description = "Heavy armor that blocks 50% damage but slows you down";
             armor.Weight = 5;
             return armor;
         }
@@ -186,9 +184,9 @@
             return bandage;
         }
 
-        public static EquipableItem MakeTorch()
+        public static Armor MakeTorch()
         {
-            EquipableItem torch = new EquipableItem("Torch", 0, 0, 0, 5);
+            Armor torch = new Armor("Torch", 0, EquipSpots.Hands, 5);
             torch.EquipSpot = EquipSpots.Hands;
             torch.Description = "A torch that warms you";
             return torch;
@@ -240,10 +238,9 @@
             vial.UseEffect = (player) =>
             {
                 Utils.Write("You can use this to poison your weapon.\n");
-                if (player.Gear.Any(i => i.EquipSpot == EquipSpots.Weapon))
+                if (player.Weapon is not null)
                 {
-                    EquipableItem weapon = player.Gear.First(i => i.EquipSpot == EquipSpots.Weapon);
-                    weapon.Strength += 2;
+                    player.Weapon.Damage += 2;
                     player.Inventory.Remove(vial);
                 }
                 else
@@ -274,10 +271,10 @@
             silk.UseEffect = (player) =>
             {
                 Utils.Write("You can use this to improve your clothing.\n");
-                if (player.Gear.Any(i => i.EquipSpot == EquipSpots.Chest))
+                if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Chest))
                 {
-                    EquipableItem armor = player.Gear.First(i => i.EquipSpot == EquipSpots.Chest);
-                    armor.Warmth += 2;
+                    Armor armor = player.Armor.First(i => i.EquipSpot == EquipSpots.Chest) as Armor;
+                    armor.Warmth += 1;
                     player.Inventory.Remove(silk);
                 }
                 else
@@ -289,17 +286,16 @@
 
         }
 
-        public static EquipableItem MakeGoblinSword()
+        public static Weapon MakeGoblinSword()
         {
-            EquipableItem sword = new EquipableItem("Goblin Sword", 5, 1, 0);
-            sword.EquipSpot = EquipSpots.Weapon;
+            Weapon sword = new Weapon(WeaponType.Sword, WeaponMaterial.Iron);
+            sword.Name = "Goblin Sword";
             return sword;
         }
 
-        public static EquipableItem MakeTatteredCloth()
+        public static Armor MakeTatteredCloth()
         {
-            EquipableItem cloth = new EquipableItem("Tattered Cloth", 0, 1, 0);
-            cloth.EquipSpot = EquipSpots.Chest;
+            Armor cloth = new Armor("Tattered Cloth", .3, EquipSpots.Head, .5);
             return cloth;
         }
 
@@ -309,10 +305,10 @@
             scale.UseEffect = (player) =>
             {
                 Utils.Write("You can use this to improve your armor.\n");
-                if (player.Gear.Any(i => i.EquipSpot == EquipSpots.Chest))
+                if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Chest))
                 {
-                    EquipableItem armor = player.Gear.First(i => i.EquipSpot == EquipSpots.Chest);
-                    armor.Defense += 6;
+                    Armor armor = player.Armor.First(i => i.EquipSpot == EquipSpots.Chest);
+                    armor.Rating += 6;
                     player.Inventory.Remove(scale);
                 }
             };
@@ -325,10 +321,9 @@
             tooth.UseEffect = (player) =>
             {
                 Utils.Write("You can use this to improve your weapon.\n");
-                if (player.Gear.Any(i => i.EquipSpot == EquipSpots.Weapon))
+                if (player.Weapon is not null)
                 {
-                    EquipableItem weapon = player.Gear.First(i => i.EquipSpot == EquipSpots.Weapon);
-                    weapon.Strength += 6;
+                    player.Weapon.Damage += 6;
                     player.Inventory.Remove(tooth);
                 }
             };
@@ -360,7 +355,6 @@
         public static Weapon MakeRustySword()
         {
             Weapon sword = new Weapon(WeaponType.Sword, WeaponMaterial.Iron);
-            sword.EquipSpot = EquipSpots.Weapon;
             sword.Description = "A rusty sword.";
             sword.Weight = 2.0F;
             return sword;
@@ -372,10 +366,11 @@
             skin.UseEffect = (player) =>
             {
                 Utils.Write("You use this to improve your armor.\n");
-                if (player.Gear.Any(i => i.EquipSpot == EquipSpots.Chest))
+                if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Chest))
                 {
-                    EquipableItem armor = player.Gear.First(i => i.EquipSpot == EquipSpots.Chest);
-                    armor.Defense += 2;
+                    Armor armor = player.Armor.Select(i => i as Armor)
+                                            .First(i => i.EquipSpot == EquipSpots.Chest);
+                    armor.Rating += .2;
                     player.Inventory.Remove(skin);
                 }
             };
@@ -387,11 +382,10 @@
             Item tooth = new Item("Crocodile Tooth");
             tooth.UseEffect = (player) =>
             {
-                if (player.Gear.Any(i => i.EquipSpot == EquipSpots.Weapon))
+                if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Weapon))
                 {
                     Utils.Write("You use this to improve your weapon.\n");
-                    EquipableItem weapon = player.Gear.First(i => i.EquipSpot == EquipSpots.Weapon);
-                    weapon.Strength += 2;
+                    player.Weapon.Damage += 2;
                     player.Inventory.Remove(tooth);
                 }
                 else
@@ -402,24 +396,24 @@
             return tooth;
         }
 
-        public static EquipableItem MakeClothShirt()
+        public static Armor MakeClothShirt()
         {
-            EquipableItem shirt = new EquipableItem("Cloth Shirt", 0, 1, 0, 1)
+            Armor shirt = new Armor("Cloth Shirt", .03, EquipSpots.Chest, 1)
             {
                 EquipSpot = EquipSpots.Chest
             };
             return shirt;
         }
-        public static EquipableItem MakeClothPants()
+        public static Armor MakeClothPants()
         {
-            EquipableItem pants = new EquipableItem("Cloth Pants", 0, 1, 0, .5F);
+            Armor pants = new Armor("Cloth Pants", .02, EquipSpots.Legs, .5);
             pants.EquipSpot = EquipSpots.Legs;
             return pants;
         }
 
-        public static EquipableItem MakeBoots()
+        public static Armor MakeBoots()
         {
-            EquipableItem shoes = new EquipableItem("Boots", 0, 1, 0, .5F);
+            Armor shoes = new Armor("Boots", .01, EquipSpots.Feet, .5);
             shoes.EquipSpot = EquipSpots.Feet;
             return shoes;
         }

@@ -106,7 +106,7 @@ namespace text_survival
             AvailableActions.Add(ActionType.Travel);
             if (_player.Exhaustion.Amount > 0)
                 AvailableActions.Add(ActionType.Sleep);
-            if (_player.Gear.Count > 0)
+            if (_player.Armor.Count > 0)
                 AvailableActions.Add(ActionType.CheckGear);
 
             // last action
