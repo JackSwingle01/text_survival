@@ -4,34 +4,34 @@ namespace text_survival.Level
 {
     public class Skill
     {
-        private int _points;
-        private int _level;
+        private int _xp;
+        public int Level { get; private set; }
         public SkillType Type { get; set; }
 
         public Skill(SkillType type)
         {
             Type = type;
-            _points = 0;
-            _level = 0;
+            _xp = 0;
+            Level = 0;
         }
 
-        private int LevelUpThreshold => (_level + 1) * 10;
+        private int LevelUpThreshold => (Level + 1) * 10;
 
-        public void AddPoints(int points)
+        public void GainExperience(int xp)
         {
-            _points += points;
+            _xp += xp;
 
-            if (_points < LevelUpThreshold) return;
+            if (_xp < LevelUpThreshold) return;
             // else level up
-            _points -= LevelUpThreshold;
+            _xp -= LevelUpThreshold;
             LevelUp();
         }
 
         public void LevelUp()
         {
-            _level++;
+            Level++;
             EventAggregator.Publish(new SkillLevelUpEvent(this));
-            Utils.WriteLine("You leveled up ", this, " to level ", _level, "!");
+            Utils.WriteLine("You leveled up ", this, " to level ", Level, "!");
         }
 
         public override string ToString()
@@ -41,7 +41,7 @@ namespace text_survival.Level
 
         public void Write()
         {
-            Utils.Write(this, ": ", _level, " (", _points, "/", LevelUpThreshold, ")");
+            Utils.Write(this, ": ", Level, " (", _xp, "/", LevelUpThreshold, ")");
         }
 
 

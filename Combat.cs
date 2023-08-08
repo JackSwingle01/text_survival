@@ -9,7 +9,7 @@ namespace text_survival
         {
             Utils.WriteLine("You encounter: ", enemy, "!");
 
-            if (enemy.Speed > player.Speed)
+            if (enemy.Attributes.Speed > player.Attributes.Speed)
             {
                 enemy.Attack(player);
             }
@@ -82,16 +82,16 @@ namespace text_survival
         public static bool DetermineDodge(ICombatant attacker, ICombatant defender)
         {
             const int baseDodge = 10;
-            float speedDiff = defender.Speed - attacker.Speed;
-            float chance = baseDodge + speedDiff;
+            double speedDiff = defender.Attributes.Speed - attacker.Attributes.Speed;
+            double chance = baseDodge + speedDiff;
 
             int roll = Utils.RandInt(0, 100);
             return roll <= chance;
         }
-        public static float CalcDamage(ICombatant attacker, ICombatant defender)
+        public static double CalcDamage(ICombatant attacker, ICombatant defender)
         {
             // base damage - defense percentage
-            float damage = attacker.Strength - ((defender.Defense / 100) * attacker.Strength);
+            double damage = attacker.Attributes.Strength - ((defender.Defense / 100) * attacker.Attributes.Strength);
             damage *= Utils.RandFloat(.5F, 1.5F);
             if (damage < 0)
             {
@@ -103,9 +103,9 @@ namespace text_survival
         {
             Utils.Write(c, " => ",
                 "HP: ", Math.Round(c.Health, 2), "/", c.MaxHealth,
-                "\nStr: ", c.Strength,
+                "\nStr: ", c.Attributes.Strength,
                 ", Def: ", c.Defense,
-                ", Spd: ", c.Speed, "\n");
+                ", Spd: ", c.Attributes.Speed, "\n");
         }
     }
 }

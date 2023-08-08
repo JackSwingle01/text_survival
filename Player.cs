@@ -1,4 +1,5 @@
-﻿using text_survival.Actors;
+﻿using Microsoft.VisualBasic.CompilerServices;
+using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Items;
 using text_survival.Level;
@@ -8,8 +9,8 @@ namespace text_survival
     {
         public string Name { get; set; }
         // Health
-        public float Health { get; set; }
-        public float MaxHealth { get; set; }
+        public double Health { get; set; }
+        public double MaxHealth { get; set; }
 
         // Survival stats
         public Hunger Hunger { get; set; }
@@ -25,18 +26,22 @@ namespace text_survival
         public Container Inventory { get; set; }
         public List<EquipableItem> Gear { get; set; }
 
-        // skills
-        public Level.Skills Skills { get; set; }
+        // skills and level
+        public int Level { get; set; }
+        public int Experience { get; set; }
+        public int ExperienceToNextLevel => (Level + 1) * 20;
+
+        public Attributes Attributes { get; set; }
+        public Skills Skills { get; set; }
 
         // stats
-        public float Strength { get; set; }
         public float Defense => Gear.Sum(g => g.Defense);
-        public float Speed { get; set; }
-        
+
 
         public Player(Area area)
         {
             Name = "Player";
+            Attributes = new Attributes();
             Hunger = new Hunger(this);
             Thirst = new Thirst(this);
             Exhaustion = new Exhaustion(this);
@@ -44,8 +49,6 @@ namespace text_survival
             Health = MaxHealth;
             Temperature = new Temperature(this);
             Inventory = new Container("Backpack", 10);
-            Strength = 5;
-            Speed = 10;
             Gear = new List<EquipableItem>();
             this.Equip(ItemFactory.MakeClothShirt());
             this.Equip(ItemFactory.MakeClothPants());
@@ -56,6 +59,7 @@ namespace text_survival
             Skills = new Skills();
             Weapon weapon = Weapon.GenerateRandomWeapon();
             this.Equip(weapon);
+            Level = 0;
         }
 
 
@@ -111,10 +115,24 @@ namespace text_survival
 
         // COMBAT //
 
+        public double DetermineDamage()
+        {
+            double strengthModifier = (Attributes.Strength + 75) / 100;
+            double exhaustionModifier = ((Exhaustion.Amount / Exhaustion.Max) + 1) / 2;
+            double weaponDamage = Gear.FirstOrDefault(i => i is Weapon)?.Strength ?? 1; // change to unarmed skill once implemented
+            double damage = weaponDamage * strengthModifier * exhaustionModifier;
+            damage *= Utils.RandDouble(.5, 2);
+            if (damage < 0)
+            {
+                damage = 0;
+            }
+            return damage;
+        }
+
         public void Attack(ICombatant target)
         {
             // base damage - defense percentage
-            float damage = Combat.CalcDamage(this, target);
+            double damage = DetermineDamage();
             if (Combat.DetermineDodge(this, target))
             {
                 Utils.Write(target, " dodged the attack!\n");
@@ -127,7 +145,7 @@ namespace text_survival
             Thread.Sleep(1000);
         }
 
-        public void Damage(float damage)
+        public void Damage(double damage)
         {
             Health -= damage;
             if (!(Health <= 0)) return;
@@ -144,6 +162,22 @@ namespace text_survival
             {
                 Health = MaxHealth;
             }
+        }
+
+        // Leveling //
+        public void GainExperience(int xp)
+        {
+            Experience += xp;
+            if (Experience < ExperienceToNextLevel) return;
+            Experience -= ExperienceToNextLevel;
+            LevelUp();
+        }
+
+        public void LevelUp()
+        {
+            Level++;
+            Health += (Attributes.Endurance / 10);
+            Utils.WriteLine("You leveled up to level ", Level, "!");
         }
 
         // UPDATE //
@@ -179,6 +213,7 @@ namespace text_survival
                     Utils.WriteWarning("Error skill not found.");
                     break;
             }
+            GainExperience(1 * e.Skill.Level);
         }
 
         /// OTHER ///
@@ -188,6 +223,6 @@ namespace text_survival
             return Name;
         }
 
-        
+
     }
 }

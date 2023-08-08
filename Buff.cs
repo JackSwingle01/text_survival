@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
-    internal class Buff
+    public class Buff
     {
         public double Strength { get; set; }
         public double Intelligence { get; set; }
@@ -17,5 +11,9 @@ namespace text_survival
         public double Personality { get; set; }
         public double Luck { get; set; }
 
+        public Buff()
+        {
+
+        }
     }
 }

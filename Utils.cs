@@ -167,6 +167,12 @@ namespace text_survival
         {
             return (float)Random.NextDouble() * (high - low) + low;
         }
+
+        public static double RandDouble(double low, double high)
+        {
+            return Random.NextDouble() * (high - low) + low;
+        }
+
         public static bool FlipCoin()
         {
             return Random.Next(2) == 0;

@@ -28,21 +28,5 @@ namespace text_survival
             Utils.WriteLine("Body Temperature: ", Math.Round(player.Temperature.BodyTemperature, 1), "°F (", player.Temperature.BodyTemperature, ")");
         }
 
-        public static void ExamineNpcCombatStats(Npc c)
-        {
-            Utils.Write(c, " => ",
-                "HP: ", Math.Round(c.Health, 2), "/", c.MaxHealth,
-                "\nStr: ", c.Strength,
-                ", Def: ", c.Defense,
-                ", Spd: ", c.Speed, "\n");
-        }
-        public static void ExaminePlayerCombatStats(Player c)
-        {
-            Utils.Write(c, " => ",
-                "HP: ", Math.Round(c.Health, 2), "/", c.MaxHealth,
-                "\nStr: ", c.Strength,
-                ", Def: ", c.Defense,
-                ", Spd: ", c.Speed, "\n");
-        }
     }
 }

@@ -7,23 +7,29 @@ namespace text_survival.Actors
     {
         public string Name { get; set; }
         public string Description { get; set; }
-        public float Health { get; set; }
-        public float MaxHealth { get; set; }
-        public float Strength { get; set; }
+        public double Health { get; set; }
+        public double MaxHealth { get; set; }
         public float Defense { get; set; }
-        public float Speed { get; set; }
         public bool IsHostile { get; set; }
         public List<Item> Loot { get; set; }
         public bool IsAlive => Health > 0;
+        public Attributes Attributes { get; set; }
 
         public Npc(string name, int health = 10, int strength = 10, int defense = 10, int speed = 10)
         {
             Name = name;
-            Health = health;
             MaxHealth = health;
-            Strength = strength;
+            Health = MaxHealth;
             Defense = defense;
-            Speed = speed;
+
+            Attributes = new Attributes();
+            Buff buff = new()
+            {
+                Strength = strength,
+                Speed = speed
+            };
+            Attributes.ApplyBuff(buff);
+            
             Loot = new List<Item>();
             IsHostile = true;
             Description = "";
@@ -31,7 +37,13 @@ namespace text_survival.Actors
 
         public void Attack(ICombatant target)
         {
-            float damage = Combat.CalcDamage(this, target);
+            double strengthModifier = (Attributes.Strength + 75) / 100;
+            double damage = strengthModifier;
+            damage *= Utils.RandDouble(.5, 2);
+            if (damage < 0)
+            {
+                damage = 0;
+            }
             if (Combat.DetermineDodge(this, target))
             {
                 Utils.Write(target, " dodged the attack!\n");
@@ -50,13 +62,7 @@ namespace text_survival.Actors
             }
             Thread.Sleep(1000);
         }
-        public string StatsToString()
-        {
-            return Name + ":\n" +
-              "Health: " + Health + "/" + MaxHealth + "\n" +
-              "Strength: " + Strength + "\n" +
-              "Defense: " + Defense;
-        }
+        
         public override string ToString()
         {
             return Name;
@@ -66,7 +72,7 @@ namespace text_survival.Actors
             Utils.Write(this);
         }
 
-        public void Damage(float damage)
+        public void Damage(double damage)
         {
             Health -= damage;
             if (Health < 0)

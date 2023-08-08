@@ -28,13 +28,13 @@
             switch (e.Type)
             {
                 case SkillType.Strength:
-                    Strength.AddPoints(e.Experience);
+                    Strength.GainExperience(e.Experience);
                     break;
                 case SkillType.Defense:
-                    Defense.AddPoints(e.Experience);
+                    Defense.GainExperience(e.Experience);
                     break;
                 case SkillType.Speed:
-                    Speed.AddPoints(e.Experience);
+                    Speed.GainExperience(e.Experience);
                     break;
                 default:
                     Utils.WriteWarning("Invalid experience gain type");

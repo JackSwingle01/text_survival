@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public class Attributes
     {
@@ -50,8 +44,14 @@ namespace text_survival
             _baseEndurance = 15;
             _basePersonality = 15;
             _baseLuck = 15;
+            _buffs = new List<Buff>();
         }
 
-        
+        public void ApplyBuff(Buff buff)
+        {
+            _buffs.Add(buff);
+        }
+
+
     }
 }

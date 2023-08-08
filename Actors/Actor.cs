@@ -2,14 +2,13 @@
 {
     public interface ICombatant
     {
-        public string Name { get;  }
-        public float Health { get;  }
-        public float MaxHealth { get;  }
-        public float Strength { get;  }
+        public string Name { get; }
+        public double Health { get; }
+        public double MaxHealth { get; }
         public float Defense { get; }
-        public float Speed { get; }
+        public Attributes Attributes { get; }
 
-        public void Damage(float damage);
+        public void Damage(double damage);
         public void Attack(ICombatant target);
 
     }
