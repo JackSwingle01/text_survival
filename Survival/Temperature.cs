@@ -2,8 +2,8 @@
 {
     public class Temperature
     {
-        public const float BaseBodyTemperature = 98.6F;
-        public float BodyTemperature { get; private set; }
+        public const double BaseBodyTemperature = 98.6F;
+        public double BodyTemperature { get; private set; }
         public TemperatureEnum TemperatureEffect { get; private set; }
         private Player Player { get; set; }
 
@@ -100,18 +100,18 @@
         private void UpdateTemperatureTick()
         {
             // body heats based on calories burned
-            
+
             float joulesBurned = Physics.CaloriesToJoules(Player.Hunger.Rate);
             float specificHeatOfHuman = 3500F;
             float weight = 70F;
             float tempChangeCelsius = Physics.TempChange(weight, specificHeatOfHuman, joulesBurned);
-            BodyTemperature += Physics.DeltaCelsiusToDeltaFahrenheit(tempChangeCelsius);
-            
-            float skinTemp = BodyTemperature - 8.4F;
+            BodyTemperature += (double)Physics.DeltaCelsiusToDeltaFahrenheit(tempChangeCelsius);
+
+            double skinTemp = BodyTemperature - 8.4;
             float rate = 1F / 120F;
-            float feelsLike = Player.CurrentArea.GetTemperature();
-            feelsLike += (float)Player.WarmthBonus;
-            float tempChange = (skinTemp - feelsLike) * rate;
+            double feelsLike = Player.CurrentArea.GetTemperature();
+            feelsLike += Player.WarmthBonus;
+            double tempChange = (skinTemp - feelsLike) * rate;
             BodyTemperature -= tempChange;
 
             UpdateTemperatureEffect();

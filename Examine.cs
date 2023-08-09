@@ -40,29 +40,29 @@ namespace text_survival
         public static void ExamineItem(Item item)
         {
             Utils.Write(item, " => ");
-            Utils.Write("Weight: ", item.Weight);
             if (item is Weapon weapon)
             {
-                Utils.Write(", Damage: ", weapon.Damage);
-                Utils.Write(", Accuracy: ", weapon.Accuracy);
+                Utils.Write("Damage: ", weapon.Damage, ", ");
+                Utils.Write("Accuracy: ", weapon.Accuracy * 100, ", ");
                 if (weapon.BlockChance != 0)
                 {
-                    Utils.Write(", BlockChance: ", weapon.BlockChance);
+                    Utils.Write(", BlockChance: ", weapon.BlockChance * 100, ", ");
                 }
             }
             else if (item is Armor armor)
             {
                 if (armor.Rating != 0)
-                    Utils.Write(", Defense: ", armor.Rating);
+                    Utils.Write("Defense: ", armor.Rating * 100, ", ");
 
                 if (armor.Warmth != 0)
-                    Utils.Write(", Warmth: ", armor.Warmth);
+                    Utils.Write("Warmth: ", armor.Warmth, ", ");
+            }
+
+            if (item.Weight != 0)
+            {
+                Utils.Write("Weight: ", item.Weight);
             }
             Utils.WriteLine();
-            //Utils.Write(", Strength: ", item.Strength);
-            //Utils.Write(", Defense: ", Defense);
-            //Utils.Write(", Speed: ", Speed);
-            //Utils.Write(", Warmth: ", Warmth, "\n");
         }
 
         public static void ExamineLevel(Player player)

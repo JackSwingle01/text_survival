@@ -11,8 +11,12 @@
         public double Accuracy { get; set; }
         public double BlockChance { get; set; }
 
-        public Weapon(WeaponType type, WeaponMaterial weaponMaterial, string name = "", int quality = 50) : base(name)
+        public Weapon(WeaponType type, WeaponMaterial weaponMaterial, string name = "", int quality = 50) : base(name, quality:quality)
         {
+            UseEffect = (player) =>
+            {
+                player.Equip(this);
+            };
             SetBaseStats(type);
             ApplyMaterialModifier(weaponMaterial);
             ApplyQualityModifier();

@@ -79,13 +79,5 @@ namespace text_survival
             Examine.ExamineCombatant(combatant2);
         }
 
-        public static void WriteCombatStats(ICombatant c)
-        {
-            Utils.Write(c, " => ",
-                "HP: ", Math.Round(c.Health, 2), "/", c.MaxHealth,
-                "\nStr: ", c.Attributes.Strength,
-                ", Def: ", c.ArmorRating,
-                ", Spd: ", c.Attributes.Speed, "\n");
-        }
     }
 }

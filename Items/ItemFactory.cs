@@ -229,12 +229,12 @@
             return item;
         }
 
-        public static Item MakeSnakeSkin()
-        {
-            var item = new Item("Snake Skin");
-            item.Weight = 0.1F;
-            return item;
-        }
+        //public static Item MakeSnakeSkin()
+        //{
+        //    var item = new Item("Snake Skin");
+        //    item.Weight = 0.1F;
+        //    return item;
+        //}
 
         public static Item MakeVenomVial()
         {
@@ -242,7 +242,7 @@
             vial.UseEffect = (player) =>
             {
                 Utils.Write("You can use this to poison your weapon.\n");
-                if (player.Weapon is not null)
+                if (player.Weapon != player.Unarmed)
                 {
                     player.Weapon.Damage += 2;
                     player.Inventory.Remove(vial);
@@ -257,24 +257,26 @@
             return vial;
         }
 
-        public static Item MakeBatWing()
-        {
-            var item = new Item("Bat Wing");
-            return item;
-        }
+        //public static Item MakeBatWing()
+        //{
+        //    var item = new Item("Bat Wing");
+        //    return item;
+        //}
 
-        public static Item MakeGuano()
-        {
-            var item = new Item("Guano");
-            return item;
-        }
+        //public static Item MakeGuano()
+        //{
+        //    var item = new Item("Guano");
+        //    return item;
+        //}
 
         public static Item MakeSpiderSilk()
         {
             Item silk = new Item("Spider Silk");
+            silk.Weight = .1;
+            silk.Description = "A bundle of spider silk.";
             silk.UseEffect = (player) =>
             {
-                Utils.Write("You can use this to improve your clothing.\n");
+                Utils.Write("You use this to improve the warmth of your clothing.\n");
                 if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Chest))
                 {
                     Armor armor = player.Armor.First(i => i.EquipSpot == EquipSpots.Chest) as Armor;
@@ -306,14 +308,19 @@
         public static Item MakeDragonScale()
         {
             Item scale = new Item("Dragon Scale");
+            scale.Description = "A large scale from a dragon. Can be used to improve armor.";
             scale.UseEffect = (player) =>
             {
-                Utils.Write("You can use this to improve your armor.\n");
                 if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Chest))
                 {
+                    Utils.Write("You use this to improve your armor.\n");
                     Armor armor = player.Armor.First(i => i.EquipSpot == EquipSpots.Chest);
                     armor.Rating += 6;
                     player.Inventory.Remove(scale);
+                }
+                else
+                {
+                    Utils.Write("You don't have any armor to improve.\n");
                 }
             };
             return scale;
@@ -322,13 +329,18 @@
         public static Item MakeDragonTooth()
         {
             Item tooth = new Item("Dragon Tooth");
+            tooth.Description = "A large tooth from a dragon. Can be used to improve a weapon.";
             tooth.UseEffect = (player) =>
             {
-                Utils.Write("You can use this to improve your weapon.\n");
-                if (player.Weapon is not null)
+                if (player.Weapon != player.Unarmed)
                 {
+                    Utils.Write("You use this to improve your weapon.\n");
                     player.Weapon.Damage += 6;
                     player.Inventory.Remove(tooth);
+                }
+                else
+                {
+                    Utils.Write("You don't have any weapons to improve.\n");
                 }
             };
             return tooth;
@@ -350,15 +362,15 @@
             return item;
         }
 
-        public static Item MakeBoneFragments()
-        {
-            var item = new Item("Bone Fragments");
-            return item;
-        }
+        //public static Item MakeBoneFragments()
+        //{
+        //    var item = new Item("Bone Fragments");
+        //    return item;
+        //}
 
         public static Weapon MakeRustySword()
         {
-            Weapon sword = new Weapon(WeaponType.Sword, WeaponMaterial.Iron);
+            Weapon sword = new Weapon(WeaponType.Sword, WeaponMaterial.Iron, "Rusty Sword", 20);
             sword.Description = "A rusty sword.";
             sword.Weight = 2.0F;
             return sword;
@@ -367,6 +379,7 @@
         public static Item MakeCrocodileSkin()
         {
             Item skin = new Item("Crocodile Skin");
+            skin.Description = "You can use this to improve your armor.";
             skin.UseEffect = (player) =>
             {
                 Utils.Write("You use this to improve your armor.\n");
@@ -384,11 +397,12 @@
         public static Item MakeCrocodileTooth()
         {
             Item tooth = new Item("Crocodile Tooth");
+            tooth.Description = "You can use this to improve your weapon";
             tooth.UseEffect = (player) =>
             {
                 if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Weapon))
                 {
-                    Utils.Write("You use this to improve your weapon.\n");
+                    Utils.Write("You use it to improve your weapon.\n");
                     player.Weapon.Damage += 2;
                     player.Inventory.Remove(tooth);
                 }

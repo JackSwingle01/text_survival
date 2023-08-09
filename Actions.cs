@@ -81,7 +81,7 @@ namespace text_survival
                 AvailableActions.Add(ActionType.CheckGear);
 
             // last action
-            AvailableActions.Add(ActionType.Quit);
+            //AvailableActions.Add(ActionType.Quit);
         }
 
         public void Act()
@@ -172,8 +172,24 @@ namespace text_survival
         {
             if (_player.CurrentArea.Npcs.Count > 0)
             {
-                Utils.WriteLine("Its too dangerous with enemies nearby!");
-                return;
+                // compare player to fastest enemy
+                double playerCheck = _player.Attributes.Speed + _player.Attributes.Agility / 2 + _player.Attributes.Luck / 3;
+                double enemyCheck = 0;
+                Npc fastestNpc = _player.CurrentArea.Npcs.First();
+                foreach (Npc npc in _player.CurrentArea.Npcs)
+                {
+                    var currentNpcCheck = npc.Attributes.Speed + npc.Attributes.Agility / 2 + npc.Attributes.Luck / 3;
+                    if (!(currentNpcCheck >= enemyCheck)) continue;
+                    fastestNpc = npc;
+                    enemyCheck = currentNpcCheck;
+                }
+
+                if (playerCheck < enemyCheck)
+                {
+                    Utils.WriteLine("You weren't fast enough to get past the ", fastestNpc.Name, "!");
+                    Fight();
+                    return;
+                }
             }
             var items = _player.CurrentArea.Items;
             Item item = items.First();

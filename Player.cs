@@ -47,7 +47,22 @@ namespace text_survival
         public Skills Skills { get; set; }
 
         // stats
-        public double ArmorRating => Armor.Sum(g => g.Rating);
+        public double ArmorRating
+        {
+            get
+            {
+                double rating = 0;
+                foreach (Armor armor in Armor)
+                {
+                    rating += armor.Rating;
+                    if (armor.Type == ArmorClass.Light)
+                        rating += Skills.LightArmor.Level * .01;
+                    else if (armor.Type == ArmorClass.Heavy)
+                        rating += Skills.HeavyArmor.Level * .01;
+                }
+                return rating;
+            }
+        }
 
 
         public Player(Area area)
@@ -183,11 +198,25 @@ namespace text_survival
 
         public double DetermineDamage(ICombatant defender)
         {
+            // strength and exhaustion modifiers
             double strengthModifier = (Attributes.Strength + 50) / 100;
-            double exhaustionModifier = (2 - Exhaustion.Amount / Exhaustion.Max) / 2 + .1; ;
-            double weaponDamage = Weapon.Damage; // add skill modifier
+            double exhaustionModifier = (2 - Exhaustion.Amount / Exhaustion.Max) / 2 + .1;
+
+            // skill bonus
+            double skillBonus = 0;
+            if (Weapon == Unarmed)
+                skillBonus = Skills.HandToHand.Level;
+            else if (Weapon.WeaponClass == WeaponClass.Blade)
+                skillBonus = Skills.Blade.Level;
+            else if (Weapon.WeaponClass == WeaponClass.Blunt)
+                skillBonus = Skills.Blunt.Level;
+            
+            // weapon and armor modifiers
+            double weaponDamage = Weapon.Damage + skillBonus; // add skill modifier
             double defenderDefense = defender.ArmorRating;
             double damage = weaponDamage * strengthModifier * exhaustionModifier * (1 - defenderDefense);
+
+            // random multiplier
             damage *= Utils.RandDouble(.5, 2);
 
             if (damage < 0)
@@ -203,7 +232,7 @@ namespace text_survival
 
         public double DetermineDodgeChance(ICombatant attacker)
         {
-            double baseDodge = ((Skills.Dodge.Level + Attributes.Agility) / 2 + Attributes.Luck / 10) / 200;
+            double baseDodge = (Skills.Dodge.Level + Attributes.Agility / 2 + Attributes.Luck / 10) / 200;
             double speedDiff = this.Attributes.Speed - attacker.Attributes.Speed;
             double chance = baseDodge + speedDiff;
             return chance;
@@ -281,7 +310,7 @@ namespace text_survival
             Level++;
             MaxHealth += Attributes.Endurance / 10;
             Health += Attributes.Endurance / 10;
-            Utils.WriteLine("You leveled up to level ", Level, "!");
+            Utils.WriteWarning("You leveled up to level " + Level + "!");
             Utils.WriteLine("You gained ", Attributes.Endurance / 10, " health!");
             Utils.WriteLine("You gained 3 skill points!");
             SkillPoints += 3;

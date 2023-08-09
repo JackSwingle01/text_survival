@@ -9,7 +9,7 @@ namespace text_survival.Environments
         public string Description { get; set; }
         public List<Item> Items { get; set; }
         public List<Npc> Npcs { get; set; }
-        public float BaseTemperature { get; set; }
+        public double BaseTemperature { get; set; }
         public bool IsShelter { get; set; }
         public bool Visited { get; set; }
         public List<Area> NearbyAreas { get; set; }
@@ -33,9 +33,9 @@ namespace text_survival.Environments
             EventAggregator.Subscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
             NearbyAreas = new List<Area>();
         }
-        public float GetTemperature()
+        public double GetTemperature()
         {
-            float effect = 0;
+            double effect = 0;
             if (World.GetTimeOfDay() == World.TimeOfDay.Morning)
             {
                 effect -= 5;

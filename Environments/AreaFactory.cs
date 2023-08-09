@@ -88,9 +88,6 @@ namespace text_survival.Environments
                         "Echoing Cavern",
                         "Echoing Tunnel",
                         "Echoing Mine",
-
-
-
                     },
                 EnvironmentType.AbandonedBuilding => new List<string>()
                     {
@@ -161,23 +158,7 @@ namespace text_survival.Environments
             return name;
         }
 
-        public static Area GenerateArea(EnvironmentType type, int numItems = 1, int numNpcs = 1)
-        {
-            Area area = new(GetRandomAreaName((type)), "");
-            ItemPool itemPool = CreateItemPool(type);
-            NpcPool npcPool = CreateNpcPool(type);
-            area.BaseTemperature = GetAreaBaseTemperature(type);
-            for (int i = 0; i < numItems; i++)
-            {
-                area.Items.Add(itemPool.GenerateRandomItem());
-            }
-            for (int i = 0; i < numNpcs; i++)
-            {
-                area.Npcs.Add(npcPool.GenerateRandomNpc());
-            }
-            return area;
-        }
-
+  
         private static readonly Dictionary<string, Func<Item>> ItemDefinitions = new()
         {
             { "Mushroom", ItemFactory.MakeMushroom },
@@ -197,7 +178,8 @@ namespace text_survival.Environments
             { "Health Potion", ItemFactory.MakeHealthPotion },
             { "Bandage", ItemFactory.MakeBandage },
             { "Torch", ItemFactory.MakeTorch },
-            { "Fish", ItemFactory.MakeFish }
+            { "Fish", ItemFactory.MakeFish },
+            { "RandomWeapon", Weapon.GenerateRandomWeapon }
         };
 
         private static readonly Dictionary<EnvironmentType, List<string>> EnvironmentItems = new()
@@ -210,7 +192,8 @@ namespace text_survival.Environments
                 "Shield",
                 "Bandage",
                 "Health Potion",
-                "Armor"
+                "Armor",
+                "RandomWeapon"
             } },
             { EnvironmentType.Forest, new List<string> {
                 "Berry",
@@ -226,19 +209,14 @@ namespace text_survival.Environments
                 "Gemstone",
                 "Torch"
             } },
-            { EnvironmentType.River, new List<string>
-            {
+            { EnvironmentType.River, new List<string> {
                 "Fish",
                 "Water"
             } },
-            {
-                EnvironmentType.Road, new List<string>()
-                {
-                    "Coin",
-                    "Bandage",
-
-                }
-            }
+            { EnvironmentType.Road, new List<string> {
+                "Coin",
+                "Bandage",
+            } },
 
         };
 
@@ -291,7 +269,7 @@ namespace text_survival.Environments
             } },
         };
 
-        private static float GetAreaBaseTemperature(EnvironmentType environment)
+        private static double GetAreaBaseTemperature(EnvironmentType environment)
         {
             return environment switch
             {
@@ -299,9 +277,28 @@ namespace text_survival.Environments
                 EnvironmentType.Cave => 50,
                 EnvironmentType.AbandonedBuilding => 75,
                 EnvironmentType.River => 70,
+                EnvironmentType.Road => 75,
                 _ => 70,
             };
         }
+
+        public static Area GenerateArea(EnvironmentType type, int numItems = 1, int numNpcs = 1)
+        {
+            Area area = new(GetRandomAreaName((type)), "");
+            ItemPool itemPool = CreateItemPool(type);
+            NpcPool npcPool = CreateNpcPool(type);
+            area.BaseTemperature = GetAreaBaseTemperature(type);
+            for (int i = 0; i < numItems; i++)
+            {
+                area.Items.Add(itemPool.GenerateRandomItem());
+            }
+            for (int i = 0; i < numNpcs; i++)
+            {
+                area.Npcs.Add(npcPool.GenerateRandomNpc());
+            }
+            return area;
+        }
+
 
         private static NpcPool CreateNpcPool(EnvironmentType environment)
         {

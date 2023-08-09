@@ -9,6 +9,7 @@ namespace text_survival.Actors
         public string Description { get; set; }
         public double Health { get; set; }
         public double MaxHealth { get; set; }
+        public double UnarmedDamage { get; set; }
         public double ArmorRating { get; set; }
         public bool IsHostile { get; set; }
         public List<Item> Loot { get; set; }
@@ -24,15 +25,21 @@ namespace text_survival.Actors
             Loot = new List<Item>();
             IsHostile = true;
             Description = "";
+            UnarmedDamage = 2;
         }
 
         // COMBAT //
 
         public virtual double DetermineDamage(ICombatant defender)
         {
+            double damage = UnarmedDamage;
+            if (this is Humanoid)
+            {
+                damage = ((Humanoid)this).Weapon.Damage;
+            }
             double strengthModifier = (Attributes.Strength + 50) / 100;
             double defenderDefense = defender.ArmorRating;
-            double damage = strengthModifier * (1 - defenderDefense);
+            damage *= strengthModifier * (1 - defenderDefense);
             damage *= Utils.RandDouble(.5, 2);
 
             if (damage < 0)
@@ -49,7 +56,7 @@ namespace text_survival.Actors
         public double DetermineDodgeChance(ICombatant attacker)
         {
             double baseDodge = ((Attributes.Agility) + Attributes.Luck / 10) / 200;
-            double speedDiff = this.Attributes.Speed - attacker.Attributes.Speed;
+            double speedDiff = (this.Attributes.Speed - attacker.Attributes.Speed) / 100;
             double chance = baseDodge + speedDiff;
             return chance;
         }
@@ -84,10 +91,10 @@ namespace text_survival.Actors
             // gain experience
             if (target is Player player)
             {
-                    if (player.Armor.Any(a => a.Type == ArmorClass.Light))
-                        EventAggregator.Publish(new GainExperienceEvent(1, SkillType.LightArmor));
-                    if (player.Armor.Any(a => a.Type == ArmorClass.Heavy)) 
-                      EventAggregator.Publish(new GainExperienceEvent(1, SkillType.HeavyArmor)); 
+                if (player.Armor.Any(a => a.Type == ArmorClass.Light))
+                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.LightArmor));
+                if (player.Armor.Any(a => a.Type == ArmorClass.Heavy))
+                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.HeavyArmor));
             }
             Thread.Sleep(1000);
         }

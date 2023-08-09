@@ -3,7 +3,7 @@ using text_survival.Level;
 
 namespace text_survival.Actors
 {
-    internal class Humanoid : Npc
+    public class Humanoid : Npc
     {
         public Weapon Weapon { get; set; }
         public Armor Armor { get; set; }
