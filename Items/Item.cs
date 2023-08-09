@@ -40,6 +40,7 @@
             Utils.Write("You use the ", this, "...\n");
             Thread.Sleep(1000);
             UseEffect?.Invoke(player);
+            player.Inventory.Remove(this);
             player.Update(1);
         }
         public virtual void Write()

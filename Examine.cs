@@ -39,7 +39,7 @@ namespace text_survival
         }
         public static void ExamineItem(Item item)
         {
-            Utils.Write(item, " => ");
+            Utils.Write(item, " => ", item.Description," ");
             if (item is Weapon weapon)
             {
                 Utils.Write("Damage: ", weapon.Damage, ", ");

@@ -87,6 +87,7 @@ namespace text_survival
         public void Act()
         {
             UpdatePossibleActions();
+            Utils.WriteLine();
             Examine.ExamineSurvivalStats(_player);
             Utils.WriteLine("What would you like to do?");
             int input = Utils.GetSelectionFromList(AvailableActions);
