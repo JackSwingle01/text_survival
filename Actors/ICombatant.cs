@@ -1,4 +1,6 @@
-﻿namespace text_survival.Actors
+﻿using text_survival.Level;
+
+namespace text_survival.Actors
 {
     public interface ICombatant
     {
@@ -10,9 +12,9 @@
 
         public void Damage(double damage);
         public void Attack(ICombatant target);
-        public double DetermineDamage();
-        public double DetermineHitChance();
-        public double DetermineDodgeChance();
+        public double DetermineDamage(ICombatant defender);
+        public double DetermineHitChance(ICombatant defender);
+        public double DetermineDodgeChance(ICombatant attacker);
 
 
 

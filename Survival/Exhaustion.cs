@@ -1,8 +1,8 @@
-﻿namespace text_survival
+﻿namespace text_survival.Survival
 {
     public class Exhaustion
     {
-        public float Rate = (480F / (24F * 60F)); // minutes per minute (8 hours per 24)
+        public float Rate = 480F / (24F * 60F); // minutes per minute (8 hours per 24)
         public float Max = 480.0F; // minutes (8 hours)
         public float Amount { get; set; }
         private Player Player { get; set; }

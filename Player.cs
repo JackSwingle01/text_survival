@@ -2,6 +2,8 @@
 using text_survival.Environments;
 using text_survival.Items;
 using text_survival.Level;
+using text_survival.Survival;
+
 namespace text_survival
 {
     public class Player : ICombatant
@@ -31,8 +33,9 @@ namespace text_survival
         // inventory
         public Container Inventory { get; set; }
         public List<Armor> Armor { get; set; }
-        public Gear HeldItem { get; set; }
+        public Gear? HeldItem { get; set; }
         public Weapon Weapon { get; set; }
+        public Weapon Unarmed { get; set; }
 
         // skills and level
         public int Level { get; set; }
@@ -65,18 +68,18 @@ namespace text_survival
             Temperature = new Temperature(this);
             Inventory = new Container("Backpack", 10);
             Armor = new List<Armor>();
-            this.Equip(ItemFactory.MakeClothShirt());
-            this.Equip(ItemFactory.MakeClothPants());
-            this.Equip(ItemFactory.MakeBoots());
+            Equip(ItemFactory.MakeClothShirt());
+            Equip(ItemFactory.MakeClothPants());
+            Equip(ItemFactory.MakeBoots());
             EventAggregator.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
             CurrentArea = area;
             area.Enter(this);
             Skills = new Skills();
-            Weapon weapon = new Weapon(WeaponType.Unarmed, WeaponMaterial.Other, "Fists");
-            this.Equip(weapon);
             Level = 0;
             Experience = 0;
             SkillPoints = 0;
+            Unarmed = ItemFactory.MakeFists();
+            Weapon = Unarmed;
 
         }
 
@@ -117,33 +120,30 @@ namespace text_survival
         {
             if (item is Weapon weapon)
             {
-                if (Weapon != null)
-                {
-                    this.Unequip(Weapon);
-                }
+                Unequip(Weapon);
                 Weapon = weapon;
-                this.Inventory.Remove(weapon);
+                Inventory.Remove(weapon);
                 return;
             }
             else if (item is Armor armor)
             {
-                var oldItem = this.Armor.FirstOrDefault(i => i.EquipSpot == armor.EquipSpot);
+                var oldItem = Armor.FirstOrDefault(i => i.EquipSpot == armor.EquipSpot);
                 if (oldItem != null)
                 {
-                    this.Unequip(oldItem);
+                    Unequip(oldItem);
                 }
-                this.Armor.Add(armor);
-                this.Inventory.Remove(item);
+                Armor.Add(armor);
+                Inventory.Remove(item);
                 return;
             }
             else if (item is Gear gear)
             {
                 if (HeldItem != null)
                 {
-                    this.Unequip(HeldItem);
+                    Unequip(HeldItem);
                 }
                 HeldItem = gear;
-                this.Inventory.Remove(gear);
+                Inventory.Remove(gear);
                 return;
             }
             else
@@ -158,19 +158,19 @@ namespace text_survival
         {
             if (item is Weapon weapon)
             {
-                Weapon = null;
-                this.Inventory.Add(weapon);
-
+                Weapon = Unarmed;
+                if (weapon != Unarmed)
+                    Inventory.Add(weapon);
             }
             else if (item is Armor armor)
             {
-                this.Armor.Remove(armor);
-                this.Inventory.Add(armor);
+                Armor.Remove(armor);
+                Inventory.Add(armor);
             }
             else if (item is Gear gear)
             {
                 HeldItem = null;
-                this.Inventory.Add(gear);
+                Inventory.Add(gear);
             }
             else
             {
@@ -181,44 +181,52 @@ namespace text_survival
 
         // COMBAT //
 
-        public double DetermineDamage()
+        public double DetermineDamage(ICombatant defender)
         {
-            double strengthModifier = (Attributes.Strength + 75) / 100;
-            double exhaustionModifier = (2- Exhaustion.Amount / Exhaustion.Max) / 2; ;
-            double weaponDamage = Weapon?.Damage ?? 1; // change to unarmed skill once implemented
-            double damage = weaponDamage * strengthModifier * exhaustionModifier;
+            double strengthModifier = (Attributes.Strength + 50) / 100;
+            double exhaustionModifier = (2 - Exhaustion.Amount / Exhaustion.Max) / 2 + .1; ;
+            double weaponDamage = Weapon.Damage; // add skill modifier
+            double defenderDefense = defender.ArmorRating;
+            double damage = weaponDamage * strengthModifier * exhaustionModifier * (1 - defenderDefense);
             damage *= Utils.RandDouble(.5, 2);
+
             if (damage < 0)
-            {
                 damage = 0;
-            }
+
             return damage;
         }
 
-        public double DetermineHitChance()
+        public double DetermineHitChance(ICombatant attacker)
         {
             return 1;
         }
 
-        public double DetermineDodgeChance()
+        public double DetermineDodgeChance(ICombatant attacker)
         {
-            double chance = ((Skills.Dodge.Level + Attributes.Agility) / 2 + (Attributes.Luck / 10)) / 100;
+            double baseDodge = ((Skills.Dodge.Level + Attributes.Agility) / 2 + Attributes.Luck / 10) / 200;
+            double speedDiff = this.Attributes.Speed - attacker.Attributes.Speed;
+            double chance = baseDodge + speedDiff;
             return chance;
         }
+
+
 
         public void Attack(ICombatant target)
         {
             // base damage - defense percentage
-            double damage = DetermineDamage();
-            if (Combat.DetermineDodge(this, target))
+            double damage = DetermineDamage(target);
+            double baseHitChance = DetermineHitChance(target);
+            double dodgeChance = target.DetermineDodgeChance(this);
+            double hitChance = baseHitChance * (1 - dodgeChance);
+            int roll = Utils.RandInt(0, 100);
+            if (roll > hitChance * 100)
             {
                 Utils.Write(target, " dodged the attack!\n");
                 return;
             }
-            Thread.Sleep(1000);
             Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
-            EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Blade));
             target.Damage(damage);
+            EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Blade));
             Thread.Sleep(1000);
         }
 
@@ -253,11 +261,12 @@ namespace text_survival
         public void LevelUp()
         {
             Level++;
-            Health += (Attributes.Endurance / 10);
+            MaxHealth += Attributes.Endurance / 10;
+            Health += Attributes.Endurance / 10;
             Utils.WriteLine("You leveled up to level ", Level, "!");
-            Utils.WriteLine("You gained ", (Attributes.Endurance / 10), " health!");
-            Utils.WriteLine("You gained 1 skill point!");
-            SkillPoints++;
+            Utils.WriteLine("You gained ", Attributes.Endurance / 10, " health!");
+            Utils.WriteLine("You gained 3 skill points!");
+            SkillPoints += 3;
         }
 
         // UPDATE //

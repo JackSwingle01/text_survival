@@ -1,9 +1,23 @@
 ﻿using text_survival.Items;
+using text_survival.Level;
 
 namespace text_survival.Actors
 {
     public static class NpcFactory
     {
+        public static Npc MakeBandit()
+        {
+            Humanoid bandit = new("Bandit");
+            bandit.Loot.AddRange(new List<Item>
+            {
+                ItemFactory.MakeCoin(),
+                ItemFactory.MakeApple(),
+                ItemFactory.MakeCopperCoin(),
+                ItemFactory.MakeBread()
+            });
+            return bandit;
+
+        }
         public static Npc MakeRat()
         {
             Npc rat = new Animal("Rat");

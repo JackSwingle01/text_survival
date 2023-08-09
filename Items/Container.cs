@@ -1,6 +1,4 @@
-﻿using text_survival.Items;
-
-namespace text_survival
+﻿namespace text_survival.Items
 {
     public class Container
     {
@@ -26,7 +24,7 @@ namespace text_survival
 
         public Item? Open()
         {
-            this.Write();
+            Write();
             if (Items.Count == 0)
             {
                 return null;
@@ -47,8 +45,8 @@ namespace text_survival
         }
         public void Write()
         {
-            Utils.WriteLine(this.Name + ":");
-            Utils.WriteLine("Weight: " + GetWeight() + "/" + MaxWeight);
+            Utils.WriteLine(Name + ":");
+            Utils.WriteLine("Weight: ",GetWeight(),"/" + MaxWeight);
             if (Items.Count == 0)
             {
                 Utils.Write(Name, " is empty!\n");

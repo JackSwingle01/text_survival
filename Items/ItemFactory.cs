@@ -2,6 +2,10 @@
 {
     public class ItemFactory
     {
+        public static Weapon MakeFists()
+        {
+            return new Weapon(WeaponType.Unarmed, WeaponMaterial.Other, "Fists");
+        }
         public static FoodItem MakeMushroom()
         {
             var mushroom = new FoodItem("Mushroom", 25, 5);

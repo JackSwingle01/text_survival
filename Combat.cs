@@ -79,26 +79,6 @@ namespace text_survival
             Examine.ExamineCombatant(combatant2);
         }
 
-        public static bool DetermineDodge(ICombatant attacker, ICombatant defender)
-        {
-            const int baseDodge = 10;
-            double speedDiff = defender.Attributes.Speed - attacker.Attributes.Speed;
-            double chance = baseDodge + speedDiff;
-
-            int roll = Utils.RandInt(0, 100);
-            return roll <= chance;
-        }
-        public static double CalcDamage(ICombatant attacker, ICombatant defender)
-        {
-            // base damage - defense percentage
-            double damage = attacker.Attributes.Strength - ((defender.ArmorRating / 100) * attacker.Attributes.Strength);
-            damage *= Utils.RandFloat(.5F, 1.5F);
-            if (damage < 0)
-            {
-                damage = 0;
-            }
-            return damage;
-        }
         public static void WriteCombatStats(ICombatant c)
         {
             Utils.Write(c, " => ",

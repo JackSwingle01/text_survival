@@ -26,55 +26,56 @@ namespace text_survival.Actors
             Description = "";
         }
 
-        public double DetermineDamage()
+        // COMBAT //
+
+        public virtual double DetermineDamage(ICombatant defender)
         {
-            double strengthModifier = (Attributes.Strength + 75) / 100;
-            double damage = strengthModifier;
+            double strengthModifier = (Attributes.Strength + 50) / 100;
+            double defenderDefense = defender.ArmorRating;
+            double damage = strengthModifier * (1 - defenderDefense);
             damage *= Utils.RandDouble(.5, 2);
+
             if (damage < 0)
-            {
                 damage = 0;
-            }
+
             return damage;
         }
 
-        public double DetermineHitChance()
+        public double DetermineHitChance(ICombatant attacker)
         {
             return 1;
         }
-        public double DetermineDodgeChance()
+
+        public double DetermineDodgeChance(ICombatant attacker)
         {
-            double chance = ((Attributes.Agility) + (Attributes.Luck / 10)) / 100;
+            double baseDodge = ((Attributes.Agility) + Attributes.Luck / 10) / 200;
+            double speedDiff = this.Attributes.Speed - attacker.Attributes.Speed;
+            double chance = baseDodge + speedDiff;
             return chance;
         }
 
         public void Attack(ICombatant target)
         {
-            double strengthModifier = (Attributes.Strength + 75) / 100;
-            double damage = strengthModifier;
-            damage *= Utils.RandDouble(.5, 2);
-            if (damage < 0)
-            {
-                damage = 0;
-            }
-            if (Combat.DetermineDodge(this, target))
+            // base damage - defense percentage
+            double damage = DetermineDamage(target);
+            double baseHitChance = DetermineHitChance(target);
+            double dodgeChance = target.DetermineDodgeChance(this);
+            double hitChance = baseHitChance * (1 - dodgeChance);
+            int roll = Utils.RandInt(0, 100);
+            if (roll > hitChance * 100)
             {
                 Utils.Write(target, " dodged the attack!\n");
                 if (target is Player)
-                {
                     EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Dodge));
-                }
                 return;
             }
-            Thread.Sleep(1000);
             Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
             target.Damage(damage);
             if (target is Player)
-            {
                 EventAggregator.Publish(new GainExperienceEvent(1, SkillType.HeavyArmor));
-            }
             Thread.Sleep(1000);
         }
+
 
         public override string ToString()
         {

@@ -1,4 +1,4 @@
-﻿namespace text_survival
+﻿namespace text_survival.Survival
 {
     public class Temperature
     {

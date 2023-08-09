@@ -2,7 +2,7 @@
 
 using text_survival.Environments;
 using text_survival.Items;
-using static text_survival.Attributes;
+using static text_survival.Level.Attributes;
 
 namespace text_survival
 {
@@ -109,14 +109,14 @@ namespace text_survival
             while (_player.SkillPoints > 0)
             {
                 Utils.WriteLine("Select an attribute to improve:");
-                Utils.WriteLine("1. ", _player.Attributes.Strength);
-                Utils.WriteLine("2. ", _player.Attributes.Intelligence);
-                Utils.WriteLine("3. ", _player.Attributes.Speed);
-                Utils.WriteLine("4. ", _player.Attributes.Endurance);
-                Utils.WriteLine("5. ", _player.Attributes.Agility);
-                Utils.WriteLine("6. ", _player.Attributes.Luck);
-                Utils.WriteLine("7. ", _player.Attributes.Willpower);
-                Utils.WriteLine("8. ", _player.Attributes.Personality);
+                Utils.WriteLine("1. ", PrimaryAttributes.Strength);
+                Utils.WriteLine("2. ", PrimaryAttributes.Intelligence);
+                Utils.WriteLine("3. ", PrimaryAttributes.Speed);
+                Utils.WriteLine("4. ", PrimaryAttributes.Endurance);
+                Utils.WriteLine("5. ", PrimaryAttributes.Agility);
+                Utils.WriteLine("6. ", PrimaryAttributes.Luck);
+                Utils.WriteLine("7. ", PrimaryAttributes.Willpower);
+                Utils.WriteLine("8. ", PrimaryAttributes.Personality);
                 Utils.WriteLine("0. Cancel");
                 int input = Utils.ReadInt(0, 8);
                 switch (input)

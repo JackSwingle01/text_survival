@@ -1,4 +1,6 @@
 ﻿
+using text_survival.Level;
+
 namespace text_survival.Actors
 {
     internal class Animal : Npc

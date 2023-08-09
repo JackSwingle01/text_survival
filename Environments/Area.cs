@@ -19,7 +19,7 @@ namespace text_survival.Environments
             Forest,
             Cave,
             AbandonedBuilding,
-            // Road,
+            Road,
             River
         }
         public Area(string name, string description)
@@ -77,7 +77,8 @@ namespace text_survival.Environments
         {
             Utils.WriteLine("You enter ", this);
             Utils.WriteLine(Description);
-            this.NearbyAreas.Add(player.CurrentArea);
+            if (!NearbyAreas.Contains(player.CurrentArea))
+                this.NearbyAreas.Add(player.CurrentArea);
             player.CurrentArea = this;
             if (!Visited)
                 GenerateNearbyAreas();

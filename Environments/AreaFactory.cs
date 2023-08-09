@@ -46,11 +46,9 @@ namespace text_survival.Environments
                         "Abandoned Camp",
                         "Abandoned Cornfield",
                         "Grassy Field",
-                        "Dirt Path",
                         "Dirt Trail",
-                        "Gravel Path",
                         "Gravel Trail",
-                        "Path",
+
 
 
                     },
@@ -108,21 +106,21 @@ namespace text_survival.Environments
                         "Old Church",
                         "Ruins",
                         "Old Ruins",
-                        "Abandoned Ruins",
-
+                        "Abandoned Ruins"
 
                     },
-                //case EnvironmentType.Road:
-                //    names = new List<string>()
-                //    {
-                //        "Road",
-                //        "Path",
-                //        "Trail",
-                //        "Dirt Road",
-                //        "Gravel Road",
-                //        "Paved Road",
-                //    };
-                //    break;
+                EnvironmentType.Road => new List<string>()
+                    {
+                        "Road",
+                        "Path",
+                        "Trail",
+                        "Dirt Road",
+                        "Gravel Road",
+                        "Paved Road",
+                        "Dirt Path",
+                        "Gravel Path",
+
+                    },
                 EnvironmentType.River => new List<string>()
                     {
                         "River",
@@ -202,8 +200,6 @@ namespace text_survival.Environments
             { "Fish", ItemFactory.MakeFish }
         };
 
-
-
         private static readonly Dictionary<EnvironmentType, List<string>> EnvironmentItems = new()
         {
             { EnvironmentType.AbandonedBuilding, new List<string> {
@@ -235,6 +231,14 @@ namespace text_survival.Environments
                 "Fish",
                 "Water"
             } },
+            {
+                EnvironmentType.Road, new List<string>()
+                {
+                    "Coin",
+                    "Bandage",
+
+                }
+            }
 
         };
 
@@ -246,6 +250,7 @@ namespace text_survival.Environments
             { "Snake", NpcFactory.MakeSnake },
             { "Bat", NpcFactory.MakeBat },
             { "Spider", NpcFactory.MakeSpider },
+            { "Bandit", NpcFactory.MakeBandit },
             { "Goblin", NpcFactory.MakeGoblin },
             { "Dragon", NpcFactory.MakeDragon },
             { "Skeleton", NpcFactory.MakeSkeleton },
@@ -260,22 +265,29 @@ namespace text_survival.Environments
                 "Wolf",
                 "Bear",
                 "Snake",
-                "Goblin"
+                "Goblin",
+                "Bandit",
             } },
             { EnvironmentType.Cave, new List<string> {
                 "Bat",
                 "Spider",
                 "Snake",
                 "Dragon",
-                "Skeleton" } },
+                "Skeleton"
+            } },
             { EnvironmentType.AbandonedBuilding, new List<string> {
                 "Rat",
-                "Spider"
+                "Spider",
+                "Bandit",
             } },
             { EnvironmentType.River, new List<string>
             {
                 "Crocodile",
                 "Snake",
+            } },
+            { EnvironmentType.Road, new List<string>()
+            {
+                "Bandit",
             } },
         };
 
