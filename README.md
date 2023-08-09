@@ -30,5 +30,7 @@ C# console app text based survival rpg game.
 - Stack items in inventory (broken)
 - Add buffs/debuffs on item use / attack
 - Add ability to use items in combat
-- Add ability to target npcs with items
+- Add ability to target npcs with items (replace UseEffect<Player> with UseEffect<ICombatant>?)
 - Add spells / magic system
+- Overhaul enemy loot system
+
