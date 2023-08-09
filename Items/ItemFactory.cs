@@ -402,7 +402,7 @@
 
         public static Armor MakeClothShirt()
         {
-            Armor shirt = new Armor("Cloth Shirt", .03, EquipSpots.Chest, 1)
+            Armor shirt = new Armor("Cloth Shirt", .03, EquipSpots.Chest, 3)
             {
                 EquipSpot = EquipSpots.Chest
             };
@@ -410,14 +410,14 @@
         }
         public static Armor MakeClothPants()
         {
-            Armor pants = new Armor("Cloth Pants", .02, EquipSpots.Legs, .5);
+            Armor pants = new Armor("Cloth Pants", .02, EquipSpots.Legs, 2);
             pants.EquipSpot = EquipSpots.Legs;
             return pants;
         }
 
         public static Armor MakeBoots()
         {
-            Armor shoes = new Armor("Boots", .01, EquipSpots.Feet, .5);
+            Armor shoes = new Armor("Boots", .01, EquipSpots.Feet, 1);
             shoes.EquipSpot = EquipSpots.Feet;
             return shoes;
         }

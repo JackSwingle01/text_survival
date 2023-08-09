@@ -100,24 +100,23 @@
         private void UpdateTemperatureTick()
         {
             // body heats based on calories burned
-            if (BodyTemperature < 98.6)
-            {
-                float joulesBurned = Physics.CaloriesToJoules(Player.Hunger.Rate);
-                float specificHeatOfHuman = 3500F;
-                float weight = 70F;
-                float tempChangeCelsius = Physics.TempChange(weight, specificHeatOfHuman, joulesBurned);
-                BodyTemperature += Physics.DeltaCelsiusToDeltaFahrenheit(tempChangeCelsius);
-            }
+            
+            float joulesBurned = Physics.CaloriesToJoules(Player.Hunger.Rate);
+            float specificHeatOfHuman = 3500F;
+            float weight = 70F;
+            float tempChangeCelsius = Physics.TempChange(weight, specificHeatOfHuman, joulesBurned);
+            BodyTemperature += Physics.DeltaCelsiusToDeltaFahrenheit(tempChangeCelsius);
+            
             float skinTemp = BodyTemperature - 8.4F;
-            float rate = 1F / 100F;
+            float rate = 1F / 120F;
             float feelsLike = Player.CurrentArea.GetTemperature();
-            feelsLike += Player.WarmthBonus;
+            feelsLike += (float)Player.WarmthBonus;
             float tempChange = (skinTemp - feelsLike) * rate;
             BodyTemperature -= tempChange;
 
             UpdateTemperatureEffect();
 
-            if (BodyTemperature < 82.4)
+            if (BodyTemperature < 89.6)
             {
                 Player.Damage(1);
             }

@@ -12,6 +12,7 @@
             Rating = rating;
             EquipSpot = equipSpot;
             UseEffect = player => player.Equip(this);
+            Warmth = warmth;
             Type = type;
         }
 

@@ -25,7 +25,7 @@ namespace text_survival
         public Thirst Thirst { get; set; }
         public Exhaustion Exhaustion { get; set; }
         public Temperature Temperature { get; set; }
-        public float WarmthBonus { get; set; }
+        public double WarmthBonus => Armor.Sum(a => a.Warmth);
 
         // area
         public Area CurrentArea { get; set; }
