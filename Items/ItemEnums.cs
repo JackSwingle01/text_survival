@@ -1,5 +1,20 @@
 ﻿namespace text_survival.Items
 {
+    public enum EquipSpots
+    {
+        Head,
+        Chest,
+        Legs,
+        Feet,
+        Hands,
+        Weapon
+    }
+    public enum WeaponClass
+    {
+        Blunt,
+        Blade,
+        Unarmed,
+    }
     public enum WeaponType
     {
         Sword,
@@ -12,11 +27,22 @@
         Unarmed,
     }
 
-    public enum DamageType
+
+    public enum WeaponMaterial
     {
-        Blunt,
-        Slashing,
-        Piercing,
+        Wooden,
+        Stone,
+        Bronze,
+        Iron,
+        Steel,
+        Silver,
+        Golden,
+        Other
+    }
+    public enum ArmorClass
+    {
+        Light,
+        Heavy
     }
 
     public enum QualityEnum
@@ -35,33 +61,9 @@
         Perfect
     }
 
-    public enum WeaponMaterial
-    {
-        Wooden,
-        Stone,
-        Bronze,
-        Iron,
-        Steel,
-        Silver,
-        Golden,
-        Other
-    }
 
 
-    public enum EquipSpots
-    {
-        Head,
-        Chest,
-        Legs,
-        Feet,
-        Hands,
-        Weapon
-    }
 
-    //public enum WeaponClass
-    //{
-    //    Light,
-    //    Heavy,
-    //}
+
 
 }

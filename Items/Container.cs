@@ -46,7 +46,7 @@
         public void Write()
         {
             Utils.WriteLine(Name + ":");
-            Utils.WriteLine("Weight: ",GetWeight(),"/" + MaxWeight);
+            Utils.WriteLine("Weight: ", GetWeight(), "/" + MaxWeight);
             if (Items.Count == 0)
             {
                 Utils.Write(Name, " is empty!\n");

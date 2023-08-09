@@ -4,7 +4,7 @@
     public class Weapon : Item
     {
         //public WeaponClass WeaponClass { get; set; }
-        public DamageType DamageType { get; set; }
+        public WeaponClass WeaponClass { get; set; }
         public WeaponMaterial WeaponMaterial { get; set; }
         public WeaponType WeaponType { get; set; }
         public double Damage { get; set; }
@@ -16,7 +16,7 @@
             SetBaseStats(type);
             ApplyMaterialModifier(weaponMaterial);
             ApplyQualityModifier();
-            DamageType = GetDamageTypeFromWeaponType(type);
+            WeaponClass = GetDamageTypeFromWeaponType(type);
             if (Name == "")
                 Name = $"{GetQualityEnumFromQuality(Quality)} {weaponMaterial} {type}";
             WeaponType = type;
@@ -163,18 +163,19 @@
             return weapon;
         }
 
-        private DamageType GetDamageTypeFromWeaponType(WeaponType type)
+        private WeaponClass GetDamageTypeFromWeaponType(WeaponType type)
         {
             return type switch
             {
-                WeaponType.Sword => DamageType.Slashing,
-                WeaponType.Axe => DamageType.Slashing,
-                WeaponType.Spear => DamageType.Piercing,
-                WeaponType.Mace => DamageType.Blunt,
-                WeaponType.Hammer => DamageType.Blunt,
-                WeaponType.Dagger => DamageType.Piercing,
-                WeaponType.Staff => DamageType.Blunt,
-                _ => DamageType.Blunt,
+                WeaponType.Sword => WeaponClass.Blade,
+                WeaponType.Axe => WeaponClass.Blade,
+                WeaponType.Spear => WeaponClass.Blade,
+                WeaponType.Mace => WeaponClass.Blunt,
+                WeaponType.Hammer => WeaponClass.Blunt,
+                WeaponType.Dagger => WeaponClass.Blade,
+                WeaponType.Staff => WeaponClass.Blunt,
+                WeaponType.Unarmed => WeaponClass.Unarmed,
+                _ => WeaponClass.Blunt,
             };
         }
 

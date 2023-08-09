@@ -215,18 +215,36 @@ namespace text_survival
         {
             // base damage - defense percentage
             double damage = DetermineDamage(target);
-            double baseHitChance = DetermineHitChance(target);
+            double hitChance = DetermineHitChance(target);
             double dodgeChance = target.DetermineDodgeChance(this);
-            double hitChance = baseHitChance * (1 - dodgeChance);
             int roll = Utils.RandInt(0, 100);
             if (roll > hitChance * 100)
+            {
+                Utils.WriteLine(this, " missed ", target, "!");
+                return;
+            }
+            if (roll > (1 - dodgeChance) * 100)
             {
                 Utils.Write(target, " dodged the attack!\n");
                 return;
             }
             Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
             target.Damage(damage);
-            EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Blade));
+            switch (Weapon.WeaponClass)
+            {
+                case WeaponClass.Blade:
+                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Blade));
+                    break;
+                case WeaponClass.Blunt:
+                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Blunt));
+                    break;
+                case WeaponClass.Unarmed:
+                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.HandToHand));
+                    break;
+                default:
+                    Utils.WriteDanger("Unknown weapon type.");
+                    break;
+            }
             Thread.Sleep(1000);
         }
 
