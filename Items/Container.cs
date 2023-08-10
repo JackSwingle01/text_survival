@@ -33,7 +33,7 @@
                     case 0:
                         continue;
                     case 1:
-                        player.Inventory.Add(item);
+                        player.AddToInventory(item);
                         break;
                     case 2:
                         Examine.ExamineItem(item);

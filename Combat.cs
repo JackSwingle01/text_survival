@@ -64,7 +64,7 @@ namespace text_survival
             int choice = Utils.ReadInt(1, 2);
             if (choice == 1)
             {
-                player.Inventory.Add(item);
+                player.AddToInventory(item);
             }
             else
             {
@@ -72,12 +72,58 @@ namespace text_survival
                 Utils.Write("You left the " + item + " on the ground.\n");
             }
         }
-        public static void PrintBattleInfo(IActor combatant1, IActor combatant2)
+        public static void PrintBattleInfo(ICombatant combatant1, ICombatant combatant2)
         {
             Examine.ExamineCombatant(combatant1);
             Utils.WriteLine("VS");
             Examine.ExamineCombatant(combatant2);
         }
 
+        /// <summary>
+        /// Calculates the damage of an attack.
+        /// </summary>
+        /// <param name="baseDamage">The attacker's base damage (weapon or unarmed)</param>
+        /// <param name="strength">The attacker's strength attribute</param>
+        /// <param name="skillBonus">The damage bonus from attacker's skills</param>
+        /// <param name="defenderArmorRating">1/percentage of damage blocked</param>
+        /// <param name="otherModifiers">Multiplier so 1 does nothing.</param>
+        /// <returns>Damage dealt in hp</returns>
+        public static double CalculateAttackDamage(
+            double baseDamage,
+            double strength,
+            double defenderArmorRating = 0,
+            double skillBonus = 0,
+            double otherModifiers = 1)
+        {
+            double strengthModifier = (strength + 50) / 100;
+            double damage = baseDamage + skillBonus;
+            double defenderDefense = defenderArmorRating;
+            damage *= strengthModifier * (1 - defenderDefense) * otherModifiers;
+
+            damage *= Utils.RandDouble(.5, 2); // randomize damage
+
+            if (damage < 0)
+                damage = 0;
+
+            return damage;
+        }
+
+        /// <summary>
+        /// Calculates dodge chance, 1 is 100% chance to dodge, 0 is 0% chance to dodge.
+        /// </summary>
+        /// <param name="agility"></param>
+        /// <param name="speed"></param>
+        /// <param name="attackerSpeed"></param>
+        /// <param name="luck"></param>
+        /// <param name="dodgeLevel"></param>
+        /// <returns>dodge chance from 0-1</returns>
+        public static double CalculateDodgeChance(double agility, double speed, double attackerSpeed, double luck,
+            double dodgeLevel = 0)
+        {
+            double baseDodge = (dodgeLevel + agility / 2 + luck / 10) / 200;
+            double speedDiff = speed - attackerSpeed;
+            double chance = baseDodge + speedDiff;
+            return chance;
+        }
     }
 }

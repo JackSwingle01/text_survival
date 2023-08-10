@@ -73,20 +73,8 @@ namespace text_survival.Environments
             Utils.Write("Temperature: ", GetTemperature());
 
         }
-        public void Enter(Player player)
-        {
-            Utils.WriteLine("You enter ", this);
-            Utils.WriteLine(Description);
-            if (!NearbyAreas.Contains(player.CurrentArea))
-                this.NearbyAreas.Add(player.CurrentArea);
-            player.CurrentArea = this;
-            if (!Visited)
-                GenerateNearbyAreas();
-            Visited = true;
-            Utils.WriteLine("You should probably look around.");
-        }
 
-        private void GenerateNearbyAreas(int count = 3)
+        public void GenerateNearbyAreas(int count = 3)
         {
             Array types = Enum.GetValuesAsUnderlyingType(typeof(EnvironmentType));
 

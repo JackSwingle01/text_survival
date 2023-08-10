@@ -39,7 +39,7 @@
         {
             //Utils.Write("You use the ", this, "...\n");
             Thread.Sleep(1000);
-            player.Inventory.Remove(this);
+            player.RemoveFromInventory(this);
             UseEffect?.Invoke(player);
             World.Update(1);
         }

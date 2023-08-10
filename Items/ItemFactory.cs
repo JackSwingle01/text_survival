@@ -92,14 +92,14 @@ namespace text_survival.Items
                 int choice = Utils.ReadInt(1, 3);
                 if (choice == 1)
                 {
-                    player.Inventory.Remove(stick);
-                    player.Inventory.Add(MakeTorch());
+                    player.RemoveFromInventory(stick);
+                    player.AddToInventory(MakeTorch());
                     Utils.Write("You made a torch!\n");
                 }
                 else if (choice == 2)
                 {
-                    player.Inventory.Remove(stick);
-                    player.Inventory.Add(MakeSpear());
+                    player.RemoveFromInventory(stick);
+                    player.AddToInventory(MakeSpear());
                     Utils.Write("You made a spear!\n");
                 }
                 else
@@ -204,12 +204,12 @@ namespace text_survival.Items
             var bandage = new Item("Bandage")
             {
                 Description = "A cloth bandage. It might help a bit.",
-                Weight = 0.1F
-            };
-            bandage.UseEffect = player =>
-            {
-                player.Heal(10);
-                Utils.Write("You feel better\n");
+                Weight = 0.1F,
+                UseEffect = player =>
+                {
+                    player.Heal(10);
+                    Utils.Write("You feel better\n");
+                }
             };
             return bandage;
         }
@@ -280,10 +280,10 @@ namespace text_survival.Items
             vial.UseEffect = (player) =>
             {
                 Utils.Write("You can use this to poison your weapon.\n");
-                if (player.Weapon != player.Unarmed)
+                if (player.IsArmed)
                 {
                     player.Weapon.Damage += 2;
-                    player.Inventory.Remove(vial);
+                    player.RemoveFromInventory(vial);
                 }
                 else
                 {
@@ -321,7 +321,7 @@ namespace text_survival.Items
                 {
                     Armor armor = player.Armor.First(i => i.EquipSpot == EquipSpots.Chest) as Armor;
                     armor.Warmth += 1;
-                    player.Inventory.Remove(silk);
+                    player.RemoveFromInventory(silk);
                 }
                 else
                 {
@@ -360,7 +360,7 @@ namespace text_survival.Items
                     Utils.Write("You use this to improve your armor.\n");
                     Armor armor = player.Armor.First(i => i.EquipSpot == EquipSpots.Chest);
                     armor.Rating += 6;
-                    player.Inventory.Remove(scale);
+                    player.RemoveFromInventory(scale);
                 }
                 else
                 {
@@ -378,11 +378,11 @@ namespace text_survival.Items
             };
             tooth.UseEffect = (player) =>
             {
-                if (player.Weapon != player.Unarmed)
+                if (player.IsArmed)
                 {
                     Utils.Write("You use this to improve your weapon.\n");
                     player.Weapon.Damage += 6;
-                    player.Inventory.Remove(tooth);
+                    player.RemoveFromInventory(tooth);
                 }
                 else
                 {
@@ -401,9 +401,9 @@ namespace text_survival.Items
                 Utils.Write("It contained " + num + " coins\n");
                 for (int i = 0; i < num; i++)
                 {
-                    player.Inventory.Add(MakeCoin());
+                    player.AddToInventory(MakeCoin());
                 }
-                player.Inventory.Remove(item);
+                player.RemoveFromInventory(item);
             };
             return item;
         }
@@ -438,7 +438,7 @@ namespace text_survival.Items
                     Armor armor = player.Armor.Select(i => i as Armor)
                                             .First(i => i.EquipSpot == EquipSpots.Chest);
                     armor.Rating += .2;
-                    player.Inventory.Remove(skin);
+                    player.RemoveFromInventory(skin);
                 }
             };
             return skin;
@@ -456,7 +456,7 @@ namespace text_survival.Items
                 {
                     Utils.Write("You use it to improve your weapon.\n");
                     player.Weapon.Damage += 2;
-                    player.Inventory.Remove(tooth);
+                    player.RemoveFromInventory(tooth);
                 }
                 else
                 {

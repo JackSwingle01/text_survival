@@ -17,20 +17,13 @@ namespace text_survival.Items
 
         public void OnEquip(Player player)
         {
-            if (player.HeldItem != null)
-            {
-                player.Unequip(player.HeldItem);
-            }
-            player.HeldItem = this;
-            Buff.ApplyTo(player);
-            player.Inventory.Remove(this);
+            player.ApplyBuff(Buff);
         }
 
         public void OnUnequip(Player player)
         {
-            player.HeldItem = null;
-            Buff.RemoveFrom(player);
-            player.Inventory.Add(this);
+            player.RemoveBuff(Buff);
+
         }
     }
 

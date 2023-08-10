@@ -18,10 +18,10 @@ namespace text_survival.Level
         public string Name { get; set; }
         public int NumTicks { get; private set; }
         public TriggerTypes TriggerOn { get; set; }
-        public Action<IActor> ApplyEffect { get; set; }
-        public Action<IActor> RemoveEffect { get; set; }
-        public Action<IActor> TickEffect { get; set; }
-        public Action<IActor> TriggerEffect { get; set; }
+        public Action<IBuffable> ApplyEffect { get; set; }
+        public Action<IBuffable> RemoveEffect { get; set; }
+        public Action<IBuffable> TickEffect { get; set; }
+        public Action<IBuffable> TriggerEffect { get; set; }
         public Buff(string name, int numTicks = -1)
         {
             Name = name;
@@ -32,7 +32,7 @@ namespace text_survival.Level
             TickEffect = (target) => { }; // applies once per minute
             TriggerEffect = (target) => { }; // applies on TriggerOn
         }
-        public void Tick(IActor target)
+        public void Tick(IBuffable target)
         {
             if (NumTicks == -1) return; // -1 means infinite duration
 
@@ -43,20 +43,12 @@ namespace text_survival.Level
             }
             if (NumTicks == 0)
             {
-                this.RemoveFrom(target);
+                target.RemoveBuff(this);
+
             }
         }
-        public void ApplyTo(IActor target)
-        {
-            ApplyEffect?.Invoke(target);
-            target.Buffs.Add(this);
-        }
-        public void RemoveFrom(IActor target)
-        {
-            RemoveEffect?.Invoke(target);
-            target.Buffs.Remove(this);
-        }
-        public void Trigger(IActor target, TriggerTypes trigger)
+
+        public void Trigger(IBuffable target, TriggerTypes trigger)
         {
             if (TriggerOn == trigger)
             {

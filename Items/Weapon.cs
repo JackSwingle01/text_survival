@@ -208,18 +208,12 @@ namespace text_survival.Items
 
         public void OnEquip(Player player)
         {
-            player.Unequip(player.Weapon);
-            player.Weapon = this;
             Buff.ApplyEffect(player);
-            player.Inventory.Remove(this);
         }
 
         public void OnUnequip(Player player)
         {
-            player.Weapon = player.Unarmed;
             Buff.RemoveEffect(player);
-            if (this != player.Unarmed)
-                player.Inventory.Add(this);
         }
     }
 }

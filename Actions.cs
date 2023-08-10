@@ -72,7 +72,7 @@ namespace text_survival
             {
                 AvailableActions.Add(ActionType.PickUpItem);
             }
-            if (_player.Inventory.Count() > 0)
+            if (_player.InventoryCount > 0)
                 AvailableActions.Add(ActionType.OpenInventory);
             AvailableActions.Add(ActionType.Travel);
             if (_player.Exhaustion.Amount > 0)
@@ -120,36 +120,20 @@ namespace text_survival
                 Utils.WriteLine("8. ", PrimaryAttributes.Personality);
                 Utils.WriteLine("0. Cancel");
                 int input = Utils.ReadInt(0, 8);
-                switch (input)
+                if (input == 0) return;
+                var attribute = input switch
                 {
-                    case 0:
-                        return;
-                    case 1:
-                        _player.Attributes.IncreaseBase(PrimaryAttributes.Strength, 1);
-                        break;
-                    case 2:
-                        _player.Attributes.IncreaseBase(PrimaryAttributes.Intelligence, 1);
-                        break;
-                    case 3:
-                        _player.Attributes.IncreaseBase(PrimaryAttributes.Speed, 1);
-                        break;
-                    case 4:
-                        _player.Attributes.IncreaseBase(PrimaryAttributes.Endurance, 1);
-                        break;
-                    case 5:
-                        _player.Attributes.IncreaseBase(PrimaryAttributes.Agility, 1);
-                        break;
-                    case 6:
-                        _player.Attributes.IncreaseBase(PrimaryAttributes.Luck, 1);
-                        break;
-                    case 7:
-                        _player.Attributes.IncreaseBase(PrimaryAttributes.Willpower, 1);
-                        break;
-                    case 8:
-                        _player.Attributes.IncreaseBase(PrimaryAttributes.Personality, 1);
-                        break;
-                }
-                _player.SkillPoints--;
+                    1 => PrimaryAttributes.Strength,
+                    2 => PrimaryAttributes.Intelligence,
+                    3 => PrimaryAttributes.Speed,
+                    4 => PrimaryAttributes.Endurance,
+                    5 => PrimaryAttributes.Agility,
+                    6 => PrimaryAttributes.Luck,
+                    7 => PrimaryAttributes.Willpower,
+                    8 => PrimaryAttributes.Personality,
+                    _ => throw new ArgumentOutOfRangeException()
+                };
+                _player.SpendPointToUpgradeAttribute(attribute);
             }
         }
 
@@ -203,12 +187,12 @@ namespace text_survival
                 item = items[input - 1];
 
             }
-            _player.Inventory.Add(item);
+            _player.AddToInventory(item);
         }
 
         private void OpenInventory()
         {
-            _player.Inventory.Open(_player);
+            _player.OpenInventory();
 
         }
 
@@ -240,7 +224,7 @@ namespace text_survival
             int minutes = Utils.RandInt(30, 60);
             Utils.WriteLine("You travel for ", minutes, " minutes...");
             World.Update(minutes);
-            options[input - 1].Enter(_player);
+            _player.Enter(options[input - 1]);
         }
 
 

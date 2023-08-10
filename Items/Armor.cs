@@ -17,17 +17,7 @@ namespace text_survival.Items
             UseEffect = player => player.Equip(this);
             Warmth = warmth;
             Type = type;
-            Buff = new Buff(name);
-            Buff.ApplyEffect += (target) =>
-            {
-                if (target is Player player)
-                    player.WarmthBonus += this.Warmth;
-            };
-            Buff.RemoveEffect += (target) =>
-            {
-                if (target is Player player)
-                    player.WarmthBonus -= this.Warmth;
-            };
+            Buff = CommonBuffs.Warmth(warmth, -1);
         }
 
         public override string ToString()
@@ -37,21 +27,12 @@ namespace text_survival.Items
 
         public void OnEquip(Player player)
         {
-            var oldItem = player.Armor.FirstOrDefault(i => i.EquipSpot == this.EquipSpot);
-            if (oldItem != null)
-            {
-                player.Unequip(oldItem);
-            }
-            player.Armor.Add(this);
-            Buff.ApplyTo(player);
-            player.Inventory.Remove(this);
+            player.ApplyBuff(Buff);
         }
 
         public void OnUnequip(Player player)
         {
-            player.Armor.Remove(this);
-            Buff.RemoveFrom(player);
-            player.Inventory.Add(this);
+            player.RemoveBuff(Buff);
         }
     }
 }

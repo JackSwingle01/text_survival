@@ -3,7 +3,7 @@ using text_survival.Level;
 
 namespace text_survival.Actors
 {
-    public class Npc : IActor
+    public class Npc : ICombatant
     {
         public string Name { get; set; }
         public string Description { get; set; }
@@ -41,38 +41,34 @@ namespace text_survival.Actors
 
         // COMBAT //
 
-        public virtual double DetermineDamage(IActor defender)
+        public virtual double DetermineDamage(ICombatant defender)
         {
-            double damage = UnarmedDamage;
+            double baseDamage = UnarmedDamage;
             if (this is Humanoid humanoid)
             {
-                damage = humanoid.Weapon.Damage;
-            }
-            double strengthModifier = (Attributes.Strength + 50) / 100;
-            double defenderDefense = defender.ArmorRating;
-            damage *= strengthModifier * (1 - defenderDefense);
-            damage *= Utils.RandDouble(.5, 2);
+                baseDamage = humanoid.Weapon.Damage;
+            };
 
-            if (damage < 0)
-                damage = 0;
+            double damage = Combat.CalculateAttackDamage(baseDamage, Attributes.Strength, defender.ArmorRating);
 
             return damage;
         }
 
-        public double DetermineHitChance(IActor attacker)
+        public double DetermineHitChance(ICombatant attacker)
         {
             return 1;
         }
 
-        public double DetermineDodgeChance(IActor attacker)
+        public double DetermineDodgeChance(ICombatant attacker)
         {
-            double baseDodge = ((Attributes.Agility) + Attributes.Luck / 10) / 200;
-            double speedDiff = (this.Attributes.Speed - attacker.Attributes.Speed) / 100;
-            double chance = baseDodge + speedDiff;
-            return chance;
+            return Combat.CalculateDodgeChance(
+                Attributes.Agility,
+                Attributes.Speed,
+                attacker.Attributes.Speed,
+                Attributes.Luck);
         }
 
-        public void Attack(IActor target)
+        public void Attack(ICombatant target)
         {
             // do calculations
             double damage = DetermineDamage(target);
@@ -127,6 +123,18 @@ namespace text_survival.Actors
             {
                 EventAggregator.Publish(new EnemyDefeatedEvent(this));
             }
+        }
+
+        public void ApplyBuff(Buff buff)
+        {
+            buff.ApplyEffect?.Invoke(this);
+            Buffs.Add(buff);
+        }
+
+        public void RemoveBuff(Buff buff)
+        {
+            buff.RemoveEffect?.Invoke(this);
+            Buffs.Remove(buff);
         }
 
     }

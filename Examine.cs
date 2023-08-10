@@ -5,7 +5,7 @@ namespace text_survival
 {
     public static class Examine
     {
-        public static void ExamineCombatant(IActor c)
+        public static void ExamineCombatant(ICombatant c)
         {
             Utils.WriteLine(c, " => HP: ", c.Health, "/", c.MaxHealth);
 
