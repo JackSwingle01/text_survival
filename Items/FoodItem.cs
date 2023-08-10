@@ -28,30 +28,5 @@
         {
             return Name;
         }
-
-
-
-        public override void Write()
-        {
-            Utils.Write(this, " => ");
-            if (Description != "")
-            {
-                Utils.Write(Description);
-            }
-            if (Calories > 0)
-            {
-                Utils.Write("Cal: ", Calories, " ");
-            }
-            if (WaterContent > 0)
-            {
-                Utils.Write("Water: ", WaterContent, "ml ");
-            }
-            Utils.Write("Weight: ", Weight, "kg ");
-
-            Utils.Write("\n");
-        }
-
-
-
     }
 }

@@ -37,17 +37,12 @@
         }
         public virtual void Use(Player player)
         {
-            Utils.Write("You use the ", this, "...\n");
+            //Utils.Write("You use the ", this, "...\n");
             Thread.Sleep(1000);
-            UseEffect?.Invoke(player);
             player.Inventory.Remove(this);
-            player.Update(1);
+            UseEffect?.Invoke(player);
+            World.Update(1);
         }
-        public virtual void Write()
-        {
-            Utils.WriteLine(this, " => ", Description, ", Weight: ", Weight);
-        }
-
 
     }
 }

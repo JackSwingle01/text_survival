@@ -15,11 +15,13 @@ C# console app text based survival rpg game.
 - Player leveling system.
 - Player and npc attributes (str, int, agi, spd, wil, end, cha(does nothing yet), luc)
 - Player skills (blade, blund, unarmed, block(todo), dodge, heavy armor(todo), light armor)
+- Buff and debuff system (architecture is there, but not used much yet)
 
 ### To Do:
 - Add more items, npcs, locations.
 - Add ablity to unequip items without equipping another item.
-- Show stats of weapons in inventory
+- Ability to drop items. (Done)
+- Show stats of weapons in inventory (Done)
 - Add consumable item class
 - Add block calculations to combat 
 - Add shops
@@ -30,7 +32,7 @@ C# console app text based survival rpg game.
 - Add alchemy system
 - Add crafting system
 - Stack items in inventory (broken)
-- Add buffs/debuffs on item use / attack
+- Add buffs/debuffs on item use / attack 
 - Add ability to use items in combat
 - Add ability to target npcs with items (replace Player with ICombatant on Item.UseEffect?)
 - Add spells / magic system

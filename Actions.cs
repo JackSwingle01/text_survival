@@ -24,8 +24,8 @@ namespace text_survival
 
     public class Actions
     {
-        private Player _player;
-        private Dictionary<ActionType, Action> _actionDict;
+        private readonly Player _player;
+        private readonly Dictionary<ActionType, Action> _actionDict;
 
         public List<ActionType> AvailableActions { get; private set; }
 
@@ -96,7 +96,7 @@ namespace text_survival
             if (AvailableActions.Contains(actionType))
             {
                 _actionDict[actionType].Invoke();
-                _player.Update(1);
+                World.Update(1);
             }
             else
             {
@@ -208,8 +208,8 @@ namespace text_survival
 
         private void OpenInventory()
         {
-            Item? item = _player.Inventory.Open();
-            item?.Use(_player);
+            _player.Inventory.Open(_player);
+           
         }
 
         private void Travel()
@@ -239,7 +239,7 @@ namespace text_survival
 
             int minutes = Utils.RandInt(30, 60);
             Utils.WriteLine("You travel for ", minutes, " minutes...");
-            _player.Update(minutes);
+            World.Update(minutes);
             options[input - 1].Enter(_player);
         }
 

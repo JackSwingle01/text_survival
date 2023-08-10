@@ -5,7 +5,7 @@ namespace text_survival
 {
     public static class Examine
     {
-        public static void ExamineCombatant(ICombatant c)
+        public static void ExamineCombatant(IActor c)
         {
             Utils.WriteLine(c, " => HP: ", c.Health, "/", c.MaxHealth);
 
@@ -22,7 +22,6 @@ namespace text_survival
                 Utils.Write(armor.EquipSpot, " => ");
                 ExamineItem(armor);
             }
-
             if (player.HeldItem is not null)
             {
                 Utils.Write("Held Item => ");
@@ -39,7 +38,7 @@ namespace text_survival
         }
         public static void ExamineItem(Item item)
         {
-            Utils.Write(item, " => ", item.Description," ");
+            Utils.Write(item, " => ", item.Description, " ");
             if (item is Weapon weapon)
             {
                 Utils.Write("Damage: ", weapon.Damage, ", ");

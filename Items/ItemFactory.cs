@@ -1,4 +1,6 @@
-﻿namespace text_survival.Items
+﻿using text_survival.Level;
+
+namespace text_survival.Items
 {
     public class ItemFactory
     {
@@ -30,17 +32,21 @@
 
         public static FoodItem MakeApple()
         {
-            var apple = new FoodItem("Apple", 90, 50);
-            apple.Description = "A red apple. It looks delicious.";
-            apple.Weight = 0.2F;
+            var apple = new FoodItem("Apple", 90, 50)
+            {
+                Description = "A red apple. It looks delicious.",
+                Weight = 0.2F
+            };
             return apple;
         }
 
         public static FoodItem MakeBread()
         {
-            var item = new FoodItem("Bread", 300, -10);
-            item.Description = "A loaf of bread. Looks kind of stale.";
-            item.Weight = 0.5F;
+            var item = new FoodItem("Bread", 300, -10)
+            {
+                Description = "A loaf of bread. Looks kind of stale.",
+                Weight = 0.5F
+            };
             return item;
         }
 
@@ -55,17 +61,21 @@
 
         public static FoodItem MakeCarrot()
         {
-            var item = new FoodItem("Carrot", 50, 30);
-            item.Description = "A carrot. It looks like it was just pulled from the ground.";
-            item.Weight = 0.1F;
+            var item = new FoodItem("Carrot", 50, 30)
+            {
+                Description = "A carrot. It looks like it was just pulled from the ground.",
+                Weight = 0.1F
+            };
             return item;
         }
 
         public static FoodItem MakeWater()
         {
-            var item = new FoodItem("Water", 0, 1000);
-            item.Description = "Some water. You store it in your waterskin.";
-            item.Weight = 1;
+            var item = new FoodItem("Water", 0, 1000)
+            {
+                Description = "Some water. You store it in your waterskin.",
+                Weight = 1
+            };
             return item;
         }
 
@@ -103,9 +113,11 @@
         }
         public static Item MakeSpear()
         {
-            Weapon spear = new Weapon(WeaponType.Spear, WeaponMaterial.Wooden);
-            spear.Description = "A makeshift spear.";
-            spear.Weight = 1;
+            Weapon spear = new Weapon(WeaponType.Spear, WeaponMaterial.Wooden)
+            {
+                Description = "A makeshift spear.",
+                Weight = 1
+            };
             return spear;
         }
 
@@ -123,109 +135,135 @@
 
         public static Item MakeGemstone()
         {
-            var item = new Item("Gemstone");
-            item.Description = "A shiny gemstone.";
-            item.Weight = .1F;
+            var item = new Item("Gemstone")
+            {
+                Description = "A shiny gemstone.",
+                Weight = .1F
+            };
             return item;
         }
 
         public static Item MakeCoin()
         {
-            var item = new Item("Coin");
-            item.Weight = 0.01F;
+            var item = new Item("Coin")
+            {
+                Weight = 0.01F
+            };
             return item;
         }
 
         public static Weapon MakeSword()
         {
-            Weapon sword = new Weapon(WeaponType.Sword, WeaponMaterial.Steel);
-            sword.Description = "A steel sword.";
-            sword.Weight = 2;
+            Weapon sword = new Weapon(WeaponType.Sword, WeaponMaterial.Steel)
+            {
+                Description = "A steel sword.",
+                Weight = 2
+            };
             return sword;
         }
 
         public static Armor MakeShield()
         {
-            Armor shield = new Armor("Shield", .1, EquipSpots.Hands);
-            shield.EquipSpot = EquipSpots.Hands;
-            shield.Description = "A shield that blocks 10% damage";
-            shield.Weight = 2.5F;
+            Armor shield = new Armor("Shield", .1, EquipSpots.Hands)
+            {
+                EquipSpot = EquipSpots.Hands,
+                Description = "A shield that blocks 10% damage",
+                Weight = 2.5F
+            };
             return shield;
         }
 
         public static Armor MakeArmor()
         {
-            Armor armor = new Armor("Armor", .5, EquipSpots.Chest, 1);
-            armor.EquipSpot = EquipSpots.Chest;
-            armor.Description = "Heavy armor that blocks 50% damage but slows you down";
-            armor.Weight = 5;
+            Armor armor = new Armor("Armor", .5, EquipSpots.Chest, 1)
+            {
+                EquipSpot = EquipSpots.Chest,
+                Description = "Heavy armor that blocks 50% damage but slows you down",
+                Weight = 5
+            };
             return armor;
         }
 
         public static Item MakeHealthPotion()
         {
-            var potion = new Item("Health Potion");
-            potion.UseEffect = (player) =>
+            var potion = new Item("Health Potion")
+            {
+                UseEffect = (player) =>
             {
                 player.Heal(50);
                 Utils.Write("You feel better\n");
+            },
+                Description = "A potent healing potion",
+                Weight = 0.4F
             };
-            potion.Description = "A potent healing potion";
-            potion.Weight = 0.4F;
             return potion;
         }
 
         public static Item MakeBandage()
         {
-            var bandage = new Item("Bandage");
-            bandage.UseEffect = (player) =>
+            var bandage = new Item("Bandage")
+            {
+                Description = "A cloth bandage. It might help a bit.",
+                Weight = 0.1F
+            };
+            bandage.UseEffect = player =>
             {
                 player.Heal(10);
                 Utils.Write("You feel better\n");
             };
-            bandage.Description = "A cloth bandage. It might help a bit.";
-            bandage.Weight = 0.1F;
             return bandage;
         }
 
-        public static Armor MakeTorch()
+        public static Gear MakeTorch()
         {
-            Armor torch = new Armor("Torch", 0, EquipSpots.Hands, 5);
-            torch.EquipSpot = EquipSpots.Hands;
-            torch.Description = "A torch that warms you";
+            Gear torch = new Gear("Torch", 1)
+            {
+                Description = "A torch that warms you",
+                Buff = CommonBuffs.Warmth(5,-1)
+            };
             return torch;
         }
 
         public static FoodItem MakeFish()
         {
-            var item = new FoodItem("Fish", 200, 0);
-            item.Weight = 0.3F;
+            var item = new FoodItem("Fish", 200, 0)
+            {
+                Weight = 0.3F
+            };
             return item;
         }
 
         public static FoodItem MakeLargeMeat()
         {
-            var item = new FoodItem("Large Meat", 600, 0);
-            item.Weight = .6F;
+            var item = new FoodItem("Large Meat", 600, 0)
+            {
+                Weight = .6F
+            };
             return item;
         }
         public static FoodItem MakeSmallMeat()
         {
-            var item = new FoodItem("Small Meat", 200, 0);
-            item.Weight = .2F;
+            var item = new FoodItem("Small Meat", 200, 0)
+            {
+                Weight = .2F
+            };
             return item;
         }
         public static FoodItem MakeCheese()
         {
-            var item = new FoodItem("Cheese", 150, 30);
-            item.Weight = .1F;
+            var item = new FoodItem("Cheese", 150, 30)
+            {
+                Weight = .1F
+            };
             return item;
         }
 
         public static Item MakeCopperCoin()
         {
-            var item = new Item("Copper Coin");
-            item.Weight = 0.01F;
+            var item = new Item("Copper Coin")
+            {
+                Weight = 0.01F
+            };
             return item;
         }
 
@@ -271,9 +309,11 @@
 
         public static Item MakeSpiderSilk()
         {
-            Item silk = new Item("Spider Silk");
-            silk.Weight = .1;
-            silk.Description = "A bundle of spider silk.";
+            Item silk = new Item("Spider Silk")
+            {
+                Weight = .1,
+                Description = "A bundle of spider silk."
+            };
             silk.UseEffect = (player) =>
             {
                 Utils.Write("You use this to improve the warmth of your clothing.\n");
@@ -294,8 +334,10 @@
 
         public static Weapon MakeGoblinSword()
         {
-            Weapon sword = new Weapon(WeaponType.Sword, WeaponMaterial.Iron);
-            sword.Name = "Goblin Sword";
+            Weapon sword = new Weapon(WeaponType.Sword, WeaponMaterial.Iron)
+            {
+                Name = "Goblin Sword"
+            };
             return sword;
         }
 
@@ -307,8 +349,10 @@
 
         public static Item MakeDragonScale()
         {
-            Item scale = new Item("Dragon Scale");
-            scale.Description = "A large scale from a dragon. Can be used to improve armor.";
+            Item scale = new Item("Dragon Scale")
+            {
+                Description = "A large scale from a dragon. Can be used to improve armor."
+            };
             scale.UseEffect = (player) =>
             {
                 if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Chest))
@@ -328,8 +372,10 @@
 
         public static Item MakeDragonTooth()
         {
-            Item tooth = new Item("Dragon Tooth");
-            tooth.Description = "A large tooth from a dragon. Can be used to improve a weapon.";
+            Item tooth = new Item("Dragon Tooth")
+            {
+                Description = "A large tooth from a dragon. Can be used to improve a weapon."
+            };
             tooth.UseEffect = (player) =>
             {
                 if (player.Weapon != player.Unarmed)
@@ -370,16 +416,20 @@
 
         public static Weapon MakeRustySword()
         {
-            Weapon sword = new Weapon(WeaponType.Sword, WeaponMaterial.Iron, "Rusty Sword", 20);
-            sword.Description = "A rusty sword.";
-            sword.Weight = 2.0F;
+            Weapon sword = new Weapon(WeaponType.Sword, WeaponMaterial.Iron, "Rusty Sword", 20)
+            {
+                Description = "A rusty sword.",
+                Weight = 2.0F
+            };
             return sword;
         }
 
         public static Item MakeCrocodileSkin()
         {
-            Item skin = new Item("Crocodile Skin");
-            skin.Description = "You can use this to improve your armor.";
+            Item skin = new Item("Crocodile Skin")
+            {
+                Description = "You can use this to improve your armor."
+            };
             skin.UseEffect = (player) =>
             {
                 Utils.Write("You use this to improve your armor.\n");
@@ -396,8 +446,10 @@
 
         public static Item MakeCrocodileTooth()
         {
-            Item tooth = new Item("Crocodile Tooth");
-            tooth.Description = "You can use this to improve your weapon";
+            Item tooth = new Item("Crocodile Tooth")
+            {
+                Description = "You can use this to improve your weapon"
+            };
             tooth.UseEffect = (player) =>
             {
                 if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Weapon))
@@ -424,15 +476,19 @@
         }
         public static Armor MakeClothPants()
         {
-            Armor pants = new Armor("Cloth Pants", .02, EquipSpots.Legs, 2);
-            pants.EquipSpot = EquipSpots.Legs;
+            Armor pants = new Armor("Cloth Pants", .02, EquipSpots.Legs, 2)
+            {
+                EquipSpot = EquipSpots.Legs
+            };
             return pants;
         }
 
         public static Armor MakeBoots()
         {
-            Armor shoes = new Armor("Boots", .01, EquipSpots.Feet, 1);
-            shoes.EquipSpot = EquipSpots.Feet;
+            Armor shoes = new Armor("Boots", .01, EquipSpots.Feet, 1)
+            {
+                EquipSpot = EquipSpots.Feet
+            };
             return shoes;
         }
     }

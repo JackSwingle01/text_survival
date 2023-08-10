@@ -15,10 +15,8 @@ namespace text_survival
             Thread.Sleep(1000);
             Utils.WriteLine("To kill a Dragon...\n");
             Thread.Sleep(2000);
-            Area startingArea = new Area("Clearing", "A small clearing in the forest.");
-            startingArea.Items.Add(new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, "Old dagger", 40));
-            Player player = new Player(startingArea);
-            World.Time = new TimeOnly(hour: 9, minute: 0);
+
+            Player player = World.Player;
             Actions actions = new(player);
             while (player.Health > 0)
             {

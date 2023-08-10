@@ -1,7 +1,9 @@
-﻿namespace text_survival.Items
+﻿using text_survival.Level;
+
+namespace text_survival.Items
 {
 
-    public class Weapon : Item
+    public class Weapon : Item, IEquippable
     {
         //public WeaponClass WeaponClass { get; set; }
         public WeaponClass WeaponClass { get; set; }
@@ -10,8 +12,9 @@
         public double Damage { get; set; }
         public double Accuracy { get; set; }
         public double BlockChance { get; set; }
+        public Buff Buff { get; set; }
 
-        public Weapon(WeaponType type, WeaponMaterial weaponMaterial, string name = "", int quality = 50) : base(name, quality:quality)
+        public Weapon(WeaponType type, WeaponMaterial weaponMaterial, string name = "", int quality = 50) : base(name, quality: quality)
         {
             UseEffect = (player) =>
             {
@@ -25,6 +28,7 @@
                 Name = $"{GetQualityEnumFromQuality(Quality)} {weaponMaterial} {type}";
             WeaponType = type;
             WeaponMaterial = weaponMaterial;
+            Buff = new Buff(name, -1);
         }
 
         private void ApplyQualityModifier()
@@ -167,7 +171,7 @@
             return weapon;
         }
 
-        private WeaponClass GetDamageTypeFromWeaponType(WeaponType type)
+        private static WeaponClass GetDamageTypeFromWeaponType(WeaponType type)
         {
             return type switch
             {
@@ -200,6 +204,22 @@
                 100 => QualityEnum.Perfect,
                 _ => QualityEnum.Unknown
             };
+        }
+
+        public void OnEquip(Player player)
+        {
+            player.Unequip(player.Weapon);
+            player.Weapon = this;
+            Buff.ApplyEffect(player);
+            player.Inventory.Remove(this);
+        }
+
+        public void OnUnequip(Player player)
+        {
+            player.Weapon = player.Unarmed;
+            Buff.RemoveEffect(player);
+            if (this != player.Unarmed)
+                player.Inventory.Add(this);
         }
     }
 }

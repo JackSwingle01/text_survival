@@ -1,4 +1,6 @@
-﻿namespace text_survival.Level
+﻿using System.Dynamic;
+
+namespace text_survival.Level
 {
     public class Attributes
     {
@@ -24,15 +26,14 @@
         private double _baseLuck;
 
         // buffs
-        private List<Buff> _buffs;
-        private double StrengthBuff => _buffs.Sum(b => b.Strength);
-        private double IntelligenceBuff => _buffs.Sum(b => b.Intelligence);
-        private double WillpowerBuff => _buffs.Sum(b => b.Willpower);
-        private double AgilityBuff => _buffs.Sum(b => b.Agility);
-        private double SpeedBuff => _buffs.Sum(b => b.Speed);
-        private double EnduranceBuff => _buffs.Sum(b => b.Endurance);
-        private double PersonalityBuff => _buffs.Sum(b => b.Personality);
-        private double LuckBuff => _buffs.Sum(b => b.Luck);
+        private double StrengthBuff { get; set; }
+        private double IntelligenceBuff { get; set; }
+        private double WillpowerBuff { get; set; }
+        private double AgilityBuff { get; set; }
+        private double SpeedBuff { get; set; }
+        private double EnduranceBuff { get; set; }
+        private double PersonalityBuff { get; set; }
+        private double LuckBuff { get; set; }
 
         // total
         public double Strength => _baseStrength + StrengthBuff;
@@ -56,14 +57,6 @@
             _baseEndurance = END;
             _basePersonality = PER;
             _baseLuck = LUC;
-            _buffs = new List<Buff>();
-        }
-
-
-
-        public void ApplyBuff(Buff buff)
-        {
-            _buffs.Add(buff);
         }
 
         public void IncreaseBase(PrimaryAttributes primaryAttribute, int amount)
@@ -94,6 +87,8 @@
                 case PrimaryAttributes.Luck:
                     _baseLuck += amount;
                     break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(primaryAttribute), primaryAttribute, null);
             }
         }
 

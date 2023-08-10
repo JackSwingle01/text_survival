@@ -80,6 +80,7 @@ namespace text_survival
                 Player => ConsoleColor.Green,
                 Area => ConsoleColor.Blue,
                 Enum => ConsoleColor.White,
+                null => ConsoleColor.Red,
                 _ => ConsoleColor.White,
             };
         }
@@ -98,6 +99,11 @@ namespace text_survival
                     case double d:
                         {
                             Console.Write($"{d:F1}");
+                            break;
+                        }
+                    case null:
+                    {
+                            Console.Write("[NULL]");
                             break;
                         }
                     default:

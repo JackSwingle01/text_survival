@@ -33,7 +33,7 @@ namespace text_survival
                     Utils.Write("You ran away!\n");
                     break;
                 }
-                player.Update(1);
+                World.Update(1);
             }
             if (player.Health <= 0)
             {
@@ -58,7 +58,7 @@ namespace text_survival
             }
             Utils.Write(npc.Name + " dropped: ");
             Item item = npc.Loot[Utils.RandInt(0, npc.Loot.Count - 1)] as Item;
-            item.Write();
+            Examine.ExamineItem(item);
             Utils.WriteLine("\nDo you want to pick it up?\n", 1, ". Yes\n", 2, ". No");
 
             int choice = Utils.ReadInt(1, 2);
@@ -72,7 +72,7 @@ namespace text_survival
                 Utils.Write("You left the " + item + " on the ground.\n");
             }
         }
-        public static void PrintBattleInfo(ICombatant combatant1, ICombatant combatant2)
+        public static void PrintBattleInfo(IActor combatant1, IActor combatant2)
         {
             Examine.ExamineCombatant(combatant1);
             Utils.WriteLine("VS");

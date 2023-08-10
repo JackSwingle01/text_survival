@@ -6,7 +6,7 @@ using text_survival.Survival;
 
 namespace text_survival
 {
-    public class Player : ICombatant
+    public class Player : IActor
     {
         public string Name { get; set; }
         // Health and Energy
@@ -25,13 +25,13 @@ namespace text_survival
         public Thirst Thirst { get; set; }
         public Exhaustion Exhaustion { get; set; }
         public Temperature Temperature { get; set; }
-        public double WarmthBonus => Armor.Sum(a => a.Warmth);
-
+        public double WarmthBonus { get ; set; }//=> Armor.Sum(a => a.Warmth);
+        
         // area
         public Area CurrentArea { get; set; }
 
         // inventory
-        public Container Inventory { get; set; }
+        public Inventory Inventory { get; set; }
         public List<Armor> Armor { get; set; }
         public Gear? HeldItem { get; set; }
         public Weapon Weapon { get; set; }
@@ -45,6 +45,9 @@ namespace text_survival
 
         public Attributes Attributes { get; set; }
         public Skills Skills { get; set; }
+
+        // buffs
+        public List<Buff> Buffs { get; set; }
 
         // stats
         public double ArmorRating
@@ -67,35 +70,41 @@ namespace text_survival
 
         public Player(Area area)
         {
+            // stats
             Name = "Player";
-            Attributes = new Attributes();
+            Level = 0;
+            Experience = 0;
+            SkillPoints = 0;
+            MaxHealth = 100;
+            Health = 100;
             MaxEnergy = 100;
-            Energy = MaxEnergy;
+            Energy = 100;
             EnergyRegen = 1;
             Psych = 100;
             MaxPsych = 100;
             PsychRegen = 1;
+            // lists
+            Buffs = new List<Buff>();
+            Armor = new List<Armor>();
+            // objects
+            Attributes = new Attributes();
+            Skills = new Skills();
+            Inventory = new Inventory();
             Hunger = new Hunger(this);
             Thirst = new Thirst(this);
             Exhaustion = new Exhaustion(this);
-            MaxHealth = 100;
-            Health = MaxHealth;
             Temperature = new Temperature(this);
-            Inventory = new Container("Backpack", 10);
-            Armor = new List<Armor>();
+            // starting items
             Equip(ItemFactory.MakeClothShirt());
             Equip(ItemFactory.MakeClothPants());
             Equip(ItemFactory.MakeBoots());
-            EventAggregator.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
-            CurrentArea = area;
-            area.Enter(this);
-            Skills = new Skills();
-            Level = 0;
-            Experience = 0;
-            SkillPoints = 0;
             Unarmed = ItemFactory.MakeFists();
             Weapon = Unarmed;
-
+            // starting area
+            CurrentArea = area;
+            area.Enter(this);
+            // events
+            EventAggregator.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
         }
 
 
@@ -114,7 +123,7 @@ namespace text_survival
             Hunger.Amount -= food.Calories;
             Thirst.Amount -= food.WaterContent;
             Inventory.Remove(food);
-            Update(1);
+            World.Update(1);
         }
 
         public void Sleep(int minutes)
@@ -122,7 +131,7 @@ namespace text_survival
             for (int i = 0; i < minutes; i++)
             {
                 Exhaustion.Amount -= 1 + Exhaustion.Rate; // 1 minute plus negate exhaustion rate for update
-                Update(1);
+                World.Update(1);
                 if (!(Exhaustion.Amount <= 0)) continue;
                 Utils.Write("You wake up feeling refreshed.\n");
                 Heal(i / 6);
@@ -131,72 +140,72 @@ namespace text_survival
             Heal(minutes / 6);
         }
 
-        public void Equip(Item item)
+        public void Equip(IEquippable item)
         {
-            if (item is Weapon weapon)
-            {
-                Unequip(Weapon);
-                Weapon = weapon;
-                Inventory.Remove(weapon);
-                return;
-            }
-            else if (item is Armor armor)
-            {
-                var oldItem = Armor.FirstOrDefault(i => i.EquipSpot == armor.EquipSpot);
-                if (oldItem != null)
-                {
-                    Unequip(oldItem);
-                }
-                Armor.Add(armor);
-                Inventory.Remove(item);
-                return;
-            }
-            else if (item is Gear gear)
-            {
-                if (HeldItem != null)
-                {
-                    Unequip(HeldItem);
-                }
-                HeldItem = gear;
-                Inventory.Remove(gear);
-                return;
-            }
-            else
-            {
-                Utils.WriteLine("You can't equip that.");
-            }
-
+            ////if (item is Weapon weapon)
+            ////{
+            ////    //Unequip(Weapon);
+            ////    //Weapon = weapon;
+            ////    //Inventory.Remove(weapon);
+            ////    return;
+            ////}
+            //else if (item is Armor armor)
+            //{
+            //    //var oldItem = Armor.FirstOrDefault(i => i.EquipSpot == armor.EquipSpot);
+            //    //if (oldItem != null)
+            //    //{
+            //    //    Unequip(oldItem);
+            //    //}
+            //    //Armor.Add(armor);
+            //    //Inventory.Remove(item);
+            //    return;
+            //}
+            //else if (item is Gear gear)
+            //{
+            //    //if (HeldItem != null)
+            //    //{
+            //    //    Unequip(HeldItem);
+            //    //}
+            //    //HeldItem = gear;
+            //    //Inventory.Remove(gear);
+            //    return;
+            //}
+            //else
+            //{
+            //    Utils.WriteLine("You can't equip that.");
+            //}
+            item.OnEquip(this);
         }
 
 
-        public void Unequip(Item item)
+        public void Unequip(IEquippable item)
         {
-            if (item is Weapon weapon)
-            {
-                Weapon = Unarmed;
-                if (weapon != Unarmed)
-                    Inventory.Add(weapon);
-            }
-            else if (item is Armor armor)
-            {
-                Armor.Remove(armor);
-                Inventory.Add(armor);
-            }
-            else if (item is Gear gear)
-            {
-                HeldItem = null;
-                Inventory.Add(gear);
-            }
-            else
-            {
-                Utils.WriteLine("You can't unequip that.");
-            }
-
+            //if (item is Weapon weapon)
+            //{
+            //    Weapon = Unarmed;
+            //    if (weapon != Unarmed)
+            //        Inventory.Add(weapon);
+            //}
+            //else if (item is Armor armor)
+            //{
+            //    Armor.Remove(armor);
+            //    Inventory.Add(armor);
+            //}
+            //else if (item is Gear gear)
+            //{
+            //    HeldItem = null;
+            //    Inventory.Add(gear);
+            //}
+            //else
+            //{
+            //    Utils.WriteLine("You can't unequip that.");
+            //}
+            item.OnUnequip(this);
         }
 
         // COMBAT //
 
-        public double DetermineDamage(ICombatant defender)
+        public double DetermineDamage(IActor defender)
         {
             // strength and exhaustion modifiers
             double strengthModifier = (Attributes.Strength + 50) / 100;
@@ -205,12 +214,12 @@ namespace text_survival
             // skill bonus
             double skillBonus = 0;
             if (Weapon == Unarmed)
-                skillBonus = Skills.HandToHand.Level;
+                skillBonus = Skills.Unarmed.Level;
             else if (Weapon.WeaponClass == WeaponClass.Blade)
                 skillBonus = Skills.Blade.Level;
             else if (Weapon.WeaponClass == WeaponClass.Blunt)
                 skillBonus = Skills.Blunt.Level;
-            
+
             // weapon and armor modifiers
             double weaponDamage = Weapon.Damage + skillBonus; // add skill modifier
             double defenderDefense = defender.ArmorRating;
@@ -225,12 +234,12 @@ namespace text_survival
             return damage;
         }
 
-        public double DetermineHitChance(ICombatant attacker)
+        public double DetermineHitChance(IActor attacker)
         {
             return 1;
         }
 
-        public double DetermineDodgeChance(ICombatant attacker)
+        public double DetermineDodgeChance(IActor attacker)
         {
             double baseDodge = (Skills.Dodge.Level + Attributes.Agility / 2 + Attributes.Luck / 10) / 200;
             double speedDiff = this.Attributes.Speed - attacker.Attributes.Speed;
@@ -240,7 +249,7 @@ namespace text_survival
 
 
 
-        public void Attack(ICombatant target)
+        public void Attack(IActor target)
         {
             // base damage - defense percentage
             double damage = DetermineDamage(target);
@@ -268,7 +277,7 @@ namespace text_survival
                     EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Blunt));
                     break;
                 case WeaponClass.Unarmed:
-                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.HandToHand));
+                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Unarmed));
                     break;
                 default:
                     Utils.WriteDanger("Unknown weapon type.");
@@ -318,16 +327,27 @@ namespace text_survival
 
         // UPDATE //
 
-        public void Update(int minutes)
+        //public void Update(int minutes)
+        //{
+        //    World.Update(minutes);
+            
+        //    for (int i = 0; i < minutes; i++)
+        //    {
+        //        Update();
+        //    }
+        //    Temperature.Update(minutes);
+        //}
+
+        public void Update()
         {
-            World.Update(minutes);
-            for (int i = 0; i < minutes; i++)
+            foreach (var buff in Buffs)
             {
-                Hunger.Update();
-                Thirst.Update();
-                Exhaustion.Update();
+                buff.Tick(this);
             }
-            Temperature.Update(minutes);
+            Hunger.Update();
+            Thirst.Update();
+            Exhaustion.Update();
+            Temperature.Update();
         }
 
         // EVENTS //

@@ -8,7 +8,6 @@ namespace text_survival.Environments
     {
         public static string GetRandomAreaName(EnvironmentType environmentType)
         {
-            string name = "";
             List<string> names = environmentType switch
             {
                 EnvironmentType.Forest => new List<string>()
@@ -154,11 +153,11 @@ namespace text_survival.Environments
                         "Location"
                     },
             };
-            name = names[Utils.RandInt(0, names.Count - 1)];
+            string name = names[Utils.RandInt(0, names.Count - 1)];
             return name;
         }
 
-  
+
         private static readonly Dictionary<string, Func<Item>> ItemDefinitions = new()
         {
             { "Mushroom", ItemFactory.MakeMushroom },

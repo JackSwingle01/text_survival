@@ -23,18 +23,27 @@
             HeatExhaustion,
         }
 
-        public void Update(int minutes)
+        //public void Update(int minutes)
+        //{
+        //    TemperatureEnum oldTemperature = TemperatureEffect;
+        //    for (int i = 0; i < minutes; i++)
+        //    {
+        //        UpdateTemperatureTick();
+        //    }
+        //    if (oldTemperature != TemperatureEffect)
+        //    {
+        //        WriteTemperatureEffectMessage(TemperatureEffect);
+        //    }
+        //}
+
+        public void Update()
         {
             TemperatureEnum oldTemperature = TemperatureEffect;
-            for (int i = 0; i < minutes; i++)
-            {
-                UpdateTemperatureTick();
-            }
+            UpdateTemperatureTick();
             if (oldTemperature != TemperatureEffect)
             {
                 WriteTemperatureEffectMessage(TemperatureEffect);
             }
-
         }
         private void UpdateTemperatureEffect()
         {

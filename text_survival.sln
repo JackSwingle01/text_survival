@@ -3,7 +3,12 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.2.32616.157
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "text_survival", "text_survival.csproj", "{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "text_survival", "text_survival.csproj", "{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D9C2D7BC-4AF4-443F-9A99-1BEE95803C4B}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

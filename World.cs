@@ -1,21 +1,40 @@
-﻿namespace text_survival
+﻿using text_survival.Environments;
+using text_survival.Items;
+
+namespace text_survival
 {
     public static class World
     {
         public static TimeOnly Time { get; set; }
-        public static int Days { get; set; }
+        //public static int Days { get; set; }
+        public static Player Player { get; set; }
+        public static Area CurrentArea => Player.CurrentArea;
 
         static World()
         {
+            Area startingArea = new Area("Clearing", "A small clearing in the forest.");
+            startingArea.Items.Add(new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, "Old dagger", 40));
+            Player = new Player(startingArea);
+            Time = new TimeOnly(hour: 9, minute: 0);
         }
+
+
 
         public static void Update(int minutes)
         {
-            if (Time.AddMinutes(minutes).Hour < Time.Hour)
+            for (int i = 0; i < minutes; i++)
             {
-                Days++;
+                Player.Update();
+                foreach (var npc in CurrentArea.Npcs)
+                {
+                    npc.Update();
+                }   
+                Time = Time.AddMinutes(1);
             }
-            Time = Time.AddMinutes(minutes);
+            //if (Time.AddMinutes(minutes).Hour < Time.Hour)
+            //{
+            //    Days++;
+            //}
         }
 
         public enum TimeOfDay

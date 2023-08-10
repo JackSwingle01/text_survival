@@ -3,7 +3,7 @@ using text_survival.Level;
 
 namespace text_survival.Actors
 {
-    public class Npc : ICombatant
+    public class Npc : IActor
     {
         public string Name { get; set; }
         public string Description { get; set; }
@@ -15,6 +15,7 @@ namespace text_survival.Actors
         public List<Item> Loot { get; set; }
         public bool IsAlive => Health > 0;
         public Attributes Attributes { get; set; }
+        public List<Buff> Buffs { get; set; }
 
         public Npc(string name, Attributes? attributes = null)
         {
@@ -26,16 +27,26 @@ namespace text_survival.Actors
             IsHostile = true;
             Description = "";
             UnarmedDamage = 2;
+            Buffs = new List<Buff>();
+        }
+
+        // Update //
+        public void Update()
+        {
+            foreach (Buff buff in Buffs)
+            {
+                buff.Tick(this);
+            }
         }
 
         // COMBAT //
 
-        public virtual double DetermineDamage(ICombatant defender)
+        public virtual double DetermineDamage(IActor defender)
         {
             double damage = UnarmedDamage;
-            if (this is Humanoid)
+            if (this is Humanoid humanoid)
             {
-                damage = ((Humanoid)this).Weapon.Damage;
+                damage = humanoid.Weapon.Damage;
             }
             double strengthModifier = (Attributes.Strength + 50) / 100;
             double defenderDefense = defender.ArmorRating;
@@ -48,12 +59,12 @@ namespace text_survival.Actors
             return damage;
         }
 
-        public double DetermineHitChance(ICombatant attacker)
+        public double DetermineHitChance(IActor attacker)
         {
             return 1;
         }
 
-        public double DetermineDodgeChance(ICombatant attacker)
+        public double DetermineDodgeChance(IActor attacker)
         {
             double baseDodge = ((Attributes.Agility) + Attributes.Luck / 10) / 200;
             double speedDiff = (this.Attributes.Speed - attacker.Attributes.Speed) / 100;
@@ -61,7 +72,7 @@ namespace text_survival.Actors
             return chance;
         }
 
-        public void Attack(ICombatant target)
+        public void Attack(IActor target)
         {
             // do calculations
             double damage = DetermineDamage(target);

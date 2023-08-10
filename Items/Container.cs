@@ -13,51 +13,44 @@
             Items = new List<Item>();
         }
 
-        public Item? GetItem(int index)
+        public Item GetItem(int index)
         {
-            if (index < 0 || index >= Items.Count)
-            {
-                return null;
-            }
             return Items[index];
         }
 
-        public Item? Open()
+        public virtual void Open(Player player)
         {
-            Write();
-            if (Items.Count == 0)
+            while (true)
             {
-                return null;
+                Utils.WriteLine(this,":");
+                int index = Utils.GetSelectionFromList(Items, true)-1;
+                if (index == -1) return;
+                Item item = GetItem(index);
+                Utils.WriteLine("What would you like to do with ", item);
+                int choice = Utils.GetSelectionFromList(new List<string>() { "Take", "Inspect", "Use" }, true);
+                switch (choice)
+                {
+                    case 0:
+                        continue;
+                    case 1:
+                        player.Inventory.Add(item);
+                        break;
+                    case 2:
+                        Examine.ExamineItem(item);
+                        break;
+                    case 3:
+                        item.UseEffect.Invoke(player);
+                        break;
+                }
             }
-            Utils.Write("Enter the number of the item you want or type '0' to exit.\n");
-            int input = Utils.ReadInt(0, Items.Count);
-            if (input == 0)
-            {
-                return null;
-            }
-            int index = input - 1;
-            return GetItem(index) as Item;
         }
+
+
+
 
         public override string ToString()
         {
             return Name;
-        }
-        public void Write()
-        {
-            Utils.WriteLine(Name + ":");
-            Utils.WriteLine("Weight: ", GetWeight(), "/" + MaxWeight);
-            if (Items.Count == 0)
-            {
-                Utils.Write(Name, " is empty!\n");
-            }
-            int count = 1;
-            foreach (Item item in Items)
-            {
-                Utils.Write(count, ". ");
-                item.Write();
-                count++;
-            }
         }
 
         public void Add(Item item)
