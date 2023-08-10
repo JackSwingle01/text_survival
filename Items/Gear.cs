@@ -6,7 +6,7 @@ namespace text_survival.Items
     {
         public Buff Buff { get; set; }
 
-        public Gear(string name, double weight = 1) : base(name, weight) 
+        public Gear(string name, double weight = 1) : base(name, weight)
         {
             UseEffect = (player) =>
             {

@@ -1,15 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using text_survival.Items;
+﻿using text_survival.Items;
 
 namespace text_survival
 {
     public class Inventory : Container
     {
-        public Inventory(string name="Backpack", int weightCap = 10) : base (name, weightCap)
+        public Inventory(string name = "Backpack", int weightCap = 10) : base(name, weightCap)
         {
         }
 
@@ -17,7 +12,7 @@ namespace text_survival
         {
             while (true)
             {
-                Utils.WriteLine(this, " (", GetWeight(), "/", MaxWeight,"):");
+                Utils.WriteLine(this, " (", GetWeight(), "/", MaxWeight, "):");
                 int index = Utils.GetSelectionFromList(Items, true) - 1;
                 if (index == -1) return;
                 Item item = GetItem(index);

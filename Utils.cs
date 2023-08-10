@@ -102,7 +102,7 @@ namespace text_survival
                             break;
                         }
                     case null:
-                    {
+                        {
                             Console.Write("[NULL]");
                             break;
                         }

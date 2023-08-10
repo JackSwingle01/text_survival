@@ -209,7 +209,7 @@ namespace text_survival
         private void OpenInventory()
         {
             _player.Inventory.Open(_player);
-           
+
         }
 
         private void Travel()

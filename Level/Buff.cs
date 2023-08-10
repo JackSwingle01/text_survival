@@ -12,7 +12,7 @@ namespace text_survival.Level
         OnDeath,
         OnTick,
     }
-    
+
     public class Buff
     {
         public string Name { get; set; }
@@ -26,7 +26,7 @@ namespace text_survival.Level
         {
             Name = name;
             NumTicks = numTicks; // -1 means infinite duration
-            TriggerOn = TriggerTypes.None; 
+            TriggerOn = TriggerTypes.None;
             ApplyEffect = (target) => { }; // applies once when applied
             RemoveEffect = (target) => { }; // should undo ApplyEffect
             TickEffect = (target) => { }; // applies once per minute
@@ -56,13 +56,14 @@ namespace text_survival.Level
             RemoveEffect?.Invoke(target);
             target.Buffs.Remove(this);
         }
-        public void Trigger(IActor target, TriggerTypes trigger){
+        public void Trigger(IActor target, TriggerTypes trigger)
+        {
             if (TriggerOn == trigger)
             {
                 TriggerEffect?.Invoke(target);
             }
         }
     }
-    
+
 
 }

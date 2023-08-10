@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival.Level
+﻿namespace text_survival.Level
 {
     public static class CommonBuffs
     {
@@ -32,13 +26,13 @@ namespace text_survival.Level
         {
             return new Buff("Bleeding", minutes)
             {
-                ApplyEffect = (target => Utils.WriteLine(target," has been cut!")),
+                ApplyEffect = (target => Utils.WriteLine(target, " has been cut!")),
                 TickEffect = (target) =>
                 {
                     target.Health -= hpPerMin;
                     if (target is Player player)
                         Utils.WriteDanger("You are bleeding!");
-                    else 
+                    else
                         Utils.WriteLine(target, " is bleeding");
                 },
                 RemoveEffect = (player) => { Console.WriteLine("You have stopped bleeding."); }

@@ -22,8 +22,8 @@
         {
             while (true)
             {
-                Utils.WriteLine(this,":");
-                int index = Utils.GetSelectionFromList(Items, true)-1;
+                Utils.WriteLine(this, ":");
+                int index = Utils.GetSelectionFromList(Items, true) - 1;
                 if (index == -1) return;
                 Item item = GetItem(index);
                 Utils.WriteLine("What would you like to do with ", item);

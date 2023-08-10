@@ -1,6 +1,4 @@
-﻿using System.Dynamic;
-
-namespace text_survival.Level
+﻿namespace text_survival.Level
 {
     public class Attributes
     {

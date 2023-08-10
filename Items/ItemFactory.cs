@@ -219,7 +219,7 @@ namespace text_survival.Items
             Gear torch = new Gear("Torch", 1)
             {
                 Description = "A torch that warms you",
-                Buff = CommonBuffs.Warmth(5,-1)
+                Buff = CommonBuffs.Warmth(5, -1)
             };
             return torch;
         }

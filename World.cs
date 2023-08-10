@@ -28,7 +28,7 @@ namespace text_survival
                 foreach (var npc in CurrentArea.Npcs)
                 {
                     npc.Update();
-                }   
+                }
                 Time = Time.AddMinutes(1);
             }
             //if (Time.AddMinutes(minutes).Hour < Time.Hour)
