@@ -216,6 +216,25 @@ namespace text_survival
             item.OnUnequip(this);
         }
 
+        public void CheckGear()
+        {
+            Examine.ExamineGear(this);
+            Utils.WriteLine("Would you like to unequip an item?");
+            int choice = Utils.GetSelectionFromList(new List<string>{"Yes", "No"});
+            if (choice != 1) return;
+
+            Utils.WriteLine("Which item would you like to unequip?");
+            // get list of all equipment
+            var equipment = new List<IEquippable>();
+            equipment.AddRange(Armor);
+            if (IsArmed) equipment.Add(Weapon);
+            if (HeldItem != null) equipment.Add(HeldItem);
+
+            choice = Utils.GetSelectionFromList(equipment, true);
+            if (choice == 0) return;
+            Unequip(equipment[choice - 1]);
+        }
+
         // Inventory //
 
         public int InventoryCount => Inventory.Count();

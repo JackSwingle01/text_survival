@@ -19,7 +19,7 @@ C# console app text based survival rpg game.
 
 ### To Do:
 - Add more items, npcs, locations.
-- Add ablity to unequip items without equipping another item.
+- Add ablity to unequip items without equipping another item. (done)
 - Ability to drop items. (Done)
 - Show stats of weapons in inventory (Done)
 - Add consumable item class

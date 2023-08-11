@@ -18,8 +18,6 @@ namespace text_survival
         LookAround,
         Quit,
         LevelUp,
-
-        // Add more actions as necessary
     }
 
     public class Actions
@@ -35,16 +33,16 @@ namespace text_survival
             this.AvailableActions = new List<ActionType>();
             this._actionDict = new Dictionary<ActionType, Action>()
             {
-                { ActionType.Fight, this.Fight },
-                { ActionType.OpenInventory, this.OpenInventory },
-                { ActionType.Travel , this.Travel },
-                { ActionType.Sleep, this.Sleep },
-                { ActionType.CheckGear, this.CheckGear },
-                { ActionType.Quit, this.Quit },
-                { ActionType.PickUpItem , this.PickUpItem },
-                { ActionType.LookAround, this.LookAround },
-                { ActionType.CheckStats, this.CheckStats },
-                { ActionType.LevelUp, this.LevelUp },
+                { ActionType.Fight, Fight },
+                { ActionType.OpenInventory, OpenInventory },
+                { ActionType.Travel , Travel },
+                { ActionType.Sleep, Sleep },
+                { ActionType.CheckGear, CheckGear },
+                { ActionType.Quit, Quit },
+                { ActionType.PickUpItem , PickUpItem },
+                { ActionType.LookAround, LookAround },
+                { ActionType.CheckStats, CheckStats },
+                { ActionType.LevelUp, LevelUp },
                 // Add more actions as necessary
             };
         }
@@ -236,9 +234,7 @@ namespace text_survival
 
         private void CheckGear()
         {
-            Examine.ExamineGear(_player);
-            Utils.WriteLine("Press any key to continue");
-            Utils.Read();
+            _player.CheckGear();
         }
 
         private void LookAround()
