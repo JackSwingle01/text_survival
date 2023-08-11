@@ -21,10 +21,19 @@ namespace text_survival
 
 
         // Survival stats
-        public Hunger Hunger { get; }
-        public Thirst Thirst { get; }
-        public Exhaustion Exhaustion { get; }
-        public Temperature Temperature { get; }
+        // Hunger
+        private HungerModule HungerModule { get; }
+        public int HungerPercent => (int)(HungerModule.Amount / HungerModule.Max) * 100;
+        // Thirst
+        private ThirstModule ThirstModule { get; }
+        public int ThirstPercent => (int)(ThirstModule.Amount / ThirstModule.Max) * 100;
+        // Exhaustion
+        private ExhaustionModule ExhaustionModule { get; }
+        public double ExhaustionPercent => (int)(ExhaustionModule.Amount / ExhaustionModule.Max) * 100;
+        // Temperature
+        private TemperatureModule TemperatureModule { get; }
+        public double Temperature => Math.Round(TemperatureModule.BodyTemperature, 1);
+        public TemperatureModule.TemperatureEnum TemperatureStatus => TemperatureModule.TemperatureEffect;
         public double WarmthBonus { get; private set; }
 
         // area
@@ -35,7 +44,7 @@ namespace text_survival
         public List<Armor> Armor { get; }
         public Gear? HeldItem { get; private set; }
 
-
+        // weapon
         private Weapon? _weapon;
         private readonly Weapon _unarmed;
         public bool IsArmed => Weapon != _unarmed;
@@ -50,14 +59,13 @@ namespace text_survival
         public int Experience { get; private set; }
         public int ExperienceToNextLevel => (Level + 1) * 5;
         public int SkillPoints { get; private set; }
-
         public Attributes Attributes { get; }
         public Skills Skills { get; }
 
         // buffs
         private List<Buff> Buffs { get; }
 
-        // stats
+        // armor
         public double ArmorRating
         {
             get
@@ -77,6 +85,7 @@ namespace text_survival
             }
         }
 
+        // CONSTRUCTOR //
 
         public Player(Area area)
         {
@@ -100,10 +109,10 @@ namespace text_survival
             Attributes = new Attributes();
             Skills = new Skills();
             Inventory = new Inventory();
-            Hunger = new Hunger(this);
-            Thirst = new Thirst(this);
-            Exhaustion = new Exhaustion(this);
-            Temperature = new Temperature(this);
+            HungerModule = new HungerModule(this);
+            ThirstModule = new ThirstModule(this);
+            ExhaustionModule = new ExhaustionModule(this);
+            TemperatureModule = new TemperatureModule(this);
             // starting items
             Equip(ItemFactory.MakeClothShirt());
             Equip(ItemFactory.MakeClothPants());
@@ -116,21 +125,20 @@ namespace text_survival
             EventHandler.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
         }
 
-
-        // ACTIONS //
+        // Survival Actions //
 
         public void Eat(FoodItem food)
         {
             Utils.Write("You eat the ", food, ".\n");
-            if (Hunger.Amount - food.Calories < 0)
+            if (HungerModule.Amount - food.Calories < 0)
             {
                 Utils.Write("You are too full to finish it.\n");
-                food.Calories -= (int)(0 - Hunger.Amount);
-                Hunger.Amount = 0;
+                food.Calories -= (int)(0 - HungerModule.Amount);
+                HungerModule.Amount = 0;
                 return;
             }
-            Hunger.Amount -= food.Calories;
-            Thirst.Amount -= food.WaterContent;
+            HungerModule.Amount -= food.Calories;
+            ThirstModule.Amount -= food.WaterContent;
             Inventory.Remove(food);
             World.Update(1);
         }
@@ -139,15 +147,17 @@ namespace text_survival
         {
             for (int i = 0; i < minutes; i++)
             {
-                Exhaustion.Amount -= 1 + Exhaustion.Rate; // 1 minute plus negate exhaustion rate for update
+                ExhaustionModule.Amount -= 1 + ExhaustionModule.Rate; // 1 minute plus negate exhaustion rate for update
                 World.Update(1);
-                if (!(Exhaustion.Amount <= 0)) continue;
+                if (!(ExhaustionModule.Amount <= 0)) continue;
                 Utils.Write("You wake up feeling refreshed.\n");
                 Heal(i / 6);
                 return;
             }
             Heal(minutes / 6);
         }
+
+        // Equipment //
 
         public void Equip(IEquippable item)
         {
@@ -181,7 +191,6 @@ namespace text_survival
             item.OnEquip(this);
         }
 
-
         public void Unequip(IEquippable item)
         {
             switch (item)
@@ -204,7 +213,6 @@ namespace text_survival
                     Utils.WriteLine("You can't unequip that.");
                     break;
             }
-
             item.OnUnequip(this);
         }
 
@@ -216,7 +224,6 @@ namespace text_survival
         {
             Inventory.Add(item);
         }
-
         public void RemoveFromInventory(Item item)
         {
             Inventory.Remove(item);
@@ -243,12 +250,13 @@ namespace text_survival
                 skillBonus = Skills.Blunt.Level;
 
             // other modifiers
-            double exhaustionModifier = (2 - Exhaustion.Amount / Exhaustion.Max) / 2 + .1;
+            double exhaustionModifier = (2 - ExhaustionModule.Amount / ExhaustionModule.Max) / 2 + .1;
 
             double damage = Combat.CalculateAttackDamage(
                 Weapon.Damage, Attributes.Strength, defender.ArmorRating, skillBonus, exhaustionModifier);
             return damage;
         }
+
         public double DetermineHitChance(ICombatant attacker)
         {
             return 1;
@@ -282,32 +290,7 @@ namespace text_survival
             Thread.Sleep(1000);
         }
 
-        private void HandleAttackXpGain()
-        {
-            switch (Weapon.WeaponClass)
-            {
-                case WeaponClass.Blade:
-                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Blade));
-                    break;
-                case WeaponClass.Blunt:
-                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Blunt));
-                    break;
-                case WeaponClass.Unarmed:
-                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Unarmed));
-                    break;
-                default:
-                    Utils.WriteDanger("Unknown weapon type.");
-                    break;
-            }
-        }
-
-        public void HandleArmorXpGain()
-        {
-            if (Armor.Any(a => a.Type == ArmorClass.Light))
-                EventHandler.Publish(new GainExperienceEvent(1, SkillType.LightArmor));
-            if (Armor.Any(a => a.Type == ArmorClass.Heavy))
-                EventHandler.Publish(new GainExperienceEvent(1, SkillType.HeavyArmor));
-        }
+        // Effects //
 
         public void Damage(double damage)
         {
@@ -338,6 +321,8 @@ namespace text_survival
             WarmthBonus -= warmth;
         }
 
+        // Buffs //
+
         public void ApplyBuff(Buff buff)
         {
             buff.ApplyEffect?.Invoke(this);
@@ -351,6 +336,7 @@ namespace text_survival
         }
 
         // Leveling //
+
         public void GainExperience(int xp)
         {
             Experience += xp;
@@ -376,6 +362,38 @@ namespace text_survival
             SkillPoints--;
         }
 
+        private void HandleAttackXpGain()
+        {
+            switch (Weapon.WeaponClass)
+            {
+                case WeaponClass.Blade:
+                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Blade));
+                    break;
+                case WeaponClass.Blunt:
+                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Blunt));
+                    break;
+                case WeaponClass.Unarmed:
+                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Unarmed));
+                    break;
+                default:
+                    Utils.WriteDanger("Unknown weapon type.");
+                    break;
+            }
+        }
+
+        public void HandleArmorXpGain()
+        {
+            if (Armor.Any(a => a.Type == ArmorClass.Light))
+                EventHandler.Publish(new GainExperienceEvent(1, SkillType.LightArmor));
+            if (Armor.Any(a => a.Type == ArmorClass.Heavy))
+                EventHandler.Publish(new GainExperienceEvent(1, SkillType.HeavyArmor));
+        }
+
+        private void OnSkillLeveledUp(SkillLevelUpEvent e)
+        {
+            GainExperience(1 * e.Skill.Level);
+        }
+
         // UPDATE //
 
         public void Update()
@@ -384,26 +402,13 @@ namespace text_survival
             {
                 buff.Tick(this);
             }
-            Hunger.Update();
-            Thirst.Update();
-            Exhaustion.Update();
-            Temperature.Update();
+            HungerModule.Update();
+            ThirstModule.Update();
+            ExhaustionModule.Update();
+            TemperatureModule.Update();
         }
 
-        // EVENTS //
-
-        private void OnSkillLeveledUp(SkillLevelUpEvent e)
-        {
-            GainExperience(1 * e.Skill.Level);
-        }
-
-        /// OTHER ///
-
-        public override string ToString()
-        {
-            return Name;
-        }
-
+        // Area //
 
         public void Enter(Area area)
         {
@@ -416,5 +421,15 @@ namespace text_survival
             area.Visited = true;
             Utils.WriteLine("You should probably look around.");
         }
+
+        /// OTHER ///
+
+        public override string ToString()
+        {
+            return Name;
+        }
+
+
+
     }
 }

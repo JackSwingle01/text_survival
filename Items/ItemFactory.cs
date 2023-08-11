@@ -188,13 +188,14 @@ namespace text_survival.Items
         {
             var potion = new Item("Health Potion")
             {
-                UseEffect = (player) =>
-            {
-                player.Heal(50);
-                Utils.Write("You feel better\n");
-            },
                 Description = "A potent healing potion",
                 Weight = 0.4F
+            };
+            potion.UseEffect = (player) =>
+            {
+                player.Heal(50);
+                Utils.Write("You've been healed!\n");
+                player.RemoveFromInventory(potion);
             };
             return potion;
         }
@@ -205,11 +206,13 @@ namespace text_survival.Items
             {
                 Description = "A cloth bandage. It might help a bit.",
                 Weight = 0.1F,
-                UseEffect = player =>
-                {
-                    player.Heal(10);
-                    Utils.Write("You feel better\n");
-                }
+                
+            };
+            bandage.UseEffect = player =>
+            {
+                player.Heal(10);
+                Utils.Write("You feel a bit better\n");
+                player.RemoveFromInventory(bandage);
             };
             return bandage;
         }

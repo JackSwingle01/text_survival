@@ -1,4 +1,6 @@
-﻿using text_survival.Actors;
+﻿using System.Diagnostics;
+using System.Dynamic;
+using text_survival.Actors;
 using text_survival.Items;
 using static text_survival.Environments.Area;
 
@@ -196,25 +198,31 @@ namespace text_survival.Environments
             } },
             { EnvironmentType.Forest, new List<string> {
                 "Berry",
-                //"Carrot", 
+                "Carrot", 
                 "Water",
                 "Mushroom",
                 "Stick",
-                //"Wood" 
+                "Wood" 
             } },
             { EnvironmentType.Cave, new List<string> {
                 "Mushroom",
                 "Rock",
                 "Gemstone",
-                "Torch"
+                "Torch",
+                "RandomWeapon"
             } },
             { EnvironmentType.River, new List<string> {
                 "Fish",
-                "Water"
+                "Water",
+                "Water",
+                "Water",
+                "Water",
             } },
             { EnvironmentType.Road, new List<string> {
                 "Coin",
                 "Bandage",
+                "Rock",
+                "Stick",
             } },
 
         };
@@ -248,6 +256,7 @@ namespace text_survival.Environments
             { EnvironmentType.Cave, new List<string> {
                 "Bat",
                 "Spider",
+                "Rat",
                 "Snake",
                 "Dragon",
                 "Skeleton"
@@ -256,6 +265,8 @@ namespace text_survival.Environments
                 "Rat",
                 "Spider",
                 "Bandit",
+                "Goblin",
+                "Skeleton"
             } },
             { EnvironmentType.River, new List<string>
             {
@@ -265,6 +276,7 @@ namespace text_survival.Environments
             { EnvironmentType.Road, new List<string>()
             {
                 "Bandit",
+                "Snake",
             } },
         };
 
@@ -287,6 +299,7 @@ namespace text_survival.Environments
             ItemPool itemPool = CreateItemPool(type);
             NpcPool npcPool = CreateNpcPool(type);
             area.BaseTemperature = GetAreaBaseTemperature(type);
+            area.IsShelter = IsEnvironmentShelter(type);
             for (int i = 0; i < numItems; i++)
             {
                 area.Items.Add(itemPool.GenerateRandomItem());
@@ -298,6 +311,15 @@ namespace text_survival.Environments
             return area;
         }
 
+        private static bool IsEnvironmentShelter(EnvironmentType type)
+        {
+            return type switch
+            {
+                EnvironmentType.AbandonedBuilding => true,
+                EnvironmentType.Cave => true,
+                _ => false,
+            };
+        }
 
         private static NpcPool CreateNpcPool(EnvironmentType environment)
         {

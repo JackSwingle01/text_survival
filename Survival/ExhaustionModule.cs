@@ -1,18 +1,16 @@
 ﻿namespace text_survival.Survival
 {
-    public class Hunger
+    public class ExhaustionModule
     {
-        public float Rate = 2500F / (24F * 60F); // calories per minute
-        public float Max = 3000.0F; // calories
+        public float Rate = 480F / (24F * 60F); // minutes per minute (8 hours per 24)
+        public float Max = 480.0F; // minutes (8 hours)
         public float Amount { get; set; }
         private Player Player { get; set; }
-
-        public Hunger(Player player)
+        public ExhaustionModule(Player player)
         {
             Amount = 0;
             Player = player;
         }
-
         public void Update()
         {
             Amount += Rate;
@@ -20,7 +18,5 @@
             Amount = Max;
             Player.Damage(1);
         }
-
     }
-
 }

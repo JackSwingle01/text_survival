@@ -1,13 +1,13 @@
 ﻿namespace text_survival.Survival
 {
-    public class Temperature
+    public class TemperatureModule
     {
         public const double BaseBodyTemperature = 98.6F;
         public double BodyTemperature { get; private set; }
         public TemperatureEnum TemperatureEffect { get; private set; }
         private Player Player { get; set; }
 
-        public Temperature(Player player)
+        public TemperatureModule(Player player)
         {
             Player = player;
             BodyTemperature = BaseBodyTemperature;
@@ -108,13 +108,7 @@
         }
         private void UpdateTemperatureTick()
         {
-            // body heats based on calories burned
-
-            float joulesBurned = Physics.CaloriesToJoules(Player.Hunger.Rate);
-            float specificHeatOfHuman = 3500F;
-            float weight = 70F;
-            float tempChangeCelsius = Physics.TempChange(weight, specificHeatOfHuman, joulesBurned);
-            BodyTemperature += (double)Physics.DeltaCelsiusToDeltaFahrenheit(tempChangeCelsius);
+            BodyTemperature += .1;
 
             double skinTemp = BodyTemperature - 8.4;
             float rate = 1F / 120F;

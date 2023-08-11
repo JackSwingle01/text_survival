@@ -1,12 +1,12 @@
 ﻿namespace text_survival.Survival
 {
-    public class Exhaustion
+    public class ThirstModule
     {
-        public float Rate = 480F / (24F * 60F); // minutes per minute (8 hours per 24)
-        public float Max = 480.0F; // minutes (8 hours)
+        public float Rate = 4000F / (24F * 60F); // mL per minute
+        public float Max = 3000.0F; // mL
         public float Amount { get; set; }
         private Player Player { get; set; }
-        public Exhaustion(Player player)
+        public ThirstModule(Player player)
         {
             Amount = 0;
             Player = player;

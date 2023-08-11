@@ -12,7 +12,7 @@ namespace text_survival
         }
         public static void ExamineGear(Player player)
         {
-            if (player.Weapon is not null)
+            if (player.IsArmed)
             {
                 Utils.Write("Weapon => ");
                 ExamineItem(player.Weapon);
@@ -31,10 +31,10 @@ namespace text_survival
         public static void ExamineSurvivalStats(Player player)
         {
             Utils.WriteLine("Health: ", (int)(player.Health), "%");
-            Utils.WriteLine("Hunger: ", (int)((player.Hunger.Amount / player.Hunger.Max) * 100), "%");
-            Utils.WriteLine("Thirst: ", (int)((player.Thirst.Amount / player.Thirst.Max) * 100), "%");
-            Utils.WriteLine("Exhaustion: ", (int)((player.Exhaustion.Amount / player.Exhaustion.Max) * 100), "%");
-            Utils.WriteLine("Body Temperature: ", Math.Round(player.Temperature.BodyTemperature, 1), "°F (", player.Temperature.TemperatureEffect, ")");
+            Utils.WriteLine("Hunger: ", player.HungerPercent, "%");
+            Utils.WriteLine("Thirst: ", player.ThirstPercent, "%");
+            Utils.WriteLine("Exhaustion: ", player.ExhaustionPercent, "%");
+            Utils.WriteLine("Body Temperature: ", player.Temperature, "°F (", player.TemperatureStatus, ")");
         }
         public static void ExamineItem(Item item)
         {

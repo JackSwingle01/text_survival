@@ -75,7 +75,7 @@ namespace text_survival
             if (_player.InventoryCount > 0)
                 AvailableActions.Add(ActionType.OpenInventory);
             AvailableActions.Add(ActionType.Travel);
-            if (_player.Exhaustion.Amount > 0)
+            if (_player.ExhaustionPercent > 0)
                 AvailableActions.Add(ActionType.Sleep);
             if (_player.Armor.Count > 0)
                 AvailableActions.Add(ActionType.CheckGear);
