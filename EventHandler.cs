@@ -46,7 +46,7 @@ namespace text_survival
             Type = type;
         }
     }
-    public static class EventAggregator
+    public static class EventHandler
     {
         private static readonly Dictionary<Type, List<Action<EventBase>>> EventHandlers = new();
 

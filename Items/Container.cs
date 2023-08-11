@@ -61,7 +61,7 @@
                 return;
             }
             Items.Add(item);
-            EventAggregator.Publish(new ItemTakenEvent(item));
+            EventHandler.Publish(new ItemTakenEvent(item));
             Utils.WriteLine("You put the ", item, " in your ", this);
         }
 

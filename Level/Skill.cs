@@ -30,7 +30,7 @@ namespace text_survival.Level
         public void LevelUp()
         {
             Level++;
-            EventAggregator.Publish(new SkillLevelUpEvent(this));
+            EventHandler.Publish(new SkillLevelUpEvent(this));
             Utils.WriteLine("You leveled up ", this, " to level ", Level, "!");
         }
 

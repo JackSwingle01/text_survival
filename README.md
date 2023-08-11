@@ -37,4 +37,6 @@ C# console app text based survival rpg game.
 - Add ability to target npcs with items (replace Player with ICombatant on Item.UseEffect?)
 - Add spells / magic system
 - Overhaul enemy loot system
+- Add body part damage based combat system
+- Replace HP with a combo of body part damage and blood loss
 

@@ -46,7 +46,7 @@
             All.Add(Athletics);
             All.Add(Dodge);
 
-            EventAggregator.Subscribe<GainExperienceEvent>(OnGainedExperience);
+            EventHandler.Subscribe<GainExperienceEvent>(OnGainedExperience);
         }
 
         private void OnGainedExperience(GainExperienceEvent e)

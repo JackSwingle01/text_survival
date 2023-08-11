@@ -8,7 +8,7 @@ namespace text_survival.Actors
         public static Humanoid MakeBandit()
         {
             Humanoid bandit = new("Bandit");
-            bandit.Loot.AddRange(new List<Item>
+            bandit.AddLoot(new List<Item>
             {
                 ItemFactory.MakeCoin(),
                 ItemFactory.MakeApple(),
@@ -24,7 +24,7 @@ namespace text_survival.Actors
             {
                 Description = "A rat with fleas."
             };
-            rat.Loot.Add(ItemFactory.MakeSmallMeat());
+            rat.AddLoot(ItemFactory.MakeSmallMeat());
             return rat;
         }
 
@@ -34,14 +34,14 @@ namespace text_survival.Actors
             {
                 Description = "A wolf."
             };
-            wolf.Loot.Add(ItemFactory.MakeLargeMeat());
+            wolf.AddLoot(ItemFactory.MakeLargeMeat());
             return wolf;
         }
 
         public static Npc MakeBear()
         {
             Npc bear = new Animal("Bear", 20, new Attributes(80, 10, 50, 20, 40, 80, 1, 50));
-            bear.Loot.Add(ItemFactory.MakeLargeMeat());
+            bear.AddLoot(ItemFactory.MakeLargeMeat());
             bear.Description = "A bear.";
             return bear;
         }
@@ -49,9 +49,9 @@ namespace text_survival.Actors
         public static Npc MakeSnake()
         {
             Npc snake = new Animal("Snake", 10, new Attributes(20, 5, 20, 50, 40, 20, 0, 55));
-            snake.Loot.Add(ItemFactory.MakeSmallMeat());
+            snake.AddLoot(ItemFactory.MakeSmallMeat());
             //snake.Loot.Add(ItemFactory.MakeSnakeSkin());
-            snake.Loot.Add(ItemFactory.MakeVenomVial());
+            snake.AddLoot(ItemFactory.MakeVenomVial());
             return snake;
         }
 
@@ -66,8 +66,8 @@ namespace text_survival.Actors
         public static Npc MakeSpider()
         {
             Npc spider = new Animal("Spider", 5, new Attributes(15, 3, 10, 35, 30, 15, 0, 55));
-            spider.Loot.Add(ItemFactory.MakeSpiderSilk());
-            spider.Loot.Add(ItemFactory.MakeVenomVial());
+            spider.AddLoot(ItemFactory.MakeSpiderSilk());
+            spider.AddLoot(ItemFactory.MakeVenomVial());
             return spider;
         }
 
@@ -75,8 +75,8 @@ namespace text_survival.Actors
         {
             Humanoid goblin = new("Goblin", ItemFactory.MakeGoblinSword(),
                 attributes: new Attributes(35, 25, 30, 40, 45, 35, 10, 60));
-            goblin.Loot.Add(ItemFactory.MakeGoblinSword());
-            goblin.Loot.Add(ItemFactory.MakeCoin());
+            goblin.AddLoot(ItemFactory.MakeGoblinSword());
+            goblin.AddLoot(ItemFactory.MakeCoin());
             //goblin.Loot.Add(ItemFactory.MakeTatteredCloth());
             return goblin;
         }
@@ -84,9 +84,9 @@ namespace text_survival.Actors
         public static Animal MakeDragon()
         {
             Animal dragon = new("Dragon", 50, new Attributes(100, 90, 100, 40, 70, 100, 30, 100));
-            dragon.Loot.Add(ItemFactory.MakeDragonScale());
-            dragon.Loot.Add(ItemFactory.MakeDragonTooth());
-            dragon.Loot.Add(ItemFactory.MakeLargeCoinPouch());
+            dragon.AddLoot(ItemFactory.MakeDragonScale());
+            dragon.AddLoot(ItemFactory.MakeDragonTooth());
+            dragon.AddLoot(ItemFactory.MakeLargeCoinPouch());
             return dragon;
         }
 
@@ -95,15 +95,15 @@ namespace text_survival.Actors
             Humanoid skeleton = new("Skeleton", ItemFactory.MakeRustySword(),
                 attributes: new Attributes(30, 5, 50, 40, 35, 70, 1, 20));
             //skeleton.Loot.Add(ItemFactory.MakeBoneFragments());
-            skeleton.Loot.Add(ItemFactory.MakeRustySword());
+            skeleton.AddLoot(ItemFactory.MakeRustySword());
             return skeleton;
         }
 
         public static Animal MakeCrocodile()
         {
             Animal crocodile = new Animal("Crocodile", 30, new Attributes(70, 5, 70, 30, 40, 75, 1, 20));
-            crocodile.Loot.Add(ItemFactory.MakeCrocodileSkin());
-            crocodile.Loot.Add(ItemFactory.MakeCrocodileTooth());
+            crocodile.AddLoot(ItemFactory.MakeCrocodileSkin());
+            crocodile.AddLoot(ItemFactory.MakeCrocodileTooth());
             return crocodile;
         }
     }

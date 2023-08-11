@@ -37,39 +37,35 @@ namespace text_survival
             }
             if (player.Health <= 0)
             {
-                Utils.Write("You died!\n");
+                Utils.WriteDanger("You died!");
             }
             else if (enemy.Health <= 0)
             {
-                Utils.Write("You killed ", enemy, "!\n");
-                if (enemy.Loot.Count > 0)
-                {
-                    GetLoot(player, enemy);
-                }
-
+                Utils.WriteLine("You killed ", enemy, "!");
+                GetLoot(player, enemy);
             }
         }
         public static void GetLoot(Player player, Npc npc)
         {
-            if (npc.Loot.Count == 0)
+            Item? loot = npc.DropItem();
+            if (loot is null)
             {
-                Utils.WriteLine(npc.Name + " has no loot.");
+                Utils.WriteLine(npc.Name, " has no loot.");
                 return;
             }
-            Utils.Write(npc.Name + " dropped: ");
-            Item item = npc.Loot[Utils.RandInt(0, npc.Loot.Count - 1)] as Item;
-            Examine.ExamineItem(item);
+            Utils.Write(npc.Name, " dropped: ");
+            Examine.ExamineItem(loot);
             Utils.WriteLine("\nDo you want to pick it up?\n", 1, ". Yes\n", 2, ". No");
 
             int choice = Utils.ReadInt(1, 2);
             if (choice == 1)
             {
-                player.AddToInventory(item);
+                player.AddToInventory(loot);
             }
             else
             {
-                player.CurrentArea.Items.Add(item);
-                Utils.Write("You left the " + item + " on the ground.\n");
+                player.CurrentArea.Items.Add(loot);
+                Utils.Write("You left the ", loot, " on the ground.\n");
             }
         }
         public static void PrintBattleInfo(ICombatant combatant1, ICombatant combatant2)
@@ -124,6 +120,36 @@ namespace text_survival
             double speedDiff = speed - attackerSpeed;
             double chance = baseDodge + speedDiff;
             return chance;
+        }
+
+        /// <summary>
+        /// Determines if the defender dodges the attack.
+        /// </summary>
+        /// <param name="attacker"></param>
+        /// <param name="defender"></param>
+        /// <returns>True if the defender dodges, false if not.</returns>
+        public static bool DetermineDodge(ICombatant attacker, ICombatant defender)
+        {
+            double dodgeChance = defender.DetermineDodgeChance(attacker);
+            double dodgeRoll = Utils.RandDouble(0, 1);
+            if (dodgeRoll <= dodgeChance)
+            {
+                Utils.WriteLine(defender.Name + " dodged the attack!");
+                return true;
+            }
+            return false;
+        }
+
+        public static bool DetermineHit(ICombatant attacker, ICombatant defender)
+        {
+            double hitChance = attacker.DetermineHitChance(defender);
+            int roll = Utils.RandInt(0, 100);
+            if (roll > hitChance * 100)
+            {
+                Utils.WriteLine(attacker, " missed ", defender, "!");
+                return false;
+            }
+            return true;
         }
     }
 }

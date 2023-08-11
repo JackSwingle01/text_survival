@@ -55,7 +55,7 @@ namespace text_survival
         public Skills Skills { get; }
 
         // buffs
-        public List<Buff> Buffs { get; }
+        private List<Buff> Buffs { get; }
 
         // stats
         public double ArmorRating
@@ -66,10 +66,12 @@ namespace text_survival
                 foreach (Armor armor in Armor)
                 {
                     rating += armor.Rating;
-                    if (armor.Type == ArmorClass.Light)
-                        rating += Skills.LightArmor.Level * .01;
-                    else if (armor.Type == ArmorClass.Heavy)
-                        rating += Skills.HeavyArmor.Level * .01;
+                    rating += armor.Type switch
+                    {
+                        ArmorClass.Light => Skills.LightArmor.Level * .01,
+                        ArmorClass.Heavy => Skills.HeavyArmor.Level * .01,
+                        _ => throw new ArgumentOutOfRangeException()
+                    };
                 }
                 return rating;
             }
@@ -111,7 +113,7 @@ namespace text_survival
             CurrentArea = area;
             this.Enter(area);
             // events
-            EventAggregator.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
+            EventHandler.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
         }
 
 
@@ -247,7 +249,6 @@ namespace text_survival
                 Weapon.Damage, Attributes.Strength, defender.ArmorRating, skillBonus, exhaustionModifier);
             return damage;
         }
-
         public double DetermineHitChance(ICombatant attacker)
         {
             return 1;
@@ -261,46 +262,51 @@ namespace text_survival
                 attacker.Attributes.Speed,
                 Attributes.Luck,
                 Skills.Dodge.Level);
-
         }
-
-
 
         public void Attack(ICombatant target)
         {
-            // base damage - defense percentage
+            // determine damage
             double damage = DetermineDamage(target);
-            double hitChance = DetermineHitChance(target);
-            double dodgeChance = target.DetermineDodgeChance(this);
-            int roll = Utils.RandInt(0, 100);
-            if (roll > hitChance * 100)
-            {
-                Utils.WriteLine(this, " missed ", target, "!");
-                return;
-            }
-            if (roll > (1 - dodgeChance) * 100)
-            {
-                Utils.Write(target, " dodged the attack!\n");
-                return;
-            }
+
+            // check for dodge and miss
+            if (Combat.DetermineDodge(this, target)) return; // if target dodges
+            if (!Combat.DetermineHit(this, target)) return; // if attacker misses
+
+            // apply damage
             Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
             target.Damage(damage);
+
+            // apply xp
+            HandleAttackXpGain();
+            Thread.Sleep(1000);
+        }
+
+        private void HandleAttackXpGain()
+        {
             switch (Weapon.WeaponClass)
             {
                 case WeaponClass.Blade:
-                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Blade));
+                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Blade));
                     break;
                 case WeaponClass.Blunt:
-                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Blunt));
+                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Blunt));
                     break;
                 case WeaponClass.Unarmed:
-                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Unarmed));
+                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Unarmed));
                     break;
                 default:
                     Utils.WriteDanger("Unknown weapon type.");
                     break;
             }
-            Thread.Sleep(1000);
+        }
+
+        public void HandleArmorXpGain()
+        {
+            if (Armor.Any(a => a.Type == ArmorClass.Light))
+                EventHandler.Publish(new GainExperienceEvent(1, SkillType.LightArmor));
+            if (Armor.Any(a => a.Type == ArmorClass.Heavy))
+                EventHandler.Publish(new GainExperienceEvent(1, SkillType.HeavyArmor));
         }
 
         public void Damage(double damage)
@@ -353,7 +359,7 @@ namespace text_survival
             LevelUp();
         }
 
-        public void LevelUp()
+        private void LevelUp()
         {
             Level++;
             MaxHealth += Attributes.Endurance / 10;
@@ -371,17 +377,6 @@ namespace text_survival
         }
 
         // UPDATE //
-
-        //public void Update(int minutes)
-        //{
-        //    World.Update(minutes);
-
-        //    for (int i = 0; i < minutes; i++)
-        //    {
-        //        Update();
-        //    }
-        //    Temperature.Update(minutes);
-        //}
 
         public void Update()
         {

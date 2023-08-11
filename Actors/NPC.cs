@@ -7,15 +7,15 @@ namespace text_survival.Actors
     {
         public string Name { get; set; }
         public string Description { get; set; }
-        public double Health { get; set; }
-        public double MaxHealth { get; set; }
-        public double UnarmedDamage { get; set; }
-        public double ArmorRating { get; set; }
-        public bool IsHostile { get; set; }
-        public List<Item> Loot { get; set; }
+        public double Health { get; private set; }
+        public double MaxHealth { get; private set; }
+        public double UnarmedDamage { get; protected set; }
+        public double ArmorRating { get; private set; }
+        public bool IsHostile { get; private set; }
+        private List<Item> Loot { get; }
         public bool IsAlive => Health > 0;
-        public Attributes Attributes { get; set; }
-        public List<Buff> Buffs { get; set; }
+        public Attributes Attributes { get; }
+        private List<Buff> Buffs { get; }
 
         public Npc(string name, Attributes? attributes = null)
         {
@@ -72,24 +72,14 @@ namespace text_survival.Actors
         {
             // do calculations
             double damage = DetermineDamage(target);
-            double hitChance = DetermineHitChance(target);
-            double dodgeChance = target.DetermineDodgeChance(this);
 
-            // roll and determine miss or dodge
-            int roll = Utils.RandInt(0, 100);
-            if (roll > hitChance * 100)
+            // check for dodge and miss
+            if (Combat.DetermineDodge(this, target))
             {
-                Utils.WriteLine(this, " missed ", target, "!");
+                EventHandler.Publish(new GainExperienceEvent(1, SkillType.Dodge));
                 return;
             }
-            if (roll > (1 - dodgeChance) * 100)
-            {
-                Utils.Write(target, " dodged the attack!\n");
-                // gain experience
-                if (target is Player)
-                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.Dodge));
-                return;
-            }
+            if (!Combat.DetermineHit(this, target)) return;
 
             // apply damage
             Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
@@ -98,22 +88,16 @@ namespace text_survival.Actors
             // gain experience
             if (target is Player player)
             {
-                if (player.Armor.Any(a => a.Type == ArmorClass.Light))
-                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.LightArmor));
-                if (player.Armor.Any(a => a.Type == ArmorClass.Heavy))
-                    EventAggregator.Publish(new GainExperienceEvent(1, SkillType.HeavyArmor));
+                player.HandleArmorXpGain();
             }
             Thread.Sleep(1000);
         }
 
 
+
         public override string ToString()
         {
             return Name;
-        }
-        public void Write()
-        {
-            Utils.Write(this);
         }
 
         public void Damage(double damage)
@@ -121,7 +105,7 @@ namespace text_survival.Actors
             Health -= damage;
             if (Health < 0)
             {
-                EventAggregator.Publish(new EnemyDefeatedEvent(this));
+                EventHandler.Publish(new EnemyDefeatedEvent(this));
             }
         }
 
@@ -135,6 +119,24 @@ namespace text_survival.Actors
         {
             buff.RemoveEffect?.Invoke(this);
             Buffs.Remove(buff);
+        }
+
+        public Item? DropItem()
+        {
+            if (Loot.Count == 0)
+                return null;
+            Item item = Loot[Utils.RandInt(0, Loot.Count - 1)];
+            Loot.Remove(item);
+            return item;
+        }
+
+        public void AddLoot(Item item)
+        {
+            Loot.Add(item);
+        }
+        public void AddLoot(List<Item> items)
+        {
+            Loot.AddRange(items);
         }
 
     }

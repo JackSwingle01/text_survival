@@ -29,8 +29,8 @@ namespace text_survival.Environments
             BaseTemperature = 70;
             Items = new List<Item>();
             Npcs = new List<Npc>();
-            EventAggregator.Subscribe<ItemTakenEvent>(OnItemTaken);
-            EventAggregator.Subscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
+            EventHandler.Subscribe<ItemTakenEvent>(OnItemTaken);
+            EventHandler.Subscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
             NearbyAreas = new List<Area>();
         }
         public double GetTemperature()
