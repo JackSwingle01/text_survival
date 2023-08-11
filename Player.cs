@@ -133,7 +133,9 @@ namespace text_survival
             if (HungerModule.Amount - food.Calories < 0)
             {
                 Utils.Write("You are too full to finish it.\n");
-                food.Calories -= (int)(0 - HungerModule.Amount);
+                int percentageEaten = (int)(HungerModule.Amount / food.Calories) * 100;
+                food.Calories *= (100-percentageEaten);
+                food.WaterContent *= (100-percentageEaten);
                 HungerModule.Amount = 0;
                 return;
             }
