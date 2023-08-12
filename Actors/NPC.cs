@@ -68,6 +68,17 @@ namespace text_survival.Actors
                 Attributes.Luck);
         }
 
+        public double DetermineBlockChance(ICombatant attacker)
+        {
+            double weaponBlock = 0;
+            if (this is Humanoid humanoid)
+            {
+                weaponBlock = humanoid.Weapon.BlockChance;
+            }
+            double block = (weaponBlock * 100 + (Attributes.Luck + Attributes.Agility + Attributes.Strength) / 6) / 2;
+            return block / 100;
+        }
+
         public void Attack(ICombatant target)
         {
             // do calculations
@@ -80,7 +91,11 @@ namespace text_survival.Actors
                 return;
             }
             if (!Combat.DetermineHit(this, target)) return;
-
+            if (Combat.DetermineBlock(this, target))
+            {
+               EventHandler.Publish(new GainExperienceEvent(1, SkillType.Block));
+               return;
+            }
             // apply damage
             Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
             target.Damage(damage);

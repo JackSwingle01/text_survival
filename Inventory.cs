@@ -13,7 +13,7 @@ namespace text_survival
             while (true)
             {
                 Utils.WriteLine(this, " (", GetWeight(), "/", MaxWeight, "):");
-                int index = Utils.GetSelectionFromList(Items, true) - 1;
+                int index = Utils.GetSelectionFromList(Items, true, "Close") - 1;
                 if (index == -1) return;
                 Item item = GetItem(index);
                 Utils.WriteLine("What would you like to do with ", item);
@@ -29,8 +29,7 @@ namespace text_survival
                         Examine.ExamineItem(item);
                         break;
                     case 3:
-                        this.Remove(item);
-                        player.CurrentArea.Items.Add(item);
+                        player.DropItem(item);
                         break;
                 }
             }

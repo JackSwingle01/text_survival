@@ -131,7 +131,7 @@ namespace text_survival
         public static bool DetermineDodge(ICombatant attacker, ICombatant defender)
         {
             double dodgeChance = defender.DetermineDodgeChance(attacker);
-            double dodgeRoll = Utils.RandDouble(0, 1);
+            double dodgeRoll = Utils.RandDouble(0, 100);
             if (dodgeRoll <= dodgeChance)
             {
                 Utils.WriteLine(defender.Name + " dodged the attack!");
@@ -142,14 +142,26 @@ namespace text_survival
 
         public static bool DetermineHit(ICombatant attacker, ICombatant defender)
         {
-            double hitChance = attacker.DetermineHitChance(defender);
-            int roll = Utils.RandInt(0, 100);
-            if (roll > hitChance * 100)
+            double hitChance = attacker.DetermineHitChance(defender); // 0-1
+            double roll = Utils.RandDouble(0, 1);
+            if (roll > hitChance)
             {
                 Utils.WriteLine(attacker, " missed ", defender, "!");
                 return false;
             }
             return true;
+        }
+
+        public static bool DetermineBlock(ICombatant attacker, ICombatant defender)
+        {
+            double blockChance = defender.DetermineBlockChance(attacker);
+            double roll = Utils.RandDouble(0, 1);
+            if (roll < blockChance)
+            {
+                Utils.WriteLine(defender, " blocked ", attacker, "'s attack!");
+                return true;
+            }
+            return false;
         }
     }
 }

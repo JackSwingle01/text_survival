@@ -245,15 +245,29 @@ namespace text_survival
         {
             Inventory.Add(item);
         }
+
+        /// <summary>
+        /// Simply removes the item, use DropItem() if you want to drop it.
+        /// </summary>
+        /// <param name="item"></param>
         public void RemoveFromInventory(Item item)
         {
             Inventory.Remove(item);
-            CurrentArea.Items.Add(item);
         }
 
         public void OpenInventory()
         {
             Inventory.Open(this);
+        }
+
+        /// <summary>
+        /// Removes an item from the player's inventory and adds it to the area's items
+        /// </summary>
+        /// <param name="item"></param>
+        public void DropItem(Item item)
+        {
+            Inventory.Remove(item);
+            CurrentArea.Items.Add(item);
         }
 
         // COMBAT //
@@ -278,9 +292,14 @@ namespace text_survival
             return damage;
         }
 
+        /// <summary>
+        /// Hit chance from 0-1
+        /// </summary>
+        /// <param name="attacker"></param>
+        /// <returns></returns>
         public double DetermineHitChance(ICombatant attacker)
         {
-            return 1;
+            return Weapon.Accuracy;
         }
 
         public double DetermineDodgeChance(ICombatant attacker)
@@ -293,6 +312,12 @@ namespace text_survival
                 Skills.Dodge.Level);
         }
 
+        public double DetermineBlockChance(ICombatant attacker)
+        {
+            double block = (Weapon.BlockChance * 100 + (Attributes.Luck + Attributes.Agility + Attributes.Strength) / 6) / 2  + Skills.Block.Level;
+            return block / 100;
+        }
+
         public void Attack(ICombatant target)
         {
             // determine damage
@@ -301,7 +326,7 @@ namespace text_survival
             // check for dodge and miss
             if (Combat.DetermineDodge(this, target)) return; // if target dodges
             if (!Combat.DetermineHit(this, target)) return; // if attacker misses
-
+            if (Combat.DetermineBlock(this, target)) return; // if target blocks
             // apply damage
             Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
             target.Damage(damage);

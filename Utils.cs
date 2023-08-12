@@ -49,7 +49,7 @@ namespace text_survival
             }
         }
 
-        public static int GetSelectionFromList<T>(List<T> list, bool cancelOption = false)
+        public static int GetSelectionFromList<T>(List<T> list, bool cancelOption = false, string cancelMessage = "Cancel")
         {
             list.ForEach(i =>
             {
@@ -58,7 +58,7 @@ namespace text_survival
             int input;
             if (cancelOption)
             {
-                Utils.WriteLine(0, ". Cancel");
+                Utils.WriteLine(0, ". ", cancelMessage);
                 input = Utils.ReadInt(0, list.Count);
             }
             else
