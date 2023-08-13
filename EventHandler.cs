@@ -15,15 +15,15 @@ namespace text_survival
         }
     }
 
-    public class ItemTakenEvent : EventBase
-    {
-        public Item TakenItem { get; set; }
-        public ItemTakenEvent(Item item)
-        {
-            TakenItem = item;
-        }
+    //public class ItemTakenEvent : EventBase
+    //{
+    //    public Item TakenItem { get; set; }
+    //    public ItemTakenEvent(Item item)
+    //    {
+    //        TakenItem = item;
+    //    }
 
-    }
+    //}
 
     public class SkillLevelUpEvent : EventBase
     {

@@ -9,7 +9,7 @@ namespace text_survival
     public enum ActionType
     {
         Fight,
-        PickUpItem,
+        Interact,
         OpenInventory,
         Travel,
         Sleep,
@@ -39,7 +39,7 @@ namespace text_survival
                 { ActionType.Sleep, Sleep },
                 { ActionType.CheckGear, CheckGear },
                 { ActionType.Quit, Quit },
-                { ActionType.PickUpItem , PickUpItem },
+                { ActionType.Interact , PickUpItem },
                 { ActionType.LookAround, LookAround },
                 { ActionType.CheckStats, CheckStats },
                 { ActionType.LevelUp, LevelUp },
@@ -66,9 +66,9 @@ namespace text_survival
             {
                 AvailableActions.Add(ActionType.Fight);
             }
-            if (_player.CurrentArea.Items.Count > 0)
+            if (_player.CurrentArea.Things.Count > 0)
             {
-                AvailableActions.Add(ActionType.PickUpItem);
+                AvailableActions.Add(ActionType.Interact);
             }
             if (_player.InventoryCount > 0)
                 AvailableActions.Add(ActionType.OpenInventory);
@@ -175,24 +175,23 @@ namespace text_survival
                     return;
                 }
             }
-            var items = _player.CurrentArea.Items;
-            Item item = items.First();
-            if (items.Count > 1)
+            var things = _player.CurrentArea.Things;
+            IInteractable thing = things.First();
+            if (things.Count > 1)
             {
-                Utils.WriteLine("Which item would you like to pick up?");
-                int input = Utils.GetSelectionFromList(items, cancelOption: true);
+                Utils.WriteLine("Which thing would you like to check out?");
+                int input = Utils.GetSelectionFromList(things, cancelOption: true);
                 if (input == 0)
                     return;
-                item = items[input - 1];
+                thing = things[input - 1];
 
             }
-            _player.AddToInventory(item);
+            thing.Interact(_player);
         }
 
         private void OpenInventory()
         {
             _player.OpenInventory();
-
         }
 
         private void Travel()
@@ -241,16 +240,16 @@ namespace text_survival
             Utils.WriteLine("You take in your surroundings");
             Utils.WriteLine("You're in a ", _player.CurrentArea, ", ", _player.CurrentArea.Description);
             Utils.WriteLine("Its ", World.GetTimeOfDay(), " and ", _player.CurrentArea.GetTemperature(), " degrees.");
-            if (_player.CurrentArea.Npcs.Count == 0 && _player.CurrentArea.Items.Count == 0)
+            if (_player.CurrentArea.Npcs.Count == 0 && _player.CurrentArea.Things.Count == 0)
             {
                 Utils.WriteLine("You see nothing of interest, time to move on.");
                 return;
             }
 
             Utils.WriteLine("You see the following things:");
-            foreach (var item in _player.CurrentArea.Items)
+            foreach (var thing in _player.CurrentArea.Things)
             {
-                Utils.WriteLine(item);
+                Utils.WriteLine(thing);
             }
             foreach (var npc in _player.CurrentArea.Npcs)
             {

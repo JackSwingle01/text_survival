@@ -23,7 +23,7 @@ C# console app text based survival rpg game.
 - Ability to drop items. (Done)
 - Show stats of weapons in inventory (Done)
 - Add consumable item class
-- Add block calculations to combat 
+- Add block calculations to combat (done)
 - Add shops
 - Revamp armor (light/heavy, material, random generation)
 - Add win condition upon defeating dragon
@@ -35,8 +35,11 @@ C# console app text based survival rpg game.
 - Add buffs/debuffs on item use / attack 
 - Add ability to use items in combat
 - Add ability to target npcs with items (replace Player with ICombatant on Item.UseEffect?)
-- Add spells / magic system
+- Add spells / magic system (done)
+- Flesh out magic system (skills, attribue effects)
 - Overhaul enemy loot system
 - Add body part damage based combat system
 - Replace HP with a combo of body part damage and blood loss
-
+- Add sub locations to areas
+- add non hosstile npcs
+- Add ai dialogue to npcs

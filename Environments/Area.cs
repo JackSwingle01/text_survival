@@ -7,7 +7,7 @@ namespace text_survival.Environments
     {
         public string Name { get; set; }
         public string Description { get; set; }
-        public List<Item> Items { get; private set; }
+        public List<IInteractable> Things { get; private set; }
         public List<Npc> Npcs { get; private set; }
         public double BaseTemperature { get; private set; }
         public bool IsShelter { get; set; }
@@ -28,9 +28,9 @@ namespace text_survival.Environments
             Name = name;
             Description = description;
             BaseTemperature = baseTemp;
-            Items = new List<Item>();
+            Things = new List<IInteractable>();
             Npcs = new List<Npc>();
-            EventHandler.Subscribe<ItemTakenEvent>(OnItemTaken);
+            //EventHandler.Subscribe<ItemTakenEvent>(OnItemTaken);
             EventHandler.Subscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
             NearbyAreas = new List<Area>();
             Locations = new List<Location>();
@@ -80,17 +80,22 @@ namespace text_survival.Environments
             }
         }
 
+        public void PutThing(IInteractable thing)
+        {
+            Things.Add(thing);
+        }
+
         private void OnEnemyDefeated(EnemyDefeatedEvent e)
         {
             if (!Npcs.Contains(e.DefeatedEnemy)) return;
             this.Npcs.Remove(e.DefeatedEnemy);
         }
 
-        private void OnItemTaken(ItemTakenEvent e)
-        {
-            if (!Items.Contains(e.TakenItem)) return;
-            this.Items.Remove(e.TakenItem);
-        }
+        //private void OnItemTaken(ItemTakenEvent e)
+        //{
+        //    if (!Things.Contains(e.TakenItem)) return;
+        //    this.Things.Remove(e.TakenItem);
+        //}
 
     }
 }

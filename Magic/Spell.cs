@@ -4,16 +4,23 @@ namespace text_survival.Magic
 {
     public class Spell
     {
-        public string Name { get; set; }
-        //public string Description { get; set; }
-        public double PsychCost { get; set; }
-        private Buff EffectBuff { get; set; }
-
-        public Spell(string Name, double psychCost, Buff effectBuff)
+        public enum SpellFamily
         {
-            this.Name = Name;
+            Destruction,
+            Restoration,
+        }
+        public string Name { get; private set; }
+        //public string Description { get; set; }
+        public double PsychCost { get; private set; }
+        private Buff EffectBuff { get; }
+        public SpellFamily Family { get; }
+
+        public Spell(string name, double psychCost, Buff effectBuff, SpellFamily family)
+        {
+            this.Name = name;
             PsychCost = psychCost;
             EffectBuff = effectBuff;
+            Family = family;
         }
 
         public void Cast(IBuffable target)

@@ -1,4 +1,6 @@
-﻿namespace text_survival.Items
+﻿using text_survival.Environments;
+
+namespace text_survival.Items
 {
     //public interface IItem
     //{
@@ -11,7 +13,7 @@
     //    void Use(Player player);
     //}
 
-    public class Item
+    public class Item : IInteractable
     {
         public string Name { get; set; }
         public double Weight { get; set; } // in kg
@@ -41,6 +43,11 @@
             Thread.Sleep(1000);
             UseEffect?.Invoke(player);
             World.Update(1);
+        }
+
+        public void Interact(Player player)
+        {
+            player.TakeItem(this);
         }
 
     }

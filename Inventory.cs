@@ -12,7 +12,7 @@ namespace text_survival
         {
             while (true)
             {
-                Utils.WriteLine(this, " (", GetWeight(), "/", MaxWeight, "):");
+                Utils.WriteLine(this, " (", Weight(), "/", MaxWeight, "):");
                 int index = Utils.GetSelectionFromList(Items, true, "Close") - 1;
                 if (index == -1) return;
                 Item item = GetItem(index);

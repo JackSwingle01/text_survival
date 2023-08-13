@@ -9,7 +9,9 @@
         HeavyArmor,
         LightArmor,
         Athletics,
-        Dodge
+        Dodge,
+        Destruction,
+        Restoration,
     }
     public class Skills
     {
@@ -23,6 +25,9 @@
         public Skill LightArmor { get; set; }
         public Skill Athletics { get; set; }
         public Skill Dodge { get; set; }
+        public Skill Destruction { get; set; }
+        public Skill Restoration { get; set; }
+
 
         // todo: add Armorer, Sneak, Security, Acrobatics, Marksman, Mercantile, Speech, Alchemy, Conjuration, Destruction, Illusion, Mysticism, Restoration, Alteration, Enchant
 
@@ -37,6 +42,9 @@
             LightArmor = new Skill(SkillType.LightArmor);
             Athletics = new Skill(SkillType.Athletics);
             Dodge = new Skill(SkillType.Dodge);
+            Destruction = new Skill(SkillType.Destruction);
+            Restoration = new Skill(SkillType.Restoration);
+
             All.Add(Blade);
             All.Add(Blunt);
             All.Add(Unarmed);
@@ -45,6 +53,8 @@
             All.Add(LightArmor);
             All.Add(Athletics);
             All.Add(Dodge);
+            All.Add(Destruction);
+            All.Add(Restoration);
 
             EventHandler.Subscribe<GainExperienceEvent>(OnGainedExperience);
         }
@@ -77,7 +87,12 @@
                 case SkillType.Dodge:
                     Dodge.GainExperience(e.Experience);
                     break;
-
+                case SkillType.Destruction:
+                    Destruction.GainExperience(e.Experience);
+                    break;
+                case SkillType.Restoration:
+                    Restoration.GainExperience(e.Experience);
+                    break;
                 default:
                     Utils.WriteWarning("Invalid experience gain type");
                     break;

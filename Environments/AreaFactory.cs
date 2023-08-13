@@ -293,13 +293,13 @@ namespace text_survival.Environments
 
         public static Area GenerateArea(EnvironmentType type, int numItems = 1, int numNpcs = 1)
         {
-            Area area = new(GetRandomAreaName((type)), "A " + type, GetAreaBaseTemperature(type));
+            Area area = new(GetRandomAreaName((type)), "", GetAreaBaseTemperature(type));
             ItemPool itemPool = CreateItemPool(type);
             NpcPool npcPool = CreateNpcPool(type);
             area.IsShelter = IsEnvironmentShelter(type);
             for (int i = 0; i < numItems; i++)
             {
-                area.Items.Add(itemPool.GenerateRandomItem());
+                area.PutThing(itemPool.GenerateRandomItem());
             }
             for (int i = 0; i < numNpcs; i++)
             {

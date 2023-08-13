@@ -14,7 +14,13 @@ namespace text_survival
         static World()
         {
             Area startingArea = new Area("Clearing", "A small clearing in the forest.");
-            startingArea.Items.Add(new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, "Old dagger", 40));
+            Container oldBag = new Container("Old bag", 10);
+            oldBag.Add(ItemFactory.MakeApple());
+            oldBag.Add(ItemFactory.MakeClothShirt());
+            oldBag.Add(ItemFactory.MakeClothPants());
+            oldBag.Add(ItemFactory.MakeBoots());
+            oldBag.Add(new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, "Old dagger", 40));
+            startingArea.PutThing(oldBag);
             Player = new Player(startingArea);
             Time = new TimeOnly(hour: 9, minute: 0);
         }

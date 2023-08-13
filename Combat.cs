@@ -24,9 +24,9 @@ namespace text_survival
                 World.Update(1);
             }
 
-            if (player.Health <= 0) 
+            if (player.Health <= 0)
                 Utils.WriteDanger("You died!");
-            
+
             else if (enemy.Health <= 0)
             {
                 Utils.WriteLine("You killed ", enemy, "!");
@@ -39,13 +39,13 @@ namespace text_survival
             Utils.WriteLine("What do you want to do?");
             List<string> options = new();
             options.Add("Attack");
-            options.Add("Cast Spell"); 
+            options.Add("Cast Spell");
             //options.Add("Run away");
             int choice = Utils.GetSelectionFromList(options);
             if (choice == 1)
             {
                 player.Attack(enemy);
-                
+
             }
             else if (choice == 2)
             {
@@ -72,11 +72,11 @@ namespace text_survival
             int choice = Utils.ReadInt(1, 2);
             if (choice == 1)
             {
-                player.AddToInventory(loot);
+                player.TakeItem(loot);
             }
             else
             {
-                player.CurrentArea.Items.Add(loot);
+                player.CurrentArea.Things.Add(loot);
                 Utils.Write("You left the ", loot, " on the ground.\n");
             }
         }

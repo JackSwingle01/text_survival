@@ -1,5 +1,4 @@
-﻿using System.Formats.Tar;
-using text_survival.Actors;
+﻿using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Items;
 using text_survival.Level;
@@ -120,14 +119,11 @@ namespace text_survival
             ExhaustionModule = new ExhaustionModule(this);
             TemperatureModule = new TemperatureModule(this);
             // starting items
-            Equip(ItemFactory.MakeClothShirt());
-            Equip(ItemFactory.MakeClothPants());
-            Equip(ItemFactory.MakeBoots());
             _unarmed = ItemFactory.MakeFists();
             // starting spells
             Spells.Add(SpellFactory.Bleeding);
             Spells.Add(SpellFactory.Poison);
-            Spells.Add(SpellFactory.MinorHeal);  
+            Spells.Add(SpellFactory.MinorHeal);
             // starting area
             CurrentArea = area;
             Enter(area);
@@ -197,9 +193,9 @@ namespace text_survival
                     }
                 default:
                     Utils.WriteLine("You can't equip that.");
-                    break;
+                    return;
             }
-
+            Utils.WriteLine("You equip the ", item);
             item.OnEquip(this);
         }
 
@@ -223,8 +219,12 @@ namespace text_survival
                     break;
                 default:
                     Utils.WriteLine("You can't unequip that.");
-                    break;
+                    return;
             }
+
+            if (item != _unarmed) 
+                Utils.WriteLine("You unequip ", item);
+
             item.OnUnequip(this);
         }
 
@@ -277,7 +277,25 @@ namespace text_survival
         public void DropItem(Item item)
         {
             Inventory.Remove(item);
-            CurrentArea.Items.Add(item);
+            CurrentArea.PutThing(item);
+        }
+
+        public void TakeItem(Item item)
+        {
+            // recursively search 
+            if (CurrentArea.Things.Contains(item))
+                CurrentArea.Things.Remove(item);
+            else
+            {
+                foreach (var thing in CurrentArea.Things)
+                    if (thing is Container container)
+                        if (container.Contains(item))
+                        {
+                            container.Remove(item);
+                            break;
+                        }
+            }
+            AddToInventory(item);
         }
 
         // COMBAT //
@@ -345,7 +363,7 @@ namespace text_survival
             HandleAttackXpGain();
             Thread.Sleep(1000);
         }
-        
+
         // Spell //
 
         public void SelectSpell()
@@ -369,7 +387,7 @@ namespace text_survival
             else if (target == 1) CastSpell(Spells[spell - 1], this);
             else
                 CastSpell(Spells[spell - 1], CurrentArea.Npcs[target - 2]);
-        
+
         }
 
         public void CastSpell(Spell spell, ICombatant target)
@@ -381,6 +399,7 @@ namespace text_survival
             }
             Psych -= spell.PsychCost;
             spell.Cast(target);
+            HandleSpellXpGain(spell);
         }
 
         // Effects //
@@ -480,6 +499,21 @@ namespace text_survival
                 EventHandler.Publish(new GainExperienceEvent(1, SkillType.LightArmor));
             if (Armor.Any(a => a.Type == ArmorClass.Heavy))
                 EventHandler.Publish(new GainExperienceEvent(1, SkillType.HeavyArmor));
+        }
+
+        private static void HandleSpellXpGain(Spell spell)
+        {
+            switch (spell.Family)
+            {
+                case Spell.SpellFamily.Destruction:
+                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Destruction));
+                    break;
+                case Spell.SpellFamily.Restoration:
+                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Restoration));
+                    break;
+                default:
+                    break;
+            }
         }
 
         private void OnSkillLeveledUp(SkillLevelUpEvent e)

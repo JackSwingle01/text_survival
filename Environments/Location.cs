@@ -1,5 +1,4 @@
-﻿using System.Transactions;
-using text_survival.Actors;
+﻿using text_survival.Actors;
 using text_survival.Items;
 
 namespace text_survival.Environments;
@@ -17,8 +16,8 @@ public class Location
         Npcs = new List<Npc>();
     }
 
-//    public void Enter(Player player)
-//    {
-//        // Existing logic...
-//    }
+    //    public void Enter(Player player)
+    //    {
+    //        // Existing logic...
+    //    }
 }

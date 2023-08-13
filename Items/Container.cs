@@ -1,10 +1,13 @@
-﻿namespace text_survival.Items
+﻿using text_survival.Environments;
+
+namespace text_survival.Items
 {
-    public class Container
+    public class Container : IInteractable
     {
+        public string Name { get; set; }
+        public double Weight() => Items.Sum(item => item.Weight);
         public float MaxWeight { get; set; }
         protected List<Item> Items { get; set; }
-        public string Name { get; set; }
 
         public Container(string name, float maxWeight)
         {
@@ -16,6 +19,12 @@
         public Item GetItem(int index)
         {
             return Items[index];
+        }
+
+        public void Interact(Player player)
+        {
+            Utils.WriteLine("You open the ", this);
+            Open(player);
         }
 
         public virtual void Open(Player player)
@@ -33,20 +42,18 @@
                     case 0:
                         continue;
                     case 1:
-                        player.AddToInventory(item);
+                        player.TakeItem(item);
                         break;
                     case 2:
                         Examine.ExamineItem(item);
                         break;
                     case 3:
+                        this.Remove(item);
                         item.UseEffect.Invoke(player);
                         break;
                 }
             }
         }
-
-
-
 
         public override string ToString()
         {
@@ -55,14 +62,13 @@
 
         public void Add(Item item)
         {
-            if (item.Weight + GetWeight() > MaxWeight)
+            if (item.Weight + Weight() > MaxWeight)
             {
                 Utils.Write("The ", this, "is full!\n");
                 return;
             }
             Items.Add(item);
-            EventHandler.Publish(new ItemTakenEvent(item));
-            Utils.WriteLine("You put the ", item, " in your ", this);
+            //EventHandler.Publish(new ItemTakenEvent(item));
         }
 
         public void Remove(Item item)
@@ -70,16 +76,16 @@
             Items.Remove(item);
         }
 
-        public double GetWeight()
-        {
-            return Items.Sum(item => item.Weight);
-        }
 
         public int Count()
         {
             return Items.Count;
         }
 
+        public bool Contains(Item item)
+        {
+            return Items.Contains(item);
+        }
 
     }
 }
