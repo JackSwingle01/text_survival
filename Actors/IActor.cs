@@ -10,5 +10,6 @@ namespace text_survival.Actors
         public double MaxHealth { get; }
         public void Update();
         public void Damage(double damage);
+        public void Heal(double heal);
     }
 }

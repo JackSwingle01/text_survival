@@ -1,12 +1,14 @@
-﻿using text_survival.Actors;
+﻿using System.Formats.Tar;
+using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Items;
 using text_survival.Level;
+using text_survival.Magic;
 using text_survival.Survival;
 
 namespace text_survival
 {
-    public class Player : ICombatant
+    public class Player : ICombatant, ISpellCaster
     {
         public string Name { get; set; }
         // Health and Energy
@@ -37,7 +39,7 @@ namespace text_survival
         public double WarmthBonus { get; private set; }
 
         // area
-        public Area CurrentArea { get; private set; }
+        public Area CurrentArea { get; private set; } = null!;
 
         // inventory
         private Inventory Inventory { get; }
@@ -85,6 +87,9 @@ namespace text_survival
             }
         }
 
+        // spells
+        public List<Spell> Spells { get; }
+
         // CONSTRUCTOR //
 
         public Player(Area area)
@@ -105,6 +110,7 @@ namespace text_survival
             // lists
             Buffs = new List<Buff>();
             Armor = new List<Armor>();
+            Spells = new List<Spell>();
             // objects
             Attributes = new Attributes();
             Skills = new Skills();
@@ -118,9 +124,13 @@ namespace text_survival
             Equip(ItemFactory.MakeClothPants());
             Equip(ItemFactory.MakeBoots());
             _unarmed = ItemFactory.MakeFists();
+            // starting spells
+            Spells.Add(SpellFactory.Bleeding);
+            Spells.Add(SpellFactory.Poison);
+            Spells.Add(SpellFactory.MinorHeal);  
             // starting area
             CurrentArea = area;
-            this.Enter(area);
+            Enter(area);
             // events
             EventHandler.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
         }
@@ -134,8 +144,8 @@ namespace text_survival
             {
                 Utils.Write("You are too full to finish it.\n");
                 int percentageEaten = (int)(HungerModule.Amount / food.Calories) * 100;
-                food.Calories *= (100-percentageEaten);
-                food.WaterContent *= (100-percentageEaten);
+                food.Calories *= (100 - percentageEaten);
+                food.WaterContent *= (100 - percentageEaten);
                 HungerModule.Amount = 0;
                 return;
             }
@@ -222,7 +232,7 @@ namespace text_survival
         {
             Examine.ExamineGear(this);
             Utils.WriteLine("Would you like to unequip an item?");
-            int choice = Utils.GetSelectionFromList(new List<string>{"Yes", "No"});
+            int choice = Utils.GetSelectionFromList(new List<string> { "Yes", "No" });
             if (choice != 1) return;
 
             Utils.WriteLine("Which item would you like to unequip?");
@@ -314,7 +324,7 @@ namespace text_survival
 
         public double DetermineBlockChance(ICombatant attacker)
         {
-            double block = (Weapon.BlockChance * 100 + (Attributes.Luck + Attributes.Agility + Attributes.Strength) / 6) / 2  + Skills.Block.Level;
+            double block = (Weapon.BlockChance * 100 + (Attributes.Luck + Attributes.Agility + Attributes.Strength) / 6) / 2 + Skills.Block.Level;
             return block / 100;
         }
 
@@ -335,6 +345,43 @@ namespace text_survival
             HandleAttackXpGain();
             Thread.Sleep(1000);
         }
+        
+        // Spell //
+
+        public void SelectSpell()
+        {
+            //get spell
+            Utils.WriteLine("Which spell would you like to cast?");
+            var spellNames = new List<string>();
+            Spells.ForEach(spell => spellNames.Add(spell.Name));
+            var spell = Utils.GetSelectionFromList(spellNames, true);
+            if (spell == 0) return;
+
+            // get target
+            Utils.WriteLine("Who would you like to cast ", Spells[spell - 1].Name, " on?");
+            var targets = new List<string>();
+            targets.Add("Yourself");
+            CurrentArea.Npcs.ForEach(npc => targets.Add(npc.Name));
+            var target = Utils.GetSelectionFromList(targets, true);
+            if (target == 0) return;
+
+            // cast spell
+            else if (target == 1) CastSpell(Spells[spell - 1], this);
+            else
+                CastSpell(Spells[spell - 1], CurrentArea.Npcs[target - 2]);
+        
+        }
+
+        public void CastSpell(Spell spell, ICombatant target)
+        {
+            if (Psych < spell.PsychCost)
+            {
+                Utils.WriteLine("You don't have enough psychic energy to cast that spell!");
+                return;
+            }
+            Psych -= spell.PsychCost;
+            spell.Cast(target);
+        }
 
         // Effects //
 
@@ -348,7 +395,7 @@ namespace text_survival
             Environment.Exit(0);
         }
 
-        public void Heal(float heal)
+        public void Heal(double heal)
         {
             Health += heal;
             if (Health > MaxHealth)
@@ -444,7 +491,8 @@ namespace text_survival
 
         public void Update()
         {
-            foreach (var buff in Buffs)
+            var buffs = new List<Buff>(Buffs);
+            foreach (var buff in buffs)
             {
                 buff.Tick(this);
             }
@@ -456,15 +504,15 @@ namespace text_survival
 
         // Area //
 
-        public void Enter(Area area)
+        public void Enter(Area newArea)
         {
-            Utils.WriteLine("You enter ", area);
-            Utils.WriteLine(area.Description);
-            if (!area.NearbyAreas.Contains(this.CurrentArea))
-                this.CurrentArea.NearbyAreas.Add(this.CurrentArea);
-            this.CurrentArea = area;
-            if (!area.Visited) area.GenerateNearbyAreas();
-            area.Visited = true;
+            Utils.WriteLine("You enter ", newArea);
+            Utils.WriteLine(newArea.Description);
+            if (!newArea.NearbyAreas.Contains(CurrentArea) && CurrentArea != newArea)
+                newArea.NearbyAreas.Add(this.CurrentArea);
+            CurrentArea = newArea;
+            if (!newArea.Visited) newArea.GenerateNearbyAreas();
+            newArea.Visited = true;
             Utils.WriteLine("You should probably look around.");
         }
 

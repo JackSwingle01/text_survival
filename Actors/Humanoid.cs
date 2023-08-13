@@ -11,7 +11,7 @@ namespace text_survival.Actors
 
         public Humanoid(string name, Weapon? weapon = null, Armor? armor = null, Attributes? attributes = null) : base(name, attributes)
         {
-            Weapon = weapon ?? new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, quality:Utils.RandInt(1,100));
+            Weapon = weapon ?? new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, quality: Utils.RandInt(1, 100));
             Armor = armor ?? new Armor("Leather Outfit", .2, EquipSpots.Chest, 4);
         }
 

@@ -7,12 +7,13 @@ namespace text_survival.Environments
     {
         public string Name { get; set; }
         public string Description { get; set; }
-        public List<Item> Items { get; set; }
-        public List<Npc> Npcs { get; set; }
-        public double BaseTemperature { get; set; }
+        public List<Item> Items { get; private set; }
+        public List<Npc> Npcs { get; private set; }
+        public double BaseTemperature { get; private set; }
         public bool IsShelter { get; set; }
         public bool Visited { get; set; }
-        public List<Area> NearbyAreas { get; set; }
+        public List<Area> NearbyAreas { get; private set; }
+        private List<Location> Locations { get; }
 
         public enum EnvironmentType
         {
@@ -22,16 +23,17 @@ namespace text_survival.Environments
             Road,
             River
         }
-        public Area(string name, string description)
+        public Area(string name, string description, double baseTemp = 70)
         {
             Name = name;
             Description = description;
-            BaseTemperature = 70;
+            BaseTemperature = baseTemp;
             Items = new List<Item>();
             Npcs = new List<Npc>();
             EventHandler.Subscribe<ItemTakenEvent>(OnItemTaken);
             EventHandler.Subscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
             NearbyAreas = new List<Area>();
+            Locations = new List<Location>();
         }
         public double GetTemperature()
         {
@@ -65,13 +67,6 @@ namespace text_survival.Environments
         {
             string str = Name;
             return str;
-        }
-        public void WriteInfo()
-        {
-            Utils.Write(Name);
-            Utils.Write(Description);
-            Utils.Write("Temperature: ", GetTemperature());
-
         }
 
         public void GenerateNearbyAreas(int count = 3)

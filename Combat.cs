@@ -16,34 +16,46 @@ namespace text_survival
             while (player.Health > 0 && enemy.Health > 0)
             {
                 PrintBattleInfo(player, enemy);
-                Utils.WriteLine("What do you want to do?");
-                Utils.WriteLine(1, ". Attack");
-                Utils.WriteLine(2, ". Run");
-                int choice = Utils.ReadInt(1, 2);
-                if (choice == 1)
+                PlayerTurn(player, enemy);
+                if (enemy.Health > 0)
                 {
-                    player.Attack(enemy);
-                    if (enemy.Health > 0)
-                    {
-                        enemy.Attack(player);
-                    }
-                }
-                else if (choice == 2)
-                {
-                    Utils.Write("You ran away!\n");
-                    break;
+                    enemy.Attack(player);
                 }
                 World.Update(1);
             }
-            if (player.Health <= 0)
-            {
+
+            if (player.Health <= 0) 
                 Utils.WriteDanger("You died!");
-            }
+            
             else if (enemy.Health <= 0)
             {
                 Utils.WriteLine("You killed ", enemy, "!");
                 GetLoot(player, enemy);
             }
+        }
+
+        public static void PlayerTurn(Player player, ICombatant enemy)
+        {
+            Utils.WriteLine("What do you want to do?");
+            List<string> options = new();
+            options.Add("Attack");
+            options.Add("Cast Spell"); 
+            //options.Add("Run away");
+            int choice = Utils.GetSelectionFromList(options);
+            if (choice == 1)
+            {
+                player.Attack(enemy);
+                
+            }
+            else if (choice == 2)
+            {
+                player.SelectSpell();
+            }
+            //else if (choice == 3)
+            //{
+            //    Utils.Write("You ran away!\n");
+            //    return;
+            //}
         }
         public static void GetLoot(Player player, Npc npc)
         {

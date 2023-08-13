@@ -1,5 +1,6 @@
 ﻿using text_survival.Items;
 using text_survival.Level;
+using text_survival.Magic;
 
 namespace text_survival.Actors
 {
@@ -93,8 +94,8 @@ namespace text_survival.Actors
             if (!Combat.DetermineHit(this, target)) return;
             if (Combat.DetermineBlock(this, target))
             {
-               EventHandler.Publish(new GainExperienceEvent(1, SkillType.Block));
-               return;
+                EventHandler.Publish(new GainExperienceEvent(1, SkillType.Block));
+                return;
             }
             // apply damage
             Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
@@ -121,6 +122,15 @@ namespace text_survival.Actors
             if (Health < 0)
             {
                 EventHandler.Publish(new EnemyDefeatedEvent(this));
+            }
+        }
+
+        public void Heal(double heal)
+        {
+            Health += heal;
+            if (Health > MaxHealth)
+            {
+                Health = MaxHealth;
             }
         }
 

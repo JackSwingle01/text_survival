@@ -1,6 +1,6 @@
 ﻿using text_survival.Actors;
 
-namespace text_survival.Level
+namespace text_survival.Magic
 {
     public enum TriggerTypes
     {

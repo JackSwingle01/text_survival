@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using System.Dynamic;
-using text_survival.Actors;
+﻿using text_survival.Actors;
 using text_survival.Items;
 using static text_survival.Environments.Area;
 
@@ -198,11 +196,11 @@ namespace text_survival.Environments
             } },
             { EnvironmentType.Forest, new List<string> {
                 "Berry",
-                "Carrot", 
+                "Carrot",
                 "Water",
                 "Mushroom",
                 "Stick",
-                "Wood" 
+                "Wood"
             } },
             { EnvironmentType.Cave, new List<string> {
                 "Mushroom",
@@ -295,10 +293,9 @@ namespace text_survival.Environments
 
         public static Area GenerateArea(EnvironmentType type, int numItems = 1, int numNpcs = 1)
         {
-            Area area = new(GetRandomAreaName((type)), "");
+            Area area = new(GetRandomAreaName((type)), "A " + type, GetAreaBaseTemperature(type));
             ItemPool itemPool = CreateItemPool(type);
             NpcPool npcPool = CreateNpcPool(type);
-            area.BaseTemperature = GetAreaBaseTemperature(type);
             area.IsShelter = IsEnvironmentShelter(type);
             for (int i = 0; i < numItems; i++)
             {

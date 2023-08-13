@@ -1,4 +1,5 @@
-﻿using text_survival.Environments;
+﻿using text_survival.Actors;
+using text_survival.Environments;
 using text_survival.Items;
 
 namespace text_survival
@@ -18,14 +19,13 @@ namespace text_survival
             Time = new TimeOnly(hour: 9, minute: 0);
         }
 
-
-
         public static void Update(int minutes)
         {
             for (int i = 0; i < minutes; i++)
             {
                 Player.Update();
-                foreach (var npc in CurrentArea.Npcs)
+                List<Npc> npcs = new List<Npc>(CurrentArea.Npcs);
+                foreach (var npc in npcs)
                 {
                     npc.Update();
                 }

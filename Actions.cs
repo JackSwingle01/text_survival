@@ -202,10 +202,8 @@ namespace text_survival
 
             // find all nearby areas that are not the current area
             options.AddRange(_player
-                            .CurrentArea
-                            .NearbyAreas
-                            .FindAll(p =>
-                                p != _player.CurrentArea));
+                .CurrentArea
+                .NearbyAreas);
 
             options.ForEach(opt =>
             {
