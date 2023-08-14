@@ -4,13 +4,13 @@
     {
         static void Main()
         {
-            Utils.WriteLine("You have been banished from your home city.");
+            Output.WriteLine("You have been banished from your home city.");
             Thread.Sleep(1000);
-            Utils.WriteLine("Stripped of your possessions, you've been left to fend for yourself in the unforgiving wilderness.");
+            Output.WriteLine("Stripped of your possessions, you've been left to fend for yourself in the unforgiving wilderness.");
             Thread.Sleep(1000);
-            Utils.WriteLine("The ancient laws, however, grant one path to redemption:");
+            Output.WriteLine("The ancient laws, however, grant one path to redemption:");
             Thread.Sleep(1000);
-            Utils.WriteLine("To kill a Dragon...\n");
+            Output.WriteLine("To kill a Dragon...\n");
             Thread.Sleep(2000);
 
             Player player = World.Player;

@@ -99,7 +99,7 @@ namespace text_survival.Actors
                 return;
             }
             // apply damage
-            Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
+            Output.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
             target.Damage(damage);
 
             // gain experience

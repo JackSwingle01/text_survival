@@ -31,7 +31,7 @@ namespace text_survival.Level
         {
             Level++;
             EventHandler.Publish(new SkillLevelUpEvent(this));
-            Utils.WriteLine("You leveled up ", this, " to level ", Level, "!");
+            Output.WriteLine("You leveled up ", this, " to level ", Level, "!");
         }
 
         public override string ToString()
@@ -41,7 +41,7 @@ namespace text_survival.Level
 
         public void Write()
         {
-            Utils.Write(this, ": ", Level, " (", Xp, "/", LevelUpThreshold, ")");
+            Output.Write(this, ": ", Level, " (", Xp, "/", LevelUpThreshold, ")");
         }
 
 

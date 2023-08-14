@@ -94,7 +94,7 @@
                     Restoration.GainExperience(e.Experience);
                     break;
                 default:
-                    Utils.WriteWarning("Invalid experience gain type");
+                    Output.WriteWarning("Invalid experience gain type");
                     break;
             }
         }

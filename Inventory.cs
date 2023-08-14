@@ -12,12 +12,12 @@ namespace text_survival
         {
             while (true)
             {
-                Utils.WriteLine(this, " (", Weight(), "/", MaxWeight, "):");
-                int index = Utils.GetSelectionFromList(Items, true, "Close") - 1;
+                Output.WriteLine(this, " (", Weight(), "/", MaxWeight, "):");
+                int index = Input.GetSelectionFromList(Items, true, "Close") - 1;
                 if (index == -1) return;
                 Item item = GetItem(index);
-                Utils.WriteLine("What would you like to do with ", item);
-                int choice = Utils.GetSelectionFromList(new List<string>() { "Use", "Inspect", "Drop" }, true);
+                Output.WriteLine("What would you like to do with ", item);
+                int choice = Input.GetSelectionFromList(new List<string>() { "Use", "Inspect", "Drop" }, true);
                 switch (choice)
                 {
                     case 0:

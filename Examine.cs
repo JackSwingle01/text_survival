@@ -7,95 +7,95 @@ namespace text_survival
     {
         public static void ExamineCombatant(ICombatant c)
         {
-            Utils.WriteLine(c, " => HP: ", c.Health, "/", c.MaxHealth);
+            Output.WriteLine(c, " => HP: ", c.Health, "/", c.MaxHealth);
 
         }
         public static void ExamineGear(Player player)
         {
             if (player.IsArmed)
             {
-                Utils.Write("Weapon => ");
+                Output.Write("Weapon => ");
                 ExamineItem(player.Weapon);
             }
             foreach (Armor armor in player.Armor)
             {
-                Utils.Write(armor.EquipSpot, " => ");
+                Output.Write(armor.EquipSpot, " => ");
                 ExamineItem(armor);
             }
             if (player.HeldItem is not null)
             {
-                Utils.Write("Held Item => ");
+                Output.Write("Held Item => ");
                 ExamineItem(player.HeldItem);
             }
         }
         public static void ExamineSurvivalStats(Player player)
         {
-            Utils.WriteLine("Health: ", (int)(player.Health), "%");
-            Utils.WriteLine("Hunger: ", player.HungerPercent, "%");
-            Utils.WriteLine("Thirst: ", player.ThirstPercent, "%");
-            Utils.WriteLine("Exhaustion: ", player.ExhaustionPercent, "%");
-            Utils.WriteLine("Body Temperature: ", player.Temperature, "°F (", player.TemperatureStatus, ")");
+            Output.WriteLine("Health: ", (int)(player.Health), "%");
+            Output.WriteLine("Hunger: ", player.HungerPercent, "%");
+            Output.WriteLine("Thirst: ", player.ThirstPercent, "%");
+            Output.WriteLine("Exhaustion: ", player.ExhaustionPercent, "%");
+            Output.WriteLine("Body Temperature: ", player.Temperature, "°F (", player.TemperatureStatus, ")");
         }
         public static void ExamineItem(Item item)
         {
-            Utils.Write(item, " => ", item.Description, " ");
+            Output.Write(item, " => ", item.Description, " ");
             if (item is Weapon weapon)
             {
-                Utils.Write("Damage: ", weapon.Damage, ", ");
-                Utils.Write("Accuracy: ", weapon.Accuracy * 100, ", ");
+                Output.Write("Damage: ", weapon.Damage, ", ");
+                Output.Write("Accuracy: ", weapon.Accuracy * 100, ", ");
                 if (weapon.BlockChance != 0)
                 {
-                    Utils.Write(", BlockChance: ", weapon.BlockChance * 100, ", ");
+                    Output.Write(", BlockChance: ", weapon.BlockChance * 100, ", ");
                 }
             }
             else if (item is Armor armor)
             {
                 if (armor.Rating != 0)
-                    Utils.Write("Defense: ", armor.Rating * 100, ", ");
+                    Output.Write("Defense: ", armor.Rating * 100, ", ");
 
                 if (armor.Warmth != 0)
-                    Utils.Write("Warmth: ", armor.Warmth, ", ");
+                    Output.Write("Warmth: ", armor.Warmth, ", ");
             }
 
             if (item.Weight != 0)
             {
-                Utils.Write("Weight: ", item.Weight);
+                Output.Write("Weight: ", item.Weight);
             }
-            Utils.WriteLine();
+            Output.WriteLine();
         }
 
         public static void ExamineLevel(Player player)
         {
-            Utils.WriteLine("Level: ", player.Level);
-            Utils.WriteLine("XP: ", player.Experience, "/", player.ExperienceToNextLevel);
+            Output.WriteLine("Level: ", player.Level);
+            Output.WriteLine("XP: ", player.Experience, "/", player.ExperienceToNextLevel);
         }
         public static void ExaminePrimaryAttributes(Player player)
         {
-            Utils.WriteLine("Primary Attributes: ");
-            Utils.WriteLine("STR: ", player.Attributes.Strength);
-            Utils.WriteLine("INT: ", player.Attributes.Intelligence);
-            Utils.WriteLine("WIL: ", player.Attributes.Willpower);
-            Utils.WriteLine("AGI: ", player.Attributes.Agility);
-            Utils.WriteLine("SPD: ", player.Attributes.Speed);
-            Utils.WriteLine("END: ", player.Attributes.Endurance);
-            Utils.WriteLine("PER: ", player.Attributes.Personality);
-            Utils.WriteLine("LUC: ", player.Attributes.Luck);
+            Output.WriteLine("Primary Attributes: ");
+            Output.WriteLine("STR: ", player.Attributes.Strength);
+            Output.WriteLine("INT: ", player.Attributes.Intelligence);
+            Output.WriteLine("WIL: ", player.Attributes.Willpower);
+            Output.WriteLine("AGI: ", player.Attributes.Agility);
+            Output.WriteLine("SPD: ", player.Attributes.Speed);
+            Output.WriteLine("END: ", player.Attributes.Endurance);
+            Output.WriteLine("PER: ", player.Attributes.Personality);
+            Output.WriteLine("LUC: ", player.Attributes.Luck);
         }
 
         public static void ExamineSecondaryAttributes(Player player)
         {
-            Utils.WriteLine("Secondary Attributes: ");
-            Utils.WriteLine("Max HP: ", player.MaxHealth);
-            Utils.WriteLine("Max Energy: ", player.MaxEnergy);
-            Utils.WriteLine("Max Psych: ", player.MaxPsych);
+            Output.WriteLine("Secondary Attributes: ");
+            Output.WriteLine("Max HP: ", player.MaxHealth);
+            Output.WriteLine("Max Energy: ", player.MaxEnergy);
+            Output.WriteLine("Max Psych: ", player.MaxPsych);
         }
 
         public static void ExamineSkills(Player player)
         {
-            Utils.WriteLine("Skills: ");
+            Output.WriteLine("Skills: ");
             foreach (var skill in player.Skills.All)
             {
-                Utils.WriteLine(skill.Type, ": ", skill.Level, " (", skill.Xp, "/", skill.LevelUpThreshold, ")");
+                Output.WriteLine(skill.Type, ": ", skill.Level, " (", skill.Xp, "/", skill.LevelUpThreshold, ")");
             }
         }
 

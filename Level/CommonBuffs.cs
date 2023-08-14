@@ -12,13 +12,13 @@ namespace text_survival.Level
                 {
                     if (target is not Player player) return;
                     player.AddWarmthBonus(degrees);
-                    Utils.WriteLine("You feel warmer.");
+                    Output.WriteLine("You feel warmer.");
                 },
                 RemoveEffect = target =>
                 {
                     if (target is not Player player) return;
                     player.RemoveWarmthBonus(degrees);
-                    Utils.WriteWarning("You're no longer being warmed up.");
+                    Output.WriteWarning("You're no longer being warmed up.");
                 }
             };
             return buff;
@@ -28,16 +28,16 @@ namespace text_survival.Level
         {
             return new Buff("Bleeding", minutes)
             {
-                ApplyEffect = (target => Utils.WriteLine(target, " has been cut!")),
+                ApplyEffect = (target => Output.WriteLine(target, " has been cut!")),
                 TickEffect = ((target) =>
                 {
                     target.Damage(hpPerMin);
                     if (target is Player player)
-                        Utils.WriteDanger("You are bleeding!");
+                        Output.WriteDanger("You are bleeding!");
                     else
-                        Utils.WriteLine(target, " is bleeding");
+                        Output.WriteLine(target, " is bleeding");
                 }),
-                RemoveEffect = (target => Utils.WriteLine(target, " has stopped bleeding."))
+                RemoveEffect = (target => Output.WriteLine(target, " has stopped bleeding."))
 
             };
         }
@@ -46,16 +46,16 @@ namespace text_survival.Level
         {
             return new Buff("Poison", minutes)
             {
-                ApplyEffect = (target => Utils.WriteLine(target, " has been poisoned!")),
+                ApplyEffect = (target => Output.WriteLine(target, " has been poisoned!")),
                 TickEffect = ((target) =>
                 {
                     target.Damage(hpPerMin);
                     if (target is Player player)
-                        Utils.WriteDanger("You are poisoned!");
+                        Output.WriteDanger("You are poisoned!");
                     else
-                        Utils.WriteLine(target, " is poisoned");
+                        Output.WriteLine(target, " is poisoned");
                 }),
-                RemoveEffect = (target => Utils.WriteLine(target, " has stopped being poisoned."))
+                RemoveEffect = (target => Output.WriteLine(target, " has stopped being poisoned."))
 
             };
         }
@@ -67,7 +67,7 @@ namespace text_survival.Level
                 ApplyEffect = (target =>
                 {
                     target.Heal(hp);
-                    Utils.WriteLine(target, " has been healed!");
+                    Output.WriteLine(target, " has been healed!");
                 })
             };
         }

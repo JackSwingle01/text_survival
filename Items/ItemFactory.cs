@@ -17,12 +17,12 @@ namespace text_survival.Items
                 if (Utils.FlipCoin())
                 {
                     player.Heal(1);
-                    Utils.Write("You feel better\n");
+                    Output.Write("You feel better\n");
                 }
                 else
                 {
                     player.Damage(1);
-                    Utils.Write("You feel sick\n");
+                    Output.Write("You feel sick\n");
                 }
             };
             mushroom.Description = "A mushroom of unknown origin. It looks edible, but you're not sure.";
@@ -84,27 +84,27 @@ namespace text_survival.Items
             Item stick = new Item("Stick");
             stick.UseEffect = (player) =>
             {
-                Utils.Write("You can make this into a torch or a spear.\n");
-                Utils.Write("What would you like to make?\n");
-                Utils.Write("1. Torch\n");
-                Utils.Write("2. Spear\n");
-                Utils.Write("3. Nothing\n");
-                int choice = Utils.ReadInt(1, 3);
+                Output.Write("You can make this into a torch or a spear.\n");
+                Output.Write("What would you like to make?\n");
+                Output.Write("1. Torch\n");
+                Output.Write("2. Spear\n");
+                Output.Write("3. Nothing\n");
+                int choice = Input.ReadInt(1, 3);
                 if (choice == 1)
                 {
                     player.RemoveFromInventory(stick);
                     player.AddToInventory(MakeTorch());
-                    Utils.Write("You made a torch!\n");
+                    Output.Write("You made a torch!\n");
                 }
                 else if (choice == 2)
                 {
                     player.RemoveFromInventory(stick);
                     player.AddToInventory(MakeSpear());
-                    Utils.Write("You made a spear!\n");
+                    Output.Write("You made a spear!\n");
                 }
                 else
                 {
-                    Utils.Write("You decide to keep the stick.\n");
+                    Output.Write("You decide to keep the stick.\n");
                 }
             };
             stick.Description = "A stick. Useful.";
@@ -194,7 +194,7 @@ namespace text_survival.Items
             potion.UseEffect = (player) =>
             {
                 player.Heal(50);
-                Utils.Write("You've been healed!\n");
+                Output.Write("You've been healed!\n");
                 player.RemoveFromInventory(potion);
             };
             return potion;
@@ -211,7 +211,7 @@ namespace text_survival.Items
             bandage.UseEffect = player =>
             {
                 player.Heal(10);
-                Utils.Write("You feel a bit better\n");
+                Output.Write("You feel a bit better\n");
                 player.RemoveFromInventory(bandage);
             };
             return bandage;
@@ -282,7 +282,7 @@ namespace text_survival.Items
             Item vial = new Item("Venom Vial");
             vial.UseEffect = (player) =>
             {
-                Utils.Write("You can use this to poison your weapon.\n");
+                Output.Write("You can use this to poison your weapon.\n");
                 if (player.IsArmed)
                 {
                     player.Weapon.Damage += 2;
@@ -290,7 +290,7 @@ namespace text_survival.Items
                 }
                 else
                 {
-                    Utils.Write("You don't have any weapons to poison.\n");
+                    Output.Write("You don't have any weapons to poison.\n");
                 }
             };
             vial.Description = "A vial of snake venom.";
@@ -319,7 +319,7 @@ namespace text_survival.Items
             };
             silk.UseEffect = (player) =>
             {
-                Utils.Write("You use this to improve the warmth of your clothing.\n");
+                Output.Write("You use this to improve the warmth of your clothing.\n");
                 if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Chest))
                 {
                     Armor armor = player.Armor.First(i => i.EquipSpot == EquipSpots.Chest) as Armor;
@@ -328,7 +328,7 @@ namespace text_survival.Items
                 }
                 else
                 {
-                    Utils.Write("You don't have any clothing to improve.\n");
+                    Output.Write("You don't have any clothing to improve.\n");
                 }
             };
             return silk;
@@ -360,14 +360,14 @@ namespace text_survival.Items
             {
                 if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Chest))
                 {
-                    Utils.Write("You use this to improve your armor.\n");
+                    Output.Write("You use this to improve your armor.\n");
                     Armor armor = player.Armor.First(i => i.EquipSpot == EquipSpots.Chest);
                     armor.Rating += 6;
                     player.RemoveFromInventory(scale);
                 }
                 else
                 {
-                    Utils.Write("You don't have any armor to improve.\n");
+                    Output.Write("You don't have any armor to improve.\n");
                 }
             };
             return scale;
@@ -383,13 +383,13 @@ namespace text_survival.Items
             {
                 if (player.IsArmed)
                 {
-                    Utils.Write("You use this to improve your weapon.\n");
+                    Output.Write("You use this to improve your weapon.\n");
                     player.Weapon.Damage += 6;
                     player.RemoveFromInventory(tooth);
                 }
                 else
                 {
-                    Utils.Write("You don't have any weapons to improve.\n");
+                    Output.Write("You don't have any weapons to improve.\n");
                 }
             };
             return tooth;
@@ -401,7 +401,7 @@ namespace text_survival.Items
             item.UseEffect = (player) =>
             {
                 int num = Utils.RandInt(3, 5);
-                Utils.Write("It contained " + num + " coins\n");
+                Output.Write("It contained " + num + " coins\n");
                 for (int i = 0; i < num; i++)
                 {
                     player.AddToInventory(MakeCoin());
@@ -435,7 +435,7 @@ namespace text_survival.Items
             };
             skin.UseEffect = (player) =>
             {
-                Utils.Write("You use this to improve your armor.\n");
+                Output.Write("You use this to improve your armor.\n");
                 if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Chest))
                 {
                     Armor armor = player.Armor.Select(i => i as Armor)
@@ -457,13 +457,13 @@ namespace text_survival.Items
             {
                 if (player.Armor.Any(i => i.EquipSpot == EquipSpots.Weapon))
                 {
-                    Utils.Write("You use it to improve your weapon.\n");
+                    Output.Write("You use it to improve your weapon.\n");
                     player.Weapon.Damage += 2;
                     player.RemoveFromInventory(tooth);
                 }
                 else
                 {
-                    Utils.Write("You don't have any weapons to improve.\n");
+                    Output.Write("You don't have any weapons to improve.\n");
                 }
             };
             return tooth;

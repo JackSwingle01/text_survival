@@ -135,10 +135,10 @@ namespace text_survival
 
         public void Eat(FoodItem food)
         {
-            Utils.Write("You eat the ", food, ".\n");
+            Output.Write("You eat the ", food, ".\n");
             if (HungerModule.Amount - food.Calories < 0)
             {
-                Utils.Write("You are too full to finish it.\n");
+                Output.Write("You are too full to finish it.\n");
                 int percentageEaten = (int)(HungerModule.Amount / food.Calories) * 100;
                 food.Calories *= (100 - percentageEaten);
                 food.WaterContent *= (100 - percentageEaten);
@@ -158,7 +158,7 @@ namespace text_survival
                 ExhaustionModule.Amount -= 1 + ExhaustionModule.Rate; // 1 minute plus negate exhaustion rate for update
                 World.Update(1);
                 if (!(ExhaustionModule.Amount <= 0)) continue;
-                Utils.Write("You wake up feeling refreshed.\n");
+                Output.Write("You wake up feeling refreshed.\n");
                 Heal(i / 6);
                 return;
             }
@@ -192,10 +192,10 @@ namespace text_survival
                         break;
                     }
                 default:
-                    Utils.WriteLine("You can't equip that.");
+                    Output.WriteLine("You can't equip that.");
                     return;
             }
-            Utils.WriteLine("You equip the ", item);
+            Output.WriteLine("You equip the ", item);
             item.OnEquip(this);
         }
 
@@ -218,12 +218,12 @@ namespace text_survival
                     Inventory.Add(gear);
                     break;
                 default:
-                    Utils.WriteLine("You can't unequip that.");
+                    Output.WriteLine("You can't unequip that.");
                     return;
             }
 
             if (item != _unarmed) 
-                Utils.WriteLine("You unequip ", item);
+                Output.WriteLine("You unequip ", item);
 
             item.OnUnequip(this);
         }
@@ -231,18 +231,18 @@ namespace text_survival
         public void CheckGear()
         {
             Examine.ExamineGear(this);
-            Utils.WriteLine("Would you like to unequip an item?");
-            int choice = Utils.GetSelectionFromList(new List<string> { "Yes", "No" });
+            Output.WriteLine("Would you like to unequip an item?");
+            int choice = Input.GetSelectionFromList(new List<string> { "Yes", "No" });
             if (choice != 1) return;
 
-            Utils.WriteLine("Which item would you like to unequip?");
+            Output.WriteLine("Which item would you like to unequip?");
             // get list of all equipment
             var equipment = new List<IEquippable>();
             equipment.AddRange(Armor);
             if (IsArmed) equipment.Add(Weapon);
             if (HeldItem != null) equipment.Add(HeldItem);
 
-            choice = Utils.GetSelectionFromList(equipment, true);
+            choice = Input.GetSelectionFromList(equipment, true);
             if (choice == 0) return;
             Unequip(equipment[choice - 1]);
         }
@@ -356,7 +356,7 @@ namespace text_survival
             if (!Combat.DetermineHit(this, target)) return; // if attacker misses
             if (Combat.DetermineBlock(this, target)) return; // if target blocks
             // apply damage
-            Utils.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
+            Output.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
             target.Damage(damage);
 
             // apply xp
@@ -369,18 +369,18 @@ namespace text_survival
         public void SelectSpell()
         {
             //get spell
-            Utils.WriteLine("Which spell would you like to cast?");
+            Output.WriteLine("Which spell would you like to cast?");
             var spellNames = new List<string>();
             Spells.ForEach(spell => spellNames.Add(spell.Name));
-            var spell = Utils.GetSelectionFromList(spellNames, true);
+            var spell = Input.GetSelectionFromList(spellNames, true);
             if (spell == 0) return;
 
             // get target
-            Utils.WriteLine("Who would you like to cast ", Spells[spell - 1].Name, " on?");
+            Output.WriteLine("Who would you like to cast ", Spells[spell - 1].Name, " on?");
             var targets = new List<string>();
             targets.Add("Yourself");
             CurrentArea.Npcs.ForEach(npc => targets.Add(npc.Name));
-            var target = Utils.GetSelectionFromList(targets, true);
+            var target = Input.GetSelectionFromList(targets, true);
             if (target == 0) return;
 
             // cast spell
@@ -394,7 +394,7 @@ namespace text_survival
         {
             if (Psych < spell.PsychCost)
             {
-                Utils.WriteLine("You don't have enough psychic energy to cast that spell!");
+                Output.WriteLine("You don't have enough psychic energy to cast that spell!");
                 return;
             }
             Psych -= spell.PsychCost;
@@ -408,7 +408,7 @@ namespace text_survival
         {
             Health -= damage;
             if (!(Health <= 0)) return;
-            Utils.WriteLine("You died!");
+            Output.WriteLine("You died!");
             Health = 0;
             // end program
             Environment.Exit(0);
@@ -462,9 +462,9 @@ namespace text_survival
             Level++;
             MaxHealth += Attributes.Endurance / 10;
             Health += Attributes.Endurance / 10;
-            Utils.WriteWarning("You leveled up to level " + Level + "!");
-            Utils.WriteLine("You gained ", Attributes.Endurance / 10, " health!");
-            Utils.WriteLine("You gained 3 skill points!");
+            Output.WriteWarning("You leveled up to level " + Level + "!");
+            Output.WriteLine("You gained ", Attributes.Endurance / 10, " health!");
+            Output.WriteLine("You gained 3 skill points!");
             SkillPoints += 3;
         }
 
@@ -488,7 +488,7 @@ namespace text_survival
                     EventHandler.Publish(new GainExperienceEvent(1, SkillType.Unarmed));
                     break;
                 default:
-                    Utils.WriteDanger("Unknown weapon type.");
+                    Output.WriteDanger("Unknown weapon type.");
                     break;
             }
         }
@@ -540,14 +540,14 @@ namespace text_survival
 
         public void Enter(Area newArea)
         {
-            Utils.WriteLine("You enter ", newArea);
-            Utils.WriteLine(newArea.Description);
+            Output.WriteLine("You enter ", newArea);
+            Output.WriteLine(newArea.Description);
             if (!newArea.NearbyAreas.Contains(CurrentArea) && CurrentArea != newArea)
                 newArea.NearbyAreas.Add(this.CurrentArea);
             CurrentArea = newArea;
             if (!newArea.Visited) newArea.GenerateNearbyAreas();
             newArea.Visited = true;
-            Utils.WriteLine("You should probably look around.");
+            Output.WriteLine("You should probably look around.");
         }
 
         /// OTHER ///

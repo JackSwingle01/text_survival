@@ -84,25 +84,25 @@
             switch (tempEnum)
             {
                 case TemperatureEnum.Warm:
-                    Utils.WriteLine("You feel normal.");
+                    Output.WriteLine("You feel normal.");
                     break;
                 case TemperatureEnum.Cool:
-                    Utils.WriteWarning("You feel cool.");
+                    Output.WriteWarning("You feel cool.");
                     break;
                 case TemperatureEnum.Cold:
-                    Utils.WriteWarning("You feel cold.");
+                    Output.WriteWarning("You feel cold.");
                     break;
                 case TemperatureEnum.Freezing:
-                    Utils.WriteDanger("You are freezing cold.");
+                    Output.WriteDanger("You are freezing cold.");
                     break;
                 case TemperatureEnum.Hot:
-                    Utils.WriteWarning("You feel hot.");
+                    Output.WriteWarning("You feel hot.");
                     break;
                 case TemperatureEnum.HeatExhaustion:
-                    Utils.WriteDanger("You are burning up.");
+                    Output.WriteDanger("You are burning up.");
                     break;
                 default:
-                    Utils.WriteDanger("Error: Temperature effect not found.");
+                    Output.WriteDanger("Error: Temperature effect not found.");
                     break;
             }
         }

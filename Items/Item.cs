@@ -29,7 +29,7 @@ namespace text_survival.Items
             Quality = quality;
             UseEffect = (player) =>
             {
-                Utils.Write("Nothing happened.\n"); // just a default
+                Output.Write("Nothing happened.\n"); // just a default
             };
         }
 

@@ -23,7 +23,7 @@ namespace text_survival.Items
 
         public void Interact(Player player)
         {
-            Utils.WriteLine("You open the ", this);
+            Output.WriteLine("You open the ", this);
             Open(player);
         }
 
@@ -31,12 +31,12 @@ namespace text_survival.Items
         {
             while (true)
             {
-                Utils.WriteLine(this, ":");
-                int index = Utils.GetSelectionFromList(Items, true) - 1;
+                Output.WriteLine(this, ":");
+                int index = Input.GetSelectionFromList(Items, true) - 1;
                 if (index == -1) return;
                 Item item = GetItem(index);
-                Utils.WriteLine("What would you like to do with ", item);
-                int choice = Utils.GetSelectionFromList(new List<string>() { "Take", "Inspect", "Use" }, true);
+                Output.WriteLine("What would you like to do with ", item);
+                int choice = Input.GetSelectionFromList(new List<string>() { "Take", "Inspect", "Use" }, true);
                 switch (choice)
                 {
                     case 0:
@@ -64,7 +64,7 @@ namespace text_survival.Items
         {
             if (item.Weight + Weight() > MaxWeight)
             {
-                Utils.Write("The ", this, "is full!\n");
+                Output.Write("The ", this, "is full!\n");
                 return;
             }
             Items.Add(item);

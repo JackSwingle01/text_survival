@@ -113,32 +113,32 @@ namespace text_survival
         public void Act()
         {
             UpdatePossibleActions();
-            Utils.WriteLine();
+            Output.WriteLine();
             Examine.ExamineSurvivalStats(_player);
-            Utils.WriteLine();
-            Utils.WriteLine("What would you like to do?");
+            Output.WriteLine();
+            Output.WriteLine("What would you like to do?");
             List<string> actionNames = AvailableActions.Select(action => action.Name).ToList();
-            int input = Utils.GetSelectionFromList(actionNames);
+            int input = Input.GetSelectionFromList(actionNames);
             var command = AvailableActions[input-1 ];
             command.Execute();
         }
 
         private void LevelUp(Player player)
         {
-            Utils.WriteLine("You have ", player.SkillPoints, " points.");
+            Output.WriteLine("You have ", player.SkillPoints, " points.");
             while (player.SkillPoints > 0)
             {
-                Utils.WriteLine("Select an attribute to improve:");
-                Utils.WriteLine("1. ", PrimaryAttributes.Strength);
-                Utils.WriteLine("2. ", PrimaryAttributes.Intelligence);
-                Utils.WriteLine("3. ", PrimaryAttributes.Speed);
-                Utils.WriteLine("4. ", PrimaryAttributes.Endurance);
-                Utils.WriteLine("5. ", PrimaryAttributes.Agility);
-                Utils.WriteLine("6. ", PrimaryAttributes.Luck);
-                Utils.WriteLine("7. ", PrimaryAttributes.Willpower);
-                Utils.WriteLine("8. ", PrimaryAttributes.Personality);
-                Utils.WriteLine("0. Cancel");
-                int input = Utils.ReadInt(0, 8);
+                Output.WriteLine("Select an attribute to improve:");
+                Output.WriteLine("1. ", PrimaryAttributes.Strength);
+                Output.WriteLine("2. ", PrimaryAttributes.Intelligence);
+                Output.WriteLine("3. ", PrimaryAttributes.Speed);
+                Output.WriteLine("4. ", PrimaryAttributes.Endurance);
+                Output.WriteLine("5. ", PrimaryAttributes.Agility);
+                Output.WriteLine("6. ", PrimaryAttributes.Luck);
+                Output.WriteLine("7. ", PrimaryAttributes.Willpower);
+                Output.WriteLine("8. ", PrimaryAttributes.Personality);
+                Output.WriteLine("0. Cancel");
+                int input = Input.ReadInt(0, 8);
                 if (input == 0) return;
                 var attribute = input switch
                 {
@@ -162,7 +162,7 @@ namespace text_survival
             Examine.ExaminePrimaryAttributes(player);
             Examine.ExamineSecondaryAttributes(player);
             Examine.ExamineSkills(player);
-            Utils.WriteLine("Press any key to continue...");
+            Output.WriteLine("Press any key to continue...");
             Console.ReadKey(true);
         }
 
@@ -189,7 +189,7 @@ namespace text_survival
 
                 if (playerCheck < enemyCheck)
                 {
-                    Utils.WriteLine("You weren't fast enough to get past the ", fastestNpc.Name, "!");
+                    Output.WriteLine("You weren't fast enough to get past the ", fastestNpc.Name, "!");
                     Fight(player, fastestNpc);
                     return;
                 }
@@ -204,7 +204,7 @@ namespace text_survival
 
         private void Travel(Player player)
         {
-            Utils.WriteLine("Where would you like to go?");
+            Output.WriteLine("Where would you like to go?");
             List<Area> options = new();
 
             // find all nearby areas that are not the current area
@@ -214,19 +214,19 @@ namespace text_survival
 
             options.ForEach(opt =>
             {
-                Utils.Write(options.IndexOf(opt) + 1, ". ", opt); // "1. Name"
+                Output.Write(options.IndexOf(opt) + 1, ". ", opt); // "1. Name"
                 if (opt.Visited)
-                    Utils.Write(" (Visited)");
-                Utils.WriteLine();
+                    Output.Write(" (Visited)");
+                Output.WriteLine();
             });
 
-            Utils.WriteLine("0. Cancel");
-            int input = Utils.ReadInt(0, options.Count);
+            Output.WriteLine("0. Cancel");
+            int input = Input.ReadInt(0, options.Count);
 
             if (input == 0) return;
 
             int minutes = Utils.RandInt(30, 60);
-            Utils.WriteLine("You travel for ", minutes, " minutes...");
+            Output.WriteLine("You travel for ", minutes, " minutes...");
             World.Update(minutes);
             player.Enter(options[input - 1]);
         }
@@ -234,8 +234,8 @@ namespace text_survival
 
         private void Sleep(Player player)
         {
-            Utils.WriteLine("How many hours would you like to sleep?");
-            player.Sleep(Utils.ReadInt() * 60);
+            Output.WriteLine("How many hours would you like to sleep?");
+            player.Sleep(Input.ReadInt() * 60);
         }
 
         private void CheckGear(Player player)
@@ -245,23 +245,23 @@ namespace text_survival
 
         private void LookAround(Player player)
         {
-            Utils.WriteLine("You take in your surroundings");
-            Utils.WriteLine("You're in a ", player.CurrentArea, ", ", player.CurrentArea.Description);
-            Utils.WriteLine("Its ", World.GetTimeOfDay(), " and ", player.CurrentArea.GetTemperature(), " degrees.");
+            Output.WriteLine("You take in your surroundings");
+            Output.WriteLine("You're in a ", player.CurrentArea, ", ", player.CurrentArea.Description);
+            Output.WriteLine("Its ", World.GetTimeOfDay(), " and ", player.CurrentArea.GetTemperature(), " degrees.");
             if (player.CurrentArea.Npcs.Count == 0 && player.CurrentArea.Things.Count == 0)
             {
-                Utils.WriteLine("You see nothing of interest, time to move on.");
+                Output.WriteLine("You see nothing of interest, time to move on.");
                 return;
             }
 
-            Utils.WriteLine("You see the following things:");
+            Output.WriteLine("You see the following things:");
             foreach (var thing in player.CurrentArea.Things)
             {
-                Utils.WriteLine(thing);
+                Output.WriteLine(thing);
             }
             foreach (var npc in player.CurrentArea.Npcs)
             {
-                Utils.WriteLine(npc);
+                Output.WriteLine(npc);
             }
         }
         private void Quit(Player player)

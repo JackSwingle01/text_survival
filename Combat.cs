@@ -7,7 +7,7 @@ namespace text_survival
     {
         public static void CombatLoop(Player player, ICombatant enemy)
         {
-            Utils.WriteLine("You encounter: ", enemy, "!");
+            Output.WriteLine("You encounter: ", enemy, "!");
 
             if (enemy.Attributes.Speed > player.Attributes.Speed)
             {
@@ -25,11 +25,11 @@ namespace text_survival
             }
 
             if (player.Health <= 0)
-                Utils.WriteDanger("You died!");
+                Output.WriteDanger("You died!");
 
             else if (enemy.Health <= 0)
             {
-                Utils.WriteLine("You killed ", enemy, "!");
+                Output.WriteLine("You killed ", enemy, "!");
                 if (enemy is Npc npc)
                     GetLoot(player, npc);
             }
@@ -37,12 +37,12 @@ namespace text_survival
 
         public static void PlayerTurn(Player player, ICombatant enemy)
         {
-            Utils.WriteLine("What do you want to do?");
+            Output.WriteLine("What do you want to do?");
             List<string> options = new();
             options.Add("Attack");
             options.Add("Cast Spell");
             //options.Add("Run away");
-            int choice = Utils.GetSelectionFromList(options);
+            int choice = Input.GetSelectionFromList(options);
             if (choice == 1)
             {
                 player.Attack(enemy);
@@ -63,14 +63,14 @@ namespace text_survival
             Item? loot = npc.DropItem();
             if (loot is null)
             {
-                Utils.WriteLine(npc.Name, " has no loot.");
+                Output.WriteLine(npc.Name, " has no loot.");
                 return;
             }
-            Utils.Write(npc.Name, " dropped: ");
+            Output.Write(npc.Name, " dropped: ");
             Examine.ExamineItem(loot);
-            Utils.WriteLine("\nDo you want to pick it up?\n", 1, ". Yes\n", 2, ". No");
+            Output.WriteLine("\nDo you want to pick it up?\n", 1, ". Yes\n", 2, ". No");
 
-            int choice = Utils.ReadInt(1, 2);
+            int choice = Input.ReadInt(1, 2);
             if (choice == 1)
             {
                 player.TakeItem(loot);
@@ -78,13 +78,13 @@ namespace text_survival
             else
             {
                 player.CurrentArea.Things.Add(loot);
-                Utils.Write("You left the ", loot, " on the ground.\n");
+                Output.Write("You left the ", loot, " on the ground.\n");
             }
         }
         public static void PrintBattleInfo(ICombatant combatant1, ICombatant combatant2)
         {
             Examine.ExamineCombatant(combatant1);
-            Utils.WriteLine("VS");
+            Output.WriteLine("VS");
             Examine.ExamineCombatant(combatant2);
         }
 
@@ -147,7 +147,7 @@ namespace text_survival
             double dodgeRoll = Utils.RandDouble(0, 100);
             if (dodgeRoll <= dodgeChance)
             {
-                Utils.WriteLine(defender.Name + " dodged the attack!");
+                Output.WriteLine(defender.Name + " dodged the attack!");
                 return true;
             }
             return false;
@@ -159,7 +159,7 @@ namespace text_survival
             double roll = Utils.RandDouble(0, 1);
             if (roll > hitChance)
             {
-                Utils.WriteLine(attacker, " missed ", defender, "!");
+                Output.WriteLine(attacker, " missed ", defender, "!");
                 return false;
             }
             return true;
@@ -171,7 +171,7 @@ namespace text_survival
             double roll = Utils.RandDouble(0, 1);
             if (roll < blockChance)
             {
-                Utils.WriteLine(defender, " blocked ", attacker, "'s attack!");
+                Output.WriteLine(defender, " blocked ", attacker, "'s attack!");
                 return true;
             }
             return false;
