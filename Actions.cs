@@ -20,32 +20,32 @@ namespace text_survival
         LevelUp,
     }
 
+ 
     public class Actions
     {
         private readonly Player _player;
-        private readonly Dictionary<ActionType, Action> _actionDict;
+        //private readonly Dictionary<ActionType, Action> _actionDict;
 
-        public List<ActionType> AvailableActions { get; private set; }
+        public List<ICommand> AvailableActions { get; private set; }
 
         public Actions(Player player)
         {
             this._player = player;
-            this.AvailableActions = new List<ActionType>();
-            this._actionDict = new Dictionary<ActionType, Action>()
-            {
-                { ActionType.Fight, Fight },
-                { ActionType.OpenInventory, OpenInventory },
-                { ActionType.Travel , Travel },
-                { ActionType.Sleep, Sleep },
-                { ActionType.CheckGear, CheckGear },
-                { ActionType.Quit, Quit },
-                { ActionType.Interact , PickUpItem },
-                { ActionType.LookAround, LookAround },
-                { ActionType.CheckStats, CheckStats },
-                { ActionType.LevelUp, LevelUp },
-                // Add more actions as necessary
-            };
+            this.AvailableActions = new List<ICommand>();
         }
+
+        private Command<Player> LookAroundCommand => new Command<Player>("Look Around", LookAround);
+        private Command<Player> CheckStatsCommand => new Command<Player>("Check Stats", CheckStats);
+        private Command<Player> LevelUpCommand => new Command<Player>("Level Up", LevelUp);
+        private Command<Player, ICombatant> FightCommand => new Command<Player, ICombatant>("Fight", Fight);
+        private Command<Player, IInteractable> InteractCommand => new Command<Player, IInteractable>("Interact", Interact);
+        private Command<Player> OpenInventoryCommand => new Command<Player>("Open Inventory", OpenInventory);
+        private Command<Player> TravelCommand => new Command<Player>("Travel", Travel);
+        private Command<Player> SleepCommand => new Command<Player>("Sleep", Sleep);
+        private Command<Player> CheckGearCommand => new Command<Player>("Check Gear", CheckGear);
+        private Command<Player> QuitCommand => new Command<Player>("Quit", Quit);
+
+
 
         public void UpdatePossibleActions()
         {
@@ -53,30 +53,58 @@ namespace text_survival
             AvailableActions.Clear();
 
             // always available actions
-            AvailableActions.Add(ActionType.LookAround);
-            AvailableActions.Add(ActionType.CheckStats);
+            var lookCommand = LookAroundCommand;
+            lookCommand.Player = _player;
+            AvailableActions.Add(lookCommand);
+            
+            var checkStats = CheckStatsCommand;
+            checkStats.Player = _player;
+            AvailableActions.Add(checkStats);
 
 
             // conditional actions
-            if (_player.SkillPoints > 0)
+            foreach (var npc in _player.CurrentArea.Npcs)
             {
-                AvailableActions.Add(ActionType.LevelUp);
+                var command = FightCommand;
+                command.Name = "Fight " + npc.Name;
+                command.Player = _player;
+                command.Arg = npc;
+                AvailableActions.Add(command);
             }
-            if (_player.CurrentArea.Npcs.Count > 0)
+            
+            foreach (var thing in _player.CurrentArea.Things)
             {
-                AvailableActions.Add(ActionType.Fight);
+                var command = InteractCommand;
+                command.Name = "Check out " + thing.Name;
+                command.Player = _player;
+                command.Arg = thing;
+                AvailableActions.Add(command);
             }
-            if (_player.CurrentArea.Things.Count > 0)
-            {
-                AvailableActions.Add(ActionType.Interact);
-            }
+
             if (_player.InventoryCount > 0)
-                AvailableActions.Add(ActionType.OpenInventory);
-            AvailableActions.Add(ActionType.Travel);
+            {
+                var openInventoryCommand = OpenInventoryCommand;
+                openInventoryCommand.Player = _player;
+                AvailableActions.Add(openInventoryCommand);
+            }
+
+            var travelCommand = TravelCommand;
+            travelCommand.Player = _player;
+            AvailableActions.Add(travelCommand);
+
             if (_player.ExhaustionPercent > 0)
-                AvailableActions.Add(ActionType.Sleep);
-            if (_player.Armor.Count > 0)
-                AvailableActions.Add(ActionType.CheckGear);
+            {
+                var sleepCommand = SleepCommand;
+                sleepCommand.Player = _player;
+                AvailableActions.Add(sleepCommand);
+            }
+
+            if (_player.Armor.Count > 0 || _player.IsArmed)
+            {
+                var checkGearCommand = CheckGearCommand;
+                checkGearCommand.Player = _player;
+                AvailableActions.Add(checkGearCommand);
+            }
 
             // last action
             //AvailableActions.Add(ActionType.Quit);
@@ -89,24 +117,16 @@ namespace text_survival
             Examine.ExamineSurvivalStats(_player);
             Utils.WriteLine();
             Utils.WriteLine("What would you like to do?");
-            int input = Utils.GetSelectionFromList(AvailableActions);
-            ActionType actionType = AvailableActions[input - 1];
-
-            if (AvailableActions.Contains(actionType))
-            {
-                _actionDict[actionType].Invoke();
-                World.Update(1);
-            }
-            else
-            {
-                Utils.WriteLine("You can't do that right now.");
-            }
+            List<string> actionNames = AvailableActions.Select(action => action.Name).ToList();
+            int input = Utils.GetSelectionFromList(actionNames);
+            var command = AvailableActions[input-1 ];
+            command.Execute();
         }
 
-        private void LevelUp()
+        private void LevelUp(Player player)
         {
-            Utils.WriteLine("You have ", _player.SkillPoints, " points.");
-            while (_player.SkillPoints > 0)
+            Utils.WriteLine("You have ", player.SkillPoints, " points.");
+            while (player.SkillPoints > 0)
             {
                 Utils.WriteLine("Select an attribute to improve:");
                 Utils.WriteLine("1. ", PrimaryAttributes.Strength);
@@ -132,35 +152,34 @@ namespace text_survival
                     8 => PrimaryAttributes.Personality,
                     _ => throw new ArgumentOutOfRangeException()
                 };
-                _player.SpendPointToUpgradeAttribute(attribute);
+                player.SpendPointToUpgradeAttribute(attribute);
             }
         }
 
-        private void CheckStats()
+        private void CheckStats(Player player)
         {
-            Examine.ExamineLevel(_player);
-            Examine.ExaminePrimaryAttributes(_player);
-            Examine.ExamineSecondaryAttributes(_player);
-            Examine.ExamineSkills(_player);
+            Examine.ExamineLevel(player);
+            Examine.ExaminePrimaryAttributes(player);
+            Examine.ExamineSecondaryAttributes(player);
+            Examine.ExamineSkills(player);
             Utils.WriteLine("Press any key to continue...");
             Console.ReadKey(true);
         }
 
-        private void Fight()
+        private void Fight(Player player, ICombatant enemy)
         {
-            Npc enemy = _player.CurrentArea.Npcs.First();
-            Combat.CombatLoop(_player, enemy);
+            Combat.CombatLoop(player, enemy);
         }
 
-        private void PickUpItem()
+        private void Interact(Player player, IInteractable thing)
         {
-            if (_player.CurrentArea.Npcs.Count > 0)
+            if (player.CurrentArea.Npcs.Count > 0)
             {
                 // compare player to fastest enemy
-                double playerCheck = _player.Attributes.Speed + _player.Attributes.Agility / 2 + _player.Attributes.Luck / 3;
+                double playerCheck = player.Attributes.Speed + player.Attributes.Agility / 2 + player.Attributes.Luck / 3;
                 double enemyCheck = 0;
-                Npc fastestNpc = _player.CurrentArea.Npcs.First();
-                foreach (Npc npc in _player.CurrentArea.Npcs)
+                Npc fastestNpc = player.CurrentArea.Npcs.First();
+                foreach (Npc npc in player.CurrentArea.Npcs)
                 {
                     var currentNpcCheck = npc.Attributes.Speed + npc.Attributes.Agility / 2 + npc.Attributes.Luck / 3;
                     if (!(currentNpcCheck >= enemyCheck)) continue;
@@ -171,36 +190,25 @@ namespace text_survival
                 if (playerCheck < enemyCheck)
                 {
                     Utils.WriteLine("You weren't fast enough to get past the ", fastestNpc.Name, "!");
-                    Fight();
+                    Fight(player, fastestNpc);
                     return;
                 }
             }
-            var things = _player.CurrentArea.Things;
-            IInteractable thing = things.First();
-            if (things.Count > 1)
-            {
-                Utils.WriteLine("Which thing would you like to check out?");
-                int input = Utils.GetSelectionFromList(things, cancelOption: true);
-                if (input == 0)
-                    return;
-                thing = things[input - 1];
-
-            }
-            thing.Interact(_player);
+            thing.Interact(player);
         }
 
-        private void OpenInventory()
+        private void OpenInventory(Player player)
         {
-            _player.OpenInventory();
+            player.OpenInventory();
         }
 
-        private void Travel()
+        private void Travel(Player player)
         {
             Utils.WriteLine("Where would you like to go?");
             List<Area> options = new();
 
             // find all nearby areas that are not the current area
-            options.AddRange(_player
+            options.AddRange(player
                 .CurrentArea
                 .NearbyAreas);
 
@@ -220,45 +228,45 @@ namespace text_survival
             int minutes = Utils.RandInt(30, 60);
             Utils.WriteLine("You travel for ", minutes, " minutes...");
             World.Update(minutes);
-            _player.Enter(options[input - 1]);
+            player.Enter(options[input - 1]);
         }
 
 
-        private void Sleep()
+        private void Sleep(Player player)
         {
             Utils.WriteLine("How many hours would you like to sleep?");
-            _player.Sleep(Utils.ReadInt() * 60);
+            player.Sleep(Utils.ReadInt() * 60);
         }
 
-        private void CheckGear()
+        private void CheckGear(Player player)
         {
-            _player.CheckGear();
+            player.CheckGear();
         }
 
-        private void LookAround()
+        private void LookAround(Player player)
         {
             Utils.WriteLine("You take in your surroundings");
-            Utils.WriteLine("You're in a ", _player.CurrentArea, ", ", _player.CurrentArea.Description);
-            Utils.WriteLine("Its ", World.GetTimeOfDay(), " and ", _player.CurrentArea.GetTemperature(), " degrees.");
-            if (_player.CurrentArea.Npcs.Count == 0 && _player.CurrentArea.Things.Count == 0)
+            Utils.WriteLine("You're in a ", player.CurrentArea, ", ", player.CurrentArea.Description);
+            Utils.WriteLine("Its ", World.GetTimeOfDay(), " and ", player.CurrentArea.GetTemperature(), " degrees.");
+            if (player.CurrentArea.Npcs.Count == 0 && player.CurrentArea.Things.Count == 0)
             {
                 Utils.WriteLine("You see nothing of interest, time to move on.");
                 return;
             }
 
             Utils.WriteLine("You see the following things:");
-            foreach (var thing in _player.CurrentArea.Things)
+            foreach (var thing in player.CurrentArea.Things)
             {
                 Utils.WriteLine(thing);
             }
-            foreach (var npc in _player.CurrentArea.Npcs)
+            foreach (var npc in player.CurrentArea.Npcs)
             {
                 Utils.WriteLine(npc);
             }
         }
-        private void Quit()
+        private void Quit(Player player)
         {
-            _player.Damage(999);
+            player.Damage(999);
         }
     }
 

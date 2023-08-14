@@ -34,7 +34,8 @@ namespace text_survival.Actors
         // Update //
         public void Update()
         {
-            foreach (Buff buff in Buffs)
+            List<Buff> buffs = new List<Buff>(Buffs);
+            foreach (Buff buff in buffs)
             {
                 buff.Tick(this);
             }

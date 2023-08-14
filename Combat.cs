@@ -5,7 +5,7 @@ namespace text_survival
 {
     public static class Combat
     {
-        public static void CombatLoop(Player player, Npc enemy)
+        public static void CombatLoop(Player player, ICombatant enemy)
         {
             Utils.WriteLine("You encounter: ", enemy, "!");
 
@@ -30,7 +30,8 @@ namespace text_survival
             else if (enemy.Health <= 0)
             {
                 Utils.WriteLine("You killed ", enemy, "!");
-                GetLoot(player, enemy);
+                if (enemy is Npc npc)
+                    GetLoot(player, npc);
             }
         }
 

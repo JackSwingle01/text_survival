@@ -8,6 +8,7 @@ namespace text_survival.Environments
 {
     public interface IInteractable
     {
+        string Name { get; }
         public void Interact(Player player);
     }
 }
