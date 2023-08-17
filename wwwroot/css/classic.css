@@ -1,0 +1,59 @@
+﻿/* Reset some basic styles */
+body, h1, h2, h3, p, div, form {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Times New Roman', Times, serif; /* Classic old-style font */
+    background-color: #f4e9dc; /* Parchment-like color */
+    
+    background-size: cover;
+    color: #4d4d00; /* Dark text for contrast against parchment */
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+button {
+    background-color: #998675; /* Antique wood color */
+    border: 1px solid #4d4d00;
+    color: #ffffff;
+    padding: 5px 15px;
+    margin: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+    button:hover {
+        background-color: #7a6a56;
+    }
+
+#console {
+    width: 500px;
+    height: 500px;
+    overflow: auto;
+    margin: 20px 0;
+    border: 2px solid #998675;
+    padding: 20px;
+    background-color: rgba(244, 233, 220, 0.8); /* Slightly translucent parchment for the console to stand out */
+}
+
+#userInputForm {
+    display: flex;
+    gap: 10px; /* Gap between input and button */
+}
+
+input[type="text"] {
+    background-color: rgba(244, 233, 220, 0.9); /* Similar parchment effect for input box */
+    color: #4d4d00;
+    border: 1px solid #998675;
+    padding: 5px;
+    outline: none;
+}
+
+    input[type="text"]:focus {
+        box-shadow: 0 0 5px rgba(77, 77, 0, 0.3); /* Subtle shadow for focus */
+    }

@@ -55,6 +55,16 @@ namespace text_survival_rpg_web
             Message = message;
         }
     }
+
+    public class InputEvent : EventBase
+    {
+        public string Input { get; set; }
+
+        public InputEvent(string input)
+        {
+            Input = input;
+        }
+    }
     public static class EventHandler
     {
         private static readonly Dictionary<Type, List<Action<EventBase>>> EventHandlers = new();

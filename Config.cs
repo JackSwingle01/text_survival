@@ -7,7 +7,7 @@
             Console,
             Web
         }
-        public const IOType io = IOType.Web;
+        public static IOType io = IOType.Web;
         public const string WebApiUrl = "https://localhost:4321/api/TextSurvival";
     }
 }

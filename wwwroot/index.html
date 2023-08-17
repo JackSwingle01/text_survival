@@ -3,27 +3,54 @@
 <head>
     <title>Game Console</title>
     <meta charset="utf-8" />
-<link rel="stylesheet" href="css/site.css" />
+    <link id="theme" rel="stylesheet" href="css/terminal.css" />
 </head>
 <body>
+    <button id="themeSwitcher" onclick="SwitchTheme()" style="position: absolute; top: 10px; right: 10px;">
+        Switch Theme
+    </button>
     <button id="STARTGAME" onclick="StartGame()">START GAME</button>
-    <div id="consoleOutput"></div>
-    <input type="text" id="userInput" placeholder="Enter command..." />
-    <button onclick="SendInput()">Submit</button>
+    <div id="console" style="width: 500px; height: 500px; overflow: auto;">
+        <div id="consoleOutput"></div>
+    </div>
+    <form id="userInputForm" onsubmit="event.preventDefault(); SendInput();">
+        <input type="text" id="userInput" placeholder="Enter command..." />
+        <button type="submit">Submit</button>
+    </form>
 
     <script>
+        var inputField = document.getElementById("userInput");
+
         function StartGame() {
             document.getElementById("STARTGAME").style.display = "none";
             var consoleOutput = document.getElementById("consoleOutput");
             var source = new EventSource('/Start');
             source.onmessage = function (event) {
-                consoleOutput.innerHTML += event.data;
+                appendToConsole(event.data);
             };
         }
+        function appendToConsole(content) {
+            const consoleDiv = document.getElementById('console');
+
+            // Check if the console was already scrolled to the bottom
+            const wasAtBottom = consoleDiv.scrollTop + consoleDiv.clientHeight === consoleDiv.scrollHeight;
+
+            // Append new content
+            const outputDiv = document.getElementById('consoleOutput');
+
+            outputDiv.innerHTML += content;
+
+            // If it was at the bottom, scroll to the new bottom
+            if (wasAtBottom) {
+                consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            }
+        }
+
         function SendInput() {
-            var input = document.getElementById("userInput").value;
+            var input = inputField.value;
+            inputField.value = "";
             let data = { input: input };
-         
+
             fetch('/Input', {
                 method: 'POST',
                 headers: {
@@ -37,6 +64,17 @@
                     console.error('Error:', error);
                 });
         }
+      
+        // This script toggles between the two themes
+        function SwitchTheme() {
+            const currentTheme = document.getElementById('theme').getAttribute('href');
+            if (currentTheme === 'css/terminal.css') {
+                document.getElementById('theme').setAttribute('href', 'css/classic.css');
+            } else {
+                document.getElementById('theme').setAttribute('href', 'css/terminal.css');
+            }
+        }        
+    
 
     </script>
 

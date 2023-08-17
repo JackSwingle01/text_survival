@@ -11,7 +11,7 @@
         }
         public static string Read()
         {
-            string? input;
+            string? input = "";
             if (Config.io == Config.IOType.Console)
             {
                 input = Console.ReadLine();

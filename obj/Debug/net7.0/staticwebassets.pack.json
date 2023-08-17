@@ -1,8 +1,12 @@
 {
   "Files": [
     {
-      "Id": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_survival_rpg_web\\wwwroot\\css\\site.css",
-      "PackagePath": "staticwebassets\\css\\site.css"
+      "Id": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_survival_rpg_web\\wwwroot\\css\\classic.css",
+      "PackagePath": "staticwebassets\\css\\classic.css"
+    },
+    {
+      "Id": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_survival_rpg_web\\wwwroot\\css\\terminal.css",
+      "PackagePath": "staticwebassets\\css\\terminal.css"
     },
     {
       "Id": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_survival_rpg_web\\wwwroot\\index.html",

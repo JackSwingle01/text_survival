@@ -1,0 +1,59 @@
+﻿/* Reset some basic styles */
+body, h1, h2, h3, p, div, form {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Courier New', Courier, monospace; /* command-line like font */
+    background-color: #1e1e1e; /* dark background for command-line theme */
+    color: #00FF00; /* classic green text on black background */
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+button {
+    background-color: #333;
+    border: none;
+    color: #00FF00;
+    padding: 5px 15px;
+    margin: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+    button:hover {
+        background-color: #555;
+    }
+
+#console {
+    width: 500px;
+    height: 500px;
+    overflow: auto;
+    margin: 20px 0;
+    border: 1px solid #00FF00; /* green border */
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3); /* subtle green shadow */
+}
+
+#userInputForm {
+    display: flex;
+    gap: 10px; /* Gap between input and button */
+}
+
+input[type="text"] {
+    background-color: #333;
+    color: #00FF00;
+    border: 1px solid #00FF00;
+    padding: 5px;
+    outline: none;
+}
+
+    input[type="text"]:focus {
+        box-shadow: 0 0 5px rgba(0, 255, 0, 0.7);
+    }
+  white-space: pre-wrap;
+}
