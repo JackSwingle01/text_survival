@@ -1,8 +1,8 @@
-﻿using text_survival.Items;
-using text_survival.Level;
-using text_survival.Magic;
+﻿using text_survival_rpg_web.Items;
+using text_survival_rpg_web.Level;
+using text_survival_rpg_web.Magic;
 
-namespace text_survival.Actors
+namespace text_survival_rpg_web.Actors
 {
     public class Npc : ICombatant
     {

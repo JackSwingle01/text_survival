@@ -1,11 +1,11 @@
-﻿using text_survival.Actors;
-using text_survival.Environments;
-using text_survival.Items;
-using text_survival.Level;
-using text_survival.Magic;
-using text_survival.Survival;
+﻿using text_survival_rpg_web.Actors;
+using text_survival_rpg_web.Environments;
+using text_survival_rpg_web.Items;
+using text_survival_rpg_web.Level;
+using text_survival_rpg_web.Magic;
+using text_survival_rpg_web.Survival;
 
-namespace text_survival
+namespace text_survival_rpg_web
 {
     public class Player : ICombatant, ISpellCaster
     {
@@ -222,7 +222,7 @@ namespace text_survival
                     return;
             }
 
-            if (item != _unarmed) 
+            if (item != _unarmed)
                 Output.WriteLine("You unequip ", item);
 
             item.OnUnequip(this);

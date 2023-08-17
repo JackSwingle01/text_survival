@@ -1,6 +1,6 @@
-﻿using text_survival.Level;
+﻿using text_survival_rpg_web.Level;
 
-namespace text_survival.Items
+namespace text_survival_rpg_web.Items
 {
     public class ItemFactory
     {

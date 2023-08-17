@@ -1,4 +1,4 @@
-﻿namespace text_survival.Actors
+﻿namespace text_survival_rpg_web.Actors
 {
     public class NpcPool
     {

@@ -1,7 +1,6 @@
-﻿using text_survival.Actors;
-using text_survival.Items;
+﻿using text_survival_rpg_web.Actors;
 
-namespace text_survival.Environments
+namespace text_survival_rpg_web.Environments
 {
     public class Area
     {

@@ -1,7 +1,7 @@
-﻿using text_survival.Items;
-using text_survival.Level;
+﻿using text_survival_rpg_web.Items;
+using text_survival_rpg_web.Level;
 
-namespace text_survival.Actors
+namespace text_survival_rpg_web.Actors
 {
     public class Humanoid : Npc
     {

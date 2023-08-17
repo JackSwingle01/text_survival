@@ -1,6 +1,6 @@
-﻿using text_survival.Environments;
+﻿using text_survival_rpg_web.Environments;
 
-namespace text_survival.Items
+namespace text_survival_rpg_web.Items
 {
     public class Container : IInteractable
     {

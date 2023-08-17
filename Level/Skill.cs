@@ -1,6 +1,6 @@
 ﻿
 
-namespace text_survival.Level
+namespace text_survival_rpg_web.Level
 {
     public class Skill
     {

@@ -1,0 +1,45 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Game Console</title>
+    <meta charset="utf-8" />
+<link rel="stylesheet" href="css/site.css" />
+</head>
+<body>
+    <button id="STARTGAME" onclick="StartGame()">START GAME</button>
+    <div id="consoleOutput"></div>
+    <input type="text" id="userInput" placeholder="Enter command..." />
+    <button onclick="SendInput()">Submit</button>
+
+    <script>
+        function StartGame() {
+            document.getElementById("STARTGAME").style.display = "none";
+            var consoleOutput = document.getElementById("consoleOutput");
+            var source = new EventSource('/Start');
+            source.onmessage = function (event) {
+                consoleOutput.innerHTML += event.data;
+            };
+        }
+        function SendInput() {
+            var input = document.getElementById("userInput").value;
+            let data = { input: input };
+         
+            fetch('/Input', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+                //.then(response => response.json())
+                .then(data => console.log(data))
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+
+    </script>
+
+
+</body>
+</html>

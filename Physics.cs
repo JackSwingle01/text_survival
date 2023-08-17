@@ -1,4 +1,4 @@
-﻿namespace text_survival
+﻿namespace text_survival_rpg_web
 {
     public static class Physics
     {

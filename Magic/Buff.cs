@@ -1,6 +1,6 @@
-﻿using text_survival.Actors;
+﻿using text_survival_rpg_web.Actors;
 
-namespace text_survival.Magic
+namespace text_survival_rpg_web.Magic
 {
     public enum TriggerTypes
     {

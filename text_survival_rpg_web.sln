@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33829.357
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "text_survival_rpg_web", "text_survival_rpg_web.csproj", "{07ABB72C-3055-45BC-9043-E6DD612BE542}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{07ABB72C-3055-45BC-9043-E6DD612BE542}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07ABB72C-3055-45BC-9043-E6DD612BE542}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07ABB72C-3055-45BC-9043-E6DD612BE542}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07ABB72C-3055-45BC-9043-E6DD612BE542}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9FC54941-07AA-443D-BF26-356E2A647EA0}
+	EndGlobalSection
+EndGlobal

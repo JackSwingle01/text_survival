@@ -1,4 +1,4 @@
-﻿namespace text_survival.Survival
+﻿namespace text_survival_rpg_web.Survival
 {
     public class ExhaustionModule
     {

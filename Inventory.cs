@@ -1,6 +1,6 @@
-﻿using text_survival.Items;
+﻿using text_survival_rpg_web.Items;
 
-namespace text_survival
+namespace text_survival_rpg_web
 {
     public class Inventory : Container
     {

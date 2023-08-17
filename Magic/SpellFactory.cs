@@ -1,6 +1,6 @@
-﻿using text_survival.Level;
+﻿using text_survival_rpg_web.Level;
 
-namespace text_survival.Magic
+namespace text_survival_rpg_web.Magic
 {
     public static class SpellFactory
     {
@@ -11,7 +11,7 @@ namespace text_survival.Magic
             Spell.SpellFamily.Restoration);
         public static Spell Heal => new Spell(
             "Heal",
-            20, 
+            20,
             CommonBuffs.Heal(25),
             Spell.SpellFamily.Restoration);
         public static Spell MajorHeal => new Spell(

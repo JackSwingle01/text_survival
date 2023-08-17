@@ -1,24 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace text_survival
+﻿namespace text_survival_rpg_web
 {
     public static class Input
     {
+        private static ManualResetEvent manualResetEvent = new ManualResetEvent(false);
+        private static string userInput;
+        public static void OnUserInputReceived(string input)
+        {
+            userInput = input;
+            manualResetEvent.Set();
+        }
         public static string Read()
         {
-            string? input = Console.ReadLine();
+            string? input;
+            if (Config.io == Config.IOType.Console)
+            {
+                input = Console.ReadLine();
+            }
+            else if (Config.io == Config.IOType.Web)
+            {
+                // await user input from web
+                input = AwaitInput();
+            }
             return input ?? "";
+        }
+
+        public static string AwaitInput()
+        {
+            manualResetEvent.WaitOne();
+            manualResetEvent.Reset();
+            return userInput;
         }
 
         public static int ReadInt()
         {
             while (true)
             {
-                string? input = Console.ReadLine();
+                string? input = Read();
                 if (int.TryParse(input, out int result))
                 {
                     return result;

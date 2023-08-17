@@ -1,8 +1,4 @@
-﻿using text_survival.Actors;
-using text_survival.Environments;
-using text_survival.Items;
-
-namespace text_survival
+﻿namespace text_survival_rpg_web
 {
     public static class Utils
     {

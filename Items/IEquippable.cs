@@ -1,6 +1,6 @@
-﻿using text_survival.Magic;
+﻿using text_survival_rpg_web.Magic;
 
-namespace text_survival.Items
+namespace text_survival_rpg_web.Items
 {
     public interface IEquippable
     {

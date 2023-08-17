@@ -1,10 +1,8 @@
-﻿using text_survival.Actors;
+﻿using text_survival_rpg_web.Actors;
+using text_survival_rpg_web.Environments;
+using text_survival_rpg_web.Level;
 
-using text_survival.Environments;
-using text_survival.Items;
-using static text_survival.Level.Attributes;
-
-namespace text_survival
+namespace text_survival_rpg_web
 {
     public enum ActionType
     {
@@ -20,7 +18,7 @@ namespace text_survival
         LevelUp,
     }
 
- 
+
     public class Actions
     {
         private readonly Player _player;
@@ -56,7 +54,7 @@ namespace text_survival
             var lookCommand = LookAroundCommand;
             lookCommand.Player = _player;
             AvailableActions.Add(lookCommand);
-            
+
             var checkStats = CheckStatsCommand;
             checkStats.Player = _player;
             AvailableActions.Add(checkStats);
@@ -71,7 +69,7 @@ namespace text_survival
                 command.Arg = npc;
                 AvailableActions.Add(command);
             }
-            
+
             foreach (var thing in _player.CurrentArea.Things)
             {
                 var command = InteractCommand;
@@ -119,7 +117,7 @@ namespace text_survival
             Output.WriteLine("What would you like to do?");
             List<string> actionNames = AvailableActions.Select(action => action.Name).ToList();
             int input = Input.GetSelectionFromList(actionNames);
-            var command = AvailableActions[input-1 ];
+            var command = AvailableActions[input - 1];
             command.Execute();
         }
 
@@ -129,27 +127,27 @@ namespace text_survival
             while (player.SkillPoints > 0)
             {
                 Output.WriteLine("Select an attribute to improve:");
-                Output.WriteLine("1. ", PrimaryAttributes.Strength);
-                Output.WriteLine("2. ", PrimaryAttributes.Intelligence);
-                Output.WriteLine("3. ", PrimaryAttributes.Speed);
-                Output.WriteLine("4. ", PrimaryAttributes.Endurance);
-                Output.WriteLine("5. ", PrimaryAttributes.Agility);
-                Output.WriteLine("6. ", PrimaryAttributes.Luck);
-                Output.WriteLine("7. ", PrimaryAttributes.Willpower);
-                Output.WriteLine("8. ", PrimaryAttributes.Personality);
+                Output.WriteLine("1. ", Attributes.PrimaryAttributes.Strength);
+                Output.WriteLine("2. ", Attributes.PrimaryAttributes.Intelligence);
+                Output.WriteLine("3. ", Attributes.PrimaryAttributes.Speed);
+                Output.WriteLine("4. ", Attributes.PrimaryAttributes.Endurance);
+                Output.WriteLine("5. ", Attributes.PrimaryAttributes.Agility);
+                Output.WriteLine("6. ", Attributes.PrimaryAttributes.Luck);
+                Output.WriteLine("7. ", Attributes.PrimaryAttributes.Willpower);
+                Output.WriteLine("8. ", Attributes.PrimaryAttributes.Personality);
                 Output.WriteLine("0. Cancel");
                 int input = Input.ReadInt(0, 8);
                 if (input == 0) return;
                 var attribute = input switch
                 {
-                    1 => PrimaryAttributes.Strength,
-                    2 => PrimaryAttributes.Intelligence,
-                    3 => PrimaryAttributes.Speed,
-                    4 => PrimaryAttributes.Endurance,
-                    5 => PrimaryAttributes.Agility,
-                    6 => PrimaryAttributes.Luck,
-                    7 => PrimaryAttributes.Willpower,
-                    8 => PrimaryAttributes.Personality,
+                    1 => Attributes.PrimaryAttributes.Strength,
+                    2 => Attributes.PrimaryAttributes.Intelligence,
+                    3 => Attributes.PrimaryAttributes.Speed,
+                    4 => Attributes.PrimaryAttributes.Endurance,
+                    5 => Attributes.PrimaryAttributes.Agility,
+                    6 => Attributes.PrimaryAttributes.Luck,
+                    7 => Attributes.PrimaryAttributes.Willpower,
+                    8 => Attributes.PrimaryAttributes.Personality,
                     _ => throw new ArgumentOutOfRangeException()
                 };
                 player.SpendPointToUpgradeAttribute(attribute);

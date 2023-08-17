@@ -1,8 +1,7 @@
-﻿using text_survival.Actors;
-using text_survival.Items;
-using text_survival.Level;
+﻿using text_survival_rpg_web.Actors;
+using text_survival_rpg_web.Level;
 
-namespace text_survival
+namespace text_survival_rpg_web
 {
     public abstract class EventBase { }
 
@@ -44,6 +43,16 @@ namespace text_survival
         {
             Experience = experience;
             Type = type;
+        }
+    }
+    public class WriteEvent : EventBase
+    {
+        public string Message { get; set; }
+
+
+        public WriteEvent(string message)
+        {
+            Message = message;
         }
     }
     public static class EventHandler

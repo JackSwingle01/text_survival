@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="..\buildMultiTargeting\text_survival_rpg_web.props" />
+</Project>

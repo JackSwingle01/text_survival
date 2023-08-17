@@ -1,6 +1,6 @@
-﻿using text_survival.Level;
+﻿using text_survival_rpg_web.Level;
 
-namespace text_survival.Actors
+namespace text_survival_rpg_web.Actors
 {
     public interface IActor
     {

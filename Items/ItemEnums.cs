@@ -1,4 +1,4 @@
-﻿namespace text_survival.Items
+﻿namespace text_survival_rpg_web.Items
 {
     public enum EquipSpots
     {
