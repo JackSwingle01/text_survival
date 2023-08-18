@@ -251,6 +251,10 @@ namespace text_survival_rpg_web
 
         public int InventoryCount => Inventory.Count();
 
+        /// <summary>
+        /// Simply adds the item, use TakeItem() if you want to take it from an area.
+        /// </summary>
+        /// <param name="item"></param>
         public void AddToInventory(Item item)
         {
             Inventory.Add(item);
@@ -280,9 +284,12 @@ namespace text_survival_rpg_web
             CurrentArea.PutThing(item);
         }
 
+        /// <summary>
+        /// Removes an item from the area's items and adds it to the player's inventory
+        /// </summary>
+        /// <param name="item"></param>
         public void TakeItem(Item item)
         {
-            // recursively search 
             if (CurrentArea.Things.Contains(item))
                 CurrentArea.Things.Remove(item);
             else

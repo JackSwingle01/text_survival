@@ -13,7 +13,7 @@ namespace text_survival_rpg_web
             while (true)
             {
                 Output.WriteLine(this, " (", Weight(), "/", MaxWeight, "):");
-                int index = Input.GetSelectionFromList(Items, true, "Close") - 1;
+                int index = Input.GetSelectionFromList(Items, true, "Close " + this) - 1;
                 if (index == -1) return;
                 Item item = GetItem(index);
                 Output.WriteLine("What would you like to do with ", item);

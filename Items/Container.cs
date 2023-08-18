@@ -32,8 +32,18 @@ namespace text_survival_rpg_web.Items
             while (true)
             {
                 Output.WriteLine(this, ":");
-                int index = Input.GetSelectionFromList(Items, true) - 1;
+                var options = new List<string>();
+                Items.ForEach(item => options.Add(item.Name));
+                options.Add("Take all");
+                int index = Input.GetSelectionFromList(options, true, "Close "+this) - 1;
                 if (index == -1) return;
+                if (index == options.Count)
+                {
+                    while (Items.Count > 0)
+                    {
+                        player.TakeItem(Items[0]);                    
+                    }
+                }
                 Item item = GetItem(index);
                 Output.WriteLine("What would you like to do with ", item);
                 int choice = Input.GetSelectionFromList(new List<string>() { "Take", "Inspect", "Use" }, true);
@@ -48,7 +58,7 @@ namespace text_survival_rpg_web.Items
                         Examine.ExamineItem(item);
                         break;
                     case 3:
-                        this.Remove(item);
+                        Remove(item);
                         item.UseEffect.Invoke(player);
                         break;
                 }

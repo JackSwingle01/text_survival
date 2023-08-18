@@ -63,6 +63,15 @@
             }
         }
 
+        /// <summary>
+        /// Returns a 1-indexed selection from a list of choices.
+        /// Returns 0 if the user selects the cancel option.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list"></param>
+        /// <param name="cancelOption"></param>
+        /// <param name="cancelMessage"></param>
+        /// <returns></returns>
         public static int GetSelectionFromList<T>(List<T> list, bool cancelOption = false, string cancelMessage = "Cancel")
         {
             list.ForEach(i =>
