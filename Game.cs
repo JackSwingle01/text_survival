@@ -29,7 +29,7 @@
                 actions.Act();
             }
         }
-        
+
         public void OnWriteEvent(WriteEvent e)
         {
             OutputQueue.Enqueue(e.Message);

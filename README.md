@@ -16,13 +16,14 @@ C# console app text based survival rpg game.
 - Player and npc attributes (str, int, agi, spd, wil, end, cha(does nothing yet), luc)
 - Player skills (blade, blund, unarmed, block(todo), dodge, heavy armor(todo), light armor)
 - Buff and debuff system (architecture is there, but not used much yet)
+- Console and web UI (web ui is wip)
 
 ### To Do:
 - Add more items, npcs, locations.
 - Add ablity to unequip items without equipping another item. (done)
 - Ability to drop items. (Done)
 - Show stats of weapons in inventory (Done)
-- Add consumable item class
+- Add consumable item class (maybe)
 - Add block calculations to combat (done)
 - Add shops
 - Revamp armor (light/heavy, material, random generation)

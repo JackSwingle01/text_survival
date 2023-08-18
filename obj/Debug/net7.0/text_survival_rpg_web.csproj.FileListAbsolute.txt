@@ -27,10 +27,4 @@ C:\Users\jack7\Documents\myCode\games\text_survival_rpg_web\obj\Debug\net7.0\tex
 C:\Users\jack7\Documents\myCode\games\text_survival_rpg_web\obj\Debug\net7.0\text_survival_rpg_web.genruntimeconfig.cache
 C:\Users\jack7\Documents\myCode\games\text_survival_rpg_web\obj\Debug\net7.0\ref\text_survival_rpg_web.dll
 C:\Users\jack7\Documents\myCode\games\text_survival_rpg_web\bin\Debug\net7.0\text_survival_rpg_web.staticwebassets.runtime.json
-C:\Users\jack7\Documents\myCode\games\text_survival_rpg_web\bin\Debug\net7.0\Microsoft.AspNet.SignalR.Core.dll
-C:\Users\jack7\Documents\myCode\games\text_survival_rpg_web\bin\Debug\net7.0\Microsoft.AspNet.SignalR.SystemWeb.dll
-C:\Users\jack7\Documents\myCode\games\text_survival_rpg_web\bin\Debug\net7.0\Microsoft.Owin.dll
-C:\Users\jack7\Documents\myCode\games\text_survival_rpg_web\bin\Debug\net7.0\Microsoft.Owin.Host.SystemWeb.dll
-C:\Users\jack7\Documents\myCode\games\text_survival_rpg_web\bin\Debug\net7.0\Microsoft.Owin.Security.dll
-C:\Users\jack7\Documents\myCode\games\text_survival_rpg_web\bin\Debug\net7.0\Owin.dll
 C:\Users\jack7\Documents\myCode\games\text_survival_rpg_web\bin\Debug\net7.0\libman.json
