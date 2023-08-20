@@ -34,16 +34,26 @@ namespace text_survival_rpg_web.Items
                 Output.WriteLine(this, ":");
                 var options = new List<string>();
                 Items.ForEach(item => options.Add(item.Name));
-                options.Add("Take all");
-                int index = Input.GetSelectionFromList(options, true, "Close "+this) - 1;
-                if (index == -1) return;
-                if (index == options.Count)
+                int index;
+                if (Items.Count > 1)
                 {
-                    while (Items.Count > 0)
+                    options.Add("Take all");
+                    index = Input.GetSelectionFromList(options, true, "Close "+this) - 1;
+                  
+                    if (index == options.Count-1)
                     {
-                        player.TakeItem(Items[0]);                    
+                        while (Items.Count > 0)
+                        {
+                            player.TakeItem(Items[0]);                    
+                        }
+                        return;
                     }
                 }
+                else
+                {
+                    index = Input.GetSelectionFromList(options, true, "Close " + this) - 1;
+                }
+                if (index == -1) return;
                 Item item = GetItem(index);
                 Output.WriteLine("What would you like to do with ", item);
                 int choice = Input.GetSelectionFromList(new List<string>() { "Take", "Inspect", "Use" }, true);
