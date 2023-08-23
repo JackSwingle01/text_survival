@@ -302,7 +302,7 @@ namespace text_survival_rpg_web.Environments
             }
             for (int i = 0; i < numNpcs; i++)
             {
-                area.Npcs.Add(npcPool.GenerateRandomNpc());
+                area.PutThing(npcPool.GenerateRandomNpc());
             }
             return area;
         }

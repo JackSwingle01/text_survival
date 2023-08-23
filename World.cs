@@ -1,5 +1,4 @@
-﻿using text_survival_rpg_web.Actors;
-using text_survival_rpg_web.Environments;
+﻿using text_survival_rpg_web.Environments;
 using text_survival_rpg_web.Items;
 
 namespace text_survival_rpg_web
@@ -7,7 +6,7 @@ namespace text_survival_rpg_web
     public static class World
     {
         public static TimeOnly Time { get; set; }
-        //public static int Days { get; set; }
+    
         public static Player Player { get; set; }
         public static Area CurrentArea => Player.CurrentArea;
 
@@ -30,17 +29,14 @@ namespace text_survival_rpg_web
             for (int i = 0; i < minutes; i++)
             {
                 Player.Update();
-                List<Npc> npcs = new List<Npc>(CurrentArea.Npcs);
-                foreach (var npc in npcs)
+                List<IUpdateable> updateables = new List<IUpdateable>(CurrentArea.GetUpdateables);
+                foreach (var updateable in updateables)
                 {
-                    npc.Update();
+                    updateable.Update();
                 }
                 Time = Time.AddMinutes(1);
             }
-            //if (Time.AddMinutes(minutes).Hour < Time.Hour)
-            //{
-            //    Days++;
-            //}
+        
         }
 
         public enum TimeOfDay

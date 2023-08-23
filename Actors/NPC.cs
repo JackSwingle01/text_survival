@@ -1,10 +1,11 @@
-﻿using text_survival_rpg_web.Items;
+﻿using text_survival_rpg_web.Environments;
+using text_survival_rpg_web.Items;
 using text_survival_rpg_web.Level;
 using text_survival_rpg_web.Magic;
 
 namespace text_survival_rpg_web.Actors
 {
-    public class Npc : ICombatant
+    public class Npc : ICombatant, IInteractable
     {
         public string Name { get; set; }
         public string Description { get; set; }
@@ -29,6 +30,20 @@ namespace text_survival_rpg_web.Actors
             Description = "";
             UnarmedDamage = 2;
             Buffs = new List<Buff>();
+        }
+
+        // Interact //
+
+        public void Interact(Player player)
+        {
+            if (IsAlive)
+            {
+                Combat.CombatLoop(player, this);
+            }
+            else
+            {
+                Output.WriteLine(this, " is dead.");
+            }
         }
 
         // Update //

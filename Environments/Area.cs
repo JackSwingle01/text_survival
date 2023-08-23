@@ -7,7 +7,17 @@ namespace text_survival_rpg_web.Environments
         public string Name { get; set; }
         public string Description { get; set; }
         public List<IInteractable> Things { get; private set; }
-        public List<Npc> Npcs { get; private set; }
+
+        /// <summary>
+        /// Gets live NPCs in the area.
+        /// </summary>
+        public List<Npc> GetNpcs => Things.OfType<Npc>().Where(npc => npc.IsAlive).ToList();
+
+        /// <summary>
+        /// Returns true if there are no hostile NPCs in the area.
+        /// </summary>
+        public bool IsSafe => !GetNpcs.Any(npc => npc.IsHostile);
+        public List<IUpdateable> GetUpdateables => Things.OfType<IUpdateable>().ToList();
         public double BaseTemperature { get; private set; }
         public bool IsShelter { get; set; }
         public bool Visited { get; set; }
@@ -28,9 +38,8 @@ namespace text_survival_rpg_web.Environments
             Description = description;
             BaseTemperature = baseTemp;
             Things = new List<IInteractable>();
-            Npcs = new List<Npc>();
             //EventHandler.Subscribe<ItemTakenEvent>(OnItemTaken);
-            EventHandler.Subscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
+            //EventHandler.Subscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
             NearbyAreas = new List<Area>();
             Locations = new List<Location>();
         }
@@ -84,11 +93,11 @@ namespace text_survival_rpg_web.Environments
             Things.Add(thing);
         }
 
-        private void OnEnemyDefeated(EnemyDefeatedEvent e)
-        {
-            if (!Npcs.Contains(e.DefeatedEnemy)) return;
-            this.Npcs.Remove(e.DefeatedEnemy);
-        }
+        //private void OnEnemyDefeated(EnemyDefeatedEvent e)
+        //{
+        //    if (!GetNpcs.Contains(e.DefeatedEnemy)) return;
+        //    this.GetNpcs.Remove(e.DefeatedEnemy);
+        //}
 
         //private void OnItemTaken(ItemTakenEvent e)
         //{

@@ -35,7 +35,6 @@ namespace text_survival_rpg_web
         private Command<Player> LookAroundCommand => new Command<Player>("Look Around", LookAround);
         private Command<Player> CheckStatsCommand => new Command<Player>("Check Stats", CheckStats);
         private Command<Player> LevelUpCommand => new Command<Player>("Level Up", LevelUp);
-        private Command<Player, ICombatant> FightCommand => new Command<Player, ICombatant>("Fight", Fight);
         private Command<Player, IInteractable> InteractCommand => new Command<Player, IInteractable>("Interact", Interact);
         private Command<Player> OpenInventoryCommand => new Command<Player>("Open Inventory", OpenInventory);
         private Command<Player> TravelCommand => new Command<Player>("Travel", Travel);
@@ -59,16 +58,7 @@ namespace text_survival_rpg_web
             checkStats.Player = _player;
             AvailableActions.Add(checkStats);
 
-
             // conditional actions
-            foreach (var npc in _player.CurrentArea.Npcs)
-            {
-                var command = FightCommand;
-                command.Name = "Fight " + npc.Name;
-                command.Player = _player;
-                command.Arg = npc;
-                AvailableActions.Add(command);
-            }
 
             foreach (var thing in _player.CurrentArea.Things)
             {
@@ -103,9 +93,6 @@ namespace text_survival_rpg_web
                 checkGearCommand.Player = _player;
                 AvailableActions.Add(checkGearCommand);
             }
-
-            // last action
-            //AvailableActions.Add(ActionType.Quit);
         }
 
         public void Act()
@@ -164,33 +151,15 @@ namespace text_survival_rpg_web
             Console.ReadKey(true);
         }
 
-        private void Fight(Player player, ICombatant enemy)
-        {
-            Combat.CombatLoop(player, enemy);
-        }
-
         private void Interact(Player player, IInteractable thing)
         {
-            if (player.CurrentArea.Npcs.Count > 0)
+            if (!Combat.SpeedCheck(player))
             {
-                // compare player to fastest enemy
-                double playerCheck = player.Attributes.Speed + player.Attributes.Agility / 2 + player.Attributes.Luck / 3;
-                double enemyCheck = 0;
-                Npc fastestNpc = player.CurrentArea.Npcs.First();
-                foreach (Npc npc in player.CurrentArea.Npcs)
-                {
-                    var currentNpcCheck = npc.Attributes.Speed + npc.Attributes.Agility / 2 + npc.Attributes.Luck / 3;
-                    if (!(currentNpcCheck >= enemyCheck)) continue;
-                    fastestNpc = npc;
-                    enemyCheck = currentNpcCheck;
-                }
-
-                if (playerCheck < enemyCheck)
-                {
-                    Output.WriteLine("You weren't fast enough to get past the ", fastestNpc.Name, "!");
-                    Fight(player, fastestNpc);
-                    return;
-                }
+                Npc npc = Combat.GetFastestNpc(player.CurrentArea);
+                if (npc != thing)
+                    Output.WriteLine("You couldn't get past the ", npc, "!");
+                npc.Interact(player);
+                return;
             }
             thing.Interact(player);
         }
@@ -246,7 +215,7 @@ namespace text_survival_rpg_web
             Output.WriteLine("You take in your surroundings");
             Output.WriteLine("You're in a ", player.CurrentArea, ", ", player.CurrentArea.Description);
             Output.WriteLine("Its ", World.GetTimeOfDay(), " and ", player.CurrentArea.GetTemperature(), " degrees.");
-            if (player.CurrentArea.Npcs.Count == 0 && player.CurrentArea.Things.Count == 0)
+            if (player.CurrentArea.GetNpcs.Count == 0 && player.CurrentArea.Things.Count == 0)
             {
                 Output.WriteLine("You see nothing of interest, time to move on.");
                 return;
@@ -257,7 +226,7 @@ namespace text_survival_rpg_web
             {
                 Output.WriteLine(thing);
             }
-            foreach (var npc in player.CurrentArea.Npcs)
+            foreach (var npc in player.CurrentArea.GetNpcs)
             {
                 Output.WriteLine(npc);
             }

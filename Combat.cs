@@ -1,4 +1,6 @@
-﻿using text_survival_rpg_web.Actors;
+﻿using System.Numerics;
+using text_survival_rpg_web.Actors;
+using text_survival_rpg_web.Environments;
 using text_survival_rpg_web.Items;
 
 namespace text_survival_rpg_web
@@ -175,6 +177,36 @@ namespace text_survival_rpg_web
                 return true;
             }
             return false;
+        }
+
+        public static bool SpeedCheck(Player player)
+        {
+            if (player.CurrentArea.IsSafe) return true;
+            
+            // compare player to fastest enemy
+            double playerCheck = CalcSpeedCheck(player);
+            double enemyCheck = CalcSpeedCheck(GetFastestNpc(player.CurrentArea));
+
+            return !(playerCheck < enemyCheck);
+        }
+
+        public static Npc GetFastestNpc(Area area)
+        {
+            double enemyCheck = 0;
+            Npc fastestNpc = area.GetNpcs.First();
+            foreach (Npc npc in area.GetNpcs)
+            {
+                var currentNpcCheck = CalcSpeedCheck(npc);
+                if (!(currentNpcCheck >= enemyCheck)) continue;
+                fastestNpc = npc;
+                enemyCheck = currentNpcCheck;
+            }
+            return fastestNpc;
+        }
+
+        public static double CalcSpeedCheck(IActor actor)
+        {
+            return actor.Attributes.Speed + actor.Attributes.Agility / 2 + actor.Attributes.Luck / 3;
         }
     }
 }
