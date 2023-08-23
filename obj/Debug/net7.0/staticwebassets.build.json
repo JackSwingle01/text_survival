@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "ubv+/CZD8ONhEpeeczGaibneJCypBASksyvS9uPwSp0=",
+  "Hash": "1YXoIs9ROB2K0W1nOf3oVHADqHtv1ZRMxw70Au/2byM=",
   "Source": "text_survival_rpg_web",
   "BasePath": "_content/text_survival_rpg_web",
   "Mode": "Default",
@@ -66,40 +66,6 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\index.html"
-    },
-    {
-      "Identity": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_survival_rpg_web\\wwwroot\\js\\signalr\\dist\\browser\\signalr.js",
-      "SourceId": "text_survival_rpg_web",
-      "SourceType": "Discovered",
-      "ContentRoot": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_survival_rpg_web\\wwwroot\\",
-      "BasePath": "_content/text_survival_rpg_web",
-      "RelativePath": "js/signalr/dist/browser/signalr.js",
-      "AssetKind": "All",
-      "AssetMode": "All",
-      "AssetRole": "Primary",
-      "RelatedAsset": "",
-      "AssetTraitName": "",
-      "AssetTraitValue": "",
-      "CopyToOutputDirectory": "Never",
-      "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\js\\signalr\\dist\\browser\\signalr.js"
-    },
-    {
-      "Identity": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_survival_rpg_web\\wwwroot\\js\\signalr\\dist\\browser\\signalr.min.js",
-      "SourceId": "text_survival_rpg_web",
-      "SourceType": "Discovered",
-      "ContentRoot": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_survival_rpg_web\\wwwroot\\",
-      "BasePath": "_content/text_survival_rpg_web",
-      "RelativePath": "js/signalr/dist/browser/signalr.min.js",
-      "AssetKind": "All",
-      "AssetMode": "All",
-      "AssetRole": "Primary",
-      "RelatedAsset": "",
-      "AssetTraitName": "",
-      "AssetTraitValue": "",
-      "CopyToOutputDirectory": "Never",
-      "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\js\\signalr\\dist\\browser\\signalr.min.js"
     }
   ]
 }

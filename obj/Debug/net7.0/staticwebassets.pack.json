@@ -13,14 +13,6 @@
       "PackagePath": "staticwebassets\\index.html"
     },
     {
-      "Id": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_survival_rpg_web\\wwwroot\\js\\signalr\\dist\\browser\\signalr.js",
-      "PackagePath": "staticwebassets\\js\\signalr\\dist\\browser\\signalr.js"
-    },
-    {
-      "Id": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_survival_rpg_web\\wwwroot\\js\\signalr\\dist\\browser\\signalr.min.js",
-      "PackagePath": "staticwebassets\\js\\signalr\\dist\\browser\\signalr.min.js"
-    },
-    {
       "Id": "obj\\Debug\\net7.0\\staticwebassets\\msbuild.build.text_survival_rpg_web.props",
       "PackagePath": "build\\text_survival_rpg_web.props"
     },

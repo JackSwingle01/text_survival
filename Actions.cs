@@ -112,7 +112,7 @@ namespace text_survival_rpg_web
         {
             UpdatePossibleActions();
             Output.WriteLine();
-            Examine.ExamineSurvivalStats(_player);
+            Describe.DescribeSurvivalStats(_player);
             Output.WriteLine();
             Output.WriteLine("What would you like to do?");
             List<string> actionNames = AvailableActions.Select(action => action.Name).ToList();
@@ -156,10 +156,10 @@ namespace text_survival_rpg_web
 
         private void CheckStats(Player player)
         {
-            Examine.ExamineLevel(player);
-            Examine.ExaminePrimaryAttributes(player);
-            Examine.ExamineSecondaryAttributes(player);
-            Examine.ExamineSkills(player);
+            Describe.DescribeLevel(player);
+            Describe.DescribePrimaryAttributes(player);
+            Describe.DescribeSecondaryAttributes(player);
+            Describe.DescribeSkills(player);
             Output.WriteLine("Press any key to continue...");
             Console.ReadKey(true);
         }

@@ -3,32 +3,31 @@ using text_survival_rpg_web.Items;
 
 namespace text_survival_rpg_web
 {
-    public static class Examine
+    public static class Describe
     {
-        public static void ExamineCombatant(ICombatant c)
+        public static void DescribeCombatant(ICombatant c)
         {
             Output.WriteLine(c, " => HP: ", c.Health, "/", c.MaxHealth);
-
         }
-        public static void ExamineGear(Player player)
+        public static void DescribeGear(Player player)
         {
             if (player.IsArmed)
             {
                 Output.Write("Weapon => ");
-                ExamineItem(player.Weapon);
+                DescribeItem(player.Weapon);
             }
             foreach (Armor armor in player.Armor)
             {
                 Output.Write(armor.EquipSpot, " => ");
-                ExamineItem(armor);
+                DescribeItem(armor);
             }
             if (player.HeldItem is not null)
             {
                 Output.Write("Held Item => ");
-                ExamineItem(player.HeldItem);
+                DescribeItem(player.HeldItem);
             }
         }
-        public static void ExamineSurvivalStats(Player player)
+        public static void DescribeSurvivalStats(Player player)
         {
             Output.WriteLine("Health: ", (int)(player.Health), "%");
             Output.WriteLine("Hunger: ", player.HungerPercent, "%");
@@ -36,7 +35,7 @@ namespace text_survival_rpg_web
             Output.WriteLine("Exhaustion: ", player.ExhaustionPercent, "%");
             Output.WriteLine("Body Temperature: ", player.Temperature, "°F (", player.TemperatureStatus, ")");
         }
-        public static void ExamineItem(Item item)
+        public static void DescribeItem(Item item)
         {
             Output.Write(item, " => ", item.Description, " ");
             if (item is Weapon weapon)
@@ -64,12 +63,12 @@ namespace text_survival_rpg_web
             Output.WriteLine();
         }
 
-        public static void ExamineLevel(Player player)
+        public static void DescribeLevel(Player player)
         {
             Output.WriteLine("Level: ", player.Level);
             Output.WriteLine("XP: ", player.Experience, "/", player.ExperienceToNextLevel);
         }
-        public static void ExaminePrimaryAttributes(Player player)
+        public static void DescribePrimaryAttributes(Player player)
         {
             Output.WriteLine("Primary Attributes: ");
             Output.WriteLine("STR: ", player.Attributes.Strength);
@@ -82,7 +81,7 @@ namespace text_survival_rpg_web
             Output.WriteLine("LUC: ", player.Attributes.Luck);
         }
 
-        public static void ExamineSecondaryAttributes(Player player)
+        public static void DescribeSecondaryAttributes(Player player)
         {
             Output.WriteLine("Secondary Attributes: ");
             Output.WriteLine("Max HP: ", player.MaxHealth);
@@ -90,7 +89,7 @@ namespace text_survival_rpg_web
             Output.WriteLine("Max Psych: ", player.MaxPsych);
         }
 
-        public static void ExamineSkills(Player player)
+        public static void DescribeSkills(Player player)
         {
             Output.WriteLine("Skills: ");
             foreach (var skill in player.Skills.All)

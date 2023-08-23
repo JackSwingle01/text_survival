@@ -67,7 +67,7 @@ namespace text_survival_rpg_web
                 return;
             }
             Output.Write(npc.Name, " dropped: ");
-            Examine.ExamineItem(loot);
+            Describe.DescribeItem(loot);
             Output.WriteLine("\nDo you want to pick it up?\n", 1, ". Yes\n", 2, ". No");
 
             int choice = Input.ReadInt(1, 2);
@@ -83,9 +83,9 @@ namespace text_survival_rpg_web
         }
         public static void PrintBattleInfo(ICombatant combatant1, ICombatant combatant2)
         {
-            Examine.ExamineCombatant(combatant1);
+            Describe.DescribeCombatant(combatant1);
             Output.WriteLine("VS");
-            Examine.ExamineCombatant(combatant2);
+            Describe.DescribeCombatant(combatant2);
         }
 
         /// <summary>

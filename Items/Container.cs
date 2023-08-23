@@ -65,7 +65,7 @@ namespace text_survival_rpg_web.Items
                         player.TakeItem(item);
                         break;
                     case 2:
-                        Examine.ExamineItem(item);
+                        Describe.DescribeItem(item);
                         break;
                     case 3:
                         Remove(item);

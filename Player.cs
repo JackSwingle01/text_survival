@@ -230,7 +230,7 @@ namespace text_survival_rpg_web
 
         public void CheckGear()
         {
-            Examine.ExamineGear(this);
+            Describe.DescribeGear(this);
             Output.WriteLine("Would you like to unequip an item?");
             int choice = Input.GetSelectionFromList(new List<string> { "Yes", "No" });
             if (choice != 1) return;

@@ -13,7 +13,7 @@ public class Program
         else
         {
             Game game = new Game();
-            game.StartGame().Wait();
+            _ = game.StartGame();
         }
     }
     public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
