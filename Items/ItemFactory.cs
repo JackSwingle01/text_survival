@@ -1,4 +1,5 @@
 ﻿using text_survival_rpg_web.Level;
+using text_survival_rpg_web.Magic;
 
 namespace text_survival_rpg_web.Items
 {

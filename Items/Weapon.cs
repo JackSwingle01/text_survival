@@ -137,7 +137,7 @@ namespace text_survival_rpg_web.Items
                     break;
                 case WeaponType.Dagger:
                     Damage = 6;
-                    BlockChance = .01;
+                    BlockChance = .02;
                     Accuracy = 1.5;
                     //Defense = 0;
                     //Speed = 6;
@@ -153,7 +153,7 @@ namespace text_survival_rpg_web.Items
                     break;
                 case WeaponType.Unarmed:
                     Damage = 2;
-                    BlockChance = .2;
+                    BlockChance = .01;
                     Accuracy = 1.5;
                     //Defense = 0;
                     //Speed = 3;

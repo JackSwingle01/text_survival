@@ -13,6 +13,7 @@ namespace text_survival_rpg_web
         // Health and Energy
         public double Health { get; private set; }
         public double MaxHealth { get; private set; }
+        public bool IsAlive => Health > 0;
         public double Energy { get; private set; }
         public double MaxEnergy { get; private set; }
         public double EnergyRegen { get; private set; }
@@ -85,6 +86,9 @@ namespace text_survival_rpg_web
                 return rating;
             }
         }
+
+        // combat
+        public bool IsEngaged { get; set; }
 
         // spells
         public List<Spell> Spells { get; }

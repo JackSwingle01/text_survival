@@ -1,4 +1,5 @@
-﻿using text_survival_rpg_web.Interfaces;
+﻿using text_survival_rpg_web.Actors;
+using text_survival_rpg_web.Interfaces;
 
 namespace text_survival_rpg_web.Items
 {
@@ -20,6 +21,7 @@ namespace text_survival_rpg_web.Items
         public Action<Player> UseEffect { get; set; }
         public string Description { get; set; }
         public int Quality { get; set; } // percentage 0% being extremely poor quality, 100% being perfect quality
+        public bool IsFound { get; set; }
 
         public Item(string name, double weight = 1, int quality = 50)
         {
@@ -40,15 +42,23 @@ namespace text_survival_rpg_web.Items
         public virtual void Use(Player player)
         {
             //Utils.Write("You use the ", this, "...\n");
-            Thread.Sleep(1000);
+            //Thread.Sleep(1000);
             UseEffect?.Invoke(player);
             World.Update(1);
         }
 
         public void Interact(Player player)
         {
+            if (!Combat.SpeedCheck(player))
+            {
+                Npc npc = Combat.GetFastestNpc(player.CurrentArea);
+                    Output.WriteLine("You couldn't get past the ", npc, "!");
+                npc.Interact(player);
+                return;
+            }
             player.TakeItem(this);
         }
+        public Command<Player> InteractCommand => new Command<Player>("Pick up " + Name, Interact);
 
     }
 }

@@ -22,14 +22,12 @@ namespace text_survival_rpg_web
         private Command<Player> LookAroundCommand => new Command<Player>("Look Around", LookAround);
         private Command<Player> CheckStatsCommand => new Command<Player>("Check Stats", CheckStats);
         private Command<Player> LevelUpCommand => new Command<Player>("Level Up", LevelUp);
-        private Command<Player, IInteractable> InteractCommand => new Command<Player, IInteractable>("Interact", Interact);
+        //private Command<Player, IInteractable> InteractCommand => new Command<Player, IInteractable>("Interact", Interact);
         private Command<Player> OpenInventoryCommand => new Command<Player>("Open Inventory", OpenInventory);
         private Command<Player> TravelCommand => new Command<Player>("Travel", Travel);
         private Command<Player> SleepCommand => new Command<Player>("Sleep", Sleep);
         private Command<Player> CheckGearCommand => new Command<Player>("Check Gear", CheckGear);
         //private Command<Player> QuitCommand => new Command<Player>("Quit", Quit);
-
-
 
         public void UpdatePossibleActions()
         {
@@ -41,19 +39,18 @@ namespace text_survival_rpg_web
             lookCommand.Player = _player;
             AvailableActions.Add(lookCommand);
 
-            var checkStats = CheckStatsCommand;
-            checkStats.Player = _player;
-            AvailableActions.Add(checkStats);
+            
 
             // conditional actions
 
             foreach (var thing in _player.CurrentArea.Things)
             {
-                var command = InteractCommand;
-                command.Name = "Interact with " + thing.Name;
-                command.Player = _player;
-                command.Arg = thing;
-                AvailableActions.Add(command);
+                if (thing.IsFound)
+                {
+                    var interactCommand = thing.InteractCommand;
+                    interactCommand.Player = _player;
+                    AvailableActions.Add(interactCommand);
+                }
             }
 
             if (_player.InventoryCount > 0)
@@ -80,6 +77,10 @@ namespace text_survival_rpg_web
                 checkGearCommand.Player = _player;
                 AvailableActions.Add(checkGearCommand);
             }
+
+            var checkStats = CheckStatsCommand;
+            checkStats.Player = _player;
+            AvailableActions.Add(checkStats);
 
             if (_player.SkillPoints > 0)
             {
@@ -147,14 +148,7 @@ namespace text_survival_rpg_web
 
         private void Interact(Player player, IInteractable thing)
         {
-            if (!Combat.SpeedCheck(player))
-            {
-                Npc npc = Combat.GetFastestNpc(player.CurrentArea);
-                if (npc != thing)
-                    Output.WriteLine("You couldn't get past the ", npc, "!");
-                npc.Interact(player);
-                return;
-            }
+            
             thing.Interact(player);
         }
 
@@ -219,6 +213,7 @@ namespace text_survival_rpg_web
             foreach (var thing in player.CurrentArea.Things)
             {
                 Output.WriteLine(thing);
+                thing.IsFound = true;
             }
         }
         private void Quit(Player player)

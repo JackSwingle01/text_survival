@@ -1,13 +1,18 @@
-﻿using text_survival_rpg_web.Interfaces;
+﻿using text_survival_rpg_web.Actors;
+using text_survival_rpg_web.Interfaces;
 
 namespace text_survival_rpg_web.Items
 {
     public class Container : IInteractable
     {
-        public string Name { get; set; }
+        private string _name;
+        public string Name { get => (IsEmpty && HasBeenOpened) ? _name + " (Empty)" : _name; set => _name = value; }
         public double Weight() => Items.Sum(item => item.Weight);
         public float MaxWeight { get; set; }
         protected List<Item> Items { get; set; }
+        public bool IsEmpty => Items.Count == 0;
+        private bool HasBeenOpened { get; set; }
+        public bool IsFound { get; set; }
 
         public Container(string name, float maxWeight)
         {
@@ -23,12 +28,22 @@ namespace text_survival_rpg_web.Items
 
         public void Interact(Player player)
         {
+            if (!Combat.SpeedCheck(player))
+            {
+                Npc npc = Combat.GetFastestNpc(player.CurrentArea);
+                Output.WriteLine("You couldn't get past the ", npc, "!");
+                npc.Interact(player);
+                return;
+            }
             Output.WriteLine("You open the ", this);
             Open(player);
         }
 
+        public Command<Player> InteractCommand => new("Look in " + Name, Interact);
+
         public virtual void Open(Player player)
         {
+            HasBeenOpened = true;
             while (true)
             {
                 Output.WriteLine(this, ":");

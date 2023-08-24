@@ -1,6 +1,4 @@
-﻿using text_survival_rpg_web.Magic;
-
-namespace text_survival_rpg_web.Level
+﻿namespace text_survival_rpg_web.Magic
 {
     public static class CommonBuffs
     {

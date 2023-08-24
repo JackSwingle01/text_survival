@@ -1,4 +1,5 @@
-﻿using text_survival_rpg_web.Interfaces;
+﻿using text_survival_rpg_web.Environments;
+using text_survival_rpg_web.Interfaces;
 using text_survival_rpg_web.Items;
 using text_survival_rpg_web.Level;
 using text_survival_rpg_web.Magic;
@@ -16,6 +17,8 @@ namespace text_survival_rpg_web.Actors
         public bool IsHostile { get; private set; }
         private List<Item> Loot { get; }
         public bool IsAlive => Health > 0;
+        public bool IsFound { get; set; }
+        public bool IsEngaged { get; set; }
         public Attributes Attributes { get; }
         private List<Buff> Buffs { get; }
 
@@ -40,9 +43,26 @@ namespace text_survival_rpg_web.Actors
             {
                 Combat.CombatLoop(player, this);
             }
-            else
+            else // loot
             {
-                Output.WriteLine(this, " is dead.");
+                if (Loot.Count == 0)
+                {
+                    Output.WriteLine("There is nothing to loot.");
+                    return;
+                }
+                this.DropInventory(player.CurrentArea);
+            }
+        }
+        public Command<Player> InteractCommand
+        {
+            get
+            {
+                string name;
+                if (IsAlive)
+                    name = "Fight " + Name;
+                else
+                    name = "Loot " + Name;
+                return new Command<Player>(name, Interact);
             }
         }
 
@@ -135,10 +155,10 @@ namespace text_survival_rpg_web.Actors
         public void Damage(double damage)
         {
             Health -= damage;
-            if (Health < 0)
-            {
-                EventHandler.Publish(new EnemyDefeatedEvent(this));
-            }
+            //if (Health < 0)
+            //{
+            //    EventHandler.Publish(new EnemyDefeatedEvent(this));
+            //}
         }
 
         public void Heal(double heal)
@@ -162,13 +182,21 @@ namespace text_survival_rpg_web.Actors
             Buffs.Remove(buff);
         }
 
-        public Item? DropItem()
+        public void DropInventory(Area area)
         {
-            if (Loot.Count == 0)
-                return null;
-            Item item = Loot[Utils.RandInt(0, Loot.Count - 1)];
+            while (Loot.Count > 0)
+            {
+                Item item = Loot[0];
+                Output.WriteLine(this, " dropped ", item, "!");
+                DropItem(item, area);
+            }
+        }
+        private void DropItem(Item item, Area area)
+        {
+            //Item item = Loot[Utils.RandInt(0, Loot.Count - 1)];
+            item.IsFound = true;
             Loot.Remove(item);
-            return item;
+            area.PutThing(item);
         }
 
         public void AddLoot(Item item)

@@ -3,6 +3,8 @@
     public interface ICombatant : IActor, IBuffable
     {
         public double ArmorRating { get; }
+        public bool IsAlive { get; }
+        public bool IsEngaged { get; set; }
 
         public void Attack(ICombatant target);
         public double DetermineDamage(ICombatant defender);

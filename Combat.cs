@@ -9,21 +9,25 @@ namespace text_survival_rpg_web
         public static void CombatLoop(Player player, ICombatant enemy)
         {
             Output.WriteLine("You encounter: ", enemy, "!");
-
+            player.IsEngaged = true;
+            enemy.IsEngaged = true;
             if (enemy.Attributes.Speed > player.Attributes.Speed)
             {
                 enemy.Attack(player);
             }
-            while (player.Health > 0 && enemy.Health > 0)
+            while (player.IsAlive && enemy.IsAlive)
             {
+                if (!player.IsEngaged || !player.IsAlive) break;
                 PrintBattleInfo(player, enemy);
                 PlayerTurn(player, enemy);
-                if (enemy.Health > 0)
-                {
-                    enemy.Attack(player);
-                }
+                
+                if (!enemy.IsEngaged || !enemy.IsAlive) break;
+                enemy.Attack(player);
+                
                 World.Update(1);
             }
+            player.IsEngaged = false;
+            enemy.IsEngaged = false;
 
             if (player.Health <= 0)
                 Output.WriteDanger("You died!");
@@ -31,49 +35,47 @@ namespace text_survival_rpg_web
             else if (enemy.Health <= 0)
             {
                 Output.WriteLine("You killed ", enemy, "!");
-                if (enemy is Npc npc)
-                    GetLoot(player, npc);
             }
         }
 
+        private enum CombatActions
+        {
+            Attack,
+            CastSpell,
+            Flee
+        }
         public static void PlayerTurn(Player player, ICombatant enemy)
         {
             Output.WriteLine("What do you want to do?");
-            List<string> options = new()
-            {
-                "Attack",
-                "Cast Spell",
-                "Run away"
-            };
+
+            List<CombatActions> options = new();
+            options.Add(CombatActions.Attack);
+            if (player.Spells.Count > 0)
+                options.Add(CombatActions.CastSpell);
+            options.Add(CombatActions.Flee);
+
             int choice = Input.GetSelectionFromList(options);
-            switch (choice)
+            switch (options[choice-1])
             {
-                case 1:
+                case CombatActions.Attack:
                     player.Attack(enemy);
                     break;
-                case 2:
+                case CombatActions.CastSpell:
                     player.SelectSpell();
                     break;
-                case 3 when Combat.SpeedCheck(player, enemy):
+                case CombatActions.Flee when Combat.SpeedCheck(player, enemy):
                     Output.WriteLine("You got away!");
-                    return;
-                case 3:
+                    enemy.IsEngaged = false;
+                    player.IsEngaged = false;
+                    return; // end combat
+                case CombatActions.Flee:
                     Output.WriteLine("You weren't fast enough to get away from ", enemy, "!");
+                    break;
+                default:
                     break;
             }
         }
-        public static void GetLoot(Player player, Npc npc)
-        {
-            Item? loot = npc.DropItem();
-            if (loot is null)
-            {
-                Output.WriteLine(npc.Name, " has no loot.");
-                return;
-            }
-            Output.Write(npc.Name, " dropped: ");
-            Describe.DescribeItem(loot);
-            player.CurrentArea.PutThing(loot);
-        }
+        
         public static void PrintBattleInfo(ICombatant combatant1, ICombatant combatant2)
         {
             Describe.DescribeCombatant(combatant1);

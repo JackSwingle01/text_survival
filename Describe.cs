@@ -40,25 +40,25 @@ namespace text_survival_rpg_web
             Output.Write(item, " => ", item.Description, " ");
             if (item is Weapon weapon)
             {
-                Output.Write("Damage: ", weapon.Damage, ", ");
-                Output.Write("Accuracy: ", weapon.Accuracy * 100, ", ");
+                Output.Write("Damage: ", weapon.Damage, " hp, ");
+                Output.Write("Hit Chance: ", weapon.Accuracy*100 , "%, ");
                 if (weapon.BlockChance != 0)
                 {
-                    Output.Write(", BlockChance: ", weapon.BlockChance * 100, ", ");
+                    Output.Write(", BlockChance: ", weapon.BlockChance * 100, "%, ");
                 }
             }
             else if (item is Armor armor)
             {
                 if (armor.Rating != 0)
-                    Output.Write("Defense: ", armor.Rating * 100, ", ");
+                    Output.Write("Defense: ", armor.Rating * 100, "%, ");
 
                 if (armor.Warmth != 0)
-                    Output.Write("Warmth: ", armor.Warmth, ", ");
+                    Output.Write("Warmth: ", armor.Warmth, "F, ");
             }
 
             if (item.Weight != 0)
             {
-                Output.Write("Weight: ", item.Weight);
+                Output.Write("Weight: ", item.Weight, "kg");
             }
             Output.WriteLine();
         }
