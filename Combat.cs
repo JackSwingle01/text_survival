@@ -72,18 +72,7 @@ namespace text_survival_rpg_web
             }
             Output.Write(npc.Name, " dropped: ");
             Describe.DescribeItem(loot);
-            Output.WriteLine("\nDo you want to pick it up?\n", 1, ". Yes\n", 2, ". No");
-
-            int choice = Input.ReadInt(1, 2);
-            if (choice == 1)
-            {
-                player.TakeItem(loot);
-            }
-            else
-            {
-                player.CurrentArea.Things.Add(loot);
-                Output.Write("You left the ", loot, " on the ground.\n");
-            }
+            player.CurrentArea.PutThing(loot);
         }
         public static void PrintBattleInfo(ICombatant combatant1, ICombatant combatant2)
         {
