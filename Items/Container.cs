@@ -1,4 +1,4 @@
-﻿using text_survival_rpg_web.Environments;
+﻿using text_survival_rpg_web.Interfaces;
 
 namespace text_survival_rpg_web.Items
 {
@@ -38,13 +38,13 @@ namespace text_survival_rpg_web.Items
                 if (Items.Count > 1)
                 {
                     options.Add("Take all");
-                    index = Input.GetSelectionFromList(options, true, "Close "+this) - 1;
-                  
-                    if (index == options.Count-1)
+                    index = Input.GetSelectionFromList(options, true, "Close " + this) - 1;
+
+                    if (index == options.Count - 1)
                     {
                         while (Items.Count > 0)
                         {
-                            player.TakeItem(Items[0]);                    
+                            player.TakeItem(Items[0]);
                         }
                         return;
                     }

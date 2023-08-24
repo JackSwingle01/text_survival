@@ -1,4 +1,5 @@
 ﻿using text_survival_rpg_web.Environments;
+using text_survival_rpg_web.Interfaces;
 using text_survival_rpg_web.Items;
 
 namespace text_survival_rpg_web
@@ -6,7 +7,7 @@ namespace text_survival_rpg_web
     public static class World
     {
         public static TimeOnly Time { get; set; }
-    
+
         public static Player Player { get; set; }
         public static Area CurrentArea => Player.CurrentArea;
 
@@ -36,7 +37,7 @@ namespace text_survival_rpg_web
                 }
                 Time = Time.AddMinutes(1);
             }
-        
+
         }
 
         public enum TimeOfDay

@@ -1,4 +1,5 @@
 ﻿using text_survival_rpg_web.Actors;
+using text_survival_rpg_web.Interfaces;
 
 namespace text_survival_rpg_web.Environments
 {

@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using text_survival_rpg_web.Actors;
+﻿using text_survival_rpg_web.Actors;
 using text_survival_rpg_web.Environments;
 using text_survival_rpg_web.Items;
 
@@ -40,25 +39,28 @@ namespace text_survival_rpg_web
         public static void PlayerTurn(Player player, ICombatant enemy)
         {
             Output.WriteLine("What do you want to do?");
-            List<string> options = new();
-            options.Add("Attack");
-            options.Add("Cast Spell");
-            //options.Add("Run away");
+            List<string> options = new()
+            {
+                "Attack",
+                "Cast Spell",
+                "Run away"
+            };
             int choice = Input.GetSelectionFromList(options);
-            if (choice == 1)
+            switch (choice)
             {
-                player.Attack(enemy);
-
+                case 1:
+                    player.Attack(enemy);
+                    break;
+                case 2:
+                    player.SelectSpell();
+                    break;
+                case 3 when Combat.SpeedCheck(player, enemy):
+                    Output.WriteLine("You got away!");
+                    return;
+                case 3:
+                    Output.WriteLine("You weren't fast enough to get away from ", enemy, "!");
+                    break;
             }
-            else if (choice == 2)
-            {
-                player.SelectSpell();
-            }
-            //else if (choice == 3)
-            //{
-            //    Utils.Write("You ran away!\n");
-            //    return;
-            //}
         }
         public static void GetLoot(Player player, Npc npc)
         {
@@ -171,24 +173,27 @@ namespace text_survival_rpg_web
         {
             double blockChance = defender.DetermineBlockChance(attacker);
             double roll = Utils.RandDouble(0, 1);
-            if (roll < blockChance)
-            {
-                Output.WriteLine(defender, " blocked ", attacker, "'s attack!");
-                return true;
-            }
-            return false;
+
+            if (!(roll < blockChance)) return false;
+
+            Output.WriteLine(defender, " blocked ", attacker, "'s attack!");
+            return true;
         }
 
-        public static bool SpeedCheck(Player player)
+        public static bool SpeedCheck(Player player, IActor? enemy = null)
         {
             if (player.CurrentArea.IsSafe) return true;
-            
+
+            // if no enemy is passed in, get the fastest enemy
+            enemy ??= GetFastestNpc(player.CurrentArea);
+
             // compare player to fastest enemy
             double playerCheck = CalcSpeedCheck(player);
-            double enemyCheck = CalcSpeedCheck(GetFastestNpc(player.CurrentArea));
+            double enemyCheck = CalcSpeedCheck(enemy);
 
             return !(playerCheck < enemyCheck);
         }
+
 
         public static Npc GetFastestNpc(Area area)
         {

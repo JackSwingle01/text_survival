@@ -1,23 +1,10 @@
 ﻿using text_survival_rpg_web.Actors;
 using text_survival_rpg_web.Environments;
+using text_survival_rpg_web.Interfaces;
 using text_survival_rpg_web.Level;
 
 namespace text_survival_rpg_web
 {
-    public enum ActionType
-    {
-        Fight,
-        Interact,
-        OpenInventory,
-        Travel,
-        Sleep,
-        CheckStats,
-        CheckGear,
-        LookAround,
-        Quit,
-        LevelUp,
-    }
-
 
     public class Actions
     {
@@ -40,7 +27,7 @@ namespace text_survival_rpg_web
         private Command<Player> TravelCommand => new Command<Player>("Travel", Travel);
         private Command<Player> SleepCommand => new Command<Player>("Sleep", Sleep);
         private Command<Player> CheckGearCommand => new Command<Player>("Check Gear", CheckGear);
-        private Command<Player> QuitCommand => new Command<Player>("Quit", Quit);
+        //private Command<Player> QuitCommand => new Command<Player>("Quit", Quit);
 
 
 
@@ -63,7 +50,7 @@ namespace text_survival_rpg_web
             foreach (var thing in _player.CurrentArea.Things)
             {
                 var command = InteractCommand;
-                command.Name = "Check out " + thing.Name;
+                command.Name = "Interact with " + thing.Name;
                 command.Player = _player;
                 command.Arg = thing;
                 AvailableActions.Add(command);
@@ -92,6 +79,13 @@ namespace text_survival_rpg_web
                 var checkGearCommand = CheckGearCommand;
                 checkGearCommand.Player = _player;
                 AvailableActions.Add(checkGearCommand);
+            }
+
+            if (_player.SkillPoints > 0)
+            {
+                var levelUpCommand = LevelUpCommand;
+                levelUpCommand.Player = _player;
+                AvailableActions.Add(levelUpCommand);
             }
         }
 
@@ -225,10 +219,6 @@ namespace text_survival_rpg_web
             foreach (var thing in player.CurrentArea.Things)
             {
                 Output.WriteLine(thing);
-            }
-            foreach (var npc in player.CurrentArea.GetNpcs)
-            {
-                Output.WriteLine(npc);
             }
         }
         private void Quit(Player player)

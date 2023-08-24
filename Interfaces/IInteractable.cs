@@ -1,4 +1,4 @@
-﻿namespace text_survival_rpg_web.Environments
+﻿namespace text_survival_rpg_web.Interfaces
 {
     public interface IInteractable
     {

@@ -1,4 +1,4 @@
-﻿using text_survival_rpg_web.Environments;
+﻿using text_survival_rpg_web.Interfaces;
 
 namespace text_survival_rpg_web.Items
 {

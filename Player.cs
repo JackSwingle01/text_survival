@@ -257,6 +257,7 @@ namespace text_survival_rpg_web
         /// <param name="item"></param>
         public void AddToInventory(Item item)
         {
+            Output.WriteLine("You put the ", item, " in your ", Inventory);
             Inventory.Add(item);
         }
 
@@ -266,6 +267,7 @@ namespace text_survival_rpg_web
         /// <param name="item"></param>
         public void RemoveFromInventory(Item item)
         {
+            Output.WriteLine("You take the ", item, " from your ", Inventory);
             Inventory.Remove(item);
         }
 
@@ -280,7 +282,8 @@ namespace text_survival_rpg_web
         /// <param name="item"></param>
         public void DropItem(Item item)
         {
-            Inventory.Remove(item);
+            RemoveFromInventory(item);
+            Output.WriteLine("You drop the ", item);
             CurrentArea.PutThing(item);
         }
 
@@ -302,6 +305,7 @@ namespace text_survival_rpg_web
                             break;
                         }
             }
+            Output.WriteLine("You take the ", item);
             AddToInventory(item);
         }
 

@@ -1,4 +1,4 @@
-﻿using text_survival_rpg_web.Environments;
+﻿using text_survival_rpg_web.Interfaces;
 using text_survival_rpg_web.Items;
 using text_survival_rpg_web.Level;
 using text_survival_rpg_web.Magic;
