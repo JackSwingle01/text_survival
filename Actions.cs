@@ -26,7 +26,6 @@ namespace text_survival_rpg_web
         private Command<Player> SleepCommand => new Command<Player>("Sleep", Sleep);
         private Command<Player> CheckGearCommand => new Command<Player>("Check Gear", CheckGear);
         //private Command<Player> QuitCommand => new Command<Player>("Quit", Quit);
-
         public void UpdatePossibleActions()
         {
             // Clear the available actions
@@ -41,7 +40,7 @@ namespace text_survival_rpg_web
 
             // conditional actions
 
-            foreach (var thing in _player.CurrentArea.Things)
+            foreach (var thing in _player.CurrentPlace.Things)
             {
                 if (thing.IsFound)
                 {
@@ -56,6 +55,13 @@ namespace text_survival_rpg_web
                 var openInventoryCommand = OpenInventoryCommand;
                 openInventoryCommand.Player = _player;
                 AvailableActions.Add(openInventoryCommand);
+            }
+
+            if (_player.CurrentPlace is Location location)
+            {
+                var leaveCommand = location.LeaveCommand;
+                leaveCommand.Player = _player;
+                AvailableActions.Add(leaveCommand);
             }
 
             var travelCommand = TravelCommand;
@@ -153,7 +159,7 @@ namespace text_survival_rpg_web
             Output.WriteLine("Where would you like to go?");
             List<Area> options = new();
 
-            // find all nearby areas that are not the current area
+            // find all nearby areas 
             options.AddRange(player
                 .CurrentArea
                 .NearbyAreas);
@@ -191,17 +197,25 @@ namespace text_survival_rpg_web
 
         private void LookAround(Player player)
         {
-            Output.WriteLine("You take in your surroundings");
-            Output.WriteLine("You're in a ", player.CurrentArea, ", ", player.CurrentArea.Description);
+            //Output.WriteLine("You take in your surroundings");
+            if (player.CurrentPlace is Area area)
+            {
+                Output.WriteLine("You look around the ", area, ", ", area.Description);
+
+            }
+            else if (player.CurrentPlace is Location location)
+            {
+                Output.WriteLine("You look around the ", location);
+            }
             Output.WriteLine("Its ", World.GetTimeOfDay(), " and ", player.CurrentArea.GetTemperature(), " degrees.");
-            if (player.CurrentArea.GetNpcs.Count == 0 && player.CurrentArea.Things.Count == 0)
+            if (player.CurrentPlace.Things.Count == 0)
             {
                 Output.WriteLine("You see nothing of interest, time to move on.");
                 return;
             }
 
-            Output.WriteLine("You see the following things:");
-            foreach (var thing in player.CurrentArea.Things)
+            Output.WriteLine("You see:");
+            foreach (var thing in player.CurrentPlace.Things)
             {
                 Output.WriteLine(thing);
                 thing.IsFound = true;

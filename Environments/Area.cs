@@ -1,5 +1,6 @@
 ﻿using text_survival_rpg_web.Actors;
 using text_survival_rpg_web.Interfaces;
+using text_survival_rpg_web.Items;
 
 namespace text_survival_rpg_web.Environments
 {
@@ -8,12 +9,12 @@ namespace text_survival_rpg_web.Environments
         public string Name { get; set; }
         public string Description { get; set; }
         public List<IInteractable> Things { get; private set; }
-        public List<Npc> GetNpcs => Things.OfType<Npc>().Where(npc => npc.IsAlive).ToList();
+        public List<Npc> Npcs => Things.OfType<Npc>().Where(npc => npc.IsAlive).ToList();
 
         /// <summary>
         /// Returns true if there are no hostile NPCs in the area.
         /// </summary>
-        public bool IsSafe => !GetNpcs.Any(npc => npc.IsHostile);
+        public bool IsSafe => !Npcs.Any(npc => npc.IsHostile);
         public List<IUpdateable> GetUpdateables => Things.OfType<IUpdateable>().ToList();
         public double BaseTemperature { get; private set; }
         public bool IsShelter { get; set; }
@@ -81,7 +82,18 @@ namespace text_survival_rpg_web.Environments
 
         public void PutThing(IInteractable thing) => Things.Add(thing);
         public void RemoveThing(IInteractable thing) => Things.Remove(thing);
-        public bool ContainsThing(IInteractable thing) => Things.Contains(thing);
+        public bool ContainsThing(IInteractable thing)
+        {
+            if (Things.Contains(thing)) return true;
+            foreach(var t in Things)
+            {
+                if (t is IPlace place)
+                {
+                    if (place.ContainsThing(thing)) return true;
+                }
+            }
+            return false;
+        }
 
         public void Enter(Player player)
         {
@@ -108,6 +120,15 @@ namespace text_survival_rpg_web.Environments
             }
             Output.WriteLine("You leave ", this);
             player.MoveBack();
+        }
+
+        public void Update()
+        {
+            List<IUpdateable> updateables = new List<IUpdateable>(GetUpdateables);
+            foreach (var updateable in updateables)
+            {
+                updateable.Update();
+            }
         }
     }
 }

@@ -15,12 +15,14 @@ namespace text_survival_rpg_web
         {
             Area startingArea = new Area("Clearing", "A small clearing in the forest.");
             Container oldBag = new Container("Old bag", 10);
+            Location log = new Location("Hollow log");
             oldBag.Add(ItemFactory.MakeApple());
             oldBag.Add(ItemFactory.MakeClothShirt());
             oldBag.Add(ItemFactory.MakeClothPants());
             oldBag.Add(ItemFactory.MakeBoots());
             oldBag.Add(new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, "Old dagger", 40));
-            startingArea.PutThing(oldBag);
+            log.PutThing(oldBag);
+            startingArea.PutThing(log);
             Player = new Player(startingArea);
             Time = new TimeOnly(hour: 9, minute: 0);
         }
@@ -30,11 +32,8 @@ namespace text_survival_rpg_web
             for (int i = 0; i < minutes; i++)
             {
                 Player.Update();
-                List<IUpdateable> updateables = new List<IUpdateable>(CurrentArea.GetUpdateables);
-                foreach (var updateable in updateables)
-                {
-                    updateable.Update();
-                }
+                CurrentArea.Update();
+                
                 Time = Time.AddMinutes(1);
             }
 

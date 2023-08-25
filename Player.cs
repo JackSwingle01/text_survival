@@ -305,7 +305,7 @@ namespace text_survival_rpg_web
         {
             RemoveFromInventory(item);
             Output.WriteLine("You drop the ", item);
-            CurrentArea.PutThing(item);
+            CurrentPlace.PutThing(item);
         }
 
         /// <summary>
@@ -401,14 +401,14 @@ namespace text_survival_rpg_web
             Output.WriteLine("Who would you like to cast ", Spells[spell - 1].Name, " on?");
             var targets = new List<string>();
             targets.Add("Yourself");
-            CurrentArea.GetNpcs.ForEach(npc => targets.Add(npc.Name));
+            CurrentPlace.Npcs.ForEach(npc => targets.Add(npc.Name));
             var target = Input.GetSelectionFromList(targets, true);
             if (target == 0) return;
 
             // cast spell
             else if (target == 1) CastSpell(Spells[spell - 1], this);
             else
-                CastSpell(Spells[spell - 1], CurrentArea.GetNpcs[target - 2]);
+                CastSpell(Spells[spell - 1], CurrentPlace.Npcs[target - 2]);
 
         }
 

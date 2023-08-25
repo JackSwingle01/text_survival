@@ -172,10 +172,10 @@ namespace text_survival_rpg_web
 
         public static bool SpeedCheck(Player player, IActor? enemy = null)
         {
-            if (player.CurrentArea.IsSafe) return true;
+            if (player.CurrentPlace.IsSafe) return true;
 
             // if no enemy is passed in, get the fastest enemy
-            enemy ??= GetFastestNpc(player.CurrentArea);
+            enemy ??= GetFastestNpc(player.CurrentPlace);
 
             // compare player to fastest enemy
             double playerCheck = CalcSpeedCheck(player);
@@ -185,11 +185,11 @@ namespace text_survival_rpg_web
         }
 
 
-        public static Npc GetFastestNpc(Area area)
+        public static Npc GetFastestNpc(IPlace place)
         {
             double enemyCheck = 0;
-            Npc fastestNpc = area.GetNpcs.First();
-            foreach (Npc npc in area.GetNpcs)
+            Npc fastestNpc = place.Npcs.First();
+            foreach (Npc npc in place.Npcs)
             {
                 var currentNpcCheck = CalcSpeedCheck(npc);
                 if (!(currentNpcCheck >= enemyCheck)) continue;

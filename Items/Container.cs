@@ -31,7 +31,7 @@ namespace text_survival_rpg_web.Items
         {
             if (!Combat.SpeedCheck(player))
             {
-                Npc npc = Combat.GetFastestNpc(player.CurrentArea);
+                Npc npc = Combat.GetFastestNpc(player.CurrentPlace);
                 Output.WriteLine("You couldn't get past the ", npc, "!");
                 npc.Interact(player);
                 return;
