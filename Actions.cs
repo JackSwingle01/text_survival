@@ -1,6 +1,4 @@
-﻿using text_survival_rpg_web.Actors;
-using text_survival_rpg_web.Environments;
-using text_survival_rpg_web.Interfaces;
+﻿using text_survival_rpg_web.Environments;
 using text_survival_rpg_web.Level;
 
 namespace text_survival_rpg_web
@@ -39,7 +37,7 @@ namespace text_survival_rpg_web
             lookCommand.Player = _player;
             AvailableActions.Add(lookCommand);
 
-            
+
 
             // conditional actions
 
@@ -176,7 +174,7 @@ namespace text_survival_rpg_web
             int minutes = Utils.RandInt(30, 60);
             Output.WriteLine("You travel for ", minutes, " minutes...");
             World.Update(minutes);
-            player.Enter(options[input - 1]);
+            options[input - 1].Enter(player);
         }
 
 

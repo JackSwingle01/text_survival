@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Options;
-using text_survival_rpg_web.Items;
+﻿using text_survival_rpg_web.Items;
 
 namespace text_survival_rpg_web
 {
@@ -11,7 +10,7 @@ namespace text_survival_rpg_web
 
         public override void Open(Player player)
         {
-            
+
             while (true)
             {
                 if (IsEmpty)

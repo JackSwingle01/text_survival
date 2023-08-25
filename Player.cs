@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Numerics;
 using text_survival_rpg_web.Actors;
 using text_survival_rpg_web.Environments;
 using text_survival_rpg_web.Items;
@@ -40,7 +40,22 @@ namespace text_survival_rpg_web
         public double WarmthBonus { get; private set; }
 
         // area
-        public Area CurrentArea { get; private set; } = null!;
+        private Stack<IPlace> _placeStack = new Stack<IPlace>();
+        public IPlace CurrentPlace => _placeStack.Peek();
+        public Area CurrentArea
+        {
+            get
+            {
+                foreach (IPlace place in _placeStack)
+                {
+                    if (place is Area area)
+                    {
+                        return area;
+                    }
+                }
+                return null;
+            }
+        }
 
         // inventory
         private Inventory Inventory { get; }
@@ -130,8 +145,8 @@ namespace text_survival_rpg_web
             Spells.Add(SpellFactory.Poison);
             Spells.Add(SpellFactory.MinorHeal);
             // starting area
-            CurrentArea = area;
-            Enter(area);
+            _placeStack = new Stack<IPlace>();
+            area.Enter(this);
             // events
             EventHandler.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
         }
@@ -299,7 +314,7 @@ namespace text_survival_rpg_web
         /// <param name="item"></param>
         public void TakeItem(Item item)
         {
-            if(CurrentArea.ContainsThing(item))
+            if (CurrentArea.ContainsThing(item))
                 CurrentArea.RemoveThing(item);
             Output.WriteLine("You take the ", item);
             AddToInventory(item);
@@ -545,18 +560,6 @@ namespace text_survival_rpg_web
 
         // Area //
 
-        public void Enter(Area newArea)
-        {
-            Output.WriteLine("You enter ", newArea);
-            Output.WriteLine(newArea.Description);
-            if (!newArea.NearbyAreas.Contains(CurrentArea) && CurrentArea != newArea)
-                newArea.NearbyAreas.Add(this.CurrentArea);
-            CurrentArea = newArea;
-            if (!newArea.Visited) newArea.GenerateNearbyAreas();
-            newArea.Visited = true;
-            Output.WriteLine("You should probably look around.");
-        }
-
         /// OTHER ///
 
         public override string ToString()
@@ -564,6 +567,15 @@ namespace text_survival_rpg_web
             return Name;
         }
 
+        public void MoveTo(IPlace place)
+        {
+            _placeStack.Push(place);
+        }
+
+        public void MoveBack()
+        {
+            _placeStack.Pop();
+        }
 
 
     }

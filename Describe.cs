@@ -41,7 +41,7 @@ namespace text_survival_rpg_web
             if (item is Weapon weapon)
             {
                 Output.Write("Damage: ", weapon.Damage, " hp, ");
-                Output.Write("Hit Chance: ", weapon.Accuracy*100 , "%, ");
+                Output.Write("Hit Chance: ", weapon.Accuracy * 100, "%, ");
                 if (weapon.BlockChance != 0)
                 {
                     Output.Write(", BlockChance: ", weapon.BlockChance * 100, "%, ");

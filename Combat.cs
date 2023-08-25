@@ -1,6 +1,5 @@
 ﻿using text_survival_rpg_web.Actors;
 using text_survival_rpg_web.Environments;
-using text_survival_rpg_web.Items;
 
 namespace text_survival_rpg_web
 {
@@ -20,10 +19,10 @@ namespace text_survival_rpg_web
                 if (!player.IsEngaged || !player.IsAlive) break;
                 PrintBattleInfo(player, enemy);
                 PlayerTurn(player, enemy);
-                
+
                 if (!enemy.IsEngaged || !enemy.IsAlive) break;
                 enemy.Attack(player);
-                
+
                 World.Update(1);
             }
             player.IsEngaged = false;
@@ -55,7 +54,7 @@ namespace text_survival_rpg_web
             options.Add(CombatActions.Flee);
 
             int choice = Input.GetSelectionFromList(options);
-            switch (options[choice-1])
+            switch (options[choice - 1])
             {
                 case CombatActions.Attack:
                     player.Attack(enemy);
@@ -75,7 +74,7 @@ namespace text_survival_rpg_web
                     break;
             }
         }
-        
+
         public static void PrintBattleInfo(ICombatant combatant1, ICombatant combatant2)
         {
             Describe.DescribeCombatant(combatant1);

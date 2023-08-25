@@ -1,5 +1,4 @@
 ﻿using System.Text.RegularExpressions;
-using System.Xml.Serialization;
 using text_survival_rpg_web.Actors;
 using text_survival_rpg_web.Interfaces;
 
@@ -61,14 +60,14 @@ namespace text_survival_rpg_web.Items
                 if (index == -1) return;
                 string itemName = options[index];
                 itemName = ExtractStackedItemName(itemName);
-                
+
                 if (itemName == "Take all")
                 {
                     TakeAll(player);
                     return;
                 }
-                
-                Item item = Items.First(i=>i.Name.StartsWith(itemName));
+
+                Item item = Items.First(i => i.Name.StartsWith(itemName));
                 Output.WriteLine("What would you like to do with ", item);
                 int choice = Input.GetSelectionFromList(new List<string>() { "Take", "Inspect", "Use" }, true);
                 switch (choice)
@@ -77,7 +76,7 @@ namespace text_survival_rpg_web.Items
                         continue;
                     case 1:
                         player.TakeItem(item);
-                        Remove(item); 
+                        Remove(item);
                         break;
                     case 2:
                         Describe.DescribeItem(item);

@@ -3,15 +3,11 @@ using text_survival_rpg_web.Interfaces;
 
 namespace text_survival_rpg_web.Environments
 {
-    public class Area
+    public class Area : IPlace
     {
         public string Name { get; set; }
         public string Description { get; set; }
         public List<IInteractable> Things { get; private set; }
-
-        /// <summary>
-        /// Gets live NPCs in the area.
-        /// </summary>
         public List<Npc> GetNpcs => Things.OfType<Npc>().Where(npc => npc.IsAlive).ToList();
 
         /// <summary>
@@ -40,7 +36,7 @@ namespace text_survival_rpg_web.Environments
             BaseTemperature = baseTemp;
             Things = new List<IInteractable>();
             NearbyAreas = new List<Area>();
-           // Locations = new List<Location>();
+            // Locations = new List<Location>();
         }
         public double GetTemperature()
         {
@@ -87,5 +83,31 @@ namespace text_survival_rpg_web.Environments
         public void RemoveThing(IInteractable thing) => Things.Remove(thing);
         public bool ContainsThing(IInteractable thing) => Things.Contains(thing);
 
+        public void Enter(Player player)
+        {
+            Output.WriteLine("You enter ", this);
+            Output.WriteLine(Description);
+            if (player.CurrentArea is not null)
+            {
+                if (!NearbyAreas.Contains(player.CurrentArea))
+                    NearbyAreas.Add(player.CurrentArea);
+                player.CurrentArea.Leave(player);
+
+            }
+            player.MoveTo(this);
+            if (!Visited) GenerateNearbyAreas();
+            Visited = true;
+            Output.WriteLine("You should probably look around.");
+        }
+
+        public void Leave(Player player)
+        {
+            while (player.CurrentPlace != this)
+            {
+                player.CurrentPlace.Leave(player);
+            }
+            Output.WriteLine("You leave ", this);
+            player.MoveBack();
+        }
     }
 }
