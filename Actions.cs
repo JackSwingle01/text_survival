@@ -130,7 +130,6 @@ namespace text_survival_rpg_web
                     6 => Attributes.PrimaryAttributes.Luck,
                     7 => Attributes.PrimaryAttributes.Willpower,
                     8 => Attributes.PrimaryAttributes.Personality,
-                    _ => throw new ArgumentOutOfRangeException()
                 };
                 player.SpendPointToUpgradeAttribute(attribute);
             }
@@ -144,12 +143,6 @@ namespace text_survival_rpg_web
             Describe.DescribeSkills(player);
             Output.WriteLine("Press any key to continue...");
             Console.ReadKey(true);
-        }
-
-        private void Interact(Player player, IInteractable thing)
-        {
-            
-            thing.Interact(player);
         }
 
         private void OpenInventory(Player player)
@@ -215,10 +208,6 @@ namespace text_survival_rpg_web
                 Output.WriteLine(thing);
                 thing.IsFound = true;
             }
-        }
-        private void Quit(Player player)
-        {
-            player.Damage(999);
         }
     }
 

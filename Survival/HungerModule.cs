@@ -2,10 +2,10 @@
 {
     public class HungerModule
     {
-        public float Rate = 2500F / (24F * 60F); // calories per minute
-        public float Max = 3000.0F; // calories
-        public float Amount { get; set; }
-        private Player Player { get; set; }
+        public double Rate = 2500.0 / (24.0 * 60.0); // calories per minute
+        public double Max = 3000; // calories
+        public double Amount { get; set; }
+        private Player Player { get; }
 
         public HungerModule(Player player)
         {

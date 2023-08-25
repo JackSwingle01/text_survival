@@ -32,13 +32,13 @@ C# console app text based survival rpg game.
 - Add more potions
 - Add alchemy system
 - Add crafting system
-- Stack items in inventory (broken)
+- Stack items in inventory - fixed!
 - Add buffs/debuffs on item use / attack 
 - Add ability to use items in combat
 - Add ability to target npcs with items (replace Player with ICombatant on Item.UseEffect?)
 - Add spells / magic system (done)
 - Flesh out magic system (skills, attribue effects)
-- Overhaul enemy loot system
+- Overhaul enemy loot system - started
 - Add body part damage based combat system
 - Replace HP with a combo of body part damage and blood loss
 - Add sub locations to areas

@@ -23,7 +23,7 @@ namespace text_survival_rpg_web.Environments
         public bool IsShelter { get; set; }
         public bool Visited { get; set; }
         public List<Area> NearbyAreas { get; private set; }
-        private List<Location> Locations { get; }
+        //private List<Location> Locations { get; }
 
         public enum EnvironmentType
         {
@@ -39,10 +39,8 @@ namespace text_survival_rpg_web.Environments
             Description = description;
             BaseTemperature = baseTemp;
             Things = new List<IInteractable>();
-            //EventHandler.Subscribe<ItemTakenEvent>(OnItemTaken);
-            //EventHandler.Subscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
             NearbyAreas = new List<Area>();
-            Locations = new List<Location>();
+           // Locations = new List<Location>();
         }
         public double GetTemperature()
         {
@@ -72,11 +70,7 @@ namespace text_survival_rpg_web.Environments
             return effect + BaseTemperature;
         }
 
-        public override string ToString()
-        {
-            string str = Name;
-            return str;
-        }
+        public override string ToString() => Name;
 
         public void GenerateNearbyAreas(int count = 3)
         {
@@ -89,22 +83,9 @@ namespace text_survival_rpg_web.Environments
             }
         }
 
-        public void PutThing(IInteractable thing)
-        {
-            Things.Add(thing);
-        }
-
-        //private void OnEnemyDefeated(EnemyDefeatedEvent e)
-        //{
-        //    if (!GetNpcs.Contains(e.DefeatedEnemy)) return;
-        //    this.GetNpcs.Remove(e.DefeatedEnemy);
-        //}
-
-        //private void OnItemTaken(ItemTakenEvent e)
-        //{
-        //    if (!Things.Contains(e.TakenItem)) return;
-        //    this.Things.Remove(e.TakenItem);
-        //}
+        public void PutThing(IInteractable thing) => Things.Add(thing);
+        public void RemoveThing(IInteractable thing) => Things.Remove(thing);
+        public bool ContainsThing(IInteractable thing) => Things.Contains(thing);
 
     }
 }

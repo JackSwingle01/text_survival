@@ -1,4 +1,5 @@
-﻿using text_survival_rpg_web.Actors;
+﻿using System.Runtime.InteropServices;
+using text_survival_rpg_web.Actors;
 using text_survival_rpg_web.Environments;
 using text_survival_rpg_web.Items;
 using text_survival_rpg_web.Level;
@@ -25,13 +26,13 @@ namespace text_survival_rpg_web
         // Survival stats
         // Hunger
         private HungerModule HungerModule { get; }
-        public int HungerPercent => (int)(HungerModule.Amount / HungerModule.Max) * 100;
+        public int HungerPercent => (int)((HungerModule.Amount / HungerModule.Max) * 100);
         // Thirst
         private ThirstModule ThirstModule { get; }
-        public int ThirstPercent => (int)(ThirstModule.Amount / ThirstModule.Max) * 100;
+        public int ThirstPercent => (int)((ThirstModule.Amount / ThirstModule.Max) * 100);
         // Exhaustion
         private ExhaustionModule ExhaustionModule { get; }
-        public double ExhaustionPercent => (int)(ExhaustionModule.Amount / ExhaustionModule.Max) * 100;
+        public double ExhaustionPercent => (int)((ExhaustionModule.Amount / ExhaustionModule.Max) * 100);
         // Temperature
         private TemperatureModule TemperatureModule { get; }
         public double Temperature => Math.Round(TemperatureModule.BodyTemperature, 1);
@@ -146,6 +147,7 @@ namespace text_survival_rpg_web
                 int percentageEaten = (int)(HungerModule.Amount / food.Calories) * 100;
                 food.Calories *= (100 - percentageEaten);
                 food.WaterContent *= (100 - percentageEaten);
+                food.Weight *= (100 - percentageEaten);
                 HungerModule.Amount = 0;
                 return;
             }
@@ -297,18 +299,8 @@ namespace text_survival_rpg_web
         /// <param name="item"></param>
         public void TakeItem(Item item)
         {
-            if (CurrentArea.Things.Contains(item))
-                CurrentArea.Things.Remove(item);
-            else
-            {
-                foreach (var thing in CurrentArea.Things)
-                    if (thing is Container container)
-                        if (container.Contains(item))
-                        {
-                            container.Remove(item);
-                            break;
-                        }
-            }
+            if(CurrentArea.ContainsThing(item))
+                CurrentArea.RemoveThing(item);
             Output.WriteLine("You take the ", item);
             AddToInventory(item);
         }

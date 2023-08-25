@@ -15,7 +15,7 @@ namespace text_survival_rpg_web.Actors
         public double UnarmedDamage { get; protected set; }
         public double ArmorRating { get; private set; }
         public bool IsHostile { get; private set; }
-        private List<Item> Loot { get; }
+        private Container Loot { get; }
         public bool IsAlive => Health > 0;
         public bool IsFound { get; set; }
         public bool IsEngaged { get; set; }
@@ -28,7 +28,7 @@ namespace text_survival_rpg_web.Actors
             Attributes = attributes ?? new Attributes();
             MaxHealth = (int)(((Attributes.Strength + Attributes.Endurance) / 10) * 2);
             Health = MaxHealth;
-            Loot = new List<Item>();
+            Loot = new Container(name, 10);
             IsHostile = true;
             Description = "";
             UnarmedDamage = 2;
@@ -45,12 +45,13 @@ namespace text_survival_rpg_web.Actors
             }
             else // loot
             {
-                if (Loot.Count == 0)
+                if (Loot.IsEmpty)
                 {
                     Output.WriteLine("There is nothing to loot.");
                     return;
                 }
-                this.DropInventory(player.CurrentArea);
+                Loot.Open(player);
+                //this.DropInventory(player.CurrentArea);
             }
         }
         public Command<Player> InteractCommand
@@ -155,10 +156,6 @@ namespace text_survival_rpg_web.Actors
         public void Damage(double damage)
         {
             Health -= damage;
-            //if (Health < 0)
-            //{
-            //    EventHandler.Publish(new EnemyDefeatedEvent(this));
-            //}
         }
 
         public void Heal(double heal)
@@ -182,18 +179,23 @@ namespace text_survival_rpg_web.Actors
             Buffs.Remove(buff);
         }
 
+
+
+
+
+
+
         public void DropInventory(Area area)
         {
-            while (Loot.Count > 0)
+            while (!Loot.IsEmpty)
             {
-                Item item = Loot[0];
+                Item item = Loot.GetItem(0);
                 Output.WriteLine(this, " dropped ", item, "!");
                 DropItem(item, area);
             }
         }
         private void DropItem(Item item, Area area)
         {
-            //Item item = Loot[Utils.RandInt(0, Loot.Count - 1)];
             item.IsFound = true;
             Loot.Remove(item);
             area.PutThing(item);
@@ -205,7 +207,10 @@ namespace text_survival_rpg_web.Actors
         }
         public void AddLoot(List<Item> items)
         {
-            Loot.AddRange(items);
+            foreach (Item item in items)
+            {
+                Loot.Add(item);
+            }
         }
 
     }

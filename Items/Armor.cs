@@ -9,7 +9,7 @@ namespace text_survival_rpg_web.Items
         public double Rating { get; set; }
         public double Warmth { get; set; }
         public ArmorClass Type { get; set; }
-        public Buff Buff { get; set; }
+        public Buff? Buff { get; set; }
 
         public Armor(string name, double rating, EquipSpots equipSpot, double warmth = 0, ArmorClass type = ArmorClass.Light) : base(name)
         {
@@ -18,7 +18,8 @@ namespace text_survival_rpg_web.Items
             UseEffect = player => player.Equip(this);
             Warmth = warmth;
             Type = type;
-            Buff = CommonBuffs.Warmth(warmth, -1);
+            if (warmth > 0) Buff = CommonBuffs.Warmth(warmth);
+
         }
 
         public override string ToString()
@@ -28,12 +29,14 @@ namespace text_survival_rpg_web.Items
 
         public void OnEquip(Player player)
         {
-            player.ApplyBuff(Buff);
+            if (Buff != null)
+                player.ApplyBuff(Buff);
         }
 
         public void OnUnequip(Player player)
         {
-            player.RemoveBuff(Buff);
+            if (Buff != null)
+                player.RemoveBuff(Buff);
         }
     }
 }

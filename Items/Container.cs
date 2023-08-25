@@ -1,4 +1,6 @@
-﻿using text_survival_rpg_web.Actors;
+﻿using System.Text.RegularExpressions;
+using System.Xml.Serialization;
+using text_survival_rpg_web.Actors;
 using text_survival_rpg_web.Interfaces;
 
 namespace text_survival_rpg_web.Items
@@ -16,7 +18,7 @@ namespace text_survival_rpg_web.Items
 
         public Container(string name, float maxWeight)
         {
-            Name = name;
+            _name = name;
             MaxWeight = maxWeight;
             Items = new List<Item>();
         }
@@ -45,31 +47,28 @@ namespace text_survival_rpg_web.Items
         {
             HasBeenOpened = true;
             while (true)
+
             {
                 Output.WriteLine(this, ":");
-                var options = new List<string>();
-                Items.ForEach(item => options.Add(item.Name));
-                int index;
+
+                var options = GetStackedItemList();
                 if (Items.Count > 1)
                 {
                     options.Add("Take all");
-                    index = Input.GetSelectionFromList(options, true, "Close " + this) - 1;
+                }
 
-                    if (index == options.Count - 1)
-                    {
-                        while (Items.Count > 0)
-                        {
-                            player.TakeItem(Items[0]);
-                        }
-                        return;
-                    }
-                }
-                else
-                {
-                    index = Input.GetSelectionFromList(options, true, "Close " + this) - 1;
-                }
+                int index = Input.GetSelectionFromList(options, true, "Close " + this) - 1;
                 if (index == -1) return;
-                Item item = GetItem(index);
+                string itemName = options[index];
+                itemName = ExtractStackedItemName(itemName);
+                
+                if (itemName == "Take all")
+                {
+                    TakeAll(player);
+                    return;
+                }
+                
+                Item item = Items.First(i=>i.Name.StartsWith(itemName));
                 Output.WriteLine("What would you like to do with ", item);
                 int choice = Input.GetSelectionFromList(new List<string>() { "Take", "Inspect", "Use" }, true);
                 switch (choice)
@@ -78,6 +77,7 @@ namespace text_survival_rpg_web.Items
                         continue;
                     case 1:
                         player.TakeItem(item);
+                        Remove(item); 
                         break;
                     case 2:
                         Describe.DescribeItem(item);
@@ -87,6 +87,56 @@ namespace text_survival_rpg_web.Items
                         item.UseEffect.Invoke(player);
                         break;
                 }
+            }
+        }
+        protected string ExtractStackedItemName(string name)
+        {
+            // This regex pattern looks for the item name followed by an optional space and "x" followed by one or more digits.
+            Match match = Regex.Match(name, @"^(.*?)\s*x\d*$");
+            if (match.Success)
+            {
+                return match.Groups[1].Value.Trim();
+            }
+            return name;
+        }
+
+        protected List<string> GetStackedItemList()
+        {
+            var items = new List<string>();
+            var counts = new Dictionary<string, int>();
+            foreach (var item in Items)
+            {
+                if (counts.ContainsKey(item.Name))
+                {
+                    counts[item.Name]++;
+                }
+                else
+                {
+                    counts.Add(item.Name, 1);
+                }
+            }
+
+            foreach (var item in counts)
+            {
+                if (item.Value == 1)
+                {
+                    items.Add(item.Key);
+                }
+                else
+                {
+                    items.Add(item.Key + " x" + item.Value);
+                }
+            }
+            return items;
+        }
+
+        private void TakeAll(Player player)
+        {
+            while (!IsEmpty)
+            {
+                var item = Items.First();
+                Remove(item);
+                player.TakeItem(item);
             }
         }
 
@@ -103,7 +153,6 @@ namespace text_survival_rpg_web.Items
                 return;
             }
             Items.Add(item);
-            //EventHandler.Publish(new ItemTakenEvent(item));
         }
 
         public void Remove(Item item)

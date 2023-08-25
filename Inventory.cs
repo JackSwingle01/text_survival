@@ -1,4 +1,5 @@
-﻿using text_survival_rpg_web.Items;
+﻿using Microsoft.Extensions.Options;
+using text_survival_rpg_web.Items;
 
 namespace text_survival_rpg_web
 {
@@ -10,12 +11,21 @@ namespace text_survival_rpg_web
 
         public override void Open(Player player)
         {
+            
             while (true)
             {
+                if (IsEmpty)
+                {
+                    Output.WriteLine(this, " is empty.");
+                    return;
+                }
                 Output.WriteLine(this, " (", Weight(), "/", MaxWeight, "):");
-                int index = Input.GetSelectionFromList(Items, true, "Close " + this) - 1;
+                var options = GetStackedItemList();
+                int index = Input.GetSelectionFromList(options, true, "Close " + this) - 1;
                 if (index == -1) return;
-                Item item = GetItem(index);
+                string itemName = options[index];
+                itemName = ExtractStackedItemName(itemName);
+                Item item = Items.First(i => i.Name.StartsWith(itemName));
                 Output.WriteLine("What would you like to do with ", item);
                 int choice = Input.GetSelectionFromList(new List<string>() { "Use", "Inspect", "Drop" }, true);
                 switch (choice)
