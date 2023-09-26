@@ -86,7 +86,7 @@ namespace text_survival_rpg_web.Magic
                 {
                     if (combatEvent.Attacker != buff.Target) return;
                     Buff poison = Poison(hpPerMin, minutes);
-                    combatEvent.Defender.ApplyBuff(poison);
+                    poison.ApplyTo(combatEvent.Defender);
                 }
                 buff.Remove();
             });

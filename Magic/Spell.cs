@@ -25,7 +25,7 @@ namespace text_survival_rpg_web.Magic
 
         public void Cast(IBuffable target)
         {
-            target.ApplyBuff(this.EffectBuff);
+            EffectBuff.ApplyTo(target);
         }
 
 

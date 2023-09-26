@@ -81,7 +81,7 @@ namespace text_survival_rpg_web
         public Skills Skills { get; }
 
         // buffs
-        private List<Buff> Buffs { get; }
+        public List<Buff> Buffs { get; }
         public bool HasBuff(BuffType type) => Buffs.Any(b => b.Type == type);
         public Buff ? GetBuff(BuffType type) => Buffs.FirstOrDefault(b => b.Type == type);
 

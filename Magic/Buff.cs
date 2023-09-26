@@ -44,13 +44,13 @@ namespace text_survival_rpg_web.Magic
         public void ApplyTo(IBuffable target)
         {
             Target = target;
-            target.ApplyBuff(this);
+            target.Buffs.Add(this);
             ApplyEffect?.Invoke(target);
         }
 
         public void Remove()
         {
-            Target.RemoveBuff(this);
+            Target.Buffs.Add(this);
             RemoveEffect?.Invoke(Target);
             Target = null;
         }
