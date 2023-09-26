@@ -10,14 +10,9 @@ namespace text_survival_rpg_web
 
         public override void Open(Player player)
         {
-
-            while (true)
+            HasBeenOpened = true;
+            while (!IsEmpty)
             {
-                if (IsEmpty)
-                {
-                    Output.WriteLine(this, " is empty.");
-                    return;
-                }
                 Output.WriteLine(this, " (", Weight(), "/", MaxWeight, "):");
                 var options = GetStackedItemList();
                 int index = Input.GetSelectionFromList(options, true, "Close " + this) - 1;
@@ -42,6 +37,7 @@ namespace text_survival_rpg_web
                         break;
                 }
             }
+            Output.WriteLine(this, " is empty.");
 
         }
     }

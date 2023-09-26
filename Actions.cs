@@ -179,8 +179,8 @@ namespace text_survival_rpg_web
 
             int minutes = Utils.RandInt(30, 60);
             Output.WriteLine("You travel for ", minutes, " minutes...");
-            World.Update(minutes);
             options[input - 1].Enter(player);
+            World.Update(minutes);
         }
 
 

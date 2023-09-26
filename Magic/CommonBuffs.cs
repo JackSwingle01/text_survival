@@ -1,10 +1,13 @@
-﻿namespace text_survival_rpg_web.Magic
+﻿using text_survival_rpg_web.Actors;
+using text_survival_rpg_web.Items;
+
+namespace text_survival_rpg_web.Magic
 {
     public static class CommonBuffs
     {
         public static Buff Warmth(double degrees, int minutes = -1)
         {
-            Buff buff = new Buff("Warmth", minutes)
+            Buff buff = new Buff("Warmth", minutes, BuffType.Warmth)
             {
                 ApplyEffect = target =>
                 {
@@ -24,7 +27,7 @@
 
         public static Buff Bleeding(int hpPerMin, int minutes)
         {
-            return new Buff("Bleeding", minutes)
+            return new Buff("Bleeding", minutes, BuffType.Bleed)
             {
                 ApplyEffect = (target => Output.WriteLine(target, " has been cut!")),
                 TickEffect = ((target) =>
@@ -42,7 +45,7 @@
 
         public static Buff Poison(int hpPerMin, int minutes)
         {
-            return new Buff("Poison", minutes)
+            return new Buff("Poison", minutes, BuffType.Poison)
             {
                 ApplyEffect = (target => Output.WriteLine(target, " has been poisoned!")),
                 TickEffect = ((target) =>
@@ -60,7 +63,7 @@
 
         public static Buff Heal(int hp)
         {
-            return new Buff("Heal", 0)
+            return new Buff("Heal", 0, BuffType.Heal)
             {
                 ApplyEffect = (target =>
                 {
@@ -68,6 +71,26 @@
                     Output.WriteLine(target, " has been healed!");
                 })
             };
+        }
+
+        public static Buff ApplyPoisonOnHit(int hpPerMin, int minutes)
+        {
+            Buff buff = new Buff("Poisoned Weapon", -1, BuffType.Generic)
+            {
+                TriggerOn = EventType.OnHit,
+                
+            };
+            buff.TriggerEffect = (e =>
+            {
+                if (e is CombatEvent combatEvent)
+                {
+                    if (combatEvent.Attacker != buff.Target) return;
+                    Buff poison = Poison(hpPerMin, minutes);
+                    combatEvent.Defender.ApplyBuff(poison);
+                }
+                buff.Remove();
+            });
+            return buff;
         }
 
     }

@@ -97,15 +97,14 @@ namespace text_survival_rpg_web.Environments
 
         public void Enter(Player player)
         {
-            Output.WriteLine("You enter ", this);
-            Output.WriteLine(Description);
             if (player.CurrentArea is not null)
             {
                 if (!NearbyAreas.Contains(player.CurrentArea))
                     NearbyAreas.Add(player.CurrentArea);
                 player.CurrentArea.Leave(player);
-
             }
+            Output.WriteLine("You enter ", this);
+            Output.WriteLine(Description);
             player.MoveTo(this);
             if (!Visited) GenerateNearbyAreas();
             Visited = true;

@@ -210,6 +210,12 @@ namespace text_survival_rpg_web.Items
             };
             bandage.UseEffect = player =>
             {
+                if (player.HasBuff(BuffType.Bleed))
+                {
+                    Buff bleed = player.GetBuff(BuffType.Bleed)!;
+                    player.RemoveBuff(bleed);
+                    //Output.WriteLine("You stopped bleeding");
+                }
                 player.Heal(10);
                 Output.Write("You feel a bit better\n");
                 player.RemoveFromInventory(bandage);
@@ -282,11 +288,11 @@ namespace text_survival_rpg_web.Items
             Item vial = new Item("Venom Vial");
             vial.UseEffect = (player) =>
             {
-                Output.Write("You can use this to poison your weapon.\n");
                 if (player.IsArmed)
                 {
-                    player.Weapon.Damage += 2;
                     player.RemoveFromInventory(vial);
+                    Output.Write("You use ",vial," to poison your weapon.\n");
+                    player.ApplyBuff(CommonBuffs.ApplyPoisonOnHit(2,3));
                 }
                 else
                 {

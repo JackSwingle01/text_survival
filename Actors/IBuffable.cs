@@ -4,7 +4,6 @@ namespace text_survival_rpg_web.Actors
 {
     public interface IBuffable : IActor
     {
-        public void ApplyBuff(Buff buff);
-        public void RemoveBuff(Buff buff);
+        public List<Buff> Buffs { get; }
     }
 }

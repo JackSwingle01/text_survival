@@ -43,47 +43,36 @@ namespace text_survival_rpg_web.Items
                 case WeaponMaterial.Wooden:
                     Damage *= .1F;
                     BlockChance *= .7;
-                    //Speed *= 1.2F;
                     Weight *= .5F;
                     break;
                 case WeaponMaterial.Stone:
                     Damage *= .7F;
                     BlockChance *= .6;
-                    //Speed *= .1F;
                     Weight *= 1.5F;
                     break;
                 case WeaponMaterial.Bronze:
                     Damage *= .9F;
                     BlockChance *= .9;
-                    //Speed *= 1.1F;
                     Weight *= .9F;
                     break;
                 case WeaponMaterial.Iron:
                     Damage *= 1F;
                     BlockChance *= 1;
-                    //Defense *= 1F;
-                    //Speed *= .7F;
                     Weight *= 1.4F;
                     break;
                 case WeaponMaterial.Steel:
                     Damage *= 1F;
                     BlockChance *= 1;
-                    //Defense *= 1F;
-                    //Speed *= 1F;
                     Weight *= 1F;
                     break;
                 case WeaponMaterial.Silver:
                     Damage *= 1.2F;
                     BlockChance *= 1.1;
-                    //Defense *= 1.1F;
-                    //Speed *= 1F;
                     Weight *= 1.1F;
                     break;
                 case WeaponMaterial.Golden:
                     Damage *= 1.5F;
                     BlockChance *= .5;
-                    //Defense *= .5F;
-                    //Speed *= .5F;
                     Weight *= 1.5F;
                     break;
                 case WeaponMaterial.Other:
@@ -99,64 +88,48 @@ namespace text_survival_rpg_web.Items
                     Damage = 12;
                     BlockChance = .1;
                     Accuracy = 1;
-                    //Defense = 4;
-                    //Speed = 1;
                     Weight = 2;
                     break;
                 case WeaponType.Axe:
                     Damage = 18;
                     BlockChance = .04;
                     Accuracy = .8;
-                    //Defense = 0;
-                    //Speed = -3;
                     Weight = 4;
                     break;
                 case WeaponType.Spear:
                     Damage = 8;
                     BlockChance = .08;
                     Accuracy = 1.2;
-                    //Defense = 8;
-                    //Speed = -1;
                     Weight = 1;
                     break;
                 case WeaponType.Mace:
                     Damage = 14;
                     BlockChance = .04;
                     Accuracy = .7;
-                    //Defense = 4;
-                    //Speed = -1;
                     Weight = 2;
                     break;
                 case WeaponType.Hammer:
                     Damage = 20;
                     BlockChance = .1;
                     Accuracy = .5;
-                    //Defense = 2;
-                    //Speed = -4;
                     Weight = 5;
                     break;
                 case WeaponType.Dagger:
                     Damage = 6;
                     BlockChance = .02;
                     Accuracy = 1.5;
-                    //Defense = 0;
-                    //Speed = 6;
                     Weight = .5F;
                     break;
                 case WeaponType.Staff:
                     Damage = 4;
                     BlockChance = .14;
                     Accuracy = 1.2;
-                    //Defense = 14;
-                    //Speed = 2;
                     Weight = 2;
                     break;
                 case WeaponType.Unarmed:
                     Damage = 2;
                     BlockChance = .01;
                     Accuracy = 1.5;
-                    //Defense = 0;
-                    //Speed = 3;
                     Weight = 0;
                     break;
                 default:
@@ -208,12 +181,12 @@ namespace text_survival_rpg_web.Items
 
         public void OnEquip(Player player)
         {
-            Buff.ApplyEffect(player);
+            Buff.ApplyTo(player);
         }
 
         public void OnUnequip(Player player)
         {
-            Buff.RemoveEffect(player);
+            Buff.Remove();
         }
     }
 }

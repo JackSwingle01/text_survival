@@ -33,7 +33,6 @@ namespace text_survival_rpg_web
             {
                 Player.Update();
                 CurrentArea.Update();
-                
                 Time = Time.AddMinutes(1);
             }
 

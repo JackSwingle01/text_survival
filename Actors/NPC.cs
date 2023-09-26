@@ -20,7 +20,7 @@ namespace text_survival_rpg_web.Actors
         public bool IsFound { get; set; }
         public bool IsEngaged { get; set; }
         public Attributes Attributes { get; }
-        private List<Buff> Buffs { get; }
+        public List<Buff> Buffs { get; }
 
         public Npc(string name, Attributes? attributes = null)
         {
@@ -70,10 +70,11 @@ namespace text_survival_rpg_web.Actors
         // Update //
         public void Update()
         {
+            if (!IsAlive) return;
             List<Buff> buffs = new List<Buff>(Buffs);
             foreach (Buff buff in buffs)
             {
-                buff.Tick(this);
+                buff.Tick();
             }
         }
 
@@ -119,6 +120,10 @@ namespace text_survival_rpg_web.Actors
 
         public void Attack(ICombatant target)
         {
+            // attack event
+            var e = new CombatEvent(EventType.OnAttack, this, target);
+            EventHandler.Publish(e);
+
             // do calculations
             double damage = DetermineDamage(target);
 
@@ -134,8 +139,17 @@ namespace text_survival_rpg_web.Actors
                 EventHandler.Publish(new GainExperienceEvent(1, SkillType.Block));
                 return;
             }
-            // apply damage
+
             Output.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
+
+            // trigger hit event
+            e = new CombatEvent(EventType.OnHit, this, target)
+            {
+                Damage = damage
+            };
+            EventHandler.Publish(e);
+
+            // apply damage
             target.Damage(damage);
 
             // gain experience
@@ -167,23 +181,15 @@ namespace text_survival_rpg_web.Actors
             }
         }
 
-        public void ApplyBuff(Buff buff)
+        public void AddToBuffList(Buff buff)
         {
-            buff.ApplyEffect?.Invoke(this);
             Buffs.Add(buff);
         }
 
-        public void RemoveBuff(Buff buff)
+        public void RemoveFromBuffList(Buff buff)
         {
-            buff.RemoveEffect?.Invoke(this);
             Buffs.Remove(buff);
         }
-
-
-
-
-
-
 
         public void DropInventory(Area area)
         {

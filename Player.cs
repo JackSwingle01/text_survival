@@ -32,7 +32,7 @@ namespace text_survival_rpg_web
         public int ThirstPercent => (int)((ThirstModule.Amount / ThirstModule.Max) * 100);
         // Exhaustion
         private ExhaustionModule ExhaustionModule { get; }
-        public double ExhaustionPercent => (int)((ExhaustionModule.Amount / ExhaustionModule.Max) * 100);
+        public int ExhaustionPercent => (int)((ExhaustionModule.Amount / ExhaustionModule.Max) * 100);
         // Temperature
         private TemperatureModule TemperatureModule { get; }
         public double Temperature => Math.Round(TemperatureModule.BodyTemperature, 1);
@@ -82,6 +82,9 @@ namespace text_survival_rpg_web
 
         // buffs
         private List<Buff> Buffs { get; }
+        public bool HasBuff(BuffType type) => Buffs.Any(b => b.Type == type);
+        public Buff ? GetBuff(BuffType type) => Buffs.FirstOrDefault(b => b.Type == type);
+
 
         // armor
         public double ArmorRating
@@ -271,6 +274,7 @@ namespace text_survival_rpg_web
         // Inventory //
 
         public int InventoryCount => Inventory.Count();
+        public void OpenInventory() => Inventory.Open(this);
 
         /// <summary>
         /// Simply adds the item, use TakeItem() if you want to take it from an area.
@@ -292,10 +296,6 @@ namespace text_survival_rpg_web
             Inventory.Remove(item);
         }
 
-        public void OpenInventory()
-        {
-            Inventory.Open(this);
-        }
 
         /// <summary>
         /// Removes an item from the player's inventory and adds it to the area's items
@@ -370,6 +370,10 @@ namespace text_survival_rpg_web
 
         public void Attack(ICombatant target)
         {
+            // attack event
+            var e = new CombatEvent(EventType.OnAttack, this, target);
+            EventHandler.Publish(e);
+
             // determine damage
             double damage = DetermineDamage(target);
 
@@ -377,8 +381,17 @@ namespace text_survival_rpg_web
             if (Combat.DetermineDodge(this, target)) return; // if target dodges
             if (!Combat.DetermineHit(this, target)) return; // if attacker misses
             if (Combat.DetermineBlock(this, target)) return; // if target blocks
-            // apply damage
+
             Output.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
+
+            // trigger hit event
+            e = new CombatEvent(EventType.OnHit, this, target)
+            {
+                Damage = damage
+            };
+            EventHandler.Publish(e);
+
+            // apply damage
             target.Damage(damage);
 
             // apply xp
@@ -445,27 +458,19 @@ namespace text_survival_rpg_web
             }
         }
 
-        public void AddWarmthBonus(double warmth)
-        {
-            WarmthBonus += warmth;
-        }
-
-        public void RemoveWarmthBonus(double warmth)
-        {
-            WarmthBonus -= warmth;
-        }
+        public void AddWarmthBonus(double warmth) => WarmthBonus += warmth;
+        public void RemoveWarmthBonus(double warmth) => WarmthBonus -= warmth;
+     
 
         // Buffs //
 
         public void ApplyBuff(Buff buff)
         {
-            buff.ApplyEffect?.Invoke(this);
             Buffs.Add(buff);
         }
 
         public void RemoveBuff(Buff buff)
         {
-            buff.RemoveEffect?.Invoke(this);
             Buffs.Remove(buff);
         }
 
@@ -550,7 +555,7 @@ namespace text_survival_rpg_web
             var buffs = new List<Buff>(Buffs);
             foreach (var buff in buffs)
             {
-                buff.Tick(this);
+                buff.Tick();
             }
             HungerModule.Update();
             ThirstModule.Update();
@@ -562,10 +567,7 @@ namespace text_survival_rpg_web
 
         /// OTHER ///
 
-        public override string ToString()
-        {
-            return Name;
-        }
+        public override string ToString() => Name;
 
         public void MoveTo(IPlace place)
         {

@@ -12,7 +12,7 @@ namespace text_survival_rpg_web.Items
         public float MaxWeight { get; set; }
         protected List<Item> Items { get; set; }
         public bool IsEmpty => Items.Count == 0;
-        private bool HasBeenOpened { get; set; }
+        protected bool HasBeenOpened { get; set; }
         public bool IsFound { get; set; }
 
         public Container(string name, float maxWeight)
@@ -45,8 +45,7 @@ namespace text_survival_rpg_web.Items
         public virtual void Open(Player player)
         {
             HasBeenOpened = true;
-            while (true)
-
+            while (!IsEmpty)
             {
                 Output.WriteLine(this, ":");
 
@@ -87,6 +86,7 @@ namespace text_survival_rpg_web.Items
                         break;
                 }
             }
+            Output.WriteLine(this, " is empty.");
         }
         protected string ExtractStackedItemName(string name)
         {
