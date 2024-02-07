@@ -13,6 +13,7 @@ namespace text_survival
         // Health and Energy
         public double Health { get; private set; }
         public double MaxHealth { get; private set; }
+        public bool IsAlive => Health > 0;
         public double Energy { get; private set; }
         public double MaxEnergy { get; private set; }
         public double EnergyRegen { get; private set; }
@@ -24,13 +25,13 @@ namespace text_survival
         // Survival stats
         // Hunger
         private HungerModule HungerModule { get; }
-        public int HungerPercent => (int)(HungerModule.Amount / HungerModule.Max) * 100;
+        public int HungerPercent => (int)((HungerModule.Amount / HungerModule.Max) * 100);
         // Thirst
         private ThirstModule ThirstModule { get; }
-        public int ThirstPercent => (int)(ThirstModule.Amount / ThirstModule.Max) * 100;
+        public int ThirstPercent => (int)((ThirstModule.Amount / ThirstModule.Max) * 100);
         // Exhaustion
         private ExhaustionModule ExhaustionModule { get; }
-        public double ExhaustionPercent => (int)(ExhaustionModule.Amount / ExhaustionModule.Max) * 100;
+        public int ExhaustionPercent => (int)((ExhaustionModule.Amount / ExhaustionModule.Max) * 100);
         // Temperature
         private TemperatureModule TemperatureModule { get; }
         public double Temperature => Math.Round(TemperatureModule.BodyTemperature, 1);
@@ -38,7 +39,22 @@ namespace text_survival
         public double WarmthBonus { get; private set; }
 
         // area
-        public Area CurrentArea { get; private set; } = null!;
+        private Stack<IPlace> _placeStack = new Stack<IPlace>();
+        public IPlace CurrentPlace => _placeStack.Peek();
+        public Area CurrentArea
+        {
+            get
+            {
+                foreach (IPlace place in _placeStack)
+                {
+                    if (place is Area area)
+                    {
+                        return area;
+                    }
+                }
+                return null;
+            }
+        }
 
         // inventory
         private Inventory Inventory { get; }
@@ -64,7 +80,10 @@ namespace text_survival
         public Skills Skills { get; }
 
         // buffs
-        private List<Buff> Buffs { get; }
+        public List<Buff> Buffs { get; }
+        public bool HasBuff(BuffType type) => Buffs.Any(b => b.Type == type);
+        public Buff? GetBuff(BuffType type) => Buffs.FirstOrDefault(b => b.Type == type);
+
 
         // armor
         public double ArmorRating
@@ -85,6 +104,9 @@ namespace text_survival
                 return rating;
             }
         }
+
+        // combat
+        public bool IsEngaged { get; set; }
 
         // spells
         public List<Spell> Spells { get; }
@@ -125,8 +147,8 @@ namespace text_survival
             Spells.Add(SpellFactory.Poison);
             Spells.Add(SpellFactory.MinorHeal);
             // starting area
-            CurrentArea = area;
-            Enter(area);
+            _placeStack = new Stack<IPlace>();
+            area.Enter(this);
             // events
             EventHandler.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
         }
@@ -142,6 +164,7 @@ namespace text_survival
                 int percentageEaten = (int)(HungerModule.Amount / food.Calories) * 100;
                 food.Calories *= (100 - percentageEaten);
                 food.WaterContent *= (100 - percentageEaten);
+                food.Weight *= (100 - percentageEaten);
                 HungerModule.Amount = 0;
                 return;
             }
@@ -177,20 +200,16 @@ namespace text_survival
                     Inventory.Remove(weapon);
                     break;
                 case Armor armor:
-                    {
-                        var oldItem = Armor.FirstOrDefault(i => i.EquipSpot == armor.EquipSpot);
-                        if (oldItem != null) Unequip(oldItem);
-                        Armor.Add(armor);
-                        Inventory.Remove(armor);
-                        break;
-                    }
+                    var oldItem = Armor.FirstOrDefault(i => i.EquipSpot == armor.EquipSpot);
+                    if (oldItem != null) Unequip(oldItem);
+                    Armor.Add(armor);
+                    Inventory.Remove(armor);
+                    break;
                 case Gear gear:
-                    {
-                        if (HeldItem != null) Unequip(HeldItem);
-                        HeldItem = gear;
-                        Inventory.Remove(gear);
-                        break;
-                    }
+                    if (HeldItem != null) Unequip(HeldItem);
+                    HeldItem = gear;
+                    Inventory.Remove(gear);
+                    break;
                 default:
                     Output.WriteLine("You can't equip that.");
                     return;
@@ -222,7 +241,7 @@ namespace text_survival
                     return;
             }
 
-            if (item != _unarmed) 
+            if (item != _unarmed)
                 Output.WriteLine("You unequip ", item);
 
             item.OnUnequip(this);
@@ -230,7 +249,7 @@ namespace text_survival
 
         public void CheckGear()
         {
-            Examine.ExamineGear(this);
+            Describe.DescribeGear(this);
             Output.WriteLine("Would you like to unequip an item?");
             int choice = Input.GetSelectionFromList(new List<string> { "Yes", "No" });
             if (choice != 1) return;
@@ -250,9 +269,15 @@ namespace text_survival
         // Inventory //
 
         public int InventoryCount => Inventory.Count();
+        public void OpenInventory() => Inventory.Open(this);
 
+        /// <summary>
+        /// Simply adds the item, use TakeItem() if you want to take it from an area.
+        /// </summary>
+        /// <param name="item"></param>
         public void AddToInventory(Item item)
         {
+            Output.WriteLine("You put the ", item, " in your ", Inventory);
             Inventory.Add(item);
         }
 
@@ -262,13 +287,10 @@ namespace text_survival
         /// <param name="item"></param>
         public void RemoveFromInventory(Item item)
         {
+            Output.WriteLine("You take the ", item, " from your ", Inventory);
             Inventory.Remove(item);
         }
 
-        public void OpenInventory()
-        {
-            Inventory.Open(this);
-        }
 
         /// <summary>
         /// Removes an item from the player's inventory and adds it to the area's items
@@ -276,25 +298,20 @@ namespace text_survival
         /// <param name="item"></param>
         public void DropItem(Item item)
         {
-            Inventory.Remove(item);
-            CurrentArea.PutThing(item);
+            RemoveFromInventory(item);
+            Output.WriteLine("You drop the ", item);
+            CurrentPlace.PutThing(item);
         }
 
+        /// <summary>
+        /// Removes an item from the area's items and adds it to the player's inventory
+        /// </summary>
+        /// <param name="item"></param>
         public void TakeItem(Item item)
         {
-            // recursively search 
-            if (CurrentArea.Things.Contains(item))
-                CurrentArea.Things.Remove(item);
-            else
-            {
-                foreach (var thing in CurrentArea.Things)
-                    if (thing is Container container)
-                        if (container.Contains(item))
-                        {
-                            container.Remove(item);
-                            break;
-                        }
-            }
+            if (CurrentArea.ContainsThing(item))
+                CurrentArea.RemoveThing(item);
+            Output.WriteLine("You take the ", item);
             AddToInventory(item);
         }
 
@@ -348,6 +365,11 @@ namespace text_survival
 
         public void Attack(ICombatant target)
         {
+            // attack event
+            var e = new CombatEvent(EventType.OnAttack, this, target);
+            e.Weapon = Weapon;
+            EventHandler.Publish(e);
+
             // determine damage
             double damage = DetermineDamage(target);
 
@@ -355,8 +377,17 @@ namespace text_survival
             if (Combat.DetermineDodge(this, target)) return; // if target dodges
             if (!Combat.DetermineHit(this, target)) return; // if attacker misses
             if (Combat.DetermineBlock(this, target)) return; // if target blocks
-            // apply damage
+
             Output.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
+
+            // trigger hit event
+            e = new CombatEvent(EventType.OnHit, this, target)
+            {
+                Damage = damage
+            };
+            EventHandler.Publish(e);
+
+            // apply damage
             target.Damage(damage);
 
             // apply xp
@@ -379,14 +410,14 @@ namespace text_survival
             Output.WriteLine("Who would you like to cast ", Spells[spell - 1].Name, " on?");
             var targets = new List<string>();
             targets.Add("Yourself");
-            CurrentArea.Npcs.ForEach(npc => targets.Add(npc.Name));
+            CurrentPlace.Npcs.ForEach(npc => targets.Add(npc.Name));
             var target = Input.GetSelectionFromList(targets, true);
             if (target == 0) return;
 
             // cast spell
             else if (target == 1) CastSpell(Spells[spell - 1], this);
             else
-                CastSpell(Spells[spell - 1], CurrentArea.Npcs[target - 2]);
+                CastSpell(Spells[spell - 1], CurrentPlace.Npcs[target - 2]);
 
         }
 
@@ -423,29 +454,21 @@ namespace text_survival
             }
         }
 
-        public void AddWarmthBonus(double warmth)
-        {
-            WarmthBonus += warmth;
-        }
+        public void AddWarmthBonus(double warmth) => WarmthBonus += warmth;
+        public void RemoveWarmthBonus(double warmth) => WarmthBonus -= warmth;
 
-        public void RemoveWarmthBonus(double warmth)
-        {
-            WarmthBonus -= warmth;
-        }
 
         // Buffs //
 
-        public void ApplyBuff(Buff buff)
-        {
-            buff.ApplyEffect?.Invoke(this);
-            Buffs.Add(buff);
-        }
+        //public void ApplyBuff(Buff buff)
+        //{
+        //    Buffs.Add(buff);
+        //}
 
-        public void RemoveBuff(Buff buff)
-        {
-            buff.RemoveEffect?.Invoke(this);
-            Buffs.Remove(buff);
-        }
+        //public void RemoveBuff(Buff buff)
+        //{
+        //    Buffs.Remove(buff);
+        //}
 
         // Leveling //
 
@@ -528,7 +551,7 @@ namespace text_survival
             var buffs = new List<Buff>(Buffs);
             foreach (var buff in buffs)
             {
-                buff.Tick(this);
+                buff.Tick();
             }
             HungerModule.Update();
             ThirstModule.Update();
@@ -538,25 +561,19 @@ namespace text_survival
 
         // Area //
 
-        public void Enter(Area newArea)
-        {
-            Output.WriteLine("You enter ", newArea);
-            Output.WriteLine(newArea.Description);
-            if (!newArea.NearbyAreas.Contains(CurrentArea) && CurrentArea != newArea)
-                newArea.NearbyAreas.Add(this.CurrentArea);
-            CurrentArea = newArea;
-            if (!newArea.Visited) newArea.GenerateNearbyAreas();
-            newArea.Visited = true;
-            Output.WriteLine("You should probably look around.");
-        }
-
         /// OTHER ///
 
-        public override string ToString()
+        public override string ToString() => Name;
+
+        public void MoveTo(IPlace place)
         {
-            return Name;
+            _placeStack.Push(place);
         }
 
+        public void MoveBack()
+        {
+            _placeStack.Pop();
+        }
 
 
     }

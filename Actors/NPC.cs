@@ -1,10 +1,13 @@
-﻿using text_survival.Items;
+﻿using text_survival.Actors;
+using text_survival.Environments;
+using text_survival.Interfaces;
+using text_survival.Items;
 using text_survival.Level;
 using text_survival.Magic;
 
 namespace text_survival.Actors
 {
-    public class Npc : ICombatant
+    public class Npc : ICombatant, IInteractable
     {
         public string Name { get; set; }
         public string Description { get; set; }
@@ -13,10 +16,12 @@ namespace text_survival.Actors
         public double UnarmedDamage { get; protected set; }
         public double ArmorRating { get; private set; }
         public bool IsHostile { get; private set; }
-        private List<Item> Loot { get; }
+        private Container Loot { get; }
         public bool IsAlive => Health > 0;
+        public bool IsFound { get; set; }
+        public bool IsEngaged { get; set; }
         public Attributes Attributes { get; }
-        private List<Buff> Buffs { get; }
+        public List<Buff> Buffs { get; }
 
         public Npc(string name, Attributes? attributes = null)
         {
@@ -24,20 +29,53 @@ namespace text_survival.Actors
             Attributes = attributes ?? new Attributes();
             MaxHealth = (int)(((Attributes.Strength + Attributes.Endurance) / 10) * 2);
             Health = MaxHealth;
-            Loot = new List<Item>();
+            Loot = new Container(name, 10);
             IsHostile = true;
             Description = "";
             UnarmedDamage = 2;
             Buffs = new List<Buff>();
         }
 
+        // Interact //
+
+        public void Interact(Player player)
+        {
+            if (IsAlive)
+            {
+                Combat.CombatLoop(player, this);
+            }
+            else // loot
+            {
+                if (Loot.IsEmpty)
+                {
+                    Output.WriteLine("There is nothing to loot.");
+                    return;
+                }
+                Loot.Open(player);
+                //this.DropInventory(player.CurrentArea);
+            }
+        }
+        public Command<Player> InteractCommand
+        {
+            get
+            {
+                string name;
+                if (IsAlive)
+                    name = "Fight " + Name;
+                else
+                    name = "Loot " + Name;
+                return new Command<Player>(name, Interact);
+            }
+        }
+
         // Update //
         public void Update()
         {
+            if (!IsAlive) return;
             List<Buff> buffs = new List<Buff>(Buffs);
             foreach (Buff buff in buffs)
             {
-                buff.Tick(this);
+                buff.Tick();
             }
         }
 
@@ -83,6 +121,14 @@ namespace text_survival.Actors
 
         public void Attack(ICombatant target)
         {
+            // attack event
+            var e = new CombatEvent(EventType.OnAttack, this, target);
+            if (this is Humanoid humanoid)
+            {
+                e.Weapon = humanoid.Weapon;
+            }
+            EventHandler.Publish(e);
+
             // do calculations
             double damage = DetermineDamage(target);
 
@@ -98,8 +144,17 @@ namespace text_survival.Actors
                 EventHandler.Publish(new GainExperienceEvent(1, SkillType.Block));
                 return;
             }
-            // apply damage
+
             Output.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
+
+            // trigger hit event
+            e = new CombatEvent(EventType.OnHit, this, target)
+            {
+                Damage = damage
+            };
+            EventHandler.Publish(e);
+
+            // apply damage
             target.Damage(damage);
 
             // gain experience
@@ -120,10 +175,6 @@ namespace text_survival.Actors
         public void Damage(double damage)
         {
             Health -= damage;
-            if (Health < 0)
-            {
-                EventHandler.Publish(new EnemyDefeatedEvent(this));
-            }
         }
 
         public void Heal(double heal)
@@ -135,25 +186,30 @@ namespace text_survival.Actors
             }
         }
 
-        public void ApplyBuff(Buff buff)
+        public void AddToBuffList(Buff buff)
         {
-            buff.ApplyEffect?.Invoke(this);
             Buffs.Add(buff);
         }
 
-        public void RemoveBuff(Buff buff)
+        public void RemoveFromBuffList(Buff buff)
         {
-            buff.RemoveEffect?.Invoke(this);
             Buffs.Remove(buff);
         }
 
-        public Item? DropItem()
+        public void DropInventory(Area area)
         {
-            if (Loot.Count == 0)
-                return null;
-            Item item = Loot[Utils.RandInt(0, Loot.Count - 1)];
+            while (!Loot.IsEmpty)
+            {
+                Item item = Loot.GetItem(0);
+                Output.WriteLine(this, " dropped ", item, "!");
+                DropItem(item, area);
+            }
+        }
+        private void DropItem(Item item, Area area)
+        {
+            item.IsFound = true;
             Loot.Remove(item);
-            return item;
+            area.PutThing(item);
         }
 
         public void AddLoot(Item item)
@@ -162,7 +218,10 @@ namespace text_survival.Actors
         }
         public void AddLoot(List<Item> items)
         {
-            Loot.AddRange(items);
+            foreach (Item item in items)
+            {
+                Loot.Add(item);
+            }
         }
 
     }

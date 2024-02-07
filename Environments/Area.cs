@@ -1,19 +1,25 @@
 ﻿using text_survival.Actors;
-using text_survival.Items;
+using text_survival.Interfaces;
 
 namespace text_survival.Environments
 {
-    public class Area
+    public class Area : IPlace
     {
         public string Name { get; set; }
         public string Description { get; set; }
         public List<IInteractable> Things { get; private set; }
-        public List<Npc> Npcs { get; private set; }
+        public List<Npc> Npcs => Things.OfType<Npc>().Where(npc => npc.IsAlive).ToList();
+
+        /// <summary>
+        /// Returns true if there are no hostile NPCs in the area.
+        /// </summary>
+        public bool IsSafe => !Npcs.Any(npc => npc.IsHostile);
+        public List<IUpdateable> GetUpdateables => Things.OfType<IUpdateable>().ToList();
         public double BaseTemperature { get; private set; }
         public bool IsShelter { get; set; }
         public bool Visited { get; set; }
         public List<Area> NearbyAreas { get; private set; }
-        private List<Location> Locations { get; }
+        //private List<Location> Locations { get; }
 
         public enum EnvironmentType
         {
@@ -29,11 +35,8 @@ namespace text_survival.Environments
             Description = description;
             BaseTemperature = baseTemp;
             Things = new List<IInteractable>();
-            Npcs = new List<Npc>();
-            //EventHandler.Subscribe<ItemTakenEvent>(OnItemTaken);
-            EventHandler.Subscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
             NearbyAreas = new List<Area>();
-            Locations = new List<Location>();
+            // Locations = new List<Location>();
         }
         public double GetTemperature()
         {
@@ -63,11 +66,7 @@ namespace text_survival.Environments
             return effect + BaseTemperature;
         }
 
-        public override string ToString()
-        {
-            string str = Name;
-            return str;
-        }
+        public override string ToString() => Name;
 
         public void GenerateNearbyAreas(int count = 3)
         {
@@ -80,22 +79,54 @@ namespace text_survival.Environments
             }
         }
 
-        public void PutThing(IInteractable thing)
+        public void PutThing(IInteractable thing) => Things.Add(thing);
+        public void RemoveThing(IInteractable thing) => Things.Remove(thing);
+        public bool ContainsThing(IInteractable thing)
         {
-            Things.Add(thing);
+            if (Things.Contains(thing)) return true;
+            foreach (var t in Things)
+            {
+                if (t is IPlace place)
+                {
+                    if (place.ContainsThing(thing)) return true;
+                }
+            }
+            return false;
         }
 
-        private void OnEnemyDefeated(EnemyDefeatedEvent e)
+        public void Enter(Player player)
         {
-            if (!Npcs.Contains(e.DefeatedEnemy)) return;
-            this.Npcs.Remove(e.DefeatedEnemy);
+            if (player.CurrentArea is not null)
+            {
+                if (!NearbyAreas.Contains(player.CurrentArea))
+                    NearbyAreas.Add(player.CurrentArea);
+                player.CurrentArea.Leave(player);
+            }
+            Output.WriteLine("You enter ", this);
+            Output.WriteLine(Description);
+            player.MoveTo(this);
+            if (!Visited) GenerateNearbyAreas();
+            Visited = true;
+            Output.WriteLine("You should probably look around.");
         }
 
-        //private void OnItemTaken(ItemTakenEvent e)
-        //{
-        //    if (!Things.Contains(e.TakenItem)) return;
-        //    this.Things.Remove(e.TakenItem);
-        //}
+        public void Leave(Player player)
+        {
+            while (player.CurrentPlace != this)
+            {
+                player.CurrentPlace.Leave(player);
+            }
+            Output.WriteLine("You leave ", this);
+            player.MoveBack();
+        }
 
+        public void Update()
+        {
+            List<IUpdateable> updateables = new List<IUpdateable>(GetUpdateables);
+            foreach (var updateable in updateables)
+            {
+                updateable.Update();
+            }
+        }
     }
 }

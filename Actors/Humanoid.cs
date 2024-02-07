@@ -13,6 +13,8 @@ namespace text_survival.Actors
         {
             Weapon = weapon ?? new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, quality: Utils.RandInt(1, 100));
             Armor = armor ?? new Armor("Leather Outfit", .2, EquipSpots.Chest, 4);
+            AddLoot(Weapon);
+            AddLoot(Armor);
         }
 
     }

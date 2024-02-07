@@ -1,5 +1,5 @@
 ﻿using text_survival.Actors;
-using text_survival.Items;
+using text_survival.Environments;
 
 namespace text_survival
 {
@@ -8,21 +8,25 @@ namespace text_survival
         public static void CombatLoop(Player player, ICombatant enemy)
         {
             Output.WriteLine("You encounter: ", enemy, "!");
-
+            player.IsEngaged = true;
+            enemy.IsEngaged = true;
             if (enemy.Attributes.Speed > player.Attributes.Speed)
             {
                 enemy.Attack(player);
             }
-            while (player.Health > 0 && enemy.Health > 0)
+            while (player.IsAlive && enemy.IsAlive)
             {
+                if (!player.IsEngaged || !player.IsAlive) break;
                 PrintBattleInfo(player, enemy);
                 PlayerTurn(player, enemy);
-                if (enemy.Health > 0)
-                {
-                    enemy.Attack(player);
-                }
+
+                if (!enemy.IsEngaged || !enemy.IsAlive) break;
+                enemy.Attack(player);
+
                 World.Update(1);
             }
+            player.IsEngaged = false;
+            enemy.IsEngaged = false;
 
             if (player.Health <= 0)
                 Output.WriteDanger("You died!");
@@ -30,62 +34,52 @@ namespace text_survival
             else if (enemy.Health <= 0)
             {
                 Output.WriteLine("You killed ", enemy, "!");
-                if (enemy is Npc npc)
-                    GetLoot(player, npc);
             }
         }
 
+        private enum CombatActions
+        {
+            Attack,
+            CastSpell,
+            Flee
+        }
         public static void PlayerTurn(Player player, ICombatant enemy)
         {
             Output.WriteLine("What do you want to do?");
-            List<string> options = new();
-            options.Add("Attack");
-            options.Add("Cast Spell");
-            //options.Add("Run away");
+
+            List<CombatActions> options = new();
+            options.Add(CombatActions.Attack);
+            if (player.Spells.Count > 0)
+                options.Add(CombatActions.CastSpell);
+            options.Add(CombatActions.Flee);
+
             int choice = Input.GetSelectionFromList(options);
-            if (choice == 1)
+            switch (options[choice - 1])
             {
-                player.Attack(enemy);
-
-            }
-            else if (choice == 2)
-            {
-                player.SelectSpell();
-            }
-            //else if (choice == 3)
-            //{
-            //    Utils.Write("You ran away!\n");
-            //    return;
-            //}
-        }
-        public static void GetLoot(Player player, Npc npc)
-        {
-            Item? loot = npc.DropItem();
-            if (loot is null)
-            {
-                Output.WriteLine(npc.Name, " has no loot.");
-                return;
-            }
-            Output.Write(npc.Name, " dropped: ");
-            Examine.ExamineItem(loot);
-            Output.WriteLine("\nDo you want to pick it up?\n", 1, ". Yes\n", 2, ". No");
-
-            int choice = Input.ReadInt(1, 2);
-            if (choice == 1)
-            {
-                player.TakeItem(loot);
-            }
-            else
-            {
-                player.CurrentArea.Things.Add(loot);
-                Output.Write("You left the ", loot, " on the ground.\n");
+                case CombatActions.Attack:
+                    player.Attack(enemy);
+                    break;
+                case CombatActions.CastSpell:
+                    player.SelectSpell();
+                    break;
+                case CombatActions.Flee when Combat.SpeedCheck(player, enemy):
+                    Output.WriteLine("You got away!");
+                    enemy.IsEngaged = false;
+                    player.IsEngaged = false;
+                    return; // end combat
+                case CombatActions.Flee:
+                    Output.WriteLine("You weren't fast enough to get away from ", enemy, "!");
+                    break;
+                default:
+                    break;
             }
         }
+
         public static void PrintBattleInfo(ICombatant combatant1, ICombatant combatant2)
         {
-            Examine.ExamineCombatant(combatant1);
+            Describe.DescribeCombatant(combatant1);
             Output.WriteLine("VS");
-            Examine.ExamineCombatant(combatant2);
+            Describe.DescribeCombatant(combatant2);
         }
 
         /// <summary>
@@ -169,12 +163,45 @@ namespace text_survival
         {
             double blockChance = defender.DetermineBlockChance(attacker);
             double roll = Utils.RandDouble(0, 1);
-            if (roll < blockChance)
+
+            if (!(roll < blockChance)) return false;
+
+            Output.WriteLine(defender, " blocked ", attacker, "'s attack!");
+            return true;
+        }
+
+        public static bool SpeedCheck(Player player, IActor? enemy = null)
+        {
+            if (player.CurrentPlace.IsSafe) return true;
+
+            // if no enemy is passed in, get the fastest enemy
+            enemy ??= GetFastestNpc(player.CurrentPlace);
+
+            // compare player to fastest enemy
+            double playerCheck = CalcSpeedCheck(player);
+            double enemyCheck = CalcSpeedCheck(enemy);
+
+            return !(playerCheck < enemyCheck);
+        }
+
+
+        public static Npc GetFastestNpc(IPlace place)
+        {
+            double enemyCheck = 0;
+            Npc fastestNpc = place.Npcs.First();
+            foreach (Npc npc in place.Npcs)
             {
-                Output.WriteLine(defender, " blocked ", attacker, "'s attack!");
-                return true;
+                var currentNpcCheck = CalcSpeedCheck(npc);
+                if (!(currentNpcCheck >= enemyCheck)) continue;
+                fastestNpc = npc;
+                enemyCheck = currentNpcCheck;
             }
-            return false;
+            return fastestNpc;
+        }
+
+        public static double CalcSpeedCheck(IActor actor)
+        {
+            return actor.Attributes.Speed + actor.Attributes.Agility / 2 + actor.Attributes.Luck / 3;
         }
     }
 }

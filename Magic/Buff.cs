@@ -2,60 +2,97 @@
 
 namespace text_survival.Magic
 {
-    public enum TriggerTypes
+    public enum BuffType
     {
-        None,
-        OnAttack,
-        OnHit,
-        OnDamaged,
-        OnKill,
-        OnDeath,
-        OnTick,
+        Generic,
+        Bleed,
+        Poison,
+        Heal,
+        Warmth,
     }
 
     public class Buff
     {
         public string Name { get; set; }
-        public int NumTicks { get; private set; }
-        public TriggerTypes TriggerOn { get; set; }
-        public Action<IBuffable> ApplyEffect { get; set; }
-        public Action<IBuffable> RemoveEffect { get; set; }
-        public Action<IBuffable> TickEffect { get; set; }
-        public Action<IBuffable> TriggerEffect { get; set; }
-        public Buff(string name, int numTicks = -1)
+        public int NumTicks { private get; set; }
+        public Action<IBuffable> ApplyEffect { private get; set; }
+        public Action<IBuffable> RemoveEffect { private get; set; }
+        public Action<IBuffable> TickEffect { private get; set; }
+        public BuffType Type { get; set; }
+        private EventType _triggerOn;
+        public EventType TriggerOn
+        {
+            get => _triggerOn;
+            set
+            {
+                //if (_triggerOn != EventType.None)
+                //{
+                //    EventHandler.Unsubscribe<GameEvent>(OnGameEvent);
+                //}
+                _triggerOn = value;
+                if (_triggerOn != EventType.None)
+                {
+                    EventHandler.Subscribe<GameEvent>(OnGameEvent);
+                }
+            }
+        }
+
+        public Action<GameEvent> TriggerEffect { private get; set; }
+
+        public IBuffable? Target { get; private set; }
+
+        public void ApplyTo(IBuffable target)
+        {
+            Target = target;
+            target.Buffs.Add(this);
+            ApplyEffect?.Invoke(target);
+        }
+
+        public void Remove()
+        {
+            if (Target == null) return;
+            Target.Buffs.Remove(this);
+            RemoveEffect.Invoke(Target);
+            Target = null;
+        }
+
+        public Buff(string name, int numTicks = -1, BuffType type = BuffType.Generic)
         {
             Name = name;
             NumTicks = numTicks; // -1 means infinite duration
-            TriggerOn = TriggerTypes.None;
+            Type = type;
+            TriggerOn = EventType.None;
             ApplyEffect = (target) => { }; // applies once when applied
             RemoveEffect = (target) => { }; // should undo ApplyEffect
             TickEffect = (target) => { }; // applies once per minute
-            TriggerEffect = (target) => { }; // applies on TriggerOn
+            TriggerEffect = (e) => { }; // applies on TriggerOn
         }
-        public void Tick(IBuffable target)
+        public void Tick()
         {
             if (NumTicks == -1) return; // -1 means infinite duration
 
-            TickEffect?.Invoke(target);
             if (NumTicks > 0)
             {
                 NumTicks--;
             }
             if (NumTicks == 0)
             {
-                target.RemoveBuff(this);
-
+                Remove();
             }
+            TickEffect?.Invoke(Target);
         }
 
-        public void Trigger(IBuffable target, TriggerTypes trigger)
+        private void Trigger(GameEvent e)
         {
-            if (TriggerOn == trigger)
+            TriggerEffect?.Invoke(e);
+        }
+
+        private void OnGameEvent(GameEvent e)
+        {
+            if (e.Type == TriggerOn)
             {
-                TriggerEffect?.Invoke(target);
+                Trigger(e);
             }
         }
     }
-
-
 }

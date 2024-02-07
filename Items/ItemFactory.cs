@@ -1,4 +1,4 @@
-﻿using text_survival.Level;
+﻿using text_survival.Magic;
 
 namespace text_survival.Items
 {
@@ -210,6 +210,12 @@ namespace text_survival.Items
             };
             bandage.UseEffect = player =>
             {
+                if (player.HasBuff(BuffType.Bleed))
+                {
+                    Buff? bleed = player.GetBuff(BuffType.Bleed);
+                    bleed?.Remove();
+                    //Output.WriteLine("You stopped bleeding");
+                }
                 player.Heal(10);
                 Output.Write("You feel a bit better\n");
                 player.RemoveFromInventory(bandage);
@@ -222,8 +228,8 @@ namespace text_survival.Items
             Gear torch = new Gear("Torch", 1)
             {
                 Description = "A torch that warms you",
-                Buff = CommonBuffs.Warmth(5, -1)
             };
+            torch.AddEquipBuff(CommonBuffs.Warmth(5, -1));
             return torch;
         }
 
@@ -282,11 +288,12 @@ namespace text_survival.Items
             Item vial = new Item("Venom Vial");
             vial.UseEffect = (player) =>
             {
-                Output.Write("You can use this to poison your weapon.\n");
                 if (player.IsArmed)
                 {
-                    player.Weapon.Damage += 2;
                     player.RemoveFromInventory(vial);
+                    Output.Write("You use ", vial, " to poison your weapon.\n");
+                    player.Weapon.AddEquipBuff(CommonBuffs.PoisionedWeapon(2, 3));
+                    player.Equip(player.Weapon);
                 }
                 else
                 {

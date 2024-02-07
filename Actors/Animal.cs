@@ -1,5 +1,4 @@
-﻿
-using text_survival.Level;
+﻿using text_survival.Level;
 
 namespace text_survival.Actors
 {

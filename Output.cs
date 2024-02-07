@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using text_survival.Actors;
+﻿using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Items;
 
@@ -32,12 +27,17 @@ namespace text_survival
         {
             foreach (var arg in args)
             {
-                Console.ForegroundColor = DetermineTextColor(arg);
                 string text = GetFormattedText(arg);
-                Console.Write(text);
+                if (Config.io == Config.IOType.Console)
+                {
+                    Console.ForegroundColor = DetermineTextColor(arg);
+                    Console.Write(text);
+                }
+                else if (Config.io == Config.IOType.Web)
+                {
+                    EventHandler.Publish(new WriteEvent(text));
+                }
             }
-            // Reset color to default after writing
-            Console.ResetColor();
             Thread.Sleep(100);
         }
 

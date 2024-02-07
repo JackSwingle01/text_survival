@@ -1,11 +1,34 @@
-﻿using text_survival.Magic;
+﻿using text_survival.Actors;
+using text_survival.Magic;
 
 namespace text_survival.Items
 {
     public interface IEquippable
     {
-        Buff Buff { get; set; }
-        public void OnEquip(Player player);
-        public void OnUnequip(Player player);
+        public List<Buff> GetEquipBuffs();
+        public void AddEquipBuff(Buff buff);
+        public void RemoveEquipBuff(Buff buff);
+
+
+        public virtual void OnEquip(IActor actor)
+        {
+            foreach (Buff buff in GetEquipBuffs())
+            {
+                buff.ApplyTo(actor);
+            }
+        }
+
+        public virtual void OnUnequip(IActor actor)
+        {
+            foreach (Buff buff in GetEquipBuffs())
+            {
+                buff.Remove();
+            }
+        }
+
+        
+        
+        
     }
+
 }

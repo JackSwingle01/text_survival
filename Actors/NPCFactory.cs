@@ -1,5 +1,6 @@
 ﻿using text_survival.Items;
 using text_survival.Level;
+using text_survival.Magic;
 
 namespace text_survival.Actors
 {
@@ -50,8 +51,9 @@ namespace text_survival.Actors
         {
             Npc snake = new Animal("Snake", 10, new Attributes(20, 5, 20, 50, 40, 20, 0, 55));
             snake.AddLoot(ItemFactory.MakeSmallMeat());
-            //snake.Loot.Add(ItemFactory.MakeSnakeSkin());
             snake.AddLoot(ItemFactory.MakeVenomVial());
+            CommonBuffs.Venomous(2, 3, .5).ApplyTo(snake);
+            
             return snake;
         }
 
@@ -68,6 +70,7 @@ namespace text_survival.Actors
             Npc spider = new Animal("Spider", 5, new Attributes(15, 3, 10, 35, 30, 15, 0, 55));
             spider.AddLoot(ItemFactory.MakeSpiderSilk());
             spider.AddLoot(ItemFactory.MakeVenomVial());
+            CommonBuffs.Venomous(1, 3, .4).ApplyTo(spider);
             return spider;
         }
 
@@ -75,7 +78,6 @@ namespace text_survival.Actors
         {
             Humanoid goblin = new("Goblin", ItemFactory.MakeGoblinSword(),
                 attributes: new Attributes(35, 25, 30, 40, 45, 35, 10, 60));
-            goblin.AddLoot(ItemFactory.MakeGoblinSword());
             goblin.AddLoot(ItemFactory.MakeCoin());
             //goblin.Loot.Add(ItemFactory.MakeTatteredCloth());
             return goblin;
