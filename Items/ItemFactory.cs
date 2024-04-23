@@ -229,7 +229,7 @@ namespace text_survival.Items
             {
                 Description = "A torch that warms you",
             };
-            torch.AddEquipBuff(CommonBuffs.Warmth(5, -1));
+            torch.AddEquipBuff(CommonBuffs.Warmth(5));
             return torch;
         }
 

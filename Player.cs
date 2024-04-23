@@ -549,10 +549,15 @@ namespace text_survival
         public void Update()
         {
             var buffs = new List<Buff>(Buffs);
-            foreach (var buff in buffs)
+            foreach (Buff buff in buffs)
             {
-                buff.Tick();
+                if (buff is TimedBuff timedBuff)
+                {
+                    timedBuff.Tick();
+                }
+                Output.WriteLine(Name, " is affected by ", buff.Name);
             }
+            buffs.Clear();
             HungerModule.Update();
             ThirstModule.Update();
             ExhaustionModule.Update();

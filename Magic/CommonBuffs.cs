@@ -4,9 +4,9 @@ namespace text_survival.Magic
 {
     public static class CommonBuffs
     {
-        public static Buff Warmth(double degrees, int minutes = -1)
+        public static Buff Warmth(double degrees)
         {
-            Buff buff = new Buff("Warmth", minutes, BuffType.Warmth)
+            Buff buff = new Buff("Warmth", BuffType.Warmth)
             {
                 ApplyEffect = target =>
                 {
@@ -24,9 +24,9 @@ namespace text_survival.Magic
             return buff;
         }
 
-        public static Buff Bleeding(int hpPerMin, int minutes)
+        public static TimedBuff Bleeding(int hpPerMin, int minutes)
         {
-            return new Buff("Bleeding", minutes, BuffType.Bleed)
+            return new TimedBuff("Bleeding", minutes, BuffType.Bleed)
             {
                 ApplyEffect = (target => Output.WriteLine(target, " has been cut!")),
                 TickEffect = ((target) =>
@@ -44,9 +44,9 @@ namespace text_survival.Magic
             };
         }
 
-        public static Buff Poison(int hpPerMin, int minutes)
+        public static TimedBuff Poison(int hpPerMin, int minutes)
         {
-            Buff poison = new Buff("Poison", minutes, BuffType.Poison);
+            TimedBuff poison = new TimedBuff("Poison", minutes, BuffType.Poison);
 
             poison.ApplyEffect = target =>
             {
@@ -73,9 +73,9 @@ namespace text_survival.Magic
             return poison;
         }
 
-        public static Buff Heal(int hp)
+        public static InstantEffectBuff Heal(int hp)
         {
-            return new Buff("Heal", 0, BuffType.Heal)
+            return new InstantEffectBuff("Heal", BuffType.Heal)
             {
                 ApplyEffect = (target =>
                 {
@@ -90,9 +90,9 @@ namespace text_survival.Magic
             };
         }
 
-        public static Buff Venomous(int hpPerMin, int minutes, double chance)
+        public static TriggeredBuff Venomous(int hpPerMin, int minutes, double chance)
         {
-            Buff buff = new Buff("Venomous", -1, BuffType.Generic);
+            TriggeredBuff buff = new TriggeredBuff("Venomous", BuffType.Generic);
             buff.TriggerOn = EventType.OnHit;
             buff.TriggerEffect = (e =>
             {
@@ -107,9 +107,9 @@ namespace text_survival.Magic
             return buff;
         }
 
-        public static Buff PoisionedWeapon(int hpPerMin, int minutes, double chance = 1)
+        public static TriggeredBuff PoisionedWeapon(int hpPerMin, int minutes, double chance = 1)
         {
-            Buff buff = new Buff("Poisoned Weapon", -1, BuffType.Generic)
+            TriggeredBuff buff = new TriggeredBuff("Poisoned Weapon", BuffType.Generic)
             {
                 TriggerOn = EventType.OnHit,
             };

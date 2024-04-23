@@ -75,8 +75,11 @@ namespace text_survival.Actors
             List<Buff> buffs = new List<Buff>(Buffs);
             foreach (Buff buff in buffs)
             {
-                buff.Tick();
+                if (buff is TimedBuff timedBuff)
+                    timedBuff.Tick();
+                Output.WriteLine(Name, " is affected by ", buff.Name);
             }
+            buffs.Clear();
         }
 
         // COMBAT //
