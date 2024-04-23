@@ -77,7 +77,6 @@ namespace text_survival.Actors
             {
                 if (buff is TimedBuff timedBuff)
                     timedBuff.Tick();
-                Output.WriteLine(Name, " is affected by ", buff.Name);
             }
             buffs.Clear();
         }

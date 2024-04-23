@@ -17,7 +17,7 @@ namespace text_survival
             this.AvailableActions = new List<ICommand>();
         }
 
-        private Command<Player> LookAroundCommand => new Command<Player>("Look Around", LookAround);
+        private Command<Player> LookAroundCommand => new Command<Player>($"Look Around {_player.CurrentPlace}", LookAround);
         private Command<Player> CheckStatsCommand => new Command<Player>("Check Stats", CheckStats);
         private Command<Player> LevelUpCommand => new Command<Player>("Level Up", LevelUp);
         //private Command<Player, IInteractable> InteractCommand => new Command<Player, IInteractable>("Interact", Interact);

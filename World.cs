@@ -34,15 +34,18 @@ namespace text_survival
                 CurrentArea.Update();
                 Time = Time.AddMinutes(1);
             }
-
+            Output.WriteLine($"{Time:hh:mm}");
         }
 
         public enum TimeOfDay
         {
             Night,
+            Dawn,
             Morning,
             Afternoon,
-            Evening
+            Noon,
+            Evening,
+            Dusk
         }
 
         public static TimeOfDay GetTimeOfDay()
@@ -50,9 +53,12 @@ namespace text_survival
             return Time.Hour switch
             {
                 < 5 => TimeOfDay.Night,
-                < 12 => TimeOfDay.Morning,
-                < 18 => TimeOfDay.Afternoon,
-                < 23 => TimeOfDay.Evening,
+                < 6 => TimeOfDay.Dawn,
+                < 11 => TimeOfDay.Morning,
+                < 13 => TimeOfDay.Noon,
+                < 17 => TimeOfDay.Afternoon,
+                < 20 => TimeOfDay.Evening,
+                < 21 => TimeOfDay.Dusk,
                 _ => TimeOfDay.Night
             };
         }

@@ -8,16 +8,15 @@ namespace text_survival.Actors
 
         public void AddBuff(Buff buff)
         { 
-            buff.ApplyTo(this);
+            if (buff.Target == null)
+                buff.ApplyTo(this);
+            Buffs.Add(buff);
         }
         public void RemoveBuff(Buff buff)
         {
-            buff.Remove();
-        }
-
-        public void RemoveBuff(string name)
-        {
-            Buffs.Find(buff => buff.Name == name)?.Remove();
+            if (buff.Target == this)
+                buff.Remove();
+            Buffs.Remove(buff);
         }
 
     }

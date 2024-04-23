@@ -6,6 +6,7 @@ namespace text_survival
 {
     public static class Output
     {
+        public static int SleepTime = 100;
         public static ConsoleColor DetermineTextColor(object x)
         {
             return x switch
@@ -35,10 +36,11 @@ namespace text_survival
                 }
                 else if (Config.io == Config.IOType.Web)
                 {
-                    EventHandler.Publish(new WriteEvent(text));
+                    throw new NotImplementedException();
+                    //EventHandler.Publish(new WriteEvent(text));
                 }
             }
-            Thread.Sleep(100);
+            Thread.Sleep(SleepTime);
         }
 
         private static string GetFormattedText(params object[] args)
@@ -71,8 +73,8 @@ namespace text_survival
         {
             Write(args);
             Write("\n");
-            //Thread.Sleep(100);
         }
+       
 
         public static void WriteWarning(string str)
         {

@@ -92,7 +92,7 @@ namespace text_survival.Magic
 
         public static TriggeredBuff Venomous(int hpPerMin, int minutes, double chance)
         {
-            TriggeredBuff buff = new TriggeredBuff("Venomous", BuffType.Generic);
+            TriggeredBuff buff = new TriggeredBuff("Venomous", -1, BuffType.Generic);
             buff.TriggerOn = EventType.OnHit;
             buff.TriggerEffect = (e =>
             {
@@ -109,7 +109,7 @@ namespace text_survival.Magic
 
         public static TriggeredBuff PoisionedWeapon(int hpPerMin, int minutes, double chance = 1)
         {
-            TriggeredBuff buff = new TriggeredBuff("Poisoned Weapon", BuffType.Generic)
+            TriggeredBuff buff = new TriggeredBuff("Poisoned Weapon", 1, BuffType.Generic)
             {
                 TriggerOn = EventType.OnHit,
             };
@@ -122,7 +122,6 @@ namespace text_survival.Magic
                     Buff poison = CommonBuffs.Poison(hpPerMin, minutes);
                     poison.ApplyTo(combatEvent.Defender);
                 }
-                buff.Remove();
             });
             return buff;
         }

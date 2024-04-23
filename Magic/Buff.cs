@@ -30,7 +30,7 @@ namespace text_survival.Magic
         public virtual void ApplyTo(IBuffable target)
         {
             Target = target;
-            target.Buffs.Add(this);
+            target.AddBuff(this);
             ApplyEffect?.Invoke(target);
         }
 
@@ -42,8 +42,10 @@ namespace text_survival.Magic
                 return;
             }
             RemoveEffect?.Invoke(Target);
-            Target.Buffs.Remove(this);
+
+            IBuffable t = Target;
             Target = null;
+            t.RemoveBuff(this);
         }       
     }
 }

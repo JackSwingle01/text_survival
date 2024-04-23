@@ -1,4 +1,5 @@
-﻿using text_survival.Actors;
+﻿using System.Numerics;
+using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Items;
 using text_survival.Level;
@@ -458,17 +459,7 @@ namespace text_survival
         public void RemoveWarmthBonus(double warmth) => WarmthBonus -= warmth;
 
 
-        // Buffs //
 
-        //public void ApplyBuff(Buff buff)
-        //{
-        //    Buffs.Add(buff);
-        //}
-
-        //public void RemoveBuff(Buff buff)
-        //{
-        //    Buffs.Remove(buff);
-        //}
 
         // Leveling //
 
@@ -555,7 +546,6 @@ namespace text_survival
                 {
                     timedBuff.Tick();
                 }
-                Output.WriteLine(Name, " is affected by ", buff.Name);
             }
             buffs.Clear();
             HungerModule.Update();
@@ -578,6 +568,7 @@ namespace text_survival
         public void MoveBack()
         {
             _placeStack.Pop();
+            Output.WriteLine("You return to the ", _placeStack.Peek());
         }
 
 
