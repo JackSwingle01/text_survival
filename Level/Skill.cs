@@ -1,5 +1,7 @@
 ﻿
 
+using text_survival.IO;
+
 namespace text_survival.Level
 {
     public class Skill

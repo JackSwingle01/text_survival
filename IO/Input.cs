@@ -1,4 +1,4 @@
-﻿namespace text_survival
+﻿namespace text_survival.IO
 {
     public static class Input
     {
@@ -19,7 +19,13 @@
             else if (Config.io == Config.IOType.Web)
             {
                 // await user input from web
-                input = AwaitInput();
+                //input = AwaitInput();
+                throw new NotImplementedException();
+            }
+            else if (Config.io == Config.IOType.AI_Enhanced)
+            {
+                // input = AI.GetInput();
+                throw new NotImplementedException();
             }
             return input ?? "";
         }

@@ -5,8 +5,10 @@
         public enum IOType
         {
             Console,
-            Web
+            Web,
+            AI_Enhanced
         }
         public static IOType io = IOType.Console;
+        public static string APIKey = "";
     }
 }

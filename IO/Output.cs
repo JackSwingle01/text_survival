@@ -2,7 +2,7 @@
 using text_survival.Environments;
 using text_survival.Items;
 
-namespace text_survival
+namespace text_survival.IO
 {
     public static class Output
     {
@@ -74,7 +74,7 @@ namespace text_survival
             Write(args);
             Write("\n");
         }
-       
+
 
         public static void WriteWarning(string str)
         {

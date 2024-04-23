@@ -1,4 +1,5 @@
-﻿using text_survival.Magic;
+﻿using text_survival.IO;
+using text_survival.Magic;
 
 namespace text_survival.Items
 {

@@ -1,4 +1,6 @@
-﻿namespace text_survival.Survival
+﻿using text_survival.IO;
+
+namespace text_survival.Survival
 {
     public class TemperatureModule
     {
