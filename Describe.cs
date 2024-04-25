@@ -8,7 +8,8 @@ namespace text_survival
     {
         public static void DescribeCombatant(ICombatant c)
         {
-            Output.WriteLine(c, " => HP: ", c.Health, "/", c.MaxHealth);
+            //Output.WriteLine(c, " => HP: ", c.Health, "/", c.MaxHealth);
+            Output.WriteLine(c);
         }
         public static void DescribeGear(Player player)
         {
@@ -30,7 +31,7 @@ namespace text_survival
         }
         public static void DescribeSurvivalStats(Player player)
         {
-            Output.WriteLine("Health: ", (int)(player.Health), "%");
+            //Output.WriteLine("Health: ", (int)(player.Health), "%");
             Output.WriteLine("Hunger: ", player.HungerPercent, "%");
             Output.WriteLine("Thirst: ", player.ThirstPercent, "%");
             Output.WriteLine("Exhaustion: ", player.ExhaustionPercent, "%");
@@ -85,7 +86,7 @@ namespace text_survival
         public static void DescribeSecondaryAttributes(Player player)
         {
             Output.WriteLine("Secondary Attributes: ");
-            Output.WriteLine("Max HP: ", player.MaxHealth);
+            Output.WriteLine("Max HP: ", player.Body.MaxHealth);
             Output.WriteLine("Max Energy: ", player.MaxEnergy);
             Output.WriteLine("Max Psych: ", player.MaxPsych);
         }

@@ -118,7 +118,7 @@ namespace text_survival.Environments
                 player.CurrentPlace.Leave(player);
             }
             Output.WriteLine("You leave ", this);
-            player.MoveBack();
+            //player.MoveBack();
         }
 
         public void Update()

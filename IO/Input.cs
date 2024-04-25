@@ -4,6 +4,7 @@
     {
         private static ManualResetEvent manualResetEvent = new ManualResetEvent(false);
         private static string userInput;
+        private static AI_IO ai = new AI_IO();
         public static void OnUserInputReceived(string input)
         {
             userInput = input;
@@ -24,9 +25,10 @@
             }
             else if (Config.io == Config.IOType.AI_Enhanced)
             {
-                // input = AI.GetInput();
-                throw new NotImplementedException();
+                input = ai.ExecuteAsync().GetAwaiter().GetResult();
             }
+
+
             return input ?? "";
         }
 

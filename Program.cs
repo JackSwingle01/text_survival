@@ -17,7 +17,7 @@ namespace text_survival
 
             Player player = World.Player;
             Actions actions = new(player);
-            while (player.Health > 0)
+            while (player.IsAlive)
             {
                 actions.Act();
             }

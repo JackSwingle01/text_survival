@@ -1,4 +1,5 @@
-﻿using text_survival.Actors;
+﻿using System.Text;
+using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Items;
 
@@ -7,6 +8,8 @@ namespace text_survival.IO
     public static class Output
     {
         public static int SleepTime = 100;
+        public static Queue<string> OutputQueue = new Queue<string>();
+
         public static ConsoleColor DetermineTextColor(object x)
         {
             return x switch
@@ -26,21 +29,32 @@ namespace text_survival.IO
 
         public static void Write(params object[] args)
         {
-            foreach (var arg in args)
+            
+            if (Config.io == Config.IOType.Console)
             {
-                string text = GetFormattedText(arg);
-                if (Config.io == Config.IOType.Console)
+                foreach (var arg in args)
                 {
+                    string text = GetFormattedText(arg);
                     Console.ForegroundColor = DetermineTextColor(arg);
                     Console.Write(text);
-                }
-                else if (Config.io == Config.IOType.Web)
-                {
-                    throw new NotImplementedException();
-                    //EventHandler.Publish(new WriteEvent(text));
+                    Thread.Sleep(SleepTime);
                 }
             }
-            Thread.Sleep(SleepTime);
+            else if (Config.io == Config.IOType.Web)
+            {
+                throw new NotImplementedException();
+                //EventHandler.Publish(new WriteEvent(text));
+            }
+            else if (Config.io == Config.IOType.AI_Enhanced)
+            {
+                StringBuilder sb = new StringBuilder();
+                foreach (var arg in args)
+                {
+                    sb.Append(GetFormattedText(arg));
+                }
+                OutputQueue.Enqueue(sb.ToString());
+            }
+            
         }
 
         private static string GetFormattedText(params object[] args)
@@ -80,7 +94,7 @@ namespace text_survival.IO
         {
             ConsoleColor oldColor = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine(str);
+            WriteLine(str);
             Console.ForegroundColor = oldColor;
         }
 
@@ -88,7 +102,7 @@ namespace text_survival.IO
         {
             ConsoleColor oldColor = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(str);
+            WriteLine(str);
             Console.ForegroundColor = oldColor;
         }
     }

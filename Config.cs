@@ -1,4 +1,6 @@
-﻿namespace text_survival
+﻿using text_survival.IO;
+
+namespace text_survival
 {
     public static class Config
     {
@@ -9,6 +11,6 @@
             AI_Enhanced
         }
         public static IOType io = IOType.Console;
-        public static string APIKey = "";
+        public static string APIKey = API_Key.Key;
     }
 }

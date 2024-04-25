@@ -13,3 +13,17 @@ C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\obj\Debu
 C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\obj\Debug\net8.0\text_survival.pdb
 C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\obj\Debug\net8.0\text_survival.genruntimeconfig.cache
 C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\obj\Debug\net8.0\ref\text_survival.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\bin\Debug\net8.0\Microsoft.Bcl.AsyncInterfaces.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\bin\Debug\net8.0\Microsoft.Extensions.Configuration.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\bin\Debug\net8.0\Microsoft.Extensions.Configuration.Abstractions.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\bin\Debug\net8.0\Microsoft.Extensions.Configuration.Binder.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\bin\Debug\net8.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\bin\Debug\net8.0\Microsoft.Extensions.Http.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\bin\Debug\net8.0\Microsoft.Extensions.Logging.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\bin\Debug\net8.0\Microsoft.Extensions.Logging.Abstractions.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\bin\Debug\net8.0\Microsoft.Extensions.Options.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\bin\Debug\net8.0\Microsoft.Extensions.Primitives.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\bin\Debug\net8.0\Newtonsoft.Json.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\bin\Debug\net8.0\OpenAI_API.dll
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\obj\Debug\net8.0\text_survival.csproj.AssemblyReference.cache
+C:\Users\jack7\Documents\myCode\games\text_based_survival\text_survival\obj\Debug\net8.0\text_sur.100512B1.Up2Date

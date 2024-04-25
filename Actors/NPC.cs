@@ -1,4 +1,5 @@
 ﻿using text_survival.Actors;
+using text_survival.Actors.text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Interfaces;
 using text_survival.IO;
@@ -12,13 +13,14 @@ namespace text_survival.Actors
     {
         public string Name { get; set; }
         public string Description { get; set; }
-        public double Health { get; private set; }
-        public double MaxHealth { get; private set; }
+        //public double Health => Body.Health;
+        //public double MaxHealth => Body.MaxHealth;
+        public BodyPart Body { get; }
         public double UnarmedDamage { get; protected set; }
         public double ArmorRating { get; private set; }
         public bool IsHostile { get; private set; }
         private Container Loot { get; }
-        public bool IsAlive => Health > 0;
+        public bool IsAlive => Body.Health > 0;
         public bool IsFound { get; set; }
         public bool IsEngaged { get; set; }
         public Attributes Attributes { get; }
@@ -28,8 +30,9 @@ namespace text_survival.Actors
         {
             Name = name;
             Attributes = attributes ?? new Attributes();
-            MaxHealth = (int)(((Attributes.Strength + Attributes.Endurance) / 10) * 2);
-            Health = MaxHealth;
+            int health = (int)(((Attributes.Strength + Attributes.Endurance) / 10) * 2);
+            Body = BodyPartFactory.CreateHumanBody(name);
+            //Health = MaxHealth;
             Loot = new Container(name, 10);
             IsHostile = true;
             Description = "";
@@ -177,16 +180,12 @@ namespace text_survival.Actors
 
         public void Damage(double damage)
         {
-            Health -= damage;
+           Body.Damage(damage);
         }
 
         public void Heal(double heal)
         {
-            Health += heal;
-            if (Health > MaxHealth)
-            {
-                Health = MaxHealth;
-            }
+            Body.Heal(heal);
         }
 
         public void AddToBuffList(Buff buff)

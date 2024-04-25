@@ -29,10 +29,10 @@ namespace text_survival
             player.IsEngaged = false;
             enemy.IsEngaged = false;
 
-            if (player.Health <= 0)
+            if (!player.IsAlive)
                 Output.WriteDanger("You died!");
 
-            else if (enemy.Health <= 0)
+            else if (!enemy.IsAlive)
             {
                 Output.WriteLine("You killed ", enemy, "!");
             }
@@ -171,7 +171,7 @@ namespace text_survival
             return true;
         }
 
-        public static bool SpeedCheck(Player player, IActor? enemy = null)
+        public static bool SpeedCheck(Player player, ICombatant? enemy = null)
         {
             if (player.CurrentPlace.IsSafe) return true;
 
@@ -200,7 +200,7 @@ namespace text_survival
             return fastestNpc;
         }
 
-        public static double CalcSpeedCheck(IActor actor)
+        public static double CalcSpeedCheck(ICombatant actor)
         {
             return actor.Attributes.Speed + actor.Attributes.Agility / 2 + actor.Attributes.Luck / 3;
         }

@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using text_survival.Actors;
+using text_survival.Actors.text_survival.Actors;
 using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Items;
@@ -13,9 +14,10 @@ namespace text_survival
     {
         public string Name { get; set; }
         // Health and Energy
-        public double Health { get; private set; }
-        public double MaxHealth { get; private set; }
-        public bool IsAlive => Health > 0;
+        //public double Health { get; private set; }
+        //public double MaxHealth { get; private set; }
+        public BodyPart Body { get; }
+        public bool IsAlive => !Body.IsDestroyed;
         public double Energy { get; private set; }
         public double MaxEnergy { get; private set; }
         public double EnergyRegen { get; private set; }
@@ -122,8 +124,9 @@ namespace text_survival
             Level = 0;
             Experience = 0;
             SkillPoints = 0;
-            MaxHealth = 100;
-            Health = 100;
+            //MaxHealth = 100;
+            //Health = 100;
+            Body = BodyPartFactory.CreateHumanBody(Name);
             MaxEnergy = 100;
             Energy = 100;
             EnergyRegen = 1;
@@ -439,21 +442,22 @@ namespace text_survival
 
         public void Damage(double damage)
         {
-            Health -= damage;
-            if (!(Health <= 0)) return;
-            Output.WriteLine("You died!");
-            Health = 0;
-            // end program
-            Environment.Exit(0);
+            Body.Damage(damage);
+            if (Body.IsDestroyed)
+            {
+                Output.WriteLine("You died!");
+                // end program
+                Environment.Exit(0);
+            }
         }
 
+        public void Heal(double heal, BodyPart? bodypart)
+        {
+            Body.Heal(heal);
+        }
         public void Heal(double heal)
         {
-            Health += heal;
-            if (Health > MaxHealth)
-            {
-                Health = MaxHealth;
-            }
+            Body.Heal(heal);
         }
 
         public void AddWarmthBonus(double warmth) => WarmthBonus += warmth;
@@ -475,8 +479,8 @@ namespace text_survival
         private void LevelUp()
         {
             Level++;
-            MaxHealth += Attributes.Endurance / 10;
-            Health += Attributes.Endurance / 10;
+            Body.MaxHealth += Attributes.Endurance / 10;
+            Body.Heal(Attributes.Endurance / 10);
             Output.WriteWarning("You leveled up to level " + Level + "!");
             Output.WriteLine("You gained ", Attributes.Endurance / 10, " health!");
             Output.WriteLine("You gained 3 skill points!");

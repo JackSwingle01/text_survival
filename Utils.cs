@@ -14,6 +14,11 @@
         {
             return Random.Next(1, sides + 1);
         }
+        
+        public static bool Roll(int sides, int success)
+        {
+            return Random.Next(1, sides + 1) >= success;
+        }
         public static int RandInt(int low, int high)
         {
             return Random.Next(low, high + 1);

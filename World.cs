@@ -34,8 +34,7 @@ namespace text_survival
                 Player.Update();
                 CurrentArea.Update();
                 Time = Time.AddMinutes(1);
-            }
-            Output.WriteLine($"{Time:hh:mm}");
+            } 
         }
 
         public enum TimeOfDay
