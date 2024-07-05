@@ -293,7 +293,7 @@ namespace text_survival.Environments
         public static Area GenerateArea(Area.EnvironmentType type, int numItems = 1, int numNpcs = 1)
         {
             Area area = new(GetRandomAreaName((type)), "", GetAreaBaseTemperature(type));
-            ItemPool itemPool = CreateItemPool(type);
+            LootTable itemPool = CreateLootTable(type);
             NpcPool npcPool = CreateNpcPool(type);
             area.IsShelter = IsEnvironmentShelter(type);
             for (int i = 0; i < numItems; i++)
@@ -327,13 +327,13 @@ namespace text_survival.Environments
             }
             return npcs;
         }
-        private static ItemPool CreateItemPool(Area.EnvironmentType environment)
+        private static LootTable CreateLootTable(Area.EnvironmentType environment)
         {
-            ItemPool items = new();
+            LootTable items = new();
             var itemList = EnvironmentItems[environment];
             foreach (string itemName in itemList)
             {
-                items.Add(ItemDefinitions[itemName]);
+                items.AddLoot(ItemDefinitions[itemName]);
             }
             return items;
         }
