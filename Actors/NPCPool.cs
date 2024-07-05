@@ -6,7 +6,7 @@
 
         public NpcPool()
         {
-            Npcs = new List<Func<Npc>>();
+            Npcs = [];
         }
 
         public void Add(Func<Npc> npcFactoryMethod)

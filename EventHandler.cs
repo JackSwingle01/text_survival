@@ -86,7 +86,7 @@ namespace text_survival
     }
     public static class EventHandler
     {
-        private static readonly Dictionary<Type, List<Action<EventBase>>> EventHandlers = new();
+        private static readonly Dictionary<Type, List<Action<EventBase>>> EventHandlers = [];
 
         public static void Subscribe<TEvent>(Action<TEvent> eventHandler) where TEvent : EventBase
         {
@@ -94,7 +94,7 @@ namespace text_survival
 
             if (!EventHandlers.TryGetValue(eventType, out var handlers))
             {
-                handlers = new List<Action<EventBase>>();
+                handlers = [];
                 EventHandlers.Add(eventType, handlers);
             }
 

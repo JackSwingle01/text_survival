@@ -15,7 +15,7 @@ namespace text_survival
         public Actions(Player player)
         {
             this._player = player;
-            this.AvailableActions = new List<ICommand>();
+            this.AvailableActions = [];
         }
 
         private Command<Player> LookAroundCommand => new Command<Player>($"Look Around {_player.CurrentPlace}", LookAround);
@@ -158,12 +158,13 @@ namespace text_survival
         private void Travel(Player player)
         {
             Output.WriteLine("Where would you like to go?");
-            List<Area> options = new();
-
-            // find all nearby areas 
-            options.AddRange(player
-                .CurrentArea
-                .NearbyAreas);
+            List<Area> options =
+            [
+                // find all nearby areas 
+                .. player
+                    .CurrentArea
+                    .NearbyAreas,
+            ];
 
             options.ForEach(opt =>
             {

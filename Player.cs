@@ -134,9 +134,9 @@ namespace text_survival
             MaxPsych = 100;
             PsychRegen = 1;
             // lists
-            Buffs = new List<Buff>();
-            Armor = new List<Armor>();
-            Spells = new List<Spell>();
+            Buffs = [];
+            Armor = [];
+            Spells = [];
             // objects
             Attributes = new Attributes();
             Skills = new Skills();
@@ -413,8 +413,10 @@ namespace text_survival
 
             // get target
             Output.WriteLine("Who would you like to cast ", Spells[spell - 1].Name, " on?");
-            var targets = new List<string>();
-            targets.Add("Yourself");
+            var targets = new List<string>
+            {
+                "Yourself"
+            };
             CurrentPlace.Npcs.ForEach(npc => targets.Add(npc.Name));
             var target = Input.GetSelectionFromList(targets, true);
             if (target == 0) return;

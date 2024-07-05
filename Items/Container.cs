@@ -20,7 +20,7 @@ namespace text_survival.Items
         {
             _name = name;
             MaxWeight = maxWeight;
-            Items = new List<Item>();
+            Items = [];
         }
 
         public Item GetItem(int index)

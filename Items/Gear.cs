@@ -12,7 +12,7 @@ namespace text_survival.Items
 
         public Gear(string name, double weight = 1) : base(name, weight)
         {
-            EquipBuffs = new List<Buff>();
+            EquipBuffs = [];
             UseEffect = (player) =>
             {
                 player.Equip(this);

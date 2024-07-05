@@ -11,7 +11,7 @@ namespace text_survival.Items
         private List<Delegate> factoryMethods;
         public LootTable()
         {
-            factoryMethods = new List<Delegate>();
+            factoryMethods = [];
         }
         public LootTable(List<Delegate> factoryMethods)
         {

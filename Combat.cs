@@ -48,8 +48,7 @@ namespace text_survival
         {
             Output.WriteLine("What do you want to do?");
 
-            List<CombatActions> options = new();
-            options.Add(CombatActions.Attack);
+            List<CombatActions> options = [CombatActions.Attack];
             if (player.Spells.Count > 0)
                 options.Add(CombatActions.CastSpell);
             options.Add(CombatActions.Flee);

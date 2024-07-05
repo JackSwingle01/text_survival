@@ -9,8 +9,8 @@ namespace text_survival.Environments
         {
             List<string> names = environmentType switch
             {
-                Area.EnvironmentType.Forest => new List<string>()
-                    {
+                Area.EnvironmentType.Forest =>
+                    [
                         "Forest",
                         "Clearing",
                         "Grove",
@@ -46,12 +46,9 @@ namespace text_survival.Environments
                         "Grassy Field",
                         "Dirt Trail",
                         "Gravel Trail",
-
-
-
-                    },
-                Area.EnvironmentType.Cave => new List<string>()
-                    {
+                    ],
+                Area.EnvironmentType.Cave =>
+                    [
                         "Cave",
                         "Cavern",
                         "Tunnel",
@@ -86,9 +83,9 @@ namespace text_survival.Environments
                         "Echoing Cavern",
                         "Echoing Tunnel",
                         "Echoing Mine",
-                    },
-                Area.EnvironmentType.AbandonedBuilding => new List<string>()
-                    {
+                    ],
+                Area.EnvironmentType.AbandonedBuilding =>
+                    [
                         "Abandoned Building",
                         "Abandoned House",
                         "Abandoned Shack",
@@ -103,9 +100,9 @@ namespace text_survival.Environments
                         "Old Ruins",
                         "Abandoned Ruins"
 
-                    },
-                Area.EnvironmentType.Road => new List<string>()
-                    {
+                    ],
+                Area.EnvironmentType.Road =>
+                    [
                         "Road",
                         "Path",
                         "Trail",
@@ -115,9 +112,9 @@ namespace text_survival.Environments
                         "Dirt Path",
                         "Gravel Path",
 
-                    },
-                Area.EnvironmentType.River => new List<string>()
-                    {
+                    ],
+                Area.EnvironmentType.River =>
+                    [
                         "River",
                         "Stream",
                         "Creek",
@@ -146,11 +143,11 @@ namespace text_survival.Environments
                         "Huge Waterfall",
                         "Shimmering Pond",
                         "Shimmering Lake",
-                    },
-                _ => new List<string>()
-                    {
+                    ],
+                _ =>
+                    [
                         "Location"
-                    },
+                    ],
             };
             string name = names[Utils.RandInt(0, names.Count - 1)];
             return name;

@@ -35,8 +35,8 @@ namespace text_survival.Environments
             Name = name;
             Description = description;
             BaseTemperature = baseTemp;
-            Things = new List<IInteractable>();
-            NearbyAreas = new List<Area>();
+            Things = [];
+            NearbyAreas = [];
             // Locations = new List<Location>();
         }
         public double GetTemperature()

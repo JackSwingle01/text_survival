@@ -399,3 +399,11 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+/.vs
+/.vs
+/.vs
+.vs/text_survival/v17/DocumentLayout.json
+.vs/text_survival/v17/.suo
+.vs/text_survival/v17/.futdcache.v2
+/.vs/ProjectEvaluation
+*.bin

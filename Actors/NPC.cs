@@ -48,7 +48,7 @@ namespace text_survival.Actors
             IsHostile = true;
             Description = "";
             UnarmedDamage = 2;
-            Buffs = new List<Buff>();
+            Buffs = [];
         }
 
         // Interact //

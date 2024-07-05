@@ -35,7 +35,7 @@ namespace text_survival.Level
 
         public Skills()
         {
-            All = new List<Skill>();
+            All = [];
             Blade = new Skill(SkillType.Blade);
             Blunt = new Skill(SkillType.Blunt);
             Unarmed = new Skill(SkillType.Unarmed);

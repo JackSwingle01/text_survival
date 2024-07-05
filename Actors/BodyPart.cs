@@ -22,8 +22,8 @@ namespace text_survival.Actors
             MaxHealth = maxHealth;
             Health = maxHealth;
             IsVital = isVital;
-            Parts = new List<BodyPart>();
-            Buffs = new List<Buff>();
+            Parts = [];
+            Buffs = [];
         }
         public void Damage(double damage)
         {

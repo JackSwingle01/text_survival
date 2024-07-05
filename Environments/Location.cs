@@ -15,7 +15,7 @@ public class Location : IInteractable, IPlace
     public Location(string name)
     {
         Name = name;
-        Things = new List<IInteractable>();
+        Things = [];
     }
     public void Enter(Player player)
     {

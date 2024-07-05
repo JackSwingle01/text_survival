@@ -16,7 +16,7 @@ namespace text_survival.Items
 
         public Armor(string name, double rating, EquipSpots equipSpot, double warmth = 0, ArmorClass type = ArmorClass.Light) : base(name)
         {
-            EquipBuffs = new List<Buff>();
+            EquipBuffs = [];
             Rating = rating;
             EquipSpot = equipSpot;
             UseEffect = player => player.Equip(this);

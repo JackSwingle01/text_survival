@@ -34,7 +34,7 @@ namespace text_survival.Items
             WeaponType = type;
             WeaponMaterial = weaponMaterial;
             //Buff = new Buff(name, -1);
-            EquipBuffs = new List<Buff>();
+            EquipBuffs = [];
         }
 
         private void ApplyQualityModifier()
