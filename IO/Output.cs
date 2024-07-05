@@ -7,7 +7,7 @@ namespace text_survival.IO
 {
     public static class Output
     {
-        public static int SleepTime = 100;
+        public static int SleepTime = 10;
         public static Queue<string> OutputQueue = new Queue<string>();
 
         public static ConsoleColor DetermineTextColor(object x)

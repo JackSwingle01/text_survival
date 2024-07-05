@@ -126,7 +126,7 @@ namespace text_survival
             SkillPoints = 0;
             //MaxHealth = 100;
             //Health = 100;
-            Body = BodyPartFactory.CreateHumanBody(Name);
+            Body = BodyPartFactory.CreateHumanBody(Name, 100);
             MaxEnergy = 100;
             Energy = 100;
             EnergyRegen = 1;

@@ -3,88 +3,48 @@
   "WorkspaceRootPath": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\config.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:config.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\io\\api_key.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:io\\api_key.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\magic\\buff.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:magic\\buff.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\actors\\npcfactory.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:actors\\npcfactory.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\actors\\bodypart.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:actors\\bodypart.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\actors\\bodypartfactory.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:actors\\bodypartfactory.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\player.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:player.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\items\\loottable.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:items\\loottable.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\actors\\npc.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:actors\\npc.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\combat.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:combat.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\items\\itempool.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:items\\itempool.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\actions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:actions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\describe.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:describe.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\actors\\icombatant.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:actors\\icombatant.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\actors\\iactor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:actors\\iactor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\actors\\bodypartfactory.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:actors\\bodypartfactory.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\utils.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:utils.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\actors\\ibuffable.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:actors\\ibuffable.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\world.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:world.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\io\\ai_io.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:io\\ai_io.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\items\\item.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:items\\item.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\io\\output.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:io\\output.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\environments\\area.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:environments\\area.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\survival\\temperaturemodule.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:survival\\temperaturemodule.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\environments\\location.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:environments\\location.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\io\\input.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:io\\input.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|c:\\users\\jack7\\documents\\mycode\\games\\text_based_survival\\text_survival\\actors\\icombatant.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{629AA482-8EA1-4C55-BBC6-B0DE0CB1390E}|text_survival.csproj|solutionrelative:actors\\icombatant.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -94,8 +54,61 @@
       "DocumentGroups": [
         {
           "DockedWidth": 221,
-          "SelectedChildIndex": 12,
+          "SelectedChildIndex": 7,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "BodyPart.cs",
+              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\BodyPart.cs",
+              "RelativeDocumentMoniker": "Actors\\BodyPart.cs",
+              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\BodyPart.cs",
+              "RelativeToolTip": "Actors\\BodyPart.cs",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAACoAAAANAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-04-24T23:12:39.263Z",
+              "IsPinned": true,
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "LootTable.cs",
+              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Items\\LootTable.cs",
+              "RelativeDocumentMoniker": "Items\\LootTable.cs",
+              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Items\\LootTable.cs",
+              "RelativeToolTip": "Items\\LootTable.cs",
+              "ViewState": "AQIAAAMAAAAAAAAAAAAAACAAAAAFAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-04-30T23:13:54.387Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "ItemPool.cs",
+              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Items\\ItemPool.cs",
+              "RelativeDocumentMoniker": "Items\\ItemPool.cs",
+              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Items\\ItemPool.cs",
+              "RelativeToolTip": "Items\\ItemPool.cs",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAABsAAAAHAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-04-30T23:13:02.444Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "Utils.cs",
+              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Utils.cs",
+              "RelativeDocumentMoniker": "Utils.cs",
+              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Utils.cs",
+              "RelativeToolTip": "Utils.cs",
+              "ViewState": "AQIAABYAAAAAAAAAAAAkwDIAAAAJAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-04-30T22:26:21.673Z",
+              "EditorCaption": ""
+            },
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{d78612c7-9962-4b83-95d9-268046dad23a}"
@@ -106,64 +119,68 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "API_Key.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\IO\\API_Key.cs",
-              "RelativeDocumentMoniker": "IO\\API_Key.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\IO\\API_Key.cs",
-              "RelativeToolTip": "IO\\API_Key.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAoAAABfAAAA",
+              "DocumentIndex": 3,
+              "Title": "NPC.cs",
+              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\NPC.cs",
+              "RelativeDocumentMoniker": "Actors\\NPC.cs",
+              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\NPC.cs",
+              "RelativeToolTip": "Actors\\NPC.cs",
+              "ViewState": "AQIAAM0AAAAAAAAAAADwv9MAAAAhAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-25T01:55:46.89Z",
+              "WhenOpened": "2024-04-30T21:08:23.048Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "NPCFactory.cs",
+              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\NPCFactory.cs",
+              "RelativeDocumentMoniker": "Actors\\NPCFactory.cs",
+              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\NPCFactory.cs",
+              "RelativeToolTip": "Actors\\NPCFactory.cs",
+              "ViewState": "AQIAAF4AAAAAAAAAAAAgwHgAAAAgAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-04-30T21:08:15.616Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 8,
-              "Title": "Program.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Program.cs",
-              "RelativeDocumentMoniker": "Program.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Program.cs",
-              "RelativeToolTip": "Program.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAABMAAAAdAAAA",
+              "Title": "Item.cs",
+              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Items\\Item.cs",
+              "RelativeDocumentMoniker": "Items\\Item.cs",
+              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Items\\Item.cs",
+              "RelativeToolTip": "Items\\Item.cs",
+              "ViewState": "AQIAAB0AAAAAAAAAAAArwC0AAAAaAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-25T01:04:29.688Z"
+              "WhenOpened": "2024-04-30T21:00:58.009Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Actions.cs",
+              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actions.cs",
+              "RelativeDocumentMoniker": "Actions.cs",
+              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actions.cs",
+              "RelativeToolTip": "Actions.cs",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAABQAAAB6AAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-04-30T21:00:38.321Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 9,
-              "Title": "Describe.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Describe.cs",
-              "RelativeDocumentMoniker": "Describe.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Describe.cs",
-              "RelativeToolTip": "Describe.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAsAAAAgAAAA",
+              "Title": "Output.cs",
+              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\IO\\Output.cs",
+              "RelativeDocumentMoniker": "IO\\Output.cs",
+              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\IO\\Output.cs",
+              "RelativeToolTip": "IO\\Output.cs",
+              "ViewState": "AQIAAA0AAAAAAAAAAAAQwAkAAAAoAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-25T00:57:38.624Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 12,
-              "Title": "Utils.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Utils.cs",
-              "RelativeDocumentMoniker": "Utils.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Utils.cs",
-              "RelativeToolTip": "Utils.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAABAAAAAIAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-25T00:12:29.889Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": "Combat.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Combat.cs",
-              "RelativeDocumentMoniker": "Combat.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Combat.cs",
-              "RelativeToolTip": "Combat.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAACIAAAAWAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-24T23:54:29.002Z"
+              "WhenOpened": "2024-04-30T20:48:29.231Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -173,191 +190,23 @@
               "RelativeDocumentMoniker": "Actors\\ICombatant.cs",
               "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\ICombatant.cs",
               "RelativeToolTip": "Actors\\ICombatant.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAuwAYAAAAFAAAA",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAuwAUAAAAiAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-24T23:53:04.772Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 11,
-              "Title": "IActor.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\IActor.cs",
-              "RelativeDocumentMoniker": "Actors\\IActor.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\IActor.cs",
-              "RelativeToolTip": "Actors\\IActor.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAuwAUAAAAbAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-24T23:52:41.784Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 13,
-              "Title": "IBuffable.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\IBuffable.cs",
-              "RelativeDocumentMoniker": "Actors\\IBuffable.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\IBuffable.cs",
-              "RelativeToolTip": "Actors\\IBuffable.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-24T23:52:13.651Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "NPC.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\NPC.cs",
-              "RelativeDocumentMoniker": "Actors\\NPC.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\NPC.cs",
-              "RelativeToolTip": "Actors\\NPC.cs",
-              "ViewState": "AQIAABYAAAAAAAAAAAA2wCEAAAAuAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-24T23:13:25.783Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "Player.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Player.cs",
-              "RelativeDocumentMoniker": "Player.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Player.cs",
-              "RelativeToolTip": "Player.cs",
-              "ViewState": "AQIAAHIAAAAAAAAAAAAqwIAAAAA3AAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-24T23:11:08.625Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "Config.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Config.cs",
-              "RelativeDocumentMoniker": "Config.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Config.cs",
-              "RelativeToolTip": "Config.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAA0AAAAxAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-23T20:44:12.247Z",
+              "WhenOpened": "2024-04-30T20:29:52.602Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 6,
               "Title": "BodyPartFactory.cs",
               "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\BodyPartFactory.cs",
               "RelativeDocumentMoniker": "Actors\\BodyPartFactory.cs",
               "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\BodyPartFactory.cs",
               "RelativeToolTip": "Actors\\BodyPartFactory.cs",
-              "ViewState": "AQIAADAAAAAAAAAAAAAqwEMAAAAcAAAA",
+              "ViewState": "AQIAAAYAAAAAAAAAAAAAABwAAAAcAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-25T01:40:04.801Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "Buff.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Magic\\Buff.cs",
-              "RelativeDocumentMoniker": "Magic\\Buff.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Magic\\Buff.cs",
-              "RelativeToolTip": "Magic\\Buff.cs",
-              "ViewState": "AQIAAAUAAAAAAAAAAIA9wCYAAAAIAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-23T21:56:05.545Z",
+              "WhenOpened": "2024-04-30T20:22:52.165Z",
               "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "BodyPart.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\BodyPart.cs",
-              "RelativeDocumentMoniker": "Actors\\BodyPart.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Actors\\BodyPart.cs",
-              "RelativeToolTip": "Actors\\BodyPart.cs",
-              "ViewState": "AQIAABMAAAAAAAAAAIA0wEEAAABBAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-24T23:12:39.263Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 14,
-              "Title": "World.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\World.cs",
-              "RelativeDocumentMoniker": "World.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\World.cs",
-              "RelativeToolTip": "World.cs",
-              "ViewState": "AQIAABwAAAAAAAAAAAAYwCQAAAAOAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-23T22:56:42.048Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 18,
-              "Title": "TemperatureModule.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Survival\\TemperatureModule.cs",
-              "RelativeDocumentMoniker": "Survival\\TemperatureModule.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Survival\\TemperatureModule.cs",
-              "RelativeToolTip": "Survival\\TemperatureModule.cs",
-              "ViewState": "AQIAAE8AAAAAAAAAAAAwwGoAAAAhAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-23T22:45:31.815Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 17,
-              "Title": "Area.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Environments\\Area.cs",
-              "RelativeDocumentMoniker": "Environments\\Area.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Environments\\Area.cs",
-              "RelativeToolTip": "Environments\\Area.cs",
-              "ViewState": "AQIAAF8AAAAAAAAAAAAqwHIAAAAIAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-23T22:42:00.019Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 19,
-              "Title": "Location.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Environments\\Location.cs",
-              "RelativeDocumentMoniker": "Environments\\Location.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\Environments\\Location.cs",
-              "RelativeToolTip": "Environments\\Location.cs",
-              "ViewState": "AQIAAAYAAAAAAAAAAAAAABsAAAAPAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-23T22:41:38.104Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 15,
-              "Title": "AI_IO.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\IO\\AI_IO.cs",
-              "RelativeDocumentMoniker": "IO\\AI_IO.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\IO\\AI_IO.cs",
-              "RelativeToolTip": "IO\\AI_IO.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAABQAAAApAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-23T20:56:25.904Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 20,
-              "Title": "Input.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\IO\\Input.cs",
-              "RelativeDocumentMoniker": "IO\\Input.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\IO\\Input.cs",
-              "RelativeToolTip": "IO\\Input.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAABwAAAANAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-23T20:48:15.158Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 16,
-              "Title": "Output.cs",
-              "DocumentMoniker": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\IO\\Output.cs",
-              "RelativeDocumentMoniker": "IO\\Output.cs",
-              "ToolTip": "C:\\Users\\jack7\\Documents\\myCode\\games\\text_based_survival\\text_survival\\IO\\Output.cs",
-              "RelativeToolTip": "IO\\Output.cs",
-              "ViewState": "AQIAACIAAAAAAAAAAAArwGAAAAAMAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-04-23T17:37:56.824Z"
             }
           ]
         }

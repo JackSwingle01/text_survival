@@ -24,11 +24,7 @@ namespace text_survival.Items
             {
                 buff.Remove();
             }
-        }
-
-        
-        
-        
+        }     
     }
 
 }

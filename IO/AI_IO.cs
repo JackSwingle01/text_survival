@@ -21,7 +21,7 @@ namespace text_survival.IO
             chat.Model = Model.GPT4_Turbo;
             chat.RequestParameters.Temperature = .1;
 
-            chat.AppendSystemMessage("You are the dungeon master for a DnD video game. Emphasise and expand on the story, only relay stats or options if the player would notice (for exampmle if they aren't hungry, don't mention it). " +
+            chat.AppendSystemMessage("You are the dungeon master for a DnD video game. Emphasise and expand on the story, be dramatic, only relay stats or options if the player would notice (for exampmle if they aren't hungry, don't mention it). " +
                 "STEP 1: Read the program's output. " +
                 " STEP 2: Convey the important info to the user in your own words and ask the user what they want to do. " +
                 " STEP 3: If what they say is close enough to one of the numbered actions listed by the program " +
@@ -39,7 +39,7 @@ namespace text_survival.IO
                 sb.Append(message);
             }
             Output.OutputQueue.Clear();
-            chat.AppendUserInput($"[START PROGRAM OUTPUT] {sb} [END PROGRAM OUTPUT. Emphasise and expand on the story, only relay stats or options if the player would notice. However don't be too verbose. ]");
+            chat.AppendUserInput($"[START PROGRAM OUTPUT] {sb} [END PROGRAM OUTPUT. Emphasise and expand on the story, only relay stats or options if they seem importatnt. Be dramatic, but not too verbose. ]");
 
 
             await foreach (var res in chat.StreamResponseEnumerableFromChatbotAsync())

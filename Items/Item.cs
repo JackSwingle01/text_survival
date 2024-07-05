@@ -43,7 +43,6 @@ namespace text_survival.Items
         public virtual void Use(Player player)
         {
             //Utils.Write("You use the ", this, "...\n");
-            //Thread.Sleep(1000);
             UseEffect?.Invoke(player);
             World.Update(1);
         }

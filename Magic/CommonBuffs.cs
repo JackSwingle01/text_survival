@@ -1,4 +1,5 @@
 ﻿using text_survival.Actors;
+using text_survival.Interfaces;
 using text_survival.IO;
 
 namespace text_survival.Magic
@@ -27,22 +28,31 @@ namespace text_survival.Magic
 
         public static TimedBuff Bleeding(int hpPerMin, int minutes)
         {
-            return new TimedBuff("Bleeding", minutes, BuffType.Bleed)
+            TimedBuff bleeding = new TimedBuff("Bleeding", minutes, BuffType.Bleed);
+            
+            bleeding.ApplyEffect = target =>
             {
-                ApplyEffect = (target => Output.WriteLine(target, " has been cut!")),
-                TickEffect = ((target) =>
+                if (target is not IDamageable d)
                 {
-                    if (target is not IActor actor) return;
-
-                    actor.Damage(hpPerMin);
-                    if (actor is Player player)
-                        Output.WriteDanger("You are bleeding!");
-                    else
-                        Output.WriteLine(actor, " is bleeding");
-                }),
-                RemoveEffect = (target => Output.WriteLine(target, " has stopped bleeding."))
-
+                    bleeding.RemoveEffect = x => Output.WriteLine("That had no effect");
+                    bleeding.Remove();
+                    return;
+                }
+                Output.WriteLine(target, " has been cut!");
             };
+            bleeding.TickEffect = (target) =>
+            {
+                if (target is not IDamageable d) return;
+
+                d.Damage(hpPerMin);
+                if (d is Player player)
+                    Output.WriteDanger("You are bleeding!");
+                else
+                    Output.WriteLine(d, " is bleeding");
+            };
+            bleeding.RemoveEffect = target => Output.WriteLine(target, " has stopped bleeding.");
+            return bleeding;
+            
         }
 
         public static TimedBuff Poison(int hpPerMin, int minutes)
@@ -51,13 +61,13 @@ namespace text_survival.Magic
 
             poison.ApplyEffect = target =>
             {
-                if (target is not IActor actor)
+                if (target is not IDamageable d)
                 {
                     poison.RemoveEffect = x => Output.WriteLine("That had no effect");
                     poison.Remove();
                     return;
                 } 
-                Output.WriteLine(actor, " has been poisoned!");
+                Output.WriteLine(d, " has been poisoned!");
             };
             poison.TickEffect = (target) =>
             {
@@ -76,19 +86,19 @@ namespace text_survival.Magic
 
         public static InstantEffectBuff Heal(int hp)
         {
-            return new InstantEffectBuff("Heal", BuffType.Heal)
+            InstantEffectBuff heal = new InstantEffectBuff("Heal", BuffType.Heal);
+
+            heal.ApplyEffect = target =>
             {
-                ApplyEffect = (target =>
+                if (target is not IDamageable d)
                 {
-                    if (target is not IActor actor)
-                    {
-                        Output.WriteLine("That had no effect");
-                        return;
-                    }
-                    actor.Heal(hp);
-                    Output.WriteLine(target, " has been healed!");
-                })
+                    Output.WriteLine("That had no effect");
+                    return;
+                }
+                d.Heal(hp);
+                Output.WriteLine(target, " has been healed!");
             };
+            return heal;
         }
 
         public static TriggeredBuff Venomous(int hpPerMin, int minutes, double chance)
@@ -100,7 +110,7 @@ namespace text_survival.Magic
                 if (e is CombatEvent combatEvent)
                 {
                     if (combatEvent.Weapon != buff.Target) return;
-                    if (Utils.RandDouble(0, 1) > chance) return;
+                    if (!Utils.DetermineSucess(chance)) return;
                     Buff poison = Poison(hpPerMin, minutes);
                     poison.ApplyTo(combatEvent.Defender);
                 }

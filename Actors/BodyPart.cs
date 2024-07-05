@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Text;
 using text_survival.IO;
 using text_survival.Magic;
 
@@ -10,7 +6,7 @@ namespace text_survival.Actors
 {
     public class BodyPart : IBuffable
     {
-       public string Name { get; private set; }
+        public string Name { get; private set; }
         public double Health { get; private set; }
         public double MaxHealth { get; set; }
         public bool IsVital { get; set; }
@@ -33,19 +29,18 @@ namespace text_survival.Actors
         {
             if (Parts.Count > 0 && Utils.FlipCoin())
             {
-                BodyPart p = Parts[Utils.RandInt(0, Parts.Count-1)];
+                BodyPart p = Parts[Utils.RandInt(0, Parts.Count - 1)];
                 p.Damage(damage);
-            } 
+            }
             else
             {
                 Health -= damage;
                 OutputDamageMessage(damage);
-            }
-
-            if (IsDestroyed)
-            {
-                Destroy();
-            }
+                if (IsDestroyed)
+                {
+                    Destroy();
+                }
+            }  
         }
 
         public void Destroy()
@@ -58,14 +53,14 @@ namespace text_survival.Actors
             }
             Parent?.Parts.Remove(this);
         }
-        
+
         public void Heal(double healing)
         {
             if (Parts.Count > 0 && Utils.FlipCoin())
             {
-                BodyPart p = Parts[Utils.RandInt(0, Parts.Count-1)];
+                BodyPart p = Parts[Utils.RandInt(0, Parts.Count - 1)];
                 p.Heal(healing);
-            } 
+            }
             else
             {
                 Health += healing;
@@ -84,9 +79,6 @@ namespace text_survival.Actors
             Parts.Add(part);
         }
 
-        
-
-
         #region IO
         private void OutputDestructionMessage()
         {
@@ -97,8 +89,7 @@ namespace text_survival.Actors
                 sb.Insert(0, $"{parent.Name}'s ");
                 parent = parent.Parent;
             }
-            sb.Append($"{Name} has been destroyed!");
-            Output.WriteLine(sb.ToString());
+            Output.WriteLine(sb.ToString(), this, " has been destroyed!");
         }
         private void OutputHealingMessage(double healing)
         {
@@ -109,8 +100,7 @@ namespace text_survival.Actors
                 sb.Insert(0, $"{parent.Name}'s ");
                 parent = parent.Parent;
             }
-            sb.Append($"{Name} has been healed for ");
-            Output.WriteLine(sb.ToString(), healing, "!");
+            Output.WriteLine(sb.ToString(), this, " has been healed for ", healing, "!");
         }
 
         private void OutputDamageMessage(double damage)
@@ -122,10 +112,15 @@ namespace text_survival.Actors
                 sb.Insert(0, $"{parent.Name}'s ");
                 parent = parent.Parent;
             }
-            
-            sb.Append($"{Name} has been damaged for ");
-            Output.WriteLine(sb.ToString(), damage, "!");
+            Output.WriteLine(sb.ToString(), this, " has been damaged for ", damage, "!");
+        }
+
+        public override string ToString()
+        {
+            return Name;
         }
         #endregion
+
+
     }
 }

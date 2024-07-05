@@ -211,6 +211,7 @@ namespace text_survival.Items
             };
             bandage.UseEffect = player =>
             {
+                player.RemoveFromInventory(bandage);
                 if (player.HasBuff(BuffType.Bleed))
                 {
                     Buff? bleed = player.GetBuff(BuffType.Bleed);
@@ -219,7 +220,6 @@ namespace text_survival.Items
                 }
                 player.Heal(10);
                 Output.Write("You feel a bit better\n");
-                player.RemoveFromInventory(bandage);
             };
             return bandage;
         }

@@ -1,129 +1,123 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Runtime.InteropServices;
 
 namespace text_survival.Actors
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Text;
-    using System.Threading.Tasks;
-
     namespace text_survival.Actors
     {
         public static class BodyPartFactory
         {
-
-            public static BodyPart CreateHumanBody(string name)
+            public static BodyPart CreateHumanBody(string name, int hp)
             {
-                BodyPart body = new BodyPart(name, 100, true);
-                body.AddPart(CreateHead());
-                body.AddPart(CreateTorso());
-                body.AddPart(CreateArm("Left Arm"));
-                body.AddPart(CreateArm("Right Arm"));
-                body.AddPart(CreateLeg("Left Leg"));
-                body.AddPart(CreateLeg("Right Leg"));
+                BodyPart body = new BodyPart(name, hp, true);
+                body.AddPart(CreateHead(hp / 4));
+                body.AddPart(CreateTorso(hp / 2));
+                body.AddPart(CreateArm(hp / 4, "Left Arm"));
+                body.AddPart(CreateArm(hp / 4, "Right Arm"));
+                body.AddPart(CreateLeg(hp / 3, "Left Leg"));
+                body.AddPart(CreateLeg(hp / 3, "Right Leg"));
                 return body;
             }
-            public static BodyPart CreateHead()
+            public static BodyPart CreateAnimalBody(string name, int hp)
             {
-                BodyPart head = new BodyPart("Head", 50, true);
-                head.AddPart(CreateBrain());
-                head.AddPart(CreateEyes());
-                head.AddPart(CreateMouth());
-                head.AddPart(CreateEar("Left Ear"));
-                head.AddPart(CreateEar("Right Ear"));
+                BodyPart body = new BodyPart(name, hp, true);
+                //to do
+                return body;
+            }
+            public static BodyPart CreateGenericBody(string name, int hp)
+            {
+                BodyPart body = new BodyPart(name, hp, true);
+                return body;
+            }
+            public static BodyPart CreateHead(int hp)
+            {
+                BodyPart head = new BodyPart("Head", hp, true);
+                head.AddPart(CreateBrain(hp / 2));
+                head.AddPart(CreateEye(hp / 8, "Right Eye"));
+                head.AddPart(CreateEye(hp / 8, "Left Eye"));
+
+                head.AddPart(CreateMouth(hp / 8));
+                head.AddPart(CreateEar(hp / 8, "Left Ear"));
+                head.AddPart(CreateEar(hp / 8, "Right Ear"));
                 return head;
             }
 
-            public static BodyPart CreateTorso()
+            public static BodyPart CreateTorso(int hp)
             {
-                BodyPart torso = new BodyPart("Torso", 70, true);
-                torso.AddPart(CreateLungs());
-                torso.AddPart(CreateHeart());
-                torso.AddPart(CreateStomach());
-                torso.AddPart(CreateLiver());
-                
+                BodyPart torso = new BodyPart("Torso", hp, true);
+                torso.AddPart(CreateLungs(hp / 2));
+                torso.AddPart(CreateHeart(hp / 2));
+                torso.AddPart(CreateStomach(hp / 2));
+                torso.AddPart(CreateLiver(hp / 2));
+
                 return torso;
             }
 
-            public static BodyPart CreateArm(string name = "Arm")
+            public static BodyPart CreateArm(int hp, string name = "Arm")
             {
-                BodyPart arm = new BodyPart(name, 30, false);
-                arm.AddPart(CreateHand());
+                BodyPart arm = new BodyPart(name, hp, false);
+                arm.AddPart(CreateHand(hp / 2));
                 return arm;
             }
 
-            public static BodyPart CreateHand(string name = "Hand")
+            public static BodyPart CreateHand(int hp, string name = "Hand")
             {
-                BodyPart hand = new BodyPart(name, 15, false);
-                hand.AddPart(CreateFinger("Thumb"));
+                BodyPart hand = new BodyPart(name, hp, false);
+                hand.AddPart(CreateFinger(hp / 5, "Thumb"));
                 for (int i = 1; i < 5; i++)
                 {
-                    hand.AddPart(CreateFinger($"Finger {i}"));
+                    hand.AddPart(CreateFinger(hp / 5, $"Finger {i}"));
                 }
                 return hand;
             }
 
-            public static BodyPart CreateFinger(string name = "Finger")
+            public static BodyPart CreateFinger(int hp, string name = "Finger")
             {
-                return new BodyPart(name, 5, false);
+                return new BodyPart(name, hp, false);
             }
 
-            public static BodyPart CreateLeg(string name = "Leg")
+            public static BodyPart CreateLeg(int hp, string name = "Leg")
             {
-                return new BodyPart(name, 30, false);
+                return new BodyPart(name, hp, false);
             }
 
-            public static BodyPart CreateBrain()
+            public static BodyPart CreateBrain(int hp)
             {
-                return new BodyPart("Brain", 10, true);
+                return new BodyPart("Brain", hp, true);
             }
 
-            public static BodyPart CreateEyes()
+            public static BodyPart CreateEye(int hp, string name = "Eye")
             {
-                BodyPart eyes = new BodyPart("Eyes", 10, false);
-                eyes.AddPart(CreateEye("Left Eye"));
-                eyes.AddPart(CreateEye("Right Eye"));
-                return eyes;
+                return new BodyPart(name, hp, false);
             }
 
-            public static BodyPart CreateEye(string name = "Eye")
+            public static BodyPart CreateMouth(int hp)
             {
-                return new BodyPart(name, 5, false);
+                return new BodyPart("Mouth", hp, false);
             }
 
-            public static BodyPart CreateMouth()
+            public static BodyPart CreateLungs(int hp)
             {
-                return new BodyPart("Mouth", 10, false);
+                return new BodyPart("Lungs", hp, true);
             }
 
-            public static BodyPart CreateLungs()
+            public static BodyPart CreateEar(int hp, string name = "Ear")
             {
-                return new BodyPart("Lungs", 20, true);
+                return new BodyPart(name, hp, false);
             }
 
-            public static BodyPart CreateEar(string name = "Ear")
+            public static BodyPart CreateHeart(int hp)
             {
-                return new BodyPart(name, 5, false);
+                return new BodyPart("Heart", hp, true);
             }
 
-            public static BodyPart CreateHeart()
+            public static BodyPart CreateStomach(int hp)
             {
-                return new BodyPart("Heart", 15, true);
+                return new BodyPart("Stomach", hp, true);
             }
 
-            public static BodyPart CreateStomach()
+            public static BodyPart CreateLiver(int hp)
             {
-                return new BodyPart("Stomach", 10, true);
-            }
-
-            public static BodyPart CreateLiver()
-            {
-                return new BodyPart("Liver", 10, true);
+                return new BodyPart("Liver", hp, true);
             }
 
 

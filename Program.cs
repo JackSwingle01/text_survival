@@ -6,14 +6,12 @@ namespace text_survival
     {
         static void Main()
         {
+            Output.SleepTime = 500;
             Output.WriteLine("You have been banished from your home city.");
-            Thread.Sleep(1000);
             Output.WriteLine("Stripped of your possessions, you've been left to fend for yourself in the unforgiving wilderness.");
-            Thread.Sleep(1000);
             Output.WriteLine("The ancient laws, however, grant one path to redemption:");
-            Thread.Sleep(1000);
             Output.WriteLine("To kill a Dragon...\n");
-            Thread.Sleep(2000);
+            Output.SleepTime = 10;
 
             Player player = World.Player;
             Actions actions = new(player);

@@ -6,19 +6,19 @@
 
         static Utils()
         {
-            Random = new Random();
+            Random = new Random(DateTime.Now.Millisecond);
         }
-
 
         public static int Roll(int sides)
         {
             return Random.Next(1, sides + 1);
         }
-        
-        public static bool Roll(int sides, int success)
+
+        public static bool DetermineSucess(double chance)
         {
-            return Random.Next(1, sides + 1) >= success;
+            return (Random.NextDouble() < chance);
         }
+
         public static int RandInt(int low, int high)
         {
             return Random.Next(low, high + 1);
@@ -43,6 +43,11 @@
         {
             Array values = Enum.GetValues(typeof(T));
             return (T)values.GetValue(RandInt(0, values.Length - 1));
+        }
+
+        public static T GetRandomFromList<T>(List<T> list)
+        {
+            return list[Roll(list.Count) - 1];
         }
 
     }

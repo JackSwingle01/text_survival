@@ -31,7 +31,18 @@ namespace text_survival.Actors
             Name = name;
             Attributes = attributes ?? new Attributes();
             int health = (int)(((Attributes.Strength + Attributes.Endurance) / 10) * 2);
-            Body = BodyPartFactory.CreateHumanBody(name);
+            if (this is Humanoid)
+            {
+                Body = BodyPartFactory.CreateHumanBody(name, health);
+            }
+            else if (this is Animal)
+            {
+                Body = BodyPartFactory.CreateAnimalBody(name, health);
+            }
+            else
+            {
+                Body = BodyPartFactory.CreateGenericBody(name, health);
+            }
             //Health = MaxHealth;
             Loot = new Container(name, 10);
             IsHostile = true;
