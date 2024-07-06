@@ -407,3 +407,6 @@ FodyWeavers.xsd
 .vs/text_survival/v17/.futdcache.v2
 /.vs/ProjectEvaluation
 *.bin
+/obj
+/obj
+/.vs

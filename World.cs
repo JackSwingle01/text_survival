@@ -15,7 +15,7 @@ namespace text_survival
         {
             Area startingArea = new Area("Clearing", "A small clearing in the forest.");
             Container oldBag = new Container("Old bag", 10);
-            Location log = new Location("Hollow log");
+            Location log = new Location("Hollow log", startingArea);
             oldBag.Add(ItemFactory.MakeApple());
             oldBag.Add(ItemFactory.MakeClothShirt());
             oldBag.Add(ItemFactory.MakeClothPants());

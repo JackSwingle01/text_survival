@@ -43,20 +43,19 @@ namespace text_survival
         public double WarmthBonus { get; private set; }
 
         // area
-        private Stack<IPlace> _placeStack = new Stack<IPlace>();
-        public IPlace CurrentPlace => _placeStack.Peek();
-        public Area CurrentArea
-        {
+        public IPlace CurrentPlace { get; private set; }
+        public Area CurrentArea {
             get
             {
-                foreach (IPlace place in _placeStack)
+                if (CurrentPlace is Area area)
                 {
-                    if (place is Area area)
-                    {
-                        return area;
-                    }
+                    return area;
                 }
-                return null;
+                else if (CurrentPlace is Location location)
+                {
+                    return location.ParentArea; 
+                } 
+                else throw new Exception("CurrentPlace is not an Area or Location");
             }
         }
 
@@ -152,7 +151,6 @@ namespace text_survival
             Spells.Add(SpellFactory.Poison);
             Spells.Add(SpellFactory.MinorHeal);
             // starting area
-            _placeStack = new Stack<IPlace>();
             area.Enter(this);
             // events
             EventHandler.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
@@ -453,9 +451,9 @@ namespace text_survival
             }
         }
 
-        public void Heal(double heal, BodyPart? bodypart)
+        public void HealBodypart(double heal, BodyPart bodypart)
         {
-            Body.Heal(heal);
+            bodypart.Heal(heal);
         }
         public void Heal(double heal)
         {
@@ -569,15 +567,8 @@ namespace text_survival
 
         public void MoveTo(IPlace place)
         {
-            _placeStack.Push(place);
+            CurrentPlace = place;
         }
-
-        public void MoveBack()
-        {
-            _placeStack.Pop();
-            Output.WriteLine("You return to the ", _placeStack.Peek());
-        }
-
 
     }
 }

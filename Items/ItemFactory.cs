@@ -5,6 +5,30 @@ namespace text_survival.Items
 {
     public class ItemFactory
     {
+
+        public static readonly Dictionary<string, Func<Item>> ItemDefinitions = new()
+        {
+            { "Mushroom", MakeMushroom },
+            { "Apple", MakeApple },
+            { "Bread", MakeBread },
+            { "Berry", MakeBerry },
+            { "Carrot", MakeCarrot },
+            { "Water", MakeWater },
+            { "Stick", MakeStick },
+            { "Wood", MakeWood },
+            { "Rock", MakeRock },
+            { "Gemstone", MakeGemstone },
+            { "Coin", MakeCoin },
+            { "Sword", MakeSword },
+            { "Shield", MakeShield },
+            { "Armor", MakeArmor },
+            { "Health Potion", MakeHealthPotion },
+            { "Bandage", MakeBandage },
+            { "Torch", MakeTorch },
+            { "Fish", MakeFish },
+            { "RandomWeapon", Weapon.GenerateRandomWeapon }
+        };
+
         public static Weapon MakeFists()
         {
             return new Weapon(WeaponType.Unarmed, WeaponMaterial.Other, "Fists");

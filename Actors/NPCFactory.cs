@@ -6,6 +6,22 @@ namespace text_survival.Actors
 {
     public static class NpcFactory
     {
+        public static readonly Dictionary<string, Func<Npc>> NpcDefinitions = new()
+        {
+            { "Rat", NpcFactory.MakeRat },
+            { "Wolf", NpcFactory.MakeWolf },
+            { "Bear", NpcFactory.MakeBear },
+            { "Snake", NpcFactory.MakeSnake },
+            { "Bat", NpcFactory.MakeBat },
+            { "Spider", NpcFactory.MakeSpider },
+            { "Bandit", NpcFactory.MakeBandit },
+            { "Goblin", NpcFactory.MakeGoblin },
+            { "Dragon", NpcFactory.MakeDragon },
+            { "Skeleton", NpcFactory.MakeSkeleton },
+            { "Crocodile", NpcFactory.MakeCrocodile },
+
+        };
+
         public static Humanoid MakeBandit()
         {
             Humanoid bandit = new("Bandit");

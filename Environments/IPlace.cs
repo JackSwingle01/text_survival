@@ -14,5 +14,7 @@ namespace text_survival.Environments
         public void PutThing(IInteractable thing);
         public bool ContainsThing(IInteractable thing);
         public List<IUpdateable> GetUpdateables { get; }
+        public double GetTemperature();
+
     }
 }

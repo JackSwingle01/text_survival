@@ -1,6 +1,7 @@
 ﻿using text_survival.Actors;
 using text_survival.Interfaces;
 using text_survival.IO;
+using text_survival.Items;
 
 namespace text_survival.Environments
 {
@@ -8,27 +9,21 @@ namespace text_survival.Environments
     {
         public string Name { get; set; }
         public string Description { get; set; }
+        public double BaseTemperature { get; private set; }
+        public bool Visited { get; set; }
         public List<IInteractable> Things { get; private set; }
-        public List<Npc> Npcs => Things.OfType<Npc>().Where(npc => npc.IsAlive).ToList();
+        public List<Area> NearbyAreas { get; private set; }
 
-        /// <summary>
-        /// Returns true if there are no hostile NPCs in the area.
-        /// </summary>
+        
         public bool IsSafe => !Npcs.Any(npc => npc.IsHostile);
         public List<IUpdateable> GetUpdateables => Things.OfType<IUpdateable>().ToList();
-        public double BaseTemperature { get; private set; }
-        public bool IsShelter { get; set; }
-        public bool Visited { get; set; }
-        public List<Area> NearbyAreas { get; private set; }
-        //private List<Location> Locations { get; }
+        public List<Npc> Npcs => Things.OfType<Npc>().Where(npc => npc.IsAlive).ToList();
+        private List<Location> ChildLocations => Things.OfType<Location>().ToList();
+        public List<Item> Items => Things.OfType<Item>().ToList(); 
 
         public enum EnvironmentType
         {
             Forest,
-            Cave,
-            AbandonedBuilding,
-            Road,
-            River
         }
         public Area(string name, string description, double baseTemp = 70)
         {
@@ -37,33 +32,32 @@ namespace text_survival.Environments
             BaseTemperature = baseTemp;
             Things = [];
             NearbyAreas = [];
-            // Locations = new List<Location>();
         }
-        public double GetTemperature()
+        public double GetTemperatureModifer()
         {
-            double effect = 0;
+            double modifier = 0;
             if (World.GetTimeOfDay() == World.TimeOfDay.Morning)
             {
-                effect -= 5;
+                modifier -= 5;
             }
             else if (World.GetTimeOfDay() == World.TimeOfDay.Afternoon)
             {
-                effect += 10;
+                modifier += 10;
             }
             else if (World.GetTimeOfDay() == World.TimeOfDay.Evening)
             {
-                effect += 5;
+                modifier += 5;
             }
             else if (World.GetTimeOfDay() == World.TimeOfDay.Night)
             {
-                effect -= 10;
+                modifier -= 10;
             }
-            effect += new Random().Next(-3, 3);
-            if (IsShelter)
-            {
-                effect /= 2;
-            }
-
+            modifier += Utils.RandInt(-3, 3);
+            return modifier;
+        }
+        public double GetTemperature()
+        {
+            double effect = GetTemperatureModifer();
             return effect + BaseTemperature;
         }
 
@@ -97,12 +91,11 @@ namespace text_survival.Environments
 
         public void Enter(Player player)
         {
-            if (player.CurrentArea is not null)
-            {
-                if (!NearbyAreas.Contains(player.CurrentArea))
-                    NearbyAreas.Add(player.CurrentArea);
-                player.CurrentArea.Leave(player);
-            }
+            //if (player.CurrentArea is not null)
+            //{
+            //    if (!NearbyAreas.Contains(player.CurrentArea))
+            //        NearbyAreas.Add(player.CurrentArea);
+            //}
             Output.WriteLine("You enter ", this);
             Output.WriteLine(Description);
             player.MoveTo(this);
@@ -113,12 +106,7 @@ namespace text_survival.Environments
 
         public void Leave(Player player)
         {
-            while (player.CurrentPlace != this)
-            {
-                player.CurrentPlace.Leave(player);
-            }
-            Output.WriteLine("You leave ", this);
-            //player.MoveBack();
+            Output.WriteLine("You can't leave ", this, " travel instead.");
         }
 
         public void Update()
