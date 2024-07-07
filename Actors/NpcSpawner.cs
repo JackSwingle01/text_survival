@@ -1,22 +1,22 @@
 ﻿namespace text_survival.Actors
 {
-    public class NpcPool
+    public class NpcSpawner
     {
-        private List<Func<Npc>> Npcs { get; set; }
+        private List<Npc> Npcs { get; set; }
 
-        public NpcPool()
+        public NpcSpawner()
         {
             Npcs = [];
         }
 
-        public void Add(Func<Npc> npcFactoryMethod)
+        public void Add(Npc npc)
         {
-            Npcs.Add(npcFactoryMethod);
+            Npcs.Add(npc);
         }
 
-        public void Remove(Func<Npc> npcFactoryMethod)
+        public void Remove(Npc npc)
         {
-            Npcs.Remove(npcFactoryMethod);
+            Npcs.Remove(npc);
         }
 
         public Npc GenerateRandomNpc()
@@ -25,8 +25,8 @@
             {
                 return new Npc("Ghost");
             }
-            int index = Utils.RandInt(0, Npcs.Count - 1);
-            return Npcs[index].Invoke();
+            Npc npc = Utils.GetRandomFromList(Npcs);
+            return npc.Clone();
         }
 
         public bool IsEmpty()

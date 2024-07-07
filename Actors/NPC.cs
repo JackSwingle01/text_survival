@@ -9,7 +9,7 @@ using text_survival.Magic;
 
 namespace text_survival.Actors
 {
-    public class Npc : ICombatant, IInteractable
+    public class Npc : ICombatant, IInteractable, IClonable<Npc>
     {
         public string Name { get; set; }
         public string Description { get; set; }
@@ -25,7 +25,9 @@ namespace text_survival.Actors
         public bool IsEngaged { get; set; }
         public Attributes Attributes { get; }
         public List<Buff> Buffs { get; }
+        public IClonable<Npc>.CloneDelegate Clone { get; set; }
 
+            
         public Npc(string name, Attributes? attributes = null)
         {
             Name = name;
@@ -119,7 +121,6 @@ namespace text_survival.Actors
         public double DetermineDodgeChance(ICombatant attacker)
         {
             return Combat.CalculateDodgeChance(
-                Attributes.Agility,
                 Attributes.Speed,
                 attacker.Attributes.Speed,
                 Attributes.Luck);
@@ -132,7 +133,7 @@ namespace text_survival.Actors
             {
                 weaponBlock = humanoid.Weapon.BlockChance;
             }
-            double block = (weaponBlock * 100 + (Attributes.Luck + Attributes.Agility + Attributes.Strength) / 6) / 2;
+            double block = (weaponBlock * 100 + (Attributes.Luck + Attributes.Speed + Attributes.Strength) / 6) / 2;
             return block / 100;
         }
 
@@ -199,15 +200,15 @@ namespace text_survival.Actors
             Body.Heal(heal);
         }
 
-        public void AddToBuffList(Buff buff)
-        {
-            Buffs.Add(buff);
-        }
+        //public void AddToBuffList(Buff buff)
+        //{
+        //    Buffs.Add(buff);
+        //}
 
-        public void RemoveFromBuffList(Buff buff)
-        {
-            Buffs.Remove(buff);
-        }
+        //public void RemoveFromBuffList(Buff buff)
+        //{
+        //    Buffs.Remove(buff);
+        //}
 
         public void DropInventory(Area area)
         {

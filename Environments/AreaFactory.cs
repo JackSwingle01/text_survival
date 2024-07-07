@@ -9,30 +9,32 @@ namespace text_survival.Environments
         {
             List<string> names = environmentType switch
             {
-                Area.EnvironmentType.Forest =>
-                [
-                    "Forest", "Clearing", "Grove", "Lake", "Trail", "Abandoned Campsite", "Dark Forest", "Dark Grove",
-                    "Dark Trail", "Open Field", "Field", "Meadow", "Grassland", "Plains", "Woods", "Dark Woods",
-                    "Dark Forest", "Hollow", "Dark Hollow", "Hill", "Valley", "Dark Valley", "Ominous Forest",
-                    "Shady Forest", "Lonely Tree", "Ancient Tree", "Ancient Forest", "Ancient Woods", "Ancient Grove",
-                    "Old Growth Forest", "Abandoned Camp", "Abandoned Cornfield", "Grassy Field", "Dirt Trail",
-                    "Gravel Trail",
-                ],
+                Area.EnvironmentType.Forest => forestNames,
                 _ => ["Location"],
             };
-            string name = names[Utils.RandInt(0, names.Count - 1)];
+
+            var descriptors = environmentType switch
+            {
+                Area.EnvironmentType.Forest => forestAdjectives,
+                _ => [""]
+            };
+            descriptors.AddRange(genericAdjectives);
+
+            string name = Utils.GetRandomFromList(descriptors) + " " + Utils.GetRandomFromList(names);
             return name;
         }
 
-
+        private static readonly List<string> forestNames = ["Forest", "Clearing", "Grove", "Woods", "Hollow"];
+        private static readonly List<string> forestAdjectives = ["Old Growth", "Overgrown"];
+        private static readonly List<string> genericAdjectives = ["", "Open", "Dark", "Ominous", "Shady", "Lonely", "Ancient",];
         
 
         private static readonly Dictionary<Area.EnvironmentType, List<string>> EnvironmentItems = new()
         {
             
             { Area.EnvironmentType.Forest, new List<string> {
-                "Berry",
-                "Carrot",
+                "Berries",
+                "Edible Root",
                 "Water",
                 "Mushroom",
                 "Stick",
@@ -62,41 +64,31 @@ namespace text_survival.Environments
 
         public static Area GenerateArea(Area.EnvironmentType type, int numItems = 1, int numNpcs = 1)
         {
-            Area area = new(GetRandomAreaName((type)), "", GetAreaBaseTemperature(type));
-            LootTable itemPool = CreateLootTable(type);
-            NpcPool npcPool = CreateNpcPool(type);
-            for (int i = 0; i < numItems; i++)
-            {
-                area.PutThing(itemPool.GenerateRandomItem());
-            }
-            for (int i = 0; i < numNpcs; i++)
-            {
-                area.PutThing(npcPool.GenerateRandomNpc());
-            }
+            Area area = new(GetRandomAreaName(type), "", GetAreaBaseTemperature(type));
             return area;
         }
 
         
 
-        private static NpcPool CreateNpcPool(Area.EnvironmentType environment)
-        {
-            NpcPool npcs = new();
-            var npcList = EnvironmentNpcs[environment];
-            foreach (string npcName in npcList)
-            {
-                npcs.Add(NpcFactory.NpcDefinitions[npcName]);
-            }
-            return npcs;
-        }
-        private static LootTable CreateLootTable(Area.EnvironmentType environment)
-        {
-            LootTable items = new();
-            var itemList = EnvironmentItems[environment];
-            foreach (string itemName in itemList)
-            {
-                items.AddLoot(ItemFactory.ItemDefinitions[itemName]);
-            }
-            return items;
-        }
+        //private static NpcSpawner CreateNpcPool(Area.EnvironmentType environment)
+        //{
+        //    NpcSpawner npcs = new();
+        //    var npcList = EnvironmentNpcs[environment];
+        //    foreach (string npcName in npcList)
+        //    {
+        //        npcs.Add(NpcFactory.NpcDefinitions[npcName]);
+        //    }
+        //    return npcs;
+        //}
+        //private static LootTable CreateLootTable(Area.EnvironmentType environment)
+        //{
+        //    LootTable items = new();
+        //    var itemList = EnvironmentItems[environment];
+        //    foreach (string itemName in itemList)
+        //    {
+        //        items.AddLoot(ItemFactory.ItemDefinitions[itemName]);
+        //    }
+        //    return items;
+        //}
     }
 }

@@ -74,12 +74,8 @@ namespace text_survival
         {
             Output.WriteLine("Primary Attributes: ");
             Output.WriteLine("STR: ", player.Attributes.Strength);
-            Output.WriteLine("INT: ", player.Attributes.Intelligence);
-            Output.WriteLine("WIL: ", player.Attributes.Willpower);
-            Output.WriteLine("AGI: ", player.Attributes.Agility);
             Output.WriteLine("SPD: ", player.Attributes.Speed);
             Output.WriteLine("END: ", player.Attributes.Endurance);
-            Output.WriteLine("PER: ", player.Attributes.Personality);
             Output.WriteLine("LUC: ", player.Attributes.Luck);
         }
 

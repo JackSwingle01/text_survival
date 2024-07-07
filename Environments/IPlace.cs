@@ -5,16 +5,17 @@ namespace text_survival.Environments
 {
     public interface IPlace : IUpdateable
     {
-        public string Name { get; set; }
-        public void Enter(Player player);
-        public void Leave(Player player);
-        public List<IInteractable> Things { get; }
-        public List<Npc> Npcs { get; }
-        public bool IsSafe { get; }
-        public void PutThing(IInteractable thing);
-        public bool ContainsThing(IInteractable thing);
-        public List<IUpdateable> GetUpdateables { get; }
-        public double GetTemperature();
+        string Name { get; set; }
+        void Enter(Player player);
+        void Leave(Player player);
+        List<IInteractable> Things { get; }
+        List<Npc> Npcs => Things.OfType<Npc>().Where(npc => npc.IsAlive).ToList();
+        bool IsSafe => !Npcs.Any(npc => npc.IsHostile);
+        virtual void PutThing(IInteractable thing) => Things.Add(thing);
+        void RemoveThing(IInteractable thing) => Things.Remove(thing);
+        bool ContainsThing(IInteractable thing) => Things.Contains(thing);
+        List<IUpdateable> GetUpdateables => Things.OfType<IUpdateable>().ToList();
+        double GetTemperature();
 
     }
 }

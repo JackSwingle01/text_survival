@@ -115,26 +115,20 @@ namespace text_survival
             {
                 Output.WriteLine("Select an attribute to improve:");
                 Output.WriteLine("1. ", Attributes.PrimaryAttributes.Strength);
-                Output.WriteLine("2. ", Attributes.PrimaryAttributes.Intelligence);
                 Output.WriteLine("3. ", Attributes.PrimaryAttributes.Speed);
                 Output.WriteLine("4. ", Attributes.PrimaryAttributes.Endurance);
-                Output.WriteLine("5. ", Attributes.PrimaryAttributes.Agility);
                 Output.WriteLine("6. ", Attributes.PrimaryAttributes.Luck);
-                Output.WriteLine("7. ", Attributes.PrimaryAttributes.Willpower);
-                Output.WriteLine("8. ", Attributes.PrimaryAttributes.Personality);
+
                 Output.WriteLine("0. Cancel");
                 int input = Input.ReadInt(0, 8);
                 if (input == 0) return;
                 var attribute = input switch
                 {
                     1 => Attributes.PrimaryAttributes.Strength,
-                    2 => Attributes.PrimaryAttributes.Intelligence,
                     3 => Attributes.PrimaryAttributes.Speed,
                     4 => Attributes.PrimaryAttributes.Endurance,
-                    5 => Attributes.PrimaryAttributes.Agility,
                     6 => Attributes.PrimaryAttributes.Luck,
-                    7 => Attributes.PrimaryAttributes.Willpower,
-                    8 => Attributes.PrimaryAttributes.Personality,
+                    _ => throw new NotImplementedException(),
                 };
                 player.SpendPointToUpgradeAttribute(attribute);
             }

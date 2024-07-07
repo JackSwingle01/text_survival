@@ -1,23 +1,31 @@
-﻿using text_survival.Actors;
+﻿using System.Diagnostics;
+using System.Dynamic;
+using text_survival.Actors;
+using text_survival.Environments.Locations;
 using text_survival.Interfaces;
 using text_survival.IO;
+using text_survival.Items;
 
 namespace text_survival.Environments;
 
-public class Location : IInteractable, IPlace
+public class Location : IPlace, IInteractable
 {
     public string Name { get; set; }
     public LocationType Type { get; set; }
-    public bool IsFound { get; set; }
-    public List<IInteractable> Things { get; }
-    private IPlace Parent { get; }
-
-    public bool IsShelter => IsLocationShelter(Type);
-    public List<Npc> Npcs => Things.OfType<Npc>().Where(npc => npc.IsAlive).ToList();
-    private List<Location> ChildLocations => Things.OfType<Location>().ToList();
-    public List<IUpdateable> GetUpdateables => Things.OfType<IUpdateable>().ToList();
-    public bool IsSafe => !Npcs.Any(npc => npc.IsHostile);
-    public double TemperatureModifier { get; private set; }
+    public enum LocationType
+    {
+        Cave,
+        Trail,
+        River,
+        FrozenLake,
+    }
+    virtual protected IPlace? Parent { get; set; }
+    public bool Visited { get; set; }
+    public double TemperatureModifier { get; protected set; }
+    public const bool IsShelter = false;
+    public bool IsFound { get; set; } = false;
+    public List<IInteractable> Things { get; set; } = [];
+    protected List<Location> ChildLocations => Things.OfType<Location>().ToList();
     public Area ParentArea
     {
         get
@@ -34,46 +42,86 @@ public class Location : IInteractable, IPlace
         }
     }
 
-
-    public Location(string name, IPlace parent)
+   
+    #region Initialization
+    public Location (string name, IPlace parent, int numItems = 0, int numNpcs = 0) : this(parent, numItems, numNpcs)
     {
         Name = name;
-        Things = [];
-        Parent = parent;
+        InitializeLoot(numItems);
+        InitializeNpcs(numNpcs);
     }
-
-    public enum LocationType
+    public Location(IPlace parent, int numItems = 0, int numNpcs = 0) : this(numItems, numNpcs)
     {
-        AbandonedBuilding,
-        Cave,
-        Road,
-        River,
-        Lake,
+        Parent = parent;
+        Name = "Location Placeholder Name";
+    }
+    public Location(int numItems = 0, int numNpcs = 0)
+    {
+        Parent = null;
+        Name = "Location Placeholder Name";
+        InitializeLoot(numItems);
+        InitializeNpcs(numNpcs);
     }
 
-    public void Enter(Player player)
+    public static readonly List<string> genericLocationAdjectives = ["", "Old", "Dusty", "Cool", "Breezy", "Quiet", "Ancient", "Ominous", "Sullen", "Forlorn", "Desolate", "Secret", "Hidden", "Forgotten", "Cold", "Dark", "Damp", "Wet", "Dry", "Warm", "Icy", "Snowy", "Frozen"];
+
+    protected void InitializeLoot(int numItems)
+    {
+        LootTable lootTable = CreateLootTable();
+        for (int i = 0; i < numItems; i++)
+        {
+            PutThing(lootTable.GenerateRandomItem());
+        }
+    }
+    protected void InitializeNpcs(int numNpcs)
+    {
+        NpcSpawner spawner = CreateNpcSpawner();
+        for (int i = 0; i < numNpcs; i++)
+        {
+            PutThing(spawner.GenerateRandomNpc());
+        }
+    }
+    protected virtual List<Npc> npcList { get; } = [];
+    protected NpcSpawner CreateNpcSpawner()
+    {
+        NpcSpawner npcs = new();
+        foreach (Npc npc in npcList)
+        {
+            npcs.Add(npc);
+        }
+        return npcs;
+    }
+    protected virtual List<Item> itemList { get;} = [];
+    protected LootTable CreateLootTable()
+    {
+        LootTable lootTable = new();
+        foreach (Item item in itemList)
+        {
+            lootTable.AddLoot(item);
+        }
+        return lootTable;
+    }
+
+
+    #endregion Initialization
+
+    public void PutThing(IInteractable thing) => Things.Add(thing);
+      
+    public void RemoveThing(IInteractable thing) => Things.Remove(thing);
+
+    public virtual void Enter(Player player)
     {
         Output.WriteLine("You go to the ", this);
         player.MoveTo(this);
     }
 
-    public void Leave(Player player)
-    {
-        player.MoveTo(Parent);
-    }
+    public virtual void Leave(Player player) => player.MoveTo(Parent);
 
-    public void PutThing(IInteractable thing)
-    {
-        Things.Add(thing);
-    }
-
-    public void Interact(Player player)
-    {
-        this.Enter(player);
-    }
+    public void Interact(Player player) => Enter(player);
     public Command<Player> InteractCommand => new("Go to " + Name, Interact);
     public Command<Player> LeaveCommand => new("Leave " + Name, Leave);
-    public override string ToString() => Name;
+
+    
 
     public void Update()
     {
@@ -83,14 +131,14 @@ public class Location : IInteractable, IPlace
             updateable.Update();
         }
     }
-    public bool ContainsThing(IInteractable thing) => Things.Contains(thing);
+    protected List<IUpdateable> GetUpdateables => Things.OfType<IUpdateable>().ToList();
 
-    public double GetTemperature()
+    public virtual double GetTemperature()
     {
         return GetTemperature(IsShelter);
     }
 
-    public double GetTemperature(bool indoors = false)
+    protected double GetTemperature(bool indoors = false)
     {
         if (!indoors) // only check if no child so far is indoors otherwise it propagates all the way up
         {
@@ -111,19 +159,21 @@ public class Location : IInteractable, IPlace
         return temperature + TemperatureModifier;
     }
 
-    private static bool IsLocationShelter(LocationType type)
-    {
-        return type switch
-        {
-            LocationType.AbandonedBuilding => true,
-            LocationType.Cave => true,
-            _ => false,
-        };
-    }
-
-
+   
     public void GenerateSubLocation(LocationType type, int numItems = 0, int numNpcs = 0)
     {
-        Things.Add(LocationFactory.GenerateLocation(type, this, numItems, numNpcs));
+        Location location = type switch 
+        {
+            LocationType.Cave => new Cave(this, numItems, numNpcs),
+            LocationType.Trail => new Trail(this, numItems, numNpcs),
+            LocationType.River => new River(this, numItems, numNpcs),
+            LocationType.FrozenLake => new FrozenLake(this, numItems, numNpcs),
+            _ => throw new Exception("Invalid LocationType")
+        };
+        PutThing(location);
     }
+    
+
+
+    public override string ToString() => Name;
 }

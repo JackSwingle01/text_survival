@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9b8f8bcac7fb1ac2ceea8f3d1edadd0509b6c23e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c664af3496e5fa3e0cc0ea68258c721b06ae9003")]
 [assembly: System.Reflection.AssemblyProductAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyTitleAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -353,7 +353,6 @@ namespace text_survival
         public double DetermineDodgeChance(ICombatant attacker)
         {
             return Combat.CalculateDodgeChance(
-                Attributes.Agility,
                 Attributes.Speed,
                 attacker.Attributes.Speed,
                 Attributes.Luck,
@@ -362,7 +361,7 @@ namespace text_survival
 
         public double DetermineBlockChance(ICombatant attacker)
         {
-            double block = (Weapon.BlockChance * 100 + (Attributes.Luck + Attributes.Agility + Attributes.Strength) / 6) / 2 + Skills.Block.Level;
+            double block = (Weapon.BlockChance * 100 + (Attributes.Luck + Attributes.Strength) / 3) / 2 + Skills.Block.Level;
             return block / 100;
         }
 

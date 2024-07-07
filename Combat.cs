@@ -120,10 +120,10 @@ namespace text_survival
         /// <param name="luck"></param>
         /// <param name="dodgeLevel"></param>
         /// <returns>dodge chance from 0-1</returns>
-        public static double CalculateDodgeChance(double agility, double speed, double attackerSpeed, double luck,
+        public static double CalculateDodgeChance(double speed, double attackerSpeed, double luck,
             double dodgeLevel = 0)
         {
-            double baseDodge = (dodgeLevel + agility / 2 + luck / 10) / 200;
+            double baseDodge = (dodgeLevel + luck / 10) / 200;
             double speedDiff = speed - attackerSpeed;
             double chance = baseDodge + speedDiff;
             return chance;
@@ -201,7 +201,7 @@ namespace text_survival
 
         public static double CalcSpeedCheck(ICombatant actor)
         {
-            return actor.Attributes.Speed + actor.Attributes.Agility / 2 + actor.Attributes.Luck / 3;
+            return actor.Attributes.Speed + actor.Attributes.Luck / 2;
         }
     }
 }
