@@ -15,6 +15,7 @@ namespace text_survival.Environments.Locations
             descriptors.AddRange(riverAdjectives);
             descriptors.AddRange(genericLocationAdjectives);
             Name = Utils.GetRandomFromList(descriptors) + " " + Utils.GetRandomFromList(riverNames);
+            Name = Name.Trim();
         }
 
         protected override List<Item> itemList => [ItemFactory.MakeWater(), ItemFactory.MakeFish()];

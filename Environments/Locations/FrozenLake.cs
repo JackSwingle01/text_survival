@@ -15,6 +15,7 @@ namespace text_survival.Environments.Locations
             descriptors.AddRange(frozenLakeAdjectives);
             descriptors.AddRange(genericLocationAdjectives);
             Name = Utils.GetRandomFromList(descriptors) + " " + Utils.GetRandomFromList(frozenLakeNames);
+            Name = Name.Trim();
         }
 
         protected override List<Item> itemList => [];

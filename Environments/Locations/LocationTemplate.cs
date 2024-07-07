@@ -15,6 +15,7 @@ namespace text_survival.Environments.Locations
             descriptors.AddRange(LocationTemplateAdjectives);
             descriptors.AddRange(genericLocationAdjectives);
             Name = Utils.GetRandomFromList(descriptors) + " " + Utils.GetRandomFromList(LocationTemplateNames);
+            Name = Name.Trim();
         }
 
         protected override List<Item> itemList => [];

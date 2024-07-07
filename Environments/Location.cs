@@ -27,6 +27,8 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     public List<Location> Locations => Things.OfType<Location>().ToList();
     virtual public Location? Parent { get; set; }
     public Zone ParentZone { get; }
+    protected virtual ForageModule ForageModule { get; set; } = new();
+   
 
 
     #region Initialization
@@ -70,7 +72,9 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
         NpcSpawner spawner = CreateNpcSpawner();
         for (int i = 0; i < numNpcs; i++)
         {
-            PutThing(spawner.GenerateRandomNpc());
+            var npc = spawner.GenerateRandomNpc();
+            if (npc is not null)
+                PutThing(npc);
         }
     }
     protected virtual List<Npc> npcList { get; } = [];
@@ -102,18 +106,11 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     public bool ContainsThing(IInteractable thing) => Things.Contains(thing);
 
     public void Interact(Player player) => player.CurrentLocation = this;
-    public Command<Player> InteractCommand => new("Go to " + Name, Interact);
+    public Command<Player> InteractCommand => new("Go to " + Name + (Visited ? " (Visited)" : ""), Interact);
 
 
 
-
-
-    protected List<IUpdateable> GetUpdateables => Things.OfType<IUpdateable>().ToList();
-
-    public virtual double GetTemperature()
-    {
-        return GetTemperature(IsShelter);
-    }
+    public virtual double GetTemperature() => GetTemperature(IsShelter);
 
     protected double GetTemperature(bool indoors = false)
     {
@@ -151,7 +148,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
 
     public virtual void Update()
     {
-        List<IUpdateable> updateables = new List<IUpdateable>(GetUpdateables);
+        List<IUpdateable> updateables = Things.OfType<IUpdateable>().ToList();
         foreach (var updateable in updateables)
         {
             updateable.Update();
@@ -159,6 +156,20 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     }
 
     public void PutLocation(Location location) => PutThing(location);
+
+    public void Forage(int hours)
+    {
+        ForageModule.Forage(hours);
+        var itemsFound = ForageModule.GetItemsFound();
+        if (itemsFound.Any())
+        {
+            foreach (var item in itemsFound)
+            {
+                PutThing(item);
+                item.IsFound = true;
+            }
+        }
+    }
 
     public override string ToString() => Name;
 }

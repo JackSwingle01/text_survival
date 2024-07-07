@@ -19,14 +19,14 @@
             Npcs.Remove(npc);
         }
 
-        public Npc GenerateRandomNpc()
+        public Npc? GenerateRandomNpc()
         {
             if (Npcs.Count == 0)
             {
                 return new Npc("Ghost");
             }
-            Npc npc = Utils.GetRandomFromList(Npcs);
-            return npc.Clone();
+            Npc? npc = Utils.GetRandomFromList(Npcs);
+            return npc?.Clone() ?? null;
         }
 
         public bool IsEmpty()

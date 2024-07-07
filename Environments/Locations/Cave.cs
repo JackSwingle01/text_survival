@@ -16,6 +16,10 @@ namespace text_survival.Environments.Locations
             descriptors.AddRange(caveAdjectives);
             descriptors.AddRange(genericLocationAdjectives);
             Name = Utils.GetRandomFromList(descriptors) + " " + Utils.GetRandomFromList(caveNames);
+            Name = Name.Trim();
+
+            ForageModule.AddResource(ItemFactory.MakeMushroom(), 0.5);
+            ForageModule.AddResource(ItemFactory.MakeRock(), 0.5);
         }
 
         protected override List<Item> itemList => [ItemFactory.MakeMushroom(), ItemFactory.MakeRock(), ItemFactory.MakeGemstone(), ItemFactory.MakeTorch(), Weapon.GenerateRandomWeapon()];

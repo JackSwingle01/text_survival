@@ -5,7 +5,7 @@ namespace text_survival
 {
     public class Inventory : Container
     {
-        public Inventory(string name = "Backpack", int weightCap = 10) : base(name, weightCap)
+        public Inventory(string name = "Bag", int weightCap = 10) : base(name, weightCap)
         {
         }
 

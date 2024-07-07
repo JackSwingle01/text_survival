@@ -15,6 +15,7 @@ namespace text_survival.Environments.Locations
             descriptors.AddRange(trailAdjectives);
             descriptors.AddRange(genericLocationAdjectives);
             Name = Utils.GetRandomFromList(descriptors) + " " + Utils.GetRandomFromList(trailNames);
+            Name = Name.Trim();
         }
 
         protected override List<Item> itemList => [ItemFactory.MakeRock(), ItemFactory.MakeStick(), ItemFactory.MakeBandage()];

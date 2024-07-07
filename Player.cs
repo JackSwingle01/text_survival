@@ -52,8 +52,11 @@ namespace text_survival
             }
             set
             {
-                _currentLocation = value;
                 Output.WriteLine("You go to the ", value);
+                int minutes = Utils.RandInt(1, 10);
+                World.Update(minutes);
+                Output.WriteLine("You arrive at the ", value, " after walking ", minutes, " minutes.");
+                _currentLocation = value;
                 Output.WriteLine("You should probably look around.");
             }
         }
@@ -93,6 +96,9 @@ namespace text_survival
                 }
                 else
                     throw new Exception("Invalid zone.");
+                Location? newLocation = Utils.GetRandomFromList(value.Locations);
+
+                CurrentLocation = newLocation ?? throw new Exception("No Locations In Zone");
                 Output.WriteLine("You enter ", value);
                 Output.WriteLine(value.Description);
             }
@@ -190,7 +196,8 @@ namespace text_survival
             Spells.Add(SpellFactory.MinorHeal);
             // map
             Map = new WorldMap(location.ParentZone);
-            CurrentLocation = location;
+            _currentLocation = location;
+            location.Visited = true;
             // events
             EventHandler.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
         }

@@ -14,9 +14,10 @@ namespace text_survival.Environments
             X = 0;
             Y = 0;
             map.Add((X, Y), startingZone);
+            startingZone.Visited = true;
         }
 
-        public Zone CurrentZone => GetZone(0, 0);
+        public Zone CurrentZone => GetZone(X, Y);
         public Zone North => GetZone(X, Y + 1);
         public Zone South => GetZone(X, Y - 1);
         public Zone East => GetZone(X + 1, Y);

@@ -14,14 +14,14 @@
         {
             items.Add(loot);
         }
-        public Item GenerateRandomItem()
+        public Item? GenerateRandomItem()
         {
-            var loot = Utils.GetRandomFromList(items).Clone();
+            var loot = Utils.GetRandomFromList(items)?.Clone();
             if (loot is Item i)
             {
                 return i;
             }
-            else throw new Exception("Trying to generate from empty loot table!");
+            return null;
         }
     }
 }
