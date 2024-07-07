@@ -1,5 +1,4 @@
-﻿using text_survival.Actors;
-using text_survival.Magic;
+﻿using text_survival.Magic;
 
 namespace text_survival.Items
 {

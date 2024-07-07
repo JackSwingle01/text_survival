@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using text_survival.Actors;
+﻿using text_survival.Actors;
 
 namespace text_survival.Magic
 {
@@ -12,7 +7,7 @@ namespace text_survival.Magic
         public InstantEffectBuff(string name, BuffType type = BuffType.Generic) : base(name, type)
         {
             ApplyEffect = (target) => { }; // applies once when applied
-            RemoveEffect = (target) => { };   
+            RemoveEffect = (target) => { };
         }
 
         public override void ApplyTo(IBuffable target)

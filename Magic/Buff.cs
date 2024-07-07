@@ -47,6 +47,6 @@ namespace text_survival.Magic
             IBuffable t = Target;
             Target = null;
             t.RemoveBuff(this);
-        }       
+        }
     }
 }

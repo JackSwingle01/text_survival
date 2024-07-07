@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-using text_survival.Actors;
+﻿using text_survival.Actors;
 
 namespace text_survival.Magic
 {

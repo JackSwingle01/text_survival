@@ -40,7 +40,7 @@ namespace text_survival.Actors
                 {
                     Destroy();
                 }
-            }  
+            }
         }
 
         public void Destroy()

@@ -8,7 +8,7 @@ namespace text_survival.Environments.Locations
         new public const bool IsShelter = false;
         public LocationTemplate(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
-            Type = LocationType.Cave; 
+            Type = LocationType.Cave;
             TemperatureModifier = 0;
 
             var descriptors = new List<string>();
@@ -18,9 +18,9 @@ namespace text_survival.Environments.Locations
         }
 
         protected override List<Item> itemList => [];
-        protected override List<Npc> npcList => []; 
+        protected override List<Npc> npcList => [];
 
-        private static readonly List<string> LocationTemplateNames = ["LocationTemplate"]; 
+        private static readonly List<string> LocationTemplateNames = ["LocationTemplate"];
         private static readonly List<string> LocationTemplateAdjectives = [""];
     }
 }

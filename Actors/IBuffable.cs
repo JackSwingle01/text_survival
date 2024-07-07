@@ -7,7 +7,7 @@ namespace text_survival.Actors
         public List<Buff> Buffs { get; }
 
         public void AddBuff(Buff buff)
-        { 
+        {
             if (buff.Target == null)
                 buff.ApplyTo(this);
             Buffs.Add(buff);

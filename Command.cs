@@ -14,7 +14,7 @@
             Name = name;
             Act = act;
         }
-        public Command (Action act)
+        public Command(Action act)
         {
             Act = act;
         }

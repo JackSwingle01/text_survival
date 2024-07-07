@@ -29,7 +29,7 @@ namespace text_survival.Magic
         public static TimedBuff Bleeding(int hpPerMin, int minutes)
         {
             TimedBuff bleeding = new TimedBuff("Bleeding", minutes, BuffType.Bleed);
-            
+
             bleeding.ApplyEffect = target =>
             {
                 if (target is not IDamageable d)
@@ -52,7 +52,7 @@ namespace text_survival.Magic
             };
             bleeding.RemoveEffect = target => Output.WriteLine(target, " has stopped bleeding.");
             return bleeding;
-            
+
         }
 
         public static TimedBuff Poison(int hpPerMin, int minutes)
@@ -66,7 +66,7 @@ namespace text_survival.Magic
                     poison.RemoveEffect = x => Output.WriteLine("That had no effect");
                     poison.Remove();
                     return;
-                } 
+                }
                 Output.WriteLine(d, " has been poisoned!");
             };
             poison.TickEffect = (target) =>

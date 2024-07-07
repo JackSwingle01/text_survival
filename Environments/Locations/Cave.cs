@@ -6,7 +6,7 @@ namespace text_survival.Environments.Locations
     public class Cave : Location
     {
         new public const bool IsShelter = true;
-        
+
         public Cave(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
             Type = LocationType.Cave;

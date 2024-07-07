@@ -1,21 +1,18 @@
-﻿using text_survival.Actors;
-using text_survival.Items;
-
-namespace text_survival.Environments
+﻿namespace text_survival.Environments
 {
     public static class AreaFactory
     {
-        public static string GetRandomAreaName(Area.EnvironmentType environmentType)
+        public static string GetRandomAreaName(Zone.EnvironmentType environmentType)
         {
             List<string> names = environmentType switch
             {
-                Area.EnvironmentType.Forest => forestNames,
+                Zone.EnvironmentType.Forest => forestNames,
                 _ => ["Location"],
             };
 
             var descriptors = environmentType switch
             {
-                Area.EnvironmentType.Forest => forestAdjectives,
+                Zone.EnvironmentType.Forest => forestAdjectives,
                 _ => [""]
             };
             descriptors.AddRange(genericAdjectives);
@@ -27,12 +24,12 @@ namespace text_survival.Environments
         private static readonly List<string> forestNames = ["Forest", "Clearing", "Grove", "Woods", "Hollow"];
         private static readonly List<string> forestAdjectives = ["Old Growth", "Overgrown"];
         private static readonly List<string> genericAdjectives = ["", "Open", "Dark", "Ominous", "Shady", "Lonely", "Ancient",];
-        
 
-        private static readonly Dictionary<Area.EnvironmentType, List<string>> EnvironmentItems = new()
+
+        private static readonly Dictionary<Zone.EnvironmentType, List<string>> EnvironmentItems = new()
         {
-            
-            { Area.EnvironmentType.Forest, new List<string> {
+
+            { Zone.EnvironmentType.Forest, new List<string> {
                 "Berries",
                 "Edible Root",
                 "Water",
@@ -40,35 +37,35 @@ namespace text_survival.Environments
                 "Stick",
                 "Wood"
             } },
-            
+
 
         };
 
-        private static readonly Dictionary<Area.EnvironmentType, List<string>> EnvironmentNpcs = new()
+        private static readonly Dictionary<Zone.EnvironmentType, List<string>> EnvironmentNpcs = new()
         {
-            { Area.EnvironmentType.Forest, new List<string> {
+            { Zone.EnvironmentType.Forest, new List<string> {
                 "Wolf",
                 "Bear",
             } },
-            
+
         };
 
-        private static double GetAreaBaseTemperature(Area.EnvironmentType environment)
+        private static double GetAreaBaseTemperature(Zone.EnvironmentType environment)
         {
             return environment switch
             {
-                Area.EnvironmentType.Forest => 70,
+                Zone.EnvironmentType.Forest => 70,
                 _ => 70,
             };
         }
 
-        public static Area GenerateArea(Area.EnvironmentType type, int numItems = 1, int numNpcs = 1)
+        public static Zone GenerateArea(Zone.EnvironmentType type, int numItems = 1, int numNpcs = 1)
         {
-            Area area = new(GetRandomAreaName(type), "", GetAreaBaseTemperature(type));
+            Zone area = new(GetRandomAreaName(type), "", GetAreaBaseTemperature(type));
             return area;
         }
 
-        
+
 
         //private static NpcSpawner CreateNpcPool(Area.EnvironmentType environment)
         //{

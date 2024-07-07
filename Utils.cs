@@ -1,7 +1,4 @@
-﻿
-using System.Runtime.Serialization.Formatters.Binary;
-
-namespace text_survival
+﻿namespace text_survival
 {
     public static class Utils
     {

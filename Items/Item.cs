@@ -20,7 +20,7 @@ namespace text_survival.Items
         public string Name { get; set; }
         public double Weight { get; set; } // in kg
         public Action<Player> UseEffect { get; set; }
-        public string Description { get; set; } 
+        public string Description { get; set; } = "";
         public int Quality { get; set; } // percentage 0% being extremely poor quality, 100% being perfect quality
         public bool IsFound { get; set; }
         public IClonable<Item>.CloneDelegate Clone { get; set; }
@@ -52,7 +52,7 @@ namespace text_survival.Items
         {
             if (!Combat.SpeedCheck(player))
             {
-                Npc npc = Combat.GetFastestNpc(player.CurrentPlace);
+                Npc npc = Combat.GetFastestNpc(player.CurrentLocation);
                 Output.WriteLine("You couldn't get past the ", npc, "!");
                 npc.Interact(player);
                 return;

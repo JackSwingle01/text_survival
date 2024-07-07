@@ -1,5 +1,4 @@
-﻿using text_survival.Actors;
-using text_survival.Actors.text_survival.Actors;
+﻿using text_survival.Actors.text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Interfaces;
 using text_survival.IO;
@@ -27,7 +26,7 @@ namespace text_survival.Actors
         public List<Buff> Buffs { get; }
         public IClonable<Npc>.CloneDelegate Clone { get; set; }
 
-            
+
         public Npc(string name, Attributes? attributes = null)
         {
             Name = name;
@@ -51,6 +50,7 @@ namespace text_survival.Actors
             Description = "";
             UnarmedDamage = 2;
             Buffs = [];
+            Clone = () => new Npc(name, attributes);
         }
 
         // Interact //
@@ -192,7 +192,7 @@ namespace text_survival.Actors
 
         public void Damage(double damage)
         {
-           Body.Damage(damage);
+            Body.Damage(damage);
         }
 
         public void Heal(double heal)
@@ -210,20 +210,20 @@ namespace text_survival.Actors
         //    Buffs.Remove(buff);
         //}
 
-        public void DropInventory(Area area)
+        public void DropInventory(Location location)
         {
             while (!Loot.IsEmpty)
             {
                 Item item = Loot.GetItem(0);
                 Output.WriteLine(this, " dropped ", item, "!");
-                DropItem(item, area);
+                DropItem(item, location);
             }
         }
-        private void DropItem(Item item, Area area)
+        private void DropItem(Item item, Location location)
         {
             item.IsFound = true;
             Loot.Remove(item);
-            area.PutThing(item);
+            location.PutThing(item);
         }
 
         public void AddLoot(Item item)

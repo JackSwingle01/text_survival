@@ -1,4 +1,4 @@
-﻿using text_survival.Environments;
+﻿using text_survival.Interfaces;
 using text_survival.IO;
 using text_survival.Level;
 
@@ -18,7 +18,7 @@ namespace text_survival
             this.AvailableActions = [];
         }
 
-        private Command<Player> LookAroundCommand => new Command<Player>($"Look Around {_player.CurrentPlace}", LookAround);
+        private Command<Player> LookAroundCommand => new Command<Player>($"Look Around {_player.CurrentLocation}", LookAround);
         private Command<Player> CheckStatsCommand => new Command<Player>("Check Stats", CheckStats);
         private Command<Player> LevelUpCommand => new Command<Player>("Level Up", LevelUp);
         //private Command<Player, IInteractable> InteractCommand => new Command<Player, IInteractable>("Interact", Interact);
@@ -41,7 +41,7 @@ namespace text_survival
 
             // conditional actions
 
-            foreach (var thing in _player.CurrentPlace.Things)
+            foreach (IInteractable thing in _player.CurrentLocation.Things)
             {
                 if (thing.IsFound)
                 {
@@ -58,9 +58,9 @@ namespace text_survival
                 AvailableActions.Add(openInventoryCommand);
             }
 
-            if (_player.CurrentPlace is Location location)
+            if (_player.CurrentLocation.Parent is not null)
             {
-                var leaveCommand = location.LeaveCommand;
+                var leaveCommand = _player.LeaveCommand;
                 leaveCommand.Player = _player;
                 AvailableActions.Add(leaveCommand);
             }
@@ -152,30 +152,36 @@ namespace text_survival
         private void Travel(Player player)
         {
             Output.WriteLine("Where would you like to go?");
-            List<Area> options =
-            [
-                // find all nearby areas 
-                .. player
-                    .CurrentArea
-                    .NearbyAreas,
-            ];
 
-            options.ForEach(opt =>
-            {
-                Output.Write(options.IndexOf(opt) + 1, ". ", opt); // "1. Name"
-                if (opt.Visited)
-                    Output.Write(" (Visited)");
-                Output.WriteLine();
-            });
+            Output.WriteLine(1, ". North: ", (player.Map.North.Visited ? player.Map.North.Name : " Unknown"));
+            Output.WriteLine(2, ". East: ", (player.Map.East.Visited ? player.Map.East.Name : " Unknown"));
+            Output.WriteLine(3, ". South: ", (player.Map.South.Visited ? player.Map.South.Name : " Unknown"));
+            Output.WriteLine(4, ". West: ", (player.Map.West.Visited ? player.Map.West.Name : " Unknown"));
+
+            //options.ForEach(opt =>
+            //{
+            //    Output.Write(options.IndexOf(opt) + 1, ". ", opt); // "1. Name"
+            //    if (opt.Visited)
+            //        Output.Write(" (Visited)");
+            //    Output.WriteLine();
+            //});
 
             Output.WriteLine("0. Cancel");
-            int input = Input.ReadInt(0, options.Count);
+            int input = Input.ReadInt(0, 4);
 
             if (input == 0) return;
 
             int minutes = Utils.RandInt(30, 60);
             Output.WriteLine("You travel for ", minutes, " minutes...");
-            options[input - 1].Enter(player);
+
+            if (input == 1)
+                player.CurrentZone = player.Map.North;
+            else if (input == 2)
+                player.CurrentZone = player.Map.East;
+            else if (input == 3)
+                player.CurrentZone = player.Map.South;
+            else if (input == 4)
+                player.CurrentZone = player.Map.West;
             World.Update(minutes);
         }
 
@@ -193,25 +199,16 @@ namespace text_survival
 
         private void LookAround(Player player)
         {
-            //Output.WriteLine("You take in your surroundings");
-            if (player.CurrentPlace is Area area)
-            {
-                Output.WriteLine("You look around the ", area, ", ", area.Description);
+            Output.WriteLine("You look around the ", player.CurrentLocation);
 
-            }
-            else if (player.CurrentPlace is Location location)
-            {
-                Output.WriteLine("You look around the ", location);
-            }
-            Output.WriteLine("Its ", World.GetTimeOfDay(), " and ", player.CurrentArea.GetTemperature(), " degrees.");
-            if (player.CurrentPlace.Things.Count == 0)
+            Output.WriteLine("Its ", World.GetTimeOfDay(), " and ", player.CurrentZone.GetTemperature(), " degrees.");
+            if (player.CurrentLocation.Things.Count == 0)
             {
                 Output.WriteLine("You see nothing of interest, time to move on.");
                 return;
             }
-
             Output.WriteLine("You see:");
-            foreach (var thing in player.CurrentPlace.Things)
+            foreach (var thing in player.CurrentLocation.Things)
             {
                 Output.WriteLine(thing);
                 thing.IsFound = true;

@@ -1,13 +1,7 @@
 ﻿using OpenAI_API;
-using OpenAI_API.Chat;
 using OpenAI_API.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace text_survival.IO
 {
@@ -26,7 +20,7 @@ namespace text_survival.IO
                 " STEP 2: Convey the important info to the user in your own words and ask the user what they want to do. " +
                 " STEP 3: If what they say is close enough to one of the numbered actions listed by the program " +
                 "then select it using the EXACT format: \"SELECT 1\" (Without quotes and replacing the 1 with their selection) for the program to parse. " +
-                " If your output is anything other than that format, then then the program will assume you are talking to the player. " + 
+                " If your output is anything other than that format, then then the program will assume you are talking to the player. " +
                 " If the player's choice is not close enough to one of the options, then give them a hint of what actions they could do and they can try again. " +
                 " STEP 4: The program will provide a new description of the game state and options and the process will repeat.");
 
@@ -57,7 +51,7 @@ namespace text_survival.IO
             while (true)
             {
                 //Console.WriteLine($"AI output: {response}");
-               
+
                 string pattern = @"\bSELECT\s+(\d+)\b";
 
                 // Match the pattern in the response string

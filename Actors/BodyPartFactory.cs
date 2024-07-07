@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-namespace text_survival.Actors
+﻿namespace text_survival.Actors
 {
     namespace text_survival.Actors
     {

@@ -1,5 +1,4 @@
-﻿using text_survival.Actors;
-using text_survival.Magic;
+﻿using text_survival.Magic;
 
 namespace text_survival.Items
 {
@@ -22,10 +21,10 @@ namespace text_survival.Items
             UseEffect = player => player.Equip(this);
             Warmth = warmth;
             Type = type;
-            if (warmth > 0)EquipBuffs.Add(CommonBuffs.Warmth(warmth));
+            if (warmth > 0) EquipBuffs.Add(CommonBuffs.Warmth(warmth));
 
         }
 
-            
+
     }
 }

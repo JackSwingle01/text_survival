@@ -1,7 +1,4 @@
 ﻿using text_survival.Environments;
-using text_survival.Environments.Locations;
-using text_survival.IO;
-using text_survival.Items;
 
 namespace text_survival
 {
@@ -10,7 +7,7 @@ namespace text_survival
         public static TimeOnly Time { get; set; } = new TimeOnly(hour: 9, minute: 0);
 
         public static Player Player { get; set; }
-        public static Area CurrentArea => Player.CurrentArea;
+        public static Zone CurrentArea => Player.CurrentZone;
 
         public static void Update(int minutes)
         {
@@ -19,7 +16,7 @@ namespace text_survival
                 Player.Update();
                 CurrentArea.Update();
                 Time = Time.AddMinutes(1);
-            } 
+            }
         }
 
         public enum TimeOfDay

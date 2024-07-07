@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using text_survival.Actors;
+﻿using text_survival.Actors;
 using text_survival.Actors.text_survival.Actors;
 using text_survival.Environments;
 using text_survival.IO;
@@ -43,22 +42,61 @@ namespace text_survival
         public double WarmthBonus { get; private set; }
 
         // area
-        public IPlace CurrentPlace { get; private set; }
-        public Area CurrentArea {
+        public WorldMap Map { get; }
+
+        public Location CurrentLocation
+        {
             get
             {
-                if (CurrentPlace is Area area)
-                {
-                    return area;
-                }
-                else if (CurrentPlace is Location location)
-                {
-                    return location.ParentArea; 
-                } 
-                else throw new Exception("CurrentPlace is not an Area or Location");
+                return _currentLocation;
+            }
+            set
+            {
+                _currentLocation = value;
+                Output.WriteLine("You go to the ", value);
+                Output.WriteLine("You should probably look around.");
             }
         }
-
+        private Location _currentLocation;
+        public Zone CurrentZone
+        {
+            get
+            {
+                return Map.CurrentZone;
+            }
+            set
+            {
+                if (CurrentZone == value)
+                {
+                    Output.WriteLine("There's nowhere to leave. Travel instead.");
+                    return;
+                }
+                if (Map.North == value)
+                {
+                    Output.WriteLine("You go north.");
+                    Map.MoveNorth();
+                }
+                else if (Map.East == value)
+                {
+                    Output.WriteLine("You go east.");
+                    Map.MoveEast();
+                }
+                else if (Map.South == value)
+                {
+                    Output.WriteLine("You go south.");
+                    Map.MoveSouth();
+                }
+                else if (Map.West == value)
+                {
+                    Output.WriteLine("You go west.");
+                    Map.MoveWest();
+                }
+                else
+                    throw new Exception("Invalid zone.");
+                Output.WriteLine("You enter ", value);
+                Output.WriteLine(value.Description);
+            }
+        }
         // inventory
         private Inventory Inventory { get; }
         public List<Armor> Armor { get; }
@@ -114,9 +152,9 @@ namespace text_survival
         // spells
         public List<Spell> Spells { get; }
 
-        // CONSTRUCTOR //
+        #region Constructor
 
-        public Player(Area area)
+        public Player(Location location)
         {
             // stats
             Name = "Player";
@@ -150,12 +188,14 @@ namespace text_survival
             Spells.Add(SpellFactory.Bleeding);
             Spells.Add(SpellFactory.Poison);
             Spells.Add(SpellFactory.MinorHeal);
-            // starting area
-            area.Enter(this);
+            // map
+            Map = new WorldMap(location.ParentZone);
+            CurrentLocation = location;
             // events
             EventHandler.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
         }
 
+        #endregion Constructor
         // Survival Actions //
 
         public void Eat(FoodItem food)
@@ -303,7 +343,7 @@ namespace text_survival
         {
             RemoveFromInventory(item);
             Output.WriteLine("You drop the ", item);
-            CurrentPlace.PutThing(item);
+            CurrentLocation.PutThing(item);
         }
 
         /// <summary>
@@ -312,8 +352,8 @@ namespace text_survival
         /// <param name="item"></param>
         public void TakeItem(Item item)
         {
-            if (CurrentArea.ContainsThing(item))
-                CurrentArea.RemoveThing(item);
+            if (CurrentLocation.ContainsThing(item))
+                CurrentLocation.RemoveThing(item);
             Output.WriteLine("You take the ", item);
             AddToInventory(item);
         }
@@ -414,14 +454,14 @@ namespace text_survival
             {
                 "Yourself"
             };
-            CurrentPlace.Npcs.ForEach(npc => targets.Add(npc.Name));
+            CurrentLocation?.Npcs.ForEach(npc => targets.Add(npc.Name));
             var target = Input.GetSelectionFromList(targets, true);
             if (target == 0) return;
 
             // cast spell
             else if (target == 1) CastSpell(Spells[spell - 1], this);
-            else
-                CastSpell(Spells[spell - 1], CurrentPlace.Npcs[target - 2]);
+            else if (CurrentLocation != null)
+                CastSpell(Spells[spell - 1], CurrentLocation.Npcs[target - 2]);
 
         }
 
@@ -564,10 +604,18 @@ namespace text_survival
 
         public override string ToString() => Name;
 
-        public void MoveTo(IPlace place)
-        {
-            CurrentPlace = place;
-        }
 
+        public void Leave(Player player)
+        {
+            if (CurrentLocation.Parent is null)
+            {
+                Output.WriteLine("There's nowhere to leave. Travel instead.");
+            }
+            else if (CurrentLocation.Parent is Location l)
+            {
+                CurrentLocation = l;
+            }
+        }
+        public Command<Player> LeaveCommand => new("Leave " + Name, Leave);
     }
 }

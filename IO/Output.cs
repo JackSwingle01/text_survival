@@ -20,7 +20,7 @@ namespace text_survival.IO
                 Item => ConsoleColor.Cyan,
                 Container => ConsoleColor.Yellow,
                 Player => ConsoleColor.Green,
-                Area => ConsoleColor.Blue,
+                Zone => ConsoleColor.Blue,
                 Enum => ConsoleColor.White,
                 null => ConsoleColor.Red,
                 _ => ConsoleColor.White,
@@ -29,7 +29,7 @@ namespace text_survival.IO
 
         public static void Write(params object[] args)
         {
-            
+
             if (Config.io == Config.IOType.Console)
             {
                 foreach (var arg in args)
@@ -54,7 +54,7 @@ namespace text_survival.IO
                 }
                 OutputQueue.Enqueue(sb.ToString());
             }
-            
+
         }
 
         private static string GetFormattedText(params object[] args)

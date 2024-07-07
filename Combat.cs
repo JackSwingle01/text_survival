@@ -172,10 +172,10 @@ namespace text_survival
 
         public static bool SpeedCheck(Player player, ICombatant? enemy = null)
         {
-            if (player.CurrentPlace.IsSafe) return true;
+            if (player.CurrentLocation.IsSafe) return true;
 
             // if no enemy is passed in, get the fastest enemy
-            enemy ??= GetFastestNpc(player.CurrentPlace);
+            enemy ??= GetFastestNpc(player.CurrentLocation);
 
             // compare player to fastest enemy
             double playerCheck = CalcSpeedCheck(player);
@@ -185,11 +185,11 @@ namespace text_survival
         }
 
 
-        public static Npc GetFastestNpc(IPlace place)
+        public static Npc GetFastestNpc(Location location)
         {
             double enemyCheck = 0;
-            Npc fastestNpc = place.Npcs.First();
-            foreach (Npc npc in place.Npcs)
+            Npc fastestNpc = location.Npcs.First();
+            foreach (Npc npc in location.Npcs)
             {
                 var currentNpcCheck = CalcSpeedCheck(npc);
                 if (!(currentNpcCheck >= enemyCheck)) continue;

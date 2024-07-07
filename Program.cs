@@ -1,5 +1,5 @@
-﻿using text_survival.Environments.Locations;
-using text_survival.Environments;
+﻿using text_survival.Environments;
+using text_survival.Environments.Locations;
 using text_survival.IO;
 using text_survival.Items;
 
@@ -15,7 +15,7 @@ namespace text_survival
             Output.WriteLine("You need to find shelter, food, and water to survive.");
             Output.SleepTime = 10;
 
-            Area startingArea = new Area("Clearing", "A small clearing in the forest.");
+            Zone startingArea = new Zone("Clearing", "A small clearing in the forest.");
             Container oldBag = new Container("Old bag", 10);
             Location log = new Location("Hollow log", startingArea);
             oldBag.Add(ItemFactory.MakeApple());
@@ -24,9 +24,9 @@ namespace text_survival
             oldBag.Add(ItemFactory.MakeBoots());
             oldBag.Add(new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, "Old dagger", 40));
             log.PutThing(oldBag);
-            startingArea.PutThing(log);
-            startingArea.PutThing(new Cave(startingArea, 1, 1));
-            Player player = new Player(startingArea);
+            startingArea.PutLocation(log);
+            startingArea.PutLocation(new Cave(startingArea, 1, 1));
+            Player player = new Player(log);
             World.Player = player;
             Actions actions = new(player);
             while (player.IsAlive)

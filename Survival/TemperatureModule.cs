@@ -114,7 +114,7 @@ namespace text_survival.Survival
 
             double skinTemp = BodyTemperature - 8.4;
             float rate = 1F / 120F;
-            double feelsLike = Player.CurrentArea.GetTemperature();
+            double feelsLike = Player.CurrentZone.GetTemperature();
             feelsLike += Player.WarmthBonus;
             double tempChange = (skinTemp - feelsLike) * rate;
             BodyTemperature -= tempChange;

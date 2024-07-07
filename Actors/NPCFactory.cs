@@ -19,7 +19,7 @@ namespace text_survival.Actors
             ItemFactory.MakeCopperCoin(),
             ItemFactory.MakeBread()
         ]);
-        
+
         public static Npc MakeRat()
         {
             Animal rat = new("Rat", 2, new Attributes(5, 40, 5, 70))
@@ -44,7 +44,7 @@ namespace text_survival.Actors
 
         public static Npc MakeBear()
         {
-            Npc bear = new Animal("Bear", 20, new Attributes(80,  40, 80, 50));
+            Npc bear = new Animal("Bear", 20, new Attributes(80, 40, 80, 50));
             bear.AddLoot(ItemFactory.MakeLargeMeat());
             bear.Description = "A bear.";
             bear.Clone = MakeBear;
@@ -63,8 +63,8 @@ namespace text_survival.Actors
             ItemFactory.MakeSmallMeat(),
             ItemFactory.MakeVenomVial()
          ]);
-        
-        
+
+
 
         public static Npc MakeBat()
         {
@@ -75,7 +75,7 @@ namespace text_survival.Actors
 
         public static Npc MakeSpider()
         {
-            Npc spider = new Animal("Spider", 5, new Attributes(15, 30, 15,55));
+            Npc spider = new Animal("Spider", 5, new Attributes(15, 30, 15, 55));
             CommonBuffs.Venomous(1, 3, .4).ApplyTo(spider);
             spider.AddLoot(SpiderLT.GenerateRandomItem());
             spider.Clone = MakeSpider;
@@ -94,11 +94,11 @@ namespace text_survival.Actors
             ItemFactory.MakeVenomVial()
         ]);
 
-        
 
-       
 
-        
+
+
+
     }
 
 }

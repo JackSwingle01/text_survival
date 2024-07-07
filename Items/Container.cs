@@ -32,7 +32,7 @@ namespace text_survival.Items
         {
             if (!Combat.SpeedCheck(player))
             {
-                Npc npc = Combat.GetFastestNpc(player.CurrentPlace);
+                Npc npc = Combat.GetFastestNpc(player.CurrentLocation);
                 Output.WriteLine("You couldn't get past the ", npc, "!");
                 npc.Interact(player);
                 return;
