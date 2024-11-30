@@ -14,14 +14,14 @@
         {
             items.Add(loot);
         }
-        public Item? GenerateRandomItem()
+        public bool IsEmpty()
         {
-            var loot = Utils.GetRandomFromList(items)?.Clone();
-            if (loot is Item i)
-            {
-                return i;
-            }
-            return null;
+            return items.Count == 0;
+        }
+        public Item GenerateRandomItem()
+        {
+            var loot = Utils.GetRandomFromList(items).Clone();
+            return loot;
         }
     }
 }

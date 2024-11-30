@@ -113,10 +113,7 @@ namespace text_survival.Actors
             return damage;
         }
 
-        public double DetermineHitChance(ICombatant attacker)
-        {
-            return 1;
-        }
+        public double DetermineHitChance(ICombatant attacker) => 1;
 
         public double DetermineDodgeChance(ICombatant attacker)
         {
@@ -147,7 +144,6 @@ namespace text_survival.Actors
             }
             EventHandler.Publish(e);
 
-            // do calculations
             double damage = DetermineDamage(target);
 
             // check for dodge and miss
@@ -172,7 +168,6 @@ namespace text_survival.Actors
             };
             EventHandler.Publish(e);
 
-            // apply damage
             target.Damage(damage);
 
             // gain experience
@@ -183,12 +178,7 @@ namespace text_survival.Actors
             Thread.Sleep(1000);
         }
 
-
-
-        public override string ToString()
-        {
-            return Name;
-        }
+        public override string ToString() => Name;
 
         public void Damage(double damage)
         {
@@ -199,16 +189,6 @@ namespace text_survival.Actors
         {
             Body.Heal(heal);
         }
-
-        //public void AddToBuffList(Buff buff)
-        //{
-        //    Buffs.Add(buff);
-        //}
-
-        //public void RemoveFromBuffList(Buff buff)
-        //{
-        //    Buffs.Remove(buff);
-        //}
 
         public void DropInventory(Location location)
         {
@@ -226,10 +206,7 @@ namespace text_survival.Actors
             location.PutThing(item);
         }
 
-        public void AddLoot(Item item)
-        {
-            Loot.Add(item);
-        }
+        public void AddLoot(Item item) => Loot.Add(item);
         public void AddLoot(List<Item> items)
         {
             foreach (Item item in items)

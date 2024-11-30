@@ -6,8 +6,11 @@ namespace text_survival.Survival
     {
         public const double BaseBodyTemperature = 98.6F;
         public double BodyTemperature { get; private set; }
+        public bool IsWarming { get; private set; }
         public TemperatureEnum TemperatureEffect { get; private set; }
+        public double FeelsLike => Player.CurrentZone.GetTemperature() + Player.WarmthBonus;
         private Player Player { get; set; }
+        
 
         public TemperatureModule(Player player)
         {
@@ -24,19 +27,6 @@ namespace text_survival.Survival
             Hot,
             HeatExhaustion,
         }
-
-        //public void Update(int minutes)
-        //{
-        //    TemperatureEnum oldTemperature = TemperatureEffect;
-        //    for (int i = 0; i < minutes; i++)
-        //    {
-        //        UpdateTemperatureTick();
-        //    }
-        //    if (oldTemperature != TemperatureEffect)
-        //    {
-        //        WriteTemperatureEffectMessage(TemperatureEffect);
-        //    }
-        //}
 
         public void Update()
         {
@@ -114,10 +104,11 @@ namespace text_survival.Survival
 
             double skinTemp = BodyTemperature - 8.4;
             float rate = 1F / 120F;
-            double feelsLike = Player.CurrentZone.GetTemperature();
-            feelsLike += Player.WarmthBonus;
-            double tempChange = (skinTemp - feelsLike) * rate;
-            BodyTemperature -= tempChange;
+            
+            double tempChange = (FeelsLike - skinTemp) * rate;
+            BodyTemperature += tempChange;
+            
+            IsWarming = tempChange > 0;
 
             UpdateTemperatureEffect();
 

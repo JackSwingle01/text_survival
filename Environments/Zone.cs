@@ -1,4 +1,6 @@
-﻿using text_survival.Interfaces;
+﻿using text_survival.Actors;
+using text_survival.Interfaces;
+using text_survival.Items;
 using static text_survival.Environments.Location;
 
 namespace text_survival.Environments
@@ -7,9 +9,11 @@ namespace text_survival.Environments
     {
         public string Name { get; set; }
         public string Description { get; set; }
-        public double BaseTemperature { get; private set; }
+        public double BaseTemperature { get; protected set; }
         public bool Visited { get; set; } = false;
         public List<Location> Locations { get; protected set; } = [];
+        public virtual List<Item> ItemList { get; } = [];
+        public virtual List<Npc> NpcList { get; } = [];
 
         public enum EnvironmentType
         {
@@ -54,8 +58,6 @@ namespace text_survival.Environments
             return effect + BaseTemperature;
         }
 
-        public override string ToString() => Name;
-
         public void GenerateRandomSubLocation(int maxItems = 0, int maxNpcs = 0)
         {
             LocationType type = Utils.GetRandomEnum<LocationType>();
@@ -74,6 +76,8 @@ namespace text_survival.Environments
         }
 
         public void PutLocation(Location location) => Locations.Add(location);
+        protected static readonly List<string> genericAdjectives = ["", "Open", "Dark", "Ominous", "Shady", "Lonely", "Ancient",];
+        public override string ToString() => Name;
 
     }
 }

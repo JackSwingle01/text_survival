@@ -35,7 +35,9 @@ namespace text_survival
             Output.WriteLine("Hunger: ", player.HungerPercent, "%");
             Output.WriteLine("Thirst: ", player.ThirstPercent, "%");
             Output.WriteLine("Exhaustion: ", player.ExhaustionPercent, "%");
+            string tempChange = player.IsWarming ? "Warming up" : "Getting colder";
             Output.WriteLine("Body Temperature: ", player.Temperature, "°F (", player.TemperatureStatus, ")");
+            Output.WriteLine("Feels like: ", player.FeelsLikeTemperature, "°F -> ", tempChange);
         }
         public static void DescribeItem(Item item)
         {

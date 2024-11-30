@@ -23,10 +23,7 @@ namespace text_survival.Items
             Items = [];
         }
 
-        public Item GetItem(int index)
-        {
-            return Items[index];
-        }
+        public Item GetItem(int index) => Items[index];
 
         public void Interact(Player player)
         {
@@ -140,10 +137,7 @@ namespace text_survival.Items
             }
         }
 
-        public override string ToString()
-        {
-            return Name;
-        }
+        public override string ToString() => Name;
 
         public void Add(Item item)
         {
@@ -155,21 +149,8 @@ namespace text_survival.Items
             Items.Add(item);
         }
 
-        public void Remove(Item item)
-        {
-            Items.Remove(item);
-        }
-
-
-        public int Count()
-        {
-            return Items.Count;
-        }
-
-        public bool Contains(Item item)
-        {
-            return Items.Contains(item);
-        }
+        public void Remove(Item item) => Items.Remove(item);
+        public int Count() => Items.Count;
 
     }
 }

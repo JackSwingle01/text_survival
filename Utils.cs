@@ -45,12 +45,8 @@
             return (T?)values.GetValue(Roll(values.Length) - 1);
         }
 
-        public static T? GetRandomFromList<T>(List<T> list)
+        public static T GetRandomFromList<T>(List<T> list)
         {
-            if (list.Count == 0)
-            {
-                return default;
-            }
             return list[Roll(list.Count) - 1];
         }
 

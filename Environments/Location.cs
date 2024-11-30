@@ -85,6 +85,10 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
         {
             npcs.Add(npc);
         }
+        foreach (Npc npc in ParentZone.NpcList)
+        {
+            npcs.Add(npc);
+        }
         return npcs;
     }
     protected virtual List<Item> itemList { get; } = [];
@@ -92,6 +96,10 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     {
         LootTable lootTable = new();
         foreach (Item item in itemList)
+        {
+            lootTable.AddLoot(item);
+        }
+        foreach (Item item in ParentZone.ItemList)
         {
             lootTable.AddLoot(item);
         }

@@ -18,7 +18,6 @@ namespace text_survival
             while (player.IsAlive && enemy.IsAlive)
             {
                 if (!player.IsEngaged || !player.IsAlive) break;
-                PrintBattleInfo(player, enemy);
                 PlayerTurn(player, enemy);
 
                 if (!enemy.IsEngaged || !enemy.IsAlive) break;
@@ -75,12 +74,6 @@ namespace text_survival
             }
         }
 
-        public static void PrintBattleInfo(ICombatant combatant1, ICombatant combatant2)
-        {
-            Describe.DescribeCombatant(combatant1);
-            Output.WriteLine("VS");
-            Describe.DescribeCombatant(combatant2);
-        }
 
         /// <summary>
         /// Calculates the damage of an attack.
@@ -191,6 +184,8 @@ namespace text_survival
             Npc fastestNpc = location.Npcs.First();
             foreach (Npc npc in location.Npcs)
             {
+                if (npc == fastestNpc) continue;
+                if (!npc.IsAlive) continue;
                 var currentNpcCheck = CalcSpeedCheck(npc);
                 if (!(currentNpcCheck >= enemyCheck)) continue;
                 fastestNpc = npc;

@@ -39,6 +39,8 @@ namespace text_survival
         private TemperatureModule TemperatureModule { get; }
         public double Temperature => Math.Round(TemperatureModule.BodyTemperature, 1);
         public TemperatureModule.TemperatureEnum TemperatureStatus => TemperatureModule.TemperatureEffect;
+        public bool IsWarming => TemperatureModule.IsWarming;
+        public int FeelsLikeTemperature => (int)TemperatureModule.FeelsLike;
         public double WarmthBonus { get; private set; }
 
         // area
@@ -167,8 +169,6 @@ namespace text_survival
             Level = 0;
             Experience = 0;
             SkillPoints = 0;
-            //MaxHealth = 100;
-            //Health = 100;
             Body = BodyPartFactory.CreateHumanBody(Name, 100);
             MaxEnergy = 100;
             Energy = 100;
@@ -212,9 +212,10 @@ namespace text_survival
             {
                 Output.Write("You are too full to finish it.\n");
                 int percentageEaten = (int)(HungerModule.Amount / food.Calories) * 100;
-                food.Calories *= (100 - percentageEaten);
-                food.WaterContent *= (100 - percentageEaten);
-                food.Weight *= (100 - percentageEaten);
+                double calories = food.Calories * (100 - percentageEaten);
+                double waterContent = food.WaterContent * (100 - percentageEaten);
+                double weight = food.Weight * (100 - percentageEaten);
+                food = new FoodItem(food.Name, (int)calories, (int)waterContent, weight);
                 HungerModule.Amount = 0;
                 return;
             }
