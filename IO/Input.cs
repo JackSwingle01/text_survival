@@ -71,6 +71,26 @@
             }
         }
 
+        public static bool ReadYesNo()
+        {
+            while (true)
+            {
+                string? input = Read().Trim().ToLower();
+                if (input == "y" || input == "yes")
+                {
+                    return true;
+                }
+                else if (input == "n" || input == "no")
+                {
+                    return false;
+                }
+                else
+                {
+                    Output.Write("Invalid input. Please enter 'y' or 'n'.\n");
+                }
+            }
+        }
+
         /// <summary>
         /// Returns a 1-indexed selection from a list of choices.
         /// Returns 0 if the user selects the cancel option.
