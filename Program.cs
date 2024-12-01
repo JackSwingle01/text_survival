@@ -25,7 +25,6 @@ namespace text_survival
             oldBag.Add(new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, "Old dagger", 40));
             log.PutThing(oldBag);
             startingArea.PutLocation(log);
-            startingArea.PutLocation(new Cave(startingArea, 1, 1));
             Player player = new Player(log);
             World.Player = player;
             Actions actions = new(player);
