@@ -47,6 +47,10 @@
 
         public static T GetRandomFromList<T>(List<T> list)
         {
+            if (list.Count == 0)
+            {
+                throw new Exception("List is empty.");
+            }
             return list[Roll(list.Count) - 1];
         }
 
