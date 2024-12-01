@@ -8,8 +8,8 @@ namespace text_survival.Environments.Locations
         new public const bool IsShelter = false;
         public FrozenLake(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
-            Type = LocationType.Cave;
-            TemperatureModifier = 0;
+            Type = LocationType.FrozenLake;
+            TemperatureModifier = -3;
 
             var descriptors = new List<string>();
             descriptors.AddRange(frozenLakeAdjectives);

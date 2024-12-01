@@ -1,6 +1,7 @@
 ﻿using text_survival.Actors;
 using text_survival.Environments.Locations;
 using text_survival.Interfaces;
+using text_survival.IO;
 using text_survival.Items;
 
 namespace text_survival.Environments;
@@ -11,6 +12,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     public LocationType Type { get; set; }
     public enum LocationType
     {
+        None,
         Cave,
         Trail,
         River,
@@ -28,7 +30,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     virtual public Location? Parent { get; set; }
     public Zone ParentZone { get; }
     protected virtual ForageModule ForageModule { get; set; } = new();
-   
+
 
 
     #region Initialization
@@ -113,7 +115,19 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     public void RemoveThing(IInteractable thing) => Things.Remove(thing);
     public bool ContainsThing(IInteractable thing) => Things.Contains(thing);
 
-    public void Interact(Player player) => player.CurrentLocation = this;
+    public void Interact(Player player) {
+        Output.WriteLine("You consider heading to the " + Name + "...");
+        Output.WriteLine("It is a " + Type + ".");
+        Output.WriteLine("Do you want to go there? (y/n)");
+        if (Input.ReadYesNo())
+        {
+            player.CurrentLocation = this;
+        }
+        else
+        {
+            Output.WriteLine("You decide to stay.");
+        }
+    }
     public Command<Player> InteractCommand => new("Go to " + Name + (Visited ? " (Visited)" : ""), Interact);
 
 

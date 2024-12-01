@@ -60,7 +60,12 @@ namespace text_survival.Environments
 
         public void GenerateRandomSubLocation(int maxItems = 0, int maxNpcs = 0)
         {
-            LocationType type = Utils.GetRandomEnum<LocationType>();
+
+            LocationType type = LocationType.None;
+            while (type == LocationType.None)
+            {
+                type = Utils.GetRandomEnum<LocationType>();
+            }
             int items = Utils.RandInt(0, maxItems);
             int npcs = Utils.RandInt(0, maxNpcs);
             Location.GenerateSubLocation(this, type, items, npcs);
