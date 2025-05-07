@@ -23,7 +23,7 @@ namespace text_survival.Items
 
         public void Update()
         {
-            Quality -= 1; //TODO: Add spoilage
+            Quality -= .1; //TODO: Add spoilage
         }
         public override string ToString() => Name;
     }
