@@ -1,5 +1,6 @@
 ﻿using text_survival.Actors;
 using text_survival.Actors.text_survival.Actors;
+using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Items;
@@ -26,6 +27,10 @@ namespace text_survival
         }
         public void AddWarmthBonus(double warmth) => SurvivalStats.WarmthBonus += warmth;
         public void RemoveWarmthBonus(double warmth) => SurvivalStats.WarmthBonus -= warmth;
+
+        public void ApplyEffect(IEffect e) => SurvivalStats.AddEffect(e);
+        public void RemoveEffect(string effectType) => SurvivalStats.RemoveEffect(effectType);
+
         // area
         public WorldMap Map { get; }
 
@@ -120,7 +125,7 @@ namespace text_survival
             // Experience = 0;
             // SkillPoints = 0;
 
-            SurvivalStats = new SurvivalManager();
+            SurvivalStats = new SurvivalManager(this, true, BodyPartFactory.CreateHumanBody("Player", 100));
 
             // lists
             Buffs = [];
@@ -148,9 +153,6 @@ namespace text_survival
         #endregion Constructor
 
 
-
-        // Equipment //
-
         public void EquipItem(IEquippable item)
         {
             Output.WriteLine("You equip the ", item);
@@ -167,14 +169,8 @@ namespace text_survival
             {
                 buff.Remove();
             }
-
         }
 
-
-
-        // Inventory //
-
-        public void OpenInventory() => InventoryManager.Open(this);
 
 
         /// <summary>
@@ -200,8 +196,6 @@ namespace text_survival
             InventoryManager.AddToInventory(item);
         }
 
-        // COMBAT //
-
         public double DetermineDamage()
         {
             // skill bonus
@@ -221,15 +215,7 @@ namespace text_survival
             return damage;
         }
 
-        /// <summary>
-        /// Hit chance from 0-1
-        /// </summary>
-        /// <param name="attacker"></param>
-        /// <returns></returns>
-        public double DetermineHitChance(ICombatant attacker)
-        {
-            return InventoryManager.Weapon.Accuracy;
-        }
+        public double DetermineHitChance(ICombatant attacker) => InventoryManager.Weapon.Accuracy;
 
         public double DetermineDodgeChance(ICombatant attacker)
         {
@@ -312,46 +298,11 @@ namespace text_survival
             HandleSpellXpGain(spell);
         }
 
-        // Effects //
+        public void Damage(double amount) => SurvivalStats.Damage(amount);
+        public void Heal(double amount) => SurvivalStats.Heal(amount);
+        public void OpenInventory() => InventoryManager.Open(this);
+        internal void DescribeSurvivalStats() => SurvivalStats.Describe();
 
-        public void Damage(double amount)
-        {
-            SurvivalStats.Damage(amount);
-        }
-        public void Heal(double amount)
-        {
-            SurvivalStats.Heal(amount);
-        }
-
-
-
-
-        // Leveling //
-
-        // public void GainExperience(int xp)
-        // {
-        //     Experience += xp;
-        //     if (Experience < ExperienceToNextLevel) return;
-        //     Experience -= ExperienceToNextLevel;
-        //     LevelUp();
-        // }
-
-        // private void LevelUp()
-        // {
-        //     Level++;
-        //     // Body.MaxHealth += Attributes.Endurance / 10;
-        //     // Body.Heal(Attributes.Endurance / 10);
-        //     Output.WriteWarning("You leveled up to level " + Level + "!");
-        //     Output.WriteLine("You gained ", Attributes.Endurance / 10, " health!");
-        //     Output.WriteLine("You gained 3 skill points!");
-        //     SkillPoints += 3;
-        // }
-
-        // public void SpendPointToUpgradeAttribute(Attributes.PrimaryAttributes attribute)
-        // {
-        //     Attributes.IncreaseBase(attribute, 1);
-        //     SkillPoints--;
-        // }
 
         private void HandleAttackXpGain()
         {
@@ -395,12 +346,6 @@ namespace text_survival
             }
         }
 
-        // private void OnSkillLeveledUp(SkillLevelUpEvent e)
-        // {
-        //     GainExperience(1 * e.Skill.Level);
-        // }
-
-        // UPDATE //
 
         public void Update()
         {
@@ -413,7 +358,7 @@ namespace text_survival
                 }
             }
             buffs.Clear();
-            SurvivalStats.Update(this);
+            SurvivalStats.Update();
         }
 
         public void UseItem(Item item)
@@ -421,15 +366,55 @@ namespace text_survival
             // handle special logic for each item type
             if (item is FoodItem food)
             {
-                Output.Write("You eat the ", food, "...");
+                string eating_type = food.WaterContent > food.Calories ? "drink" : "eat";
+                Output.Write($"You {eating_type} the ", food, "...");
                 SurvivalStats.ConsumeFood(food);
+            }
+            else if (item is ConsumableItem consumable)
+            {
+                foreach (IEffect e in consumable.Effects)
+                {
+                    ApplyEffect(e);
+                }
+            }
+            else if (item is Armor armor)
+            {
+                EquipItem(armor);
+            }
+            else if (item is Weapon weapon)
+            {
+                EquipItem(weapon);
+            }
+            else if (item is WeaponModifierItem weaponMod)
+            {
+                if (ModifyWeapon(weaponMod.Damage))
+                {
+                    Output.WriteLine("You use the ", weaponMod, " to modify your ", InventoryManager.Weapon);
+                }
+                else
+                {
+                    Output.WriteLine("You don't have a weapon equipped to modify.");
+                    return;
+                }
+            }
+            else if (item is ArmorModifierItem armorMod)
+            {
+                if (ModifyArmor(armorMod.ValidArmorTypes[0], armorMod.Rating, armorMod.Warmth))
+                {
+                    Output.WriteLine("You use the ", armorMod, " to modify your armor.");
+                }
+                else
+                {
+                    Output.WriteLine("You don't have any armor you can use that on.");
+                    return;
+                }
             }
             else
             {
-                Output.Write("You use the ", item, "...\n");
+                Output.Write("You don't know what to use the ", item, " for...\n");
+                return;
             }
             // shared logic for all item types
-            item.UseEffect?.Invoke(this);
             if (item.NumUses != -1)
             {
                 item.NumUses -= 1;
@@ -470,10 +455,7 @@ namespace text_survival
             }
         }
 
-        internal void DescribeSurvivalStats()
-        {
-            SurvivalStats.Describe();
-        }
+        public override string ToString() => Name;
 
         public Command<Player> LeaveCommand => new("Leave " + Name, Leave);
     }

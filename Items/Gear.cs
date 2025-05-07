@@ -12,10 +12,6 @@ namespace text_survival.Items
         public Gear(string name, double weight = 1) : base(name, weight)
         {
             EquipBuffs = [];
-            UseEffect = (player) =>
-            {
-                player.EquipItem(this);
-            };
         }
     }
 

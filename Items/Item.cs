@@ -19,7 +19,6 @@ namespace text_survival.Items
     {
         public string Name { get; set; }
         public double Weight { get; set; } // in kg
-        public Action<Player> UseEffect { get; set; }
         public string Description { get; set; } = "";
         public double Quality { get; set; } // percentage 0% being extremely poor quality, 100% being perfect quality
         public bool IsFound { get; set; }
@@ -31,10 +30,6 @@ namespace text_survival.Items
             Name = name;
             Weight = weight;
             Quality = quality;
-            UseEffect = (player) =>
-            {
-                Output.Write("Nothing happened.\n"); // just a default
-            };
             NumUses = -1; // not consumable
             Clone = () => new Item(name, weight, quality);
         }

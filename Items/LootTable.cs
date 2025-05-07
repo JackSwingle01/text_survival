@@ -1,4 +1,6 @@
-﻿namespace text_survival.Items
+﻿using System.Linq.Expressions;
+
+namespace text_survival.Items
 {
     public class LootTable
     {

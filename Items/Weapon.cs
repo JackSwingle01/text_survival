@@ -20,10 +20,7 @@ namespace text_survival.Items
 
         public Weapon(WeaponType type, WeaponMaterial weaponMaterial, string name = "", int quality = 50) : base(name, quality: quality)
         {
-            UseEffect = (player) =>
-            {
-                player.EquipItem(this);
-            };
+
             SetBaseStats(type);
             ApplyMaterialModifier(weaponMaterial);
             ApplyQualityModifier();

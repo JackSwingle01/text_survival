@@ -81,7 +81,7 @@ namespace text_survival.Items
                         break;
                     case 3:
                         Remove(item);
-                        item.UseEffect.Invoke(player);
+                        player.UseItem(item);
                         break;
                 }
             }

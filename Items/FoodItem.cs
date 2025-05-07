@@ -16,12 +16,12 @@ namespace text_survival.Items
             Calories = calories;
             WaterContent = waterContent;
             NumUses = 1;
-            UseEffect = (player) => { };
+            HealthEffect = 0;
         }
 
         public int WaterContent { get; }
         public int Calories { get; }
-
+        public int HealthEffect {get; set;}
         public void Update()
         {
             Quality -= .1; //TODO: Add spoilage

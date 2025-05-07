@@ -1,10 +1,12 @@
 ﻿using text_survival.Actors.text_survival.Actors;
+using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Interfaces;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Level;
 using text_survival.Magic;
+using text_survival.PlayerComponents;
 
 namespace text_survival.Actors
 {
@@ -12,45 +14,46 @@ namespace text_survival.Actors
     {
         public string Name { get; set; }
         public string Description { get; set; }
-        //public double Health => Body.Health;
-        //public double MaxHealth => Body.MaxHealth;
-        public BodyPart Body { get; }
+
         public double UnarmedDamage { get; protected set; }
         public double ArmorRating { get; private set; }
         public bool IsHostile { get; private set; }
         private Container Loot { get; }
-        public bool IsAlive => Body.Health > 0;
+        public bool IsAlive => SurvivalManager.IsAlive;
         public bool IsFound { get; set; }
         public bool IsEngaged { get; set; }
         public Attributes Attributes { get; }
         public List<Buff> Buffs { get; }
         public IClonable<Npc>.CloneDelegate Clone { get; set; }
-
+        private SurvivalManager SurvivalManager { get; }
 
         public Npc(string name, Attributes? attributes = null)
         {
             Name = name;
             Attributes = attributes ?? new Attributes();
             int health = (int)(((Attributes.Strength + Attributes.Endurance) / 10) * 2);
+            BodyPart body;
             if (this is Humanoid)
             {
-                Body = BodyPartFactory.CreateHumanBody(name, health);
+                body = BodyPartFactory.CreateHumanBody(name, health);
             }
             else if (this is Animal)
             {
-                Body = BodyPartFactory.CreateAnimalBody(name, health);
+                body = BodyPartFactory.CreateAnimalBody(name, health);
             }
             else
             {
-                Body = BodyPartFactory.CreateGenericBody(name, health);
+                body = BodyPartFactory.CreateGenericBody(name, health);
             }
-            //Health = MaxHealth;
+            SurvivalManager = new SurvivalManager(this, false, body);
+
             Loot = new Container(name, 10);
             IsHostile = true;
             Description = "";
             UnarmedDamage = 2;
             Buffs = [];
             Clone = () => new Npc(name, attributes);
+
         }
 
         // Interact //
@@ -85,6 +88,10 @@ namespace text_survival.Actors
             }
         }
 
+        public Location CurrentLocation => throw new NotImplementedException();
+
+        public Zone CurrentZone => throw new NotImplementedException();
+
         // Update //
         public void Update()
         {
@@ -96,6 +103,7 @@ namespace text_survival.Actors
                     timedBuff.Tick();
             }
             buffs.Clear();
+            SurvivalManager.Update();
         }
 
         // COMBAT //
@@ -106,7 +114,8 @@ namespace text_survival.Actors
             if (this is Humanoid humanoid)
             {
                 baseDamage = humanoid.Weapon.Damage;
-            };
+            }
+            ;
 
             double damage = Combat.CalculateAttackDamage(baseDamage, Attributes.Strength);
 
@@ -180,15 +189,11 @@ namespace text_survival.Actors
 
         public override string ToString() => Name;
 
-        public void Damage(double damage)
-        {
-            Body.Damage(damage);
-        }
+        public void Damage(double damage) => SurvivalManager.Damage(damage);
 
-        public void Heal(double heal)
-        {
-            Body.Heal(heal);
-        }
+
+        public void Heal(double heal) => SurvivalManager.Heal(heal);
+
 
         public void DropInventory(Location location)
         {
@@ -214,6 +219,10 @@ namespace text_survival.Actors
                 Loot.Add(item);
             }
         }
+
+        public void ApplyEffect(IEffect effect) => SurvivalManager.AddEffect(effect);
+
+        public void RemoveEffect(string effectType) => SurvivalManager.RemoveEffect(effectType);
 
     }
 }

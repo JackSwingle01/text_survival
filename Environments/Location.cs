@@ -64,9 +64,12 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     protected void InitializeLoot(int numItems)
     {
         LootTable lootTable = CreateLootTable();
-        for (int i = 0; i < numItems; i++)
+        if (!lootTable.IsEmpty())
         {
-            PutThing(lootTable.GenerateRandomItem());
+            for (int i = 0; i < numItems; i++)
+            {
+                PutThing(lootTable.GenerateRandomItem());
+            }
         }
     }
     protected void InitializeNpcs(int numNpcs)
@@ -115,7 +118,8 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     public void RemoveThing(IInteractable thing) => Things.Remove(thing);
     public bool ContainsThing(IInteractable thing) => Things.Contains(thing);
 
-    public void Interact(Player player) {
+    public void Interact(Player player)
+    {
         Output.WriteLine("You consider heading to the " + Name + "...");
         Output.WriteLine("It is a " + Type + ".");
         Output.WriteLine("Do you want to go there? (y/n)");
