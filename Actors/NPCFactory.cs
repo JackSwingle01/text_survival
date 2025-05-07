@@ -55,7 +55,7 @@ namespace text_survival.Actors
         {
             Npc snake = new Animal("Snake", 10, new Attributes(20, 40, 20, 55));
             snake.AddLoot(SnakeLootTable.GenerateRandomItem());
-            CommonBuffs.Venomous(2, 3, .5).ApplyTo(snake);
+            // CommonBuffs.Venomous(2, 3, .5).ApplyTo(snake); // todo make effect for this
             snake.Clone = MakeSnake;
             return snake;
         }
@@ -76,7 +76,7 @@ namespace text_survival.Actors
         public static Npc MakeSpider()
         {
             Npc spider = new Animal("Spider", 5, new Attributes(15, 30, 15, 55));
-            CommonBuffs.Venomous(1, 3, .4).ApplyTo(spider);
+            // CommonBuffs.Venomous(1, 3, .4).ApplyTo(spider); // todo - make effect for this
             spider.AddLoot(SpiderLT.GenerateRandomItem());
             spider.Clone = MakeSpider;
             return spider;

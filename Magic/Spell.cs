@@ -1,4 +1,5 @@
 ﻿using text_survival.Actors;
+using text_survival.Effects;
 
 namespace text_survival.Magic
 {
@@ -12,20 +13,20 @@ namespace text_survival.Magic
         public string Name { get; private set; }
         //public string Description { get; set; }
         public double PsychCost { get; private set; }
-        private Buff EffectBuff { get; }
+        private IEffect Effect { get; }
         public SpellFamily Family { get; }
 
-        public Spell(string name, double psychCost, Buff effectBuff, SpellFamily family)
+        public Spell(string name, double psychCost, IEffect effect, SpellFamily family)
         {
-            this.Name = name;
+            Name = name;
             PsychCost = psychCost;
-            EffectBuff = effectBuff;
+            Effect = effect;
             Family = family;
         }
 
-        public void Cast(IBuffable target)
+        public void Cast(IActor target)
         {
-            EffectBuff.ApplyTo(target);
+            target.ApplyEffect(Effect);
         }
 
 

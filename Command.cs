@@ -14,10 +14,10 @@
             Name = name;
             Act = act;
         }
-        public Command(Action act)
-        {
-            Act = act;
-        }
+        // public Command(Action act)
+        // {
+        //     Act = act;
+        // }
         public void Execute()
         {
             Act.Invoke();

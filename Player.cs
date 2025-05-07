@@ -7,7 +7,6 @@ using text_survival.Items;
 using text_survival.Level;
 using text_survival.Magic;
 using text_survival.PlayerComponents;
-using text_survival.Survival;
 
 namespace text_survival
 {
@@ -95,18 +94,13 @@ namespace text_survival
         }
         // inventory
 
-        // // skills and level
-        // public int Level { get; private set; }
-        // public int Experience { get; private set; }
-        // public int ExperienceToNextLevel => (Level + 1) * 5;
-        // public int SkillPoints { get; private set; }
         public Attributes Attributes { get; }
         public Skills Skills { get; }
 
-        // buffs
-        public List<Buff> Buffs { get; }
-        public bool HasBuff(BuffType type) => Buffs.Any(b => b.Type == type);
-        public Buff? GetBuff(BuffType type) => Buffs.FirstOrDefault(b => b.Type == type);
+        // // buffs
+        // public List<Buff> Buffs { get; }
+        // public bool HasBuff(BuffType type) => Buffs.Any(b => b.Type == type);
+        // public Buff? GetBuff(BuffType type) => Buffs.FirstOrDefault(b => b.Type == type);
 
 
         // combat
@@ -128,7 +122,7 @@ namespace text_survival
             SurvivalStats = new SurvivalManager(this, true, BodyPartFactory.CreateHumanBody("Player", 100));
 
             // lists
-            Buffs = [];
+            // Buffs = [];
 
             Spells = [];
             // objects
@@ -157,17 +151,17 @@ namespace text_survival
         {
             Output.WriteLine("You equip the ", item);
             InventoryManager.Equip(item);
-            foreach (Buff buff in item.GetEquipBuffs())
+            foreach (IEffect effect in item.EquipEffects)
             {
-                buff.ApplyTo(this);
+                ApplyEffect(effect);
             }
         }
         public void UnequipItem(IEquippable item)
         {
             InventoryManager.Unequip(item);
-            foreach (Buff buff in item.GetEquipBuffs())
+            foreach (IEffect effect in item.EquipEffects)
             {
-                buff.Remove();
+                SurvivalStats.RemoveEffect(effect);
             }
         }
 
@@ -298,7 +292,15 @@ namespace text_survival
             HandleSpellXpGain(spell);
         }
 
-        public void Damage(double amount) => SurvivalStats.Damage(amount);
+        public void Damage(double amount)
+        {
+            SurvivalStats.Damage(amount);
+            if (!SurvivalStats.IsAlive)
+            {
+                // end program
+                Environment.Exit(0);
+            }
+        }
         public void Heal(double amount) => SurvivalStats.Heal(amount);
         public void OpenInventory() => InventoryManager.Open(this);
         internal void DescribeSurvivalStats() => SurvivalStats.Describe();
@@ -349,15 +351,6 @@ namespace text_survival
 
         public void Update()
         {
-            var buffs = new List<Buff>(Buffs);
-            foreach (Buff buff in buffs)
-            {
-                if (buff is TimedBuff timedBuff)
-                {
-                    timedBuff.Tick();
-                }
-            }
-            buffs.Clear();
             SurvivalStats.Update();
         }
 

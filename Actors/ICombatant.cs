@@ -3,7 +3,7 @@ using text_survival.Level;
 
 namespace text_survival.Actors
 {
-    public interface ICombatant : IActor, IBuffable
+    public interface ICombatant : IActor
     {
         public bool IsAlive { get; }
         public bool IsEngaged { get; set; }

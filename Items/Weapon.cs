@@ -1,10 +1,11 @@
 ﻿using text_survival.Actors;
+using text_survival.Effects;
 using text_survival.Magic;
 
 namespace text_survival.Items
 {
 
-    public class Weapon : Item, IEquippable
+    public class Weapon : Gear
     {
         //public WeaponClass WeaponClass { get; set; }
         public WeaponClass Class { get; set; }
@@ -13,11 +14,10 @@ namespace text_survival.Items
         public double Damage { get; set; }
         public double Accuracy { get; set; }
         public double BlockChance { get; set; }
-        private List<Buff> EquipBuffs { get; }
-        public List<Buff> GetEquipBuffs() => EquipBuffs;
-        public void AddEquipBuff(Buff buff) => EquipBuffs.Add(buff);
-        public void RemoveEquipBuff(Buff buff) => EquipBuffs.Remove(buff);
-
+        // private List<Buff> EquipBuffs { get; }
+        // public List<Buff> GetEquipBuffs() => EquipBuffs;
+        // public void AddEquipBuff(Buff buff) => EquipBuffs.Add(buff);
+        // public void RemoveEquipBuff(Buff buff) => EquipBuffs.Remove(buff);
         public Weapon(WeaponType type, WeaponMaterial weaponMaterial, string name = "", int quality = 50) : base(name, quality: quality)
         {
 
@@ -30,7 +30,7 @@ namespace text_survival.Items
             WeaponType = type;
             WeaponMaterial = weaponMaterial;
             //Buff = new Buff(name, -1);
-            EquipBuffs = [];
+            EquipEffects = [];
         }
 
         private void ApplyQualityModifier()

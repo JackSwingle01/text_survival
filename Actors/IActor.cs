@@ -3,7 +3,7 @@ using text_survival.Interfaces;
 
 namespace text_survival.Actors
 {
-    public interface IActor : IUpdateable, IBuffable, IDamageable, ILocatable
+    public interface IActor : IUpdateable, IDamageable, ILocatable
     {
         public string Name { get; }
 

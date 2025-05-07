@@ -23,7 +23,6 @@ namespace text_survival.Actors
         public bool IsFound { get; set; }
         public bool IsEngaged { get; set; }
         public Attributes Attributes { get; }
-        public List<Buff> Buffs { get; }
         public IClonable<Npc>.CloneDelegate Clone { get; set; }
         private SurvivalManager SurvivalManager { get; }
 
@@ -51,7 +50,6 @@ namespace text_survival.Actors
             IsHostile = true;
             Description = "";
             UnarmedDamage = 2;
-            Buffs = [];
             Clone = () => new Npc(name, attributes);
 
         }
@@ -95,14 +93,6 @@ namespace text_survival.Actors
         // Update //
         public void Update()
         {
-            if (!IsAlive) return;
-            List<Buff> buffs = new List<Buff>(Buffs);
-            foreach (Buff buff in buffs)
-            {
-                if (buff is TimedBuff timedBuff)
-                    timedBuff.Tick();
-            }
-            buffs.Clear();
             SurvivalManager.Update();
         }
 
@@ -115,7 +105,6 @@ namespace text_survival.Actors
             {
                 baseDamage = humanoid.Weapon.Damage;
             }
-            ;
 
             double damage = Combat.CalculateAttackDamage(baseDamage, Attributes.Strength);
 

@@ -1,6 +1,5 @@
 ﻿using text_survival.Actors;
 using text_survival.Effects;
-using text_survival.IO;
 using text_survival.Magic;
 
 namespace text_survival.Items
@@ -214,8 +213,8 @@ namespace text_survival.Items
             Gear torch = new Gear("Torch", 1)
             {
                 Description = "A torch that warms you",
+                Warmth = 5
             };
-            torch.AddEquipBuff(CommonBuffs.Warmth(5));
             return torch;
         }
 

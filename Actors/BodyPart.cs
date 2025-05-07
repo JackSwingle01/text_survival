@@ -4,7 +4,7 @@ using text_survival.Magic;
 
 namespace text_survival.Actors
 {
-    public class BodyPart : IBuffable
+    public class BodyPart
     {
         public string Name { get; private set; }
         public double Health { get; private set; }
@@ -14,7 +14,6 @@ namespace text_survival.Actors
         public bool IsDestroyed => Health <= 0;
         public List<BodyPart> Parts { get; private set; }
         public BodyPart? Parent { get; private set; }
-        public List<Buff> Buffs { get; set; }
 
         public BodyPart(string name, double maxHealth, bool isVital)
         {
@@ -23,7 +22,6 @@ namespace text_survival.Actors
             Health = maxHealth;
             IsVital = isVital;
             Parts = [];
-            Buffs = [];
         }
         public void Damage(double damage)
         {

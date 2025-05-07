@@ -3,12 +3,12 @@
     public static class Input
     {
         private static ManualResetEvent manualResetEvent = new ManualResetEvent(false);
-        private static string userInput;
-        public static void OnUserInputReceived(string input)
-        {
-            userInput = input;
-            manualResetEvent.Set();
-        }
+        // private static string userInput;
+        // public static void OnUserInputReceived(string input)
+        // {
+        //     userInput = input;
+        //     manualResetEvent.Set();
+        // }
         public static string Read()
         {
             string? input = "";
@@ -26,12 +26,12 @@
             return input ?? "";
         }
 
-        public static string AwaitInput()
-        {
-            manualResetEvent.WaitOne();
-            manualResetEvent.Reset();
-            return userInput;
-        }
+        // public static string AwaitInput()
+        // {
+        //     manualResetEvent.WaitOne();
+        //     manualResetEvent.Reset();
+        //     return userInput;
+        // }
 
         public static int ReadInt()
         {

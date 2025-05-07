@@ -35,6 +35,11 @@ class SurvivalManager
             Effects.Remove(e);
         }
     }
+    public void RemoveEffect(IEffect effect)
+    {
+        effect.Remove(Owner);
+        Effects.Remove(effect);
+    }
     public void Heal(double heal) => Body.Heal(heal);
     public void Damage(double damage)
     {
