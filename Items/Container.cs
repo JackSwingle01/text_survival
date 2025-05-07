@@ -24,6 +24,7 @@ namespace text_survival.Items
         }
 
         public Item GetItem(int index) => Items[index];
+        public Item GetItemByName(string itemName) => Items.First(i => i.Name.Equals(itemName));
 
         public void Interact(Player player)
         {
@@ -86,7 +87,7 @@ namespace text_survival.Items
             }
             Output.WriteLine(this, " is empty.");
         }
-        protected string ExtractStackedItemName(string name)
+        public string ExtractStackedItemName(string name)
         {
             // This regex pattern looks for the item name followed by an optional space and "x" followed by one or more digits.
             Match match = Regex.Match(name, @"^(.*?)\s*x\d*$");
@@ -97,7 +98,7 @@ namespace text_survival.Items
             return name;
         }
 
-        protected List<string> GetStackedItemList()
+        public List<string> GetStackedItemList()
         {
             var items = new List<string>();
             var counts = new Dictionary<string, int>();

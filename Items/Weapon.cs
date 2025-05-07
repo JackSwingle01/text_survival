@@ -7,13 +7,12 @@ namespace text_survival.Items
     public class Weapon : Item, IEquippable
     {
         //public WeaponClass WeaponClass { get; set; }
-        public WeaponClass WeaponClass { get; set; }
+        public WeaponClass Class { get; set; }
         public WeaponMaterial WeaponMaterial { get; set; }
         public WeaponType WeaponType { get; set; }
         public double Damage { get; set; }
         public double Accuracy { get; set; }
         public double BlockChance { get; set; }
-        public Buff? EquipBuff { get; set; }
         private List<Buff> EquipBuffs { get; }
         public List<Buff> GetEquipBuffs() => EquipBuffs;
         public void AddEquipBuff(Buff buff) => EquipBuffs.Add(buff);
@@ -23,12 +22,12 @@ namespace text_survival.Items
         {
             UseEffect = (player) =>
             {
-                player.Equip(this);
+                player.EquipItem(this);
             };
             SetBaseStats(type);
             ApplyMaterialModifier(weaponMaterial);
             ApplyQualityModifier();
-            WeaponClass = GetDamageTypeFromWeaponType(type);
+            Class = GetDamageTypeFromWeaponType(type);
             if (Name == "")
                 Name = $"{GetQualityEnumFromQuality(Quality)} {weaponMaterial} {type}";
             WeaponType = type;
@@ -185,14 +184,6 @@ namespace text_survival.Items
             };
         }
 
-        public void OnEquip(IActor actor)
-        {
-            EquipBuff?.ApplyTo(actor);
-        }
-
-        public void OnUnequip(IActor actor)
-        {
-            EquipBuff?.Remove();
-        }
+ 
     }
 }

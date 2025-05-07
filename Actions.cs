@@ -1,7 +1,6 @@
 ﻿using text_survival.Environments;
 using text_survival.Interfaces;
 using text_survival.IO;
-using text_survival.Level;
 
 namespace text_survival
 {
@@ -9,19 +8,17 @@ namespace text_survival
     public class Actions
     {
         private readonly Player _player;
-        //private readonly Dictionary<ActionType, Action> _actionDict;
-
         public List<ICommand> AvailableActions { get; private set; }
 
         public Actions(Player player)
         {
-            this._player = player;
-            this.AvailableActions = [];
+            _player = player;
+            AvailableActions = [];
         }
 
         private Command<Player> LookAroundCommand => new Command<Player>($"Look Around {_player.CurrentLocation}", LookAround);
         private Command<Player> CheckStatsCommand => new Command<Player>("Check Stats", CheckStats);
-        private Command<Player> LevelUpCommand => new Command<Player>("Level Up", LevelUp);
+        // private Command<Player> LevelUpCommand => new Command<Player>("Level Up", LevelUp);
         //private Command<Player, IInteractable> InteractCommand => new Command<Player, IInteractable>("Interact", Interact);
         private Command<Player> OpenInventoryCommand => new Command<Player>("Open Inventory", OpenInventory);
         private Command<Player> TravelCommand => new Command<Player>("Travel", Travel);
@@ -83,11 +80,11 @@ namespace text_survival
             travelCommand.Player = _player;
             AvailableActions.Add(travelCommand);
 
-       
+
             var sleepCommand = SleepCommand;
             sleepCommand.Player = _player;
             AvailableActions.Add(sleepCommand);
-            
+
 
             if (_player.Armor.Count > 0 || _player.IsArmed)
             {
@@ -100,12 +97,12 @@ namespace text_survival
             checkStats.Player = _player;
             AvailableActions.Add(checkStats);
 
-            if (_player.SkillPoints > 0)
-            {
-                var levelUpCommand = LevelUpCommand;
-                levelUpCommand.Player = _player;
-                AvailableActions.Add(levelUpCommand);
-            }
+            // if (_player.SkillPoints > 0)
+            // {
+            //     var levelUpCommand = LevelUpCommand;
+            //     levelUpCommand.Player = _player;
+            //     AvailableActions.Add(levelUpCommand);
+            // }
         }
 
         private void Forage(Player player)
@@ -114,8 +111,8 @@ namespace text_survival
             Output.WriteLine("How many hours would you like to forage?");
             int hours = Input.ReadInt();
             location.Forage(hours);
-            
-            
+
+
         }
 
         public void Act()
@@ -131,35 +128,35 @@ namespace text_survival
             command.Execute();
         }
 
-        private void LevelUp(Player player)
-        {
-            Output.WriteLine("You have ", player.SkillPoints, " points.");
-            while (player.SkillPoints > 0)
-            {
-                Output.WriteLine("Select an attribute to improve:");
-                Output.WriteLine("1. ", Attributes.PrimaryAttributes.Strength);
-                Output.WriteLine("3. ", Attributes.PrimaryAttributes.Speed);
-                Output.WriteLine("4. ", Attributes.PrimaryAttributes.Endurance);
-                Output.WriteLine("6. ", Attributes.PrimaryAttributes.Luck);
+        // private void LevelUp(Player player)
+        // {
+        //     Output.WriteLine("You have ", player.SkillPoints, " points.");
+        //     while (player.SkillPoints > 0)
+        //     {
+        //         Output.WriteLine("Select an attribute to improve:");
+        //         Output.WriteLine("1. ", Attributes.PrimaryAttributes.Strength);
+        //         Output.WriteLine("3. ", Attributes.PrimaryAttributes.Speed);
+        //         Output.WriteLine("4. ", Attributes.PrimaryAttributes.Endurance);
+        //         Output.WriteLine("6. ", Attributes.PrimaryAttributes.Luck);
 
-                Output.WriteLine("0. Cancel");
-                int input = Input.ReadInt(0, 8);
-                if (input == 0) return;
-                var attribute = input switch
-                {
-                    1 => Attributes.PrimaryAttributes.Strength,
-                    3 => Attributes.PrimaryAttributes.Speed,
-                    4 => Attributes.PrimaryAttributes.Endurance,
-                    6 => Attributes.PrimaryAttributes.Luck,
-                    _ => throw new NotImplementedException(),
-                };
-                player.SpendPointToUpgradeAttribute(attribute);
-            }
-        }
+        //         Output.WriteLine("0. Cancel");
+        //         int input = Input.ReadInt(0, 8);
+        //         if (input == 0) return;
+        //         var attribute = input switch
+        //         {
+        //             1 => Attributes.PrimaryAttributes.Strength,
+        //             3 => Attributes.PrimaryAttributes.Speed,
+        //             4 => Attributes.PrimaryAttributes.Endurance,
+        //             6 => Attributes.PrimaryAttributes.Luck,
+        //             _ => throw new NotImplementedException(),
+        //         };
+        //         // player.SpendPointToUpgradeAttribute(attribute);
+        //     }
+        // }
 
         private void CheckStats(Player player)
         {
-            Describe.DescribeLevel(player);
+            // Describe.DescribeLevel(player);
             Describe.DescribePrimaryAttributes(player);
             Describe.DescribeSkills(player);
             Output.WriteLine("Press any key to continue...");
@@ -271,8 +268,4 @@ namespace text_survival
             return nearbyLocations;
         }
     }
-
-
-
-
 }

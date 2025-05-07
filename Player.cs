@@ -15,11 +15,12 @@ namespace text_survival
         public string Name { get; set; }
         public bool IsAlive => SurvivalStats.IsAlive;
         private SurvivalManager SurvivalStats { get; }
-        
+        private InventoryManager InventoryManager { get; }
+
         public void Eat(FoodItem food)
         {
             SurvivalStats.ConsumeFood(food);
-            Inventory.Remove(food);
+            InventoryManager.RemoveFromInventory(food);
             World.Update(1);
         }
         public void Sleep(int minutes)
@@ -91,25 +92,12 @@ namespace text_survival
             }
         }
         // inventory
-        private Inventory Inventory { get; }
-        public List<Armor> Armor { get; }
-        public Gear? HeldItem { get; private set; }
 
-        // weapon
-        private Weapon? _weapon;
-        private readonly Weapon _unarmed;
-        public bool IsArmed => Weapon != _unarmed;
-        public Weapon Weapon
-        {
-            get => _weapon ?? _unarmed;
-            set => _weapon = value;
-        }
-
-        // skills and level
-        public int Level { get; private set; }
-        public int Experience { get; private set; }
-        public int ExperienceToNextLevel => (Level + 1) * 5;
-        public int SkillPoints { get; private set; }
+        // // skills and level
+        // public int Level { get; private set; }
+        // public int Experience { get; private set; }
+        // public int ExperienceToNextLevel => (Level + 1) * 5;
+        // public int SkillPoints { get; private set; }
         public Attributes Attributes { get; }
         public Skills Skills { get; }
 
@@ -118,26 +106,6 @@ namespace text_survival
         public bool HasBuff(BuffType type) => Buffs.Any(b => b.Type == type);
         public Buff? GetBuff(BuffType type) => Buffs.FirstOrDefault(b => b.Type == type);
 
-
-        // armor
-        public double ArmorRating
-        {
-            get
-            {
-                double rating = 0;
-                foreach (Armor armor in Armor)
-                {
-                    rating += armor.Rating;
-                    rating += armor.Type switch
-                    {
-                        ArmorClass.Light => Skills.LightArmor.Level * .01,
-                        ArmorClass.Heavy => Skills.HeavyArmor.Level * .01,
-                        _ => throw new ArgumentOutOfRangeException()
-                    };
-                }
-                return rating;
-            }
-        }
 
         // combat
         public bool IsEngaged { get; set; }
@@ -151,23 +119,23 @@ namespace text_survival
         {
             // stats
             Name = "Player";
-            Level = 0;
-            Experience = 0;
-            SkillPoints = 0;
+            // Level = 0;
+            // Experience = 0;
+            // SkillPoints = 0;
 
             SurvivalStats = new SurvivalManager();
 
             // lists
             Buffs = [];
-            Armor = [];
+
             Spells = [];
             // objects
             Attributes = new Attributes();
             Skills = new Skills();
-            Inventory = new Inventory();
+            InventoryManager = new InventoryManager();
 
             // starting items
-            _unarmed = ItemFactory.MakeFists();
+
             // starting spells
             Spells.Add(SpellFactory.Bleeding);
             Spells.Add(SpellFactory.Poison);
@@ -177,7 +145,7 @@ namespace text_survival
             _currentLocation = location;
             location.Visited = true;
             // events
-            EventHandler.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
+            // EventHandler.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
         }
 
         #endregion Constructor
@@ -186,106 +154,30 @@ namespace text_survival
 
         // Equipment //
 
-        public void Equip(IEquippable item)
+        public void EquipItem(IEquippable item)
         {
-            switch (item)
+            InventoryManager.Equip(item);
+            foreach (Buff buff in item.GetEquipBuffs())
             {
-                case Weapon weapon:
-                    Unequip(Weapon);
-                    Weapon = weapon;
-                    Inventory.Remove(weapon);
-                    break;
-                case Armor armor:
-                    var oldItem = Armor.FirstOrDefault(i => i.EquipSpot == armor.EquipSpot);
-                    if (oldItem != null) Unequip(oldItem);
-                    Armor.Add(armor);
-                    Inventory.Remove(armor);
-                    break;
-                case Gear gear:
-                    if (HeldItem != null) Unequip(HeldItem);
-                    HeldItem = gear;
-                    Inventory.Remove(gear);
-                    break;
-                default:
-                    Output.WriteLine("You can't equip that.");
-                    return;
+                buff.ApplyTo(this);
             }
             Output.WriteLine("You equip the ", item);
-            item.OnEquip(this);
         }
-
-        public void Unequip(IEquippable item)
+        public void UnequipItem(IEquippable item)
         {
-            switch (item)
+            InventoryManager.Unequip(item);
+            foreach (Buff buff in item.GetEquipBuffs())
             {
-                case Weapon weapon:
-                    {
-                        Weapon = _unarmed;
-                        if (weapon != _unarmed) Inventory.Add(weapon);
-                        break;
-                    }
-                case Armor armor:
-                    Armor.Remove(armor);
-                    Inventory.Add(armor);
-                    break;
-                case Gear gear:
-                    HeldItem = null;
-                    Inventory.Add(gear);
-                    break;
-                default:
-                    Output.WriteLine("You can't unequip that.");
-                    return;
+                buff.Remove();
             }
 
-            if (item != _unarmed)
-                Output.WriteLine("You unequip ", item);
-
-            item.OnUnequip(this);
         }
 
-        public void CheckGear()
-        {
-            Describe.DescribeGear(this);
-            Output.WriteLine("Would you like to unequip an item?");
-            int choice = Input.GetSelectionFromList(new List<string> { "Yes", "No" });
-            if (choice != 1) return;
-
-            Output.WriteLine("Which item would you like to unequip?");
-            // get list of all equipment
-            var equipment = new List<IEquippable>();
-            equipment.AddRange(Armor);
-            if (IsArmed) equipment.Add(Weapon);
-            if (HeldItem != null) equipment.Add(HeldItem);
-
-            choice = Input.GetSelectionFromList(equipment, true);
-            if (choice == 0) return;
-            Unequip(equipment[choice - 1]);
-        }
+   
 
         // Inventory //
 
-        public int InventoryCount => Inventory.Count();
-        public void OpenInventory() => Inventory.Open(this);
-
-        /// <summary>
-        /// Simply adds the item, use TakeItem() if you want to take it from an area.
-        /// </summary>
-        /// <param name="item"></param>
-        public void AddToInventory(Item item)
-        {
-            Output.WriteLine("You put the ", item, " in your ", Inventory);
-            Inventory.Add(item);
-        }
-
-        /// <summary>
-        /// Simply removes the item, use DropItem() if you want to drop it.
-        /// </summary>
-        /// <param name="item"></param>
-        public void RemoveFromInventory(Item item)
-        {
-            Output.WriteLine("You take the ", item, " from your ", Inventory);
-            Inventory.Remove(item);
-        }
+        public void OpenInventory() => InventoryManager.Open(this);
 
 
         /// <summary>
@@ -294,7 +186,7 @@ namespace text_survival
         /// <param name="item"></param>
         public void DropItem(Item item)
         {
-            RemoveFromInventory(item);
+            InventoryManager.RemoveFromInventory(item);
             Output.WriteLine("You drop the ", item);
             CurrentLocation.PutThing(item);
         }
@@ -308,27 +200,27 @@ namespace text_survival
             if (CurrentLocation.ContainsThing(item))
                 CurrentLocation.RemoveThing(item);
             Output.WriteLine("You take the ", item);
-            AddToInventory(item);
+            InventoryManager.AddToInventory(item);
         }
 
         // COMBAT //
 
-        public double DetermineDamage(ICombatant defender)
+        public double DetermineDamage()
         {
             // skill bonus
             double skillBonus = 0;
-            if (!IsArmed)
+            if (!InventoryManager.IsArmed)
                 skillBonus = Skills.Unarmed.Level;
-            else if (Weapon.WeaponClass == WeaponClass.Blade)
+            else if (InventoryManager.Weapon.Class == WeaponClass.Blade)
                 skillBonus = Skills.Blade.Level;
-            else if (Weapon.WeaponClass == WeaponClass.Blunt)
+            else if (InventoryManager.Weapon.Class == WeaponClass.Blunt)
                 skillBonus = Skills.Blunt.Level;
 
             // other modifiers
             double conditionModifier = (2 - (SurvivalStats.OverallConditionPercent / 100)) / 2 + .1;
 
             double damage = Combat.CalculateAttackDamage(
-                Weapon.Damage, Attributes.Strength, defender.ArmorRating, skillBonus, conditionModifier);
+                InventoryManager.Weapon.Damage, Attributes.Strength, skillBonus, conditionModifier);
             return damage;
         }
 
@@ -339,7 +231,7 @@ namespace text_survival
         /// <returns></returns>
         public double DetermineHitChance(ICombatant attacker)
         {
-            return Weapon.Accuracy;
+            return InventoryManager.Weapon.Accuracy;
         }
 
         public double DetermineDodgeChance(ICombatant attacker)
@@ -353,7 +245,7 @@ namespace text_survival
 
         public double DetermineBlockChance(ICombatant attacker)
         {
-            double block = (Weapon.BlockChance * 100 + (Attributes.Luck + Attributes.Strength) / 3) / 2 + Skills.Block.Level;
+            double block = (InventoryManager.Weapon.BlockChance * 100 + (Attributes.Luck + Attributes.Strength) / 3) / 2 + Skills.Block.Level;
             return block / 100;
         }
 
@@ -361,11 +253,11 @@ namespace text_survival
         {
             // attack event
             var e = new CombatEvent(EventType.OnAttack, this, target);
-            e.Weapon = Weapon;
+            e.Weapon = InventoryManager.Weapon;
             EventHandler.Publish(e);
 
             // determine damage
-            double damage = DetermineDamage(target);
+            double damage = DetermineDamage();
 
             // check for dodge and miss
             if (Combat.DetermineDodge(this, target)) return; // if target dodges
@@ -439,34 +331,34 @@ namespace text_survival
 
         // Leveling //
 
-        public void GainExperience(int xp)
-        {
-            Experience += xp;
-            if (Experience < ExperienceToNextLevel) return;
-            Experience -= ExperienceToNextLevel;
-            LevelUp();
-        }
+        // public void GainExperience(int xp)
+        // {
+        //     Experience += xp;
+        //     if (Experience < ExperienceToNextLevel) return;
+        //     Experience -= ExperienceToNextLevel;
+        //     LevelUp();
+        // }
 
-        private void LevelUp()
-        {
-            Level++;
-            // Body.MaxHealth += Attributes.Endurance / 10;
-            // Body.Heal(Attributes.Endurance / 10);
-            Output.WriteWarning("You leveled up to level " + Level + "!");
-            Output.WriteLine("You gained ", Attributes.Endurance / 10, " health!");
-            Output.WriteLine("You gained 3 skill points!");
-            SkillPoints += 3;
-        }
+        // private void LevelUp()
+        // {
+        //     Level++;
+        //     // Body.MaxHealth += Attributes.Endurance / 10;
+        //     // Body.Heal(Attributes.Endurance / 10);
+        //     Output.WriteWarning("You leveled up to level " + Level + "!");
+        //     Output.WriteLine("You gained ", Attributes.Endurance / 10, " health!");
+        //     Output.WriteLine("You gained 3 skill points!");
+        //     SkillPoints += 3;
+        // }
 
-        public void SpendPointToUpgradeAttribute(Attributes.PrimaryAttributes attribute)
-        {
-            Attributes.IncreaseBase(attribute, 1);
-            SkillPoints--;
-        }
+        // public void SpendPointToUpgradeAttribute(Attributes.PrimaryAttributes attribute)
+        // {
+        //     Attributes.IncreaseBase(attribute, 1);
+        //     SkillPoints--;
+        // }
 
         private void HandleAttackXpGain()
         {
-            switch (Weapon.WeaponClass)
+            switch (InventoryManager.Weapon.Class)
             {
                 case WeaponClass.Blade:
                     EventHandler.Publish(new GainExperienceEvent(1, SkillType.Blade));
@@ -485,9 +377,9 @@ namespace text_survival
 
         public void HandleArmorXpGain()
         {
-            if (Armor.Any(a => a.Type == ArmorClass.Light))
+            if (InventoryManager.Armor.Any(a => a.Type == ArmorClass.Light))
                 EventHandler.Publish(new GainExperienceEvent(1, SkillType.LightArmor));
-            if (Armor.Any(a => a.Type == ArmorClass.Heavy))
+            if (InventoryManager.Armor.Any(a => a.Type == ArmorClass.Heavy))
                 EventHandler.Publish(new GainExperienceEvent(1, SkillType.HeavyArmor));
         }
 
@@ -506,10 +398,10 @@ namespace text_survival
             }
         }
 
-        private void OnSkillLeveledUp(SkillLevelUpEvent e)
-        {
-            GainExperience(1 * e.Skill.Level);
-        }
+        // private void OnSkillLeveledUp(SkillLevelUpEvent e)
+        // {
+        //     GainExperience(1 * e.Skill.Level);
+        // }
 
         // UPDATE //
 

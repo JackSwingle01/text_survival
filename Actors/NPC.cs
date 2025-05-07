@@ -100,7 +100,7 @@ namespace text_survival.Actors
 
         // COMBAT //
 
-        public virtual double DetermineDamage(ICombatant defender)
+        public virtual double DetermineDamage()
         {
             double baseDamage = UnarmedDamage;
             if (this is Humanoid humanoid)
@@ -108,7 +108,7 @@ namespace text_survival.Actors
                 baseDamage = humanoid.Weapon.Damage;
             };
 
-            double damage = Combat.CalculateAttackDamage(baseDamage, Attributes.Strength, defender.ArmorRating);
+            double damage = Combat.CalculateAttackDamage(baseDamage, Attributes.Strength);
 
             return damage;
         }

@@ -1,6 +1,7 @@
 ﻿using text_survival.Actors;
 using text_survival.IO;
 using text_survival.Items;
+using text_survival.PlayerComponents;
 
 namespace text_survival
 {
@@ -11,22 +12,22 @@ namespace text_survival
             //Output.WriteLine(c, " => HP: ", c.Health, "/", c.MaxHealth);
             Output.WriteLine(c);
         }
-        public static void DescribeGear(Player player)
+        public static void DescribeGear(InventoryManager inv)
         {
-            if (player.IsArmed)
+            if (inv.IsArmed)
             {
                 Output.Write("Weapon => ");
-                DescribeItem(player.Weapon);
+                DescribeItem(inv.Weapon);
             }
-            foreach (Armor armor in player.Armor)
+            foreach (Armor armor in inv.Armor)
             {
                 Output.Write(armor.EquipSpot, " => ");
                 DescribeItem(armor);
             }
-            if (player.HeldItem is not null)
+            if (inv.HeldItem is not null)
             {
                 Output.Write("Held Item => ");
-                DescribeItem(player.HeldItem);
+                DescribeItem(inv.HeldItem);
             }
         }
 
@@ -58,11 +59,11 @@ namespace text_survival
             Output.WriteLine();
         }
 
-        public static void DescribeLevel(Player player)
-        {
-            Output.WriteLine("Level: ", player.Level);
-            Output.WriteLine("XP: ", player.Experience, "/", player.ExperienceToNextLevel);
-        }
+        // public static void DescribeLevel(Player player)
+        // {
+        //     Output.WriteLine("Level: ", player.Level);
+        //     Output.WriteLine("XP: ", player.Experience, "/", player.ExperienceToNextLevel);
+        // }
         public static void DescribePrimaryAttributes(Player player)
         {
             Output.WriteLine("Primary Attributes: ");

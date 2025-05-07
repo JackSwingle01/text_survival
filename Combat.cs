@@ -81,20 +81,17 @@ namespace text_survival
         /// <param name="baseDamage">The attacker's base damage (weapon or unarmed)</param>
         /// <param name="strength">The attacker's strength attribute</param>
         /// <param name="skillBonus">The damage bonus from attacker's skills</param>
-        /// <param name="defenderArmorRating">1/percentage of damage blocked</param>
         /// <param name="otherModifiers">Multiplier so 1 does nothing.</param>
         /// <returns>Damage dealt in hp</returns>
         public static double CalculateAttackDamage(
             double baseDamage,
             double strength,
-            double defenderArmorRating = 0,
             double skillBonus = 0,
             double otherModifiers = 1)
         {
             double strengthModifier = (strength + 50) / 100;
             double damage = baseDamage + skillBonus;
-            double defenderDefense = defenderArmorRating;
-            damage *= strengthModifier * (1 - defenderDefense) * otherModifiers;
+            damage *= strengthModifier * otherModifiers;
 
             damage *= Utils.RandDouble(.5, 2); // randomize damage
 
