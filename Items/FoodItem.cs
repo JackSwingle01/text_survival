@@ -15,7 +15,8 @@ namespace text_survival.Items
             Quality = 100;
             Calories = calories;
             WaterContent = waterContent;
-            UseEffect = (player) => { player.Eat(this); };
+            NumUses = 1;
+            UseEffect = (player) => { };
         }
 
         public int WaterContent { get; }

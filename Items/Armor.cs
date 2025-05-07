@@ -18,7 +18,7 @@ namespace text_survival.Items
             EquipBuffs = [];
             Rating = rating;
             EquipSpot = equipSpot;
-            UseEffect = player => player.Equip(this);
+            UseEffect = player => player.EquipItem(this);
             Warmth = warmth;
             Type = type;
             if (warmth > 0) EquipBuffs.Add(CommonBuffs.Warmth(warmth));

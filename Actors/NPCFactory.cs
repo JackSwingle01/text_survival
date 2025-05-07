@@ -61,7 +61,7 @@ namespace text_survival.Actors
         }
         private static readonly LootTable SnakeLootTable = new([
             ItemFactory.MakeSmallMeat(),
-            ItemFactory.MakeVenomVial()
+            ItemFactory.MakeVenomSac()
          ]);
 
 
@@ -91,7 +91,7 @@ namespace text_survival.Actors
 
         private static readonly LootTable SpiderLT = new([
             ItemFactory.MakeSpiderSilk(),
-            ItemFactory.MakeVenomVial()
+            ItemFactory.MakeVenomSac()
         ]);
 
 

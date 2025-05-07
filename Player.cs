@@ -17,12 +17,9 @@ namespace text_survival
         private SurvivalManager SurvivalStats { get; }
         private InventoryManager InventoryManager { get; }
 
-        public void Eat(FoodItem food)
-        {
-            SurvivalStats.ConsumeFood(food);
-            InventoryManager.RemoveFromInventory(food);
-            World.Update(1);
-        }
+        public bool IsArmed => InventoryManager.IsArmed;
+        public bool IsArmored => InventoryManager.IsArmored;
+
         public void Sleep(int minutes)
         {
             SurvivalStats.Sleep(minutes);
@@ -156,12 +153,12 @@ namespace text_survival
 
         public void EquipItem(IEquippable item)
         {
+            Output.WriteLine("You equip the ", item);
             InventoryManager.Equip(item);
             foreach (Buff buff in item.GetEquipBuffs())
             {
                 buff.ApplyTo(this);
             }
-            Output.WriteLine("You equip the ", item);
         }
         public void UnequipItem(IEquippable item)
         {
@@ -173,7 +170,7 @@ namespace text_survival
 
         }
 
-   
+
 
         // Inventory //
 
@@ -419,12 +416,47 @@ namespace text_survival
             SurvivalStats.Update(this);
         }
 
-        // Area //
+        public void UseItem(Item item)
+        {
+            // handle special logic for each item type
+            if (item is FoodItem food)
+            {
+                Output.Write("You eat the ", food, "...");
+                SurvivalStats.ConsumeFood(food);
+            }
+            else
+            {
+                Output.Write("You use the ", item, "...\n");
+            }
+            // shared logic for all item types
+            item.UseEffect?.Invoke(this);
+            if (item.NumUses != -1)
+            {
+                item.NumUses -= 1;
+                if (item.NumUses == 0)
+                {
+                    InventoryManager.RemoveFromInventory(item);
+                }
+            }
+            World.Update(1);
+        }
 
-        /// OTHER ///
+        public bool ModifyWeapon(double damage)
+        {
+            if (!IsArmed) return false;
 
-        public override string ToString() => Name;
+            InventoryManager.Weapon.Damage += damage;
+            return true;
+        }
+        public bool ModifyArmor(EquipSpots spot, double rating = 0, double warmth = 0)
+        {
+            Armor? armor = InventoryManager.GetArmorInSpot(spot);
+            if (armor is null) return false;
 
+            armor.Rating += rating;
+            armor.Warmth += warmth;
+            return true;
+        }
 
         public void Leave(Player player)
         {

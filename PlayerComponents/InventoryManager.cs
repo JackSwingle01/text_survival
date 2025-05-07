@@ -1,3 +1,4 @@
+using System.Reflection.Metadata.Ecma335;
 using text_survival.IO;
 using text_survival.Items;
 
@@ -19,6 +20,8 @@ public class InventoryManager
     private Weapon? _weapon;
     private readonly Weapon _unarmed;
     public bool IsArmed => Weapon != _unarmed;
+    public bool IsArmored => Armor.Count != 0;
+    public Armor? GetArmorInSpot(EquipSpots spot) => Armor.FirstOrDefault(i => i.EquipSpot == spot);
     public Weapon Weapon
     {
         get => _weapon ?? _unarmed;
@@ -142,7 +145,7 @@ public class InventoryManager
         {
             Output.WriteLine(Inventory, " (", Inventory.Weight(), "/", Inventory.MaxWeight, "):");
             var options = Inventory.GetStackedItemList();
-            int index = Input.GetSelectionFromList(options, true, "Close " + this) - 1;
+            int index = Input.GetSelectionFromList(options, true, "Close " + Inventory) - 1;
             if (index == -1) 
                 return;
 
@@ -156,7 +159,8 @@ public class InventoryManager
                 case 0:
                     continue;
                 case 1:
-                    item.Use(player);
+                    player.UseItem(item);
+                    //item.Use(player);
                     break;
                 case 2:
                     Describe.DescribeItem(item);

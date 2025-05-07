@@ -62,12 +62,12 @@ namespace text_survival
                 }
             }
 
-            if (_player.InventoryCount > 0)
-            {
-                var openInventoryCommand = OpenInventoryCommand;
-                openInventoryCommand.Player = _player;
-                AvailableActions.Add(openInventoryCommand);
-            }
+            
+            
+            var openInventoryCommand = OpenInventoryCommand;
+            openInventoryCommand.Player = _player;
+            AvailableActions.Add(openInventoryCommand);
+            
 
             if (_player.CurrentLocation.Parent is not null)
             {
@@ -86,7 +86,7 @@ namespace text_survival
             AvailableActions.Add(sleepCommand);
 
 
-            if (_player.Armor.Count > 0 || _player.IsArmed)
+            if (_player.IsArmored || _player.IsArmed)
             {
                 var checkGearCommand = CheckGearCommand;
                 checkGearCommand.Player = _player;
@@ -213,7 +213,8 @@ namespace text_survival
 
         private void CheckGear(Player player)
         {
-            player.CheckGear();
+            // player.CheckGear();
+            //todo
         }
 
         private void LookAround(Player player)

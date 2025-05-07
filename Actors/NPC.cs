@@ -144,7 +144,7 @@ namespace text_survival.Actors
             }
             EventHandler.Publish(e);
 
-            double damage = DetermineDamage(target);
+            double damage = DetermineDamage();
 
             // check for dodge and miss
             if (Combat.DetermineDodge(this, target))

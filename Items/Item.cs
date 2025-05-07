@@ -24,6 +24,7 @@ namespace text_survival.Items
         public double Quality { get; set; } // percentage 0% being extremely poor quality, 100% being perfect quality
         public bool IsFound { get; set; }
         public IClonable<Item>.CloneDelegate Clone { get; set; }
+        public int NumUses { get; set; }
 
         public Item(string name, double weight = 1, int quality = 50)
         {
@@ -34,6 +35,7 @@ namespace text_survival.Items
             {
                 Output.Write("Nothing happened.\n"); // just a default
             };
+            NumUses = -1; // not consumable
             Clone = () => new Item(name, weight, quality);
         }
 
@@ -41,12 +43,7 @@ namespace text_survival.Items
         {
             return Name;
         }
-        public virtual void Use(Player player)
-        {
-            //Utils.Write("You use the ", this, "...\n");
-            UseEffect?.Invoke(player);
-            World.Update(1);
-        }
+        
 
         public void Interact(Player player)
         {

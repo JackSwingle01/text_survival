@@ -14,7 +14,7 @@ namespace text_survival.Items
             EquipBuffs = [];
             UseEffect = (player) =>
             {
-                player.Equip(this);
+                player.EquipItem(this);
             };
         }
     }

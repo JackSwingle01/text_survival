@@ -62,7 +62,6 @@ class SurvivalManager
 
     public void ConsumeFood(FoodItem food)
     {
-        Output.Write("You eat the ", food, ".\n");
         // if (HungerModule.Amount - food.Calories < 0)
         // {
         //     Output.Write("You are too full to finish it.\n");
