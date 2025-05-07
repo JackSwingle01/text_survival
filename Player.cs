@@ -5,6 +5,7 @@ using text_survival.IO;
 using text_survival.Items;
 using text_survival.Level;
 using text_survival.Magic;
+using text_survival.PlayerComponents;
 using text_survival.Survival;
 
 namespace text_survival
@@ -12,37 +13,21 @@ namespace text_survival
     public class Player : ICombatant, ISpellCaster
     {
         public string Name { get; set; }
-        // Health and Energy
-        //public double Health { get; private set; }
-        //public double MaxHealth { get; private set; }
-        public BodyPart Body { get; }
-        public bool IsAlive => !Body.IsDestroyed;
-        public double Energy { get; private set; }
-        public double MaxEnergy { get; private set; }
-        public double EnergyRegen { get; private set; }
-        public double Psych { get; private set; }
-        public double MaxPsych { get; private set; }
-        public double PsychRegen { get; private set; }
-
-
-        // Survival stats
-        // Hunger
-        private HungerModule HungerModule { get; }
-        public int HungerPercent => (int)((HungerModule.Amount / HungerModule.Max) * 100);
-        // Thirst
-        private ThirstModule ThirstModule { get; }
-        public int ThirstPercent => (int)((ThirstModule.Amount / ThirstModule.Max) * 100);
-        // Exhaustion
-        private ExhaustionModule ExhaustionModule { get; }
-        public int ExhaustionPercent => (int)((ExhaustionModule.Amount / ExhaustionModule.Max) * 100);
-        // Temperature
-        private TemperatureModule TemperatureModule { get; }
-        public double Temperature => Math.Round(TemperatureModule.BodyTemperature, 1);
-        public TemperatureModule.TemperatureEnum TemperatureStatus => TemperatureModule.TemperatureEffect;
-        public bool IsWarming => TemperatureModule.IsWarming;
-        public int FeelsLikeTemperature => (int)TemperatureModule.FeelsLike;
-        public double WarmthBonus { get; private set; }
-
+        public bool IsAlive => SurvivalStats.IsAlive;
+        private SurvivalManager SurvivalStats { get; }
+        
+        public void Eat(FoodItem food)
+        {
+            SurvivalStats.ConsumeFood(food);
+            Inventory.Remove(food);
+            World.Update(1);
+        }
+        public void Sleep(int minutes)
+        {
+            SurvivalStats.Sleep(minutes);
+        }
+        public void AddWarmthBonus(double warmth) => SurvivalStats.WarmthBonus += warmth;
+        public void RemoveWarmthBonus(double warmth) => SurvivalStats.WarmthBonus -= warmth;
         // area
         public WorldMap Map { get; }
 
@@ -169,13 +154,9 @@ namespace text_survival
             Level = 0;
             Experience = 0;
             SkillPoints = 0;
-            Body = BodyPartFactory.CreateHumanBody(Name, 100);
-            MaxEnergy = 100;
-            Energy = 100;
-            EnergyRegen = 1;
-            Psych = 100;
-            MaxPsych = 100;
-            PsychRegen = 1;
+
+            SurvivalStats = new SurvivalManager();
+
             // lists
             Buffs = [];
             Armor = [];
@@ -184,10 +165,7 @@ namespace text_survival
             Attributes = new Attributes();
             Skills = new Skills();
             Inventory = new Inventory();
-            HungerModule = new HungerModule(this);
-            ThirstModule = new ThirstModule(this);
-            ExhaustionModule = new ExhaustionModule(this);
-            TemperatureModule = new TemperatureModule(this);
+
             // starting items
             _unarmed = ItemFactory.MakeFists();
             // starting spells
@@ -203,41 +181,8 @@ namespace text_survival
         }
 
         #endregion Constructor
-        // Survival Actions //
 
-        public void Eat(FoodItem food)
-        {
-            Output.Write("You eat the ", food, ".\n");
-            if (HungerModule.Amount - food.Calories < 0)
-            {
-                Output.Write("You are too full to finish it.\n");
-                int percentageEaten = (int)(HungerModule.Amount / food.Calories) * 100;
-                double calories = food.Calories * (100 - percentageEaten);
-                double waterContent = food.WaterContent * (100 - percentageEaten);
-                double weight = food.Weight * (100 - percentageEaten);
-                food = new FoodItem(food.Name, (int)calories, (int)waterContent, weight);
-                HungerModule.Amount = 0;
-                return;
-            }
-            HungerModule.Amount -= food.Calories;
-            ThirstModule.Amount -= food.WaterContent;
-            Inventory.Remove(food);
-            World.Update(1);
-        }
 
-        public void Sleep(int minutes)
-        {
-            for (int i = 0; i < minutes; i++)
-            {
-                ExhaustionModule.Amount -= 1 + ExhaustionModule.Rate; // 1 minute plus negate exhaustion rate for update
-                World.Update(1);
-                if (!(ExhaustionModule.Amount <= 0)) continue;
-                Output.Write("You wake up feeling refreshed.\n");
-                Heal(i / 6);
-                return;
-            }
-            Heal(minutes / 6);
-        }
 
         // Equipment //
 
@@ -370,7 +315,6 @@ namespace text_survival
 
         public double DetermineDamage(ICombatant defender)
         {
-
             // skill bonus
             double skillBonus = 0;
             if (!IsArmed)
@@ -381,10 +325,10 @@ namespace text_survival
                 skillBonus = Skills.Blunt.Level;
 
             // other modifiers
-            double exhaustionModifier = (2 - ExhaustionModule.Amount / ExhaustionModule.Max) / 2 + .1;
+            double conditionModifier = (2 - (SurvivalStats.OverallConditionPercent / 100)) / 2 + .1;
 
             double damage = Combat.CalculateAttackDamage(
-                Weapon.Damage, Attributes.Strength, defender.ArmorRating, skillBonus, exhaustionModifier);
+                Weapon.Damage, Attributes.Strength, defender.ArmorRating, skillBonus, conditionModifier);
             return damage;
         }
 
@@ -475,40 +419,20 @@ namespace text_survival
 
         public void CastSpell(Spell spell, ICombatant target)
         {
-            if (Psych < spell.PsychCost)
-            {
-                Output.WriteLine("You don't have enough psychic energy to cast that spell!");
-                return;
-            }
-            Psych -= spell.PsychCost;
             spell.Cast(target);
             HandleSpellXpGain(spell);
         }
 
         // Effects //
 
-        public void Damage(double damage)
+        public void Damage(double amount)
         {
-            Body.Damage(damage);
-            if (Body.IsDestroyed)
-            {
-                Output.WriteLine("You died!");
-                // end program
-                Environment.Exit(0);
-            }
+            SurvivalStats.Damage(amount);
         }
-
-        public void HealBodypart(double heal, BodyPart bodypart)
+        public void Heal(double amount)
         {
-            bodypart.Heal(heal);
+            SurvivalStats.Heal(amount);
         }
-        public void Heal(double heal)
-        {
-            Body.Heal(heal);
-        }
-
-        public void AddWarmthBonus(double warmth) => WarmthBonus += warmth;
-        public void RemoveWarmthBonus(double warmth) => WarmthBonus -= warmth;
 
 
 
@@ -526,8 +450,8 @@ namespace text_survival
         private void LevelUp()
         {
             Level++;
-            Body.MaxHealth += Attributes.Endurance / 10;
-            Body.Heal(Attributes.Endurance / 10);
+            // Body.MaxHealth += Attributes.Endurance / 10;
+            // Body.Heal(Attributes.Endurance / 10);
             Output.WriteWarning("You leveled up to level " + Level + "!");
             Output.WriteLine("You gained ", Attributes.Endurance / 10, " health!");
             Output.WriteLine("You gained 3 skill points!");
@@ -600,10 +524,7 @@ namespace text_survival
                 }
             }
             buffs.Clear();
-            HungerModule.Update();
-            ThirstModule.Update();
-            ExhaustionModule.Update();
-            TemperatureModule.Update();
+            SurvivalStats.Update(this);
         }
 
         // Area //
@@ -624,6 +545,16 @@ namespace text_survival
                 CurrentLocation = l;
             }
         }
+
+        internal void DescribeSurvivalStats()
+        {
+            SurvivalStats.Describe();
+        }
+
         public Command<Player> LeaveCommand => new("Leave " + Name, Leave);
     }
+    // public void Describe(){
+    //     double feelsLikeTemperature = CurrentZone.GetTemperature() + 
+    //     Output.WriteLine("Feels like: ", feelsLikeTemperature, "°F -> ", tempChange);
+    // }
 }

@@ -45,16 +45,7 @@ namespace text_survival.IO
                 throw new NotImplementedException();
                 //EventHandler.Publish(new WriteEvent(text));
             }
-            else if (Config.io == Config.IOType.AI_Enhanced)
-            {
-                StringBuilder sb = new StringBuilder();
-                foreach (var arg in args)
-                {
-                    sb.Append(GetFormattedText(arg));
-                }
-                OutputQueue.Enqueue(sb.ToString());
-            }
-
+            
         }
 
         private static string GetFormattedText(params object[] args)

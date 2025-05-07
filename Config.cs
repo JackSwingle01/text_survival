@@ -7,10 +7,8 @@ namespace text_survival
         public enum IOType
         {
             Console,
-            Web,
-            AI_Enhanced
+            Web
         }
         public static IOType io = IOType.Console;
-        public static string APIKey = API_Key.Key;
     }
 }

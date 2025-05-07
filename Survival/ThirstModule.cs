@@ -1,22 +1,33 @@
-﻿namespace text_survival.Survival
+﻿using text_survival.IO;
+
+namespace text_survival.Survival
 {
     public class ThirstModule
     {
-        public float Rate = 4000F / (24F * 60F); // mL per minute
-        public float Max = 3000.0F; // mL
-        public float Amount { get; set; }
-        private Player Player { get; set; }
-        public ThirstModule(Player player)
+        public bool IsParched => Amount >= Max;
+        private double Rate = 4000F / (24F * 60F); // mL per minute
+        private double Max = 3000.0F; // mL
+        private double Amount { get; set; }
+        public ThirstModule()
         {
             Amount = 0;
-            Player = player;
+        }
+        public void AddHydration(double mL){
+            Amount -= mL;
+            if (Amount < 0){
+                Amount = 0;
+            }
         }
         public void Update()
         {
             Amount += Rate;
-            if (!(Amount >= Max)) return;
-            Amount = Max;
-            Player.Damage(1);
+            if (Amount >= Max)
+                Amount = Max;
+        }
+        public void Describe()
+        {
+            double percent = (int)((Amount / Max) * 100);
+            Output.WriteLine("Thirst: ", percent, "%");
         }
     }
 }

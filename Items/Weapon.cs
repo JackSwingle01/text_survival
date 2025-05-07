@@ -166,7 +166,7 @@ namespace text_survival.Items
             };
         }
 
-        public static QualityEnum GetQualityEnumFromQuality(int quality)
+        public static QualityEnum GetQualityEnumFromQuality(double quality)
         {
             return quality switch
             {

@@ -29,16 +29,7 @@ namespace text_survival
                 DescribeItem(player.HeldItem);
             }
         }
-        public static void DescribeSurvivalStats(Player player)
-        {
-            //Output.WriteLine("Health: ", (int)(player.Health), "%");
-            Output.WriteLine("Hunger: ", player.HungerPercent, "%");
-            Output.WriteLine("Thirst: ", player.ThirstPercent, "%");
-            Output.WriteLine("Exhaustion: ", player.ExhaustionPercent, "%");
-            string tempChange = player.IsWarming ? "Warming up" : "Getting colder";
-            Output.WriteLine("Body Temperature: ", player.Temperature, "°F (", player.TemperatureStatus, ")");
-            Output.WriteLine("Feels like: ", player.FeelsLikeTemperature, "°F -> ", tempChange);
-        }
+
         public static void DescribeItem(Item item)
         {
             Output.Write(item, " => ", item.Description, " ");
@@ -79,14 +70,6 @@ namespace text_survival
             Output.WriteLine("SPD: ", player.Attributes.Speed);
             Output.WriteLine("END: ", player.Attributes.Endurance);
             Output.WriteLine("LUC: ", player.Attributes.Luck);
-        }
-
-        public static void DescribeSecondaryAttributes(Player player)
-        {
-            Output.WriteLine("Secondary Attributes: ");
-            Output.WriteLine("Max HP: ", player.Body.MaxHealth);
-            Output.WriteLine("Max Energy: ", player.MaxEnergy);
-            Output.WriteLine("Max Psych: ", player.MaxPsych);
         }
 
         public static void DescribeSkills(Player player)

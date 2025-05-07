@@ -83,12 +83,11 @@ namespace text_survival
             travelCommand.Player = _player;
             AvailableActions.Add(travelCommand);
 
-            if (_player.ExhaustionPercent > 0)
-            {
-                var sleepCommand = SleepCommand;
-                sleepCommand.Player = _player;
-                AvailableActions.Add(sleepCommand);
-            }
+       
+            var sleepCommand = SleepCommand;
+            sleepCommand.Player = _player;
+            AvailableActions.Add(sleepCommand);
+            
 
             if (_player.Armor.Count > 0 || _player.IsArmed)
             {
@@ -123,7 +122,7 @@ namespace text_survival
         {
             UpdatePossibleActions();
             Output.WriteLine();
-            Describe.DescribeSurvivalStats(_player);
+            _player.DescribeSurvivalStats();
             Output.WriteLine();
             Output.WriteLine("What would you like to do?");
             List<string> actionNames = AvailableActions.Select(action => action.Name).ToList();
@@ -162,7 +161,6 @@ namespace text_survival
         {
             Describe.DescribeLevel(player);
             Describe.DescribePrimaryAttributes(player);
-            Describe.DescribeSecondaryAttributes(player);
             Describe.DescribeSkills(player);
             Output.WriteLine("Press any key to continue...");
             Console.ReadKey(true);

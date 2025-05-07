@@ -8,15 +8,15 @@ namespace text_survival.Survival
         public double BodyTemperature { get; private set; }
         public bool IsWarming { get; private set; }
         public TemperatureEnum TemperatureEffect { get; private set; }
-        public double FeelsLike => Player.CurrentZone.GetTemperature() + Player.WarmthBonus;
-        private Player Player { get; set; }
-        
 
-        public TemperatureModule(Player player)
+        public bool IsDangerousTemperature { get; private set; }
+
+        public TemperatureModule()
         {
-            Player = player;
+
             BodyTemperature = BaseBodyTemperature;
             TemperatureEffect = TemperatureEnum.Warm;
+            IsDangerousTemperature = false;
         }
         public enum TemperatureEnum
         {
@@ -28,10 +28,10 @@ namespace text_survival.Survival
             HeatExhaustion,
         }
 
-        public void Update()
+        public void Update(double feelsLikeTemperature)
         {
             TemperatureEnum oldTemperature = TemperatureEffect;
-            UpdateTemperatureTick();
+            UpdateTemperatureTick(feelsLikeTemperature);
             if (oldTemperature != TemperatureEffect)
             {
                 WriteTemperatureEffectMessage(TemperatureEffect);
@@ -98,28 +98,38 @@ namespace text_survival.Survival
                     break;
             }
         }
-        private void UpdateTemperatureTick()
+        private void UpdateTemperatureTick(double feelsLikeTemperature)
         {
             BodyTemperature += .1;
 
             double skinTemp = BodyTemperature - 8.4;
             float rate = 1F / 120F;
-            
-            double tempChange = (FeelsLike - skinTemp) * rate;
+
+            double tempChange = (feelsLikeTemperature - skinTemp) * rate;
             BodyTemperature += tempChange;
-            
+
             IsWarming = tempChange > 0;
 
             UpdateTemperatureEffect();
 
             if (BodyTemperature < 89.6)
             {
-                Player.Damage(1);
+                IsDangerousTemperature = true;
             }
             else if (BodyTemperature >= 104.0)
             {
-                Player.Damage(1);
+                IsDangerousTemperature = true;
             }
+            else
+            {
+                IsDangerousTemperature = false;
+            }
+        }
+
+        public void Describe()
+        {
+            string tempChange = IsWarming ? "Warming up" : "Getting colder";
+            Output.WriteLine("Body Temperature: ", BodyTemperature, "°F (", TemperatureEffect, ")");
         }
     }
 }
