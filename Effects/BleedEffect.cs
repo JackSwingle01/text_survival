@@ -22,7 +22,7 @@ public class BleedEffect : Effect
     {
         if (!IsActive) return;
 
-        double damage = DamagePerHour * Severity;
+        double damage = DamagePerHour / 60 * Severity;
         target.Damage(damage);
         Output.WriteLine($"{target} takes {damage:F2} damage from bleeding.");
 
