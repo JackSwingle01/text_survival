@@ -1,4 +1,3 @@
-using System.Reflection.Metadata.Ecma335;
 using text_survival.IO;
 using text_survival.Items;
 
@@ -65,6 +64,8 @@ public class InventoryManager
             return rating;
         }
     }
+
+    public double EquipmentWarmth => (HeldItem?.Warmth ?? 0) + Armor.Sum(a => a.Warmth);
 
     public void Equip(IEquippable item)
     {
@@ -146,7 +147,7 @@ public class InventoryManager
             Output.WriteLine(Inventory, " (", Inventory.Weight(), "/", Inventory.MaxWeight, "):");
             var options = Inventory.GetStackedItemList();
             int index = Input.GetSelectionFromList(options, true, "Close " + Inventory) - 1;
-            if (index == -1) 
+            if (index == -1)
                 return;
 
             string itemName = options[index];

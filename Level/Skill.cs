@@ -8,17 +8,15 @@ namespace text_survival.Level
     {
         public int Xp;
         public int Level { get; private set; }
-        public SkillType Type { get; set; }
+        public string Name { get; set; }
         public int LevelUpThreshold => (Level) * 10;
 
-        public Skill(SkillType type)
+        public Skill(string name)
         {
-            Type = type;
+            Name = name;
             Xp = 0;
             Level = 0;
         }
-
-
         public void GainExperience(int xp)
         {
             Xp += xp;
@@ -32,16 +30,12 @@ namespace text_survival.Level
         public void LevelUp()
         {
             Level++;
-            EventHandler.Publish(new SkillLevelUpEvent(this));
             Output.WriteLine("You leveled up ", this, " to level ", Level, "!");
         }
 
-        public override string ToString()
-        {
-            return Type.ToString();
-        }
+        public override string ToString() => Name;
 
-        public void Write()
+        public void Describe()
         {
             Output.Write(this, ": ", Level, " (", Xp, "/", LevelUpThreshold, ")");
         }

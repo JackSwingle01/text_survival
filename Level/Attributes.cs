@@ -56,7 +56,5 @@
                     throw new ArgumentOutOfRangeException(nameof(primaryAttribute), primaryAttribute, null);
             }
         }
-
-
     }
 }

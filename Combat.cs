@@ -30,7 +30,6 @@ namespace text_survival
 
             if (!player.IsAlive)
                 Output.WriteDanger("You died!");
-
             else if (!enemy.IsAlive)
             {
                 Output.WriteLine("You killed ", enemy, "!");
@@ -43,6 +42,7 @@ namespace text_survival
             CastSpell,
             Flee
         }
+
         public static void PlayerTurn(Player player, ICombatant enemy)
         {
             Output.WriteLine("What do you want to do?");
@@ -61,119 +61,33 @@ namespace text_survival
                 case CombatActions.CastSpell:
                     player.SelectSpell();
                     break;
-                case CombatActions.Flee when Combat.SpeedCheck(player, enemy):
-                    Output.WriteLine("You got away!");
-                    enemy.IsEngaged = false;
-                    player.IsEngaged = false;
-                    return; // end combat
                 case CombatActions.Flee:
-                    Output.WriteLine("You weren't fast enough to get away from ", enemy, "!");
+                    if (SpeedCheck(player, enemy))
+                    {
+                        Output.WriteLine("You got away!");
+                        enemy.IsEngaged = false;
+                        player.IsEngaged = false;
+                    }
+                    else
+                    {
+                        Output.WriteLine("You weren't fast enough to get away from ", enemy, "!");
+                        player.Skills.AddExperience("Athletics", 1); // XP for flee attempt
+                    }
                     break;
-                default:
-                    break;
             }
-        }
-
-
-        /// <summary>
-        /// Calculates the damage of an attack.
-        /// </summary>
-        /// <param name="baseDamage">The attacker's base damage (weapon or unarmed)</param>
-        /// <param name="strength">The attacker's strength attribute</param>
-        /// <param name="skillBonus">The damage bonus from attacker's skills</param>
-        /// <param name="otherModifiers">Multiplier so 1 does nothing.</param>
-        /// <returns>Damage dealt in hp</returns>
-        public static double CalculateAttackDamage(
-            double baseDamage,
-            double strength,
-            double skillBonus = 0,
-            double otherModifiers = 1)
-        {
-            double strengthModifier = (strength + 50) / 100;
-            double damage = baseDamage + skillBonus;
-            damage *= strengthModifier * otherModifiers;
-
-            damage *= Utils.RandDouble(.5, 2); // randomize damage
-
-            if (damage < 0)
-                damage = 0;
-
-            return damage;
-        }
-
-        /// <summary>
-        /// Calculates dodge chance, 1 is 100% chance to dodge, 0 is 0% chance to dodge.
-        /// </summary>
-        /// <param name="agility"></param>
-        /// <param name="speed"></param>
-        /// <param name="attackerSpeed"></param>
-        /// <param name="luck"></param>
-        /// <param name="dodgeLevel"></param>
-        /// <returns>dodge chance from 0-1</returns>
-        public static double CalculateDodgeChance(double speed, double attackerSpeed, double luck,
-            double dodgeLevel = 0)
-        {
-            double baseDodge = (dodgeLevel + luck / 10) / 200;
-            double speedDiff = speed - attackerSpeed;
-            double chance = baseDodge + speedDiff;
-            return chance;
-        }
-
-        /// <summary>
-        /// Determines if the defender dodges the attack.
-        /// </summary>
-        /// <param name="attacker"></param>
-        /// <param name="defender"></param>
-        /// <returns>True if the defender dodges, false if not.</returns>
-        public static bool DetermineDodge(ICombatant attacker, ICombatant defender)
-        {
-            double dodgeChance = defender.DetermineDodgeChance(attacker);
-            double dodgeRoll = Utils.RandDouble(0, 100);
-            if (dodgeRoll <= dodgeChance)
-            {
-                Output.WriteLine(defender.Name + " dodged the attack!");
-                return true;
-            }
-            return false;
-        }
-
-        public static bool DetermineHit(ICombatant attacker, ICombatant defender)
-        {
-            double hitChance = attacker.DetermineHitChance(defender); // 0-1
-            double roll = Utils.RandDouble(0, 1);
-            if (roll > hitChance)
-            {
-                Output.WriteLine(attacker, " missed ", defender, "!");
-                return false;
-            }
-            return true;
-        }
-
-        public static bool DetermineBlock(ICombatant attacker, ICombatant defender)
-        {
-            double blockChance = defender.DetermineBlockChance(attacker);
-            double roll = Utils.RandDouble(0, 1);
-
-            if (!(roll < blockChance)) return false;
-
-            Output.WriteLine(defender, " blocked ", attacker, "'s attack!");
-            return true;
         }
 
         public static bool SpeedCheck(Player player, ICombatant? enemy = null)
         {
             if (player.CurrentLocation.IsSafe) return true;
 
-            // if no enemy is passed in, get the fastest enemy
             enemy ??= GetFastestNpc(player.CurrentLocation);
 
-            // compare player to fastest enemy
             double playerCheck = CalcSpeedCheck(player);
             double enemyCheck = CalcSpeedCheck(enemy);
 
-            return !(playerCheck < enemyCheck);
+            return playerCheck >= enemyCheck;
         }
-
 
         public static Npc GetFastestNpc(Location location)
         {
@@ -184,7 +98,7 @@ namespace text_survival
                 if (npc == fastestNpc) continue;
                 if (!npc.IsAlive) continue;
                 var currentNpcCheck = CalcSpeedCheck(npc);
-                if (!(currentNpcCheck >= enemyCheck)) continue;
+                if (currentNpcCheck < enemyCheck) continue;
                 fastestNpc = npc;
                 enemyCheck = currentNpcCheck;
             }
@@ -193,7 +107,8 @@ namespace text_survival
 
         public static double CalcSpeedCheck(ICombatant actor)
         {
-            return actor.Attributes.Speed + actor.Attributes.Luck / 2;
+            double athleticsBonus = actor.Skills.GetLevel("Athletics");
+            return actor.Attributes.Speed + actor.Attributes.Luck / 2 + athleticsBonus;
         }
     }
 }

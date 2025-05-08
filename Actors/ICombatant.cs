@@ -1,18 +1,22 @@
 ﻿
+using text_survival.Items;
 using text_survival.Level;
 
 namespace text_survival.Actors
 {
     public interface ICombatant : IActor
     {
-        public bool IsAlive { get; }
-        public bool IsEngaged { get; set; }
-        public Attributes Attributes { get; }
-        public void Attack(ICombatant target);
-        public double DetermineDamage();
-        public double DetermineHitChance(ICombatant defender);
-        public double DetermineDodgeChance(ICombatant attacker);
-        public double DetermineBlockChance(ICombatant attacker);
+        bool IsAlive { get; }
+        bool IsEngaged { get; set; }
+        Weapon ActiveWeapon { get; }
+        Attributes Attributes { get; }
+        Skills Skills {get;}
+        double ConditionPercent { get; }
+        void Attack(ICombatant target);
+        // double DetermineDamage();
+        // double DetermineHitChance(ICombatant defender);
+        // double DetermineDodgeChance(ICombatant attacker);
+        // double DetermineBlockChance(ICombatant attacker);
 
     }
 }

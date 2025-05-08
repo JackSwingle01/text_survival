@@ -16,17 +16,18 @@ namespace text_survival
         public bool IsAlive => SurvivalStats.IsAlive;
         private SurvivalManager SurvivalStats { get; }
         private InventoryManager InventoryManager { get; }
+        private CombatManager CombatManager { get; }
+
+        public Weapon ActiveWeapon => InventoryManager.Weapon;
 
         public bool IsArmed => InventoryManager.IsArmed;
         public bool IsArmored => InventoryManager.IsArmored;
-
+        public double EquipmentWarmth => InventoryManager.EquipmentWarmth;
+        public double ConditionPercent => SurvivalStats.OverallConditionPercent;
         public void Sleep(int minutes)
         {
             SurvivalStats.Sleep(minutes);
         }
-        public void AddWarmthBonus(double warmth) => SurvivalStats.WarmthBonus += warmth;
-        public void RemoveWarmthBonus(double warmth) => SurvivalStats.WarmthBonus -= warmth;
-
         public void ApplyEffect(IEffect e) => SurvivalStats.AddEffect(e);
         public void RemoveEffect(string effectType) => SurvivalStats.RemoveEffect(effectType);
 
@@ -92,18 +93,10 @@ namespace text_survival
                 Output.WriteLine(value.Description);
             }
         }
-        // inventory
 
         public Attributes Attributes { get; }
         public Skills Skills { get; }
 
-        // // buffs
-        // public List<Buff> Buffs { get; }
-        // public bool HasBuff(BuffType type) => Buffs.Any(b => b.Type == type);
-        // public Buff? GetBuff(BuffType type) => Buffs.FirstOrDefault(b => b.Type == type);
-
-
-        // combat
         public bool IsEngaged { get; set; }
 
         // spells
@@ -115,22 +108,15 @@ namespace text_survival
         {
             // stats
             Name = "Player";
-            // Level = 0;
-            // Experience = 0;
-            // SkillPoints = 0;
 
             SurvivalStats = new SurvivalManager(this, true, BodyPartFactory.CreateHumanBody("Player", 100));
-
-            // lists
-            // Buffs = [];
+            InventoryManager = new InventoryManager();
+            CombatManager = new CombatManager(this);
 
             Spells = [];
-            // objects
+
             Attributes = new Attributes();
             Skills = new Skills();
-            InventoryManager = new InventoryManager();
-
-            // starting items
 
             // starting spells
             Spells.Add(SpellFactory.Bleeding);
@@ -140,8 +126,7 @@ namespace text_survival
             Map = new WorldMap(location.ParentZone);
             _currentLocation = location;
             location.Visited = true;
-            // events
-            // EventHandler.Subscribe<SkillLevelUpEvent>(OnSkillLeveledUp);
+
         }
 
         #endregion Constructor
@@ -190,76 +175,6 @@ namespace text_survival
             InventoryManager.AddToInventory(item);
         }
 
-        public double DetermineDamage()
-        {
-            // skill bonus
-            double skillBonus = 0;
-            if (!InventoryManager.IsArmed)
-                skillBonus = Skills.Unarmed.Level;
-            else if (InventoryManager.Weapon.Class == WeaponClass.Blade)
-                skillBonus = Skills.Blade.Level;
-            else if (InventoryManager.Weapon.Class == WeaponClass.Blunt)
-                skillBonus = Skills.Blunt.Level;
-
-            // other modifiers
-            double conditionModifier = (2 - (SurvivalStats.OverallConditionPercent / 100)) / 2 + .1;
-
-            double damage = Combat.CalculateAttackDamage(
-                InventoryManager.Weapon.Damage, Attributes.Strength, skillBonus, conditionModifier);
-            return damage;
-        }
-
-        public double DetermineHitChance(ICombatant attacker) => InventoryManager.Weapon.Accuracy;
-
-        public double DetermineDodgeChance(ICombatant attacker)
-        {
-            return Combat.CalculateDodgeChance(
-                Attributes.Speed,
-                attacker.Attributes.Speed,
-                Attributes.Luck,
-                Skills.Dodge.Level);
-        }
-
-        public double DetermineBlockChance(ICombatant attacker)
-        {
-            double block = (InventoryManager.Weapon.BlockChance * 100 + (Attributes.Luck + Attributes.Strength) / 3) / 2 + Skills.Block.Level;
-            return block / 100;
-        }
-
-        public void Attack(ICombatant target)
-        {
-            // attack event
-            var e = new CombatEvent(EventType.OnAttack, this, target);
-            e.Weapon = InventoryManager.Weapon;
-            EventHandler.Publish(e);
-
-            // determine damage
-            double damage = DetermineDamage();
-
-            // check for dodge and miss
-            if (Combat.DetermineDodge(this, target)) return; // if target dodges
-            if (!Combat.DetermineHit(this, target)) return; // if attacker misses
-            if (Combat.DetermineBlock(this, target)) return; // if target blocks
-
-            Output.WriteLine(this, " attacked ", target, " for ", Math.Round(damage, 1), " damage!");
-
-            // trigger hit event
-            e = new CombatEvent(EventType.OnHit, this, target)
-            {
-                Damage = damage
-            };
-            EventHandler.Publish(e);
-
-            // apply damage
-            target.Damage(damage);
-
-            // apply xp
-            HandleAttackXpGain();
-            Thread.Sleep(1000);
-        }
-
-        // Spell //
-
         public void SelectSpell()
         {
             //get spell
@@ -289,7 +204,7 @@ namespace text_survival
         public void CastSpell(Spell spell, ICombatant target)
         {
             spell.Cast(target);
-            HandleSpellXpGain(spell);
+            Skills.AddExperience("Shamanism", 2);
         }
 
         public void Damage(double amount)
@@ -305,48 +220,7 @@ namespace text_survival
         public void OpenInventory() => InventoryManager.Open(this);
         internal void DescribeSurvivalStats() => SurvivalStats.Describe();
 
-
-        private void HandleAttackXpGain()
-        {
-            switch (InventoryManager.Weapon.Class)
-            {
-                case WeaponClass.Blade:
-                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Blade));
-                    break;
-                case WeaponClass.Blunt:
-                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Blunt));
-                    break;
-                case WeaponClass.Unarmed:
-                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Unarmed));
-                    break;
-                default:
-                    Output.WriteDanger("Unknown weapon type.");
-                    break;
-            }
-        }
-
-        public void HandleArmorXpGain()
-        {
-            if (InventoryManager.Armor.Any(a => a.Type == ArmorClass.Light))
-                EventHandler.Publish(new GainExperienceEvent(1, SkillType.LightArmor));
-            if (InventoryManager.Armor.Any(a => a.Type == ArmorClass.Heavy))
-                EventHandler.Publish(new GainExperienceEvent(1, SkillType.HeavyArmor));
-        }
-
-        private static void HandleSpellXpGain(Spell spell)
-        {
-            switch (spell.Family)
-            {
-                case Spell.SpellFamily.Destruction:
-                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Destruction));
-                    break;
-                case Spell.SpellFamily.Restoration:
-                    EventHandler.Publish(new GainExperienceEvent(1, SkillType.Restoration));
-                    break;
-                default:
-                    break;
-            }
-        }
+        public void Attack(ICombatant target) => CombatManager.Attack(target);
 
 
         public void Update()
@@ -452,8 +326,4 @@ namespace text_survival
 
         public Command<Player> LeaveCommand => new("Leave " + Name, Leave);
     }
-    // public void Describe(){
-    //     double feelsLikeTemperature = CurrentZone.GetTemperature() + 
-    //     Output.WriteLine("Feels like: ", feelsLikeTemperature, "°F -> ", tempChange);
-    // }
 }

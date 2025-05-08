@@ -1,6 +1,7 @@
 ﻿using text_survival.Actors;
 using text_survival.IO;
 using text_survival.Items;
+using text_survival.Level;
 using text_survival.PlayerComponents;
 
 namespace text_survival
@@ -75,12 +76,8 @@ namespace text_survival
 
         public static void DescribeSkills(Player player)
         {
-            Output.WriteLine("Skills: ");
-            foreach (var skill in player.Skills.All)
-            {
-                Output.WriteLine(skill.Type, ": ", skill.Level, " (", skill.Xp, "/", skill.LevelUpThreshold, ")");
-            }
-        }
+            player.Skills.Describe();
 
+        }
     }
 }

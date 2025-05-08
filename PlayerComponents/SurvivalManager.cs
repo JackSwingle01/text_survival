@@ -113,7 +113,7 @@ class SurvivalManager
 
         if (EnableSurvivalMechanics)
         {
-            double feelsLikeTemp = Owner.CurrentZone.GetTemperature() + WarmthBonus;
+            double feelsLikeTemp = Owner.CurrentZone.GetTemperature() + Owner.EquipmentWarmth;
 
             HungerModule.Update();
             ThirstModule.Update();
@@ -134,7 +134,6 @@ class SurvivalManager
     private ThirstModule ThirstModule { get; }
     private ExhaustionModule ExhaustionModule { get; }
     private TemperatureModule TemperatureModule { get; }
-    public double WarmthBonus { get; set; }
     private List<IEffect> Effects;
 
 

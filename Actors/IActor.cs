@@ -6,7 +6,7 @@ namespace text_survival.Actors
     public interface IActor : IUpdateable, IDamageable, ILocatable
     {
         public string Name { get; }
-
+        public double EquipmentWarmth { get; }
         void ApplyEffect(IEffect effect);
         void RemoveEffect(string effectType);
 
