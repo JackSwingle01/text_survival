@@ -1,6 +1,6 @@
 ﻿using System.Text;
+using System.Collections.Generic;
 using text_survival.IO;
-using text_survival.Magic;
 
 namespace text_survival.Actors
 {
@@ -14,6 +14,7 @@ namespace text_survival.Actors
         public bool IsDestroyed => Health <= 0;
         public List<BodyPart> Parts { get; private set; }
         public BodyPart? Parent { get; private set; }
+        public Dictionary<string, double> Capacities { get; private set; }
 
         public BodyPart(string name, double maxHealth, bool isVital)
         {
@@ -21,10 +22,19 @@ namespace text_survival.Actors
             MaxHealth = maxHealth;
             Health = maxHealth;
             IsVital = isVital;
-            Parts = [];
+            Parts = new List<BodyPart>();
+            Capacities = new Dictionary<string, double>();
         }
+
+        public void AddCapacity(string capacity, double value)
+        {
+            Capacities[capacity] = value;
+        }
+
         public void Damage(double damage)
         {
+            if (IsDestroyed) return;
+
             if (Parts.Count > 0 && Utils.FlipCoin())
             {
                 BodyPart p = Parts[Utils.RandInt(0, Parts.Count - 1)];
@@ -54,6 +64,8 @@ namespace text_survival.Actors
 
         public void Heal(double healing)
         {
+            if (IsDestroyed) return;
+
             if (Parts.Count > 0 && Utils.FlipCoin())
             {
                 BodyPart p = Parts[Utils.RandInt(0, Parts.Count - 1)];
@@ -67,7 +79,6 @@ namespace text_survival.Actors
                     Health = MaxHealth;
                 }
                 OutputHealingMessage(healing);
-
             }
         }
 
@@ -89,6 +100,7 @@ namespace text_survival.Actors
             }
             Output.WriteLine(sb.ToString(), this, " has been destroyed!");
         }
+
         private void OutputHealingMessage(double healing)
         {
             StringBuilder sb = new StringBuilder();
@@ -118,7 +130,5 @@ namespace text_survival.Actors
             return Name;
         }
         #endregion
-
-
     }
 }
