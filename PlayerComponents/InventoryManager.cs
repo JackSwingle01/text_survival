@@ -5,41 +5,36 @@ namespace text_survival.PlayerComponents;
 
 public class InventoryManager
 {
-    public InventoryManager()
+    public InventoryManager(EffectRegistry effectRegistry)
     {
         Armor = [];
         _unarmed = ItemFactory.MakeFists();
         Inventory = new Container("Bag", 10);
+        _effectRegistry = effectRegistry;
     }
     private Container Inventory { get; }
     public List<Armor> Armor { get; }
     public Gear? HeldItem { get; private set; }
-
+    private EffectRegistry _effectRegistry { get; }
     // weapon
     private Weapon? _weapon;
     private readonly Weapon _unarmed;
     public bool IsArmed => Weapon != _unarmed;
     public bool IsArmored => Armor.Count != 0;
+
     public Armor? GetArmorInSpot(EquipSpots spot) => Armor.FirstOrDefault(i => i.EquipSpot == spot);
     public Weapon Weapon
     {
         get => _weapon ?? _unarmed;
         set => _weapon = value;
     }
-    /// <summary>
-    /// Simply adds the item, use TakeItem() if you want to take it from an area.
-    /// </summary>
-    /// <param name="item"></param>
+ 
     public void AddToInventory(Item item)
     {
         Output.WriteLine("You put the ", item, " in your ", Inventory);
         Inventory.Add(item);
     }
 
-    /// <summary>
-    /// Simply removes the item, use DropItem() if you want to drop it.
-    /// </summary>
-    /// <param name="item"></param>
     public void RemoveFromInventory(Item item)
     {
         Output.WriteLine("You take the ", item, " from your ", Inventory);
@@ -74,51 +69,46 @@ public class InventoryManager
             case Weapon weapon:
                 Unequip(Weapon);
                 Weapon = weapon;
-                Inventory.Remove(weapon);
                 break;
             case Armor armor:
                 var oldItem = Armor.FirstOrDefault(i => i.EquipSpot == armor.EquipSpot);
                 if (oldItem != null) Unequip(oldItem);
                 Armor.Add(armor);
-                Inventory.Remove(armor);
                 break;
             case Gear gear:
                 if (HeldItem != null) Unequip(HeldItem);
                 HeldItem = gear;
-                Inventory.Remove(gear);
                 break;
             default:
                 Output.WriteLine("You can't equip that.");
                 return;
         }
-
-
+        Inventory.Remove((Item)item);
+        item.EquipEffects.ForEach(_effectRegistry.AddEffect);
     }
     public void Unequip(IEquippable item)
     {
-        switch (item)
+        if (item is not Gear gear) return;
+        if (item == _unarmed) return;
+            
+        switch (gear)
         {
             case Weapon weapon:
-                {
-                    Weapon = _unarmed;
-                    if (weapon != _unarmed) Inventory.Add(weapon);
-                    break;
-                }
+                Weapon = _unarmed;
+                break;
             case Armor armor:
                 Armor.Remove(armor);
-                Inventory.Add(armor);
                 break;
-            case Gear gear:
+            case Gear g:
                 HeldItem = null;
-                Inventory.Add(gear);
                 break;
             default:
                 Output.WriteLine("You can't unequip that.");
                 return;
         }
-
-        if (item != _unarmed)
-            Output.WriteLine("You unequip ", item);
+        Output.WriteLine("You unequip ", gear);
+        Inventory.Add(gear);
+        gear.EquipEffects.ForEach(_effectRegistry.RemoveEffect);
     }
     public void CheckGear()
     {
@@ -154,7 +144,7 @@ public class InventoryManager
             itemName = Inventory.ExtractStackedItemName(itemName);
             Item item = Inventory.GetItemByName(itemName); //Items.First(i => i.Name.StartsWith(itemName));
             Output.WriteLine("What would you like to do with ", item);
-            int choice = Input.GetSelectionFromList(new List<string>() { "Use", "Inspect", "Drop" }, true);
+            int choice = Input.GetSelectionFromList(["Use", "Inspect", "Drop"], true);
             switch (choice)
             {
                 case 0:

@@ -1,6 +1,7 @@
 ﻿using text_survival.Environments;
 using text_survival.Interfaces;
 using text_survival.IO;
+using text_survival.PlayerComponents;
 
 namespace text_survival
 {
@@ -170,38 +171,7 @@ namespace text_survival
 
         private void Travel(Player player)
         {
-            Output.WriteLine("Where would you like to go?");
-
-            Output.WriteLine(1, ". North: ", (player.Map.North.Visited ? player.Map.North.Name : " Unknown"));
-            Output.WriteLine(2, ". East: ", (player.Map.East.Visited ? player.Map.East.Name : " Unknown"));
-            Output.WriteLine(3, ". South: ", (player.Map.South.Visited ? player.Map.South.Name : " Unknown"));
-            Output.WriteLine(4, ". West: ", (player.Map.West.Visited ? player.Map.West.Name : " Unknown"));
-
-            //options.ForEach(opt =>
-            //{
-            //    Output.Write(options.IndexOf(opt) + 1, ". ", opt); // "1. Name"
-            //    if (opt.Visited)
-            //        Output.Write(" (Visited)");
-            //    Output.WriteLine();
-            //});
-
-            Output.WriteLine("0. Cancel");
-            int input = Input.ReadInt(0, 4);
-
-            if (input == 0) return;
-
-            int minutes = Utils.RandInt(30, 60);
-            Output.WriteLine("You travel for ", minutes, " minutes...");
-
-            if (input == 1)
-                player.CurrentZone = player.Map.North;
-            else if (input == 2)
-                player.CurrentZone = player.Map.East;
-            else if (input == 3)
-                player.CurrentZone = player.Map.South;
-            else if (input == 4)
-                player.CurrentZone = player.Map.West;
-            World.Update(minutes);
+            player.Travel();
         }
 
 

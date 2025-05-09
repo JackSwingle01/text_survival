@@ -1,15 +1,13 @@
-using System.Buffers;
 using text_survival.Actors;
-using text_survival.Actors.text_survival.Actors;
 using text_survival.Effects;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Survival;
 namespace text_survival.PlayerComponents;
 
-class SurvivalManager
+class SurvivalManager : ISurvivalSystem
 {
-    public SurvivalManager(IActor owner, bool enableSurvivalMechanics, BodyPart body)
+    public SurvivalManager(IActor owner, EffectRegistry effectRegistry, bool enableSurvivalMechanics, BodyPart body)
     {
         Owner = owner;
         EnableSurvivalMechanics = enableSurvivalMechanics;
@@ -18,28 +16,13 @@ class SurvivalManager
         ExhaustionModule = new ExhaustionModule();
         TemperatureModule = new TemperatureModule();
         Body = body;
-        Effects = [];
+        _effectRegistry = effectRegistry;
     }
 
-    public void AddEffect(IEffect e)
-    {
-        Effects.Add(e);
-        e.Apply(Owner);
-    }
-    public void RemoveEffect(string effectType)
-    {
-        List<IEffect> effectsToRemove = Effects.FindAll(e => e.EffectType == effectType && e.IsActive);
-        foreach (Effect e in effectsToRemove.Cast<Effect>())
-        {
-            e.Remove(Owner);
-            Effects.Remove(e);
-        }
-    }
-    public void RemoveEffect(IEffect effect)
-    {
-        effect.Remove(Owner);
-        Effects.Remove(effect);
-    }
+    private readonly EffectRegistry _effectRegistry;
+    // public void AddEffect(IEffect effect) => _effectRegistry.AddEffect(effect);
+    // public void RemoveEffect(string effectType) => _effectRegistry.RemoveEffect(effectType);
+    
     public void Heal(double heal) => Body.Heal(heal);
     public void Damage(double damage)
     {
@@ -104,12 +87,7 @@ class SurvivalManager
 
     public void Update()
     {
-        // apply effects first
-        foreach (Effect effect in Effects)
-        {
-            effect.Update(Owner);
-        }
-        Effects.RemoveAll(e => !e.IsActive);
+
 
         if (EnableSurvivalMechanics)
         {
@@ -134,15 +112,13 @@ class SurvivalManager
     private ThirstModule ThirstModule { get; }
     private ExhaustionModule ExhaustionModule { get; }
     private TemperatureModule TemperatureModule { get; }
-    private List<IEffect> Effects;
-
 
     // general condition, for now avg of exhaustion and body health
-    public double OverallConditionPercent => (ExhaustionModule.ExhaustionPercent + (Body.Health / Body.MaxHealth * 100)) / 2;
+    public double ConditionPercent => (ExhaustionModule.ExhaustionPercent + (Body.Health / Body.MaxHealth * 100)) / 2;
     public bool IsAlive => !Body.IsDestroyed;
 
 
-    internal void Describe()
+    public void Describe()
     {
         HungerModule.Describe();
         ThirstModule.Describe();

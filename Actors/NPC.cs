@@ -1,5 +1,4 @@
-﻿using text_survival.Actors;
-using text_survival.Actors.text_survival.Actors;
+﻿
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Interfaces;
@@ -23,8 +22,9 @@ namespace text_survival.Actors
         public bool IsEngaged { get; set; }
         public Attributes Attributes { get; }
         public Skills Skills { get; }
-        public double ConditionPercent => SurvivalManager.OverallConditionPercent;
+        public double ConditionPercent => SurvivalManager.ConditionPercent;
         public IClonable<Npc>.CloneDelegate Clone { get; set; }
+        private EffectRegistry _effectRegistry { get; }
         private SurvivalManager SurvivalManager { get; }
         private InventoryManager InventoryManager { get; }
         public bool IsArmed => InventoryManager.IsArmed;
@@ -49,10 +49,11 @@ namespace text_survival.Actors
             {
                 body = BodyPartFactory.CreateGenericBody(name, health);
             }
-            SurvivalManager = new SurvivalManager(this, false, body);
-            InventoryManager = new InventoryManager();
+            _effectRegistry = new(this);
+            SurvivalManager = new SurvivalManager(this, _effectRegistry, false, body);
+            InventoryManager = new InventoryManager(_effectRegistry);
             InventoryManager.Weapon = new Weapon(WeaponType.Unarmed, WeaponMaterial.Other);
-            Skills = new Skills(this is Humanoid); 
+            Skills = new Skills(this is Humanoid);
             Loot = new Container(name, 10);
             IsHostile = true;
             Description = "";
@@ -124,16 +125,9 @@ namespace text_survival.Actors
         }
 
         public void AddLoot(Item item) => Loot.Add(item);
-        public void AddLoot(List<Item> items)
-        {
-            foreach (Item item in items)
-            {
-                Loot.Add(item);
-            }
-        }
 
-        public void ApplyEffect(IEffect effect) => SurvivalManager.AddEffect(effect);
-        public void RemoveEffect(string effectType) => SurvivalManager.RemoveEffect(effectType);
+        public void ApplyEffect(IEffect effect) => _effectRegistry.AddEffect(effect);
+        public void RemoveEffect(string effectType) => _effectRegistry.RemoveEffect(effectType);
 
         public override string ToString() => Name;
 

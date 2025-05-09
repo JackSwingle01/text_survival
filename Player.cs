@@ -1,5 +1,4 @@
 ﻿using text_survival.Actors;
-using text_survival.Actors.text_survival.Actors;
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.IO;
@@ -12,92 +11,57 @@ namespace text_survival
 {
     public class Player : ICombatant, ISpellCaster
     {
-        public string Name { get; set; }
-        public bool IsAlive => SurvivalStats.IsAlive;
-        private SurvivalManager SurvivalStats { get; }
-        private InventoryManager InventoryManager { get; }
-        private CombatManager CombatManager { get; }
 
-        public Weapon ActiveWeapon => InventoryManager.Weapon;
-
-        public bool IsArmed => InventoryManager.IsArmed;
-        public bool IsArmored => InventoryManager.IsArmored;
-        public double EquipmentWarmth => InventoryManager.EquipmentWarmth;
-        public double ConditionPercent => SurvivalStats.OverallConditionPercent;
-        public void Sleep(int minutes)
-        {
-            SurvivalStats.Sleep(minutes);
-        }
-        public void ApplyEffect(IEffect e) => SurvivalStats.AddEffect(e);
-        public void RemoveEffect(string effectType) => SurvivalStats.RemoveEffect(effectType);
-
-        // area
-        public WorldMap Map { get; }
-
-        public Location CurrentLocation
-        {
-            get
-            {
-                return _currentLocation;
-            }
-            set
-            {
-                Output.WriteLine("You go to the ", value);
-                int minutes = Utils.RandInt(1, 10);
-                World.Update(minutes);
-                Output.WriteLine("You arrive at the ", value, " after walking ", minutes, " minutes.");
-                _currentLocation = value;
-                Output.WriteLine("You should probably look around.");
-            }
-        }
-        private Location _currentLocation;
-        public Zone CurrentZone
-        {
-            get
-            {
-                return Map.CurrentZone;
-            }
-            set
-            {
-                if (CurrentZone == value)
-                {
-                    Output.WriteLine("There's nowhere to leave. Travel instead.");
-                    return;
-                }
-                if (Map.North == value)
-                {
-                    Output.WriteLine("You go north.");
-                    Map.MoveNorth();
-                }
-                else if (Map.East == value)
-                {
-                    Output.WriteLine("You go east.");
-                    Map.MoveEast();
-                }
-                else if (Map.South == value)
-                {
-                    Output.WriteLine("You go south.");
-                    Map.MoveSouth();
-                }
-                else if (Map.West == value)
-                {
-                    Output.WriteLine("You go west.");
-                    Map.MoveWest();
-                }
-                else
-                    throw new Exception("Invalid zone.");
-                Location? newLocation = Utils.GetRandomFromList(value.Locations);
-
-                CurrentLocation = newLocation ?? throw new Exception("No Locations In Zone");
-                Output.WriteLine("You enter ", value);
-                Output.WriteLine(value.Description);
-            }
-        }
-
-        public Attributes Attributes { get; }
+        private SurvivalManager SurvivalSys { get; }
+        private InventoryManager InventorySys { get; }
+        private CombatManager CombatSys { get; }
+        private LocationManager LocationSys { get; }
+        private EffectRegistry EffectRegistry { get; }
         public Skills Skills { get; }
 
+
+
+        // ICombatant implementation - delegate to components
         public bool IsEngaged { get; set; }
+        public bool IsAlive => SurvivalSys.IsAlive;
+        public double ConditionPercent => SurvivalSys.ConditionPercent;
+        public Weapon ActiveWeapon => InventorySys.Weapon;
+        public bool IsArmed => InventorySys.IsArmed;
+        public bool IsArmored => InventorySys.IsArmored;
+        public double EquipmentWarmth => InventorySys.EquipmentWarmth;
+
+        // Delegate methods to appropriate components
+
+        public void Heal(double amount) => SurvivalSys.Heal(amount);
+        public void Attack(ICombatant target) => CombatSys.Attack(target);
+        public void Sleep(int minutes) => SurvivalSys.Sleep(minutes);
+        public void ApplyEffect(IEffect effect) => EffectRegistry.AddEffect(effect);
+        public void RemoveEffect(string effectType) => EffectRegistry.RemoveEffect(effectType);
+        public void RemoveEffect(IEffect effect) => EffectRegistry.RemoveEffect(effect);
+        public void OpenInventory() => InventorySys.Open(this);
+
+        // Location-related methods
+        public Location CurrentLocation
+        {
+            get => LocationSys.CurrentLocation;
+            set => LocationSys.CurrentLocation = value;
+        }
+
+        public Zone CurrentZone
+        {
+            get => LocationSys.CurrentZone;
+            set => LocationSys.CurrentZone = value;
+        }
+
+        public void Update()
+        {
+            EffectRegistry.Update();
+            SurvivalSys.Update();
+        }
+
+
+
+        public Attributes Attributes { get; }
 
         // spells
         public List<Spell> Spells { get; }
@@ -108,11 +72,11 @@ namespace text_survival
         {
             // stats
             Name = "Player";
-
-            SurvivalStats = new SurvivalManager(this, true, BodyPartFactory.CreateHumanBody("Player", 100));
-            InventoryManager = new InventoryManager();
-            CombatManager = new CombatManager(this);
-
+            EffectRegistry = new(this);
+            SurvivalSys = new SurvivalManager(this, EffectRegistry, true, BodyPartFactory.CreateHumanBody("Player", 100));
+            InventorySys = new(EffectRegistry);
+            CombatSys = new CombatManager(this);
+            LocationSys = new LocationManager(location);
             Spells = [];
 
             Attributes = new Attributes();
@@ -122,33 +86,9 @@ namespace text_survival
             Spells.Add(SpellFactory.Bleeding);
             Spells.Add(SpellFactory.Poison);
             Spells.Add(SpellFactory.MinorHeal);
-            // map
-            Map = new WorldMap(location.ParentZone);
-            _currentLocation = location;
-            location.Visited = true;
-
         }
 
         #endregion Constructor
-
-
-        public void EquipItem(IEquippable item)
-        {
-            Output.WriteLine("You equip the ", item);
-            InventoryManager.Equip(item);
-            foreach (IEffect effect in item.EquipEffects)
-            {
-                ApplyEffect(effect);
-            }
-        }
-        public void UnequipItem(IEquippable item)
-        {
-            InventoryManager.Unequip(item);
-            foreach (IEffect effect in item.EquipEffects)
-            {
-                SurvivalStats.RemoveEffect(effect);
-            }
-        }
 
 
 
@@ -158,21 +98,16 @@ namespace text_survival
         /// <param name="item"></param>
         public void DropItem(Item item)
         {
-            InventoryManager.RemoveFromInventory(item);
+            InventorySys.RemoveFromInventory(item);
             Output.WriteLine("You drop the ", item);
-            CurrentLocation.PutThing(item);
+            LocationSys.AddItemToLocation(item);
         }
 
-        /// <summary>
-        /// Removes an item from the area's items and adds it to the player's inventory
-        /// </summary>
-        /// <param name="item"></param>
         public void TakeItem(Item item)
         {
-            if (CurrentLocation.ContainsThing(item))
-                CurrentLocation.RemoveThing(item);
+            LocationSys.RemoveItemFromLocation(item);
             Output.WriteLine("You take the ", item);
-            InventoryManager.AddToInventory(item);
+            InventorySys.AddToInventory(item);
         }
 
         public void SelectSpell()
@@ -209,24 +144,16 @@ namespace text_survival
 
         public void Damage(double amount)
         {
-            SurvivalStats.Damage(amount);
-            if (!SurvivalStats.IsAlive)
+            SurvivalSys.Damage(amount);
+            if (!SurvivalSys.IsAlive)
             {
                 // end program
                 Environment.Exit(0);
             }
         }
-        public void Heal(double amount) => SurvivalStats.Heal(amount);
-        public void OpenInventory() => InventoryManager.Open(this);
-        internal void DescribeSurvivalStats() => SurvivalStats.Describe();
 
-        public void Attack(ICombatant target) => CombatManager.Attack(target);
+        internal void DescribeSurvivalStats() => SurvivalSys.Describe();
 
-
-        public void Update()
-        {
-            SurvivalStats.Update();
-        }
 
         public void UseItem(Item item)
         {
@@ -235,7 +162,7 @@ namespace text_survival
             {
                 string eating_type = food.WaterContent > food.Calories ? "drink" : "eat";
                 Output.Write($"You {eating_type} the ", food, "...");
-                SurvivalStats.ConsumeFood(food);
+                SurvivalSys.ConsumeFood(food);
             }
             else if (item is ConsumableItem consumable)
             {
@@ -244,19 +171,21 @@ namespace text_survival
                     ApplyEffect(e);
                 }
             }
-            else if (item is Armor armor)
+            else if (item is Gear gear)
             {
-                EquipItem(armor);
+                Output.WriteLine("You equip the ", gear);
+                InventorySys.Equip(gear);
+                foreach (IEffect effect in gear.EquipEffects)
+                {
+                    ApplyEffect(effect);
+                }
             }
-            else if (item is Weapon weapon)
-            {
-                EquipItem(weapon);
-            }
+
             else if (item is WeaponModifierItem weaponMod)
             {
                 if (ModifyWeapon(weaponMod.Damage))
                 {
-                    Output.WriteLine("You use the ", weaponMod, " to modify your ", InventoryManager.Weapon);
+                    Output.WriteLine("You use the ", weaponMod, " to modify your ", InventorySys.Weapon);
                 }
                 else
                 {
@@ -287,7 +216,7 @@ namespace text_survival
                 item.NumUses -= 1;
                 if (item.NumUses == 0)
                 {
-                    InventoryManager.RemoveFromInventory(item);
+                    InventorySys.RemoveFromInventory(item);
                 }
             }
             World.Update(1);
@@ -297,12 +226,12 @@ namespace text_survival
         {
             if (!IsArmed) return false;
 
-            InventoryManager.Weapon.Damage += damage;
+            InventorySys.Weapon.Damage += damage;
             return true;
         }
         public bool ModifyArmor(EquipSpots spot, double rating = 0, double warmth = 0)
         {
-            Armor? armor = InventoryManager.GetArmorInSpot(spot);
+            Armor? armor = InventorySys.GetArmorInSpot(spot);
             if (armor is null) return false;
 
             armor.Rating += rating;
@@ -310,20 +239,13 @@ namespace text_survival
             return true;
         }
 
-        public void Leave(Player player)
-        {
-            if (CurrentLocation.Parent is null)
-            {
-                Output.WriteLine("There's nowhere to leave. Travel instead.");
-            }
-            else if (CurrentLocation.Parent is Location l)
-            {
-                CurrentLocation = l;
-            }
-        }
-
+        public string Name { get; set; }
         public override string ToString() => Name;
 
-        public Command<Player> LeaveCommand => new("Leave " + Name, Leave);
+        public void Travel() => LocationSys.TravelToAdjacentZone();
+
+        public Command<Player> LeaveCommand => new("Leave " + Name, p => LocationSys.Leave());
+
+
     }
 }
