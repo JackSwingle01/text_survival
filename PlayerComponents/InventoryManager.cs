@@ -28,7 +28,7 @@ public class InventoryManager
         get => _weapon ?? _unarmed;
         set => _weapon = value;
     }
- 
+
     public void AddToInventory(Item item)
     {
         Output.WriteLine("You put the ", item, " in your ", Inventory);
@@ -90,7 +90,7 @@ public class InventoryManager
     {
         if (item is not Gear gear) return;
         if (item == _unarmed) return;
-            
+
         switch (gear)
         {
             case Weapon weapon:
@@ -114,8 +114,7 @@ public class InventoryManager
     {
         Describe.DescribeGear(this);
         Output.WriteLine("Would you like to unequip an item?");
-        int choice = Input.GetSelectionFromList(new List<string> { "Yes", "No" });
-        if (choice != 1) return;
+        if (Input.ReadYesNo()) return;
 
         Output.WriteLine("Which item would you like to unequip?");
         // get list of all equipment
@@ -124,44 +123,41 @@ public class InventoryManager
         if (IsArmed) equipment.Add(Weapon);
         if (HeldItem != null) equipment.Add(HeldItem);
 
-        choice = Input.GetSelectionFromList(equipment, true);
-        if (choice == 0) return;
-        Unequip(equipment[choice - 1]);
+        var choice = Input.GetSelectionFromList(equipment, true);
+        if (choice == null) return;
+        Unequip(choice);
     }
 
-    //todo refactor this so that the logic is handled in the player class
     public void Open(Player player)
     {
         while (!Inventory.IsEmpty)
         {
             Output.WriteLine(Inventory, " (", Inventory.Weight(), "/", Inventory.MaxWeight, "):");
-            var options = Inventory.GetStackedItemList();
-            int index = Input.GetSelectionFromList(options, true, "Close " + Inventory) - 1;
-            if (index == -1)
-                return;
 
-            string itemName = options[index];
-            itemName = Inventory.ExtractStackedItemName(itemName);
-            Item item = Inventory.GetItemByName(itemName); //Items.First(i => i.Name.StartsWith(itemName));
+            var options = ItemStack.CreateStacksFromItems(Inventory.Items);
+            var selection = Input.GetSelectionFromList(options, true, "Close " + Inventory);
+            if (selection == null) return;
+
+            Item item = selection.Take();
+
             Output.WriteLine("What would you like to do with ", item);
-            int choice = Input.GetSelectionFromList(["Use", "Inspect", "Drop"], true);
+            string? choice = Input.GetSelectionFromList(["Use", "Inspect", "Drop"], true);
+
             switch (choice)
             {
-                case 0:
+                case null:
                     continue;
-                case 1:
+                case "Use":
                     player.UseItem(item);
-                    //item.Use(player);
                     break;
-                case 2:
+                case "Inspect":
                     Describe.DescribeItem(item);
                     break;
-                case 3:
+                case "Drop":
                     player.DropItem(item);
                     break;
             }
         }
         Output.WriteLine(Inventory, " is empty.");
-
     }
 }

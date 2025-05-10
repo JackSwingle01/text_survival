@@ -7,7 +7,7 @@ namespace text_survival.Magic
         public static Spell MinorHeal => new Spell(
             "Minor Heal",
             10,
-            new HealEffect(10),
+            new HealEffect(new Bodies.HealingInfo() { Amount = 10, Quality = 1, Type = "magic" }),
             Spell.SpellFamily.Restoration);
 
         public static Spell Bleeding => new Spell(

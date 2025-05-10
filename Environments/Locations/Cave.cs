@@ -25,7 +25,7 @@ namespace text_survival.Environments.Locations
             ForageModule.AddResource(ItemFactory.MakeRock(), 0.5);
         }
 
-        protected override List<Item> itemList => [ItemFactory.MakeMushroom(), ItemFactory.MakeRock(), ItemFactory.MakeGemstone(), ItemFactory.MakeTorch(), Weapon.GenerateRandomWeapon()];
+        protected new LootTable LootTable = new([ItemFactory.MakeMushroom, ItemFactory.MakeRock, ItemFactory.MakeGemstone, ItemFactory.MakeTorch, Weapon.GenerateRandomWeapon]);
         protected override List<Npc> npcList => [NpcFactory.MakeSpider(), NpcFactory.MakeRat(), NpcFactory.MakeSnake(), NpcFactory.MakeBat(), NpcFactory.MakeCaveBear()];
 
         private static readonly List<string> caveNames = ["Cave", "Cavern", "Ravine"];

@@ -1,29 +1,26 @@
-﻿using System.Linq.Expressions;
+﻿
+namespace text_survival.Items;
 
-namespace text_survival.Items
+public class LootTable
 {
-    public class LootTable
+    private List<Func<Item>> itemFactories = [];
+    public LootTable() { }
+    public LootTable(List<Func<Item>> factories)
     {
-        private List<Item> items = [];
-        public LootTable()
-        {
-        }
-        public LootTable(List<Item> items)
-        {
-            this.items = items;
-        }
-        public void AddLoot(Item loot)
-        {
-            items.Add(loot);
-        }
-        public bool IsEmpty()
-        {
-            return items.Count == 0;
-        }
-        public Item GenerateRandomItem()
-        {
-            var loot = Utils.GetRandomFromList(items).Clone();
-            return loot;
-        }
+        itemFactories = factories;
+    }
+    public void AddLootFactory(Func<Item> factory)
+    {
+        itemFactories.Add(factory);
+    }
+    public bool IsEmpty()
+    {
+        return itemFactories.Count == 0;
+    }
+    public Item GenerateRandomItem()
+    {
+        var factory = Utils.GetRandomFromList(itemFactories);
+        return factory();
     }
 }
+

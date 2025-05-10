@@ -123,9 +123,8 @@ namespace text_survival
             _player.DescribeSurvivalStats();
             Output.WriteLine();
             Output.WriteLine("What would you like to do?");
-            List<string> actionNames = AvailableActions.Select(action => action.Name).ToList();
-            int input = Input.GetSelectionFromList(actionNames);
-            var command = AvailableActions[input - 1];
+            // List<string> actionNames = AvailableActions.Select(action => action.Name).ToList();
+            ICommand command = Input.GetSelectionFromList(AvailableActions);
             command.Execute();
         }
 

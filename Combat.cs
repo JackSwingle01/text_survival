@@ -36,32 +36,25 @@ namespace text_survival
             }
         }
 
-        private enum CombatActions
-        {
-            Attack,
-            CastSpell,
-            Flee
-        }
+
 
         public static void PlayerTurn(Player player, ICombatant enemy)
         {
             Output.WriteLine("What do you want to do?");
 
-            List<CombatActions> options = [CombatActions.Attack];
-            if (player.Spells.Count > 0)
-                options.Add(CombatActions.CastSpell);
-            options.Add(CombatActions.Flee);
+            List<string> options = ["Attack", "Cast Spell", "Flee"];
 
-            int choice = Input.GetSelectionFromList(options);
-            switch (options[choice - 1])
+            string? choice = Input.GetSelectionFromList(options);
+
+            switch (choice)
             {
-                case CombatActions.Attack:
+                case "Attack":
                     player.Attack(enemy);
                     break;
-                case CombatActions.CastSpell:
+                case "Cast Spell":
                     player.SelectSpell();
                     break;
-                case CombatActions.Flee:
+                case "Flee":
                     if (SpeedCheck(player, enemy))
                     {
                         Output.WriteLine("You got away!");
@@ -71,9 +64,11 @@ namespace text_survival
                     else
                     {
                         Output.WriteLine("You weren't fast enough to get away from ", enemy, "!");
-                        player.Skills.AddExperience("Athletics", 1); // XP for flee attempt
+                        player._skillRegistry.AddExperience("Athletics", 1); // XP for flee attempt
                     }
                     break;
+                default:
+                    throw new InvalidOperationException("Invalid Selection");
             }
         }
 
@@ -107,7 +102,7 @@ namespace text_survival
 
         public static double CalcSpeedCheck(ICombatant actor)
         {
-            double athleticsBonus = actor.Skills.GetLevel("Athletics");
+            double athleticsBonus = actor._skillRegistry.GetLevel("Athletics");
             return actor.Attributes.Speed + actor.Attributes.Luck / 2 + athleticsBonus;
         }
     }

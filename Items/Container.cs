@@ -11,7 +11,7 @@ namespace text_survival.Items
         public string Name { get => (IsEmpty && HasBeenOpened) ? _name + " (Empty)" : _name; set => _name = value; }
         public double Weight() => Items.Sum(item => item.Weight);
         public float MaxWeight { get; set; }
-        protected List<Item> Items { get; set; }
+        public List<Item> Items { get; }
         public bool IsEmpty => Items.Count == 0;
         protected bool HasBeenOpened { get; set; }
         public bool IsFound { get; set; }
@@ -48,85 +48,49 @@ namespace text_survival.Items
             {
                 Output.WriteLine(this, ":");
 
-                var options = GetStackedItemList();
-                if (Items.Count > 1)
+                var items = new List<Item>(Items);
+                Item takeAll = new Item("Take all");
+                if (items.Count > 1)
                 {
-                    options.Add("Take all");
+                    items.Add(takeAll);
                 }
 
-                int index = Input.GetSelectionFromList(options, true, "Close " + this) - 1;
-                if (index == -1) return;
-                string itemName = options[index];
-                itemName = ExtractStackedItemName(itemName);
+                var itemStacks = ItemStack.CreateStacksFromItems(items);
 
-                if (itemName == "Take all")
+                var selection = Input.GetSelectionFromList(itemStacks, true, "Close " + this);
+                if (selection == null) return;
+
+                Item selectedItem = selection.Take();
+
+                if (selectedItem == takeAll)
                 {
                     TakeAll(player);
                     return;
                 }
 
-                Item item = Items.First(i => i.Name.StartsWith(itemName));
-                Output.WriteLine("What would you like to do with ", item);
-                int choice = Input.GetSelectionFromList(new List<string>() { "Take", "Inspect", "Use" }, true);
+                Output.WriteLine("What would you like to do with ", selectedItem);
+                string? choice = Input.GetSelectionFromList(["Take", "Inspect"], true);
                 switch (choice)
                 {
-                    case 0:
+                    case null:
                         continue;
-                    case 1:
-                        player.TakeItem(item);
-                        Remove(item);
+                    case "Take":
+                        Remove(selectedItem);
+                        player.TakeItem(selectedItem);
                         break;
-                    case 2:
-                        Describe.DescribeItem(item);
+                    case "Inspect":
+                        Describe.DescribeItem(selectedItem);
                         break;
-                    case 3:
-                        Remove(item);
-                        player.UseItem(item);
+                    case "Use":
+                        Remove(selectedItem);
+                        player.TakeItem(selectedItem);
+                        player.UseItem(selectedItem);
                         break;
                 }
             }
             Output.WriteLine(this, " is empty.");
         }
-        public string ExtractStackedItemName(string name)
-        {
-            // This regex pattern looks for the item name followed by an optional space and "x" followed by one or more digits.
-            Match match = Regex.Match(name, @"^(.*?)\s*x\d*$");
-            if (match.Success)
-            {
-                return match.Groups[1].Value.Trim();
-            }
-            return name;
-        }
 
-        public List<string> GetStackedItemList()
-        {
-            var items = new List<string>();
-            var counts = new Dictionary<string, int>();
-            foreach (var item in Items)
-            {
-                if (counts.ContainsKey(item.Name))
-                {
-                    counts[item.Name]++;
-                }
-                else
-                {
-                    counts.Add(item.Name, 1);
-                }
-            }
-
-            foreach (var item in counts)
-            {
-                if (item.Value == 1)
-                {
-                    items.Add(item.Key);
-                }
-                else
-                {
-                    items.Add(item.Key + " x" + item.Value);
-                }
-            }
-            return items;
-        }
 
         private void TakeAll(Player player)
         {

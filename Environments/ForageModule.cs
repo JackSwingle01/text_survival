@@ -19,7 +19,7 @@ namespace text_survival.Environments
                
                 for (int i = 0; i < hours; i++)
                 {
-                    if (Utils.DetermineSucess(chance))
+                    if (Utils.DetermineSuccess(chance))
                     {
                         itemsFound.Add(item.Clone());
                         numberOfHoursForaged++;
@@ -37,6 +37,7 @@ namespace text_survival.Environments
 
         public void AddResource(Item item, double rarity)
         {
+            // todo switch to factory methods instead of the items themselves like the location loot tables
             resourceRarities.Add(item, rarity);
         }
     }

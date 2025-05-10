@@ -1,4 +1,5 @@
 ﻿using text_survival.Actors;
+using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.IO;
@@ -12,80 +13,79 @@ namespace text_survival
     public class Player : ICombatant, ISpellCaster
     {
 
-        private SurvivalManager SurvivalSys { get; }
-        private InventoryManager InventorySys { get; }
-        private CombatManager CombatSys { get; }
-        private LocationManager LocationSys { get; }
-        private EffectRegistry EffectRegistry { get; }
-        public Skills Skills { get; }
+        private SurvivalManager survivalManager;
+        private InventoryManager inventoryManager;
+        private CombatManager combatManager;
+        private LocationManager locationManager;
+        private SpellManager spellManager;
+        private EffectRegistry _effectRegistry;
+
+        public SkillRegistry _skillRegistry { get; }
 
 
 
         // ICombatant implementation - delegate to components
         public bool IsEngaged { get; set; }
-        public bool IsAlive => SurvivalSys.IsAlive;
-        public double ConditionPercent => SurvivalSys.ConditionPercent;
-        public Weapon ActiveWeapon => InventorySys.Weapon;
-        public bool IsArmed => InventorySys.IsArmed;
-        public bool IsArmored => InventorySys.IsArmored;
-        public double EquipmentWarmth => InventorySys.EquipmentWarmth;
+        public bool IsAlive => survivalManager.IsAlive;
+        public double ConditionPercent => survivalManager.ConditionPercent;
+        public Weapon ActiveWeapon => inventoryManager.Weapon;
+        public bool IsArmed => inventoryManager.IsArmed;
+        public bool IsArmored => inventoryManager.IsArmored;
+        public double EquipmentWarmth => inventoryManager.EquipmentWarmth;
 
         // Delegate methods to appropriate components
 
-        public void Heal(double amount) => SurvivalSys.Heal(amount);
-        public void Attack(ICombatant target) => CombatSys.Attack(target);
-        public void Sleep(int minutes) => SurvivalSys.Sleep(minutes);
-        public void ApplyEffect(IEffect effect) => EffectRegistry.AddEffect(effect);
-        public void RemoveEffect(string effectType) => EffectRegistry.RemoveEffect(effectType);
-        public void RemoveEffect(IEffect effect) => EffectRegistry.RemoveEffect(effect);
-        public void OpenInventory() => InventorySys.Open(this);
+        public void Heal(HealingInfo amount) => survivalManager.Heal(amount);
+        public void Attack(ICombatant target) => combatManager.Attack(target);
+        public void Sleep(int minutes) => survivalManager.Sleep(minutes);
+        public void ApplyEffect(IEffect effect) => _effectRegistry.AddEffect(effect);
+        public void RemoveEffect(string effectType) => _effectRegistry.RemoveEffect(effectType);
+        public void RemoveEffect(IEffect effect) => _effectRegistry.RemoveEffect(effect);
+        public void OpenInventory() => inventoryManager.Open(this);
 
         // Location-related methods
         public Location CurrentLocation
         {
-            get => LocationSys.CurrentLocation;
-            set => LocationSys.CurrentLocation = value;
+            get => locationManager.CurrentLocation;
+            set => locationManager.CurrentLocation = value;
         }
 
         public Zone CurrentZone
         {
-            get => LocationSys.CurrentZone;
-            set => LocationSys.CurrentZone = value;
+            get => locationManager.CurrentZone;
+            set => locationManager.CurrentZone = value;
         }
 
         public void Update()
         {
-            EffectRegistry.Update();
-            SurvivalSys.Update();
+            _effectRegistry.Update();
+            survivalManager.Update();
         }
 
 
 
         public Attributes Attributes { get; }
 
-        // spells
-        public List<Spell> Spells { get; }
 
         #region Constructor
 
-        public Player(Location location)
+        public Player(Location startingLocation)
         {
             // stats
             Name = "Player";
-            EffectRegistry = new(this);
-            SurvivalSys = new SurvivalManager(this, EffectRegistry, true, BodyPartFactory.CreateHumanBody("Player", 100));
-            InventorySys = new(EffectRegistry);
-            CombatSys = new CombatManager(this);
-            LocationSys = new LocationManager(location);
-            Spells = [];
-
             Attributes = new Attributes();
-            Skills = new Skills();
 
-            // starting spells
-            Spells.Add(SpellFactory.Bleeding);
-            Spells.Add(SpellFactory.Poison);
-            Spells.Add(SpellFactory.MinorHeal);
+            _skillRegistry = new SkillRegistry();
+            _effectRegistry = new(this);
+
+            Body body = new(BodyPartFactory.CreateHumanBody("Player", 100), 70, 20, 60);
+            survivalManager = new SurvivalManager(this, _effectRegistry, true, body);
+            inventoryManager = new(_effectRegistry);
+            combatManager = new CombatManager(this);
+            locationManager = new LocationManager(startingLocation);
+            spellManager = new(_skillRegistry);
+
+
         }
 
         #endregion Constructor
@@ -98,71 +98,50 @@ namespace text_survival
         /// <param name="item"></param>
         public void DropItem(Item item)
         {
-            InventorySys.RemoveFromInventory(item);
+            inventoryManager.RemoveFromInventory(item);
             Output.WriteLine("You drop the ", item);
-            LocationSys.AddItemToLocation(item);
+            locationManager.AddItemToLocation(item);
         }
 
         public void TakeItem(Item item)
         {
-            LocationSys.RemoveItemFromLocation(item);
+            locationManager.RemoveItemFromLocation(item);
             Output.WriteLine("You take the ", item);
-            InventorySys.AddToInventory(item);
+            inventoryManager.AddToInventory(item);
         }
 
         public void SelectSpell()
         {
-            //get spell
-            Output.WriteLine("Which spell would you like to cast?");
-            var spellNames = new List<string>();
-            Spells.ForEach(spell => spellNames.Add(spell.Name));
-            var spell = Input.GetSelectionFromList(spellNames, true);
-            if (spell == 0) return;
-
-            // get target
-            Output.WriteLine("Who would you like to cast ", Spells[spell - 1].Name, " on?");
-            var targets = new List<string>
-            {
-                "Yourself"
-            };
-            CurrentLocation?.Npcs.ForEach(npc => targets.Add(npc.Name));
-            var target = Input.GetSelectionFromList(targets, true);
-            if (target == 0) return;
-
-            // cast spell
-            else if (target == 1) CastSpell(Spells[spell - 1], this);
-            else if (CurrentLocation != null)
-                CastSpell(Spells[spell - 1], CurrentLocation.Npcs[target - 2]);
-
+            List<ICombatant> targets = [this];
+            CurrentLocation.Npcs.ForEach(targets.Add);
+            spellManager.SelectSpell(targets);
         }
 
-        public void CastSpell(Spell spell, ICombatant target)
-        {
-            spell.Cast(target);
-            Skills.AddExperience("Shamanism", 2);
-        }
 
-        public void Damage(double amount)
+
+        public void Damage(DamageInfo damageInfo)
         {
-            SurvivalSys.Damage(amount);
-            if (!SurvivalSys.IsAlive)
+            survivalManager.Damage(damageInfo);
+            if (!survivalManager.IsAlive)
             {
                 // end program
                 Environment.Exit(0);
             }
         }
 
-        internal void DescribeSurvivalStats() => SurvivalSys.Describe();
+        internal void DescribeSurvivalStats() => survivalManager.Describe();
 
 
         public void UseItem(Item item)
         {
+            Output.WriteLine($"DEBUG: Item '{item.Name}' has actual type: {item.GetType().FullName}");
+            Output.WriteLine($"DEBUG: Base type: {item.GetType().BaseType?.FullName}");
             // handle special logic for each item type
             if (item is FoodItem food)
             {
                 string eating_type = food.WaterContent > food.Calories ? "drink" : "eat";
                 Output.Write($"You {eating_type} the ", food, "...");
-                SurvivalSys.ConsumeFood(food);
+                survivalManager.ConsumeFood(food);
             }
             else if (item is ConsumableItem consumable)
             {
@@ -174,7 +153,7 @@ namespace text_survival
             else if (item is Gear gear)
             {
                 Output.WriteLine("You equip the ", gear);
-                InventorySys.Equip(gear);
+                inventoryManager.Equip(gear);
                 foreach (IEffect effect in gear.EquipEffects)
                 {
                     ApplyEffect(effect);
@@ -185,7 +164,7 @@ namespace text_survival
             {
                 if (ModifyWeapon(weaponMod.Damage))
                 {
-                    Output.WriteLine("You use the ", weaponMod, " to modify your ", InventorySys.Weapon);
+                    Output.WriteLine("You use the ", weaponMod, " to modify your ", inventoryManager.Weapon);
                 }
                 else
                 {
@@ -216,7 +195,7 @@ namespace text_survival
                 item.NumUses -= 1;
                 if (item.NumUses == 0)
                 {
-                    InventorySys.RemoveFromInventory(item);
+                    inventoryManager.RemoveFromInventory(item);
                 }
             }
             World.Update(1);
@@ -226,12 +205,12 @@ namespace text_survival
         {
             if (!IsArmed) return false;
 
-            InventorySys.Weapon.Damage += damage;
+            inventoryManager.Weapon.Damage += damage;
             return true;
         }
         public bool ModifyArmor(EquipSpots spot, double rating = 0, double warmth = 0)
         {
-            Armor? armor = InventorySys.GetArmorInSpot(spot);
+            Armor? armor = inventoryManager.GetArmorInSpot(spot);
             if (armor is null) return false;
 
             armor.Rating += rating;
@@ -242,10 +221,20 @@ namespace text_survival
         public string Name { get; set; }
         public override string ToString() => Name;
 
-        public void Travel() => LocationSys.TravelToAdjacentZone();
+        public void Travel() => locationManager.TravelToAdjacentZone();
 
-        public Command<Player> LeaveCommand => new("Leave " + Name, p => LocationSys.Leave());
+        public IReadOnlyDictionary<string, double> GetCapacities()
+        {
+            throw new NotImplementedException();
+        }
 
+        public void CastSpell(Spell spell, ICombatant target) => spellManager.CastSpell(spell, target);
 
+        public double Health => throw new NotImplementedException();
+
+        public double MaxHealth => throw new NotImplementedException();
+
+        public bool IsDestroyed => throw new NotImplementedException();
+        public Command<Player> LeaveCommand => new("Leave " + Name, p => locationManager.Leave());
     }
 }

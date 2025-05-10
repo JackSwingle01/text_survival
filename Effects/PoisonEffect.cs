@@ -1,11 +1,12 @@
 using text_survival.Actors;
+using text_survival.Bodies;
 using text_survival.IO;
 
 namespace text_survival.Effects
 {
     public class PoisonEffect : Effect
     {
-        public PoisonEffect(float damagePerHour, int durationMin) 
+        public PoisonEffect(float damagePerHour, int durationMin)
             : base("Poison", durationMin, severity: 1.0f)
         {
             DamagePerHour = damagePerHour;
@@ -22,8 +23,8 @@ namespace text_survival.Effects
             if (!IsActive) return;
 
             float damage = DamagePerHour / 60 * Severity;
-            target.Damage(damage);
-            Output.WriteLine($"{target} takes {damage:F2} damage from poison.");
+            var damageInfo = new DamageInfo() { Amount = damage, IsPenetrating = true, Type = "poison", Source = "poison effect" };
+            target.Damage(damageInfo);
 
             RemainingDurationMin -= 1;
             if (RemainingDurationMin <= 0)

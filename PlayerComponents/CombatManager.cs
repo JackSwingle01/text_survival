@@ -1,4 +1,5 @@
 using text_survival.Actors;
+using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.IO;
 
@@ -18,41 +19,31 @@ class CombatManager : ICombatSystem
         return damage >= 0 ? damage : 0;
     }
 
-    public double CalculateDodgeChance(double speed, double attackerSpeed, double luck, double dodgeLevel)
-    {
-        double baseDodge = (dodgeLevel + luck / 10) / 200;
-        double speedDiff = speed - attackerSpeed;
-        return baseDodge + speedDiff;
-    }
 
     public double DetermineDamage()
     {
-        double skillBonus = Owner.Skills.GetLevel("Fighting");
+        double skillBonus = Owner._skillRegistry.GetLevel("Fighting");
 
         double conditionModifier = (2 - (Owner.ConditionPercent / 100)) / 2 + 0.1;
         return CalculateAttackDamage(
             Owner.ActiveWeapon.Damage, Owner.Attributes.Strength, skillBonus, conditionModifier);
     }
 
-    public double DetermineHitChance() => Owner.ActiveWeapon.Accuracy;
-
-    public double DetermineDodgeChance(ICombatant attacker)
+    public double DetermineDodgeChance(ICombatant target)
     {
-        double dodgeLevel = Owner.Skills != null ? Owner.Skills.GetLevel("Reflexes") : 0;
-        return CalculateDodgeChance(
-            Owner.Attributes.Speed, attacker.Attributes.Speed, Owner.Attributes.Luck, dodgeLevel);
+        double dodgeLevel = target._skillRegistry != null ? target._skillRegistry.GetLevel("Reflexes") : 0;
+        double baseDodge = (dodgeLevel + target.Attributes.Luck / 10) / 100;
+        double speedDiff = (target.Attributes.Speed - Owner.Attributes.Speed) / 100;
+        double chance = baseDodge + speedDiff;
+        Output.WriteLine("Debug: Dodge Chance = ", chance);
+        chance = Math.Clamp(chance, 0, .95);
+        return chance;
     }
 
-    public double DetermineBlockChance()
+    public bool DetermineDodge(ICombatant target)
     {
-        
-    }
-
-    public bool DetermineDodge(ICombatant attacker)
-    {
-        double dodgeChance = DetermineDodgeChance(attacker);
-        double dodgeRoll = Utils.RandDouble(0, 100);
-        if (dodgeRoll <= dodgeChance)
+        double dodgeChance = DetermineDodgeChance(target);
+        if (Utils.DetermineSuccess(dodgeChance))
         {
             Output.WriteLine($"{Owner} dodged the attack!");
             return true;
@@ -62,9 +53,9 @@ class CombatManager : ICombatSystem
 
     public bool DetermineHit()
     {
-        double hitChance = DetermineHitChance();
-        double roll = Utils.RandDouble(0, 1);
-        if (roll > hitChance)
+        Output.WriteLine("Debug: hit Chance: ", Owner.ActiveWeapon.Accuracy);
+        double hitChance = Math.Clamp(Owner.ActiveWeapon.Accuracy, .01, .95);
+        if (!Utils.DetermineSuccess(hitChance))
         {
             Output.WriteLine($"{Owner} missed!");
             return false;
@@ -72,17 +63,17 @@ class CombatManager : ICombatSystem
         return true;
     }
 
-    public bool DetermineBlock()
+    public bool DetermineBlock(ICombatant target)
     {
-        double blockLevel = Owner.Skills != null ? Owner.Skills.GetLevel("Defense") : 0;
-        double skillBonus = blockLevel/100;
-        double attributeAvg = (Owner.Attributes.Luck + Owner.Attributes.Strength) / 2 / 100;
-        double blockAtbAvg = Owner.ActiveWeapon.BlockChance +  attributeAvg / 2;
+        double blockLevel = target._skillRegistry != null ? target._skillRegistry.GetLevel("Defense") : 0;
+        double skillBonus = blockLevel / 100;
+        double attributeAvg = (target.Attributes.Luck + target.Attributes.Strength) / 2 / 100;
+        double blockAtbAvg = target.ActiveWeapon.BlockChance + attributeAvg / 2;
         double blockChance = blockAtbAvg + skillBonus;
         double roll = Utils.RandDouble(0, 1);
         if (roll < blockChance)
         {
-            Output.WriteLine($"{Owner} blocked the attack!");
+            Output.WriteLine($"{target} blocked the attack!");
             return true;
         }
         return false;
@@ -93,19 +84,26 @@ class CombatManager : ICombatSystem
         double damage = DetermineDamage();
         if (DetermineDodge(target))
             return;
-        if (!DetermineHit(target))
+        if (!DetermineHit())
             return;
         if (DetermineBlock(target))
             return;
 
-        Output.WriteLine($"{Owner} attacked {target} for {Math.Round(damage, 1)} damage!");
-        target.Damage(damage);
-        foreach (var effect in Owner.ActiveWeapon.EquipEffects)
-            target.ApplyEffect(effect);
-        if (Utils.RandFloat(0, 1) < 0.1) // 10% critical hit chance
-            target.ApplyEffect(new BleedEffect(1, 3));
+        DamageInfo damageInfo = new(
+            damage,
+            source: Owner.Name,
+            isSharp: Owner.ActiveWeapon.Class == Items.WeaponClass.Blade,
+            isBlunt: Owner.ActiveWeapon.Class == Items.WeaponClass.Blunt || Owner.ActiveWeapon.Class == Items.WeaponClass.Unarmed,
+            accuracy: Owner.ActiveWeapon.Accuracy
+        );
 
-        Owner.Skills.AddExperience("Fighting", 1);
+        Output.WriteLine($"{Owner} attacked {target} for {Math.Round(damage, 1)} damage!");
+        target.Damage(damageInfo);
+        // if (Utils.RandFloat(0, 1) < 0.1) // 10% critical hit chance
+        //     target.ApplyEffect(new BleedEffect(1, 3));
+
+
+        Owner._skillRegistry.AddExperience("Fighting", 1);
         Thread.Sleep(1000);
     }
 

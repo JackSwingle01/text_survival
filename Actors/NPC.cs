@@ -1,67 +1,125 @@
-﻿
-using text_survival.Effects;
+﻿using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Interfaces;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Level;
 using text_survival.PlayerComponents;
+using text_survival.Bodies;
 
 namespace text_survival.Actors
 {
     public class Npc : ICombatant, IInteractable, IClonable<Npc>
     {
+        #region Properties
+        
+        // Basic properties
         public string Name { get; set; }
         public string Description { get; set; }
-        public double UnarmedDamage { get; protected set; }
-        public double ArmorRating { get; private set; }
-        public bool IsHostile { get; private set; }
-        private Container Loot { get; }
-        public bool IsAlive => SurvivalManager.IsAlive;
         public bool IsFound { get; set; }
+        public bool IsHostile { get; private set; }
+        
+        // ICombatant implementation
         public bool IsEngaged { get; set; }
-        public Attributes Attributes { get; }
-        public Skills Skills { get; }
+        public bool IsAlive => !Body.IsDestroyed;
         public double ConditionPercent => SurvivalManager.ConditionPercent;
+        public Weapon ActiveWeapon => InventoryManager.Weapon;
+        public bool IsArmed => InventoryManager.IsArmed;
+        public bool IsArmored => InventoryManager.IsArmored;
+        public double EquipmentWarmth => InventoryManager.EquipmentWarmth;
+        public Attributes Attributes { get; }
+        public SkillRegistry _skillRegistry { get; }
+        
+        // IPhysicalEntity implementation
+        public double Health => Body.Health;
+        public double MaxHealth => Body.MaxHealth;
+        public bool IsDestroyed => Body.IsDestroyed;
+        
+        // IClonable implementation
         public IClonable<Npc>.CloneDelegate Clone { get; set; }
+        
+        // Internal components
+        private Body Body { get; }
         private EffectRegistry _effectRegistry { get; }
         private SurvivalManager SurvivalManager { get; }
         private InventoryManager InventoryManager { get; }
-        public bool IsArmed => InventoryManager.IsArmed;
-        public Weapon ActiveWeapon => InventoryManager.Weapon;
-        public double EquipmentWarmth => InventoryManager.EquipmentWarmth;
+        private Container Loot { get; }
+
+        #endregion
+
+        #region Constructor
 
         public Npc(string name, Attributes? attributes = null)
         {
+            // Basic initialization
             Name = name;
             Attributes = attributes ?? new Attributes();
-            int health = (int)(((Attributes.Strength + Attributes.Endurance) / 10) * 2);
-            BodyPart body;
+            Description = "";
+            IsHostile = true;
+            
+            // Component initialization
+            _effectRegistry = new EffectRegistry(this);
+            _skillRegistry = new SkillRegistry(this is Humanoid);
+            
+            // Create the appropriate body type
+            int baseHealth = (int)(((Attributes.Strength + Attributes.Endurance) / 10) * 2);
+            BodyPart bodyPart;
+            
             if (this is Humanoid)
             {
-                body = BodyPartFactory.CreateHumanBody(name, health);
+                bodyPart = BodyPartFactory.CreateHumanBody(name, baseHealth);
             }
             else if (this is Animal)
             {
-                body = BodyPartFactory.CreateAnimalBody(name, health);
+                bodyPart = BodyPartFactory.CreateAnimalBody(name, baseHealth);
             }
             else
             {
-                body = BodyPartFactory.CreateGenericBody(name, health);
+                bodyPart = BodyPartFactory.CreateGenericBody(name, baseHealth);
             }
-            _effectRegistry = new(this);
-            SurvivalManager = new SurvivalManager(this, _effectRegistry, false, body);
+            
+            // Create body from the generated body part with sensible defaults
+            Body = new Body(bodyPart, 70, 20, 60);
+            
+            // Initialize the managers
+            SurvivalManager = new SurvivalManager(this, _effectRegistry, false, Body);
             InventoryManager = new InventoryManager(_effectRegistry);
             InventoryManager.Weapon = new Weapon(WeaponType.Unarmed, WeaponMaterial.Other);
-            Skills = new Skills(this is Humanoid);
+            
+            // Set up loot container
             Loot = new Container(name, 10);
-            IsHostile = true;
-            Description = "";
-            UnarmedDamage = 2;
+            
+            // Set default clone method
             Clone = () => new Npc(name, attributes);
         }
 
-        // Interact
+        #endregion
+
+        #region IPhysicalEntity Interface Implementation
+
+        public IReadOnlyDictionary<string, double> GetCapacities()
+        {
+            return Body.GetCapacities();
+        }
+
+        #endregion
+
+        #region IDamageable Interface Implementation
+
+        public void Damage(DamageInfo damageInfo)
+        {
+            SurvivalManager.Damage(damageInfo);
+        }
+
+        public void Heal(HealingInfo healingInfo)
+        {
+            SurvivalManager.Heal(healingInfo);
+        }
+
+        #endregion
+
+        #region IInteractable Interface Implementation
+
         public void Interact(Player player)
         {
             if (IsAlive)
@@ -88,25 +146,46 @@ namespace text_survival.Actors
             }
         }
 
-        // Location (placeholder)
-        public Location CurrentLocation => throw new NotImplementedException();
-        public Zone CurrentZone => throw new NotImplementedException();
+        #endregion
 
-        // Update
-        public void Update()
-        {
-            SurvivalManager.Update();
-        }
-
-        // Combat
-        private CombatManager CombatManager => new CombatManager(this);
+        #region ICombatant Interface Implementation
 
         public void Attack(ICombatant target)
         {
-            CombatManager.Attack(target);
+            new CombatManager(this).Attack(target);
         }
 
-        // Inventory
+        #endregion
+
+        #region ILocatable Interface Implementation (Placeholder)
+
+        public Location CurrentLocation => throw new NotImplementedException();
+        public Zone CurrentZone => throw new NotImplementedException();
+
+        #endregion
+
+        #region IUpdateable Interface Implementation
+
+        public void Update()
+        {
+            SurvivalManager.Update();
+            _effectRegistry.Update();
+        }
+
+        #endregion
+
+        #region Effect Methods
+
+        public void ApplyEffect(IEffect effect) => _effectRegistry.AddEffect(effect);
+        public void RemoveEffect(string effectType) => _effectRegistry.RemoveEffect(effectType);
+        public void RemoveEffect(IEffect effect) => _effectRegistry.RemoveEffect(effect);
+
+        #endregion
+
+        #region Inventory and Loot Methods
+
+        public void AddLoot(Item item) => Loot.Add(item);
+
         public void DropInventory(Location location)
         {
             while (!Loot.IsEmpty)
@@ -124,14 +203,8 @@ namespace text_survival.Actors
             location.PutThing(item);
         }
 
-        public void AddLoot(Item item) => Loot.Add(item);
-
-        public void ApplyEffect(IEffect effect) => _effectRegistry.AddEffect(effect);
-        public void RemoveEffect(string effectType) => _effectRegistry.RemoveEffect(effectType);
+        #endregion
 
         public override string ToString() => Name;
-
-        public void Damage(double damage) => SurvivalManager.Damage(damage);
-        public void Heal(double heal) => SurvivalManager.Heal(heal);
     }
 }

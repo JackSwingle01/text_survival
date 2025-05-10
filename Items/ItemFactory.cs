@@ -1,4 +1,5 @@
 ﻿using text_survival.Actors;
+using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Magic;
 
@@ -42,13 +43,28 @@ namespace text_survival.Items
                 Weight = 0.1F
             };
             // instead of making the effect dynamic, just have the factory return two types of mushroom with the same name
+            double strength = Utils.RandDouble(1, 15);
+            string targetOrgan = Utils.GetRandomFromList(["Stomach", "Liver", "Kidney"]);
             if (Utils.FlipCoin())
             {
-                mushroom.HealthEffect = 5;
+                mushroom.HealthEffect = new()
+                {
+                    Amount = strength,
+                    Type = "herbal",
+                    TargetPart = targetOrgan,
+                    Quality = Utils.RandDouble(0, 1.5)
+                };
             }
             else
             {
-                mushroom.HealthEffect = -5;
+                mushroom.DamageEffect = new()
+                {
+                    Amount = strength * .66, // make the poisonous ones less dangerous on average to make it worthwhile to take the risk
+                    IsPenetrating = true,
+                    Type = "poison",
+                    TargetPart = targetOrgan,
+                    Accuracy = 1,
+                };
             }
             return mushroom;
         }
@@ -192,7 +208,13 @@ namespace text_survival.Items
 
                 Weight = 0.4F,
                 NumUses = 1,
-                HealthEffect = 50
+                HealthEffect = new()
+                {
+                    Amount = 50,
+                    Type = "magic",
+                    Quality = 1,
+                    TargetPart = null
+                }
             };
             return potion;
         }
@@ -203,7 +225,12 @@ namespace text_survival.Items
             {
                 Description = "A cloth bandage. It might help a bit.",
                 Weight = 0.1F,
-                Effects = [new RemoveBleedEffect(), new HealEffect(10)]
+                Effects = [
+                    new RemoveBleedEffect(),
+                    new HealEffect(
+                        new HealingInfo() { Amount = 10, Quality = .9, Type = "medical" }
+                    )
+                ]
             };
             return bandage;
         }

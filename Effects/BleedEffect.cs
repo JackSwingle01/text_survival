@@ -1,4 +1,5 @@
 using text_survival.Actors;
+using text_survival.Bodies;
 using text_survival.IO;
 
 namespace text_survival.Effects;
@@ -23,8 +24,8 @@ public class BleedEffect : Effect
         if (!IsActive) return;
 
         double damage = DamagePerHour / 60 * Severity;
-        target.Damage(damage);
-        Output.WriteLine($"{target} takes {damage:F2} damage from bleeding.");
+        var damageInfo = new DamageInfo() { Amount = damage, IsPenetrating = true, Type = "bleed", Source = "cut" };
+        target.Damage(damageInfo);
 
         RemainingDurationMin -= 1;
         if (RemainingDurationMin <= 0)

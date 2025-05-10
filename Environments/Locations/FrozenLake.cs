@@ -18,7 +18,7 @@ namespace text_survival.Environments.Locations
             Name = Name.Trim();
         }
 
-        protected override List<Item> itemList => [];
+        protected new LootTable LootTable = new();
         protected override List<Npc> npcList => [];
 
         private static readonly List<string> frozenLakeNames = ["Lake", "Pond", "Water"];

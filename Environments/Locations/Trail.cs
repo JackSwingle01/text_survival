@@ -18,7 +18,7 @@ namespace text_survival.Environments.Locations
             Name = Name.Trim();
         }
 
-        protected override List<Item> itemList => [ItemFactory.MakeRock(), ItemFactory.MakeStick(), ItemFactory.MakeBandage()];
+        protected new LootTable LootTable = new([ItemFactory.MakeRock, ItemFactory.MakeStick, ItemFactory.MakeBandage]);
         protected override List<Npc> npcList => [NpcFactory.MakeSnake()];
 
         private static readonly List<string> trailNames = ["Path", "Trail", "Pass"];

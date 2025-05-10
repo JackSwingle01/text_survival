@@ -76,7 +76,7 @@ namespace text_survival
 
         public static void DescribeSkills(Player player)
         {
-            player.Skills.Describe();
+            player._skillRegistry.Describe();
 
         }
     }

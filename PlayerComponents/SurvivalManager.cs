@@ -1,5 +1,5 @@
 using text_survival.Actors;
-using text_survival.Effects;
+using text_survival.Bodies;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Survival;
@@ -7,7 +7,7 @@ namespace text_survival.PlayerComponents;
 
 class SurvivalManager : ISurvivalSystem
 {
-    public SurvivalManager(IActor owner, EffectRegistry effectRegistry, bool enableSurvivalMechanics, BodyPart body)
+    public SurvivalManager(IActor owner, EffectRegistry effectRegistry, bool enableSurvivalMechanics, Body body)
     {
         Owner = owner;
         EnableSurvivalMechanics = enableSurvivalMechanics;
@@ -22,9 +22,9 @@ class SurvivalManager : ISurvivalSystem
     private readonly EffectRegistry _effectRegistry;
     // public void AddEffect(IEffect effect) => _effectRegistry.AddEffect(effect);
     // public void RemoveEffect(string effectType) => _effectRegistry.RemoveEffect(effectType);
-    
-    public void Heal(double heal) => Body.Heal(heal);
-    public void Damage(double damage)
+
+    public void Heal(HealingInfo heal) => Body.Heal(heal);
+    public void Damage(DamageInfo damage)
     {
         Body.Damage(damage);
 
@@ -37,20 +37,27 @@ class SurvivalManager : ISurvivalSystem
 
     public void Sleep(int minutes)
     {
-        for (int i = 0; i < minutes; i++)
+        int minutesSlept = 0;
+        while (minutesSlept < minutes)
         {
             ExhaustionModule.Rest(1);
             World.Update(1);
-
+            minutesSlept++;
             if (ExhaustionModule.IsFullyRested)
             {
                 Output.Write("You wake up feeling refreshed.\n");
-                Heal(i / 6);
-                return;
+                break;
             }
         }
+        HealingInfo healing = new HealingInfo()
+        {
+            Amount = minutesSlept / 10,
+            Type = "natural",
+            TargetPart = "Body",
+            Quality = ExhaustionModule.IsFullyRested ? 1 : .7, // healing quality is better after a full night's sleep
+        };
 
-        Heal(minutes / 6);
+        Heal(healing);
     }
 
 
@@ -73,13 +80,13 @@ class SurvivalManager : ISurvivalSystem
         HungerModule.AddCalories(food.Calories);
         ThirstModule.AddHydration(food.WaterContent);
 
-        if (food.HealthEffect > 0)
+        if (food.HealthEffect != null)
         {
             Heal(food.HealthEffect);
         }
-        else if (food.HealthEffect < 0)
+        if (food.DamageEffect != null)
         {
-            Damage(food.HealthEffect);
+            Damage(food.DamageEffect);
         }
     }
 
@@ -87,8 +94,6 @@ class SurvivalManager : ISurvivalSystem
 
     public void Update()
     {
-
-
         if (EnableSurvivalMechanics)
         {
             double feelsLikeTemp = Owner.CurrentZone.GetTemperature() + Owner.EquipmentWarmth;
@@ -100,14 +105,20 @@ class SurvivalManager : ISurvivalSystem
 
             if (HungerModule.IsStarving || TemperatureModule.IsDangerousTemperature)
             {
-                Owner.Damage(1);
+                var damage = new DamageInfo()
+                {
+                    Amount = 1,
+                    Type = TemperatureModule.IsDangerousTemperature ? "thermal" : "starvation",
+                    IsPenetrating = HungerModule.IsStarving,
+                };
+                Owner.Damage(damage);
             }
         }
     }
 
     private IActor Owner { get; }
     private bool EnableSurvivalMechanics { get; }
-    public BodyPart Body { get; }
+    public Body Body { get; }
     private HungerModule HungerModule { get; }
     private ThirstModule ThirstModule { get; }
     private ExhaustionModule ExhaustionModule { get; }

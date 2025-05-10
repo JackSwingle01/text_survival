@@ -14,10 +14,10 @@ namespace text_survival.Actors
             return bandit;
         }
         private static readonly LootTable BanditLootTable = new LootTable([
-            ItemFactory.MakeCoin(),
-            ItemFactory.MakeApple(),
-            ItemFactory.MakeCopperCoin(),
-            ItemFactory.MakeBread()
+            ItemFactory.MakeCoin,
+            ItemFactory.MakeApple,
+            ItemFactory.MakeCopperCoin,
+            ItemFactory.MakeBread
         ]);
 
         public static Npc MakeRat()
@@ -60,8 +60,8 @@ namespace text_survival.Actors
             return snake;
         }
         private static readonly LootTable SnakeLootTable = new([
-            ItemFactory.MakeSmallMeat(),
-            ItemFactory.MakeVenomSac()
+            ItemFactory.MakeSmallMeat,
+            ItemFactory.MakeVenomSac
          ]);
 
 
@@ -90,14 +90,9 @@ namespace text_survival.Actors
         }
 
         private static readonly LootTable SpiderLT = new([
-            ItemFactory.MakeSpiderSilk(),
-            ItemFactory.MakeVenomSac()
+            ItemFactory.MakeSpiderSilk,
+            ItemFactory.MakeVenomSac
         ]);
-
-
-
-
-
 
     }
 

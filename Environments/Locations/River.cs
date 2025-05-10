@@ -18,7 +18,8 @@ namespace text_survival.Environments.Locations
             Name = Name.Trim();
         }
 
-        protected override List<Item> itemList => [ItemFactory.MakeWater(), ItemFactory.MakeFish()];
+
+        protected new LootTable LootTable = new([ItemFactory.MakeWater, ItemFactory.MakeFish]);
         protected override List<Npc> npcList => [];
 
         private static readonly List<string> riverNames =

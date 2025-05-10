@@ -1,4 +1,5 @@
-﻿using text_survival.Interfaces;
+﻿using text_survival.Bodies;
+using text_survival.Interfaces;
 
 namespace text_survival.Items
 {
@@ -16,12 +17,12 @@ namespace text_survival.Items
             Calories = calories;
             WaterContent = waterContent;
             NumUses = 1;
-            HealthEffect = 0;
         }
 
         public int WaterContent { get; }
         public int Calories { get; }
-        public int HealthEffect {get; set;}
+        public HealingInfo? HealthEffect {get; set;}
+        public DamageInfo? DamageEffect {get; set;}
         public void Update()
         {
             Quality -= .1; //TODO: Add spoilage

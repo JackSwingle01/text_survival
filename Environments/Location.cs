@@ -1,4 +1,5 @@
-﻿using text_survival.Actors;
+﻿using System.Dynamic;
+using text_survival.Actors;
 using text_survival.Environments.Locations;
 using text_survival.Interfaces;
 using text_survival.IO;
@@ -30,7 +31,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     virtual public Location? Parent { get; set; }
     public Zone ParentZone { get; }
     protected virtual ForageModule ForageModule { get; set; } = new();
-
+    protected LootTable LootTable;
 
 
     #region Initialization
@@ -55,6 +56,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
         else throw new NotImplementedException("Unknown parent type");
 
         Name = "Location Placeholder Name";
+        LootTable = new();
         InitializeLoot(numItems);
         InitializeNpcs(numNpcs);
     }
@@ -63,12 +65,11 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
 
     protected void InitializeLoot(int numItems)
     {
-        LootTable lootTable = CreateLootTable();
-        if (!lootTable.IsEmpty())
+        if (!LootTable.IsEmpty())
         {
             for (int i = 0; i < numItems; i++)
             {
-                PutThing(lootTable.GenerateRandomItem());
+                PutThing(LootTable.GenerateRandomItem());
             }
         }
     }
@@ -95,20 +96,6 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
             npcs.Add(npc);
         }
         return npcs;
-    }
-    protected virtual List<Item> itemList { get; } = [];
-    protected LootTable CreateLootTable()
-    {
-        LootTable lootTable = new();
-        foreach (Item item in itemList)
-        {
-            lootTable.AddLoot(item);
-        }
-        foreach (Item item in ParentZone.ItemList)
-        {
-            lootTable.AddLoot(item);
-        }
-        return lootTable;
     }
 
 

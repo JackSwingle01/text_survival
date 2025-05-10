@@ -101,23 +101,23 @@ class LocationManager : ILocationSystem
         _currentLocation.PutThing(item);
     }
 
-     public void TravelToAdjacentZone()
+    public void TravelToAdjacentZone()
     {
         Output.WriteLine("Where would you like to go?");
-        
+
         Output.WriteLine(1, ". North: ", (Map.North.Visited ? Map.North.Name : " Unknown"));
         Output.WriteLine(2, ". East: ", (Map.East.Visited ? Map.East.Name : " Unknown"));
         Output.WriteLine(3, ". South: ", (Map.South.Visited ? Map.South.Name : " Unknown"));
         Output.WriteLine(4, ". West: ", (Map.West.Visited ? Map.West.Name : " Unknown"));
-        
+
         Output.WriteLine("0. Cancel");
         int input = Input.ReadInt(0, 4);
-        
+
         if (input == 0) return;
-        
+
         int minutes = Utils.RandInt(30, 60);
         Output.WriteLine("You travel for ", minutes, " minutes...");
-        
+
         switch (input)
         {
             case 1:
@@ -133,7 +133,7 @@ class LocationManager : ILocationSystem
                 CurrentZone = Map.West;
                 break;
         }
-        
+
         World.Update(minutes);
     }
 

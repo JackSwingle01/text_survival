@@ -25,7 +25,7 @@ namespace text_survival.Items
             ApplyMaterialModifier(weaponMaterial);
             ApplyQualityModifier();
             Class = GetDamageTypeFromWeaponType(type);
-            if (Name == "")
+            if (string.IsNullOrWhiteSpace(name))
                 Name = $"{GetQualityEnumFromQuality(Quality)} {weaponMaterial} {type}";
             WeaponType = type;
             WeaponMaterial = weaponMaterial;
@@ -142,7 +142,20 @@ namespace text_survival.Items
         {
             WeaponMaterial weaponMaterial = Utils.GetRandomEnum<WeaponMaterial>();
             WeaponType weaponType = Utils.GetRandomEnum<WeaponType>();
+
+            // Ensure we have valid enum values
+            if (weaponMaterial == null || weaponType == null)
+            {
+                weaponMaterial = WeaponMaterial.Iron; // Default
+                weaponType = WeaponType.Sword; // Default
+            }
+
             Weapon weapon = new Weapon(weaponType, weaponMaterial);
+
+            // Double-check name was set
+            if (string.IsNullOrWhiteSpace(weapon.Name))
+                weapon.Name = $"Unknown {weaponType}";
+
             return weapon;
         }
 
@@ -181,6 +194,6 @@ namespace text_survival.Items
             };
         }
 
- 
+
     }
 }

@@ -1,4 +1,5 @@
 ﻿
+using text_survival.Bodies;
 using text_survival.Items;
 using text_survival.Level;
 
@@ -10,7 +11,7 @@ namespace text_survival.Actors
         bool IsEngaged { get; set; }
         Weapon ActiveWeapon { get; }
         Attributes Attributes { get; }
-        Skills Skills {get;}
+        SkillRegistry _skillRegistry {get;}
         double ConditionPercent { get; }
         void Attack(ICombatant target);
         // double DetermineDamage();

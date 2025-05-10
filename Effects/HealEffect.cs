@@ -1,20 +1,21 @@
 using text_survival.Actors;
+using text_survival.Bodies;
 using text_survival.IO;
 
 namespace text_survival.Effects
 {
     public class HealEffect : Effect
     {
-        public HealEffect(double healAmount) : base("Heal", durationMin: 0, severity: 1.0f)
+        public HealEffect(HealingInfo healingInfo) : base("Heal", durationMin: 0, severity: 1.0f)
         {
-            HealAmount = healAmount;
+            Heal = healingInfo;
         }
 
         public override void Apply(IActor target)
         {
-            double health = HealAmount * Severity;
-            target.Heal(health);
-            Output.WriteLine(target, " healed ", health, " points.");
+            Heal.Amount *= Severity;
+            Heal.Quality *= Severity;
+            target.Heal(Heal);
             IsActive = false;
         }
 
@@ -27,6 +28,6 @@ namespace text_survival.Effects
         {
             // No cleanup needed
         }
-        private double HealAmount;
+        private HealingInfo Heal;
     }
 }

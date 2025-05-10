@@ -14,7 +14,7 @@
             return random.Next(1, sides + 1);
         }
 
-        public static bool DetermineSucess(double chance)
+        public static bool DetermineSuccess(double chance)
         {
             return (random.NextDouble() < chance);
         }
@@ -53,6 +53,28 @@
             }
             return list[Roll(list.Count) - 1];
         }
-
+        
+    public static T GetRandomWeighted<T>(IDictionary<T, double> choices)
+    {
+        if (choices == null || choices.Count == 0)
+            throw new ArgumentException("Cannot select from an empty collection", nameof(choices));
+            
+        double totalWeight = choices.Sum(pair => pair.Value);
+        if (totalWeight <= 0)
+            throw new ArgumentException("Total weight must be positive", nameof(choices));
+            
+        double roll = random.NextDouble() * totalWeight;
+        
+        double cumulativeWeight = 0;
+        foreach (var pair in choices)
+        {
+            cumulativeWeight += pair.Value;
+            if (roll <= cumulativeWeight)
+                return pair.Key;
+        }
+        
+        // This should never happen if weights are positive
+        return choices.Keys.Last();
+    }
     }
 }

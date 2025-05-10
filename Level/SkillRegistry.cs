@@ -3,13 +3,13 @@ using text_survival.IO;
 
 namespace text_survival.Level
 {
-    public class Skills
+    public class SkillRegistry
     {
         private readonly Dictionary<string, Skill> skills;
 
-        public Skills(bool fullSkills = true)
+        public SkillRegistry(bool fullSkills = true)
         {
-            skills = new Dictionary<string, Skill>();
+            skills = [];
             if (fullSkills)
             {
                 skills.Add("Fighting", new Skill("Fighting"));

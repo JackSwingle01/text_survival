@@ -21,6 +21,7 @@ namespace text_survival.IO
                 Container => ConsoleColor.Yellow,
                 Player => ConsoleColor.Green,
                 Zone => ConsoleColor.Blue,
+                Location => ConsoleColor.DarkYellow,
                 Enum => ConsoleColor.White,
                 null => ConsoleColor.Red,
                 _ => ConsoleColor.White,

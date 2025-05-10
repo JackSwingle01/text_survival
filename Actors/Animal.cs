@@ -6,7 +6,7 @@ namespace text_survival.Actors
     {
         public Animal(string name, double baseDamage, Attributes? attributes = null) : base(name, attributes)
         {
-            UnarmedDamage = baseDamage;
+            // to-do
         }
 
     }

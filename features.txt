@@ -24,11 +24,6 @@
 | **Enhance Locations**     | 4                      | 5                      | 3               | 12             | Planned  | Biome-specific mechanics and descriptions |
 | **Thematic Overhaul**     | 4                      | 5                      | 3               | 12             | Planned  | Replace RPG items with Ice Age equivalents |
 | **Polish IO**             | 5                      | 4                      | 2               | 11             | Planned  | Rich, Ice Age-specific descriptions |
-
-## Core System Addition
-
-| System                      | Ease of Implementation | Theme/Immersion Impact | Gameplay Impact | Combined Value | Notes                                                       |
-|-----------------------------|------------------------|------------------------|-----------------|----------------|-------------------------------------------------------------|
 | **Property-Based Crafting** | 2                      | 5                      | 5               | 12             | Revolutionary crafting approach using item properties instead of fixed types |
 
 ## Todo List Tasks
