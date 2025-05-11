@@ -143,13 +143,6 @@ namespace text_survival.Items
             WeaponMaterial weaponMaterial = Utils.GetRandomEnum<WeaponMaterial>();
             WeaponType weaponType = Utils.GetRandomEnum<WeaponType>();
 
-            // Ensure we have valid enum values
-            if (weaponMaterial == null || weaponType == null)
-            {
-                weaponMaterial = WeaponMaterial.Iron; // Default
-                weaponType = WeaponType.Sword; // Default
-            }
-
             Weapon weapon = new Weapon(weaponType, weaponMaterial);
 
             // Double-check name was set

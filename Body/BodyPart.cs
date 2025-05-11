@@ -296,7 +296,7 @@ public class BodyPart : IPhysicalEntity
     }
 
     // Helper method to find a part by name in the hierarchy
-    private BodyPart FindPartByName(string partName)
+    private BodyPart? FindPartByName(string partName)
     {
         if (Name == partName) return this;
 

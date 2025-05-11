@@ -18,8 +18,8 @@ namespace text_survival.Environments.Locations
             Name = Name.Trim();
         }
 
-        protected new LootTable LootTable = new([]);
-        protected override List<Npc> npcList => [];
+        protected new LootTable LootTable = new();
+        protected new NpcSpawner NpcSpawner = new();
 
         private static readonly List<string> LocationTemplateNames = ["LocationTemplate"];
         private static readonly List<string> LocationTemplateAdjectives = [""];

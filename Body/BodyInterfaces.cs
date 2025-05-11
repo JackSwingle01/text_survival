@@ -57,9 +57,9 @@ public class HealingInfo
 // Base class for physical conditions (injuries, diseases, etc.)
 public abstract class PhysicalCondition
 {
-    public string Type { get; protected set; }
-    public string Name { get; protected set; }
-    public string Description { get; protected set; }
+    public string Type { get; protected set; } = "";
+    public string Name { get; protected set; } = "";
+    public string Description { get; protected set; } = "";
     public double Severity { get; protected set; } // 0.0-1.0
     public double HealRate { get; protected set; }
     public Dictionary<string, double> CapacityModifiers { get; } = new();
@@ -81,7 +81,7 @@ public abstract class PhysicalCondition
 // Information for treatments
 public class TreatmentInfo
 {
-    public string Type { get; set; } // bandage, surgery, etc.
+    public string Type { get; set; }  = ""; // bandage, surgery, etc.
     public double Quality { get; set; } // 0.0-1.0 effectiveness
     public double Duration { get; set; } // How long treatment lasts
 }

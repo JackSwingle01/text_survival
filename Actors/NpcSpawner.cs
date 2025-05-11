@@ -2,41 +2,31 @@
 {
     public class NpcSpawner
     {
-        private List<Npc> Npcs { get; set; }
+        private List<Func<Npc>> _factories { get; set; }
 
         public NpcSpawner()
         {
-            Npcs = [];
+            _factories = [];
         }
 
-        public void Add(Npc npc)
+        public NpcSpawner(List<Func<Npc>> factories)
         {
-            Npcs.Add(npc);
+            _factories = factories;
         }
 
-        public void Remove(Npc npc)
+        public void Add(Func<Npc> factory)
         {
-            Npcs.Remove(npc);
+            _factories.Add(factory);
         }
 
         public Npc? GenerateRandomNpc()
         {
-            if (Npcs.Count == 0)
+            if (_factories.Count == 0)
             {
                 return new Npc("Ghost");
             }
-            Npc? npc = Utils.GetRandomFromList(Npcs);
-            return npc?.Clone() ?? null;
-        }
-
-        public bool IsEmpty()
-        {
-            return Npcs.Count == 0;
-        }
-
-        public int Count()
-        {
-            return Npcs.Count;
+            var fac = Utils.GetRandomFromList(_factories);
+            return fac();
         }
     }
 }

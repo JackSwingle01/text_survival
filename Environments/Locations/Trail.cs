@@ -19,7 +19,7 @@ namespace text_survival.Environments.Locations
         }
 
         protected new LootTable LootTable = new([ItemFactory.MakeRock, ItemFactory.MakeStick, ItemFactory.MakeBandage]);
-        protected override List<Npc> npcList => [NpcFactory.MakeSnake()];
+        protected new NpcSpawner NpcSpawner = new([NpcFactory.MakeSnake]);
 
         private static readonly List<string> trailNames = ["Path", "Trail", "Pass"];
         private static readonly List<string> trailAdjectives = ["Dirt", "Gravel", "Stone", "Animal", "Hunter's", "Winding", "Straight", "Curved", "Twisting", "Bumpy", "Smooth", "Narrow", "Wide", "Long", "Short", "Steep", "Flat", "Sloping", "Rough", "Smooth", "Muddy",];

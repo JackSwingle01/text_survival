@@ -21,12 +21,12 @@ namespace text_survival.Environments.Locations
             Name = Name.Trim();
 
             // add forageable resources
-            ForageModule.AddResource(ItemFactory.MakeMushroom(), 0.5);
-            ForageModule.AddResource(ItemFactory.MakeRock(), 0.5);
+            ForageModule.AddResource(ItemFactory.MakeMushroom, 0.5);
+            ForageModule.AddResource(ItemFactory.MakeRock, 0.5);
         }
 
         protected new LootTable LootTable = new([ItemFactory.MakeMushroom, ItemFactory.MakeRock, ItemFactory.MakeGemstone, ItemFactory.MakeTorch, Weapon.GenerateRandomWeapon]);
-        protected override List<Npc> npcList => [NpcFactory.MakeSpider(), NpcFactory.MakeRat(), NpcFactory.MakeSnake(), NpcFactory.MakeBat(), NpcFactory.MakeCaveBear()];
+        protected new NpcSpawner NpcSpawner = new NpcSpawner([NpcFactory.MakeSpider, NpcFactory.MakeRat, NpcFactory.MakeSnake, NpcFactory.MakeBat, NpcFactory.MakeCaveBear]);
 
         private static readonly List<string> caveNames = ["Cave", "Cavern", "Ravine"];
         private static readonly List<string> caveAdjectives = ["", "Abandoned", "Collapsed", "Shallow", "Deep", "Echoing", "Painted", "Sparkling", "Dim", "Icy"];

@@ -15,14 +15,13 @@ namespace text_survival.Items
     //    void Use(Player player);
     //}
 
-    public class Item : IInteractable, IClonable<Item>
+    public class Item : IInteractable
     {
         public string Name { get; set; }
         public double Weight { get; set; } // in kg
         public string Description { get; set; } = "";
         public double Quality { get; set; } // percentage 0% being extremely poor quality, 100% being perfect quality
         public bool IsFound { get; set; }
-        public IClonable<Item>.CloneDelegate Clone { get; set; }
         public int NumUses { get; set; }
 
         public Item(string name, double weight = 1, int quality = 50)
@@ -31,7 +30,6 @@ namespace text_survival.Items
             Weight = weight;
             Quality = quality;
             NumUses = -1; // not consumable
-            Clone = () => new Item(name, weight, quality);
         }
 
         public override string ToString()

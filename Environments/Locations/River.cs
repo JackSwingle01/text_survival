@@ -20,7 +20,6 @@ namespace text_survival.Environments.Locations
 
 
         protected new LootTable LootTable = new([ItemFactory.MakeWater, ItemFactory.MakeFish]);
-        protected override List<Npc> npcList => [];
 
         private static readonly List<string> riverNames =
         [

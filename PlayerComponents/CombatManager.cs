@@ -35,7 +35,7 @@ class CombatManager : ICombatSystem
         double baseDodge = (dodgeLevel + target.Attributes.Luck / 10) / 100;
         double speedDiff = (target.Attributes.Speed - Owner.Attributes.Speed) / 100;
         double chance = baseDodge + speedDiff;
-        Output.WriteLine("Debug: Dodge Chance = ", chance);
+        // Output.WriteLine("Debug: Dodge Chance = ", chance);
         chance = Math.Clamp(chance, 0, .95);
         return chance;
     }
@@ -53,7 +53,7 @@ class CombatManager : ICombatSystem
 
     public bool DetermineHit()
     {
-        Output.WriteLine("Debug: hit Chance: ", Owner.ActiveWeapon.Accuracy);
+        // Output.WriteLine("Debug: hit Chance: ", Owner.ActiveWeapon.Accuracy);
         double hitChance = Math.Clamp(Owner.ActiveWeapon.Accuracy, .01, .95);
         if (!Utils.DetermineSuccess(hitChance))
         {
@@ -70,8 +70,7 @@ class CombatManager : ICombatSystem
         double attributeAvg = (target.Attributes.Luck + target.Attributes.Strength) / 2 / 100;
         double blockAtbAvg = target.ActiveWeapon.BlockChance + attributeAvg / 2;
         double blockChance = blockAtbAvg + skillBonus;
-        double roll = Utils.RandDouble(0, 1);
-        if (roll < blockChance)
+        if (Utils.DetermineSuccess(blockChance))
         {
             Output.WriteLine($"{target} blocked the attack!");
             return true;

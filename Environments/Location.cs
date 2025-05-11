@@ -1,5 +1,4 @@
-﻿using System.Dynamic;
-using text_survival.Actors;
+﻿using text_survival.Actors;
 using text_survival.Environments.Locations;
 using text_survival.Interfaces;
 using text_survival.IO;
@@ -57,6 +56,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
 
         Name = "Location Placeholder Name";
         LootTable = new();
+        NpcSpawner = new();
         InitializeLoot(numItems);
         InitializeNpcs(numNpcs);
     }
@@ -75,28 +75,14 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     }
     protected void InitializeNpcs(int numNpcs)
     {
-        NpcSpawner spawner = CreateNpcSpawner();
         for (int i = 0; i < numNpcs; i++)
         {
-            var npc = spawner.GenerateRandomNpc();
+            var npc = NpcSpawner.GenerateRandomNpc();
             if (npc is not null)
                 PutThing(npc);
         }
     }
-    protected virtual List<Npc> npcList { get; } = [];
-    protected NpcSpawner CreateNpcSpawner()
-    {
-        NpcSpawner npcs = new();
-        foreach (Npc npc in npcList)
-        {
-            npcs.Add(npc);
-        }
-        foreach (Npc npc in ParentZone.NpcList)
-        {
-            npcs.Add(npc);
-        }
-        return npcs;
-    }
+    protected virtual NpcSpawner NpcSpawner { get; }
 
 
     #endregion Initialization

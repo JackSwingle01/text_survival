@@ -6,22 +6,22 @@ namespace text_survival.Environments
     {
         private double baseResourceDensity = resourceDensity;
         private int numberOfHoursForaged = 0;
-        private List<Item> resources => [.. resourceRarities.Keys];
-        private Dictionary<Item, double> resourceRarities = [];
+        private List<Func<Item>> resources => [.. resourceRarities.Keys];
+        private Dictionary<Func<Item>, double> resourceRarities = [];
         private double ResourceDensity => baseResourceDensity / (numberOfHoursForaged + 1);
         private List<Item> itemsFound = [];
 
         public void Forage(int hours)
         {
-            foreach (Item item in resources)
+            foreach (Func<Item> factory in resources)
             {
-                double chance = ResourceDensity * resourceRarities[item];
+                double chance = ResourceDensity * resourceRarities[factory];
                
                 for (int i = 0; i < hours; i++)
                 {
                     if (Utils.DetermineSuccess(chance))
                     {
-                        itemsFound.Add(item.Clone());
+                        itemsFound.Add(factory());
                         numberOfHoursForaged++;
                     }
                 }
@@ -35,10 +35,10 @@ namespace text_survival.Environments
             return items;
         }
 
-        public void AddResource(Item item, double rarity)
+        public void AddResource(Func<Item> factory, double rarity)
         {
             // todo switch to factory methods instead of the items themselves like the location loot tables
-            resourceRarities.Add(item, rarity);
+            resourceRarities.Add(factory, rarity);
         }
     }
 }

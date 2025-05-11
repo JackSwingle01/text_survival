@@ -9,16 +9,16 @@ using text_survival.Bodies;
 
 namespace text_survival.Actors
 {
-    public class Npc : ICombatant, IInteractable, IClonable<Npc>
+    public class Npc : ICombatant, IInteractable
     {
         #region Properties
-        
+
         // Basic properties
         public string Name { get; set; }
         public string Description { get; set; }
         public bool IsFound { get; set; }
         public bool IsHostile { get; private set; }
-        
+
         // ICombatant implementation
         public bool IsEngaged { get; set; }
         public bool IsAlive => !Body.IsDestroyed;
@@ -29,15 +29,12 @@ namespace text_survival.Actors
         public double EquipmentWarmth => InventoryManager.EquipmentWarmth;
         public Attributes Attributes { get; }
         public SkillRegistry _skillRegistry { get; }
-        
+
         // IPhysicalEntity implementation
         public double Health => Body.Health;
         public double MaxHealth => Body.MaxHealth;
         public bool IsDestroyed => Body.IsDestroyed;
-        
-        // IClonable implementation
-        public IClonable<Npc>.CloneDelegate Clone { get; set; }
-        
+
         // Internal components
         private Body Body { get; }
         private EffectRegistry _effectRegistry { get; }
@@ -56,15 +53,15 @@ namespace text_survival.Actors
             Attributes = attributes ?? new Attributes();
             Description = "";
             IsHostile = true;
-            
+
             // Component initialization
             _effectRegistry = new EffectRegistry(this);
             _skillRegistry = new SkillRegistry(this is Humanoid);
-            
+
             // Create the appropriate body type
             int baseHealth = (int)(((Attributes.Strength + Attributes.Endurance) / 10) * 2);
             BodyPart bodyPart;
-            
+
             if (this is Humanoid)
             {
                 bodyPart = BodyPartFactory.CreateHumanBody(name, baseHealth);
@@ -77,20 +74,17 @@ namespace text_survival.Actors
             {
                 bodyPart = BodyPartFactory.CreateGenericBody(name, baseHealth);
             }
-            
+
             // Create body from the generated body part with sensible defaults
             Body = new Body(bodyPart, 70, 20, 60);
-            
+
             // Initialize the managers
             SurvivalManager = new SurvivalManager(this, _effectRegistry, false, Body);
             InventoryManager = new InventoryManager(_effectRegistry);
             InventoryManager.Weapon = new Weapon(WeaponType.Unarmed, WeaponMaterial.Other);
-            
+
             // Set up loot container
             Loot = new Container(name, 10);
-            
-            // Set default clone method
-            Clone = () => new Npc(name, attributes);
         }
 
         #endregion
