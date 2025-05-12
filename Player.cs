@@ -90,12 +90,6 @@ namespace text_survival
 
         #endregion Constructor
 
-
-
-        /// <summary>
-        /// Removes an item from the player's inventory and adds it to the area's items
-        /// </summary>
-        /// <param name="item"></param>
         public void DropItem(Item item)
         {
             inventoryManager.RemoveFromInventory(item);
@@ -130,8 +124,6 @@ namespace text_survival
         }
 
         internal void DescribeSurvivalStats() => survivalManager.Describe();
-
-
         public void UseItem(Item item)
         {
             Output.WriteLine($"DEBUG: Item '{item.Name}' has actual type: {item.GetType().FullName}");
@@ -229,10 +221,6 @@ namespace text_survival
         }
 
         public void CastSpell(Spell spell, ICombatant target) => spellManager.CastSpell(spell, target);
-
-        public double Health => throw new NotImplementedException();
-
-        public double MaxHealth => throw new NotImplementedException();
 
         public bool IsDestroyed => throw new NotImplementedException();
         public Command<Player> LeaveCommand => new("Leave " + Name, p => locationManager.Leave());

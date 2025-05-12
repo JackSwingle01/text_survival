@@ -1,0 +1,305 @@
+
+
+### Core Gameplay Systems
+
+1. **Seasonal Progression** (14 points, 4 ease, 3.5 efficiency)
+   - Year-long cycles with distinct seasons affecting resources and survival
+   - Migration patterns of animals and changing plant availability
+   - Temperature variations affecting survival needs
+
+2. **Property-Based Crafting** (12 points, 2 ease, 6.0 efficiency)
+   - Items defined by properties (sharp, flexible, long) rather than fixed types
+   - Recipes request properties instead of specific items
+   - Multiple valid crafting solutions based on available resources
+   - Progressive discovery of material properties
+
+3. **Body System with Coverage-Based Targeting** (11 points, 2 ease, 5.5 efficiency)
+   - RimWorld-inspired coverage system for realistic hit locations
+   - Internal vs. external parts with different damage resistance
+   - Vital organs with cascading failure effects
+   - Capacity system affecting character abilities
+
+4. **Material Quality & Combinations** (13 points, 4 ease, 3.25 efficiency)
+   - Variable qualities of materials with different properties
+   - Composite crafting using multiple material types
+   - Quality variations affect durability and effectiveness
+
+5. **Advanced Shelter Building** (13 points, 3 ease, 4.33 efficiency)
+   - Multi-stage construction with thermal properties
+   - Cave development with progressive improvements
+   - Shelter quality affects temperature regulation and rest
+
+6. **Resource Regeneration** (13 points, 4 ease, 3.25 efficiency)
+   - Realistic regrowth cycles for plants and animals
+   - Ecosystem balance where overharvesting has consequences
+   - Seasonal availability of different resources
+
+7. **Weather System** (12 points, 3 ease, 4.0 efficiency)
+   - Dynamic weather events (blizzards, fog, rain)
+   - Impact on visibility, temperature, action success rates
+   - Weather prediction based on environmental cues
+
+8. **Migration Patterns** (13 points, 4 ease, 3.25 efficiency)
+   - Animals appear/disappear based on seasonal cycles
+   - Opportunities for hunting large herds during migrations
+   - Strategic planning around animal movement
+
+## TIER 2: High Value (Significant Impact, Moderate Implementation)
+
+### Survival Mechanics
+
+9. **Advanced Nutrition System** (12 points, 3 ease, 4.0 efficiency)
+   - Track proteins, fats, carbohydrates separately
+   - Nutrient deficiencies with specific symptoms
+   - Long-term dietary impacts on health
+
+10. **Food Preservation** (13 points, 4 ease, 3.25 efficiency)
+    - Smoking, drying, freezing with varying effectiveness
+    - Food spoilage based on temperature and time
+    - Storage solutions affecting shelf life
+
+11. **Injury and Disease System** (11 points, 2 ease, 5.5 efficiency)
+    - Different injury types with specific effects
+    - Progressive diseases that worsen without treatment
+    - Herbal remedies and treatments
+
+12. **Tool Wear and Maintenance** (13 points, 4 ease, 3.25 efficiency)
+    - Progressive degradation of tools affecting performance
+    - Maintenance and repair systems
+    - Skill impact on durability and maintenance quality
+
+13. **Fire Management** (13 points, 3 ease, 4.33 efficiency)
+    - Different fire types for different purposes
+    - Fuel management and fire transfer mechanics
+    - Fire as critical survival resource with management needs
+
+14. **Body Composition System** (10 points, 2 ease, 5.0 efficiency)
+    - Track weight, fat, muscle affecting survival
+    - Calorie consumption and expenditure affecting body composition
+    - Physical attributes derived from body state
+
+15. **Snow Depth and Ice Thickness** (13 points, 4 ease, 3.25 efficiency)
+    - Variable movement penalties based on snow depth
+    - Ice thickness affecting safety of water crossing
+    - Snow tracking for hunting and navigation
+
+16. **Herbal Medicine** (13 points, 4 ease, 3.25 efficiency)
+    - Discovering and using plant combinations
+    - Treatment effectiveness based on skill and herbs used
+    - Plant gathering and identification
+
+### Character Development
+
+17. **Redesigned Skill System** (12 points, 3 ease, 4.0 efficiency)
+    - Survival-focused skills (Hunting, Firecraft, etc.)
+    - Skill improvement through practice
+    - Perk/bonus system at skill milestones
+
+18. **Enhanced Actions System** (11 points, 3 ease, 3.67 efficiency)
+    - Time, calorie and stamina costs for actions
+    - Skill-based modifiers to action success and efficiency
+    - Consequential failure states for failed actions
+
+19. **Tracking System** (12 points, 3 ease, 4.0 efficiency)
+    - Following animal trails based on time elapsed
+    - Weather affecting track visibility
+    - Skill-based track identification and aging
+
+## TIER 3: Good Value (Solid Impact, Moderate Implementation)
+
+### Environment and World
+
+20. **Thematic Overhaul** (12 points, 4 ease, 3.0 efficiency)
+    - Replace RPG items with Ice Age equivalents
+    - Shift from combat focus to survival challenge
+    - Consistent Ice Age aesthetic in all systems
+
+21. **Enhanced Locations** (12 points, 4 ease, 3.0 efficiency)
+    - Biome-specific mechanics and hazards
+    - Distinctive resources in different environments
+    - Vivid descriptions reinforcing Ice Age setting
+
+22. **Cave Development** (12 points, 3 ease, 4.0 efficiency)
+    - Progressively improve caves with additional features
+    - Smoke vents, sleeping areas, storage spaces
+    - Defensibility against predators and weather
+
+23. **Natural Disasters** (12 points, 4 ease, 3.0 efficiency)
+    - Avalanches, flash floods, wildfires
+    - Warning signs and preparation options
+    - Resource opportunities following disasters
+
+24. **Shamanism and Ritual** (11 points, 2 ease, 5.5 efficiency)
+    - Material requirements for magical effects
+    - Rituals tied to locations and celestial events
+    - Spirit world interaction and consequences
+
+25. **More Content** (11 points, 4 ease, 2.75 efficiency)
+    - Additional items, NPCs, locations
+    - Ice Age flora and fauna
+    - Primitive technology variations
+
+### Mechanics Extensions
+
+26. **Trapping** (13 points, 4 ease, 3.25 efficiency)
+    - Passive hunting through placed traps
+    - Different trap types for different animals
+    - Checking and maintaining trap lines
+
+27. **Armor Revamp** (11 points, 3 ease, 3.67 efficiency)
+    - Material-based protection values
+    - Trade-offs between protection, weight, warmth
+    - Primitive armor types like fur, leather, bone
+
+28. **Ice Fishing** (12 points, 4 ease, 3.0 efficiency)
+    - Ice-specific fishing mechanics
+    - Hole creation and maintenance
+    - Winter food security through fishing
+
+29. **Chronic Conditions** (11 points, 2 ease, 5.5 efficiency)
+    - Long-term health issues from injuries
+    - Management strategies vs. cures
+    - Progressive impacts on capabilities
+
+## TIER 4: Worthwhile (Good Impact, Higher Implementation Cost)
+
+### Advanced Gameplay
+
+30. **Tribe Dynamics** (11 points, 1 ease, 11.0 efficiency)
+    - NPC recruitment and management
+    - Social hierarchy and role specialization
+    - Resource sharing and distribution
+
+31. **Group Hunting** (11 points, 2 ease, 5.5 efficiency)
+    - Coordinate with NPCs for large game
+    - Specialized roles in hunting party
+    - Share distribution based on contribution
+
+32. **Knowledge Transfer** (12 points, 3 ease, 4.0 efficiency)
+    - Teaching skills to tribe members
+    - Learning from skilled practitioners
+    - Knowledge preservation and sharing
+
+33. **Vision Quests** (12 points, 4 ease, 3.0 efficiency)
+    - Temporary stat boosts or permanent insights
+    - Spiritual revelations affecting gameplay
+    - Risk/reward balance for attempting quests
+
+34. **Surgery** (10 points, 2 ease, 5.0 efficiency)
+    - Primitive procedures for serious injuries
+    - High-risk interventions with skill requirements
+    - Special tools and preparation needs
+
+### Technical Foundations
+
+37. **Data-Driven Design** (10 points, 3 ease, 3.33 efficiency)
+    - JSON templates for content
+    - Modding support
+    - Easier balancing and additions
+
+38. **Trading System** (10 points, 2 ease, 5.0 efficiency)
+    - Barter-based exchanges
+    - NPC needs affecting trade value
+    - Relationship impacts on trading
+
+## TIER 5: Long-term Goals (High Impact, Significant Implementation Cost)
+
+### Complex Systems
+
+39. **Animal Behavior** (10 points, 2 ease, 5.0 efficiency)
+    - Realistic AI for different species
+    - Territorial and pack behaviors
+    - Predator-prey dynamics
+
+40. **Tribal Conflicts** (10 points, 2 ease, 5.0 efficiency)
+    - Territory disputes with other tribes
+    - Alliance and hostility systems
+    - Conflict resolution mechanisms
+
+41. **Mental Health** (9 points, 2 ease, 4.5 efficiency)
+    - Stress from prolonged survival challenges
+    - Isolation effects and social needs
+    - Coping mechanisms and treatments
+
+42. **Ancient Technologies** (11 points, 3 ease, 3.67 efficiency)
+    - Discoveries of lost knowledge
+    - Rare materials with unique properties
+    - Archaeological exploration
+
+### Polish and Refinement
+
+43. **AI Dialogue** (9 points, 2 ease, 4.5 efficiency)
+    - Non-hostile NPC interactions
+    - Contextual conversation topics
+    - Knowledge sharing through dialogue
+
+44. **Win Condition** (10 points, 3 ease, 3.33 efficiency)
+    - Final challenge or goal
+    - Multiple success paths
+    - Narrative conclusion
+
+45. **Environmental Storytelling** (11 points, 4 ease, 2.75 efficiency)
+    - Discover evidence of previous survivors
+    - Environmental clues about world history
+    - Implicit narrative through exploration
+
+46. **Polish IO** (11 points, 5 ease, 2.2 efficiency)
+    - Rich, Ice Age-specific descriptions
+    - Atmospheric text enhancements
+    - Consistent tone and terminology
+
+## TIER 6: Advanced Features (Future Development)
+
+### Ambitious Systems
+
+47. **Microclimate System** (9 points, 2 ease, 4.5 efficiency)
+    - Different regions experience weather differently
+    - Valleys trap cold, southern slopes warm faster
+    - Local wind and temperature variations
+
+48. **Weather Memory** (10 points, 3 ease, 3.33 efficiency)
+    - Previous weather influences future conditions
+    - Ground saturation and freezing cycles
+    - Weather prediction based on patterns
+
+49. **Spirit Guides** (12 points, 3 ease, 4.0 efficiency)
+    - Animal companions providing passive bonuses
+    - Quest-based acquisition
+    - Specific powers and limitations
+
+50. **Parasites and Illness** (12 points, 3 ease, 4.0 efficiency)
+    - Contracted from environment, food, or water
+    - Progressive symptoms and treatments
+    - Prevention strategies
+
+51. **Migration Story** (10 points, 1 ease, 10.0 efficiency)
+    - Long-term goal to lead tribe to new lands
+    - Multi-season journey with challenges
+    - Decision points affecting outcome
+
+### Specialized Features
+
+52. **Social Hierarchy** (9 points, 1 ease, 9.0 efficiency)
+    - Leadership challenges and role dynamics
+    - Status effects on resource access
+    - Decision-making structures
+
+53. **Ancestral Communication** (10 points, 2 ease, 5.0 efficiency)
+    - Contacting spirits for guidance
+    - Wisdom from deceased tribe members
+    - Special ritual requirements
+
+54. **Aurora Events** (13 points, 5 ease, 2.6 efficiency)
+    - Rare atmospheric phenomena
+    - Spiritual significance and power
+    - Temporary magical enhancements
+
+55. **Cave Paintings** (12 points, 4 ease, 3.0 efficiency)
+    - Record achievements and history
+    - Passive bonuses from cultural memory
+    - Artistic expression with gameplay benefits
+
+
+use template pattern for locations and zones
+use template pattern for events 
+add 

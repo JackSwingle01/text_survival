@@ -63,12 +63,12 @@ namespace text_survival
                 }
             }
 
-            
-            
+
+
             var openInventoryCommand = OpenInventoryCommand;
             openInventoryCommand.Player = _player;
             AvailableActions.Add(openInventoryCommand);
-            
+
 
             if (_player.CurrentLocation.Parent is not null)
             {

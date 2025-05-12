@@ -5,8 +5,6 @@ namespace text_survival.Bodies;
 public interface IPhysicalEntity : IDamageable
 {
     string Name { get; }
-    double Health { get; }
-    double MaxHealth { get; }
     bool IsDestroyed { get; }
     IReadOnlyDictionary<string, double> GetCapacities();
 }
@@ -81,7 +79,7 @@ public abstract class PhysicalCondition
 // Information for treatments
 public class TreatmentInfo
 {
-    public string Type { get; set; }  = ""; // bandage, surgery, etc.
+    public string Type { get; set; } = ""; // bandage, surgery, etc.
     public double Quality { get; set; } // 0.0-1.0 effectiveness
     public double Duration { get; set; } // How long treatment lasts
 }
