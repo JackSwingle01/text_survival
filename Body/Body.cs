@@ -151,23 +151,66 @@ public class Body
     private double CalculateStrength()
     {
         double manipulationCapacity = GetCapacity("Manipulation");
-        return manipulationCapacity * MusclePercentage;
+        double bloodPumping = GetCapacity("BloodPumping"); // Energy delivery
+
+        // Base strength that everyone has
+        double baseStrength = 0.3; // 30% strength from structural aspects
+
+        // Muscle contribution with diminishing returns
+        double muscleContribution;
+        if (MusclePercentage < 0.2) // Below normal
+            muscleContribution = MusclePercentage * 2.5; // Rapid gains when building from low muscle
+        else if (MusclePercentage < 0.4) // Normal to athletic
+            muscleContribution = 0.5 + (MusclePercentage - 0.2) * 1.0; // Moderate gains
+        else // Athletic+
+            muscleContribution = 0.7 + (MusclePercentage - 0.4) * 0.5; // Diminishing returns
+
+        // Energy state affects strength expression
+        double energyFactor = Math.Min(bloodPumping, 1.0);
+
+        // Very low body fat impairs strength
+        double fatPenalty = (BodyFatPercentage < 0.05) ? (0.05 - BodyFatPercentage) * 3.0 : 0;
+
+        return manipulationCapacity * (baseStrength + muscleContribution * energyFactor - fatPenalty);
     }
 
     private double CalculateSpeed()
     {
         double movingCapacity = GetCapacity("Moving");
-        return movingCapacity * (1 - BodyFatPercentage) * (_baseWeight / Weight);
-    }
+        double muscleBonus = Math.Min(MusclePercentage * 0.5, 0.2); // Up to 20% bonus from muscle
+        double fatPenalty;
 
+        // Minimal fat has no penalty, excess has increasing penalties
+        if (BodyFatPercentage < 0.1) // 10% is minimal necessary fat
+            fatPenalty = 0;
+        else
+            fatPenalty = (BodyFatPercentage - 0.1) * 1.2; // Steeper penalty for excess fat
+
+        // Weight ratio with diminishing penalty
+        double weightRatio = Math.Pow(_baseWeight / Weight, 0.7); // Less severe exponent
+
+        return movingCapacity * (1 + muscleBonus - fatPenalty) * weightRatio;
+    }
     private double CalculateVitality()
     {
         double breathing = GetCapacity("Breathing");
         double bloodPumping = GetCapacity("BloodPumping");
         double digestion = GetCapacity("Digestion");
 
-        return (breathing + bloodPumping + digestion) / 3 *
-               (MusclePercentage + BodyFatPercentage / 2);
+        // Base vitality that scales more gently with body composition
+        double baseMultiplier = 0.7;  // Everyone gets 70% baseline
+        double muscleContribution = MusclePercentage * 0.25;  // Up to 25% from muscle
+        double fatContribution;
+
+        // Essential fat is beneficial, excess isn't
+        if (BodyFatPercentage < .10)
+            fatContribution = BodyFatPercentage * 0.5;  // Fat is very important when low
+        else if (BodyFatPercentage < .25)
+            fatContribution = 0.05;  // Optimal fat gives 5%
+        else
+            fatContribution = 0.05 - (BodyFatPercentage - .25) * 0.1;  // Excess fat penalizes slightly
+
+        return (breathing + bloodPumping + digestion) / 3 * (baseMultiplier + muscleContribution + fatContribution);
     }
 
     private double CalculatePerception()
@@ -180,11 +223,19 @@ public class Body
 
     private double CalculateColdResistance()
     {
-        // Fat provides insulation
-        return 0.5 + (BodyFatPercentage / 1);
+        // Base cold resistance that everyone has
+        double baseColdResistance = 0.5;
+        double fatInsulation;
+
+        if (BodyFatPercentage < 0.05)
+            fatInsulation = (BodyFatPercentage / 0.05) * 0.1;  // Linear up to 5%
+        else if (BodyFatPercentage < 0.15)
+            fatInsulation = 0.1 + ((BodyFatPercentage - 0.05) / 0.1) * 0.15;  // From 0.1 to 0.25
+        else
+            fatInsulation = 0.25 + ((BodyFatPercentage - 0.15)) * 0.15;  // Diminishing returns after 15%
+
+        return baseColdResistance + fatInsulation;
     }
-
-
 
 
     private double GetCapacity(string capacity)
