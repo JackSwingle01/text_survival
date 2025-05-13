@@ -1,8 +1,7 @@
-﻿using System.Runtime;
-using text_survival.IO;
+﻿using text_survival.IO;
 
 namespace text_survival.Bodies;
-public class BodyPart : IPhysicalEntity
+public class BodyPart
 {
     // Core properties
     public string Name { get; }
@@ -23,7 +22,6 @@ public class BodyPart : IPhysicalEntity
 
     // Physical state
     private Dictionary<string, double> _baseCapacities = new();
-    private List<PhysicalCondition> _conditions = new();
 
     public BodyPart(string name, double maxHealth, bool isVital, bool isInternal, double coverage)
     {
@@ -50,15 +48,7 @@ public class BodyPart : IPhysicalEntity
         }
 
         // Apply health scaling
-        double value = baseValue * (Health / MaxHealth);
-
-        // Apply condition modifiers
-        foreach (var condition in _conditions)
-        {
-            value = condition.ModifyCapacity(capacity, value);
-        }
-
-        return value;
+        return baseValue * (Health / MaxHealth);
     }
 
     public IReadOnlyDictionary<string, double> GetCapacities()
@@ -71,18 +61,6 @@ public class BodyPart : IPhysicalEntity
         return result;
     }
 
-    // Physical conditions
-    public void AddCondition(PhysicalCondition condition)
-    {
-        _conditions.Add(condition);
-    }
-
-    public void RemoveCondition(PhysicalCondition condition)
-    {
-        _conditions.Remove(condition);
-    }
-
-    public IReadOnlyList<PhysicalCondition> GetConditions() => _conditions.AsReadOnly();
 
     // Hierarchical structure
     public void AddPart(BodyPart part)
@@ -133,28 +111,6 @@ public class BodyPart : IPhysicalEntity
         if (Health > MaxHealth)
         {
             Health = MaxHealth;
-        }
-    }
-
-    // Update all conditions
-    public void Update(TimeSpan timePassed)
-    {
-        // Update conditions on this part
-        for (int i = _conditions.Count - 1; i >= 0; i--)
-        {
-            var condition = _conditions[i];
-            condition.Update(timePassed);
-
-            if (condition.IsHealed)
-            {
-                _conditions.RemoveAt(i);
-            }
-        }
-
-        // Update child parts
-        foreach (var part in _parts)
-        {
-            part.Update(timePassed);
         }
     }
 

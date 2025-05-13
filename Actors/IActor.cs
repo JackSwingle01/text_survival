@@ -5,10 +5,10 @@ using text_survival.Interfaces;
 
 namespace text_survival.Actors
 {
-    public interface IActor : IUpdateable, IDamageable, IPhysicalEntity
+    public interface IActor : IUpdateable, IDamageable
     {
         public double EquipmentWarmth { get; }
-        void ApplyEffect(IEffect effect);
+        void ApplyEffect(Effect effect);
         void RemoveEffect(string effectType);
         public Location CurrentLocation { get; }
         public Zone CurrentZone { get; }

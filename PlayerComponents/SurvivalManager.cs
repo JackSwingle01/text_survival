@@ -3,6 +3,8 @@ using text_survival.Bodies;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Survival;
+using text_survival.Effects;
+
 namespace text_survival.PlayerComponents;
 
 class SurvivalManager : ISurvivalSystem

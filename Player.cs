@@ -38,9 +38,9 @@ namespace text_survival
         public void Heal(HealingInfo amount) => survivalManager.Heal(amount);
         public void Attack(ICombatant target) => combatManager.Attack(target);
         public void Sleep(int minutes) => survivalManager.Sleep(minutes);
-        public void ApplyEffect(IEffect effect) => _effectRegistry.AddEffect(effect);
+        public void ApplyEffect(Effect effect) => _effectRegistry.AddEffect(effect);
         public void RemoveEffect(string effectType) => _effectRegistry.RemoveEffect(effectType);
-        public void RemoveEffect(IEffect effect) => _effectRegistry.RemoveEffect(effect);
+        public void RemoveEffect(Effect effect) => _effectRegistry.RemoveEffect(effect);
         public void OpenInventory() => inventoryManager.Open(this);
 
         // Location-related methods
@@ -78,7 +78,7 @@ namespace text_survival
             _skillRegistry = new SkillRegistry();
             _effectRegistry = new(this);
 
-            Body body = new(BodyPartFactory.CreateHumanBody("Player", 100), 70, 20, 60);
+            Body body = new(BodyPartFactory.CreateHumanBody("Player", 100), 70, 20, 60, _effectRegistry);
             survivalManager = new SurvivalManager(this, _effectRegistry, true, body);
             inventoryManager = new(_effectRegistry);
             combatManager = new CombatManager(this);

@@ -76,7 +76,7 @@ namespace text_survival.Actors
             }
 
             // Create body from the generated body part with sensible defaults
-            Body = new Body(bodyPart, 70, 20, 60);
+            Body = new Body(bodyPart, 70, 20, 60, _effectRegistry);
 
             // Initialize the managers
             SurvivalManager = new SurvivalManager(this, _effectRegistry, false, Body);
@@ -170,9 +170,8 @@ namespace text_survival.Actors
 
         #region Effect Methods
 
-        public void ApplyEffect(IEffect effect) => _effectRegistry.AddEffect(effect);
-        public void RemoveEffect(string effectType) => _effectRegistry.RemoveEffect(effectType);
-        public void RemoveEffect(IEffect effect) => _effectRegistry.RemoveEffect(effect);
+        public void ApplyEffect(Effect effect) => _effectRegistry.AddEffect(effect);
+        public void RemoveEffect(Effect effect) => _effectRegistry.RemoveEffect(effect);
 
         #endregion
 

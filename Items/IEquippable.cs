@@ -8,7 +8,7 @@ namespace text_survival.Items
         // public List<Buff> GetEquipBuffs();
         // public void AddEquipBuff(Buff buff);
         // public void RemoveEquipBuff(Buff buff);
-        public List<IEffect> EquipEffects { get; }
+        public List<Effect> EquipEffects { get; }
     }
 
 }
