@@ -148,7 +148,7 @@ public class Body
     }
 
     // Calculate derived attributes
-    private double CalculateStrength()
+    public double CalculateStrength()
     {
         double manipulationCapacity = GetCapacity("Manipulation");
         double bloodPumping = GetCapacity("BloodPumping"); // Energy delivery
@@ -174,7 +174,7 @@ public class Body
         return manipulationCapacity * (baseStrength + muscleContribution * energyFactor - fatPenalty);
     }
 
-    private double CalculateSpeed()
+    public double CalculateSpeed()
     {
         double movingCapacity = GetCapacity("Moving");
         double muscleBonus = Math.Min(MusclePercentage * 0.5, 0.2); // Up to 20% bonus from muscle

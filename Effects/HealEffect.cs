@@ -11,7 +11,7 @@ namespace text_survival.Effects
             Heal = healingInfo;
         }
 
-        public override void Apply(IActor target)
+        public override void Apply(Actor target)
         {
             Heal.Amount *= Severity;
             Heal.Quality *= Severity;
@@ -19,15 +19,6 @@ namespace text_survival.Effects
             IsActive = false;
         }
 
-        public override void Update(IActor target)
-        {
-            // Instantaneous effect, no update needed
-        }
-
-        public override void Remove(IActor target)
-        {
-            // No cleanup needed
-        }
         private HealingInfo Heal;
     }
 }

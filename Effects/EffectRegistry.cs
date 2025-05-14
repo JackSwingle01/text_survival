@@ -3,7 +3,7 @@ using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.IO;
 namespace text_survival.Effects;
-public class EffectRegistry(IActor owner)
+public class EffectRegistry(Actor owner)
 {
     public IReadOnlyList<Effect> GetActiveEffects() => _effects.AsReadOnly();
 
@@ -57,6 +57,6 @@ public class EffectRegistry(IActor owner)
     public IEnumerable<Effect> GetEffectsByKind(string kind) => _effects.Where(e => e.EffectKind == kind);
 
 
-    private readonly IActor _owner = owner;
+    private readonly Actor _owner = owner;
     private List<Effect> _effects = [];
 }

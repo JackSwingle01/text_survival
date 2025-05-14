@@ -43,13 +43,13 @@ namespace text_survival.Effects
         // public List<TreatmentOption> TreatmentOptions {get;}
 
         // main algorithm methods - typically don't override
-        public void Apply(IActor target)
+        public void Apply(Actor target)
         {
             IsActive = true;
             OnApply(target);
         }
 
-        public void Update(IActor target)
+        public void Update(Actor target)
         {
             if (!IsActive) return;
 
@@ -73,13 +73,13 @@ namespace text_survival.Effects
 
             OnUpdate(target);
         }
-        public void Remove(IActor target)
+        public void Remove(Actor target)
         {
             if (!IsActive) return;
             OnRemove(target);
             IsActive = false;
         }
-        public virtual void UpdateSeverity(IActor target, double severityChange)
+        public virtual void UpdateSeverity(Actor target, double severityChange)
         {
             if (!IsActive) return;
 
@@ -95,10 +95,10 @@ namespace text_survival.Effects
 
 
         // hook methods that can be implemented by sub classes
-        protected virtual void OnApply(IActor target) { }
-        protected virtual void OnUpdate(IActor target) { }
-        protected virtual void OnSeverityChange(IActor target, double oldSeverity, double updatedSeverity) { }
-        protected virtual void OnRemove(IActor target) { }
+        protected virtual void OnApply(Actor target) { }
+        protected virtual void OnUpdate(Actor target) { }
+        protected virtual void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity) { }
+        protected virtual void OnRemove(Actor target) { }
 
 
         // UI methods

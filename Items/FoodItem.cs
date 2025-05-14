@@ -9,7 +9,7 @@ namespace text_survival.Items
         int Calories { get; }
     }
 
-    public class FoodItem : Item, IEdible, IUpdateable
+    public class FoodItem : Item, IEdible
     {
         public FoodItem(string name, int calories, int waterContent = 0, double weight = .5) : base(name, weight)
         {

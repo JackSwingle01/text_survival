@@ -6,18 +6,6 @@ using text_survival.Bodies;
 
 namespace text_survival.PlayerComponents;
 
-// public interface IInventorySystem
-// {
-//     bool IsArmed { get; }
-//     bool IsArmored { get; }
-//     Weapon Weapon { get; }
-//     double EquipmentWarmth { get; }
-//     void AddToInventory(Item item);
-//     void RemoveFromInventory(Item item);
-//     void Equip(IEquippable item);
-//     void Unequip(IEquippable item);
-//     void Open(Player player);
-// }
 
 public interface ISurvivalSystem
 {
@@ -31,10 +19,6 @@ public interface ISurvivalSystem
     void Describe();
 }
 
-public interface ICombatSystem
-{
-    void Attack(ICombatant target);
-}
 
 public interface ILocationSystem
 {

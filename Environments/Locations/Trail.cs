@@ -6,7 +6,7 @@ namespace text_survival.Environments.Locations
     internal class Trail : Location
     {
         new public const bool IsShelter = false;
-        public Trail(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
+        public Trail(Place parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
             Type = LocationType.Trail;
             TemperatureModifier = 0;

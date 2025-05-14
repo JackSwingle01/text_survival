@@ -1,12 +1,11 @@
 using text_survival.Actors;
 using text_survival.Bodies;
-using text_survival.Effects;
 using text_survival.IO;
 
 namespace text_survival.PlayerComponents;
-class CombatManager : ICombatSystem
+public class CombatManager
 {
-    public CombatManager(ICombatant owner)
+    public CombatManager(Actor owner)
     {
         Owner = owner;
     }
@@ -26,21 +25,21 @@ class CombatManager : ICombatSystem
 
         double conditionModifier = (2 - (Owner.ConditionPercent / 100)) / 2 + 0.1;
         return CalculateAttackDamage(
-            Owner.ActiveWeapon.Damage, Owner.Attributes.Strength, skillBonus, conditionModifier);
+            Owner.ActiveWeapon.Damage, Owner.Body.CalculateStrength(), skillBonus, conditionModifier);
     }
 
-    public double DetermineDodgeChance(ICombatant target)
+    public double DetermineDodgeChance(Actor target)
     {
         double dodgeLevel = target._skillRegistry != null ? target._skillRegistry.GetLevel("Reflexes") : 0;
-        double baseDodge = (dodgeLevel + target.Attributes.Luck / 10) / 100;
-        double speedDiff = (target.Attributes.Speed - Owner.Attributes.Speed) / 100;
+        double baseDodge = dodgeLevel / 100;
+        double speedDiff = target.Body.CalculateSpeed() - Owner.Body.CalculateSpeed();
         double chance = baseDodge + speedDiff;
         // Output.WriteLine("Debug: Dodge Chance = ", chance);
         chance = Math.Clamp(chance, 0, .95);
         return chance;
     }
 
-    public bool DetermineDodge(ICombatant target)
+    public bool DetermineDodge(Actor target)
     {
         double dodgeChance = DetermineDodgeChance(target);
         if (Utils.DetermineSuccess(dodgeChance))
@@ -63,11 +62,11 @@ class CombatManager : ICombatSystem
         return true;
     }
 
-    public bool DetermineBlock(ICombatant target)
+    public bool DetermineBlock(Actor target)
     {
         double blockLevel = target._skillRegistry != null ? target._skillRegistry.GetLevel("Defense") : 0;
         double skillBonus = blockLevel / 100;
-        double attributeAvg = (target.Attributes.Luck + target.Attributes.Strength) / 2 / 100;
+        double attributeAvg =  target.Body.CalculateStrength(); // todo 
         double blockAtbAvg = target.ActiveWeapon.BlockChance + attributeAvg / 2;
         double blockChance = blockAtbAvg + skillBonus;
         if (Utils.DetermineSuccess(blockChance))
@@ -78,7 +77,7 @@ class CombatManager : ICombatSystem
         return false;
     }
 
-    public void Attack(ICombatant target)
+    public void Attack(Actor target)
     {
         double damage = DetermineDamage();
         if (DetermineDodge(target))
@@ -107,5 +106,5 @@ class CombatManager : ICombatSystem
     }
 
 
-    public ICombatant Owner { get; }
+    public Actor Owner { get; }
 }

@@ -6,7 +6,7 @@ namespace text_survival.Environments.Locations
     internal class LocationTemplate : Location
     {
         new public const bool IsShelter = false;
-        public LocationTemplate(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
+        public LocationTemplate(Place parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
             Type = LocationType.Cave;
             TemperatureModifier = 0;

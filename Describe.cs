@@ -8,11 +8,6 @@ namespace text_survival
 {
     public static class Describe
     {
-        public static void DescribeCombatant(ICombatant c)
-        {
-            //Output.WriteLine(c, " => HP: ", c.Health, "/", c.MaxHealth);
-            Output.WriteLine(c);
-        }
         public static void DescribeGear(InventoryManager inv)
         {
             if (inv.IsArmed)

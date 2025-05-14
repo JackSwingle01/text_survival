@@ -7,9 +7,9 @@ using text_survival.Effects;
 
 namespace text_survival.PlayerComponents;
 
-class SurvivalManager : ISurvivalSystem
+public class SurvivalManager : ISurvivalSystem
 {
-    public SurvivalManager(IActor owner, EffectRegistry effectRegistry, bool enableSurvivalMechanics, Body body)
+    public SurvivalManager(Actor owner, EffectRegistry effectRegistry, bool enableSurvivalMechanics, Body body)
     {
         Owner = owner;
         EnableSurvivalMechanics = enableSurvivalMechanics;
@@ -118,7 +118,7 @@ class SurvivalManager : ISurvivalSystem
         }
     }
 
-    private IActor Owner { get; }
+    private Actor Owner { get; }
     private bool EnableSurvivalMechanics { get; }
     public Body Body { get; }
     private HungerModule HungerModule { get; }

@@ -6,7 +6,7 @@ using text_survival.Items;
 
 namespace text_survival.Environments;
 
-public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
+public class Location : Place
 {
     public string Name { get; set; }
     public LocationType Type { get; set; }
@@ -26,7 +26,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     public List<IInteractable> Things { get; set; } = [];
     public List<Npc> Npcs => Things.OfType<Npc>().ToList();
     public List<Item> Items => Things.OfType<Item>().ToList();
-    public List<Location> Locations => Things.OfType<Location>().ToList();
+    public override List<Location> Locations => Things.OfType<Location>().ToList();
     virtual public Location? Parent { get; set; }
     public Zone ParentZone { get; }
     protected virtual ForageModule ForageModule { get; set; } = new();
@@ -34,13 +34,13 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
 
 
     #region Initialization
-    public Location(string name, IPlace parent, int numItems = 0, int numNpcs = 0) : this(parent, numItems, numNpcs)
+    public Location(string name, Place parent, int numItems = 0, int numNpcs = 0) : this(parent, numItems, numNpcs)
     {
         Name = name;
         InitializeLoot(numItems);
         InitializeNpcs(numNpcs);
     }
-    public Location(IPlace parent, int numItems = 0, int numNpcs = 0)
+    public Location(Place parent, int numItems = 0, int numNpcs = 0)
     {
         if (parent is Zone z)
         {
@@ -108,8 +108,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     public Command<Player> InteractCommand => new("Go to " + Name + (Visited ? " (Visited)" : ""), Interact);
 
 
-
-    public virtual double GetTemperature() => GetTemperature(IsShelter);
+    public override double GetTemperature() => GetTemperature(IsShelter);
 
     protected double GetTemperature(bool indoors = false)
     {
@@ -132,7 +131,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     }
 
 
-    public static void GenerateSubLocation(IPlace parent, LocationType type, int numItems = 0, int numNpcs = 0)
+    public static void GenerateSubLocation(Place parent, LocationType type, int numItems = 0, int numNpcs = 0)
     {
         Location location = type switch
         {

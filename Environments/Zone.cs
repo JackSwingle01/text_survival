@@ -5,13 +5,10 @@ using static text_survival.Environments.Location;
 
 namespace text_survival.Environments
 {
-    public class Zone : IPlace, IHasLocations
+    public class Zone : Place
     {
-        public string Name { get; set; }
         public string Description { get; set; }
         public double BaseTemperature { get; protected set; }
-        public bool Visited { get; set; } = false;
-        public List<Location> Locations { get; protected set; } = [];
         public virtual List<Item> ItemList { get; } = [];
         public virtual List<Npc> NpcList { get; } = [];
 
@@ -52,7 +49,7 @@ namespace text_survival.Environments
             modifier += Utils.RandInt(-3, 3);
             return modifier;
         }
-        public double GetTemperature()
+        public override double GetTemperature()
         {
             double effect = GetTemperatureModifer();
             return effect + BaseTemperature;
@@ -71,16 +68,11 @@ namespace text_survival.Environments
             Location.GenerateSubLocation(this, type, items, npcs);
         }
 
-        public virtual void Update()
+        public override void Update()
         {
-            List<IUpdateable> updateables = Locations.OfType<IUpdateable>().ToList();
-            foreach (var updateable in updateables)
-            {
-                updateable.Update();
-            }
+            
         }
 
-        public void PutLocation(Location location) => Locations.Add(location);
         protected static readonly List<string> genericAdjectives = ["", "Open", "Dark", "Ominous", "Shady", "Lonely", "Ancient",];
         public override string ToString() => Name;
 

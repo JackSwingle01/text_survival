@@ -7,7 +7,7 @@ namespace text_survival.Environments.Locations
     {
         new public const bool IsShelter = true;
 
-        public Cave(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
+        public Cave(Place parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
             // set type and temperature
             Type = LocationType.Cave;

@@ -1,6 +1,5 @@
 ﻿using text_survival.Effects;
 using text_survival.Environments;
-using text_survival.Interfaces;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Level;
@@ -9,26 +8,18 @@ using text_survival.Bodies;
 
 namespace text_survival.Actors
 {
-    public class Npc : ICombatant, IInteractable
+    public class Npc : Actor
     {
         #region Properties
 
         // Basic properties
-        public string Name { get; set; }
         public string Description { get; set; }
         public bool IsFound { get; set; }
         public bool IsHostile { get; private set; }
 
-        // ICombatant implementation
-        public bool IsEngaged { get; set; }
-        public bool IsAlive => !Body.IsDestroyed;
-        public double ConditionPercent => SurvivalManager.ConditionPercent;
-        public Weapon ActiveWeapon => InventoryManager.Weapon;
-        public bool IsArmed => InventoryManager.IsArmed;
-        public bool IsArmored => InventoryManager.IsArmored;
-        public double EquipmentWarmth => InventoryManager.EquipmentWarmth;
+        public override Location CurrentLocation {get; set;}
+        public override Zone CurrentZone {get; set;}
         public Attributes Attributes { get; }
-        public SkillRegistry _skillRegistry { get; }
 
         // IPhysicalEntity implementation
         public double Health => Body.Health;
@@ -36,10 +27,7 @@ namespace text_survival.Actors
         public bool IsDestroyed => Body.IsDestroyed;
 
         // Internal components
-        private Body Body { get; }
-        private EffectRegistry _effectRegistry { get; }
-        private SurvivalManager SurvivalManager { get; }
-        private InventoryManager InventoryManager { get; }
+
         private Container Loot { get; }
 
         #endregion
@@ -55,7 +43,6 @@ namespace text_survival.Actors
             IsHostile = true;
 
             // Component initialization
-            _effectRegistry = new EffectRegistry(this);
             _skillRegistry = new SkillRegistry(this is Humanoid);
 
             // Create the appropriate body type
@@ -78,11 +65,6 @@ namespace text_survival.Actors
             // Create body from the generated body part with sensible defaults
             Body = new Body(bodyPart, 70, 20, 60, _effectRegistry);
 
-            // Initialize the managers
-            SurvivalManager = new SurvivalManager(this, _effectRegistry, false, Body);
-            InventoryManager = new InventoryManager(_effectRegistry);
-            InventoryManager.Weapon = new Weapon(WeaponType.Unarmed, WeaponMaterial.Other);
-
             // Set up loot container
             Loot = new Container(name, 10);
         }
@@ -98,20 +80,7 @@ namespace text_survival.Actors
 
         #endregion
 
-        #region IDamageable Interface Implementation
-
-        public void Damage(DamageInfo damageInfo)
-        {
-            SurvivalManager.Damage(damageInfo);
-        }
-
-        public void Heal(HealingInfo healingInfo)
-        {
-            SurvivalManager.Heal(healingInfo);
-        }
-
-        #endregion
-
+  
         #region IInteractable Interface Implementation
 
         public void Interact(Player player)
@@ -142,38 +111,7 @@ namespace text_survival.Actors
 
         #endregion
 
-        #region ICombatant Interface Implementation
 
-        public void Attack(ICombatant target)
-        {
-            new CombatManager(this).Attack(target);
-        }
-
-        #endregion
-
-        #region ILocatable Interface Implementation (Placeholder)
-
-        public Location CurrentLocation => throw new NotImplementedException();
-        public Zone CurrentZone => throw new NotImplementedException();
-
-        #endregion
-
-        #region IUpdateable Interface Implementation
-
-        public void Update()
-        {
-            SurvivalManager.Update();
-            _effectRegistry.Update();
-        }
-
-        #endregion
-
-        #region Effect Methods
-
-        public void ApplyEffect(Effect effect) => _effectRegistry.AddEffect(effect);
-        public void RemoveEffect(Effect effect) => _effectRegistry.RemoveEffect(effect);
-
-        #endregion
 
         #region Inventory and Loot Methods
 

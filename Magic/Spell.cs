@@ -13,10 +13,10 @@ namespace text_survival.Magic
         public string Name { get; private set; }
         //public string Description { get; set; }
         public double PsychCost { get; private set; }
-        private IEffect Effect { get; }
+        private Effect Effect { get; }
         public SpellFamily Family { get; }
 
-        public Spell(string name, double psychCost, IEffect effect, SpellFamily family)
+        public Spell(string name, double psychCost, Effect effect, SpellFamily family)
         {
             Name = name;
             PsychCost = psychCost;
@@ -24,7 +24,7 @@ namespace text_survival.Magic
             Family = family;
         }
 
-        public void Cast(IActor target)
+        public void Cast(Actor target)
         {
             target.ApplyEffect(Effect);
         }

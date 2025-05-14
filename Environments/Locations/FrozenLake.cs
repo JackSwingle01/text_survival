@@ -6,7 +6,7 @@ namespace text_survival.Environments.Locations
     internal class FrozenLake : Location
     {
         new public const bool IsShelter = false;
-        public FrozenLake(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
+        public FrozenLake(Place parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
             Type = LocationType.FrozenLake;
             TemperatureModifier = -3;

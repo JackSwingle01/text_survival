@@ -12,13 +12,13 @@ namespace text_survival.Effects
             DamagePerHour = damagePerHour;
         }
 
-        public override void Apply(IActor target)
+        public override void Apply(Actor target)
         {
             Output.WriteLine($"{target} is poisoned!");
             IsActive = true;
         }
 
-        public override void Update(IActor target)
+        public override void Update(Actor target)
         {
             if (!IsActive) return;
 
@@ -33,7 +33,7 @@ namespace text_survival.Effects
             }
         }
 
-        public override void Remove(IActor target)
+        public override void Remove(Actor target)
         {
             if (!IsActive) return;
             IsActive = false;

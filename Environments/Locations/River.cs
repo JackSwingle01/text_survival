@@ -6,7 +6,7 @@ namespace text_survival.Environments.Locations
     internal class River : Location
     {
         new public const bool IsShelter = false;
-        public River(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
+        public River(Place parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
             Type = LocationType.River;
             TemperatureModifier = 0;

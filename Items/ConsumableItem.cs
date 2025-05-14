@@ -11,5 +11,5 @@ class ConsumableItem : Item
         NumUses = numUses;
     }
 
-    public List<IEffect> Effects;
+    public List<Effect> Effects;
 }

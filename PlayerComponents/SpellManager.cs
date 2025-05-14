@@ -16,7 +16,7 @@ class SpellManager
     }
     private readonly List<Spell> _spells = [];
     private readonly SkillRegistry _skills;
-    public void SelectSpell(List<ICombatant> targets)
+    public void SelectSpell(List<Actor> targets)
     {
         //get spell
         Output.WriteLine("Which spell would you like to cast?");
@@ -31,7 +31,7 @@ class SpellManager
         CastSpell(spell, target);
     }
 
-    public void CastSpell(Spell spell, ICombatant target)
+    public void CastSpell(Spell spell, Actor target)
     {
         spell.Cast(target);
         _skills.AddExperience("Shamanism", 2);

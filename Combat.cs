@@ -6,12 +6,12 @@ namespace text_survival
 {
     public static class Combat
     {
-        public static void CombatLoop(Player player, ICombatant enemy)
+        public static void CombatLoop(Player player, Actor enemy)
         {
             Output.WriteLine("You encounter: ", enemy, "!");
             player.IsEngaged = true;
             enemy.IsEngaged = true;
-            if (enemy.Attributes.Speed > player.Attributes.Speed)
+            if (enemy.Body.CalculateSpeed() > player.Body.CalculateSpeed())
             {
                 enemy.Attack(player);
             }
@@ -38,7 +38,7 @@ namespace text_survival
 
 
 
-        public static void PlayerTurn(Player player, ICombatant enemy)
+        public static void PlayerTurn(Player player, Actor enemy)
         {
             Output.WriteLine("What do you want to do?");
 
@@ -72,7 +72,7 @@ namespace text_survival
             }
         }
 
-        public static bool SpeedCheck(Player player, ICombatant? enemy = null)
+        public static bool SpeedCheck(Player player, Actor? enemy = null)
         {
             if (player.CurrentLocation.IsSafe) return true;
 
@@ -100,10 +100,10 @@ namespace text_survival
             return fastestNpc;
         }
 
-        public static double CalcSpeedCheck(ICombatant actor)
+        public static double CalcSpeedCheck(Actor actor)
         {
-            double athleticsBonus = actor._skillRegistry.GetLevel("Athletics");
-            return actor.Attributes.Speed + actor.Attributes.Luck / 2 + athleticsBonus;
+            double athleticsBonus = actor._skillRegistry.GetLevel("Agility");
+            return actor.Body.CalculateSpeed() + athleticsBonus;
         }
     }
 }
