@@ -131,7 +131,7 @@ namespace text_survival.Actors
         {
             item.IsFound = true;
             Loot.Remove(item);
-            location.PutThing(item);
+            location.Items.Add(item);
         }
 
         #endregion

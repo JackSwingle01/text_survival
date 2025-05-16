@@ -1,4 +1,5 @@
-﻿using text_survival.Actors;
+﻿using System.Reflection.Metadata.Ecma335;
+using text_survival.Actors;
 using text_survival.Environments.Locations;
 using text_survival.Interfaces;
 using text_survival.IO;
@@ -8,7 +9,6 @@ namespace text_survival.Environments;
 
 public class Location : Place
 {
-    public string Name { get; set; }
     public LocationType Type { get; set; }
     public enum LocationType
     {
@@ -18,16 +18,26 @@ public class Location : Place
         River,
         FrozenLake,
     }
-    public bool Visited { get; set; }
     public double TemperatureModifier { get; protected set; }
     public const bool IsShelter = false;
     public bool IsFound { get; set; } = false;
     public virtual bool IsSafe => !Npcs.Any(npc => npc.IsHostile);
-    public List<IInteractable> Things { get; set; } = [];
-    public List<Npc> Npcs => Things.OfType<Npc>().ToList();
-    public List<Item> Items => Things.OfType<Item>().ToList();
-    public override List<Location> Locations => Things.OfType<Location>().ToList();
+    public List<Npc> Npcs = [];
+    public List<Item> Items = [];
+    public List<Container> Containers = [];
     virtual public Location? Parent { get; set; }
+    public List<IInteractable> Things
+    {
+        get 
+        {
+            var things = new List<IInteractable>();
+            things.AddRange(Npcs.OfType<IInteractable>());
+            things.AddRange(Locations.OfType<IInteractable>());
+            things.AddRange(Containers.OfType<IInteractable>());
+            things.AddRange(Items.OfType<IInteractable>());
+            return things;
+        }
+    }
     public Zone ParentZone { get; }
     protected virtual ForageModule ForageModule { get; set; } = new();
     protected LootTable LootTable;
@@ -69,7 +79,7 @@ public class Location : Place
         {
             for (int i = 0; i < numItems; i++)
             {
-                PutThing(LootTable.GenerateRandomItem());
+                Items.Add(LootTable.GenerateRandomItem());
             }
         }
     }
@@ -79,18 +89,13 @@ public class Location : Place
         {
             var npc = NpcSpawner.GenerateRandomNpc();
             if (npc is not null)
-                PutThing(npc);
+                Npcs.Add(npc);
         }
     }
     protected virtual NpcSpawner NpcSpawner { get; }
 
 
     #endregion Initialization
-
-    public void PutThing(IInteractable thing) => Things.Add(thing);
-    public void RemoveThing(IInteractable thing) => Things.Remove(thing);
-    public bool ContainsThing(IInteractable thing) => Things.Contains(thing);
-
     public void Interact(Player player)
     {
         Output.WriteLine("You consider heading to the " + Name + "...");
@@ -144,16 +149,12 @@ public class Location : Place
         parent.PutLocation(location);
     }
 
-    public virtual void Update()
+    public override void Update()
     {
-        List<IUpdateable> updateables = Things.OfType<IUpdateable>().ToList();
-        foreach (var updateable in updateables)
-        {
-            updateable.Update();
-        }
+        Locations.ForEach(i => i.Update());
+        Npcs.ForEach(n => n.Update());
     }
 
-    public void PutLocation(Location location) => PutThing(location);
 
     public void Forage(int hours)
     {
@@ -163,7 +164,7 @@ public class Location : Place
         {
             foreach (var item in itemsFound)
             {
-                PutThing(item);
+                Items.Add(item);
                 item.IsFound = true;
             }
         }

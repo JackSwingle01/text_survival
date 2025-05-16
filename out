@@ -10,11 +10,6 @@ namespace text_survival
 {
     public static class Describe
     {
-        public static void DescribeCombatant(ICombatant c)
-        {
-            //Output.WriteLine(c, " => HP: ", c.Health, "/", c.MaxHealth);
-            Output.WriteLine(c);
-        }
         public static void DescribeGear(InventoryManager inv)
         {
             if (inv.IsArmed)
@@ -87,9 +82,11 @@ namespace text_survival
 
 File: ./Actions.cs
 --------------------------------------------------------------------------------
-﻿using text_survival.Environments;
+﻿using text_survival.Actors;
+using text_survival.Environments;
 using text_survival.Interfaces;
 using text_survival.IO;
+using text_survival.Items;
 using text_survival.PlayerComponents;
 
 namespace text_survival
@@ -132,15 +129,45 @@ namespace text_survival
 
             // conditional actions
 
-            foreach (IInteractable thing in _player.CurrentLocation.Things)
+            foreach (Location location in _player.CurrentLocation.Locations)
             {
-                if (thing.IsFound)
+                if (location.IsFound)
                 {
-                    var interactCommand = thing.InteractCommand;
+                    var interactCommand = location.InteractCommand;
                     interactCommand.Player = _player;
                     AvailableActions.Add(interactCommand);
                 }
             }
+            foreach (Item item in _player.CurrentLocation.Items)
+            {
+                if (item.IsFound)
+                {
+                    var interactCommand = item.InteractCommand;
+                    interactCommand.Player = _player;
+                    AvailableActions.Add(interactCommand);
+                }
+            }
+            foreach (Container container in _player.CurrentLocation.Containers)
+            {
+                if (container.IsFound)
+                {
+                    var interactCommand = container.InteractCommand;
+                    interactCommand.Player = _player;
+                    AvailableActions.Add(interactCommand);
+                }
+            }
+            foreach (Npc npc in _player.CurrentLocation.Npcs)
+            {
+                if (npc.IsFound)
+                {
+                    var interactCommand = npc.InteractCommand;
+                    interactCommand.Player = _player;
+                    AvailableActions.Add(interactCommand);
+                }
+            }
+
+
+
 
             foreach (Location location in GetNearbyLocations(_player))
             {
@@ -367,58 +394,27 @@ using text_survival.PlayerComponents;
 
 namespace text_survival
 {
-    public class Player : ICombatant, ISpellCaster
+    public class Player : Actor
     {
 
-        private SurvivalManager survivalManager;
-        private InventoryManager inventoryManager;
-        private CombatManager combatManager;
         private LocationManager locationManager;
         private SpellManager spellManager;
-        private EffectRegistry _effectRegistry;
 
-        public SkillRegistry _skillRegistry { get; }
-
-
-
-        // ICombatant implementation - delegate to components
-        public bool IsEngaged { get; set; }
-        public bool IsAlive => survivalManager.IsAlive;
-        public double ConditionPercent => survivalManager.ConditionPercent;
-        public Weapon ActiveWeapon => inventoryManager.Weapon;
-        public bool IsArmed => inventoryManager.IsArmed;
-        public bool IsArmored => inventoryManager.IsArmored;
-        public double EquipmentWarmth => inventoryManager.EquipmentWarmth;
-
-        // Delegate methods to appropriate components
-
-        public void Heal(HealingInfo amount) => survivalManager.Heal(amount);
-        public void Attack(ICombatant target) => combatManager.Attack(target);
         public void Sleep(int minutes) => survivalManager.Sleep(minutes);
-        public void ApplyEffect(Effect effect) => _effectRegistry.AddEffect(effect);
-        public void RemoveEffect(string effectType) => _effectRegistry.RemoveEffect(effectType);
-        public void RemoveEffect(Effect effect) => _effectRegistry.RemoveEffect(effect);
         public void OpenInventory() => inventoryManager.Open(this);
 
         // Location-related methods
-        public Location CurrentLocation
+        public override Location CurrentLocation
         {
             get => locationManager.CurrentLocation;
             set => locationManager.CurrentLocation = value;
         }
 
-        public Zone CurrentZone
+        public override Zone CurrentZone
         {
             get => locationManager.CurrentZone;
             set => locationManager.CurrentZone = value;
         }
-
-        public void Update()
-        {
-            _effectRegistry.Update();
-            survivalManager.Update();
-        }
-
 
 
         public Attributes Attributes { get; }
@@ -428,7 +424,6 @@ namespace text_survival
 
         public Player(Location startingLocation)
         {
-            // stats
             Name = "Player";
             Attributes = new Attributes();
 
@@ -463,14 +458,14 @@ namespace text_survival
 
         public void SelectSpell()
         {
-            List<ICombatant> targets = [this];
+            List<Actor> targets = [this];
             CurrentLocation.Npcs.ForEach(targets.Add);
             spellManager.SelectSpell(targets);
         }
 
 
 
-        public void Damage(DamageInfo damageInfo)
+        public override void Damage(DamageInfo damageInfo)
         {
             survivalManager.Damage(damageInfo);
             if (!survivalManager.IsAlive)
@@ -494,7 +489,7 @@ namespace text_survival
             }
             else if (item is ConsumableItem consumable)
             {
-                foreach (IEffect e in consumable.Effects)
+                foreach (Effect e in consumable.Effects)
                 {
                     ApplyEffect(e);
                 }
@@ -503,7 +498,7 @@ namespace text_survival
             {
                 Output.WriteLine("You equip the ", gear);
                 inventoryManager.Equip(gear);
-                foreach (IEffect effect in gear.EquipEffects)
+                foreach (Effect effect in gear.EquipEffects)
                 {
                     ApplyEffect(effect);
                 }
@@ -567,19 +562,9 @@ namespace text_survival
             return true;
         }
 
-        public string Name { get; set; }
-        public override string ToString() => Name;
+
 
         public void Travel() => locationManager.TravelToAdjacentZone();
-
-        public IReadOnlyDictionary<string, double> GetCapacities()
-        {
-            throw new NotImplementedException();
-        }
-
-        public void CastSpell(Spell spell, ICombatant target) => spellManager.CastSpell(spell, target);
-
-        public bool IsDestroyed => throw new NotImplementedException();
         public Command<Player> LeaveCommand => new("Leave " + Name, p => locationManager.Leave());
     }
 }
@@ -657,28 +642,27 @@ File: ./Actors/IBuffable.cs
 File: ./Actors/ICombatant.cs
 --------------------------------------------------------------------------------
 ﻿
-using text_survival.Bodies;
-using text_survival.Items;
-using text_survival.Level;
+// using text_survival.Items;
+// using text_survival.Level;
 
-namespace text_survival.Actors
-{
-    public interface ICombatant : IActor
-    {
-        bool IsAlive { get; }
-        bool IsEngaged { get; set; }
-        Weapon ActiveWeapon { get; }
-        Attributes Attributes { get; }
-        SkillRegistry _skillRegistry {get;}
-        double ConditionPercent { get; }
-        void Attack(ICombatant target);
-        // double DetermineDamage();
-        // double DetermineHitChance(ICombatant defender);
-        // double DetermineDodgeChance(ICombatant attacker);
-        // double DetermineBlockChance(ICombatant attacker);
+// namespace text_survival.Actors
+// {
+//     public interface ICombatant
+//     {
+//         bool IsAlive { get; }
+//         bool IsEngaged { get; set; }
+//         Weapon ActiveWeapon { get; }
+//         Attributes Attributes { get; }
+//         SkillRegistry _skillRegistry {get;}
+//         double ConditionPercent { get; }
+//         void Attack(ICombatant target);
+//         // double DetermineDamage();
+//         // double DetermineHitChance(ICombatant defender);
+//         // double DetermineDodgeChance(ICombatant attacker);
+//         // double DetermineBlockChance(ICombatant attacker);
 
-    }
-}
+//     }
+// }
 ================================================================================
 
 File: ./Actors/NPCFactory.cs
@@ -812,30 +796,77 @@ File: ./Actors/NpcSpawner.cs
     }
 }================================================================================
 
-File: ./Actors/IActor.cs
+File: ./Actors/Actor.cs
 --------------------------------------------------------------------------------
 ﻿using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments;
-using text_survival.Interfaces;
+using text_survival.Items;
+using text_survival.Level;
+using text_survival.PlayerComponents;
 
-namespace text_survival.Actors
+namespace text_survival.Actors;
+
+public abstract class Actor
 {
-    public interface IActor : IUpdateable, IDamageable
+    public string Name = "";
+
+    public abstract Location CurrentLocation { get; set; }
+    public abstract Zone CurrentZone { get; set; }
+    public virtual void Attack(Actor target) => combatManager.Attack(target);
+
+    public virtual void Damage(DamageInfo damage) => survivalManager.Damage(damage);
+    public virtual void Heal(HealingInfo heal) => survivalManager.Heal(heal);
+
+    public bool IsEngaged { get; set; }
+    public bool IsAlive => survivalManager.IsAlive;
+    public double ConditionPercent => survivalManager.ConditionPercent;
+    public Weapon ActiveWeapon => inventoryManager.Weapon;
+    public bool IsArmed => inventoryManager.IsArmed;
+    public bool IsArmored => inventoryManager.IsArmored;
+    public double EquipmentWarmth => inventoryManager.EquipmentWarmth;
+
+    public virtual void ApplyEffect(Effect effect) => _effectRegistry.AddEffect(effect);
+    public virtual void RemoveEffect(Effect effect) => _effectRegistry.RemoveEffect(effect);
+
+    public virtual void Update()
     {
-        public double EquipmentWarmth { get; }
-        void ApplyEffect(Effect effect);
-        public Location CurrentLocation { get; }
-        public Zone CurrentZone { get; }
+        survivalManager.Update();
+        _effectRegistry.Update();
     }
+
+    public required SkillRegistry _skillRegistry { get; init; }
+    public required Body Body { get; init; }
+    protected EffectRegistry _effectRegistry { get; init; }
+    protected SurvivalManager survivalManager { get; init; }
+    protected InventoryManager inventoryManager { get; init; }
+    protected CombatManager combatManager { get; init; }
+
+    public override string ToString() => Name;
+
+    // protected Actor(EffectRegistry effectRegistry,
+    //               SkillRegistry skillRegistry,
+    //               SurvivalManager survivalManager,
+    //               InventoryManager inventoryManager,
+    //               CombatManager combatManager,
+    //               Body body)
+    // {
+    //     _effectRegistry = effectRegistry;
+    //     _skillRegistry = skillRegistry;
+    //     this.survivalManager = survivalManager;
+    //     this.inventoryManager = inventoryManager;
+    //     this.combatManager = combatManager;
+    //     Body = body;
+    // }
 }
+
+
 ================================================================================
 
 File: ./Actors/NPC.cs
 --------------------------------------------------------------------------------
 ﻿using text_survival.Effects;
 using text_survival.Environments;
-using text_survival.Interfaces;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Level;
@@ -844,26 +875,18 @@ using text_survival.Bodies;
 
 namespace text_survival.Actors
 {
-    public class Npc : ICombatant, IInteractable
+    public class Npc : Actor
     {
         #region Properties
 
         // Basic properties
-        public string Name { get; set; }
         public string Description { get; set; }
         public bool IsFound { get; set; }
         public bool IsHostile { get; private set; }
 
-        // ICombatant implementation
-        public bool IsEngaged { get; set; }
-        public bool IsAlive => !Body.IsDestroyed;
-        public double ConditionPercent => SurvivalManager.ConditionPercent;
-        public Weapon ActiveWeapon => InventoryManager.Weapon;
-        public bool IsArmed => InventoryManager.IsArmed;
-        public bool IsArmored => InventoryManager.IsArmored;
-        public double EquipmentWarmth => InventoryManager.EquipmentWarmth;
+        public override Location CurrentLocation {get; set;}
+        public override Zone CurrentZone {get; set;}
         public Attributes Attributes { get; }
-        public SkillRegistry _skillRegistry { get; }
 
         // IPhysicalEntity implementation
         public double Health => Body.Health;
@@ -871,10 +894,7 @@ namespace text_survival.Actors
         public bool IsDestroyed => Body.IsDestroyed;
 
         // Internal components
-        private Body Body { get; }
-        private EffectRegistry _effectRegistry { get; }
-        private SurvivalManager SurvivalManager { get; }
-        private InventoryManager InventoryManager { get; }
+
         private Container Loot { get; }
 
         #endregion
@@ -890,7 +910,6 @@ namespace text_survival.Actors
             IsHostile = true;
 
             // Component initialization
-            _effectRegistry = new EffectRegistry(this);
             _skillRegistry = new SkillRegistry(this is Humanoid);
 
             // Create the appropriate body type
@@ -913,11 +932,6 @@ namespace text_survival.Actors
             // Create body from the generated body part with sensible defaults
             Body = new Body(bodyPart, 70, 20, 60, _effectRegistry);
 
-            // Initialize the managers
-            SurvivalManager = new SurvivalManager(this, _effectRegistry, false, Body);
-            InventoryManager = new InventoryManager(_effectRegistry);
-            InventoryManager.Weapon = new Weapon(WeaponType.Unarmed, WeaponMaterial.Other);
-
             // Set up loot container
             Loot = new Container(name, 10);
         }
@@ -933,20 +947,7 @@ namespace text_survival.Actors
 
         #endregion
 
-        #region IDamageable Interface Implementation
-
-        public void Damage(DamageInfo damageInfo)
-        {
-            SurvivalManager.Damage(damageInfo);
-        }
-
-        public void Heal(HealingInfo healingInfo)
-        {
-            SurvivalManager.Heal(healingInfo);
-        }
-
-        #endregion
-
+  
         #region IInteractable Interface Implementation
 
         public void Interact(Player player)
@@ -977,38 +978,7 @@ namespace text_survival.Actors
 
         #endregion
 
-        #region ICombatant Interface Implementation
 
-        public void Attack(ICombatant target)
-        {
-            new CombatManager(this).Attack(target);
-        }
-
-        #endregion
-
-        #region ILocatable Interface Implementation (Placeholder)
-
-        public Location CurrentLocation => throw new NotImplementedException();
-        public Zone CurrentZone => throw new NotImplementedException();
-
-        #endregion
-
-        #region IUpdateable Interface Implementation
-
-        public void Update()
-        {
-            SurvivalManager.Update();
-            _effectRegistry.Update();
-        }
-
-        #endregion
-
-        #region Effect Methods
-
-        public void ApplyEffect(Effect effect) => _effectRegistry.AddEffect(effect);
-        public void RemoveEffect(Effect effect) => _effectRegistry.RemoveEffect(effect);
-
-        #endregion
 
         #region Inventory and Loot Methods
 
@@ -1028,7 +998,7 @@ namespace text_survival.Actors
         {
             item.IsFound = true;
             Loot.Remove(item);
-            location.PutThing(item);
+            location.Items.Add(item);
         }
 
         #endregion
@@ -1267,7 +1237,7 @@ namespace text_survival.Items
         int Calories { get; }
     }
 
-    public class FoodItem : Item, IEdible, IUpdateable
+    public class FoodItem : Item, IEdible
     {
         public FoodItem(string name, int calories, int waterContent = 0, double weight = .5) : base(name, weight)
         {
@@ -2239,7 +2209,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c0d4e8701166c40dabc18b2a6267c2080accf341")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c17b2f94c0b6a34a272476030a20f7142443bec1")]
 [assembly: System.Reflection.AssemblyProductAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyTitleAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -2522,7 +2492,7 @@ class LocationManager : ILocationSystem
 
     public bool RemoveItemFromLocation(Item item)
     {
-        if (_currentLocation.ContainsThing(item))
+        if (_currentLocation.Items.Contains(item))
         {
             _currentLocation.RemoveThing(item);
             return true;
@@ -2532,7 +2502,7 @@ class LocationManager : ILocationSystem
 
     public void AddItemToLocation(Item item)
     {
-        _currentLocation.PutThing(item);
+        _currentLocation.Items.Add(item);
     }
 
     public void TravelToAdjacentZone()
@@ -2577,13 +2547,12 @@ File: ./PlayerComponents/CombatManager.cs
 --------------------------------------------------------------------------------
 using text_survival.Actors;
 using text_survival.Bodies;
-using text_survival.Effects;
 using text_survival.IO;
 
 namespace text_survival.PlayerComponents;
-class CombatManager : ICombatSystem
+public class CombatManager
 {
-    public CombatManager(ICombatant owner)
+    public CombatManager(Actor owner)
     {
         Owner = owner;
     }
@@ -2603,21 +2572,21 @@ class CombatManager : ICombatSystem
 
         double conditionModifier = (2 - (Owner.ConditionPercent / 100)) / 2 + 0.1;
         return CalculateAttackDamage(
-            Owner.ActiveWeapon.Damage, Owner.Attributes.Strength, skillBonus, conditionModifier);
+            Owner.ActiveWeapon.Damage, Owner.Body.CalculateStrength(), skillBonus, conditionModifier);
     }
 
-    public double DetermineDodgeChance(ICombatant target)
+    public double DetermineDodgeChance(Actor target)
     {
         double dodgeLevel = target._skillRegistry != null ? target._skillRegistry.GetLevel("Reflexes") : 0;
-        double baseDodge = (dodgeLevel + target.Attributes.Luck / 10) / 100;
-        double speedDiff = (target.Attributes.Speed - Owner.Attributes.Speed) / 100;
+        double baseDodge = dodgeLevel / 100;
+        double speedDiff = target.Body.CalculateSpeed() - Owner.Body.CalculateSpeed();
         double chance = baseDodge + speedDiff;
         // Output.WriteLine("Debug: Dodge Chance = ", chance);
         chance = Math.Clamp(chance, 0, .95);
         return chance;
     }
 
-    public bool DetermineDodge(ICombatant target)
+    public bool DetermineDodge(Actor target)
     {
         double dodgeChance = DetermineDodgeChance(target);
         if (Utils.DetermineSuccess(dodgeChance))
@@ -2640,11 +2609,11 @@ class CombatManager : ICombatSystem
         return true;
     }
 
-    public bool DetermineBlock(ICombatant target)
+    public bool DetermineBlock(Actor target)
     {
         double blockLevel = target._skillRegistry != null ? target._skillRegistry.GetLevel("Defense") : 0;
         double skillBonus = blockLevel / 100;
-        double attributeAvg = (target.Attributes.Luck + target.Attributes.Strength) / 2 / 100;
+        double attributeAvg =  target.Body.CalculateStrength(); // todo 
         double blockAtbAvg = target.ActiveWeapon.BlockChance + attributeAvg / 2;
         double blockChance = blockAtbAvg + skillBonus;
         if (Utils.DetermineSuccess(blockChance))
@@ -2655,7 +2624,7 @@ class CombatManager : ICombatSystem
         return false;
     }
 
-    public void Attack(ICombatant target)
+    public void Attack(Actor target)
     {
         double damage = DetermineDamage();
         if (DetermineDodge(target))
@@ -2684,7 +2653,7 @@ class CombatManager : ICombatSystem
     }
 
 
-    public ICombatant Owner { get; }
+    public Actor Owner { get; }
 }
 ================================================================================
 
@@ -2866,18 +2835,6 @@ using text_survival.Bodies;
 
 namespace text_survival.PlayerComponents;
 
-// public interface IInventorySystem
-// {
-//     bool IsArmed { get; }
-//     bool IsArmored { get; }
-//     Weapon Weapon { get; }
-//     double EquipmentWarmth { get; }
-//     void AddToInventory(Item item);
-//     void RemoveFromInventory(Item item);
-//     void Equip(IEquippable item);
-//     void Unequip(IEquippable item);
-//     void Open(Player player);
-// }
 
 public interface ISurvivalSystem
 {
@@ -2891,10 +2848,6 @@ public interface ISurvivalSystem
     void Describe();
 }
 
-public interface ICombatSystem
-{
-    void Attack(ICombatant target);
-}
 
 public interface ILocationSystem
 {
@@ -2926,7 +2879,7 @@ class SpellManager
     }
     private readonly List<Spell> _spells = [];
     private readonly SkillRegistry _skills;
-    public void SelectSpell(List<ICombatant> targets)
+    public void SelectSpell(List<Actor> targets)
     {
         //get spell
         Output.WriteLine("Which spell would you like to cast?");
@@ -2941,7 +2894,7 @@ class SpellManager
         CastSpell(spell, target);
     }
 
-    public void CastSpell(Spell spell, ICombatant target)
+    public void CastSpell(Spell spell, Actor target)
     {
         spell.Cast(target);
         _skills.AddExperience("Shamanism", 2);
@@ -2959,9 +2912,9 @@ using text_survival.Effects;
 
 namespace text_survival.PlayerComponents;
 
-class SurvivalManager : ISurvivalSystem
+public class SurvivalManager : ISurvivalSystem
 {
-    public SurvivalManager(IActor owner, EffectRegistry effectRegistry, bool enableSurvivalMechanics, Body body)
+    public SurvivalManager(Actor owner, EffectRegistry effectRegistry, bool enableSurvivalMechanics, Body body)
     {
         Owner = owner;
         EnableSurvivalMechanics = enableSurvivalMechanics;
@@ -3070,7 +3023,7 @@ class SurvivalManager : ISurvivalSystem
         }
     }
 
-    private IActor Owner { get; }
+    private Actor Owner { get; }
     private bool EnableSurvivalMechanics { get; }
     public Body Body { get; }
     private HungerModule HungerModule { get; }
@@ -3104,46 +3057,68 @@ namespace text_survival.Effects;
 
 public class BleedEffect : Effect
 {
-    public BleedEffect(float damagePerHour, int durationMin) : base("Bleed", durationMin, severity: 1.0f)
+    private float _damagePerHour;
+    
+    public BleedEffect(BodyPart targetPart, string source, float severity, float damagePerHour, int durationMin = -1)
+        : base("Bleeding", source, targetPart, severity)
     {
-        DamagePerHour = damagePerHour;
+        _damagePerHour = damagePerHour;
+        
+        // Configure effect properties
+        SeverityChangeRate = -0.05f; // Natural clotting
+        IsStackable = true; // Multiple cuts can stack
+        
+        // Configure capacity modifiers
+        CapacityModifiers["BloodPumping"] = 0.2f; // Reduces blood pumping capacity by 20%
+        CapacityModifiers["Consciousness"] = 0.1f; // Minor consciousness impact
     }
-
-
-    public override void Apply(IActor target)
+    
+    protected override void OnApply(Actor target)
     {
-        Output.WriteLine(target, " is bleeding!");
-        IsActive = true;
+        string location = TargetBodyPart?.Name ?? "body";
+        Output.WriteLine($"{target}'s {location} is bleeding!");
     }
-
-
-    public override void Update(IActor target)
+    
+    protected override void OnUpdate(Actor target)
     {
-        if (!IsActive) return;
-
-        double damage = DamagePerHour / 60 * Severity;
-        var damageInfo = new DamageInfo() { Amount = damage, IsPenetrating = true, Type = "bleed", Source = "cut" };
-        target.Damage(damageInfo);
-
-        RemainingDurationMin -= 1;
-        if (RemainingDurationMin <= 0)
+        // Calculate damage for one minute based on severity
+        double damage = _damagePerHour / 60.0 * Severity;
+        
+        // Apply damage to the specific body part
+        var damageInfo = new DamageInfo
         {
-            Remove(target);
+            Amount = damage,
+            Type = "bleed",
+            Source = Source,
+            IsPenetrating = true, // Bleeding damage always penetrates
+            TargetPart = TargetBodyPart?.Name
+        };
+        
+        target.Damage(damageInfo);
+        
+        // Occasionally remind player of bleeding
+        if (Utils.DetermineSuccess(0.05f) && Severity > 0.3f)
+        {
+            string location = TargetBodyPart?.Name ?? "body";
+            Output.WriteLine($"Blood continues to flow from {target}'s {location}...");
         }
     }
-
-
-    public override void Remove(IActor target)
+    
+    protected override void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity)
     {
-        if (!IsActive) return;
-        IsActive = false;
-        Output.WriteLine(target, " stopped bleeding.");
+        if (updatedSeverity < 0.2f && oldSeverity >= 0.2f)
+        {
+            string location = TargetBodyPart?.Name ?? "body";
+            Output.WriteLine($"The bleeding on {target}'s {location} is slowing.");
+        }
     }
-
-
-    private float DamagePerHour;
-}
-================================================================================
+    
+    protected override void OnRemove(Actor target)
+    {
+        string location = TargetBodyPart?.Name ?? "body";
+        Output.WriteLine($"The bleeding on {target}'s {location} has stopped.");
+    }
+}================================================================================
 
 File: ./Effects/RemoveBleedEffect.cs
 --------------------------------------------------------------------------------
@@ -3159,7 +3134,7 @@ namespace text_survival.Effects
         {
         }
 
-        protected override void OnApply(IActor target)
+        protected override void OnApply(Actor target)
         {
             target.RemoveEffect("Bleed");
             Output.WriteLine(target, " stopped bleeding.");
@@ -3173,34 +3148,68 @@ File: ./Effects/HealEffect.cs
 using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.IO;
-
-namespace text_survival.Effects
+namespace text_survival.Effects;
+public class HealEffect : Effect
 {
-    public class HealEffect : Effect
+    private float _healAmountPerHour;
+    private string _targetPartName;
+
+    public HealEffect(string source, BodyPart targetPart, float healAmount, int durationMin = 60)
+        : base("Healing", source, targetPart, 1.0f)
     {
-        public HealEffect(HealingInfo healingInfo) : base("Heal", durationMin: 0, severity: 1.0f)
-        {
-            Heal = healingInfo;
-        }
+        _healAmountPerHour = healAmount;
+        _targetPartName = targetPart?.Name ?? "body";
 
-        public override void Apply(IActor target)
-        {
-            Heal.Amount *= Severity;
-            Heal.Quality *= Severity;
-            target.Heal(Heal);
-            IsActive = false;
-        }
+        // Configure effect properties
+        IsStackable = false; // Healing doesn't stack
+        SeverityChangeRate = -1.0f / durationMin; // Decreases to 0 over duration
+    }
 
-        public override void Update(IActor target)
-        {
-            // Instantaneous effect, no update needed
-        }
+    protected override void OnApply(Actor target)
+    {
+        string location = _targetPartName;
+        Output.WriteLine($"{Source} begins healing {target}'s {location}.");
+    }
 
-        public override void Remove(IActor target)
+    protected override void OnUpdate(Actor target)
+    {
+        // Calculate healing for one minute
+        float healAmount = _healAmountPerHour / 60.0f;
+
+        // Apply healing
+        var healInfo = new HealingInfo
         {
-            // No cleanup needed
+            Amount = healAmount,
+            Quality = 1.0,
+            Source = Source,
+            TargetPart = _targetPartName
+        };
+
+        target.Heal(healInfo);
+
+        // Visual effect based on severity (how much healing is left)
+        if (Utils.DetermineSuccess(0.05f))
+        {
+            string location = _targetPartName;
+            if (Severity > 0.7f)
+            {
+                Output.WriteLine($"Fresh healing is occurring in {target}'s {location}.");
+            }
+            else if (Severity > 0.3f)
+            {
+                Output.WriteLine($"The healing in {target}'s {location} continues steadily.");
+            }
+            else
+            {
+                Output.WriteLine($"The healing in {target}'s {location} is nearly complete.");
+            }
         }
-        private HealingInfo Heal;
+    }
+
+    protected override void OnRemove(Actor target)
+    {
+        string location = _targetPartName;
+        Output.WriteLine($"The healing process on {target}'s {location} is complete.");
     }
 }================================================================================
 
@@ -3211,7 +3220,7 @@ using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.IO;
 namespace text_survival.Effects;
-public class EffectRegistry(IActor owner)
+public class EffectRegistry(Actor owner)
 {
     public IReadOnlyList<Effect> GetActiveEffects() => _effects.AsReadOnly();
 
@@ -3265,55 +3274,113 @@ public class EffectRegistry(IActor owner)
     public IEnumerable<Effect> GetEffectsByKind(string kind) => _effects.Where(e => e.EffectKind == kind);
 
 
-    private readonly IActor _owner = owner;
+    private readonly Actor _owner = owner;
     private List<Effect> _effects = [];
 }================================================================================
 
 File: ./Effects/PoisonEffect.cs
 --------------------------------------------------------------------------------
+using text_survival;
 using text_survival.Actors;
 using text_survival.Bodies;
+using text_survival.Effects;
 using text_survival.IO;
 
-namespace text_survival.Effects
+public class PoisonEffect : Effect
 {
-    public class PoisonEffect : Effect
+    private float _damagePerHour;
+    private string _poisonType;
+    
+    public PoisonEffect(string poisonType, string source, float severity, float damagePerHour, int durationMin = 60)
+        : base("Poison", source, null, severity) // Poison is typically whole-body
     {
-        public PoisonEffect(float damagePerHour, int durationMin)
-            : base("Poison", durationMin, severity: 1.0f)
+        _damagePerHour = damagePerHour;
+        _poisonType = poisonType;
+        
+        // Configure effect properties
+        SeverityChangeRate = -0.02f; // Slow natural detoxification
+        IsStackable = true; // Multiple poison sources can stack
+        
+        // Configure capacity modifiers - affect whole body
+        CapacityModifiers["Consciousness"] = 0.3f * severity;
+        CapacityModifiers["Manipulation"] = 0.2f * severity;
+        CapacityModifiers["Moving"] = 0.2f * severity;
+        CapacityModifiers["BloodFiltration"] = 0.4f * severity;
+    }
+    
+    protected override void OnApply(Actor target)
+    {
+        Output.WriteLine($"{target} has been poisoned with {_poisonType}!");
+    }
+    
+    protected override void OnUpdate(Actor target)
+    {
+        // Calculate damage for one minute based on severity
+        double damage = _damagePerHour / 60.0 * Severity;
+        
+        // Apply poison damage randomly to internal organs
+        // Get list of internal parts
+        var internalParts = target.Body.GetAllParts()
+            .Where(p => p.IsInternal && !p.IsDestroyed)
+            .ToList();
+            
+        if (internalParts.Count > 0)
         {
-            DamagePerHour = damagePerHour;
-        }
-
-        public override void Apply(IActor target)
-        {
-            Output.WriteLine($"{target} is poisoned!");
-            IsActive = true;
-        }
-
-        public override void Update(IActor target)
-        {
-            if (!IsActive) return;
-
-            float damage = DamagePerHour / 60 * Severity;
-            var damageInfo = new DamageInfo() { Amount = damage, IsPenetrating = true, Type = "poison", Source = "poison effect" };
-            target.Damage(damageInfo);
-
-            RemainingDurationMin -= 1;
-            if (RemainingDurationMin <= 0)
+            // Target a random internal organ for damage
+            var targetPart = internalParts[Utils.RandInt(0, internalParts.Count - 1)];
+            
+            var damageInfo = new DamageInfo
             {
-                Remove(target);
-            }
+                Amount = damage,
+                Type = "poison",
+                Source = Source,
+                IsPenetrating = true, // Poison always penetrates
+                TargetPart = targetPart.Name
+            };
+            
+            target.Damage(damageInfo);
         }
-
-        public override void Remove(IActor target)
+        else
         {
-            if (!IsActive) return;
-            IsActive = false;
-            Output.WriteLine($"{target} is no longer poisoned.");
+            // Fallback to general damage
+            var damageInfo = new DamageInfo
+            {
+                Amount = damage,
+                Type = "poison",
+                Source = Source,
+                IsPenetrating = true
+            };
+            
+            target.Damage(damageInfo);
         }
-
-        private float DamagePerHour;
+        
+        // Symptoms based on severity
+        if (Severity > 0.7 && Utils.DetermineSuccess(0.2))
+        {
+            Output.WriteLine($"{target} vomits violently from the {_poisonType} poisoning.");
+        }
+        else if (Severity > 0.4f && Utils.DetermineSuccess(0.1))
+        {
+            Output.WriteLine($"{target} trembles from the effects of the {_poisonType} poison.");
+        }
+    }
+    
+    protected override void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity)
+    {
+        // Update capacity modifiers based on new severity
+        CapacityModifiers["Consciousness"] = 0.3 * updatedSeverity;
+        CapacityModifiers["Manipulation"] = 0.2 * updatedSeverity;
+        CapacityModifiers["Moving"] = 0.2 * updatedSeverity;
+        
+        if (updatedSeverity < 0.3 && oldSeverity >= 0.3)
+        {
+            Output.WriteLine($"The {_poisonType} poisoning is becoming less severe.");
+        }
+    }
+    
+    protected override void OnRemove(Actor target)
+    {
+        Output.WriteLine($"{target} has recovered from {_poisonType} poisoning.");
     }
 }================================================================================
 
@@ -3355,7 +3422,7 @@ namespace text_survival.Effects
         public string EffectKind { get; protected set; }
         public string Source { get; } // what caused this effect (e.g., cold, wound poison)
         public BodyPart? TargetBodyPart { get; }
-        public bool IsStackable { get; }
+        public bool IsStackable { get; protected set; }
         public bool IsActive { get; protected set; }
         public double Severity { get; protected set; }
         public double SeverityChangeRate { get; protected set; } // per severity reduction per hour
@@ -3364,13 +3431,13 @@ namespace text_survival.Effects
         // public List<TreatmentOption> TreatmentOptions {get;}
 
         // main algorithm methods - typically don't override
-        public void Apply(IActor target)
+        public void Apply(Actor target)
         {
             IsActive = true;
             OnApply(target);
         }
 
-        public void Update(IActor target)
+        public void Update(Actor target)
         {
             if (!IsActive) return;
 
@@ -3394,13 +3461,13 @@ namespace text_survival.Effects
 
             OnUpdate(target);
         }
-        public void Remove(IActor target)
+        public void Remove(Actor target)
         {
             if (!IsActive) return;
             OnRemove(target);
             IsActive = false;
         }
-        public virtual void UpdateSeverity(IActor target, double severityChange)
+        public virtual void UpdateSeverity(Actor target, double severityChange)
         {
             if (!IsActive) return;
 
@@ -3416,10 +3483,10 @@ namespace text_survival.Effects
 
 
         // hook methods that can be implemented by sub classes
-        protected virtual void OnApply(IActor target) { }
-        protected virtual void OnUpdate(IActor target) { }
-        protected virtual void OnSeverityChange(IActor target, double oldSeverity, double updatedSeverity) { }
-        protected virtual void OnRemove(IActor target) { }
+        protected virtual void OnApply(Actor target) { }
+        protected virtual void OnUpdate(Actor target) { }
+        protected virtual void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity) { }
+        protected virtual void OnRemove(Actor target) { }
 
 
         // UI methods
@@ -4007,7 +4074,7 @@ public class Body
     }
 
     // Calculate derived attributes
-    private double CalculateStrength()
+    public double CalculateStrength()
     {
         double manipulationCapacity = GetCapacity("Manipulation");
         double bloodPumping = GetCapacity("BloodPumping"); // Energy delivery
@@ -4033,7 +4100,7 @@ public class Body
         return manipulationCapacity * (baseStrength + muscleContribution * energyFactor - fatPenalty);
     }
 
-    private double CalculateSpeed()
+    public double CalculateSpeed()
     {
         double movingCapacity = GetCapacity("Moving");
         double muscleBonus = Math.Min(MusclePercentage * 0.5, 0.2); // Up to 20% bonus from muscle
@@ -4099,7 +4166,7 @@ public class Body
 
     private double GetCapacity(string capacity)
     {
-        var parts = GetAllBodyParts().Where(p => p.GetCapacity(capacity) > 0);
+        var parts = GetAllParts().Where(p => p.GetCapacity(capacity) > 0);
         var values = parts.Select(p => GetEffectivePartCapacity(p, capacity)).ToList();
         if (values.Sum() <= 0) return 0;
 
@@ -4138,7 +4205,7 @@ public class Body
 
 
     // Helper to get all body parts
-    private List<BodyPart> GetAllBodyParts()
+    private List<BodyPart> GetAllParts()
     {
         var result = new List<BodyPart>();
         CollectBodyParts(_rootPart, result);
@@ -4944,7 +5011,7 @@ namespace text_survival
             oldBag.Add(ItemFactory.MakeClothPants());
             oldBag.Add(ItemFactory.MakeBoots());
             oldBag.Add(new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, "Old dagger", 40));
-            log.PutThing(oldBag);
+            log.Containers.Add(oldBag);
             startingArea.PutLocation(log);
             Player player = new Player(log);
             World.Player = player;
@@ -5341,31 +5408,6 @@ File: ./Interfaces/IInteractable.cs
 }
 ================================================================================
 
-File: ./Interfaces/IUpdateable.cs
---------------------------------------------------------------------------------
-﻿namespace text_survival.Interfaces
-{
-    public interface IUpdateable
-    {
-        public void Update();
-    }
-}
-================================================================================
-
-File: ./Interfaces/IDamageable.cs
---------------------------------------------------------------------------------
-﻿using text_survival.Bodies;
-
-namespace text_survival.Interfaces
-{
-    public interface IDamageable
-    {
-        public void Damage(DamageInfo damage);
-        public void Heal(HealingInfo heal);
-    }
-}
-================================================================================
-
 File: ./World.cs
 --------------------------------------------------------------------------------
 ﻿using text_survival.Environments;
@@ -5476,25 +5518,12 @@ namespace text_survival.Magic
             Family = family;
         }
 
-        public void Cast(IActor target)
+        public void Cast(Actor target)
         {
             target.ApplyEffect(Effect);
         }
 
 
-    }
-}
-================================================================================
-
-File: ./Magic/ISpellCaster.cs
---------------------------------------------------------------------------------
-﻿using text_survival.Actors;
-
-namespace text_survival.Magic
-{
-    public interface ISpellCaster
-    {
-        public void CastSpell(Spell spell, ICombatant target);
     }
 }
 ================================================================================
@@ -5509,12 +5538,12 @@ namespace text_survival
 {
     public static class Combat
     {
-        public static void CombatLoop(Player player, ICombatant enemy)
+        public static void CombatLoop(Player player, Actor enemy)
         {
             Output.WriteLine("You encounter: ", enemy, "!");
             player.IsEngaged = true;
             enemy.IsEngaged = true;
-            if (enemy.Attributes.Speed > player.Attributes.Speed)
+            if (enemy.Body.CalculateSpeed() > player.Body.CalculateSpeed())
             {
                 enemy.Attack(player);
             }
@@ -5541,7 +5570,7 @@ namespace text_survival
 
 
 
-        public static void PlayerTurn(Player player, ICombatant enemy)
+        public static void PlayerTurn(Player player, Actor enemy)
         {
             Output.WriteLine("What do you want to do?");
 
@@ -5575,7 +5604,7 @@ namespace text_survival
             }
         }
 
-        public static bool SpeedCheck(Player player, ICombatant? enemy = null)
+        public static bool SpeedCheck(Player player, Actor? enemy = null)
         {
             if (player.CurrentLocation.IsSafe) return true;
 
@@ -5603,10 +5632,10 @@ namespace text_survival
             return fastestNpc;
         }
 
-        public static double CalcSpeedCheck(ICombatant actor)
+        public static double CalcSpeedCheck(Actor actor)
         {
-            double athleticsBonus = actor._skillRegistry.GetLevel("Athletics");
-            return actor.Attributes.Speed + actor.Attributes.Luck / 2 + athleticsBonus;
+            double athleticsBonus = actor._skillRegistry.GetLevel("Agility");
+            return actor.Body.CalculateSpeed() + athleticsBonus;
         }
     }
 }================================================================================
@@ -5631,7 +5660,8 @@ namespace text_survival
 
 File: ./Environments/Location.cs
 --------------------------------------------------------------------------------
-﻿using text_survival.Actors;
+﻿using System.Reflection.Metadata.Ecma335;
+using text_survival.Actors;
 using text_survival.Environments.Locations;
 using text_survival.Interfaces;
 using text_survival.IO;
@@ -5639,9 +5669,8 @@ using text_survival.Items;
 
 namespace text_survival.Environments;
 
-public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
+public class Location : Place
 {
-    public string Name { get; set; }
     public LocationType Type { get; set; }
     public enum LocationType
     {
@@ -5651,29 +5680,39 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
         River,
         FrozenLake,
     }
-    public bool Visited { get; set; }
     public double TemperatureModifier { get; protected set; }
     public const bool IsShelter = false;
     public bool IsFound { get; set; } = false;
     public virtual bool IsSafe => !Npcs.Any(npc => npc.IsHostile);
-    public List<IInteractable> Things { get; set; } = [];
-    public List<Npc> Npcs => Things.OfType<Npc>().ToList();
-    public List<Item> Items => Things.OfType<Item>().ToList();
-    public List<Location> Locations => Things.OfType<Location>().ToList();
+    public List<Npc> Npcs = [];
+    public List<Item> Items = [];
+    public List<Container> Containers = [];
     virtual public Location? Parent { get; set; }
+    public List<IInteractable> Things
+    {
+        get 
+        {
+            var things = new List<IInteractable>();
+            things.AddRange(Npcs.OfType<IInteractable>());
+            things.AddRange(Locations.OfType<IInteractable>());
+            things.AddRange(Containers.OfType<IInteractable>());
+            things.AddRange(Items.OfType<IInteractable>());
+            return things;
+        }
+    }
     public Zone ParentZone { get; }
     protected virtual ForageModule ForageModule { get; set; } = new();
     protected LootTable LootTable;
 
 
     #region Initialization
-    public Location(string name, IPlace parent, int numItems = 0, int numNpcs = 0) : this(parent, numItems, numNpcs)
+    public Location(string name, Place parent, int numItems = 0, int numNpcs = 0) : this(parent, numItems, numNpcs)
     {
         Name = name;
         InitializeLoot(numItems);
         InitializeNpcs(numNpcs);
     }
-    public Location(IPlace parent, int numItems = 0, int numNpcs = 0)
+    public Location(Place parent, int numItems = 0, int numNpcs = 0)
     {
         if (parent is Zone z)
         {
@@ -5702,7 +5741,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
         {
             for (int i = 0; i < numItems; i++)
             {
-                PutThing(LootTable.GenerateRandomItem());
+                Items.Add(LootTable.GenerateRandomItem());
             }
         }
     }
@@ -5712,18 +5751,13 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
         {
             var npc = NpcSpawner.GenerateRandomNpc();
             if (npc is not null)
-                PutThing(npc);
+                Npcs.Add(npc);
         }
     }
     protected virtual NpcSpawner NpcSpawner { get; }
 
 
     #endregion Initialization
-
-    public void PutThing(IInteractable thing) => Things.Add(thing);
-    public void RemoveThing(IInteractable thing) => Things.Remove(thing);
-    public bool ContainsThing(IInteractable thing) => Things.Contains(thing);
-
     public void Interact(Player player)
     {
         Output.WriteLine("You consider heading to the " + Name + "...");
@@ -5741,8 +5775,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     public Command<Player> InteractCommand => new("Go to " + Name + (Visited ? " (Visited)" : ""), Interact);
 
 
-
-    public virtual double GetTemperature() => GetTemperature(IsShelter);
+    public override double GetTemperature() => GetTemperature(IsShelter);
 
     protected double GetTemperature(bool indoors = false)
     {
@@ -5765,7 +5798,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
     }
 
 
-    public static void GenerateSubLocation(IPlace parent, LocationType type, int numItems = 0, int numNpcs = 0)
+    public static void GenerateSubLocation(Place parent, LocationType type, int numItems = 0, int numNpcs = 0)
     {
         Location location = type switch
         {
@@ -5778,16 +5811,12 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
         parent.PutLocation(location);
     }
 
-    public virtual void Update()
+    public override void Update()
     {
-        List<IUpdateable> updateables = Things.OfType<IUpdateable>().ToList();
-        foreach (var updateable in updateables)
-        {
-            updateable.Update();
-        }
+        Locations.ForEach(i => i.Update());
+        Npcs.ForEach(n => n.Update());
     }
 
-    public void PutLocation(Location location) => PutThing(location);
 
     public void Forage(int hours)
     {
@@ -5797,7 +5826,7 @@ public class Location : IPlace, IInteractable, IHasThings, IHasNpcs
         {
             foreach (var item in itemsFound)
             {
-                PutThing(item);
+                Items.Add(item);
                 item.IsFound = true;
             }
         }
@@ -5815,13 +5844,10 @@ using static text_survival.Environments.Location;
 
 namespace text_survival.Environments
 {
-    public class Zone : IPlace, IHasLocations
+    public class Zone : Place
     {
-        public string Name { get; set; }
         public string Description { get; set; }
         public double BaseTemperature { get; protected set; }
-        public bool Visited { get; set; } = false;
-        public List<Location> Locations { get; protected set; } = [];
         public virtual List<Item> ItemList { get; } = [];
         public virtual List<Npc> NpcList { get; } = [];
 
@@ -5862,7 +5888,7 @@ namespace text_survival.Environments
             modifier += Utils.RandInt(-3, 3);
             return modifier;
         }
-        public double GetTemperature()
+        public override double GetTemperature()
         {
             double effect = GetTemperatureModifer();
             return effect + BaseTemperature;
@@ -5881,16 +5907,11 @@ namespace text_survival.Environments
             Location.GenerateSubLocation(this, type, items, npcs);
         }
 
-        public virtual void Update()
+        public override void Update()
         {
-            List<IUpdateable> updateables = Locations.OfType<IUpdateable>().ToList();
-            foreach (var updateable in updateables)
-            {
-                updateable.Update();
-            }
+            
         }
 
-        public void PutLocation(Location location) => Locations.Add(location);
         protected static readonly List<string> genericAdjectives = ["", "Open", "Dark", "Ominous", "Shady", "Lonely", "Ancient",];
         public override string ToString() => Name;
 
@@ -5908,7 +5929,7 @@ namespace text_survival.Environments.Locations
     internal class Trail : Location
     {
         new public const bool IsShelter = false;
-        public Trail(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
+        public Trail(Place parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
             Type = LocationType.Trail;
             TemperatureModifier = 0;
@@ -5940,7 +5961,7 @@ namespace text_survival.Environments.Locations
     internal class LocationTemplate : Location
     {
         new public const bool IsShelter = false;
-        public LocationTemplate(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
+        public LocationTemplate(Place parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
             Type = LocationType.Cave;
             TemperatureModifier = 0;
@@ -5971,7 +5992,7 @@ namespace text_survival.Environments.Locations
     internal class FrozenLake : Location
     {
         new public const bool IsShelter = false;
-        public FrozenLake(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
+        public FrozenLake(Place parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
             Type = LocationType.FrozenLake;
             TemperatureModifier = -3;
@@ -6001,7 +6022,7 @@ namespace text_survival.Environments.Locations
     internal class River : Location
     {
         new public const bool IsShelter = false;
-        public River(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
+        public River(Place parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
             Type = LocationType.River;
             TemperatureModifier = 0;
@@ -6038,7 +6059,7 @@ namespace text_survival.Environments.Locations
     {
         new public const bool IsShelter = true;
 
-        public Cave(IPlace parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
+        public Cave(Place parent, int numItems = 0, int numNpcs = 0) : base(parent, numItems, numNpcs)
         {
             // set type and temperature
             Type = LocationType.Cave;
@@ -6069,44 +6090,17 @@ namespace text_survival.Environments.Locations
 
 File: ./Environments/IPlace.cs
 --------------------------------------------------------------------------------
-﻿using text_survival.Actors;
-using text_survival.Interfaces;
-using text_survival.Items;
+﻿namespace text_survival.Environments;
 
-namespace text_survival.Environments
+public abstract class Place
 {
-    public interface IPlace : IUpdateable, IHasLocations
-    {
-        string Name { get; set; }
-        double GetTemperature();
-        bool Visited { get; set; }
-    }
+    public string Name { get; set; } = "";
+    public bool Visited { get; set; }
+    public virtual List<Location> Locations { get; } = [];
 
-    public interface IHasLocations
-    {
-        List<Location> Locations { get; }
-        void PutLocation(Location location);
-    }
-
-    public interface IHasThings
-    {
-        List<IInteractable> Things { get; }
-        void PutThing(IInteractable thing);
-        void RemoveThing(IInteractable thing);
-        bool ContainsThing(IInteractable thing);
-    }
-    public interface IHasNpcs
-    {
-        bool IsSafe => !Npcs.Any(npc => npc.IsHostile);
-        List<Npc> Npcs { get; }
-    }
-    public interface IHasItems
-    {
-        List<Item> Items { get; }
-        void PutItem(Item item);
-        void RemoveItem(Item item);
-        bool ContainsItem(Item item);
-    }
+    public abstract double GetTemperature();
+    public virtual void Update() { Locations.ForEach(x => x.Update()); }
+    public void PutLocation(Location location) => Locations.Add(location);
 }
 ================================================================================
 

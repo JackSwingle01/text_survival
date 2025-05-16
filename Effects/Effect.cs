@@ -34,7 +34,7 @@ namespace text_survival.Effects
         public string EffectKind { get; protected set; }
         public string Source { get; } // what caused this effect (e.g., cold, wound poison)
         public BodyPart? TargetBodyPart { get; }
-        public bool IsStackable { get; }
+        public bool IsStackable { get; protected set; }
         public bool IsActive { get; protected set; }
         public double Severity { get; protected set; }
         public double SeverityChangeRate { get; protected set; } // per severity reduction per hour

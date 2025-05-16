@@ -23,7 +23,7 @@ namespace text_survival
             oldBag.Add(ItemFactory.MakeClothPants());
             oldBag.Add(ItemFactory.MakeBoots());
             oldBag.Add(new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, "Old dagger", 40));
-            log.PutThing(oldBag);
+            log.Containers.Add(oldBag);
             startingArea.PutLocation(log);
             Player player = new Player(log);
             World.Player = player;

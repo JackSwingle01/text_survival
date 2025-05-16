@@ -1,6 +1,8 @@
-﻿using text_survival.Environments;
+﻿using text_survival.Actors;
+using text_survival.Environments;
 using text_survival.Interfaces;
 using text_survival.IO;
+using text_survival.Items;
 using text_survival.PlayerComponents;
 
 namespace text_survival
@@ -43,15 +45,45 @@ namespace text_survival
 
             // conditional actions
 
-            foreach (IInteractable thing in _player.CurrentLocation.Things)
+            foreach (Location location in _player.CurrentLocation.Locations)
             {
-                if (thing.IsFound)
+                if (location.IsFound)
                 {
-                    var interactCommand = thing.InteractCommand;
+                    var interactCommand = location.InteractCommand;
                     interactCommand.Player = _player;
                     AvailableActions.Add(interactCommand);
                 }
             }
+            foreach (Item item in _player.CurrentLocation.Items)
+            {
+                if (item.IsFound)
+                {
+                    var interactCommand = item.InteractCommand;
+                    interactCommand.Player = _player;
+                    AvailableActions.Add(interactCommand);
+                }
+            }
+            foreach (Container container in _player.CurrentLocation.Containers)
+            {
+                if (container.IsFound)
+                {
+                    var interactCommand = container.InteractCommand;
+                    interactCommand.Player = _player;
+                    AvailableActions.Add(interactCommand);
+                }
+            }
+            foreach (Npc npc in _player.CurrentLocation.Npcs)
+            {
+                if (npc.IsFound)
+                {
+                    var interactCommand = npc.InteractCommand;
+                    interactCommand.Player = _player;
+                    AvailableActions.Add(interactCommand);
+                }
+            }
+
+
+
 
             foreach (Location location in GetNearbyLocations(_player))
             {

@@ -240,7 +240,7 @@ public class Body
 
     private double GetCapacity(string capacity)
     {
-        var parts = GetAllBodyParts().Where(p => p.GetCapacity(capacity) > 0);
+        var parts = GetAllParts().Where(p => p.GetCapacity(capacity) > 0);
         var values = parts.Select(p => GetEffectivePartCapacity(p, capacity)).ToList();
         if (values.Sum() <= 0) return 0;
 
@@ -279,7 +279,7 @@ public class Body
 
 
     // Helper to get all body parts
-    private List<BodyPart> GetAllBodyParts()
+    private List<BodyPart> GetAllParts()
     {
         var result = new List<BodyPart>();
         CollectBodyParts(_rootPart, result);

@@ -88,7 +88,7 @@ class LocationManager : ILocationSystem
 
     public bool RemoveItemFromLocation(Item item)
     {
-        if (_currentLocation.ContainsThing(item))
+        if (_currentLocation.Items.Contains(item))
         {
             _currentLocation.RemoveThing(item);
             return true;
@@ -98,7 +98,7 @@ class LocationManager : ILocationSystem
 
     public void AddItemToLocation(Item item)
     {
-        _currentLocation.PutThing(item);
+        _currentLocation.Items.Add(item);
     }
 
     public void TravelToAdjacentZone()
