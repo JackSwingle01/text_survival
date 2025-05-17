@@ -1,79 +1,66 @@
-﻿using text_survival.Actors;
-using text_survival.Interfaces;
-using text_survival.Items;
-using static text_survival.Environments.Location;
-
+﻿
 namespace text_survival.Environments
 {
-    public class Zone : Place
+    public class Zone
     {
-        public string Description { get; set; }
-        public double BaseTemperature { get; protected set; }
-        public virtual List<Item> ItemList { get; } = [];
-        public virtual List<Npc> NpcList { get; } = [];
+        public string Name { get; }
+        public string Description { get; }
+        public bool Visited = false;
+        private double BaseTemperature { get; }
+        public int Elevation { get; }
+        public virtual List<Location> Locations { get; } = [];
+        private LocationTable LocationTable;
+        public ZoneWeather Weather;
 
-        public enum EnvironmentType
-        {
-            Forest,
-        }
-        public Zone(string name, string description, double baseTemp = 70, int subLocations = 1)
+
+        public Zone(string name, string description, LocationTable locationTable, double baseTemp = 20, int elevation = 0)
         {
             Name = name;
             Description = description;
             BaseTemperature = baseTemp;
-            for (int i = 0; i < subLocations; i++)
+            Elevation = elevation;
+            LocationTable = locationTable;
+            Weather = new(this);
+            for (int i = 0; i < 3; i++)
             {
-                GenerateRandomSubLocation(1, 1);
+                Locations.Add(LocationTable.GenerateRandom(this));
             }
         }
 
-        public double GetTemperatureModifer()
+        // private double GetTemperatureModifier()
+        // {
+        //     double modifier = 0;
+        //     if (World.GetTimeOfDay() == World.TimeOfDay.Morning)
+        //     {
+        //         modifier = -.10;
+        //     }
+        //     else if (World.GetTimeOfDay() == World.TimeOfDay.Afternoon)
+        //     {
+        //         modifier = .20;
+        //     }
+        //     else if (World.GetTimeOfDay() == World.TimeOfDay.Evening)
+        //     {
+        //         modifier = .15;
+        //     }
+        //     else if (World.GetTimeOfDay() == World.TimeOfDay.Night)
+        //     {
+        //         modifier = -.30;
+        //     }
+        //     modifier += Utils.RandDouble(-.1, .1);
+        //     return modifier;
+        // }
+        // public double GetTemperature()
+        // {
+        //     double effect = GetTemperatureModifier();
+        //     return effect * BaseTemperature;
+        // }
+
+        public void Update()
         {
-            double modifier = 0;
-            if (World.GetTimeOfDay() == World.TimeOfDay.Morning)
-            {
-                modifier -= 5;
-            }
-            else if (World.GetTimeOfDay() == World.TimeOfDay.Afternoon)
-            {
-                modifier += 10;
-            }
-            else if (World.GetTimeOfDay() == World.TimeOfDay.Evening)
-            {
-                modifier += 5;
-            }
-            else if (World.GetTimeOfDay() == World.TimeOfDay.Night)
-            {
-                modifier -= 10;
-            }
-            modifier += Utils.RandInt(-3, 3);
-            return modifier;
-        }
-        public override double GetTemperature()
-        {
-            double effect = GetTemperatureModifer();
-            return effect + BaseTemperature;
+            Locations.ForEach(x => x.Update());
         }
 
-        public void GenerateRandomSubLocation(int maxItems = 0, int maxNpcs = 0)
-        {
-
-            LocationType type = LocationType.None;
-            while (type == LocationType.None)
-            {
-                type = Utils.GetRandomEnum<LocationType>();
-            }
-            int items = Utils.RandInt(0, maxItems);
-            int npcs = Utils.RandInt(0, maxNpcs);
-            Location.GenerateSubLocation(this, type, items, npcs);
-        }
-
-        public override void Update()
-        {
-            
-        }
-
-        protected static readonly List<string> genericAdjectives = ["", "Open", "Dark", "Ominous", "Shady", "Lonely", "Ancient",];
+        // protected static readonly List<string> genericAdjectives = ["", "Open", "Dark", "Ominous", "Shady", "Lonely", "Ancient",];
         public override string ToString() => Name;
 
     }

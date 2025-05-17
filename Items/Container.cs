@@ -1,11 +1,9 @@
-﻿using System.Text.RegularExpressions;
-using text_survival.Actors;
-using text_survival.Interfaces;
+﻿using text_survival.Actors;
 using text_survival.IO;
 
 namespace text_survival.Items
 {
-    public class Container : IInteractable
+    public class Container
     {
         private string _name;
         public string Name { get => (IsEmpty && HasBeenOpened) ? _name + " (Empty)" : _name; set => _name = value; }

@@ -1,6 +1,4 @@
-﻿using text_survival.Environments.Zones;
-using static text_survival.Environments.Zone;
-
+﻿
 namespace text_survival.Environments
 {
     public class WorldMap
@@ -52,13 +50,8 @@ namespace text_survival.Environments
 
         private Zone GenerateRandomZone()
         {
-            EnvironmentType type = Utils.GetRandomEnum<EnvironmentType>();
-            Zone zone = (type) switch
-            {
-                EnvironmentType.Forest => new Forest(),
-                _ => throw new Exception("Invalid zone type.")
-            };
-            return zone;
+            // todo
+            return new Forest();
         }
 
     }

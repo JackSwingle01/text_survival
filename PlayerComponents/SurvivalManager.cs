@@ -7,7 +7,7 @@ using text_survival.Effects;
 
 namespace text_survival.PlayerComponents;
 
-public class SurvivalManager : ISurvivalSystem
+public class SurvivalManager
 {
     public SurvivalManager(Actor owner, EffectRegistry effectRegistry, bool enableSurvivalMechanics, Body body)
     {

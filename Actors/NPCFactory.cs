@@ -50,14 +50,13 @@ namespace text_survival.Actors
         public static Npc MakeSnake()
         {
             Npc snake = new Animal("Snake", 10, new Attributes(20, 40, 20, 55));
-            snake.AddLoot(SnakeLootTable.GenerateRandomItem());
+            LootTable loot = new LootTable();
+            loot.AddItem(ItemFactory.MakeSmallMeat, 2);
+            loot.AddItem(ItemFactory.MakeVenomSac);
+            snake.AddLoot(loot.GenerateRandomItem());
             // CommonBuffs.Venomous(2, 3, .5).ApplyTo(snake); // todo make effect for this
             return snake;
         }
-        private static readonly LootTable SnakeLootTable = new([
-            ItemFactory.MakeSmallMeat,
-            ItemFactory.MakeVenomSac
-         ]);
 
 
 
@@ -71,7 +70,10 @@ namespace text_survival.Actors
         {
             Npc spider = new Animal("Spider", 5, new Attributes(15, 30, 15, 55));
             // CommonBuffs.Venomous(1, 3, .4).ApplyTo(spider); // todo - make effect for this
-            spider.AddLoot(SpiderLT.GenerateRandomItem());
+            var loot = new LootTable();
+            loot.AddItem(ItemFactory.MakeSpiderSilk);
+            loot.AddItem(ItemFactory.MakeVenomSac);
+            spider.AddLoot(loot.GenerateRandomItem());
             return spider;
         }
 
@@ -82,10 +84,6 @@ namespace text_survival.Actors
             return bear;
         }
 
-        private static readonly LootTable SpiderLT = new([
-            ItemFactory.MakeSpiderSilk,
-            ItemFactory.MakeVenomSac
-        ]);
 
     }
 

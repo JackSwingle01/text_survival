@@ -1,89 +1,38 @@
-﻿using System.Reflection.Metadata.Ecma335;
+﻿
+using System.ComponentModel.DataAnnotations;
 using text_survival.Actors;
-using text_survival.Environments.Locations;
-using text_survival.Interfaces;
 using text_survival.IO;
 using text_survival.Items;
 
 namespace text_survival.Environments;
 
-public class Location : Place
+public class Location
 {
-    public LocationType Type { get; set; }
-    public enum LocationType
-    {
-        None,
-        Cave,
-        Trail,
-        River,
-        FrozenLake,
-    }
-    public double TemperatureModifier { get; protected set; }
-    public const bool IsShelter = false;
+    public string Name;
+    public bool Visited = false;
     public bool IsFound { get; set; } = false;
     public virtual bool IsSafe => !Npcs.Any(npc => npc.IsHostile);
     public List<Npc> Npcs = [];
     public List<Item> Items = [];
     public List<Container> Containers = [];
-    virtual public Location? Parent { get; set; }
-    public List<IInteractable> Things
-    {
-        get 
-        {
-            var things = new List<IInteractable>();
-            things.AddRange(Npcs.OfType<IInteractable>());
-            things.AddRange(Locations.OfType<IInteractable>());
-            things.AddRange(Containers.OfType<IInteractable>());
-            things.AddRange(Items.OfType<IInteractable>());
-            return things;
-        }
-    }
-    public Zone ParentZone { get; }
-    protected virtual ForageModule ForageModule { get; set; } = new();
-    protected LootTable LootTable;
-
+    virtual public Zone Parent { get; }
+    public List<LocationFeature> Features = [];
 
     #region Initialization
-    public Location(string name, Place parent, int numItems = 0, int numNpcs = 0) : this(parent, numItems, numNpcs)
+
+    public Location(string name, Zone parent)
     {
         Name = name;
-        InitializeLoot(numItems);
-        InitializeNpcs(numNpcs);
-    }
-    public Location(Place parent, int numItems = 0, int numNpcs = 0)
-    {
-        if (parent is Zone z)
-        {
-            ParentZone = z;
-            Parent = null;
-        }
-        else if (parent is Location l)
-        {
-            Parent = l;
-            ParentZone = l.ParentZone;
-        }
-        else throw new NotImplementedException("Unknown parent type");
-
-        Name = "Location Placeholder Name";
-        LootTable = new();
+        Parent = parent;
         NpcSpawner = new();
-        InitializeLoot(numItems);
-        InitializeNpcs(numNpcs);
+        // InitializeNpcs(numNpcs);
     }
 
-    public static readonly List<string> genericLocationAdjectives = ["", "Old", "Dusty", "Cool", "Breezy", "Quiet", "Ancient", "Ominous", "Sullen", "Forlorn", "Desolate", "Secret", "Hidden", "Forgotten", "Cold", "Dark", "Damp", "Wet", "Dry", "Warm", "Icy", "Snowy", "Frozen"];
+    // public static readonly List<string> genericLocationAdjectives = ["", "Old", "Dusty", "Cool", "Breezy", "Quiet", "Ancient", "Ominous", "Sullen", "Forlorn", "Desolate", "Secret", "Hidden", "Forgotten", "Cold", "Dark", "Damp", "Wet", "Dry", "Warm", "Icy", "Snowy", "Frozen"];
 
-    protected void InitializeLoot(int numItems)
-    {
-        if (!LootTable.IsEmpty())
-        {
-            for (int i = 0; i < numItems; i++)
-            {
-                Items.Add(LootTable.GenerateRandomItem());
-            }
-        }
-    }
-    protected void InitializeNpcs(int numNpcs)
+    public T? GetFeature<T>() where T : LocationFeature => Features.OfType<T>().FirstOrDefault();
+
+    public void SpawnNpcs(int numNpcs)
     {
         for (int i = 0; i < numNpcs; i++)
         {
@@ -99,7 +48,6 @@ public class Location : Place
     public void Interact(Player player)
     {
         Output.WriteLine("You consider heading to the " + Name + "...");
-        Output.WriteLine("It is a " + Type + ".");
         Output.WriteLine("Do you want to go there? (y/n)");
         if (Input.ReadYesNo())
         {
@@ -111,63 +59,99 @@ public class Location : Place
         }
     }
     public Command<Player> InteractCommand => new("Go to " + Name + (Visited ? " (Visited)" : ""), Interact);
-
-
-    public override double GetTemperature() => GetTemperature(IsShelter);
-
-    protected double GetTemperature(bool indoors = false)
+    public double GetTemperature()
     {
-        if (!indoors) // only check if no child so far is indoors otherwise it propagates all the way up
+        // Get zone's weather temperature (in Fahrenheit)
+        double zoneTemp = Parent.Weather.TemperatureInFahrenheit;
+
+        // Start with this base temperature
+        double locationTemp = zoneTemp;
+
+        // ------ STEP 1: Apply inherent location modifiers ------
+        double overheadCoverage = 0;
+        double windProtection = 0;
+        var locationType = GetFeature<EnvironmentFeature>();
+        if (locationType != null)
         {
-            indoors = IsShelter;
+            locationTemp += locationType.TemperatureModifier;
+            overheadCoverage = locationType.NaturalOverheadCoverage;
+            windProtection = locationType.NaturalWindProtection;
         }
-        double temperature;
-        if (Parent is null) // base case - the parent is the area root node
+
+        // ------ STEP 2: Apply weather exposure effects ------
+        // Wind chill when windy
+        double effectiveWindSpeed = 0;
+        if (Parent.Weather.WindSpeed > 0.1) // Only significant wind
         {
-            double modifier = ParentZone.GetTemperatureModifer();
-            modifier = indoors ? modifier / 2 : modifier;
-            temperature = ParentZone.BaseTemperature + modifier;
+            effectiveWindSpeed = Parent.Weather.WindSpeed * (1 - windProtection);
+            double windSpeedMph = effectiveWindSpeed * 30; // Scale 0-1 to approx mph
+            locationTemp = CalculateWindChillNWS(locationTemp, windSpeedMph);
         }
-        else  // recursive case - the parent is another location
+
+        // Sun warming effects during daytime with clear skies
+        double sunIntensity = Parent.Weather.SunlightIntensity;
+        double sunExposure = 1 - overheadCoverage;
+        // Sun can add up to 10°F on a cold day
+        double sunWarming = sunIntensity * sunExposure * 10;
+
+        // Sun effect is more noticeable when cold
+        double temperatureAdjustment = sunWarming * Math.Max(0.5, Math.Min(1, (50 - locationTemp) / 30));
+        locationTemp += temperatureAdjustment;
+
+        // Precipitation effects
+        double precipitation = Parent.Weather.Precipitation;
+        precipitation *= 1 - overheadCoverage;
+        // todo, determine if this effects temp directly or if we use this elsewhere 
+        double precipitationCooling = precipitation * 5; //  simple up to 5°F cooling for now
+        locationTemp -= precipitationCooling * (1 - overheadCoverage);
+
+        // ------ STEP 3: Apply shelter effects if present ------
+        double insulation = 0;
+        var shelter = GetFeature<ShelterFeature>();
+        if (shelter != null)
         {
-            temperature = Parent.GetTemperature(indoors);
+            // Start with minimum temperature a shelter can maintain (in °F)
+            double minShelterTemp = 40; // About 4.4°C, what a good shelter can maintain from body heat
+            // Calculate warming effect based on insulation quality
+            double tempDifference = minShelterTemp - locationTemp;
+            insulation = Math.Clamp(shelter.TemperatureInsulation, 0, .9); // cap at 90%
+            insulation *= 1 - (precipitation * .3); // precipitation can reduce insulation up to 30%
+            insulation *= 1 - (effectiveWindSpeed * .3); // and wind another 30 on top of that
+
+            locationTemp += tempDifference * insulation;
         }
-        return temperature + TemperatureModifier;
+
+        // If there's a heat source, add its effect
+        var heatSource = GetFeature<HeatSourceFeature>();
+        if (heatSource != null && heatSource.IsActive)
+        {
+            // Insulation increases effectiveness of heat sources
+            double heatEffect = heatSource.HeatOutput * Math.Max(insulation, .40); // heat sources are less effective outside
+            locationTemp += heatEffect;
+        }
+
+        return locationTemp;
     }
 
-
-    public static void GenerateSubLocation(Place parent, LocationType type, int numItems = 0, int numNpcs = 0)
+    public double CalculateWindChillNWS(double temperatureF, double windSpeedMph)
     {
-        Location location = type switch
+        // NWS formula is only valid for temperatures <= 50°F and wind speeds >= 3 mph
+        if (temperatureF > 50 || windSpeedMph < 3)
         {
-            LocationType.Cave => new Cave(parent, numItems, numNpcs),
-            LocationType.Trail => new Trail(parent, numItems, numNpcs),
-            LocationType.River => new River(parent, numItems, numNpcs),
-            LocationType.FrozenLake => new FrozenLake(parent, numItems, numNpcs),
-            _ => throw new Exception("Invalid LocationType")
-        };
-        parent.PutLocation(location);
+            return temperatureF;
+        }
+        // Calculate using the NWS Wind Chill Temperature (WCT) formula
+        // https://www.weather.gov/media/epz/wxcalc/windChill.pdf
+        // WCT = 35.74 + 0.6215T - 35.75(V^0.16) + 0.4275T(V^0.16)
+        // Where T = Air Temperature (°F), V = Wind Speed (mph)
+        double windPowFactor = Math.Pow(windSpeedMph, 0.16);
+        return 35.74 + (0.6215 * temperatureF) - (35.75 * windPowFactor) + (0.4275 * temperatureF * windPowFactor);
     }
 
-    public override void Update()
+    public void Update()
     {
-        Locations.ForEach(i => i.Update());
+        // Locations.ForEach(i => i.Update());
         Npcs.ForEach(n => n.Update());
-    }
-
-
-    public void Forage(int hours)
-    {
-        ForageModule.Forage(hours);
-        var itemsFound = ForageModule.GetItemsFound();
-        if (itemsFound.Any())
-        {
-            foreach (var item in itemsFound)
-            {
-                Items.Add(item);
-                item.IsFound = true;
-            }
-        }
     }
 
     public override string ToString() => Name;

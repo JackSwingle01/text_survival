@@ -1,5 +1,4 @@
 ﻿using text_survival.Bodies;
-using text_survival.Interfaces;
 
 namespace text_survival.Items
 {

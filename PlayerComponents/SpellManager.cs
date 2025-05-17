@@ -33,7 +33,17 @@ class SpellManager
 
     public void CastSpell(Spell spell, Actor target)
     {
-        spell.Cast(target);
+        if (spell.NeedsTargetPart)
+        {
+            Output.WriteLine("Select a part to target:");
+            var parts = target.Body.GetAllParts();
+            var part = Input.GetSelectionFromList(parts)!;
+            spell.Cast(target, part);
+        }
+        else
+        {
+            spell.Cast(target);
+        }
         _skills.AddExperience("Shamanism", 2);
     }
 }

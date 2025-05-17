@@ -1,34 +1,33 @@
 ﻿using text_survival.Actors;
+using text_survival.Bodies;
 using text_survival.Effects;
 
-namespace text_survival.Magic
+namespace text_survival.Magic;
+
+public class Spell
 {
-    public class Spell
+    public string Name { get; private set; }
+    public bool NeedsTargetPart { get; private set; }
+    private Effect Effect { get; }
+
+
+    public Spell(string name, Effect effect, bool needsTargetPart)
     {
-        public enum SpellFamily
-        {
-            Destruction,
-            Restoration,
-        }
-        public string Name { get; private set; }
-        //public string Description { get; set; }
-        public double PsychCost { get; private set; }
-        private Effect Effect { get; }
-        public SpellFamily Family { get; }
-
-        public Spell(string name, double psychCost, Effect effect, SpellFamily family)
-        {
-            Name = name;
-            PsychCost = psychCost;
-            Effect = effect;
-            Family = family;
-        }
-
-        public void Cast(Actor target)
-        {
-            target.ApplyEffect(Effect);
-        }
-
-
+        Name = name;
+        Effect = effect;
+        NeedsTargetPart = needsTargetPart;
     }
+
+    public void Cast(Actor target)
+    {
+        target.ApplyEffect(Effect);
+    }
+    public void Cast(Actor target, BodyPart part)
+    {
+        Effect.TargetBodyPart = part;
+        target.ApplyEffect(Effect);
+    }
+
+
+
 }

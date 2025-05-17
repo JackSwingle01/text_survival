@@ -226,10 +226,7 @@ namespace text_survival.Items
                 Description = "A cloth bandage. It might help a bit.",
                 Weight = 0.1F,
                 Effects = [
-                    new RemoveBleedEffect(),
-                    new HealEffect(
-                        new HealingInfo() { Amount = 10, Quality = .9, Type = "medical" }
-                    )
+                    new RemoveBleedEffect("bandage", null)
                 ]
             };
             return bandage;

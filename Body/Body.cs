@@ -279,7 +279,7 @@ public class Body
 
 
     // Helper to get all body parts
-    private List<BodyPart> GetAllParts()
+    public List<BodyPart> GetAllParts()
     {
         var result = new List<BodyPart>();
         CollectBodyParts(_rootPart, result);

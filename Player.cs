@@ -5,7 +5,6 @@ using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Level;
-using text_survival.Magic;
 using text_survival.PlayerComponents;
 
 namespace text_survival
@@ -181,6 +180,5 @@ namespace text_survival
 
 
         public void Travel() => locationManager.TravelToAdjacentZone();
-        public Command<Player> LeaveCommand => new("Leave " + Name, p => locationManager.Leave());
     }
 }

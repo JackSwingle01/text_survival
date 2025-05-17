@@ -35,8 +35,8 @@ public abstract class Actor
         _effectRegistry.Update();
     }
 
-    public required SkillRegistry _skillRegistry { get; init; }
-    public required Body Body { get; init; }
+    public SkillRegistry _skillRegistry { get; init; }
+    public Body Body { get; init; }
     protected EffectRegistry _effectRegistry { get; init; }
     protected SurvivalManager survivalManager { get; init; }
     protected InventoryManager inventoryManager { get; init; }

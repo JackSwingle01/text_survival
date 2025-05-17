@@ -1,9 +1,7 @@
 ﻿using text_survival.Actors;
 using text_survival.Environments;
-using text_survival.Interfaces;
 using text_survival.IO;
 using text_survival.Items;
-using text_survival.PlayerComponents;
 
 namespace text_survival
 {
@@ -39,21 +37,16 @@ namespace text_survival
             lookCommand.Player = _player;
             AvailableActions.Add(lookCommand);
 
-            var forageCommand = ForageCommand;
-            forageCommand.Player = _player;
-            AvailableActions.Add(forageCommand);
+            var forageFeature = _player.CurrentLocation.GetFeature<ForageFeature>();
+            if (forageFeature != null)
+            {
+                var forageCommand = ForageCommand;
+                forageCommand.Player = _player;
+                AvailableActions.Add(forageCommand);
+            }
+
 
             // conditional actions
-
-            foreach (Location location in _player.CurrentLocation.Locations)
-            {
-                if (location.IsFound)
-                {
-                    var interactCommand = location.InteractCommand;
-                    interactCommand.Player = _player;
-                    AvailableActions.Add(interactCommand);
-                }
-            }
             foreach (Item item in _player.CurrentLocation.Items)
             {
                 if (item.IsFound)
@@ -81,10 +74,6 @@ namespace text_survival
                     AvailableActions.Add(interactCommand);
                 }
             }
-
-
-
-
             foreach (Location location in GetNearbyLocations(_player))
             {
                 if (location.IsFound)
@@ -140,10 +129,15 @@ namespace text_survival
 
         private void Forage(Player player)
         {
-            Location location = player.CurrentLocation;
+            var forageFeature = player.CurrentLocation.GetFeature<ForageFeature>();
+            if (forageFeature == null)
+            {
+                Output.WriteLine("You can't forage here");
+                return;
+            }
             Output.WriteLine("How many hours would you like to forage?");
             int hours = Input.ReadInt();
-            location.Forage(hours);
+            forageFeature.Forage(hours);
 
 
         }
@@ -222,23 +216,22 @@ namespace text_survival
             Output.WriteLine("You look around the ", player.CurrentLocation);
             Output.WriteLine("You are in a ", player.CurrentLocation, " in a ", player.CurrentZone);
             Output.WriteLine("Its ", World.GetTimeOfDay(), " and ", player.CurrentLocation.GetTemperature(), " degrees.");
-            if (player.CurrentLocation.Things.Count == 0)
-            {
-                Output.WriteLine("You see nothing of interest, time to move on.");
-                return;
-            }
-            Output.WriteLine("You see:");
-            foreach (var thing in player.CurrentLocation.Things)
-            {
-                Output.WriteLine(thing);
-                thing.IsFound = true;
-            }
+            // if (player.CurrentLocation.Things.Count == 0)
+            // {
+            //     Output.WriteLine("You see nothing of interest, time to move on.");
+            //     return;
+            // }
+            // Output.WriteLine("You see:");
+            // foreach (var thing in player.CurrentLocation.Things)
+            // {
+            //     Output.WriteLine(thing);
+            //     thing.IsFound = true;
+            // }
 
             var nearbyLocations = GetNearbyLocations(player);
             if (nearbyLocations.Count == 0)
                 return;
-            bool inSubLocation = player.CurrentLocation.Parent is Location;
-            Output.WriteLine("Nearby, in the ", inSubLocation ? player.CurrentLocation.Parent! : player.CurrentZone, " you see some other places: ");
+            Output.WriteLine("Nearby, you see some other places: ");
             foreach (var location in nearbyLocations)
             {
                 Output.WriteLine(location);
@@ -248,16 +241,7 @@ namespace text_survival
         private List<Location> GetNearbyLocations(Player player)
         {
             List<Location> nearbyLocations = [];
-            if (player.CurrentLocation.Parent is Location loc && loc.Locations.Count > 0)
-            {
-                foreach (var location in loc.Locations)
-                {
-                    if (location == player.CurrentLocation)
-                        continue;
-                    nearbyLocations.Add(location);
-                }
-            }
-            else if (player.CurrentZone.Locations.Count > 0)
+            if (player.CurrentZone.Locations.Count > 0)
             {
                 foreach (var location in player.CurrentZone.Locations)
                 {

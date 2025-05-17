@@ -1,5 +1,4 @@
 ﻿using text_survival.Actors;
-using text_survival.Interfaces;
 using text_survival.IO;
 
 namespace text_survival.Items
@@ -15,7 +14,7 @@ namespace text_survival.Items
     //    void Use(Player player);
     //}
 
-    public class Item : IInteractable
+    public class Item
     {
         public string Name { get; set; }
         public double Weight { get; set; } // in kg

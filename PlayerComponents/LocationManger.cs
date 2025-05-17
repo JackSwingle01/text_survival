@@ -4,11 +4,11 @@ using text_survival.Items;
 
 namespace text_survival.PlayerComponents;
 
-class LocationManager : ILocationSystem
+class LocationManager
 {
     public LocationManager(Location startingLocation)
     {
-        Map = new WorldMap(startingLocation.ParentZone);
+        Map = new WorldMap(startingLocation.Parent);
         _currentLocation = startingLocation;
         startingLocation.Visited = true;
     }
@@ -74,23 +74,11 @@ class LocationManager : ILocationSystem
         }
     }
 
-    public void Leave()
-    {
-        if (CurrentLocation.Parent is null)
-        {
-            Output.WriteLine("There's nowhere to leave. Travel instead.");
-        }
-        else if (CurrentLocation.Parent is Location l)
-        {
-            CurrentLocation = l;
-        }
-    }
-
     public bool RemoveItemFromLocation(Item item)
     {
         if (_currentLocation.Items.Contains(item))
         {
-            _currentLocation.RemoveThing(item);
+            _currentLocation.Items.Remove(item);
             return true;
         }
         return false;

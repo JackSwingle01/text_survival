@@ -4,22 +4,8 @@ namespace text_survival.Magic
 {
     public static class SpellFactory
     {
-        public static Spell MinorHeal => new Spell(
-            "Minor Heal",
-            10,
-            new HealEffect(new Bodies.HealingInfo() { Amount = 10, Quality = 1, Type = "magic" }),
-            Spell.SpellFamily.Restoration);
-
-        public static Spell Bleeding => new Spell(
-            "Bleeding",
-            10,
-            new BleedEffect(10, 90),
-            Spell.SpellFamily.Destruction);
-        public static Spell Poison => new Spell(
-                "Poison",
-                10,
-                new PoisonEffect(5, 180),
-                Spell.SpellFamily.Destruction
-                );
+        public static Spell MinorHeal => new Spell("Minor Heal", new HealEffect("healing spell", null, 10), true);
+        public static Spell Bleeding => new Spell("Bleeding", new BleedEffect(null, "bleed spell", 1, 10, 60), true);
+        public static Spell Poison => new Spell("Poison", new PoisonEffect("magic", "poison spell", 1, 5, 180), false);
     }
 }
