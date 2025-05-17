@@ -11,15 +11,19 @@ public static class ZoneFactory
         forestLocationTable.AddFactory(LocationFactory.MakeForest, 3.0); // Most common
         
         // You can add more forest-related locations here when implemented
-        // forestLocationTable.AddLocation(() => LocationFactory.MakeClearing(null), 2.0);
-        // forestLocationTable.AddLocation(() => LocationFactory.MakeGrove(null), 1.5);
-        // forestLocationTable.AddLocation(() => LocationFactory.MakeThicket(null), 1.0);
+        // forestLocationTable.AddFactory(LocationFactory.MakeTrail, 2.0);
+        // forestLocationTable.AddFactory(LocationFactory.MakeRiverbank, 1.5);
+        // forestLocationTable.AddFactory(LocationFactory.MakeHillside, 1.0);
         
         // Generate a name if one wasn't provided
         if (string.IsNullOrEmpty(name))
         {
-            string[] forestZoneNames = { "Forest", "Woods", "Woodland", "Timberland", "Wildwood" };
-            string[] forestZoneAdjectives = { "", "Deep", "Ancient", "Verdant", "Mysterious", "Shadowy", "Enchanted", "Wild", "Dark", "Dense", "Northern", "Southern", "Eastern", "Western" };
+            string[] forestZoneNames = { "Forest", "Woods", "Woodland", "Taiga", "Wildwood", "Timberland", "Pine Forest", "Birch Forest" };
+            string[] forestZoneAdjectives = { 
+                "", "Deep", "Ancient", "Verdant", "Mysterious", "Shadowy", "Enchanted", "Wild", "Dark", "Dense", 
+                "Northern", "Southern", "Eastern", "Western", "Frozen", "Boreal", "Glacial", "Snowy", "Frost-rimmed", 
+                "Ice-laden", "Primeval", "Rime-covered", "Mammoth", "Misty", "Foggy"
+            };
             
             // Pick a random adjective and name
             string adjective = forestZoneAdjectives[Utils.RandInt(0, forestZoneAdjectives.Length - 1)];
@@ -32,11 +36,16 @@ public static class ZoneFactory
         {
             string[] forestDescriptions = 
             {
-                "A vast expanse of trees stretching as far as the eye can see.",
-                "Tall trees with a dense canopy above, filtering sunlight to the forest floor.",
-                "A quiet forest with the occasional sounds of wildlife echoing through the trees.",
-                "Trees of various species create a diverse ecosystem rich with life.",
-                "A sprawling woodland with paths winding between ancient trees and undergrowth."
+                "A vast expanse of snow-covered trees stretching as far as the eye can see.",
+                "Frost-covered trees with icicles hanging from branches, filtering weak sunlight to the forest floor.",
+                "A quiet forest with the occasional sounds of wildlife echoing through the icy stillness.",
+                "Evergreen trees stand tall amidst the snow, creating a sanctuary for cold-adapted creatures.",
+                "A sprawling woodland with ice-crusted paths winding between ancient trees and frozen undergrowth.",
+                "Mammoth trails wind between the massive tree trunks, where herds seek shelter from the harsh winds.",
+                "Rime-covered trees glisten in the pale light, their branches laden with snow and ice.",
+                "The forest floor is covered with a thick blanket of snow, punctuated by animal tracks.",
+                "Shadows stretch long across the pristine snow as sunlight filters through the dense canopy.",
+                "Ancient pines stand as sentinels, their needles heavy with frost and snow."
             };
             
             description = forestDescriptions[Utils.RandInt(0, forestDescriptions.Length - 1)];
@@ -55,15 +64,21 @@ public static class ZoneFactory
         caveLocationTable.AddFactory(LocationFactory.MakeCave, 3.0); // Most common
         
         // You can add more cave-related locations here when implemented
-        // caveLocationTable.AddLocation(() => LocationFactory.MakeCavern(null), 2.0);
-        // caveLocationTable.AddLocation(() => LocationFactory.MakeRavine(null), 1.5);
-        // caveLocationTable.AddLocation(() => LocationFactory.MakeCrystalCave(null), 1.0);
+        // caveLocationTable.AddFactory(LocationFactory.MakeTrail, 1.0); // Cave entrance trails
+        // caveLocationTable.AddFactory(LocationFactory.MakeHillside, 1.5); // Cave entrances in hillsides
         
         // Generate a name if one wasn't provided
         if (string.IsNullOrEmpty(name))
         {
-            string[] caveZoneNames = { "Cave System", "Caverns", "Underground Complex", "Grotto Network", "Subterranean Labyrinth" };
-            string[] caveZoneAdjectives = { "", "Deep", "Ancient", "Crystal", "Mysterious", "Dark", "Echoing", "Forgotten", "Hidden", "Vast", "Winding" };
+            string[] caveZoneNames = { 
+                "Cave System", "Caverns", "Underground Complex", "Grotto Network", "Subterranean Labyrinth",
+                "Cave Refuge", "Ice Caverns", "Shelter System", "Hibernation Caves", "Painted Caves"
+            };
+            string[] caveZoneAdjectives = { 
+                "", "Deep", "Ancient", "Crystal", "Mysterious", "Dark", "Echoing", "Forgotten", "Hidden", "Vast", "Winding",
+                "Frost-lined", "Ice-walled", "Glacial", "Ancestral", "Bone-filled", "Mammoth", "Protected", "Ritual",
+                "Clan", "Fur-lined", "Warm", "Painted", "Firelit"
+            };
             
             // Pick a random adjective and name
             string adjective = caveZoneAdjectives[Utils.RandInt(0, caveZoneAdjectives.Length - 1)];
@@ -76,11 +91,16 @@ public static class ZoneFactory
         {
             string[] caveDescriptions = 
             {
-                "A maze of dark tunnels and chambers stretching deep into the earth.",
-                "A network of interconnected caves with stalactites hanging from the ceiling.",
-                "Cool, damp caverns with the sound of water dripping echoing in the darkness.",
-                "An intricate system of underground passages formed over thousands of years.",
-                "A sprawling subterranean network with chambers of varying sizes and depths."
+                "A maze of dark tunnels and chambers offering refuge from the harsh ice age climate.",
+                "A network of interconnected caves with icicles and ice formations hanging from the ceiling.",
+                "Warm, sheltered caverns with the sound of meltwater dripping echoing in the darkness.",
+                "An intricate system of underground passages formed by ancient glacial movements.",
+                "A sprawling subterranean network with chambers used by clans for shelter and ritual.",
+                "Cave walls adorned with ancient paintings depicting mammoth hunts and clan ceremonies.",
+                "Floors littered with bones and artifacts from generations of human habitation.",
+                "Narrow passages opening to large chambers where fires have burned for countless seasons.",
+                "Ancestral shelters where generations have found protection from the deadly cold.",
+                "Ice-rimmed entrances leading to surprisingly warm chambers deep within the earth."
             };
             
             description = caveDescriptions[Utils.RandInt(0, caveDescriptions.Length - 1)];
@@ -90,23 +110,129 @@ public static class ZoneFactory
         return new Zone(name, description, caveLocationTable, baseTemp);
     }
     
-    // // Method to create a complete world with multiple zones
-    // public static List<Zone> CreateWorld()
+    public static Zone MakeTundraZone(string name = "", string description = "", double baseTemp = 0)
+    {
+        // Create a location table specifically for tundra locations
+        LocationTable tundraLocationTable = new LocationTable();
+        
+        // Add various tundra location types with appropriate weights
+        tundraLocationTable.AddFactory(LocationFactory.MakePlain, 4.0); // Most common
+        // tundraLocationTable.AddFactory(LocationFactory.MakeHillside, 2.0);
+        // tundraLocationTable.AddFactory(LocationFactory.MakeRiverbank, 1.5);
+        
+        // Generate a name if one wasn't provided
+        if (string.IsNullOrEmpty(name))
+        {
+            string[] tundraZoneNames = { 
+                "Tundra", "Steppe", "Plains", "Mammoth Plains", "Permafrost", "Ice Fields", 
+                "Frozen Expanse", "Glacier Edge", "Frost Plains", "Hunting Grounds"
+            };
+            string[] tundraZoneAdjectives = { 
+                "", "Vast", "Windswept", "Endless", "Frozen", "Desolate", "Barren", "Ancient", 
+                "Mammoth", "Glacial", "Northern", "Pristine", "Inhospitable", "Snow-covered", 
+                "Primal", "Harsh", "Woolly", "Thundering", "Game-rich", "Megafauna"
+            };
+            
+            // Pick a random adjective and name
+            string adjective = tundraZoneAdjectives[Utils.RandInt(0, tundraZoneAdjectives.Length - 1)];
+            string zoneName = tundraZoneNames[Utils.RandInt(0, tundraZoneNames.Length - 1)];
+            name = (adjective + " " + zoneName).Trim();
+        }
+        
+        // Generate a description if one wasn't provided
+        if (string.IsNullOrEmpty(description))
+        {
+            string[] tundraDescriptions = 
+            {
+                "An endless expanse of snow and ice, where mighty herds of woolly mammoth roam.",
+                "Windswept plains stretching to the horizon, where only the hardiest plants survive.",
+                "Wide open spaces where great herds of ice age megafauna gather to graze.",
+                "A harsh landscape dominated by permafrost and spotted with patches of tough grasses.",
+                "Snow-covered plains where saber-toothed predators stalk their mammoth prey.",
+                "Vast open tundra where the wind howls unimpeded across the frozen landscape.",
+                "The thunder of mammoth herds can be heard across these ancient hunting grounds.",
+                "A stark but beautiful landscape of ice, snow, and occasional hardy vegetation.",
+                "Glacial plains carved by the retreating ice sheet, leaving a harsh but life-filled realm.",
+                "The domain of the woolly mammoth, where these giants travel in family groups across the snow."
+            };
+            
+            description = tundraDescriptions[Utils.RandInt(0, tundraDescriptions.Length - 1)];
+        }
+        
+        // Create and return the tundra zone with much colder base temperature
+        return new Zone(name, description, tundraLocationTable, baseTemp);
+    }
+    
+    public static Zone MakeRiverValleyZone(string name = "", string description = "", double baseTemp = 15)
+    {
+        // Create a location table specifically for river valley locations
+        LocationTable riverValleyLocationTable = new LocationTable();
+        
+        // Add various river valley location types with appropriate weights
+        riverValleyLocationTable.AddFactory(LocationFactory.MakeRiverbank, 4.0); // Most common
+        // riverValleyLocationTable.AddFactory(LocationFactory.MakeForest, 2.0); // Riverside forests
+        // riverValleyLocationTable.AddFactory(LocationFactory.MakeHillside, 1.5); // Valley sides
+        
+        // Generate a name if one wasn't provided
+        if (string.IsNullOrEmpty(name))
+        {
+            string[] riverZoneNames = { 
+                "River Valley", "Waterway", "Glacial Valley", "River Basin", "Floodplain", 
+                "Stream Network", "River Lands", "Meltwater Valley", "River Territory"
+            };
+            string[] riverZoneAdjectives = { 
+                "", "Winding", "Frozen", "Ancient", "Deep", "Fertile", "Ice-carved", "Glacier-fed", 
+                "Protected", "Sheltered", "Resource-rich", "Fish-filled", "Life-giving", "Abundant",
+                "Clay-rich", "Game-rich", "Meandering", "Mammoth-crossed"
+            };
+            
+            // Pick a random adjective and name
+            string adjective = riverZoneAdjectives[Utils.RandInt(0, riverZoneAdjectives.Length - 1)];
+            string zoneName = riverZoneNames[Utils.RandInt(0, riverZoneNames.Length - 1)];
+            name = (adjective + " " + zoneName).Trim();
+        }
+        
+        // Generate a description if one wasn't provided
+        if (string.IsNullOrEmpty(description))
+        {
+            string[] riverDescriptions = 
+            {
+                "A network of glacier-fed rivers and streams cutting through the icy landscape.",
+                "Partially frozen waterways that provide essential resources for all life in the region.",
+                "A river valley carved by ancient glacial movements, now home to diverse ice age life.",
+                "Ice-rimmed waters flowing through a sheltered valley, attracting animals from miles around.",
+                "A life-giving river system where clay, fish, and fresh water can be harvested.",
+                "Mammoth herds gather along these banks to drink and bathe in the cold waters.",
+                "The sound of rushing water breaks the winter silence as the river cuts through ice and snow.",
+                "A critical resource in the frozen world, this river network sustains countless creatures.",
+                "Ancient humans have left traces of their camps along these fertile riverbanks for generations.",
+                "Where ice meets flowing water, creating a unique ecosystem in the frozen landscape."
+            };
+            
+            description = riverDescriptions[Utils.RandInt(0, riverDescriptions.Length - 1)];
+        }
+        
+        // Create and return the river valley zone with slightly warmer base temperature
+        return new Zone(name, description, riverValleyLocationTable, baseTemp);
+    }
+    
+    // // Method to create a complete ice age world with multiple zones
+    // public static List<Zone> CreateIceAgeWorld()
     // {
     //     List<Zone> world = new List<Zone>();
         
-    //     // Create various zones
-    //     Zone forestZone = MakeForestZone();
+    //     // Create various zones with ice age appropriate base temperatures
+    //     Zone forestZone = MakeForestZone(baseTemp: 10); // Colder than default
     //     world.Add(forestZone);
         
-    //     Zone caveZone = MakeCaveSystemZone();
+    //     Zone caveZone = MakeCaveSystemZone(baseTemp: 5); // Even colder caves
     //     world.Add(caveZone);
         
-    //     // Fix parent references for all zones
-    //     foreach (var zone in world)
-    //     {
-    //         FixParentReferences(zone);
-    //     }
+    //     Zone tundraZone = MakeTundraZone(); // Already very cold (0)
+    //     world.Add(tundraZone);
+        
+    //     Zone riverValleyZone = MakeRiverValleyZone(baseTemp: 8); // Slightly warmer than surroundings but still cold
+    //     world.Add(riverValleyZone);
         
     //     return world;
     // }

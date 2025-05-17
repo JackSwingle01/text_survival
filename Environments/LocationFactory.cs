@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using text_survival.Actors;
 using text_survival.IO;
 using text_survival.Items;
@@ -13,12 +12,13 @@ public static class LocationFactory
         // Create a base forest location
         Location location = new Location("Forest", parent);
         
-        // Generate a more descriptive name
+        // Generate a more descriptive name with ice age theme
         string[] forestNames = { "Forest", "Woodland", "Grove", "Thicket", "Pine Stand", "Birch Grove" };
         string[] forestAdjectives = { 
-            "Ancient", "Overgrown", "Dense", "Old", "Misty", "Silent", "Frozen", "Snowy",
-            "Windswept", "Breezy", "Quiet", "Primeval", "Shadowy", "Pristine", "Forgotten", 
-            "Cold", "Frosty", "Dark", "Verdant", "Mossy", "Wet"
+            "Frost-bitten", "Snow-laden", "Ice-coated", "Permafrost", "Glacial", "Silent", "Frozen", "Snowy",
+            "Windswept", "Frigid", "Boreal", "Primeval", "Shadowy", "Ancient", "Taiga", 
+            "Rime-covered", "Frosty", "Dark", "Mammoth", "Lichen-covered", "Foggy", "Overgrown",
+            "Dense", "Old", "Misty", "Quiet", "Pristine", "Forgotten", "Cold", "Verdant", "Mossy", "Wet"
         };
         
         // Pick a random adjective and name
@@ -77,12 +77,14 @@ public static class LocationFactory
         // Create a base cave location
         Location location = new Location("Cave", parent);
         
-        // Generate a more descriptive name
+        // Generate a more descriptive name with ice age theme
         string[] caveNames = { "Cave", "Cavern", "Grotto", "Hollow", "Shelter" };
         string[] caveAdjectives = { 
-            "Dark", "Shadowy", "Damp", "Deep", "Frozen", "Narrow", "Winding", "Ancient", 
-            "Hidden", "Secluded", "Limestone", "Rocky", "Echoing", "Protected", "Cold", 
-            "Crystal", "Alabaster", "Granite", "Marble", "Glowing", "Frosty", "Icy"
+            "Icicle-lined", "Frost-rimmed", "Ice-floored", "Bone-strewn", "Mammoth-bone", "Winding", "Ancient", 
+            "Hidden", "Ancestral", "Painted", "Rocky", "Echoing", "Ice-walled", "Hibernation", 
+            "Crystal-ice", "Glacier-carved", "Mammoth", "Fur-lined", "Firelit", "Frosty", "Icy",
+            "Dark", "Shadowy", "Damp", "Deep", "Frozen", "Narrow", "Secluded", "Limestone", 
+            "Granite", "Marble", "Glowing", "Alabaster", "Cold", "Crystal", "Protected"
         };
         
         // Pick a random adjective and name
@@ -142,12 +144,14 @@ public static class LocationFactory
         // Create a base riverbank location
         Location location = new Location("Riverbank", parent);
         
-        // Generate a more descriptive name
-        string[] riverNames = { "River", "Stream", "Creek", "Brook", "Rapids", "Ford", "Shallows" };
+        // Generate a more descriptive name with ice age theme
+        string[] riverNames = { "River", "Stream", "Creek", "Brook", "Rapids", "Ford", "Ice-Melt", "Waterfall", "Shallows" };
         string[] riverAdjectives = { 
-            "Rushing", "Flowing", "Clear", "Muddy", "Wide", "Narrow", "Rocky", "Sandy",
-            "Frozen", "Icy", "Shallow", "Deep", "Cold", "Misty", "Foggy", "Meandering", 
-            "Winding", "Fast-flowing", "Gentle", "Quiet", "Noisy", "Bubbling", "Glistening"
+            "Ice-rimmed", "Glacial", "Snowmelt", "Half-frozen", "Ice-flow", "Narrow", "Mammoth-crossing",
+            "Frozen-edged", "Icy", "Slush-filled", "Ice-bridged", "Cold", "Mist-shrouded", "Foggy", "Glacier-fed", 
+            "Thawing", "Crystalline", "Ice-dammed", "Frigid", "Quiet", "Thundering", "Bone-strewn", "Glistening",
+            "Rushing", "Flowing", "Clear", "Muddy", "Wide", "Rocky", "Sandy", "Shallow", "Deep",
+            "Misty", "Meandering", "Winding", "Fast-flowing", "Gentle", "Noisy", "Bubbling"
         };
         
         // Pick a random adjective and name
@@ -200,12 +204,13 @@ public static class LocationFactory
         // Create a base plains location
         Location location = new Location("Plain", parent);
         
-        // Generate a more descriptive name
-        string[] plainNames = { "Plain", "Steppe", "Grassland", "Prairie", "Meadow", "Tundra" };
+        // Generate a more descriptive name with ice age theme
+        string[] plainNames = { "Plain", "Steppe", "Tundra", "Mammoth Grounds", "Permafrost", "Glacier-edge", "Grassland", "Prairie", "Meadow" };
         string[] plainAdjectives = { 
-            "Open", "Windy", "Cold", "Frozen", "Vast", "Rolling", "Endless", "Barren",
-            "Grassy", "Windswept", "Desolate", "Frosty", "Icy", "Exposed", "Empty", 
-            "Bleak", "Stark", "Harsh", "Rocky", "Flat", "Wild", "Mammoth"
+            "Windswept", "Permafrost", "Glacial", "Frozen", "Vast", "Rolling", "Endless", "Mammoth-trampled",
+            "Snow-covered", "Ice-plain", "Desolate", "Frosty", "Rime-crusted", "Exposed", "Bison-grazed", 
+            "Bleak", "Stark", "Harsh", "Woolly", "Flat", "Frost-cracked", "Mammoth",
+            "Open", "Windy", "Cold", "Barren", "Grassy", "Empty", "Rocky", "Wild"
         };
         
         // Pick a random adjective and name
@@ -258,12 +263,14 @@ public static class LocationFactory
         // Create a base hillside location
         Location location = new Location("Hillside", parent);
         
-        // Generate a more descriptive name
-        string[] hillNames = { "Hill", "Ridge", "Slope", "Hillside", "Crag", "Bluff", "Knoll" };
+        // Generate a more descriptive name with ice age theme
+        string[] hillNames = { "Ridge", "Moraine", "Slope", "Drift", "Crag", "Bluff", "Outcrop", "Hill", "Hillside", "Knoll" };
         string[] hillAdjectives = { 
-            "Rocky", "Steep", "Gentle", "Windswept", "Exposed", "Barren", "Craggy",
-            "Rugged", "Snowy", "Icy", "Cold", "Stone", "High", "Misty", "Foggy", 
-            "Eroded", "Ancient", "Weathered", "Protected", "Shaded", "Treacherous"
+            "Glacier-carved", "Ice-cracked", "Snow-swept", "Wind-scoured", "Ice-exposed", "Frost-heaved", "Craggy",
+            "Rugged", "Snow-capped", "Icy", "Ice-scarred", "Stone", "High", "Misty", "Frost-shattered", 
+            "Eroded", "Ancient", "Mammoth-trail", "Granite", "Shaded", "Splintered",
+            "Rocky", "Steep", "Gentle", "Windswept", "Exposed", "Barren", "Weathered", 
+            "Protected", "Treacherous", "Cold", "Foggy"
         };
         
         // Pick a random adjective and name
