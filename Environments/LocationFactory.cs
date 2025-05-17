@@ -13,17 +13,17 @@ public static class LocationFactory
         Location location = new Location("Forest", parent);
         
         // Generate a more descriptive name with ice age theme
-        string[] forestNames = { "Forest", "Woodland", "Grove", "Thicket", "Pine Stand", "Birch Grove" };
-        string[] forestAdjectives = { 
+        List<string> forestNames = ["Forest", "Woodland", "Grove", "Thicket", "Pine Stand", "Birch Grove"];
+        List<string> forestAdjectives = [
             "Frost-bitten", "Snow-laden", "Ice-coated", "Permafrost", "Glacial", "Silent", "Frozen", "Snowy",
             "Windswept", "Frigid", "Boreal", "Primeval", "Shadowy", "Ancient", "Taiga", 
             "Rime-covered", "Frosty", "Dark", "Mammoth", "Lichen-covered", "Foggy", "Overgrown",
             "Dense", "Old", "Misty", "Quiet", "Pristine", "Forgotten", "Cold", "Verdant", "Mossy", "Wet"
-        };
+        ];
         
         // Pick a random adjective and name
-        string adjective = forestAdjectives[Utils.RandInt(0, forestAdjectives.Length - 1)];
-        string name = forestNames[Utils.RandInt(0, forestNames.Length - 1)];
+        string adjective = Utils.GetRandomFromList(forestAdjectives);
+        string name = Utils.GetRandomFromList(forestNames);
         location.Name = (adjective + " " + name).Trim();
         
         // Create a ForageFeature with high resource density for forests (1.2)
@@ -78,18 +78,18 @@ public static class LocationFactory
         Location location = new Location("Cave", parent);
         
         // Generate a more descriptive name with ice age theme
-        string[] caveNames = { "Cave", "Cavern", "Grotto", "Hollow", "Shelter" };
-        string[] caveAdjectives = { 
+        List<string> caveNames = ["Cave", "Cavern", "Grotto", "Hollow", "Shelter"];
+        List<string> caveAdjectives = [
             "Icicle-lined", "Frost-rimmed", "Ice-floored", "Bone-strewn", "Mammoth-bone", "Winding", "Ancient", 
             "Hidden", "Ancestral", "Painted", "Rocky", "Echoing", "Ice-walled", "Hibernation", 
             "Crystal-ice", "Glacier-carved", "Mammoth", "Fur-lined", "Firelit", "Frosty", "Icy",
             "Dark", "Shadowy", "Damp", "Deep", "Frozen", "Narrow", "Secluded", "Limestone", 
             "Granite", "Marble", "Glowing", "Alabaster", "Cold", "Crystal", "Protected"
-        };
+        ];
         
         // Pick a random adjective and name
-        string adjective = caveAdjectives[Utils.RandInt(0, caveAdjectives.Length - 1)];
-        string name = caveNames[Utils.RandInt(0, caveNames.Length - 1)];
+        string adjective = Utils.GetRandomFromList(caveAdjectives);
+        string name = Utils.GetRandomFromList(caveNames);
         location.Name = (adjective + " " + name).Trim();
         
         // Create a ForageFeature with moderate resource density for caves (0.8)
@@ -145,18 +145,18 @@ public static class LocationFactory
         Location location = new Location("Riverbank", parent);
         
         // Generate a more descriptive name with ice age theme
-        string[] riverNames = { "River", "Stream", "Creek", "Brook", "Rapids", "Ford", "Ice-Melt", "Waterfall", "Shallows" };
-        string[] riverAdjectives = { 
+        List<string> riverNames = ["River", "Stream", "Creek", "Brook", "Rapids", "Ford", "Ice-Melt", "Waterfall", "Shallows"];
+        List<string> riverAdjectives = [
             "Ice-rimmed", "Glacial", "Snowmelt", "Half-frozen", "Ice-flow", "Narrow", "Mammoth-crossing",
             "Frozen-edged", "Icy", "Slush-filled", "Ice-bridged", "Cold", "Mist-shrouded", "Foggy", "Glacier-fed", 
             "Thawing", "Crystalline", "Ice-dammed", "Frigid", "Quiet", "Thundering", "Bone-strewn", "Glistening",
             "Rushing", "Flowing", "Clear", "Muddy", "Wide", "Rocky", "Sandy", "Shallow", "Deep",
             "Misty", "Meandering", "Winding", "Fast-flowing", "Gentle", "Noisy", "Bubbling"
-        };
+        ];
         
         // Pick a random adjective and name
-        string adjective = riverAdjectives[Utils.RandInt(0, riverAdjectives.Length - 1)];
-        string name = riverNames[Utils.RandInt(0, riverNames.Length - 1)];
+        string adjective = Utils.GetRandomFromList(riverAdjectives);
+        string name = Utils.GetRandomFromList(riverNames);
         location.Name = (adjective + " " + name).Trim();
         
         // Create a ForageFeature with good resource density for riverbanks (1.1)
@@ -205,17 +205,17 @@ public static class LocationFactory
         Location location = new Location("Plain", parent);
         
         // Generate a more descriptive name with ice age theme
-        string[] plainNames = { "Plain", "Steppe", "Tundra", "Mammoth Grounds", "Permafrost", "Glacier-edge", "Grassland", "Prairie", "Meadow" };
-        string[] plainAdjectives = { 
+        List<string> plainNames = ["Plain", "Steppe", "Tundra", "Mammoth Grounds", "Permafrost", "Glacier-edge", "Grassland", "Prairie", "Meadow"];
+        List<string> plainAdjectives = [
             "Windswept", "Permafrost", "Glacial", "Frozen", "Vast", "Rolling", "Endless", "Mammoth-trampled",
             "Snow-covered", "Ice-plain", "Desolate", "Frosty", "Rime-crusted", "Exposed", "Bison-grazed", 
             "Bleak", "Stark", "Harsh", "Woolly", "Flat", "Frost-cracked", "Mammoth",
             "Open", "Windy", "Cold", "Barren", "Grassy", "Empty", "Rocky", "Wild"
-        };
+        ];
         
         // Pick a random adjective and name
-        string adjective = plainAdjectives[Utils.RandInt(0, plainAdjectives.Length - 1)];
-        string name = plainNames[Utils.RandInt(0, plainNames.Length - 1)];
+        string adjective = Utils.GetRandomFromList(plainAdjectives);
+        string name = Utils.GetRandomFromList(plainNames);
         location.Name = (adjective + " " + name).Trim();
         
         // Create a ForageFeature with low-moderate resource density for plains (0.7)
@@ -264,18 +264,18 @@ public static class LocationFactory
         Location location = new Location("Hillside", parent);
         
         // Generate a more descriptive name with ice age theme
-        string[] hillNames = { "Ridge", "Moraine", "Slope", "Drift", "Crag", "Bluff", "Outcrop", "Hill", "Hillside", "Knoll" };
-        string[] hillAdjectives = { 
+        List<string> hillNames = ["Ridge", "Moraine", "Slope", "Drift", "Crag", "Bluff", "Outcrop", "Hill", "Hillside", "Knoll"];
+        List<string> hillAdjectives = [
             "Glacier-carved", "Ice-cracked", "Snow-swept", "Wind-scoured", "Ice-exposed", "Frost-heaved", "Craggy",
             "Rugged", "Snow-capped", "Icy", "Ice-scarred", "Stone", "High", "Misty", "Frost-shattered", 
             "Eroded", "Ancient", "Mammoth-trail", "Granite", "Shaded", "Splintered",
             "Rocky", "Steep", "Gentle", "Windswept", "Exposed", "Barren", "Weathered", 
             "Protected", "Treacherous", "Cold", "Foggy"
-        };
+        ];
         
         // Pick a random adjective and name
-        string adjective = hillAdjectives[Utils.RandInt(0, hillAdjectives.Length - 1)];
-        string name = hillNames[Utils.RandInt(0, hillNames.Length - 1)];
+        string adjective = Utils.GetRandomFromList(hillAdjectives);
+        string name = Utils.GetRandomFromList(hillNames);
         location.Name = (adjective + " " + name).Trim();
         
         // Create a ForageFeature with moderate resource density for hillsides (0.9)
