@@ -274,17 +274,23 @@ namespace text_survival
             Output.WriteLine("You look around the ", player.CurrentLocation);
             Output.WriteLine("You are in a ", player.CurrentLocation, " in a ", player.CurrentZone);
             Output.WriteLine("Its ", World.GetTimeOfDay(), " and ", player.CurrentLocation.GetTemperature(), " degrees.");
-            // if (player.CurrentLocation.Things.Count == 0)
-            // {
-            //     Output.WriteLine("You see nothing of interest, time to move on.");
-            //     return;
-            // }
-            // Output.WriteLine("You see:");
-            // foreach (var thing in player.CurrentLocation.Things)
-            // {
-            //     Output.WriteLine(thing);
-            //     thing.IsFound = true;
-            // }
+            Output.WriteLine("You see:");
+            foreach (var thing in player.CurrentLocation.Items)
+            {
+                Output.WriteLine(thing);
+                thing.IsFound = true;
+            }
+              foreach (var thing in player.CurrentLocation.Containers)
+            {
+                Output.WriteLine(thing);
+                thing.IsFound = true;
+            }
+             foreach (var thing in player.CurrentLocation.Npcs)
+            {
+                Output.WriteLine(thing);
+                thing.IsFound = true;
+            }
+
 
             var nearbyLocations = GetNearbyLocations(player);
             if (nearbyLocations.Count == 0)
@@ -340,14 +346,13 @@ File: ./Physics.cs
 
 File: ./Player.cs
 --------------------------------------------------------------------------------
-﻿using System.Reflection.Metadata.Ecma335;
+﻿using System.Security;
 using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Items;
-using text_survival.Level;
 using text_survival.PlayerComponents;
 
 namespace text_survival;
@@ -358,7 +363,7 @@ public class Player : Actor
     private LocationManager locationManager;
     private SpellManager spellManager;
     private InventoryManager inventoryManager;
-
+    private SurvivalManager survivalManager;
 
 
     public double EquipmentWarmth => inventoryManager.EquipmentWarmth;
@@ -389,6 +394,7 @@ public class Player : Actor
         locationManager = new LocationManager(startingLocation);
         spellManager = new(_skillRegistry);
         inventoryManager = new(_effectRegistry);
+        survivalManager = new SurvivalManager(this, _effectRegistry);
     }
 
     // helper to keep constructor clean
@@ -425,21 +431,23 @@ public class Player : Actor
 
 
 
-    public override void Damage(DamageInfo damageInfo)
+    public override BodyPart? Damage(DamageInfo damageInfo)
     {
-        survivalManager.Damage(damageInfo);
+        var part = Body.Damage(damageInfo);
         if (!IsAlive)
         {
             // end program
+            Output.WriteDanger("You died!");
             Environment.Exit(0);
         }
+        return part;
     }
 
     internal void DescribeSurvivalStats() => survivalManager.Describe();
     public void UseItem(Item item)
     {
-        Output.WriteLine($"DEBUG: Item '{item.Name}' has actual type: {item.GetType().FullName}");
-        Output.WriteLine($"DEBUG: Base type: {item.GetType().BaseType?.FullName}");
+        // Output.WriteLine($"DEBUG: Item '{item.Name}' has actual type: {item.GetType().FullName}");
+        // Output.WriteLine($"DEBUG: Base type: {item.GetType().BaseType?.FullName}");
         // handle special logic for each item type
         if (item is FoodItem food)
         {
@@ -522,6 +530,11 @@ public class Player : Actor
         return true;
     }
 
+    public override void Update()
+    {
+        survivalManager.Update();
+        base.Update();
+    }
     public void Travel() => locationManager.TravelToAdjacentZone();
 }
 
@@ -1013,29 +1026,26 @@ namespace text_survival.Actors;
 public abstract class Actor
 {
     public string Name = "";
-    public virtual void Attack(Actor target) => combatManager.Attack(target);
+    public virtual void Attack(Actor target, string? bodyPart = null) => combatManager.Attack(target, bodyPart);
 
-    public virtual void Damage(DamageInfo damage) => survivalManager.Damage(damage);
-    public virtual void Heal(HealingInfo heal) => survivalManager.Heal(heal);
+    public virtual BodyPart? Damage(DamageInfo damage) => Body.Damage(damage);
+    public virtual void Heal(HealingInfo heal) => Body.Heal(heal);
 
     public bool IsEngaged { get; set; }
     public bool IsAlive => !Body.IsDestroyed;
-    public double ConditionPercent => survivalManager.ConditionPercent;
-    public abstract Weapon ActiveWeapon { get; protected set;}
+    public abstract Weapon ActiveWeapon { get; protected set; }
 
     public virtual void ApplyEffect(Effect effect) => _effectRegistry.AddEffect(effect);
     public virtual void RemoveEffect(Effect effect) => _effectRegistry.RemoveEffect(effect);
     public virtual List<Effect> GetEffectsByKind(string kind) => _effectRegistry.GetEffectsByKind(kind);
     public virtual void Update()
     {
-        survivalManager.Update();
         _effectRegistry.Update();
     }
 
     public SkillRegistry _skillRegistry { get; init; }
     public Body Body { get; init; }
     protected EffectRegistry _effectRegistry { get; init; }
-    protected SurvivalManager survivalManager { get; init; }
     protected CombatManager combatManager { get; init; }
 
     public override string ToString() => Name;
@@ -1044,7 +1054,6 @@ public abstract class Actor
     {
         _effectRegistry = new EffectRegistry(this);
         _skillRegistry = new SkillRegistry();
-        this.survivalManager = new SurvivalManager(this, _effectRegistry);
         this.combatManager = new CombatManager(this);
         Body = new Body(stats, _effectRegistry);
     }
@@ -2287,7 +2296,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+aa9f647ebc390c36992fcfbfe28c167492205ca9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c964c0a0d2b21a54228220279a4d432e4b522579")]
 [assembly: System.Reflection.AssemblyProductAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyTitleAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -2429,7 +2438,6 @@ class LocationManager
     {
         Map = new WorldMap(startingLocation.Parent);
         _currentLocation = startingLocation;
-        startingLocation.Visited = true;
     }
     private WorldMap Map { get; }
     public Location CurrentLocation
@@ -2445,6 +2453,7 @@ class LocationManager
             World.Update(minutes);
             Output.WriteLine("You arrive at the ", value, " after walking ", minutes, " minutes.");
             _currentLocation = value;
+            _currentLocation.Visited = true;
             Output.WriteLine("You should probably look around.");
         }
     }
@@ -2548,9 +2557,11 @@ class LocationManager
 
 File: ./PlayerComponents/CombatManager.cs
 --------------------------------------------------------------------------------
+using System.Runtime;
 using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.IO;
+using text_survival.Items;
 
 namespace text_survival.PlayerComponents;
 public class CombatManager
@@ -2560,22 +2571,26 @@ public class CombatManager
         Owner = owner;
     }
 
-    public double CalculateAttackDamage(double baseDamage, double strength, double skillBonus, double otherModifiers)
-    {
-        double strengthModifier = (strength + 50) / 100;
-        double damage = (baseDamage + skillBonus) * strengthModifier * otherModifiers;
-        damage *= Utils.RandDouble(0.5, 2);
-        return damage >= 0 ? damage : 0;
-    }
 
 
     public double DetermineDamage()
     {
+        // base weapon and skill
+        double baseDamage = Owner.ActiveWeapon.Damage;
         double skillBonus = Owner._skillRegistry.GetLevel("Fighting");
 
-        double conditionModifier = (2 - (Owner.ConditionPercent / 100)) / 2 + 0.1;
-        return CalculateAttackDamage(
-            Owner.ActiveWeapon.Damage, Owner.Body.CalculateStrength(), skillBonus, conditionModifier);
+        // modifiers
+        double strengthModifier = (Owner.Body.CalculateStrength() / 2) + .5; // str determines up to 50%
+        // A smaller health modifier up to 30%
+        double healthModifier = 0.7 + (0.3 * (Owner.Body.Health / Owner.Body.MaxHealth));
+        // todo factor in any effects like adrenaline, etc.
+        // This could be expanded based on your EffectRegistry
+        double effectsModifier = 1.0;
+        double randomModifier = Utils.RandDouble(.5, 1.5);
+        double totalModifier = strengthModifier * healthModifier * effectsModifier * randomModifier;
+
+        double damage = (baseDamage + skillBonus) * totalModifier;
+        return damage >= 0 ? damage : 0;
     }
 
     public double DetermineDodgeChance(Actor target)
@@ -2616,7 +2631,7 @@ public class CombatManager
     {
         double blockLevel = target._skillRegistry != null ? target._skillRegistry.GetLevel("Defense") : 0;
         double skillBonus = blockLevel / 100;
-        double attributeAvg =  target.Body.CalculateStrength(); // todo 
+        double attributeAvg = target.Body.CalculateStrength(); // todo 
         double blockAtbAvg = target.ActiveWeapon.BlockChance + attributeAvg / 2;
         double blockChance = blockAtbAvg + skillBonus;
         if (Utils.DetermineSuccess(blockChance))
@@ -2627,34 +2642,96 @@ public class CombatManager
         return false;
     }
 
-    public void Attack(Actor target)
+    public void Attack(Actor target, string? targetedPart=null)
     {
-        double damage = DetermineDamage();
-        if (DetermineDodge(target))
+        bool isDodged = DetermineDodge(target);
+        if (isDodged)
+        {
+            // Use our narrator for rich descriptions
+            string description = CombatNarrator.DescribeAttack(Owner, target, 0, targetedPart ?? "body", false, true, false);
+            Output.WriteLine(description);
             return;
-        if (!DetermineHit())
-            return;
-        if (DetermineBlock(target))
-            return;
+        }
 
+        bool isHit = DetermineHit();
+        if (!isHit)
+        {
+            string description = CombatNarrator.DescribeAttack(Owner, target, 0, targetedPart ?? "body", false, false, false);
+            Output.WriteLine(description);
+            return;
+        }
+
+        // Check for block
+        bool isBlocked = DetermineBlock(target);
+        if (isBlocked)
+        {
+            string description = CombatNarrator.DescribeAttack(Owner, target, 0, targetedPart ?? "body", true, false, true);
+            Output.WriteLine(description);
+            return;
+        }
+
+        double damage = DetermineDamage();
+
+        if (targetedPart != null)
+        {
+            AdjustAccuracyForTargeting(targetedPart);
+        }
+
+        // todo add util methods to determine blunt/sharp/pierce
         DamageInfo damageInfo = new(
             damage,
             source: Owner.Name,
-            isSharp: Owner.ActiveWeapon.Class == Items.WeaponClass.Blade,
-            isBlunt: Owner.ActiveWeapon.Class == Items.WeaponClass.Blunt || Owner.ActiveWeapon.Class == Items.WeaponClass.Unarmed,
-            accuracy: Owner.ActiveWeapon.Accuracy
+            isSharp: Owner.ActiveWeapon.Class == WeaponClass.Blade || Owner.ActiveWeapon.Class == WeaponClass.Claw,
+            isBlunt: Owner.ActiveWeapon.Class == WeaponClass.Blunt || Owner.ActiveWeapon.Class == WeaponClass.Unarmed,
+            isPenetrating: Owner.ActiveWeapon.Class == WeaponClass.Pierce,
+            accuracy: Owner.ActiveWeapon.Accuracy,
+            targetPart: targetedPart
         );
 
-        Output.WriteLine($"{Owner} attacked {target} for {Math.Round(damage, 1)} damage!");
-        target.Damage(damageInfo);
-        // if (Utils.RandFloat(0, 1) < 0.1) // 10% critical hit chance
-        //     target.ApplyEffect(new BleedEffect(1, 3));
+        BodyPart? hitPart = target.Damage(damageInfo);
 
+        double partHealthPercent = 0;
+        string hitPartName = "";
+        if (hitPart != null)
+        {
+            partHealthPercent = hitPart.Health / hitPart.MaxHealth;
+            hitPartName = hitPart.Name;
+        }
+        string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damage, hitPartName, true, false, false);
+        Output.WriteLine(attackDescription);
+
+        // Add part status if it's significantly damaged
+        if (partHealthPercent < 0.9)
+        {
+            string statusDesc = CombatNarrator.DescribeTargetStatus(hitPartName, partHealthPercent);
+            if (!string.IsNullOrEmpty(statusDesc))
+            {
+                Output.WriteLine(statusDesc);
+            }
+        }
+
+        // Add weapon-specific effect descriptions
+        if (Owner.ActiveWeapon.Class == WeaponClass.Blade && damage > 10)
+        {
+            Output.WriteLine("BloodW sprays from the wound!");
+        }
+        else if (Owner.ActiveWeapon.Class == WeaponClass.Blunt && damage > 12)
+        {
+            Output.WriteLine("You hear a sickening crack!");
+        }
+        else if (Owner.ActiveWeapon.Class == WeaponClass.Pierce && damage > 15)
+        {
+            Output.WriteLine("The attack pierces deep into the flesh!");
+        }
 
         Owner._skillRegistry.AddExperience("Fighting", 1);
         Thread.Sleep(1000);
     }
 
+    private double AdjustAccuracyForTargeting(string targetedPart)
+    {
+        return .8; // todo, for now slight penalty for targeting vs random swing
+    }
 
     public Actor Owner { get; }
 }
@@ -2907,18 +2984,6 @@ public class SurvivalManager
     // public void AddEffect(IEffect effect) => _effectRegistry.AddEffect(effect);
     // public void RemoveEffect(string effectType) => _effectRegistry.RemoveEffect(effectType);
 
-    public void Heal(HealingInfo heal) => Owner.Heal(heal);
-    public void Damage(DamageInfo damage)
-    {
-        Owner.Damage(damage);
-
-        if (!Owner.IsAlive)
-        {
-            Output.WriteLine(Owner, " died!");
-        }
-    }
-
-
     public void Sleep(int minutes)
     {
         int minutesSlept = 0;
@@ -2941,7 +3006,7 @@ public class SurvivalManager
             Quality = ExhaustionModule.IsFullyRested ? 1 : .7, // healing quality is better after a full night's sleep
         };
 
-        Heal(healing);
+        Owner.Body.Heal(healing);
     }
 
 
@@ -2967,11 +3032,11 @@ public class SurvivalManager
 
         if (food.HealthEffect != null)
         {
-            Heal(food.HealthEffect);
+            Owner.Body.Heal(food.HealthEffect);
         }
         if (food.DamageEffect != null)
         {
-            Damage(food.DamageEffect);
+            Owner.Body.Damage(food.DamageEffect);
         }
     }
 
@@ -3778,15 +3843,14 @@ public class BodyPart
         }
     }
 
-    public void Damage(DamageInfo damageInfo)
+    public BodyPart? Damage(DamageInfo damageInfo)
     {
-        if (IsDestroyed) return;
+        if (IsDestroyed) return null;
 
         if (damageInfo.TargetPart == null)
         {
             // Standard untargeted damage
-            DamageUntargeted(damageInfo);
-            return;
+            return DamageUntargeted(damageInfo);
         }
 
         // Handle targeted damage - but still allow for sub-part hits
@@ -3795,7 +3859,7 @@ public class BodyPart
             if (_parts.Count == 0)
             {
                 ApplyDamage(damageInfo);
-                return;
+                return this;
             }
 
 
@@ -3803,7 +3867,7 @@ public class BodyPart
             {
                 // Direct hit on the targeted part
                 ApplyDamage(damageInfo);
-                return;
+                return this;
             }
 
             // Even when targeting, there's a chance to hit sub-parts
@@ -3827,6 +3891,7 @@ public class BodyPart
             if (hit == this)
             {
                 ApplyDamage(damageInfo);
+                return this;
             }
             else
             {
@@ -3834,9 +3899,9 @@ public class BodyPart
                 // propagate that this was intentional targeting
                 damageInfo.TargetPart = hit.Name; // Update target to child part
                 damageInfo.Accuracy *= 0.8; // Reduce accuracy for child hit
-                hit.Damage(damageInfo);
+                return hit.Damage(damageInfo);
+                
             }
-            return;
         }
         else // Handle targeted damage for a different part (searching)
         {
@@ -3846,8 +3911,7 @@ public class BodyPart
             if (targetedPart != null && Utils.DetermineSuccess(damageInfo.Accuracy)) // chance to miss based on accuracy
             {
                 // Found the part - propagate damage to it
-                targetedPart.Damage(damageInfo);
-                return;
+                return targetedPart.Damage(damageInfo);
             }
 
             // Target not found as a descendant - try to hit this part instead
@@ -3856,12 +3920,12 @@ public class BodyPart
             damageInfo.TargetPart = null; // Clear targeting since we're defaulting
 
             // Process as untargeted hit
-            DamageUntargeted(damageInfo);
+            return DamageUntargeted(damageInfo);
         }
     }
 
     // Separate method for untargeted damage distribution
-    private void DamageUntargeted(DamageInfo damageInfo)
+    private BodyPart? DamageUntargeted(DamageInfo damageInfo)
     {
         // Distribute damage based on coverage
         if (_parts.Count > 0)
@@ -3884,17 +3948,18 @@ public class BodyPart
             if (hit == this)
             {
                 ApplyDamage(damageInfo);
+                return this;
             }
             else
             {
-                hit.Damage(damageInfo);
+                return hit.Damage(damageInfo);
             }
-            return;
 
         }
 
         // Default if no children or calculation issue
         ApplyDamage(damageInfo);
+        return this;
     }
 
     // Helper method to find a part by name in the hierarchy
@@ -3922,7 +3987,7 @@ public class BodyPart
         }
 
         Health -= damageAmount;
-        Output.WriteLine(this, " took ", damageAmount, " damage");
+        // Output.WriteLine(this, " took ", damageAmount, " damage");
         // Handle destruction
         if (IsDestroyed)
         {
@@ -4039,7 +4104,7 @@ public class Body
     }
 
     // Forwarding methods to root part
-    public void Damage(DamageInfo damageInfo) => _rootPart.Damage(damageInfo);
+    public BodyPart? Damage(DamageInfo damageInfo) => _rootPart.Damage(damageInfo);
     public void Heal(HealingInfo healingInfo) => _rootPart.Heal(healingInfo);
 
     // Update body state over time
@@ -5124,7 +5189,7 @@ namespace text_survival.IO
 {
     public static class Output
     {
-        public static int SleepTime = 10;
+        public static int SleepTime = 20;
         public static Queue<string> OutputQueue = new Queue<string>();
 
         public static ConsoleColor DetermineTextColor(object x)
@@ -5235,17 +5300,16 @@ namespace text_survival
             Output.WriteLine("Light snow is falling, and you feel the air getting colder.");
             Output.WriteLine("You need to find shelter, food, and water to survive.");
             Output.SleepTime = 10;
-
-            Zone startingArea = new Zone("Clearing", "A small clearing in the forest.", new LocationTable());
+            Zone zone = ZoneFactory.MakeForestZone();
             Container oldBag = new Container("Old bag", 10);
-            Location log = new Location("Hollow log", startingArea);
+            Location startingArea = new Location("Clearing", zone);
             oldBag.Add(ItemFactory.MakeKnife());
             oldBag.Add(ItemFactory.MakeMoccasins());
             oldBag.Add(ItemFactory.MakeLeatherTunic());
             oldBag.Add(ItemFactory.MakeLeatherLeggings());
-            log.Containers.Add(oldBag);
-            startingArea.Locations.Add(log);
-            Player player = new Player(log);
+            startingArea.Containers.Add(oldBag);
+            zone.Locations.Add(startingArea);
+            Player player = new Player(startingArea);
             World.Player = player;
             Actions actions = new(player);
             while (player.IsAlive)
@@ -5798,9 +5862,12 @@ public class Spell
 
 File: ./Combat.cs
 --------------------------------------------------------------------------------
-﻿using text_survival.Actors;
+﻿using text_survival;
+using text_survival.Actors;
+using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.IO;
+using text_survival.Items;
 
 namespace text_survival
 {
@@ -5808,41 +5875,90 @@ namespace text_survival
     {
         public static void CombatLoop(Player player, Actor enemy)
         {
-            Output.WriteLine("You encounter: ", enemy, "!");
+            // Dramatic combat intro
+            Output.WriteLine("!");
+            Output.WriteLine(CombatNarrator.DescribeCombatStart(player, enemy));
+
             player.IsEngaged = true;
             enemy.IsEngaged = true;
-            if (enemy.Body.CalculateSpeed() > player.Body.CalculateSpeed())
+
+            // First strike determination
+            bool enemyFirstStrike = enemy.Body.CalculateSpeed() > player.Body.CalculateSpeed();
+
+            if (enemyFirstStrike)
             {
+                Output.WriteLine($"The {enemy.Name} moves with surprising speed!");
+                Thread.Sleep(500);
                 enemy.Attack(player);
             }
+            else
+            {
+                Output.WriteLine("You're quick to react, giving you the initiative!");
+                Thread.Sleep(500);
+            }
+
+            // Combat loop
             while (player.IsAlive && enemy.IsAlive)
             {
                 if (!player.IsEngaged || !player.IsAlive) break;
                 PlayerTurn(player, enemy);
 
                 if (!enemy.IsEngaged || !enemy.IsAlive) break;
+                Thread.Sleep(500); // Pause before enemy attack
                 enemy.Attack(player);
 
                 World.Update(1);
             }
+
             player.IsEngaged = false;
             enemy.IsEngaged = false;
 
+            // Combat end
             if (!player.IsAlive)
-                Output.WriteDanger("You died!");
+            {
+                Output.WriteDanger("Your vision fades to black as you collapse... You have died!");
+            }
             else if (!enemy.IsAlive)
             {
-                Output.WriteLine("You killed ", enemy, "!");
+                string[] victoryMessages = {
+                    $"The {enemy.Name} collapses, defeated!",
+                    $"You stand victorious over the fallen {enemy.Name}!",
+                    $"With a final blow, you bring down the {enemy.Name}!"
+                };
+                Output.WriteLine(victoryMessages[Utils.RandInt(0, victoryMessages.Length - 1)]);
+
+                // Calculate experience based on enemy difficulty
+                int xpGain = CalculateExperienceGain(enemy);
+                Output.WriteLine($"You've gained {xpGain} fighting experience!");
+                player._skillRegistry.AddExperience("Fighting", xpGain);
             }
         }
 
+        private static int CalculateExperienceGain(Actor enemy)
+        {
+            // Base XP
+            int baseXP = 5;
+
+            // Adjust based on enemy weight/size
+            double sizeMultiplier = Math.Clamp(enemy.Body.Weight / 50, 0.5, 3.0);
+
+            // Adjust based on enemy weapon damage
+            double weaponMultiplier = Math.Clamp(enemy.ActiveWeapon.Damage / 8, 0.5, 2.0);
+
+            return (int)(baseXP * sizeMultiplier * weaponMultiplier);
+        }
 
 
         public static void PlayerTurn(Player player, Actor enemy)
         {
+            Output.WriteLine("─────────────────────────────────────");
+
+            // Display combat status
+            DisplayCombatStatus(player, enemy);
+
             Output.WriteLine("What do you want to do?");
 
-            List<string> options = ["Attack", "Cast Spell", "Flee"];
+            List<string> options = ["Attack", "Target Attack", "Cast Spell", "Flee"];
 
             string? choice = Input.GetSelectionFromList(options);
 
@@ -5850,6 +5966,18 @@ namespace text_survival
             {
                 case "Attack":
                     player.Attack(enemy);
+                    break;
+                case "Target Attack":
+                    string? targetPart = SelectTargetPart(enemy, player._skillRegistry.GetLevel("Fighting"));
+                    if (targetPart != null)
+                    {
+                        player.Attack(enemy, targetPart);
+                    }
+                    else
+                    {
+                        // Player changed their mind
+                        PlayerTurn(player, enemy);
+                    }
                     break;
                 case "Cast Spell":
                     player.SelectSpell();
@@ -5864,7 +5992,7 @@ namespace text_survival
                     else
                     {
                         Output.WriteLine("You weren't fast enough to get away from ", enemy, "!");
-                        player._skillRegistry.AddExperience("Athletics", 1); // XP for flee attempt
+                        player._skillRegistry.AddExperience("Agility", 1); // XP for flee attempt
                     }
                     break;
                 default:
@@ -5872,6 +6000,47 @@ namespace text_survival
             }
         }
 
+        private static string? SelectTargetPart(Actor enemy, int depth)
+        {
+            if (depth <= 0)
+            {
+                Output.WriteWarning("You don't have enough skill to target an attack");
+                return null;
+            }
+            Output.WriteLine($"Where do you want to target your attack on the {enemy.Name}?");
+
+            // Group body parts by region for better organization
+            var allParts = enemy.Body.GetPartsToNDepth(depth);
+
+            BodyPart? choice = Input.GetSelectionFromList(allParts, true);
+            if (choice == null)
+                return null;
+
+            // todo return part itself
+            return choice.Name;
+        }
+
+        public static void DisplayCombatStatus(Player player, Actor enemy)
+        {
+            ConsoleColor oldColor = Console.ForegroundColor;
+
+            // Player status
+            Console.ForegroundColor = GetHealthColor(player.Body.Health / player.Body.MaxHealth);
+            Output.WriteLine($"You: {Math.Round(player.Body.Health, 0)}/{Math.Round(player.Body.MaxHealth, 0)} HP");
+
+            // Enemy status
+            Console.ForegroundColor = GetHealthColor(enemy.Body.Health / enemy.Body.MaxHealth);
+            Output.WriteLine($"{enemy.Name}: {Math.Round(enemy.Body.Health, 0)}/{Math.Round(enemy.Body.MaxHealth, 0)} HP");
+
+            Console.ForegroundColor = oldColor;
+        }
+
+        private static ConsoleColor GetHealthColor(double healthPercentage)
+        {
+            if (healthPercentage < 0.2) return ConsoleColor.Red;
+            if (healthPercentage < 0.5) return ConsoleColor.Yellow;
+            return ConsoleColor.Green;
+        }
         public static bool SpeedCheck(Player player, Actor? enemy = null)
         {
             if (player.CurrentLocation.Npcs.Count == 0) return true;
@@ -5905,6 +6074,176 @@ namespace text_survival
             double athleticsBonus = actor._skillRegistry.GetLevel("Agility");
             return actor.Body.CalculateSpeed() + athleticsBonus;
         }
+    }
+}
+public static class CombatNarrator
+{
+    private static readonly Dictionary<WeaponClass, List<string>> AttackVerbs = new()
+    {
+        { WeaponClass.Blade, new List<string> { "slashes", "cuts", "slices", "carves" } },
+        { WeaponClass.Blunt, new List<string> { "bashes", "strikes", "smashes", "cracks" } },
+        { WeaponClass.Pierce, new List<string> { "stabs", "pierces", "impales", "punctures" } },
+        { WeaponClass.Claw, new List<string> { "tears", "rips", "rends", "shreds" } },
+        { WeaponClass.Unarmed, new List<string> { "punches", "strikes", "hits", "pounds" } }
+    };
+
+    private static readonly Dictionary<WeaponType, List<string>> SpecialAttackDescriptions = new()
+    {
+        { WeaponType.Spear, new List<string> { "lunges with", "thrusts forward with", "strikes with" } },
+        { WeaponType.Claws, new List<string> { "swipes with", "tears with", "mauls with" } },
+        { WeaponType.Fangs, new List<string> { "bites with", "snaps with", "sinks" } },
+        { WeaponType.Knife, new List<string> { "slashes with", "jabs with", "slices with" } },
+        { WeaponType.Club, new List<string> { "swings", "brings down", "thumps with" } }
+    };
+
+    public static string DescribeAttack(Actor attacker, Actor target, double damage, string targetPart, bool isHit, bool isDodged, bool isBlocked)
+    {
+        var sb = new System.Text.StringBuilder();
+
+        // 1. Attack Initiation
+        sb.Append(DescribeAttackAttempt(attacker, target, targetPart));
+
+        // 2. Attack Resolution
+        if (isDodged)
+            sb.Append(DescribeDodge(attacker, target));
+        else if (isBlocked)
+            sb.Append(DescribeBlock(attacker, target));
+        else if (!isHit)
+            sb.Append(DescribeMiss(attacker, target));
+        else
+            sb.Append(DescribeHit(attacker, target, damage, targetPart));
+
+        return sb.ToString();
+    }
+
+    private static string DescribeAttackAttempt(Actor attacker, Actor target, string targetPart)
+    {
+        WeaponType weaponType = attacker.ActiveWeapon.Type;
+        string weaponName = attacker.ActiveWeapon.Name;
+
+        if (attacker is Player)
+        {
+            // Get special description based on weapon type if available
+            if (SpecialAttackDescriptions.TryGetValue(weaponType, out var specialDescs))
+            {
+                string desc = specialDescs[Utils.RandInt(0, specialDescs.Count - 1)];
+                return $"You {desc} your {weaponName}, at {target.Name}'s {targetPart}. ";
+            }
+            else
+            {
+                return $"You attack with your {weaponName}, at {target.Name}'s {targetPart}. ";
+            }
+        }
+        else
+        {
+            // Enemy attacking player
+            if (SpecialAttackDescriptions.TryGetValue(weaponType, out var specialDescs))
+            {
+                string desc = specialDescs[Utils.RandInt(0, specialDescs.Count - 1)];
+                return $"The {attacker.Name} {desc} its {weaponName}, at your {targetPart}. ";
+            }
+            else
+            {
+                return $"The {attacker.Name} attacks with its {weaponName}, lunging at your {targetPart}. ";
+            }
+        }
+    }
+
+    private static string DescribeDodge(Actor attacker, Actor target)
+    {
+        if (target is Player)
+            return $"You quickly sidestep the {attacker.Name}'s attack!";
+        else
+            return $"The {target.Name} nimbly evades your strike!";
+    }
+
+    private static string DescribeBlock(Actor attacker, Actor target)
+    {
+        if (target is Player)
+            return $"You raise your {target.ActiveWeapon.Name} and deflect the attack!";
+        else
+            return $"The {target.Name} blocks your blow with its {target.ActiveWeapon.Name}!";
+    }
+
+    private static string DescribeMiss(Actor attacker, Actor target)
+    {
+        if (attacker is Player)
+            return "Your attack misses, throwing you slightly off balance!";
+        else
+            return $"The {attacker.Name}'s attack whistles past you, missing entirely!";
+    }
+
+    private static string DescribeHit(Actor attacker, Actor target, double damage, string targetPart)
+    {
+        WeaponClass weaponClass = attacker.ActiveWeapon.Class;
+
+        // Get appropriate attack verb based on weapon class
+        string attackVerb;
+        if (AttackVerbs.TryGetValue(weaponClass, out var verbs))
+            attackVerb = verbs[Utils.RandInt(0, verbs.Count - 1)];
+        else
+            attackVerb = "strikes";
+
+        // Describe damage severity
+        string damageDesc = GetDamageSeverity(damage);
+
+        // Describe hit
+        if (attacker is Player)
+        {
+            return $"Your attack {attackVerb} the {target.Name}'s {targetPart}, dealing {damageDesc} damage! ({Math.Round(damage, 1)})";
+        }
+        else
+        {
+            return $"The {attacker.Name}'s attack {attackVerb} your {targetPart}, dealing {damageDesc} damage! ({Math.Round(damage, 1)})";
+        }
+    }
+
+    private static string GetDamageSeverity(double damage)
+    {
+        if (damage <= 2) return "minimal";
+        if (damage <= 5) return "light";
+        if (damage <= 10) return "moderate";
+        if (damage <= 15) return "severe";
+        if (damage <= 25) return "critical";
+        return "devastating";
+    }
+
+    public static string DescribeTargetStatus(string partName, double healthPercent)
+    {
+        if (healthPercent <= 0)
+            return $"The {partName} is completely destroyed!";
+        if (healthPercent < 0.15)
+            return $"The {partName} is maimed and barely functioning!";
+        if (healthPercent < 0.35)
+            return $"The {partName} is gravely injured!";
+        if (healthPercent < 0.6)
+            return $"The {partName} is wounded.";
+        if (healthPercent < 0.9)
+            return $"The {partName} is lightly injured.";
+
+        return "";
+    }
+
+    public static string DescribeCombatStart(Actor player, Actor enemy)
+    {
+        List<string> possibleStarts = new()
+        {
+            $"A {enemy.Name} emerges, its {enemy.ActiveWeapon.Name} at the ready!",
+            $"A {enemy.Name} appears and prepares to attack!",
+            $"You find yourself face to face with a {enemy.Name}!",
+            $"A hostile {enemy.Name} blocks your path!",
+            $"A {enemy.Name} lunges towards you suddenly!"
+        };
+
+        // Add special descriptions for certain enemy types
+        if (enemy.Name.Contains("Wolf"))
+            possibleStarts.Add("You hear growling as a wolf steps out from the shadows, fangs bared!");
+        else if (enemy.Name.Contains("Bear"))
+            possibleStarts.Add("A massive bear rears up on its hind legs, letting out a terrifying roar!");
+        else if (enemy.Name.Contains("Snake"))
+            possibleStarts.Add("A venomous snake rises up, hood flared, ready to strike!");
+
+        return possibleStarts[Utils.RandInt(0, possibleStarts.Count - 1)];
     }
 }================================================================================
 
@@ -6353,40 +6692,11 @@ namespace text_survival.Environments
 
         }
 
-        // private double GetTemperatureModifier()
-        // {
-        //     double modifier = 0;
-        //     if (World.GetTimeOfDay() == World.TimeOfDay.Morning)
-        //     {
-        //         modifier = -.10;
-        //     }
-        //     else if (World.GetTimeOfDay() == World.TimeOfDay.Afternoon)
-        //     {
-        //         modifier = .20;
-        //     }
-        //     else if (World.GetTimeOfDay() == World.TimeOfDay.Evening)
-        //     {
-        //         modifier = .15;
-        //     }
-        //     else if (World.GetTimeOfDay() == World.TimeOfDay.Night)
-        //     {
-        //         modifier = -.30;
-        //     }
-        //     modifier += Utils.RandDouble(-.1, .1);
-        //     return modifier;
-        // }
-        // public double GetTemperature()
-        // {
-        //     double effect = GetTemperatureModifier();
-        //     return effect * BaseTemperature;
-        // }
-
         public void Update()
         {
             Locations.ForEach(x => x.Update());
         }
 
-        // protected static readonly List<string> genericAdjectives = ["", "Open", "Dark", "Ominous", "Shady", "Lonely", "Ancient",];
         public override string ToString() => Name;
 
     }
@@ -6470,35 +6780,43 @@ public static class ZoneFactory
         forestLocationTable.AddFactory(LocationFactory.MakeForest, 3.0); // Most common
         
         // You can add more forest-related locations here when implemented
-        // forestLocationTable.AddLocation(() => LocationFactory.MakeClearing(null), 2.0);
-        // forestLocationTable.AddLocation(() => LocationFactory.MakeGrove(null), 1.5);
-        // forestLocationTable.AddLocation(() => LocationFactory.MakeThicket(null), 1.0);
+        // forestLocationTable.AddFactory(LocationFactory.MakeTrail, 2.0);
+        // forestLocationTable.AddFactory(LocationFactory.MakeRiverbank, 1.5);
+        // forestLocationTable.AddFactory(LocationFactory.MakeHillside, 1.0);
         
         // Generate a name if one wasn't provided
         if (string.IsNullOrEmpty(name))
         {
-            string[] forestZoneNames = { "Forest", "Woods", "Woodland", "Timberland", "Wildwood" };
-            string[] forestZoneAdjectives = { "", "Deep", "Ancient", "Verdant", "Mysterious", "Shadowy", "Enchanted", "Wild", "Dark", "Dense", "Northern", "Southern", "Eastern", "Western" };
+            List<string> forestZoneNames = ["Forest", "Woods", "Woodland", "Taiga", "Wildwood", "Timberland", "Pine Forest", "Birch Forest"];
+            List<string> forestZoneAdjectives = [
+                "", "Deep", "Ancient", "Verdant", "Mysterious", "Shadowy", "Enchanted", "Wild", "Dark", "Dense", 
+                "Northern", "Southern", "Eastern", "Western", "Frozen", "Boreal", "Glacial", "Snowy", "Frost-rimmed", 
+                "Ice-laden", "Primeval", "Rime-covered", "Mammoth", "Misty", "Foggy"
+            ];
             
             // Pick a random adjective and name
-            string adjective = forestZoneAdjectives[Utils.RandInt(0, forestZoneAdjectives.Length - 1)];
-            string zoneName = forestZoneNames[Utils.RandInt(0, forestZoneNames.Length - 1)];
+            string adjective = Utils.GetRandomFromList(forestZoneAdjectives);
+            string zoneName = Utils.GetRandomFromList(forestZoneNames);
             name = (adjective + " " + zoneName).Trim();
         }
         
         // Generate a description if one wasn't provided
         if (string.IsNullOrEmpty(description))
         {
-            string[] forestDescriptions = 
-            {
-                "A vast expanse of trees stretching as far as the eye can see.",
-                "Tall trees with a dense canopy above, filtering sunlight to the forest floor.",
-                "A quiet forest with the occasional sounds of wildlife echoing through the trees.",
-                "Trees of various species create a diverse ecosystem rich with life.",
-                "A sprawling woodland with paths winding between ancient trees and undergrowth."
-            };
+            List<string> forestDescriptions = [
+                "A vast expanse of snow-covered trees stretching as far as the eye can see.",
+                "Frost-covered trees with icicles hanging from branches, filtering weak sunlight to the forest floor.",
+                "A quiet forest with the occasional sounds of wildlife echoing through the icy stillness.",
+                "Evergreen trees stand tall amidst the snow, creating a sanctuary for cold-adapted creatures.",
+                "A sprawling woodland with ice-crusted paths winding between ancient trees and frozen undergrowth.",
+                "Mammoth trails wind between the massive tree trunks, where herds seek shelter from the harsh winds.",
+                "Rime-covered trees glisten in the pale light, their branches laden with snow and ice.",
+                "The forest floor is covered with a thick blanket of snow, punctuated by animal tracks.",
+                "Shadows stretch long across the pristine snow as sunlight filters through the dense canopy.",
+                "Ancient pines stand as sentinels, their needles heavy with frost and snow."
+            ];
             
-            description = forestDescriptions[Utils.RandInt(0, forestDescriptions.Length - 1)];
+            description = Utils.GetRandomFromList(forestDescriptions);
         }
         
         // Create and return the forest zone
@@ -6514,58 +6832,172 @@ public static class ZoneFactory
         caveLocationTable.AddFactory(LocationFactory.MakeCave, 3.0); // Most common
         
         // You can add more cave-related locations here when implemented
-        // caveLocationTable.AddLocation(() => LocationFactory.MakeCavern(null), 2.0);
-        // caveLocationTable.AddLocation(() => LocationFactory.MakeRavine(null), 1.5);
-        // caveLocationTable.AddLocation(() => LocationFactory.MakeCrystalCave(null), 1.0);
+        // caveLocationTable.AddFactory(LocationFactory.MakeTrail, 1.0); // Cave entrance trails
+        // caveLocationTable.AddFactory(LocationFactory.MakeHillside, 1.5); // Cave entrances in hillsides
         
         // Generate a name if one wasn't provided
         if (string.IsNullOrEmpty(name))
         {
-            string[] caveZoneNames = { "Cave System", "Caverns", "Underground Complex", "Grotto Network", "Subterranean Labyrinth" };
-            string[] caveZoneAdjectives = { "", "Deep", "Ancient", "Crystal", "Mysterious", "Dark", "Echoing", "Forgotten", "Hidden", "Vast", "Winding" };
+            List<string> caveZoneNames = [
+                "Cave System", "Caverns", "Underground Complex", "Grotto Network", "Subterranean Labyrinth",
+                "Cave Refuge", "Ice Caverns", "Shelter System", "Hibernation Caves", "Painted Caves"
+            ];
+            List<string> caveZoneAdjectives = [
+                "", "Deep", "Ancient", "Crystal", "Mysterious", "Dark", "Echoing", "Forgotten", "Hidden", "Vast", "Winding",
+                "Frost-lined", "Ice-walled", "Glacial", "Ancestral", "Bone-filled", "Mammoth", "Protected", "Ritual",
+                "Clan", "Fur-lined", "Warm", "Painted", "Firelit"
+            ];
             
             // Pick a random adjective and name
-            string adjective = caveZoneAdjectives[Utils.RandInt(0, caveZoneAdjectives.Length - 1)];
-            string zoneName = caveZoneNames[Utils.RandInt(0, caveZoneNames.Length - 1)];
+            string adjective = Utils.GetRandomFromList(caveZoneAdjectives);
+            string zoneName = Utils.GetRandomFromList(caveZoneNames);
             name = (adjective + " " + zoneName).Trim();
         }
         
         // Generate a description if one wasn't provided
         if (string.IsNullOrEmpty(description))
         {
-            string[] caveDescriptions = 
-            {
-                "A maze of dark tunnels and chambers stretching deep into the earth.",
-                "A network of interconnected caves with stalactites hanging from the ceiling.",
-                "Cool, damp caverns with the sound of water dripping echoing in the darkness.",
-                "An intricate system of underground passages formed over thousands of years.",
-                "A sprawling subterranean network with chambers of varying sizes and depths."
-            };
+            List<string> caveDescriptions = [
+                "A maze of dark tunnels and chambers offering refuge from the harsh ice age climate.",
+                "A network of interconnected caves with icicles and ice formations hanging from the ceiling.",
+                "Warm, sheltered caverns with the sound of meltwater dripping echoing in the darkness.",
+                "An intricate system of underground passages formed by ancient glacial movements.",
+                "A sprawling subterranean network with chambers used by clans for shelter and ritual.",
+                "Cave walls adorned with ancient paintings depicting mammoth hunts and clan ceremonies.",
+                "Floors littered with bones and artifacts from generations of human habitation.",
+                "Narrow passages opening to large chambers where fires have burned for countless seasons.",
+                "Ancestral shelters where generations have found protection from the deadly cold.",
+                "Ice-rimmed entrances leading to surprisingly warm chambers deep within the earth."
+            ];
             
-            description = caveDescriptions[Utils.RandInt(0, caveDescriptions.Length - 1)];
+            description = Utils.GetRandomFromList(caveDescriptions);
         }
         
         // Create and return the cave system zone with cooler base temperature
         return new Zone(name, description, caveLocationTable, baseTemp);
     }
     
-    // // Method to create a complete world with multiple zones
-    // public static List<Zone> CreateWorld()
+    public static Zone MakeTundraZone(string name = "", string description = "", double baseTemp = 0)
+    {
+        // Create a location table specifically for tundra locations
+        LocationTable tundraLocationTable = new LocationTable();
+        
+        // Add various tundra location types with appropriate weights
+        tundraLocationTable.AddFactory(LocationFactory.MakePlain, 4.0); // Most common
+        // tundraLocationTable.AddFactory(LocationFactory.MakeHillside, 2.0);
+        // tundraLocationTable.AddFactory(LocationFactory.MakeRiverbank, 1.5);
+        
+        // Generate a name if one wasn't provided
+        if (string.IsNullOrEmpty(name))
+        {
+            List<string> tundraZoneNames = [
+                "Tundra", "Steppe", "Plains", "Mammoth Plains", "Permafrost", "Ice Fields", 
+                "Frozen Expanse", "Glacier Edge", "Frost Plains", "Hunting Grounds"
+            ];
+            List<string> tundraZoneAdjectives = [
+                "", "Vast", "Windswept", "Endless", "Frozen", "Desolate", "Barren", "Ancient", 
+                "Mammoth", "Glacial", "Northern", "Pristine", "Inhospitable", "Snow-covered", 
+                "Primal", "Harsh", "Woolly", "Thundering", "Game-rich", "Megafauna"
+            ];
+            
+            // Pick a random adjective and name
+            string adjective = Utils.GetRandomFromList(tundraZoneAdjectives);
+            string zoneName = Utils.GetRandomFromList(tundraZoneNames);
+            name = (adjective + " " + zoneName).Trim();
+        }
+        
+        // Generate a description if one wasn't provided
+        if (string.IsNullOrEmpty(description))
+        {
+            List<string> tundraDescriptions = [
+                "An endless expanse of snow and ice, where mighty herds of woolly mammoth roam.",
+                "Windswept plains stretching to the horizon, where only the hardiest plants survive.",
+                "Wide open spaces where great herds of ice age megafauna gather to graze.",
+                "A harsh landscape dominated by permafrost and spotted with patches of tough grasses.",
+                "Snow-covered plains where saber-toothed predators stalk their mammoth prey.",
+                "Vast open tundra where the wind howls unimpeded across the frozen landscape.",
+                "The thunder of mammoth herds can be heard across these ancient hunting grounds.",
+                "A stark but beautiful landscape of ice, snow, and occasional hardy vegetation.",
+                "Glacial plains carved by the retreating ice sheet, leaving a harsh but life-filled realm.",
+                "The domain of the woolly mammoth, where these giants travel in family groups across the snow."
+            ];
+            
+            description = Utils.GetRandomFromList(tundraDescriptions);
+        }
+        
+        // Create and return the tundra zone with much colder base temperature
+        return new Zone(name, description, tundraLocationTable, baseTemp);
+    }
+    
+    public static Zone MakeRiverValleyZone(string name = "", string description = "", double baseTemp = 15)
+    {
+        // Create a location table specifically for river valley locations
+        LocationTable riverValleyLocationTable = new LocationTable();
+        
+        // Add various river valley location types with appropriate weights
+        riverValleyLocationTable.AddFactory(LocationFactory.MakeRiverbank, 4.0); // Most common
+        // riverValleyLocationTable.AddFactory(LocationFactory.MakeForest, 2.0); // Riverside forests
+        // riverValleyLocationTable.AddFactory(LocationFactory.MakeHillside, 1.5); // Valley sides
+        
+        // Generate a name if one wasn't provided
+        if (string.IsNullOrEmpty(name))
+        {
+            List<string> riverZoneNames = [
+                "River Valley", "Waterway", "Glacial Valley", "River Basin", "Floodplain", 
+                "Stream Network", "River Lands", "Meltwater Valley", "River Territory"
+            ];
+            List<string> riverZoneAdjectives = [
+                "", "Winding", "Frozen", "Ancient", "Deep", "Fertile", "Ice-carved", "Glacier-fed", 
+                "Protected", "Sheltered", "Resource-rich", "Fish-filled", "Life-giving", "Abundant",
+                "Clay-rich", "Game-rich", "Meandering", "Mammoth-crossed"
+            ];
+            
+            // Pick a random adjective and name
+            string adjective = Utils.GetRandomFromList(riverZoneAdjectives);
+            string zoneName = Utils.GetRandomFromList(riverZoneNames);
+            name = (adjective + " " + zoneName).Trim();
+        }
+        
+        // Generate a description if one wasn't provided
+        if (string.IsNullOrEmpty(description))
+        {
+            List<string> riverDescriptions = [
+                "A network of glacier-fed rivers and streams cutting through the icy landscape.",
+                "Partially frozen waterways that provide essential resources for all life in the region.",
+                "A river valley carved by ancient glacial movements, now home to diverse ice age life.",
+                "Ice-rimmed waters flowing through a sheltered valley, attracting animals from miles around.",
+                "A life-giving river system where clay, fish, and fresh water can be harvested.",
+                "Mammoth herds gather along these banks to drink and bathe in the cold waters.",
+                "The sound of rushing water breaks the winter silence as the river cuts through ice and snow.",
+                "A critical resource in the frozen world, this river network sustains countless creatures.",
+                "Ancient humans have left traces of their camps along these fertile riverbanks for generations.",
+                "Where ice meets flowing water, creating a unique ecosystem in the frozen landscape."
+            ];
+            
+            description = Utils.GetRandomFromList(riverDescriptions);
+        }
+        
+        // Create and return the river valley zone with slightly warmer base temperature
+        return new Zone(name, description, riverValleyLocationTable, baseTemp);
+    }
+    
+    // // Method to create a complete ice age world with multiple zones
+    // public static List<Zone> CreateIceAgeWorld()
     // {
     //     List<Zone> world = new List<Zone>();
         
-    //     // Create various zones
-    //     Zone forestZone = MakeForestZone();
+    //     // Create various zones with ice age appropriate base temperatures
+    //     Zone forestZone = MakeForestZone(baseTemp: 10); // Colder than default
     //     world.Add(forestZone);
         
-    //     Zone caveZone = MakeCaveSystemZone();
+    //     Zone caveZone = MakeCaveSystemZone(baseTemp: 5); // Even colder caves
     //     world.Add(caveZone);
         
-    //     // Fix parent references for all zones
-    //     foreach (var zone in world)
-    //     {
-    //         FixParentReferences(zone);
-    //     }
+    //     Zone tundraZone = MakeTundraZone(); // Already very cold (0)
+    //     world.Add(tundraZone);
+        
+    //     Zone riverValleyZone = MakeRiverValleyZone(baseTemp: 8); // Slightly warmer than surroundings but still cold
+    //     world.Add(riverValleyZone);
         
     //     return world;
     // }
@@ -7007,7 +7439,6 @@ public class ZoneWeather
 
 File: ./Environments/LocationFactory.cs
 --------------------------------------------------------------------------------
-using System.Diagnostics;
 using text_survival.Actors;
 using text_survival.IO;
 using text_survival.Items;
@@ -7022,17 +7453,18 @@ public static class LocationFactory
         // Create a base forest location
         Location location = new Location("Forest", parent);
         
-        // Generate a more descriptive name
-        string[] forestNames = { "Forest", "Woodland", "Grove", "Thicket", "Pine Stand", "Birch Grove" };
-        string[] forestAdjectives = { 
-            "Ancient", "Overgrown", "Dense", "Old", "Misty", "Silent", "Frozen", "Snowy",
-            "Windswept", "Breezy", "Quiet", "Primeval", "Shadowy", "Pristine", "Forgotten", 
-            "Cold", "Frosty", "Dark", "Verdant", "Mossy", "Wet"
-        };
+        // Generate a more descriptive name with ice age theme
+        List<string> forestNames = ["Forest", "Woodland", "Grove", "Thicket", "Pine Stand", "Birch Grove"];
+        List<string> forestAdjectives = [
+            "Frost-bitten", "Snow-laden", "Ice-coated", "Permafrost", "Glacial", "Silent", "Frozen", "Snowy",
+            "Windswept", "Frigid", "Boreal", "Primeval", "Shadowy", "Ancient", "Taiga", 
+             "Frosty", "Dark", "Foggy", "Overgrown",
+            "Dense", "Old", "Misty", "Quiet", "Pristine", "Forgotten", "Cold", "Verdant", "Mossy", "Wet"
+        ];
         
         // Pick a random adjective and name
-        string adjective = forestAdjectives[Utils.RandInt(0, forestAdjectives.Length - 1)];
-        string name = forestNames[Utils.RandInt(0, forestNames.Length - 1)];
+        string adjective = Utils.GetRandomFromList(forestAdjectives);
+        string name = Utils.GetRandomFromList(forestNames);
         location.Name = (adjective + " " + name).Trim();
         
         // Create a ForageFeature with high resource density for forests (1.2)
@@ -7058,7 +7490,6 @@ public static class LocationFactory
         for (int i = 0; i < itemCount; i++)
         {
             Item item = GetRandomForestItem();
-            item.IsFound = true;
             location.Items.Add(item);
         }
         
@@ -7086,17 +7517,19 @@ public static class LocationFactory
         // Create a base cave location
         Location location = new Location("Cave", parent);
         
-        // Generate a more descriptive name
-        string[] caveNames = { "Cave", "Cavern", "Grotto", "Hollow", "Shelter" };
-        string[] caveAdjectives = { 
-            "Dark", "Shadowy", "Damp", "Deep", "Frozen", "Narrow", "Winding", "Ancient", 
-            "Hidden", "Secluded", "Limestone", "Rocky", "Echoing", "Protected", "Cold", 
-            "Crystal", "Alabaster", "Granite", "Marble", "Glowing", "Frosty", "Icy"
-        };
+        // Generate a more descriptive name with ice age theme
+        List<string> caveNames = ["Cave", "Cavern", "Grotto", "Hollow", "Shelter"];
+        List<string> caveAdjectives = [
+            "Icicle-lined", "Frost-rimmed", "Ice-floored", "Bone-strewn", "Mammoth-bone", "Winding", "Ancient", 
+            "Hidden", "Ancestral", "Painted", "Rocky", "Echoing", "Ice-walled", "Hibernation", 
+            "Crystal-ice", "Glacier-carved", "Frosty", "Icy",
+            "Dark", "Shadowy", "Damp", "Deep", "Frozen", "Narrow", "Secluded", 
+            "Granite",  "Glowing",  "Cold", "Crystal", "Protected"
+        ];
         
         // Pick a random adjective and name
-        string adjective = caveAdjectives[Utils.RandInt(0, caveAdjectives.Length - 1)];
-        string name = caveNames[Utils.RandInt(0, caveNames.Length - 1)];
+        string adjective = Utils.GetRandomFromList(caveAdjectives);
+        string name = Utils.GetRandomFromList(caveNames);
         location.Name = (adjective + " " + name).Trim();
         
         // Create a ForageFeature with moderate resource density for caves (0.8)
@@ -7120,7 +7553,6 @@ public static class LocationFactory
         for (int i = 0; i < itemCount; i++)
         {
             Item item = GetRandomCaveItem();
-            item.IsFound = true;
             location.Items.Add(item);
         }
         
@@ -7151,17 +7583,19 @@ public static class LocationFactory
         // Create a base riverbank location
         Location location = new Location("Riverbank", parent);
         
-        // Generate a more descriptive name
-        string[] riverNames = { "River", "Stream", "Creek", "Brook", "Rapids", "Ford", "Shallows" };
-        string[] riverAdjectives = { 
-            "Rushing", "Flowing", "Clear", "Muddy", "Wide", "Narrow", "Rocky", "Sandy",
-            "Frozen", "Icy", "Shallow", "Deep", "Cold", "Misty", "Foggy", "Meandering", 
-            "Winding", "Fast-flowing", "Gentle", "Quiet", "Noisy", "Bubbling", "Glistening"
-        };
+        // Generate a more descriptive name with ice age theme
+        List<string> riverNames = ["River", "Stream", "Creek", "Brook", "Rapids", "Ford", "Ice-Melt", "Waterfall", "Shallows"];
+        List<string> riverAdjectives = [
+            "Ice-rimmed", "Glacial", "Snowmelt", "Half-frozen", "Ice-flow", "Narrow", "Mammoth-crossing",
+            "Frozen-edged", "Icy", "Slush-filled", "Ice-bridged", "Cold", "Mist-shrouded", "Foggy", "Glacier-fed", 
+            "Thawing", "Crystalline", "Ice-dammed", "Frigid", "Quiet", "Thundering", "Bone-strewn", "Glistening",
+            "Rushing", "Flowing", "Clear", "Muddy", "Wide", "Rocky", "Sandy", "Shallow", "Deep",
+            "Misty", "Meandering", "Winding", "Fast-flowing", "Gentle", "Noisy", "Bubbling"
+        ];
         
         // Pick a random adjective and name
-        string adjective = riverAdjectives[Utils.RandInt(0, riverAdjectives.Length - 1)];
-        string name = riverNames[Utils.RandInt(0, riverNames.Length - 1)];
+        string adjective = Utils.GetRandomFromList(riverAdjectives);
+        string name = Utils.GetRandomFromList(riverNames);
         location.Name = (adjective + " " + name).Trim();
         
         // Create a ForageFeature with good resource density for riverbanks (1.1)
@@ -7186,7 +7620,6 @@ public static class LocationFactory
         for (int i = 0; i < itemCount; i++)
         {
             Item item = GetRandomRiverbankItem();
-            item.IsFound = true;
             location.Items.Add(item);
         }
         
@@ -7209,17 +7642,18 @@ public static class LocationFactory
         // Create a base plains location
         Location location = new Location("Plain", parent);
         
-        // Generate a more descriptive name
-        string[] plainNames = { "Plain", "Steppe", "Grassland", "Prairie", "Meadow", "Tundra" };
-        string[] plainAdjectives = { 
-            "Open", "Windy", "Cold", "Frozen", "Vast", "Rolling", "Endless", "Barren",
-            "Grassy", "Windswept", "Desolate", "Frosty", "Icy", "Exposed", "Empty", 
-            "Bleak", "Stark", "Harsh", "Rocky", "Flat", "Wild", "Mammoth"
-        };
+        // Generate a more descriptive name with ice age theme
+        List<string> plainNames = ["Plain", "Steppe", "Tundra", "Mammoth Grounds", "Permafrost", "Glacier-edge", "Grassland", "Prairie", "Meadow"];
+        List<string> plainAdjectives = [
+            "Windswept", "Permafrost", "Glacial", "Frozen", "Vast", "Rolling", "Endless", "Mammoth-trampled",
+            "Snow-covered", "Ice-plain", "Desolate", "Frosty", "Exposed", "Bison-grazed", 
+            "Bleak", "Stark", "Harsh", "Woolly", "Flat", "Frost-cracked", "Mammoth",
+            "Open", "Windy", "Cold", "Barren", "Grassy", "Empty", "Rocky", "Wild"
+        ];
         
         // Pick a random adjective and name
-        string adjective = plainAdjectives[Utils.RandInt(0, plainAdjectives.Length - 1)];
-        string name = plainNames[Utils.RandInt(0, plainNames.Length - 1)];
+        string adjective = Utils.GetRandomFromList(plainAdjectives);
+        string name = Utils.GetRandomFromList(plainNames);
         location.Name = (adjective + " " + name).Trim();
         
         // Create a ForageFeature with low-moderate resource density for plains (0.7)
@@ -7243,7 +7677,6 @@ public static class LocationFactory
         for (int i = 0; i < itemCount; i++)
         {
             Item item = GetRandomPlainsItem();
-            item.IsFound = true;
             location.Items.Add(item);
         }
         
@@ -7267,17 +7700,19 @@ public static class LocationFactory
         // Create a base hillside location
         Location location = new Location("Hillside", parent);
         
-        // Generate a more descriptive name
-        string[] hillNames = { "Hill", "Ridge", "Slope", "Hillside", "Crag", "Bluff", "Knoll" };
-        string[] hillAdjectives = { 
-            "Rocky", "Steep", "Gentle", "Windswept", "Exposed", "Barren", "Craggy",
-            "Rugged", "Snowy", "Icy", "Cold", "Stone", "High", "Misty", "Foggy", 
-            "Eroded", "Ancient", "Weathered", "Protected", "Shaded", "Treacherous"
-        };
+        // Generate a more descriptive name with ice age theme
+        List<string> hillNames = ["Ridge", "Moraine", "Slope", "Drift", "Crag", "Bluff", "Outcrop", "Hill", "Hillside", "Knoll"];
+        List<string> hillAdjectives = [
+            "Glacier-carved", "Ice-cracked", "Snow-swept", "Wind-scoured", "Ice-exposed", "Frost-heaved", "Craggy",
+            "Rugged", "Snow-capped", "Icy", "Ice-scarred", "Stone", "High", "Misty", "Frost-shattered", 
+            "Eroded", "Ancient", "Mammoth-trail", "Granite", "Shaded", "Splintered",
+            "Rocky", "Steep", "Gentle", "Windswept", "Exposed", "Barren", "Weathered", 
+            "Protected", "Treacherous", "Cold", "Foggy"
+        ];
         
         // Pick a random adjective and name
-        string adjective = hillAdjectives[Utils.RandInt(0, hillAdjectives.Length - 1)];
-        string name = hillNames[Utils.RandInt(0, hillNames.Length - 1)];
+        string adjective = Utils.GetRandomFromList(hillAdjectives);
+        string name = Utils.GetRandomFromList(hillNames);
         location.Name = (adjective + " " + name).Trim();
         
         // Create a ForageFeature with moderate resource density for hillsides (0.9)
@@ -7301,7 +7736,6 @@ public static class LocationFactory
         for (int i = 0; i < itemCount; i++)
         {
             Item item = GetRandomHillsideItem();
-            item.IsFound = true;
             location.Items.Add(item);
         }
         

@@ -92,7 +92,7 @@ public class Body
     }
 
     // Forwarding methods to root part
-    public void Damage(DamageInfo damageInfo) => _rootPart.Damage(damageInfo);
+    public BodyPart? Damage(DamageInfo damageInfo) => _rootPart.Damage(damageInfo);
     public void Heal(HealingInfo healingInfo) => _rootPart.Heal(healingInfo);
 
     // Update body state over time

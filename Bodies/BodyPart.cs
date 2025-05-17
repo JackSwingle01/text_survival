@@ -132,15 +132,14 @@ public class BodyPart
         }
     }
 
-    public void Damage(DamageInfo damageInfo)
+    public BodyPart? Damage(DamageInfo damageInfo)
     {
-        if (IsDestroyed) return;
+        if (IsDestroyed) return null;
 
         if (damageInfo.TargetPart == null)
         {
             // Standard untargeted damage
-            DamageUntargeted(damageInfo);
-            return;
+            return DamageUntargeted(damageInfo);
         }
 
         // Handle targeted damage - but still allow for sub-part hits
@@ -149,7 +148,7 @@ public class BodyPart
             if (_parts.Count == 0)
             {
                 ApplyDamage(damageInfo);
-                return;
+                return this;
             }
 
 
@@ -157,7 +156,7 @@ public class BodyPart
             {
                 // Direct hit on the targeted part
                 ApplyDamage(damageInfo);
-                return;
+                return this;
             }
 
             // Even when targeting, there's a chance to hit sub-parts
@@ -181,6 +180,7 @@ public class BodyPart
             if (hit == this)
             {
                 ApplyDamage(damageInfo);
+                return this;
             }
             else
             {
@@ -188,9 +188,9 @@ public class BodyPart
                 // propagate that this was intentional targeting
                 damageInfo.TargetPart = hit.Name; // Update target to child part
                 damageInfo.Accuracy *= 0.8; // Reduce accuracy for child hit
-                hit.Damage(damageInfo);
+                return hit.Damage(damageInfo);
+                
             }
-            return;
         }
         else // Handle targeted damage for a different part (searching)
         {
@@ -200,8 +200,7 @@ public class BodyPart
             if (targetedPart != null && Utils.DetermineSuccess(damageInfo.Accuracy)) // chance to miss based on accuracy
             {
                 // Found the part - propagate damage to it
-                targetedPart.Damage(damageInfo);
-                return;
+                return targetedPart.Damage(damageInfo);
             }
 
             // Target not found as a descendant - try to hit this part instead
@@ -210,12 +209,12 @@ public class BodyPart
             damageInfo.TargetPart = null; // Clear targeting since we're defaulting
 
             // Process as untargeted hit
-            DamageUntargeted(damageInfo);
+            return DamageUntargeted(damageInfo);
         }
     }
 
     // Separate method for untargeted damage distribution
-    private void DamageUntargeted(DamageInfo damageInfo)
+    private BodyPart? DamageUntargeted(DamageInfo damageInfo)
     {
         // Distribute damage based on coverage
         if (_parts.Count > 0)
@@ -238,17 +237,18 @@ public class BodyPart
             if (hit == this)
             {
                 ApplyDamage(damageInfo);
+                return this;
             }
             else
             {
-                hit.Damage(damageInfo);
+                return hit.Damage(damageInfo);
             }
-            return;
 
         }
 
         // Default if no children or calculation issue
         ApplyDamage(damageInfo);
+        return this;
     }
 
     // Helper method to find a part by name in the hierarchy
@@ -276,7 +276,7 @@ public class BodyPart
         }
 
         Health -= damageAmount;
-        Output.WriteLine(this, " took ", damageAmount, " damage");
+        // Output.WriteLine(this, " took ", damageAmount, " damage");
         // Handle destruction
         if (IsDestroyed)
         {

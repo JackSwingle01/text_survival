@@ -13,17 +13,16 @@ namespace text_survival
             Output.WriteLine("Light snow is falling, and you feel the air getting colder.");
             Output.WriteLine("You need to find shelter, food, and water to survive.");
             Output.SleepTime = 10;
-
-            Zone startingArea = new Zone("Clearing", "A small clearing in the forest.", new LocationTable());
+            Zone zone = ZoneFactory.MakeForestZone();
             Container oldBag = new Container("Old bag", 10);
-            Location log = new Location("Hollow log", startingArea);
+            Location startingArea = new Location("Clearing", zone);
             oldBag.Add(ItemFactory.MakeKnife());
             oldBag.Add(ItemFactory.MakeMoccasins());
             oldBag.Add(ItemFactory.MakeLeatherTunic());
             oldBag.Add(ItemFactory.MakeLeatherLeggings());
-            log.Containers.Add(oldBag);
-            startingArea.Locations.Add(log);
-            Player player = new Player(log);
+            startingArea.Containers.Add(oldBag);
+            zone.Locations.Add(startingArea);
+            Player player = new Player(startingArea);
             World.Player = player;
             Actions actions = new(player);
             while (player.IsAlive)

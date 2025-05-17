@@ -17,7 +17,7 @@ public static class LocationFactory
         List<string> forestAdjectives = [
             "Frost-bitten", "Snow-laden", "Ice-coated", "Permafrost", "Glacial", "Silent", "Frozen", "Snowy",
             "Windswept", "Frigid", "Boreal", "Primeval", "Shadowy", "Ancient", "Taiga", 
-            "Rime-covered", "Frosty", "Dark", "Mammoth", "Lichen-covered", "Foggy", "Overgrown",
+             "Frosty", "Dark", "Foggy", "Overgrown",
             "Dense", "Old", "Misty", "Quiet", "Pristine", "Forgotten", "Cold", "Verdant", "Mossy", "Wet"
         ];
         
@@ -49,7 +49,6 @@ public static class LocationFactory
         for (int i = 0; i < itemCount; i++)
         {
             Item item = GetRandomForestItem();
-            item.IsFound = true;
             location.Items.Add(item);
         }
         
@@ -82,9 +81,9 @@ public static class LocationFactory
         List<string> caveAdjectives = [
             "Icicle-lined", "Frost-rimmed", "Ice-floored", "Bone-strewn", "Mammoth-bone", "Winding", "Ancient", 
             "Hidden", "Ancestral", "Painted", "Rocky", "Echoing", "Ice-walled", "Hibernation", 
-            "Crystal-ice", "Glacier-carved", "Mammoth", "Fur-lined", "Firelit", "Frosty", "Icy",
-            "Dark", "Shadowy", "Damp", "Deep", "Frozen", "Narrow", "Secluded", "Limestone", 
-            "Granite", "Marble", "Glowing", "Alabaster", "Cold", "Crystal", "Protected"
+            "Crystal-ice", "Glacier-carved", "Frosty", "Icy",
+            "Dark", "Shadowy", "Damp", "Deep", "Frozen", "Narrow", "Secluded", 
+            "Granite",  "Glowing",  "Cold", "Crystal", "Protected"
         ];
         
         // Pick a random adjective and name
@@ -113,7 +112,6 @@ public static class LocationFactory
         for (int i = 0; i < itemCount; i++)
         {
             Item item = GetRandomCaveItem();
-            item.IsFound = true;
             location.Items.Add(item);
         }
         
@@ -181,7 +179,6 @@ public static class LocationFactory
         for (int i = 0; i < itemCount; i++)
         {
             Item item = GetRandomRiverbankItem();
-            item.IsFound = true;
             location.Items.Add(item);
         }
         
@@ -208,7 +205,7 @@ public static class LocationFactory
         List<string> plainNames = ["Plain", "Steppe", "Tundra", "Mammoth Grounds", "Permafrost", "Glacier-edge", "Grassland", "Prairie", "Meadow"];
         List<string> plainAdjectives = [
             "Windswept", "Permafrost", "Glacial", "Frozen", "Vast", "Rolling", "Endless", "Mammoth-trampled",
-            "Snow-covered", "Ice-plain", "Desolate", "Frosty", "Rime-crusted", "Exposed", "Bison-grazed", 
+            "Snow-covered", "Ice-plain", "Desolate", "Frosty", "Exposed", "Bison-grazed", 
             "Bleak", "Stark", "Harsh", "Woolly", "Flat", "Frost-cracked", "Mammoth",
             "Open", "Windy", "Cold", "Barren", "Grassy", "Empty", "Rocky", "Wild"
         ];
@@ -239,7 +236,6 @@ public static class LocationFactory
         for (int i = 0; i < itemCount; i++)
         {
             Item item = GetRandomPlainsItem();
-            item.IsFound = true;
             location.Items.Add(item);
         }
         
@@ -299,7 +295,6 @@ public static class LocationFactory
         for (int i = 0; i < itemCount; i++)
         {
             Item item = GetRandomHillsideItem();
-            item.IsFound = true;
             location.Items.Add(item);
         }
         

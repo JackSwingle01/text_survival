@@ -1,11 +1,10 @@
-﻿using System.Reflection.Metadata.Ecma335;
+﻿using System.Security;
 using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Items;
-using text_survival.Level;
 using text_survival.PlayerComponents;
 
 namespace text_survival;
@@ -16,7 +15,7 @@ public class Player : Actor
     private LocationManager locationManager;
     private SpellManager spellManager;
     private InventoryManager inventoryManager;
-
+    private SurvivalManager survivalManager;
 
 
     public double EquipmentWarmth => inventoryManager.EquipmentWarmth;
@@ -47,6 +46,7 @@ public class Player : Actor
         locationManager = new LocationManager(startingLocation);
         spellManager = new(_skillRegistry);
         inventoryManager = new(_effectRegistry);
+        survivalManager = new SurvivalManager(this, _effectRegistry);
     }
 
     // helper to keep constructor clean
@@ -83,21 +83,23 @@ public class Player : Actor
 
 
 
-    public override void Damage(DamageInfo damageInfo)
+    public override BodyPart? Damage(DamageInfo damageInfo)
     {
-        survivalManager.Damage(damageInfo);
+        var part = Body.Damage(damageInfo);
         if (!IsAlive)
         {
             // end program
+            Output.WriteDanger("You died!");
             Environment.Exit(0);
         }
+        return part;
     }
 
     internal void DescribeSurvivalStats() => survivalManager.Describe();
     public void UseItem(Item item)
     {
-        Output.WriteLine($"DEBUG: Item '{item.Name}' has actual type: {item.GetType().FullName}");
-        Output.WriteLine($"DEBUG: Base type: {item.GetType().BaseType?.FullName}");
+        // Output.WriteLine($"DEBUG: Item '{item.Name}' has actual type: {item.GetType().FullName}");
+        // Output.WriteLine($"DEBUG: Base type: {item.GetType().BaseType?.FullName}");
         // handle special logic for each item type
         if (item is FoodItem food)
         {
@@ -180,6 +182,11 @@ public class Player : Actor
         return true;
     }
 
+    public override void Update()
+    {
+        survivalManager.Update();
+        base.Update();
+    }
     public void Travel() => locationManager.TravelToAdjacentZone();
 }
 

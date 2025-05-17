@@ -10,7 +10,6 @@ class LocationManager
     {
         Map = new WorldMap(startingLocation.Parent);
         _currentLocation = startingLocation;
-        startingLocation.Visited = true;
     }
     private WorldMap Map { get; }
     public Location CurrentLocation
@@ -26,6 +25,7 @@ class LocationManager
             World.Update(minutes);
             Output.WriteLine("You arrive at the ", value, " after walking ", minutes, " minutes.");
             _currentLocation = value;
+            _currentLocation.Visited = true;
             Output.WriteLine("You should probably look around.");
         }
     }

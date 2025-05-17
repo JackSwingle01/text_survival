@@ -23,18 +23,6 @@ public class SurvivalManager
     // public void AddEffect(IEffect effect) => _effectRegistry.AddEffect(effect);
     // public void RemoveEffect(string effectType) => _effectRegistry.RemoveEffect(effectType);
 
-    public void Heal(HealingInfo heal) => Owner.Heal(heal);
-    public void Damage(DamageInfo damage)
-    {
-        Owner.Damage(damage);
-
-        if (!Owner.IsAlive)
-        {
-            Output.WriteLine(Owner, " died!");
-        }
-    }
-
-
     public void Sleep(int minutes)
     {
         int minutesSlept = 0;
@@ -57,7 +45,7 @@ public class SurvivalManager
             Quality = ExhaustionModule.IsFullyRested ? 1 : .7, // healing quality is better after a full night's sleep
         };
 
-        Heal(healing);
+        Owner.Body.Heal(healing);
     }
 
 
@@ -83,11 +71,11 @@ public class SurvivalManager
 
         if (food.HealthEffect != null)
         {
-            Heal(food.HealthEffect);
+            Owner.Body.Heal(food.HealthEffect);
         }
         if (food.DamageEffect != null)
         {
-            Damage(food.DamageEffect);
+            Owner.Body.Damage(food.DamageEffect);
         }
     }
 
