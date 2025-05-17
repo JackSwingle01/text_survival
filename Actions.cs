@@ -90,14 +90,6 @@ namespace text_survival
             openInventoryCommand.Player = _player;
             AvailableActions.Add(openInventoryCommand);
 
-
-            if (_player.CurrentLocation.Parent is not null)
-            {
-                var leaveCommand = _player.LeaveCommand;
-                leaveCommand.Player = _player;
-                AvailableActions.Add(leaveCommand);
-            }
-
             var travelCommand = TravelCommand;
             travelCommand.Player = _player;
             AvailableActions.Add(travelCommand);
@@ -107,13 +99,10 @@ namespace text_survival
             sleepCommand.Player = _player;
             AvailableActions.Add(sleepCommand);
 
+            var checkGearCommand = CheckGearCommand;
+            checkGearCommand.Player = _player;
+            AvailableActions.Add(checkGearCommand);
 
-            if (_player.IsArmored || _player.IsArmed)
-            {
-                var checkGearCommand = CheckGearCommand;
-                checkGearCommand.Player = _player;
-                AvailableActions.Add(checkGearCommand);
-            }
 
             var checkStats = CheckStatsCommand;
             checkStats.Player = _player;
@@ -182,7 +171,7 @@ namespace text_survival
         private void CheckStats(Player player)
         {
             // Describe.DescribeLevel(player);
-            Describe.DescribePrimaryAttributes(player);
+            // Describe.DescribePrimaryAttributes(player);
             Describe.DescribeSkills(player);
             Output.WriteLine("Press any key to continue...");
             Console.ReadKey(true);
@@ -216,17 +205,23 @@ namespace text_survival
             Output.WriteLine("You look around the ", player.CurrentLocation);
             Output.WriteLine("You are in a ", player.CurrentLocation, " in a ", player.CurrentZone);
             Output.WriteLine("Its ", World.GetTimeOfDay(), " and ", player.CurrentLocation.GetTemperature(), " degrees.");
-            // if (player.CurrentLocation.Things.Count == 0)
-            // {
-            //     Output.WriteLine("You see nothing of interest, time to move on.");
-            //     return;
-            // }
-            // Output.WriteLine("You see:");
-            // foreach (var thing in player.CurrentLocation.Things)
-            // {
-            //     Output.WriteLine(thing);
-            //     thing.IsFound = true;
-            // }
+            Output.WriteLine("You see:");
+            foreach (var thing in player.CurrentLocation.Items)
+            {
+                Output.WriteLine(thing);
+                thing.IsFound = true;
+            }
+              foreach (var thing in player.CurrentLocation.Containers)
+            {
+                Output.WriteLine(thing);
+                thing.IsFound = true;
+            }
+             foreach (var thing in player.CurrentLocation.Npcs)
+            {
+                Output.WriteLine(thing);
+                thing.IsFound = true;
+            }
+
 
             var nearbyLocations = GetNearbyLocations(player);
             if (nearbyLocations.Count == 0)

@@ -23,7 +23,7 @@
         {
             if (_factories.Count == 0)
             {
-                return new Npc("Ghost");
+                throw new Exception("No factories");
             }
             var fac = Utils.GetRandomFromList(_factories);
             return fac();

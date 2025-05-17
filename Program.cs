@@ -17,11 +17,10 @@ namespace text_survival
             Zone startingArea = new Zone("Clearing", "A small clearing in the forest.", new LocationTable());
             Container oldBag = new Container("Old bag", 10);
             Location log = new Location("Hollow log", startingArea);
-            oldBag.Add(ItemFactory.MakeApple());
-            oldBag.Add(ItemFactory.MakeClothShirt());
-            oldBag.Add(ItemFactory.MakeClothPants());
-            oldBag.Add(ItemFactory.MakeBoots());
-            oldBag.Add(new Weapon(WeaponType.Dagger, WeaponMaterial.Iron, "Old dagger", 40));
+            oldBag.Add(ItemFactory.MakeKnife());
+            oldBag.Add(ItemFactory.MakeMoccasins());
+            oldBag.Add(ItemFactory.MakeLeatherTunic());
+            oldBag.Add(ItemFactory.MakeLeatherLeggings());
             log.Containers.Add(oldBag);
             startingArea.Locations.Add(log);
             Player player = new Player(log);

@@ -1,23 +1,21 @@
 using text_survival.Actors;
-using text_survival.Bodies;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Survival;
 using text_survival.Effects;
+using text_survival.Bodies;
 
 namespace text_survival.PlayerComponents;
 
 public class SurvivalManager
 {
-    public SurvivalManager(Actor owner, EffectRegistry effectRegistry, bool enableSurvivalMechanics, Body body)
+    public SurvivalManager(Actor owner, EffectRegistry effectRegistry)
     {
         Owner = owner;
-        EnableSurvivalMechanics = enableSurvivalMechanics;
         HungerModule = new HungerModule();
         ThirstModule = new ThirstModule();
         ExhaustionModule = new ExhaustionModule();
         TemperatureModule = new TemperatureModule();
-        Body = body;
         _effectRegistry = effectRegistry;
     }
 
@@ -25,12 +23,12 @@ public class SurvivalManager
     // public void AddEffect(IEffect effect) => _effectRegistry.AddEffect(effect);
     // public void RemoveEffect(string effectType) => _effectRegistry.RemoveEffect(effectType);
 
-    public void Heal(HealingInfo heal) => Body.Heal(heal);
+    public void Heal(HealingInfo heal) => Owner.Heal(heal);
     public void Damage(DamageInfo damage)
     {
-        Body.Damage(damage);
+        Owner.Damage(damage);
 
-        if (Body.IsDestroyed)
+        if (!Owner.IsAlive)
         {
             Output.WriteLine(Owner, " died!");
         }
@@ -65,6 +63,7 @@ public class SurvivalManager
 
     public void ConsumeFood(FoodItem food)
     {
+        // todo handle eating half an item
         // if (HungerModule.Amount - food.Calories < 0)
         // {
         //     Output.Write("You are too full to finish it.\n");
@@ -96,9 +95,10 @@ public class SurvivalManager
 
     public void Update()
     {
-        if (EnableSurvivalMechanics)
+        if (Owner is Player player)
         {
-            double feelsLikeTemp = Owner.CurrentZone.GetTemperature() + Owner.EquipmentWarmth;
+            // todo add more detailed equipment stats like warmth, wind, and water resistance
+            double feelsLikeTemp = player.CurrentLocation.GetTemperature() + player.EquipmentWarmth;
 
             HungerModule.Update();
             ThirstModule.Update();
@@ -113,23 +113,19 @@ public class SurvivalManager
                     Type = TemperatureModule.IsDangerousTemperature ? "thermal" : "starvation",
                     IsPenetrating = HungerModule.IsStarving,
                 };
-                Owner.Damage(damage);
+                player.Damage(damage);
             }
         }
     }
 
     private Actor Owner { get; }
-    private bool EnableSurvivalMechanics { get; }
-    public Body Body { get; }
     private HungerModule HungerModule { get; }
     private ThirstModule ThirstModule { get; }
     private ExhaustionModule ExhaustionModule { get; }
     private TemperatureModule TemperatureModule { get; }
 
     // general condition, for now avg of exhaustion and body health
-    public double ConditionPercent => (ExhaustionModule.ExhaustionPercent + (Body.Health / Body.MaxHealth * 100)) / 2;
-    public bool IsAlive => !Body.IsDestroyed;
-
+    public double ConditionPercent => (ExhaustionModule.ExhaustionPercent + (Owner.Body.Health / Owner.Body.MaxHealth * 100)) / 2;
 
     public void Describe()
     {

@@ -73,14 +73,8 @@ public class LocationTable
 
 public class NpcTable : GenericWeightedTable<Npc>
 {
-    // NPC-specific methods can go here
-    public void AddNpc(Func<Npc> npcFactory, double weight = 1)
+    public void AddActor(Func<Npc> actorFactory, double weight = 1)
     {
-        AddFactory(npcFactory, weight);
-    }
-
-    public Npc GenerateRandomNpc()
-    {
-        return GenerateRandom();
+        AddFactory(actorFactory, weight);
     }
 }

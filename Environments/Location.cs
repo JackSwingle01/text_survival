@@ -1,5 +1,4 @@
 ﻿
-using System.ComponentModel.DataAnnotations;
 using text_survival.Actors;
 using text_survival.IO;
 using text_survival.Items;
@@ -11,7 +10,6 @@ public class Location
     public string Name;
     public bool Visited = false;
     public bool IsFound { get; set; } = false;
-    public virtual bool IsSafe => !Npcs.Any(npc => npc.IsHostile);
     public List<Npc> Npcs = [];
     public List<Item> Items = [];
     public List<Container> Containers = [];

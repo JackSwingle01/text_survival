@@ -21,10 +21,14 @@ namespace text_survival.Environments
             Elevation = elevation;
             LocationTable = locationTable;
             Weather = new(this);
-            for (int i = 0; i < 3; i++)
+            if (!LocationTable.IsEmpty())
             {
-                Locations.Add(LocationTable.GenerateRandom(this));
+                for (int i = 0; i < 3; i++)
+                {
+                    Locations.Add(LocationTable.GenerateRandom(this));
+                }
             }
+
         }
 
         // private double GetTemperatureModifier()

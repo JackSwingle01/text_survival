@@ -52,7 +52,7 @@ public class ZoneWeather
                 WeatherCondition.Rainy => 0.5,
                 WeatherCondition.Stormy => 0.8,
                 _ => 0.0
-            }
+            };
             // Calculate final intensity (0-1)
             double baseIntensity = timeOfDayFactor * (1 - cloudReduction);
             return baseIntensity * (1 - conditionReduction);

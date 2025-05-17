@@ -1,6 +1,3 @@
-using text_survival.Actors;
-using text_survival.Items;
-
 namespace text_survival.Environments;
 
 public static class ZoneFactory
@@ -11,7 +8,7 @@ public static class ZoneFactory
         LocationTable forestLocationTable = new LocationTable();
         
         // Add various forest location types with appropriate weights
-        forestLocationTable.AddLocation(() => LocationFactory.MakeForest(null), 3.0); // Most common
+        forestLocationTable.AddFactory(LocationFactory.MakeForest, 3.0); // Most common
         
         // You can add more forest-related locations here when implemented
         // forestLocationTable.AddLocation(() => LocationFactory.MakeClearing(null), 2.0);

@@ -74,7 +74,7 @@ namespace text_survival
 
         public static bool SpeedCheck(Player player, Actor? enemy = null)
         {
-            if (player.CurrentLocation.IsSafe) return true;
+            if (player.CurrentLocation.Npcs.Count == 0) return true;
 
             enemy ??= GetFastestNpc(player.CurrentLocation);
 

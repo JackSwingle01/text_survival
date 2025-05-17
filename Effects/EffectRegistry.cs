@@ -5,8 +5,6 @@ using text_survival.IO;
 namespace text_survival.Effects;
 public class EffectRegistry(Actor owner)
 {
-    public IReadOnlyList<Effect> GetActiveEffects() => _effects.AsReadOnly();
-
     public void AddEffect(Effect effect)
     {
         if (_effects.Contains(effect)) return;
@@ -53,8 +51,8 @@ public class EffectRegistry(Actor owner)
     public double GetBodyCapacityModifier(string capacity) => _effects.Where(e => e.TargetBodyPart == null).Sum(e => e.CapacityModifiers.GetValueOrDefault(capacity) * e.Severity);
 
 
-    public IEnumerable<Effect> GetEffectsOnBodyPart(BodyPart part) => _effects.Where(e => e.TargetBodyPart == part);
-    public IEnumerable<Effect> GetEffectsByKind(string kind) => _effects.Where(e => e.EffectKind == kind);
+    public List<Effect> GetEffectsOnBodyPart(BodyPart part) => [.. _effects.Where(e => e.TargetBodyPart == part)];
+    public List<Effect> GetEffectsByKind(string kind) => [.. _effects.Where(e => e.EffectKind.ToLower() == kind.ToLower())];
 
 
     private readonly Actor _owner = owner;

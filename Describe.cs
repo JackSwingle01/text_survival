@@ -1,7 +1,6 @@
-﻿using text_survival.Actors;
+﻿
 using text_survival.IO;
 using text_survival.Items;
-using text_survival.Level;
 using text_survival.PlayerComponents;
 
 namespace text_survival
@@ -53,20 +52,6 @@ namespace text_survival
                 Output.Write("Weight: ", item.Weight, "kg");
             }
             Output.WriteLine();
-        }
-
-        // public static void DescribeLevel(Player player)
-        // {
-        //     Output.WriteLine("Level: ", player.Level);
-        //     Output.WriteLine("XP: ", player.Experience, "/", player.ExperienceToNextLevel);
-        // }
-        public static void DescribePrimaryAttributes(Player player)
-        {
-            Output.WriteLine("Primary Attributes: ");
-            Output.WriteLine("STR: ", player.Attributes.Strength);
-            Output.WriteLine("SPD: ", player.Attributes.Speed);
-            Output.WriteLine("END: ", player.Attributes.Endurance);
-            Output.WriteLine("LUC: ", player.Attributes.Luck);
         }
 
         public static void DescribeSkills(Player player)

@@ -1,11 +1,20 @@
+
 using text_survival.Effects;
 
 namespace text_survival.Bodies;
+
+public class BodyStats
+{
+    public BodyPartFactory.BodyTypes type;
+    public double overallWeight;
+    public double fatPercent;
+    public double musclePercent;
+}
+
 public class Body
 {
     // Root part and core properties
     private readonly BodyPart _rootPart;
-    public string Name => _rootPart.Name;
     public double Health => _rootPart.Health;
     public double MaxHealth => _rootPart.MaxHealth;
     public bool IsDestroyed => _rootPart.IsDestroyed;
@@ -22,15 +31,15 @@ public class Body
     private double _coreTemperature = 98.6; // Fahrenheit
     private double _targetMetabolismRate = 2000; // Calories per day
 
-    public Body(BodyPart rootPart, double overallWeight, double fatPercent, double musclePercent, EffectRegistry effectRegistry)
+    public Body(BodyStats stats, EffectRegistry effectRegistry)
     {
-        _rootPart = rootPart;
         _effectRegistry = effectRegistry;
+        _rootPart = BodyPartFactory.CreateBody(stats.type, stats.overallWeight);
 
         // Initialize physical composition
-        _bodyFat = overallWeight * (fatPercent / 100);
-        _muscle = overallWeight * (musclePercent / 100);
-        _baseWeight = overallWeight - _bodyFat - _muscle;
+        _bodyFat = stats.overallWeight * (stats.fatPercent / 100);
+        _muscle = stats.overallWeight * (stats.musclePercent / 100);
+        _baseWeight = stats.overallWeight - _bodyFat - _muscle;
         UpdateWeight();
     }
 

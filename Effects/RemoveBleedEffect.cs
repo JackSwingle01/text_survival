@@ -12,9 +12,21 @@ namespace text_survival.Effects
 
         protected override void OnApply(Actor target)
         {
-            target.RemoveEffect("Bleed");
+            var effects = target.GetEffectsByKind("bleed");
+            if (effects.Count == 0)
+            {
+                effects = target.GetEffectsByKind("bleeding");
+                if (effects.Count == 0)
+                {
+                    Output.WriteWarning("There was no bleeding to stop");
+                    this.Remove(target);
+                    return;
+                }
+            }
+            var bleed = effects[0];
+            bleed.Remove(target);
             Output.WriteLine(target, " stopped bleeding.");
-            IsActive = false;
+            this.Remove(target);
         }
     }
 }

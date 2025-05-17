@@ -13,10 +13,11 @@ namespace text_survival.Level
             if (fullSkills)
             {
                 skills.Add("Fighting", new Skill("Fighting"));
-                skills.Add("Hunting", new Skill("Hunting"));
                 skills.Add("Endurance", new Skill("Endurance"));
-                skills.Add("Defense", new Skill("Defense"));
                 skills.Add("Agility", new Skill("Reflexes"));
+                skills.Add("Defense", new Skill("Defense"));
+                
+                skills.Add("Hunting", new Skill("Hunting"));
                 skills.Add("Toolmaking", new Skill("Toolmaking"));
                 skills.Add("Foraging", new Skill("Foraging"));
                 skills.Add("Firecraft", new Skill("Firecraft"));
@@ -26,7 +27,7 @@ namespace text_survival.Level
             }
             else
             {
-                skills.Add("Melee", new Skill("Melee"));
+                skills.Add("Melee", new Skill("Fighting"));
                 skills.Add("Endurance", new Skill("Endurance"));
                 skills.Add("Agility", new Skill("Reflexes"));
                 skills.Add("Defense", new Skill("Defense"));

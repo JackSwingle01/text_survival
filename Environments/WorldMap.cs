@@ -51,7 +51,7 @@ namespace text_survival.Environments
         private Zone GenerateRandomZone()
         {
             // todo
-            return new Forest();
+            return Utils.GetRandomFromList([ZoneFactory.MakeForestZone(), ZoneFactory.MakeCaveSystemZone()]);
         }
 
     }
