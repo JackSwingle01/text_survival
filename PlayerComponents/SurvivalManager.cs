@@ -15,8 +15,8 @@ public class SurvivalManager
         HungerModule = new HungerModule();
         ThirstModule = new ThirstModule();
         ExhaustionModule = new ExhaustionModule();
-        TemperatureModule = new TemperatureModule();
         _effectRegistry = effectRegistry;
+        TemperatureModule = new TemperatureModule(owner.Body, _effectRegistry);
     }
 
     private readonly EffectRegistry _effectRegistry;
@@ -79,29 +79,47 @@ public class SurvivalManager
         }
     }
 
-
-
     public void Update()
     {
         if (Owner is Player player)
         {
-            // todo add more detailed equipment stats like warmth, wind, and water resistance
-            double feelsLikeTemp = player.CurrentLocation.GetTemperature() + player.EquipmentWarmth;
-
             HungerModule.Update();
             ThirstModule.Update();
             ExhaustionModule.Update();
-            TemperatureModule.Update(feelsLikeTemp);
+            TemperatureModule.Update(player.CurrentLocation.GetTemperature(), player.EquipmentWarmth);
 
-            if (HungerModule.IsStarving || TemperatureModule.IsDangerousTemperature)
+            if (HungerModule.IsStarving)
             {
                 var damage = new DamageInfo()
                 {
                     Amount = 1,
-                    Type = TemperatureModule.IsDangerousTemperature ? "thermal" : "starvation",
-                    IsPenetrating = HungerModule.IsStarving,
+                    Type = "starvation",
+                    IsPenetrating = true
                 };
                 player.Damage(damage);
+            }
+
+            var tempDamage = TemperatureModule.GetTemperatureDamage();
+            if (tempDamage != null)
+            {
+                player.Damage(tempDamage);
+            }
+
+            // Update water loss from sweating effects
+            var sweatingEffects = _effectRegistry.GetEffectsByKind("Sweating")
+                .Where(e => e.IsActive)
+                .Cast<SweatingEffect>();
+
+            double totalWaterLoss = 0;
+            foreach (var sweating in sweatingEffects)
+            {
+                totalWaterLoss += sweating.GetWaterLossForPeriod(TimeSpan.FromMinutes(1));
+            }
+
+            // Apply water loss to thirst system
+            if (totalWaterLoss > 0)
+            {
+                ThirstModule.AddHydration(-totalWaterLoss);
             }
         }
     }

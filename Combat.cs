@@ -146,7 +146,7 @@ namespace text_survival
             Output.WriteLine($"Where do you want to target your attack on the {enemy.Name}?");
 
             // Group body parts by region for better organization
-            var allParts = enemy.Body.GetPartsToNDepth(depth);
+            var allParts = enemy.Body.GetPartsToNDepth(depth)!;
 
             BodyPart? choice = Input.GetSelectionFromList(allParts, true);
             if (choice == null)

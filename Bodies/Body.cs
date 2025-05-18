@@ -96,48 +96,13 @@ public class Body
     public void Heal(HealingInfo healingInfo) => _rootPart.Heal(healingInfo);
 
     // Update body state over time
-    public void Update(TimeSpan timePassed, EnvironmentInfo environment)
-    {
-        // Handle temperature regulation
-        UpdateTemperature(environment.Temperature, environment.EquipmentWarmth, timePassed);
+    // public void Update(TimeSpan timePassed, EnvironmentInfo environment)
+    // {
+    //     // Handle metabolism and energy expenditure
+    //     UpdateMetabolism(environment.ActivityLevel, timePassed);
+    // }
 
-        // Handle metabolism and energy expenditure
-        UpdateMetabolism(environment.ActivityLevel, timePassed);
-    }
-
-    // Temperature regulation
-    private void UpdateTemperature(double environmentalTemp, double insulationFactor, TimeSpan timePassed)
-    {
-        // Calculate temperature differential
-        double tempDifferential = environmentalTemp - _coreTemperature;
-
-        // Body fat provides natural insulation
-        double naturalInsulation = 0.1 + (BodyFatPercentage / 2);
-
-        // Combined insulation factor
-        double totalInsulation = naturalInsulation + insulationFactor;
-
-        // Calculate temperature change rate (degrees per hour)
-        double hourlyChange = tempDifferential * (1.0 - totalInsulation) / 5.0;
-
-        // Apply for the time that has passed
-        double hoursElapsed = timePassed.TotalHours;
-        _coreTemperature += hourlyChange * hoursElapsed;
-
-        // Trigger shivering or sweating based on temperature
-        if (_coreTemperature < 97.0)
-        {
-            // Shivering increases metabolism to generate heat
-            _targetMetabolismRate *= 1.2;
-        }
-        else if (_coreTemperature > 100.0)
-        {
-            // Sweating increases water loss
-            // This would connect to the thirst system
-        }
-    }
-
-    // Metabolism updates
+    // todo - move this to the survival manager or something
     private void UpdateMetabolism(double activityLevel, TimeSpan timePassed)
     {
         // Calculate calorie burn based on BMR, activity, and time
@@ -200,7 +165,7 @@ public class Body
 
         return movingCapacity * (1 + muscleBonus - fatPenalty) * weightRatio;
     }
-    private double CalculateVitality()
+    public double CalculateVitality()
     {
         double breathing = GetCapacity("Breathing");
         double bloodPumping = GetCapacity("BloodPumping");
@@ -219,10 +184,10 @@ public class Body
         else
             fatContribution = 0.05 - (BodyFatPercentage - .25) * 0.1;  // Excess fat penalizes slightly
 
-        return (breathing + bloodPumping + digestion) / 3 * (baseMultiplier + muscleContribution + fatContribution);
+        return (2 * (breathing + bloodPumping) + digestion) / 5 * (baseMultiplier + muscleContribution + fatContribution);
     }
 
-    private double CalculatePerception()
+    public double CalculatePerception()
     {
         double sight = GetCapacity("Sight");
         double hearing = GetCapacity("Hearing");
@@ -230,7 +195,7 @@ public class Body
         return (sight + hearing) / 2;
     }
 
-    private double CalculateColdResistance()
+    public double CalculateColdResistance()
     {
         // Base cold resistance that everyone has
         double baseColdResistance = 0.5;
@@ -304,6 +269,30 @@ public class Body
         }
     }
 
+    public List<BodyPart>? GetPartsToNDepth(int depth)
+    {
+        if (depth <= 0) return null;
+
+        var result = new List<BodyPart>();
+        CollectBodyPartsToDepth(_rootPart, result, 1, depth);
+        return result;
+    }
+
+    private void CollectBodyPartsToDepth(BodyPart part, List<BodyPart> result, int currentDepth, int maxDepth)
+    {
+        // Add the current part
+        result.Add(part);
+
+        // If we've reached our depth limit or there are no children, return
+        if (currentDepth >= maxDepth || part.Parts.Count == 0)
+            return;
+
+        // Otherwise, recursively add children
+        foreach (var child in part.Parts)
+        {
+            CollectBodyPartsToDepth(child, result, currentDepth + 1, maxDepth);
+        }
+    }
     // Environment info for updates
     public class EnvironmentInfo
     {

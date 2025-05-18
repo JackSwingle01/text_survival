@@ -1,19 +1,31 @@
-﻿using text_survival.IO;
+﻿using text_survival.Bodies;
+using text_survival.Effects;
+using text_survival.IO;
 
 namespace text_survival.Survival
 {
     public class TemperatureModule
     {
+        private readonly Body body;
+        private readonly EffectRegistry _effectRegistry;
         public const double BaseBodyTemperature = 98.6F;
         public double BodyTemperature { get; private set; }
         public bool IsWarming { get; private set; }
+        public bool IsDangerousTemperature { get; private set; }
         public TemperatureEnum TemperatureEffect { get; private set; }
 
-        public bool IsDangerousTemperature { get; private set; }
+        private const double HypothermiaThreshold = 95.0;  // °F
+        private const double SevereHypothermiaThreshold = 89.6; // °F
+        private const double HyperthermiaThreshold = 99.5; // °F  
+        private const double SevereHyperthermiaThreshold = 104.0; // °F
+        private const double ShiveringThreshold = 97.0; // °F
+        private const double SweatingThreshold = 100.0; // °F
 
-        public TemperatureModule()
+
+        public TemperatureModule(Body body, EffectRegistry effectRegistry)
         {
-
+            this.body = body;
+            this._effectRegistry = effectRegistry;
             BodyTemperature = BaseBodyTemperature;
             TemperatureEffect = TemperatureEnum.Warm;
             IsDangerousTemperature = false;
@@ -28,15 +40,102 @@ namespace text_survival.Survival
             HeatExhaustion,
         }
 
-        public void Update(double feelsLikeTemperature)
+        public void Update(double environmentalTemp, double equipmentInsulation)
         {
             TemperatureEnum oldTemperature = TemperatureEffect;
-            UpdateTemperatureTick(feelsLikeTemperature);
+
+            // double vitality = player.Body.CalculateVitality();
+            // double baseColdResistance = player.Body.CalculateColdResistance();
+
+            UpdateTemperatureTick(environmentalTemp, equipmentInsulation);
+
+            UpdateTemperatureEffects(environmentalTemp);
+
+            ApplyTemperatureInjuries();
+
             if (oldTemperature != TemperatureEffect)
             {
                 WriteTemperatureEffectMessage(TemperatureEffect);
             }
         }
+
+        private void UpdateTemperatureTick(double environmentalTemp, double equipmentInsulation)
+        {
+            double metabolicHeatGeneration = body.BasalMetabolicRate / 24000;
+            var shiveringEffects = _effectRegistry.GetEffectsByKind("Shivering")
+                .Where(e => e.IsActive)
+                .Cast<ShiveringEffect>();
+
+            double shiveringBoost = shiveringEffects.Sum(e => e.GetMetabolismBoost());
+            if (shiveringBoost > 0)
+            {
+                metabolicHeatGeneration *= (1 + shiveringBoost);
+            }
+
+            BodyTemperature += .10; //todo calc temp generation from body based on weight and caloric rate
+
+            double naturalInsulation = Math.Clamp(body.CalculateColdResistance(), 0, 1); // 0-1
+            double totalInsulation = Math.Clamp(naturalInsulation + equipmentInsulation, 0, 0.95);
+
+            double skinTemp = BodyTemperature - 8.4;
+            double tempDifferential = environmentalTemp - skinTemp;
+            double insulatedDiff = tempDifferential * (1 - totalInsulation);
+            double tempDiffMagnitude = Math.Abs(insulatedDiff);
+            double baseRate = 1.0 / 120.0;
+            double exponentialFactor = 1.0 + (tempDiffMagnitude / 40.0);
+            double rate = baseRate * exponentialFactor;
+
+            // double surfaceAreaFactor = Math.Pow(body.Weight / 70.0, -0.2);
+
+            double tempChange = insulatedDiff * rate;
+            BodyTemperature += tempChange;
+
+            IsWarming = tempChange > 0;
+
+            UpdateTemperatureEffect();
+
+            if (BodyTemperature < 89.6)
+            {
+                IsDangerousTemperature = true;
+            }
+            else if (BodyTemperature >= 104.0)
+            {
+                IsDangerousTemperature = true;
+            }
+            else
+            {
+                IsDangerousTemperature = false;
+            }
+        }
+        public DamageInfo? GetTemperatureDamage()
+        {
+            double damageAmount = 0;
+            string damageType = "thermal";
+
+            if (BodyTemperature < SevereHypothermiaThreshold)
+            {
+                damageAmount = (SevereHypothermiaThreshold - BodyTemperature) / 2.0;
+                damageType = "cold";
+            }
+            else if (BodyTemperature > SevereHyperthermiaThreshold)
+            {
+                damageAmount = (BodyTemperature - SevereHyperthermiaThreshold) / 2.0;
+                damageType = "heat";
+            }
+
+            if (damageAmount > 0)
+            {
+                return new DamageInfo
+                {
+                    Amount = damageAmount,
+                    Type = damageType,
+                    IsPenetrating = true,
+                };
+            }
+
+            return null;
+        }
+
         private void UpdateTemperatureEffect()
         {
             if (BodyTemperature >= 97.7 && BodyTemperature <= 99.5)
@@ -98,31 +197,170 @@ namespace text_survival.Survival
                     break;
             }
         }
-        private void UpdateTemperatureTick(double feelsLikeTemperature)
+
+        private void UpdateTemperatureEffects(double environmentalTemp)
         {
-            BodyTemperature += .1;
+            // Inform existing temperature injuries about the environmental temperature
+            InformTemperatureEffects(environmentalTemp);
 
-            double skinTemp = BodyTemperature - 8.4;
-            float rate = 1F / 120F;
+            // Apply or update physiological responses based on current temperature
+            UpdatePhysiologicalEffects();
 
-            double tempChange = (feelsLikeTemperature - skinTemp) * rate;
-            BodyTemperature += tempChange;
+            // Add new temperature injuries if needed
+            ApplyTemperatureInjuries();
+        }
 
-            IsWarming = tempChange > 0;
+        private void InformTemperatureEffects(double environmentalTemp)
+        {
+            // Get all temperature-related injuries
+            var tempInjuries = _effectRegistry.GetEffectsByKind("Hypothermia")
+                .Concat(_effectRegistry.GetEffectsByKind("Hyperthermia"))
+                .Concat(_effectRegistry.GetEffectsByKind("Frostbite"))
+                .Concat(_effectRegistry.GetEffectsByKind("Burn"))
+                .Where(e => e.IsActive && e is TemperatureInjury)
+                .Cast<TemperatureInjury>();
 
-            UpdateTemperatureEffect();
-
-            if (BodyTemperature < 89.6)
+            // Inform each injury about the current environmental temperature
+            foreach (var injury in tempInjuries)
             {
-                IsDangerousTemperature = true;
+                injury.SetEnvironmentalTemperature(environmentalTemp);
             }
-            else if (BodyTemperature >= 104.0)
+        }
+
+        private void UpdatePhysiologicalEffects()
+        {
+            // Shivering response to cold
+            if (BodyTemperature < ShiveringThreshold)
             {
-                IsDangerousTemperature = true;
+                // Calculate severity based on temperature
+                double severity = Math.Clamp((ShiveringThreshold - BodyTemperature) / 5.0, 0.1, 1.0);
+
+                // Apply to whole body (will handle stacking through EffectRegistry)
+                var bodyCore = body.GetAllParts()[0];
+                var shiveringEffect = new ShiveringEffect(bodyCore, severity);
+
+                _effectRegistry.AddEffect(shiveringEffect);
             }
             else
             {
-                IsDangerousTemperature = false;
+                // Remove shivering effects when temperature normalizes
+                var shiveringEffects = _effectRegistry.GetEffectsByKind("Shivering");
+                foreach (var effect in shiveringEffects)
+                {
+                    _effectRegistry.RemoveEffect(effect);
+                }
+            }
+
+            // Sweating response to heat
+            if (BodyTemperature > SweatingThreshold)
+            {
+                // Calculate severity based on temperature
+                double severity = Math.Clamp((BodyTemperature - SweatingThreshold) / 4.0, 0.1, 1.0);
+
+                // Apply to whole body (will handle stacking through EffectRegistry)
+                var bodyCore = body.GetAllParts()[0];
+                var sweatingEffect = new SweatingEffect(bodyCore, severity);
+
+                _effectRegistry.AddEffect(sweatingEffect);
+            }
+            else
+            {
+                // Remove sweating effects when temperature normalizes
+                var sweatingEffects = _effectRegistry.GetEffectsByKind("Sweating");
+                foreach (var effect in sweatingEffects)
+                {
+                    _effectRegistry.RemoveEffect(effect);
+                }
+            }
+        }
+
+        private void ApplyTemperatureInjuries()
+        {
+            // Hypothermia (system-wide cold injury)
+            if (BodyTemperature < HypothermiaThreshold)
+            {
+                // Calculate severity based on temperature
+                double severity = Math.Clamp((HypothermiaThreshold - BodyTemperature) / 10.0, 0.1, 1.0);
+
+                // Apply to whole body (will handle stacking through EffectRegistry)
+                var bodyCore = body.GetPartsToNDepth(1)![0];
+                var hypothermia = new TemperatureInjury(
+                    TemperatureInjury.TemperatureInjuryType.Hypothermia,
+                    "Cold exposure",
+                    bodyCore,
+                    severity);
+
+                _effectRegistry.AddEffect(hypothermia);
+            }
+
+            // Hyperthermia (system-wide heat injury)
+            if (BodyTemperature > HyperthermiaThreshold)
+            {
+                // Calculate severity based on temperature
+                double severity = Math.Clamp((BodyTemperature - HyperthermiaThreshold) / 10.0, 0.1, 1.0);
+
+                // Apply to whole body (will handle stacking through EffectRegistry)
+                var bodyCore = body.GetAllParts()[0];
+                var hyperthermia = new TemperatureInjury(
+                    TemperatureInjury.TemperatureInjuryType.Hyperthermia,
+                    "Heat exposure",
+                    bodyCore,
+                    severity);
+
+                _effectRegistry.AddEffect(hyperthermia);
+            }
+
+            // Severe hypothermia causes frostbite on extremities
+            if (BodyTemperature < SevereHypothermiaThreshold)
+            {
+                // Get extremities (hands and feet)
+                var extremities = body.GetAllParts()
+                    .Where(p => p.Name.Contains("Hand") || p.Name.Contains("Foot"))
+                    .ToList();
+
+                foreach (var extremity in extremities)
+                {
+                    // Calculate severity based on temperature
+                    double severity = Math.Clamp((SevereHypothermiaThreshold - BodyTemperature) / 5.0, 0.1, 1.0);
+
+                    // Apply frostbite to extremity (will handle stacking through EffectRegistry)
+                    var frostbite = new TemperatureInjury(
+                        TemperatureInjury.TemperatureInjuryType.Frostbite,
+                        "Extreme cold",
+                        extremity,
+                        severity);
+
+                    _effectRegistry.AddEffect(frostbite);
+                }
+            }
+
+            // Severe hyperthermia causes burns
+            if (BodyTemperature > SevereHyperthermiaThreshold)
+            {
+                // Get skin or exposed parts
+                var exposedParts = body.GetAllParts()
+                    .Where(p => p.Name.Contains("Skin") || p.Name.Contains("Face"))
+                    .ToList();
+
+                if (exposedParts.Count == 0) // Fallback if no specific skin parts
+                {
+                    exposedParts = [body.GetAllParts()[0]]; // Use body root
+                }
+
+                foreach (var part in exposedParts)
+                {
+                    // Calculate severity based on temperature
+                    double severity = Math.Clamp((BodyTemperature - SevereHyperthermiaThreshold) / 5.0, 0.1, 1.0);
+
+                    // Apply burn to exposed part (will handle stacking through EffectRegistry)
+                    var burn = new TemperatureInjury(
+                        TemperatureInjury.TemperatureInjuryType.Burn,
+                        "Heat exposure",
+                        part,
+                        severity);
+
+                    _effectRegistry.AddEffect(burn);
+                }
             }
         }
 

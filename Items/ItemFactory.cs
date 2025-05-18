@@ -335,11 +335,11 @@ namespace text_survival.Items
             return tunic;
         }
 
-        public static Armor MakeLeatherLeggings()
+        public static Armor MakeLeatherPants()
         {
-            Armor leggings = new Armor("Leather Leggings", .08, EquipSpots.Legs, 3)
+            Armor leggings = new Armor("Leather Pants", .08, EquipSpots.Legs, 3)
             {
-                Description = "Leggings made from tanned animal hide. Protects the legs from brush and minor injuries.",
+                Description = "Pants made from tanned animal hide. Protects the legs from brush and minor injuries.",
                 Weight = 1.0
             };
             return leggings;

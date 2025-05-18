@@ -19,7 +19,7 @@ namespace text_survival
             oldBag.Add(ItemFactory.MakeKnife());
             oldBag.Add(ItemFactory.MakeMoccasins());
             oldBag.Add(ItemFactory.MakeLeatherTunic());
-            oldBag.Add(ItemFactory.MakeLeatherLeggings());
+            oldBag.Add(ItemFactory.MakeLeatherPants());
             startingArea.Containers.Add(oldBag);
             zone.Locations.Add(startingArea);
             Player player = new Player(startingArea);
