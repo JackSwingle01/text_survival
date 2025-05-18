@@ -40,7 +40,7 @@ public class Player : Actor
 
     #region Constructor
 
-    public Player(Location startingLocation) : base(bodyStats)
+    public Player(Location startingLocation) : base(Body.BaseLineHumanStats)
     {
         Name = "Player";
         locationManager = new LocationManager(startingLocation);
@@ -49,14 +49,6 @@ public class Player : Actor
         survivalManager = new SurvivalManager(this, _effectRegistry);
     }
 
-    // helper to keep constructor clean
-    private static BodyStats bodyStats = new BodyStats
-    {
-        type = BodyPartFactory.BodyTypes.Human,
-        overallWeight = 70, // KG
-        fatPercent = .20,
-        musclePercent = .60
-    };
 
     #endregion Constructor
 

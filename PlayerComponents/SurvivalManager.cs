@@ -12,7 +12,7 @@ public class SurvivalManager
     public SurvivalManager(Actor owner, EffectRegistry effectRegistry)
     {
         Owner = owner;
-        HungerModule = new HungerModule();
+        HungerModule = new HungerModule(owner.Body);
         ThirstModule = new ThirstModule();
         ExhaustionModule = new ExhaustionModule();
         _effectRegistry = effectRegistry;

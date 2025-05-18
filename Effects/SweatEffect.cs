@@ -17,14 +17,6 @@ public class SweatingEffect : Effect
         IsStackable = false; // Use EffectRegistry's stacking mechanism
     }
 
-    protected override void OnUpdate(Actor target)
-    {
-        // Let base class handle natural severity reduction
-        base.OnUpdate(target);
-
-        // Any other sweating-specific update logic could go here
-    }
-
     protected override void OnApply(Actor target)
     {
         if (Severity > 0.7)

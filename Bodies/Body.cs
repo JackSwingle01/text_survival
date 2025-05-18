@@ -1,5 +1,6 @@
 
 using text_survival.Effects;
+using text_survival.IO;
 
 namespace text_survival.Bodies;
 
@@ -24,12 +25,7 @@ public class Body
     // Physical composition
     private double _bodyFat;
     private double _muscle;
-    private double _weight;
     private readonly double _baseWeight;
-
-    // Physical systems
-    private double _coreTemperature = 98.6; // Fahrenheit
-    private double _targetMetabolismRate = 2000; // Calories per day
 
     public Body(BodyStats stats, EffectRegistry effectRegistry)
     {
@@ -37,10 +33,9 @@ public class Body
         _rootPart = BodyPartFactory.CreateBody(stats.type, stats.overallWeight);
 
         // Initialize physical composition
-        _bodyFat = stats.overallWeight * (stats.fatPercent / 100);
-        _muscle = stats.overallWeight * (stats.musclePercent / 100);
+        _bodyFat = stats.overallWeight * stats.fatPercent;
+        _muscle = stats.overallWeight * stats.musclePercent;
         _baseWeight = stats.overallWeight - _bodyFat - _muscle;
-        UpdateWeight();
     }
 
     // Physical composition properties
@@ -50,7 +45,6 @@ public class Body
         set
         {
             _bodyFat = Math.Max(value, 0);
-            UpdateWeight();
         }
     }
 
@@ -60,40 +54,27 @@ public class Body
         set
         {
             _muscle = Math.Max(value, 0);
-            UpdateWeight();
         }
     }
 
     public double BodyFatPercentage => _bodyFat / Weight;
     public double MusclePercentage => _muscle / Weight;
-    public double Weight => _weight;
-
-    // Core temperature and metabolism
-    public double CoreTemperature => _coreTemperature;
-    public double BasalMetabolicRate => CalculateMetabolicRate();
-
-    // Update physical state
-    private void UpdateWeight()
-    {
-        _weight = _baseWeight + _bodyFat + _muscle;
-    }
-
-    // Calculate metabolic rate based on composition
-    private double CalculateMetabolicRate()
-    {
-        // Base BMR uses the Harris-Benedict equation (simplified)
-        double bmr = 370 + (21.6 * _muscle) + (6.17 * _bodyFat);
-
-        // Adjust for injuries and conditions
-        double healthFactor = _rootPart.Health / _rootPart.MaxHealth;
-        bmr *= 0.7 + (0.3 * healthFactor); // Injured bodies need more energy to heal
-
-        return bmr;
-    }
+    public double Weight => _baseWeight + _bodyFat + _muscle;
 
     // Forwarding methods to root part
     public BodyPart? Damage(DamageInfo damageInfo) => _rootPart.Damage(damageInfo);
     public void Heal(HealingInfo healingInfo) => _rootPart.Heal(healingInfo);
+
+    public double CalculateMetabolicRate()
+    {
+        // Base BMR uses the Harris-Benedict equation (simplified)
+        double bmr = 370 + (21.6 * Muscle) + (6.17 * BodyFat);
+
+        // Adjust for injuries and conditions
+        double healthFactor = Health / MaxHealth;
+        bmr *= 0.7 + (0.3 * healthFactor); // Injured bodies need more energy to heal
+        return bmr;
+    }
 
     // Update body state over time
     // public void Update(TimeSpan timePassed, EnvironmentInfo environment)
@@ -103,23 +84,6 @@ public class Body
     // }
 
     // todo - move this to the survival manager or something
-    private void UpdateMetabolism(double activityLevel, TimeSpan timePassed)
-    {
-        // Calculate calorie burn based on BMR, activity, and time
-        double hourlyBurn = BasalMetabolicRate / 24.0 * activityLevel;
-        double calories = hourlyBurn * timePassed.TotalHours;
-
-        // If calories aren't provided externally, burn fat
-        double fatBurnRate = calories / 7700.0; // ~7700 calories per kg of fat
-        BodyFat -= fatBurnRate;
-
-        // If completely out of fat, burn muscle
-        if (BodyFat <= 0 && _muscle > 0)
-        {
-            double muscleBurnRate = calories / 7700.0 * 0.8; // Muscle burns less efficiently
-            Muscle -= muscleBurnRate;
-        }
-    }
 
     // Calculate derived attributes
     public double CalculateStrength()
@@ -128,7 +92,7 @@ public class Body
         double bloodPumping = GetCapacity("BloodPumping"); // Energy delivery
 
         // Base strength that everyone has
-        double baseStrength = 0.3; // 30% strength from structural aspects
+        double baseStrength = 0.30; // 30% strength from structural aspects
 
         // Muscle contribution with diminishing returns
         double muscleContribution;
@@ -151,19 +115,55 @@ public class Body
     public double CalculateSpeed()
     {
         double movingCapacity = GetCapacity("Moving");
-        double muscleBonus = Math.Min(MusclePercentage * 0.5, 0.2); // Up to 20% bonus from muscle
+        double structuralWeightRatio = (_baseWeight / Weight) + (1 - 0.45); // avg 45% structure weight
+        double sizeRatio = Weight / BaseLineHumanStats.overallWeight;
+
+        double muscleBonus = Math.Min(MusclePercentage * 0.20, 0); // Up to 20% bonus from muscle
+
         double fatPenalty;
-
         // Minimal fat has no penalty, excess has increasing penalties
-        if (BodyFatPercentage < 0.1) // 10% is minimal necessary fat
-            fatPenalty = 0;
+        if (BodyFatPercentage < 0.10)
+        {
+            // 10% is minimal necessary fat
+            fatPenalty = -.01; // negative penalty if under 10% bf
+        }
+        else if (BodyFatPercentage <= BaseLineHumanStats.fatPercent)
+        {
+            fatPenalty = ((BodyFatPercentage - .10) * .20) - .01; // at baseline a 0% penalty
+        }
         else
-            fatPenalty = (BodyFatPercentage - 0.1) * 1.2; // Steeper penalty for excess fat
+        {
+            // Steeper penalty for excess, 1.5% reduction per 1% of fat 
+            // 1.5(fat% - baselineFat%)
+            // fat% => speed penalty (abs)
+            // 20%  =>  8.5%, 
+            // 30%  => 23.5%
+            // 40%  => 38.5%
+            // 50%  => 53.5%
+            fatPenalty = (BodyFatPercentage - BaseLineHumanStats.fatPercent) * 1.5;
+        }
 
-        // Weight ratio with diminishing penalty
-        double weightRatio = Math.Pow(_baseWeight / Weight, 0.7); // Less severe exponent
+        // Penalty for excess weight relative to frame
+        // -(ratio^.7 - 1)
+        // ratio => penalty (abs)
+        // 0.1   => +0.80
+        // 0.5   => +0.38
+        // 0.9   => +0.07
+        // 1.5   => -0.33
+        // 3.0   => -1.16
+        double weightEffect = -(Math.Pow(structuralWeightRatio, 0.7) - 1.0);
 
-        return movingCapacity * (1 + muscleBonus - fatPenalty) * weightRatio;
+        // smaller creatures are faster and larger ones are slower
+        // 1 - .1(Log2(sizeRatio))
+        // ratio => speed (multiplier)
+        // 0.1   => 1.33  
+        // 0.5   => 1.10   - 1/2 size means 10% faster
+        // 2.0   => 0.90  - 10% slower
+        // 10.   => 0.66  - 1/3 slower
+        // 50    => 0.44
+        double speedSizeModifier = 1 - 0.1 * Math.Log(sizeRatio, 2);
+
+        return movingCapacity * (1 + muscleBonus - fatPenalty + weightEffect) * speedSizeModifier;
     }
     public double CalculateVitality()
     {
@@ -219,19 +219,20 @@ public class Body
         if (values.Sum() <= 0) return 0;
 
         double result;
-        if (capacity is "Moving" or "Manipulation" or "Breathing" or "Consciousness"
-        or "BloodPumping" or "Digestion" or "Eating" or "Talking")
-        {
-            result = values.Min();
-        }
-        else if (capacity is "Sight" or "Hearing" or "BloodFiltration")
-        {
-            result = values.Average();
-        }
-        else
-        {
-            result = values.Min();
-        }
+        // todo, see if I want to revisit the special logic here
+        // if (capacity is "Moving" or "Manipulation" or "Breathing" or "Consciousness"
+        // or "BloodPumping" or "Digestion" or "Eating" or "Talking")
+        // {
+        // }
+        // else if (capacity is "Sight" or "Hearing" or "BloodFiltration")
+        // {
+        //     result = values.Average();
+        // }
+        // else
+        // {
+        //     result = values.Min();
+        // }
+        result = Math.Min(1, values.Sum());
         double bodyModifier = _effectRegistry.GetBodyCapacityModifier(capacity);
         result *= (1 + bodyModifier);
         result = Math.Max(0, result);
@@ -293,11 +294,124 @@ public class Body
             CollectBodyPartsToDepth(child, result, currentDepth + 1, maxDepth);
         }
     }
-    // Environment info for updates
-    public class EnvironmentInfo
+
+    // helper for baseline male human stats
+    public static BodyStats BaseLineHumanStats = new BodyStats
     {
-        public double Temperature { get; set; } = 70.0; // Fahrenheit
-        public double EquipmentWarmth { get; set; } = 0.0;
-        public double ActivityLevel { get; set; } = 1.0; // 1.0 = normal
+        type = BodyPartFactory.BodyTypes.Human,
+        overallWeight = 75, // KG ~165 lbs
+        fatPercent = .15, // pretty lean
+        musclePercent = .40 // low end of athletic
+    };
+
+    public void Describe()
+    {
+        // Overall body statistics
+        Output.WriteLine("Body Health: " + (int)((Health / MaxHealth) * 100) + "%");
+        Output.WriteLine("Weight: " + Math.Round(Weight * 2.2, 1) + " lbs");
+        Output.WriteLine("Body Composition: " + (int)(BodyFatPercentage * 100) + "% fat, " + (int)(MusclePercentage * 100) + "% muscle");
+
+        // Physical capabilities
+        Output.WriteLine("\nPhysical Capabilities:");
+        Output.WriteLine("- Strength: " + Math.Round(CalculateStrength() * 100) + "%");
+        Output.WriteLine("- Speed: " + Math.Round(CalculateSpeed() * 100) + "%");
+        Output.WriteLine("- Vitality: " + Math.Round(CalculateVitality() * 100) + "%");
+        Output.WriteLine("- Perception: " + Math.Round(CalculatePerception() * 100) + "%");
+        Output.WriteLine("- Cold Resistance: " + Math.Round(CalculateColdResistance() * 100) + "%");
+
+        // Metabolic information
+        Output.WriteLine("\nMetabolic Rate: " + Math.Round(CalculateMetabolicRate()) + " calories/day");
+
+        // Display damaged body parts
+        List<BodyPart> allParts = GetAllParts();
+        List<BodyPart> damagedParts = allParts.Where(p => p.Health < p.MaxHealth && !p.IsDestroyed).ToList();
+        List<BodyPart> destroyedParts = allParts.Where(p => p.IsDestroyed).ToList();
+
+        if (damagedParts.Count > 0 || destroyedParts.Count > 0)
+        {
+            Output.WriteLine("\nInjuries:");
+
+            // Show damaged parts
+            foreach (var part in damagedParts)
+            {
+                part.Describe();
+            }
+
+            // Show destroyed parts
+            foreach (var part in destroyedParts)
+            {
+                Output.WriteLine($"- {part.Name} is destroyed!");
+            }
+        }
+        else
+        {
+            Output.WriteLine("\nNo injuries detected.");
+        }
+
+        // Check for any body system impairments
+        Dictionary<string, double> systemCapacities = new Dictionary<string, double>
+    {
+        { "Moving", GetCapacity("Moving") },
+        { "Manipulation", GetCapacity("Manipulation") },
+        { "Breathing", GetCapacity("Breathing") },
+        { "BloodPumping", GetCapacity("BloodPumping") },
+        { "Consciousness", GetCapacity("Consciousness") },
+        { "Sight", GetCapacity("Sight") },
+        { "Hearing", GetCapacity("Hearing") },
+        { "Digestion", GetCapacity("Digestion") }
+    };
+
+        var impairedSystems = systemCapacities.Where(kv => kv.Value < 0.9).ToList();
+
+        if (impairedSystems.Count > 0)
+        {
+            Output.WriteLine("\nSystem Impairments:");
+            foreach (var system in impairedSystems)
+            {
+                string severity = GetImpairmentSeverity(system.Value);
+                Output.WriteLine($"- {system.Key}: {severity} ({(int)(system.Value * 100)}% efficiency)");
+            }
+        }
+    }
+
+    // Helper method to check and describe system impairments
+    private void CheckAndDescribeImpairments()
+    {
+        Dictionary<string, double> systemCapacities = new Dictionary<string, double>
+    {
+        { "Moving", GetCapacity("Moving") },
+        { "Manipulation", GetCapacity("Manipulation") },
+        { "Breathing", GetCapacity("Breathing") },
+        { "BloodPumping", GetCapacity("BloodPumping") },
+        { "Consciousness", GetCapacity("Consciousness") },
+        { "Sight", GetCapacity("Sight") },
+        { "Hearing", GetCapacity("Hearing") },
+        { "Digestion", GetCapacity("Digestion") }
+    };
+
+        var impairedSystems = systemCapacities.Where(kv => kv.Value < 0.9).ToList();
+
+        if (impairedSystems.Count > 0)
+        {
+            Output.WriteLine("\nSystem Impairments:");
+            foreach (var system in impairedSystems)
+            {
+                string severity = GetImpairmentSeverity(system.Value);
+                Output.WriteLine($"- {system.Key}: {severity} ({(int)(system.Value * 100)}% efficiency)");
+            }
+        }
+    }
+
+    // Helper method to determine impairment severity description
+    private string GetImpairmentSeverity(double capacity)
+    {
+        return capacity switch
+        {
+            < 0.25 => "Critical impairment",
+            < 0.5 => "Severe impairment",
+            < 0.75 => "Moderate impairment",
+            < 0.9 => "Minor impairment",
+            _ => "Normal"
+        };
     }
 }

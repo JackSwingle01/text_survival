@@ -19,7 +19,6 @@ namespace text_survival
 
         private Command<Player> LookAroundCommand => new Command<Player>($"Look Around {_player.CurrentLocation}", LookAround);
         private Command<Player> CheckStatsCommand => new Command<Player>("Check Stats", CheckStats);
-        // private Command<Player> LevelUpCommand => new Command<Player>("Level Up", LevelUp);
         //private Command<Player, IInteractable> InteractCommand => new Command<Player, IInteractable>("Interact", Interact);
         private Command<Player> OpenInventoryCommand => new Command<Player>("Open Inventory", OpenInventory);
         private Command<Player> TravelCommand => new Command<Player>("Travel", Travel);
@@ -142,36 +141,10 @@ namespace text_survival
             command?.Execute();
         }
 
-        // private void LevelUp(Player player)
-        // {
-        //     Output.WriteLine("You have ", player.SkillPoints, " points.");
-        //     while (player.SkillPoints > 0)
-        //     {
-        //         Output.WriteLine("Select an attribute to improve:");
-        //         Output.WriteLine("1. ", Attributes.PrimaryAttributes.Strength);
-        //         Output.WriteLine("3. ", Attributes.PrimaryAttributes.Speed);
-        //         Output.WriteLine("4. ", Attributes.PrimaryAttributes.Endurance);
-        //         Output.WriteLine("6. ", Attributes.PrimaryAttributes.Luck);
-
-        //         Output.WriteLine("0. Cancel");
-        //         int input = Input.ReadInt(0, 8);
-        //         if (input == 0) return;
-        //         var attribute = input switch
-        //         {
-        //             1 => Attributes.PrimaryAttributes.Strength,
-        //             3 => Attributes.PrimaryAttributes.Speed,
-        //             4 => Attributes.PrimaryAttributes.Endurance,
-        //             6 => Attributes.PrimaryAttributes.Luck,
-        //             _ => throw new NotImplementedException(),
-        //         };
-        //         // player.SpendPointToUpgradeAttribute(attribute);
-        //     }
-        // }
-
         private void CheckStats(Player player)
         {
             // Describe.DescribeLevel(player);
-            // Describe.DescribePrimaryAttributes(player);
+            player.Body.Describe();
             Describe.DescribeSkills(player);
             Output.WriteLine("Press any key to continue...");
             Console.ReadKey(true);

@@ -1,6 +1,7 @@
 ﻿using text_survival.IO;
 
 namespace text_survival.Bodies;
+
 public class BodyPart
 {
     // Core properties
@@ -189,7 +190,7 @@ public class BodyPart
                 damageInfo.TargetPart = hit.Name; // Update target to child part
                 damageInfo.Accuracy *= 0.8; // Reduce accuracy for child hit
                 return hit.Damage(damageInfo);
-                
+
             }
         }
         else // Handle targeted damage for a different part (searching)
@@ -293,6 +294,46 @@ public class BodyPart
                 Parent.Damage(criticalDamage);
             }
         }
+    }
+
+    public void Describe()
+    {
+        // Calculate health percentage
+        int healthPercent = (int)((Health / MaxHealth) * 100);
+
+        // Determine damage severity description
+        string damageDescription;
+        if (healthPercent <= 0)
+        {
+            damageDescription = "destroyed";
+        }
+        else if (healthPercent < 20)
+        {
+            damageDescription = "critically damaged";
+        }
+        else if (healthPercent < 40)
+        {
+            damageDescription = "severely damaged";
+        }
+        else if (healthPercent < 60)
+        {
+            damageDescription = "moderately damaged";
+        }
+        else if (healthPercent < 80)
+        {
+            damageDescription = "lightly damaged";
+        }
+        else if (healthPercent < 100)
+        {
+            damageDescription = "slightly damaged";
+        }
+        else
+        {
+            damageDescription = "in perfect condition";
+        }
+
+        // Output description line
+        Output.WriteLine($"- {Name} is {damageDescription} ({healthPercent}%)");
     }
     public override string ToString() => Name;
 }

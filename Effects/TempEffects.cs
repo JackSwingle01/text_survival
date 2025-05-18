@@ -21,18 +21,12 @@ public class TemperatureInjury : Effect
     private double _environmentalTemperature;
 
     public TemperatureInjury(TemperatureInjuryType type, string source, BodyPart bodyPart, double severity)
-        : base(GetEffectKind(type), source, bodyPart, severity, GetSeverityChangeRate(type))
+        : base(type.ToString(), source, bodyPart, severity, GetSeverityChangeRate(type))
     {
         InjuryType = type;
-        RequiresTreatment = (type == TemperatureInjuryType.Hypothermia || type == TemperatureInjuryType.Hyperthermia);
+        RequiresTreatment = type == TemperatureInjuryType.Hypothermia || type == TemperatureInjuryType.Hyperthermia;
 
-        // Configure capacity modifiers based on injury type and severity
         ConfigureCapacityModifiers();
-    }
-
-    private static string GetEffectKind(TemperatureInjuryType type)
-    {
-        return type.ToString();
     }
 
     private static double GetSeverityChangeRate(TemperatureInjuryType type)
@@ -48,27 +42,31 @@ public class TemperatureInjury : Effect
         };
     }
 
-    // Method to let the temperature module inform this effect about the environmental temperature
-    public void SetEnvironmentalTemperature(double temperature)
-    {
-        _environmentalTemperature = temperature;
-    }
-
     protected override void OnUpdate(Actor target)
     {
-        // Let the base class handle the regular severity change first
-        base.OnUpdate(target);
+        if (target is Player player)
+        {
+            // these effects shouldn't be on npcs yet 
+            _environmentalTemperature = player.CurrentLocation.GetTemperature();
+        }
 
         // Apply additional environmental effects to recovery rate
-        if (InjuryType == TemperatureInjuryType.Hypothermia && _environmentalTemperature > 75.0)
+        // apply an additional base heal rate for every 20 degrees cooler/warmer per hour
+        double bonusRecoveryPerDegreePerMinute = GetSeverityChangeRate(InjuryType) / 25.0 / 60.0; // should be negative
+        if (bonusRecoveryPerDegreePerMinute < 0) // negative is healing
         {
-            double recoveryBoost = (_environmentalTemperature - 75.0) / 25.0 * 0.05 / 60.0; // Per minute
-            UpdateSeverity(target, -recoveryBoost); // Negative to reduce severity
-        }
-        else if (InjuryType == TemperatureInjuryType.Hyperthermia && _environmentalTemperature < 75.0)
-        {
-            double recoveryBoost = (75.0 - _environmentalTemperature) / 25.0 * 0.05 / 60.0; // Per minute
-            UpdateSeverity(target, -recoveryBoost); // Negative to reduce severity
+            if (InjuryType == TemperatureInjuryType.Hypothermia && _environmentalTemperature > 65.0)
+            {
+                Output.WriteLine($"The heat is helping your {EffectKind} recover faster.");
+                double recoveryBoost = (_environmentalTemperature - 65.0) * bonusRecoveryPerDegreePerMinute;
+                UpdateSeverity(target, -recoveryBoost); // Negative to reduce severity
+            }
+            else if (InjuryType == TemperatureInjuryType.Hyperthermia && _environmentalTemperature < 70.0)
+            {
+                Output.WriteLine($"The cool is helping your {EffectKind} recover faster.");
+                double recoveryBoost = (70.0 - _environmentalTemperature) * bonusRecoveryPerDegreePerMinute;
+                UpdateSeverity(target, recoveryBoost); // Negative to reduce severity
+            }
         }
 
         // Update capacity modifiers based on current severity
@@ -83,6 +81,7 @@ public class TemperatureInjury : Effect
         {
             case TemperatureInjuryType.Burn:
                 CapacityModifiers["Manipulation"] = -0.4 * Severity;
+                CapacityModifiers["Moving"] = -0.1 * Severity;
                 CapacityModifiers["BloodPumping"] = -0.1 * Severity; // Fluid loss
                 break;
 
@@ -124,7 +123,7 @@ public class TemperatureInjury : Effect
                 TemperatureInjuryType.Frostbite => $"Your frostbite is {direction}.",
                 TemperatureInjuryType.Hypothermia => $"Your hypothermia is {direction}.",
                 TemperatureInjuryType.Hyperthermia => $"Your hyperthermia is {direction}.",
-                _ => $"Your condition is {direction}."
+                _ => $"Your {EffectKind} is {direction}."
             };
 
             if (direction == "worsening")
@@ -143,7 +142,7 @@ public class TemperatureInjury : Effect
             TemperatureInjuryType.Frostbite => "Your extremities are beginning to freeze!",
             TemperatureInjuryType.Hypothermia => "Your body temperature is dangerously low.",
             TemperatureInjuryType.Hyperthermia => "Your body temperature is dangerously high.",
-            _ => "You've suffered a temperature-related injury."
+            _ => $"You've suffered {EffectKind}, a temperature-related injury."
         };
 
         Output.WriteWarning(message);
@@ -157,7 +156,7 @@ public class TemperatureInjury : Effect
             TemperatureInjuryType.Frostbite => "Your frostbite has healed.",
             TemperatureInjuryType.Hypothermia => "Your body temperature has returned to normal.",
             TemperatureInjuryType.Hyperthermia => "Your body temperature has returned to normal.",
-            _ => "Your condition has resolved."
+            _ => $"Your {EffectKind} has resolved."
         };
 
         Output.WriteLine(message);

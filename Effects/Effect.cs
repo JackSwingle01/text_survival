@@ -53,25 +53,19 @@ namespace text_survival.Effects
         {
             if (!IsActive) return;
 
+            OnUpdate(target);
+            
             if (!RequiresTreatment && SeverityChangeRate > 0)
             {
                 double minuteChange = SeverityChangeRate / 60;
-                double oldSeverity = Severity;
-                Severity = Math.Max(0, Severity + minuteChange);
-
-                if (Math.Abs(Severity - oldSeverity) > .01)
-                {
-                    OnSeverityChange(target, oldSeverity, Severity);
-                }
-
-                if (Severity <= 0)
-                {
-                    Remove(target);
-                    return;
-                }
+                UpdateSeverity(target, minuteChange);
             }
 
-            OnUpdate(target);
+            if (Severity <= 0)
+            {
+                Remove(target);
+                return;
+            }
         }
         public void Remove(Actor target)
         {

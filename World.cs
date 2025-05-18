@@ -6,15 +6,13 @@ namespace text_survival
     {
         public static TimeOnly Time { get; set; } = new TimeOnly(hour: 9, minute: 0);
 
-        public static Player Player { get; set; }
-        public static Zone CurrentArea => Player.CurrentZone;
-
+        public static Player? Player { get; set; }
         public static void Update(int minutes)
         {
             for (int i = 0; i < minutes; i++)
             {
-                Player.Update();
-                CurrentArea.Update();
+                Player?.Update();
+                Player?.CurrentZone.Update();
                 Time = Time.AddMinutes(1);
             }
         }
