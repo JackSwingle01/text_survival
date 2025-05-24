@@ -1,4 +1,5 @@
-﻿using text_survival.IO;
+﻿using text_survival.Events;
+using text_survival.IO;
 
 namespace text_survival.Survival
 {
@@ -12,9 +13,11 @@ namespace text_survival.Survival
         {
             Amount = 0;
         }
-        public void AddHydration(double mL){
+        public void AddHydration(double mL)
+        {
             Amount -= mL;
-            if (Amount < 0){
+            if (Amount < 0)
+            {
                 Amount = 0;
             }
         }

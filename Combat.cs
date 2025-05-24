@@ -267,7 +267,7 @@ public static class CombatNarrator
             }
             else
             {
-                return $"You attack with your {weaponName}, at {target.Name}'s {targetPart}. ";
+                return $"You attack with your {weaponName}, aiming at {target.Name}'s {targetPart}. ";
             }
         }
         else
@@ -276,7 +276,7 @@ public static class CombatNarrator
             if (SpecialAttackDescriptions.TryGetValue(weaponType, out var specialDescs))
             {
                 string desc = specialDescs[Utils.RandInt(0, specialDescs.Count - 1)];
-                return $"The {attacker.Name} {desc} its {weaponName}, at your {targetPart}. ";
+                return $"The {attacker.Name} {desc} its {weaponName} at your {targetPart}. ";
             }
             else
             {

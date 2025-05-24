@@ -1,5 +1,4 @@
-﻿using System.Security;
-using text_survival.Actors;
+﻿using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments;
@@ -7,19 +6,25 @@ using text_survival.IO;
 using text_survival.Items;
 using text_survival.PlayerComponents;
 
+
 namespace text_survival;
 
 public class Player : Actor
 {
 
-    private LocationManager locationManager;
-    private SpellManager spellManager;
-    private InventoryManager inventoryManager;
-    private SurvivalManager survivalManager;
-
-
+    private readonly LocationManager locationManager;
+    private readonly SpellManager spellManager;
+    private readonly InventoryManager inventoryManager;
     public double EquipmentWarmth => inventoryManager.EquipmentWarmth;
-    public void Sleep(int minutes) => survivalManager.Sleep(minutes);
+    public void Sleep(int minutes)
+    {
+        bool fullyRested = Body.Rest(1);
+        if (fullyRested)
+        {
+            Output.Write("You wake up feeling refreshed.\n");
+        }
+
+    }
     public void OpenInventory() => inventoryManager.Open(this);
     public override Weapon ActiveWeapon
     {
@@ -40,13 +45,12 @@ public class Player : Actor
 
     #region Constructor
 
-    public Player(Location startingLocation) : base(Body.BaseLineHumanStats)
+    public Player(Location startingLocation) : base("Player", Body.BaseLineHumanStats)
     {
         Name = "Player";
         locationManager = new LocationManager(startingLocation);
         spellManager = new(_skillRegistry);
         inventoryManager = new(_effectRegistry);
-        survivalManager = new SurvivalManager(this, _effectRegistry);
     }
 
 
@@ -87,17 +91,19 @@ public class Player : Actor
         return part;
     }
 
-    internal void DescribeSurvivalStats() => survivalManager.Describe();
+    public void DescribeSurvivalStats()
+    {
+        Body.DescribeSurvivalStats();
+    }
+
     public void UseItem(Item item)
     {
-        // Output.WriteLine($"DEBUG: Item '{item.Name}' has actual type: {item.GetType().FullName}");
-        // Output.WriteLine($"DEBUG: Base type: {item.GetType().BaseType?.FullName}");
         // handle special logic for each item type
         if (item is FoodItem food)
         {
             string eating_type = food.WaterContent > food.Calories ? "drink" : "eat";
             Output.Write($"You {eating_type} the ", food, "...");
-            survivalManager.ConsumeFood(food);
+            Body.Consume(food);
         }
         else if (item is ConsumableItem consumable)
         {
@@ -174,13 +180,16 @@ public class Player : Actor
         return true;
     }
 
-    public override void Update()
-    {
-        survivalManager.Update();
-        base.Update();
-    }
     public void Travel() => locationManager.TravelToAdjacentZone();
 }
 
 
 
+
+public class SurvivalStatsUpdate
+{
+    public double Temperature;
+    public double Calories;
+    public double Hydration;
+    public double Exhaustion;
+}

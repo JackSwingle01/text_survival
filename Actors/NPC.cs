@@ -3,6 +3,7 @@ using text_survival.IO;
 using text_survival.Items;
 using text_survival.Level;
 using text_survival.Bodies;
+using text_survival.Events;
 
 namespace text_survival.Actors
 {
@@ -14,7 +15,7 @@ namespace text_survival.Actors
         public string Description { get; set; }
         public bool IsFound { get; set; }
         public bool IsHostile { get; private set; }
-        public override Weapon ActiveWeapon {get; protected set; }
+        public override Weapon ActiveWeapon { get; protected set; }
 
         // IPhysicalEntity implementation
         public double Health => Body.Health;
@@ -29,18 +30,13 @@ namespace text_survival.Actors
 
         #region Constructor
 
-        public Npc(string name, Weapon weapon, BodyStats stats) : base(stats)
+        public Npc(string name, Weapon weapon, BodyStats stats) : base(name, stats)
         {
-            // Basic initialization
-            Name = name;
             Description = "";
             IsHostile = true;
             ActiveWeapon = weapon;
 
-            // Component initialization
             _skillRegistry = new SkillRegistry(false);
-
-            // Set up loot container
             Loot = new Container(name, 10);
         }
 

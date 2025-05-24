@@ -46,7 +46,7 @@ namespace text_survival.IO
                 throw new NotImplementedException();
                 //EventHandler.Publish(new WriteEvent(text));
             }
-            
+
         }
 
         private static string GetFormattedText(params object[] args)
@@ -94,6 +94,14 @@ namespace text_survival.IO
         {
             ConsoleColor oldColor = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Red;
+            WriteLine(str);
+            Console.ForegroundColor = oldColor;
+        }
+
+        internal static void WriteSuccess(string str)
+        {
+            ConsoleColor oldColor = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Green;
             WriteLine(str);
             Console.ForegroundColor = oldColor;
         }

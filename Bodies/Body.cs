@@ -1,6 +1,7 @@
-
 using text_survival.Effects;
 using text_survival.IO;
+using text_survival.Items;
+using text_survival.Survival;
 
 namespace text_survival.Bodies;
 
@@ -20,23 +21,33 @@ public class Body
     public double MaxHealth => _rootPart.MaxHealth;
     public bool IsDestroyed => _rootPart.IsDestroyed;
 
-    private EffectRegistry _effectRegistry;
+    public readonly EffectRegistry EffectRegistry;
+    private readonly HungerModule _hungerModule;
+    private readonly ThirstModule _thirstModule;
+    private readonly ExhaustionModule _exhaustionModule;
+    private readonly TemperatureModule _temperatureModule;
 
     // Physical composition
     private double _bodyFat;
     private double _muscle;
     private readonly double _baseWeight;
 
-    public Body(BodyStats stats, EffectRegistry effectRegistry)
+    public Body(string ownerName, BodyStats stats, EffectRegistry effectRegistry)
     {
-        _effectRegistry = effectRegistry;
+        OwnerName = ownerName;
+        EffectRegistry = effectRegistry;
         _rootPart = BodyPartFactory.CreateBody(stats.type, stats.overallWeight);
+        _hungerModule = new HungerModule(this);
+        _thirstModule = new ThirstModule();
+        _exhaustionModule = new ExhaustionModule();
+        _temperatureModule = new TemperatureModule(this);
 
         // Initialize physical composition
         _bodyFat = stats.overallWeight * stats.fatPercent;
         _muscle = stats.overallWeight * stats.musclePercent;
         _baseWeight = stats.overallWeight - _bodyFat - _muscle;
     }
+
 
     // Physical composition properties
     public double BodyFat
@@ -57,15 +68,18 @@ public class Body
         }
     }
 
+    public readonly string OwnerName;
     public double BodyFatPercentage => _bodyFat / Weight;
     public double MusclePercentage => _muscle / Weight;
     public double Weight => _baseWeight + _bodyFat + _muscle;
+
+    public double BodyTemperature { get; set; }
 
     // Forwarding methods to root part
     public BodyPart? Damage(DamageInfo damageInfo) => _rootPart.Damage(damageInfo);
     public void Heal(HealingInfo healingInfo) => _rootPart.Heal(healingInfo);
 
-    public double CalculateMetabolicRate()
+    private void UpdateMetabolism(TimeSpan timePassed, double activityLevel)
     {
         // Base BMR uses the Harris-Benedict equation (simplified)
         double bmr = 370 + (21.6 * Muscle) + (6.17 * BodyFat);
@@ -73,15 +87,18 @@ public class Body
         // Adjust for injuries and conditions
         double healthFactor = Health / MaxHealth;
         bmr *= 0.7 + (0.3 * healthFactor); // Injured bodies need more energy to heal
-        return bmr;
+
+        double currentMetabolism = bmr * activityLevel;
+        double calories = currentMetabolism / 24 * timePassed.TotalHours;
+        BodyTemperature += calories / 24000;
+        _hungerModule.Update(currentMetabolism);
     }
 
-    // Update body state over time
-    // public void Update(TimeSpan timePassed, EnvironmentInfo environment)
-    // {
-    //     // Handle metabolism and energy expenditure
-    //     UpdateMetabolism(environment.ActivityLevel, timePassed);
-    // }
+    public void Update(TimeSpan timePassed)
+    {
+        // Handle metabolism and energy expenditure
+        UpdateMetabolism(timePassed, 2);
+    }
 
     // todo - move this to the survival manager or something
 
@@ -171,6 +188,8 @@ public class Body
         double bloodPumping = GetCapacity("BloodPumping");
         double digestion = GetCapacity("Digestion");
 
+        double organFunction = (2 * (breathing + bloodPumping) + digestion) / 5;
+
         // Base vitality that scales more gently with body composition
         double baseMultiplier = 0.7;  // Everyone gets 70% baseline
         double muscleContribution = MusclePercentage * 0.25;  // Up to 25% from muscle
@@ -184,7 +203,8 @@ public class Body
         else
             fatContribution = 0.05 - (BodyFatPercentage - .25) * 0.1;  // Excess fat penalizes slightly
 
-        return (2 * (breathing + bloodPumping) + digestion) / 5 * (baseMultiplier + muscleContribution + fatContribution);
+        double bodyComposition = baseMultiplier + muscleContribution + fatContribution;
+        return organFunction * bodyComposition;
     }
 
     public double CalculatePerception()
@@ -233,7 +253,7 @@ public class Body
         //     result = values.Min();
         // }
         result = Math.Min(1, values.Sum());
-        double bodyModifier = _effectRegistry.GetBodyCapacityModifier(capacity);
+        double bodyModifier = EffectRegistry.GetBodyCapacityModifier(capacity);
         result *= (1 + bodyModifier);
         result = Math.Max(0, result);
         return result;
@@ -248,7 +268,7 @@ public class Body
         if (baseCapacity <= 0) return 0;
 
         // Apply effect modifiers for this part
-        double modifier = _effectRegistry.GetPartCapacityModifier(capacityName, part);
+        double modifier = EffectRegistry.GetPartCapacityModifier(capacityName, part);
         return Math.Max(0, baseCapacity * (1.0 + modifier));
     }
 
@@ -296,7 +316,7 @@ public class Body
     }
 
     // helper for baseline male human stats
-    public static BodyStats BaseLineHumanStats = new BodyStats
+    public static BodyStats BaseLineHumanStats => new BodyStats
     {
         type = BodyPartFactory.BodyTypes.Human,
         overallWeight = 75, // KG ~165 lbs
@@ -318,9 +338,6 @@ public class Body
         Output.WriteLine("- Vitality: " + Math.Round(CalculateVitality() * 100) + "%");
         Output.WriteLine("- Perception: " + Math.Round(CalculatePerception() * 100) + "%");
         Output.WriteLine("- Cold Resistance: " + Math.Round(CalculateColdResistance() * 100) + "%");
-
-        // Metabolic information
-        Output.WriteLine("\nMetabolic Rate: " + Math.Round(CalculateMetabolicRate()) + " calories/day");
 
         // Display damaged body parts
         List<BodyPart> allParts = GetAllParts();
@@ -350,16 +367,16 @@ public class Body
 
         // Check for any body system impairments
         Dictionary<string, double> systemCapacities = new Dictionary<string, double>
-    {
-        { "Moving", GetCapacity("Moving") },
-        { "Manipulation", GetCapacity("Manipulation") },
-        { "Breathing", GetCapacity("Breathing") },
-        { "BloodPumping", GetCapacity("BloodPumping") },
-        { "Consciousness", GetCapacity("Consciousness") },
-        { "Sight", GetCapacity("Sight") },
-        { "Hearing", GetCapacity("Hearing") },
-        { "Digestion", GetCapacity("Digestion") }
-    };
+        {
+            { "Moving", GetCapacity("Moving") },
+            { "Manipulation", GetCapacity("Manipulation") },
+            { "Breathing", GetCapacity("Breathing") },
+            { "BloodPumping", GetCapacity("BloodPumping") },
+            { "Consciousness", GetCapacity("Consciousness") },
+            { "Sight", GetCapacity("Sight") },
+            { "Hearing", GetCapacity("Hearing") },
+            { "Digestion", GetCapacity("Digestion") }
+        };
 
         var impairedSystems = systemCapacities.Where(kv => kv.Value < 0.9).ToList();
 
@@ -413,5 +430,72 @@ public class Body
             < 0.9 => "Minor impairment",
             _ => "Normal"
         };
+    }
+
+    public void DescribeSurvivalStats()
+    {
+        _hungerModule.Describe();
+        _thirstModule.Describe();
+        _exhaustionModule.Describe();
+        _temperatureModule.Describe();
+    }
+
+    public bool Rest(int minutes)
+    {
+        int minutesSlept = 0;
+        while (minutesSlept < minutes)
+        {
+            _exhaustionModule.Rest(1);
+            World.Update(1);
+            minutesSlept++;
+            if (_exhaustionModule.IsFullyRested)
+            {
+                break;
+            }
+        }
+        HealingInfo healing = new HealingInfo()
+        {
+            Amount = minutesSlept / 10,
+            Type = "natural",
+            TargetPart = "Body",
+            Quality = _exhaustionModule.IsFullyRested ? 1 : .7, // healing quality is better after a full night's sleep
+        };
+
+        Heal(healing);
+        return _exhaustionModule.IsFullyRested;
+    }
+    public void Consume(FoodItem food)
+    {
+        _hungerModule.AddCalories(food.Calories);
+        _thirstModule.AddHydration(food.WaterContent);
+
+        if (food.HealthEffect != null)
+        {
+            Heal(food.HealthEffect);
+        }
+        if (food.DamageEffect != null)
+        {
+            Damage(food.DamageEffect);
+        }
+    }
+
+    public void UpdateSurvivalStats(SurvivalStatsUpdate stats)
+    {
+        if (stats.Temperature != 0)
+        {
+            BodyTemperature += stats.Temperature;
+        }
+        if (stats.Calories != 0)
+        {
+            _hungerModule.AddCalories(stats.Calories);
+        }
+        if (stats.Hydration != 0)
+        {
+            _thirstModule.AddHydration(stats.Hydration);
+        }
+        if (stats.Exhaustion != 0)
+        {
+            _exhaustionModule.ModifyExhaustion(stats.Exhaustion);
+        }
     }
 }

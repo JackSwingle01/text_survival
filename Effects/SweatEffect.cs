@@ -1,6 +1,5 @@
 
 using text_survival.Actors;
-using text_survival.Bodies;
 using text_survival.IO;
 
 namespace text_survival.Effects;
@@ -9,8 +8,8 @@ public class SweatingEffect : Effect
 {
     private double _waterLossRate; // Liters per hour
 
-    public SweatingEffect(BodyPart bodyPart, double severity)
-        : base("Sweating", "Heat exposure", bodyPart, severity, -0.1) // Naturally decreases when not refreshed
+    public SweatingEffect(double severity)
+        : base("Sweating", "Heat exposure", null, severity, -2) // Naturally decreases when not refreshed
     {
         // Water loss rate based on severity
         _waterLossRate = 0.05 * severity; // Liters per hour
@@ -64,12 +63,17 @@ public class SweatingEffect : Effect
         }
     }
 
-    // Can be accessed by thirst system to apply water loss
-    public double GetWaterLossForPeriod(TimeSpan period)
+    protected override void OnUpdate(Actor target)
     {
-        return _waterLossRate * period.TotalHours;
+        if (target is Player player)
+        {
+            double waterLoss = _waterLossRate / 1000 / 60; // convert to ml per minute
+            var stats = new SurvivalStatsUpdate();
+            stats.Hydration = -waterLoss;
+            player.Body.UpdateSurvivalStats(stats);
+            Output.WriteLine($"You lose {waterLoss:F2} ml of water due to sweating.");
+        }
     }
-
     public override string Describe()
     {
         string intensityDesc;

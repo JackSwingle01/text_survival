@@ -6,13 +6,13 @@ namespace text_survival.Effects;
 
 public class ShiveringEffect : Effect
 {
-    private double _metabolismBoost;
+    private double _tempBoost;
 
-    public ShiveringEffect(BodyPart bodyPart, double severity)
-        : base("Shivering", "Cold exposure", bodyPart, severity, -0.1) // Naturally decreases when not refreshed
+    public ShiveringEffect(double severity)
+        : base("Shivering", "Cold exposure", null, severity, -0.1) // Naturally decreases when not refreshed
     {
         // Calculate metabolism boost based on severity
-        _metabolismBoost = severity * 0.2; // Up to 20% metabolism increase
+        _tempBoost = severity * 0.2; // Up to 20% metabolism increase
 
         // Setup capacity modifiers - shivering affects fine motor control
         CapacityModifiers["Manipulation"] = -0.2 * severity;
@@ -22,10 +22,7 @@ public class ShiveringEffect : Effect
 
     protected override void OnUpdate(Actor target)
     {
-        // Let base class handle natural severity reduction
-        base.OnUpdate(target);
-
-        // Any other shivering-specific update logic could go here
+        target.Body.BodyTemperature += _tempBoost; // Increase body temperature
     }
 
     protected override void OnApply(Actor target)
@@ -52,7 +49,7 @@ public class ShiveringEffect : Effect
     protected override void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity)
     {
         // Update metabolism boost when severity changes
-        _metabolismBoost = updatedSeverity * 0.2;
+        _tempBoost = updatedSeverity * 0.2;
 
         // Update capacity modifiers when severity changes
         CapacityModifiers["Manipulation"] = -0.2 * updatedSeverity;
@@ -76,12 +73,6 @@ public class ShiveringEffect : Effect
                 Output.WriteLine("Your shivering is subsiding.");
             }
         }
-    }
-
-    // Can be accessed by metabolism system to apply heat generation boost
-    public double GetMetabolismBoost()
-    {
-        return _metabolismBoost;
     }
 
     public override string Describe()

@@ -52,7 +52,15 @@ public class EffectRegistry(Actor owner)
 
 
     public List<Effect> GetEffectsOnBodyPart(BodyPart part) => [.. _effects.Where(e => e.TargetBodyPart == part)];
-    public List<Effect> GetEffectsByKind(string kind) => [.. _effects.Where(e => e.EffectKind.ToLower() == kind.ToLower())];
+    public List<Effect> GetEffectsByKind(string kind) => [.. _effects.Where(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase))];
+    public void RemoveEffectsByKind(string kind)
+    {
+        var effectsToRemove = _effects.Where(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase)).ToList();
+        foreach (var effect in effectsToRemove)
+        {
+            RemoveEffect(effect);
+        }
+    }
 
 
     private readonly Actor _owner = owner;

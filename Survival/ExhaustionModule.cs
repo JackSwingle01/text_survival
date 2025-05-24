@@ -7,9 +7,9 @@ namespace text_survival.Survival
         public bool IsExhausted => Amount >= Max;
         public bool IsFullyRested => Amount <= 0;
         public double ExhaustionPercent => (Amount / Max) * 100;
-        private float Rate = 480F / (24F * 60F); // minutes per minute (8 hours per 24)
-        private float Max = 480.0F; // minutes (8 hours)
-        public float Amount { get; private set; }
+        private double Rate = 1;
+        private double Max = 480.0F; // minutes (8 hours)
+        public double Amount { get; private set; }
 
         public ExhaustionModule()
         {
@@ -22,6 +22,15 @@ namespace text_survival.Survival
             if (Amount < 0)
             {
                 Amount = 0;
+            }
+        }
+
+        public void ModifyExhaustion(double minutes)
+        {
+            Amount += minutes;
+            if (Amount > Max)
+            {
+                Amount = Max;
             }
         }
 

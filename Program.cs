@@ -1,4 +1,5 @@
 ﻿using text_survival.Environments;
+using text_survival.Events;
 using text_survival.IO;
 using text_survival.Items;
 
@@ -25,6 +26,17 @@ namespace text_survival
             Player player = new Player(startingArea);
             World.Player = player;
             Actions actions = new(player);
+
+            EventBus.Subscribe(new StarvingEventHandler());
+            EventBus.Subscribe(new DehydrationEventHandler());
+            EventBus.Subscribe(new ExhaustionEventHandler());
+            EventBus.Subscribe(new StoppedStarvingEventHandler());
+            EventBus.Subscribe(new StoppedDehydrationEventHandler());
+            EventBus.Subscribe(new StoppedExhaustionEventHandler());
+            EventBus.Subscribe(new BodyHotEventHandler());
+            EventBus.Subscribe(new BodyColdEventHandler());
+            
+
             while (player.IsAlive)
             {
                 actions.Act();

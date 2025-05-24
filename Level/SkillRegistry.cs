@@ -46,10 +46,13 @@ namespace text_survival.Level
 
         public void Describe()
         {
-            Output.WriteLine("Skills:");
+            Output.WriteLine("\nSkills:");
             foreach (var skill in skills.Values)
             {
-                Output.WriteLine($"{skill.Name}: {skill.Level} ({skill.Xp}/{skill.LevelUpThreshold})");
+                if (skill.Level > 0)
+                {
+                    Output.WriteLine($"{skill.Name}: {skill.Level} ({skill.Xp}/{skill.LevelUpThreshold})");
+                }
             }
         }
     }

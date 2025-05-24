@@ -20,7 +20,7 @@ public class TemperatureInjury : Effect
     // Store environment data to use in OnUpdate
     private double _environmentalTemperature;
 
-    public TemperatureInjury(TemperatureInjuryType type, string source, BodyPart bodyPart, double severity)
+    public TemperatureInjury(TemperatureInjuryType type, string source, BodyPart? bodyPart, double severity)
         : base(type.ToString(), source, bodyPart, severity, GetSeverityChangeRate(type))
     {
         InjuryType = type;

@@ -1,80 +1,58 @@
 ﻿
 using text_survival.Bodies;
+using text_survival.Events;
 using text_survival.IO;
 
-namespace text_survival.Survival
+namespace text_survival.Survival;
+
+
+public class HungerModule(Body owner)
 {
-	public class HungerModule
+	private const double MAX_CALORIES = 2000.0; // Maximum calories stored before fat conversion
+
+
+	private bool IsStarving => CurrentCalories <= 0;
+	private bool wasStarving;
+	private double CurrentCalories { get; set; } = 0;
+	private readonly Body owner = owner;
+
+	public void Update(double metabolicRate)
 	{
-		private const double MAX_CALORIES = 2000.0; // Maximum calories stored before fat conversion
-		private const double CALORIES_PER_KG_FAT = 7700.0; // Standard calories stored in 1kg of fat
-		private const double CALORIES_PER_KG_MUSCLE = 5500.0; // Calories in 1kg of muscle (less than fat)
+		// todo, actually update with activity level
+		// todo have this account for temp too
 
-		public bool IsStarving => CurrentCalories <= 0;
-		private double CurrentCalories { get; set; }
-		private Body body;
-		public HungerModule(Body body)
+		double calories = metabolicRate / 24 / 60;  //* timePassed.TotalHours;
+
+		CurrentCalories -= calories;
+
+		if (IsStarving)
 		{
+			double excessCalories = -CurrentCalories;
 			CurrentCalories = 0;
-			this.body = body;
+			EventBus.Publish(new StarvingEvent(owner, excessCalories, isNew: !wasStarving));
 		}
-
-		public void Update()
+		else if (wasStarving)
 		{
-			// todo, actually update with activity level
-			UpdateMetabolism(2);
+			EventBus.Publish(new StoppedStarvingEvent(owner));
 		}
+		wasStarving = IsStarving;
+	}
 
-		private void UpdateMetabolism(double activityLevel)
+	public void AddCalories(double calories)
+	{
+		CurrentCalories += calories;
+
+		if (CurrentCalories > MAX_CALORIES)
 		{
-			// todo have this account for temp too
-			// Calculate calorie burn based on BMR, activity, and time
-			double hourlyBurn = body.CalculateMetabolicRate() / 24.0 * activityLevel;
-			double calories = hourlyBurn / 60;  //* timePassed.TotalHours;
-
-
-			CurrentCalories -= calories;
-			if (CurrentCalories < 0)
-			{
-				// If calories are negative, burn fat
-				double excessCalories = -CurrentCalories;
-				CurrentCalories = 0;
-
-				double fatBurnRate = excessCalories / 7700.0; // ~7700 calories per kg of fat
-				body.BodyFat -= fatBurnRate;
-
-				// If completely out of fat, burn muscle
-				if (body.BodyFat <= 0 && body.Muscle > 0)
-				{
-					double muscleBurnRate = excessCalories / 7700.0 * 1.2; // Muscle burns less efficiently
-					body.Muscle -= muscleBurnRate;
-				}
-			}
-		}
-
-		public void AddCalories(double calories)
-		{
-			CurrentCalories += calories;
-
-			if (CurrentCalories > MAX_CALORIES)
-			{
-				double excessCalories = CurrentCalories - MAX_CALORIES;
-				double fatGain = excessCalories / CALORIES_PER_KG_FAT;
-
-				body.BodyFat += fatGain;
-				CurrentCalories = MAX_CALORIES;
-
-				int gFatGain = (int)(fatGain * 1000);
-				Output.WriteLine($"You gain {fatGain}g of body fat from excess calories.");
-			}
-		}
-
-		public void Describe()
-		{
-			double percent = (int)((CurrentCalories / MAX_CALORIES) * 100);
-			Output.WriteLine("Hunger: ", percent, "%");
+			double excessCalories = CurrentCalories - MAX_CALORIES;
+			EventBus.Publish(new CalorieSurplusEvent(owner, excessCalories));
+			CurrentCalories = MAX_CALORIES;
 		}
 	}
+
+	public void Describe()
+	{
+		double percent = (int)(CurrentCalories / MAX_CALORIES * 100);
+		Output.WriteLine("Hunger: ", percent, "%");
+	}
 }
-
-

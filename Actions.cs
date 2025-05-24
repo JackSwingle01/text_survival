@@ -19,13 +19,11 @@ namespace text_survival
 
         private Command<Player> LookAroundCommand => new Command<Player>($"Look Around {_player.CurrentLocation}", LookAround);
         private Command<Player> CheckStatsCommand => new Command<Player>("Check Stats", CheckStats);
-        //private Command<Player, IInteractable> InteractCommand => new Command<Player, IInteractable>("Interact", Interact);
         private Command<Player> OpenInventoryCommand => new Command<Player>("Open Inventory", OpenInventory);
         private Command<Player> TravelCommand => new Command<Player>("Travel", Travel);
         private Command<Player> SleepCommand => new Command<Player>("Sleep", Sleep);
         private Command<Player> CheckGearCommand => new Command<Player>("Check Gear", CheckGear);
         private Command<Player> ForageCommand => new Command<Player>("Forage", Forage);
-        //private Command<Player> QuitCommand => new Command<Player>("Quit", Quit);
         public void UpdatePossibleActions()
         {
             // Clear the available actions
@@ -83,8 +81,6 @@ namespace text_survival
                 }
             }
 
-
-
             var openInventoryCommand = OpenInventoryCommand;
             openInventoryCommand.Player = _player;
             AvailableActions.Add(openInventoryCommand);
@@ -98,10 +94,9 @@ namespace text_survival
             sleepCommand.Player = _player;
             AvailableActions.Add(sleepCommand);
 
-            var checkGearCommand = CheckGearCommand;
-            checkGearCommand.Player = _player;
-            AvailableActions.Add(checkGearCommand);
-
+            // var checkGearCommand = CheckGearCommand;
+            // checkGearCommand.Player = _player;
+            // AvailableActions.Add(checkGearCommand);
 
             var checkStats = CheckStatsCommand;
             checkStats.Player = _player;
@@ -115,6 +110,90 @@ namespace text_survival
             // }
         }
 
+        public void DisplayActions()
+        {
+            int i = 1;
+            Dictionary<int, ICommand> actions = new();
+
+            // always available actions
+            var lookCommand = LookAroundCommand;
+            lookCommand.Player = _player;
+            actions[i++] = lookCommand;
+
+            var forageFeature = _player.CurrentLocation.GetFeature<ForageFeature>();
+            if (forageFeature != null)
+            {
+                var forageCommand = ForageCommand;
+                forageCommand.Player = _player;
+                actions[i++] = forageCommand;
+            }
+
+
+            // conditional actions
+            foreach (Item item in _player.CurrentLocation.Items)
+            {
+                if (item.IsFound)
+                {
+                    var interactCommand = item.InteractCommand;
+                    interactCommand.Player = _player;
+                    actions[i++] = interactCommand;
+                }
+            }
+            foreach (Container container in _player.CurrentLocation.Containers)
+            {
+                if (container.IsFound)
+                {
+                    var interactCommand = container.InteractCommand;
+                    interactCommand.Player = _player;
+                    actions[i++] = interactCommand;
+                    
+                }
+            }
+            foreach (Npc npc in _player.CurrentLocation.Npcs)
+            {
+                if (npc.IsFound)
+                {
+                    var interactCommand = npc.InteractCommand;
+                    interactCommand.Player = _player;
+                    actions[i++] = interactCommand;
+                }
+            }
+            foreach (Location location in GetNearbyLocations(_player))
+            {
+                if (location.IsFound)
+                {
+                    var interactCommand = location.InteractCommand;
+                    interactCommand.Player = _player;
+                    actions[i++] = interactCommand;
+                }
+            }
+
+            var openInventoryCommand = OpenInventoryCommand;
+            openInventoryCommand.Player = _player;
+            actions[i++] = openInventoryCommand;
+
+            var travelCommand = TravelCommand;
+            travelCommand.Player = _player;
+            actions[i++] = travelCommand;
+
+            var sleepCommand = SleepCommand;
+            sleepCommand.Player = _player;
+            actions[i++] = sleepCommand;
+
+            // var checkGearCommand = CheckGearCommand;
+            // checkGearCommand.Player = _player;
+            // AvailableActions.Add(checkGearCommand);
+
+            var checkStats = CheckStatsCommand;
+            checkStats.Player = _player;
+            actions[i++] = checkStats;
+
+            Output.WriteLine();
+            _player.DescribeSurvivalStats();
+            Output.WriteLine();
+            Output.WriteLine("What would you like to do?");
+        }
+
         private void Forage(Player player)
         {
             var forageFeature = player.CurrentLocation.GetFeature<ForageFeature>();
@@ -123,11 +202,11 @@ namespace text_survival
                 Output.WriteLine("You can't forage here");
                 return;
             }
-            Output.WriteLine("How many hours would you like to forage?");
-            int hours = Input.ReadInt();
-            forageFeature.Forage(hours);
 
-
+            // Output.WriteLine("How many hours would you like to forage?");
+            // int hours = Input.ReadInt(); 
+            Output.WriteLine("You forage for 1 hour");
+            forageFeature.Forage(1);
         }
 
         public void Act()
@@ -159,8 +238,6 @@ namespace text_survival
         {
             player.Travel();
         }
-
-
         private void Sleep(Player player)
         {
             Output.WriteLine("How many hours would you like to sleep?");
@@ -169,7 +246,7 @@ namespace text_survival
 
         private void CheckGear(Player player)
         {
-            // player.CheckGear();
+            // player.in();
             //todo
         }
 
@@ -184,12 +261,12 @@ namespace text_survival
                 Output.WriteLine(thing);
                 thing.IsFound = true;
             }
-              foreach (var thing in player.CurrentLocation.Containers)
+            foreach (var thing in player.CurrentLocation.Containers)
             {
                 Output.WriteLine(thing);
                 thing.IsFound = true;
             }
-             foreach (var thing in player.CurrentLocation.Npcs)
+            foreach (var thing in player.CurrentLocation.Npcs)
             {
                 Output.WriteLine(thing);
                 thing.IsFound = true;

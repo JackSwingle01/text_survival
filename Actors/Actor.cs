@@ -8,7 +8,7 @@ namespace text_survival.Actors;
 
 public abstract class Actor
 {
-    public string Name = "";
+    public string Name;
     public virtual void Attack(Actor target, string? bodyPart = null) => combatManager.Attack(target, bodyPart);
 
     public virtual BodyPart? Damage(DamageInfo damage) => Body.Damage(damage);
@@ -24,6 +24,7 @@ public abstract class Actor
     public virtual void Update()
     {
         _effectRegistry.Update();
+        Body.Update(TimeSpan.FromMinutes(1));
     }
 
     public SkillRegistry _skillRegistry { get; init; }
@@ -33,12 +34,13 @@ public abstract class Actor
 
     public override string ToString() => Name;
 
-    protected Actor(BodyStats stats)
+    protected Actor(string name, BodyStats stats)
     {
+        Name = name;
         _effectRegistry = new EffectRegistry(this);
         _skillRegistry = new SkillRegistry();
         this.combatManager = new CombatManager(this);
-        Body = new Body(stats, _effectRegistry);
+        Body = new Body(Name, stats, _effectRegistry);
     }
 }
 

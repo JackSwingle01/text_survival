@@ -10,5 +10,7 @@ namespace text_survival
             Web
         }
         public static IOType io = IOType.Console;
+
+        public static double NOTIFY_EXISTING_STATUS_CHANCE = .1;
     }
 }
