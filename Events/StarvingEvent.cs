@@ -35,7 +35,7 @@ public class StarvingEventHandler : IEventHandler<StarvingEvent>
         {
             Output.WriteDanger($"{gameEvent.Target.OwnerName} is starving!\n");
         }
-        else if (Utils.DetermineSuccess(.1))
+        else if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
         {
             Output.WriteWarning($"{gameEvent.Target.OwnerName} is still starving.\n");
         }

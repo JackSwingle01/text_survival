@@ -13,7 +13,7 @@ public class SweatingEffect : Effect
     {
         // Water loss rate based on severity
         _waterLossRate = 0.05 * severity; // Liters per hour
-        IsStackable = false; // Use EffectRegistry's stacking mechanism
+        CanHaveMultiple = false; // Use EffectRegistry's stacking mechanism
     }
 
     protected override void OnApply(Actor target)
@@ -67,7 +67,7 @@ public class SweatingEffect : Effect
     {
         if (target is Player player)
         {
-            double waterLoss = _waterLossRate / 1000 / 60; // convert to ml per minute
+            double waterLoss = _waterLossRate * 1000 / 60; // convert to ml per minute
             var stats = new SurvivalStatsUpdate();
             stats.Hydration = -waterLoss;
             player.Body.UpdateSurvivalStats(stats);

@@ -17,7 +17,7 @@ public class PoisonEffect : Effect
         
         // Configure effect properties
         SeverityChangeRate = -0.02f; // Slow natural detoxification
-        IsStackable = true; // Multiple poison sources can stack
+        CanHaveMultiple = true; // Multiple poison sources can stack
         
         // Configure capacity modifiers - affect whole body
         CapacityModifiers["Consciousness"] = 0.3f * severity;

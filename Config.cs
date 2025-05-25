@@ -11,6 +11,6 @@ namespace text_survival
         }
         public static IOType io = IOType.Console;
 
-        public static double NOTIFY_EXISTING_STATUS_CHANCE = .1;
+        public static double NOTIFY_EXISTING_STATUS_CHANCE = .05;
     }
 }

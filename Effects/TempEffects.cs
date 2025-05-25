@@ -57,13 +57,19 @@ public class TemperatureInjury : Effect
         {
             if (InjuryType == TemperatureInjuryType.Hypothermia && _environmentalTemperature > 65.0)
             {
-                Output.WriteLine($"The heat is helping {target}'s {EffectKind} recover faster.");
+                if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
+                {
+                    Output.WriteLine($"The heat is helping {target}'s {EffectKind} recover faster.");
+                }
                 double recoveryBoost = (_environmentalTemperature - 65.0) * bonusRecoveryPerDegreePerMinute;
                 UpdateSeverity(target, -recoveryBoost); // Negative to reduce severity
             }
             else if (InjuryType == TemperatureInjuryType.Hyperthermia && _environmentalTemperature < 70.0)
             {
-                Output.WriteLine($"The cool is helping {target}'s {EffectKind} recover faster.");
+                if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
+                {
+                    Output.WriteLine($"The cool is helping {target}'s {EffectKind} recover faster.");
+                }
                 double recoveryBoost = (70.0 - _environmentalTemperature) * bonusRecoveryPerDegreePerMinute;
                 UpdateSeverity(target, recoveryBoost); // Negative to reduce severity
             }
@@ -138,11 +144,11 @@ public class TemperatureInjury : Effect
         // Notify player of the injury
         string message = InjuryType switch
         {
-            TemperatureInjuryType.Burn => "Your skin burns from the heat!",
-            TemperatureInjuryType.Frostbite => "Your extremities are beginning to freeze!",
-            TemperatureInjuryType.Hypothermia => "Your body temperature is dangerously low.",
-            TemperatureInjuryType.Hyperthermia => "Your body temperature is dangerously high.",
-            _ => $"You've suffered {EffectKind}, a temperature-related injury."
+            TemperatureInjuryType.Burn => $"{target}'s skin burns from the heat!",
+            TemperatureInjuryType.Frostbite => $"{target}'s extremities are beginning to freeze!",
+            TemperatureInjuryType.Hypothermia => $"{target}'s body temperature is dangerously low.",
+            TemperatureInjuryType.Hyperthermia => $"{target}'s body temperature is dangerously high.",
+            _ => $"{target} has suffered {EffectKind}, a temperature-related injury."
         };
 
         Output.WriteWarning(message);
@@ -152,11 +158,11 @@ public class TemperatureInjury : Effect
     {
         string message = InjuryType switch
         {
-            TemperatureInjuryType.Burn => "Your burn has healed.",
-            TemperatureInjuryType.Frostbite => "Your frostbite has healed.",
-            TemperatureInjuryType.Hypothermia => "Your body temperature has returned to normal.",
-            TemperatureInjuryType.Hyperthermia => "Your body temperature has returned to normal.",
-            _ => $"Your {EffectKind} has resolved."
+            TemperatureInjuryType.Burn => $"{target}'s burn has healed.",
+            TemperatureInjuryType.Frostbite => $"{target}'s frostbite has healed.",
+            TemperatureInjuryType.Hypothermia => $"{target}'s body temperature has returned to normal.",
+            TemperatureInjuryType.Hyperthermia => $"{target}'s body temperature has returned to normal.",
+            _ => $"{target}'s {EffectKind} has resolved."
         };
 
         Output.WriteLine(message);

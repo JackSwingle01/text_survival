@@ -18,7 +18,7 @@ public class DehydrationEventHandler : IEventHandler<DehydrationEvent>
         {
             Output.WriteDanger($"{gameEvent.Target.Name} is dehydrated!\n");
         }
-        else if (Utils.DetermineSuccess(.1))
+        else if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
         {
             Output.WriteWarning($"{gameEvent.Target.Name} is still dehydrated.\n");
 

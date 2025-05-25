@@ -14,7 +14,7 @@ public class HealEffect : Effect
         _targetPartName = targetPart?.Name ?? "body";
 
         // Configure effect properties
-        IsStackable = false; // Healing doesn't stack
+        CanHaveMultiple = false; // Healing doesn't stack
         SeverityChangeRate = -1.0f / durationMin; // Decreases to 0 over duration
     }
 

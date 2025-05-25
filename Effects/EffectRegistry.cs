@@ -3,6 +3,7 @@ using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.IO;
 namespace text_survival.Effects;
+
 public class EffectRegistry(Actor owner)
 {
     public void AddEffect(Effect effect)
@@ -10,18 +11,17 @@ public class EffectRegistry(Actor owner)
         if (_effects.Contains(effect)) return;
 
         BodyPart? part = effect.TargetBodyPart;
-        if (part != null)
+
+        if (!effect.CanHaveMultiple)
         {
-            if (!effect.IsStackable)
+            var existingEffect = _effects.FirstOrDefault(e => e.TargetBodyPart == part && e.EffectKind == effect.EffectKind);
+            if (existingEffect != null)
             {
-                var existingEffect = _effects.FirstOrDefault(e => e.TargetBodyPart == part && e.EffectKind == effect.EffectKind);
-                if (existingEffect != null)
-                {
-                    double newSeverity = Math.Max(existingEffect.Severity, effect.Severity);
-                    existingEffect.UpdateSeverity(_owner, newSeverity);
-                    return;
-                }
+                double newSeverity = Math.Max(existingEffect.Severity, effect.Severity);
+                existingEffect.UpdateSeverity(_owner, newSeverity);
+                return;
             }
+
         }
 
         _effects.Add(effect);

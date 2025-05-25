@@ -15,7 +15,7 @@ public class BleedEffect : Effect
 
         // Configure effect properties
         SeverityChangeRate = -0.05f; // Natural clotting
-        IsStackable = true; // Multiple cuts can stack
+        CanHaveMultiple = true; // Multiple cuts can stack
 
         // Configure capacity modifiers
         CapacityModifiers["BloodPumping"] = 0.2f; // Reduces blood pumping capacity by 20%

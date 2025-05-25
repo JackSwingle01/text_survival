@@ -17,7 +17,7 @@ public class ShiveringEffect : Effect
         // Setup capacity modifiers - shivering affects fine motor control
         CapacityModifiers["Manipulation"] = -0.2 * severity;
 
-        IsStackable = false; // Use EffectRegistry's stacking mechanism
+        CanHaveMultiple = false; // Use EffectRegistry's stacking mechanism
     }
 
     protected override void OnUpdate(Actor target)
@@ -29,15 +29,15 @@ public class ShiveringEffect : Effect
     {
         if (Severity > 0.7)
         {
-            Output.WriteLine("You are shivering violently.");
+            Output.WriteDanger("You are shivering violently.");
         }
         else if (Severity > 0.3)
         {
-            Output.WriteLine("You are shivering.");
+            Output.WriteWarning("You are shivering.");
         }
         else
         {
-            Output.WriteLine("You are beginning to shiver.");
+            Output.WriteWarning("You are beginning to shiver.");
         }
     }
 
@@ -61,16 +61,16 @@ public class ShiveringEffect : Effect
             {
                 if (updatedSeverity > 0.7)
                 {
-                    Output.WriteLine("You are now shivering violently.");
+                    Output.WriteDanger($"{target} is now shivering violently.");
                 }
                 else
                 {
-                    Output.WriteLine("You are shivering more intensely.");
+                    Output.WriteWarning($"{target} is shivering more intensely.");
                 }
             }
             else if (updatedSeverity < 0.3)
             {
-                Output.WriteLine("Your shivering is subsiding.");
+                Output.WriteLine($"{target}'s shivering is subsiding.");
             }
         }
     }

@@ -16,7 +16,7 @@ public class ExhaustionEventHandler : IEventHandler<ExhaustionEvent>
         {
             Output.WriteDanger($"{gameEvent.Target.Name} is exhausted!\n");
         }
-        else if (Utils.DetermineSuccess(.1))
+        else if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
         {
             Output.WriteWarning($"{gameEvent.Target.Name} is still exhausted.\n");
         }
