@@ -46,7 +46,7 @@ namespace text_survival.Survival
         public void Describe()
         {
             double percent = (int)((Amount / Max) * 100);
-            Output.WriteLine("Exhaustion: ", percent, "%");
+            Output.WriteLine("| Exhaustion: ", percent, "%");
         }
     }
 }

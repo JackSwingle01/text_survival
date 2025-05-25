@@ -39,11 +39,6 @@ class LocationManager
         }
         set
         {
-            if (CurrentZone == value)
-            {
-                Output.WriteLine("There's nowhere to leave. Travel instead.");
-                return;
-            }
             if (Map.North == value)
             {
                 Output.WriteLine("You go north.");
@@ -65,7 +60,7 @@ class LocationManager
                 Map.MoveWest();
             }
             else
-                throw new Exception("Invalid zone.");
+                throw new Exception("Invalid zone!");
             Location? newLocation = Utils.GetRandomFromList(value.Locations);
 
             CurrentLocation = newLocation ?? throw new Exception("No Locations In Zone");

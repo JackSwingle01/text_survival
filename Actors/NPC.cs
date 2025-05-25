@@ -24,7 +24,7 @@ namespace text_survival.Actors
 
         // Internal components
 
-        private Container Loot { get; }
+        public Container Loot { get; }
 
         #endregion
 
@@ -53,21 +53,7 @@ namespace text_survival.Actors
             }
             else
             {
-                if (Loot.IsEmpty)
-                {
-                    Output.WriteLine("There is nothing to loot.");
-                    return;
-                }
-                Loot.Open(player);
-            }
-        }
-
-        public Command<Player> InteractCommand
-        {
-            get
-            {
-                string name = IsAlive ? "Fight " + Name : "Loot " + Name;
-                return new Command<Player>(name, Interact);
+               
             }
         }
 

@@ -53,6 +53,8 @@ public class Body
         _bodyFat = stats.overallWeight * stats.fatPercent;
         _muscle = stats.overallWeight * stats.musclePercent;
         _baseWeight = stats.overallWeight - _bodyFat - _muscle;
+
+        BodyTemperature = 98.6;
     }
 
 
@@ -448,10 +450,12 @@ public class Body
 
     public void DescribeSurvivalStats()
     {
+        Output.WriteLine("\n----------------------------------------------------\n| Survival Stats:");
         _hungerModule.Describe();
         _thirstModule.Describe();
         _exhaustionModule.Describe();
         _temperatureModule.Describe();
+        Output.WriteLine("----------------------------------------------------");
     }
 
     public bool Rest(int minutes)

@@ -20,21 +20,21 @@ public class SweatingEffect : Effect
     {
         if (Severity > 0.7)
         {
-            Output.WriteLine("You are sweating profusely.");
+            Output.WriteLine($"{target} is sweating profusely.");
         }
         else if (Severity > 0.3)
         {
-            Output.WriteLine("You are sweating.");
+            Output.WriteLine($"{target} is sweating.");
         }
         else
         {
-            Output.WriteLine("You are beginning to sweat.");
+            Output.WriteLine($"{target} is  beginning to sweat.");
         }
     }
 
     protected override void OnRemove(Actor target)
     {
-        Output.WriteLine("You stop sweating.");
+        Output.WriteLine($"{target} stopped sweating.");
     }
 
     protected override void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity)
@@ -49,16 +49,16 @@ public class SweatingEffect : Effect
             {
                 if (updatedSeverity > 0.7)
                 {
-                    Output.WriteLine("You are now sweating profusely.");
+                    Output.WriteLine($"{target} is  now sweating profusely.");
                 }
                 else
                 {
-                    Output.WriteLine("You are sweating more.");
+                    Output.WriteLine($"{target} is  sweating more.");
                 }
             }
             else if (updatedSeverity < 0.3)
             {
-                Output.WriteLine("You are sweating less.");
+                Output.WriteLine($"{target} is sweating less.");
             }
         }
     }

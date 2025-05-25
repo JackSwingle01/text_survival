@@ -177,30 +177,32 @@ namespace text_survival
             if (healthPercentage < 0.5) return ConsoleColor.Yellow;
             return ConsoleColor.Green;
         }
-        public static bool SpeedCheck(Player player, Actor? enemy = null)
+        public static bool SpeedCheck(Player player, Actor enemy)
         {
-            if (player.CurrentLocation.Npcs.Count == 0) return true;
-
-            enemy ??= GetFastestNpc(player.CurrentLocation);
-
             double playerCheck = CalcSpeedCheck(player);
             double enemyCheck = CalcSpeedCheck(enemy);
 
             return playerCheck >= enemyCheck;
         }
 
-        public static Npc GetFastestNpc(Location location)
+        public static Npc? GetFastestHostileNpc(Location location)
         {
-            double enemyCheck = 0;
-            Npc fastestNpc = location.Npcs.First();
+            double fastestCheck = 0;
+            Npc? fastestNpc = null;
             foreach (Npc npc in location.Npcs)
             {
                 if (npc == fastestNpc) continue;
                 if (!npc.IsAlive) continue;
+                if (!npc.IsHostile) continue;
+
+                fastestNpc ??= npc;
+
                 var currentNpcCheck = CalcSpeedCheck(npc);
-                if (currentNpcCheck < enemyCheck) continue;
-                fastestNpc = npc;
-                enemyCheck = currentNpcCheck;
+                if (currentNpcCheck > fastestCheck)
+                {
+                    fastestNpc = npc;
+                    fastestCheck = currentNpcCheck;
+                }
             }
             return fastestNpc;
         }

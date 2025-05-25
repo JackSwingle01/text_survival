@@ -37,19 +37,5 @@ namespace text_survival.Items
             return Name;
         }
         
-
-        public void Interact(Player player)
-        {
-            if (!Combat.SpeedCheck(player))
-            {
-                Npc npc = Combat.GetFastestNpc(player.CurrentLocation);
-                Output.WriteLine("You couldn't get past the ", npc, "!");
-                npc.Interact(player);
-                return;
-            }
-            player.TakeItem(this);
-        }
-        public Command<Player> InteractCommand => new Command<Player>("Pick up " + Name, Interact);
-
     }
 }

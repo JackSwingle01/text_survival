@@ -10,7 +10,7 @@ namespace text_survival.Actors
             var bodyStats = new BodyStats
             {
                 type = BodyPartFactory.BodyTypes.Quadruped,
-                overallWeight = 0.5, // 0.5 kg for a rat
+                overallWeight = 2, // large rat
                 fatPercent = 0.15,   // 15% fat
                 musclePercent = 0.40 // 40% muscle
             };

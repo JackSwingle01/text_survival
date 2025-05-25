@@ -84,6 +84,6 @@ public class TemperatureModule(Body owner)
     public void Describe()
     {
         string tempChange = IsWarming ? "Warming up" : "Getting colder";
-        Output.WriteLine("Body Temperature: ", BodyTemperature, "°F (", TemperatureEffect, "), ", tempChange);
+        Output.WriteLine("| Body Temperature: ", BodyTemperature, "°F (", TemperatureEffect, "), ", tempChange);
     }
 }

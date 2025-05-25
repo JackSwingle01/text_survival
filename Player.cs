@@ -195,6 +195,7 @@ public class Player : Actor
         return true;
     }
 
+    
     public void Travel() => locationManager.TravelToAdjacentZone();
 }
 

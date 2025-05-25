@@ -25,7 +25,6 @@ namespace text_survival
             zone.Locations.Add(startingArea);
             Player player = new Player(startingArea);
             World.Player = player;
-            Actions actions = new(player);
 
             EventBus.Subscribe(new StarvingEventHandler());
             EventBus.Subscribe(new DehydrationEventHandler());
@@ -35,11 +34,13 @@ namespace text_survival
             EventBus.Subscribe(new StoppedExhaustionEventHandler());
             EventBus.Subscribe(new BodyHotEventHandler());
             EventBus.Subscribe(new BodyColdEventHandler());
-            
 
-            while (player.IsAlive)
+
+            var defaultAction = new DefaultAction();
+            while (true)
             {
-                actions.Act();
+                var context = new GameContext(player); // todo need to update the location context
+                defaultAction.Execute(context);
             }
         }
     }

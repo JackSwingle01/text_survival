@@ -57,13 +57,13 @@ public class TemperatureInjury : Effect
         {
             if (InjuryType == TemperatureInjuryType.Hypothermia && _environmentalTemperature > 65.0)
             {
-                Output.WriteLine($"The heat is helping your {EffectKind} recover faster.");
+                Output.WriteLine($"The heat is helping {target}'s {EffectKind} recover faster.");
                 double recoveryBoost = (_environmentalTemperature - 65.0) * bonusRecoveryPerDegreePerMinute;
                 UpdateSeverity(target, -recoveryBoost); // Negative to reduce severity
             }
             else if (InjuryType == TemperatureInjuryType.Hyperthermia && _environmentalTemperature < 70.0)
             {
-                Output.WriteLine($"The cool is helping your {EffectKind} recover faster.");
+                Output.WriteLine($"The cool is helping {target}'s {EffectKind} recover faster.");
                 double recoveryBoost = (70.0 - _environmentalTemperature) * bonusRecoveryPerDegreePerMinute;
                 UpdateSeverity(target, recoveryBoost); // Negative to reduce severity
             }
@@ -119,11 +119,11 @@ public class TemperatureInjury : Effect
 
             string message = InjuryType switch
             {
-                TemperatureInjuryType.Burn => $"Your burn is {direction}.",
-                TemperatureInjuryType.Frostbite => $"Your frostbite is {direction}.",
-                TemperatureInjuryType.Hypothermia => $"Your hypothermia is {direction}.",
-                TemperatureInjuryType.Hyperthermia => $"Your hyperthermia is {direction}.",
-                _ => $"Your {EffectKind} is {direction}."
+                TemperatureInjuryType.Burn => $"{target}'s burn is {direction}.",
+                TemperatureInjuryType.Frostbite => $"{target}'s frostbite is {direction}.",
+                TemperatureInjuryType.Hypothermia => $"{target}'s hypothermia is {direction}.",
+                TemperatureInjuryType.Hyperthermia => $"{target}'s hyperthermia is {direction}.",
+                _ => $"{target}'s is  {EffectKind} is {direction}."
             };
 
             if (direction == "worsening")

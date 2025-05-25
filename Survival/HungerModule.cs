@@ -51,6 +51,6 @@ public class HungerModule(Body owner)
 	public void Describe()
 	{
 		double percent = (int)(CurrentCalories / MAX_CALORIES * 100);
-		Output.WriteLine("Calorie Store: ", percent, "%");
+		Output.WriteLine("| Calorie Store: ", percent, "%");
 	}
 }

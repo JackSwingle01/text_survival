@@ -24,21 +24,6 @@ namespace text_survival.Items
         public Item GetItem(int index) => Items[index];
         public Item GetItemByName(string itemName) => Items.First(i => i.Name.Equals(itemName));
 
-        public void Interact(Player player)
-        {
-            if (!Combat.SpeedCheck(player))
-            {
-                Npc npc = Combat.GetFastestNpc(player.CurrentLocation);
-                Output.WriteLine("You couldn't get past the ", npc, "!");
-                npc.Interact(player);
-                return;
-            }
-            Output.WriteLine("You open the ", this);
-            Open(player);
-        }
-
-        public Command<Player> InteractCommand => new("Look in " + Name, Interact);
-
         public virtual void Open(Player player)
         {
             HasBeenOpened = true;

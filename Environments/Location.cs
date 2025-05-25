@@ -57,7 +57,7 @@ public class Location
             Output.WriteLine("You decide to stay.");
         }
     }
-    public Command<Player> InteractCommand => new("Go to " + Name + (Visited ? " (Visited)" : ""), Interact);
+    
     public double GetTemperature()
     {
         // Get zone's weather temperature (in Fahrenheit)
@@ -151,6 +151,21 @@ public class Location
     {
         // Locations.ForEach(i => i.Update());
         _npcs.ForEach(n => n.Update());
+    }
+
+    public List<Location> GetNearbyLocations()
+    {
+        List<Location> nearbyLocations = [];
+        if (Parent.Locations.Count > 0)
+        {
+            foreach (var location in Parent.Locations)
+            {
+                if (location == this)
+                    continue;
+                nearbyLocations.Add(location);
+            }
+        }
+        return nearbyLocations;
     }
 
     public override string ToString() => Name;

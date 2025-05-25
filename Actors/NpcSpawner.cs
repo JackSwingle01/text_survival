@@ -23,7 +23,7 @@
         {
             if (_factories.Count == 0)
             {
-                throw new Exception("No factories");
+                return null;
             }
             var fac = Utils.GetRandomFromList(_factories);
             return fac();
