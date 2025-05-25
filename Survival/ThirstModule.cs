@@ -11,26 +11,26 @@ namespace text_survival.Survival
         private double Amount { get; set; }
         public ThirstModule()
         {
-            Amount = 0;
+            Amount = Max / 2; 
         }
         public void AddHydration(double mL)
         {
-            Amount -= mL;
-            if (Amount < 0)
+            Amount += mL;
+            if (Amount >= Max)
             {
-                Amount = 0;
+                Amount = Max;
             }
         }
         public void Update()
         {
-            Amount += Rate;
-            if (Amount >= Max)
-                Amount = Max;
+            Amount -= Rate;
+            if (Amount <= 0)
+                Amount = 0;
         }
         public void Describe()
         {
             double percent = (int)((Amount / Max) * 100);
-            Output.WriteLine("Thirst: ", percent, "%");
+            Output.WriteLine("Hydration: ", percent, "%");
         }
     }
 }

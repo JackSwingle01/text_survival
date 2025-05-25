@@ -277,7 +277,7 @@ namespace text_survival.Items
             Gear torch = new Gear("Pine Torch", 0.8)
             {
                 Description = "A branch wrapped with resin-soaked pine needles. Provides light and warmth.",
-                Warmth = 5
+                Insulation = 5
             };
             return torch;
         }

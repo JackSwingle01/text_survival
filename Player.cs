@@ -15,7 +15,19 @@ public class Player : Actor
     private readonly LocationManager locationManager;
     private readonly SpellManager spellManager;
     private readonly InventoryManager inventoryManager;
-    public double EquipmentWarmth => inventoryManager.EquipmentWarmth;
+
+
+    public override void Update()
+    {
+        _effectRegistry.Update();
+        var context = new SurvivalContext
+        {
+            ActivityLevel = 2,
+            LocationTemperature = locationManager.CurrentLocation.GetTemperature(),
+            ClothingInsulation = inventoryManager.ClothingInsulation,
+        };
+        Body.Update(TimeSpan.FromMinutes(1), context);
+    }
     public void Sleep(int minutes)
     {
         bool fullyRested = Body.Rest(1);
@@ -35,7 +47,7 @@ public class Player : Actor
     }
 
     // Location-related methods
-    public Location CurrentLocation
+    public override Location CurrentLocation
     {
         get => locationManager.CurrentLocation;
         set => locationManager.CurrentLocation = value;
@@ -73,7 +85,10 @@ public class Player : Actor
     public void SelectSpell()
     {
         List<Actor> targets = [this];
-        CurrentLocation.Npcs.ForEach(targets.Add);
+        foreach (var npc in CurrentLocation.Npcs)
+        {
+            targets.Add(npc);
+        }
         spellManager.SelectSpell(targets);
     }
 
@@ -176,7 +191,7 @@ public class Player : Actor
         if (armor is null) return false;
 
         armor.Rating += rating;
-        armor.Warmth += warmth;
+        armor.Insulation += warmth;
         return true;
     }
 

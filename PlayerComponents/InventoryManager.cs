@@ -61,7 +61,7 @@ public class InventoryManager
         }
     }
 
-    public double EquipmentWarmth => (HeldItem?.Warmth ?? 0) + Armor.Sum(a => a.Warmth);
+    public double ClothingInsulation => Armor.Sum(a => a.Insulation);
 
     public void Equip(IEquippable item)
     {

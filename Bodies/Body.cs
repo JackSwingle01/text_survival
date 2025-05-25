@@ -13,6 +13,13 @@ public class BodyStats
     public double musclePercent;
 }
 
+public class SurvivalContext
+{
+    public double LocationTemperature;
+    public double ClothingInsulation;
+    public double ActivityLevel;
+}
+
 public class Body
 {
     // Root part and core properties
@@ -79,7 +86,7 @@ public class Body
     public BodyPart? Damage(DamageInfo damageInfo) => _rootPart.Damage(damageInfo);
     public void Heal(HealingInfo healingInfo) => _rootPart.Heal(healingInfo);
 
-    private void UpdateMetabolism(TimeSpan timePassed, double activityLevel)
+    private double GetCurrentMetabolism(double activityLevel)
     {
         // Base BMR uses the Harris-Benedict equation (simplified)
         double bmr = 370 + (21.6 * Muscle) + (6.17 * BodyFat);
@@ -89,15 +96,22 @@ public class Body
         bmr *= 0.7 + (0.3 * healthFactor); // Injured bodies need more energy to heal
 
         double currentMetabolism = bmr * activityLevel;
-        double calories = currentMetabolism / 24 * timePassed.TotalHours;
-        BodyTemperature += calories / 24000;
-        _hungerModule.Update(currentMetabolism);
+        return currentMetabolism;
     }
 
-    public void Update(TimeSpan timePassed)
+
+    public void Update(TimeSpan timePassed, SurvivalContext context)
     {
         // Handle metabolism and energy expenditure
-        UpdateMetabolism(timePassed, 2);
+        double currentMetabolism = GetCurrentMetabolism(context.ActivityLevel);
+        double calories = currentMetabolism / 24 * timePassed.TotalHours;
+
+        BodyTemperature += calories / 24000;
+
+        _hungerModule.Update(currentMetabolism);
+        _thirstModule.Update();
+        _temperatureModule.Update(context.LocationTemperature, context.ClothingInsulation);
+        _exhaustionModule.Update();
     }
 
     // todo - move this to the survival manager or something
@@ -299,7 +313,7 @@ public class Body
         return result;
     }
 
-    private void CollectBodyPartsToDepth(BodyPart part, List<BodyPart> result, int currentDepth, int maxDepth)
+    private static void CollectBodyPartsToDepth(BodyPart part, List<BodyPart> result, int currentDepth, int maxDepth)
     {
         // Add the current part
         result.Add(part);
@@ -327,7 +341,7 @@ public class Body
     public void Describe()
     {
         // Overall body statistics
-        Output.WriteLine("Body Health: " + (int)((Health / MaxHealth) * 100) + "%");
+        Output.WriteLine("Body Health: " + (int)(Health / MaxHealth * 100) + "%");
         Output.WriteLine("Weight: " + Math.Round(Weight * 2.2, 1) + " lbs");
         Output.WriteLine("Body Composition: " + (int)(BodyFatPercentage * 100) + "% fat, " + (int)(MusclePercentage * 100) + "% muscle");
 
@@ -395,16 +409,16 @@ public class Body
     private void CheckAndDescribeImpairments()
     {
         Dictionary<string, double> systemCapacities = new Dictionary<string, double>
-    {
-        { "Moving", GetCapacity("Moving") },
-        { "Manipulation", GetCapacity("Manipulation") },
-        { "Breathing", GetCapacity("Breathing") },
-        { "BloodPumping", GetCapacity("BloodPumping") },
-        { "Consciousness", GetCapacity("Consciousness") },
-        { "Sight", GetCapacity("Sight") },
-        { "Hearing", GetCapacity("Hearing") },
-        { "Digestion", GetCapacity("Digestion") }
-    };
+        {
+            { "Moving", GetCapacity("Moving") },
+            { "Manipulation", GetCapacity("Manipulation") },
+            { "Breathing", GetCapacity("Breathing") },
+            { "BloodPumping", GetCapacity("BloodPumping") },
+            { "Consciousness", GetCapacity("Consciousness") },
+            { "Sight", GetCapacity("Sight") },
+            { "Hearing", GetCapacity("Hearing") },
+            { "Digestion", GetCapacity("Digestion") }
+        };
 
         var impairedSystems = systemCapacities.Where(kv => kv.Value < 0.9).ToList();
 

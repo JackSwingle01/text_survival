@@ -27,11 +27,6 @@ public class TemperatureModule(Body owner)
 
     public void Update(double environmentalTemp, double equipmentInsulation)
     {
-        UpdateTemperatureTick(environmentalTemp, equipmentInsulation);
-    }
-
-    private void UpdateTemperatureTick(double environmentalTemp, double equipmentInsulation)
-    {
         double naturalInsulation = Math.Clamp(owner.CalculateColdResistance(), 0, 1); // 0-1
         double totalInsulation = Math.Clamp(naturalInsulation + equipmentInsulation, 0, 0.95);
 

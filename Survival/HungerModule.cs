@@ -9,11 +9,9 @@ namespace text_survival.Survival;
 public class HungerModule(Body owner)
 {
 	private const double MAX_CALORIES = 2000.0; // Maximum calories stored before fat conversion
-
-
 	private bool IsStarving => CurrentCalories <= 0;
 	private bool wasStarving;
-	private double CurrentCalories { get; set; } = 0;
+	private double CurrentCalories { get; set; } = MAX_CALORIES / 2;
 	private readonly Body owner = owner;
 
 	public void Update(double metabolicRate)
@@ -53,6 +51,6 @@ public class HungerModule(Body owner)
 	public void Describe()
 	{
 		double percent = (int)(CurrentCalories / MAX_CALORIES * 100);
-		Output.WriteLine("Hunger: ", percent, "%");
+		Output.WriteLine("Calorie Store: ", percent, "%");
 	}
 }

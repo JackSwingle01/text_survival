@@ -43,8 +43,8 @@ namespace text_survival
                 if (armor.Rating != 0)
                     Output.Write("Defense: ", armor.Rating * 100, "%, ");
 
-                if (armor.Warmth != 0)
-                    Output.Write("Warmth: ", armor.Warmth, "F, ");
+                if (armor.Insulation != 0)
+                    Output.Write("Warmth: ", armor.Insulation, "F, ");
             }
 
             if (item.Weight != 0)

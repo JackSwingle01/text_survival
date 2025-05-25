@@ -1,5 +1,6 @@
 ﻿using text_survival.Bodies;
 using text_survival.Effects;
+using text_survival.Environments;
 using text_survival.Items;
 using text_survival.Level;
 using text_survival.PlayerComponents;
@@ -9,6 +10,7 @@ namespace text_survival.Actors;
 public abstract class Actor
 {
     public string Name;
+    public virtual Location? CurrentLocation { get; set; }
     public virtual void Attack(Actor target, string? bodyPart = null) => combatManager.Attack(target, bodyPart);
 
     public virtual BodyPart? Damage(DamageInfo damage) => Body.Damage(damage);
@@ -24,7 +26,12 @@ public abstract class Actor
     public virtual void Update()
     {
         _effectRegistry.Update();
-        Body.Update(TimeSpan.FromMinutes(1));
+        var context = new SurvivalContext
+        {
+            ActivityLevel = 2,
+            LocationTemperature = CurrentLocation.GetTemperature(),
+        };
+        Body.Update(TimeSpan.FromMinutes(1), context);
     }
 
     public SkillRegistry _skillRegistry { get; init; }

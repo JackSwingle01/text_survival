@@ -14,7 +14,7 @@ namespace text_survival.Items
             EquipEffects = [];
             Rating = rating;
             EquipSpot = equipSpot;
-            Warmth = warmth;
+            Insulation = warmth;
             Type = type;
         }
 

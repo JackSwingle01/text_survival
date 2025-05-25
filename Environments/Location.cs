@@ -10,7 +10,8 @@ public class Location
     public string Name;
     public bool Visited = false;
     public bool IsFound { get; set; } = false;
-    public List<Npc> Npcs = [];
+    public IReadOnlyList<Npc> Npcs =>_npcs.AsReadOnly();
+    private List<Npc> _npcs = [];
     public List<Item> Items = [];
     public List<Container> Containers = [];
     virtual public Zone Parent { get; }
@@ -23,10 +24,7 @@ public class Location
         Name = name;
         Parent = parent;
         NpcSpawner = new();
-        // InitializeNpcs(numNpcs);
     }
-
-    // public static readonly List<string> genericLocationAdjectives = ["", "Old", "Dusty", "Cool", "Breezy", "Quiet", "Ancient", "Ominous", "Sullen", "Forlorn", "Desolate", "Secret", "Hidden", "Forgotten", "Cold", "Dark", "Damp", "Wet", "Dry", "Warm", "Icy", "Snowy", "Frozen"];
 
     public T? GetFeature<T>() where T : LocationFeature => Features.OfType<T>().FirstOrDefault();
 
@@ -36,7 +34,10 @@ public class Location
         {
             var npc = NpcSpawner.GenerateRandomNpc();
             if (npc is not null)
-                Npcs.Add(npc);
+            {
+                _npcs.Add(npc);
+                npc.CurrentLocation = this;
+            }
         }
     }
     protected virtual NpcSpawner NpcSpawner { get; }
@@ -149,7 +150,7 @@ public class Location
     public void Update()
     {
         // Locations.ForEach(i => i.Update());
-        Npcs.ForEach(n => n.Update());
+        _npcs.ForEach(n => n.Update());
     }
 
     public override string ToString() => Name;
