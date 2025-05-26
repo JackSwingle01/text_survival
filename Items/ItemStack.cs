@@ -24,7 +24,8 @@ public class ItemStack
         Items.Push(item);
     }
     
-    public Item Take() => Items.Pop();
+    public Item Pop() => Items.Pop();
+    public Item Peek() => Items.Peek();
     
     public override string ToString() => DisplayName;
     

@@ -14,7 +14,7 @@ public class Player : Actor
 
     private readonly LocationManager locationManager;
     private readonly SpellManager spellManager;
-    private readonly InventoryManager inventoryManager;
+    public readonly InventoryManager inventoryManager;
 
 
     public override void Update()
@@ -37,7 +37,6 @@ public class Player : Actor
         }
 
     }
-    public void OpenInventory() => inventoryManager.Open(this);
     public override Weapon ActiveWeapon
     {
         get => inventoryManager.Weapon; protected set

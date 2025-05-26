@@ -1,20 +1,7 @@
-﻿using text_survival.Actors;
-
-using text_survival.IO;
+﻿using text_survival.IO;
 
 namespace text_survival.Items
 {
-    //public interface IItem
-    //{
-    //    string Name { get; set; }
-    //    double Weight { get; set; } // in kg
-    //    Action<Player> UseEffect { get; set; }
-    //    string Description { get; set; }
-    //    int Quality { get; set; } // percentage 0% being extremely poor quality, 100% being perfect quality
-    //    string ToString();
-    //    void Use(Player player);
-    //}
-
     public class Item
     {
         public string Name { get; set; }
@@ -32,6 +19,33 @@ namespace text_survival.Items
             NumUses = -1; // not consumable
         }
 
+        public void Describe()
+        {
+            Output.Write(this, " => ", Description, " ");
+            if (this is Weapon weapon)
+            {
+                Output.Write("Damage: ", weapon.Damage, " hp, ");
+                Output.Write("Hit Chance: ", weapon.Accuracy * 100, "%, ");
+                if (weapon.BlockChance != 0)
+                {
+                    Output.Write(", BlockChance: ", weapon.BlockChance * 100, "%, ");
+                }
+            }
+            else if (this is Armor armor)
+            {
+                if (armor.Rating != 0)
+                    Output.Write("Defense: ", armor.Rating * 100, "%, ");
+
+                if (armor.Insulation != 0)
+                    Output.Write("Warmth: ", armor.Insulation, "F, ");
+            }
+
+            if (Weight != 0)
+            {
+                Output.Write("Weight: ", Weight, "kg");
+            }
+            Output.WriteLine();
+        }
         public override string ToString()
         {
             return Name;

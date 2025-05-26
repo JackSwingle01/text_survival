@@ -3,88 +3,70 @@ using text_survival.IO;
 
 namespace text_survival.Items
 {
-    public class Container
+    public class Container(string name, float maxWeight)
     {
-        private string _name;
-        public string Name { get => (IsEmpty && HasBeenOpened) ? _name + " (Empty)" : _name; set => _name = value; }
+        private string _name = name;
+        public string Name { get => IsEmpty ? _name + " (Empty)" : _name; set => _name = value; }
         public double Weight() => Items.Sum(item => item.Weight);
-        public float MaxWeight { get; set; }
-        public List<Item> Items { get; }
+        public float MaxWeight { get; set; } = maxWeight;
+        public List<Item> Items { get; } = [];
         public bool IsEmpty => Items.Count == 0;
-        protected bool HasBeenOpened { get; set; }
         public bool IsFound { get; set; }
-
-        public Container(string name, float maxWeight)
-        {
-            _name = name;
-            MaxWeight = maxWeight;
-            Items = [];
-        }
 
         public Item GetItem(int index) => Items[index];
         public Item GetItemByName(string itemName) => Items.First(i => i.Name.Equals(itemName));
 
-        public virtual void Open(Player player)
-        {
-            HasBeenOpened = true;
-            while (!IsEmpty)
-            {
-                Output.WriteLine(this, ":");
+        // public virtual void Open(Player player)
+        // {
+        //     while (!IsEmpty)
+        //     {
+        //         Output.WriteLine(this, ":");
 
-                var items = new List<Item>(Items);
-                Item takeAll = new Item("Take all");
-                if (items.Count > 1)
-                {
-                    items.Add(takeAll);
-                }
+        //         var items = new List<Item>(Items);
+        //         Item takeAll = new Item("Take all");
+        //         if (items.Count > 1)
+        //         {
+        //             items.Add(takeAll);
+        //         }
 
-                var itemStacks = ItemStack.CreateStacksFromItems(items);
+        //         var itemStacks = ItemStack.CreateStacksFromItems(items);
 
-                var selection = Input.GetSelectionFromList(itemStacks, true, "Close " + this);
-                if (selection == null) return;
+        //         var selection = Input.GetSelectionFromList(itemStacks, true, "Close " + this);
+        //         if (selection == null) return;
 
-                Item selectedItem = selection.Take();
+        //         Item selectedItem = selection.Pop();
 
-                if (selectedItem == takeAll)
-                {
-                    TakeAll(player);
-                    return;
-                }
+        //         if (selectedItem == takeAll)
+        //         {
+        //             TakeAll(player);
+        //             return;
+        //         }
 
-                Output.WriteLine("What would you like to do with ", selectedItem);
-                string? choice = Input.GetSelectionFromList(["Take", "Inspect"], true);
-                switch (choice)
-                {
-                    case null:
-                        continue;
-                    case "Take":
-                        Remove(selectedItem);
-                        player.TakeItem(selectedItem);
-                        break;
-                    case "Inspect":
-                        Describe.DescribeItem(selectedItem);
-                        break;
-                    case "Use":
-                        Remove(selectedItem);
-                        player.TakeItem(selectedItem);
-                        player.UseItem(selectedItem);
-                        break;
-                }
-            }
-            Output.WriteLine(this, " is empty.");
-        }
+        //         Output.WriteLine("What would you like to do with ", selectedItem);
+        //         string? choice = Input.GetSelectionFromList(["Take", "Inspect"], true);
+        //         switch (choice)
+        //         {
+        //             case null:
+        //                 continue;
+        //             case "Take":
+        //                 Remove(selectedItem);
+        //                 player.TakeItem(selectedItem);
+        //                 break;
+        //             case "Inspect":
+        //                 selectedItem.Describe();
+        //                 break;
+        //             case "Use":
+        //                 Remove(selectedItem);
+        //                 player.TakeItem(selectedItem);
+        //                 player.UseItem(selectedItem);
+        //                 break;
+        //         }
+        //     }
+        //     Output.WriteLine(this, " is empty.");
+        // }
 
 
-        private void TakeAll(Player player)
-        {
-            while (!IsEmpty)
-            {
-                var item = Items.First();
-                Remove(item);
-                player.TakeItem(item);
-            }
-        }
-
+     
         public override string ToString() => Name;
 
         public void Add(Item item)

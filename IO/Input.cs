@@ -56,6 +56,7 @@
                 int input = ReadInt();
                 if (input >= low && input <= high)
                 {
+                    Output.WriteLine();
                     return input;
                 }
                 else

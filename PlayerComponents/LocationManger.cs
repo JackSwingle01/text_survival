@@ -76,6 +76,15 @@ class LocationManager
             _currentLocation.Items.Remove(item);
             return true;
         }
+        else
+        {
+            Container? container = _currentLocation.Containers.FirstOrDefault(x => x.Items.Contains(item));
+            if (container != null)
+            {
+                container.Remove(item);
+                return true;
+            }
+        }
         return false;
     }
 

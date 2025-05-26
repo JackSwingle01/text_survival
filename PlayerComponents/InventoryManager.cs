@@ -14,6 +14,7 @@ public class InventoryManager
         _effectRegistry = effectRegistry;
     }
     private Container Inventory { get; }
+    public List<ItemStack> Items => ItemStack.CreateStacksFromItems(Inventory.Items);
     public List<Armor> Armor { get; }
     public Gear? HeldItem { get; private set; }
     private EffectRegistry _effectRegistry { get; }
@@ -50,12 +51,6 @@ public class InventoryManager
             foreach (Armor armor in Armor)
             {
                 rating += armor.Rating;
-                // rating += armor.Type switch
-                // {
-                //     ArmorClass.Light => Skills.LightArmor.Level * .01,
-                //     ArmorClass.Heavy => Skills.HeavyArmor.Level * .01,
-                //     _ => throw new ArgumentOutOfRangeException()
-                // };
             }
             return rating;
         }
@@ -113,7 +108,7 @@ public class InventoryManager
     }
     public void CheckGear()
     {
-        Describe.DescribeGear(this);
+        DescribeGear(this);
         Output.WriteLine("Would you like to unequip an item?");
         if (Input.ReadYesNo()) return;
 
@@ -129,36 +124,26 @@ public class InventoryManager
         Unequip(choice);
     }
 
-    public void Open(Player player)
+    public static void DescribeGear(InventoryManager inv)
     {
-        while (!Inventory.IsEmpty)
+        if (inv.IsArmed)
         {
-            Output.WriteLine(Inventory, " (", Inventory.Weight(), "/", Inventory.MaxWeight, "):");
-
-            var options = ItemStack.CreateStacksFromItems(Inventory.Items);
-            var selection = Input.GetSelectionFromList(options, true, "Close " + Inventory);
-            if (selection == null) return;
-
-            Item item = selection.Take();
-
-            Output.WriteLine("What would you like to do with ", item);
-            string? choice = Input.GetSelectionFromList(["Use", "Inspect", "Drop"], true);
-
-            switch (choice)
-            {
-                case null:
-                    continue;
-                case "Use":
-                    player.UseItem(item);
-                    break;
-                case "Inspect":
-                    Describe.DescribeItem(item);
-                    break;
-                case "Drop":
-                    player.DropItem(item);
-                    break;
-            }
+            Output.Write("Weapon => ");
+            inv.Weapon.Describe();
         }
-        Output.WriteLine(Inventory, " is empty.");
+        foreach (Armor armor in inv.Armor)
+        {
+            Output.Write(armor.EquipSpot, " => ");
+            armor.Describe();
+        }
+        if (inv.HeldItem is not null)
+        {
+            Output.Write("Held Item => ");
+            inv.HeldItem.Describe();
+        }
+    }
+    public void Describe()
+    {
+        Output.WriteLine(Inventory, " (", Inventory.Weight(), "/", Inventory.MaxWeight, "):");
     }
 }
