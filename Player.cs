@@ -93,17 +93,17 @@ public class Player : Actor
 
 
 
-    public override BodyPart? Damage(DamageInfo damageInfo)
-    {
-        var part = Body.Damage(damageInfo);
-        if (!IsAlive)
-        {
-            // end program
-            Output.WriteDanger("You died!");
-            Environment.Exit(0);
-        }
-        return part;
-    }
+    // public override BodyPart? Damage(DamageInfo damageInfo)
+    // {
+    //     var part = Body.Damage(damageInfo);
+    //     // if (!IsAlive)
+    //     // {
+    //     //     // end program
+    //     //     Output.WriteDanger("You died!");
+    //     //     Environment.Exit(0);
+    //     // }
+    //     return part;
+    // }
 
     public void DescribeSurvivalStats()
     {

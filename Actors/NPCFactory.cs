@@ -16,7 +16,7 @@ namespace text_survival.Actors
             };
 
             // Create a natural weapon for the rat
-            var weapon = new Weapon(WeaponType.Fangs, WeaponMaterial.Organic, "Rodent Teeth", 100)
+            var weapon = new Weapon(WeaponType.Fangs, WeaponMaterial.Organic, "teeth", 100)
             {
                 Damage = 2,
                 Accuracy = 1.2
@@ -41,7 +41,7 @@ namespace text_survival.Actors
             };
 
             // Create a natural weapon for the wolf
-            var weapon = new Weapon(WeaponType.Fangs, WeaponMaterial.Organic, "Wolf Fangs", 100)
+            var weapon = new Weapon(WeaponType.Fangs, WeaponMaterial.Organic, "fangs", 100)
             {
                 Damage = 10,
                 Accuracy = 1.1
@@ -66,7 +66,7 @@ namespace text_survival.Actors
             };
 
             // Create a natural weapon for the bear
-            var weapon = new Weapon(WeaponType.Claws, WeaponMaterial.Organic, "Bear Claws", 100)
+            var weapon = new Weapon(WeaponType.Claws, WeaponMaterial.Organic, "claws", 100)
             {
                 Damage = 20,
                 Accuracy = 0.9
@@ -182,7 +182,7 @@ namespace text_survival.Actors
             };
 
             // Create a natural weapon for the cave bear - stronger than regular bear
-            var weapon = new Weapon(WeaponType.Claws, WeaponMaterial.Organic, "Massive Cave Bear Claws", 100)
+            var weapon = new Weapon(WeaponType.Claws, WeaponMaterial.Organic, "Massive Claws", 100)
             {
                 Damage = 25,
                 Accuracy = 0.85
@@ -211,7 +211,7 @@ namespace text_survival.Actors
             };
 
             // Create a natural weapon for the mammoth
-            var weapon = new Weapon(WeaponType.Horns, WeaponMaterial.Organic, "Mammoth Tusks", 100)
+            var weapon = new Weapon(WeaponType.Horns, WeaponMaterial.Organic, "Tusks", 100)
             {
                 Damage = 35,
                 Accuracy = 0.7
@@ -270,7 +270,7 @@ namespace text_survival.Actors
             };
 
             // Create a hunting spear
-            var weapon = new Weapon(WeaponType.Spear, WeaponMaterial.Wood, "Hunter's Wooden Spear", 75)
+            var weapon = new Weapon(WeaponType.Spear, WeaponMaterial.Wood, "Wooden Spear", 75)
             {
                 Damage = 8,
                 Accuracy = 1.2
@@ -299,7 +299,7 @@ namespace text_survival.Actors
             };
 
             // Create a war club
-            var weapon = new Weapon(WeaponType.Club, WeaponMaterial.Stone, "Warrior's War-Club", 80)
+            var weapon = new Weapon(WeaponType.Club, WeaponMaterial.Stone, "War-Club", 80)
             {
                 Damage = 12,
                 Accuracy = 0.9

@@ -10,7 +10,7 @@ public class PickUpItem(Item item) : GameActionBase($"Pick up {item.Name}")
 
     protected override List<IGameAction> GetNextActions(GameContext ctx)
     {
-        return [];
+        return [new LookAround(ctx.player.CurrentLocation)];
     }
 
     protected override void OnExecute(GameContext ctx)
@@ -19,7 +19,7 @@ public class PickUpItem(Item item) : GameActionBase($"Pick up {item.Name}")
         if (npc != null && Combat.SpeedCheck(ctx.player, npc))
         {
             Output.WriteLine("You couldn't get past the ", npc, "!");
-            NextActionOverride = new FightNpc(npc);
+            NextActionOverride = new StartCombatAction(npc);
             return;
         }
         ctx.player.TakeItem(item);

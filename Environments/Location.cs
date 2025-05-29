@@ -32,7 +32,7 @@ public class Location
     {
         for (int i = 0; i < numNpcs; i++)
         {
-            var npc = NpcSpawner.GenerateRandomNpc();
+            var npc = NpcSpawner.GenerateRandom();
             if (npc is not null)
             {
                 _npcs.Add(npc);
@@ -40,7 +40,7 @@ public class Location
             }
         }
     }
-    protected virtual NpcSpawner NpcSpawner { get; }
+    public virtual NpcTable NpcSpawner { get; set; }
 
 
     #endregion Initialization

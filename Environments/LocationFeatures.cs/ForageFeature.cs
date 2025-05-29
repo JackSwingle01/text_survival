@@ -1,4 +1,5 @@
-﻿using text_survival.Items;
+﻿using text_survival.IO;
+using text_survival.Items;
 
 namespace text_survival.Environments;
 
@@ -22,6 +23,7 @@ public class ForageFeature(Location location, double resourceDensity = 1) : Loca
                 if (Utils.DetermineSuccess(chance))
                 {
                     var item = factory();
+                    Output.Write("You found: ", item);
                     item.IsFound = true;
                     ParentLocation.Items.Add(item);
                     numberOfHoursForaged++;

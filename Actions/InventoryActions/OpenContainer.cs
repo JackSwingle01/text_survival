@@ -26,7 +26,7 @@ public class OpenContainer(Container container) : GameActionBase($"Look in {cont
         if (npc != null && Combat.SpeedCheck(ctx.player, npc))
         {
             Output.WriteLine("You couldn't get past the ", npc, "!");
-            NextActionOverride = new FightNpc(npc);
+            NextActionOverride = new StartCombatAction(npc);
             return;
         }
 

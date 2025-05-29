@@ -1,7 +1,5 @@
 using text_survival.Actors;
-using text_survival.IO;
 using text_survival.Items;
-using text_survival.Survival;
 
 namespace text_survival.Environments;
 
@@ -56,9 +54,10 @@ public static class LocationFactory
         NpcTable npcSpawner = new NpcTable();
         npcSpawner.AddActor(NpcFactory.MakeWolf, 3.0);   // Common
         npcSpawner.AddActor(NpcFactory.MakeBear, 1.0);   // Rare
+        location.NpcSpawner = npcSpawner;
 
         // Determine if we should add NPCs initially (40% chance)
-        if (Utils.RandInt(0, 9) < 4)
+        if (Utils.DetermineSuccess(.5))
         {
             // Add 1-2 NPCs from the spawner
             int npcCount = Utils.RandInt(1, 2);
@@ -119,6 +118,7 @@ public static class LocationFactory
         npcSpawner.AddActor(NpcFactory.MakeSnake, 1.0);
         npcSpawner.AddActor(NpcFactory.MakeBat, 4.0);
         npcSpawner.AddActor(NpcFactory.MakeCaveBear, 0.5);
+        location.NpcSpawner = npcSpawner;
 
         // Determine if we should add NPCs initially (50% chance)
         if (Utils.RandInt(0, 9) < 5)
@@ -180,6 +180,7 @@ public static class LocationFactory
         NpcTable npcSpawner = new NpcTable();
         npcSpawner.AddActor(NpcFactory.MakeWolf, 2.0);   // Predators come to water
         npcSpawner.AddActor(NpcFactory.MakeBear, 1.0);   // Bears fish at rivers
+        location.NpcSpawner = npcSpawner;
 
         // Determine if we should add NPCs initially (30% chance)
         if (Utils.DetermineSuccess(.3))
@@ -238,9 +239,10 @@ public static class LocationFactory
         npcSpawner.AddActor(NpcFactory.MakeWolf, 3.0);               // Common
         npcSpawner.AddActor(NpcFactory.MakeWoollyMammoth, 0.5);      // Rare but possible
         npcSpawner.AddActor(NpcFactory.MakeSaberToothTiger, 0.7);    // Uncommon
+        location.NpcSpawner = npcSpawner;
 
         // Determine if we should add NPCs initially (40% chance)
-        if (Utils.RandInt(0, 9) < 4)
+        if (Utils.DetermineSuccess(.4))
         {
             location.SpawnNpcs(1);
         }
@@ -296,9 +298,10 @@ public static class LocationFactory
         NpcTable npcSpawner = new NpcTable();
         npcSpawner.AddActor(NpcFactory.MakeWolf, 1.0);
         npcSpawner.AddActor(NpcFactory.MakeSnake, 2.0);    // Snakes like rocky areas
+        location.NpcSpawner = npcSpawner;
 
         // Determine if we should add NPCs initially (30% chance)
-        if (Utils.RandInt(0, 9) < 3)
+        if (Utils.DetermineSuccess(.3))
         {
             location.SpawnNpcs(1);
         }

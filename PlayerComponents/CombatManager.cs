@@ -154,15 +154,15 @@ public class CombatManager
         // Add weapon-specific effect descriptions
         if (Owner.ActiveWeapon.Class == WeaponClass.Blade && damage > 10)
         {
-            Output.WriteLine("BloodW sprays from the wound!");
+            Output.WriteDanger("Blood sprays from the wound!");
         }
         else if (Owner.ActiveWeapon.Class == WeaponClass.Blunt && damage > 12)
         {
-            Output.WriteLine("You hear a sickening crack!");
+            Output.WriteDanger("You hear a sickening crack!");
         }
         else if (Owner.ActiveWeapon.Class == WeaponClass.Pierce && damage > 15)
         {
-            Output.WriteLine("The attack pierces deep into the flesh!");
+            Output.WriteDanger("The attack pierces deep into the flesh!");
         }
 
         Owner._skillRegistry.AddExperience("Fighting", 1);

@@ -1,9 +1,7 @@
-﻿using text_survival.Environments;
-using text_survival.IO;
+﻿
 using text_survival.Items;
 using text_survival.Level;
 using text_survival.Bodies;
-using text_survival.Events;
 
 namespace text_survival.Actors
 {
@@ -41,25 +39,6 @@ namespace text_survival.Actors
         }
 
         #endregion
-
-
-        #region IInteractable Interface Implementation
-
-        public void Interact(Player player)
-        {
-            if (IsAlive)
-            {
-                Combat.CombatLoop(player, this);
-            }
-            else
-            {
-               
-            }
-        }
-
-        #endregion
-
-
 
         #region Inventory and Loot Methods
 

@@ -12,7 +12,7 @@ public class LookAround(Location location) : GameActionBase($"Look around {locat
         var actions = new List<IGameAction>();
         foreach (Npc npc in location.Npcs)
         {
-            actions.Add(new FightNpc(npc));
+            actions.Add(new StartCombatAction(npc));
             actions.Add(new LootNpc(npc));
         }
         foreach (Item item in location.Items)

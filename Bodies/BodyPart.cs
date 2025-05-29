@@ -135,7 +135,7 @@ public class BodyPart
 
     public BodyPart? Damage(DamageInfo damageInfo)
     {
-        if (IsDestroyed) return null;
+        if (IsDestroyed) return this;
 
         if (damageInfo.TargetPart == null)
         {
