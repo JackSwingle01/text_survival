@@ -1,4 +1,5 @@
-﻿using text_survival.IO;
+﻿using System.Formats.Asn1;
+using text_survival.IO;
 
 namespace text_survival.Bodies;
 
@@ -282,14 +283,18 @@ public class BodyPart
         if (IsDestroyed)
         {
             Health = 0;
-            if (IsVital && Parent != null)
+            if (Parent != null)
             {
+                if (IsVital)
+                {
+                    damageAmount = 999;
+                }
                 var criticalDamage = new DamageInfo
                 {
-                    Amount = Parent.MaxHealth * 0.5,
-                    Type = "critical",
+                    Amount = damageAmount * 0.5,
+                    Type = "adjacent",
                     Source = damageInfo.Source,
-                    IsPenetrating = true // Critical damage always penetrates
+                    IsPenetrating = true 
                 };
                 Parent.Damage(criticalDamage);
             }
