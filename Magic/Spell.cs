@@ -28,6 +28,10 @@ public class Spell
         target.ApplyEffect(Effect);
     }
 
+    public override string ToString()
+    {
+        return Name;
+    }
 
 
 }

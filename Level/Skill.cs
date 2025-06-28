@@ -40,7 +40,5 @@ namespace text_survival.Level
             Output.Write(this, ": ", Level, " (", Xp, "/", LevelUpThreshold, ")");
         }
 
-
-
     }
 }

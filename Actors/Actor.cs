@@ -33,8 +33,6 @@ public abstract class Actor
         };
         Body.Update(TimeSpan.FromMinutes(1), context);
     }
-
-    public SkillRegistry _skillRegistry { get; init; }
     public Body Body { get; init; }
     protected EffectRegistry _effectRegistry { get; init; }
     protected CombatManager combatManager { get; init; }
@@ -45,7 +43,6 @@ public abstract class Actor
     {
         Name = name;
         _effectRegistry = new EffectRegistry(this);
-        _skillRegistry = new SkillRegistry();
         this.combatManager = new CombatManager(this);
         Body = new Body(Name, stats, _effectRegistry);
     }

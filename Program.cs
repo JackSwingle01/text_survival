@@ -37,7 +37,7 @@ namespace text_survival
             EventBus.Subscribe(new BodyColdEventHandler());
 
 
-            var defaultAction = new DefaultAction();
+            var defaultAction = ActionFactory.Common.MainMenu();
             while (true)
             {
                 var context = new GameContext(player); // todo need to update the location context

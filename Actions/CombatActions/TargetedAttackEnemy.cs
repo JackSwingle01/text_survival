@@ -8,13 +8,13 @@ public class TargetedAttackEnemy(Npc enemy) : GameActionBase($"Targeted Attack {
 {
     public override bool IsAvailable(GameContext ctx)
     {
-        return ctx.player._skillRegistry.GetLevel("Fighting") > 1;
+        return ctx.player.Skills.Fighting.Level > 1;
     }
     protected override List<IGameAction> GetNextActions(GameContext ctx) => [new EnemyCombatTurn(enemy), new EndCombatAction(enemy)];
 
     protected override void OnExecute(GameContext ctx)
     {
-        int fightingSkill = ctx.player._skillRegistry.GetLevel("Fighting");
+        int fightingSkill = ctx.player.Skills.Fighting.Level;
         string? targetPart = SelectTargetPart(enemy, fightingSkill);
         if (targetPart != null)
         {

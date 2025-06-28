@@ -1,59 +1,68 @@
-﻿
-using text_survival.IO;
+﻿using text_survival.IO;
 
 namespace text_survival.Level
 {
     public class SkillRegistry
     {
-        private readonly Dictionary<string, Skill> skills;
+        public Skill Fighting { get; private set; }
+        public Skill Endurance { get; private set; }
+        public Skill Reflexes { get; private set; }
+        public Skill Defense { get; private set; }
+        public Skill Hunting { get; private set; }
+        public Skill Toolmaking { get; private set; }
+        public Skill Foraging { get; private set; }
+        public Skill Firecraft { get; private set; }
+        public Skill Mending { get; private set; }
+        public Skill Healing { get; private set; }
+        public Skill Magic { get; private set; }
 
-        public SkillRegistry(bool fullSkills = true)
+        public SkillRegistry()
         {
-            skills = [];
-            if (fullSkills)
-            {
-                skills.Add("Fighting", new Skill("Fighting"));
-                skills.Add("Endurance", new Skill("Endurance"));
-                skills.Add("Agility", new Skill("Reflexes"));
-                skills.Add("Defense", new Skill("Defense"));
-                
-                skills.Add("Hunting", new Skill("Hunting"));
-                skills.Add("Toolmaking", new Skill("Toolmaking"));
-                skills.Add("Foraging", new Skill("Foraging"));
-                skills.Add("Firecraft", new Skill("Firecraft"));
-                skills.Add("Mending", new Skill("Mending"));
-                skills.Add("Healing", new Skill("Healing"));
-                skills.Add("Shamanism", new Skill("Shamanism"));
-            }
-            else
-            {
-                skills.Add("Melee", new Skill("Fighting"));
-                skills.Add("Endurance", new Skill("Endurance"));
-                skills.Add("Agility", new Skill("Reflexes"));
-                skills.Add("Defense", new Skill("Defense"));
-            }
+            Fighting = new Skill("Fighting");
+            Endurance = new Skill("Endurance");
+            Reflexes = new Skill("Reflexes");
+            Defense = new Skill("Defense");
+            Hunting = new Skill("Hunting");
+            Toolmaking = new Skill("Toolmaking");
+            Foraging = new Skill("Foraging");
+            Firecraft = new Skill("Firecraft");
+            Mending = new Skill("Mending");
+            Healing = new Skill("Healing");
+            Magic = new Skill("Shamanism");
         }
-
-        public void AddExperience(string skillName, int xp)
-        {
-            if (skills.ContainsKey(skillName))
-                skills[skillName].GainExperience(xp);
-        }
-
-        public int GetLevel(string skillName) => skills.TryGetValue(skillName, out Skill? value) ? value.Level : 1;
-
-        public Skill? GetSkill(string skillName) => skills.TryGetValue(skillName, out Skill? value) ? value : null;
 
         public void Describe()
         {
             Output.WriteLine("\nSkills:");
-            foreach (var skill in skills.Values)
+
+            var allSkills = new[] { Fighting, Endurance, Reflexes, Defense, Hunting, Toolmaking, Foraging, Firecraft, Mending, Healing, Magic };
+
+            foreach (var skill in allSkills)
             {
                 if (skill.Level > 0)
                 {
                     Output.WriteLine($"{skill.Name}: {skill.Level} ({skill.Xp}/{skill.LevelUpThreshold})");
                 }
             }
+        }
+
+        public Skill GetSkill(string skillName)
+        {
+            return skillName switch
+            {
+                "Fighting" => Fighting,
+                "Endurance" => Endurance,
+                "Reflexes" => Reflexes,
+                "Defense" => Defense,
+                "Hunting" => Hunting,
+                "Toolmaking" => Toolmaking,
+                "Foraging" => Foraging,
+                "Firecraft" => Firecraft,
+                "Mending" => Mending,
+                "Healing" => Healing,
+                "Magic" => Magic,
+                _ => throw new ArgumentException($"Skill {skillName} does not exist.")
+            };
         }
     }
 }

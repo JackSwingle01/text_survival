@@ -49,15 +49,3 @@ public abstract class GameActionBase(string name) : IGameAction
     public override string ToString() => Name;
 }
 
-public class ReturnAction(string name = "Back") : GameActionBase(name)
-{
-    protected override List<IGameAction> GetNextActions(GameContext ctx)
-    {
-        return [];
-    }
-
-    protected override void OnExecute(GameContext ctx)
-    {
-        return;
-    }
-}

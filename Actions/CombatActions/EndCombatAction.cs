@@ -19,6 +19,7 @@ public class EndCombatAction(Npc enemy) : GameActionBase("End Combat")
         if (!ctx.player.IsAlive)
         {
             Output.WriteDanger("Your vision fades to black as you collapse... You have died!");
+            Environment.Exit(0);
         }
         else if (!enemy.IsAlive)
         {
@@ -32,7 +33,7 @@ public class EndCombatAction(Npc enemy) : GameActionBase("End Combat")
             // Calculate experience based on enemy difficulty
             int xpGain = CalculateExperienceGain();
             Output.WriteLine($"You've gained {xpGain} fighting experience!");
-            ctx.player._skillRegistry.AddExperience("Fighting", xpGain);
+            ctx.player.Skills.Fighting.GainExperience(xpGain); 
         }
     }
     protected override List<IGameAction> GetNextActions(GameContext ctx) => [];

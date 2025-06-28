@@ -16,7 +16,7 @@ public class PlayerCombatTurnAction(Npc enemy) : GameActionBase("Player Turn")
     }
     protected override List<IGameAction> GetNextActions(GameContext ctx)
     {
-        return [new AttackEnemy(enemy), new TargetedAttackEnemy(enemy), new CastSpell(enemy), new FleeCombat(enemy)];
+        return [new AttackEnemy(enemy), new TargetedAttackEnemy(enemy), new SelectSpell(enemy), new FleeCombat(enemy)];
     }
     private static void DisplayCombatStatus(Player player, Actor enemy)
     {

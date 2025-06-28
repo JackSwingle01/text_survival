@@ -1,7 +1,13 @@
 P1 - Implement Next
 
+Make actions system airtight 
+Look over ways to make effects more robust
+Rebalance weather effects
+Make weather system more object based
+Make less items on the ground in new areas
 Improve Combat - More dynamic, more choices, affected by game, location, and body state, descriptions
 Crafting system - give things to do with foraged resources
+Shelter building - Build shelter locations as sub locations to existing ones
 Fire Management - Craft to add to location for warmth bonus
 Add hunting - outside of combat to engage animals (with chance to trigger combat or flee)
 Non hostile animals - animals that can be interacted with outside of combat (see hunting)
@@ -19,7 +25,6 @@ Polish IO - Rich atmospheric descriptions
 Tracking System - Skill-based hunting mechanics
 Weather System - Dynamic conditions affecting gameplay
 Enhanced Actions System - Time, calorie, stamina costs
-Shelter building - Build shelter locations as sub locations to existing ones
 Redesigned Skill System - Survival-focused progression
 Advanced Nutrition System - Protein, fat, carbohydrate tracking
 Parasites and Illness - Environmental health threats

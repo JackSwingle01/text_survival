@@ -1,4 +1,4 @@
-﻿using System.Text;
+﻿using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Items;
@@ -7,46 +7,39 @@ namespace text_survival.IO
 {
     public static class Output
     {
-        public static int SleepTime = 20;
-        public static Queue<string> OutputQueue = new Queue<string>();
-
+        public static int SleepTime = 200;
         public static ConsoleColor DetermineTextColor(object x)
         {
             return x switch
             {
-                string => ConsoleColor.Gray,
+                string => ConsoleColor.White,
                 int or float or double => ConsoleColor.Green,
                 Npc => ConsoleColor.Red,
                 Item => ConsoleColor.Cyan,
                 Container => ConsoleColor.Yellow,
                 Player => ConsoleColor.Green,
                 Zone => ConsoleColor.Blue,
-                Location => ConsoleColor.DarkYellow,
-                Enum => ConsoleColor.White,
+                Location => ConsoleColor.DarkBlue,
+                Enum => ConsoleColor.Gray,
+                IGameAction => ConsoleColor.White,
                 null => ConsoleColor.Red,
-                _ => ConsoleColor.White,
+                _ => ConsoleColor.Red,
             };
         }
 
         public static void Write(params object[] args)
         {
-
-            if (Config.io == Config.IOType.Console)
+            foreach (var arg in args)
             {
-                foreach (var arg in args)
+                string text = GetFormattedText(arg);
+                if (Console.ForegroundColor == ConsoleColor.White)
                 {
-                    string text = GetFormattedText(arg);
                     Console.ForegroundColor = DetermineTextColor(arg);
-                    Console.Write(text);
-                    Thread.Sleep(SleepTime);
                 }
+                Console.Write(text);
+                Console.ForegroundColor = ConsoleColor.White;
+                Thread.Sleep(SleepTime);
             }
-            else if (Config.io == Config.IOType.Web)
-            {
-                throw new NotImplementedException();
-                //EventHandler.Publish(new WriteEvent(text));
-            }
-
         }
 
         private static string GetFormattedText(params object[] args)

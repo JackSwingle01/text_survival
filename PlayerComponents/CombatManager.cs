@@ -18,7 +18,13 @@ public class CombatManager
     {
         // base weapon and skill
         double baseDamage = Owner.ActiveWeapon.Damage;
-        double skillBonus = Owner._skillRegistry.GetLevel("Fighting");
+        
+        
+        double skillBonus = 0;
+        if (Owner is Player player)
+        {
+            skillBonus = player.Skills.Fighting.Level;
+        }
 
         // modifiers
         double strengthModifier = (Owner.Body.CalculateStrength() / 2) + .5; // str determines up to 50%
@@ -36,7 +42,11 @@ public class CombatManager
 
     public double DetermineDodgeChance(Actor target)
     {
-        double dodgeLevel = target._skillRegistry != null ? target._skillRegistry.GetLevel("Reflexes") : 0;
+
+        double dodgeLevel = 0;
+        if (target is Player player)
+            dodgeLevel = player.Skills.Reflexes.Level;
+
         double baseDodge = dodgeLevel / 100;
         double speedDiff = target.Body.CalculateSpeed() - Owner.Body.CalculateSpeed();
         double chance = baseDodge + speedDiff;
@@ -70,7 +80,9 @@ public class CombatManager
 
     public bool DetermineBlock(Actor target)
     {
-        double blockLevel = target._skillRegistry != null ? target._skillRegistry.GetLevel("Defense") : 0;
+        double blockLevel = 0;
+        if (target is Player player)
+            blockLevel = player.Skills.Defense.Level;
         double skillBonus = blockLevel / 100;
         double attributeAvg = target.Body.CalculateStrength(); // todo 
         double blockAtbAvg = target.ActiveWeapon.BlockChance + attributeAvg / 2;
@@ -165,7 +177,10 @@ public class CombatManager
             Output.WriteDanger("The attack pierces deep into the flesh!");
         }
 
-        Owner._skillRegistry.AddExperience("Fighting", 1);
+        if (target is Player player)
+        {
+            player.Skills.Fighting.GainExperience(1);
+        }
         Thread.Sleep(1000);
     }
 

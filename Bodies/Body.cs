@@ -27,6 +27,7 @@ public class Body
     public double Health => _rootPart.Health;
     public double MaxHealth => _rootPart.MaxHealth;
     public bool IsDestroyed => _rootPart.IsDestroyed;
+    public bool IsTired => _exhaustionModule.ExhaustionPercent > 25;
 
     public readonly EffectRegistry EffectRegistry;
     private readonly HungerModule _hungerModule;

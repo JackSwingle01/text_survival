@@ -3,7 +3,7 @@ using text_survival.Environments;
 
 namespace text_survival;
 
-public static class Combat
+public static class CombatUtils
 {
     public static bool SpeedCheck(Player player, Actor enemy)
     {
@@ -37,7 +37,11 @@ public static class Combat
 
     public static double CalcSpeedCheck(Actor actor)
     {
-        double athleticsBonus = actor._skillRegistry.GetLevel("Agility");
+        double athleticsBonus = 0;
+        if (actor is Player player)
+        {
+            athleticsBonus = player.Skills.Reflexes.Level;
+        }
         return actor.Body.CalculateSpeed() + athleticsBonus;
     }
 }

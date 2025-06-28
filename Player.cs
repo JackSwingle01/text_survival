@@ -4,6 +4,8 @@ using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Items;
+using text_survival.Level;
+using text_survival.Magic;
 using text_survival.PlayerComponents;
 
 
@@ -11,11 +13,10 @@ namespace text_survival;
 
 public class Player : Actor
 {
-
     private readonly LocationManager locationManager;
-    private readonly SpellManager spellManager;
     public readonly InventoryManager inventoryManager;
-
+    public readonly SkillRegistry Skills;
+    public readonly List<Spell> _spells = [SpellFactory.Bleeding, SpellFactory.Poison, SpellFactory.MinorHeal];
 
     public override void Update()
     {
@@ -60,8 +61,8 @@ public class Player : Actor
     {
         Name = "Player";
         locationManager = new LocationManager(startingLocation);
-        spellManager = new(_skillRegistry);
         inventoryManager = new(_effectRegistry);
+        Skills = new SkillRegistry();
     }
 
 
@@ -70,27 +71,14 @@ public class Player : Actor
     public void DropItem(Item item)
     {
         inventoryManager.RemoveFromInventory(item);
-        Output.WriteLine("You drop the ", item);
         locationManager.AddItemToLocation(item);
     }
 
     public void TakeItem(Item item)
     {
         locationManager.RemoveItemFromLocation(item);
-        Output.WriteLine("You take the ", item);
         inventoryManager.AddToInventory(item);
     }
-
-    public void SelectSpell()
-    {
-        List<Actor> targets = [this];
-        foreach (var npc in CurrentLocation.Npcs)
-        {
-            targets.Add(npc);
-        }
-        spellManager.SelectSpell(targets);
-    }
-
 
 
     // public override BodyPart? Damage(DamageInfo damageInfo)
@@ -194,7 +182,7 @@ public class Player : Actor
         return true;
     }
 
-    
+
     public void Travel() => locationManager.TravelToAdjacentZone();
 }
 

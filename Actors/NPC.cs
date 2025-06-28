@@ -1,6 +1,5 @@
 ﻿
 using text_survival.Items;
-using text_survival.Level;
 using text_survival.Bodies;
 
 namespace text_survival.Actors
@@ -33,8 +32,6 @@ namespace text_survival.Actors
             Description = "";
             IsHostile = true;
             ActiveWeapon = weapon;
-
-            _skillRegistry = new SkillRegistry(false);
             Loot = new Container(name, 10);
         }
 
