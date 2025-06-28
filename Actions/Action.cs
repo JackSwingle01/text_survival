@@ -21,13 +21,13 @@ public abstract class GameActionBase(string name) : IGameAction
 
     protected abstract void OnExecute(GameContext ctx);
     protected abstract List<IGameAction> GetNextActions(GameContext ctx);
-    protected IGameAction? NextActionOverride = null;
 
     private void SelectNextAction(GameContext ctx)
     {
-        if (NextActionOverride != null)
+        if (ctx.NextActionOverride != null)
         {
-            NextActionOverride.Execute(ctx);
+            ctx.NextActionOverride.Execute(ctx);
+            ctx.NextActionOverride = null;
             return;
         }
 
