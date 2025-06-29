@@ -20,7 +20,7 @@ public class TemperatureInjury : Effect
     // Store environment data to use in OnUpdate
     private double _environmentalTemperature;
 
-    public TemperatureInjury(TemperatureInjuryType type, string source, BodyPart? bodyPart, double severity)
+    public TemperatureInjury(TemperatureInjuryType type, string source, MajorBodyPart? bodyPart, double severity)
         : base(type.ToString(), source, bodyPart, severity, GetSeverityChangeRate(type))
     {
         InjuryType = type;
@@ -86,29 +86,29 @@ public class TemperatureInjury : Effect
         switch (InjuryType)
         {
             case TemperatureInjuryType.Burn:
-                CapacityModifiers["Manipulation"] = -0.4 * Severity;
-                CapacityModifiers["Moving"] = -0.1 * Severity;
-                CapacityModifiers["BloodPumping"] = -0.1 * Severity; // Fluid loss
+                CapacityModifiers.Manipulation = 1 - (0.4 * Severity);
+                CapacityModifiers.Moving = 1 - (0.1 * Severity);
+                CapacityModifiers.BloodPumping = 1 - (0.1 * Severity); // Fluid loss
                 break;
 
             case TemperatureInjuryType.Frostbite:
-                CapacityModifiers["Manipulation"] = -0.5 * Severity;
-                CapacityModifiers["Moving"] = -0.5 * Severity;
-                CapacityModifiers["BloodPumping"] = -0.2 * Severity; // Reduced circulation
+                CapacityModifiers.Manipulation = 1 - (0.5 * Severity);
+                CapacityModifiers.Moving = 1 - (0.5 * Severity);
+                CapacityModifiers.BloodPumping = 1 - (0.2 * Severity); // Reduced circulation
                 break;
 
             case TemperatureInjuryType.Hypothermia:
-                CapacityModifiers["Moving"] = -0.3 * Severity;
-                CapacityModifiers["Manipulation"] = -0.3 * Severity;
-                CapacityModifiers["Consciousness"] = -0.5 * Severity;
-                CapacityModifiers["BloodPumping"] = -0.2 * Severity;
+                CapacityModifiers.Moving = 1 - (0.3 * Severity);
+                CapacityModifiers.Manipulation = 1 - (0.3 * Severity);
+                CapacityModifiers.Consciousness = 1 - (0.5 * Severity);
+                CapacityModifiers.BloodPumping = 1 - (0.2 * Severity);
                 break;
 
             case TemperatureInjuryType.Hyperthermia:
-                CapacityModifiers["Consciousness"] = -0.5 * Severity;
-                CapacityModifiers["Moving"] = -0.3 * Severity;
-                CapacityModifiers["BloodPumping"] = -0.2 * Severity;
-                CapacityModifiers["BloodFiltration"] = -0.2 * Severity; // Kidney strain
+                CapacityModifiers.Consciousness = 1 - (0.5 * Severity);
+                CapacityModifiers.Moving = 1 - (0.3 * Severity);
+                CapacityModifiers.BloodPumping = 1 - (0.2 * Severity);
+                // CapacityModifiers.BloodFiltration = 1 - (0.2 * Severity); // Kidney strain
                 break;
         }
     }

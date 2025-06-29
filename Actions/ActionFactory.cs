@@ -335,7 +335,7 @@ public static class ActionFactory
             .Do(ctx =>
             {
                 int fightingSkill = ctx.player.Skills.Fighting.Level;
-                string? targetPart = SelectTargetPart(enemy, fightingSkill);
+                var targetPart = SelectTargetPart(enemy, fightingSkill);
                 if (targetPart != null)
                 {
                     ctx.player.Attack(enemy, targetPart);
@@ -348,7 +348,7 @@ public static class ActionFactory
             .ThenShow(ctx => [EnemyCombatTurn(enemy), EndCombat(enemy)])
             .Build();
         }
-        private static string? SelectTargetPart(Actor enemy, int depth)
+        private static IBodyPart? SelectTargetPart(Actor enemy, int depth)
         {
             if (depth <= 0)
             {
@@ -357,15 +357,28 @@ public static class ActionFactory
             }
             Output.WriteLine($"Where do you want to target your attack on the {enemy.Name}?");
 
-            // Group body parts by region for better organization
-            var allParts = enemy.Body.GetPartsToNDepth(depth)!;
+            List<IBodyPart> allParts = [];
 
-            BodyPart? choice = Input.GetSelectionFromList(allParts, true);
+            foreach (var part in enemy.Body.Parts)
+            {
+                if (depth > 0)
+                    allParts.Add(part);
+                if (depth > 1)
+                    allParts.Add(part.Skin);
+                if (depth > 2)
+                    allParts.Add(part.Muscle);
+                if (depth > 3)
+                    allParts.Add(part.Bone);
+                if (depth > 4)
+                    allParts.AddRange(part.Organs);
+            }
+
+            IBodyPart? choice = Input.GetSelectionFromList(allParts, true);
             if (choice == null)
                 return null;
 
             // todo return part itself
-            return choice.Name;
+            return choice;
         }
 
         public static IGameAction EndCombat(Npc enemy)
@@ -543,7 +556,7 @@ public static class ActionFactory
             .Do(ctx =>
             {
                 int magicSkill = ctx.player.Skills.Magic.Level;
-                BodyPart? targetPart = SelectSpellTargetPart(target, magicSkill);
+                MajorBodyPart? targetPart = SelectSpellTargetPart(target, magicSkill);
                 if (targetPart != null)
                 {
                     spell.Cast(target, targetPart);
@@ -557,18 +570,18 @@ public static class ActionFactory
             .Build();
         }
 
-        private static BodyPart? SelectSpellTargetPart(Actor target, int depth)
-        {
-            if (depth <= 0)
-            {
-                Output.WriteWarning("You don't have enough magical skill to target a specific body part");
-                return null;
-            }
+        // private static MajorBodyPart? SelectSpellTargetPart(Actor target, int depth)
+        // {
+        //     if (depth <= 0)
+        //     {
+        //         Output.WriteWarning("You don't have enough magical skill to target a specific body part");
+        //         return null;
+        //     }
 
-            Output.WriteLine($"Select a part to target on the {target.Name}:");
-            var parts = target.Body.GetPartsToNDepth(depth);
-            return Input.GetSelectionFromList(parts, true);
-        }
+        //     Output.WriteLine($"Select a part to target on the {target.Name}:");
+        //     var parts = target.Body.GetPartsToNDepth(depth);
+        //     return Input.GetSelectionFromList(parts, true);
+        // }
     }
 
 

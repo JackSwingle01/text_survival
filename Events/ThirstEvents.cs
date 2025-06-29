@@ -1,5 +1,6 @@
 using text_survival.Actors;
 using text_survival.Bodies;
+using text_survival.Effects;
 using text_survival.IO;
 
 namespace text_survival.Events;
@@ -23,14 +24,15 @@ public class DehydrationEventHandler : IEventHandler<DehydrationEvent>
             Output.WriteWarning($"{gameEvent.Target.Name} is still dehydrated.\n");
 
         }
-        var target = gameEvent.Target;
-        var damage = new DamageInfo()
-        {
-            Amount = 1,
-            Type = "dehydration",
-            IsPenetrating = true
-        };
-        target.Damage(damage);
+        var effect = EffectBuilderExtensions.CreateEffect("Dehydration")
+        .CausesDehydration(1)
+        .ReducesCapacity(CapacityNames.Consciousness, .2) // head ache
+        .ReducesCapacity(CapacityNames.BloodPumping, .1) // low fluids
+        .ReducesCapacity(CapacityNames.Digestion, .4) // low fluids
+        .ReducesCapacity(CapacityNames.Moving, .05) // sluggish
+        .ReducesCapacity(CapacityNames.Breathing, .1) // dry throat
+        .Build();
+        gameEvent.Target.ApplyEffect(effect);
     }
 }
 

@@ -53,7 +53,7 @@ namespace text_survival.Items
                 {
                     Amount = strength,
                     Type = "herbal",
-                    TargetPart = targetOrgan,
+                    TargetOrgan = targetOrgan,
                     Quality = Utils.RandDouble(0, 1.5)
                 };
             }
@@ -64,7 +64,7 @@ namespace text_survival.Items
                     Amount = strength * .66,
                     IsPenetrating = true,
                     Type = "poison",
-                    TargetPart = targetOrgan,
+                    TargetOrgan = targetOrgan,
                     Accuracy = 1,
                 };
             }
@@ -253,7 +253,7 @@ namespace text_survival.Items
                     Amount = 15,
                     Type = "herbal",
                     Quality = 0.7,
-                    TargetPart = null
+                    TargetOrgan = null
                 }
             };
             return herbs;

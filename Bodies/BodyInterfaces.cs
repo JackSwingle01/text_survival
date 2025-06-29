@@ -3,35 +3,36 @@ namespace text_survival.Bodies;
 
 
 // Comprehensive damage information
+
+public enum DamageType
+{
+    Blunt,
+    Sharp,
+    Pierce,
+    Poison,
+    Bleed,
+    
+}
 public class DamageInfo
 {
     public DamageInfo() { }
     public DamageInfo(double amount,
-                      string type = "physical",
+                      DamageType type = DamageType.Blunt,
                       string? source = null,
-                      string? targetPart = null,
-                      bool isPenetrating = false,
-                      bool isBlunt = false,
-                      bool isSharp = false,
+                      IBodyPart? targetPart = null,
                       double accuracy = .9)
     {
         Amount = amount;
         Type = type;
         Source = source;
         TargetPart = targetPart;
-        IsPenetrating = isPenetrating;
-        IsBlunt = isBlunt;
-        IsSharp = isSharp;
         Accuracy = accuracy;
     }
 
     public double Amount { get; set; }
-    public string Type { get; set; } = "physical"; // physical, thermal, poison, etc.
+    public DamageType Type { get; set; } = DamageType.Blunt;
     public string? Source { get; set; }
-    public string? TargetPart { get; set; } // Optional specific target
-    public bool IsPenetrating { get; set; } = false;
-    public bool IsSharp { get; set; } = false;
-    public bool IsBlunt { get; set; } = false;
+    public IBodyPart? TargetPart { get; set; }
     public double Accuracy { get; set; } = .9;
 }
 
@@ -41,6 +42,7 @@ public class HealingInfo
     public double Amount { get; set; }
     public string Type { get; set; } = "natural"; // natural, medical, magical
     public string? TargetPart { get; set; }
+    public string? TargetOrgan { get; set; }
     public double Quality { get; set; } = 1.0; // Effectiveness multiplier
     public string? Source { get; set; }
 }

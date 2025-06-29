@@ -1,310 +1,164 @@
-﻿using System.Formats.Asn1;
+﻿using System.ComponentModel.DataAnnotations;
 using text_survival.IO;
 
 namespace text_survival.Bodies;
 
-public class BodyPart
+
+public static class BodyPartNames
+{
+    public const string Head = "Head";
+    public const string Chest = "Chest";
+    public const string Abdomen = "Abdomen";
+    public const string LeftArm = "Left Arm";
+    public const string RightArm = "Right Arm";
+    public const string LeftLeg = "Left Leg";
+    public const string RightLeg = "Right Leg";
+}
+
+
+public class MajorBodyPart(string name, double coverage) : IBodyPart
 {
     // Core properties
-    public string Name { get; }
-    public double Health { get; private set; }
-    public double MaxHealth { get; }
-    public bool IsVital { get; }
-    public bool IsInternal { get; }
-    public bool IsDamaged => Health < MaxHealth;
-    public bool IsDestroyed => Health <= 0;
+    public string Name { get; } = name;
+    public double Coverage { get; set; } = coverage;
 
-    public double Coverage { get; set; } // Percentage of parent this part covers
-    public double EffectiveCoverage { get; private set; }
+    // part makeup
+    public Tissue Skin { get; set; } = new Tissue("Skin");
+    public Tissue Muscle { get; set; } = new Muscle();
+    public Tissue Bone { get; set; } = new Bone();
+    public List<Organ> Organs { get; set; } = [];
 
-    // Hierarchy
-    public BodyPart? Parent { get; private set; }
-    private List<BodyPart> _parts = new();
-    public IReadOnlyList<BodyPart> Parts => _parts.AsReadOnly();
-
-    // Physical state
-    private Dictionary<string, double> _baseCapacities = new();
-
-    public BodyPart(string name, double maxHealth, bool isVital, bool isInternal, double coverage)
-    {
-        Name = name;
-        MaxHealth = maxHealth;
-        Health = maxHealth;
-        IsVital = isVital;
-        IsInternal = isInternal;
-        Coverage = coverage;
-        _baseCapacities = new Dictionary<string, double>();
-    }
-
-    // Capacity management
-    public void SetBaseCapacity(string capacity, double value)
-    {
-        _baseCapacities[capacity] = value;
-    }
-
-    public double GetCapacity(string capacity)
-    {
-        if (!_baseCapacities.TryGetValue(capacity, out double baseValue))
-        {
-            return 0;
-        }
-
-        // Apply health scaling
-        return baseValue * (Health / MaxHealth);
-    }
-
-    public IReadOnlyDictionary<string, double> GetCapacities()
-    {
-        var result = new Dictionary<string, double>();
-        foreach (var pair in _baseCapacities)
-        {
-            result[pair.Key] = GetCapacity(pair.Key);
-        }
-        return result;
-    }
-
-
-    // Hierarchical structure
-    public void AddPart(BodyPart part)
-    {
-        part.Parent = this;
-        _parts.Add(part);
-    }
+    public double Toughness { get; }
+    public double Condition { get; set; }
+    public bool IsDestroyed => Condition <= 0;
 
     public void Heal(HealingInfo healingInfo)
     {
         if (IsDestroyed) return;
 
         // Handle targeted healing
-        if (healingInfo.TargetPart != null && healingInfo.TargetPart != Name)
+        if (healingInfo.TargetOrgan != null)
         {
             // Try to find the targeted part
-            var targetPart = FindPartByName(healingInfo.TargetPart);
-            if (targetPart != null)
+            var organ = Organs.FirstOrDefault(o => o.Name == healingInfo.TargetOrgan);
+
+            if (organ != null)
             {
-                targetPart.Heal(healingInfo);
+                organ.Heal(healingInfo);
                 return;
             }
         }
-
-        // Distribute healing
-        if (_parts.Count > 0 && healingInfo.TargetPart == null)
-        {
-            // Prioritize damaged parts for healing
-            var damagedParts = _parts.Where(p => p.IsDamaged).ToList();
-            if (damagedParts.Count > 0)
-            {
-                damagedParts[Utils.RandInt(0, damagedParts.Count - 1)].Heal(healingInfo);
-                return;
-            }
-
-            // Random distribution if no parts are damaged
-            if (Utils.FlipCoin())
-            {
-                BodyPart p = _parts[Utils.RandInt(0, _parts.Count - 1)];
-                p.Heal(healingInfo);
-                return;
-            }
-        }
-
+        // todo heal skin, bone, muscle
         // Apply healing to this part
         double adjustedAmount = healingInfo.Amount * healingInfo.Quality;
-        Health += adjustedAmount;
-        if (Health > MaxHealth)
-        {
-            Health = MaxHealth;
-        }
+        double newCondition = Math.Min(1, Condition + adjustedAmount);
+        Condition = newCondition;
     }
 
-    public void CalculateEffectiveCoverage()
+    public void TakeDamage(DamageInfo damageInfo)
     {
-        if (Parent == null)
+        if (IsDestroyed) return;
+
+        var targetPart = damageInfo.TargetPart;
+        if (targetPart != null && targetPart != this)
         {
-            EffectiveCoverage = 1.0; // Root part has 100% chance
+            DamageSubPart(targetPart, damageInfo);
             return;
         }
 
-        // My coverage of parent × parent's effective coverage
-        EffectiveCoverage = (Coverage / 100.0) * Parent.EffectiveCoverage;
+        double damage = PenetrateLayers(damageInfo);
+        if (damage <= 0) return;
 
-        // Calculate for all children
-        foreach (var part in _parts)
-        {
-            part.CalculateEffectiveCoverage();
-        }
+        damageInfo.Amount = damage;
+        var hitOrgan = SelectRandomOrganToHit(damageInfo);
+        if (hitOrgan == null) return;
+
+        DamageSubPart(hitOrgan, damageInfo);
     }
 
-    public BodyPart? Damage(DamageInfo damageInfo)
+    private Organ? SelectRandomOrganToHit(DamageInfo damageInfo)
     {
-        if (IsDestroyed) return this;
-
-        if (damageInfo.TargetPart == null)
+        double damage = damageInfo.Amount;
+        // External organs can be hit even with light damage
+        var externalOrgans = Organs.Where(o => o.IsExternal).ToList();
+        if (externalOrgans.Count > 0 && damage > 0)
         {
-            // Standard untargeted damage
-            return DamageUntargeted(damageInfo);
+            return externalOrgans[Random.Shared.Next(externalOrgans.Count)];
         }
 
-        // Handle targeted damage - but still allow for sub-part hits
-        if (damageInfo.TargetPart == Name)
+        // Internal organs need significant penetrating damage
+        var internalOrgans = Organs.Where(o => !o.IsExternal).ToList();
+        if (internalOrgans.Count > 0 && damage > 5) // Threshold for internal damage
         {
-            if (_parts.Count == 0)
-            {
-                ApplyDamage(damageInfo);
-                return this;
-            }
-
-
-            if (Utils.DetermineSuccess(damageInfo.Accuracy))
-            {
-                // Direct hit on the targeted part
-                ApplyDamage(damageInfo);
-                return this;
-            }
-
-            // Even when targeting, there's a chance to hit sub-parts
-            // Higher accuracy for targeted hits - use 75% of normal child coverage
-            var partChances = new Dictionary<BodyPart, double>();
-            double totalChildCoverage = 0;
-
-            foreach (var part in _parts)
-            {
-                // Reduce child coverage to make it more likely to hit the targeted part
-                double adjustedCoverage = part.Coverage * 0.75;
-                partChances[part] = adjustedCoverage;
-                totalChildCoverage += adjustedCoverage;
-            }
-
-            // Add self with remaining coverage - more likely than with random hits
-            double selfCoverage = 100 - totalChildCoverage;
-            partChances[this] = selfCoverage;
-
-            BodyPart hit = Utils.GetRandomWeighted(partChances);
-            if (hit == this)
-            {
-                ApplyDamage(damageInfo);
-                return this;
-            }
-            else
-            {
-                // When hitting a child on a targeted attack, we should
-                // propagate that this was intentional targeting
-                damageInfo.TargetPart = hit.Name; // Update target to child part
-                damageInfo.Accuracy *= 0.8; // Reduce accuracy for child hit
-                return hit.Damage(damageInfo);
-
-            }
+            return internalOrgans[Random.Shared.Next(internalOrgans.Count)];
         }
-        else // Handle targeted damage for a different part (searching)
-        {
-            // Look for the targeted part among children
-            var targetedPart = FindPartByName(damageInfo.TargetPart);
 
-            if (targetedPart != null && Utils.DetermineSuccess(damageInfo.Accuracy)) // chance to miss based on accuracy
-            {
-                // Found the part - propagate damage to it
-                return targetedPart.Damage(damageInfo);
-            }
-
-            // Target not found as a descendant - try to hit this part instead
-            // But with reduced damage since the intended target was missed
-            damageInfo.Amount = damageInfo.Amount * 0.7; // Reduced damage for missing intended target
-            damageInfo.TargetPart = null; // Clear targeting since we're defaulting
-
-            // Process as untargeted hit
-            return DamageUntargeted(damageInfo);
-        }
+        return null; // No organ hit
     }
 
-    // Separate method for untargeted damage distribution
-    private BodyPart? DamageUntargeted(DamageInfo damageInfo)
+    private double PenetrateLayers(DamageInfo damageInfo)
     {
-        // Distribute damage based on coverage
-        if (_parts.Count > 0)
+        DamageType damageType = damageInfo.Type;
+        double damage = damageInfo.Amount;
+        var layers = new[] { Skin, Muscle, Bone }.Where(l => l != null);
+
+        foreach (var layer in layers)
         {
-            // Get all parts with their coverage values
-            var partChances = new Dictionary<BodyPart, double>();
-            double totalChildCoverage = 0;
+            double protection = layer!.GetProtection(damageType);
+            double absorbed = Math.Min(damage * 0.7, protection); // Layer absorbs up to 70% of damage
 
-            foreach (var part in _parts)
-            {
-                partChances[part] = part.Coverage;
-                totalChildCoverage += part.Coverage;
-            }
+            damageInfo.Amount -= absorbed;
 
-            // Add self with remaining coverage
-            double selfCoverage = 100 - totalChildCoverage;
-            partChances[this] = selfCoverage;
+            layer.TakeDamage(damageInfo); // Layer takes damage from absorbing
 
-            BodyPart hit = Utils.GetRandomWeighted(partChances);
-            if (hit == this)
-            {
-                ApplyDamage(damageInfo);
-                return this;
-            }
-            else
-            {
-                return hit.Damage(damageInfo);
-            }
-
+            if (damage <= 0) break;
         }
 
-        // Default if no children or calculation issue
-        ApplyDamage(damageInfo);
-        return this;
+        return Math.Max(0, damage);
     }
 
-    // Helper method to find a part by name in the hierarchy
-    private BodyPart? FindPartByName(string partName)
+    private IBodyPart? DamageSubPart(IBodyPart part, DamageInfo damageInfo)
     {
-        if (Name == partName) return this;
-
-        foreach (var part in _parts)
-        {
-            var foundPart = part.FindPartByName(partName);
-            if (foundPart != null) return foundPart;
-        }
-
-        return null;
+        part.TakeDamage(damageInfo);
+        return part;
     }
 
-    // Method to actually apply damage
-    private void ApplyDamage(DamageInfo damageInfo)
+    public Capacities GetTotalCapacities()
     {
-        // Apply damage reduction for internal parts if damage is not penetrating
-        double damageAmount = damageInfo.Amount;
-        if (IsInternal && !damageInfo.IsPenetrating)
+        // Step 1: Sum all base capacities from organs
+        var baseCapacities = new Capacities();
+        foreach (var organ in Organs)
         {
-            damageAmount *= 0.5; // 50% damage reduction for internal parts
+            baseCapacities += organ.GetBaseCapacities();
         }
 
-        Health -= damageAmount;
-        // Output.WriteLine(this, " took ", damageAmount, " damage");
-        // Handle destruction
-        if (IsDestroyed)
+        // Step 2: Calculate combined material multipliers
+        var baseMultipliers = new Capacities
         {
-            Health = 0;
-            if (Parent != null)
-            {
-                if (IsVital)
-                {
-                    damageAmount = 999;
-                }
-                var criticalDamage = new DamageInfo
-                {
-                    Amount = damageAmount * 0.5,
-                    Type = "adjacent",
-                    Source = damageInfo.Source,
-                    IsPenetrating = true 
-                };
-                Parent.Damage(criticalDamage);
-            }
+            Moving = 1.0,
+            Manipulation = 1.0,
+            Breathing = 1.0,
+            BloodPumping = 1.0,
+            Consciousness = 1.0,
+            Sight = 1.0,
+            Hearing = 1.0,
+            Digestion = 1.0,
+        };
+
+        foreach (var material in new List<ICapacityContributor> { Skin, Muscle, Bone })
+        {
+            var multipliers = material.GetConditionMultipliers();
+            baseMultipliers = baseMultipliers.ApplyMultipliers(multipliers);
         }
+
+        // Step 3: Apply multipliers to base capacities
+        return baseCapacities.ApplyMultipliers(baseMultipliers);
     }
 
     public void Describe()
     {
         // Calculate health percentage
-        int healthPercent = (int)((Health / MaxHealth) * 100);
+        int healthPercent = (int)(Condition * 100);
 
         // Determine damage severity description
         string damageDescription;

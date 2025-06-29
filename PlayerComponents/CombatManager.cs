@@ -1,10 +1,12 @@
 using System.Runtime;
+using Microsoft.VisualBasic;
 using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.IO;
 using text_survival.Items;
 
 namespace text_survival.PlayerComponents;
+
 public class CombatManager
 {
     public CombatManager(Actor owner)
@@ -12,14 +14,11 @@ public class CombatManager
         Owner = owner;
     }
 
-
-
     public double DetermineDamage()
     {
         // base weapon and skill
         double baseDamage = Owner.ActiveWeapon.Damage;
-        
-        
+
         double skillBonus = 0;
         if (Owner is Player player)
         {
@@ -95,13 +94,14 @@ public class CombatManager
         return false;
     }
 
-    public void Attack(Actor target, string? targetedPart=null)
+    public void Attack(Actor target, IBodyPart? targetedPart = null)
     {
         bool isDodged = DetermineDodge(target);
+        string partName = targetedPart?.Name ?? "body";
         if (isDodged)
         {
             // Use our narrator for rich descriptions
-            string description = CombatNarrator.DescribeAttack(Owner, target, 0, targetedPart ?? "body", false, true, false);
+            string description = CombatNarrator.DescribeAttack(Owner, target, 0, partName, false, true, false);
             Output.WriteLine(description);
             return;
         }
@@ -109,7 +109,7 @@ public class CombatManager
         bool isHit = DetermineHit();
         if (!isHit)
         {
-            string description = CombatNarrator.DescribeAttack(Owner, target, 0, targetedPart ?? "body", false, false, false);
+            string description = CombatNarrator.DescribeAttack(Owner, target, 0, partName, false, false, false);
             Output.WriteLine(description);
             return;
         }
@@ -118,7 +118,7 @@ public class CombatManager
         bool isBlocked = DetermineBlock(target);
         if (isBlocked)
         {
-            string description = CombatNarrator.DescribeAttack(Owner, target, 0, targetedPart ?? "body", true, false, true);
+            string description = CombatNarrator.DescribeAttack(Owner, target, 0, partName, true, false, true);
             Output.WriteLine(description);
             return;
         }
@@ -130,33 +130,39 @@ public class CombatManager
             AdjustAccuracyForTargeting(targetedPart);
         }
 
-        // todo add util methods to determine blunt/sharp/pierce
+        DamageType type = DamageType.Blunt;
+        if (Owner.ActiveWeapon.Class == WeaponClass.Blade || Owner.ActiveWeapon.Class == WeaponClass.Claw)
+        {
+            type = DamageType.Sharp;
+        }
+        else if (Owner.ActiveWeapon.Class == WeaponClass.Pierce)
+        {
+            type = DamageType.Pierce;
+        }
+
         DamageInfo damageInfo = new(
-            damage,
+            amount: damage,
             source: Owner.Name,
-            isSharp: Owner.ActiveWeapon.Class == WeaponClass.Blade || Owner.ActiveWeapon.Class == WeaponClass.Claw,
-            isBlunt: Owner.ActiveWeapon.Class == WeaponClass.Blunt || Owner.ActiveWeapon.Class == WeaponClass.Unarmed,
-            isPenetrating: Owner.ActiveWeapon.Class == WeaponClass.Pierce,
+            type: type,
             accuracy: Owner.ActiveWeapon.Accuracy,
             targetPart: targetedPart
         );
 
-        BodyPart? hitPart = target.Damage(damageInfo);
+        target.Damage(damageInfo);
 
         double partHealthPercent = 0;
-        string hitPartName = "";
-        if (hitPart != null)
+    
+        if (targetedPart != null)
         {
-            partHealthPercent = hitPart.Health / hitPart.MaxHealth;
-            hitPartName = hitPart.Name;
+            partHealthPercent = targetedPart.Condition;
         }
-        string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damage, hitPartName, true, false, false);
+        string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damage, partName, true, false, false);
         Output.WriteLine(attackDescription);
 
         // Add part status if it's significantly damaged
         if (partHealthPercent < 0.9)
         {
-            string statusDesc = CombatNarrator.DescribeTargetStatus(hitPartName, partHealthPercent);
+            string statusDesc = CombatNarrator.DescribeTargetStatus(partName, partHealthPercent);
             if (!string.IsNullOrEmpty(statusDesc))
             {
                 Output.WriteLine(statusDesc);
@@ -184,7 +190,7 @@ public class CombatManager
         Thread.Sleep(1000);
     }
 
-    private double AdjustAccuracyForTargeting(string targetedPart)
+    private double AdjustAccuracyForTargeting(IBodyPart targetedPart)
     {
         return .8; // todo, for now slight penalty for targeting vs random swing
     }

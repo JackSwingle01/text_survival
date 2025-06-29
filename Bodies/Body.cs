@@ -23,10 +23,35 @@ public class SurvivalContext
 public class Body
 {
     // Root part and core properties
-    private readonly BodyPart _rootPart;
-    public double Health => _rootPart.Health;
-    public double MaxHealth => _rootPart.MaxHealth;
-    public bool IsDestroyed => _rootPart.IsDestroyed;
+    public readonly List<MajorBodyPart> Parts;
+    public double Health => CalculateOverallHealth();
+
+    private double CalculateOverallHealth()
+    {
+        // simple avg for now
+        double health = Parts.Sum(p => CalculatePartHealth(p)) / Parts.Count;
+        return health;
+    }
+
+    private double CalculatePartHealth(MajorBodyPart part)
+    {
+        // Average health of materials and organs
+        var materialHealth = new List<double>
+        {
+            part.Skin.Condition,
+            part.Muscle.Condition,
+            part.Bone.Condition
+        };
+
+        var organHealth = part.Organs.Select(o => o.Condition);
+
+        var allHealth = materialHealth.Concat(organHealth);
+        return allHealth.Any() ? allHealth.Average() : 1.0;
+    }
+
+    public double MaxHealth => 1;
+    public bool IsDestroyed => new DeathSystem().CheckBodyState(this).Equals(BodyState.Dead);
+
     public bool IsTired => _exhaustionModule.ExhaustionPercent > 25;
 
     public readonly EffectRegistry EffectRegistry;
@@ -44,7 +69,7 @@ public class Body
     {
         OwnerName = ownerName;
         EffectRegistry = effectRegistry;
-        _rootPart = BodyPartFactory.CreateBody(stats.type, stats.overallWeight);
+        Parts = BodyPartFactory.CreateBody(stats.type);
         _hungerModule = new HungerModule(this);
         _thirstModule = new ThirstModule();
         _exhaustionModule = new ExhaustionModule();
@@ -86,8 +111,78 @@ public class Body
     public double BodyTemperature { get; set; }
 
     // Forwarding methods to root part
-    public BodyPart? Damage(DamageInfo damageInfo) => _rootPart.Damage(damageInfo);
-    public void Heal(HealingInfo healingInfo) => _rootPart.Heal(healingInfo);
+    public void Damage(DamageInfo damageInfo)
+    {
+        // If targeting specific part, find it
+        if (damageInfo.TargetPart != null)
+        {
+            var targetPart = Parts.FirstOrDefault(p => p == damageInfo.TargetPart);
+            if (targetPart != null)
+            {
+                targetPart.TakeDamage(damageInfo);
+                return;
+            }
+        }
+
+        // Otherwise, distribute based on coverage
+        var partChances = Parts.ToDictionary(p => p, p => p.Coverage);
+        var hitPart = Utils.GetRandomWeighted(partChances);
+
+        hitPart.TakeDamage(damageInfo);
+        return;
+    }
+    public void Heal(HealingInfo healingInfo)
+    {
+        // Distribute healing across damaged parts
+        if (healingInfo.TargetPart != null)
+        {
+            var targetPart = Parts.FirstOrDefault(p => p.Name == healingInfo.TargetPart);
+            if (targetPart != null)
+            {
+                HealBodyPart(targetPart, healingInfo);
+                return;
+            }
+        }
+
+        // Heal most damaged parts first
+        var damagedParts = Parts
+            .Where(p => CalculatePartHealth(p) < 1.0)
+            .OrderBy(p => CalculatePartHealth(p))
+            .ToList();
+
+        if (damagedParts.Count > 0)
+        {
+            HealBodyPart(damagedParts[0], healingInfo);
+        }
+    }
+
+    private void HealBodyPart(MajorBodyPart part, HealingInfo healingInfo)
+    {
+        double healingAmount = healingInfo.Amount * healingInfo.Quality;
+
+        // Heal materials first, then organs
+        var materials = new[] { part.Skin, part.Muscle, part.Bone }.Where(m => m != null);
+        foreach (var material in materials)
+        {
+            if (material!.Condition < 1.0 && healingAmount > 0)
+            {
+                double heal = Math.Min(healingAmount, (1.0 - material.Condition) * material.Toughness);
+                material.Condition = Math.Min(1.0, material.Condition + heal / material.Toughness);
+                healingAmount -= heal;
+            }
+        }
+
+        // Heal organs
+        foreach (var organ in part.Organs.Where(o => o.Condition < 1.0))
+        {
+            if (healingAmount > 0)
+            {
+                double heal = Math.Min(healingAmount, (1.0 - organ.Condition) * organ.Toughness);
+                organ.Condition = Math.Min(1.0, organ.Condition + heal / organ.Toughness);
+                healingAmount -= heal;
+            }
+        }
+    }
 
     private double GetCurrentMetabolism(double activityLevel)
     {
@@ -122,8 +217,9 @@ public class Body
     // Calculate derived attributes
     public double CalculateStrength()
     {
-        double manipulationCapacity = GetCapacity("Manipulation");
-        double bloodPumping = GetCapacity("BloodPumping"); // Energy delivery
+        var capacities = GetCapacities();
+        double manipulationCapacity = capacities.Manipulation;
+        double bloodPumping = capacities.BloodPumping; // Energy delivery
 
         // Base strength that everyone has
         double baseStrength = 0.30; // 30% strength from structural aspects
@@ -148,7 +244,7 @@ public class Body
 
     public double CalculateSpeed()
     {
-        double movingCapacity = GetCapacity("Moving");
+        double movingCapacity = GetCapacities().Moving;
         double structuralWeightRatio = (_baseWeight / Weight) + (1 - 0.45); // avg 45% structure weight
         double sizeRatio = Weight / BaseLineHumanStats.overallWeight;
 
@@ -201,9 +297,10 @@ public class Body
     }
     public double CalculateVitality()
     {
-        double breathing = GetCapacity("Breathing");
-        double bloodPumping = GetCapacity("BloodPumping");
-        double digestion = GetCapacity("Digestion");
+        var capacities = GetCapacities();
+        double breathing = capacities.Breathing;
+        double bloodPumping = capacities.BloodPumping;
+        double digestion = capacities.Digestion;
 
         double organFunction = (2 * (breathing + bloodPumping) + digestion) / 5;
 
@@ -226,8 +323,8 @@ public class Body
 
     public double CalculatePerception()
     {
-        double sight = GetCapacity("Sight");
-        double hearing = GetCapacity("Hearing");
+        double sight = GetCapacities().Sight;
+        double hearing = GetCapacities().Hearing;
 
         return (sight + hearing) / 2;
     }
@@ -248,88 +345,56 @@ public class Body
         return baseColdResistance + fatInsulation;
     }
 
-
-    private double GetCapacity(string capacity)
+    public Capacities GetCapacities()
     {
-        var parts = GetAllParts().Where(p => p.GetCapacity(capacity) > 0);
-        var values = parts.Select(p => GetEffectivePartCapacity(p, capacity)).ToList();
-        if (values.Sum() <= 0) return 0;
+        var baseCapacities = AggregatePartCapacities();
 
-        double result;
-        // todo, see if I want to revisit the special logic here
-        // if (capacity is "Moving" or "Manipulation" or "Breathing" or "Consciousness"
-        // or "BloodPumping" or "Digestion" or "Eating" or "Talking")
-        // {
-        // }
-        // else if (capacity is "Sight" or "Hearing" or "BloodFiltration")
-        // {
-        //     result = values.Average();
-        // }
-        // else
-        // {
-        //     result = values.Min();
-        // }
-        result = Math.Min(1, values.Sum());
-        double bodyModifier = EffectRegistry.GetBodyCapacityModifier(capacity);
-        result *= (1 + bodyModifier);
-        result = Math.Max(0, result);
-        return result;
+        // Apply cascading effects
+        return ApplyCascadingEffects(baseCapacities);
     }
 
-    private double GetEffectivePartCapacity(BodyPart part, string capacityName)
+    private Capacities AggregatePartCapacities()
     {
-        if (part.IsDestroyed) return 0;
-
-        // Get base capacity (already includes health scaling)
-        double baseCapacity = part.GetCapacity(capacityName);
-        if (baseCapacity <= 0) return 0;
-
-        // Apply effect modifiers for this part
-        double modifier = EffectRegistry.GetPartCapacityModifier(capacityName, part);
-        return Math.Max(0, baseCapacity * (1.0 + modifier));
-    }
-
-
-    // Helper to get all body parts
-    public List<BodyPart> GetAllParts()
-    {
-        var result = new List<BodyPart>();
-        CollectBodyParts(_rootPart, result);
-        return result;
-    }
-
-    private void CollectBodyParts(BodyPart part, List<BodyPart> result)
-    {
-        result.Add(part);
-        foreach (var child in part.Parts)
+        Capacities total = new();
+        foreach (var part in Parts)
         {
-            CollectBodyParts(child, result);
+            total += part.GetTotalCapacities();
         }
+        // // Apply body-wide effect modifiers
+        // double bodyModifier = EffectRegistry.GetBodyCapacityModifier(capacityName);
+        // total *= (1 + bodyModifier);
+
+        return total;
     }
 
-    public List<BodyPart>? GetPartsToNDepth(int depth)
+    private Capacities ApplyCascadingEffects(Capacities baseCapacities)
     {
-        if (depth <= 0) return null;
+        var result = baseCapacities;
 
-        var result = new List<BodyPart>();
-        CollectBodyPartsToDepth(_rootPart, result, 1, depth);
-        return result;
-    }
-
-    private static void CollectBodyPartsToDepth(BodyPart part, List<BodyPart> result, int currentDepth, int maxDepth)
-    {
-        // Add the current part
-        result.Add(part);
-
-        // If we've reached our depth limit or there are no children, return
-        if (currentDepth >= maxDepth || part.Parts.Count == 0)
-            return;
-
-        // Otherwise, recursively add children
-        foreach (var child in part.Parts)
+        // Poor blood circulation affects everything
+        if (result.BloodPumping < 0.5)
         {
-            CollectBodyPartsToDepth(child, result, currentDepth + 1, maxDepth);
+            double circulationPenalty = 1.0 - (0.5 - result.BloodPumping);
+            result.Consciousness *= circulationPenalty;
+            result.Moving *= circulationPenalty;
+            result.Manipulation *= circulationPenalty;
         }
+
+        // Can't breathe? Consciousness drops rapidly
+        if (result.Breathing < 0.3)
+        {
+            double oxygenPenalty = result.Breathing / 0.3; // 0.0 to 1.0
+            result.Consciousness *= oxygenPenalty;
+        }
+
+        // Unconscious? Can't do physical actions
+        if (result.Consciousness < 0.1)
+        {
+            result.Moving *= 0.1;
+            result.Manipulation *= 0.1;
+        }
+
+        return result;
     }
 
     // helper for baseline male human stats
@@ -343,12 +408,10 @@ public class Body
 
     public void Describe()
     {
-        // Overall body statistics
-        Output.WriteLine("Body Health: " + (int)(Health / MaxHealth * 100) + "%");
+        Output.WriteLine("Body Health: " + (int)(Health * 100) + "%");
         Output.WriteLine("Weight: " + Math.Round(Weight * 2.2, 1) + " lbs");
         Output.WriteLine("Body Composition: " + (int)(BodyFatPercentage * 100) + "% fat, " + (int)(MusclePercentage * 100) + "% muscle");
 
-        // Physical capabilities
         Output.WriteLine("\nPhysical Capabilities:");
         Output.WriteLine("- Strength: " + Math.Round(CalculateStrength() * 100) + "%");
         Output.WriteLine("- Speed: " + Math.Round(CalculateSpeed() * 100) + "%");
@@ -356,25 +419,15 @@ public class Body
         Output.WriteLine("- Perception: " + Math.Round(CalculatePerception() * 100) + "%");
         Output.WriteLine("- Cold Resistance: " + Math.Round(CalculateColdResistance() * 100) + "%");
 
-        // Display damaged body parts
-        List<BodyPart> allParts = GetAllParts();
-        List<BodyPart> damagedParts = allParts.Where(p => p.Health < p.MaxHealth && !p.IsDestroyed).ToList();
-        List<BodyPart> destroyedParts = allParts.Where(p => p.IsDestroyed).ToList();
+        // Show damaged parts and materials
+        var damagedParts = Parts.Where(p => CalculatePartHealth(p) < 1.0).ToList();
 
-        if (damagedParts.Count > 0 || destroyedParts.Count > 0)
+        if (damagedParts.Count > 0)
         {
             Output.WriteLine("\nInjuries:");
-
-            // Show damaged parts
             foreach (var part in damagedParts)
             {
-                part.Describe();
-            }
-
-            // Show destroyed parts
-            foreach (var part in destroyedParts)
-            {
-                Output.WriteLine($"- {part.Name} is destroyed!");
+                DescribePartCondition(part);
             }
         }
         else
@@ -382,17 +435,18 @@ public class Body
             Output.WriteLine("\nNo injuries detected.");
         }
 
-        // Check for any body system impairments
+        // Show capacity impairments
+        var capacities = GetCapacities();
         Dictionary<string, double> systemCapacities = new Dictionary<string, double>
         {
-            { "Moving", GetCapacity("Moving") },
-            { "Manipulation", GetCapacity("Manipulation") },
-            { "Breathing", GetCapacity("Breathing") },
-            { "BloodPumping", GetCapacity("BloodPumping") },
-            { "Consciousness", GetCapacity("Consciousness") },
-            { "Sight", GetCapacity("Sight") },
-            { "Hearing", GetCapacity("Hearing") },
-            { "Digestion", GetCapacity("Digestion") }
+            { "Moving", capacities.Moving },
+            { "Manipulation", capacities.Manipulation },
+            { "Breathing", capacities.Breathing},
+            { "BloodPumping", capacities.BloodPumping },
+            { "Consciousness", capacities.BloodPumping },
+            { "Sight", capacities.Sight},
+            { "Hearing", capacities.Hearing },
+            { "Digestion", capacities.Digestion }
         };
 
         var impairedSystems = systemCapacities.Where(kv => kv.Value < 0.9).ToList();
@@ -408,35 +462,38 @@ public class Body
         }
     }
 
-    // Helper method to check and describe system impairments
-    private void CheckAndDescribeImpairments()
+    private void DescribePartCondition(MajorBodyPart part)
     {
-        Dictionary<string, double> systemCapacities = new Dictionary<string, double>
-        {
-            { "Moving", GetCapacity("Moving") },
-            { "Manipulation", GetCapacity("Manipulation") },
-            { "Breathing", GetCapacity("Breathing") },
-            { "BloodPumping", GetCapacity("BloodPumping") },
-            { "Consciousness", GetCapacity("Consciousness") },
-            { "Sight", GetCapacity("Sight") },
-            { "Hearing", GetCapacity("Hearing") },
-            { "Digestion", GetCapacity("Digestion") }
-        };
+        Output.WriteLine($"\n{part.Name}:");
 
-        var impairedSystems = systemCapacities.Where(kv => kv.Value < 0.9).ToList();
+        // Describe material damage
+        if (part.Skin?.Condition < 1.0)
+            Output.WriteLine($"  - Skin: {GetDamageDescription(part.Skin.Condition)}");
+        if (part.Muscle?.Condition < 1.0)
+            Output.WriteLine($"  - Muscle: {GetDamageDescription(part.Muscle.Condition)}");
+        if (part.Bone?.Condition < 1.0)
+            Output.WriteLine($"  - Bone: {GetDamageDescription(part.Bone.Condition)}");
 
-        if (impairedSystems.Count > 0)
+        // Describe organ damage
+        foreach (var organ in part.Organs.Where(o => o.Condition < 1.0))
         {
-            Output.WriteLine("\nSystem Impairments:");
-            foreach (var system in impairedSystems)
-            {
-                string severity = GetImpairmentSeverity(system.Value);
-                Output.WriteLine($"- {system.Key}: {severity} ({(int)(system.Value * 100)}% efficiency)");
-            }
+            Output.WriteLine($"  - {organ.Name}: {GetDamageDescription(organ.Condition)}");
         }
     }
 
-    // Helper method to determine impairment severity description
+    private string GetDamageDescription(double condition)
+    {
+        return condition switch
+        {
+            <= 0 => "destroyed",
+            < 0.2 => "critically damaged",
+            < 0.4 => "severely damaged",
+            < 0.6 => "moderately damaged",
+            < 0.8 => "lightly damaged",
+            _ => "slightly damaged"
+        };
+    }
+
     private string GetImpairmentSeverity(double capacity)
     {
         return capacity switch
@@ -476,7 +533,7 @@ public class Body
         {
             Amount = minutesSlept / 10,
             Type = "natural",
-            TargetPart = "Body",
+            TargetOrgan = "Body",
             Quality = _exhaustionModule.IsFullyRested ? 1 : .7, // healing quality is better after a full night's sleep
         };
 

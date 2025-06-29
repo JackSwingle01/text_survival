@@ -18,7 +18,7 @@ namespace text_survival.Effects
 
     public abstract class Effect
     {
-        protected Effect(string effectKind, string source, BodyPart? targetBodyPart = null, double severity = 1, double severityChangeRate = 0)
+        protected Effect(string effectKind, string source, MajorBodyPart? targetBodyPart = null, double severity = 1, double severityChangeRate = 0)
         {
             EffectKind = effectKind;
             Source = source;
@@ -33,13 +33,13 @@ namespace text_survival.Effects
 
         public string EffectKind { get; protected set; }
         public string Source { get; } // what caused this effect (e.g., cold, wound poison)
-        public BodyPart? TargetBodyPart { get; set; }
+        public MajorBodyPart? TargetBodyPart { get; set; }
         public bool CanHaveMultiple { get; protected set; }
         public bool IsActive { get; protected set; }
         public double Severity { get; protected set; }
         public double SeverityChangeRate { get; protected set; } // per severity reduction per hour
         public bool RequiresTreatment { get; protected set; }
-        public Dictionary<string, double> CapacityModifiers { get; } = [];
+        public Capacities CapacityModifiers { get; } = new();
         // public List<TreatmentOption> TreatmentOptions {get;}
 
         // main algorithm methods - typically don't override
@@ -54,7 +54,7 @@ namespace text_survival.Effects
             if (!IsActive) return;
 
             OnUpdate(target);
-            
+
             if (!RequiresTreatment && SeverityChangeRate > 0)
             {
                 double minuteChange = SeverityChangeRate / 60;

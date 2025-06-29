@@ -2,7 +2,6 @@
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Items;
-using text_survival.Level;
 using text_survival.PlayerComponents;
 
 namespace text_survival.Actors;
@@ -11,9 +10,9 @@ public abstract class Actor
 {
     public string Name;
     public virtual Location? CurrentLocation { get; set; }
-    public virtual void Attack(Actor target, string? bodyPart = null) => combatManager.Attack(target, bodyPart);
+    public virtual void Attack(Actor target, IBodyPart? bodyPart = null) => combatManager.Attack(target, bodyPart);
 
-    public virtual BodyPart? Damage(DamageInfo damage) => Body.Damage(damage);
+    public virtual void Damage(DamageInfo damage) => Body.Damage(damage);
     public virtual void Heal(HealingInfo heal) => Body.Heal(heal);
 
     public bool IsEngaged { get; set; }

@@ -7,7 +7,7 @@ public class HealEffect : Effect
     private float _healAmountPerHour;
     private string _targetPartName;
 
-    public HealEffect(string source, BodyPart? targetPart, float healAmount, int durationMin = 60)
+    public HealEffect(string source, MajorBodyPart? targetPart, float healAmount, int durationMin = 60)
         : base("Healing", source, targetPart, 1.0f)
     {
         _healAmountPerHour = healAmount;
@@ -35,7 +35,7 @@ public class HealEffect : Effect
             Amount = healAmount,
             Quality = 1.0,
             Source = Source,
-            TargetPart = _targetPartName
+            TargetOrgan = _targetPartName
         };
 
         target.Heal(healInfo);

@@ -22,7 +22,7 @@ public class Spell
     {
         target.ApplyEffect(Effect);
     }
-    public void Cast(Actor target, BodyPart part)
+    public void Cast(Actor target, MajorBodyPart part)
     {
         Effect.TargetBodyPart = part;
         target.ApplyEffect(Effect);

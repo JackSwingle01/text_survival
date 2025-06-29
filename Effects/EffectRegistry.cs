@@ -10,7 +10,7 @@ public class EffectRegistry(Actor owner)
     {
         if (_effects.Contains(effect)) return;
 
-        BodyPart? part = effect.TargetBodyPart;
+        MajorBodyPart? part = effect.TargetBodyPart;
 
         if (!effect.CanHaveMultiple)
         {
@@ -47,11 +47,19 @@ public class EffectRegistry(Actor owner)
     }
 
 
-    public double GetPartCapacityModifier(string capacity, BodyPart part) => GetEffectsOnBodyPart(part).Sum(e => e.CapacityModifiers.GetValueOrDefault(capacity) * e.Severity);
-    public double GetBodyCapacityModifier(string capacity) => _effects.Where(e => e.TargetBodyPart == null).Sum(e => e.CapacityModifiers.GetValueOrDefault(capacity) * e.Severity);
+    public Capacities CapacityModifiers(string capacity, IBodyPart part)
+    {
+        var modifiers = GetEffectsOnBodyPart(part).Select(e => e.CapacityModifiers).ToList();
+        Capacities total = new();
+        foreach (var mod in modifiers) {
+            var severityMod = mod.ApplyMultiplier(e.Severity);
+            total += severityMod;
+        }
 
+        return total;
+    }
 
-    public List<Effect> GetEffectsOnBodyPart(BodyPart part) => [.. _effects.Where(e => e.TargetBodyPart == part)];
+    public List<Effect> GetEffectsOnBodyPart(IBodyPart part) => [.. _effects.Where(e => e.TargetBodyPart == part)];
     public List<Effect> GetEffectsByKind(string kind) => [.. _effects.Where(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase))];
     public void RemoveEffectsByKind(string kind)
     {
