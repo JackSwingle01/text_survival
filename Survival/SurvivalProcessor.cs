@@ -26,18 +26,18 @@ public static class SurvivalProcessor
     // todo, actually update with activity level
 		// todo have this account for temp too
     bool wasStarving = data.Calories <= 0;
-		data.Calories -= data.MetabolicRate / 24 / 60 * minutesElapsed;
-
-		if (data.Calories <= 0)
-		{
-			double excessCalories = -data.Calories;
-			data.Calories = 0;
-			EventBus.Publish(new StarvingEvent(owner, excessCalories, isNew: !wasStarving));
-		}
-		//else if (wasStarving) // wasStarving but is no longer // TODO this will never be hit anymore, move to eat method
-		//{
-			//EventBus.Publish(new StoppedStarvingEvent(owner));
-    //}
+	data.Calories -= data.MetabolicRate / 24 / 60 * minutesElapsed;
+	
+	if (data.Calories <= 0)
+	{
+		double excessCalories = -data.Calories;
+		data.Calories = 0;
+		EventBus.Publish(new StarvingEvent(owner, excessCalories, isNew: !wasStarving));
+	}
+	//else if (wasStarving) // wasStarving but is no longer // TODO this will never be hit anymore, move to eat method
+	//{
+		//EventBus.Publish(new StoppedStarvingEvent(owner));
+	//}
     return data; 
   }
 
@@ -49,5 +49,21 @@ public static class SurvivalProcessor
     data.Calories = data.Calories -= data.MetabolicRate / 24 / 60 * minutesElapsed * .5;  // starve at 1/2 rate
     return data;
   }
+
+	public static void Describe(SurvivalData data)
+	{
+		// calories
+		double percent = (int)(data.Calories / MAX_CALORIES * 100);
+		Output.WriteLine("| Calorie Store: ", percent, "%");
+		// hydration
+		 double percent = (int)((data.Hydration / Max) * 100);
+            	Output.WriteLine("| Hydration: ", percent, "%");
+		// exhaustion
+		double percent = (int)((data.Exhaustion / Max) * 100);
+            	Output.WriteLine("| Exhaustion: ", percent, "%");
+		// temp
+		//string tempChange = IsWarming ? "Warming up" : "Getting colder";
+        	Output.WriteLine("| Body Temperature: ", data.Temperature, "°F");//(", TemperatureEffect, "), ", tempChange);
+	}
   
 }
