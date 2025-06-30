@@ -8,10 +8,13 @@ public class SurvivalData
 }
 public static class SurvivalProcessor
 {
-  public static SurvivalData Process(SurvivalData data)
+  private const double BASE_EXHAUSTION_RATE = 1;
+  private const double MAX_EXHAUSTION_MINUTES  = 480.0F; // minutes (8 hours)
+  
+  public static SurvivalData Process(SurvivalData data, int minutesElapsed=1)
   {
-    
-     return data; 
+    data.Exhaustion = Math.Min(1, data.Exhaustion + BASE_EXHAUSTION_RATE * minutesElapsed);
+    return data; 
   }
   
 }
