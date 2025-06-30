@@ -7,7 +7,7 @@ public class EffectBuilder
 {
     private string _effectKind = "";
     private string _source = "";
-    private MajorBodyPart? _targetBodyPart = null;
+    private BodyRegion? _targetBodyPart = null;
     private double _severity = 1.0;
     private double _severityChangeRate = 0;
     private bool _canHaveMultiple = false;
@@ -32,7 +32,7 @@ public class EffectBuilder
         return this;
     }
 
-    public EffectBuilder Targeting(MajorBodyPart? bodyPart)
+    public EffectBuilder Targeting(BodyRegion? bodyPart)
     {
         _targetBodyPart = bodyPart;
         return this;
@@ -64,7 +64,7 @@ public class EffectBuilder
 
     public EffectBuilder ReducesCapacity(string capacity, double reduction)
     {
-        _capacityModifiers[capacity] = 1.0 - reduction;
+        _capacityModifiers[capacity] = -reduction;
         return this;
     }
 
@@ -159,8 +159,8 @@ public static class EffectBuilderExtensions
             .Named("Bleeding")
             .WithSeverityChangeRate(-0.05) // Natural clotting
             .AllowMultiple(true)
-            .ReducesCapacity("BloodPumping", 0.2)
-            .ReducesCapacity("Consciousness", 0.1)
+            .ReducesCapacity(CapacityNames.BloodPumping, 0.2)
+            .ReducesCapacity(CapacityNames.Consciousness, 0.1)
             .WithApplyMessage("{target} is bleeding!")
             .WithPeriodicMessage("Blood continues to flow from {target}'s wound...")
             .WhenSeverityDropsBelowWithMessage(0.2, "{target}'s bleeding is slowing")
@@ -172,7 +172,7 @@ public static class EffectBuilderExtensions
                     Amount = damage,
                     Type = DamageType.Bleed,
                     Source = builder.Build().Source,
-                    TargetPart = builder.Build().TargetBodyPart
+                    TargetPartName = builder.Build().TargetBodyPart
                 };
                 target.Damage(damageInfo);
             });
@@ -184,9 +184,10 @@ public static class EffectBuilderExtensions
             .Named("Poison")
             .WithSeverityChangeRate(-0.02) // Slow detox
             .AllowMultiple(true)
-            .ReducesCapacity("Consciousness", 0.3)
-            .ReducesCapacity("Manipulation", 0.2)
-            .ReducesCapacity("Moving", 0.2)
+            .ReducesCapacity(CapacityNames.Consciousness, 0.3)
+            .ReducesCapacity(CapacityNames.Manipulation, 0.2)
+            .ReducesCapacity(CapacityNames.Moving, 0.2)
+            .ReducesCapacity(CapacityNames.BloodPumping, .1)
             .OnUpdate(target =>
             {
                 double damage = (damagePerHour / 60.0) * builder.Build().Severity;
@@ -226,24 +227,26 @@ public static class EffectBuilderExtensions
             TemperatureType.Hypothermia => builder
                 .Named("Hypothermia")
                 .RequiresTreatment(true)
-                .ReducesCapacity("Moving", 0.3)
-                .ReducesCapacity("Manipulation", 0.3)
-                .ReducesCapacity("Consciousness", 0.5)
-                .ReducesCapacity("BloodPumping", 0.2),
+                .WithSeverityChangeRate(-.02)
+                .ReducesCapacity(CapacityNames.Moving, 0.3)
+                .ReducesCapacity(CapacityNames.Manipulation, 0.3)
+                .ReducesCapacity(CapacityNames.Consciousness, 0.5)
+                .ReducesCapacity(CapacityNames.BloodPumping, 0.2),
 
             TemperatureType.Hyperthermia => builder
                 .Named("Hyperthermia")
                 .RequiresTreatment(true)
-                .ReducesCapacity("Consciousness", 0.5)
-                .ReducesCapacity("Moving", 0.3)
-                .ReducesCapacity("BloodPumping", 0.2),
+                .WithSeverityChangeRate(-.01)
+                .ReducesCapacity(CapacityNames.Consciousness, 0.5)
+                .ReducesCapacity(CapacityNames.Moving, 0.3)
+                .ReducesCapacity(CapacityNames.BloodPumping, 0.2),
 
             TemperatureType.Frostbite => builder
                 .Named("Frostbite")
                 .WithSeverityChangeRate(-0.02)
-                .ReducesCapacity("Manipulation", 0.5)
-                .ReducesCapacity("Moving", 0.5)
-                .ReducesCapacity("BloodPumping", 0.2),
+                .ReducesCapacity(CapacityNames.Manipulation, 0.5)
+                .ReducesCapacity(CapacityNames.Moving, 0.5)
+                .ReducesCapacity(CapacityNames.BloodPumping, 0.2),
 
             _ => builder
         };
@@ -302,11 +305,11 @@ public static class EffectBuilderExtensions
         });
     }
 
-    public static EffectBuilder AffectsTemperature(this EffectBuilder builder, double temperatureChange)
+    public static EffectBuilder AffectsTemperature(this EffectBuilder builder, double hourlyTemperatureChange)
     {
         return builder.OnUpdate(target =>
         {
-            target.Body.BodyTemperature += temperatureChange / 60.0; // per minute
+            target.Body.BodyTemperature += hourlyTemperatureChange / 60.0; // per minute
         });
     }
 
@@ -325,7 +328,7 @@ public static class EffectBuilderExtensions
     {
         return builder.OnRemove(target =>
         {
-            target.ApplyEffect(effectToApply);
+            target.EffectRegistry.AddEffect(effectToApply);
         });
     }
     public static EffectBuilder WhenSeverityDropsBelow(this EffectBuilder builder, double threshold, Action<Actor> action)
@@ -375,7 +378,7 @@ public static class EffectBuilderExtensions
     {
         return builder.OnApply(target =>
         {
-            var effectsToClear = target.GetEffectsByKind(effectKindToClear);
+            var effectsToClear = target.EffectRegistry.GetEffectsByKind(effectKindToClear);
             foreach (var effect in effectsToClear)
             {
                 effect.Remove(target);
@@ -403,7 +406,7 @@ public class DynamicEffect : Effect
     public DynamicEffect(
         string effectKind,
         string source,
-        MajorBodyPart? targetBodyPart,
+        BodyRegion? targetBodyPart,
         double severity,
         double severityChangeRate,
         bool canHaveMultiple,

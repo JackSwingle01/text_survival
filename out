@@ -22,7 +22,7 @@ public class Player : Actor
 
     public override void Update()
     {
-        _effectRegistry.Update();
+        EffectRegistry.Update();
         var context = new SurvivalContext
         {
             ActivityLevel = 2,
@@ -59,11 +59,11 @@ public class Player : Actor
 
     #region Constructor
 
-    public Player(Location startingLocation) : base("Player", Body.BaseLineHumanStats)
+    public Player(Location startingLocation) : base("Player", Body.BaselinePlayerStats)
     {
         Name = "Player";
         locationManager = new LocationManager(startingLocation);
-        inventoryManager = new(_effectRegistry);
+        inventoryManager = new(EffectRegistry);
         Skills = new SkillRegistry();
     }
 
@@ -113,7 +113,7 @@ public class Player : Actor
         {
             foreach (Effect e in consumable.Effects)
             {
-                ApplyEffect(e);
+                EffectRegistry.AddEffect(e);
             }
         }
         else if (item is Gear gear)
@@ -122,7 +122,7 @@ public class Player : Actor
             inventoryManager.Equip(gear);
             foreach (Effect effect in gear.EquipEffects)
             {
-                ApplyEffect(effect);
+                EffectRegistry.AddEffect(effect);
             }
         }
 
@@ -878,12 +878,9 @@ public abstract class Actor
     public bool IsAlive => !Body.IsDestroyed;
     public abstract Weapon ActiveWeapon { get; protected set; }
 
-    public virtual void ApplyEffect(Effect effect) => _effectRegistry.AddEffect(effect);
-    public virtual void RemoveEffect(Effect effect) => _effectRegistry.RemoveEffect(effect);
-    public virtual List<Effect> GetEffectsByKind(string kind) => _effectRegistry.GetEffectsByKind(kind);
     public virtual void Update()
     {
-        _effectRegistry.Update();
+        EffectRegistry.Update();
         var context = new SurvivalContext
         {
             ActivityLevel = 2,
@@ -892,7 +889,7 @@ public abstract class Actor
         Body.Update(TimeSpan.FromMinutes(1), context);
     }
     public Body Body { get; init; }
-    protected EffectRegistry _effectRegistry { get; init; }
+    public EffectRegistry EffectRegistry { get; init; }
     protected CombatManager combatManager { get; init; }
 
     public override string ToString() => Name;
@@ -900,9 +897,9 @@ public abstract class Actor
     protected Actor(string name, BodyStats stats)
     {
         Name = name;
-        _effectRegistry = new EffectRegistry(this);
+        EffectRegistry = new EffectRegistry(this);
         this.combatManager = new CombatManager(this);
-        Body = new Body(Name, stats, _effectRegistry);
+        Body = new Body(Name, stats, EffectRegistry);
     }
 }
 
@@ -2069,7 +2066,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4ee19c3dd4425b54a638e8509312794be4ffddc9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+10ff7f06763488668e2b4454b2e307839e34fe92")]
 [assembly: System.Reflection.AssemblyProductAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyTitleAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -2082,6 +2079,7 @@ File: ./Events/ThirstEvents.cs
 --------------------------------------------------------------------------------
 using text_survival.Actors;
 using text_survival.Bodies;
+using text_survival.Effects;
 using text_survival.IO;
 
 namespace text_survival.Events;
@@ -2105,14 +2103,15 @@ public class DehydrationEventHandler : IEventHandler<DehydrationEvent>
             Output.WriteWarning($"{gameEvent.Target.Name} is still dehydrated.\n");
 
         }
-        var target = gameEvent.Target;
-        var damage = new DamageInfo()
-        {
-            Amount = 1,
-            Type = "dehydration",
-            IsPenetrating = true
-        };
-        target.Damage(damage);
+        var effect = EffectBuilderExtensions.CreateEffect("Dehydration")
+        .CausesDehydration(1)
+        .ReducesCapacity(CapacityNames.Consciousness, .2) // head ache
+        .ReducesCapacity(CapacityNames.BloodPumping, .1) // low fluids
+        .ReducesCapacity(CapacityNames.Digestion, .4) // low fluids
+        .ReducesCapacity(CapacityNames.Moving, .05) // sluggish
+        .ReducesCapacity(CapacityNames.Breathing, .1) // dry throat
+        .Build();
+        gameEvent.Target.ApplyEffect(effect);
     }
 }
 
@@ -2237,23 +2236,37 @@ public class BodyColdEventHandler : IEventHandler<BodyColdEvent>
         // Calculate severity based on temperature
         double severity = Math.Clamp((HypothermiaThreshold - target.BodyTemperature) / 10.0, 0.01, 1.0);
 
+        string applicationMessage;
+        string removalMessage;
+        if (target.IsPlayer)
+        {
+            applicationMessage = $"Your core is getting very cold, you feel like you're starting to get hypothermia... Severity = {severity}";
+            removalMessage = $"You're warming up enough and starting to feel better, the hypothermia has passed...";
+        }
+        else
+        {
+            applicationMessage = $"DEBUG: {target} has hypothermia. Severity = {severity}";
+            removalMessage = $"DEBUG: {target} no longer has hypothermia.";
+        }
         // Apply to whole body (will handle stacking through EffectRegistry)
-        var hypothermia = new TemperatureInjury(
-            TemperatureInjury.TemperatureInjuryType.Hypothermia,
-            "Cold exposure",
-            null,
-            severity);
+        var hypothermia = EffectBuilderExtensions
+            .CreateEffect("Hypothermia")
+            .Temperature(TemperatureType.Hypothermia)
+            .WithApplyMessage(applicationMessage)
+            .WithSeverity(severity)
+            .AllowMultiple(false)
+            .WithRemoveMessage(removalMessage)
+            .Build();
 
         target.EffectRegistry.AddEffect(hypothermia);
 
     }
 
-
     private void ApplyFrostbite(Body target)
     {
         // Get extremities (hands and feet)
-        var extremities = target.GetAllParts()
-            .Where(p => p.Name.Contains("Hand") || p.Name.Contains("Foot"))
+        var extremities = target.Parts
+            .Where(p => p.Name.Contains("Arm") || p.Name.Contains("Leg"))
             .ToList();
 
         foreach (var extremity in extremities)
@@ -2261,18 +2274,37 @@ public class BodyColdEventHandler : IEventHandler<BodyColdEvent>
             // Calculate severity based on temperature
             double severity = Math.Clamp((SevereHypothermiaThreshold - target.BodyTemperature) / 5.0, 0.01, 1.0);
 
-            // Apply frostbite to extremity (will handle stacking through EffectRegistry)
-            var frostbite = new TemperatureInjury(
-                TemperatureInjury.TemperatureInjuryType.Frostbite,
-                "Extreme cold",
-                extremity,
-                severity);
+            string applicationMessage;
+            string removalMessage;
+
+            if (target.IsPlayer)
+            {
+                applicationMessage = $"Your {extremity.Name.ToLower()} is getting dangerously cold, you're developing frostbite! Severity = {severity}";
+                removalMessage = $"The feeling is returning to your {extremity.Name.ToLower()}, the frostbite is healing...";
+            }
+            else
+            {
+                applicationMessage = $"DEBUG: {target} has frostbite on {extremity.Name}. Severity = {severity}";
+                removalMessage = $"DEBUG: {target} no longer has frostbite on {extremity.Name}.";
+            }
+
+            // Apply frostbite to extremity using builder pattern
+            var frostbite = EffectBuilderExtensions
+                .CreateEffect("Frostbite")
+                .Temperature(TemperatureType.Frostbite)
+                .WithApplyMessage(applicationMessage)
+                .WithSeverity(severity)
+                .Targeting(extremity)
+                .AllowMultiple(true) // Allow multiple frostbite effects on different extremities
+                .WithRemoveMessage(removalMessage)
+                .Build();
 
             target.EffectRegistry.AddEffect(frostbite);
         }
     }
+}
 
-}================================================================================
+================================================================================
 
 File: ./Events/EventBus.cs
 --------------------------------------------------------------------------------
@@ -4338,187 +4370,6 @@ namespace text_survival.Effects
     }
 }================================================================================
 
-File: ./Effects/TempEffects.cs
---------------------------------------------------------------------------------
-// Temperature injury effect class 
-using text_survival.Actors;
-using text_survival.Bodies;
-using text_survival.IO;
-
-namespace text_survival.Effects;
-
-public class TemperatureInjury : Effect
-{
-    public enum TemperatureInjuryType
-    {
-        Burn,
-        Frostbite,
-        Hypothermia,
-        Hyperthermia
-    }
-
-    public TemperatureInjuryType InjuryType { get; }
-
-    // Store environment data to use in OnUpdate
-    private double _environmentalTemperature;
-
-    public TemperatureInjury(TemperatureInjuryType type, string source, MajorBodyPart? bodyPart, double severity)
-        : base(type.ToString(), source, bodyPart, severity, GetSeverityChangeRate(type))
-    {
-        InjuryType = type;
-        RequiresTreatment = type == TemperatureInjuryType.Hypothermia || type == TemperatureInjuryType.Hyperthermia;
-
-        ConfigureCapacityModifiers();
-    }
-
-    private static double GetSeverityChangeRate(TemperatureInjuryType type)
-    {
-        // Rate per hour, negative means healing
-        return type switch
-        {
-            TemperatureInjuryType.Burn => -0.03,       // Heals slowly
-            TemperatureInjuryType.Frostbite => -0.02,  // Heals very slowly
-            TemperatureInjuryType.Hypothermia => -0.01, // Very slow recovery without treatment
-            TemperatureInjuryType.Hyperthermia => -0.01, // Very slow recovery without treatment
-            _ => -0.05
-        };
-    }
-
-    protected override void OnUpdate(Actor target)
-    {
-        if (target is Player player)
-        {
-            // these effects shouldn't be on npcs yet 
-            _environmentalTemperature = player.CurrentLocation.GetTemperature();
-        }
-
-        // Apply additional environmental effects to recovery rate
-        // apply an additional base heal rate for every 20 degrees cooler/warmer per hour
-        double bonusRecoveryPerDegreePerMinute = GetSeverityChangeRate(InjuryType) / 25.0 / 60.0; // should be negative
-        if (bonusRecoveryPerDegreePerMinute < 0) // negative is healing
-        {
-            if (InjuryType == TemperatureInjuryType.Hypothermia && _environmentalTemperature > 65.0)
-            {
-                if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
-                {
-                    Output.WriteLine($"The heat is helping {target}'s {EffectKind} recover faster.");
-                }
-                double recoveryBoost = (_environmentalTemperature - 65.0) * bonusRecoveryPerDegreePerMinute;
-                UpdateSeverity(target, -recoveryBoost); // Negative to reduce severity
-            }
-            else if (InjuryType == TemperatureInjuryType.Hyperthermia && _environmentalTemperature < 70.0)
-            {
-                if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
-                {
-                    Output.WriteLine($"The cool is helping {target}'s {EffectKind} recover faster.");
-                }
-                double recoveryBoost = (70.0 - _environmentalTemperature) * bonusRecoveryPerDegreePerMinute;
-                UpdateSeverity(target, recoveryBoost); // Negative to reduce severity
-            }
-        }
-
-        // Update capacity modifiers based on current severity
-        ConfigureCapacityModifiers();
-    }
-
-    private void ConfigureCapacityModifiers()
-    {
-        CapacityModifiers.Clear();
-
-        switch (InjuryType)
-        {
-            case TemperatureInjuryType.Burn:
-                CapacityModifiers.Manipulation = 1 - (0.4 * Severity);
-                CapacityModifiers.Moving = 1 - (0.1 * Severity);
-                CapacityModifiers.BloodPumping = 1 - (0.1 * Severity); // Fluid loss
-                break;
-
-            case TemperatureInjuryType.Frostbite:
-                CapacityModifiers.Manipulation = 1 - (0.5 * Severity);
-                CapacityModifiers.Moving = 1 - (0.5 * Severity);
-                CapacityModifiers.BloodPumping = 1 - (0.2 * Severity); // Reduced circulation
-                break;
-
-            case TemperatureInjuryType.Hypothermia:
-                CapacityModifiers.Moving = 1 - (0.3 * Severity);
-                CapacityModifiers.Manipulation = 1 - (0.3 * Severity);
-                CapacityModifiers.Consciousness = 1 - (0.5 * Severity);
-                CapacityModifiers.BloodPumping = 1 - (0.2 * Severity);
-                break;
-
-            case TemperatureInjuryType.Hyperthermia:
-                CapacityModifiers.Consciousness = 1 - (0.5 * Severity);
-                CapacityModifiers.Moving = 1 - (0.3 * Severity);
-                CapacityModifiers.BloodPumping = 1 - (0.2 * Severity);
-                // CapacityModifiers.BloodFiltration = 1 - (0.2 * Severity); // Kidney strain
-                break;
-        }
-    }
-
-    protected override void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity)
-    {
-        // Update capacity modifiers when severity changes
-        ConfigureCapacityModifiers();
-
-        // Notify of significant changes
-        if (Math.Abs(oldSeverity - updatedSeverity) > 0.3)
-        {
-            string direction = updatedSeverity > oldSeverity ? "worsening" : "improving";
-
-            string message = InjuryType switch
-            {
-                TemperatureInjuryType.Burn => $"{target}'s burn is {direction}.",
-                TemperatureInjuryType.Frostbite => $"{target}'s frostbite is {direction}.",
-                TemperatureInjuryType.Hypothermia => $"{target}'s hypothermia is {direction}.",
-                TemperatureInjuryType.Hyperthermia => $"{target}'s hyperthermia is {direction}.",
-                _ => $"{target}'s is  {EffectKind} is {direction}."
-            };
-
-            if (direction == "worsening")
-                Output.WriteWarning(message);
-            else
-                Output.WriteLine(message);
-        }
-    }
-
-    protected override void OnApply(Actor target)
-    {
-        // Notify player of the injury
-        string message = InjuryType switch
-        {
-            TemperatureInjuryType.Burn => $"{target}'s skin burns from the heat!",
-            TemperatureInjuryType.Frostbite => $"{target}'s extremities are beginning to freeze!",
-            TemperatureInjuryType.Hypothermia => $"{target}'s body temperature is dangerously low.",
-            TemperatureInjuryType.Hyperthermia => $"{target}'s body temperature is dangerously high.",
-            _ => $"{target} has suffered {EffectKind}, a temperature-related injury."
-        };
-
-        Output.WriteWarning(message);
-    }
-
-    protected override void OnRemove(Actor target)
-    {
-        string message = InjuryType switch
-        {
-            TemperatureInjuryType.Burn => $"{target}'s burn has healed.",
-            TemperatureInjuryType.Frostbite => $"{target}'s frostbite has healed.",
-            TemperatureInjuryType.Hypothermia => $"{target}'s body temperature has returned to normal.",
-            TemperatureInjuryType.Hyperthermia => $"{target}'s body temperature has returned to normal.",
-            _ => $"{target}'s {EffectKind} has resolved."
-        };
-
-        Output.WriteLine(message);
-    }
-
-    public override string Describe()
-    {
-        string severityDesc = GetSeverityDescription();
-        string locationDesc = TargetBodyPart != null ? $" on {TargetBodyPart.Name}" : "";
-
-        return $"{severityDesc} {InjuryType}{locationDesc}";
-    }
-}================================================================================
-
 File: ./Effects/HealEffect.cs
 --------------------------------------------------------------------------------
 using text_survival.Actors;
@@ -4614,7 +4465,6 @@ public class EffectRegistry(Actor owner)
                 existingEffect.UpdateSeverity(_owner, newSeverity);
                 return;
             }
-
         }
 
         _effects.Add(effect);
@@ -4640,11 +4490,18 @@ public class EffectRegistry(Actor owner)
     }
 
 
-    public double GetPartCapacityModifier(string capacity, MajorBodyPart part) => GetEffectsOnBodyPart(part).Sum(e => e.CapacityModifiers.GetValueOrDefault(capacity) * e.Severity);
-    public double GetBodyCapacityModifier(string capacity) => _effects.Where(e => e.TargetBodyPart == null).Sum(e => e.CapacityModifiers.GetValueOrDefault(capacity) * e.Severity);
+    public CapacityModifierContainer CapacityModifiers(IBodyPart part)
+    {
+        var modifiers = GetEffectsOnBodyPart(part).Select(e => e.CapacityModifiers).ToList();
+        CapacityModifierContainer total = new();
+        foreach (var mod in modifiers) {
+            total += mod;
+        }
 
+        return total;
+    }
 
-    public List<Effect> GetEffectsOnBodyPart(MajorBodyPart part) => [.. _effects.Where(e => e.TargetBodyPart == part)];
+    public List<Effect> GetEffectsOnBodyPart(IBodyPart part) => [.. _effects.Where(e => e.TargetBodyPart == part)];
     public List<Effect> GetEffectsByKind(string kind) => [.. _effects.Where(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase))];
     public void RemoveEffectsByKind(string kind)
     {
@@ -4660,109 +4517,450 @@ public class EffectRegistry(Actor owner)
     private List<Effect> _effects = [];
 }================================================================================
 
-File: ./Effects/PoisonEffect.cs
+File: ./Effects/EffectBuilder.cs
 --------------------------------------------------------------------------------
-using text_survival;
 using text_survival.Actors;
 using text_survival.Bodies;
-using text_survival.Effects;
-using text_survival.IO;
 
-public class PoisonEffect : Effect
+namespace text_survival.Effects;
+
+public class EffectBuilder
 {
-    private float _damagePerHour;
-    private string _poisonType;
+    private string _effectKind = "";
+    private string _source = "";
+    private MajorBodyPart? _targetBodyPart = null;
+    private double _severity = 1.0;
+    private double _severityChangeRate = 0;
+    private bool _canHaveMultiple = false;
+    private bool _requiresTreatment = false;
+    private readonly Dictionary<string, double> _capacityModifiers = new();
 
-    public PoisonEffect(string poisonType, string source, float severity, float damagePerHour, int durationMin = 60)
-        : base("Poison", source, null, severity) // Poison is typically whole-body
+    // Hook actions - using lists to allow multiple actions
+    private readonly List<Action<Actor>> _onApplyActions = [];
+    private readonly List<Action<Actor>> _onUpdateActions = [];
+    private readonly List<Action<Actor, double, double>> _onSeverityChangeActions = [];
+    private readonly List<Action<Actor>> _onRemoveActions = [];
+
+    public EffectBuilder Named(string effectKind)
     {
-        _damagePerHour = damagePerHour;
-        _poisonType = poisonType;
-
-        // Configure effect properties
-        SeverityChangeRate = -0.02f; // Slow natural detoxification
-        CanHaveMultiple = true; // Multiple poison sources can stack
-
-        // Configure capacity modifiers - affect whole body
-        CapacityModifiers["Consciousness"] = 0.3f * severity;
-        CapacityModifiers["Manipulation"] = 0.2f * severity;
-        CapacityModifiers["Moving"] = 0.2f * severity;
-        CapacityModifiers["BloodFiltration"] = 0.4f * severity;
+        _effectKind = effectKind;
+        return this;
     }
 
-    protected override void OnApply(Actor target)
+    public EffectBuilder From(string source)
     {
-        Output.WriteLine($"{target} has been poisoned with {_poisonType}!");
+        _source = source;
+        return this;
     }
 
-    protected override void OnUpdate(Actor target)
+    public EffectBuilder Targeting(MajorBodyPart? bodyPart)
     {
-        // Calculate damage for one minute based on severity
-        double damage = _damagePerHour / 60.0 * Severity;
+        _targetBodyPart = bodyPart;
+        return this;
+    }
 
-        // Apply poison damage randomly to internal organs
-        // Get list of internal parts
-        var internalOrgans = target.Body.Parts.
-            SelectMany(p => p.Organs)
-            .Where(o => !o.IsExternal)
-            .ToList();
+    public EffectBuilder WithSeverity(double severity)
+    {
+        _severity = Math.Clamp(severity, 0, 1);
+        return this;
+    }
 
-        if (internalOrgans.Count > 0)
+    public EffectBuilder WithSeverityChangeRate(double rate)
+    {
+        _severityChangeRate = rate;
+        return this;
+    }
+
+    public EffectBuilder AllowMultiple(bool allow = true)
+    {
+        _canHaveMultiple = allow;
+        return this;
+    }
+
+    public EffectBuilder RequiresTreatment(bool requires = true)
+    {
+        _requiresTreatment = requires;
+        return this;
+    }
+
+    public EffectBuilder ReducesCapacity(string capacity, double reduction)
+    {
+        _capacityModifiers[capacity] = -reduction;
+        return this;
+    }
+
+    public EffectBuilder ModifiesCapacity(string capacity, double multiplier)
+    {
+        _capacityModifiers[capacity] = multiplier;
+        return this;
+    }
+
+    public EffectBuilder OnApply(Action<Actor> action)
+    {
+        _onApplyActions.Add(action);
+        return this;
+    }
+
+    public EffectBuilder OnUpdate(Action<Actor> action)
+    {
+        _onUpdateActions.Add(action);
+        return this;
+    }
+
+    public EffectBuilder OnSeverityChange(Action<Actor, double, double> action)
+    {
+        _onSeverityChangeActions.Add(action);
+        return this;
+    }
+
+    public EffectBuilder OnRemove(Action<Actor> action)
+    {
+        _onRemoveActions.Add(action);
+        return this;
+    }
+
+    public DynamicEffect Build()
+    {
+        if (string.IsNullOrWhiteSpace(_effectKind))
         {
-            // Target a random internal organ for damage
-            var targetPart = internalOrgans[Utils.RandInt(0, internalOrgans.Count - 1)];
+            throw new InvalidOperationException("Effect kind is required");
+        }
 
-            var damageInfo = new DamageInfo
+        // Combine multiple actions like ActionBuilder does
+        Action<Actor>? combinedOnApply = null;
+        if (_onApplyActions.Count > 0)
+        {
+            combinedOnApply = target => _onApplyActions.ForEach(action => action(target));
+        }
+
+        Action<Actor>? combinedOnUpdate = null;
+        if (_onUpdateActions.Count > 0)
+        {
+            combinedOnUpdate = target => _onUpdateActions.ForEach(action => action(target));
+        }
+
+        Action<Actor, double, double>? combinedOnSeverityChange = null;
+        if (_onSeverityChangeActions.Count > 0)
+        {
+            combinedOnSeverityChange = (target, oldSeverity, newSeverity) =>
+                _onSeverityChangeActions.ForEach(action => action(target, oldSeverity, newSeverity));
+        }
+
+        Action<Actor>? combinedOnRemove = null;
+        if (_onRemoveActions.Count > 0)
+        {
+            combinedOnRemove = target => _onRemoveActions.ForEach(action => action(target));
+        }
+
+        return new DynamicEffect(
+            effectKind: _effectKind,
+            source: _source,
+            targetBodyPart: _targetBodyPart,
+            severity: _severity,
+            severityChangeRate: _severityChangeRate,
+            canHaveMultiple: _canHaveMultiple,
+            requiresTreatment: _requiresTreatment,
+            capacityModifiers: new Dictionary<string, double>(_capacityModifiers),
+            onApply: combinedOnApply,
+            onUpdate: combinedOnUpdate,
+            onSeverityChange: combinedOnSeverityChange,
+            onRemove: combinedOnRemove
+        );
+    }
+}
+
+public static class EffectBuilderExtensions
+{
+    public static EffectBuilder CreateEffect(string effectKind) => new EffectBuilder().Named(effectKind);
+
+    // Common effect patterns
+    public static EffectBuilder Bleeding(this EffectBuilder builder, double damagePerHour)
+    {
+        return builder
+            .Named("Bleeding")
+            .WithSeverityChangeRate(-0.05) // Natural clotting
+            .AllowMultiple(true)
+            .ReducesCapacity(CapacityNames.BloodPumping, 0.2)
+            .ReducesCapacity(CapacityNames.Consciousness, 0.1)
+            .WithApplyMessage("{target} is bleeding!")
+            .WithPeriodicMessage("Blood continues to flow from {target}'s wound...")
+            .WhenSeverityDropsBelowWithMessage(0.2, "{target}'s bleeding is slowing")
+            .OnUpdate(target =>
             {
-                Amount = damage,
-                Type = DamageType.Poison,
-                Source = Source,
-                TargetPart = targetPart
-            };
-
-            target.Damage(damageInfo);
-        }
-        else
-        {
-            // Fallback to general damage
-            var damageInfo = new DamageInfo
-            {
-                Amount = damage,
-                Type = DamageType.Poison,
-                Source = Source,
-            };
-
-            target.Damage(damageInfo);
-        }
-
-        // Symptoms based on severity
-        if (Severity > 0.7 && Utils.DetermineSuccess(0.2))
-        {
-            Output.WriteLine($"{target} vomits violently from the {_poisonType} poisoning.");
-        }
-        else if (Severity > 0.4f && Utils.DetermineSuccess(0.1))
-        {
-            Output.WriteLine($"{target} trembles from the effects of the {_poisonType} poison.");
-        }
+                double damage = (damagePerHour / 60.0) * builder.Build().Severity;
+                var damageInfo = new DamageInfo
+                {
+                    Amount = damage,
+                    Type = DamageType.Bleed,
+                    Source = builder.Build().Source,
+                    TargetPart = builder.Build().TargetBodyPart
+                };
+                target.Damage(damageInfo);
+            });
     }
 
+    public static EffectBuilder Poisoned(this EffectBuilder builder, double damagePerHour)
+    {
+        return builder
+            .Named("Poison")
+            .WithSeverityChangeRate(-0.02) // Slow detox
+            .AllowMultiple(true)
+            .ReducesCapacity(CapacityNames.Consciousness, 0.3)
+            .ReducesCapacity(CapacityNames.Manipulation, 0.2)
+            .ReducesCapacity(CapacityNames.Moving, 0.2)
+            .ReducesCapacity(CapacityNames.BloodPumping, .1)
+            .OnUpdate(target =>
+            {
+                double damage = (damagePerHour / 60.0) * builder.Build().Severity;
+                var damageInfo = new DamageInfo
+                {
+                    Amount = damage,
+                    Type = DamageType.Poison,
+                    Source = builder.Build().Source
+                };
+                target.Damage(damageInfo);
+            });
+    }
+
+    public static EffectBuilder Healing(this EffectBuilder builder, double healPerHour)
+    {
+        return builder
+            .Named("Healing")
+            .WithSeverityChangeRate(-1.0 / 60) // Expires in 1 hour by default
+            .OnUpdate(target =>
+            {
+                double heal = (healPerHour / 60.0) * builder.Build().Severity;
+                var healInfo = new HealingInfo
+                {
+                    Amount = heal,
+                    Quality = 1.0,
+                    Source = builder.Build().Source,
+                    TargetPart = builder.Build().TargetBodyPart?.Name
+                };
+                target.Heal(healInfo);
+            });
+    }
+
+    public static EffectBuilder Temperature(this EffectBuilder builder, TemperatureType type)
+    {
+        return type switch
+        {
+            TemperatureType.Hypothermia => builder
+                .Named("Hypothermia")
+                .RequiresTreatment(true)
+                .WithSeverityChangeRate(-.02)
+                .ReducesCapacity(CapacityNames.Moving, 0.3)
+                .ReducesCapacity(CapacityNames.Manipulation, 0.3)
+                .ReducesCapacity(CapacityNames.Consciousness, 0.5)
+                .ReducesCapacity(CapacityNames.BloodPumping, 0.2),
+
+            TemperatureType.Hyperthermia => builder
+                .Named("Hyperthermia")
+                .RequiresTreatment(true)
+                .WithSeverityChangeRate(-.01)
+                .ReducesCapacity(CapacityNames.Consciousness, 0.5)
+                .ReducesCapacity(CapacityNames.Moving, 0.3)
+                .ReducesCapacity(CapacityNames.BloodPumping, 0.2),
+
+            TemperatureType.Frostbite => builder
+                .Named("Frostbite")
+                .WithSeverityChangeRate(-0.02)
+                .ReducesCapacity(CapacityNames.Manipulation, 0.5)
+                .ReducesCapacity(CapacityNames.Moving, 0.5)
+                .ReducesCapacity(CapacityNames.BloodPumping, 0.2),
+
+            _ => builder
+        };
+    }
+
+    public static EffectBuilder WithDuration(this EffectBuilder builder, int minutes)
+    {
+        return builder.WithSeverityChangeRate(-1.0 / minutes);
+    }
+
+    public static EffectBuilder Permanent(this EffectBuilder builder)
+    {
+        return builder.WithSeverityChangeRate(0);
+    }
+
+    public static EffectBuilder NaturalHealing(this EffectBuilder builder, double rate = -0.05)
+    {
+        return builder.WithSeverityChangeRate(rate);
+    }
+
+    // Message helpers
+    public static EffectBuilder WithApplyMessage(this EffectBuilder builder, string message)
+    {
+        return builder.OnApply(target => IO.Output.WriteLine(message.Replace("{target}", target.Name)));
+    }
+
+    public static EffectBuilder WithRemoveMessage(this EffectBuilder builder, string message)
+    {
+        return builder.OnRemove(target => IO.Output.WriteLine(message.Replace("{target}", target.Name)));
+    }
+
+    public static EffectBuilder WithPeriodicMessage(this EffectBuilder builder, string message, double chance = 0.05)
+    {
+        return builder.OnUpdate(target =>
+        {
+            if (Utils.DetermineSuccess(chance))
+            {
+                IO.Output.WriteLine(message.Replace("{target}", target.Name));
+            }
+        });
+    }
+
+    public static EffectBuilder CausesDehydration(this EffectBuilder builder, double hydrationLossPerMinute)
+    {
+        return builder.OnUpdate(target =>
+        {
+            target.Body.UpdateSurvivalStats(new SurvivalStatsUpdate { Hydration = -hydrationLossPerMinute });
+        });
+    }
+
+    public static EffectBuilder CausesExhaustion(this EffectBuilder builder, double exhaustionPerMinute)
+    {
+        return builder.OnUpdate(target =>
+        {
+            target.Body.UpdateSurvivalStats(new SurvivalStatsUpdate { Exhaustion = exhaustionPerMinute });
+        });
+    }
+
+    public static EffectBuilder AffectsTemperature(this EffectBuilder builder, double hourlyTemperatureChange)
+    {
+        return builder.OnUpdate(target =>
+        {
+            target.Body.BodyTemperature += hourlyTemperatureChange / 60.0; // per minute
+        });
+    }
+
+    public static EffectBuilder GrantsExperience(this EffectBuilder builder, string skillName, int xpPerMinute)
+    {
+        return builder.OnUpdate(target =>
+        {
+            if (target is Player player)
+            {
+                player.Skills.GetSkill(skillName).GainExperience(xpPerMinute);
+            }
+        });
+    }
+
+    public static EffectBuilder AppliesOnRemoval(this EffectBuilder builder, Effect effectToApply)
+    {
+        return builder.OnRemove(target =>
+        {
+            target.EffectRegistry.AddEffect(effectToApply);
+        });
+    }
+    public static EffectBuilder WhenSeverityDropsBelow(this EffectBuilder builder, double threshold, Action<Actor> action)
+    {
+        return builder.OnSeverityChange((target, oldSeverity, newSeverity) =>
+        {
+            if (newSeverity < threshold && oldSeverity >= threshold)
+            {
+                action(target);
+            }
+        });
+    }
+
+    public static EffectBuilder WhenSeverityRisesAbove(this EffectBuilder builder, double threshold, Action<Actor> action)
+    {
+        return builder.OnSeverityChange((target, oldSeverity, newSeverity) =>
+        {
+            if (newSeverity > threshold && oldSeverity <= threshold)
+            {
+                action(target);
+            }
+        });
+    }
+
+    public static EffectBuilder WhenSeverityDropsBelowWithMessage(this EffectBuilder builder, double threshold, string message)
+    {
+        return builder.OnSeverityChange((target, oldSeverity, newSeverity) =>
+        {
+            if (newSeverity < threshold && oldSeverity >= threshold)
+            {
+                IO.Output.WriteLine(message.Replace("{target}", target.Name));
+            }
+        });
+    }
+
+    public static EffectBuilder WhenSeverityRisesAboveWithMessage(this EffectBuilder builder, double threshold, string message)
+    {
+        return builder.OnSeverityChange((target, oldSeverity, newSeverity) =>
+        {
+            if (newSeverity > threshold && oldSeverity <= threshold)
+            {
+                IO.Output.WriteLine(message.Replace("{target}", target.Name));
+            }
+        });
+    }
+    public static EffectBuilder ClearsEffectType(this EffectBuilder builder, string effectKindToClear)
+    {
+        return builder.OnApply(target =>
+        {
+            var effectsToClear = target.EffectRegistry.GetEffectsByKind(effectKindToClear);
+            foreach (var effect in effectsToClear)
+            {
+                effect.Remove(target);
+            }
+        });
+    }
+}
+
+public enum TemperatureType
+{
+    Hypothermia,
+    Hyperthermia,
+    Frostbite,
+    Burn
+}
+
+// Dynamic effect class to support the builder
+public class DynamicEffect : Effect
+{
+    private readonly Action<Actor>? _onApply;
+    private readonly Action<Actor>? _onUpdate;
+    private readonly Action<Actor, double, double>? _onSeverityChange;
+    private readonly Action<Actor>? _onRemove;
+
+    public DynamicEffect(
+        string effectKind,
+        string source,
+        MajorBodyPart? targetBodyPart,
+        double severity,
+        double severityChangeRate,
+        bool canHaveMultiple,
+        bool requiresTreatment,
+        Dictionary<string, double> capacityModifiers,
+        Action<Actor>? onApply = null,
+        Action<Actor>? onUpdate = null,
+        Action<Actor, double, double>? onSeverityChange = null,
+        Action<Actor>? onRemove = null)
+        : base(effectKind, source, targetBodyPart, severity, severityChangeRate)
+    {
+        CanHaveMultiple = canHaveMultiple;
+        RequiresTreatment = requiresTreatment;
+
+        // Apply capacity modifiers
+        foreach (var modifier in capacityModifiers)
+        {
+            CapacityModifiers.GetType()
+                .GetProperty(modifier.Key)?
+                .SetValue(CapacityModifiers, modifier.Value);
+        }
+
+        _onApply = onApply;
+        _onUpdate = onUpdate;
+        _onSeverityChange = onSeverityChange;
+        _onRemove = onRemove;
+    }
+
+    protected override void OnApply(Actor target) => _onApply?.Invoke(target);
+    protected override void OnUpdate(Actor target) => _onUpdate?.Invoke(target);
     protected override void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity)
-    {
-        // Update capacity modifiers based on new severity
-        CapacityModifiers["Consciousness"] = 0.3 * updatedSeverity;
-        CapacityModifiers["Manipulation"] = 0.2 * updatedSeverity;
-        CapacityModifiers["Moving"] = 0.2 * updatedSeverity;
-
-        if (updatedSeverity < 0.3 && oldSeverity >= 0.3)
-        {
-            Output.WriteLine($"The {_poisonType} poisoning is becoming less severe.");
-        }
-    }
-
-    protected override void OnRemove(Actor target)
-    {
-        Output.WriteLine($"{target} has recovered from {_poisonType} poisoning.");
-    }
+        => _onSeverityChange?.Invoke(target, oldSeverity, updatedSeverity);
+    protected override void OnRemove(Actor target) => _onRemove?.Invoke(target);
 }================================================================================
 
 File: ./Effects/Effect.cs
@@ -4772,52 +4970,38 @@ using text_survival.Bodies;
 
 namespace text_survival.Effects
 {
-    // public interface IEffect
-    // {
-    //     string EffectType { get; }
-    //     bool IsActive { get; }
-    //     // float Severity { get; }
-    //     // int DurationMin { get; } // Total duration in minutes
-    //     // int RemainingDurationMin { get; } // Remaining duration in minutes
-
-    //     void Apply(IActor target);
-    //     void Update(IActor target);
-    //     void Remove(IActor target);
-    // }
-
-    public abstract class Effect
+    public abstract class Effect(string effectKind, string source, MajorBodyPart? targetBodyPart = null, double severity = 1, double severityChangeRate = 0)
     {
-        protected Effect(string effectKind, string source, MajorBodyPart? targetBodyPart = null, double severity = 1, double severityChangeRate = 0)
-        {
-            EffectKind = effectKind;
-            Source = source;
-            TargetBodyPart = targetBodyPart;
-            Severity = severity;
-            SeverityChangeRate = severityChangeRate;
-
-            IsActive = true;
-            CanHaveMultiple = false;
-            RequiresTreatment = false;
-        }
-
-        public string EffectKind { get; protected set; }
-        public string Source { get; } // what caused this effect (e.g., cold, wound poison)
-        public MajorBodyPart? TargetBodyPart { get; set; }
-        public bool CanHaveMultiple { get; protected set; }
-        public bool IsActive { get; protected set; }
-        public double Severity { get; protected set; }
-        public double SeverityChangeRate { get; protected set; } // per severity reduction per hour
-        public bool RequiresTreatment { get; protected set; }
-        public Capacities CapacityModifiers { get; } = Capacities.GetBaseCapacityMultiplier();
+        #region Properties
+        public string EffectKind { get; protected set; } = effectKind;
+        public string Source { get; } = source;
+        public MajorBodyPart? TargetBodyPart { get; set; } = targetBodyPart;
+        public bool CanHaveMultiple { get; protected set; } = false;
+        public bool IsActive { get; protected set; } = true;
+        public double Severity { get; protected set; } = severity;
+        public double SeverityChangeRate { get; protected set; } = severityChangeRate;
+        public bool RequiresTreatment { get; protected set; } = false;
+        public CapacityModifierContainer CapacityModifiers { get; } = new();
         // public List<TreatmentOption> TreatmentOptions {get;}
+        #endregion
 
-        // main algorithm methods - typically don't override
+        #region  core algorithm methods - typically don't override
+        /// <summary>
+        /// Gets called once by the effect registry, you probably shouldn't be calling this directly.
+        /// </summary>
         public void Apply(Actor target)
         {
             IsActive = true;
             OnApply(target);
         }
 
+        /// <summary>
+        /// Gets called every minute. The main algorithm which calls the hook methods.
+        /// If IsActive is false do nothing, otherwise call each hook in this order
+        /// 1. OnUpdate
+        /// 2. OnUpdateSeverity if SeverityChangeRate <> 0
+        /// 3. OnRemove if severity <= 0
+        /// </summary>
         public void Update(Actor target)
         {
             if (!IsActive) return;
@@ -4836,12 +5020,20 @@ namespace text_survival.Effects
                 return;
             }
         }
+
+        /// <summary>
+        /// Gets called when the severity reaches zero and automatically removes the effect from the target
+        /// </summary>
         public void Remove(Actor target)
         {
             if (!IsActive) return;
             OnRemove(target);
             IsActive = false;
         }
+
+        /// <summary>
+        /// Gets called every minute if the severity change rate is not 0
+        /// </summary>
         public virtual void UpdateSeverity(Actor target, double severityChange)
         {
             if (!IsActive) return;
@@ -4855,16 +5047,32 @@ namespace text_survival.Effects
                 OnSeverityChange(target, oldSeverity, Severity);
             }
         }
+        #endregion
 
 
+        #region Hook Methods
         // hook methods that can be implemented by sub classes
+
+        /// <summary>
+        /// Event meant to be overwritten by implementing classes that gets called once when the effect is applied to the target
+        /// </summary>
         protected virtual void OnApply(Actor target) { }
+        /// <summary>
+        /// Event meant to be overwritten by implementing classes that gets called every minute when the effect is active
+        /// </summary>
         protected virtual void OnUpdate(Actor target) { }
+        /// <summary>
+        /// Event meant to be overwritten by implementing classes that gets called whenever the severity changes
+        /// </summary>
         protected virtual void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity) { }
+        /// <summary>
+        /// Event meant to be overwritten by implementing classes that gets called once when the effect is removed from the target
+        /// </summary>
         protected virtual void OnRemove(Actor target) { }
 
+        #endregion
 
-        // UI methods
+        #region UI methods
         public string GetSeverityDescription()
         {
             if (Severity < 0.3f) return "Minor";
@@ -4878,6 +5086,7 @@ namespace text_survival.Effects
             string locationDesc = TargetBodyPart != null ? $" on {TargetBodyPart.Name}" : "";
             return $"{severityDesc} {EffectKind}{locationDesc}";
         }
+        #endregion
     }
 }================================================================================
 
@@ -5045,17 +5254,17 @@ public class MajorBodyPart(string name, double coverage) : IBodyPart
         return part;
     }
 
-    public Capacities GetTotalCapacities()
+    public CapacityContainer GetTotalCapacities()
     {
         // Step 1: Sum all base capacities from organs
-        var baseCapacities = new Capacities();
+        var baseCapacities = new CapacityContainer();
         foreach (var organ in Organs)
         {
             baseCapacities += organ.GetBaseCapacities();
         }
 
         // Step 2: Calculate combined material multipliers
-        var baseMultipliers = new Capacities
+        var baseMultipliers = new CapacityContainer
         {
             Moving = 1.0,
             Manipulation = 1.0,
@@ -5131,72 +5340,75 @@ public enum BodyState
     Dead
 }
 
+/// <summary>
+/// prototype - not sure if this is how I want to do things
+/// </summary>
 public class DeathSystem
 {
     public BodyState CheckBodyState(Body body)
     {
         var capacities = body.GetCapacities();
-        
+
         // Instant death conditions
         if (HasVitalOrganDestroyed(body)) return BodyState.Dead;
-        
+
         // System failure death
         if (IsInSystemFailure(capacities)) return BodyState.Dead;
-        
+
         // Dying state (death inevitable without intervention)
         if (IsInDyingState(capacities, body)) return BodyState.Dying;
-        
+
         // // Critical state (one system failure away from death)
         // if (IsInCriticalState(capacities)) return BodyState.Critical;
-        
+
         // // Injured but stable
         // if (HasSignificantInjuries(capacities)) return BodyState.Injured;
-        
+
         return BodyState.Healthy;
     }
-    
+
     private bool HasVitalOrganDestroyed(Body body)
     {
         // Instant death: brain destroyed
         if (GetOrganCondition(body, "Brain") <= 0) return true;
-        
+
         // Very rapid death: heart destroyed (maybe give a few minutes?)
         if (GetOrganCondition(body, "Heart") <= 0) return true;
-        
+
         // Suffocation: both lungs destroyed
         var leftLung = GetOrganCondition(body, "Left Lung");
         var rightLung = GetOrganCondition(body, "Right Lung");
         if (leftLung <= 0 && rightLung <= 0) return true;
-        
+
         return false;
     }
-    
-    private bool IsInSystemFailure(Capacities capacities)
+
+    private bool IsInSystemFailure(CapacityContainer capacities)
     {
         // Death from system collapse
         if (capacities.BloodPumping <= 0.05) return true;  // Heart barely functioning
         if (capacities.Breathing <= 0.05) return true;    // Can't breathe
         if (capacities.Consciousness <= 0) return true;   // Brain dead
-        
+
         return false;
     }
-    
-    private bool IsInDyingState(Capacities capacities, Body body)
+
+    private bool IsInDyingState(CapacityContainer capacities, Body body)
     {
         // Multiple critical systems failing
         int criticalSystems = 0;
         if (capacities.BloodPumping <= 0.15) criticalSystems++;
         if (capacities.Breathing <= 0.15) criticalSystems++;
         if (capacities.Consciousness <= 0.15) criticalSystems++;
-        
+
         if (criticalSystems >= 2) return true;
-        
+
         // Severe blood loss (modeled as very low blood pumping)
         if (capacities.BloodPumping <= 0.1) return true;
-        
+
         // Extreme pain/shock could also be dying
         if (body.GetPainLevel() > 0.8 && capacities.BloodPumping <= 0.3) return true;
-        
+
         return false;
     }
 }================================================================================
@@ -5220,10 +5432,10 @@ public static class OrganNames
 }
 
 
-public class Organ(string name, double toughness, Capacities capacities, bool isExternal = false) : Tissue (name, toughness)
+public class Organ(string name, double toughness, CapacityContainer capacities, bool isExternal = false) : Tissue (name, toughness)
 {
     public bool IsExternal { get; set; } = isExternal;
-    public Capacities _baseCapacities { get; set; } = capacities;
+    public CapacityContainer _baseCapacities { get; set; } = capacities;
 
     public void Heal(HealingInfo healingInfo)
     {
@@ -5232,7 +5444,7 @@ public class Organ(string name, double toughness, Capacities capacities, bool is
         Condition = Math.Min(1, Condition += adjustedAmount);
     }
 
-    public override Capacities GetBaseCapacities()
+    public override CapacityContainer GetBaseCapacities()
     {
         return _baseCapacities;
     }
@@ -5243,30 +5455,51 @@ File: ./Bodies/Capacities.cs
 --------------------------------------------------------------------------------
 namespace text_survival.Bodies;
 
-public readonly struct Capacity(double value)
+
+// for type hints if needed
+public static class CapacityNames
+{
+    public const string Moving = "Moving";
+    public const string Manipulation = "Manipulation";
+    public const string Breathing = "Breathing";
+    public const string BloodPumping = "BloodPumping";
+    public const string Consciousness = "Consciousness";
+    public const string Sight = "Sight";
+    public const string Hearing = "Hearing";
+    public const string Digestion = "Digestion";
+}
+
+/// <summary>
+/// Acts as a double that is clamped between 0 and 1
+/// </summary>
+/// <param name="value">A value between 0 and 1 representing a percent capacity value.</param>
+public readonly struct CapacityValue(double value)
 {
     public double Value { get; } = Math.Clamp(value, 0, 1);
 
-    public static implicit operator double(Capacity capacity) => capacity.Value;
-    public static implicit operator Capacity(double value) => new(value);
+    public static implicit operator double(CapacityValue capacity) => capacity.Value;
+    public static implicit operator CapacityValue(double value) => new(value);
 }
 
-public class Capacities
+/// <summary>
+/// A container class to hold all capacity values and provide strong typing for body part capacity operations. Implements operators like addition and multiplication.
+/// </summary>
+public class CapacityContainer
 {
-    public Capacity Moving { get; set; }
-    public Capacity Manipulation { get; set; }
-    public Capacity Breathing { get; set; }
-    public Capacity BloodPumping { get; set; }
-    public Capacity Consciousness { get; set; }
-    public Capacity Sight { get; set; }
-    public Capacity Hearing { get; set; }
-    public Capacity Digestion { get; set; }
+    public CapacityValue Moving { get; set; }
+    public CapacityValue Manipulation { get; set; }
+    public CapacityValue Breathing { get; set; }
+    public CapacityValue BloodPumping { get; set; }
+    public CapacityValue Consciousness { get; set; }
+    public CapacityValue Sight { get; set; }
+    public CapacityValue Hearing { get; set; }
+    public CapacityValue Digestion { get; set; }
 
-    public List<Capacity> AllCapacities => [Moving, Manipulation, Breathing, BloodPumping, Consciousness, Sight, Hearing, Digestion];
+    public List<CapacityValue> AllCapacities => [Moving, Manipulation, Breathing, BloodPumping, Consciousness, Sight, Hearing, Digestion];
 
-    public static Capacities operator +(Capacities a, Capacities b)
+    public static CapacityContainer operator +(CapacityContainer a, CapacityContainer b)
     {
-        return new Capacities
+        return new CapacityContainer
         {
             Moving = a.Moving + b.Moving,
             Manipulation = a.Manipulation + b.Manipulation,
@@ -5278,9 +5511,9 @@ public class Capacities
             Digestion = a.Digestion + b.Digestion
         };
     }
-    public Capacities ApplyMultipliers(Capacities multipliers)
+    public CapacityContainer ApplyMultipliers(CapacityContainer multipliers)
     {
-        return new Capacities
+        return new CapacityContainer
         {
             Moving = Moving * multipliers.Moving,
             Manipulation = Manipulation * multipliers.Manipulation,
@@ -5292,9 +5525,46 @@ public class Capacities
             Digestion = Digestion * multipliers.Digestion
         };
     }
-    public static Capacities GetBaseCapacityMultiplier()
+
+    public CapacityContainer ApplyMultiplier(double multiplier)
     {
-        return new Capacities
+        return new CapacityContainer
+        {
+            Moving = Moving * multiplier,
+            Manipulation = Manipulation * multiplier,
+            Breathing = Breathing * multiplier,
+            BloodPumping = BloodPumping * multiplier,
+            Consciousness = Consciousness * multiplier,
+            Sight = Sight * multiplier,
+            Hearing = Hearing * multiplier,
+            Digestion = Digestion * multiplier
+        };
+    }
+
+
+    public CapacityModifierContainer ApplyModifier(CapacityModifierContainer modifiers)
+    {
+        return new CapacityModifierContainer
+        {
+            Moving = Moving + modifiers.Moving,
+            Manipulation = Manipulation + modifiers.Manipulation,
+            Breathing = Breathing + modifiers.Breathing,
+            BloodPumping = BloodPumping +  modifiers.BloodPumping,
+            Consciousness = Consciousness + modifiers.Consciousness,
+            Sight = Sight + modifiers.Sight,
+            Hearing = Hearing + modifiers.Hearing,
+            Digestion = Digestion + modifiers.Digestion
+        };
+    }
+
+
+    /// <summary>
+    /// Helper for generating a base CapacityContainer with all values set to one - intended for capacity multipliers.
+    /// </summary>
+    /// <returns>A new CapacityContainer that has all values set to 1</returns>
+    public static CapacityContainer GetBaseCapacityMultiplier()
+    {
+        return new CapacityContainer
         {
             Moving = 1,
             Manipulation = 1,
@@ -5307,7 +5577,49 @@ public class Capacities
         };
     }
 }
-================================================================================
+
+/// <summary>
+/// For use with additive capacity modifiers
+/// </summary>
+/// <param name="value">a value between -1 and 1</param>
+public readonly struct CapacityModifierValue(double value)
+{
+    public double Value { get; } = Math.Clamp(value, -1, 1);
+
+    public static implicit operator double(CapacityModifierValue capacity) => capacity.Value;
+    public static implicit operator CapacityModifierValue(double value) => new(value);
+}
+
+
+public class CapacityModifierContainer
+{
+    public CapacityModifierValue Moving { get; set; } = 0;
+    public CapacityModifierValue Manipulation { get; set; } = 0;
+    public CapacityModifierValue Breathing { get; set; } = 0;
+    public CapacityModifierValue BloodPumping { get; set; } = 0;
+    public CapacityModifierValue Consciousness { get; set; } = 0;
+    public CapacityModifierValue Sight { get; set; } = 0;
+    public CapacityModifierValue Hearing { get; set; } = 0;
+    public CapacityModifierValue Digestion { get; set; } = 0;
+
+    // public List<CapacityModifierValue> AllCapacities => [Moving, Manipulation, Breathing, BloodPumping, Consciousness, Sight, Hearing, Digestion];
+
+    public static CapacityModifierContainer operator +(CapacityModifierContainer a, CapacityModifierContainer b)
+    {
+        return new CapacityModifierContainer
+        {
+            Moving = a.Moving + b.Moving,
+            Manipulation = a.Manipulation + b.Manipulation,
+            Breathing = a.Breathing + b.Breathing,
+            BloodPumping = a.BloodPumping + b.BloodPumping,
+            Consciousness = a.Consciousness + b.Consciousness,
+            Sight = a.Sight + b.Sight,
+            Hearing = a.Hearing + b.Hearing,
+            Digestion = a.Digestion + b.Digestion
+        };
+    }
+
+}================================================================================
 
 File: ./Bodies/Body.cs
 --------------------------------------------------------------------------------
@@ -5324,6 +5636,7 @@ public class BodyStats
     public double overallWeight;
     public double fatPercent;
     public double musclePercent;
+    public bool IsPlayer;
 }
 
 public class SurvivalContext
@@ -5336,6 +5649,7 @@ public class SurvivalContext
 public class Body
 {
     // Root part and core properties
+    public readonly bool IsPlayer = false;
     public readonly List<MajorBodyPart> Parts;
     public double Health => CalculateOverallHealth();
 
@@ -5381,6 +5695,7 @@ public class Body
     public Body(string ownerName, BodyStats stats, EffectRegistry effectRegistry)
     {
         OwnerName = ownerName;
+        IsPlayer = stats.IsPlayer;
         EffectRegistry = effectRegistry;
         Parts = BodyPartFactory.CreateBody(stats.type);
         _hungerModule = new HungerModule(this);
@@ -5559,7 +5874,7 @@ public class Body
     {
         double movingCapacity = GetCapacities().Moving;
         double structuralWeightRatio = (_baseWeight / Weight) + (1 - 0.45); // avg 45% structure weight
-        double sizeRatio = Weight / BaseLineHumanStats.overallWeight;
+        double sizeRatio = Weight / BaselineHumanStats.overallWeight;
 
         double muscleBonus = Math.Min(MusclePercentage * 0.20, 0); // Up to 20% bonus from muscle
 
@@ -5570,7 +5885,7 @@ public class Body
             // 10% is minimal necessary fat
             fatPenalty = -.01; // negative penalty if under 10% bf
         }
-        else if (BodyFatPercentage <= BaseLineHumanStats.fatPercent)
+        else if (BodyFatPercentage <= BaselineHumanStats.fatPercent)
         {
             fatPenalty = ((BodyFatPercentage - .10) * .20) - .01; // at baseline a 0% penalty
         }
@@ -5583,7 +5898,7 @@ public class Body
             // 30%  => 23.5%
             // 40%  => 38.5%
             // 50%  => 53.5%
-            fatPenalty = (BodyFatPercentage - BaseLineHumanStats.fatPercent) * 1.5;
+            fatPenalty = (BodyFatPercentage - BaselineHumanStats.fatPercent) * 1.5;
         }
 
         // Penalty for excess weight relative to frame
@@ -5658,7 +5973,7 @@ public class Body
         return baseColdResistance + fatInsulation;
     }
 
-    public Capacities GetCapacities()
+    public CapacityContainer GetCapacities()
     {
         var baseCapacities = AggregatePartCapacities();
 
@@ -5666,9 +5981,9 @@ public class Body
         return ApplyCascadingEffects(baseCapacities);
     }
 
-    private Capacities AggregatePartCapacities()
+    private CapacityContainer AggregatePartCapacities()
     {
-        Capacities total = new();
+        CapacityContainer total = new();
         foreach (var part in Parts)
         {
             total += part.GetTotalCapacities();
@@ -5680,7 +5995,7 @@ public class Body
         return total;
     }
 
-    private Capacities ApplyCascadingEffects(Capacities baseCapacities)
+    private CapacityContainer ApplyCascadingEffects(CapacityContainer baseCapacities)
     {
         var result = baseCapacities;
 
@@ -5711,13 +6026,22 @@ public class Body
     }
 
     // helper for baseline male human stats
-    public static BodyStats BaseLineHumanStats => new BodyStats
+    public static BodyStats BaselineHumanStats => new BodyStats
     {
         type = BodyPartFactory.BodyTypes.Human,
         overallWeight = 75, // KG ~165 lbs
         fatPercent = .15, // pretty lean
         musclePercent = .40 // low end of athletic
     };
+    public static BodyStats BaselinePlayerStats
+    {
+        get
+        {
+            var stats = BaselineHumanStats;
+            stats.IsPlayer = true;
+            return stats;
+        }
+    }
 
     public void Describe()
     {
@@ -5948,8 +6272,8 @@ namespace text_survival.Bodies;
 
 interface ICapacityContributor
 {
-    Capacities GetBaseCapacities();
-    Capacities GetConditionMultipliers();
+    CapacityContainer GetBaseCapacities();
+    CapacityContainer GetConditionMultipliers();
 }
 
 public interface IBodyPart
@@ -5966,12 +6290,12 @@ public class Tissue(string name, double toughness = 1) : ICapacityContributor, I
     public double Condition { get; set; } = 1.0;
     public double Toughness { get; set; } = toughness;
 
-    public virtual Capacities GetBaseCapacities() => new(); // Most tissues don't provide base capacities    
-    public virtual Capacities GetConditionMultipliers()
+    public virtual CapacityContainer GetBaseCapacities() => new(); // Most tissues don't provide base capacities    
+    public virtual CapacityContainer GetConditionMultipliers()
     {
         {
             // Default: condition affects everything equally
-            return new Capacities
+            return new CapacityContainer
             {
                 Moving = Condition,
                 Manipulation = Condition,
@@ -6045,10 +6369,10 @@ public class Tissue(string name, double toughness = 1) : ICapacityContributor, I
 
 class Muscle() : Tissue("Muscle", 1)
 {
-    public override Capacities GetConditionMultipliers()
+    public override CapacityContainer GetConditionMultipliers()
     {
         // Muscle primarily affects movement and manipulation
-        return new Capacities
+        return new CapacityContainer
         {
             Moving = Condition,
             Manipulation = Condition,
@@ -6065,9 +6389,9 @@ class Muscle() : Tissue("Muscle", 1)
 
 class Bone() : Tissue("Bone", 10)
 {
-    public override Capacities GetConditionMultipliers()
+    public override CapacityContainer GetConditionMultipliers()
     {
-        return new Capacities
+        return new CapacityContainer
         {
             Moving = Condition * Condition, // squared, small impact near 1, exponential debuff approaching 0
             Manipulation = Condition,
@@ -6121,29 +6445,29 @@ public static class BodyPartFactory
         head.Bone.Toughness = 20;
         
         // Brain - controls consciousness, very fragile
-        head.Organs.Add(new Organ(OrganNames.Brain, 0.25, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.Brain, 0.25, new CapacityContainer 
         { 
             Consciousness = 1.0 
         }, isExternal: false));
 
         // Eyes - each provides half sight, fragile, external
-        head.Organs.Add(new Organ(OrganNames.LeftEye, 0.5, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.LeftEye, 0.5, new CapacityContainer 
         { 
             Sight = 0.5 
         }, isExternal: true));
         
-        head.Organs.Add(new Organ(OrganNames.RightEye, 0.5, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.RightEye, 0.5, new CapacityContainer 
         { 
             Sight = 0.5 
         }, isExternal: true));
 
         // Ears - each provides half hearing, moderately fragile, external
-        head.Organs.Add(new Organ(OrganNames.LeftEar, 1.0, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.LeftEar, 1.0, new CapacityContainer 
         { 
             Hearing = 0.5 
         }, isExternal: true));
         
-        head.Organs.Add(new Organ(OrganNames.RightEar, 1.0, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.RightEar, 1.0, new CapacityContainer 
         { 
             Hearing = 0.5 
         }, isExternal: true));
@@ -6156,18 +6480,18 @@ public static class BodyPartFactory
         chest.Bone.Toughness = 12;
 
         // Heart - critical for blood pumping, moderately tough
-        chest.Organs.Add(new Organ(OrganNames.Heart, 5.0, new Capacities 
+        chest.Organs.Add(new Organ(OrganNames.Heart, 5.0, new CapacityContainer 
         { 
             BloodPumping = 1.0 
         }, isExternal: false));
 
         // Lungs - each provides half breathing capacity, somewhat fragile
-        chest.Organs.Add(new Organ(OrganNames.LeftLung, 3.0, new Capacities 
+        chest.Organs.Add(new Organ(OrganNames.LeftLung, 3.0, new CapacityContainer 
         { 
             Breathing = 0.5 
         }, isExternal: false));
         
-        chest.Organs.Add(new Organ(OrganNames.RightLung, 3.0, new Capacities 
+        chest.Organs.Add(new Organ(OrganNames.RightLung, 3.0, new CapacityContainer 
         { 
             Breathing = 0.5 
         }, isExternal: false));
@@ -6178,24 +6502,24 @@ public static class BodyPartFactory
         var abdomen = new MajorBodyPart(BodyPartNames.Abdomen, 20.0);
         
         // Liver - major digestive organ, moderately tough
-        abdomen.Organs.Add(new Organ(OrganNames.Liver, 4.0, new Capacities 
+        abdomen.Organs.Add(new Organ(OrganNames.Liver, 4.0, new CapacityContainer 
         { 
             Digestion = 0.6 
         }, isExternal: false));
 
         // Stomach - digestive organ, somewhat fragile
-        abdomen.Organs.Add(new Organ(OrganNames.Stomach, 3.0, new Capacities 
+        abdomen.Organs.Add(new Organ(OrganNames.Stomach, 3.0, new CapacityContainer 
         { 
             Digestion = 0.4 
         }, isExternal: false));
 
         // Kidneys - redundant organs, each can handle most of the load
-        abdomen.Organs.Add(new Organ("Left Kidney", 4.0, new Capacities 
+        abdomen.Organs.Add(new Organ("Left Kidney", 4.0, new CapacityContainer 
         { 
             // BloodFiltration = 0.75 - would need to add this capacity
         }, isExternal: false));
         
-        abdomen.Organs.Add(new Organ("Right Kidney", 4.0, new Capacities 
+        abdomen.Organs.Add(new Organ("Right Kidney", 4.0, new CapacityContainer 
         { 
             // BloodFiltration = 0.75 - would need to add this capacity
         }, isExternal: false));
@@ -6232,29 +6556,29 @@ public static class BodyPartFactory
         head.Bone.Toughness = 15; // Slightly less protected than human skull
         
         // Brain
-        head.Organs.Add(new Organ(OrganNames.Brain, 0.25, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.Brain, 0.25, new CapacityContainer 
         { 
             Consciousness = 1.0 
         }, isExternal: false));
 
         // Eyes - better sight for predators/prey
-        head.Organs.Add(new Organ(OrganNames.LeftEye, 0.5, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.LeftEye, 0.5, new CapacityContainer 
         { 
             Sight = 0.6 
         }, isExternal: true));
         
-        head.Organs.Add(new Organ(OrganNames.RightEye, 0.5, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.RightEye, 0.5, new CapacityContainer 
         { 
             Sight = 0.6 
         }, isExternal: true));
 
         // Ears - better hearing
-        head.Organs.Add(new Organ(OrganNames.LeftEar, 1.0, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.LeftEar, 1.0, new CapacityContainer 
         { 
             Hearing = 0.6 
         }, isExternal: true));
         
-        head.Organs.Add(new Organ(OrganNames.RightEar, 1.0, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.RightEar, 1.0, new CapacityContainer 
         { 
             Hearing = 0.6 
         }, isExternal: true));
@@ -6265,29 +6589,29 @@ public static class BodyPartFactory
         var torso = new MajorBodyPart("Torso", 35.0);
         
         // Heart
-        torso.Organs.Add(new Organ(OrganNames.Heart, 5.0, new Capacities 
+        torso.Organs.Add(new Organ(OrganNames.Heart, 5.0, new CapacityContainer 
         { 
             BloodPumping = 1.0 
         }, isExternal: false));
 
         // Lungs
-        torso.Organs.Add(new Organ(OrganNames.LeftLung, 3.0, new Capacities 
+        torso.Organs.Add(new Organ(OrganNames.LeftLung, 3.0, new CapacityContainer 
         { 
             Breathing = 0.5 
         }, isExternal: false));
         
-        torso.Organs.Add(new Organ(OrganNames.RightLung, 3.0, new Capacities 
+        torso.Organs.Add(new Organ(OrganNames.RightLung, 3.0, new CapacityContainer 
         { 
             Breathing = 0.5 
         }, isExternal: false));
 
         // Digestive organs
-        torso.Organs.Add(new Organ(OrganNames.Liver, 4.0, new Capacities 
+        torso.Organs.Add(new Organ(OrganNames.Liver, 4.0, new CapacityContainer 
         { 
             Digestion = 0.6 
         }, isExternal: false));
 
-        torso.Organs.Add(new Organ(OrganNames.Stomach, 3.0, new Capacities 
+        torso.Organs.Add(new Organ(OrganNames.Stomach, 3.0, new CapacityContainer 
         { 
             Digestion = 0.4 
         }, isExternal: false));
@@ -6314,18 +6638,18 @@ public static class BodyPartFactory
         head.Bone.Toughness = 8; // Less protected than mammalian skulls
         
         // Brain
-        head.Organs.Add(new Organ(OrganNames.Brain, 0.25, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.Brain, 0.25, new CapacityContainer 
         { 
             Consciousness = 1.0 
         }, isExternal: false));
 
         // Eyes
-        head.Organs.Add(new Organ(OrganNames.LeftEye, 0.5, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.LeftEye, 0.5, new CapacityContainer 
         { 
             Sight = 0.5 
         }, isExternal: true));
         
-        head.Organs.Add(new Organ(OrganNames.RightEye, 0.5, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.RightEye, 0.5, new CapacityContainer 
         { 
             Sight = 0.5 
         }, isExternal: true));
@@ -6336,24 +6660,24 @@ public static class BodyPartFactory
         var body = new MajorBodyPart("Body", 80.0);
         
         // Heart
-        body.Organs.Add(new Organ(OrganNames.Heart, 4.0, new Capacities 
+        body.Organs.Add(new Organ(OrganNames.Heart, 4.0, new CapacityContainer 
         { 
             BloodPumping = 1.0 
         }, isExternal: false));
 
         // Single lung (snakes typically have one functional lung)
-        body.Organs.Add(new Organ("Lung", 3.0, new Capacities 
+        body.Organs.Add(new Organ("Lung", 3.0, new CapacityContainer 
         { 
             Breathing = 1.0 
         }, isExternal: false));
 
         // Digestive organs
-        body.Organs.Add(new Organ(OrganNames.Liver, 4.0, new Capacities 
+        body.Organs.Add(new Organ(OrganNames.Liver, 4.0, new CapacityContainer 
         { 
             Digestion = 0.6 
         }, isExternal: false));
 
-        body.Organs.Add(new Organ(OrganNames.Stomach, 3.0, new Capacities 
+        body.Organs.Add(new Organ(OrganNames.Stomach, 3.0, new CapacityContainer 
         { 
             Digestion = 0.4 
         }, isExternal: false));
@@ -6372,7 +6696,7 @@ public static class BodyPartFactory
         cephalothorax.Bone.Toughness = 12; // Chitin is quite tough
         
         // Brain
-        cephalothorax.Organs.Add(new Organ(OrganNames.Brain, 0.3, new Capacities 
+        cephalothorax.Organs.Add(new Organ(OrganNames.Brain, 0.3, new CapacityContainer 
         { 
             Consciousness = 1.0 
         }, isExternal: false));
@@ -6380,14 +6704,14 @@ public static class BodyPartFactory
         // Multiple eyes - spiders typically have 8 eyes
         for (int i = 1; i <= 8; i++)
         {
-            cephalothorax.Organs.Add(new Organ($"Eye {i}", 0.2, new Capacities 
+            cephalothorax.Organs.Add(new Organ($"Eye {i}", 0.2, new CapacityContainer 
             { 
                 Sight = 0.125 // Each contributes 1/8th of total sight
             }, isExternal: true));
         }
 
         // Heart
-        cephalothorax.Organs.Add(new Organ(OrganNames.Heart, 3.0, new Capacities 
+        cephalothorax.Organs.Add(new Organ(OrganNames.Heart, 3.0, new CapacityContainer 
         { 
             BloodPumping = 1.0 
         }, isExternal: false));
@@ -6398,13 +6722,13 @@ public static class BodyPartFactory
         var abdomen = new MajorBodyPart("Abdomen", 20.0);
         
         // Book lungs (spiders have book lungs instead of regular lungs)
-        abdomen.Organs.Add(new Organ("Book Lungs", 2.0, new Capacities 
+        abdomen.Organs.Add(new Organ("Book Lungs", 2.0, new CapacityContainer 
         { 
             Breathing = 1.0 
         }, isExternal: false));
 
         // Digestive organs
-        abdomen.Organs.Add(new Organ("Digestive System", 3.0, new Capacities 
+        abdomen.Organs.Add(new Organ("Digestive System", 3.0, new CapacityContainer 
         { 
             Digestion = 1.0 
         }, isExternal: false));
@@ -6430,29 +6754,29 @@ public static class BodyPartFactory
         head.Bone.Toughness = 8; // Lighter bones for flight
         
         // Brain
-        head.Organs.Add(new Organ(OrganNames.Brain, 0.25, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.Brain, 0.25, new CapacityContainer 
         { 
             Consciousness = 1.0 
         }, isExternal: false));
 
         // Eyes - excellent vision for flying
-        head.Organs.Add(new Organ(OrganNames.LeftEye, 0.5, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.LeftEye, 0.5, new CapacityContainer 
         { 
             Sight = 0.7 
         }, isExternal: true));
         
-        head.Organs.Add(new Organ(OrganNames.RightEye, 0.5, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.RightEye, 0.5, new CapacityContainer 
         { 
             Sight = 0.7 
         }, isExternal: true));
 
         // Ears - excellent hearing
-        head.Organs.Add(new Organ(OrganNames.LeftEar, 1.0, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.LeftEar, 1.0, new CapacityContainer 
         { 
             Hearing = 0.7 
         }, isExternal: true));
         
-        head.Organs.Add(new Organ(OrganNames.RightEar, 1.0, new Capacities 
+        head.Organs.Add(new Organ(OrganNames.RightEar, 1.0, new CapacityContainer 
         { 
             Hearing = 0.7 
         }, isExternal: true));
@@ -6464,29 +6788,29 @@ public static class BodyPartFactory
         torso.Bone.Toughness = 8; // Hollow bones
         
         // Heart - larger for flight demands
-        torso.Organs.Add(new Organ(OrganNames.Heart, 6.0, new Capacities 
+        torso.Organs.Add(new Organ(OrganNames.Heart, 6.0, new CapacityContainer 
         { 
             BloodPumping = 1.0 
         }, isExternal: false));
 
         // Lungs - highly efficient
-        torso.Organs.Add(new Organ(OrganNames.LeftLung, 4.0, new Capacities 
+        torso.Organs.Add(new Organ(OrganNames.LeftLung, 4.0, new CapacityContainer 
         { 
             Breathing = 0.5 
         }, isExternal: false));
         
-        torso.Organs.Add(new Organ(OrganNames.RightLung, 4.0, new Capacities 
+        torso.Organs.Add(new Organ(OrganNames.RightLung, 4.0, new CapacityContainer 
         { 
             Breathing = 0.5 
         }, isExternal: false));
 
         // Digestive organs
-        torso.Organs.Add(new Organ(OrganNames.Liver, 3.5, new Capacities 
+        torso.Organs.Add(new Organ(OrganNames.Liver, 3.5, new CapacityContainer 
         { 
             Digestion = 0.6 
         }, isExternal: false));
 
-        torso.Organs.Add(new Organ(OrganNames.Stomach, 2.5, new Capacities 
+        torso.Organs.Add(new Organ(OrganNames.Stomach, 2.5, new CapacityContainer 
         { 
             Digestion = 0.4 
         }, isExternal: false));
@@ -6507,6 +6831,42 @@ public static class BodyPartFactory
         parts.AddRange([leftLeg, rightLeg]);
 
         return parts;
+    }
+}================================================================================
+
+File: ./Bodies/BodyPartTargeter.cs
+--------------------------------------------------------------------------------
+using System.Net.WebSockets;
+using System.Security;
+using text_survival.Bodies;
+
+public static class BodyPartTargetingHelper
+{
+    public static List<MajorBodyPart> GetAllMajorParts(Body body)
+    {
+        return body.Parts;
+    }
+
+    public static List<Organ> GetAllOrgans(Body body)
+    {
+        return GetAllMajorParts(body).SelectMany(p => p.Organs).ToList();
+    }
+
+    public static List<Tissue> GetAllTissues(Body body)
+    {
+        List<Tissue> tissues = [];
+        GetAllMajorParts(body).ForEach(p => tissues.AddRange(GetTissues(p)));
+        return tissues;
+    }
+
+    public static List<Tissue> GetTissues(MajorBodyPart part)
+    {
+        return [part.Skin, part.Bone, part.Muscle];
+    }
+
+    public static List<Organ> GetOrgans(MajorBodyPart part)
+    {
+        return part.Organs;
     }
 }================================================================================
 
@@ -7256,12 +7616,29 @@ File: ./Magic/SpellFactory.cs
 
 namespace text_survival.Magic
 {
-    public static class SpellFactory
-    {
-        public static Spell MinorHeal => new Spell("Minor Heal", new HealEffect("healing spell", null, 10), true);
-        public static Spell Bleeding => new Spell("Bleeding", new BleedEffect("bleed spell", null, 1, 10, 60), true);
-        public static Spell Poison => new Spell("Poison", new PoisonEffect("magic", "poison spell", 1, 5, 180), false);
-    }
+  public static class SpellFactory
+  {
+    public static Spell MinorHeal => new Spell("Minor Heal",
+                                                  EffectBuilderExtensions
+                                                    .CreateEffect("bleed spell")
+                                                    .Healing(10)
+                                                    .Build(),
+                                                  true);
+    public static Spell Bleeding => new Spell("Bleeding",
+                                              EffectBuilderExtensions
+                                                .CreateEffect("bleed spell")
+                                                .Bleeding(10)
+                                                .WithDuration(60)
+                                                .Build(),
+                                              false);
+    public static Spell Poison => new Spell("Poison",
+                                              EffectBuilderExtensions
+                                                .CreateEffect("poison spell")
+                                                .Poisoned(5)
+                                                .WithDuration(180)
+                                                .Build(),
+                                              false);
+  }
 }
 ================================================================================
 

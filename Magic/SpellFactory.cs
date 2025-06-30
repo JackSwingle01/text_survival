@@ -2,17 +2,27 @@
 
 namespace text_survival.Magic
 {
-    public static class SpellFactory
-    {
-        public static Spell MinorHeal => new Spell("Minor Heal", new HealEffect("healing spell", null, 10), true);
-        public static Spell Bleeding => new Spell("Bleeding",
+  public static class SpellFactory
+  {
+    public static Spell MinorHeal => new Spell("Minor Heal",
                                                   EffectBuilderExtensions
                                                     .CreateEffect("bleed spell")
-                                                    .Bleeding(10)
-                                                    .WithDuration(60)
-                                                    .WithSeverity(1)
+                                                    .Healing(10)
                                                     .Build(),
-                                                  false);
-        public static Spell Poison => new Spell("Poison", new PoisonEffect("magic", "poison spell", 1, 5, 180), false);
-    }
+                                                  true);
+    public static Spell Bleeding => new Spell("Bleeding",
+                                              EffectBuilderExtensions
+                                                .CreateEffect("bleed spell")
+                                                .Bleeding(10)
+                                                .WithDuration(60)
+                                                .Build(),
+                                              false);
+    public static Spell Poison => new Spell("Poison",
+                                              EffectBuilderExtensions
+                                                .CreateEffect("poison spell")
+                                                .Poisoned(5)
+                                                .WithDuration(180)
+                                                .Build(),
+                                              false);
+  }
 }

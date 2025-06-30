@@ -20,7 +20,7 @@ public class Player : Actor
 
     public override void Update()
     {
-        _effectRegistry.Update();
+        EffectRegistry.Update();
         var context = new SurvivalContext
         {
             ActivityLevel = 2,
@@ -57,11 +57,11 @@ public class Player : Actor
 
     #region Constructor
 
-    public Player(Location startingLocation) : base("Player", Body.BaseLineHumanStats)
+    public Player(Location startingLocation) : base("Player", Body.BaselinePlayerStats)
     {
         Name = "Player";
         locationManager = new LocationManager(startingLocation);
-        inventoryManager = new(_effectRegistry);
+        inventoryManager = new(EffectRegistry);
         Skills = new SkillRegistry();
     }
 
@@ -111,7 +111,7 @@ public class Player : Actor
         {
             foreach (Effect e in consumable.Effects)
             {
-                ApplyEffect(e);
+                EffectRegistry.AddEffect(e);
             }
         }
         else if (item is Gear gear)
@@ -120,7 +120,7 @@ public class Player : Actor
             inventoryManager.Equip(gear);
             foreach (Effect effect in gear.EquipEffects)
             {
-                ApplyEffect(effect);
+                EffectRegistry.AddEffect(effect);
             }
         }
 

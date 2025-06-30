@@ -1,31 +1,17 @@
 namespace text_survival.Bodies;
 
-interface ICapacityContributor
-{
-    Capacities GetBaseCapacities();
-    Capacities GetConditionMultipliers();
-}
-
-public interface IBodyPart
-{
-    string Name { get; }
-    double Condition { get; } // 0-1 health
-    double Toughness { get; } // divisor of damage applied
-    void TakeDamage(DamageInfo damageInfo);
-}
-
-public class Tissue(string name, double toughness = 1) : ICapacityContributor, IBodyPart
+public class Tissue(string name, double toughness = 1)
 {
     public string Name { get; } = name;
     public double Condition { get; set; } = 1.0;
     public double Toughness { get; set; } = toughness;
 
-    public virtual Capacities GetBaseCapacities() => new(); // Most tissues don't provide base capacities    
-    public virtual Capacities GetConditionMultipliers()
+    public virtual CapacityContainer GetBaseCapacities() => new(); // Most tissues don't provide base capacities    
+    public virtual CapacityContainer GetConditionMultipliers()
     {
         {
             // Default: condition affects everything equally
-            return new Capacities
+            return new CapacityContainer
             {
                 Moving = Condition,
                 Manipulation = Condition,
@@ -58,25 +44,7 @@ public class Tissue(string name, double toughness = 1) : ICapacityContributor, I
         };
     }
 
-    public void TakeDamage(DamageInfo damageInfo)
-    {
-        double damage = damageInfo.Amount;
-        var damageType = damageInfo.Type;
-
-        double threshold = GetNaturalAbsorption(damageType);
-        if (damage < threshold)
-        {
-            return; // Natural squishiness absorbed it
-        }
-
-        damage -= threshold;
-        damageInfo.Amount = damage;
-
-        double healthLoss = damageInfo.Amount / GetProtection(damageInfo.Type);
-        Condition = Math.Max(0, Condition - healthLoss);
-    }
-
-    private double GetNaturalAbsorption(DamageType damageType)
+    public double GetNaturalAbsorption(DamageType damageType)
     {
         double baseThreshold = Name switch
         {
@@ -99,10 +67,10 @@ public class Tissue(string name, double toughness = 1) : ICapacityContributor, I
 
 class Muscle() : Tissue("Muscle", 1)
 {
-    public override Capacities GetConditionMultipliers()
+    public override CapacityContainer GetConditionMultipliers()
     {
         // Muscle primarily affects movement and manipulation
-        return new Capacities
+        return new CapacityContainer
         {
             Moving = Condition,
             Manipulation = Condition,
@@ -119,9 +87,9 @@ class Muscle() : Tissue("Muscle", 1)
 
 class Bone() : Tissue("Bone", 10)
 {
-    public override Capacities GetConditionMultipliers()
+    public override CapacityContainer GetConditionMultipliers()
     {
-        return new Capacities
+        return new CapacityContainer
         {
             Moving = Condition * Condition, // squared, small impact near 1, exponential debuff approaching 0
             Manipulation = Condition,

@@ -19,12 +19,9 @@ public abstract class Actor
     public bool IsAlive => !Body.IsDestroyed;
     public abstract Weapon ActiveWeapon { get; protected set; }
 
-    public virtual void ApplyEffect(Effect effect) => _effectRegistry.AddEffect(effect);
-    public virtual void RemoveEffect(Effect effect) => _effectRegistry.RemoveEffect(effect);
-    public virtual List<Effect> GetEffectsByKind(string kind) => _effectRegistry.GetEffectsByKind(kind);
     public virtual void Update()
     {
-        _effectRegistry.Update();
+        EffectRegistry.Update();
         var context = new SurvivalContext
         {
             ActivityLevel = 2,
@@ -33,7 +30,7 @@ public abstract class Actor
         Body.Update(TimeSpan.FromMinutes(1), context);
     }
     public Body Body { get; init; }
-    protected EffectRegistry _effectRegistry { get; init; }
+    public EffectRegistry EffectRegistry { get; init; }
     protected CombatManager combatManager { get; init; }
 
     public override string ToString() => Name;
@@ -41,9 +38,9 @@ public abstract class Actor
     protected Actor(string name, BodyStats stats)
     {
         Name = name;
-        _effectRegistry = new EffectRegistry(this);
+        EffectRegistry = new EffectRegistry(this);
         this.combatManager = new CombatManager(this);
-        Body = new Body(Name, stats, _effectRegistry);
+        Body = new Body(Name, stats, EffectRegistry);
     }
 }
 

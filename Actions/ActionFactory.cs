@@ -556,7 +556,7 @@ public static class ActionFactory
             .Do(ctx =>
             {
                 int magicSkill = ctx.player.Skills.Magic.Level;
-                MajorBodyPart? targetPart = SelectSpellTargetPart(target, magicSkill);
+                BodyRegion? targetPart = SelectSpellTargetPart(target, magicSkill);
                 if (targetPart != null)
                 {
                     spell.Cast(target, targetPart);

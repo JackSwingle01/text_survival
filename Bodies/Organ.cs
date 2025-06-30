@@ -15,19 +15,11 @@ public static class OrganNames
 }
 
 
-public class Organ(string name, double toughness, Capacities capacities, bool isExternal = false) : Tissue (name, toughness)
+public class Organ(string name, double toughness, CapacityContainer capacities, bool isExternal = false) : Tissue (name, toughness)
 {
     public bool IsExternal { get; set; } = isExternal;
-    public Capacities _baseCapacities { get; set; } = capacities;
-
-    public void Heal(HealingInfo healingInfo)
-    {
-        // Apply healing to this part
-        double adjustedAmount = healingInfo.Amount * healingInfo.Quality;
-        Condition = Math.Min(1, Condition += adjustedAmount);
-    }
-
-    public override Capacities GetBaseCapacities()
+    public CapacityContainer _baseCapacities { get; set; } = capacities;
+    public override CapacityContainer GetBaseCapacities()
     {
         return _baseCapacities;
     }

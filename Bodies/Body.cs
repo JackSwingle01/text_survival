@@ -11,6 +11,7 @@ public class BodyStats
     public double overallWeight;
     public double fatPercent;
     public double musclePercent;
+    public bool IsPlayer;
 }
 
 public class SurvivalContext
@@ -23,7 +24,8 @@ public class SurvivalContext
 public class Body
 {
     // Root part and core properties
-    public readonly List<MajorBodyPart> Parts;
+    public readonly bool IsPlayer = false;
+    public readonly List<BodyRegion> Parts;
     public double Health => CalculateOverallHealth();
 
     private double CalculateOverallHealth()
@@ -33,7 +35,7 @@ public class Body
         return health;
     }
 
-    private double CalculatePartHealth(MajorBodyPart part)
+    private double CalculatePartHealth(BodyRegion part)
     {
         // Average health of materials and organs
         var materialHealth = new List<double>
@@ -60,14 +62,12 @@ public class Body
     private readonly ExhaustionModule _exhaustionModule;
     private readonly TemperatureModule _temperatureModule;
 
-    // Physical composition
-    private double _bodyFat;
-    private double _muscle;
     private readonly double _baseWeight;
 
     public Body(string ownerName, BodyStats stats, EffectRegistry effectRegistry)
     {
         OwnerName = ownerName;
+        IsPlayer = stats.IsPlayer;
         EffectRegistry = effectRegistry;
         Parts = BodyPartFactory.CreateBody(stats.type);
         _hungerModule = new HungerModule(this);
@@ -76,61 +76,95 @@ public class Body
         _temperatureModule = new TemperatureModule(this);
 
         // Initialize physical composition
-        _bodyFat = stats.overallWeight * stats.fatPercent;
-        _muscle = stats.overallWeight * stats.musclePercent;
-        _baseWeight = stats.overallWeight - _bodyFat - _muscle;
+        BodyFat = stats.overallWeight * stats.fatPercent;
+        Muscle = stats.overallWeight * stats.musclePercent;
+        _baseWeight = stats.overallWeight - BodyFat - Muscle;
 
         BodyTemperature = 98.6;
     }
 
-
-    // Physical composition properties
-    public double BodyFat
-    {
-        get => _bodyFat;
-        set
-        {
-            _bodyFat = Math.Max(value, 0);
-        }
-    }
-
-    public double Muscle
-    {
-        get => _muscle;
-        set
-        {
-            _muscle = Math.Max(value, 0);
-        }
-    }
+    public double BodyFat;
+    public double Muscle;
 
     public readonly string OwnerName;
-    public double BodyFatPercentage => _bodyFat / Weight;
-    public double MusclePercentage => _muscle / Weight;
-    public double Weight => _baseWeight + _bodyFat + _muscle;
-
+    public double BodyFatPercentage => BodyFat / Weight;
+    public double MusclePercentage => Muscle / Weight;
+    public double Weight => _baseWeight + BodyFat + Muscle;
     public double BodyTemperature { get; set; }
 
-    // Forwarding methods to root part
+    /// <summary>
+    /// Damage application rules: 
+    /// 1. Body.Damage() is the only way to apply damage 
+    /// 2. Body handles all targeting resolution (string -> IBodyPart)
+    /// 3. Body handles damage distribution and penetration logic
+    /// 4. Effects should create Damage info and pass it here 
+    /// </summary>
     public void Damage(DamageInfo damageInfo)
     {
         // If targeting specific part, find it
-        if (damageInfo.TargetPart != null)
+        if (damageInfo.TargetPartName != null)
         {
-            var targetPart = Parts.FirstOrDefault(p => p == damageInfo.TargetPart);
+            var targetPart = BodyTargetHelper.GetPartByName(this, damageInfo.TargetPartName);
             if (targetPart != null)
             {
-                targetPart.TakeDamage(damageInfo);
+                DamagePart(targetPart, damageInfo);
                 return;
             }
         }
 
         // Otherwise, distribute based on coverage
-        var partChances = Parts.ToDictionary(p => p, p => p.Coverage);
-        var hitPart = Utils.GetRandomWeighted(partChances);
+        var hitPart = BodyTargetHelper.GetRandomMajorPartByCoverage(this);
 
-        hitPart.TakeDamage(damageInfo);
+        DamagePart(hitPart, damageInfo);
         return;
     }
+
+    private void DamagePart(BodyRegion part, DamageInfo damageInfo)
+    {
+        damageInfo.Amount = PenetrateLayers(part, damageInfo);
+        if (damageInfo.Amount <= 0) return; // all absorbed
+
+        var hitOrgan = BodyTargetHelper.SelectRandomOrganToHit(part, damageInfo.Amount);
+        if (hitOrgan == null) return; // instead hit tissue
+
+        DamageTissue(hitOrgan, damageInfo);
+    }
+
+    private void DamageTissue(Tissue tissue, DamageInfo damageInfo)
+    {
+        double absorption = tissue.GetNaturalAbsorption(damageInfo.Type);
+        damageInfo.Amount -= absorption;
+        if (damageInfo.Amount <= 0)
+        {
+            return; // Natural squishiness absorbed it
+        }
+
+        double healthLoss = damageInfo.Amount / tissue.GetProtection(damageInfo.Type);
+        tissue.Condition = Math.Max(0, tissue.Condition - healthLoss);
+    }
+
+    private double PenetrateLayers(BodyRegion part, DamageInfo damageInfo)
+    {
+        DamageType damageType = damageInfo.Type;
+        double damage = damageInfo.Amount;
+        var layers = new[] { part.Skin, part.Muscle, part.Bone }.Where(l => l != null);
+
+        foreach (var layer in layers)
+        {
+            double protection = layer!.GetProtection(damageType);
+            double absorbed = Math.Min(damage * 0.7, protection); // Layer absorbs up to 70% of damage
+
+            damageInfo.Amount -= absorbed;
+
+            DamageTissue(layer, damageInfo); // Layer takes damage from absorbing
+
+            if (damage <= 0) break;
+        }
+
+        return Math.Max(0, damage);
+    }
+
+
     public void Heal(HealingInfo healingInfo)
     {
         // Distribute healing across damaged parts
@@ -156,7 +190,7 @@ public class Body
         }
     }
 
-    private void HealBodyPart(MajorBodyPart part, HealingInfo healingInfo)
+    private void HealBodyPart(BodyRegion part, HealingInfo healingInfo)
     {
         double healingAmount = healingInfo.Amount * healingInfo.Quality;
 
@@ -246,7 +280,7 @@ public class Body
     {
         double movingCapacity = GetCapacities().Moving;
         double structuralWeightRatio = (_baseWeight / Weight) + (1 - 0.45); // avg 45% structure weight
-        double sizeRatio = Weight / BaseLineHumanStats.overallWeight;
+        double sizeRatio = Weight / BaselineHumanStats.overallWeight;
 
         double muscleBonus = Math.Min(MusclePercentage * 0.20, 0); // Up to 20% bonus from muscle
 
@@ -257,7 +291,7 @@ public class Body
             // 10% is minimal necessary fat
             fatPenalty = -.01; // negative penalty if under 10% bf
         }
-        else if (BodyFatPercentage <= BaseLineHumanStats.fatPercent)
+        else if (BodyFatPercentage <= BaselineHumanStats.fatPercent)
         {
             fatPenalty = ((BodyFatPercentage - .10) * .20) - .01; // at baseline a 0% penalty
         }
@@ -270,7 +304,7 @@ public class Body
             // 30%  => 23.5%
             // 40%  => 38.5%
             // 50%  => 53.5%
-            fatPenalty = (BodyFatPercentage - BaseLineHumanStats.fatPercent) * 1.5;
+            fatPenalty = (BodyFatPercentage - BaselineHumanStats.fatPercent) * 1.5;
         }
 
         // Penalty for excess weight relative to frame
@@ -345,29 +379,56 @@ public class Body
         return baseColdResistance + fatInsulation;
     }
 
-    public Capacities GetCapacities()
+    public CapacityContainer GetCapacities()
     {
-        var baseCapacities = AggregatePartCapacities();
-
-        // Apply cascading effects
-        return ApplyCascadingEffects(baseCapacities);
-    }
-
-    private Capacities AggregatePartCapacities()
-    {
-        Capacities total = new();
+        CapacityContainer total = new();
         foreach (var part in Parts)
         {
-            total += part.GetTotalCapacities();
+            total += GetRegionCapacities(part);
         }
-        // // Apply body-wide effect modifiers
-        // double bodyModifier = EffectRegistry.GetBodyCapacityModifier(capacityName);
-        // total *= (1 + bodyModifier);
+        // Apply body-wide effect modifiers
+        var bodyModifier = EffectRegistry.CapacityModifiers(this);
+        total = total.ApplyModifier(bodyModifier);
 
-        return total;
+        // Apply cascading effects
+        return ApplyCascadingEffects(total);
     }
 
-    private Capacities ApplyCascadingEffects(Capacities baseCapacities)
+     public CapacityContainer GetRegionCapacities(BodyRegion region)
+    {
+        // Step 1: Sum all base capacities from organs
+        var baseCapacities = new CapacityContainer();
+        foreach (var organ in region.Organs)
+        {
+            baseCapacities += organ.GetBaseCapacities();
+        }
+
+        // Step 2: Calculate combined material multipliers
+        var baseMultipliers = new CapacityContainer
+        {
+            Moving = 1.0,
+            Manipulation = 1.0,
+            Breathing = 1.0,
+            BloodPumping = 1.0,
+            Consciousness = 1.0,
+            Sight = 1.0,
+            Hearing = 1.0,
+            Digestion = 1.0,
+        };
+
+        foreach (var material in new List<Tissue> { region.Skin, region.Muscle, region.Bone })
+        {
+            // todo revisit this, I think this will cause too big of an effect, e.g. 0.5*0.5 = .25
+            var multipliers = material.GetConditionMultipliers();
+            baseMultipliers = baseMultipliers.ApplyMultipliers(multipliers);
+        }
+
+        // Step 3: Apply multipliers to base capacities
+        return baseCapacities.ApplyMultipliers(baseMultipliers);
+    }
+
+
+    private CapacityContainer ApplyCascadingEffects(CapacityContainer baseCapacities)
     {
         var result = baseCapacities;
 
@@ -398,13 +459,22 @@ public class Body
     }
 
     // helper for baseline male human stats
-    public static BodyStats BaseLineHumanStats => new BodyStats
+    public static BodyStats BaselineHumanStats => new BodyStats
     {
         type = BodyPartFactory.BodyTypes.Human,
         overallWeight = 75, // KG ~165 lbs
         fatPercent = .15, // pretty lean
         musclePercent = .40 // low end of athletic
     };
+    public static BodyStats BaselinePlayerStats
+    {
+        get
+        {
+            var stats = BaselineHumanStats;
+            stats.IsPlayer = true;
+            return stats;
+        }
+    }
 
     public void Describe()
     {
@@ -462,7 +532,7 @@ public class Body
         }
     }
 
-    private void DescribePartCondition(MajorBodyPart part)
+    private void DescribePartCondition(BodyRegion part)
     {
         Output.WriteLine($"\n{part.Name}:");
 
@@ -533,7 +603,6 @@ public class Body
         {
             Amount = minutesSlept / 10,
             Type = "natural",
-            TargetOrgan = "Body",
             Quality = _exhaustionModule.IsFullyRested ? 1 : .7, // healing quality is better after a full night's sleep
         };
 

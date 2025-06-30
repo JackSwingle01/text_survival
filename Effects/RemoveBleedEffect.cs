@@ -6,7 +6,7 @@ namespace text_survival.Effects
 {
     public class RemoveBleedEffect : Effect
     {
-        public RemoveBleedEffect(string source, MajorBodyPart? targetBodyPart) : base("RemoveBleed", source, targetBodyPart, severity: 1.0f)
+        public RemoveBleedEffect(string source, BodyRegion? targetBodyPart) : base("RemoveBleed", source, targetBodyPart, severity: 1.0f)
         {
         }
 

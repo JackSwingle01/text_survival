@@ -62,9 +62,8 @@ namespace text_survival.Items
                 mushroom.DamageEffect = new()
                 {
                     Amount = strength * .66,
-                    IsPenetrating = true,
-                    Type = "poison",
-                    TargetOrgan = targetOrgan,
+                    Type = Bodies.DamageType.Poison,
+                    TargetPartName = targetOrgan,
                     Accuracy = 1,
                 };
             }

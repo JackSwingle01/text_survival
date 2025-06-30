@@ -8,7 +8,7 @@ public class BleedEffect : Effect
 {
     private float _damagePerHour;
 
-    public BleedEffect(string source, MajorBodyPart? targetPart, float severity, float damagePerHour, int durationMin = -1)
+    public BleedEffect(string source, BodyRegion? targetPart, float severity, float damagePerHour, int durationMin = -1)
         : base("Bleeding", source, targetPart, severity)
     {
         _damagePerHour = damagePerHour;
@@ -39,7 +39,7 @@ public class BleedEffect : Effect
             Amount = damage,
             Type = DamageType.Bleed,
             Source = Source,
-            TargetPart = TargetBodyPart
+            TargetPartName = TargetBodyPart
         };
 
         target.Damage(damageInfo);

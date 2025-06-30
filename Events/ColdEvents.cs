@@ -72,23 +72,37 @@ public class BodyColdEventHandler : IEventHandler<BodyColdEvent>
         // Calculate severity based on temperature
         double severity = Math.Clamp((HypothermiaThreshold - target.BodyTemperature) / 10.0, 0.01, 1.0);
 
+        string applicationMessage;
+        string removalMessage;
+        if (target.IsPlayer)
+        {
+            applicationMessage = $"Your core is getting very cold, you feel like you're starting to get hypothermia... Severity = {severity}";
+            removalMessage = $"You're warming up enough and starting to feel better, the hypothermia has passed...";
+        }
+        else
+        {
+            applicationMessage = $"DEBUG: {target} has hypothermia. Severity = {severity}";
+            removalMessage = $"DEBUG: {target} no longer has hypothermia.";
+        }
         // Apply to whole body (will handle stacking through EffectRegistry)
-        var hypothermia = new TemperatureInjury(
-            TemperatureInjury.TemperatureInjuryType.Hypothermia,
-            "Cold exposure",
-            null,
-            severity);
+        var hypothermia = EffectBuilderExtensions
+            .CreateEffect("Hypothermia")
+            .Temperature(TemperatureType.Hypothermia)
+            .WithApplyMessage(applicationMessage)
+            .WithSeverity(severity)
+            .AllowMultiple(false)
+            .WithRemoveMessage(removalMessage)
+            .Build();
 
         target.EffectRegistry.AddEffect(hypothermia);
 
     }
 
-
     private void ApplyFrostbite(Body target)
     {
         // Get extremities (hands and feet)
-        var extremities = target.GetAllParts()
-            .Where(p => p.Name.Contains("Hand") || p.Name.Contains("Foot"))
+        var extremities = target.Parts
+            .Where(p => p.Name.Contains("Arm") || p.Name.Contains("Leg"))
             .ToList();
 
         foreach (var extremity in extremities)
@@ -96,15 +110,33 @@ public class BodyColdEventHandler : IEventHandler<BodyColdEvent>
             // Calculate severity based on temperature
             double severity = Math.Clamp((SevereHypothermiaThreshold - target.BodyTemperature) / 5.0, 0.01, 1.0);
 
-            // Apply frostbite to extremity (will handle stacking through EffectRegistry)
-            var frostbite = new TemperatureInjury(
-                TemperatureInjury.TemperatureInjuryType.Frostbite,
-                "Extreme cold",
-                extremity,
-                severity);
+            string applicationMessage;
+            string removalMessage;
+
+            if (target.IsPlayer)
+            {
+                applicationMessage = $"Your {extremity.Name.ToLower()} is getting dangerously cold, you're developing frostbite! Severity = {severity}";
+                removalMessage = $"The feeling is returning to your {extremity.Name.ToLower()}, the frostbite is healing...";
+            }
+            else
+            {
+                applicationMessage = $"DEBUG: {target} has frostbite on {extremity.Name}. Severity = {severity}";
+                removalMessage = $"DEBUG: {target} no longer has frostbite on {extremity.Name}.";
+            }
+
+            // Apply frostbite to extremity using builder pattern
+            var frostbite = EffectBuilderExtensions
+                .CreateEffect("Frostbite")
+                .Temperature(TemperatureType.Frostbite)
+                .WithApplyMessage(applicationMessage)
+                .WithSeverity(severity)
+                .Targeting(extremity)
+                .AllowMultiple(true) // Allow multiple frostbite effects on different extremities
+                .WithRemoveMessage(removalMessage)
+                .Build();
 
             target.EffectRegistry.AddEffect(frostbite);
         }
     }
-
 }
+

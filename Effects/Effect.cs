@@ -3,52 +3,38 @@ using text_survival.Bodies;
 
 namespace text_survival.Effects
 {
-    // public interface IEffect
-    // {
-    //     string EffectType { get; }
-    //     bool IsActive { get; }
-    //     // float Severity { get; }
-    //     // int DurationMin { get; } // Total duration in minutes
-    //     // int RemainingDurationMin { get; } // Remaining duration in minutes
-
-    //     void Apply(IActor target);
-    //     void Update(IActor target);
-    //     void Remove(IActor target);
-    // }
-
-    public abstract class Effect
+    public abstract class Effect(string effectKind, string source, string? targetBodyPart = null, double severity = 1, double severityChangeRate = 0)
     {
-        protected Effect(string effectKind, string source, MajorBodyPart? targetBodyPart = null, double severity = 1, double severityChangeRate = 0)
-        {
-            EffectKind = effectKind;
-            Source = source;
-            TargetBodyPart = targetBodyPart;
-            Severity = severity;
-            SeverityChangeRate = severityChangeRate;
-
-            IsActive = true;
-            CanHaveMultiple = false;
-            RequiresTreatment = false;
-        }
-
-        public string EffectKind { get; protected set; }
-        public string Source { get; } // what caused this effect (e.g., cold, wound poison)
-        public MajorBodyPart? TargetBodyPart { get; set; }
-        public bool CanHaveMultiple { get; protected set; }
-        public bool IsActive { get; protected set; }
-        public double Severity { get; protected set; }
-        public double SeverityChangeRate { get; protected set; } // per severity reduction per hour
-        public bool RequiresTreatment { get; protected set; }
-        public Capacities CapacityModifiers { get; } = new();
+        #region Properties
+        public string EffectKind { get; protected set; } = effectKind;
+        public string Source { get; } = source;
+        public string? TargetBodyPart { get; set; } = targetBodyPart;
+        public bool CanHaveMultiple { get; protected set; } = false;
+        public bool IsActive { get; protected set; } = true;
+        public double Severity { get; protected set; } = severity;
+        public double SeverityChangeRate { get; protected set; } = severityChangeRate;
+        public bool RequiresTreatment { get; protected set; } = false;
+        public CapacityModifierContainer CapacityModifiers { get; } = new();
         // public List<TreatmentOption> TreatmentOptions {get;}
+        #endregion
 
-        // main algorithm methods - typically don't override
+        #region  core algorithm methods - typically don't override
+        /// <summary>
+        /// Gets called once by the effect registry, you probably shouldn't be calling this directly.
+        /// </summary>
         public void Apply(Actor target)
         {
             IsActive = true;
             OnApply(target);
         }
 
+        /// <summary>
+        /// Gets called every minute. The main algorithm which calls the hook methods.
+        /// If IsActive is false do nothing, otherwise call each hook in this order
+        /// 1. OnUpdate
+        /// 2. OnUpdateSeverity if SeverityChangeRate <> 0
+        /// 3. OnRemove if severity <= 0
+        /// </summary>
         public void Update(Actor target)
         {
             if (!IsActive) return;
@@ -67,12 +53,20 @@ namespace text_survival.Effects
                 return;
             }
         }
+
+        /// <summary>
+        /// Gets called when the severity reaches zero and automatically removes the effect from the target
+        /// </summary>
         public void Remove(Actor target)
         {
             if (!IsActive) return;
             OnRemove(target);
             IsActive = false;
         }
+
+        /// <summary>
+        /// Gets called every minute if the severity change rate is not 0
+        /// </summary>
         public virtual void UpdateSeverity(Actor target, double severityChange)
         {
             if (!IsActive) return;
@@ -86,16 +80,32 @@ namespace text_survival.Effects
                 OnSeverityChange(target, oldSeverity, Severity);
             }
         }
+        #endregion
 
 
+        #region Hook Methods
         // hook methods that can be implemented by sub classes
+
+        /// <summary>
+        /// Event meant to be overwritten by implementing classes that gets called once when the effect is applied to the target
+        /// </summary>
         protected virtual void OnApply(Actor target) { }
+        /// <summary>
+        /// Event meant to be overwritten by implementing classes that gets called every minute when the effect is active
+        /// </summary>
         protected virtual void OnUpdate(Actor target) { }
+        /// <summary>
+        /// Event meant to be overwritten by implementing classes that gets called whenever the severity changes
+        /// </summary>
         protected virtual void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity) { }
+        /// <summary>
+        /// Event meant to be overwritten by implementing classes that gets called once when the effect is removed from the target
+        /// </summary>
         protected virtual void OnRemove(Actor target) { }
 
+        #endregion
 
-        // UI methods
+        #region UI methods
         public string GetSeverityDescription()
         {
             if (Severity < 0.3f) return "Minor";
@@ -106,8 +116,9 @@ namespace text_survival.Effects
         public virtual string Describe()
         {
             string severityDesc = GetSeverityDescription();
-            string locationDesc = TargetBodyPart != null ? $" on {TargetBodyPart.Name}" : "";
+            string locationDesc = TargetBodyPart != null ? $" on {TargetBodyPart}" : "";
             return $"{severityDesc} {EffectKind}{locationDesc}";
         }
+        #endregion
     }
 }

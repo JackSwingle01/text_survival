@@ -10,7 +10,7 @@ public class EffectRegistry(Actor owner)
     {
         if (_effects.Contains(effect)) return;
 
-        MajorBodyPart? part = effect.TargetBodyPart;
+        BodyRegion? part = effect.TargetBodyPart;
 
         if (!effect.CanHaveMultiple)
         {
@@ -21,7 +21,6 @@ public class EffectRegistry(Actor owner)
                 existingEffect.UpdateSeverity(_owner, newSeverity);
                 return;
             }
-
         }
 
         _effects.Add(effect);
@@ -47,19 +46,21 @@ public class EffectRegistry(Actor owner)
     }
 
 
-    public Capacities CapacityModifiers(string capacity, IBodyPart part)
+    public CapacityModifierContainer CapacityModifiers(Body body)
     {
-        var modifiers = GetEffectsOnBodyPart(part).Select(e => e.CapacityModifiers).ToList();
-        Capacities total = new();
-        foreach (var mod in modifiers) {
-            var severityMod = mod.ApplyMultiplier(e.Severity);
-            total += severityMod;
+        var parts = BodyTargetHelper.GetAllMajorParts(body);
+        CapacityModifierContainer total = new();
+        foreach (var p in parts)
+        {
+            var modifiers = _effects.Where(e => e.TargetBodyPart == p.Name).Select(e => e.CapacityModifiers).ToList();
+            foreach (var mod in modifiers)
+            {
+                total += mod;
+            }
         }
-
         return total;
     }
 
-    public List<Effect> GetEffectsOnBodyPart(IBodyPart part) => [.. _effects.Where(e => e.TargetBodyPart == part)];
     public List<Effect> GetEffectsByKind(string kind) => [.. _effects.Where(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase))];
     public void RemoveEffectsByKind(string kind)
     {
