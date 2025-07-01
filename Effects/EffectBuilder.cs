@@ -7,7 +7,7 @@ public class EffectBuilder
 {
     private string _effectKind = "";
     private string _source = "";
-    private BodyRegion? _targetBodyPart = null;
+    private string? _targetBodyPart = null;
     private double _severity = 1.0;
     private double _severityChangeRate = 0;
     private bool _canHaveMultiple = false;
@@ -32,7 +32,7 @@ public class EffectBuilder
         return this;
     }
 
-    public EffectBuilder Targeting(BodyRegion? bodyPart)
+    public EffectBuilder Targeting(string? bodyPart)
     {
         _targetBodyPart = bodyPart;
         return this;
@@ -214,7 +214,7 @@ public static class EffectBuilderExtensions
                     Amount = heal,
                     Quality = 1.0,
                     Source = builder.Build().Source,
-                    TargetPart = builder.Build().TargetBodyPart?.Name
+                    TargetPart = builder.Build().TargetBodyPart
                 };
                 target.Heal(healInfo);
             });
@@ -406,7 +406,7 @@ public class DynamicEffect : Effect
     public DynamicEffect(
         string effectKind,
         string source,
-        BodyRegion? targetBodyPart,
+        string? targetBodyPart,
         double severity,
         double severityChangeRate,
         bool canHaveMultiple,

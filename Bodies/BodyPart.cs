@@ -27,7 +27,9 @@ public class BodyRegion(string name, double coverage)
     public Tissue Bone { get; set; } = new Bone();
     public List<Organ> Organs { get; set; } = [];
     public bool IsDestroyed => throw new NotImplementedException();
-   
+
+    public double Condition => throw new NotImplementedException();
+
     // public void Describe()
     // {
     //     // Calculate health percentage

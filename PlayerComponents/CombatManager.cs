@@ -94,7 +94,7 @@ public class CombatManager
         return false;
     }
 
-    public void Attack(Actor target, IBodyPart? targetedPart = null)
+    public void Attack(Actor target, BodyRegion? targetedPart = null)
     {
         bool isDodged = DetermineDodge(target);
         string partName = targetedPart?.Name ?? "body";
@@ -125,11 +125,6 @@ public class CombatManager
 
         double damage = DetermineDamage();
 
-        if (targetedPart != null)
-        {
-            AdjustAccuracyForTargeting(targetedPart);
-        }
-
         DamageType type = DamageType.Blunt;
         if (Owner.ActiveWeapon.Class == WeaponClass.Blade || Owner.ActiveWeapon.Class == WeaponClass.Claw)
         {
@@ -144,8 +139,7 @@ public class CombatManager
             amount: damage,
             source: Owner.Name,
             type: type,
-            accuracy: Owner.ActiveWeapon.Accuracy,
-            targetPart: targetedPart
+            targetPartName: targetedPart?.Name ?? null
         );
 
         target.Damage(damageInfo);
@@ -188,11 +182,6 @@ public class CombatManager
             player.Skills.Fighting.GainExperience(1);
         }
         Thread.Sleep(1000);
-    }
-
-    private double AdjustAccuracyForTargeting(IBodyPart targetedPart)
-    {
-        return .8; // todo, for now slight penalty for targeting vs random swing
     }
 
     public Actor Owner { get; }
