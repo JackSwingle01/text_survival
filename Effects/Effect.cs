@@ -3,7 +3,15 @@ using text_survival.Bodies;
 
 namespace text_survival.Effects
 {
-    public abstract class Effect(string effectKind, string source, string? targetBodyPart = null, double severity = 1, double severityChangeRate = 0)
+    /// <summary>
+    /// Manages its own severity state but does apply survival stats changes or capacity modifiers directly
+    /// </summary>
+    /// <param name="effectKind"></param>
+    /// <param name="source"></param>
+    /// <param name="targetBodyPart"></param>
+    /// <param name="severity"></param>
+    /// <param name="hourlySeverityChange"></param>
+    public abstract class Effect(string effectKind, string source, string? targetBodyPart = null, double severity = 1, double hourlySeverityChange = 0)
     {
         #region Properties
         public string EffectKind { get; protected set; } = effectKind;
@@ -11,10 +19,11 @@ namespace text_survival.Effects
         public string? TargetBodyPart { get; set; } = targetBodyPart;
         public bool CanHaveMultiple { get; protected set; } = false;
         public bool IsActive { get; protected set; } = true;
-        public double Severity { get; protected set; } = severity;
-        public double SeverityChangeRate { get; protected set; } = severityChangeRate;
+        public double Severity { get; protected set; } = severity; // multiplier for survival and capacity effects
+        public double hourlySeverityChange { get; protected set; } = hourlySeverityChange;
         public bool RequiresTreatment { get; protected set; } = false;
-        public CapacityModifierContainer CapacityModifiers { get; } = new();
+        public CapacityModifierContainer CapacityModifiers { get; } = new(); // gets applied in body
+        public SurvivalStatsUpdate SurvivalStatsEffect { get; set; } = new(); // gets applied in survival processor
         // public List<TreatmentOption> TreatmentOptions {get;}
         #endregion
 
@@ -41,9 +50,9 @@ namespace text_survival.Effects
 
             OnUpdate(target);
 
-            if (!RequiresTreatment && SeverityChangeRate > 0)
+            if (!RequiresTreatment && hourlySeverityChange > 0)
             {
-                double minuteChange = SeverityChangeRate / 60;
+                double minuteChange = hourlySeverityChange / 60;
                 UpdateSeverity(target, minuteChange);
             }
 

@@ -1,3 +1,5 @@
+using System.Xml.XPath;
+using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Events;
 using text_survival.IO;
@@ -88,11 +90,17 @@ public static class SurvivalProcessor
 
 		double tempChange = insulatedDiff * rate;
 		data.Temperature += tempChange;
-		GetTemperatureEffects(data);
+		SurvivalProcessResult result = new(data);
+
+		//todo apply Effect.SurvivalStatsUpdate !!!
+
+		var effects = GetTemperatureEffects(data, oldTemperature);
+		result.Effects = effects;
+
 		return data;
 	}
 
-	private static List<Effect> GetTemperatureEffects(SurvivalData data)
+	private static List<Effect> GetTemperatureEffects(SurvivalData data, TemperatureEnum oldTemperature)
 	{
 		List<Effect> effects = [];
 		TemperatureEnum temperatureStage = GetTemperatureEnum(data.Temperature);
@@ -100,7 +108,7 @@ public static class SurvivalProcessor
 		// Handle cold effects
 		if (temperatureStage == TemperatureEnum.Cold || temperatureStage == TemperatureEnum.Freezing)
 		{
-			GenerateColdEffects(data, isNewTemperatureChange, isPlayer, ownerName, result);
+			GenerateColdEffects(data, (oldTemperature == temperatureStage), isPlayer, ownerName, result);
 		}
 
 		else if (temperatureStage == TemperatureEnum.Hot)
@@ -129,6 +137,7 @@ public static class SurvivalProcessor
 				.Build(); // todo add notification messages
 			effects.Add(sweatingEffect);
 		}
+
 		return effects;
 	}
 
@@ -138,11 +147,11 @@ public static class SurvivalProcessor
 		// Generate cold messages
 		if (isNewTemperatureChange)
 		{
-			result.Messages.Add($"DANGER:{ownerName} is cold!");
+			result.Messages.Add("DANGER:{target} is cold!");
 		}
 		else if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
 		{
-			result.Messages.Add($"WARNING:{ownerName} is still cold.");
+			result.Messages.Add("WARNING:{target} is still cold.");
 		}
 
 		// Generate shivering effect if cold enough
@@ -151,7 +160,14 @@ public static class SurvivalProcessor
 			double intensity = (ShiveringThreshold - data.Temperature) / 5.0;
 			intensity = Math.Clamp(intensity, 0.01, 1.0);
 
-			var shiveringEffect = new ShiveringEffect(intensity);
+			var shiveringEffect = EffectBuilderExtensions
+				.CreateEffect("Shivering")
+				.WithSeverity(intensity)
+				.ReducesCapacity(CapacityNames.Manipulation, .2)
+				.AllowMultiple(false)
+				.AffectsTemperature(3) // at highest rate increases 
+				.WithHourlySeverityChange(-2) // resolves in 30 min by default
+				.Build();
 			result.Effects.Add(shiveringEffect);
 		}
 
@@ -169,8 +185,8 @@ public static class SurvivalProcessor
 			}
 			else
 			{
-				applicationMessage = $"DEBUG: {ownerName} has hypothermia. Severity = {severity}";
-				removalMessage = $"DEBUG: {ownerName} no longer has hypothermia.";
+				applicationMessage = $"DEBUG: {{target}} has hypothermia. Severity = {severity}";
+				removalMessage = "DEBUG: {target} no longer has hypothermia.";
 			}
 
 			var hypothermia = EffectBuilderExtensions

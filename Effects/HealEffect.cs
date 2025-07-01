@@ -15,7 +15,7 @@ public class HealEffect : Effect
 
         // Configure effect properties
         CanHaveMultiple = false; // Healing doesn't stack
-        SeverityChangeRate = -1.0f / durationMin; // Decreases to 0 over duration
+        hourlySeverityChange = -1.0f / durationMin; // Decreases to 0 over duration
     }
 
     protected override void OnApply(Actor target)

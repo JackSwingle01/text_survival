@@ -14,7 +14,7 @@ public class BleedEffect : Effect
         _damagePerHour = damagePerHour;
 
         // Configure effect properties
-        SeverityChangeRate = -0.05f; // Natural clotting
+        hourlySeverityChange = -0.05f; // Natural clotting
         CanHaveMultiple = true; // Multiple cuts can stack
 
         // Configure capacity modifiers

@@ -195,4 +195,12 @@ public class SurvivalStatsUpdate
     public double Calories;
     public double Hydration;
     public double Exhaustion;
+
+    public void Add(SurvivalStatsUpdate update)
+    {
+        this.Calories += update.Calories;
+        this.Temperature += update.Temperature;
+        this.Hydration += update.Hydration;
+        this.Exhaustion += update.Exhaustion;
+    }
 }

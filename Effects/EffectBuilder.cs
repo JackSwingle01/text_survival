@@ -10,9 +10,10 @@ public class EffectBuilder
     private string? _targetBodyPart = null;
     private double _severity = 1.0;
     private double _severityChangeRate = 0;
+    private List<SurvivalStatsUpdate> _survivalStatsUpdates = [];
     private bool _canHaveMultiple = false;
     private bool _requiresTreatment = false;
-    private readonly Dictionary<string, double> _capacityModifiers = new();
+    private readonly Dictionary<string, double> _capacityModifiers = [];
 
     // Hook actions - using lists to allow multiple actions
     private readonly List<Action<Actor>> _onApplyActions = [];
@@ -44,7 +45,7 @@ public class EffectBuilder
         return this;
     }
 
-    public EffectBuilder WithSeverityChangeRate(double rate)
+    public EffectBuilder WithHourlySeverityChange(double rate)
     {
         _severityChangeRate = rate;
         return this;
@@ -98,6 +99,12 @@ public class EffectBuilder
         return this;
     }
 
+    public EffectBuilder WithSurvivalStatsUpdate(SurvivalStatsUpdate minuteUpdate)
+    {
+        _survivalStatsUpdates.Add(minuteUpdate);
+        return this;
+    }
+
     public DynamicEffect Build()
     {
         if (string.IsNullOrWhiteSpace(_effectKind))
@@ -131,6 +138,12 @@ public class EffectBuilder
             combinedOnRemove = target => _onRemoveActions.ForEach(action => action(target));
         }
 
+        SurvivalStatsUpdate combinedStatsUpdate = new();
+        foreach (var update in _survivalStatsUpdates)
+        {
+            combinedStatsUpdate.Add(update);
+        }
+
         return new DynamicEffect(
             effectKind: _effectKind,
             source: _source,
@@ -144,6 +157,7 @@ public class EffectBuilder
             onUpdate: combinedOnUpdate,
             onSeverityChange: combinedOnSeverityChange,
             onRemove: combinedOnRemove
+
         );
     }
 }
@@ -157,7 +171,7 @@ public static class EffectBuilderExtensions
     {
         return builder
             .Named("Bleeding")
-            .WithSeverityChangeRate(-0.05) // Natural clotting
+            .WithHourlySeverityChange(-0.05) // Natural clotting
             .AllowMultiple(true)
             .ReducesCapacity(CapacityNames.BloodPumping, 0.2)
             .ReducesCapacity(CapacityNames.Consciousness, 0.1)
@@ -182,7 +196,7 @@ public static class EffectBuilderExtensions
     {
         return builder
             .Named("Poison")
-            .WithSeverityChangeRate(-0.02) // Slow detox
+            .WithHourlySeverityChange(-0.02) // Slow detox
             .AllowMultiple(true)
             .ReducesCapacity(CapacityNames.Consciousness, 0.3)
             .ReducesCapacity(CapacityNames.Manipulation, 0.2)
@@ -205,7 +219,7 @@ public static class EffectBuilderExtensions
     {
         return builder
             .Named("Healing")
-            .WithSeverityChangeRate(-1.0 / 60) // Expires in 1 hour by default
+            .WithHourlySeverityChange(-1.0 / 60) // Expires in 1 hour by default
             .OnUpdate(target =>
             {
                 double heal = (healPerHour / 60.0) * builder.Build().Severity;
@@ -227,7 +241,7 @@ public static class EffectBuilderExtensions
             TemperatureType.Hypothermia => builder
                 .Named("Hypothermia")
                 .RequiresTreatment(true)
-                .WithSeverityChangeRate(-.02)
+                .WithHourlySeverityChange(-.02)
                 .ReducesCapacity(CapacityNames.Moving, 0.3)
                 .ReducesCapacity(CapacityNames.Manipulation, 0.3)
                 .ReducesCapacity(CapacityNames.Consciousness, 0.5)
@@ -236,14 +250,14 @@ public static class EffectBuilderExtensions
             TemperatureType.Hyperthermia => builder
                 .Named("Hyperthermia")
                 .RequiresTreatment(true)
-                .WithSeverityChangeRate(-.01)
+                .WithHourlySeverityChange(-.01)
                 .ReducesCapacity(CapacityNames.Consciousness, 0.5)
                 .ReducesCapacity(CapacityNames.Moving, 0.3)
                 .ReducesCapacity(CapacityNames.BloodPumping, 0.2),
 
             TemperatureType.Frostbite => builder
                 .Named("Frostbite")
-                .WithSeverityChangeRate(-0.02)
+                .WithHourlySeverityChange(-0.02)
                 .ReducesCapacity(CapacityNames.Manipulation, 0.5)
                 .ReducesCapacity(CapacityNames.Moving, 0.5)
                 .ReducesCapacity(CapacityNames.BloodPumping, 0.2),
@@ -254,17 +268,17 @@ public static class EffectBuilderExtensions
 
     public static EffectBuilder WithDuration(this EffectBuilder builder, int minutes)
     {
-        return builder.WithSeverityChangeRate(-1.0 / minutes);
+        return builder.WithHourlySeverityChange(-1.0 / minutes);
     }
 
     public static EffectBuilder Permanent(this EffectBuilder builder)
     {
-        return builder.WithSeverityChangeRate(0);
+        return builder.WithHourlySeverityChange(0);
     }
 
     public static EffectBuilder NaturalHealing(this EffectBuilder builder, double rate = -0.05)
     {
-        return builder.WithSeverityChangeRate(rate);
+        return builder.WithHourlySeverityChange(rate);
     }
 
     // Message helpers
@@ -291,25 +305,19 @@ public static class EffectBuilderExtensions
 
     public static EffectBuilder CausesDehydration(this EffectBuilder builder, double hydrationLossPerMinute)
     {
-        return builder.OnUpdate(target =>
-        {
-            target.Body.UpdateSurvivalStats(new SurvivalStatsUpdate { Hydration = -hydrationLossPerMinute });
-        });
+        return builder.WithSurvivalStatsUpdate(new SurvivalStatsUpdate { Hydration = -hydrationLossPerMinute });
     }
 
     public static EffectBuilder CausesExhaustion(this EffectBuilder builder, double exhaustionPerMinute)
     {
-        return builder.OnUpdate(target =>
-        {
-            target.Body.UpdateSurvivalStats(new SurvivalStatsUpdate { Exhaustion = exhaustionPerMinute });
-        });
+        return builder.WithSurvivalStatsUpdate(new SurvivalStatsUpdate { Exhaustion = exhaustionPerMinute });
     }
 
     public static EffectBuilder AffectsTemperature(this EffectBuilder builder, double hourlyTemperatureChange)
     {
-        return builder.OnUpdate(target =>
+        return builder.WithSurvivalStatsUpdate(new SurvivalStatsUpdate()
         {
-            target.Body.BodyTemperature += hourlyTemperatureChange / 60.0; // per minute
+            Temperature = hourlyTemperatureChange / 60
         });
     }
 
@@ -415,7 +423,8 @@ public class DynamicEffect : Effect
         Action<Actor>? onApply = null,
         Action<Actor>? onUpdate = null,
         Action<Actor, double, double>? onSeverityChange = null,
-        Action<Actor>? onRemove = null)
+        Action<Actor>? onRemove = null,
+        SurvivalStatsUpdate? survivalStatsUpdate = null)
         : base(effectKind, source, targetBodyPart, severity, severityChangeRate)
     {
         CanHaveMultiple = canHaveMultiple;
@@ -433,6 +442,10 @@ public class DynamicEffect : Effect
         _onUpdate = onUpdate;
         _onSeverityChange = onSeverityChange;
         _onRemove = onRemove;
+        if (survivalStatsUpdate != null)
+        {
+            this.SurvivalStatsEffect = survivalStatsUpdate;
+        }
     }
 
     protected override void OnApply(Actor target) => _onApply?.Invoke(target);
