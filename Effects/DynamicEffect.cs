@@ -1,4 +1,5 @@
 using text_survival.Actors;
+using text_survival.Bodies;
 
 namespace text_survival.Effects;
 
@@ -18,7 +19,7 @@ public class DynamicEffect : Effect
         double severityChangeRate,
         bool canHaveMultiple,
         bool requiresTreatment,
-        Dictionary<string, double> capacityModifiers,
+        CapacityModifierContainer capacityModifiers,
         Action<Actor>? onApply = null,
         Action<Actor>? onUpdate = null,
         Action<Actor, double, double>? onSeverityChange = null,
@@ -29,13 +30,7 @@ public class DynamicEffect : Effect
         CanHaveMultiple = canHaveMultiple;
         RequiresTreatment = requiresTreatment;
 
-        // Apply capacity modifiers
-        foreach (var modifier in capacityModifiers)
-        {
-            CapacityModifiers.GetType()
-                .GetProperty(modifier.Key)?
-                .SetValue(CapacityModifiers, modifier.Value);
-        }
+        CapacityModifiers = capacityModifiers;
 
         _onApply = onApply;
         _onUpdate = onUpdate;

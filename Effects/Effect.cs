@@ -22,7 +22,7 @@ namespace text_survival.Effects
         public double Severity { get; protected set; } = severity; // multiplier for survival and capacity effects
         public double hourlySeverityChange { get; protected set; } = hourlySeverityChange;
         public bool RequiresTreatment { get; protected set; } = false;
-        public CapacityModifierContainer CapacityModifiers { get; } = new(); // gets applied in body
+        public CapacityModifierContainer CapacityModifiers { get; set; } = new(); // gets applied in body
         public SurvivalStatsUpdate SurvivalStatsEffect { get; set; } = new(); // gets applied in survival processor
         // public List<TreatmentOption> TreatmentOptions {get;}
         #endregion

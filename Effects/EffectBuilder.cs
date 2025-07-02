@@ -13,7 +13,7 @@ public class EffectBuilder
     private List<SurvivalStatsUpdate> _survivalStatsUpdates = [];
     private bool _canHaveMultiple = false;
     private bool _requiresTreatment = false;
-    private readonly Dictionary<string, double> _capacityModifiers = [];
+    private readonly CapacityModifierContainer _capacityModifiers = new();
 
     // Hook actions - using lists to allow multiple actions
     private readonly List<Action<Actor>> _onApplyActions = [];
@@ -65,13 +65,13 @@ public class EffectBuilder
 
     public EffectBuilder ReducesCapacity(string capacity, double reduction)
     {
-        _capacityModifiers[capacity] = -reduction;
+        _capacityModifiers.SetCapacityModifier(capacity, -reduction);
         return this;
     }
 
     public EffectBuilder ModifiesCapacity(string capacity, double multiplier)
     {
-        _capacityModifiers[capacity] = multiplier;
+        _capacityModifiers.SetCapacityModifier(capacity, multiplier);
         return this;
     }
 
@@ -152,7 +152,7 @@ public class EffectBuilder
             severityChangeRate: _severityChangeRate,
             canHaveMultiple: _canHaveMultiple,
             requiresTreatment: _requiresTreatment,
-            capacityModifiers: new Dictionary<string, double>(_capacityModifiers),
+            capacityModifiers: _capacityModifiers,
             onApply: combinedOnApply,
             onUpdate: combinedOnUpdate,
             onSeverityChange: combinedOnSeverityChange,
