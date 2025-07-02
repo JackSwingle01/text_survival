@@ -20,12 +20,12 @@ public class Spell
 
     public void Cast(Actor target)
     {
-        target.ApplyEffect(Effect);
+        target.EffectRegistry.AddEffect(Effect);
     }
     public void Cast(Actor target, BodyRegion part)
     {
-        Effect.TargetBodyPart = part;
-        target.ApplyEffect(Effect);
+        Effect.TargetBodyPart = part.Name;
+        target.EffectRegistry.AddEffect(Effect);
     }
 
     public override string ToString()

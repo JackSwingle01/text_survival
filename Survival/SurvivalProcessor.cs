@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.IO;
@@ -273,7 +274,7 @@ public static class SurvivalProcessor
 		}
 	}
 
-	public static SurvivalData Sleep(SurvivalData data, int minutes)
+	public static SurvivalProcessorResult Sleep(SurvivalData data, int minutes)
 	{
 		// starve at 1/2 rate - handled in GetCurrentMetabolism
 		data.activityLevel = .5;
@@ -281,11 +282,12 @@ public static class SurvivalProcessor
 		data.Exhaustion = Math.Max(0, data.Exhaustion - (BASE_EXHAUSTION_RATE * 2 * minutes));
 		data.Hydration = Math.Max(0, data.Hydration - (BASE_DEHYDRATION_RATE * .7 * minutes)); // dehydrate at reduced rate while asleep
 		data.Calories = data.Calories -= GetCurrentMetabolism(data) / 24 / 60 * minutes;
-		return data;
+		return new SurvivalProcessorResult(data);
 	}
 
 	public static void Describe(SurvivalData data)
 	{
+		Output.WriteLine("\n----------------------------------------------------\n| Survival Stats:");
 		// calories
 		double percent = (int)(data.Calories / MAX_CALORIES * 100);
 		Output.WriteLine("| Calorie Store: ", percent, "%");
@@ -298,12 +300,6 @@ public static class SurvivalProcessor
 		// temp
 		//string tempChange = IsWarming ? "Warming up" : "Getting colder";
 		Output.WriteLine("| Body Temperature: ", data.Temperature, "°F");//(", TemperatureEffect, "), ", tempChange);
-	}
-
-	public class SurvivalProcessorResult(SurvivalData data)
-	{
-		public SurvivalData Data { get; set; } = data;
-		public List<Effect> Effects { get; set; } = [];
-		public List<string> Messages { get; set; } = [];
+		Output.WriteLine("----------------------------------------------------");
 	}
 }

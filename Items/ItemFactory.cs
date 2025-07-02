@@ -53,7 +53,7 @@ namespace text_survival.Items
                 {
                     Amount = strength,
                     Type = "herbal",
-                    TargetOrgan = targetOrgan,
+                    TargetPart = targetOrgan,
                     Quality = Utils.RandDouble(0, 1.5)
                 };
             }
@@ -64,7 +64,6 @@ namespace text_survival.Items
                     Amount = strength * .66,
                     Type = Bodies.DamageType.Poison,
                     TargetPartName = targetOrgan,
-                    Accuracy = 1,
                 };
             }
             return mushroom;
@@ -252,7 +251,6 @@ namespace text_survival.Items
                     Amount = 15,
                     Type = "herbal",
                     Quality = 0.7,
-                    TargetOrgan = null
                 }
             };
             return herbs;
@@ -265,7 +263,7 @@ namespace text_survival.Items
                 Description = "Strips of inner tree bark pounded soft. Can bind wounds and stop bleeding.",
                 Weight = 0.1,
                 Effects = [
-                    new RemoveBleedEffect("bandage", null)
+                    EffectBuilderExtensions.CreateEffect("stop bleed").From("bandage").ClearsEffectType("bleeding").AsInstantEffect().Build()
                 ]
             };
             return bandage;

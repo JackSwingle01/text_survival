@@ -338,7 +338,7 @@ public static class ActionFactory
                 var targetPart = SelectTargetPart(enemy, fightingSkill);
                 if (targetPart != null)
                 {
-                    ctx.player.Attack(enemy, targetPart);
+                    ctx.player.Attack(enemy, targetPart.Name);
                 }
                 else
                 {
@@ -348,7 +348,7 @@ public static class ActionFactory
             .ThenShow(ctx => [EnemyCombatTurn(enemy), EndCombat(enemy)])
             .Build();
         }
-        private static IBodyPart? SelectTargetPart(Actor enemy, int depth)
+        private static BodyRegion? SelectTargetPart(Actor enemy, int depth)
         {
             if (depth <= 0)
             {
@@ -357,23 +357,23 @@ public static class ActionFactory
             }
             Output.WriteLine($"Where do you want to target your attack on the {enemy.Name}?");
 
-            List<IBodyPart> allParts = [];
+            List<BodyRegion> allParts = [];
 
             foreach (var part in enemy.Body.Parts)
             {
                 if (depth > 0)
                     allParts.Add(part);
-                if (depth > 1)
-                    allParts.Add(part.Skin);
-                if (depth > 2)
-                    allParts.Add(part.Muscle);
-                if (depth > 3)
-                    allParts.Add(part.Bone);
-                if (depth > 4)
-                    allParts.AddRange(part.Organs);
+                // if (depth > 1)
+                //     allParts.Add(part.Skin);
+                // if (depth > 2)
+                //     allParts.Add(part.Muscle);
+                // if (depth > 3)
+                //     allParts.Add(part.Bone);
+                // if (depth > 4)
+                //     allParts.AddRange(part.Organs);
             }
 
-            IBodyPart? choice = Input.GetSelectionFromList(allParts, true);
+            var choice = Input.GetSelectionFromList(allParts, true);
             if (choice == null)
                 return null;
 
@@ -570,18 +570,18 @@ public static class ActionFactory
             .Build();
         }
 
-        // private static MajorBodyPart? SelectSpellTargetPart(Actor target, int depth)
-        // {
-        //     if (depth <= 0)
-        //     {
-        //         Output.WriteWarning("You don't have enough magical skill to target a specific body part");
-        //         return null;
-        //     }
+        private static BodyRegion? SelectSpellTargetPart(Actor target, int depth)
+        {
+            if (depth <= 0)
+            {
+                Output.WriteWarning("You don't have enough magical skill to target a specific body part");
+                return null;
+            }
 
-        //     Output.WriteLine($"Select a part to target on the {target.Name}:");
-        //     var parts = target.Body.GetPartsToNDepth(depth);
-        //     return Input.GetSelectionFromList(parts, true);
-        // }
+            Output.WriteLine($"Select a part to target on the {target.Name}:");
+            var parts = target.Body.Parts;
+            return Input.GetSelectionFromList(parts, true);
+        }
     }
 
 

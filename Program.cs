@@ -27,16 +27,6 @@ namespace text_survival
             Player player = new Player(startingArea);
             World.Player = player;
 
-            EventBus.Subscribe(new StarvingEventHandler());
-            EventBus.Subscribe(new DehydrationEventHandler());
-            EventBus.Subscribe(new ExhaustionEventHandler());
-            EventBus.Subscribe(new StoppedStarvingEventHandler());
-            EventBus.Subscribe(new StoppedDehydrationEventHandler());
-            EventBus.Subscribe(new StoppedExhaustionEventHandler());
-            EventBus.Subscribe(new BodyHotEventHandler());
-            EventBus.Subscribe(new BodyColdEventHandler());
-
-
             var defaultAction = ActionFactory.Common.MainMenu();
             while (true)
             {

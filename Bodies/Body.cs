@@ -46,7 +46,7 @@ public class Body
     }
 
     public double MaxHealth => 1;
-    public bool IsDestroyed => new DeathSystem().CheckBodyState(this).Equals(BodyState.Dead);
+    public bool IsDestroyed => Health <= 0;
 
     public bool IsTired => Exhaustion > 60; // can sleep for at least 1 hr
 
@@ -120,7 +120,7 @@ public class Body
         DamageTissue(hitOrgan, damageInfo);
     }
 
-    private void DamageTissue(Tissue tissue, DamageInfo damageInfo)
+    private static void DamageTissue(Tissue tissue, DamageInfo damageInfo)
     {
         double absorption = tissue.GetNaturalAbsorption(damageInfo.Type);
         damageInfo.Amount -= absorption;
@@ -133,7 +133,7 @@ public class Body
         tissue.Condition = Math.Max(0, tissue.Condition - healthLoss);
     }
 
-    private double PenetrateLayers(BodyRegion part, DamageInfo damageInfo)
+    private static double PenetrateLayers(BodyRegion part, DamageInfo damageInfo)
     {
         DamageType damageType = damageInfo.Type;
         double damage = damageInfo.Amount;
@@ -180,7 +180,7 @@ public class Body
         }
     }
 
-    private void HealBodyPart(BodyRegion part, HealingInfo healingInfo)
+    private static void HealBodyPart(BodyRegion part, HealingInfo healingInfo)
     {
         double healingAmount = healingInfo.Amount * healingInfo.Quality;
 
@@ -208,11 +208,19 @@ public class Body
         }
     }
 
-
-
     public void Update(TimeSpan timePassed, SurvivalContext context)
     {
-        SurvivalData data = new()
+        var data = BundleSurvivalData();
+        data.environmentalTemp = context.LocationTemperature;
+        data.ColdResistance = context.ClothingInsulation;
+        data.activityLevel = context.ActivityLevel;
+
+        var result = SurvivalProcessor.Process(data, (int)timePassed.TotalMinutes, EffectRegistry.GetAll());
+        UpdateBodyBasedOnResult(result);
+    }
+    private SurvivalData BundleSurvivalData()
+    {
+        return new SurvivalData()
         {
             // Primary Survival Data
             Temperature = BodyTemperature,
@@ -225,15 +233,7 @@ public class Body
             MuscleWeight = Muscle,
             FatWeight = BodyFat,
             HealthPercent = Health,
-
-            // Environmental Data
-            environmentalTemp = context.LocationTemperature,
-            ColdResistance = context.ClothingInsulation,
-            activityLevel = context.ActivityLevel
         };
-
-        var result = SurvivalProcessor.Process(data, (int)timePassed.TotalMinutes, EffectRegistry.GetAll());
-        UpdateBodyBasedOnResult(result);
     }
 
     private void UpdateBodyBasedOnResult(SurvivalProcessorResult result)
@@ -253,8 +253,7 @@ public class Body
         }
     }
 
-    // todo - move this to the survival manager or something
-
+    // todo - move this to a calculator class
     // Calculate derived attributes
     public double CalculateStrength()
     {
@@ -314,7 +313,7 @@ public class Body
             fatPenalty = (BodyFatPercentage - BaselineHumanStats.fatPercent) * 1.5;
         }
 
-        // Penalty for excess weight relative to frame
+        // Penalty for excess weight relative to frame (high fat and/or muscle percent)
         // -(ratio^.7 - 1)
         // ratio => penalty (abs)
         // 0.1   => +0.80
@@ -585,41 +584,34 @@ public class Body
 
     public void DescribeSurvivalStats()
     {
-        Output.WriteLine("\n----------------------------------------------------\n| Survival Stats:");
-        _hungerModule.Describe();
-        _thirstModule.Describe();
-        _exhaustionModule.Describe();
-        _temperatureModule.Describe();
-        Output.WriteLine("----------------------------------------------------");
+        SurvivalProcessor.Describe(BundleSurvivalData());
     }
 
     public bool Rest(int minutes)
     {
+        var data = BundleSurvivalData();
+        data.activityLevel = .5; // half metabolism
         int minutesSlept = 0;
-        while (minutesSlept < minutes)
-        {
-            _exhaustionModule.Rest(1);
-            World.Update(1);
-            minutesSlept++;
-            if (_exhaustionModule.IsFullyRested)
-            {
-                break;
-            }
-        }
+        var result = SurvivalProcessor.Sleep(data, minutes);
+        UpdateBodyBasedOnResult(result);
+
+        // just heal once at the end
         HealingInfo healing = new HealingInfo()
         {
             Amount = minutesSlept / 10,
             Type = "natural",
-            Quality = _exhaustionModule.IsFullyRested ? 1 : .7, // healing quality is better after a full night's sleep
+            Quality = Exhaustion <= 0 ? 1 : .7, // healing quality is better after a full night's sleep
         };
-
         Heal(healing);
-        return _exhaustionModule.IsFullyRested;
+
+        World.Update(minutes); // need to fix, right now we are double updating
+
+        return Exhaustion <= 0;
     }
     public void Consume(FoodItem food)
     {
-        _hungerModule.AddCalories(food.Calories);
-        _thirstModule.AddHydration(food.WaterContent);
+        CalorieStore += food.Calories;
+        Hydration += food.WaterContent;
 
         if (food.HealthEffect != null)
         {

@@ -94,10 +94,10 @@ public class CombatManager
         return false;
     }
 
-    public void Attack(Actor target, BodyRegion? targetedPart = null)
+    public void Attack(Actor target, string? targetedPart = null)
     {
         bool isDodged = DetermineDodge(target);
-        string partName = targetedPart?.Name ?? "body";
+        string partName = targetedPart ?? "body";
         if (isDodged)
         {
             // Use our narrator for rich descriptions
@@ -139,17 +139,17 @@ public class CombatManager
             amount: damage,
             source: Owner.Name,
             type: type,
-            targetPartName: targetedPart?.Name ?? null
+            targetPartName: targetedPart ?? null
         );
 
         target.Damage(damageInfo);
 
         double partHealthPercent = 0;
     
-        if (targetedPart != null)
-        {
-            partHealthPercent = targetedPart.Condition;
-        }
+        // if (targetedPart != null)
+        // {
+        //     partHealthPercent = targetedPart;
+        // }
         string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damage, partName, true, false, false);
         Output.WriteLine(attackDescription);
 
