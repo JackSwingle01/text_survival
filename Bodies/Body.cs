@@ -5,15 +5,9 @@ using text_survival.Survival;
 
 namespace text_survival.Bodies;
 
-public class BodyStats
-{
-    public BodyPartFactory.BodyTypes type;
-    public double overallWeight;
-    public double fatPercent;
-    public double musclePercent;
-    public bool IsPlayer;
-}
-
+/// <summary>
+/// External context that the body needs to update
+/// </summary>
 public class SurvivalContext
 {
     public double LocationTemperature;
@@ -54,26 +48,18 @@ public class Body
     public double MaxHealth => 1;
     public bool IsDestroyed => new DeathSystem().CheckBodyState(this).Equals(BodyState.Dead);
 
-    public bool IsTired => _exhaustionModule.ExhaustionPercent > 25;
+    public bool IsTired => Exhaustion > 60; // can sleep for at least 1 hr
 
     public readonly EffectRegistry EffectRegistry;
-    private readonly HungerModule _hungerModule;
-    private readonly ThirstModule _thirstModule;
-    private readonly ExhaustionModule _exhaustionModule;
-    private readonly TemperatureModule _temperatureModule;
 
     private readonly double _baseWeight;
 
-    public Body(string ownerName, BodyStats stats, EffectRegistry effectRegistry)
+    public Body(string ownerName, BodyCreationInfo stats, EffectRegistry effectRegistry)
     {
         OwnerName = ownerName;
         IsPlayer = stats.IsPlayer;
         EffectRegistry = effectRegistry;
         Parts = BodyPartFactory.CreateBody(stats.type);
-        _hungerModule = new HungerModule(this);
-        _thirstModule = new ThirstModule();
-        _exhaustionModule = new ExhaustionModule();
-        _temperatureModule = new TemperatureModule(this);
 
         // Initialize physical composition
         BodyFat = stats.overallWeight * stats.fatPercent;
@@ -91,6 +77,10 @@ public class Body
     public double MusclePercentage => Muscle / Weight;
     public double Weight => _baseWeight + BodyFat + Muscle;
     public double BodyTemperature { get; set; }
+
+    private double CalorieStore;
+    private double Exhaustion;
+    private double Hydration;
 
     /// <summary>
     /// Damage application rules: 
@@ -218,32 +208,49 @@ public class Body
         }
     }
 
-    private double GetCurrentMetabolism(double activityLevel)
-    {
-        // Base BMR uses the Harris-Benedict equation (simplified)
-        double bmr = 370 + (21.6 * Muscle) + (6.17 * BodyFat);
-
-        // Adjust for injuries and conditions
-        double healthFactor = Health / MaxHealth;
-        bmr *= 0.7 + (0.3 * healthFactor); // Injured bodies need more energy to heal
-
-        double currentMetabolism = bmr * activityLevel;
-        return currentMetabolism;
-    }
 
 
     public void Update(TimeSpan timePassed, SurvivalContext context)
     {
-        // Handle metabolism and energy expenditure
-        double currentMetabolism = GetCurrentMetabolism(context.ActivityLevel);
-        double calories = currentMetabolism / 24 * timePassed.TotalHours;
+        SurvivalData data = new()
+        {
+            // Primary Survival Data
+            Temperature = BodyTemperature,
+            Calories = CalorieStore,
+            Hydration = Hydration,
+            Exhaustion = Exhaustion,
 
-        BodyTemperature += calories / 24000;
+            // Body Data
+            BodyWeight = Weight,
+            MuscleWeight = Muscle,
+            FatWeight = BodyFat,
+            HealthPercent = Health,
 
-        _hungerModule.Update(currentMetabolism);
-        _thirstModule.Update();
-        _temperatureModule.Update(context.LocationTemperature, context.ClothingInsulation);
-        _exhaustionModule.Update();
+            // Environmental Data
+            environmentalTemp = context.LocationTemperature,
+            ColdResistance = context.ClothingInsulation,
+            activityLevel = context.ActivityLevel
+        };
+
+        var result = SurvivalProcessor.Process(data, (int)timePassed.TotalMinutes, EffectRegistry.GetAll());
+        UpdateBodyBasedOnResult(result);
+    }
+
+    private void UpdateBodyBasedOnResult(SurvivalProcessorResult result)
+    {
+        var resultData = result.Data;
+        BodyTemperature = resultData.Temperature;
+        CalorieStore = resultData.Calories;
+        Hydration = resultData.Hydration;
+        Exhaustion = resultData.Exhaustion;
+
+        result.Effects.ForEach(EffectRegistry.AddEffect);
+
+        foreach (string message in result.Messages)
+        {
+            string formattedMessage = message.Replace("{target}", OwnerName);
+            Output.WriteLine(formattedMessage);
+        }
     }
 
     // todo - move this to the survival manager or something
@@ -394,7 +401,7 @@ public class Body
         return ApplyCascadingEffects(total);
     }
 
-     public CapacityContainer GetRegionCapacities(BodyRegion region)
+    public CapacityContainer GetRegionCapacities(BodyRegion region)
     {
         // Step 1: Sum all base capacities from organs
         var baseCapacities = new CapacityContainer();
@@ -459,14 +466,14 @@ public class Body
     }
 
     // helper for baseline male human stats
-    public static BodyStats BaselineHumanStats => new BodyStats
+    public static BodyCreationInfo BaselineHumanStats => new BodyCreationInfo
     {
         type = BodyPartFactory.BodyTypes.Human,
         overallWeight = 75, // KG ~165 lbs
         fatPercent = .15, // pretty lean
         musclePercent = .40 // low end of athletic
     };
-    public static BodyStats BaselinePlayerStats
+    public static BodyCreationInfo BaselinePlayerStats
     {
         get
         {
@@ -624,23 +631,4 @@ public class Body
         }
     }
 
-    public void UpdateSurvivalStats(SurvivalStatsUpdate stats)
-    {
-        if (stats.Temperature != 0)
-        {
-            BodyTemperature += stats.Temperature;
-        }
-        if (stats.Calories != 0)
-        {
-            _hungerModule.AddCalories(stats.Calories);
-        }
-        if (stats.Hydration != 0)
-        {
-            _thirstModule.AddHydration(stats.Hydration);
-        }
-        if (stats.Exhaustion != 0)
-        {
-            _exhaustionModule.ModifyExhaustion(stats.Exhaustion);
-        }
-    }
 }

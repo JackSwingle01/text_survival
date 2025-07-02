@@ -196,11 +196,35 @@ public class SurvivalStatsUpdate
     public double Hydration;
     public double Exhaustion;
 
-    public void Add(SurvivalStatsUpdate update)
+    /// <summary>
+    /// Returns a new SurvivalStatsUpdate with the update added
+    /// </summary>
+    /// <param name="update"></param>
+    /// <returns></returns>
+    public SurvivalStatsUpdate Add(SurvivalStatsUpdate update)
     {
-        this.Calories += update.Calories;
-        this.Temperature += update.Temperature;
-        this.Hydration += update.Hydration;
-        this.Exhaustion += update.Exhaustion;
+        return new SurvivalStatsUpdate
+        {
+            Calories = this.Calories + update.Calories,
+            Temperature = this.Temperature + update.Temperature,
+            Hydration = this.Hydration + update.Hydration,
+            Exhaustion = this.Exhaustion + update.Exhaustion,
+        };
+    }
+
+    /// <summary>
+    /// returns a new Survival stats update with the multiplier applied
+    /// </summary>
+    /// <param name="multiplier"></param>
+    /// <returns></returns>
+    public SurvivalStatsUpdate ApplyMultiplier(double multiplier)
+    {
+        return new SurvivalStatsUpdate
+        {
+            Calories = this.Calories * multiplier,
+            Temperature = this.Temperature * multiplier,
+            Hydration = this.Hydration * multiplier,
+            Exhaustion = this.Exhaustion * multiplier
+        };
     }
 }

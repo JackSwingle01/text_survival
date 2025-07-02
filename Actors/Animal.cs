@@ -7,7 +7,7 @@ namespace text_survival.Actors
     {
         public override Weapon ActiveWeapon { get; protected set; }
 
-        public Animal(string name, Weapon weapon, BodyStats bodyStats) : base(name, weapon, bodyStats)
+        public Animal(string name, Weapon weapon, BodyCreationInfo bodyStats) : base(name, weapon, bodyStats)
         {
             Name = name;
             ActiveWeapon = weapon;

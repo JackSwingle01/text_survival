@@ -7,7 +7,7 @@ namespace text_survival.Actors
     {
         public static Animal MakeRat()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
                 type = BodyPartFactory.BodyTypes.Quadruped,
                 overallWeight = 2, // large rat
@@ -32,7 +32,7 @@ namespace text_survival.Actors
 
         public static Animal MakeWolf()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
                 type = BodyPartFactory.BodyTypes.Quadruped,
                 overallWeight = 40,   // 40 kg - average wolf
@@ -57,7 +57,7 @@ namespace text_survival.Actors
 
         public static Animal MakeBear()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
                 type = BodyPartFactory.BodyTypes.Quadruped,
                 overallWeight = 250,  // 250 kg - large bear
@@ -82,7 +82,7 @@ namespace text_survival.Actors
 
         public static Animal MakeSnake()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
                 type = BodyPartFactory.BodyTypes.Serpentine,
                 overallWeight = 5,    // 5 kg - medium sized snake
@@ -115,7 +115,7 @@ namespace text_survival.Actors
 
         public static Animal MakeBat()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
                 type = BodyPartFactory.BodyTypes.Flying,
                 overallWeight = 0.2,   // 200g - small bat
@@ -140,7 +140,7 @@ namespace text_survival.Actors
 
         public static Animal MakeSpider()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
                 type = BodyPartFactory.BodyTypes.Arachnid,
                 overallWeight = 0.1,   // 100g - large spider
@@ -173,7 +173,7 @@ namespace text_survival.Actors
 
         public static Animal MakeCaveBear()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
                 type = BodyPartFactory.BodyTypes.Quadruped,
                 overallWeight = 350,  // 350 kg - larger than a regular bear
@@ -202,7 +202,7 @@ namespace text_survival.Actors
 
         public static Animal MakeWoollyMammoth()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
                 type = BodyPartFactory.BodyTypes.Quadruped,
                 overallWeight = 6000,  // 6 tons - enormous
@@ -232,7 +232,7 @@ namespace text_survival.Actors
 
         public static Animal MakeSaberToothTiger()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
                 type = BodyPartFactory.BodyTypes.Quadruped,
                 overallWeight = 300,   // 300 kg - large cat
@@ -261,7 +261,7 @@ namespace text_survival.Actors
         // Human NPCs with various weapons
         public static Npc MakeTribalHunter()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
                 type = BodyPartFactory.BodyTypes.Human,
                 overallWeight = 65,
@@ -290,7 +290,7 @@ namespace text_survival.Actors
 
         public static Npc MakeTribalWarrior()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
                 type = BodyPartFactory.BodyTypes.Human,
                 overallWeight = 70,
@@ -319,7 +319,7 @@ namespace text_survival.Actors
 
         public static Npc MakeTribalShaman()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
                 type = BodyPartFactory.BodyTypes.Human,
                 overallWeight = 60,

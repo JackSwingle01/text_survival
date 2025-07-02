@@ -35,7 +35,7 @@ public abstract class Actor
 
     public override string ToString() => Name;
 
-    protected Actor(string name, BodyStats stats)
+    protected Actor(string name, BodyCreationInfo stats)
     {
         Name = name;
         EffectRegistry = new EffectRegistry(this);

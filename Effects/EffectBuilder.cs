@@ -141,7 +141,7 @@ public class EffectBuilder
         SurvivalStatsUpdate combinedStatsUpdate = new();
         foreach (var update in _survivalStatsUpdates)
         {
-            combinedStatsUpdate.Add(update);
+            combinedStatsUpdate = combinedStatsUpdate.Add(update);
         }
 
         return new DynamicEffect(

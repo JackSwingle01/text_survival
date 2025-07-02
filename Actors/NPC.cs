@@ -27,7 +27,7 @@ namespace text_survival.Actors
 
         #region Constructor
 
-        public Npc(string name, Weapon weapon, BodyStats stats) : base(name, stats)
+        public Npc(string name, Weapon weapon, BodyCreationInfo stats) : base(name, stats)
         {
             Description = "";
             IsHostile = true;
