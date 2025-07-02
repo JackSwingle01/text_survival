@@ -1,10 +1,5 @@
 P1 - Implement Next
 
-Make effect system use builder pattern
-Refactor all string based systems to use enums or conversations
-    effects 
-    body parts 
-    capacities
 Add auto equip
 add higher level summaries
 add dynamic event prompts -> you are hungry, eat x?

@@ -87,8 +87,8 @@ public static class SurvivalProcessor
 	private static double GetCurrentMetabolism(SurvivalData data)
 	{
 		// Base BMR uses the Harris-Benedict equation (simplified)
-		double bmr = 370 + (21.6 * data.MuscleWeight) + (6.17 * data.FatWeight); // bigger creature more calories
-		bmr *= 0.7 + (0.3 * data.HealthPercent); // Injured bodies need more energy to heal
+		double bmr = 370 + (21.6 * data.BodyStats.MuscleWeight) + (6.17 * data.BodyStats.FatWeight); // bigger creature more calories
+		bmr *= 0.7 + (0.3 * data.BodyStats.HealthPercent); // Injured bodies need more energy to heal
 		return bmr * data.activityLevel;
 	}
 

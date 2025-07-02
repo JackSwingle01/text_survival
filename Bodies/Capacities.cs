@@ -13,6 +13,11 @@ public static class CapacityNames
     public const string Sight = "Sight";
     public const string Hearing = "Hearing";
     public const string Digestion = "Digestion";
+
+    public static readonly List<string> All =
+    [
+        Moving, Manipulation, Breathing, BloodPumping, Consciousness, Sight, Hearing, Digestion
+    ];
 }
 
 /// <summary>

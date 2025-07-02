@@ -82,6 +82,32 @@ public class InventoryManager
         Inventory.Remove((Item)item);
         item.EquipEffects.ForEach(_effectRegistry.AddEffect);
     }
+
+    public bool CanAutoEquip(IEquippable item)
+    {
+
+        if (item is Weapon weapon && !IsArmed)
+        {
+            Output.WriteLine($"You equip the {weapon}");
+            return true;
+        }
+        else if (item is Armor armor)
+        {
+            var existingItem = Armor.FirstOrDefault(i => i.EquipSpot == armor.EquipSpot);
+            if (existingItem == null)
+            {
+                Output.WriteLine($"You equip the {armor}");
+                return true;
+            }
+        }
+        else if (item is Gear gear && HeldItem == null)
+        {
+            Output.WriteLine($"You didn't have anything in your hand yet so you equip the {item}");
+            return true;
+        }
+        return false;
+    }
+
     public void Unequip(IEquippable item)
     {
         if (item is not Gear gear) return;

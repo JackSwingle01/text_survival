@@ -1,4 +1,6 @@
-﻿using text_survival.IO;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Runtime.CompilerServices;
+using text_survival.IO;
 
 namespace text_survival.Bodies;
 
@@ -26,9 +28,21 @@ public class BodyRegion(string name, double coverage)
     public Tissue Muscle { get; set; } = new Muscle();
     public Tissue Bone { get; set; } = new Bone();
     public List<Organ> Organs { get; set; } = [];
-    public bool IsDestroyed => throw new NotImplementedException();
 
-    public double Condition => throw new NotImplementedException();
+    public bool IsDestroyed => Condition <= 0;
+    public double Condition => AggregateCondition();
+
+    private double AggregateCondition()
+    {
+        double overallCondition = 1;
+        foreach (var tissue in new List<Tissue> { Skin, Muscle, Bone })
+        {
+            // weakest link
+            overallCondition = Math.Min(overallCondition, tissue.Condition);
+        }
+        //todo: determine if organs should contribute 
+        return overallCondition;
+    }
 
     // public void Describe()
     // {

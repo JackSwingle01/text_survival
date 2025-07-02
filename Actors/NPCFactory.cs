@@ -9,7 +9,7 @@ namespace text_survival.Actors
         {
             var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Quadruped,
+                type = BodyTypes.Quadruped,
                 overallWeight = 2, // large rat
                 fatPercent = 0.15,   // 15% fat
                 musclePercent = 0.40 // 40% muscle
@@ -34,7 +34,7 @@ namespace text_survival.Actors
         {
             var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Quadruped,
+                type = BodyTypes.Quadruped,
                 overallWeight = 40,   // 40 kg - average wolf
                 fatPercent = 0.20,    // 20% fat
                 musclePercent = 0.60  // 60% muscle - wolves are muscular
@@ -59,7 +59,7 @@ namespace text_survival.Actors
         {
             var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Quadruped,
+                type = BodyTypes.Quadruped,
                 overallWeight = 250,  // 250 kg - large bear
                 fatPercent = 0.30,    // 30% fat - bears have more fat reserves
                 musclePercent = 0.55  // 55% muscle
@@ -84,7 +84,7 @@ namespace text_survival.Actors
         {
             var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Serpentine,
+                type = BodyTypes.Serpentine,
                 overallWeight = 5,    // 5 kg - medium sized snake
                 fatPercent = 0.10,    // 10% fat
                 musclePercent = 0.80  // 80% muscle - snakes are almost all muscle
@@ -117,7 +117,7 @@ namespace text_survival.Actors
         {
             var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Flying,
+                type = BodyTypes.Flying,
                 overallWeight = 0.2,   // 200g - small bat
                 fatPercent = 0.20,     // 20% fat 
                 musclePercent = 0.65   // 65% muscle - flying requires strong muscles
@@ -142,7 +142,7 @@ namespace text_survival.Actors
         {
             var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Arachnid,
+                type = BodyTypes.Arachnid,
                 overallWeight = 0.1,   // 100g - large spider
                 fatPercent = 0.05,     // 5% fat
                 musclePercent = 0.45   // 45% muscle
@@ -175,7 +175,7 @@ namespace text_survival.Actors
         {
             var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Quadruped,
+                type = BodyTypes.Quadruped,
                 overallWeight = 350,  // 350 kg - larger than a regular bear
                 fatPercent = 0.35,    // 35% fat - more for cave survival
                 musclePercent = 0.55  // 55% muscle
@@ -204,7 +204,7 @@ namespace text_survival.Actors
         {
             var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Quadruped,
+                type = BodyTypes.Quadruped,
                 overallWeight = 6000,  // 6 tons - enormous
                 fatPercent = 0.35,     // 35% fat for cold protection
                 musclePercent = 0.50   // 50% muscle
@@ -234,7 +234,7 @@ namespace text_survival.Actors
         {
             var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Quadruped,
+                type = BodyTypes.Quadruped,
                 overallWeight = 300,   // 300 kg - large cat
                 fatPercent = 0.15,     // 15% fat
                 musclePercent = 0.70   // 70% muscle - extremely powerful
@@ -263,7 +263,7 @@ namespace text_survival.Actors
         {
             var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Human,
+                type = BodyTypes.Human,
                 overallWeight = 65,
                 fatPercent = 0.15,
                 musclePercent = 0.60
@@ -292,7 +292,7 @@ namespace text_survival.Actors
         {
             var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Human,
+                type = BodyTypes.Human,
                 overallWeight = 70,
                 fatPercent = 0.15,
                 musclePercent = 0.65
@@ -321,7 +321,7 @@ namespace text_survival.Actors
         {
             var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Human,
+                type = BodyTypes.Human,
                 overallWeight = 60,
                 fatPercent = 0.20,
                 musclePercent = 0.45

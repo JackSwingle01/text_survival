@@ -55,8 +55,6 @@ public class Player : Actor
 
     public Zone CurrentZone => locationManager.CurrentZone;
 
-    #region Constructor
-
     public Player(Location startingLocation) : base("Player", Body.BaselinePlayerStats)
     {
         Name = "Player";
@@ -64,9 +62,6 @@ public class Player : Actor
         inventoryManager = new(EffectRegistry);
         Skills = new SkillRegistry();
     }
-
-
-    #endregion Constructor
 
     public void DropItem(Item item)
     {
@@ -77,25 +72,15 @@ public class Player : Actor
     public void TakeItem(Item item)
     {
         locationManager.RemoveItemFromLocation(item);
+
+        // QOL - auto equip gear if you can
+        if (item is IEquippable equipment && inventoryManager.CanAutoEquip(equipment))
+        {
+            inventoryManager.Equip(equipment);
+            return;
+        }
+        
         inventoryManager.AddToInventory(item);
-    }
-
-
-    // public override BodyPart? Damage(DamageInfo damageInfo)
-    // {
-    //     var part = Body.Damage(damageInfo);
-    //     // if (!IsAlive)
-    //     // {
-    //     //     // end program
-    //     //     Output.WriteDanger("You died!");
-    //     //     Environment.Exit(0);
-    //     // }
-    //     return part;
-    // }
-
-    public void DescribeSurvivalStats()
-    {
-        Body.DescribeSurvivalStats();
     }
 
     public void UseItem(Item item)
@@ -182,49 +167,5 @@ public class Player : Actor
         return true;
     }
 
-
     public void Travel() => locationManager.TravelToAdjacentZone();
-}
-
-
-
-
-public class SurvivalStatsUpdate
-{
-    public double Temperature;
-    public double Calories;
-    public double Hydration;
-    public double Exhaustion;
-
-    /// <summary>
-    /// Returns a new SurvivalStatsUpdate with the update added
-    /// </summary>
-    /// <param name="update"></param>
-    /// <returns></returns>
-    public SurvivalStatsUpdate Add(SurvivalStatsUpdate update)
-    {
-        return new SurvivalStatsUpdate
-        {
-            Calories = this.Calories + update.Calories,
-            Temperature = this.Temperature + update.Temperature,
-            Hydration = this.Hydration + update.Hydration,
-            Exhaustion = this.Exhaustion + update.Exhaustion,
-        };
-    }
-
-    /// <summary>
-    /// returns a new Survival stats update with the multiplier applied
-    /// </summary>
-    /// <param name="multiplier"></param>
-    /// <returns></returns>
-    public SurvivalStatsUpdate ApplyMultiplier(double multiplier)
-    {
-        return new SurvivalStatsUpdate
-        {
-            Calories = this.Calories * multiplier,
-            Temperature = this.Temperature * multiplier,
-            Hydration = this.Hydration * multiplier,
-            Exhaustion = this.Exhaustion * multiplier
-        };
-    }
 }

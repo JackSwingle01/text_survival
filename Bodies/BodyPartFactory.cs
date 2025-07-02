@@ -2,14 +2,6 @@
 
 public static class BodyPartFactory
 {
-    public enum BodyTypes
-    {
-        Human,
-        Quadruped,
-        Serpentine,
-        Arachnid,
-        Flying
-    }
 
     public static List<BodyRegion> CreateBody(BodyTypes type)
     {

@@ -67,6 +67,16 @@ public class Tissue(string name, double toughness = 1)
 
 class Muscle() : Tissue("Muscle", 1)
 {
+    
+     public override CapacityContainer GetBaseCapacities()
+    {
+        // Muscle contributes to physical capacities
+        return new CapacityContainer
+        {
+            Moving = 1,        // Each muscle group adds to movement
+            Manipulation = 1,  // Each muscle group adds to manipulation
+        };
+    }
     public override CapacityContainer GetConditionMultipliers()
     {
         // Muscle primarily affects movement and manipulation
@@ -93,7 +103,7 @@ class Bone() : Tissue("Bone", 10)
         {
             Moving = Condition * Condition, // squared, small impact near 1, exponential debuff approaching 0
             Manipulation = Condition,
-            BloodPumping = 0.8 * (0.2 * Condition),
+            BloodPumping = 0.8 + (0.2 * Condition),
             // Other capacities get minimal impact
             Breathing = 1.0,
             Consciousness = 1.0,

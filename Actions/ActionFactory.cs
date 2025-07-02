@@ -27,7 +27,7 @@ public static class ActionFactory
         public static IGameAction MainMenu()
         {
             return CreateAction("Main Menu")
-                   .Do(ctx => ctx.player.DescribeSurvivalStats())
+                   .Do(ctx => ctx.player.Body.DescribeSurvivalStats())
                    .ThenShow(ctx => [
                         Describe.LookAround(ctx.currentLocation),
                         Survival.Forage(),
@@ -94,7 +94,7 @@ public static class ActionFactory
         public static IGameAction Move()
         {
             return CreateAction("Go somewhere else")
-            .When(ctx => ctx.player.Body.CalculateVitality() > .2)
+            .When(ctx => AbilityCalculator.CalculateVitality(ctx.player.Body) > .2)
             .Do(ctx => // just determine what text to display
             {
                 var locations = ctx.currentLocation.GetNearbyLocations().Where(l => l.IsFound).ToList();
@@ -284,7 +284,6 @@ public static class ActionFactory
 
     public static class Combat
     {
-
         public static IGameAction StartCombat(Npc enemy)
         {
             return CreateAction($"Fight {enemy.Name}")
@@ -300,7 +299,7 @@ public static class ActionFactory
                 ctx.EngagedEnemy = enemy;
 
                 // First strike determination
-                bool enemyFirstStrike = enemy.Body.CalculateSpeed() > ctx.player.Body.CalculateSpeed();
+                bool enemyFirstStrike = AbilityCalculator.CalculateSpeed(enemy.Body) > AbilityCalculator.CalculateSpeed(ctx.player.Body);
 
                 if (enemyFirstStrike)
                 {
@@ -430,7 +429,7 @@ public static class ActionFactory
         public static IGameAction Flee(Npc enemy)
         {
             return CreateAction("Flee")
-            .When(ctx => ctx.player.Body.CalculateSpeed() > .25)
+            .When(ctx => AbilityCalculator.CalculateSpeed(ctx.player.Body) > .25)
             .Do(ctx =>
             {
                 if (CombatUtils.SpeedCheck(ctx.player, enemy))

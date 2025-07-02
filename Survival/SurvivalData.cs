@@ -1,4 +1,6 @@
 
+using text_survival.Bodies;
+
 namespace text_survival.Survival;
 
 public class SurvivalData
@@ -10,11 +12,8 @@ public class SurvivalData
 	public double Temperature;
 	public double ColdResistance;
 
-	// Body stats
-	public double BodyWeight;
-	public double MuscleWeight;
-	public double FatWeight;
-	public double HealthPercent; // 0-1
+	// body stats
+	public BodyStats BodyStats;
 
 	// Secondary stats
 	public double equipmentInsulation;
