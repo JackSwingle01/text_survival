@@ -153,13 +153,13 @@ public static class SurvivalProcessor
 	private static void GenerateColdEffects(SurvivalData data, bool isNewTemperatureChange, SurvivalProcessorResult result)
 	{
 		// Generate cold messages
-		if (isNewTemperatureChange)
+		if (isNewTemperatureChange && data.IsPlayer)
 		{
-			result.Messages.Add("DANGER:{target} is cold!");
+			result.Messages.Add("You are staring to feel cold.");
 		}
 		else if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
 		{
-			result.Messages.Add("WARNING:{target} is still cold.");
+			result.Messages.Add("You are still feeling cold.");
 		}
 
 		// Generate shivering effect if cold enough
@@ -193,8 +193,8 @@ public static class SurvivalProcessor
 			}
 			else
 			{
-				applicationMessage = $"DEBUG: {{target}} has hypothermia. Severity = {severity}";
-				removalMessage = "DEBUG: {target} no longer has hypothermia.";
+				applicationMessage = "";// $"DEBUG: {{target}} has hypothermia. Severity = {severity}";
+				removalMessage = "";// "DEBUG: {target} no longer has hypothermia.";
 			}
 
 			var hypothermia = EffectBuilderExtensions
@@ -230,8 +230,8 @@ public static class SurvivalProcessor
 				}
 				else
 				{
-					applicationMessage = $"DEBUG: {{target}} has frostbite on {extremityName}. Severity = {severity}";
-					removalMessage = $"DEBUG: {{target}} no longer has frostbite on {extremityName}.";
+					applicationMessage = ""; //$"DEBUG: {{target}} has frostbite on {extremityName}. Severity = {severity}";
+					removalMessage = ""; //$"DEBUG: {{target}} no longer has frostbite on {extremityName}.";
 				}
 
 				var frostbite = EffectBuilderExtensions

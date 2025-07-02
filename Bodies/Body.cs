@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using text_survival.Effects;
 using text_survival.IO;
 using text_survival.Items;
@@ -26,6 +27,7 @@ public class Body
     {
         // simple avg for now
         double health = Parts.Average(p => p.Condition);
+        health = Parts.SelectMany(p => p.Organs.Select(o => o.Condition)).ToList().Append(health).Min();
         return health;
     }
 

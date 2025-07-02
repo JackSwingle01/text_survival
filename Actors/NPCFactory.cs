@@ -236,7 +236,7 @@ namespace text_survival.Actors
             {
                 type = BodyTypes.Quadruped,
                 overallWeight = 300,   // 300 kg - large cat
-                fatPercent = 0.15,     // 15% fat
+                fatPercent = 0.10,
                 musclePercent = 0.70   // 70% muscle - extremely powerful
             };
 

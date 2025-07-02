@@ -284,16 +284,19 @@ public static class EffectBuilderExtensions
     // Message helpers
     public static EffectBuilder WithApplyMessage(this EffectBuilder builder, string message)
     {
+        if (string.IsNullOrWhiteSpace(message)) return builder;
         return builder.OnApply(target => IO.Output.WriteLine(message.Replace("{target}", target.Name)));
     }
 
     public static EffectBuilder WithRemoveMessage(this EffectBuilder builder, string message)
     {
+        if (string.IsNullOrWhiteSpace(message)) return builder;
         return builder.OnRemove(target => IO.Output.WriteLine(message.Replace("{target}", target.Name)));
     }
 
     public static EffectBuilder WithPeriodicMessage(this EffectBuilder builder, string message, double chance = 0.05)
     {
+        if (string.IsNullOrWhiteSpace(message)) return builder;
         return builder.OnUpdate(target =>
         {
             if (Utils.DetermineSuccess(chance))
@@ -368,6 +371,7 @@ public static class EffectBuilderExtensions
 
     public static EffectBuilder WhenSeverityDropsBelowWithMessage(this EffectBuilder builder, double threshold, string message)
     {
+        if (string.IsNullOrWhiteSpace(message)) return builder;
         return builder.OnSeverityChange((target, oldSeverity, newSeverity) =>
         {
             if (newSeverity < threshold && oldSeverity >= threshold)
@@ -379,6 +383,7 @@ public static class EffectBuilderExtensions
 
     public static EffectBuilder WhenSeverityRisesAboveWithMessage(this EffectBuilder builder, double threshold, string message)
     {
+        if (string.IsNullOrWhiteSpace(message)) return builder;
         return builder.OnSeverityChange((target, oldSeverity, newSeverity) =>
         {
             if (newSeverity > threshold && oldSeverity <= threshold)

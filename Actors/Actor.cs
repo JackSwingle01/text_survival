@@ -12,9 +12,6 @@ public abstract class Actor
     public virtual Location? CurrentLocation { get; set; }
     public virtual void Attack(Actor target, string? bodyPart = null) => combatManager.Attack(target, bodyPart);
 
-    public virtual void Damage(DamageInfo damage) => Body.Damage(damage);
-    public virtual void Heal(HealingInfo heal) => Body.Heal(heal);
-
     public bool IsEngaged { get; set; }
     public bool IsAlive => !Body.IsDestroyed;
     public abstract Weapon ActiveWeapon { get; protected set; }

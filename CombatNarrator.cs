@@ -1,4 +1,5 @@
 using text_survival.Actors;
+using text_survival.Bodies;
 using text_survival.Items;
 
 namespace text_survival;
@@ -23,6 +24,29 @@ public static class CombatNarrator
         { WeaponType.Club, new List<string> { "swings", "brings down", "thumps with" } }
     };
 
+    // Updated main method to handle DamageResult
+    public static string DescribeAttack(Actor attacker, Actor target, DamageResult? damageResult, bool isHit, bool isDodged, bool isBlocked)
+    {
+        var sb = new System.Text.StringBuilder();
+
+        // 1. Attack Initiation
+        string targetPart = damageResult?.HitPartName ?? "body";
+        sb.Append(DescribeAttackAttempt(attacker, target, targetPart));
+
+        // 2. Attack Resolution
+        if (isDodged)
+            sb.Append(DescribeDodge(attacker, target));
+        else if (isBlocked)
+            sb.Append(DescribeBlock(attacker, target));
+        else if (!isHit)
+            sb.Append(DescribeMiss(attacker, target));
+        else if (damageResult != null)
+            sb.Append(DescribeHit(attacker, target, damageResult));
+
+        return sb.ToString();
+    }
+
+    // Legacy method for backward compatibility
     public static string DescribeAttack(Actor attacker, Actor target, double damage, string targetPart, bool isHit, bool isDodged, bool isBlocked)
     {
         var sb = new System.Text.StringBuilder();
@@ -38,7 +62,7 @@ public static class CombatNarrator
         else if (!isHit)
             sb.Append(DescribeMiss(attacker, target));
         else
-            sb.Append(DescribeHit(attacker, target, damage, targetPart));
+            sb.Append(DescribeHitLegacy(attacker, target, damage, targetPart));
 
         return sb.ToString();
     }
@@ -100,16 +124,65 @@ public static class CombatNarrator
             return $"The {attacker.Name}'s attack whistles past you, missing entirely!";
     }
 
-    private static string DescribeHit(Actor attacker, Actor target, double damage, string targetPart)
+    // New method using DamageResult
+    private static string DescribeHit(Actor attacker, Actor target, DamageResult damageResult)
+    {
+        WeaponClass weaponClass = attacker.ActiveWeapon.Class;
+        
+        // Get appropriate attack verb
+        string attackVerb = GetAttackVerb(weaponClass);
+        
+        // Describe damage severity
+        string damageDesc = GetDamageSeverity(damageResult.TotalDamageDealt);
+        
+        var sb = new System.Text.StringBuilder();
+        
+        // Basic hit description
+        if (attacker is Player)
+        {
+            sb.Append($"Your attack {attackVerb} the {target.Name}'s {damageResult.HitPartName}, dealing {damageDesc} damage! ");
+        }
+        else
+        {
+            sb.Append($"The {attacker.Name}'s attack {attackVerb} your {damageResult.HitPartName}, dealing {damageDesc} damage! ");
+        }
+        
+        // Add penetration details for significant damage
+        if (damageResult.WasPenetrating && damageResult.TotalDamageDealt > 5)
+        {
+            if (damageResult.OrganHit)
+            {
+                sb.Append($"The attack penetrates deep, striking the {damageResult.OrganHitName}! ");
+            }
+            else if (damageResult.TissuesDamaged.Any(t => t.TissueName == "Muscle"))
+            {
+                sb.Append("The attack tears through muscle tissue! ");
+            }
+        }
+        
+        // Add part status if significantly damaged
+        if (damageResult.HitPartHealthAfter < 0.9)
+        {
+            string statusDesc = DescribeTargetStatus(damageResult.HitPartName, damageResult.HitPartHealthAfter);
+            if (!string.IsNullOrEmpty(statusDesc))
+            {
+                sb.Append(statusDesc);
+            }
+        }
+        
+        // Add damage number for debugging
+        sb.Append($"({Math.Round(damageResult.TotalDamageDealt, 1)})");
+        
+        return sb.ToString();
+    }
+
+    // Legacy method for backward compatibility
+    private static string DescribeHitLegacy(Actor attacker, Actor target, double damage, string targetPart)
     {
         WeaponClass weaponClass = attacker.ActiveWeapon.Class;
 
         // Get appropriate attack verb based on weapon class
-        string attackVerb;
-        if (AttackVerbs.TryGetValue(weaponClass, out var verbs))
-            attackVerb = verbs[Utils.RandInt(0, verbs.Count - 1)];
-        else
-            attackVerb = "strikes";
+        string attackVerb = GetAttackVerb(weaponClass);
 
         // Describe damage severity
         string damageDesc = GetDamageSeverity(damage);
@@ -125,30 +198,37 @@ public static class CombatNarrator
         }
     }
 
+    private static string GetAttackVerb(WeaponClass weaponClass)
+    {
+        if (AttackVerbs.TryGetValue(weaponClass, out var verbs))
+            return verbs[Utils.RandInt(0, verbs.Count - 1)];
+        return "strikes";
+    }
+
     private static string GetDamageSeverity(double damage)
     {
-        if (damage <= 2) return "minimal";
-        if (damage <= 5) return "light";
-        if (damage <= 10) return "moderate";
-        if (damage <= 15) return "severe";
-        if (damage <= 25) return "critical";
-        return "devastating";
+        return damage switch
+        {
+            <= 2 => "minimal",
+            <= 5 => "light",
+            <= 10 => "moderate",
+            <= 15 => "severe",
+            <= 25 => "critical",
+            _ => "devastating"
+        };
     }
 
     public static string DescribeTargetStatus(string partName, double healthPercent)
     {
-        if (healthPercent <= 0)
-            return $"The {partName} is completely destroyed!";
-        if (healthPercent < 0.15)
-            return $"The {partName} is maimed and barely functioning!";
-        if (healthPercent < 0.35)
-            return $"The {partName} is gravely injured!";
-        if (healthPercent < 0.6)
-            return $"The {partName} is wounded.";
-        if (healthPercent < 0.9)
-            return $"The {partName} is lightly injured.";
-
-        return "";
+        return healthPercent switch
+        {
+            <= 0 => $"The {partName} is completely destroyed!",
+            < 0.15 => $"The {partName} is maimed and barely functioning!",
+            < 0.35 => $"The {partName} is gravely injured!",
+            < 0.6 => $"The {partName} is wounded.",
+            < 0.9 => $"The {partName} is lightly injured.",
+            _ => ""
+        };
     }
 
     public static string DescribeCombatStart(Actor player, Actor enemy)

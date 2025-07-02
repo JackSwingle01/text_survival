@@ -97,11 +97,10 @@ public class CombatManager
     public void Attack(Actor target, string? targetedPart = null)
     {
         bool isDodged = DetermineDodge(target);
-        string partName = targetedPart ?? "body";
         if (isDodged)
         {
             // Use our narrator for rich descriptions
-            string description = CombatNarrator.DescribeAttack(Owner, target, 0, partName, false, true, false);
+            string description = CombatNarrator.DescribeAttack(Owner, target, 0, null, false, true, false);
             Output.WriteLine(description);
             return;
         }
@@ -109,7 +108,7 @@ public class CombatManager
         bool isHit = DetermineHit();
         if (!isHit)
         {
-            string description = CombatNarrator.DescribeAttack(Owner, target, 0, partName, false, false, false);
+            string description = CombatNarrator.DescribeAttack(Owner, target, 0, null, false, false, false);
             Output.WriteLine(description);
             return;
         }
@@ -118,70 +117,60 @@ public class CombatManager
         bool isBlocked = DetermineBlock(target);
         if (isBlocked)
         {
-            string description = CombatNarrator.DescribeAttack(Owner, target, 0, partName, true, false, true);
+            string description = CombatNarrator.DescribeAttack(Owner, target, 0, null, true, false, true);
             Output.WriteLine(description);
             return;
         }
 
         double damage = DetermineDamage();
 
-        DamageType type = DamageType.Blunt;
-        if (Owner.ActiveWeapon.Class == WeaponClass.Blade || Owner.ActiveWeapon.Class == WeaponClass.Claw)
+        DamageType type = Owner.ActiveWeapon.Class switch
         {
-            type = DamageType.Sharp;
-        }
-        else if (Owner.ActiveWeapon.Class == WeaponClass.Pierce)
-        {
-            type = DamageType.Pierce;
-        }
+            WeaponClass.Blade or WeaponClass.Claw => DamageType.Sharp,
+            WeaponClass.Pierce => DamageType.Pierce,
+            _ => DamageType.Blunt
+        };
 
         DamageInfo damageInfo = new(
             amount: damage,
             source: Owner.Name,
             type: type,
-            targetPartName: targetedPart ?? null
+            targetPartName: targetedPart
         );
 
-        target.Damage(damageInfo);
+        DamageResult damageResult = DamageProcessor.DamageBody(damageInfo, target.Body);
 
-        double partHealthPercent = 0;
-    
-        // if (targetedPart != null)
-        // {
-        //     partHealthPercent = targetedPart;
-        // }
-        string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damage, partName, true, false, false);
+        string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damageResult, true, false, false);
         Output.WriteLine(attackDescription);
 
-        // Add part status if it's significantly damaged
-        if (partHealthPercent < 0.9)
-        {
-            string statusDesc = CombatNarrator.DescribeTargetStatus(partName, partHealthPercent);
-            if (!string.IsNullOrEmpty(statusDesc))
-            {
-                Output.WriteLine(statusDesc);
-            }
-        }
-
         // Add weapon-specific effect descriptions
-        if (Owner.ActiveWeapon.Class == WeaponClass.Blade && damage > 10)
+        if (damageResult.TotalDamageDealt > 0)
         {
-            Output.WriteDanger("Blood sprays from the wound!");
-        }
-        else if (Owner.ActiveWeapon.Class == WeaponClass.Blunt && damage > 12)
-        {
-            Output.WriteDanger("You hear a sickening crack!");
-        }
-        else if (Owner.ActiveWeapon.Class == WeaponClass.Pierce && damage > 15)
-        {
-            Output.WriteDanger("The attack pierces deep into the flesh!");
+            AddWeaponEffectDescription(Owner.ActiveWeapon.Class, damageResult.TotalDamageDealt);
         }
 
         if (target is Player player)
         {
             player.Skills.Fighting.GainExperience(1);
         }
+        
         Thread.Sleep(1000);
+    }
+
+    private static void AddWeaponEffectDescription(WeaponClass weaponClass, double damage)
+    {
+        if (weaponClass == WeaponClass.Blade && damage > 10)
+        {
+            Output.WriteDanger("Blood sprays from the wound!");
+        }
+        else if (weaponClass == WeaponClass.Blunt && damage > 12)
+        {
+            Output.WriteDanger("You hear a sickening crack!");
+        }
+        else if (weaponClass == WeaponClass.Pierce && damage > 15)
+        {
+            Output.WriteDanger("The attack pierces deep into the flesh!");
+        }
     }
 
     public Actor Owner { get; }
