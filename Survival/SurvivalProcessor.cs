@@ -10,7 +10,7 @@ namespace text_survival.Survival;
 public static class SurvivalProcessor
 {
 	private const double BASE_EXHAUSTION_RATE = 1;
-	private const double MAX_EXHAUSTION_MINUTES = 960.0F; // minutes (16 hours)
+	private const double MAX_ENERGY_MINUTES = 960.0F; // minutes (16 hours)
 	private const double BASE_DEHYDRATION_RATE = 4000F / (24F * 60F); // mL per minute
 	private const double MAX_HYDRATION = 4000.0F; // mL
 	private const double MAX_CALORIES = 2000.0; // Maximum calories stored before fat conversion
@@ -34,7 +34,7 @@ public static class SurvivalProcessor
 
 	public static SurvivalProcessorResult Process(SurvivalData data, int minutesElapsed, List<Effect> activeEffects)
 	{
-		data.Exhaustion = Math.Min(1, data.Exhaustion + (BASE_EXHAUSTION_RATE * minutesElapsed));
+		data.Energy = Math.Max(0, data.Energy - (BASE_EXHAUSTION_RATE * minutesElapsed));
 		data.Hydration = Math.Max(0, data.Hydration - (BASE_DEHYDRATION_RATE * minutesElapsed));
 
 		// Hunger update
@@ -146,7 +146,7 @@ public static class SurvivalProcessor
 		data.Calories += update.Calories;
 		data.Hydration += update.Hydration;
 		data.Temperature += update.Temperature;
-		data.Exhaustion += update.Exhaustion;
+		data.Energy -= update.Exhaustion;
 	}
 
 
@@ -279,7 +279,7 @@ public static class SurvivalProcessor
 		// starve at 1/2 rate - handled in GetCurrentMetabolism
 		data.activityLevel = .5;
 		// rest restores exhaustion at 2x the rate that you gain it while awake, so 16 hours of wakefulness creates only 8 hours of sleep debt
-		data.Exhaustion = Math.Max(0, data.Exhaustion - (BASE_EXHAUSTION_RATE * 2 * minutes));
+		data.Energy = Math.Min(1, data.Energy + (BASE_EXHAUSTION_RATE * 2 * minutes));
 		data.Hydration = Math.Max(0, data.Hydration - (BASE_DEHYDRATION_RATE * .7 * minutes)); // dehydrate at reduced rate while asleep
 		data.Calories = data.Calories -= GetCurrentMetabolism(data) / 24 / 60 * minutes;
 		return new SurvivalProcessorResult(data);
@@ -287,19 +287,93 @@ public static class SurvivalProcessor
 
 	public static void Describe(SurvivalData data)
 	{
-		Output.WriteLine("\n----------------------------------------------------\n| Survival Stats:");
-		// calories
-		double percent = (int)(data.Calories / MAX_CALORIES * 100);
-		Output.WriteLine("| Calorie Store: ", percent, "%");
-		// hydration
-		percent = (int)((data.Hydration / MAX_HYDRATION) * 100);
-		Output.WriteLine("| Hydration: ", percent, "%");
-		// exhaustion
-		percent = (int)((data.Exhaustion / MAX_EXHAUSTION_MINUTES) * 100);
-		Output.WriteLine("| Exhaustion: ", percent, "%");
-		// temp
-		//string tempChange = IsWarming ? "Warming up" : "Getting colder";
-		Output.WriteLine("| Body Temperature: ", data.Temperature, "°F");//(", TemperatureEffect, "), ", tempChange);
-		Output.WriteLine("----------------------------------------------------");
+		const int boxWidth = 53;
+		const int barWidth = 20;
+
+		// Calculate percentages
+		int caloriesPercent = (int)(data.Calories / MAX_CALORIES * 100);
+		int hydrationPercent = (int)(data.Hydration / MAX_HYDRATION * 100);
+		int energyPercent = (int)(data.Energy / MAX_ENERGY_MINUTES * 100);
+
+		// Create progress bars
+		string caloriesBar = CreateProgressBar(caloriesPercent, barWidth);
+		string hydrationBar = CreateProgressBar(hydrationPercent, barWidth);
+		string energyBar = CreateProgressBar(energyPercent, barWidth);
+
+		// Status descriptions
+		string caloriesStatus = GetCaloriesStatus(caloriesPercent);
+		string hydrationStatus = GetHydrationStatus(hydrationPercent);
+		string exhaustionStatus = GetEnergyStatus(energyPercent);
+		string tempStatus = GetTemperatureStatus(data.Temperature);
+
+		// Build status lines
+		string healthLine = $"Food:    [{caloriesBar}] {caloriesPercent}% {caloriesStatus}";
+		string waterLine =  $"Water:   [{hydrationBar}] {hydrationPercent}% {hydrationStatus}";
+		string energyLine = $"Energy:  [{energyBar}] {energyPercent}% {exhaustionStatus}";
+		string tempLine =   $"Temp:    {data.Temperature:F1}°F ({tempStatus})";
+
+		// Display with proper padding
+		Output.WriteLine($"┌{new string('─', boxWidth)}┐");
+		Output.WriteLine($"│ {healthLine,-(boxWidth - 2)} │");
+		Output.WriteLine($"│ {waterLine,-(boxWidth - 2)} │");
+		Output.WriteLine($"│ {energyLine,-(boxWidth - 2)} │");
+		Output.WriteLine($"│ {tempLine,-(boxWidth - 2)} │");
+		Output.WriteLine($"└{new string('─', boxWidth)}┘");
+	}
+
+	private static string CreateProgressBar(int percent, int width)
+	{
+		int filled = (int)(percent / 100.0 * width);
+		int empty = width - filled;
+		return new string('█', filled) + new string('░', empty);
+	}
+
+	private static string GetCaloriesStatus(int percent)
+	{
+		return percent switch
+		{
+			>= 80 => "Well Fed",
+			>= 60 => "Satisfied",
+			>= 40 => "Peckish",
+			>= 20 => "Hungry",
+			_ => "Starving"
+		};
+	}
+
+	private static string GetHydrationStatus(int percent)
+	{
+		return percent switch
+		{
+			>= 80 => "Hydrated",
+			>= 60 => "Fine",
+			>= 40 => "Thirsty",
+			>= 20 => "Parched",
+			_ => "Dehydrated"
+		};
+	}
+
+	private static string GetEnergyStatus(int percent)
+	{
+		return percent switch
+		{
+			>= 90 => "Energized",
+			>= 80 => "Alert",
+			>= 40 => "Normal",
+			>= 30 => "Tired",
+			>= 20 => "Very Tired",
+			_ => "Exhausted"
+		};
+	}
+
+	private static string GetTemperatureStatus(double temp)
+	{
+		return temp switch
+		{
+			>= 100 => "Feverish",
+			>= 99 => "Hot",
+			>= 97 => "Normal",
+			>= 95 => "Cool",
+			_ => "Cold"
+		};
 	}
 }

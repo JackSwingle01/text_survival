@@ -1,0 +1,178 @@
+using System.Runtime.CompilerServices;
+using text_survival.Effects;
+using text_survival.IO;
+
+namespace text_survival.Bodies
+{
+    public static class BodyDescriber
+    {
+        public static void Describe(Body body)
+        {
+            const int barWidth = 10;
+            const int boxWidth = 65;
+            // Header
+            Output.WriteLine("┌", new string('─', boxWidth), "┐");
+            PrintCenteredHeader("BODY STATUS");
+
+            // Health and Body Composition (3 columns)
+            Output.WriteLine("├─────────────────────┬─────────────────────┬─────────────────────┤");
+            
+            // Health row
+            string healthBar = CreateProgressBar((int)(body.Health * 100), barWidth);
+            string healthValueStr = $"[{healthBar}] {(int)(body.Health * 100)}%";
+            string healthStatus = GetHealthStatus((int)(body.Health * 100));
+            Output.WriteLine("│ Health              │ ", healthValueStr.PadRight(19), " │ ", healthStatus.PadRight(19), " │");
+            
+            // Body composition row
+            string bodyCompValue = $"{Math.Round(body.Weight * 2.2, 1)} lbs";
+            string bodyCompStatus = $"{(int)(body.BodyFatPercentage * 100)}% fat, {(int)(body.MusclePercentage * 100)}% muscle";
+            Output.WriteLine("│ Body Composition    │ ", bodyCompValue.PadRight(19), " │ ", bodyCompStatus.PadRight(19), " │");
+            
+            // Capabilities section (4 columns)
+            PrintDivider(boxWidth);
+            PrintCenteredHeader("CAPABILITIES");
+            PrintDivider(boxWidth);
+            
+            // Individual capabilities
+            PrintCapabilityRow("Strength", AbilityCalculator.CalculateStrength(body));
+            PrintCapabilityRow("Speed", AbilityCalculator.CalculateSpeed(body));
+            PrintCapabilityRow("Vitality", AbilityCalculator.CalculateVitality(body));
+            PrintCapabilityRow("Perception", AbilityCalculator.CalculatePerception(body));
+            PrintCapabilityRow("Cold Resistance", AbilityCalculator.CalculateColdResistance(body));
+            
+            // Body parts section (if any damaged)
+            var damagedParts = body.Parts.Where(p => p.Condition < 1.0).ToList();
+            if (damagedParts.Count > 0)
+            {
+                PrintDivider(boxWidth);
+                PrintCenteredHeader("BODY PARTS");
+                PrintDivider(boxWidth);
+                
+                foreach (var part in damagedParts)
+                {
+                    PrintBodyPartRow(part);
+                }
+            }
+            
+            // Active effects section
+            var activeEffects = body.EffectRegistry.GetAll();
+            if (activeEffects.Count > 0)
+            {
+                PrintDivider(boxWidth);
+                PrintCenteredHeader("ACTIVE EFFECTS");
+                PrintDivider(boxWidth);
+                
+                foreach (var effect in activeEffects)
+                {
+                    PrintEffectRow(effect);
+                }
+            }
+            
+            Output.WriteLine("└─────────────────────┴─────────────────────┴─────────────┴───────┘");
+        }
+
+        private static void PrintCenteredHeader(string text, int width =65)
+        {
+            Output.WriteLine("├", text.PadLeft((width + text.Length) / 2).PadRight(width), "┤");
+        }
+
+        private static void PrintDivider(int width)
+        {
+            string line = "│" + new string('─', width) + "│";
+            Output.WriteLine(line);
+        }
+        private static void PrintCapabilityRow(string name, double value)
+        {
+            const int barWidth = 10;
+            string bar = CreateProgressBar((int)(value * 100), barWidth);
+            string valueStr = $"[{bar}] {(int)(value * 100)}%";
+            string status = GetCapabilityStatus(value);
+
+            Output.WriteLine("│ ", name.PadRight(19), " │ ", valueStr.PadRight(19), " │ ", status.PadRight(11), " │       │");
+        }
+
+        private static void PrintBodyPartRow(BodyRegion part)
+        {
+            const int barWidth = 10;
+            string bar = CreateProgressBar((int)(part.Condition * 100), barWidth);
+            string valueStr = $"[{bar}] {(int)(part.Condition * 100)}%";
+            string status = GetDamageDescription(part.Condition);
+            
+            Output.WriteLine("│ ", part.Name.PadRight(19), " │ ", valueStr.PadRight(19), " │ ", status.PadRight(11), " │       │");
+        }
+
+        private static void PrintEffectRow(Effect effect)
+        {
+            const int barWidth = 10;
+            string bar = CreateProgressBar((int)(effect.Severity * 100), barWidth);
+            string trendIndicator = GetTrendIndicator(effect);
+            string valueStr = $"[{bar}] {(int)(effect.Severity * 100)}%{trendIndicator}";
+            string status = effect.GetSeverityDescription();
+            string target = GetEffectTarget(effect);
+            
+            Output.WriteLine("│ ", effect.EffectKind.PadRight(19), " │ ", valueStr.PadRight(19), " │ ", status.PadRight(11), " │ ", target.PadRight(5), " │");
+        }
+
+        private static string CreateProgressBar(int percent, int width)
+        {
+            int filled = (int)(percent / 100.0 * width);
+            int empty = width - filled;
+            return new string('█', filled) + new string('░', empty);
+        }
+
+        private static string GetHealthStatus(int percent)
+        {
+            return percent switch
+            {
+                >= 90 => "Excellent",
+                >= 75 => "Good",
+                >= 50 => "Fair",
+                >= 25 => "Poor",
+                _ => "Critical"
+            };
+        }
+
+        private static string GetCapabilityStatus(double value)
+        {
+            return value switch
+            {
+                >= 0.9 => "Excellent",
+                >= 0.75 => "Good",
+                >= 0.5 => "Fair",
+                >= 0.25 => "Poor",
+                _ => "Critical"
+            };
+        }
+
+        private static string GetDamageDescription(double condition)
+        {
+            return condition switch
+            {
+                <= 0 => "Destroyed",
+                < 0.2 => "Critical",
+                < 0.4 => "Severe",
+                < 0.6 => "Moderate",
+                < 0.8 => "Light",
+                _ => "Minor"
+            };
+        }
+
+        private static string GetTrendIndicator(Effect effect)
+        {
+            if (effect.hourlySeverityChange > 0)
+                return " (+)";
+            else if (effect.hourlySeverityChange < 0)
+                return " (-)";
+            else
+                return "";
+        }
+
+        private static string GetEffectTarget(Effect effect)
+        {
+            if (string.IsNullOrEmpty(effect.TargetBodyPart))
+                return "Core";
+            else
+                return effect.TargetBodyPart.Length > 5 ? effect.TargetBodyPart.Substring(0, 5) : effect.TargetBodyPart;
+        }
+    }
+}

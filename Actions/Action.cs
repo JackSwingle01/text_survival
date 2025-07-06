@@ -45,7 +45,7 @@ public abstract class GameActionBase(string name) : IGameAction
         IGameAction action = Input.GetSelectionFromList(actions)!;
         action.Execute(ctx);
     }
-    protected virtual string userPrompt => "What would you like to do?";
+    protected virtual string userPrompt => "";
     public override string ToString() => Name;
 }
 

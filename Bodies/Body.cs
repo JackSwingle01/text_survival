@@ -35,7 +35,7 @@ public class Body
     public double MaxHealth => 1;
     public bool IsDestroyed => Health <= 0;
 
-    public bool IsTired => Exhaustion > 60; // can sleep for at least 1 hr
+    public bool IsTired => Energy > 60; // can sleep for at least 1 hr
 
     public readonly EffectRegistry EffectRegistry;
 
@@ -65,9 +65,9 @@ public class Body
     public double Weight => _baseWeight + BodyFat + Muscle;
     public double BodyTemperature { get; set; }
 
-    private double CalorieStore;
-    private double Exhaustion;
-    private double Hydration;
+    private double CalorieStore = 1000;
+    private double Energy = 800;
+    private double Hydration = 3000;
 
     /// <summary>
     /// Damage application rules: 
@@ -153,7 +153,7 @@ public class Body
         BodyTemperature = resultData.Temperature;
         CalorieStore = resultData.Calories;
         Hydration = resultData.Hydration;
-        Exhaustion = resultData.Exhaustion;
+        Energy = resultData.Energy;
 
         result.Effects.ForEach(EffectRegistry.AddEffect);
 
@@ -182,106 +182,6 @@ public class Body
         }
     }
 
-    public void Describe()
-    {
-        Output.WriteLine("Body Health: " + (int)(Health * 100) + "%");
-        Output.WriteLine("Weight: " + Math.Round(Weight * 2.2, 1) + " lbs");
-        Output.WriteLine("Body Composition: " + (int)(BodyFatPercentage * 100) + "% fat, " + (int)(MusclePercentage * 100) + "% muscle");
-
-        Output.WriteLine("\nPhysical Capabilities:");
-        Output.WriteLine("- Strength: " + Math.Round(AbilityCalculator.CalculateStrength(this) * 100) + "%");
-        Output.WriteLine("- Speed: " + Math.Round(AbilityCalculator.CalculateSpeed(this) * 100) + "%");
-        Output.WriteLine("- Vitality: " + Math.Round(AbilityCalculator.CalculateVitality(this) * 100) + "%");
-        Output.WriteLine("- Perception: " + Math.Round(AbilityCalculator.CalculatePerception(this) * 100) + "%");
-        Output.WriteLine("- Cold Resistance: " + Math.Round(AbilityCalculator.CalculateColdResistance(this) * 100) + "%");
-
-        // Show damaged parts and materials
-        var damagedParts = Parts.Where(p => p.Condition < 1.0).ToList();
-
-        if (damagedParts.Count > 0)
-        {
-            Output.WriteLine("\nInjuries:");
-            foreach (var part in damagedParts)
-            {
-                DescribePartCondition(part);
-            }
-        }
-        else
-        {
-            Output.WriteLine("\nNo injuries detected.");
-        }
-
-        // Show capacity impairments
-        var capacities = CapacityCalculator.GetCapacities(this);
-        Dictionary<string, double> systemCapacities = new Dictionary<string, double>
-        {
-            { "Moving", capacities.Moving },
-            { "Manipulation", capacities.Manipulation },
-            { "Breathing", capacities.Breathing},
-            { "BloodPumping", capacities.BloodPumping },
-            { "Consciousness", capacities.BloodPumping },
-            { "Sight", capacities.Sight},
-            { "Hearing", capacities.Hearing },
-            { "Digestion", capacities.Digestion }
-        };
-
-        var impairedSystems = systemCapacities.Where(kv => kv.Value < 0.9).ToList();
-
-        if (impairedSystems.Count > 0)
-        {
-            Output.WriteLine("\nSystem Impairments:");
-            foreach (var system in impairedSystems)
-            {
-                string severity = GetImpairmentSeverity(system.Value);
-                Output.WriteLine($"- {system.Key}: {severity} ({(int)(system.Value * 100)}% efficiency)");
-            }
-        }
-    }
-
-    private void DescribePartCondition(BodyRegion part)
-    {
-        Output.WriteLine($"\n{part.Name}:");
-
-        // Describe material damage
-        if (part.Skin?.Condition < 1.0)
-            Output.WriteLine($"  - Skin: {GetDamageDescription(part.Skin.Condition)}");
-        if (part.Muscle?.Condition < 1.0)
-            Output.WriteLine($"  - Muscle: {GetDamageDescription(part.Muscle.Condition)}");
-        if (part.Bone?.Condition < 1.0)
-            Output.WriteLine($"  - Bone: {GetDamageDescription(part.Bone.Condition)}");
-
-        // Describe organ damage
-        foreach (var organ in part.Organs.Where(o => o.Condition < 1.0))
-        {
-            Output.WriteLine($"  - {organ.Name}: {GetDamageDescription(organ.Condition)}");
-        }
-    }
-
-    private string GetDamageDescription(double condition)
-    {
-        return condition switch
-        {
-            <= 0 => "destroyed",
-            < 0.2 => "critically damaged",
-            < 0.4 => "severely damaged",
-            < 0.6 => "moderately damaged",
-            < 0.8 => "lightly damaged",
-            _ => "slightly damaged"
-        };
-    }
-
-    private string GetImpairmentSeverity(double capacity)
-    {
-        return capacity switch
-        {
-            < 0.25 => "Critical impairment",
-            < 0.5 => "Severe impairment",
-            < 0.75 => "Moderate impairment",
-            < 0.9 => "Minor impairment",
-            _ => "Normal"
-        };
-    }
-
     public void DescribeSurvivalStats() => SurvivalProcessor.Describe(BundleSurvivalData());
 
     public bool Rest(int minutes)
@@ -297,13 +197,13 @@ public class Body
         {
             Amount = minutesSlept / 10,
             Type = "natural",
-            Quality = Exhaustion <= 0 ? 1 : .7, // healing quality is better after a full night's sleep
+            Quality = Energy <= 0 ? 1 : .7, // healing quality is better after a full night's sleep
         };
         Heal(healing);
 
         World.Update(minutes); // need to fix, right now we are double updating
 
-        return Exhaustion <= 0;
+        return Energy <= 0;
     }
     public void Consume(FoodItem food)
     {
@@ -325,7 +225,7 @@ public class Body
         Temperature = BodyTemperature,
         Calories = CalorieStore,
         Hydration = Hydration,
-        Exhaustion = Exhaustion,
+        Energy = Energy,
         BodyStats = GetBodyStats(),
     };
 

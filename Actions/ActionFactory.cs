@@ -608,21 +608,21 @@ public static class ActionFactory
                     var featureRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.LocationFeature).ToList();
                     var shelterRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.Shelter).ToList();
 
-                    if (itemRecipes.Any())
+                    if (itemRecipes.Count != 0)
                     {
                         Output.WriteLine("\n--- Items ---");
                         foreach (var recipe in itemRecipes)
                             actions.Add(CraftItem(recipe));
                     }
 
-                    if (featureRecipes.Any())
+                    if (featureRecipes.Count != 0)
                     {
                         Output.WriteLine("\n--- Build Features ---");
                         foreach (var recipe in featureRecipes)
                             actions.Add(CraftItem(recipe));
                     }
 
-                    if (shelterRecipes.Any())
+                    if (shelterRecipes.Count != 0)
                     {
                         Output.WriteLine("\n--- Build Shelters ---");
                         foreach (var recipe in shelterRecipes)
@@ -680,7 +680,7 @@ public static class ActionFactory
             return CreateAction("View All Known Recipes")
                 .Do(ctx =>
                 {
-                    Output.WriteLine("\n=== Known Recipes ===");
+                    Output.WriteLine("\n=== [ Known Recipes ] ===");
 
                     var craftingManager = new CraftingSystem(ctx.player);
                     var allRecipes = craftingManager.Recipes.Values
@@ -689,37 +689,66 @@ public static class ActionFactory
 
                     foreach (var group in allRecipes)
                     {
-                        Output.WriteLine($"\n--- {group.Key} Recipes ---");
-
+                        Output.WriteLine($"\n--- [ {group.Key} Recipes ] ---");
                         foreach (var recipe in group)
                         {
-                            bool canCraft = recipe.CanCraft(ctx.player);
-                            string status = canCraft ? "[CRAFTABLE]" : "[CANNOT CRAFT]";
-
-                            Output.WriteLine($"\n{recipe.Name} {status}");
-                            Output.WriteLine($"  {recipe.Description}");
-                            Output.WriteLine($"  Requires: {recipe.RequiredSkill} Level {recipe.RequiredSkillLevel}");
-                            Output.WriteLine($"  Time: {recipe.CraftingTimeMinutes} minutes");
-
-                            if (recipe.RequiresFire)
-                            {
-                                Output.Write("  Special: ");
-                                if (recipe.RequiresFire) Output.Write("Fire ");
-                                Output.WriteLine();
-                            }
-
-                            Output.WriteLine("  Properties needed:");
-                            foreach (var req in recipe.RequiredProperties)
-                            {
-                                string consumed = req.IsConsumed ? "(consumed)" : "(used)";
-                                Output.WriteLine($"    - {req.PropertyName}: {req.MinQuantity:F1}+ at {req.MinQuality:F1}+ quality {consumed}");
-                            }
+                            PrintRecipeTable(recipe, ctx.player);
+                            Output.WriteLine();
                         }
                     }
+
                 })
                 .WaitForUserInputToContinue()
                 .ThenShow(ctx => [OpenCraftingMenu()])
                 .Build();
+        }
+
+        private static void PrintRecipeTable(CraftingRecipe recipe, Player player)
+        {
+            bool canCraft = recipe.CanCraft(player);
+            string status = canCraft ? "[✓]" : "[✗]";
+
+            // Header with recipe name
+            string header = $">>> {recipe.Name.ToUpper()} {status} <<<";
+            int tableWidth = 64;
+
+            Output.WriteLine($"┌{new string('─', tableWidth)}┐");
+            Output.WriteLine($"│{header.PadLeft((tableWidth + header.Length) / 2).PadRight(tableWidth)}│");
+            Output.WriteLine($"├{new string('─', tableWidth)}┤");
+
+            // Info row
+            string fireReq = recipe.RequiresFire ? " • Fire Required" : "";
+            string infoRow = $"{recipe.CraftingTimeMinutes} min • {recipe.RequiredSkill} level {recipe.RequiredSkillLevel}{fireReq}";
+            Output.WriteLine($"│ {infoRow.PadRight(tableWidth - 2)} │");
+
+            // Description row
+            string description = recipe.Description;
+            if (description.Length > tableWidth - 2)
+            {
+                description = string.Concat(description.AsSpan(0, tableWidth - 5), "...");
+            }
+            Output.WriteLine($"│ {description.PadRight(tableWidth - 2)} │");
+
+            // Materials table header
+            Output.WriteLine($"├───────────────────────────────────┬────────┬─────────┬─────────┤");
+            Output.WriteLine($"│ Material                          │ Qty    │ Quality │ Consumed│");
+            Output.WriteLine($"├───────────────────────────────────┼────────┼─────────┼─────────┤");
+
+            // Materials rows
+            foreach (var req in recipe.RequiredProperties)
+            {
+                string material = req.PropertyName.Length > 31
+                    ? req.PropertyName[..28] + "..."
+                    : req.PropertyName;
+
+                string quantity = $"{req.MinQuantity:F1}x";
+                string quality = $"{req.MinQuality:F1}+";
+                string consumed = req.IsConsumed ? "✓" : "✗";
+
+                Output.WriteLine($"│ {material,-33} │ {quantity,6} │ {quality,7} │ {consumed,7} │");
+            }
+
+            Output.WriteLine($"└───────────────────────────────────┴────────┴─────────┴─────────┘");
         }
 
         public static IGameAction ShowAvailableProperties()
@@ -801,35 +830,58 @@ public static class ActionFactory
             return CreateAction($"Look around {location.Name}")
             .Do(ctx =>
             {
-                Output.WriteLine("You look around the ", location);
-                Output.WriteLine("You are in a ", location, " in a ", location.Parent);
-                Output.WriteLine("Its ", World.GetTimeOfDay(), " and ", location.GetTemperature(), " degrees.");
-                Output.WriteLine("You see:");
-                foreach (var thing in location.Items)
+                // Header with location info
+                Output.WriteSuccess($"\t>>> {location.Name.ToUpper()} <<<");
+                Output.WriteLine("(", location.Parent, " • ", World.GetTimeOfDay(), " • ", location.GetTemperature(), "°F)");
+                Output.WriteLine("\nYou see:");
+
+                // Items and objects found here
+                bool hasItems = false;
+
+                foreach (var item in location.Items)
                 {
-                    Output.WriteLine(thing);
-                    thing.IsFound = true;
-                }
-                foreach (var thing in location.Containers)
-                {
-                    Output.WriteLine(thing);
-                    thing.IsFound = true;
-                }
-                foreach (var thing in location.Npcs)
-                {
-                    Output.WriteLine(thing);
-                    thing.IsFound = true;
+                    Output.WriteLine("\t", item);
+                    item.IsFound = true;
+                    hasItems = true;
                 }
 
-                var nearbyLocations = location.GetNearbyLocations();
-                if (nearbyLocations.Count == 0)
-                    return;
-                Output.WriteLine("Nearby, you see some other places: ");
-                foreach (var location in nearbyLocations)
+                foreach (var container in location.Containers)
                 {
-                    Output.WriteLine(location);
-                    location.IsFound = true;
+                    Output.WriteLine("\t", container, " [container]");
+                    container.IsFound = true;
+                    hasItems = true;
                 }
+
+                foreach (var npc in location.Npcs)
+                {
+                    Output.WriteLine("\t", npc, " [creature]");
+                    npc.IsFound = true;
+                    hasItems = true;
+                }
+
+                if (!hasItems)
+                {
+                    Output.WriteLine("Nothing...");
+                }
+
+                // Add spacing before exits if there were items
+                var nearbyLocations = location.GetNearbyLocations();
+                if (hasItems && nearbyLocations.Count > 0)
+                {
+                    Output.WriteLine();
+                }
+
+                // Exits
+                if (nearbyLocations.Count > 0)
+                {
+                    Output.WriteLine("Nearby Places:");
+                }
+                foreach (var nearbyLocation in nearbyLocations)
+                {
+                    Output.WriteLine("\t→ ", nearbyLocation);
+                    nearbyLocation.IsFound = true;
+                }
+                Output.WriteLine();
             })
             .ThenShow(ctx =>
             {
@@ -860,7 +912,7 @@ public static class ActionFactory
             return CreateAction("Check Stats")
             .Do(ctx =>
             {
-                ctx.player.Body.Describe();
+                BodyDescriber.Describe(ctx.player.Body);
                 ctx.player.Skills.Describe();
             })
             .WaitForUserInputToContinue()

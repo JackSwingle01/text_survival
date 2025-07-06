@@ -8,7 +8,7 @@ public class SurvivalData
 	// Primary stats
 	public double Calories;
 	public double Hydration;
-	public double Exhaustion;
+	public double Energy;
 	public double Temperature;
 	public double ColdResistance;
 

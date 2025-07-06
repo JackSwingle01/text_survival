@@ -114,7 +114,8 @@ namespace text_survival.Items
             var wood = new Item("Firewood")
             {
                 Description = "Dry wood gathered for making fires. Essential for warmth and cooking.",
-                Weight = 1.5
+                Weight = 1.5,
+                
             };
             return wood;
         }
