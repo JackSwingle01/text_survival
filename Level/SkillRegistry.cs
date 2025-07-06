@@ -9,7 +9,7 @@ namespace text_survival.Level
         public Skill Reflexes { get; private set; }
         public Skill Defense { get; private set; }
         public Skill Hunting { get; private set; }
-        public Skill Toolmaking { get; private set; }
+        public Skill Crafting { get; private set; }
         public Skill Foraging { get; private set; }
         public Skill Firecraft { get; private set; }
         public Skill Mending { get; private set; }
@@ -23,7 +23,7 @@ namespace text_survival.Level
             Reflexes = new Skill("Reflexes");
             Defense = new Skill("Defense");
             Hunting = new Skill("Hunting");
-            Toolmaking = new Skill("Toolmaking");
+            Crafting = new Skill("Crafting");
             Foraging = new Skill("Foraging");
             Firecraft = new Skill("Firecraft");
             Mending = new Skill("Mending");
@@ -35,7 +35,7 @@ namespace text_survival.Level
         {
             Output.WriteLine("\nSkills:");
 
-            var allSkills = new[] { Fighting, Endurance, Reflexes, Defense, Hunting, Toolmaking, Foraging, Firecraft, Mending, Healing, Magic };
+            var allSkills = new[] { Fighting, Endurance, Reflexes, Defense, Hunting, Crafting, Foraging, Firecraft, Mending, Healing, Magic };
 
             foreach (var skill in allSkills)
             {
@@ -55,7 +55,7 @@ namespace text_survival.Level
                 "Reflexes" => Reflexes,
                 "Defense" => Defense,
                 "Hunting" => Hunting,
-                "Toolmaking" => Toolmaking,
+                "Crafting" => Crafting,
                 "Foraging" => Foraging,
                 "Firecraft" => Firecraft,
                 "Mending" => Mending,

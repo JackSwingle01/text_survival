@@ -188,7 +188,7 @@ public static class EffectBuilderExtensions
                     Source = builder.Build().Source,
                     TargetPartName = builder.Build().TargetBodyPart
                 };
-                target.Damage(damageInfo);
+                target.Body.Damage(damageInfo);
             });
     }
 
@@ -211,7 +211,7 @@ public static class EffectBuilderExtensions
                     Type = DamageType.Poison,
                     Source = builder.Build().Source
                 };
-                target.Damage(damageInfo);
+                target.Body.Damage(damageInfo);
             });
     }
 
@@ -230,7 +230,7 @@ public static class EffectBuilderExtensions
                     Source = builder.Build().Source,
                     TargetPart = builder.Build().TargetBodyPart
                 };
-                target.Heal(healInfo);
+                target.Body.Heal(healInfo);
             });
     }
 

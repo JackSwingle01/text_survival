@@ -1,4 +1,5 @@
-﻿using text_survival.IO;
+﻿using text_survival.Crafting;
+using text_survival.IO;
 
 namespace text_survival.Items
 {
@@ -10,6 +11,7 @@ namespace text_survival.Items
         public double Quality { get; set; } // percentage 0% being extremely poor quality, 100% being perfect quality
         public bool IsFound { get; set; }
         public int NumUses { get; set; }
+        public List<ItemCraftingProperty> CraftingProperties = [];
 
         public Item(string name, double weight = 1, int quality = 50)
         {
@@ -50,6 +52,17 @@ namespace text_survival.Items
         {
             return Name;
         }
-        
+
+        public ItemCraftingProperty? GetProperty(string name)
+        {
+            return CraftingProperties.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public bool HasProperty(string name, double minAmount = 0, double minQuality = 0)
+        {
+            var property = GetProperty(name);
+            return property != null && property.Quality >= minAmount && property.Quality >= minQuality;
+        }
+
     }
 }

@@ -1,5 +1,6 @@
 using text_survival.Actors;
 using text_survival.Bodies;
+using text_survival.Crafting;
 using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Items;
@@ -32,6 +33,7 @@ public static class ActionFactory
                         Describe.LookAround(ctx.currentLocation),
                         Survival.Forage(),
                         Inventory.OpenInventory(),
+                        Crafting.OpenCraftingMenu(),
                         Describe.CheckStats(),
                         Survival.Sleep(),
                         Movement.Move(),
@@ -583,7 +585,215 @@ public static class ActionFactory
         }
     }
 
+    public static class Crafting
+    {
+        public static IGameAction OpenCraftingMenu()
+        {
+            return CreateAction("Craft Items")
+                .ThenShow(ctx =>
+                {
+                    var actions = new List<IGameAction>();
+                    var availableRecipes = ctx.CraftingManager.GetAvailableRecipes();
 
+                    if (availableRecipes.Count == 0)
+                    {
+                        Output.WriteLine("You don't know how to craft anything here, or you lack the required materials.");
+                        return [ShowAllRecipes(), Common.Return("Go back")];
+                    }
+
+                    Output.WriteLine("What would you like to craft?");
+
+                    // Group recipes by type
+                    var itemRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.Item).ToList();
+                    var featureRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.LocationFeature).ToList();
+                    var shelterRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.Shelter).ToList();
+
+                    if (itemRecipes.Any())
+                    {
+                        Output.WriteLine("\n--- Items ---");
+                        foreach (var recipe in itemRecipes)
+                            actions.Add(CraftItem(recipe));
+                    }
+
+                    if (featureRecipes.Any())
+                    {
+                        Output.WriteLine("\n--- Build Features ---");
+                        foreach (var recipe in featureRecipes)
+                            actions.Add(CraftItem(recipe));
+                    }
+
+                    if (shelterRecipes.Any())
+                    {
+                        Output.WriteLine("\n--- Build Shelters ---");
+                        foreach (var recipe in shelterRecipes)
+                            actions.Add(CraftItem(recipe));
+                    }
+
+                    actions.Add(ShowAllRecipes());
+                    actions.Add(ShowAvailableProperties());
+                    actions.Add(Common.Return("Stop crafting"));
+
+                    return actions;
+                })
+                .Build();
+        }
+
+        public static IGameAction CraftItem(CraftingRecipe recipe)
+        {
+            return CreateAction($"Craft {recipe.Name}")
+                .Do(ctx =>
+                {
+                    // Show recipe details
+                    Output.WriteLine($"\nCrafting: {recipe.Name}");
+                    Output.WriteLine($"Description: {recipe.Description}");
+                    Output.WriteLine($"Time required: {recipe.CraftingTimeMinutes} minutes");
+                    Output.WriteLine($"Required skill: {recipe.RequiredSkill} (Level {recipe.RequiredSkillLevel})");
+                    Output.WriteLine($"Result type: {recipe.ResultType}");
+
+                    if (recipe.RequiresFire)
+                        Output.WriteLine("Requires: Active fire");
+
+                    Output.WriteLine("\nMaterial properties needed:");
+                    foreach (var req in recipe.RequiredProperties)
+                    {
+                        string consumed = req.IsConsumed ? "(consumed)" : "(used)";
+                        Output.WriteLine($"- {req.PropertyName}: {req.MinQuantity:F1}+ at {req.MinQuality:F1}+ quality {consumed}");
+                    }
+
+                    // Show what player has
+                    Output.WriteLine("\nYour available materials:");
+                    ShowPlayerProperties(ctx.player, recipe.RequiredProperties);
+
+                    Output.WriteLine("\nDo you want to attempt this craft?");
+
+                    if (Input.ReadYesNo())
+                    {
+                        ctx.CraftingManager.Craft(recipe);
+                    }
+                })
+                .ThenShow(ctx => [OpenCraftingMenu()])
+                .Build();
+        }
+
+        public static IGameAction ShowAllRecipes()
+        {
+            return CreateAction("View All Known Recipes")
+                .Do(ctx =>
+                {
+                    Output.WriteLine("\n=== Known Recipes ===");
+
+                    var craftingManager = new CraftingSystem(ctx.player);
+                    var allRecipes = craftingManager.Recipes.Values
+                        .GroupBy(r => r.ResultType)
+                        .ToList();
+
+                    foreach (var group in allRecipes)
+                    {
+                        Output.WriteLine($"\n--- {group.Key} Recipes ---");
+
+                        foreach (var recipe in group)
+                        {
+                            bool canCraft = recipe.CanCraft(ctx.player);
+                            string status = canCraft ? "[CRAFTABLE]" : "[CANNOT CRAFT]";
+
+                            Output.WriteLine($"\n{recipe.Name} {status}");
+                            Output.WriteLine($"  {recipe.Description}");
+                            Output.WriteLine($"  Requires: {recipe.RequiredSkill} Level {recipe.RequiredSkillLevel}");
+                            Output.WriteLine($"  Time: {recipe.CraftingTimeMinutes} minutes");
+
+                            if (recipe.RequiresFire)
+                            {
+                                Output.Write("  Special: ");
+                                if (recipe.RequiresFire) Output.Write("Fire ");
+                                Output.WriteLine();
+                            }
+
+                            Output.WriteLine("  Properties needed:");
+                            foreach (var req in recipe.RequiredProperties)
+                            {
+                                string consumed = req.IsConsumed ? "(consumed)" : "(used)";
+                                Output.WriteLine($"    - {req.PropertyName}: {req.MinQuantity:F1}+ at {req.MinQuality:F1}+ quality {consumed}");
+                            }
+                        }
+                    }
+                })
+                .WaitForUserInputToContinue()
+                .ThenShow(ctx => [OpenCraftingMenu()])
+                .Build();
+        }
+
+        public static IGameAction ShowAvailableProperties()
+        {
+            return CreateAction("Show My Materials")
+                .Do(ctx =>
+                {
+                    Output.WriteLine("\n=== Your Material Properties ===");
+
+                    var propertyTotals = new Dictionary<string, (double amount, double avgQuality, int items)>();
+
+                    foreach (var stack in ctx.player.inventoryManager.Items)
+                    {
+                        var item = stack.FirstItem;
+                        foreach (var property in item.CraftingProperties)
+                        {
+                            if (!propertyTotals.ContainsKey(property.Name))
+                            {
+                                propertyTotals[property.Name] = (0, 0, 0);
+                            }
+
+                            var current = propertyTotals[property.Name];
+                            propertyTotals[property.Name] = (
+                                current.amount + (property.Quantity * stack.Count),
+                                current.avgQuality + (property.Quality * stack.Count),
+                                current.items + stack.Count
+                            );
+                        }
+                    }
+
+                    foreach (var kvp in propertyTotals.OrderBy(x => x.Key))
+                    {
+                        var (amount, qualitySum, items) = kvp.Value;
+                        double avgQuality = items > 0 ? qualitySum / items : 0;
+                        Output.WriteLine($"{kvp.Key}: {amount:F1} total (avg quality: {avgQuality:F2})");
+                    }
+
+                    if (!propertyTotals.Any())
+                    {
+                        Output.WriteLine("You don't have any materials with useful properties.");
+                    }
+                })
+                .WaitForUserInputToContinue()
+                .ThenShow(ctx => [OpenCraftingMenu()])
+                .Build();
+        }
+
+        private static void ShowPlayerProperties(Player player, List<PropertyRequirement> requirements)
+        {
+            foreach (var req in requirements)
+            {
+                double totalAmount = 0;
+                double totalQuality = 0;
+                int itemCount = 0;
+
+                foreach (var stack in player.inventoryManager.Items)
+                {
+                    var property = stack.FirstItem.GetProperty(req.PropertyName);
+                    if (property != null)
+                    {
+                        totalAmount += property.Quantity * stack.Count;
+                        totalQuality += property.Quality * stack.Count;
+                        itemCount += stack.Count;
+                    }
+                }
+
+                double avgQuality = itemCount > 0 ? totalQuality / itemCount : 0;
+                bool sufficient = totalAmount >= req.MinQuantity && avgQuality >= req.MinQuality;
+                string status = sufficient ? "✓" : "✗";
+
+                Output.WriteLine($"  {status} {req.PropertyName}: {totalAmount:F1}/{req.MinQuantity:F1} (Q: {avgQuality:F2}/{req.MinQuality:F1})");
+            }
+        }
+    }
     public class Describe
     {
         public static IGameAction LookAround(Location location)

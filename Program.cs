@@ -3,6 +3,7 @@ using text_survival.Events;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Actions;
+using text_survival.Crafting;
 
 namespace text_survival
 {
@@ -26,11 +27,14 @@ namespace text_survival
             zone.Locations.Add(startingArea);
             Player player = new Player(startingArea);
             World.Player = player;
-
+            
             var defaultAction = ActionFactory.Common.MainMenu();
+            var context = new GameContext(player)
+            {
+                CraftingManager = new CraftingSystem(player)
+            }; 
             while (true)
             {
-                var context = new GameContext(player); // todo need to update the location context
                 defaultAction.Execute(context);
             }
         }

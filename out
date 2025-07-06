@@ -1,3 +1,7 @@
+File: ./Crafting/CraftingRecipe.cs
+--------------------------------------------------------------------------------
+================================================================================
+
 File: ./Player.cs
 --------------------------------------------------------------------------------
 ﻿using text_survival.Actors;
@@ -57,8 +61,6 @@ public class Player : Actor
 
     public Zone CurrentZone => locationManager.CurrentZone;
 
-    #region Constructor
-
     public Player(Location startingLocation) : base("Player", Body.BaselinePlayerStats)
     {
         Name = "Player";
@@ -66,9 +68,6 @@ public class Player : Actor
         inventoryManager = new(EffectRegistry);
         Skills = new SkillRegistry();
     }
-
-
-    #endregion Constructor
 
     public void DropItem(Item item)
     {
@@ -79,25 +78,15 @@ public class Player : Actor
     public void TakeItem(Item item)
     {
         locationManager.RemoveItemFromLocation(item);
+
+        // QOL - auto equip gear if you can
+        if (item is IEquippable equipment && inventoryManager.CanAutoEquip(equipment))
+        {
+            inventoryManager.Equip(equipment);
+            return;
+        }
+        
         inventoryManager.AddToInventory(item);
-    }
-
-
-    // public override BodyPart? Damage(DamageInfo damageInfo)
-    // {
-    //     var part = Body.Damage(damageInfo);
-    //     // if (!IsAlive)
-    //     // {
-    //     //     // end program
-    //     //     Output.WriteDanger("You died!");
-    //     //     Environment.Exit(0);
-    //     // }
-    //     return part;
-    // }
-
-    public void DescribeSurvivalStats()
-    {
-        Body.DescribeSurvivalStats();
     }
 
     public void UseItem(Item item)
@@ -184,24 +173,14 @@ public class Player : Actor
         return true;
     }
 
-
     public void Travel() => locationManager.TravelToAdjacentZone();
 }
-
-
-
-
-public class SurvivalStatsUpdate
-{
-    public double Temperature;
-    public double Calories;
-    public double Hydration;
-    public double Exhaustion;
-}================================================================================
+================================================================================
 
 File: ./CombatUtils.cs
 --------------------------------------------------------------------------------
 ﻿using text_survival.Actors;
+using text_survival.Bodies;
 using text_survival.Environments;
 
 namespace text_survival;
@@ -245,7 +224,7 @@ public static class CombatUtils
         {
             athleticsBonus = player.Skills.Reflexes.Level;
         }
-        return actor.Body.CalculateSpeed() + athleticsBonus;
+        return AbilityCalculator.CalculateSpeed(actor.Body) + athleticsBonus;
     }
 }
 ================================================================================
@@ -253,6 +232,7 @@ public static class CombatUtils
 File: ./CombatNarrator.cs
 --------------------------------------------------------------------------------
 using text_survival.Actors;
+using text_survival.Bodies;
 using text_survival.Items;
 
 namespace text_survival;
@@ -277,6 +257,29 @@ public static class CombatNarrator
         { WeaponType.Club, new List<string> { "swings", "brings down", "thumps with" } }
     };
 
+    // Updated main method to handle DamageResult
+    public static string DescribeAttack(Actor attacker, Actor target, DamageResult? damageResult, bool isHit, bool isDodged, bool isBlocked)
+    {
+        var sb = new System.Text.StringBuilder();
+
+        // 1. Attack Initiation
+        string targetPart = damageResult?.HitPartName ?? "body";
+        sb.Append(DescribeAttackAttempt(attacker, target, targetPart));
+
+        // 2. Attack Resolution
+        if (isDodged)
+            sb.Append(DescribeDodge(attacker, target));
+        else if (isBlocked)
+            sb.Append(DescribeBlock(attacker, target));
+        else if (!isHit)
+            sb.Append(DescribeMiss(attacker, target));
+        else if (damageResult != null)
+            sb.Append(DescribeHit(attacker, target, damageResult));
+
+        return sb.ToString();
+    }
+
+    // Legacy method for backward compatibility
     public static string DescribeAttack(Actor attacker, Actor target, double damage, string targetPart, bool isHit, bool isDodged, bool isBlocked)
     {
         var sb = new System.Text.StringBuilder();
@@ -292,7 +295,7 @@ public static class CombatNarrator
         else if (!isHit)
             sb.Append(DescribeMiss(attacker, target));
         else
-            sb.Append(DescribeHit(attacker, target, damage, targetPart));
+            sb.Append(DescribeHitLegacy(attacker, target, damage, targetPart));
 
         return sb.ToString();
     }
@@ -354,16 +357,65 @@ public static class CombatNarrator
             return $"The {attacker.Name}'s attack whistles past you, missing entirely!";
     }
 
-    private static string DescribeHit(Actor attacker, Actor target, double damage, string targetPart)
+    // New method using DamageResult
+    private static string DescribeHit(Actor attacker, Actor target, DamageResult damageResult)
+    {
+        WeaponClass weaponClass = attacker.ActiveWeapon.Class;
+        
+        // Get appropriate attack verb
+        string attackVerb = GetAttackVerb(weaponClass);
+        
+        // Describe damage severity
+        string damageDesc = GetDamageSeverity(damageResult.TotalDamageDealt);
+        
+        var sb = new System.Text.StringBuilder();
+        
+        // Basic hit description
+        if (attacker is Player)
+        {
+            sb.Append($"Your attack {attackVerb} the {target.Name}'s {damageResult.HitPartName}, dealing {damageDesc} damage! ");
+        }
+        else
+        {
+            sb.Append($"The {attacker.Name}'s attack {attackVerb} your {damageResult.HitPartName}, dealing {damageDesc} damage! ");
+        }
+        
+        // Add penetration details for significant damage
+        if (damageResult.WasPenetrating && damageResult.TotalDamageDealt > 5)
+        {
+            if (damageResult.OrganHit)
+            {
+                sb.Append($"The attack penetrates deep, striking the {damageResult.OrganHitName}! ");
+            }
+            else if (damageResult.TissuesDamaged.Any(t => t.TissueName == "Muscle"))
+            {
+                sb.Append("The attack tears through muscle tissue! ");
+            }
+        }
+        
+        // Add part status if significantly damaged
+        if (damageResult.HitPartHealthAfter < 0.9)
+        {
+            string statusDesc = DescribeTargetStatus(damageResult.HitPartName, damageResult.HitPartHealthAfter);
+            if (!string.IsNullOrEmpty(statusDesc))
+            {
+                sb.Append(statusDesc);
+            }
+        }
+        
+        // Add damage number for debugging
+        sb.Append($"({Math.Round(damageResult.TotalDamageDealt, 1)})");
+        
+        return sb.ToString();
+    }
+
+    // Legacy method for backward compatibility
+    private static string DescribeHitLegacy(Actor attacker, Actor target, double damage, string targetPart)
     {
         WeaponClass weaponClass = attacker.ActiveWeapon.Class;
 
         // Get appropriate attack verb based on weapon class
-        string attackVerb;
-        if (AttackVerbs.TryGetValue(weaponClass, out var verbs))
-            attackVerb = verbs[Utils.RandInt(0, verbs.Count - 1)];
-        else
-            attackVerb = "strikes";
+        string attackVerb = GetAttackVerb(weaponClass);
 
         // Describe damage severity
         string damageDesc = GetDamageSeverity(damage);
@@ -379,30 +431,37 @@ public static class CombatNarrator
         }
     }
 
+    private static string GetAttackVerb(WeaponClass weaponClass)
+    {
+        if (AttackVerbs.TryGetValue(weaponClass, out var verbs))
+            return verbs[Utils.RandInt(0, verbs.Count - 1)];
+        return "strikes";
+    }
+
     private static string GetDamageSeverity(double damage)
     {
-        if (damage <= 2) return "minimal";
-        if (damage <= 5) return "light";
-        if (damage <= 10) return "moderate";
-        if (damage <= 15) return "severe";
-        if (damage <= 25) return "critical";
-        return "devastating";
+        return damage switch
+        {
+            <= 2 => "minimal",
+            <= 5 => "light",
+            <= 10 => "moderate",
+            <= 15 => "severe",
+            <= 25 => "critical",
+            _ => "devastating"
+        };
     }
 
     public static string DescribeTargetStatus(string partName, double healthPercent)
     {
-        if (healthPercent <= 0)
-            return $"The {partName} is completely destroyed!";
-        if (healthPercent < 0.15)
-            return $"The {partName} is maimed and barely functioning!";
-        if (healthPercent < 0.35)
-            return $"The {partName} is gravely injured!";
-        if (healthPercent < 0.6)
-            return $"The {partName} is wounded.";
-        if (healthPercent < 0.9)
-            return $"The {partName} is lightly injured.";
-
-        return "";
+        return healthPercent switch
+        {
+            <= 0 => $"The {partName} is completely destroyed!",
+            < 0.15 => $"The {partName} is maimed and barely functioning!",
+            < 0.35 => $"The {partName} is gravely injured!",
+            < 0.6 => $"The {partName} is wounded.",
+            < 0.9 => $"The {partName} is lightly injured.",
+            _ => ""
+        };
     }
 
     public static string DescribeCombatStart(Actor player, Actor enemy)
@@ -439,7 +498,7 @@ namespace text_survival.Actors
     {
         public override Weapon ActiveWeapon { get; protected set; }
 
-        public Animal(string name, Weapon weapon, BodyStats bodyStats) : base(name, weapon, bodyStats)
+        public Animal(string name, Weapon weapon, BodyCreationInfo bodyStats) : base(name, weapon, bodyStats)
         {
             Name = name;
             ActiveWeapon = weapon;
@@ -514,9 +573,9 @@ namespace text_survival.Actors
     {
         public static Animal MakeRat()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Quadruped,
+                type = BodyTypes.Quadruped,
                 overallWeight = 2, // large rat
                 fatPercent = 0.15,   // 15% fat
                 musclePercent = 0.40 // 40% muscle
@@ -539,9 +598,9 @@ namespace text_survival.Actors
 
         public static Animal MakeWolf()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Quadruped,
+                type = BodyTypes.Quadruped,
                 overallWeight = 40,   // 40 kg - average wolf
                 fatPercent = 0.20,    // 20% fat
                 musclePercent = 0.60  // 60% muscle - wolves are muscular
@@ -564,9 +623,9 @@ namespace text_survival.Actors
 
         public static Animal MakeBear()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Quadruped,
+                type = BodyTypes.Quadruped,
                 overallWeight = 250,  // 250 kg - large bear
                 fatPercent = 0.30,    // 30% fat - bears have more fat reserves
                 musclePercent = 0.55  // 55% muscle
@@ -589,9 +648,9 @@ namespace text_survival.Actors
 
         public static Animal MakeSnake()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Serpentine,
+                type = BodyTypes.Serpentine,
                 overallWeight = 5,    // 5 kg - medium sized snake
                 fatPercent = 0.10,    // 10% fat
                 musclePercent = 0.80  // 80% muscle - snakes are almost all muscle
@@ -622,9 +681,9 @@ namespace text_survival.Actors
 
         public static Animal MakeBat()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Flying,
+                type = BodyTypes.Flying,
                 overallWeight = 0.2,   // 200g - small bat
                 fatPercent = 0.20,     // 20% fat 
                 musclePercent = 0.65   // 65% muscle - flying requires strong muscles
@@ -647,9 +706,9 @@ namespace text_survival.Actors
 
         public static Animal MakeSpider()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Arachnid,
+                type = BodyTypes.Arachnid,
                 overallWeight = 0.1,   // 100g - large spider
                 fatPercent = 0.05,     // 5% fat
                 musclePercent = 0.45   // 45% muscle
@@ -680,9 +739,9 @@ namespace text_survival.Actors
 
         public static Animal MakeCaveBear()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Quadruped,
+                type = BodyTypes.Quadruped,
                 overallWeight = 350,  // 350 kg - larger than a regular bear
                 fatPercent = 0.35,    // 35% fat - more for cave survival
                 musclePercent = 0.55  // 55% muscle
@@ -709,9 +768,9 @@ namespace text_survival.Actors
 
         public static Animal MakeWoollyMammoth()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Quadruped,
+                type = BodyTypes.Quadruped,
                 overallWeight = 6000,  // 6 tons - enormous
                 fatPercent = 0.35,     // 35% fat for cold protection
                 musclePercent = 0.50   // 50% muscle
@@ -739,11 +798,11 @@ namespace text_survival.Actors
 
         public static Animal MakeSaberToothTiger()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Quadruped,
+                type = BodyTypes.Quadruped,
                 overallWeight = 300,   // 300 kg - large cat
-                fatPercent = 0.15,     // 15% fat
+                fatPercent = 0.10,
                 musclePercent = 0.70   // 70% muscle - extremely powerful
             };
 
@@ -768,9 +827,9 @@ namespace text_survival.Actors
         // Human NPCs with various weapons
         public static Npc MakeTribalHunter()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Human,
+                type = BodyTypes.Human,
                 overallWeight = 65,
                 fatPercent = 0.15,
                 musclePercent = 0.60
@@ -797,9 +856,9 @@ namespace text_survival.Actors
 
         public static Npc MakeTribalWarrior()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Human,
+                type = BodyTypes.Human,
                 overallWeight = 70,
                 fatPercent = 0.15,
                 musclePercent = 0.65
@@ -826,9 +885,9 @@ namespace text_survival.Actors
 
         public static Npc MakeTribalShaman()
         {
-            var bodyStats = new BodyStats
+            var bodyStats = new BodyCreationInfo
             {
-                type = BodyPartFactory.BodyTypes.Human,
+                type = BodyTypes.Human,
                 overallWeight = 60,
                 fatPercent = 0.20,
                 musclePercent = 0.45
@@ -869,10 +928,7 @@ public abstract class Actor
 {
     public string Name;
     public virtual Location? CurrentLocation { get; set; }
-    public virtual void Attack(Actor target, IBodyPart? bodyPart = null) => combatManager.Attack(target, bodyPart);
-
-    public virtual void Damage(DamageInfo damage) => Body.Damage(damage);
-    public virtual void Heal(HealingInfo heal) => Body.Heal(heal);
+    public virtual void Attack(Actor target, string? bodyPart = null) => combatManager.Attack(target, bodyPart);
 
     public bool IsEngaged { get; set; }
     public bool IsAlive => !Body.IsDestroyed;
@@ -894,7 +950,7 @@ public abstract class Actor
 
     public override string ToString() => Name;
 
-    protected Actor(string name, BodyStats stats)
+    protected Actor(string name, BodyCreationInfo stats)
     {
         Name = name;
         EffectRegistry = new EffectRegistry(this);
@@ -937,7 +993,7 @@ namespace text_survival.Actors
 
         #region Constructor
 
-        public Npc(string name, Weapon weapon, BodyStats stats) : base(name, stats)
+        public Npc(string name, Weapon weapon, BodyCreationInfo stats) : base(name, stats)
         {
             Description = "";
             IsHostile = true;
@@ -1150,9 +1206,6 @@ namespace text_survival.Items
 {
     public interface IEquippable
     {
-        // public List<Buff> GetEquipBuffs();
-        // public void AddEquipBuff(Buff buff);
-        // public void RemoveEquipBuff(Buff buff);
         public List<Effect> EquipEffects { get; }
     }
 
@@ -1651,7 +1704,7 @@ namespace text_survival.Items
                 {
                     Amount = strength,
                     Type = "herbal",
-                    TargetOrgan = targetOrgan,
+                    TargetPart = targetOrgan,
                     Quality = Utils.RandDouble(0, 1.5)
                 };
             }
@@ -1660,10 +1713,8 @@ namespace text_survival.Items
                 mushroom.DamageEffect = new()
                 {
                     Amount = strength * .66,
-                    IsPenetrating = true,
-                    Type = "poison",
-                    TargetOrgan = targetOrgan,
-                    Accuracy = 1,
+                    Type = Bodies.DamageType.Poison,
+                    TargetPartName = targetOrgan,
                 };
             }
             return mushroom;
@@ -1851,7 +1902,6 @@ namespace text_survival.Items
                     Amount = 15,
                     Type = "herbal",
                     Quality = 0.7,
-                    TargetOrgan = null
                 }
             };
             return herbs;
@@ -1864,7 +1914,7 @@ namespace text_survival.Items
                 Description = "Strips of inner tree bark pounded soft. Can bind wounds and stop bleeding.",
                 Weight = 0.1,
                 Effects = [
-                    new RemoveBleedEffect("bandage", null)
+                    EffectBuilderExtensions.CreateEffect("stop bleed").From("bandage").ClearsEffectType("bleeding").AsInstantEffect().Build()
                 ]
             };
             return bandage;
@@ -2066,243 +2116,12 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+10ff7f06763488668e2b4454b2e307839e34fe92")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+864ba316eb973151e78b2b5d485b3ec195134314")]
 [assembly: System.Reflection.AssemblyProductAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyTitleAttribute("text_survival")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
 
 // Generated by the MSBuild WriteCodeFragment class.
-
-================================================================================
-
-File: ./Events/ThirstEvents.cs
---------------------------------------------------------------------------------
-using text_survival.Actors;
-using text_survival.Bodies;
-using text_survival.Effects;
-using text_survival.IO;
-
-namespace text_survival.Events;
-
-
-public class DehydrationEvent(Actor target, bool isNew) : IGameEvent
-{
-    public Actor Target = target;
-    public bool IsNew = isNew;
-}
-public class DehydrationEventHandler : IEventHandler<DehydrationEvent>
-{
-    public void Handle(DehydrationEvent gameEvent)
-    {
-        if (gameEvent.IsNew)
-        {
-            Output.WriteDanger($"{gameEvent.Target.Name} is dehydrated!\n");
-        }
-        else if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
-        {
-            Output.WriteWarning($"{gameEvent.Target.Name} is still dehydrated.\n");
-
-        }
-        var effect = EffectBuilderExtensions.CreateEffect("Dehydration")
-        .CausesDehydration(1)
-        .ReducesCapacity(CapacityNames.Consciousness, .2) // head ache
-        .ReducesCapacity(CapacityNames.BloodPumping, .1) // low fluids
-        .ReducesCapacity(CapacityNames.Digestion, .4) // low fluids
-        .ReducesCapacity(CapacityNames.Moving, .05) // sluggish
-        .ReducesCapacity(CapacityNames.Breathing, .1) // dry throat
-        .Build();
-        gameEvent.Target.ApplyEffect(effect);
-    }
-}
-
-public class StoppedDehydrationEvent(Actor target) : IGameEvent
-{
-    public Actor Target = target;
-}
-public class StoppedDehydrationEventHandler : IEventHandler<StoppedDehydrationEvent>
-{
-    public void Handle(StoppedDehydrationEvent gameEvent)
-    {
-        Output.WriteSuccess($"{gameEvent.Target.Name} is no longer dehydrated!\n");
-    }
-}
-================================================================================
-
-File: ./Events/CalorieSurplusEvent.cs
---------------------------------------------------------------------------------
-
-using text_survival.Bodies;
-using text_survival.IO;
-namespace text_survival.Events;
-
-public class CalorieSurplusEvent(Body target, double calories) : IGameEvent
-{
-    public Body Target = target;
-    public double Calories = calories;
-}
-
-public class CalorieSurplusEventHandler : IEventHandler<CalorieSurplusEvent>
-{
-    private const double CALORIES_PER_KG_FAT = 7700.0; // Standard calories stored in 1kg of fat
-
-    public void Handle(CalorieSurplusEvent gameEvent)
-    {
-
-        double fatGain = gameEvent.Calories / CALORIES_PER_KG_FAT;
-
-        gameEvent.Target.BodyFat += fatGain;
-
-        int gFatGain = (int)(fatGain * 1000);
-        Output.WriteLine($"{gameEvent.Target.OwnerName} gains {gFatGain}g of body fat from excess calories.");
-
-    }
-
-}
-================================================================================
-
-File: ./Events/ColdEvents.cs
---------------------------------------------------------------------------------
-
-using text_survival.Bodies;
-using text_survival.Effects;
-using text_survival.IO;
-
-namespace text_survival.Events;
-
-public class BodyColdEvent(Body target, bool isNew) : IGameEvent
-{
-    public Body Target = target;
-    public bool IsNew = isNew;
-
-}
-
-public class BodyColdEventHandler : IEventHandler<BodyColdEvent>
-{
-    private const double ShiveringThreshold = 97.0; // °F
-    private const double HypothermiaThreshold = 95.0;  // °F
-    private const double SevereHypothermiaThreshold = 89.6; // °F
-    public void Handle(BodyColdEvent evt)
-    {
-        var target = evt.Target;
-        var bodyTemperature = target.BodyTemperature;
-
-
-        if (evt.IsNew)
-        {
-            Output.WriteDanger($"{target.OwnerName} is cold!\n");
-        }
-        else if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
-        {
-            Output.WriteWarning($"{target.OwnerName} is still cold.\n");
-        }
-
-        if (bodyTemperature < ShiveringThreshold)
-        {
-            ApplyShivering(target);
-        }
-        else
-        {
-            // Remove shivering effects when temperature normalizes
-            target.EffectRegistry.RemoveEffectsByKind("Shivering");
-        }
-
-        if (bodyTemperature < HypothermiaThreshold)
-        {
-            ApplyHypothermia(target);
-        }
-
-        if (bodyTemperature < SevereHypothermiaThreshold)
-        {
-            ApplyFrostbite(target);
-        }
-    }
-
-
-    private void ApplyShivering(Body target)
-    {
-        // Calculate severity based on temperature
-        double intensity = (ShiveringThreshold - target.BodyTemperature) / 5.0;
-        intensity = Math.Clamp(intensity, 0.01, 1.0);
-
-        // Apply to whole body (will handle stacking through EffectRegistry)
-        var shiveringEffect = new ShiveringEffect(intensity);
-
-        target.EffectRegistry.AddEffect(shiveringEffect);
-    }
-
-
-    private void ApplyHypothermia(Body target)
-    {
-        // Calculate severity based on temperature
-        double severity = Math.Clamp((HypothermiaThreshold - target.BodyTemperature) / 10.0, 0.01, 1.0);
-
-        string applicationMessage;
-        string removalMessage;
-        if (target.IsPlayer)
-        {
-            applicationMessage = $"Your core is getting very cold, you feel like you're starting to get hypothermia... Severity = {severity}";
-            removalMessage = $"You're warming up enough and starting to feel better, the hypothermia has passed...";
-        }
-        else
-        {
-            applicationMessage = $"DEBUG: {target} has hypothermia. Severity = {severity}";
-            removalMessage = $"DEBUG: {target} no longer has hypothermia.";
-        }
-        // Apply to whole body (will handle stacking through EffectRegistry)
-        var hypothermia = EffectBuilderExtensions
-            .CreateEffect("Hypothermia")
-            .Temperature(TemperatureType.Hypothermia)
-            .WithApplyMessage(applicationMessage)
-            .WithSeverity(severity)
-            .AllowMultiple(false)
-            .WithRemoveMessage(removalMessage)
-            .Build();
-
-        target.EffectRegistry.AddEffect(hypothermia);
-
-    }
-
-    private void ApplyFrostbite(Body target)
-    {
-        // Get extremities (hands and feet)
-        var extremities = target.Parts
-            .Where(p => p.Name.Contains("Arm") || p.Name.Contains("Leg"))
-            .ToList();
-
-        foreach (var extremity in extremities)
-        {
-            // Calculate severity based on temperature
-            double severity = Math.Clamp((SevereHypothermiaThreshold - target.BodyTemperature) / 5.0, 0.01, 1.0);
-
-            string applicationMessage;
-            string removalMessage;
-
-            if (target.IsPlayer)
-            {
-                applicationMessage = $"Your {extremity.Name.ToLower()} is getting dangerously cold, you're developing frostbite! Severity = {severity}";
-                removalMessage = $"The feeling is returning to your {extremity.Name.ToLower()}, the frostbite is healing...";
-            }
-            else
-            {
-                applicationMessage = $"DEBUG: {target} has frostbite on {extremity.Name}. Severity = {severity}";
-                removalMessage = $"DEBUG: {target} no longer has frostbite on {extremity.Name}.";
-            }
-
-            // Apply frostbite to extremity using builder pattern
-            var frostbite = EffectBuilderExtensions
-                .CreateEffect("Frostbite")
-                .Temperature(TemperatureType.Frostbite)
-                .WithApplyMessage(applicationMessage)
-                .WithSeverity(severity)
-                .Targeting(extremity)
-                .AllowMultiple(true) // Allow multiple frostbite effects on different extremities
-                .WithRemoveMessage(removalMessage)
-                .Build();
-
-            target.EffectRegistry.AddEffect(frostbite);
-        }
-    }
-}
 
 ================================================================================
 
@@ -2340,217 +2159,6 @@ public static class EventBus
         {
             eventHandlers.Cast<IEventHandler<T>>().ToList().ForEach(h => h.Handle(gameEvent));
         }
-    }
-}================================================================================
-
-File: ./Events/StarvingEvent.cs
---------------------------------------------------------------------------------
-
-using text_survival.Actors;
-using text_survival.Bodies;
-using text_survival.IO;
-namespace text_survival.Events;
-
-public class StarvingEvent(Body target, double calories, bool isNew) : IGameEvent
-{
-    public Body Target = target;
-    public bool IsNew = isNew;
-    public double Calories = calories;
-}
-
-public class StarvingEventHandler : IEventHandler<StarvingEvent>
-{
-    private const double CALORIES_PER_KG_MUSCLE = 5500.0; // Calories in 1kg of muscle (less than fat)
-    private const double CALORIES_PER_KG_FAT = 7700.0;
-    public void Handle(StarvingEvent gameEvent)
-    {
-        DisplayMessage(gameEvent);
-
-
-        HandleBodyStarvation(gameEvent.Target, gameEvent.Calories);
-        if (!ShouldApplyDamage(gameEvent.Target)) return; // has enough fat/muscle
-
-
-        ApplyDamage(gameEvent.Target);
-        // todo add more effects
-    }
-
-    // private methods //
-    private static void DisplayMessage(StarvingEvent gameEvent)
-    {
-        if (gameEvent.IsNew)
-        {
-            Output.WriteDanger($"{gameEvent.Target.OwnerName} is starving!\n");
-        }
-        else if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
-        {
-            Output.WriteWarning($"{gameEvent.Target.OwnerName} is still starving.\n");
-        }
-    }
-
-    private static void HandleBodyStarvation(Body body, double calories)
-    {
-        if (body.BodyFat > 0)
-        {
-            // Convert fat to energy
-            double fatBurnRate = calories / CALORIES_PER_KG_FAT;
-            body.BodyFat -= fatBurnRate;
-        }
-        else if (body.Muscle > 0)
-        {
-            // Convert muscle to energy
-            double muscleBurnRate = calories / CALORIES_PER_KG_MUSCLE * 1.2; // Muscle burns less efficiently
-            body.Muscle -= muscleBurnRate;
-        }
-    }
-
-    private static bool ShouldApplyDamage(Body body)
-    {
-        // apply damage if fat and muscle are dangerously low
-        return body.BodyFatPercentage <= 0.05 && body.MusclePercentage <= 0.05;
-    }
-
-    private static void ApplyDamage(Body target)
-    {
-        var damage = new DamageInfo()
-        {
-            Amount = 1,
-            Type = "starvation",
-            IsPenetrating = true
-        };
-        target.Damage(damage);
-    }
-}
-
-public class StoppedStarvingEvent(Body target) : IGameEvent
-{
-    public Body Target = target;
-}
-public class StoppedStarvingEventHandler : IEventHandler<StoppedStarvingEvent>
-{
-    public void Handle(StoppedStarvingEvent gameEvent)
-    {
-        Output.WriteSuccess($"{gameEvent.Target.OwnerName} is no longer starving!\n");
-    }
-}================================================================================
-
-File: ./Events/HeatEvents.cs
---------------------------------------------------------------------------------
-using text_survival.Bodies;
-using text_survival.Effects;
-using text_survival.IO;
-
-namespace text_survival.Events;
-
-public class BodyHotEvent(Body target, bool isNew) : IGameEvent
-{
-    public Body Target = target;
-    public bool IsNew = isNew;
-}
-
-
-public class BodyHotEventHandler : IEventHandler<BodyHotEvent>
-{
-    private const double SweatingThreshold = 100.0; // °F
-    private const double HyperthermiaThreshold = 99.5; // °F  
-    public void Handle(BodyHotEvent evt)
-    {
-        var target = evt.Target;
-        var bodyTemperature = target.BodyTemperature;
-
-
-        if (evt.IsNew)
-        {
-            Output.WriteDanger($"{target.OwnerName} is hot!\n");
-        }
-        else if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
-        {
-            Output.WriteWarning($"{target.OwnerName} is still hot.\n");
-        }
-
-        if (bodyTemperature > SweatingThreshold)
-        {
-            ApplySweating(target); // naturally resolves if not refreshed in 30 min
-        }
-
-        if (bodyTemperature > HyperthermiaThreshold)
-        {
-            ApplyHyperthermia(target);
-        }
-    }
-
-    private void ApplyHyperthermia(Body target)
-    {
-        // Calculate severity based on temperature
-        double severity = Math.Clamp((target.BodyTemperature - HyperthermiaThreshold) / 10.0, 0.01, 1.00);
-
-        // Apply to whole body (will handle stacking through EffectRegistry)
-        var hyperthermia = new TemperatureInjury(
-            TemperatureInjury.TemperatureInjuryType.Hyperthermia,
-            "Heat exposure",
-            null,
-            severity);
-
-        target.EffectRegistry.AddEffect(hyperthermia);
-    }
-
-    private void ApplySweating(Body target)
-    {
-        // Calculate severity based on temperature
-        double severity = Math.Clamp((target.BodyTemperature - SweatingThreshold) / 4.0, 0.10, 1.00);
-
-        // Apply to whole body (will handle stacking through EffectRegistry)
-        var sweatingEffect = new SweatingEffect(severity);
-
-        target.EffectRegistry.AddEffect(sweatingEffect);
-    }
-
-}================================================================================
-
-File: ./Events/ExhaustionEvents.cs
---------------------------------------------------------------------------------
-
-using text_survival.Actors;
-using text_survival.Bodies;
-using text_survival.IO;
-namespace text_survival.Events;
-public class ExhaustionEvent(Actor target, bool isNew) : IGameEvent
-{
-    public Actor Target = target;
-    public bool IsNew = isNew;
-}
-public class ExhaustionEventHandler : IEventHandler<ExhaustionEvent>
-{
-    public void Handle(ExhaustionEvent gameEvent)
-    {
-        if (gameEvent.IsNew)
-        {
-            Output.WriteDanger($"{gameEvent.Target.Name} is exhausted!\n");
-        }
-        else if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
-        {
-            Output.WriteWarning($"{gameEvent.Target.Name} is still exhausted.\n");
-        }
-        var target = gameEvent.Target;
-        var damage = new DamageInfo()
-        {
-            Amount = 1,
-            Type = "exhaustion",
-            IsPenetrating = true
-        };
-        target.Damage(damage);
-    }
-}
-
-public class StoppedExhaustionEvent(Actor target) : IGameEvent
-{
-    public Actor Target = target;
-}
-public class StoppedExhaustionEventHandler : IEventHandler<StoppedExhaustionEvent>
-{
-    public void Handle(StoppedExhaustionEvent gameEvent)
-    {
-        Output.WriteSuccess($"{gameEvent.Target.Name} is no longer exhausted!\n");
     }
 }================================================================================
 
@@ -2704,7 +2312,7 @@ public static class ActionFactory
         public static IGameAction MainMenu()
         {
             return CreateAction("Main Menu")
-                   .Do(ctx => ctx.player.DescribeSurvivalStats())
+                   .Do(ctx => ctx.player.Body.DescribeSurvivalStats())
                    .ThenShow(ctx => [
                         Describe.LookAround(ctx.currentLocation),
                         Survival.Forage(),
@@ -2771,7 +2379,7 @@ public static class ActionFactory
         public static IGameAction Move()
         {
             return CreateAction("Go somewhere else")
-            .When(ctx => ctx.player.Body.CalculateVitality() > .2)
+            .When(ctx => AbilityCalculator.CalculateVitality(ctx.player.Body) > .2)
             .Do(ctx => // just determine what text to display
             {
                 var locations = ctx.currentLocation.GetNearbyLocations().Where(l => l.IsFound).ToList();
@@ -2961,7 +2569,6 @@ public static class ActionFactory
 
     public static class Combat
     {
-
         public static IGameAction StartCombat(Npc enemy)
         {
             return CreateAction($"Fight {enemy.Name}")
@@ -2977,7 +2584,7 @@ public static class ActionFactory
                 ctx.EngagedEnemy = enemy;
 
                 // First strike determination
-                bool enemyFirstStrike = enemy.Body.CalculateSpeed() > ctx.player.Body.CalculateSpeed();
+                bool enemyFirstStrike = AbilityCalculator.CalculateSpeed(enemy.Body) > AbilityCalculator.CalculateSpeed(ctx.player.Body);
 
                 if (enemyFirstStrike)
                 {
@@ -3015,7 +2622,7 @@ public static class ActionFactory
                 var targetPart = SelectTargetPart(enemy, fightingSkill);
                 if (targetPart != null)
                 {
-                    ctx.player.Attack(enemy, targetPart);
+                    ctx.player.Attack(enemy, targetPart.Name);
                 }
                 else
                 {
@@ -3025,7 +2632,7 @@ public static class ActionFactory
             .ThenShow(ctx => [EnemyCombatTurn(enemy), EndCombat(enemy)])
             .Build();
         }
-        private static IBodyPart? SelectTargetPart(Actor enemy, int depth)
+        private static BodyRegion? SelectTargetPart(Actor enemy, int depth)
         {
             if (depth <= 0)
             {
@@ -3034,23 +2641,23 @@ public static class ActionFactory
             }
             Output.WriteLine($"Where do you want to target your attack on the {enemy.Name}?");
 
-            List<IBodyPart> allParts = [];
+            List<BodyRegion> allParts = [];
 
             foreach (var part in enemy.Body.Parts)
             {
                 if (depth > 0)
                     allParts.Add(part);
-                if (depth > 1)
-                    allParts.Add(part.Skin);
-                if (depth > 2)
-                    allParts.Add(part.Muscle);
-                if (depth > 3)
-                    allParts.Add(part.Bone);
-                if (depth > 4)
-                    allParts.AddRange(part.Organs);
+                // if (depth > 1)
+                //     allParts.Add(part.Skin);
+                // if (depth > 2)
+                //     allParts.Add(part.Muscle);
+                // if (depth > 3)
+                //     allParts.Add(part.Bone);
+                // if (depth > 4)
+                //     allParts.AddRange(part.Organs);
             }
 
-            IBodyPart? choice = Input.GetSelectionFromList(allParts, true);
+            var choice = Input.GetSelectionFromList(allParts, true);
             if (choice == null)
                 return null;
 
@@ -3107,7 +2714,7 @@ public static class ActionFactory
         public static IGameAction Flee(Npc enemy)
         {
             return CreateAction("Flee")
-            .When(ctx => ctx.player.Body.CalculateSpeed() > .25)
+            .When(ctx => AbilityCalculator.CalculateSpeed(ctx.player.Body) > .25)
             .Do(ctx =>
             {
                 if (CombatUtils.SpeedCheck(ctx.player, enemy))
@@ -3233,7 +2840,7 @@ public static class ActionFactory
             .Do(ctx =>
             {
                 int magicSkill = ctx.player.Skills.Magic.Level;
-                MajorBodyPart? targetPart = SelectSpellTargetPart(target, magicSkill);
+                BodyRegion? targetPart = SelectSpellTargetPart(target, magicSkill);
                 if (targetPart != null)
                 {
                     spell.Cast(target, targetPart);
@@ -3247,18 +2854,18 @@ public static class ActionFactory
             .Build();
         }
 
-        // private static MajorBodyPart? SelectSpellTargetPart(Actor target, int depth)
-        // {
-        //     if (depth <= 0)
-        //     {
-        //         Output.WriteWarning("You don't have enough magical skill to target a specific body part");
-        //         return null;
-        //     }
+        private static BodyRegion? SelectSpellTargetPart(Actor target, int depth)
+        {
+            if (depth <= 0)
+            {
+                Output.WriteWarning("You don't have enough magical skill to target a specific body part");
+                return null;
+            }
 
-        //     Output.WriteLine($"Select a part to target on the {target.Name}:");
-        //     var parts = target.Body.GetPartsToNDepth(depth);
-        //     return Input.GetSelectionFromList(parts, true);
-        // }
+            Output.WriteLine($"Select a part to target on the {target.Name}:");
+            var parts = target.Body.Parts;
+            return Input.GetSelectionFromList(parts, true);
+        }
     }
 
 
@@ -3751,7 +3358,7 @@ public class CombatManager
         }
 
         // modifiers
-        double strengthModifier = (Owner.Body.CalculateStrength() / 2) + .5; // str determines up to 50%
+        double strengthModifier = (AbilityCalculator.CalculateStrength(Owner.Body) / 2) + .5; // str determines up to 50%
         // A smaller health modifier up to 30%
         double healthModifier = 0.7 + (0.3 * (Owner.Body.Health / Owner.Body.MaxHealth));
         // todo factor in any effects like adrenaline, etc.
@@ -3772,7 +3379,7 @@ public class CombatManager
             dodgeLevel = player.Skills.Reflexes.Level;
 
         double baseDodge = dodgeLevel / 100;
-        double speedDiff = target.Body.CalculateSpeed() - Owner.Body.CalculateSpeed();
+        double speedDiff = AbilityCalculator.CalculateSpeed(target.Body) - AbilityCalculator.CalculateSpeed(Owner.Body);
         double chance = baseDodge + speedDiff;
         // Output.WriteLine("Debug: Dodge Chance = ", chance);
         chance = Math.Clamp(chance, 0, .95);
@@ -3808,7 +3415,7 @@ public class CombatManager
         if (target is Player player)
             blockLevel = player.Skills.Defense.Level;
         double skillBonus = blockLevel / 100;
-        double attributeAvg = target.Body.CalculateStrength(); // todo 
+        double attributeAvg = AbilityCalculator.CalculateStrength(target.Body); // todo 
         double blockAtbAvg = target.ActiveWeapon.BlockChance + attributeAvg / 2;
         double blockChance = blockAtbAvg + skillBonus;
         if (Utils.DetermineSuccess(blockChance))
@@ -3819,14 +3426,13 @@ public class CombatManager
         return false;
     }
 
-    public void Attack(Actor target, IBodyPart? targetedPart = null)
+    public void Attack(Actor target, string? targetedPart = null)
     {
         bool isDodged = DetermineDodge(target);
-        string partName = targetedPart?.Name ?? "body";
         if (isDodged)
         {
             // Use our narrator for rich descriptions
-            string description = CombatNarrator.DescribeAttack(Owner, target, 0, partName, false, true, false);
+            string description = CombatNarrator.DescribeAttack(Owner, target, 0, null, false, true, false);
             Output.WriteLine(description);
             return;
         }
@@ -3834,7 +3440,7 @@ public class CombatManager
         bool isHit = DetermineHit();
         if (!isHit)
         {
-            string description = CombatNarrator.DescribeAttack(Owner, target, 0, partName, false, false, false);
+            string description = CombatNarrator.DescribeAttack(Owner, target, 0, null, false, false, false);
             Output.WriteLine(description);
             return;
         }
@@ -3843,81 +3449,60 @@ public class CombatManager
         bool isBlocked = DetermineBlock(target);
         if (isBlocked)
         {
-            string description = CombatNarrator.DescribeAttack(Owner, target, 0, partName, true, false, true);
+            string description = CombatNarrator.DescribeAttack(Owner, target, 0, null, true, false, true);
             Output.WriteLine(description);
             return;
         }
 
         double damage = DetermineDamage();
 
-        if (targetedPart != null)
+        DamageType type = Owner.ActiveWeapon.Class switch
         {
-            AdjustAccuracyForTargeting(targetedPart);
-        }
-
-        DamageType type = DamageType.Blunt;
-        if (Owner.ActiveWeapon.Class == WeaponClass.Blade || Owner.ActiveWeapon.Class == WeaponClass.Claw)
-        {
-            type = DamageType.Sharp;
-        }
-        else if (Owner.ActiveWeapon.Class == WeaponClass.Pierce)
-        {
-            type = DamageType.Pierce;
-        }
+            WeaponClass.Blade or WeaponClass.Claw => DamageType.Sharp,
+            WeaponClass.Pierce => DamageType.Pierce,
+            _ => DamageType.Blunt
+        };
 
         DamageInfo damageInfo = new(
             amount: damage,
             source: Owner.Name,
             type: type,
-            accuracy: Owner.ActiveWeapon.Accuracy,
-            targetPart: targetedPart
+            targetPartName: targetedPart
         );
 
-        target.Damage(damageInfo);
+        DamageResult damageResult = DamageProcessor.DamageBody(damageInfo, target.Body);
 
-        double partHealthPercent = 0;
-    
-        if (targetedPart != null)
-        {
-            partHealthPercent = targetedPart.Condition;
-        }
-        string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damage, partName, true, false, false);
+        string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damageResult, true, false, false);
         Output.WriteLine(attackDescription);
 
-        // Add part status if it's significantly damaged
-        if (partHealthPercent < 0.9)
-        {
-            string statusDesc = CombatNarrator.DescribeTargetStatus(partName, partHealthPercent);
-            if (!string.IsNullOrEmpty(statusDesc))
-            {
-                Output.WriteLine(statusDesc);
-            }
-        }
-
         // Add weapon-specific effect descriptions
-        if (Owner.ActiveWeapon.Class == WeaponClass.Blade && damage > 10)
+        if (damageResult.TotalDamageDealt > 0)
         {
-            Output.WriteDanger("Blood sprays from the wound!");
-        }
-        else if (Owner.ActiveWeapon.Class == WeaponClass.Blunt && damage > 12)
-        {
-            Output.WriteDanger("You hear a sickening crack!");
-        }
-        else if (Owner.ActiveWeapon.Class == WeaponClass.Pierce && damage > 15)
-        {
-            Output.WriteDanger("The attack pierces deep into the flesh!");
+            AddWeaponEffectDescription(Owner.ActiveWeapon.Class, damageResult.TotalDamageDealt);
         }
 
         if (target is Player player)
         {
             player.Skills.Fighting.GainExperience(1);
         }
+        
         Thread.Sleep(1000);
     }
 
-    private double AdjustAccuracyForTargeting(IBodyPart targetedPart)
+    private static void AddWeaponEffectDescription(WeaponClass weaponClass, double damage)
     {
-        return .8; // todo, for now slight penalty for targeting vs random swing
+        if (weaponClass == WeaponClass.Blade && damage > 10)
+        {
+            Output.WriteDanger("Blood sprays from the wound!");
+        }
+        else if (weaponClass == WeaponClass.Blunt && damage > 12)
+        {
+            Output.WriteDanger("You hear a sickening crack!");
+        }
+        else if (weaponClass == WeaponClass.Pierce && damage > 15)
+        {
+            Output.WriteDanger("The attack pierces deep into the flesh!");
+        }
     }
 
     public Actor Owner { get; }
@@ -4010,6 +3595,32 @@ public class InventoryManager
         Inventory.Remove((Item)item);
         item.EquipEffects.ForEach(_effectRegistry.AddEffect);
     }
+
+    public bool CanAutoEquip(IEquippable item)
+    {
+
+        if (item is Weapon weapon && !IsArmed)
+        {
+            Output.WriteLine($"You equip the {weapon}");
+            return true;
+        }
+        else if (item is Armor armor)
+        {
+            var existingItem = Armor.FirstOrDefault(i => i.EquipSpot == armor.EquipSpot);
+            if (existingItem == null)
+            {
+                Output.WriteLine($"You equip the {armor}");
+                return true;
+            }
+        }
+        else if (item is Gear gear && HeldItem == null)
+        {
+            Output.WriteLine($"You didn't have anything in your hand yet so you equip the {item}");
+            return true;
+        }
+        return false;
+    }
+
     public void Unequip(IEquippable item)
     {
         if (item is not Gear gear) return;
@@ -4077,369 +3688,6 @@ public class InventoryManager
 }
 ================================================================================
 
-File: ./Effects/SweatEffect.cs
---------------------------------------------------------------------------------
-
-using text_survival.Actors;
-using text_survival.IO;
-
-namespace text_survival.Effects;
-
-public class SweatingEffect : Effect
-{
-    private double _waterLossRate; // Liters per hour
-
-    public SweatingEffect(double severity)
-        : base("Sweating", "Heat exposure", null, severity, -2) // Naturally decreases when not refreshed
-    {
-        // Water loss rate based on severity
-        _waterLossRate = 0.05 * severity; // Liters per hour
-        CanHaveMultiple = false; // Use EffectRegistry's stacking mechanism
-    }
-
-    protected override void OnApply(Actor target)
-    {
-        if (Severity > 0.7)
-        {
-            Output.WriteLine($"{target} is sweating profusely.");
-        }
-        else if (Severity > 0.3)
-        {
-            Output.WriteLine($"{target} is sweating.");
-        }
-        else
-        {
-            Output.WriteLine($"{target} is  beginning to sweat.");
-        }
-    }
-
-    protected override void OnRemove(Actor target)
-    {
-        Output.WriteLine($"{target} stopped sweating.");
-    }
-
-    protected override void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity)
-    {
-        // Update water loss rate when severity changes
-        _waterLossRate = 0.05 * updatedSeverity;
-
-        // Only notify player of significant changes
-        if (Math.Abs(oldSeverity - updatedSeverity) > 0.3)
-        {
-            if (updatedSeverity > oldSeverity)
-            {
-                if (updatedSeverity > 0.7)
-                {
-                    Output.WriteLine($"{target} is  now sweating profusely.");
-                }
-                else
-                {
-                    Output.WriteLine($"{target} is  sweating more.");
-                }
-            }
-            else if (updatedSeverity < 0.3)
-            {
-                Output.WriteLine($"{target} is sweating less.");
-            }
-        }
-    }
-
-    protected override void OnUpdate(Actor target)
-    {
-        if (target is Player player)
-        {
-            double waterLoss = _waterLossRate * 1000 / 60; // convert to ml per minute
-            var stats = new SurvivalStatsUpdate();
-            stats.Hydration = -waterLoss;
-            player.Body.UpdateSurvivalStats(stats);
-            Output.WriteLine($"You lose {waterLoss:F2} ml of water due to sweating.");
-        }
-    }
-    public override string Describe()
-    {
-        string intensityDesc;
-        if (Severity > 0.7)
-            intensityDesc = "Profuse";
-        else if (Severity > 0.3)
-            intensityDesc = "Moderate";
-        else
-            intensityDesc = "Mild";
-
-        return $"{intensityDesc} sweating";
-    }
-}
-================================================================================
-
-File: ./Effects/ShiveringEffect.cs
---------------------------------------------------------------------------------
-using text_survival.Actors;
-using text_survival.Bodies;
-using text_survival.IO;
-
-namespace text_survival.Effects;
-
-public class ShiveringEffect : Effect
-{
-    private double _tempBoost;
-
-    public ShiveringEffect(double severity)
-        : base("Shivering", "Cold exposure", null, severity, -0.1) // Naturally decreases when not refreshed
-    {
-        // Calculate metabolism boost based on severity
-        _tempBoost = severity * 0.2; // Up to 20% metabolism increase
-
-        // Setup capacity modifiers - shivering affects fine motor control
-        CapacityModifiers["Manipulation"] = -0.2 * severity;
-
-        CanHaveMultiple = false; // Use EffectRegistry's stacking mechanism
-    }
-
-    protected override void OnUpdate(Actor target)
-    {
-        target.Body.BodyTemperature += _tempBoost; // Increase body temperature
-    }
-
-    protected override void OnApply(Actor target)
-    {
-        if (Severity > 0.7)
-        {
-            Output.WriteDanger("You are shivering violently.");
-        }
-        else if (Severity > 0.3)
-        {
-            Output.WriteWarning("You are shivering.");
-        }
-        else
-        {
-            Output.WriteWarning("You are beginning to shiver.");
-        }
-    }
-
-    protected override void OnRemove(Actor target)
-    {
-        Output.WriteLine("You stop shivering.");
-    }
-
-    protected override void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity)
-    {
-        // Update metabolism boost when severity changes
-        _tempBoost = updatedSeverity * 0.2;
-
-        // Update capacity modifiers when severity changes
-        CapacityModifiers["Manipulation"] = -0.2 * updatedSeverity;
-
-        // Only notify player of significant changes
-        if (Math.Abs(oldSeverity - updatedSeverity) > 0.3)
-        {
-            if (updatedSeverity > oldSeverity)
-            {
-                if (updatedSeverity > 0.7)
-                {
-                    Output.WriteDanger($"{target} is now shivering violently.");
-                }
-                else
-                {
-                    Output.WriteWarning($"{target} is shivering more intensely.");
-                }
-            }
-            else if (updatedSeverity < 0.3)
-            {
-                Output.WriteLine($"{target}'s shivering is subsiding.");
-            }
-        }
-    }
-
-    public override string Describe()
-    {
-        string intensityDesc;
-        if (Severity > 0.7)
-            intensityDesc = "Violent";
-        else if (Severity > 0.3)
-            intensityDesc = "Moderate";
-        else
-            intensityDesc = "Mild";
-
-        return $"{intensityDesc} shivering";
-    }
-}================================================================================
-
-File: ./Effects/BleedEffect.cs
---------------------------------------------------------------------------------
-using text_survival.Actors;
-using text_survival.Bodies;
-using text_survival.IO;
-
-namespace text_survival.Effects;
-
-public class BleedEffect : Effect
-{
-    private float _damagePerHour;
-
-    public BleedEffect(string source, MajorBodyPart? targetPart, float severity, float damagePerHour, int durationMin = -1)
-        : base("Bleeding", source, targetPart, severity)
-    {
-        _damagePerHour = damagePerHour;
-
-        // Configure effect properties
-        SeverityChangeRate = -0.05f; // Natural clotting
-        CanHaveMultiple = true; // Multiple cuts can stack
-
-        // Configure capacity modifiers
-        CapacityModifiers["BloodPumping"] = 0.2f; // Reduces blood pumping capacity by 20%
-        CapacityModifiers["Consciousness"] = 0.1f; // Minor consciousness impact
-    }
-
-    protected override void OnApply(Actor target)
-    {
-        string location = TargetBodyPart?.Name ?? "body";
-        Output.WriteLine($"{target}'s {location} is bleeding!");
-    }
-
-    protected override void OnUpdate(Actor target)
-    {
-        // Calculate damage for one minute based on severity
-        double damage = _damagePerHour / 60.0 * Severity;
-
-        // Apply damage to the specific body part
-        var damageInfo = new DamageInfo
-        {
-            Amount = damage,
-            Type = DamageType.Bleed,
-            Source = Source,
-            TargetPart = TargetBodyPart
-        };
-
-        target.Damage(damageInfo);
-
-        // Occasionally remind player of bleeding
-        if (Utils.DetermineSuccess(0.05f) && Severity > 0.3f)
-        {
-            string location = TargetBodyPart?.Name ?? "body";
-            Output.WriteLine($"Blood continues to flow from {target}'s {location}...");
-        }
-    }
-
-    protected override void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity)
-    {
-        if (updatedSeverity < 0.2f && oldSeverity >= 0.2f)
-        {
-            string location = TargetBodyPart?.Name ?? "body";
-            Output.WriteLine($"The bleeding on {target}'s {location} is slowing.");
-        }
-    }
-
-    protected override void OnRemove(Actor target)
-    {
-        string location = TargetBodyPart?.Name ?? "body";
-        Output.WriteLine($"The bleeding on {target}'s {location} has stopped.");
-    }
-}================================================================================
-
-File: ./Effects/RemoveBleedEffect.cs
---------------------------------------------------------------------------------
-using text_survival.Actors;
-using text_survival.Bodies;
-using text_survival.IO;
-
-namespace text_survival.Effects
-{
-    public class RemoveBleedEffect : Effect
-    {
-        public RemoveBleedEffect(string source, MajorBodyPart? targetBodyPart) : base("RemoveBleed", source, targetBodyPart, severity: 1.0f)
-        {
-        }
-
-        protected override void OnApply(Actor target)
-        {
-            var effects = target.GetEffectsByKind("bleed");
-            if (effects.Count == 0)
-            {
-                effects = target.GetEffectsByKind("bleeding");
-                if (effects.Count == 0)
-                {
-                    Output.WriteWarning("There was no bleeding to stop");
-                    this.Remove(target);
-                    return;
-                }
-            }
-            var bleed = effects[0];
-            bleed.Remove(target);
-            Output.WriteLine(target, " stopped bleeding.");
-            this.Remove(target);
-        }
-    }
-}================================================================================
-
-File: ./Effects/HealEffect.cs
---------------------------------------------------------------------------------
-using text_survival.Actors;
-using text_survival.Bodies;
-using text_survival.IO;
-namespace text_survival.Effects;
-public class HealEffect : Effect
-{
-    private float _healAmountPerHour;
-    private string _targetPartName;
-
-    public HealEffect(string source, MajorBodyPart? targetPart, float healAmount, int durationMin = 60)
-        : base("Healing", source, targetPart, 1.0f)
-    {
-        _healAmountPerHour = healAmount;
-        _targetPartName = targetPart?.Name ?? "body";
-
-        // Configure effect properties
-        CanHaveMultiple = false; // Healing doesn't stack
-        SeverityChangeRate = -1.0f / durationMin; // Decreases to 0 over duration
-    }
-
-    protected override void OnApply(Actor target)
-    {
-        string location = _targetPartName;
-        Output.WriteLine($"{Source} begins healing {target}'s {location}.");
-    }
-
-    protected override void OnUpdate(Actor target)
-    {
-        // Calculate healing for one minute
-        float healAmount = _healAmountPerHour / 60.0f;
-
-        // Apply healing
-        var healInfo = new HealingInfo
-        {
-            Amount = healAmount,
-            Quality = 1.0,
-            Source = Source,
-            TargetOrgan = _targetPartName
-        };
-
-        target.Heal(healInfo);
-
-        // Visual effect based on severity (how much healing is left)
-        if (Utils.DetermineSuccess(0.05f))
-        {
-            string location = _targetPartName;
-            if (Severity > 0.7f)
-            {
-                Output.WriteLine($"Fresh healing is occurring in {target}'s {location}.");
-            }
-            else if (Severity > 0.3f)
-            {
-                Output.WriteLine($"The healing in {target}'s {location} continues steadily.");
-            }
-            else
-            {
-                Output.WriteLine($"The healing in {target}'s {location} is nearly complete.");
-            }
-        }
-    }
-
-    protected override void OnRemove(Actor target)
-    {
-        string location = _targetPartName;
-        Output.WriteLine($"The healing process on {target}'s {location} is complete.");
-    }
-}================================================================================
-
 File: ./Effects/EffectRegistry.cs
 --------------------------------------------------------------------------------
 
@@ -4454,19 +3702,17 @@ public class EffectRegistry(Actor owner)
     {
         if (_effects.Contains(effect)) return;
 
-        MajorBodyPart? part = effect.TargetBodyPart;
-
-        if (!effect.CanHaveMultiple)
+        if (!effect.CanHaveMultiple) // if you can't have multiple then we need to check for existing
         {
-            var existingEffect = _effects.FirstOrDefault(e => e.TargetBodyPart == part && e.EffectKind == effect.EffectKind);
-            if (existingEffect != null)
+            var existingEffect = _effects.FirstOrDefault(e => e.EffectKind == effect.EffectKind);
+            if (existingEffect != null) // if we find existing, update, otherwise apply it below
             {
-                double newSeverity = Math.Max(existingEffect.Severity, effect.Severity);
+                double newSeverity = Math.Max(existingEffect.Severity, effect.Severity); // for now go with the more severe effect, but maybe we change this to most recent?
                 existingEffect.UpdateSeverity(_owner, newSeverity);
                 return;
             }
         }
-
+        // if multiple are allowed or if no existing, then it's new -> apply it
         _effects.Add(effect);
         effect.Apply(_owner);
     }
@@ -4479,7 +3725,7 @@ public class EffectRegistry(Actor owner)
         }
         else
         {
-            Output.WriteWarning("ERROR: couldn't find effect to remove.");
+            Output.WriteWarning("ERROR: couldn't find effect to remove."); // shouldn't hit this, but soft error for now
         }
     }
     public void Update()
@@ -4489,19 +3735,7 @@ public class EffectRegistry(Actor owner)
         _effects.RemoveAll(e => !e.IsActive);
     }
 
-
-    public CapacityModifierContainer CapacityModifiers(IBodyPart part)
-    {
-        var modifiers = GetEffectsOnBodyPart(part).Select(e => e.CapacityModifiers).ToList();
-        CapacityModifierContainer total = new();
-        foreach (var mod in modifiers) {
-            total += mod;
-        }
-
-        return total;
-    }
-
-    public List<Effect> GetEffectsOnBodyPart(IBodyPart part) => [.. _effects.Where(e => e.TargetBodyPart == part)];
+    public List<Effect> GetAll() => _effects;
     public List<Effect> GetEffectsByKind(string kind) => [.. _effects.Where(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase))];
     public void RemoveEffectsByKind(string kind)
     {
@@ -4517,6 +3751,59 @@ public class EffectRegistry(Actor owner)
     private List<Effect> _effects = [];
 }================================================================================
 
+File: ./Effects/DynamicEffect.cs
+--------------------------------------------------------------------------------
+using text_survival.Actors;
+using text_survival.Bodies;
+
+namespace text_survival.Effects;
+
+// Dynamic effect class to support the builder
+public class DynamicEffect : Effect
+{
+    private readonly Action<Actor>? _onApply;
+    private readonly Action<Actor>? _onUpdate;
+    private readonly Action<Actor, double, double>? _onSeverityChange;
+    private readonly Action<Actor>? _onRemove;
+
+    public DynamicEffect(
+        string effectKind,
+        string source,
+        string? targetBodyPart,
+        double severity,
+        double severityChangeRate,
+        bool canHaveMultiple,
+        bool requiresTreatment,
+        CapacityModifierContainer capacityModifiers,
+        Action<Actor>? onApply = null,
+        Action<Actor>? onUpdate = null,
+        Action<Actor, double, double>? onSeverityChange = null,
+        Action<Actor>? onRemove = null,
+        SurvivalStatsUpdate? survivalStatsUpdate = null)
+        : base(effectKind, source, targetBodyPart, severity, severityChangeRate)
+    {
+        CanHaveMultiple = canHaveMultiple;
+        RequiresTreatment = requiresTreatment;
+
+        CapacityModifiers = capacityModifiers;
+
+        _onApply = onApply;
+        _onUpdate = onUpdate;
+        _onSeverityChange = onSeverityChange;
+        _onRemove = onRemove;
+        if (survivalStatsUpdate != null)
+        {
+            this.SurvivalStatsEffect = survivalStatsUpdate;
+        }
+    }
+
+    protected override void OnApply(Actor target) => _onApply?.Invoke(target);
+    protected override void OnUpdate(Actor target) => _onUpdate?.Invoke(target);
+    protected override void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity)
+        => _onSeverityChange?.Invoke(target, oldSeverity, updatedSeverity);
+    protected override void OnRemove(Actor target) => _onRemove?.Invoke(target);
+}================================================================================
+
 File: ./Effects/EffectBuilder.cs
 --------------------------------------------------------------------------------
 using text_survival.Actors;
@@ -4528,12 +3815,13 @@ public class EffectBuilder
 {
     private string _effectKind = "";
     private string _source = "";
-    private MajorBodyPart? _targetBodyPart = null;
+    private string? _targetBodyPart = null;
     private double _severity = 1.0;
     private double _severityChangeRate = 0;
+    private List<SurvivalStatsUpdate> _survivalStatsUpdates = [];
     private bool _canHaveMultiple = false;
     private bool _requiresTreatment = false;
-    private readonly Dictionary<string, double> _capacityModifiers = new();
+    private readonly CapacityModifierContainer _capacityModifiers = new();
 
     // Hook actions - using lists to allow multiple actions
     private readonly List<Action<Actor>> _onApplyActions = [];
@@ -4553,7 +3841,7 @@ public class EffectBuilder
         return this;
     }
 
-    public EffectBuilder Targeting(MajorBodyPart? bodyPart)
+    public EffectBuilder Targeting(string? bodyPart)
     {
         _targetBodyPart = bodyPart;
         return this;
@@ -4565,7 +3853,7 @@ public class EffectBuilder
         return this;
     }
 
-    public EffectBuilder WithSeverityChangeRate(double rate)
+    public EffectBuilder WithHourlySeverityChange(double rate)
     {
         _severityChangeRate = rate;
         return this;
@@ -4585,13 +3873,13 @@ public class EffectBuilder
 
     public EffectBuilder ReducesCapacity(string capacity, double reduction)
     {
-        _capacityModifiers[capacity] = -reduction;
+        _capacityModifiers.SetCapacityModifier(capacity, -reduction);
         return this;
     }
 
     public EffectBuilder ModifiesCapacity(string capacity, double multiplier)
     {
-        _capacityModifiers[capacity] = multiplier;
+        _capacityModifiers.SetCapacityModifier(capacity, multiplier);
         return this;
     }
 
@@ -4616,6 +3904,12 @@ public class EffectBuilder
     public EffectBuilder OnRemove(Action<Actor> action)
     {
         _onRemoveActions.Add(action);
+        return this;
+    }
+
+    public EffectBuilder WithSurvivalStatsUpdate(SurvivalStatsUpdate minuteUpdate)
+    {
+        _survivalStatsUpdates.Add(minuteUpdate);
         return this;
     }
 
@@ -4652,6 +3946,12 @@ public class EffectBuilder
             combinedOnRemove = target => _onRemoveActions.ForEach(action => action(target));
         }
 
+        SurvivalStatsUpdate combinedStatsUpdate = new();
+        foreach (var update in _survivalStatsUpdates)
+        {
+            combinedStatsUpdate = combinedStatsUpdate.Add(update);
+        }
+
         return new DynamicEffect(
             effectKind: _effectKind,
             source: _source,
@@ -4660,11 +3960,12 @@ public class EffectBuilder
             severityChangeRate: _severityChangeRate,
             canHaveMultiple: _canHaveMultiple,
             requiresTreatment: _requiresTreatment,
-            capacityModifiers: new Dictionary<string, double>(_capacityModifiers),
+            capacityModifiers: _capacityModifiers,
             onApply: combinedOnApply,
             onUpdate: combinedOnUpdate,
             onSeverityChange: combinedOnSeverityChange,
             onRemove: combinedOnRemove
+
         );
     }
 }
@@ -4678,7 +3979,7 @@ public static class EffectBuilderExtensions
     {
         return builder
             .Named("Bleeding")
-            .WithSeverityChangeRate(-0.05) // Natural clotting
+            .WithHourlySeverityChange(-0.05) // Natural clotting
             .AllowMultiple(true)
             .ReducesCapacity(CapacityNames.BloodPumping, 0.2)
             .ReducesCapacity(CapacityNames.Consciousness, 0.1)
@@ -4693,7 +3994,7 @@ public static class EffectBuilderExtensions
                     Amount = damage,
                     Type = DamageType.Bleed,
                     Source = builder.Build().Source,
-                    TargetPart = builder.Build().TargetBodyPart
+                    TargetPartName = builder.Build().TargetBodyPart
                 };
                 target.Damage(damageInfo);
             });
@@ -4703,7 +4004,7 @@ public static class EffectBuilderExtensions
     {
         return builder
             .Named("Poison")
-            .WithSeverityChangeRate(-0.02) // Slow detox
+            .WithHourlySeverityChange(-0.02) // Slow detox
             .AllowMultiple(true)
             .ReducesCapacity(CapacityNames.Consciousness, 0.3)
             .ReducesCapacity(CapacityNames.Manipulation, 0.2)
@@ -4726,7 +4027,7 @@ public static class EffectBuilderExtensions
     {
         return builder
             .Named("Healing")
-            .WithSeverityChangeRate(-1.0 / 60) // Expires in 1 hour by default
+            .WithHourlySeverityChange(-1.0 / 60) // Expires in 1 hour by default
             .OnUpdate(target =>
             {
                 double heal = (healPerHour / 60.0) * builder.Build().Severity;
@@ -4735,7 +4036,7 @@ public static class EffectBuilderExtensions
                     Amount = heal,
                     Quality = 1.0,
                     Source = builder.Build().Source,
-                    TargetPart = builder.Build().TargetBodyPart?.Name
+                    TargetPart = builder.Build().TargetBodyPart
                 };
                 target.Heal(healInfo);
             });
@@ -4748,7 +4049,7 @@ public static class EffectBuilderExtensions
             TemperatureType.Hypothermia => builder
                 .Named("Hypothermia")
                 .RequiresTreatment(true)
-                .WithSeverityChangeRate(-.02)
+                .WithHourlySeverityChange(-.02)
                 .ReducesCapacity(CapacityNames.Moving, 0.3)
                 .ReducesCapacity(CapacityNames.Manipulation, 0.3)
                 .ReducesCapacity(CapacityNames.Consciousness, 0.5)
@@ -4757,14 +4058,14 @@ public static class EffectBuilderExtensions
             TemperatureType.Hyperthermia => builder
                 .Named("Hyperthermia")
                 .RequiresTreatment(true)
-                .WithSeverityChangeRate(-.01)
+                .WithHourlySeverityChange(-.01)
                 .ReducesCapacity(CapacityNames.Consciousness, 0.5)
                 .ReducesCapacity(CapacityNames.Moving, 0.3)
                 .ReducesCapacity(CapacityNames.BloodPumping, 0.2),
 
             TemperatureType.Frostbite => builder
                 .Named("Frostbite")
-                .WithSeverityChangeRate(-0.02)
+                .WithHourlySeverityChange(-0.02)
                 .ReducesCapacity(CapacityNames.Manipulation, 0.5)
                 .ReducesCapacity(CapacityNames.Moving, 0.5)
                 .ReducesCapacity(CapacityNames.BloodPumping, 0.2),
@@ -4775,32 +4076,35 @@ public static class EffectBuilderExtensions
 
     public static EffectBuilder WithDuration(this EffectBuilder builder, int minutes)
     {
-        return builder.WithSeverityChangeRate(-1.0 / minutes);
+        return builder.WithHourlySeverityChange(-1.0 / minutes);
     }
 
     public static EffectBuilder Permanent(this EffectBuilder builder)
     {
-        return builder.WithSeverityChangeRate(0);
+        return builder.WithHourlySeverityChange(0);
     }
 
     public static EffectBuilder NaturalHealing(this EffectBuilder builder, double rate = -0.05)
     {
-        return builder.WithSeverityChangeRate(rate);
+        return builder.WithHourlySeverityChange(rate);
     }
 
     // Message helpers
     public static EffectBuilder WithApplyMessage(this EffectBuilder builder, string message)
     {
+        if (string.IsNullOrWhiteSpace(message)) return builder;
         return builder.OnApply(target => IO.Output.WriteLine(message.Replace("{target}", target.Name)));
     }
 
     public static EffectBuilder WithRemoveMessage(this EffectBuilder builder, string message)
     {
+        if (string.IsNullOrWhiteSpace(message)) return builder;
         return builder.OnRemove(target => IO.Output.WriteLine(message.Replace("{target}", target.Name)));
     }
 
     public static EffectBuilder WithPeriodicMessage(this EffectBuilder builder, string message, double chance = 0.05)
     {
+        if (string.IsNullOrWhiteSpace(message)) return builder;
         return builder.OnUpdate(target =>
         {
             if (Utils.DetermineSuccess(chance))
@@ -4810,27 +4114,26 @@ public static class EffectBuilderExtensions
         });
     }
 
+    public static EffectBuilder AsInstantEffect(this EffectBuilder builder)
+    {
+        return builder.WithHourlySeverityChange(-999); // should make it last only one tick
+    }
+
     public static EffectBuilder CausesDehydration(this EffectBuilder builder, double hydrationLossPerMinute)
     {
-        return builder.OnUpdate(target =>
-        {
-            target.Body.UpdateSurvivalStats(new SurvivalStatsUpdate { Hydration = -hydrationLossPerMinute });
-        });
+        return builder.WithSurvivalStatsUpdate(new SurvivalStatsUpdate { Hydration = -hydrationLossPerMinute });
     }
 
     public static EffectBuilder CausesExhaustion(this EffectBuilder builder, double exhaustionPerMinute)
     {
-        return builder.OnUpdate(target =>
-        {
-            target.Body.UpdateSurvivalStats(new SurvivalStatsUpdate { Exhaustion = exhaustionPerMinute });
-        });
+        return builder.WithSurvivalStatsUpdate(new SurvivalStatsUpdate { Exhaustion = exhaustionPerMinute });
     }
 
     public static EffectBuilder AffectsTemperature(this EffectBuilder builder, double hourlyTemperatureChange)
     {
-        return builder.OnUpdate(target =>
+        return builder.WithSurvivalStatsUpdate(new SurvivalStatsUpdate()
         {
-            target.Body.BodyTemperature += hourlyTemperatureChange / 60.0; // per minute
+            Temperature = hourlyTemperatureChange / 60
         });
     }
 
@@ -4876,6 +4179,7 @@ public static class EffectBuilderExtensions
 
     public static EffectBuilder WhenSeverityDropsBelowWithMessage(this EffectBuilder builder, double threshold, string message)
     {
+        if (string.IsNullOrWhiteSpace(message)) return builder;
         return builder.OnSeverityChange((target, oldSeverity, newSeverity) =>
         {
             if (newSeverity < threshold && oldSeverity >= threshold)
@@ -4887,6 +4191,7 @@ public static class EffectBuilderExtensions
 
     public static EffectBuilder WhenSeverityRisesAboveWithMessage(this EffectBuilder builder, double threshold, string message)
     {
+        if (string.IsNullOrWhiteSpace(message)) return builder;
         return builder.OnSeverityChange((target, oldSeverity, newSeverity) =>
         {
             if (newSeverity > threshold && oldSeverity <= threshold)
@@ -4902,7 +4207,7 @@ public static class EffectBuilderExtensions
             var effectsToClear = target.EffectRegistry.GetEffectsByKind(effectKindToClear);
             foreach (var effect in effectsToClear)
             {
-                effect.Remove(target);
+                target.EffectRegistry.RemoveEffect(effect);
             }
         });
     }
@@ -4915,53 +4220,11 @@ public enum TemperatureType
     Frostbite,
     Burn
 }
+================================================================================
 
-// Dynamic effect class to support the builder
-public class DynamicEffect : Effect
-{
-    private readonly Action<Actor>? _onApply;
-    private readonly Action<Actor>? _onUpdate;
-    private readonly Action<Actor, double, double>? _onSeverityChange;
-    private readonly Action<Actor>? _onRemove;
-
-    public DynamicEffect(
-        string effectKind,
-        string source,
-        MajorBodyPart? targetBodyPart,
-        double severity,
-        double severityChangeRate,
-        bool canHaveMultiple,
-        bool requiresTreatment,
-        Dictionary<string, double> capacityModifiers,
-        Action<Actor>? onApply = null,
-        Action<Actor>? onUpdate = null,
-        Action<Actor, double, double>? onSeverityChange = null,
-        Action<Actor>? onRemove = null)
-        : base(effectKind, source, targetBodyPart, severity, severityChangeRate)
-    {
-        CanHaveMultiple = canHaveMultiple;
-        RequiresTreatment = requiresTreatment;
-
-        // Apply capacity modifiers
-        foreach (var modifier in capacityModifiers)
-        {
-            CapacityModifiers.GetType()
-                .GetProperty(modifier.Key)?
-                .SetValue(CapacityModifiers, modifier.Value);
-        }
-
-        _onApply = onApply;
-        _onUpdate = onUpdate;
-        _onSeverityChange = onSeverityChange;
-        _onRemove = onRemove;
-    }
-
-    protected override void OnApply(Actor target) => _onApply?.Invoke(target);
-    protected override void OnUpdate(Actor target) => _onUpdate?.Invoke(target);
-    protected override void OnSeverityChange(Actor target, double oldSeverity, double updatedSeverity)
-        => _onSeverityChange?.Invoke(target, oldSeverity, updatedSeverity);
-    protected override void OnRemove(Actor target) => _onRemove?.Invoke(target);
-}================================================================================
+File: ./Effects/EffectFactory.cs
+--------------------------------------------------------------------------------
+//todo================================================================================
 
 File: ./Effects/Effect.cs
 --------------------------------------------------------------------------------
@@ -4970,18 +4233,27 @@ using text_survival.Bodies;
 
 namespace text_survival.Effects
 {
-    public abstract class Effect(string effectKind, string source, MajorBodyPart? targetBodyPart = null, double severity = 1, double severityChangeRate = 0)
+    /// <summary>
+    /// Manages its own severity state but does apply survival stats changes or capacity modifiers directly
+    /// </summary>
+    /// <param name="effectKind"></param>
+    /// <param name="source"></param>
+    /// <param name="targetBodyPart"></param>
+    /// <param name="severity"></param>
+    /// <param name="hourlySeverityChange"></param>
+    public abstract class Effect(string effectKind, string source, string? targetBodyPart = null, double severity = 1, double hourlySeverityChange = 0)
     {
         #region Properties
         public string EffectKind { get; protected set; } = effectKind;
         public string Source { get; } = source;
-        public MajorBodyPart? TargetBodyPart { get; set; } = targetBodyPart;
+        public string? TargetBodyPart { get; set; } = targetBodyPart;
         public bool CanHaveMultiple { get; protected set; } = false;
         public bool IsActive { get; protected set; } = true;
-        public double Severity { get; protected set; } = severity;
-        public double SeverityChangeRate { get; protected set; } = severityChangeRate;
+        public double Severity { get; protected set; } = severity; // multiplier for survival and capacity effects
+        public double hourlySeverityChange { get; protected set; } = hourlySeverityChange;
         public bool RequiresTreatment { get; protected set; } = false;
-        public CapacityModifierContainer CapacityModifiers { get; } = new();
+        public CapacityModifierContainer CapacityModifiers { get; set; } = new(); // gets applied in body
+        public SurvivalStatsUpdate SurvivalStatsEffect { get; set; } = new(); // gets applied in survival processor
         // public List<TreatmentOption> TreatmentOptions {get;}
         #endregion
 
@@ -5008,9 +4280,9 @@ namespace text_survival.Effects
 
             OnUpdate(target);
 
-            if (!RequiresTreatment && SeverityChangeRate > 0)
+            if (!RequiresTreatment && hourlySeverityChange > 0)
             {
-                double minuteChange = SeverityChangeRate / 60;
+                double minuteChange = hourlySeverityChange / 60;
                 UpdateSeverity(target, minuteChange);
             }
 
@@ -5083,7 +4355,7 @@ namespace text_survival.Effects
         public virtual string Describe()
         {
             string severityDesc = GetSeverityDescription();
-            string locationDesc = TargetBodyPart != null ? $" on {TargetBodyPart.Name}" : "";
+            string locationDesc = TargetBodyPart != null ? $" on {TargetBodyPart}" : "";
             return $"{severityDesc} {EffectKind}{locationDesc}";
         }
         #endregion
@@ -5130,12 +4402,13 @@ File: ./Command.cs
 File: ./Bodies/BodyPart.cs
 --------------------------------------------------------------------------------
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Runtime.CompilerServices;
 using text_survival.IO;
 
 namespace text_survival.Bodies;
 
 
-public static class BodyPartNames
+public static class BodyRegionNames
 {
     public const string Head = "Head";
     public const string Chest = "Chest";
@@ -5147,7 +4420,7 @@ public static class BodyPartNames
 }
 
 
-public class MajorBodyPart(string name, double coverage) : IBodyPart
+public class BodyRegion(string name, double coverage)
 {
     // Core properties
     public string Name { get; } = name;
@@ -5159,258 +4432,61 @@ public class MajorBodyPart(string name, double coverage) : IBodyPart
     public Tissue Bone { get; set; } = new Bone();
     public List<Organ> Organs { get; set; } = [];
 
-    public double Toughness { get; }
-    public double Condition { get; set; }
     public bool IsDestroyed => Condition <= 0;
+    public double Condition => AggregateCondition();
 
-    public void Heal(HealingInfo healingInfo)
+    private double AggregateCondition()
     {
-        if (IsDestroyed) return;
-
-        // Handle targeted healing
-        if (healingInfo.TargetOrgan != null)
+        double overallCondition = 1;
+        foreach (var tissue in new List<Tissue> { Skin, Muscle, Bone })
         {
-            // Try to find the targeted part
-            var organ = Organs.FirstOrDefault(o => o.Name == healingInfo.TargetOrgan);
-
-            if (organ != null)
-            {
-                organ.Heal(healingInfo);
-                return;
-            }
+            // weakest link
+            overallCondition = Math.Min(overallCondition, tissue.Condition);
         }
-        // todo heal skin, bone, muscle
-        // Apply healing to this part
-        double adjustedAmount = healingInfo.Amount * healingInfo.Quality;
-        double newCondition = Math.Min(1, Condition + adjustedAmount);
-        Condition = newCondition;
+        //todo: determine if organs should contribute 
+        return overallCondition;
     }
 
-    public void TakeDamage(DamageInfo damageInfo)
-    {
-        if (IsDestroyed) return;
+    // public void Describe()
+    // {
+    //     // Calculate health percentage
+    //     int healthPercent = (int)(Condition * 100); 
 
-        var targetPart = damageInfo.TargetPart;
-        if (targetPart != null && targetPart != this)
-        {
-            DamageSubPart(targetPart, damageInfo);
-            return;
-        }
+    //     // Determine damage severity description
+    //     string damageDescription;
+    //     if (healthPercent <= 0)
+    //     {
+    //         damageDescription = "destroyed";
+    //     }
+    //     else if (healthPercent < 20)
+    //     {
+    //         damageDescription = "critically damaged";
+    //     }
+    //     else if (healthPercent < 40)
+    //     {
+    //         damageDescription = "severely damaged";
+    //     }
+    //     else if (healthPercent < 60)
+    //     {
+    //         damageDescription = "moderately damaged";
+    //     }
+    //     else if (healthPercent < 80)
+    //     {
+    //         damageDescription = "lightly damaged";
+    //     }
+    //     else if (healthPercent < 100)
+    //     {
+    //         damageDescription = "slightly damaged";
+    //     }
+    //     else
+    //     {
+    //         damageDescription = "in perfect condition";
+    //     }
 
-        double damage = PenetrateLayers(damageInfo);
-        if (damage <= 0) return;
-
-        damageInfo.Amount = damage;
-        var hitOrgan = SelectRandomOrganToHit(damageInfo);
-        if (hitOrgan == null) return;
-
-        DamageSubPart(hitOrgan, damageInfo);
-    }
-
-    private Organ? SelectRandomOrganToHit(DamageInfo damageInfo)
-    {
-        double damage = damageInfo.Amount;
-        // External organs can be hit even with light damage
-        var externalOrgans = Organs.Where(o => o.IsExternal).ToList();
-        if (externalOrgans.Count > 0 && damage > 0)
-        {
-            return externalOrgans[Random.Shared.Next(externalOrgans.Count)];
-        }
-
-        // Internal organs need significant penetrating damage
-        var internalOrgans = Organs.Where(o => !o.IsExternal).ToList();
-        if (internalOrgans.Count > 0 && damage > 5) // Threshold for internal damage
-        {
-            return internalOrgans[Random.Shared.Next(internalOrgans.Count)];
-        }
-
-        return null; // No organ hit
-    }
-
-    private double PenetrateLayers(DamageInfo damageInfo)
-    {
-        DamageType damageType = damageInfo.Type;
-        double damage = damageInfo.Amount;
-        var layers = new[] { Skin, Muscle, Bone }.Where(l => l != null);
-
-        foreach (var layer in layers)
-        {
-            double protection = layer!.GetProtection(damageType);
-            double absorbed = Math.Min(damage * 0.7, protection); // Layer absorbs up to 70% of damage
-
-            damageInfo.Amount -= absorbed;
-
-            layer.TakeDamage(damageInfo); // Layer takes damage from absorbing
-
-            if (damage <= 0) break;
-        }
-
-        return Math.Max(0, damage);
-    }
-
-    private IBodyPart? DamageSubPart(IBodyPart part, DamageInfo damageInfo)
-    {
-        part.TakeDamage(damageInfo);
-        return part;
-    }
-
-    public CapacityContainer GetTotalCapacities()
-    {
-        // Step 1: Sum all base capacities from organs
-        var baseCapacities = new CapacityContainer();
-        foreach (var organ in Organs)
-        {
-            baseCapacities += organ.GetBaseCapacities();
-        }
-
-        // Step 2: Calculate combined material multipliers
-        var baseMultipliers = new CapacityContainer
-        {
-            Moving = 1.0,
-            Manipulation = 1.0,
-            Breathing = 1.0,
-            BloodPumping = 1.0,
-            Consciousness = 1.0,
-            Sight = 1.0,
-            Hearing = 1.0,
-            Digestion = 1.0,
-        };
-
-        foreach (var material in new List<ICapacityContributor> { Skin, Muscle, Bone })
-        {
-            var multipliers = material.GetConditionMultipliers();
-            baseMultipliers = baseMultipliers.ApplyMultipliers(multipliers);
-        }
-
-        // Step 3: Apply multipliers to base capacities
-        return baseCapacities.ApplyMultipliers(baseMultipliers);
-    }
-
-    public void Describe()
-    {
-        // Calculate health percentage
-        int healthPercent = (int)(Condition * 100);
-
-        // Determine damage severity description
-        string damageDescription;
-        if (healthPercent <= 0)
-        {
-            damageDescription = "destroyed";
-        }
-        else if (healthPercent < 20)
-        {
-            damageDescription = "critically damaged";
-        }
-        else if (healthPercent < 40)
-        {
-            damageDescription = "severely damaged";
-        }
-        else if (healthPercent < 60)
-        {
-            damageDescription = "moderately damaged";
-        }
-        else if (healthPercent < 80)
-        {
-            damageDescription = "lightly damaged";
-        }
-        else if (healthPercent < 100)
-        {
-            damageDescription = "slightly damaged";
-        }
-        else
-        {
-            damageDescription = "in perfect condition";
-        }
-
-        // Output description line
-        Output.WriteLine($"- {Name} is {damageDescription} ({healthPercent}%)");
-    }
+    //     // Output description line
+    //     Output.WriteLine($"- {Name} is {damageDescription} ({healthPercent}%)");
+    // }
     public override string ToString() => Name;
-}================================================================================
-
-File: ./Bodies/DeathSystem.cs
---------------------------------------------------------------------------------
-namespace text_survival.Bodies;
-public enum BodyState
-{
-    Healthy,
-    Injured,
-    Critical,
-    Dying,
-    Dead
-}
-
-/// <summary>
-/// prototype - not sure if this is how I want to do things
-/// </summary>
-public class DeathSystem
-{
-    public BodyState CheckBodyState(Body body)
-    {
-        var capacities = body.GetCapacities();
-
-        // Instant death conditions
-        if (HasVitalOrganDestroyed(body)) return BodyState.Dead;
-
-        // System failure death
-        if (IsInSystemFailure(capacities)) return BodyState.Dead;
-
-        // Dying state (death inevitable without intervention)
-        if (IsInDyingState(capacities, body)) return BodyState.Dying;
-
-        // // Critical state (one system failure away from death)
-        // if (IsInCriticalState(capacities)) return BodyState.Critical;
-
-        // // Injured but stable
-        // if (HasSignificantInjuries(capacities)) return BodyState.Injured;
-
-        return BodyState.Healthy;
-    }
-
-    private bool HasVitalOrganDestroyed(Body body)
-    {
-        // Instant death: brain destroyed
-        if (GetOrganCondition(body, "Brain") <= 0) return true;
-
-        // Very rapid death: heart destroyed (maybe give a few minutes?)
-        if (GetOrganCondition(body, "Heart") <= 0) return true;
-
-        // Suffocation: both lungs destroyed
-        var leftLung = GetOrganCondition(body, "Left Lung");
-        var rightLung = GetOrganCondition(body, "Right Lung");
-        if (leftLung <= 0 && rightLung <= 0) return true;
-
-        return false;
-    }
-
-    private bool IsInSystemFailure(CapacityContainer capacities)
-    {
-        // Death from system collapse
-        if (capacities.BloodPumping <= 0.05) return true;  // Heart barely functioning
-        if (capacities.Breathing <= 0.05) return true;    // Can't breathe
-        if (capacities.Consciousness <= 0) return true;   // Brain dead
-
-        return false;
-    }
-
-    private bool IsInDyingState(CapacityContainer capacities, Body body)
-    {
-        // Multiple critical systems failing
-        int criticalSystems = 0;
-        if (capacities.BloodPumping <= 0.15) criticalSystems++;
-        if (capacities.Breathing <= 0.15) criticalSystems++;
-        if (capacities.Consciousness <= 0.15) criticalSystems++;
-
-        if (criticalSystems >= 2) return true;
-
-        // Severe blood loss (modeled as very low blood pumping)
-        if (capacities.BloodPumping <= 0.1) return true;
-
-        // Extreme pain/shock could also be dying
-        if (body.GetPainLevel() > 0.8 && capacities.BloodPumping <= 0.3) return true;
-
-        return false;
-    }
 }================================================================================
 
 File: ./Bodies/Organ.cs
@@ -5436,14 +4512,6 @@ public class Organ(string name, double toughness, CapacityContainer capacities, 
 {
     public bool IsExternal { get; set; } = isExternal;
     public CapacityContainer _baseCapacities { get; set; } = capacities;
-
-    public void Heal(HealingInfo healingInfo)
-    {
-        // Apply healing to this part
-        double adjustedAmount = healingInfo.Amount * healingInfo.Quality;
-        Condition = Math.Min(1, Condition += adjustedAmount);
-    }
-
     public override CapacityContainer GetBaseCapacities()
     {
         return _baseCapacities;
@@ -5451,8 +4519,236 @@ public class Organ(string name, double toughness, CapacityContainer capacities, 
 }
 ================================================================================
 
+File: ./Bodies/DamageInfo.cs
+--------------------------------------------------------------------------------
+
+namespace text_survival.Bodies;
+
+
+// Comprehensive damage information
+
+public enum DamageType
+{
+    Blunt,
+    Sharp,
+    Pierce,
+    Poison,
+    Bleed,
+
+}
+public class DamageInfo
+{
+    public DamageInfo() { }
+    public DamageInfo(double amount,
+                      DamageType type = DamageType.Blunt,
+                      string? source = null,
+                      string? targetPartName = null
+                      )
+    {
+        Amount = amount;
+        Type = type;
+        Source = source;
+        TargetPartName = targetPartName;
+    }
+
+    public double Amount { get; set; }
+    public DamageType Type { get; set; } = DamageType.Blunt;
+    public string? Source { get; set; }
+    public string? TargetPartName { get; set; }
+}
+
+// Comprehensive healing information
+public class HealingInfo
+{
+    public double Amount { get; set; }
+    public string Type { get; set; } = "natural"; // natural, medical, magical
+    public string? TargetPart { get; set; }
+    public double Quality { get; set; } = 1.0; // Effectiveness multiplier
+    public string? Source { get; set; }
+}
+
+================================================================================
+
+File: ./Bodies/BodyStats.cs
+--------------------------------------------------------------------------------
+namespace text_survival.Bodies;
+
+public class BodyStats
+{
+    public double BodyWeight;
+	public double MuscleWeight;
+	public double FatWeight;
+	public double HealthPercent; // 0-1
+}================================================================================
+
+File: ./Bodies/AbilityCalculator.cs
+--------------------------------------------------------------------------------
+namespace text_survival.Bodies;
+
+public static class AbilityCalculator
+{
+    // unified interface that just accepts body
+    public static double CalculateStrength(Body body) => CalculateStrength(body.GetBodyStats(), CapacityCalculator.GetCapacities(body));
+    public static double CalculateSpeed(Body body) => CalculateSpeed(body.GetBodyStats(), CapacityCalculator.GetCapacities(body));
+    public static double CalculateVitality(Body body) => CalculateVitality(body.GetBodyStats(), CapacityCalculator.GetCapacities(body));
+    public static double CalculatePerception(Body body) => CalculatePerception(CapacityCalculator.GetCapacities(body));
+    public static double CalculateColdResistance(Body body) => CalculateColdResistance(body.GetBodyStats());
+
+
+    // actual calculator methods
+    private static double CalculateStrength(BodyStats stats, CapacityContainer capacities)
+    {
+        // derived stats
+        double bfPercent = stats.FatWeight / stats.BodyWeight;
+        double musclePercent = stats.MuscleWeight / stats.BodyWeight;
+
+        // Base strength that everyone has
+        double baseStrength = 0.30; // 30% strength from structural aspects
+
+        // Muscle contribution with diminishing returns
+        double muscleContribution;
+        if (musclePercent < 0.2) // Below normal
+            muscleContribution = musclePercent * 2.5; // Rapid gains when building from low muscle
+        else if (musclePercent < 0.4) // Normal to athletic
+            muscleContribution = 0.5 + (musclePercent - 0.2) * 1.0; // Moderate gains
+        else // Athletic+
+            muscleContribution = 0.7 + (musclePercent - 0.4) * 0.5; // Diminishing returns
+
+        muscleContribution += stats.MuscleWeight / 3 / 100;  // 1% bonus for every 3KG muscle
+
+        double fatBonus = stats.FatWeight / 50 / 100; // 1% bonus for every 50KG of fat
+        // Very low body fat impairs strength
+        fatBonus -= (bfPercent < 0.05) ? (0.05 - bfPercent) * 3.0 : 0;
+
+        double manipulationContribution = 0.80 + 0.20 * capacities.Manipulation; // can reduce by 20%
+        double movingContribution = 0.50 + 0.50 * capacities.Moving; // can reduce by 50%
+        double bloodPumping = capacities.BloodPumping; // Energy delivery - can reduce by 100%
+        double bodyContribution = baseStrength + muscleContribution + fatBonus;
+        return bodyContribution * movingContribution * manipulationContribution * bloodPumping;
+    }
+
+    private static double CalculateSpeed(BodyStats stats, CapacityContainer capacities)
+    {
+        double movingCapacity = capacities.Moving;
+
+        // derived stats
+        double baseWeight = stats.BodyWeight - stats.MuscleWeight - stats.FatWeight;
+        double bfPercent = stats.FatWeight / stats.BodyWeight;
+        double musclePercent = stats.MuscleWeight / stats.BodyWeight;
+
+        // 1% faster/slower for each 1.5% difference from human baseline (30%)
+        // so 50% muscle = 30% bonus
+        double muscleModifier = (musclePercent - Body.BaselineHumanStats.musclePercent) / 1.5;
+        muscleModifier += stats.MuscleWeight / 20 / 100; // add a 1% bonus for every 20KG of muscle
+
+
+        // Minimal fat has no penalty, excess has increasing penalties
+        double fatPenalty;
+        if (bfPercent < 0.10)
+        {
+            // 10% is minimal necessary fat
+            fatPenalty = -.01; // negative penalty if under 10% bf
+        }
+        else if (bfPercent <= Body.BaselineHumanStats.fatPercent)
+        {
+            fatPenalty = ((bfPercent - .10) * .20) - .01; // at baseline a 0% penalty
+        }
+        else
+        {
+            // Steeper penalty for excess, 1.5% reduction per 1% of fat 
+            // 1.5(fat% - baselineFat%)
+            // fat% => speed penalty (abs)
+            // 20%  =>  8.5%, 
+            // 30%  => 23.5%
+            // 40%  => 38.5%
+            // 50%  => 53.5%
+            fatPenalty = (bfPercent - Body.BaselineHumanStats.fatPercent) * 1.5;
+        }
+        fatPenalty += stats.FatWeight / 10 / 100; // 1% penalty per 10kg of fat
+
+        // Penalty for excess weight relative to frame (high fat and/or muscle percent)
+        // -(ratio^.7 - 1)
+        // ratio => penalty (abs)
+        // 0.1   => +0.80
+        // 0.5   => +0.38
+        // 0.9   => +0.07
+        // 1.5   => -0.33
+        // 3.0   => -1.16
+        double structuralWeightRatio = baseWeight / stats.BodyWeight / 0.45; // avg 45% structure weight
+        double weightEffect = -(Math.Pow(structuralWeightRatio, 0.7) - 1.0);
+
+        // smaller creatures are faster and larger ones are slower
+        // 1 - .03(Log2(sizeRatio)) 
+        // ratio => speed (multiplier)
+        // 0.1 => 1.40  
+        // 0.5 => 1.03   - 1/2 size means 3% faster
+        // 2.0 => 0.97   - 3% slower  
+        // 10. => 0.80   - 20% slower
+        // 50  => 0.83
+        double sizeRatio = stats.BodyWeight / Body.BaselineHumanStats.overallWeight;
+        double sizeModifier = 1 - 0.03 * Math.Log(sizeRatio, 2);
+
+        return movingCapacity * (1 + muscleModifier - fatPenalty + weightEffect) * sizeModifier;
+    }
+    private static double CalculateVitality(BodyStats stats, CapacityContainer capacities)
+    {
+        double breathing = capacities.Breathing;
+        double bloodPumping = capacities.BloodPumping;
+        double digestion = capacities.Digestion;
+
+        // derived stats
+        double bfPercent = stats.FatWeight / stats.BodyWeight;
+        double musclePercent = stats.MuscleWeight / stats.BodyWeight;
+
+        double organFunction = (2 * (breathing + bloodPumping) + digestion) / 5;
+
+        // Base vitality that scales more gently with body composition
+        double baseMultiplier = 0.7;  // Everyone gets 70% baseline
+        double muscleContribution = musclePercent * 0.25;  // Up to 25% from muscle
+        double fatContribution;
+
+        // Essential fat is beneficial, excess isn't
+        if (bfPercent < .10)
+            fatContribution = bfPercent * 0.5;  // Fat is very important when low
+        else if (bfPercent < .25)
+            fatContribution = 0.05;  // Optimal fat gives 5%
+        else
+            fatContribution = 0.05 - (bfPercent - .25) * 0.1;  // Excess fat penalizes slightly
+
+        double bodyComposition = baseMultiplier + muscleContribution + fatContribution;
+        return organFunction;// * bodyComposition;
+    }
+
+    private static double CalculatePerception(CapacityContainer capacities)
+    {
+        double sight = capacities.Sight;
+        double hearing = capacities.Hearing;
+
+        return (sight + hearing) / 2;
+    }
+
+    private static double CalculateColdResistance(BodyStats stats)
+    {
+        double bfPercent = stats.FatWeight / stats.BodyWeight;
+
+        // Base cold resistance that everyone has
+        double baseColdResistance = 0.5;
+        double fatInsulation;
+
+        if (bfPercent < 0.05)
+            fatInsulation = bfPercent / 0.05 * 0.1;  // Linear up to 5%
+        else if (bfPercent < 0.15)
+            fatInsulation = 0.1 + ((bfPercent - 0.05) / 0.1 * 0.15);  // From 0.1 to 0.25
+        else
+            fatInsulation = 0.25 + ((bfPercent - 0.15) * 0.15);  // Diminishing returns after 15%
+
+        return baseColdResistance + fatInsulation;
+    }
+}================================================================================
+
 File: ./Bodies/Capacities.cs
 --------------------------------------------------------------------------------
+
 namespace text_survival.Bodies;
 
 
@@ -5467,18 +4763,11 @@ public static class CapacityNames
     public const string Sight = "Sight";
     public const string Hearing = "Hearing";
     public const string Digestion = "Digestion";
-}
 
-/// <summary>
-/// Acts as a double that is clamped between 0 and 1
-/// </summary>
-/// <param name="value">A value between 0 and 1 representing a percent capacity value.</param>
-public readonly struct CapacityValue(double value)
-{
-    public double Value { get; } = Math.Clamp(value, 0, 1);
-
-    public static implicit operator double(CapacityValue capacity) => capacity.Value;
-    public static implicit operator CapacityValue(double value) => new(value);
+    public static readonly List<string> All =
+    [
+        Moving, Manipulation, Breathing, BloodPumping, Consciousness, Sight, Hearing, Digestion
+    ];
 }
 
 /// <summary>
@@ -5486,77 +4775,102 @@ public readonly struct CapacityValue(double value)
 /// </summary>
 public class CapacityContainer
 {
-    public CapacityValue Moving { get; set; }
-    public CapacityValue Manipulation { get; set; }
-    public CapacityValue Breathing { get; set; }
-    public CapacityValue BloodPumping { get; set; }
-    public CapacityValue Consciousness { get; set; }
-    public CapacityValue Sight { get; set; }
-    public CapacityValue Hearing { get; set; }
-    public CapacityValue Digestion { get; set; }
+    private Dictionary<string, double> capacities = new()
+    {
+        {CapacityNames.Moving, 0 },
+        {CapacityNames.Manipulation, 0},
+        {CapacityNames.Breathing, 0},
+        {CapacityNames.BloodPumping, 0},
+        {CapacityNames.Consciousness, 0},
+        {CapacityNames.Sight, 0},
+        {CapacityNames.Hearing, 0},
+        {CapacityNames.Digestion, 0},
+    };
 
-    public List<CapacityValue> AllCapacities => [Moving, Manipulation, Breathing, BloodPumping, Consciousness, Sight, Hearing, Digestion];
+    // Property accessors for backward compatibility if needed
+    public double Moving
+    {
+        get => capacities[CapacityNames.Moving];
+        set => capacities[CapacityNames.Moving] = Math.Clamp(value, 0, 1);
+    }
+    public double Manipulation
+    {
+        get => capacities[CapacityNames.Manipulation];
+        set => capacities[CapacityNames.Manipulation] = Math.Clamp(value, 0, 1);
+    }
+    public double Breathing
+    {
+        get => capacities[CapacityNames.Breathing];
+        set => capacities[CapacityNames.Breathing] = Math.Clamp(value, 0, 1);
+    }
+    public double BloodPumping
+    {
+        get => capacities[CapacityNames.BloodPumping];
+        set => capacities[CapacityNames.BloodPumping] = Math.Clamp(value, 0, 1);
+    }
+    public double Consciousness
+    {
+        get => capacities[CapacityNames.Consciousness];
+        set => capacities[CapacityNames.Consciousness] = Math.Clamp(value, 0, 1);
+    }
+    public double Sight
+    {
+        get => capacities[CapacityNames.Sight];
+        set => capacities[CapacityNames.Sight] = Math.Clamp(value, 0, 1);
+    }
+    public double Hearing
+    {
+        get => capacities[CapacityNames.Hearing];
+        set => capacities[CapacityNames.Hearing] = Math.Clamp(value, 0, 1);
+    }
+    public double Digestion
+    {
+        get => capacities[CapacityNames.Digestion];
+        set => capacities[CapacityNames.Digestion] = Math.Clamp(value, 0, 1);
+    }
+
+    public List<double> AllCapacities => capacities.Values.ToList();
+
+    public double GetCapacity(string capacityName) => capacities.GetValueOrDefault(capacityName);
+    public void SetCapacity(string capacityName, double value) => capacities[capacityName] = Math.Clamp(value, 0, 1);
 
     public static CapacityContainer operator +(CapacityContainer a, CapacityContainer b)
     {
-        return new CapacityContainer
-        {
-            Moving = a.Moving + b.Moving,
-            Manipulation = a.Manipulation + b.Manipulation,
-            Breathing = a.Breathing + b.Breathing,
-            BloodPumping = a.BloodPumping + b.BloodPumping,
-            Consciousness = a.Consciousness + b.Consciousness,
-            Sight = a.Sight + b.Sight,
-            Hearing = a.Hearing + b.Hearing,
-            Digestion = a.Digestion + b.Digestion
-        };
+        var newCapacities = a.capacities.Keys.Union(b.capacities.Keys)
+            .ToDictionary(
+                key => key,
+                key => Math.Clamp(a.capacities.GetValueOrDefault(key) + b.capacities.GetValueOrDefault(key), 0, 1)
+            );
+        return new CapacityContainer { capacities = newCapacities };
     }
+
     public CapacityContainer ApplyMultipliers(CapacityContainer multipliers)
     {
-        return new CapacityContainer
-        {
-            Moving = Moving * multipliers.Moving,
-            Manipulation = Manipulation * multipliers.Manipulation,
-            Breathing = Breathing * multipliers.Breathing,
-            BloodPumping = BloodPumping * multipliers.BloodPumping,
-            Consciousness = Consciousness * multipliers.Consciousness,
-            Sight = Sight * multipliers.Sight,
-            Hearing = Hearing * multipliers.Hearing,
-            Digestion = Digestion * multipliers.Digestion
-        };
+        var newCapacities = capacities.Keys.Union(multipliers.capacities.Keys)
+            .ToDictionary(
+                key => key,
+                key => Math.Clamp(capacities.GetValueOrDefault(key) * multipliers.capacities.GetValueOrDefault(key, 1), 0, 1)
+            );
+        return new CapacityContainer { capacities = newCapacities };
     }
 
     public CapacityContainer ApplyMultiplier(double multiplier)
     {
-        return new CapacityContainer
-        {
-            Moving = Moving * multiplier,
-            Manipulation = Manipulation * multiplier,
-            Breathing = Breathing * multiplier,
-            BloodPumping = BloodPumping * multiplier,
-            Consciousness = Consciousness * multiplier,
-            Sight = Sight * multiplier,
-            Hearing = Hearing * multiplier,
-            Digestion = Digestion * multiplier
-        };
+        var newCapacities = capacities.ToDictionary(
+            kvp => kvp.Key,
+            kvp => Math.Clamp(kvp.Value * multiplier, 0, 1)
+        );
+        return new CapacityContainer { capacities = newCapacities };
     }
 
-
-    public CapacityModifierContainer ApplyModifier(CapacityModifierContainer modifiers)
+    public CapacityContainer ApplyModifier(CapacityModifierContainer modifiers)
     {
-        return new CapacityModifierContainer
-        {
-            Moving = Moving + modifiers.Moving,
-            Manipulation = Manipulation + modifiers.Manipulation,
-            Breathing = Breathing + modifiers.Breathing,
-            BloodPumping = BloodPumping +  modifiers.BloodPumping,
-            Consciousness = Consciousness + modifiers.Consciousness,
-            Sight = Sight + modifiers.Sight,
-            Hearing = Hearing + modifiers.Hearing,
-            Digestion = Digestion + modifiers.Digestion
-        };
+        var newCapacities = capacities.ToDictionary(
+            kvp => kvp.Key,
+            kvp => Math.Clamp(kvp.Value + modifiers.GetCapacityModifier(kvp.Key), 0, 1)
+        );
+        return new CapacityContainer { capacities = newCapacities };
     }
-
 
     /// <summary>
     /// Helper for generating a base CapacityContainer with all values set to one - intended for capacity multipliers.
@@ -5566,63 +4880,79 @@ public class CapacityContainer
     {
         return new CapacityContainer
         {
-            Moving = 1,
-            Manipulation = 1,
-            Breathing = 1,
-            BloodPumping = 1,
-            Consciousness = 1,
-            Sight = 1,
-            Hearing = 1,
-            Digestion = 1,
+            capacities = new Dictionary<string, double>
+            {
+                {CapacityNames.Moving, 1 },
+                {CapacityNames.Manipulation, 1},
+                {CapacityNames.Breathing, 1},
+                {CapacityNames.BloodPumping, 1},
+                {CapacityNames.Consciousness, 1},
+                {CapacityNames.Sight, 1},
+                {CapacityNames.Hearing, 1},
+                {CapacityNames.Digestion, 1},
+            }
         };
     }
 }
-
-/// <summary>
-/// For use with additive capacity modifiers
-/// </summary>
-/// <param name="value">a value between -1 and 1</param>
-public readonly struct CapacityModifierValue(double value)
-{
-    public double Value { get; } = Math.Clamp(value, -1, 1);
-
-    public static implicit operator double(CapacityModifierValue capacity) => capacity.Value;
-    public static implicit operator CapacityModifierValue(double value) => new(value);
-}
-
 
 public class CapacityModifierContainer
 {
-    public CapacityModifierValue Moving { get; set; } = 0;
-    public CapacityModifierValue Manipulation { get; set; } = 0;
-    public CapacityModifierValue Breathing { get; set; } = 0;
-    public CapacityModifierValue BloodPumping { get; set; } = 0;
-    public CapacityModifierValue Consciousness { get; set; } = 0;
-    public CapacityModifierValue Sight { get; set; } = 0;
-    public CapacityModifierValue Hearing { get; set; } = 0;
-    public CapacityModifierValue Digestion { get; set; } = 0;
+    public double GetCapacityModifier(string capacityName) => Math.Clamp(capacities.GetValueOrDefault(capacityName), -1, 1); // Fixed parameter order
+    public void SetCapacityModifier(string capacityName, double value) => capacities[capacityName] = Math.Clamp(value, -1, 1);
 
-    // public List<CapacityModifierValue> AllCapacities => [Moving, Manipulation, Breathing, BloodPumping, Consciousness, Sight, Hearing, Digestion];
+    private Dictionary<string, double> capacities = new()
+    {
+        {CapacityNames.Moving, 0 },
+        {CapacityNames.Manipulation, 0},
+        {CapacityNames.Breathing, 0},
+        {CapacityNames.BloodPumping, 0},
+        {CapacityNames.Consciousness, 0},
+        {CapacityNames.Sight, 0},
+        {CapacityNames.Hearing, 0},
+        {CapacityNames.Digestion, 0},
+    };
 
     public static CapacityModifierContainer operator +(CapacityModifierContainer a, CapacityModifierContainer b)
     {
-        return new CapacityModifierContainer
-        {
-            Moving = a.Moving + b.Moving,
-            Manipulation = a.Manipulation + b.Manipulation,
-            Breathing = a.Breathing + b.Breathing,
-            BloodPumping = a.BloodPumping + b.BloodPumping,
-            Consciousness = a.Consciousness + b.Consciousness,
-            Sight = a.Sight + b.Sight,
-            Hearing = a.Hearing + b.Hearing,
-            Digestion = a.Digestion + b.Digestion
-        };
+        var newModifiers = a.capacities.Keys.Union(b.capacities.Keys)
+            .ToDictionary(
+                key => key,
+                key => a.capacities.GetValueOrDefault(key) + b.capacities.GetValueOrDefault(key)
+            );
+        return new CapacityModifierContainer { capacities = newModifiers };
     }
-
 }================================================================================
+
+File: ./Bodies/BodyCreationInfo.cs
+--------------------------------------------------------------------------------
+namespace text_survival.Bodies;
+
+/// <summary>
+/// Struct to keep the actor constructors clean
+/// </summary>
+public struct BodyCreationInfo
+{
+    public BodyTypes type;
+    public double overallWeight; // KG
+    public double fatPercent; // 0-1
+    public double musclePercent; // 0-1
+    public bool IsPlayer;
+}
+
+
+public enum BodyTypes
+{
+    Human,
+    Quadruped,
+    Serpentine,
+    Arachnid,
+    Flying
+}
+================================================================================
 
 File: ./Bodies/Body.cs
 --------------------------------------------------------------------------------
+using System.ComponentModel.DataAnnotations;
 using text_survival.Effects;
 using text_survival.IO;
 using text_survival.Items;
@@ -5630,15 +4960,9 @@ using text_survival.Survival;
 
 namespace text_survival.Bodies;
 
-public class BodyStats
-{
-    public BodyPartFactory.BodyTypes type;
-    public double overallWeight;
-    public double fatPercent;
-    public double musclePercent;
-    public bool IsPlayer;
-}
-
+/// <summary>
+/// External context that the body needs to update
+/// </summary>
 public class SurvivalContext
 {
     public double LocationTemperature;
@@ -5650,115 +4974,68 @@ public class Body
 {
     // Root part and core properties
     public readonly bool IsPlayer = false;
-    public readonly List<MajorBodyPart> Parts;
+    public readonly List<BodyRegion> Parts;
     public double Health => CalculateOverallHealth();
 
     private double CalculateOverallHealth()
     {
         // simple avg for now
-        double health = Parts.Sum(p => CalculatePartHealth(p)) / Parts.Count;
+        double health = Parts.Average(p => p.Condition);
+        health = Parts.SelectMany(p => p.Organs.Select(o => o.Condition)).ToList().Append(health).Min();
         return health;
     }
 
-    private double CalculatePartHealth(MajorBodyPart part)
-    {
-        // Average health of materials and organs
-        var materialHealth = new List<double>
-        {
-            part.Skin.Condition,
-            part.Muscle.Condition,
-            part.Bone.Condition
-        };
-
-        var organHealth = part.Organs.Select(o => o.Condition);
-
-        var allHealth = materialHealth.Concat(organHealth);
-        return allHealth.Any() ? allHealth.Average() : 1.0;
-    }
 
     public double MaxHealth => 1;
-    public bool IsDestroyed => new DeathSystem().CheckBodyState(this).Equals(BodyState.Dead);
+    public bool IsDestroyed => Health <= 0;
 
-    public bool IsTired => _exhaustionModule.ExhaustionPercent > 25;
+    public bool IsTired => Exhaustion > 60; // can sleep for at least 1 hr
 
     public readonly EffectRegistry EffectRegistry;
-    private readonly HungerModule _hungerModule;
-    private readonly ThirstModule _thirstModule;
-    private readonly ExhaustionModule _exhaustionModule;
-    private readonly TemperatureModule _temperatureModule;
 
-    // Physical composition
-    private double _bodyFat;
-    private double _muscle;
     private readonly double _baseWeight;
 
-    public Body(string ownerName, BodyStats stats, EffectRegistry effectRegistry)
+    public Body(string ownerName, BodyCreationInfo stats, EffectRegistry effectRegistry)
     {
         OwnerName = ownerName;
         IsPlayer = stats.IsPlayer;
         EffectRegistry = effectRegistry;
         Parts = BodyPartFactory.CreateBody(stats.type);
-        _hungerModule = new HungerModule(this);
-        _thirstModule = new ThirstModule();
-        _exhaustionModule = new ExhaustionModule();
-        _temperatureModule = new TemperatureModule(this);
 
         // Initialize physical composition
-        _bodyFat = stats.overallWeight * stats.fatPercent;
-        _muscle = stats.overallWeight * stats.musclePercent;
-        _baseWeight = stats.overallWeight - _bodyFat - _muscle;
+        BodyFat = stats.overallWeight * stats.fatPercent;
+        Muscle = stats.overallWeight * stats.musclePercent;
+        _baseWeight = stats.overallWeight - BodyFat - Muscle;
 
         BodyTemperature = 98.6;
     }
 
-
-    // Physical composition properties
-    public double BodyFat
-    {
-        get => _bodyFat;
-        set
-        {
-            _bodyFat = Math.Max(value, 0);
-        }
-    }
-
-    public double Muscle
-    {
-        get => _muscle;
-        set
-        {
-            _muscle = Math.Max(value, 0);
-        }
-    }
+    public double BodyFat;
+    public double Muscle;
 
     public readonly string OwnerName;
-    public double BodyFatPercentage => _bodyFat / Weight;
-    public double MusclePercentage => _muscle / Weight;
-    public double Weight => _baseWeight + _bodyFat + _muscle;
-
+    public double BodyFatPercentage => BodyFat / Weight;
+    public double MusclePercentage => Muscle / Weight;
+    public double Weight => _baseWeight + BodyFat + Muscle;
     public double BodyTemperature { get; set; }
 
-    // Forwarding methods to root part
+    private double CalorieStore;
+    private double Exhaustion;
+    private double Hydration;
+
+    /// <summary>
+    /// Damage application rules: 
+    /// 1. Body.Damage() is the only way to apply damage 
+    /// 2. Body handles all targeting resolution (string -> IBodyPart)
+    /// 3. Body handles damage distribution and penetration logic
+    /// 4. Effects should create Damage info and pass it here 
+    /// </summary>
     public void Damage(DamageInfo damageInfo)
     {
-        // If targeting specific part, find it
-        if (damageInfo.TargetPart != null)
-        {
-            var targetPart = Parts.FirstOrDefault(p => p == damageInfo.TargetPart);
-            if (targetPart != null)
-            {
-                targetPart.TakeDamage(damageInfo);
-                return;
-            }
-        }
-
-        // Otherwise, distribute based on coverage
-        var partChances = Parts.ToDictionary(p => p, p => p.Coverage);
-        var hitPart = Utils.GetRandomWeighted(partChances);
-
-        hitPart.TakeDamage(damageInfo);
-        return;
+        DamageProcessor.DamageBody(damageInfo, this);
     }
+
+
     public void Heal(HealingInfo healingInfo)
     {
         // Distribute healing across damaged parts
@@ -5774,8 +5051,8 @@ public class Body
 
         // Heal most damaged parts first
         var damagedParts = Parts
-            .Where(p => CalculatePartHealth(p) < 1.0)
-            .OrderBy(p => CalculatePartHealth(p))
+            .Where(p => p.Condition < 1.0)
+            .OrderBy(p => p.Condition)
             .ToList();
 
         if (damagedParts.Count > 0)
@@ -5784,7 +5061,7 @@ public class Body
         }
     }
 
-    private void HealBodyPart(MajorBodyPart part, HealingInfo healingInfo)
+    private static void HealBodyPart(BodyRegion part, HealingInfo healingInfo)
     {
         double healingAmount = healingInfo.Amount * healingInfo.Quality;
 
@@ -5812,228 +5089,44 @@ public class Body
         }
     }
 
-    private double GetCurrentMetabolism(double activityLevel)
-    {
-        // Base BMR uses the Harris-Benedict equation (simplified)
-        double bmr = 370 + (21.6 * Muscle) + (6.17 * BodyFat);
-
-        // Adjust for injuries and conditions
-        double healthFactor = Health / MaxHealth;
-        bmr *= 0.7 + (0.3 * healthFactor); // Injured bodies need more energy to heal
-
-        double currentMetabolism = bmr * activityLevel;
-        return currentMetabolism;
-    }
-
-
     public void Update(TimeSpan timePassed, SurvivalContext context)
     {
-        // Handle metabolism and energy expenditure
-        double currentMetabolism = GetCurrentMetabolism(context.ActivityLevel);
-        double calories = currentMetabolism / 24 * timePassed.TotalHours;
+        var data = BundleSurvivalData();
+        data.environmentalTemp = context.LocationTemperature;
+        data.ColdResistance = context.ClothingInsulation;
+        data.activityLevel = context.ActivityLevel;
 
-        BodyTemperature += calories / 24000;
-
-        _hungerModule.Update(currentMetabolism);
-        _thirstModule.Update();
-        _temperatureModule.Update(context.LocationTemperature, context.ClothingInsulation);
-        _exhaustionModule.Update();
+        var result = SurvivalProcessor.Process(data, (int)timePassed.TotalMinutes, EffectRegistry.GetAll());
+        UpdateBodyBasedOnResult(result);
     }
 
-    // todo - move this to the survival manager or something
 
-    // Calculate derived attributes
-    public double CalculateStrength()
+    private void UpdateBodyBasedOnResult(SurvivalProcessorResult result)
     {
-        var capacities = GetCapacities();
-        double manipulationCapacity = capacities.Manipulation;
-        double bloodPumping = capacities.BloodPumping; // Energy delivery
+        var resultData = result.Data;
+        BodyTemperature = resultData.Temperature;
+        CalorieStore = resultData.Calories;
+        Hydration = resultData.Hydration;
+        Exhaustion = resultData.Exhaustion;
 
-        // Base strength that everyone has
-        double baseStrength = 0.30; // 30% strength from structural aspects
+        result.Effects.ForEach(EffectRegistry.AddEffect);
 
-        // Muscle contribution with diminishing returns
-        double muscleContribution;
-        if (MusclePercentage < 0.2) // Below normal
-            muscleContribution = MusclePercentage * 2.5; // Rapid gains when building from low muscle
-        else if (MusclePercentage < 0.4) // Normal to athletic
-            muscleContribution = 0.5 + (MusclePercentage - 0.2) * 1.0; // Moderate gains
-        else // Athletic+
-            muscleContribution = 0.7 + (MusclePercentage - 0.4) * 0.5; // Diminishing returns
-
-        // Energy state affects strength expression
-        double energyFactor = Math.Min(bloodPumping, 1.0);
-
-        // Very low body fat impairs strength
-        double fatPenalty = (BodyFatPercentage < 0.05) ? (0.05 - BodyFatPercentage) * 3.0 : 0;
-
-        return manipulationCapacity * (baseStrength + muscleContribution * energyFactor - fatPenalty);
-    }
-
-    public double CalculateSpeed()
-    {
-        double movingCapacity = GetCapacities().Moving;
-        double structuralWeightRatio = (_baseWeight / Weight) + (1 - 0.45); // avg 45% structure weight
-        double sizeRatio = Weight / BaselineHumanStats.overallWeight;
-
-        double muscleBonus = Math.Min(MusclePercentage * 0.20, 0); // Up to 20% bonus from muscle
-
-        double fatPenalty;
-        // Minimal fat has no penalty, excess has increasing penalties
-        if (BodyFatPercentage < 0.10)
+        foreach (string message in result.Messages)
         {
-            // 10% is minimal necessary fat
-            fatPenalty = -.01; // negative penalty if under 10% bf
+            string formattedMessage = message.Replace("{target}", OwnerName);
+            Output.WriteLine(formattedMessage);
         }
-        else if (BodyFatPercentage <= BaselineHumanStats.fatPercent)
-        {
-            fatPenalty = ((BodyFatPercentage - .10) * .20) - .01; // at baseline a 0% penalty
-        }
-        else
-        {
-            // Steeper penalty for excess, 1.5% reduction per 1% of fat 
-            // 1.5(fat% - baselineFat%)
-            // fat% => speed penalty (abs)
-            // 20%  =>  8.5%, 
-            // 30%  => 23.5%
-            // 40%  => 38.5%
-            // 50%  => 53.5%
-            fatPenalty = (BodyFatPercentage - BaselineHumanStats.fatPercent) * 1.5;
-        }
-
-        // Penalty for excess weight relative to frame
-        // -(ratio^.7 - 1)
-        // ratio => penalty (abs)
-        // 0.1   => +0.80
-        // 0.5   => +0.38
-        // 0.9   => +0.07
-        // 1.5   => -0.33
-        // 3.0   => -1.16
-        double weightEffect = -(Math.Pow(structuralWeightRatio, 0.7) - 1.0);
-
-        // smaller creatures are faster and larger ones are slower
-        // 1 - .1(Log2(sizeRatio))
-        // ratio => speed (multiplier)
-        // 0.1   => 1.33  
-        // 0.5   => 1.10   - 1/2 size means 10% faster
-        // 2.0   => 0.90  - 10% slower
-        // 10.   => 0.66  - 1/3 slower
-        // 50    => 0.44
-        double speedSizeModifier = 1 - 0.1 * Math.Log(sizeRatio, 2);
-
-        return movingCapacity * (1 + muscleBonus - fatPenalty + weightEffect) * speedSizeModifier;
-    }
-    public double CalculateVitality()
-    {
-        var capacities = GetCapacities();
-        double breathing = capacities.Breathing;
-        double bloodPumping = capacities.BloodPumping;
-        double digestion = capacities.Digestion;
-
-        double organFunction = (2 * (breathing + bloodPumping) + digestion) / 5;
-
-        // Base vitality that scales more gently with body composition
-        double baseMultiplier = 0.7;  // Everyone gets 70% baseline
-        double muscleContribution = MusclePercentage * 0.25;  // Up to 25% from muscle
-        double fatContribution;
-
-        // Essential fat is beneficial, excess isn't
-        if (BodyFatPercentage < .10)
-            fatContribution = BodyFatPercentage * 0.5;  // Fat is very important when low
-        else if (BodyFatPercentage < .25)
-            fatContribution = 0.05;  // Optimal fat gives 5%
-        else
-            fatContribution = 0.05 - (BodyFatPercentage - .25) * 0.1;  // Excess fat penalizes slightly
-
-        double bodyComposition = baseMultiplier + muscleContribution + fatContribution;
-        return organFunction * bodyComposition;
-    }
-
-    public double CalculatePerception()
-    {
-        double sight = GetCapacities().Sight;
-        double hearing = GetCapacities().Hearing;
-
-        return (sight + hearing) / 2;
-    }
-
-    public double CalculateColdResistance()
-    {
-        // Base cold resistance that everyone has
-        double baseColdResistance = 0.5;
-        double fatInsulation;
-
-        if (BodyFatPercentage < 0.05)
-            fatInsulation = (BodyFatPercentage / 0.05) * 0.1;  // Linear up to 5%
-        else if (BodyFatPercentage < 0.15)
-            fatInsulation = 0.1 + ((BodyFatPercentage - 0.05) / 0.1) * 0.15;  // From 0.1 to 0.25
-        else
-            fatInsulation = 0.25 + ((BodyFatPercentage - 0.15)) * 0.15;  // Diminishing returns after 15%
-
-        return baseColdResistance + fatInsulation;
-    }
-
-    public CapacityContainer GetCapacities()
-    {
-        var baseCapacities = AggregatePartCapacities();
-
-        // Apply cascading effects
-        return ApplyCascadingEffects(baseCapacities);
-    }
-
-    private CapacityContainer AggregatePartCapacities()
-    {
-        CapacityContainer total = new();
-        foreach (var part in Parts)
-        {
-            total += part.GetTotalCapacities();
-        }
-        // // Apply body-wide effect modifiers
-        // double bodyModifier = EffectRegistry.GetBodyCapacityModifier(capacityName);
-        // total *= (1 + bodyModifier);
-
-        return total;
-    }
-
-    private CapacityContainer ApplyCascadingEffects(CapacityContainer baseCapacities)
-    {
-        var result = baseCapacities;
-
-        // Poor blood circulation affects everything
-        if (result.BloodPumping < 0.5)
-        {
-            double circulationPenalty = 1.0 - (0.5 - result.BloodPumping);
-            result.Consciousness *= circulationPenalty;
-            result.Moving *= circulationPenalty;
-            result.Manipulation *= circulationPenalty;
-        }
-
-        // Can't breathe? Consciousness drops rapidly
-        if (result.Breathing < 0.3)
-        {
-            double oxygenPenalty = result.Breathing / 0.3; // 0.0 to 1.0
-            result.Consciousness *= oxygenPenalty;
-        }
-
-        // Unconscious? Can't do physical actions
-        if (result.Consciousness < 0.1)
-        {
-            result.Moving *= 0.1;
-            result.Manipulation *= 0.1;
-        }
-
-        return result;
     }
 
     // helper for baseline male human stats
-    public static BodyStats BaselineHumanStats => new BodyStats
+    public static BodyCreationInfo BaselineHumanStats => new BodyCreationInfo
     {
-        type = BodyPartFactory.BodyTypes.Human,
+        type = BodyTypes.Human,
         overallWeight = 75, // KG ~165 lbs
         fatPercent = .15, // pretty lean
-        musclePercent = .40 // low end of athletic
+        musclePercent = .30 // low end of athletic
     };
-    public static BodyStats BaselinePlayerStats
+    public static BodyCreationInfo BaselinePlayerStats
     {
         get
         {
@@ -6050,14 +5143,14 @@ public class Body
         Output.WriteLine("Body Composition: " + (int)(BodyFatPercentage * 100) + "% fat, " + (int)(MusclePercentage * 100) + "% muscle");
 
         Output.WriteLine("\nPhysical Capabilities:");
-        Output.WriteLine("- Strength: " + Math.Round(CalculateStrength() * 100) + "%");
-        Output.WriteLine("- Speed: " + Math.Round(CalculateSpeed() * 100) + "%");
-        Output.WriteLine("- Vitality: " + Math.Round(CalculateVitality() * 100) + "%");
-        Output.WriteLine("- Perception: " + Math.Round(CalculatePerception() * 100) + "%");
-        Output.WriteLine("- Cold Resistance: " + Math.Round(CalculateColdResistance() * 100) + "%");
+        Output.WriteLine("- Strength: " + Math.Round(AbilityCalculator.CalculateStrength(this) * 100) + "%");
+        Output.WriteLine("- Speed: " + Math.Round(AbilityCalculator.CalculateSpeed(this) * 100) + "%");
+        Output.WriteLine("- Vitality: " + Math.Round(AbilityCalculator.CalculateVitality(this) * 100) + "%");
+        Output.WriteLine("- Perception: " + Math.Round(AbilityCalculator.CalculatePerception(this) * 100) + "%");
+        Output.WriteLine("- Cold Resistance: " + Math.Round(AbilityCalculator.CalculateColdResistance(this) * 100) + "%");
 
         // Show damaged parts and materials
-        var damagedParts = Parts.Where(p => CalculatePartHealth(p) < 1.0).ToList();
+        var damagedParts = Parts.Where(p => p.Condition < 1.0).ToList();
 
         if (damagedParts.Count > 0)
         {
@@ -6073,7 +5166,7 @@ public class Body
         }
 
         // Show capacity impairments
-        var capacities = GetCapacities();
+        var capacities = CapacityCalculator.GetCapacities(this);
         Dictionary<string, double> systemCapacities = new Dictionary<string, double>
         {
             { "Moving", capacities.Moving },
@@ -6099,7 +5192,7 @@ public class Body
         }
     }
 
-    private void DescribePartCondition(MajorBodyPart part)
+    private void DescribePartCondition(BodyRegion part)
     {
         Output.WriteLine($"\n{part.Name}:");
 
@@ -6143,44 +5236,33 @@ public class Body
         };
     }
 
-    public void DescribeSurvivalStats()
-    {
-        Output.WriteLine("\n----------------------------------------------------\n| Survival Stats:");
-        _hungerModule.Describe();
-        _thirstModule.Describe();
-        _exhaustionModule.Describe();
-        _temperatureModule.Describe();
-        Output.WriteLine("----------------------------------------------------");
-    }
+    public void DescribeSurvivalStats() => SurvivalProcessor.Describe(BundleSurvivalData());
 
     public bool Rest(int minutes)
     {
+        var data = BundleSurvivalData();
+        data.activityLevel = .5; // half metabolism
         int minutesSlept = 0;
-        while (minutesSlept < minutes)
-        {
-            _exhaustionModule.Rest(1);
-            World.Update(1);
-            minutesSlept++;
-            if (_exhaustionModule.IsFullyRested)
-            {
-                break;
-            }
-        }
+        var result = SurvivalProcessor.Sleep(data, minutes);
+        UpdateBodyBasedOnResult(result);
+
+        // just heal once at the end
         HealingInfo healing = new HealingInfo()
         {
             Amount = minutesSlept / 10,
             Type = "natural",
-            TargetOrgan = "Body",
-            Quality = _exhaustionModule.IsFullyRested ? 1 : .7, // healing quality is better after a full night's sleep
+            Quality = Exhaustion <= 0 ? 1 : .7, // healing quality is better after a full night's sleep
         };
-
         Heal(healing);
-        return _exhaustionModule.IsFullyRested;
+
+        World.Update(minutes); // need to fix, right now we are double updating
+
+        return Exhaustion <= 0;
     }
     public void Consume(FoodItem food)
     {
-        _hungerModule.AddCalories(food.Calories);
-        _thirstModule.AddHydration(food.WaterContent);
+        CalorieStore += food.Calories;
+        Hydration += food.WaterContent;
 
         if (food.HealthEffect != null)
         {
@@ -6192,99 +5274,30 @@ public class Body
         }
     }
 
-    public void UpdateSurvivalStats(SurvivalStatsUpdate stats)
+    public SurvivalData BundleSurvivalData() => new SurvivalData()
     {
-        if (stats.Temperature != 0)
-        {
-            BodyTemperature += stats.Temperature;
-        }
-        if (stats.Calories != 0)
-        {
-            _hungerModule.AddCalories(stats.Calories);
-        }
-        if (stats.Hydration != 0)
-        {
-            _thirstModule.AddHydration(stats.Hydration);
-        }
-        if (stats.Exhaustion != 0)
-        {
-            _exhaustionModule.ModifyExhaustion(stats.Exhaustion);
-        }
-    }
+        Temperature = BodyTemperature,
+        Calories = CalorieStore,
+        Hydration = Hydration,
+        Exhaustion = Exhaustion,
+        BodyStats = GetBodyStats(),
+    };
+
+    public BodyStats GetBodyStats() => new BodyStats
+    {
+        BodyWeight = Weight,
+        MuscleWeight = Muscle,
+        FatWeight = BodyFat,
+        HealthPercent = Health,
+    };
+
 }================================================================================
-
-File: ./Bodies/BodyInterfaces.cs
---------------------------------------------------------------------------------
-
-namespace text_survival.Bodies;
-
-
-// Comprehensive damage information
-
-public enum DamageType
-{
-    Blunt,
-    Sharp,
-    Pierce,
-    Poison,
-    Bleed,
-    
-}
-public class DamageInfo
-{
-    public DamageInfo() { }
-    public DamageInfo(double amount,
-                      DamageType type = DamageType.Blunt,
-                      string? source = null,
-                      IBodyPart? targetPart = null,
-                      double accuracy = .9)
-    {
-        Amount = amount;
-        Type = type;
-        Source = source;
-        TargetPart = targetPart;
-        Accuracy = accuracy;
-    }
-
-    public double Amount { get; set; }
-    public DamageType Type { get; set; } = DamageType.Blunt;
-    public string? Source { get; set; }
-    public IBodyPart? TargetPart { get; set; }
-    public double Accuracy { get; set; } = .9;
-}
-
-// Comprehensive healing information
-public class HealingInfo
-{
-    public double Amount { get; set; }
-    public string Type { get; set; } = "natural"; // natural, medical, magical
-    public string? TargetPart { get; set; }
-    public string? TargetOrgan { get; set; }
-    public double Quality { get; set; } = 1.0; // Effectiveness multiplier
-    public string? Source { get; set; }
-}
-
-================================================================================
 
 File: ./Bodies/Tissue.cs
 --------------------------------------------------------------------------------
 namespace text_survival.Bodies;
 
-interface ICapacityContributor
-{
-    CapacityContainer GetBaseCapacities();
-    CapacityContainer GetConditionMultipliers();
-}
-
-public interface IBodyPart
-{
-    string Name { get; }
-    double Condition { get; } // 0-1 health
-    double Toughness { get; } // divisor of damage applied
-    void TakeDamage(DamageInfo damageInfo);
-}
-
-public class Tissue(string name, double toughness = 1) : ICapacityContributor, IBodyPart
+public class Tissue(string name, double toughness = 1)
 {
     public string Name { get; } = name;
     public double Condition { get; set; } = 1.0;
@@ -6328,25 +5341,7 @@ public class Tissue(string name, double toughness = 1) : ICapacityContributor, I
         };
     }
 
-    public void TakeDamage(DamageInfo damageInfo)
-    {
-        double damage = damageInfo.Amount;
-        var damageType = damageInfo.Type;
-
-        double threshold = GetNaturalAbsorption(damageType);
-        if (damage < threshold)
-        {
-            return; // Natural squishiness absorbed it
-        }
-
-        damage -= threshold;
-        damageInfo.Amount = damage;
-
-        double healthLoss = damageInfo.Amount / GetProtection(damageInfo.Type);
-        Condition = Math.Max(0, Condition - healthLoss);
-    }
-
-    private double GetNaturalAbsorption(DamageType damageType)
+    public double GetNaturalAbsorption(DamageType damageType)
     {
         double baseThreshold = Name switch
         {
@@ -6369,6 +5364,16 @@ public class Tissue(string name, double toughness = 1) : ICapacityContributor, I
 
 class Muscle() : Tissue("Muscle", 1)
 {
+    
+     public override CapacityContainer GetBaseCapacities()
+    {
+        // Muscle contributes to physical capacities
+        return new CapacityContainer
+        {
+            Moving = 1,        // Each muscle group adds to movement
+            Manipulation = 1,  // Each muscle group adds to manipulation
+        };
+    }
     public override CapacityContainer GetConditionMultipliers()
     {
         // Muscle primarily affects movement and manipulation
@@ -6395,7 +5400,7 @@ class Bone() : Tissue("Bone", 10)
         {
             Moving = Condition * Condition, // squared, small impact near 1, exponential debuff approaching 0
             Manipulation = Condition,
-            BloodPumping = 0.8 * (0.2 * Condition),
+            BloodPumping = 0.8 + (0.2 * Condition),
             // Other capacities get minimal impact
             Breathing = 1.0,
             Consciousness = 1.0,
@@ -6407,22 +5412,126 @@ class Bone() : Tissue("Bone", 10)
 }
 ================================================================================
 
+File: ./Bodies/CapacityCalculator.cs
+--------------------------------------------------------------------------------
+using text_survival.Effects;
+
+namespace text_survival.Bodies;
+
+public static class CapacityCalculator
+{
+    public static CapacityContainer GetCapacities(Body body)
+    {
+        CapacityContainer total = new();
+        foreach (var part in body.Parts)
+        {
+            total += GetRegionCapacities(part);
+        }
+        // Apply body-wide effect modifiers
+        var bodyModifier = GetEffectCapacityModifiers(body.EffectRegistry);
+        total = total.ApplyModifier(bodyModifier);
+
+        // Apply cascading effects
+        return ApplyCascadingEffects(total);
+    }
+
+    public static CapacityContainer GetRegionCapacities(BodyRegion region)
+    {
+        // Step 1: Sum all base capacities from organs
+        var baseCapacities = new CapacityContainer();
+        foreach (var organ in region.Organs)
+        {
+            baseCapacities += organ.GetBaseCapacities();
+        }
+        var materials = new[] { region.Skin, region.Muscle, region.Bone }.Where(m => m != null);
+        foreach (var material in materials)
+        {
+            baseCapacities += material!.GetBaseCapacities();
+        }
+
+        // Step 2: Calculate combined material multipliers
+        // var baseMultipliers = CapacityContainer.GetBaseCapacityMultiplier();
+        // foreach (var material in new List<Tissue> { region.Skin, region.Muscle, region.Bone })
+        // {
+        //     // todo revisit this, I think this will cause too big of an effect, e.g. 0.5*0.5 = .25
+        //     var multipliers = material.GetConditionMultipliers();
+        //     baseMultipliers = baseMultipliers.ApplyMultipliers(multipliers);
+        // }
+        // above is OLD way - may remove after testing
+        var materialMultipliers = materials.Select(m => m!.GetConditionMultipliers()).ToList();
+        var avgMultipliers = AverageCapacityContainers(materialMultipliers);
+
+        // Step 3: Apply multipliers to base capacities
+        return baseCapacities.ApplyMultipliers(avgMultipliers);
+    }
+
+
+    private static CapacityContainer AverageCapacityContainers(List<CapacityContainer> containers)
+    {
+        if (containers.Count == 0) return CapacityContainer.GetBaseCapacityMultiplier();
+
+        var result = new CapacityContainer();
+        var capacityNames = CapacityNames.All;
+        foreach (var capacityName in capacityNames)
+        {
+            double avg = containers.Average(c => c.GetCapacity(capacityName));
+            result.SetCapacity(capacityName, avg);
+        }
+        return result;
+    }
+
+    private static CapacityContainer ApplyCascadingEffects(CapacityContainer baseCapacities)
+    {
+        var result = baseCapacities;
+
+        // Poor blood circulation affects everything
+        if (result.BloodPumping < 0.5)
+        {
+            double circulationPenalty = 1.0 - (0.5 - result.BloodPumping);
+            result.Consciousness *= circulationPenalty;
+            result.Moving *= circulationPenalty;
+            result.Manipulation *= circulationPenalty;
+        }
+
+        // Can't breathe? Consciousness drops rapidly
+        if (result.Breathing < 0.3)
+        {
+            double oxygenPenalty = result.Breathing / 0.3; // 0.0 to 1.0
+            result.Consciousness *= oxygenPenalty;
+        }
+
+        // Unconscious? Can't do physical actions
+        if (result.Consciousness < 0.1)
+        {
+            result.Moving *= 0.1;
+            result.Manipulation *= 0.1;
+        }
+
+        return result;
+    }
+
+
+    public static CapacityModifierContainer GetEffectCapacityModifiers(EffectRegistry effectRegistry)
+    {
+        CapacityModifierContainer total = new();
+        var modifiers = effectRegistry.GetAll().Select(e => e.CapacityModifiers).ToList();
+        foreach (var mod in modifiers)
+        {
+            total += mod;
+        }
+        return total;
+    }
+
+}================================================================================
+
 File: ./Bodies/BodyPartFactory.cs
 --------------------------------------------------------------------------------
 ﻿namespace text_survival.Bodies;
 
 public static class BodyPartFactory
 {
-    public enum BodyTypes
-    {
-        Human,
-        Quadruped,
-        Serpentine,
-        Arachnid,
-        Flying
-    }
 
-    public static List<MajorBodyPart> CreateBody(BodyTypes type)
+    public static List<BodyRegion> CreateBody(BodyTypes type)
     {
         return type switch
         {
@@ -6435,12 +5544,12 @@ public static class BodyPartFactory
         };
     }
 
-    public static List<MajorBodyPart> CreateHumanBody()
+    public static List<BodyRegion> CreateHumanBody()
     {
-        var parts = new List<MajorBodyPart>();
+        var parts = new List<BodyRegion>();
 
         // HEAD - 10% coverage
-        var head = new MajorBodyPart(BodyPartNames.Head, 10.0);
+        var head = new BodyRegion(BodyRegionNames.Head, 10.0);
         // Skull is very tough (20), but head overall is average
         head.Bone.Toughness = 20;
         
@@ -6475,7 +5584,7 @@ public static class BodyPartFactory
         parts.Add(head);
 
         // CHEST - 25% coverage
-        var chest = new MajorBodyPart(BodyPartNames.Chest, 25.0);
+        var chest = new BodyRegion(BodyRegionNames.Chest, 25.0);
         // Ribcage protection
         chest.Bone.Toughness = 12;
 
@@ -6499,7 +5608,7 @@ public static class BodyPartFactory
         parts.Add(chest);
 
         // ABDOMEN - 20% coverage
-        var abdomen = new MajorBodyPart(BodyPartNames.Abdomen, 20.0);
+        var abdomen = new BodyRegion(BodyRegionNames.Abdomen, 20.0);
         
         // Liver - major digestive organ, moderately tough
         abdomen.Organs.Add(new Organ(OrganNames.Liver, 4.0, new CapacityContainer 
@@ -6527,32 +5636,32 @@ public static class BodyPartFactory
         parts.Add(abdomen);
 
         // LEFT ARM - 10% coverage
-        var leftArm = new MajorBodyPart(BodyPartNames.LeftArm, 10.0);
+        var leftArm = new BodyRegion(BodyRegionNames.LeftArm, 10.0);
         // No specific organs, but contributes to manipulation through muscle/bone
         // The base capacities could be set on the part itself or through muscle
         parts.Add(leftArm);
 
         // RIGHT ARM - 10% coverage  
-        var rightArm = new MajorBodyPart(BodyPartNames.RightArm, 10.0);
+        var rightArm = new BodyRegion(BodyRegionNames.RightArm, 10.0);
         parts.Add(rightArm);
 
         // LEFT LEG - 12.5% coverage
-        var leftLeg = new MajorBodyPart(BodyPartNames.LeftLeg, 12.5);
+        var leftLeg = new BodyRegion(BodyRegionNames.LeftLeg, 12.5);
         parts.Add(leftLeg);
 
         // RIGHT LEG - 12.5% coverage
-        var rightLeg = new MajorBodyPart(BodyPartNames.RightLeg, 12.5);
+        var rightLeg = new BodyRegion(BodyRegionNames.RightLeg, 12.5);
         parts.Add(rightLeg);
 
         return parts;
     }
 
-    public static List<MajorBodyPart> CreateQuadrupedBody()
+    public static List<BodyRegion> CreateQuadrupedBody()
     {
-        var parts = new List<MajorBodyPart>();
+        var parts = new List<BodyRegion>();
 
         // HEAD - 15% coverage (proportionally larger for quadrupeds)
-        var head = new MajorBodyPart("Head", 15.0);
+        var head = new BodyRegion("Head", 15.0);
         head.Bone.Toughness = 15; // Slightly less protected than human skull
         
         // Brain
@@ -6586,7 +5695,7 @@ public static class BodyPartFactory
         parts.Add(head);
 
         // TORSO - 35% coverage (larger torso for quadrupeds)
-        var torso = new MajorBodyPart("Torso", 35.0);
+        var torso = new BodyRegion("Torso", 35.0);
         
         // Heart
         torso.Organs.Add(new Organ(OrganNames.Heart, 5.0, new CapacityContainer 
@@ -6619,22 +5728,22 @@ public static class BodyPartFactory
         parts.Add(torso);
 
         // LEGS - 12.5% each for four legs
-        var frontLeftLeg = new MajorBodyPart("Front Left Leg", 12.5);
-        var frontRightLeg = new MajorBodyPart("Front Right Leg", 12.5);
-        var rearLeftLeg = new MajorBodyPart("Rear Left Leg", 12.5);
-        var rearRightLeg = new MajorBodyPart("Rear Right Leg", 12.5);
+        var frontLeftLeg = new BodyRegion("Front Left Leg", 12.5);
+        var frontRightLeg = new BodyRegion("Front Right Leg", 12.5);
+        var rearLeftLeg = new BodyRegion("Rear Left Leg", 12.5);
+        var rearRightLeg = new BodyRegion("Rear Right Leg", 12.5);
 
         parts.AddRange([frontLeftLeg, frontRightLeg, rearLeftLeg, rearRightLeg]);
 
         return parts;
     }
 
-    public static List<MajorBodyPart> CreateSerpentineBody()
+    public static List<BodyRegion> CreateSerpentineBody()
     {
-        var parts = new List<MajorBodyPart>();
+        var parts = new List<BodyRegion>();
 
         // HEAD - 20% coverage
-        var head = new MajorBodyPart("Head", 20.0);
+        var head = new BodyRegion("Head", 20.0);
         head.Bone.Toughness = 8; // Less protected than mammalian skulls
         
         // Brain
@@ -6657,7 +5766,7 @@ public static class BodyPartFactory
         parts.Add(head);
 
         // BODY - 80% coverage (long serpentine body)
-        var body = new MajorBodyPart("Body", 80.0);
+        var body = new BodyRegion("Body", 80.0);
         
         // Heart
         body.Organs.Add(new Organ(OrganNames.Heart, 4.0, new CapacityContainer 
@@ -6687,12 +5796,12 @@ public static class BodyPartFactory
         return parts;
     }
 
-    public static List<MajorBodyPart> CreateArachnidBody()
+    public static List<BodyRegion> CreateArachnidBody()
     {
-        var parts = new List<MajorBodyPart>();
+        var parts = new List<BodyRegion>();
 
         // CEPHALOTHORAX - 40% coverage (head and thorax combined)
-        var cephalothorax = new MajorBodyPart("Cephalothorax", 40.0);
+        var cephalothorax = new BodyRegion("Cephalothorax", 40.0);
         cephalothorax.Bone.Toughness = 12; // Chitin is quite tough
         
         // Brain
@@ -6719,7 +5828,7 @@ public static class BodyPartFactory
         parts.Add(cephalothorax);
 
         // ABDOMEN - 20% coverage
-        var abdomen = new MajorBodyPart("Abdomen", 20.0);
+        var abdomen = new BodyRegion("Abdomen", 20.0);
         
         // Book lungs (spiders have book lungs instead of regular lungs)
         abdomen.Organs.Add(new Organ("Book Lungs", 2.0, new CapacityContainer 
@@ -6738,19 +5847,19 @@ public static class BodyPartFactory
         // LEGS - 8 legs, 5% coverage each
         for (int i = 1; i <= 8; i++)
         {
-            var leg = new MajorBodyPart($"Leg {i}", 5.0);
+            var leg = new BodyRegion($"Leg {i}", 5.0);
             parts.Add(leg);
         }
 
         return parts;
     }
 
-    public static List<MajorBodyPart> CreateFlyingBody()
+    public static List<BodyRegion> CreateFlyingBody()
     {
-        var parts = new List<MajorBodyPart>();
+        var parts = new List<BodyRegion>();
 
         // HEAD - 12% coverage
-        var head = new MajorBodyPart("Head", 12.0);
+        var head = new BodyRegion("Head", 12.0);
         head.Bone.Toughness = 8; // Lighter bones for flight
         
         // Brain
@@ -6784,7 +5893,7 @@ public static class BodyPartFactory
         parts.Add(head);
 
         // TORSO - 30% coverage
-        var torso = new MajorBodyPart("Torso", 30.0);
+        var torso = new BodyRegion("Torso", 30.0);
         torso.Bone.Toughness = 8; // Hollow bones
         
         // Heart - larger for flight demands
@@ -6818,15 +5927,15 @@ public static class BodyPartFactory
         parts.Add(torso);
 
         // WINGS - 15% each
-        var leftWing = new MajorBodyPart("Left Wing", 15.0);
-        var rightWing = new MajorBodyPart("Right Wing", 15.0);
+        var leftWing = new BodyRegion("Left Wing", 15.0);
+        var rightWing = new BodyRegion("Right Wing", 15.0);
         // Wings are primarily for movement
         
         parts.AddRange([leftWing, rightWing]);
 
         // LEGS - 6.5% each  
-        var leftLeg = new MajorBodyPart("Left Leg", 6.5);
-        var rightLeg = new MajorBodyPart("Right Leg", 6.5);
+        var leftLeg = new BodyRegion("Left Leg", 6.5);
+        var rightLeg = new BodyRegion("Right Leg", 6.5);
 
         parts.AddRange([leftLeg, rightLeg]);
 
@@ -6834,15 +5943,171 @@ public static class BodyPartFactory
     }
 }================================================================================
 
+File: ./Bodies/DamageCalculator.cs
+--------------------------------------------------------------------------------
+using System.Security.Cryptography.X509Certificates;
+
+namespace text_survival.Bodies;
+
+public class DamageResult
+{
+    public double DamageAbsorbed { get; set; }
+    public string HitPartName { get; set; } = "";
+    public double HitPartHealthBefore { get; set; }
+    public double HitPartHealthAfter { get; set; }
+    public double TotalDamageDealt => HitPartHealthBefore - HitPartHealthAfter;
+    public List<(string TissueName, double DamageTaken)> TissuesDamaged { get; set; } = new();
+    public bool OrganHit { get; set; }
+    public string? OrganHitName { get; set; }
+    public bool WasPenetrating { get; set; } // Did damage go through layers
+}
+
+
+public static class DamageProcessor
+{
+    public static DamageResult DamageBody(DamageInfo damageInfo, Body body)
+    {
+        var result = new DamageResult();
+
+        // If targeting specific part, find it
+        BodyRegion hitPart;
+        if (damageInfo.TargetPartName != null)
+        {
+            hitPart = BodyTargetHelper.GetPartByName(body, damageInfo.TargetPartName)
+                     ?? BodyTargetHelper.GetRandomMajorPartByCoverage(body);
+        }
+        else
+        {
+            // Otherwise, distribute based on coverage
+            hitPart = BodyTargetHelper.GetRandomMajorPartByCoverage(body);
+        }
+
+        result.HitPartName = hitPart.Name;
+        result.HitPartHealthBefore = hitPart.Condition;
+
+        DamagePart(hitPart, damageInfo, result);
+
+        result.HitPartHealthAfter = hitPart.Condition;
+        return result;
+    }
+    private static void DamagePart(BodyRegion part, DamageInfo damageInfo, DamageResult result)
+    {
+        double remainingDamage = PenetrateLayers(part, damageInfo, result);
+        if (remainingDamage <= 0) return;
+
+        var hitOrgan = BodyTargetHelper.SelectRandomOrganToHit(part, damageInfo.Amount);
+        if (hitOrgan != null)
+        {
+            result.OrganHit = true;
+            result.OrganHitName = hitOrgan.Name;
+            // Create new damage info for the organ with remaining damage
+            var organDamage = new DamageInfo
+            {
+                Amount = remainingDamage,
+                Type = damageInfo.Type,
+                TargetPartName = hitOrgan.Name
+            };
+            double organHealthBefore = hitOrgan.Condition;
+            DamageTissue(hitOrgan, organDamage);
+            result.TissuesDamaged.Add((hitOrgan.Name, organHealthBefore - hitOrgan.Condition));
+        }
+        else if (part.Muscle != null)
+        {
+            // Deep tissue damage to muscle
+            var muscleDamage = new DamageInfo
+            {
+                Amount = remainingDamage * 0.5,
+                Type = damageInfo.Type
+            };
+            
+            double muscleHealthBefore = part.Muscle.Condition;
+            DamageTissue(part.Muscle, muscleDamage);
+            double muscleDamageAmount = muscleHealthBefore - part.Muscle.Condition;
+            
+            if (muscleDamageAmount > 0)
+                result.TissuesDamaged.Add((part.Muscle.Name, muscleDamageAmount));
+        }
+        // DamageTissue(hitOrgan, damageInfo);
+    }
+
+    private static void DamageTissue(Tissue tissue, DamageInfo damageInfo)
+    {
+        double absorption = tissue.GetNaturalAbsorption(damageInfo.Type);
+        damageInfo.Amount -= absorption;
+        if (damageInfo.Amount <= 0)
+        {
+            return; // Natural squishiness absorbed it
+        }
+
+        double healthLoss = damageInfo.Amount / tissue.GetProtection(damageInfo.Type);
+        tissue.Condition = Math.Max(0, tissue.Condition - healthLoss);
+    }
+
+    private static double PenetrateLayers(BodyRegion part, DamageInfo damageInfo, DamageResult result)
+    {
+        double remainingDamage = damageInfo.Amount;
+        var layers = new[] { part.Skin, part.Muscle, part.Bone }.Where(l => l != null);
+
+        foreach (var layer in layers)
+        {
+            if (remainingDamage <= 0) break;
+
+            double protection = layer!.GetProtection(damageInfo.Type);
+            double maxAbsorption = remainingDamage * 0.7;
+            double actualAbsorption = Math.Min(maxAbsorption, protection);
+            
+            if (actualAbsorption > 0)
+            {
+                var layerDamage = new DamageInfo
+                {
+                    Amount = actualAbsorption,
+                    Type = damageInfo.Type
+                };
+                
+                double layerHealthBefore = layer.Condition;
+                DamageTissue(layer, layerDamage);
+                double layerDamageAmount = layerHealthBefore - layer.Condition;
+                
+                result.DamageAbsorbed += actualAbsorption;
+                
+                if (layerDamageAmount > 0)
+                    result.TissuesDamaged.Add((layer.Name, layerDamageAmount));
+            }
+            
+            remainingDamage -= actualAbsorption;
+        }
+
+        return Math.Max(0, remainingDamage);
+    }
+
+}================================================================================
+
 File: ./Bodies/BodyPartTargeter.cs
 --------------------------------------------------------------------------------
-using System.Net.WebSockets;
-using System.Security;
+using text_survival;
 using text_survival.Bodies;
 
-public static class BodyPartTargetingHelper
+public static class BodyTargetHelper
 {
-    public static List<MajorBodyPart> GetAllMajorParts(Body body)
+
+    public static BodyRegion? GetPartByName(Body body, string name)
+    {
+        return GetAllMajorParts(body).FirstOrDefault(p => p.Name == name);
+    }
+
+    public static Tissue? GetTissueByName(BodyRegion part, string name)
+    {
+        return GetTissues(part).FirstOrDefault(p => p.Name == name);
+    }
+
+    public static BodyRegion GetRandomMajorPartByCoverage(Body body)
+    {
+        var parts = GetAllMajorParts(body);
+        var partChances = parts.Where(p => !p.IsDestroyed).ToDictionary(p => p, p => p.Coverage);
+        return Utils.GetRandomWeighted(partChances);
+    }
+
+    public static List<BodyRegion> GetAllMajorParts(Body body)
     {
         return body.Parts;
     }
@@ -6856,17 +6121,37 @@ public static class BodyPartTargetingHelper
     {
         List<Tissue> tissues = [];
         GetAllMajorParts(body).ForEach(p => tissues.AddRange(GetTissues(p)));
+        GetAllOrgans(body).ForEach(tissues.Add);
         return tissues;
     }
 
-    public static List<Tissue> GetTissues(MajorBodyPart part)
+    public static List<Tissue> GetTissues(BodyRegion part)
     {
         return [part.Skin, part.Bone, part.Muscle];
     }
 
-    public static List<Organ> GetOrgans(MajorBodyPart part)
+    public static List<Organ> GetOrgans(BodyRegion part)
     {
         return part.Organs;
+    }
+
+    public static Organ? SelectRandomOrganToHit(BodyRegion part, double damageAmount)
+    {
+        // External organs can be hit even with light damage
+        var externalOrgans = part.Organs.Where(o => o.IsExternal).ToList();
+        if (externalOrgans.Count > 0 && damageAmount > 0)
+        {
+            return externalOrgans[Random.Shared.Next(externalOrgans.Count)];
+        }
+
+        // Internal organs need significant penetrating damage
+        var internalOrgans = part.Organs.Where(o => !o.IsExternal).ToList();
+        if (internalOrgans.Count > 0 && damageAmount > 5) // Threshold for internal damage
+        {
+            return internalOrgans[Random.Shared.Next(internalOrgans.Count)];
+        }
+
+        return null; // No organ hit
     }
 }================================================================================
 
@@ -7125,16 +6410,6 @@ namespace text_survival
             Player player = new Player(startingArea);
             World.Player = player;
 
-            EventBus.Subscribe(new StarvingEventHandler());
-            EventBus.Subscribe(new DehydrationEventHandler());
-            EventBus.Subscribe(new ExhaustionEventHandler());
-            EventBus.Subscribe(new StoppedStarvingEventHandler());
-            EventBus.Subscribe(new StoppedDehydrationEventHandler());
-            EventBus.Subscribe(new StoppedExhaustionEventHandler());
-            EventBus.Subscribe(new BodyHotEventHandler());
-            EventBus.Subscribe(new BodyColdEventHandler());
-
-
             var defaultAction = ActionFactory.Common.MainMenu();
             while (true)
             {
@@ -7145,252 +6420,401 @@ namespace text_survival
     }
 }================================================================================
 
-File: ./Survival/ThirstModule.cs
+File: ./Survival/SurvivalStatsUpdate.cs
 --------------------------------------------------------------------------------
-﻿using text_survival.Events;
-using text_survival.IO;
+namespace text_survival;
 
-namespace text_survival.Survival
+public class SurvivalStatsUpdate
 {
-    public class ThirstModule
+    public double Temperature;
+    public double Calories;
+    public double Hydration;
+    public double Exhaustion;
+
+    /// <summary>
+    /// Returns a new SurvivalStatsUpdate with the update added
+    /// </summary>
+    /// <param name="update"></param>
+    /// <returns></returns>
+    public SurvivalStatsUpdate Add(SurvivalStatsUpdate update)
     {
-        public bool IsParched => Amount >= Max;
-        private double Rate = 4000F / (24F * 60F); // mL per minute
-        private double Max = 3000.0F; // mL
-        private double Amount { get; set; }
-        public ThirstModule()
+        return new SurvivalStatsUpdate
         {
-            Amount = Max / 2; 
-        }
-        public void AddHydration(double mL)
+            Calories = this.Calories + update.Calories,
+            Temperature = this.Temperature + update.Temperature,
+            Hydration = this.Hydration + update.Hydration,
+            Exhaustion = this.Exhaustion + update.Exhaustion,
+        };
+    }
+
+    /// <summary>
+    /// returns a new Survival stats update with the multiplier applied
+    /// </summary>
+    /// <param name="multiplier"></param>
+    /// <returns></returns>
+    public SurvivalStatsUpdate ApplyMultiplier(double multiplier)
+    {
+        return new SurvivalStatsUpdate
         {
-            Amount += mL;
-            if (Amount >= Max)
-            {
-                Amount = Max;
-            }
-        }
-        public void Update()
-        {
-            Amount -= Rate;
-            if (Amount <= 0)
-                Amount = 0;
-        }
-        public void Describe()
-        {
-            double percent = (int)((Amount / Max) * 100);
-            Output.WriteLine("| Hydration: ", percent, "%");
-        }
+            Calories = this.Calories * multiplier,
+            Temperature = this.Temperature * multiplier,
+            Hydration = this.Hydration * multiplier,
+            Exhaustion = this.Exhaustion * multiplier
+        };
     }
 }================================================================================
 
-File: ./Survival/TemperatureModule.cs
+File: ./Survival/SurvivalProcessorResult.cs
 --------------------------------------------------------------------------------
-﻿using text_survival.Bodies;
-using text_survival.Events;
-using text_survival.IO;
+using text_survival.Effects;
 
 namespace text_survival.Survival;
 
-public class TemperatureModule(Body owner)
+
+public class SurvivalProcessorResult(SurvivalData data)
 {
-    private readonly Body owner = owner;
-    private double BodyTemperature => owner.BodyTemperature;
-    private bool IsWarming;
-    private TemperatureEnum TemperatureEffect = TemperatureEnum.Warm;
-
-    private const double BaseBodyTemperature = 98.6F;
-    private const double SevereHypothermiaThreshold = 89.6; // °F
-    private const double HypothermiaThreshold = 95.0;  // °F
-    private const double HyperthermiaThreshold = 99.5; // °F  
-
-    private enum TemperatureEnum
-    {
-        Warm,
-        Cool,
-        Cold,
-        Freezing,
-        Hot,
-    }
-
-    public void Update(double environmentalTemp, double equipmentInsulation)
-    {
-        double naturalInsulation = Math.Clamp(owner.CalculateColdResistance(), 0, 1); // 0-1
-        double totalInsulation = Math.Clamp(naturalInsulation + equipmentInsulation, 0, 0.95);
-
-        double skinTemp = BodyTemperature - 8.4;
-        double tempDifferential = environmentalTemp - skinTemp;
-        double insulatedDiff = tempDifferential * (1 - totalInsulation);
-        double tempDiffMagnitude = Math.Abs(insulatedDiff);
-        double baseRate = 1.0 / 120.0;
-        double exponentialFactor = 1.0 + (tempDiffMagnitude / 40.0);
-        double rate = baseRate * exponentialFactor;
-
-        // double surfaceAreaFactor = Math.Pow(body.Weight / 70.0, -0.2);
-
-        double tempChange = insulatedDiff * rate;
-        owner.BodyTemperature += tempChange;
-
-        IsWarming = tempChange > 0;
-
-        UpdateTemperatureEffect();
-    }
-
-
-    private void UpdateTemperatureEffect()
-    {
-        TemperatureEnum oldTemperature = TemperatureEffect;
-
-        // Normal body temperature, no effects
-        if (BodyTemperature >= BaseBodyTemperature && BodyTemperature <= HyperthermiaThreshold)
-        {
-            TemperatureEffect = TemperatureEnum.Warm;
-        }
-        else if (BodyTemperature >= HypothermiaThreshold && BodyTemperature < BaseBodyTemperature)
-        {
-            TemperatureEffect = TemperatureEnum.Cool;
-        }
-
-        else if (BodyTemperature > SevereHypothermiaThreshold && BodyTemperature <= HypothermiaThreshold)
-        {
-            TemperatureEffect = TemperatureEnum.Cold;
-            EventBus.Publish(new BodyColdEvent(owner, oldTemperature != TemperatureEffect));
-        }
-        else if (BodyTemperature < SevereHypothermiaThreshold)
-        {
-            TemperatureEffect = TemperatureEnum.Freezing;
-            EventBus.Publish(new BodyColdEvent(owner, oldTemperature != TemperatureEffect));
-        }
-        else if (BodyTemperature > HyperthermiaThreshold)
-        {
-            TemperatureEffect = TemperatureEnum.Hot;
-            EventBus.Publish(new BodyHotEvent(owner, oldTemperature != TemperatureEffect));
-        }
-    }
-
-
-    public void Describe()
-    {
-        string tempChange = IsWarming ? "Warming up" : "Getting colder";
-        Output.WriteLine("| Body Temperature: ", BodyTemperature, "°F (", TemperatureEffect, "), ", tempChange);
-    }
+	public SurvivalData Data { get; set; } = data;
+	public List<Effect> Effects { get; set; } = [];
+	public List<string> Messages { get; set; } = [];
 }
+
 ================================================================================
 
-File: ./Survival/HungerModule.cs
+File: ./Survival/SurvivalProcessor.cs
 --------------------------------------------------------------------------------
-﻿
+using System.Net.Http.Headers;
 using text_survival.Bodies;
-using text_survival.Events;
+using text_survival.Effects;
 using text_survival.IO;
 
 namespace text_survival.Survival;
 
 
-public class HungerModule(Body owner)
-{
-	private const double MAX_CALORIES = 2000.0; // Maximum calories stored before fat conversion
-	private bool IsStarving => CurrentCalories <= 0;
-	private bool wasStarving;
-	private double CurrentCalories { get; set; } = MAX_CALORIES / 2;
-	private readonly Body owner = owner;
 
-	public void Update(double metabolicRate)
+public static class SurvivalProcessor
+{
+	private const double BASE_EXHAUSTION_RATE = 1;
+	private const double MAX_EXHAUSTION_MINUTES = 960.0F; // minutes (16 hours)
+	private const double BASE_DEHYDRATION_RATE = 4000F / (24F * 60F); // mL per minute
+	private const double MAX_HYDRATION = 4000.0F; // mL
+	private const double MAX_CALORIES = 2000.0; // Maximum calories stored before fat conversion
+
+	private const double BaseBodyTemperature = 98.6F;
+	private const double SevereHypothermiaThreshold = 89.6; // °F
+	private const double HypothermiaThreshold = 95.0;  // °F
+	private const double ShiveringThreshold = 97.0; // °F
+	private const double HyperthermiaThreshold = 100.0; // °F  
+	private const double SweatingThreshold = 99.00; // °F
+
+	private enum TemperatureEnum
 	{
+		Warm,
+		Cool,
+		Cold,
+		Freezing,
+		Hot,
+	}
+
+
+	public static SurvivalProcessorResult Process(SurvivalData data, int minutesElapsed, List<Effect> activeEffects)
+	{
+		data.Exhaustion = Math.Min(1, data.Exhaustion + (BASE_EXHAUSTION_RATE * minutesElapsed));
+		data.Hydration = Math.Max(0, data.Hydration - (BASE_DEHYDRATION_RATE * minutesElapsed));
+
+		// Hunger update
 		// todo, actually update with activity level
 		// todo have this account for temp too
+		double currentMetabolism = GetCurrentMetabolism(data);
+		double caloriesBurned = currentMetabolism / 24 / 60 * minutesElapsed;
+		bool wasStarving = data.Calories <= 0;
+		data.Calories -= caloriesBurned;
 
-		double calories = metabolicRate / 24 / 60;  //* timePassed.TotalHours;
+		data.Temperature += caloriesBurned / 24000;
 
-		CurrentCalories -= calories;
-
-		if (IsStarving)
+		if (data.Calories <= 0)
 		{
-			double excessCalories = -CurrentCalories;
-			CurrentCalories = 0;
-			EventBus.Publish(new StarvingEvent(owner, excessCalories, isNew: !wasStarving));
+			double excessCalories = -data.Calories;
+			data.Calories = 0;
+			// EventBus.Publish(new StarvingEvent(owner, excessCalories, isNew: !wasStarving));
 		}
-		else if (wasStarving)
-		{
-			EventBus.Publish(new StoppedStarvingEvent(owner));
-		}
-		wasStarving = IsStarving;
+		//else if (wasStarving) // wasStarving but is no longer // TODO this will never be hit anymore, move to eat method
+		//{
+		//EventBus.Publish(new StoppedStarvingEvent(owner));
+		//}
+
+		// Temperature Update
+		TemperatureEnum oldTemperature = GetTemperatureEnum(data.Temperature); // todo update message when temp changes
+		double naturalInsulation = Math.Clamp(data.ColdResistance, 0, 1); // 0-1
+		double totalInsulation = Math.Clamp(naturalInsulation + data.equipmentInsulation, 0, 0.95);
+
+		double skinTemp = data.Temperature - 8.4;
+		double tempDifferential = data.environmentalTemp - skinTemp;
+		double insulatedDiff = tempDifferential * (1 - totalInsulation);
+		double tempDiffMagnitude = Math.Abs(insulatedDiff);
+		double baseRate = 1.0 / 120.0;
+		double exponentialFactor = 1.0 + (tempDiffMagnitude / 40.0);
+		double rate = baseRate * exponentialFactor;
+
+		// double surfaceAreaFactor = Math.Pow(body.Weight / 70.0, -0.2);
+
+		double tempChange = insulatedDiff * rate;
+		data.Temperature += tempChange;
+		SurvivalProcessorResult result = new(data);
+
+		HandleActiveEffects(data, activeEffects);
+
+		AddTemperatureEffects(data, oldTemperature, result);
+
+		return result;
 	}
 
-	public void AddCalories(double calories)
+	private static double GetCurrentMetabolism(SurvivalData data)
 	{
-		CurrentCalories += calories;
+		// Base BMR uses the Harris-Benedict equation (simplified)
+		double bmr = 370 + (21.6 * data.BodyStats.MuscleWeight) + (6.17 * data.BodyStats.FatWeight); // bigger creature more calories
+		bmr *= 0.7 + (0.3 * data.BodyStats.HealthPercent); // Injured bodies need more energy to heal
+		return bmr * data.activityLevel;
+	}
 
-		if (CurrentCalories > MAX_CALORIES)
+
+	private static void AddTemperatureEffects(SurvivalData data, TemperatureEnum oldTemperature, SurvivalProcessorResult result)
+	{
+		List<Effect> effects = [];
+		TemperatureEnum temperatureStage = GetTemperatureEnum(data.Temperature);
+
+		// Handle cold effects
+		if (temperatureStage == TemperatureEnum.Cold || temperatureStage == TemperatureEnum.Freezing)
 		{
-			double excessCalories = CurrentCalories - MAX_CALORIES;
-			EventBus.Publish(new CalorieSurplusEvent(owner, excessCalories));
-			CurrentCalories = MAX_CALORIES;
+			bool tempChanged = oldTemperature == temperatureStage;
+			GenerateColdEffects(data, tempChanged, result);
+		}
+
+		else if (temperatureStage == TemperatureEnum.Hot)
+		{
+			double severity = Math.Clamp((data.Temperature - HyperthermiaThreshold) / 10.0, 0.01, 1.00);
+
+			// Apply to whole body (will handle stacking through EffectRegistry)
+			var hyperthermia = EffectBuilderExtensions
+				.CreateEffect("Heat Exposure")
+				.Temperature(TemperatureType.Hyperthermia)
+				.WithSeverity(severity)
+				.Build(); // todo add messages
+			effects.Add(hyperthermia);
+		}
+
+		if (data.Temperature > SweatingThreshold)
+		{
+			// Calculate severity based on temperature
+			double severity = Math.Clamp((data.Temperature - SweatingThreshold) / 4.0, 0.10, 1.00);
+
+			// Apply to whole body (will handle stacking through EffectRegistry)
+			var sweatingEffect = EffectBuilderExtensions
+				.CreateEffect("Sweating")
+				.CausesDehydration(1000 / 60 * severity) // up to 1L per hour
+				.WithSeverity(severity)
+				.Build(); // todo add notification messages
+			effects.Add(sweatingEffect);
+		}
+
+		result.Effects.AddRange(effects);
+	}
+
+	private static void HandleActiveEffects(SurvivalData data, List<Effect> effects)
+	{
+		SurvivalStatsUpdate update = new();
+		foreach (Effect effect in effects)
+		{
+			var effectWithSeverity = effect.SurvivalStatsEffect.ApplyMultiplier(effect.Severity);
+			update = update.Add(effectWithSeverity);
+		}
+		data.Calories += update.Calories;
+		data.Hydration += update.Hydration;
+		data.Temperature += update.Temperature;
+		data.Exhaustion += update.Exhaustion;
+	}
+
+
+	private static void GenerateColdEffects(SurvivalData data, bool isNewTemperatureChange, SurvivalProcessorResult result)
+	{
+		// Generate cold messages
+		if (isNewTemperatureChange && data.IsPlayer)
+		{
+			result.Messages.Add("You are staring to feel cold.");
+		}
+		else if (Utils.DetermineSuccess(Config.NOTIFY_EXISTING_STATUS_CHANCE))
+		{
+			result.Messages.Add("You are still feeling cold.");
+		}
+
+		// Generate shivering effect if cold enough
+		if (data.Temperature < ShiveringThreshold)
+		{
+			double intensity = (ShiveringThreshold - data.Temperature) / 5.0;
+			intensity = Math.Clamp(intensity, 0.01, 1.0);
+
+			var shiveringEffect = EffectBuilderExtensions
+				.CreateEffect("Shivering")
+				.WithSeverity(intensity)
+				.ReducesCapacity(CapacityNames.Manipulation, .2)
+				.AllowMultiple(false)
+				.AffectsTemperature(3) // at highest rate increases 
+				.WithHourlySeverityChange(-2) // resolves in 30 min by default
+				.Build();
+			result.Effects.Add(shiveringEffect);
+		}
+
+		// Generate hypothermia effect if cold enough
+		if (data.Temperature < HypothermiaThreshold)
+		{
+			double severity = Math.Clamp((HypothermiaThreshold - data.Temperature) / 10.0, 0.01, 1.0);
+
+			string applicationMessage;
+			string removalMessage;
+			if (data.IsPlayer)
+			{
+				applicationMessage = $"Your core is getting very cold, you feel like you're starting to get hypothermia... Severity = {severity}";
+				removalMessage = $"You're warming up enough and starting to feel better, the hypothermia has passed...";
+			}
+			else
+			{
+				applicationMessage = "";// $"DEBUG: {{target}} has hypothermia. Severity = {severity}";
+				removalMessage = "";// "DEBUG: {target} no longer has hypothermia.";
+			}
+
+			var hypothermia = EffectBuilderExtensions
+				.CreateEffect("Hypothermia")
+				.Temperature(TemperatureType.Hypothermia)
+				.WithApplyMessage(applicationMessage)
+				.WithSeverity(severity)
+				.AllowMultiple(false)
+				.WithRemoveMessage(removalMessage)
+				.Build();
+
+			result.Effects.Add(hypothermia);
+		}
+
+		// Generate frostbite effects if severely cold
+		if (data.Temperature < SevereHypothermiaThreshold)
+		{
+			// Note: This creates frostbite effects for arms and legs
+			// The caller will need to apply these to the appropriate body parts
+			var extremityNames = new[] { "Left Arm", "Right Arm", "Left Leg", "Right Leg" };
+
+			foreach (var extremityName in extremityNames)
+			{
+				double severity = Math.Clamp((SevereHypothermiaThreshold - data.Temperature) / 5.0, 0.01, 1.0);
+
+				string applicationMessage;
+				string removalMessage;
+
+				if (data.IsPlayer)
+				{
+					applicationMessage = $"Your {extremityName.ToLower()} is getting dangerously cold, you're developing frostbite! Severity = {severity}";
+					removalMessage = $"The feeling is returning to your {extremityName.ToLower()}, the frostbite is healing...";
+				}
+				else
+				{
+					applicationMessage = ""; //$"DEBUG: {{target}} has frostbite on {extremityName}. Severity = {severity}";
+					removalMessage = ""; //$"DEBUG: {{target}} no longer has frostbite on {extremityName}.";
+				}
+
+				var frostbite = EffectBuilderExtensions
+					.CreateEffect("Frostbite")
+					.Temperature(TemperatureType.Frostbite)
+					.WithApplyMessage(applicationMessage)
+					.WithSeverity(severity)
+					.AllowMultiple(true)
+					.WithRemoveMessage(removalMessage)
+					.Targeting(extremityName)
+					.Build();
+
+				result.Effects.Add(frostbite);
+			}
 		}
 	}
 
-	public void Describe()
+
+	private static TemperatureEnum GetTemperatureEnum(double temperature)
 	{
-		double percent = (int)(CurrentCalories / MAX_CALORIES * 100);
+		if (temperature < SevereHypothermiaThreshold)
+		{
+			return TemperatureEnum.Freezing;
+		}
+		else if (temperature >= SevereHypothermiaThreshold && temperature < HypothermiaThreshold)
+		{
+			return TemperatureEnum.Cold;
+		}
+		else if (temperature >= HypothermiaThreshold && temperature < BaseBodyTemperature)
+		{
+			return TemperatureEnum.Cool;
+		}
+		else if (temperature >= BaseBodyTemperature && temperature <= HyperthermiaThreshold)
+		{
+			return TemperatureEnum.Warm;
+		}
+		else // temperature > HyperthermiaThreshold
+		{
+			return TemperatureEnum.Hot;
+		}
+	}
+
+	public static SurvivalProcessorResult Sleep(SurvivalData data, int minutes)
+	{
+		// starve at 1/2 rate - handled in GetCurrentMetabolism
+		data.activityLevel = .5;
+		// rest restores exhaustion at 2x the rate that you gain it while awake, so 16 hours of wakefulness creates only 8 hours of sleep debt
+		data.Exhaustion = Math.Max(0, data.Exhaustion - (BASE_EXHAUSTION_RATE * 2 * minutes));
+		data.Hydration = Math.Max(0, data.Hydration - (BASE_DEHYDRATION_RATE * .7 * minutes)); // dehydrate at reduced rate while asleep
+		data.Calories = data.Calories -= GetCurrentMetabolism(data) / 24 / 60 * minutes;
+		return new SurvivalProcessorResult(data);
+	}
+
+	public static void Describe(SurvivalData data)
+	{
+		Output.WriteLine("\n----------------------------------------------------\n| Survival Stats:");
+		// calories
+		double percent = (int)(data.Calories / MAX_CALORIES * 100);
 		Output.WriteLine("| Calorie Store: ", percent, "%");
+		// hydration
+		percent = (int)((data.Hydration / MAX_HYDRATION) * 100);
+		Output.WriteLine("| Hydration: ", percent, "%");
+		// exhaustion
+		percent = (int)((data.Exhaustion / MAX_EXHAUSTION_MINUTES) * 100);
+		Output.WriteLine("| Exhaustion: ", percent, "%");
+		// temp
+		//string tempChange = IsWarming ? "Warming up" : "Getting colder";
+		Output.WriteLine("| Body Temperature: ", data.Temperature, "°F");//(", TemperatureEffect, "), ", tempChange);
+		Output.WriteLine("----------------------------------------------------");
 	}
 }
 ================================================================================
 
-File: ./Survival/ExhaustionModule.cs
+File: ./Survival/SurvivalData.cs
 --------------------------------------------------------------------------------
-﻿using text_survival.IO;
 
-namespace text_survival.Survival
+using text_survival.Bodies;
+
+namespace text_survival.Survival;
+
+public class SurvivalData
 {
-    public class ExhaustionModule
-    {
-        public bool IsExhausted => Amount >= Max;
-        public bool IsFullyRested => Amount <= 0;
-        public double ExhaustionPercent => (Amount / Max) * 100;
-        private double Rate = 1;
-        private double Max = 480.0F; // minutes (8 hours)
-        public double Amount { get; private set; }
+	// Primary stats
+	public double Calories;
+	public double Hydration;
+	public double Exhaustion;
+	public double Temperature;
+	public double ColdResistance;
 
-        public ExhaustionModule()
-        {
-            Amount = 0;
-        }
+	// body stats
+	public BodyStats BodyStats;
 
-        public void Rest(int minutes)
-        {
-            Amount -= minutes * Rate;
-            if (Amount < 0)
-            {
-                Amount = 0;
-            }
-        }
-
-        public void ModifyExhaustion(double minutes)
-        {
-            Amount += minutes;
-            if (Amount > Max)
-            {
-                Amount = Max;
-            }
-        }
-
-        public void Update()
-        {
-            Amount += Rate;
-            if (Amount >= Max)
-            {
-                Amount = Max;
-            }
-        }
-
-        public void Describe()
-        {
-            double percent = (int)((Amount / Max) * 100);
-            Output.WriteLine("| Exhaustion: ", percent, "%");
-        }
-    }
-}================================================================================
+	// Secondary stats
+	public double equipmentInsulation;
+	public double environmentalTemp;
+	public double activityLevel;
+	public bool IsPlayer;
+}
+================================================================================
 
 File: ./World.cs
 --------------------------------------------------------------------------------
@@ -7666,12 +7090,12 @@ public class Spell
 
     public void Cast(Actor target)
     {
-        target.ApplyEffect(Effect);
+        target.EffectRegistry.AddEffect(Effect);
     }
-    public void Cast(Actor target, MajorBodyPart part)
+    public void Cast(Actor target, BodyRegion part)
     {
-        Effect.TargetBodyPart = part;
-        target.ApplyEffect(Effect);
+        Effect.TargetBodyPart = part.Name;
+        target.EffectRegistry.AddEffect(Effect);
     }
 
     public override string ToString()

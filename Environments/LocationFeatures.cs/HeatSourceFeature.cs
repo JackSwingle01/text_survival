@@ -4,7 +4,7 @@ public class HeatSourceFeature : LocationFeature
 {
     public bool IsActive { get; private set; }
     public double HeatOutput { get; private set; } // In Fahrenheit
-    public double FuelRemaining { get; private set; } // 0-1 scale
+    public double FuelRemaining { get; private set; } 
     public double FuelConsumptionRate { get; private set; } // Per hour
     
     public HeatSourceFeature(Location location, double heatOutput = 15.0) 
@@ -13,13 +13,17 @@ public class HeatSourceFeature : LocationFeature
         IsActive = false;
         HeatOutput = heatOutput; // Default 15°F increase
         FuelRemaining = 0;
-        FuelConsumptionRate = 0.1; // 10% per hour
+        FuelConsumptionRate = 1; // default
     }
     
-    public void AddFuel(double amount)
+    /// <summary>
+    /// Note, max 10 hours of burn time
+    /// </summary>
+    /// <param name="hours"></param>
+    public void AddFuel(double hours)
     {
-        FuelRemaining = Math.Min(1.0, FuelRemaining + amount);
-        
+        FuelRemaining = Math.Min(1.0, FuelRemaining + hours);
+
         // Activate if adding fuel to inactive source
         if (!IsActive && FuelRemaining > 0)
             IsActive = true;

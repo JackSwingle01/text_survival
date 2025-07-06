@@ -1,12 +1,11 @@
 P1 - Implement Next
 
-Add auto equip
-add higher level summaries
 add dynamic event prompts -> you are hungry, eat x?
 suggested actions?
 hidden vs visible items, don't reveal all at first look, (look carefully takes time)
 more combat options (stealth, assess threat, trap, distract, ranged)
 Rebalance weather effects
+add more ice age fauna
 Make weather system more object based
 Make less items on the ground in new areas
 Improve Combat - More dynamic, more choices, affected by game, location, and body state, descriptions
