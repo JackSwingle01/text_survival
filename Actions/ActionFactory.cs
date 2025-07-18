@@ -5,6 +5,7 @@ using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Magic;
+using text_survival.Survival;
 
 namespace text_survival.Actions;
 
@@ -66,7 +67,7 @@ public static class ActionFactory
             .Do(ctx =>
             {
                 Output.WriteLine("How many hours would you like to sleep?");
-                ctx.player.Sleep(Input.ReadInt() * 60);
+                ctx.player.Body.Rest(Input.ReadInt() * 60);
             })
             .ThenReturn()
             .Build();

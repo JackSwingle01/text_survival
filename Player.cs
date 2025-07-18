@@ -32,15 +32,6 @@ public class Player : Actor
         ClothingInsulation = inventoryManager.ClothingInsulation,
     };
 
-    public void Sleep(int minutes)
-    {
-        bool fullyRested = Body.Rest(1);
-        if (fullyRested)
-        {
-            Output.Write("You wake up feeling refreshed.\n");
-        }
-
-    }
     public override Weapon ActiveWeapon
     {
         get => inventoryManager.Weapon; protected set
