@@ -1,6 +1,6 @@
-using System.Runtime.CompilerServices;
 using text_survival.Effects;
 using text_survival.IO;
+using text_survival.Survival;
 
 namespace text_survival.Bodies
 {
@@ -16,30 +16,30 @@ namespace text_survival.Bodies
 
             // Health and Body Composition (3 columns)
             Output.WriteLine("├─────────────────────┬─────────────────────┬─────────────────────┤");
-            
+
             // Health row
             string healthBar = CreateProgressBar((int)(body.Health * 100), barWidth);
             string healthValueStr = $"[{healthBar}] {(int)(body.Health * 100)}%";
             string healthStatus = GetHealthStatus((int)(body.Health * 100));
             Output.WriteLine("│ Health              │ ", healthValueStr.PadRight(19), " │ ", healthStatus.PadRight(19), " │");
-            
+
             // Body composition row
             string bodyCompValue = $"{Math.Round(body.Weight * 2.2, 1)} lbs";
             string bodyCompStatus = $"{(int)(body.BodyFatPercentage * 100)}% fat, {(int)(body.MusclePercentage * 100)}% muscle";
             Output.WriteLine("│ Body Composition    │ ", bodyCompValue.PadRight(19), " │ ", bodyCompStatus.PadRight(19), " │");
-            
+
             // Capabilities section (4 columns)
             PrintDivider(boxWidth);
             PrintCenteredHeader("CAPABILITIES");
             PrintDivider(boxWidth);
-            
+
             // Individual capabilities
             PrintCapabilityRow("Strength", AbilityCalculator.CalculateStrength(body));
             PrintCapabilityRow("Speed", AbilityCalculator.CalculateSpeed(body));
             PrintCapabilityRow("Vitality", AbilityCalculator.CalculateVitality(body));
             PrintCapabilityRow("Perception", AbilityCalculator.CalculatePerception(body));
             PrintCapabilityRow("Cold Resistance", AbilityCalculator.CalculateColdResistance(body));
-            
+
             // Body parts section (if any damaged)
             var damagedParts = body.Parts.Where(p => p.Condition < 1.0).ToList();
             if (damagedParts.Count > 0)
@@ -47,13 +47,13 @@ namespace text_survival.Bodies
                 PrintDivider(boxWidth);
                 PrintCenteredHeader("BODY PARTS");
                 PrintDivider(boxWidth);
-                
+
                 foreach (var part in damagedParts)
                 {
                     PrintBodyPartRow(part);
                 }
             }
-            
+
             // Active effects section
             var activeEffects = body.EffectRegistry.GetAll();
             if (activeEffects.Count > 0)
@@ -61,17 +61,17 @@ namespace text_survival.Bodies
                 PrintDivider(boxWidth);
                 PrintCenteredHeader("ACTIVE EFFECTS");
                 PrintDivider(boxWidth);
-                
+
                 foreach (var effect in activeEffects)
                 {
                     PrintEffectRow(effect);
                 }
             }
-            
+
             Output.WriteLine("└─────────────────────┴─────────────────────┴─────────────┴───────┘");
         }
 
-        private static void PrintCenteredHeader(string text, int width =65)
+        private static void PrintCenteredHeader(string text, int width = 65)
         {
             Output.WriteLine("├", text.PadLeft((width + text.Length) / 2).PadRight(width), "┤");
         }
@@ -97,7 +97,7 @@ namespace text_survival.Bodies
             string bar = CreateProgressBar((int)(part.Condition * 100), barWidth);
             string valueStr = $"[{bar}] {(int)(part.Condition * 100)}%";
             string status = GetDamageDescription(part.Condition);
-            
+
             Output.WriteLine("│ ", part.Name.PadRight(19), " │ ", valueStr.PadRight(19), " │ ", status.PadRight(11), " │       │");
         }
 
@@ -109,7 +109,7 @@ namespace text_survival.Bodies
             string valueStr = $"[{bar}] {(int)(effect.Severity * 100)}%{trendIndicator}";
             string status = effect.GetSeverityDescription();
             string target = GetEffectTarget(effect);
-            
+
             Output.WriteLine("│ ", effect.EffectKind.PadRight(19), " │ ", valueStr.PadRight(19), " │ ", status.PadRight(11), " │ ", target.PadRight(5), " │");
         }
 
@@ -174,5 +174,93 @@ namespace text_survival.Bodies
             else
                 return effect.TargetBodyPart.Length > 5 ? effect.TargetBodyPart.Substring(0, 5) : effect.TargetBodyPart;
         }
+
+
+
+        public static void DescribeSurvivalStats(SurvivalData data, SurvivalContext context)
+        {
+            const int boxWidth = 53;
+            const int barWidth = 20;
+
+            // Calculate percentages
+            int caloriesPercent = (int)(data.Calories / SurvivalProcessor.MAX_CALORIES * 100);
+            int hydrationPercent = (int)(data.Hydration / SurvivalProcessor.MAX_HYDRATION * 100);
+            int energyPercent = (int)(data.Energy / SurvivalProcessor.MAX_ENERGY_MINUTES * 100);
+
+            // Create progress bars
+            string caloriesBar = CreateProgressBar(caloriesPercent, barWidth);
+            string hydrationBar = CreateProgressBar(hydrationPercent, barWidth);
+            string energyBar = CreateProgressBar(energyPercent, barWidth);
+
+            // Status descriptions
+            string caloriesStatus = GetCaloriesStatus(caloriesPercent);
+            string hydrationStatus = GetHydrationStatus(hydrationPercent);
+            string exhaustionStatus = GetEnergyStatus(energyPercent);
+            string tempStatus = GetTemperatureStatus(data.Temperature);
+
+            // Build status lines
+            string healthLine = $"Food:    [{caloriesBar}] {caloriesPercent}% - {caloriesStatus}";
+            string waterLine =  $"Water:   [{hydrationBar}] {hydrationPercent}% - {hydrationStatus}";
+            string energyLine = $"Energy:  [{energyBar}] {energyPercent}% - {exhaustionStatus}";
+            string tempLine =   $"Temp:    {data.Temperature:F1}°F ({tempStatus}) - Feels like {context.LocationTemperature:F1}°F";
+
+            // Display with proper padding
+            Output.WriteLine($"┌{new string('─', boxWidth)}┐");
+            Output.WriteLine($"│ {healthLine,-(boxWidth - 2)} │");
+            Output.WriteLine($"│ {waterLine,-(boxWidth - 2)} │");
+            Output.WriteLine($"│ {energyLine,-(boxWidth - 2)} │");
+            Output.WriteLine($"│ {tempLine,-(boxWidth - 2)} │");
+            Output.WriteLine($"└{new string('─', boxWidth)}┘");
+        }
+
+        private static string GetCaloriesStatus(int percent)
+        {
+            return percent switch
+            {
+                >= 80 => "Well Fed",
+                >= 60 => "Satisfied",
+                >= 40 => "Peckish",
+                >= 20 => "Hungry",
+                _ => "Starving"
+            };
+        }
+
+        private static string GetHydrationStatus(int percent)
+        {
+            return percent switch
+            {
+                >= 80 => "Hydrated",
+                >= 60 => "Fine",
+                >= 40 => "Thirsty",
+                >= 20 => "Parched",
+                _ => "Dehydrated"
+            };
+        }
+
+        private static string GetEnergyStatus(int percent)
+        {
+            return percent switch
+            {
+                >= 90 => "Energized",
+                >= 80 => "Alert",
+                >= 40 => "Normal",
+                >= 30 => "Tired",
+                >= 20 => "Very Tired",
+                _ => "Exhausted"
+            };
+        }
+
+        private static string GetTemperatureStatus(double temp)
+        {
+            return temp switch
+            {
+                >= 100 => "Feverish",
+                >= 99 => "Hot",
+                >= 97 => "Normal",
+                >= 95 => "Cool",
+                _ => "Cold"
+            };
+        }
     }
+
 }

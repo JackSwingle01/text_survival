@@ -21,14 +21,17 @@ public class Player : Actor
     public override void Update()
     {
         EffectRegistry.Update();
-        var context = new SurvivalContext
-        {
-            ActivityLevel = 2,
-            LocationTemperature = locationManager.CurrentLocation.GetTemperature(),
-            ClothingInsulation = inventoryManager.ClothingInsulation,
-        };
+        var context = GetSurvivalContext();
         Body.Update(TimeSpan.FromMinutes(1), context);
     }
+
+    public SurvivalContext GetSurvivalContext() => new SurvivalContext
+    {
+        ActivityLevel = 2,
+        LocationTemperature = locationManager.CurrentLocation.GetTemperature(),
+        ClothingInsulation = inventoryManager.ClothingInsulation,
+    };
+
     public void Sleep(int minutes)
     {
         bool fullyRested = Body.Rest(1);
@@ -79,7 +82,7 @@ public class Player : Actor
             inventoryManager.Equip(equipment);
             return;
         }
-        
+
         inventoryManager.AddToInventory(item);
     }
 

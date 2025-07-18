@@ -43,7 +43,7 @@ public class InventoryManager
         Inventory.Remove(item);
     }
 
-    public double ArmorRating
+    public double ArmorProtection
     {
         get
         {
@@ -56,7 +56,17 @@ public class InventoryManager
         }
     }
 
-    public double ClothingInsulation => Armor.Sum(a => a.Insulation);
+    public double ClothingInsulation
+    {
+        get
+        {
+            foreach (var a in Armor)
+            {
+                Output.WriteLine(a, a.Insulation);
+            }
+            return Armor.Sum(a => a.Insulation);
+        }
+    }
 
     public void Equip(IEquippable item)
     {

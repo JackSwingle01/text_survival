@@ -275,7 +275,7 @@ namespace text_survival.Items
             Gear torch = new Gear("Pine Torch", 0.8)
             {
                 Description = "A branch wrapped with resin-soaked pine needles. Provides light and warmth.",
-                Insulation = 5
+                Insulation = 0.2
             };
             return torch;
         }
@@ -315,7 +315,7 @@ namespace text_survival.Items
 
         public static Armor MakeFurHood()
         {
-            Armor hood = new Armor("Fur Hood", .05, EquipSpots.Head, 3)
+            Armor hood = new Armor("Fur Hood", .05, EquipSpots.Head, .8)
             {
                 Description = "A hood made from animal fur. Keeps the head and ears warm in frigid weather.",
                 Weight = 0.3
@@ -325,7 +325,7 @@ namespace text_survival.Items
 
         public static Armor MakeLeatherTunic()
         {
-            Armor tunic = new Armor("Leather Tunic", .10, EquipSpots.Chest, 4)
+            Armor tunic = new Armor("Leather Tunic", .10, EquipSpots.Chest, .12)
             {
                 Description = "A simple tunic made from tanned animal hide. Basic protection from the elements.",
                 Weight = 1.5
@@ -335,7 +335,7 @@ namespace text_survival.Items
 
         public static Armor MakeLeatherPants()
         {
-            Armor leggings = new Armor("Leather Pants", .08, EquipSpots.Legs, 3)
+            Armor leggings = new Armor("Leather Pants", .08, EquipSpots.Legs, .1)
             {
                 Description = "Pants made from tanned animal hide. Protects the legs from brush and minor injuries.",
                 Weight = 1.0
@@ -345,7 +345,7 @@ namespace text_survival.Items
 
         public static Armor MakeMoccasins()
         {
-            Armor shoes = new Armor("Hide Moccasins", .03, EquipSpots.Feet, 2)
+            Armor shoes = new Armor("Hide Moccasins", .03, EquipSpots.Feet, .06)
             {
                 Description = "Soft footwear made from animal hide. More durable than bare feet on rough terrain.",
                 Weight = 0.4

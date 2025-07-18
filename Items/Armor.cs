@@ -9,12 +9,12 @@ namespace text_survival.Items
         public double Rating { get; set; }
         public ArmorClass Type { get; set; }
 
-        public Armor(string name, double rating, EquipSpots equipSpot, double warmth = 0, ArmorClass type = ArmorClass.Light) : base(name)
+        public Armor(string name, double rating, EquipSpots equipSpot, double insulation = 0, ArmorClass type = ArmorClass.Light) : base(name)
         {
             EquipEffects = [];
             Rating = rating;
             EquipSpot = equipSpot;
-            Insulation = warmth;
+            Insulation = insulation;
             Type = type;
         }
 

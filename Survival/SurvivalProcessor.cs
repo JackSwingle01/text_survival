@@ -1,7 +1,5 @@
-using System.Net.Http.Headers;
 using text_survival.Bodies;
 using text_survival.Effects;
-using text_survival.IO;
 
 namespace text_survival.Survival;
 
@@ -10,10 +8,10 @@ namespace text_survival.Survival;
 public static class SurvivalProcessor
 {
 	private const double BASE_EXHAUSTION_RATE = 1;
-	private const double MAX_ENERGY_MINUTES = 960.0F; // minutes (16 hours)
+	public const double MAX_ENERGY_MINUTES = 960.0F; // minutes (16 hours)
 	private const double BASE_DEHYDRATION_RATE = 4000F / (24F * 60F); // mL per minute
-	private const double MAX_HYDRATION = 4000.0F; // mL
-	private const double MAX_CALORIES = 2000.0; // Maximum calories stored before fat conversion
+	public const double MAX_HYDRATION = 4000.0F; // mL
+	public const double MAX_CALORIES = 2000.0; // Maximum calories stored before fat conversion
 
 	private const double BaseBodyTemperature = 98.6F;
 	private const double SevereHypothermiaThreshold = 89.6; // °F
@@ -60,18 +58,22 @@ public static class SurvivalProcessor
 
 		// Temperature Update
 		TemperatureEnum oldTemperature = GetTemperatureEnum(data.Temperature); // todo update message when temp changes
-		double naturalInsulation = Math.Clamp(data.ColdResistance, 0, 1); // 0-1
-		double totalInsulation = Math.Clamp(naturalInsulation + data.equipmentInsulation, 0, 0.95);
 
+		// Insulation
+		double naturalInsulation = Math.Clamp(data.ColdResistance, 0, 1); // 0-1
+		double totalInsulation = naturalInsulation + data.equipmentInsulation;
+		totalInsulation = Math.Clamp(totalInsulation, 0, .95);
+
+		// 
 		double skinTemp = data.Temperature - 8.4;
 		double tempDifferential = data.environmentalTemp - skinTemp;
 		double insulatedDiff = tempDifferential * (1 - totalInsulation);
+
 		double tempDiffMagnitude = Math.Abs(insulatedDiff);
+
 		double baseRate = 1.0 / 120.0;
 		double exponentialFactor = 1.0 + (tempDiffMagnitude / 40.0);
 		double rate = baseRate * exponentialFactor;
-
-		// double surfaceAreaFactor = Math.Pow(body.Weight / 70.0, -0.2);
 
 		double tempChange = insulatedDiff * rate;
 		data.Temperature += tempChange;
@@ -146,7 +148,7 @@ public static class SurvivalProcessor
 		data.Calories += update.Calories;
 		data.Hydration += update.Hydration;
 		data.Temperature += update.Temperature;
-		data.Energy -= update.Exhaustion;
+		data.Energy -= update.Energy;
 	}
 
 
@@ -285,95 +287,4 @@ public static class SurvivalProcessor
 		return new SurvivalProcessorResult(data);
 	}
 
-	public static void Describe(SurvivalData data)
-	{
-		const int boxWidth = 53;
-		const int barWidth = 20;
-
-		// Calculate percentages
-		int caloriesPercent = (int)(data.Calories / MAX_CALORIES * 100);
-		int hydrationPercent = (int)(data.Hydration / MAX_HYDRATION * 100);
-		int energyPercent = (int)(data.Energy / MAX_ENERGY_MINUTES * 100);
-
-		// Create progress bars
-		string caloriesBar = CreateProgressBar(caloriesPercent, barWidth);
-		string hydrationBar = CreateProgressBar(hydrationPercent, barWidth);
-		string energyBar = CreateProgressBar(energyPercent, barWidth);
-
-		// Status descriptions
-		string caloriesStatus = GetCaloriesStatus(caloriesPercent);
-		string hydrationStatus = GetHydrationStatus(hydrationPercent);
-		string exhaustionStatus = GetEnergyStatus(energyPercent);
-		string tempStatus = GetTemperatureStatus(data.Temperature);
-
-		// Build status lines
-		string healthLine = $"Food:    [{caloriesBar}] {caloriesPercent}% {caloriesStatus}";
-		string waterLine =  $"Water:   [{hydrationBar}] {hydrationPercent}% {hydrationStatus}";
-		string energyLine = $"Energy:  [{energyBar}] {energyPercent}% {exhaustionStatus}";
-		string tempLine =   $"Temp:    {data.Temperature:F1}°F ({tempStatus})";
-
-		// Display with proper padding
-		Output.WriteLine($"┌{new string('─', boxWidth)}┐");
-		Output.WriteLine($"│ {healthLine,-(boxWidth - 2)} │");
-		Output.WriteLine($"│ {waterLine,-(boxWidth - 2)} │");
-		Output.WriteLine($"│ {energyLine,-(boxWidth - 2)} │");
-		Output.WriteLine($"│ {tempLine,-(boxWidth - 2)} │");
-		Output.WriteLine($"└{new string('─', boxWidth)}┘");
-	}
-
-	private static string CreateProgressBar(int percent, int width)
-	{
-		int filled = (int)(percent / 100.0 * width);
-		int empty = width - filled;
-		return new string('█', filled) + new string('░', empty);
-	}
-
-	private static string GetCaloriesStatus(int percent)
-	{
-		return percent switch
-		{
-			>= 80 => "Well Fed",
-			>= 60 => "Satisfied",
-			>= 40 => "Peckish",
-			>= 20 => "Hungry",
-			_ => "Starving"
-		};
-	}
-
-	private static string GetHydrationStatus(int percent)
-	{
-		return percent switch
-		{
-			>= 80 => "Hydrated",
-			>= 60 => "Fine",
-			>= 40 => "Thirsty",
-			>= 20 => "Parched",
-			_ => "Dehydrated"
-		};
-	}
-
-	private static string GetEnergyStatus(int percent)
-	{
-		return percent switch
-		{
-			>= 90 => "Energized",
-			>= 80 => "Alert",
-			>= 40 => "Normal",
-			>= 30 => "Tired",
-			>= 20 => "Very Tired",
-			_ => "Exhausted"
-		};
-	}
-
-	private static string GetTemperatureStatus(double temp)
-	{
-		return temp switch
-		{
-			>= 100 => "Feverish",
-			>= 99 => "Hot",
-			>= 97 => "Normal",
-			>= 95 => "Cool",
-			_ => "Cold"
-		};
-	}
 }

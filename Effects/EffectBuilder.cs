@@ -318,7 +318,7 @@ public static class EffectBuilderExtensions
 
     public static EffectBuilder CausesExhaustion(this EffectBuilder builder, double exhaustionPerMinute)
     {
-        return builder.WithSurvivalStatsUpdate(new SurvivalStatsUpdate { Exhaustion = exhaustionPerMinute });
+        return builder.WithSurvivalStatsUpdate(new SurvivalStatsUpdate { Energy = exhaustionPerMinute });
     }
 
     public static EffectBuilder AffectsTemperature(this EffectBuilder builder, double hourlyTemperatureChange)

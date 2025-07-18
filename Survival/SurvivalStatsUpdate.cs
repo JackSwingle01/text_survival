@@ -5,7 +5,7 @@ public class SurvivalStatsUpdate
     public double Temperature;
     public double Calories;
     public double Hydration;
-    public double Exhaustion;
+    public double Energy;
 
     /// <summary>
     /// Returns a new SurvivalStatsUpdate with the update added
@@ -19,7 +19,7 @@ public class SurvivalStatsUpdate
             Calories = this.Calories + update.Calories,
             Temperature = this.Temperature + update.Temperature,
             Hydration = this.Hydration + update.Hydration,
-            Exhaustion = this.Exhaustion + update.Exhaustion,
+            Energy = this.Energy + update.Energy,
         };
     }
 
@@ -35,7 +35,7 @@ public class SurvivalStatsUpdate
             Calories = this.Calories * multiplier,
             Temperature = this.Temperature * multiplier,
             Hydration = this.Hydration * multiplier,
-            Exhaustion = this.Exhaustion * multiplier
+            Energy = this.Energy * multiplier
         };
     }
 }

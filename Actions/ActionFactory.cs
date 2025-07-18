@@ -28,7 +28,7 @@ public static class ActionFactory
         public static IGameAction MainMenu()
         {
             return CreateAction("Main Menu")
-                   .Do(ctx => ctx.player.Body.DescribeSurvivalStats())
+                   .Do(ctx => BodyDescriber.DescribeSurvivalStats(ctx.player.Body.BundleSurvivalData(), ctx.player.GetSurvivalContext()))
                    .ThenShow(ctx => [
                         Describe.LookAround(ctx.currentLocation),
                         Survival.Forage(),

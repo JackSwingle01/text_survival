@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+
 using text_survival.Effects;
 using text_survival.IO;
 using text_survival.Items;
@@ -181,9 +181,6 @@ public class Body
             return stats;
         }
     }
-
-    public void DescribeSurvivalStats() => SurvivalProcessor.Describe(BundleSurvivalData());
-
     public bool Rest(int minutes)
     {
         var data = BundleSurvivalData();
