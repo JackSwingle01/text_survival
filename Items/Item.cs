@@ -3,23 +3,14 @@ using text_survival.IO;
 
 namespace text_survival.Items
 {
-    public class Item
+    public class Item(string name, double weight = 1)
     {
-        public string Name { get; set; }
-        public double Weight { get; set; } // in kg
+        public string Name { get; set; } = name;
+        public double Weight { get; set; } = weight;
         public string Description { get; set; } = "";
-        public double Quality { get; set; } // percentage 0% being extremely poor quality, 100% being perfect quality
         public bool IsFound { get; set; }
-        public int NumUses { get; set; }
+        public int NumUses { get; set; } = -1; // not consumable
         public List<ItemCraftingProperty> CraftingProperties = [];
-
-        public Item(string name, double weight = 1, int quality = 50)
-        {
-            Name = name;
-            Weight = weight;
-            Quality = quality;
-            NumUses = -1; // not consumable
-        }
 
         public void Describe()
         {

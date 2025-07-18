@@ -47,7 +47,7 @@
         public double Craftsmanship { get; set; }
 
         public Weapon(WeaponType type, WeaponMaterial material, string name = "", int craftsmanship = 50)
-            : base(name, quality: craftsmanship)
+            : base(name)
         {
             Craftsmanship = craftsmanship;
             SetBaseStats(type);

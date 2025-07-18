@@ -15,7 +15,7 @@ namespace text_survival.Items
         /// Insulation should be a value between 0-1 of what percent of the skin-air temp differential it blocks
         /// </summary>
         public double Insulation { get; set; } 
-        public Gear(string name, double weight = 1, int quality = 50) : base(name, weight, quality)
+        public Gear(string name, double weight = 1) : base(name, weight)
         {
             EquipEffects = [];
         }

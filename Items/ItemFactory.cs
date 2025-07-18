@@ -6,31 +6,6 @@ namespace text_survival.Items
 {
     public class ItemFactory
     {
-        public static readonly Dictionary<string, Func<Item>> ItemDefinitions = new()
-        {
-            { "Mushroom", MakeMushroom },
-            { "Berries", MakeBerry },
-            { "Roots", MakeRoots },
-            { "Water", MakeWater },
-            { "Stick", MakeStick },
-            { "Firewood", MakeFirewood },
-            { "Flint", MakeFlint },
-            { "Clay", MakeClay },
-            { "Stone", MakeStone },
-            { "Bone", MakeBone },
-            { "Spear", MakeSpear },
-            { "Club", MakeClub },
-            { "HandAxe", MakeHandAxe },
-            { "Knife", MakeKnife },
-            { "Hide Shield", MakeHideShield },
-            { "Fur Armor", MakeFurArmor },
-            { "Healing Herbs", MakeHealingHerbs },
-            { "Bandage", MakeBandage },
-            { "Torch", MakeTorch },
-            { "Fish", MakeFish },
-            { "Primitive Weapon", Weapon.GenerateRandomWeapon }
-        };
-
         public static Weapon MakeFists()
         {
             return new Weapon(WeaponType.Unarmed, WeaponMaterial.Organic, "Bare Hands");
@@ -115,7 +90,7 @@ namespace text_survival.Items
             {
                 Description = "Dry wood gathered for making fires. Essential for warmth and cooking.",
                 Weight = 1.5,
-                
+
             };
             return wood;
         }

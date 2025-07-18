@@ -174,16 +174,6 @@ public class CraftingRecipe(string name, string description = "")
         {
             property.Quality = Math.Min(1.0, property.Quality * qualityMultiplier);
         }
-
-        // Apply to legacy quality system too
-        if (item is Weapon weapon)
-        {
-            weapon.Quality = Math.Min(100, weapon.Quality * qualityMultiplier);
-        }
-        else if (item is Armor armor)
-        {
-            armor.Quality = Math.Min(100, armor.Quality * qualityMultiplier);
-        }
     }
 }
 

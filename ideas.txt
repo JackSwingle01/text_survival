@@ -1,5 +1,6 @@
 P1 - Implement Next
 
+Add crafting system properties to items
 add dynamic event prompts -> you are hungry, eat x?
 suggested actions?
 hidden vs visible items, don't reveal all at first look, (look carefully takes time)
@@ -9,7 +10,6 @@ add more ice age fauna
 Make weather system more object based
 Make less items on the ground in new areas
 Improve Combat - More dynamic, more choices, affected by game, location, and body state, descriptions
-Crafting system - give things to do with foraged resources
 Shelter building - Build shelter locations as sub locations to existing ones
 Fire Management - Craft to add to location for warmth bonus
 Add hunting - outside of combat to engage animals (with chance to trigger combat or flee)

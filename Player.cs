@@ -141,7 +141,6 @@ public class Player : Actor
                 inventoryManager.RemoveFromInventory(item);
             }
         }
-        World.Update(1);
     }
 
     public bool ModifyWeapon(double damage)
