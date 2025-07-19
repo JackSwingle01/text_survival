@@ -160,9 +160,9 @@ namespace text_survival.Bodies
         private static string GetTrendIndicator(Effect effect)
         {
             if (effect.hourlySeverityChange > 0)
-                return " (+)";
+                return " +";
             else if (effect.hourlySeverityChange < 0)
-                return " (-)";
+                return " -";
             else
                 return "";
         }

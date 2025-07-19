@@ -10,5 +10,5 @@ public class GameContext(Player player)
     public Location currentLocation => player.CurrentLocation;
     public IGameAction? NextActionOverride { get; set; }
     public Npc? EngagedEnemy;
-    public CraftingSystem? CraftingManager { get; set; }
+    public CraftingSystem CraftingManager = new CraftingSystem(player); 
 }

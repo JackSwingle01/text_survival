@@ -35,10 +35,7 @@ namespace text_survival
             World.Player = player;
             
             var defaultAction = ActionFactory.Common.MainMenu();
-            var context = new GameContext(player)
-            {
-                CraftingManager = new CraftingSystem(player)
-            }; 
+            var context = new GameContext(player);
             while (true)
             {
                 defaultAction.Execute(context);

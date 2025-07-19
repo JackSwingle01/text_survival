@@ -47,7 +47,7 @@ public static class CombatNarrator
     }
 
     // Legacy method for backward compatibility
-    public static string DescribeAttack(Actor attacker, Actor target, double damage, string targetPart, bool isHit, bool isDodged, bool isBlocked)
+    public static string DescribeAttack(Actor attacker, Actor target, double damage, string? targetPart, bool isHit, bool isDodged, bool isBlocked)
     {
         var sb = new System.Text.StringBuilder();
 

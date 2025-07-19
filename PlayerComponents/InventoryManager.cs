@@ -60,10 +60,10 @@ public class InventoryManager
     {
         get
         {
-            foreach (var a in Armor)
-            {
-                Output.WriteLine(a, a.Insulation);
-            }
+            // foreach (var a in Armor)
+            // {
+            //     Output.WriteLine(a, " ", a.Insulation * 100);
+            // }
             return Armor.Sum(a => a.Insulation);
         }
     }
