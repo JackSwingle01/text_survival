@@ -30,7 +30,7 @@ public static class CombatNarrator
         var sb = new System.Text.StringBuilder();
 
         // 1. Attack Initiation
-        string targetPart = damageResult?.HitPartName ?? "body";
+        string targetPart = damageResult?.HitPartName ?? "Body";
         sb.Append(DescribeAttackAttempt(attacker, target, targetPart));
 
         // 2. Attack Resolution
@@ -42,27 +42,6 @@ public static class CombatNarrator
             sb.Append(DescribeMiss(attacker, target));
         else if (damageResult != null)
             sb.Append(DescribeHit(attacker, target, damageResult));
-
-        return sb.ToString();
-    }
-
-    // Legacy method for backward compatibility
-    public static string DescribeAttack(Actor attacker, Actor target, double damage, string? targetPart, bool isHit, bool isDodged, bool isBlocked)
-    {
-        var sb = new System.Text.StringBuilder();
-
-        // 1. Attack Initiation
-        sb.Append(DescribeAttackAttempt(attacker, target, targetPart));
-
-        // 2. Attack Resolution
-        if (isDodged)
-            sb.Append(DescribeDodge(attacker, target));
-        else if (isBlocked)
-            sb.Append(DescribeBlock(attacker, target));
-        else if (!isHit)
-            sb.Append(DescribeMiss(attacker, target));
-        else
-            sb.Append(DescribeHitLegacy(attacker, target, damage, targetPart));
 
         return sb.ToString();
     }
@@ -176,27 +155,7 @@ public static class CombatNarrator
         return sb.ToString();
     }
 
-    // Legacy method for backward compatibility
-    private static string DescribeHitLegacy(Actor attacker, Actor target, double damage, string targetPart)
-    {
-        WeaponClass weaponClass = attacker.ActiveWeapon.Class;
 
-        // Get appropriate attack verb based on weapon class
-        string attackVerb = GetAttackVerb(weaponClass);
-
-        // Describe damage severity
-        string damageDesc = GetDamageSeverity(damage);
-
-        // Describe hit
-        if (attacker is Player)
-        {
-            return $"Your attack {attackVerb} the {target.Name}'s {targetPart}, dealing {damageDesc} damage! ({Math.Round(damage, 1)})";
-        }
-        else
-        {
-            return $"The {attacker.Name}'s attack {attackVerb} your {targetPart}, dealing {damageDesc} damage! ({Math.Round(damage, 1)})";
-        }
-    }
 
     private static string GetAttackVerb(WeaponClass weaponClass)
     {
@@ -209,11 +168,11 @@ public static class CombatNarrator
     {
         return damage switch
         {
-            <= 2 => "minimal",
-            <= 5 => "light",
-            <= 10 => "moderate",
-            <= 15 => "severe",
-            <= 25 => "critical",
+            <= 0.05 => "minimal",
+            <= 0.1 => "light",
+            <= 0.25 => "moderate",
+            <= 0.5 => "severe",
+            <= 1 => "critical",
             _ => "devastating"
         };
     }
@@ -233,14 +192,14 @@ public static class CombatNarrator
 
     public static string DescribeCombatStart(Actor player, Actor enemy)
     {
-        List<string> possibleStarts = new()
-        {
+        List<string> possibleStarts =
+        [
             $"A {enemy.Name} emerges, its {enemy.ActiveWeapon.Name} at the ready!",
             $"A {enemy.Name} appears and prepares to attack!",
             $"You find yourself face to face with a {enemy.Name}!",
             $"A hostile {enemy.Name} blocks your path!",
             $"A {enemy.Name} lunges towards you suddenly!"
-        };
+        ];
 
         // Add special descriptions for certain enemy types
         if (enemy.Name.Contains("Wolf"))

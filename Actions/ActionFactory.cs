@@ -481,10 +481,10 @@ public static class ActionFactory
             ConsoleColor oldColor = Console.ForegroundColor;
             // Player status
             Console.ForegroundColor = GetHealthColor(player.Body.Health / player.Body.MaxHealth);
-            Output.WriteLine($"You: {Math.Round(player.Body.Health, 0)}/{Math.Round(player.Body.MaxHealth, 0)} HP");
+            Output.WriteLine($"You: {Math.Round(player.Body.Health *100, 0)}/{Math.Round(player.Body.MaxHealth*100, 1)} HP");
             // Enemy status
             Console.ForegroundColor = GetHealthColor(enemy.Body.Health / enemy.Body.MaxHealth);
-            Output.WriteLine($"{enemy.Name}: {Math.Round(enemy.Body.Health, 0)}/{Math.Round(enemy.Body.MaxHealth, 0)} HP");
+            Output.WriteLine($"{enemy.Name}: {Math.Round(enemy.Body.Health*100, 0)}/{Math.Round(enemy.Body.MaxHealth*100, 0)} HP");
             Console.ForegroundColor = oldColor;
         }
 

@@ -1,6 +1,5 @@
 P1 - Implement Next
 
-Add crafting system properties to items
 add dynamic event prompts -> you are hungry, eat x?
 suggested actions?
 hidden vs visible items, don't reveal all at first look, (look carefully takes time)
@@ -20,7 +19,6 @@ P2
 
 Injury and Disease System - Progressive health challenges with treatments
 Shamanism and Ritual - Material-based magic system
-Property-Based Crafting Framework - crafting system using item properties (like elder scrolls' alchemy system)
 More Content - Additional items, NPCs, locations
 Polish IO - Rich atmospheric descriptions
 Chronic Conditions - Long-term health management

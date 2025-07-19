@@ -100,7 +100,7 @@ public class CombatManager
         if (isDodged)
         {
             // Use our narrator for rich descriptions
-            string description = CombatNarrator.DescribeAttack(Owner, target, 0, null, false, true, false);
+            string description = CombatNarrator.DescribeAttack(Owner, target, null, false, true, false);
             Output.WriteLine(description);
             return;
         }
@@ -108,7 +108,7 @@ public class CombatManager
         bool isHit = DetermineHit();
         if (!isHit)
         {
-            string description = CombatNarrator.DescribeAttack(Owner, target, 0, null, false, false, false);
+            string description = CombatNarrator.DescribeAttack(Owner, target, null, false, false, false);
             Output.WriteLine(description);
             return;
         }
@@ -117,7 +117,7 @@ public class CombatManager
         bool isBlocked = DetermineBlock(target);
         if (isBlocked)
         {
-            string description = CombatNarrator.DescribeAttack(Owner, target, 0, null, true, false, true);
+            string description = CombatNarrator.DescribeAttack(Owner, target, null, true, false, true);
             Output.WriteLine(description);
             return;
         }

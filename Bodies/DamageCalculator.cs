@@ -1,5 +1,3 @@
-using System.Security.Cryptography.X509Certificates;
-
 namespace text_survival.Bodies;
 
 public class DamageResult
@@ -9,7 +7,7 @@ public class DamageResult
     public double HitPartHealthBefore { get; set; }
     public double HitPartHealthAfter { get; set; }
     public double TotalDamageDealt => HitPartHealthBefore - HitPartHealthAfter;
-    public List<(string TissueName, double DamageTaken)> TissuesDamaged { get; set; } = new();
+    public List<(string TissueName, double DamageTaken)> TissuesDamaged { get; set; } = [];
     public bool OrganHit { get; set; }
     public string? OrganHitName { get; set; }
     public bool WasPenetrating { get; set; } // Did damage go through layers
