@@ -7,7 +7,7 @@ public class RecipeBuilder
 {
     private string _name = "";
     private string _description = "";
-    private List<PropertyRequirement> _requiredProperties = [];
+    private List<CraftingPropertyRequirement> _requiredProperties = [];
     private CraftingResultType _resultType = CraftingResultType.Item;
     private List<ItemResult> _resultItems = [];
     private LocationFeatureResult? _locationFeatureResult;
@@ -29,14 +29,14 @@ public class RecipeBuilder
         return this;
     }
 
-    public RecipeBuilder WithPropertyRequirement(PropertyRequirement requirement)
+    public RecipeBuilder WithPropertyRequirement(CraftingPropertyRequirement requirement)
     {
         _requiredProperties.Add(requirement);
         return this;
     }
-    public RecipeBuilder WithPropertyRequirement(string propertyName, double minQuantity = 1, double minQuality = 1, bool isConsumed=true)
+    public RecipeBuilder WithPropertyRequirement(ItemProperty property, double minQuantity = 1, bool isConsumed=true)
     {
-        _requiredProperties.Add(new PropertyRequirement(propertyName, minQuantity, minQuality, isConsumed));
+        _requiredProperties.Add(new CraftingPropertyRequirement(property, minQuantity, isConsumed));
         return this;
     }
 

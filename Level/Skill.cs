@@ -4,19 +4,13 @@ using text_survival.IO;
 
 namespace text_survival.Level
 {
-    public class Skill
+    public class Skill(string name)
     {
-        public int Xp;
-        public int Level { get; private set; }
-        public string Name { get; set; }
+        public int Xp = 0;
+        public int Level { get; private set; } = 0;
+        public string Name { get; set; } = name;
         public int LevelUpThreshold => (Level) * 10;
 
-        public Skill(string name)
-        {
-            Name = name;
-            Xp = 0;
-            Level = 0;
-        }
         public void GainExperience(int xp)
         {
             Xp += xp;

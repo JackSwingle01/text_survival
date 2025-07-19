@@ -16,7 +16,7 @@ public class CraftingRecipe(string name, string description = "")
 {
     public string Name { get; set; } = name;
     public string Description { get; set; } = description;
-    public List<PropertyRequirement> RequiredProperties { get; set; } = [];
+    public List<CraftingPropertyRequirement> RequiredProperties { get; set; } = [];
     public CraftingResultType ResultType { get; set; } = CraftingResultType.Item;
     public List<ItemResult> ResultItems { get; set; } = [];
     public LocationFeatureResult? LocationFeatureResult { get; set; }
@@ -62,29 +62,23 @@ public class CraftingRecipe(string name, string description = "")
         return true;
     }
 
-    private static bool HasSufficientProperty(Player player, PropertyRequirement requirement)
+    private static bool HasSufficientProperty(Player player, CraftingPropertyRequirement requirement)
     {
         double totalAmount = 0;
-        double averageQuality = 0;
         int itemCount = 0;
 
         foreach (var stack in player.inventoryManager.Items)
         {
             var item = stack.FirstItem;
-            var property = item.GetProperty(requirement.PropertyName);
+            var property = item.GetProperty(requirement.Property);
 
-            if (property != null && property.Quality >= requirement.MinQuality)
+            if (property != null)
             {
-                totalAmount += property.Quantity * stack.Count;
-                averageQuality += property.Quality * stack.Count;
+                totalAmount += stack.TotalWeight;
                 itemCount += stack.Count;
             }
         }
-
-        if (itemCount > 0)
-            averageQuality /= itemCount;
-
-        return totalAmount >= requirement.MinQuantity && averageQuality >= requirement.MinQuality;
+        return totalAmount >= requirement.MinQuantity;
     }
 
     private static bool HasFire(Location location)
@@ -100,12 +94,11 @@ public class CraftingRecipe(string name, string description = "")
         }
     }
 
-    private static void ConsumeProperty(Player player, PropertyRequirement requirement)
+    private static void ConsumeProperty(Player player, CraftingPropertyRequirement requirement)
     {
         double remainingNeeded = requirement.MinQuantity;
         var eligibleStacks = player.inventoryManager.Items
-            .Where(stack => stack.FirstItem.HasProperty(requirement.PropertyName, 0, requirement.MinQuality))
-            .OrderByDescending(stack => stack.FirstItem.GetProperty(requirement.PropertyName)?.Quality)
+            .Where(stack => stack.FirstItem.HasProperty(requirement.Property, 0))
             .ToList();
 
         foreach (var stack in eligibleStacks)
@@ -113,19 +106,19 @@ public class CraftingRecipe(string name, string description = "")
             while (stack.Count > 0 && remainingNeeded > 0)
             {
                 var item = stack.FirstItem;
-                var property = item.GetProperty(requirement.PropertyName);
+                var property = item.GetProperty(requirement.Property);
 
-                if (property != null && property.Quantity <= remainingNeeded)
+                if (property != null && item.Weight <= remainingNeeded)
                 {
                     // Consume entire item
-                    remainingNeeded -= property.Quantity;
+                    remainingNeeded -= item.Weight;
                     var consumedItem = stack.Pop();
                     player.inventoryManager.RemoveFromInventory(consumedItem);
                 }
                 else if (property != null)
                 {
                     // Partially consume item (reduce its property amount)
-                    property.Quantity -= remainingNeeded;
+                    item.Weight -= remainingNeeded;
                     remainingNeeded = 0;
                 }
             }
@@ -147,10 +140,6 @@ public class CraftingRecipe(string name, string description = "")
             for (int i = 0; i < result.Quantity; i++)
             {
                 var item = result.ItemFactory();
-
-                // Apply quality bonus based on skill and input quality
-                ApplyQualityBonus(item, skill.Level, GetInputQuality());
-
                 results.Add(item);
             }
         }
@@ -165,16 +154,6 @@ public class CraftingRecipe(string name, string description = "")
         return 1; // Placeholder
     }
 
-    private void ApplyQualityBonus(Item item, int skillLevel, double inputQuality)
-    {
-        double skillBonus = skillLevel * 0.02; // 2% per skill level
-        double qualityMultiplier = 1 + skillBonus + (inputQuality * 0.1);
-
-        foreach (var property in item.CraftingProperties)
-        {
-            property.Quality = Math.Min(1.0, property.Quality * qualityMultiplier);
-        }
-    }
 }
 
 

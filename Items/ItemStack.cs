@@ -6,6 +6,8 @@ public class ItemStack
     public Item FirstItem { get; private set; }
     public Stack<Item> Items { get; private set; }
     public int Count => Items.Count;
+
+    public double TotalWeight => Items.Sum(i => i.Weight);
     
     public ItemStack(Item item)
     {

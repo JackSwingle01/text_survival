@@ -76,12 +76,11 @@ public class CraftingSystem
         _player.Skills.GetSkill(recipe.RequiredSkill).GainExperience(xpGain);
     }
 
-    private static void ConsumeProperty(Player player, PropertyRequirement requirement)
+    private static void ConsumeProperty(Player player, CraftingPropertyRequirement requirement)
     {
         double remainingNeeded = requirement.MinQuantity;
         var eligibleStacks = player.inventoryManager.Items
-            .Where(stack => stack.FirstItem.HasProperty(requirement.PropertyName, 0, requirement.MinQuality))
-            .OrderByDescending(stack => stack.FirstItem.GetProperty(requirement.PropertyName)?.Quality)
+            .Where(stack => stack.FirstItem.HasProperty(requirement.Property, 0))
             .ToList();
 
         foreach (var stack in eligibleStacks)
@@ -89,19 +88,19 @@ public class CraftingSystem
             while (stack.Count > 0 && remainingNeeded > 0)
             {
                 var item = stack.FirstItem;
-                var property = item.GetProperty(requirement.PropertyName);
+                var property = item.GetProperty(requirement.Property);
 
-                if (property != null && property.Quantity <= remainingNeeded)
+                if (property != null && item.Weight <= remainingNeeded)
                 {
                     // Consume entire item
-                    remainingNeeded -= property.Quantity;
+                    remainingNeeded -= item.Weight;
                     var consumedItem = stack.Pop();
                     player.inventoryManager.RemoveFromInventory(consumedItem);
                 }
                 else if (property != null)
                 {
-                    // Partially consume item (reduce its property amount)
-                    property.Quantity -= remainingNeeded;
+                    // Partially consume item
+                    item.Weight -= remainingNeeded;
                     remainingNeeded = 0;
                 }
             }
@@ -134,9 +133,9 @@ public class CraftingSystem
             .Named("Stone Knife")
             .WithDescription("A simple cutting tool made from sharp stone.")
             .RequiringCraftingTime(15)
-            .WithPropertyRequirement("Stone", 1, .5)
-            .WithPropertyRequirement("Wood", .5, .3)
-            .WithPropertyRequirement("Binding", .2, .2)
+            .WithPropertyRequirement(ItemProperty.Stone, 1)
+            .WithPropertyRequirement(ItemProperty.Wood, .5)
+            .WithPropertyRequirement(ItemProperty.Binding, .2)
             .ResultingInItem(ItemFactory.MakeKnife)
             .Build();
         _recipes.Add("stone_knife", stoneKnife);
@@ -147,9 +146,9 @@ public class CraftingSystem
             .WithDescription("A hunting spear with a sharpened point.")
             .RequiringSkill("Crafting", 1)
             .RequiringCraftingTime(20)
-            .WithPropertyRequirement("Wood", 1.5, 0.6)
-            .WithPropertyRequirement("Stone", 0.5, 0.7)
-            .WithPropertyRequirement("Binding", 0.3, 0.4)
+            .WithPropertyRequirement(ItemProperty.Wood, 1.5)
+            .WithPropertyRequirement(ItemProperty.Stone, 0.5)
+            .WithPropertyRequirement(ItemProperty.Binding, 0.3)
             .ResultingInItem(ItemFactory.MakeSpear)
             .Build();
         _recipes.Add("spear", spear);
@@ -163,9 +162,9 @@ public class CraftingSystem
             .WithDescription("A fire pit for warmth, light, and cooking.")
             .RequiringSkill("Firecraft")
             .RequiringCraftingTime(20)
-            .WithPropertyRequirement("Flammable", 3, 0.4)
-            .WithPropertyRequirement("Stone", 2, 0.2) // For fire ring
-            .WithPropertyRequirement("Firestarter", .2, .5)
+            .WithPropertyRequirement(ItemProperty.Flammable, 3)
+            .WithPropertyRequirement(ItemProperty.Stone, 2) // For fire ring
+            .WithPropertyRequirement(ItemProperty.Firestarter, .2)
             .ResultingInLocationFeature(new LocationFeatureResult("Campfire", location =>
             {
                 var fireFeature = new HeatSourceFeature(location, 20.0);
@@ -184,9 +183,9 @@ public class CraftingSystem
             .WithDescription("A simple shelter that provides basic protection.")
             .RequiringSkill("Crafting", 1) //todo: add building skill?
             .RequiringCraftingTime(120)
-            .WithPropertyRequirement("Wood", 6, 0.4)
-            .WithPropertyRequirement("Binding", 1, 0.3)
-            .WithPropertyRequirement("Insulation", 2, 0.2, false) // Leaves, furs, etc.
+            .WithPropertyRequirement(ItemProperty.Wood, 6)
+            .WithPropertyRequirement(ItemProperty.Binding)
+            .WithPropertyRequirement(ItemProperty.Insulation, 2, false) // Leaves, furs, etc.
             .ResultingInStructure("Lean-to Shelter", CreateLeanToShelter)
             .Build();
         _recipes.Add("lean_to", leanTo);
@@ -197,10 +196,10 @@ public class CraftingSystem
             .WithDescription("A sturdy shelter providing excellent protection.")
             .RequiringSkill("Crafting", 3)
             .RequiringCraftingTime(480) // 8 hours
-            .WithPropertyRequirement("Wood", 20, 0.7)
-            .WithPropertyRequirement("Stone", 5, 0.5) // For foundation
-            .WithPropertyRequirement("Binding", 3, 0.5)
-            .WithPropertyRequirement("Insulation", 8, 0.4)
+            .WithPropertyRequirement(ItemProperty.Wood, 20)
+            .WithPropertyRequirement(ItemProperty.Stone, 5) // For foundation
+            .WithPropertyRequirement(ItemProperty.Binding, 3)
+            .WithPropertyRequirement(ItemProperty.Insulation, 8)
             .ResultingInStructure("Log Cabin", CreateLogCabin)
             .Build();
         _recipes.Add("log_cabin", cabin);
@@ -215,10 +214,10 @@ public class CraftingSystem
             .RequiringSkill("Firecraft")
             .RequiringCraftingTime(15)
             .RequiringFire(true)
-            .WithPropertyRequirement("RawMeat", 1, 0.2)
+            .WithPropertyRequirement(ItemProperty.RawMeat, 1)
             .ResultingInItem(() => new FoodItem("Cooked Meat", 800, 0, 1.0)
             {
-                CraftingProperties = { new ItemCraftingProperty("CookedMeat", 1.2, 0.9) } // Cooking improves nutrition
+                CraftingProperties = [ItemProperty.CookedMeat]
             })
             .Build();
         _recipes.Add("cooked_meat", cookedMeat);

@@ -1,4 +1,5 @@
 ﻿using text_survival.Actors;
+using text_survival.Crafting;
 using text_survival.Effects;
 
 
@@ -59,7 +60,7 @@ namespace text_survival.Items
             var item = new FoodItem("Foraged Roots", 100, 20)
             {
                 Description = "Starchy roots dug from the ground. Tough but nutritious.",
-                Weight = 0.3F
+                Weight = 0.3F,
             };
             return item;
         }
@@ -79,7 +80,8 @@ namespace text_survival.Items
             Item stick = new Item("Sturdy Stick")
             {
                 Description = "A strong branch, useful for making tools and weapons.",
-                Weight = 0.5
+                Weight = 0.5,
+                CraftingProperties = [ItemProperty.Flammable, ItemProperty.Wood]
             };
             return stick;
         }
@@ -90,17 +92,18 @@ namespace text_survival.Items
             {
                 Description = "Dry wood gathered for making fires. Essential for warmth and cooking.",
                 Weight = 1.5,
-
+                CraftingProperties = [ItemProperty.Flammable, ItemProperty.Wood]
             };
             return wood;
         }
 
         public static Item MakeFlint()
         {
-            var flint = new Item("Knapping Flint")
+            var flint = new Item("Flint")
             {
                 Description = "Sharp-edged stone perfect for making cutting tools and starting fires.",
-                Weight = 0.2
+                Weight = 0.2,
+                CraftingProperties = [ItemProperty.Stone, ItemProperty.Firestarter, ItemProperty.Sharp]
             };
             return flint;
         }
@@ -110,7 +113,8 @@ namespace text_survival.Items
             var clay = new Item("River Clay")
             {
                 Description = "Malleable clay gathered from a riverbank. Could be shaped into vessels.",
-                Weight = 1.0
+                Weight = 1.0,
+                CraftingProperties = [ItemProperty.Clay]
             };
             return clay;
         }
@@ -120,7 +124,8 @@ namespace text_survival.Items
             var item = new Item("River Stone")
             {
                 Description = "A smooth river stone. Useful for tools or cooking.",
-                Weight = 0.5
+                Weight = 0.5,
+                CraftingProperties = [ItemProperty.Stone]
             };
             return item;
         }
@@ -130,47 +135,52 @@ namespace text_survival.Items
             var bone = new Item("Animal Bone")
             {
                 Description = "A sturdy bone from a large animal. Good material for tools and weapons.",
-                Weight = 0.3
+                Weight = 0.3,
+                CraftingProperties = [ItemProperty.Bone]
             };
             return bone;
         }
 
         public static Weapon MakeSpear()
         {
-            Weapon spear = new Weapon(WeaponType.Spear, WeaponMaterial.Wood, "Hunting Spear", 65)
+            Weapon spear = new Weapon(WeaponType.Spear, WeaponMaterial.Wood, "Hunting Spear")
             {
                 Description = "A long wooden shaft with a sharpened flint point. Good for hunting and defense.",
-                Weight = 1.5
+                Weight = 1.5,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Flammable, ItemProperty.Stone, ItemProperty.Sharp]
             };
             return spear;
         }
 
         public static Weapon MakeClub()
         {
-            Weapon club = new Weapon(WeaponType.Club, WeaponMaterial.Wood, "War Club", 60)
+            Weapon club = new Weapon(WeaponType.Club, WeaponMaterial.Wood, "War Club")
             {
                 Description = "A heavy wooden club reinforced with stone. Brutal but effective.",
-                Weight = 2.0
+                Weight = 2.0,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Stone, ItemProperty.Flammable]
             };
             return club;
         }
 
         public static Weapon MakeHandAxe()
         {
-            Weapon axe = new Weapon(WeaponType.HandAxe, WeaponMaterial.Stone, "Stone Hand Axe", 70)
+            Weapon axe = new Weapon(WeaponType.HandAxe, WeaponMaterial.Stone, "Stone Hand Axe")
             {
                 Description = "A sharp stone blade bound to a wooden handle with animal sinew.",
-                Weight = 1.8
+                Weight = 1.8,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Stone, ItemProperty.Flammable, ItemProperty.Binding, ItemProperty.Sharp]
             };
             return axe;
         }
 
         public static Weapon MakeKnife()
         {
-            Weapon knife = new Weapon(WeaponType.Knife, WeaponMaterial.Flint, "Flint Knife", 75)
+            Weapon knife = new Weapon(WeaponType.Knife, WeaponMaterial.Flint, "Flint Knife")
             {
                 Description = "A razor-sharp flint blade with a bone handle. Essential for skinning and cutting.",
-                Weight = 0.4
+                Weight = 0.4,
+                CraftingProperties = [ItemProperty.Stone, ItemProperty.Bone, ItemProperty.Sharp]
             };
             return knife;
         }
@@ -180,7 +190,8 @@ namespace text_survival.Items
             Armor shield = new Armor("Hide Shield", .15, EquipSpots.Hands, 1)
             {
                 Description = "A wooden frame covered with animal hide. Offers basic protection.",
-                Weight = 2.0
+                Weight = 2.0,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Hide, ItemProperty.Binding]
             };
             return shield;
         }
@@ -190,7 +201,8 @@ namespace text_survival.Items
             Armor armor = new Armor("Fur Armor", .25, EquipSpots.Chest, 8)
             {
                 Description = "A thick fur pelt worn as protection. Offers warmth and some defense against attacks.",
-                Weight = 3.0
+                Weight = 3.0,
+                CraftingProperties = [ItemProperty.Hide, ItemProperty.Insulation, ItemProperty.Binding]
             };
             return armor;
         }
@@ -200,7 +212,8 @@ namespace text_survival.Items
             var item = new FoodItem("Large Game Meat", 600, 0)
             {
                 Description = "A substantial cut of meat from a large animal. Will need to be cooked.",
-                Weight = 1.5
+                Weight = 1.5,
+                CraftingProperties = [ItemProperty.RawMeat, ItemProperty.Fat]
             };
             return item;
         }
@@ -210,7 +223,8 @@ namespace text_survival.Items
             var item = new FoodItem("Small Game Meat", 200, 0)
             {
                 Description = "A modest portion of meat from a small animal. Best cooked before eating.",
-                Weight = 0.5
+                Weight = 0.5,
+                CraftingProperties = [ItemProperty.RawMeat, ItemProperty.Fat]
             };
             return item;
         }
@@ -238,6 +252,7 @@ namespace text_survival.Items
             {
                 Description = "Strips of inner tree bark pounded soft. Can bind wounds and stop bleeding.",
                 Weight = 0.1,
+                CraftingProperties = [ItemProperty.Binding],
                 Effects = [
                     EffectBuilderExtensions.CreateEffect("stop bleed").From("bandage").ClearsEffectType("bleeding").AsInstantEffect().Build()
                 ]
@@ -250,7 +265,8 @@ namespace text_survival.Items
             Gear torch = new Gear("Pine Torch", 0.8)
             {
                 Description = "A branch wrapped with resin-soaked pine needles. Provides light and warmth.",
-                Insulation = 0.2
+                Insulation = 0.2,
+                CraftingProperties = [ItemProperty.Flammable, ItemProperty.Wood]
             };
             return torch;
         }
@@ -260,7 +276,8 @@ namespace text_survival.Items
             var item = new FoodItem("River Fish", 200, 0)
             {
                 Description = "A freshly caught fish. Rich in nutrients and relatively easy to obtain near water.",
-                Weight = 0.4
+                Weight = 0.4,
+                CraftingProperties = [ItemProperty.RawMeat, ItemProperty.Fat]
             };
             return item;
         }
@@ -272,7 +289,8 @@ namespace text_survival.Items
                 Description = "A fragile sac of venom extracted from a poisonous creature. Could coat a weapon.",
                 Weight = 0.1,
                 NumUses = 2,
-                Damage = 2
+                Damage = 2,
+                CraftingProperties = [ItemProperty.Poison]
             };
             return venom;
         }
@@ -283,7 +301,8 @@ namespace text_survival.Items
             {
                 Weight = 0.1,
                 Description = "Fine, strong threads collected from giant spider webs. Useful for binding and insulation.",
-                Warmth = 0.5
+                Warmth = 0.5,
+                CraftingProperties = [ItemProperty.Binding, ItemProperty.Insulation]
             };
             return silk;
         }
@@ -293,7 +312,8 @@ namespace text_survival.Items
             Armor hood = new Armor("Fur Hood", .05, EquipSpots.Head, .8)
             {
                 Description = "A hood made from animal fur. Keeps the head and ears warm in frigid weather.",
-                Weight = 0.3
+                Weight = 0.3,
+                CraftingProperties = [ItemProperty.Hide, ItemProperty.Insulation]
             };
             return hood;
         }
@@ -303,7 +323,8 @@ namespace text_survival.Items
             Armor tunic = new Armor("Leather Tunic", .10, EquipSpots.Chest, .12)
             {
                 Description = "A simple tunic made from tanned animal hide. Basic protection from the elements.",
-                Weight = 1.5
+                Weight = 1.5,
+                CraftingProperties = [ItemProperty.Hide, ItemProperty.Binding, ItemProperty.Insulation]
             };
             return tunic;
         }
@@ -313,7 +334,8 @@ namespace text_survival.Items
             Armor leggings = new Armor("Leather Pants", .08, EquipSpots.Legs, .1)
             {
                 Description = "Pants made from tanned animal hide. Protects the legs from brush and minor injuries.",
-                Weight = 1.0
+                Weight = 1.0,
+                CraftingProperties = [ItemProperty.Hide, ItemProperty.Binding, ItemProperty.Insulation]
             };
             return leggings;
         }
@@ -323,7 +345,8 @@ namespace text_survival.Items
             Armor shoes = new Armor("Hide Moccasins", .03, EquipSpots.Feet, .06)
             {
                 Description = "Soft footwear made from animal hide. More durable than bare feet on rough terrain.",
-                Weight = 0.4
+                Weight = 0.4,
+                CraftingProperties = [ItemProperty.Hide, ItemProperty.Binding, ItemProperty.Insulation]
             };
             return shoes;
         }
@@ -335,7 +358,8 @@ namespace text_survival.Items
                 Description = "A massive curved tusk from a woolly mammoth. Extremely valuable and rare.",
                 Weight = 10.0,
                 NumUses = 1,
-                Damage = 5
+                Damage = 5,
+                CraftingProperties = [ItemProperty.Bone, ItemProperty.Sharp]
             };
             return tusk;
         }
@@ -347,7 +371,8 @@ namespace text_survival.Items
                 Description = "A long, curved fang from a saber-tooth tiger. Could be fashioned into a deadly weapon.",
                 Weight = 0.3,
                 NumUses = 1,
-                Damage = 4
+                Damage = 4,
+                CraftingProperties = [ItemProperty.Bone, ItemProperty.Sharp]
             };
             return fang;
         }
@@ -357,7 +382,8 @@ namespace text_survival.Items
             Item antler = new Item("Antler Tine")
             {
                 Description = "A prong from a deer or elk antler. Useful for punching holes in hide or as a tool.",
-                Weight = 0.2
+                Weight = 0.2,
+                CraftingProperties = [ItemProperty.Bone, ItemProperty.Sharp]
             };
             return antler;
         }
@@ -367,7 +393,8 @@ namespace text_survival.Items
             Item sinew = new Item("Animal Sinew")
             {
                 Description = "Tough fibrous tissue from animal tendons. Essential for binding, sewing and bowstrings.",
-                Weight = 0.1
+                Weight = 0.1,
+                CraftingProperties = [ItemProperty.Binding]
             };
             return sinew;
         }
@@ -377,7 +404,8 @@ namespace text_survival.Items
             Armor necklace = new Armor("Bone Talisman", 0, EquipSpots.Chest, 0.5)
             {
                 Description = "A primitive necklace made from small bones and stones. Said to bring good fortune.",
-                Weight = 0.1
+                Weight = 0.1,
+                CraftingProperties = [ItemProperty.Bone]
             };
             return necklace;
         }
@@ -387,7 +415,8 @@ namespace text_survival.Items
             Item obsidian = new Item("Obsidian Shard")
             {
                 Description = "A piece of naturally occurring volcanic glass. Can be knapped into extremely sharp tools.",
-                Weight = 0.2
+                Weight = 0.2,
+                CraftingProperties = [ItemProperty.Stone, ItemProperty.Sharp]
             };
             return obsidian;
         }
@@ -398,6 +427,7 @@ namespace text_survival.Items
             {
                 Description = "Earthy clay pigment used for body decoration, cave paintings, and hide treatment.",
                 Weight = 0.3
+                // No crafting properties - purely decorative/ceremonial item
             };
             return ochre;
         }

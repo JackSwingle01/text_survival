@@ -5,7 +5,6 @@ using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Magic;
-using text_survival.Survival;
 
 namespace text_survival.Actions;
 
@@ -636,6 +635,7 @@ public static class ActionFactory
 
                     return actions;
                 })
+                .When(ctx => ctx.CraftingManager.GetAvailableRecipes().Count > 0)
                 .Build();
         }
 
@@ -658,7 +658,7 @@ public static class ActionFactory
                     foreach (var req in recipe.RequiredProperties)
                     {
                         string consumed = req.IsConsumed ? "(consumed)" : "(used)";
-                        Output.WriteLine($"- {req.PropertyName}: {req.MinQuantity:F1}+ at {req.MinQuality:F1}+ quality {consumed}");
+                        Output.WriteLine($"- {req.Property}: {req.MinQuantity:F1}+ KG {consumed}");
                     }
 
                     // Show what player has
@@ -738,15 +738,15 @@ public static class ActionFactory
             // Materials rows
             foreach (var req in recipe.RequiredProperties)
             {
-                string material = req.PropertyName.Length > 31
-                    ? req.PropertyName[..28] + "..."
-                    : req.PropertyName;
+                string propertyName = req.Property.ToString();
+                string material = propertyName.Length > 31
+                    ? propertyName[..28] + "..."
+                    : propertyName;
 
                 string quantity = $"{req.MinQuantity:F1}x";
-                string quality = $"{req.MinQuality:F1}+";
                 string consumed = req.IsConsumed ? "✓" : "✗";
 
-                Output.WriteLine($"│ {material,-33} │ {quantity,6} │ {quality,7} │ {consumed,7} │");
+                Output.WriteLine($"│ {material,-33} │ {quantity,6} │ {0,7} │ {consumed,7} │");
             }
 
             Output.WriteLine($"└───────────────────────────────────┴────────┴─────────┴─────────┘");
@@ -759,22 +759,21 @@ public static class ActionFactory
                 {
                     Output.WriteLine("\n=== Your Material Properties ===");
 
-                    var propertyTotals = new Dictionary<string, (double amount, double avgQuality, int items)>();
+                    var propertyTotals = new Dictionary<ItemProperty, (double amount, int items)>();
 
                     foreach (var stack in ctx.player.inventoryManager.Items)
                     {
                         var item = stack.FirstItem;
                         foreach (var property in item.CraftingProperties)
                         {
-                            if (!propertyTotals.ContainsKey(property.Name))
+                            if (!propertyTotals.ContainsKey(property))
                             {
-                                propertyTotals[property.Name] = (0, 0, 0);
+                                propertyTotals[property] = (0, 0);
                             }
 
-                            var current = propertyTotals[property.Name];
-                            propertyTotals[property.Name] = (
-                                current.amount + (property.Quantity * stack.Count),
-                                current.avgQuality + (property.Quality * stack.Count),
+                            var current = propertyTotals[property];
+                            propertyTotals[property] = (
+                                current.amount + (item.Weight * stack.Count),
                                 current.items + stack.Count
                             );
                         }
@@ -782,9 +781,9 @@ public static class ActionFactory
 
                     foreach (var kvp in propertyTotals.OrderBy(x => x.Key))
                     {
-                        var (amount, qualitySum, items) = kvp.Value;
-                        double avgQuality = items > 0 ? qualitySum / items : 0;
-                        Output.WriteLine($"{kvp.Key}: {amount:F1} total (avg quality: {avgQuality:F2})");
+                        var (amount, items) = kvp.Value;
+                        
+                        Output.WriteLine($"{kvp.Key}: {amount:F1} total");
                     }
 
                     if (!propertyTotals.Any())
@@ -797,30 +796,28 @@ public static class ActionFactory
                 .Build();
         }
 
-        private static void ShowPlayerProperties(Player player, List<PropertyRequirement> requirements)
+        private static void ShowPlayerProperties(Player player, List<CraftingPropertyRequirement> requirements)
         {
             foreach (var req in requirements)
             {
                 double totalAmount = 0;
-                double totalQuality = 0;
                 int itemCount = 0;
 
                 foreach (var stack in player.inventoryManager.Items)
                 {
-                    var property = stack.FirstItem.GetProperty(req.PropertyName);
+                    var property = stack.FirstItem.GetProperty(req.Property);
                     if (property != null)
                     {
-                        totalAmount += property.Quantity * stack.Count;
-                        totalQuality += property.Quality * stack.Count;
+                        totalAmount += stack.TotalWeight;
+                        
                         itemCount += stack.Count;
                     }
                 }
 
-                double avgQuality = itemCount > 0 ? totalQuality / itemCount : 0;
-                bool sufficient = totalAmount >= req.MinQuantity && avgQuality >= req.MinQuality;
+                bool sufficient = totalAmount >= req.MinQuantity;
                 string status = sufficient ? "✓" : "✗";
 
-                Output.WriteLine($"  {status} {req.PropertyName}: {totalAmount:F1}/{req.MinQuantity:F1} (Q: {avgQuality:F2}/{req.MinQuality:F1})");
+                Output.WriteLine($"  {status} {req.Property}: {totalAmount:F1}/{req.MinQuantity:F1}");
             }
         }
     }

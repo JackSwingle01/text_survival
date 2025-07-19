@@ -9,8 +9,8 @@ namespace text_survival.Items
         public double Weight { get; set; } = weight;
         public string Description { get; set; } = "";
         public bool IsFound { get; set; }
-        public int NumUses { get; set; } = -1; // not consumable
-        public List<ItemCraftingProperty> CraftingProperties = [];
+        public int NumUses { get; set; } = -1; // -1 is not consumable
+        public List<ItemProperty> CraftingProperties = [];
 
         public void Describe()
         {
@@ -44,15 +44,15 @@ namespace text_survival.Items
             return Name;
         }
 
-        public ItemCraftingProperty? GetProperty(string name)
+        public ItemProperty? GetProperty(ItemProperty property)
         {
-            return CraftingProperties.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            return CraftingProperties.FirstOrDefault(p => p == property);
         }
 
-        public bool HasProperty(string name, double minAmount = 0, double minQuality = 0)
+        public bool HasProperty(ItemProperty name, double minAmount = 0)
         {
             var property = GetProperty(name);
-            return property != null && property.Quality >= minAmount && property.Quality >= minQuality;
+            return property != null && Weight >= minAmount;
         }
 
     }
