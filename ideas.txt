@@ -1,8 +1,5 @@
 P1 - Implement Next
 
-add dynamic event prompts -> you are hungry, eat x?
-suggested actions?
-hidden vs visible items, don't reveal all at first look, (look carefully takes time)
 more combat options (stealth, assess threat, trap, distract, ranged)
 Rebalance weather effects
 add more ice age fauna
@@ -31,6 +28,9 @@ Advanced Nutrition System - Protein, fat, carbohydrate tracking
 Parasites and Illness - Environmental health threats
 Weather Memory - Previous conditions affecting future weather
 Resource Regeneration - Realistic ecosystem balance
+add dynamic event prompts -> you are hungry, eat x?
+suggested actions?
+hidden vs visible items, don't reveal all at first look, (look carefully takes time)
 
 P3
 

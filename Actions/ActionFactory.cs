@@ -481,10 +481,10 @@ public static class ActionFactory
             ConsoleColor oldColor = Console.ForegroundColor;
             // Player status
             Console.ForegroundColor = GetHealthColor(player.Body.Health / player.Body.MaxHealth);
-            Output.WriteLine($"You: {Math.Round(player.Body.Health *100, 0)}/{Math.Round(player.Body.MaxHealth*100, 1)} HP");
+            Output.WriteLine($"You: {Math.Round(player.Body.Health * 100, 0)}/{Math.Round(player.Body.MaxHealth * 100, 1)} HP");
             // Enemy status
             Console.ForegroundColor = GetHealthColor(enemy.Body.Health / enemy.Body.MaxHealth);
-            Output.WriteLine($"{enemy.Name}: {Math.Round(enemy.Body.Health*100, 0)}/{Math.Round(enemy.Body.MaxHealth*100, 0)} HP");
+            Output.WriteLine($"{enemy.Name}: {Math.Round(enemy.Body.Health * 100, 0)}/{Math.Round(enemy.Body.MaxHealth * 100, 0)} HP");
             Console.ForegroundColor = oldColor;
         }
 
@@ -782,7 +782,7 @@ public static class ActionFactory
                     foreach (var kvp in propertyTotals.OrderBy(x => x.Key))
                     {
                         var (amount, items) = kvp.Value;
-                        
+
                         Output.WriteLine($"{kvp.Key}: {amount:F1} total");
                     }
 
@@ -809,7 +809,7 @@ public static class ActionFactory
                     if (property != null)
                     {
                         totalAmount += stack.TotalWeight;
-                        
+
                         itemCount += stack.Count;
                     }
                 }

@@ -28,13 +28,13 @@ public static class LocationFactory
         ForageFeature forageFeature = new ForageFeature(location, 1.2);
 
         // Add natural resources to the forage feature - more forest-appropriate items
-        forageFeature.AddResource(ItemFactory.MakeBerry, 5.0);     // Common
-        forageFeature.AddResource(ItemFactory.MakeWater, 2.0);     // Available but not as common
-        forageFeature.AddResource(ItemFactory.MakeMushroom, 4.0);  // Common in forests
-        forageFeature.AddResource(ItemFactory.MakeStick, 8.0);     // Very common
-        forageFeature.AddResource(ItemFactory.MakeFirewood, 4.0);   // Common
-        forageFeature.AddResource(ItemFactory.MakeRoots, 3.0);     // Fairly common
-        forageFeature.AddResource(ItemFactory.MakeFlint, 0.5);     // Rare
+        forageFeature.AddResource(ItemFactory.MakeBerry, .5);     // Common
+        forageFeature.AddResource(ItemFactory.MakeWater, .5);     // Available but not as common
+        forageFeature.AddResource(ItemFactory.MakeMushroom, .4);  // Common in forests
+        forageFeature.AddResource(ItemFactory.MakeStick, .8);     // Very common
+        forageFeature.AddResource(ItemFactory.MakeFirewood, .4);   // Common
+        forageFeature.AddResource(ItemFactory.MakeRoots, .3);     // Fairly common
+        forageFeature.AddResource(ItemFactory.MakeFlint, 0.1);     // Rare
 
         // Add the forage feature to the location's features
         location.Features.Add(forageFeature);

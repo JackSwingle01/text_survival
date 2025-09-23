@@ -77,7 +77,7 @@ namespace text_survival.Items
 
         public static Item MakeStick()
         {
-            Item stick = new Item("Sturdy Stick")
+            Item stick = new Item("Large Stick")
             {
                 Description = "A strong branch, useful for making tools and weapons.",
                 Weight = 0.5,
