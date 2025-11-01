@@ -2,6 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## IMPORTANT: Consult the dev-guidelines Skill
+
+**Always consult the `dev-guidelines` skill** (`.claude/skills/dev-guidelines/`) when working on this codebase. This skill provides comprehensive, detailed guidance on all game systems and architectural patterns.
+
+**The dev-guidelines skill is a LIVING DOCUMENT**:
+- If you encounter contradictions between this file and the skill, **ask the user which should be updated**
+- If implementation patterns have evolved beyond what's documented, **propose updating the skill**
+- If new systems are added that aren't documented, **suggest adding them to the skill**
+- The skill should always reflect the current state and best practices of the codebase
+
+**How to use the skill**:
+- It will auto-activate when working with C# files or game systems
+- Reference specific resource files for deep dives: `action-system.md`, `crafting-system.md`, `effect-system.md`, etc.
+- Use `complete-examples.md` for end-to-end feature implementation examples
+
 ## Project Overview
 
 Text Survival is a console-based survival RPG set in an Ice Age world with shamanistic elements. Built in C# (.NET 9.0), it emphasizes deep interconnected systems with a modular architecture inspired by RimWorld and The Long Dark. The game leverages its text-only format to create immersive survival gameplay focused on resource management, body simulation, and emergent storytelling.
@@ -155,3 +170,15 @@ Per the README roadmap, the game is moving away from generic RPG elements toward
 - Emphasize environmental challenges (cold, scarcity, weather)
 
 When adding content, prioritize thematic consistency with the Ice Age setting and survival focus over traditional RPG mechanics.
+
+---
+
+## Maintaining Documentation
+
+**This file and the dev-guidelines skill must stay synchronized**:
+- When architectural patterns change, update both
+- When new systems are added, document them in the skill
+- When design constraints evolve, reflect changes in both places
+- If something seems outdated or contradictory, ask the user to clarify and update accordingly
+
+The dev-guidelines skill (`.claude/skills/dev-guidelines/`) is the **detailed reference**, while this CLAUDE.md is the **quick overview**.
