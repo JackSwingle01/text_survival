@@ -308,48 +308,53 @@ ForageFeature was implemented before `.TakesMinutes()` pattern was fully establi
 
 ---
 
-### Crafting Preview Shows Incorrect Item Consumption
+### ~~Crafting Preview Shows Incorrect Item Consumption~~
 
 **Severity:** Medium - Display Bug
-**Location:** `CraftingRecipe.cs` PreviewConsumption method
-**Status:** 🔴 **ACTIVE** (discovered 2025-11-02 during playtest)
+**Location:** `CraftingRecipe.cs` PreviewConsumption method, `Item.cs` GetProperty method
+**Status:** ✅ **FIXED** (2025-11-02)
 
 **Reproduction:**
-1. Have: 1x Dry Grass (0.02kg), 1x Large Stick (0.5kg)
-2. Attempt to craft Hand Drill Fire (requires 0.5kg Wood + 0.1kg Tinder)
+1. Have: Dry Grass, Plant Fibers, Nuts, Grubs (items WITHOUT Flint/Stone properties)
+2. Attempt to craft "Flint and Steel" (requires Flint 0.2kg + Stone 0.3kg properties)
 3. Observe preview consumption list
 
 **Observed:**
-Preview shows will consume:
-- Dry Grass (0.02kg)
-- Large Stick (0.48kg)
-- Dry Grass (0.02kg) ← DUPLICATE
-- Large Stick (0.03kg) ← DUPLICATE
-
-Actual consumption after crafting:
-- Dry Grass (0.02kg) - only ONE consumed
-- Large Stick (0.5kg) - only ONE consumed
+Preview shows will consume items that DON'T have the required properties:
+- Dry Grass (0.02kg) - has Tinder, NOT Flint/Stone
+- Plant Fibers (0.04kg) - has PlantFiber, NOT Flint/Stone
+- Nuts (0.12kg) - food item, NO properties
+- Grubs (0.05kg) - food item, NO properties
 
 **Expected:**
-- Preview should match actual consumption
-- Should show: "Dry Grass (0.02kg), Large Stick (0.5kg)"
-- No duplicate entries
+- Preview should ONLY show items with Flint and Stone properties
+- Should only consume items that match the recipe requirements
 
-**Root Cause Hypothesis:**
-- PreviewConsumption() method may be simulating consumption twice
-- OR it's showing fractional consumption from same item as separate entries
-- The greedy algorithm is splitting single items into multiple consumption entries
+**Root Cause:**
+In `Item.cs:77-79`, the `GetProperty()` method returns the result of `FirstOrDefault()` on an enum list. When the property doesn't exist, `FirstOrDefault()` returns `default(ItemProperty)` which is `ItemProperty.Stone` (enum value 0), NOT null!
+
+This caused `HasProperty()` checks to incorrectly return true for items without the required property.
+
+**Fix:**
+Cast the enum list to nullable before calling `FirstOrDefault()`:
+
+```csharp
+// AFTER (FIXED):
+public ItemProperty? GetProperty(ItemProperty property)
+{
+    // Cast to nullable to ensure FirstOrDefault returns null when not found
+    return CraftingProperties.Cast<ItemProperty?>().FirstOrDefault(p => p == property);
+}
+```
 
 **Impact:**
-- Players see misleading information about material consumption
-- Looks like preview shows consuming 4 items when only 2 are consumed
-- Reduces trust in crafting system accuracy
+- Players saw completely wrong items in consumption preview
+- Reduced trust in crafting system accuracy
 
-**Testing Note:**
-- The ACTUAL consumption is correct (works as intended)
-- Only the PREVIEW display is wrong
+**Files Changed:**
+- `Items/Item.cs:77-82` - Fixed GetProperty() to properly return null for missing properties
 
-**Priority:** Medium - cosmetic bug in preview feature, actual crafting works
+**Priority:** Medium - Fixed enum default value bug affecting crafting preview
 
 ---
 

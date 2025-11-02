@@ -45,12 +45,6 @@ This document details the improvements made to the testing infrastructure for th
 
 ### 1. Renamed Test Directory
 
-**Change:**
-```diff
-- TmpDir = "tmp/"
-+ TmpDir = ".test_game_io/"
-```
-
 **Benefits:**
 - Hidden directory (`.` prefix) won't clutter project view
 - Clearly game-related name

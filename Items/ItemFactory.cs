@@ -111,7 +111,8 @@ namespace text_survival.Items
             {
                 Description = "A strong branch, useful for making tools and weapons.",
                 Weight = 0.5,
-                CraftingProperties = [ItemProperty.Flammable, ItemProperty.Wood]
+                FuelMassKg = 0.5,
+                CraftingProperties = [ItemProperty.Flammable, ItemProperty.Wood, ItemProperty.Fuel_Kindling]
             };
             return stick;
         }
@@ -120,9 +121,10 @@ namespace text_survival.Items
         {
             var wood = new Item("Firewood")
             {
-                Description = "Dry wood gathered for making fires. Essential for warmth and cooking.",
+                Description = "Dry softwood gathered for making fires. Essential for warmth and cooking.",
                 Weight = 1.5,
-                CraftingProperties = [ItemProperty.Flammable, ItemProperty.Wood]
+                FuelMassKg = 1.5,
+                CraftingProperties = [ItemProperty.Flammable, ItemProperty.Wood, ItemProperty.Fuel_Softwood]
             };
             return wood;
         }
@@ -157,7 +159,8 @@ namespace text_survival.Items
             {
                 Description = "Dried grass stems, brittle and sun-bleached. Catches fire easily when bundled.",
                 Weight = 0.02,
-                CraftingProperties = [ItemProperty.Tinder, ItemProperty.Flammable, ItemProperty.Insulation]
+                FuelMassKg = 0.02,
+                CraftingProperties = [ItemProperty.Tinder, ItemProperty.Fuel_Tinder, ItemProperty.Flammable, ItemProperty.Insulation]
             };
             return item;
         }
@@ -168,7 +171,8 @@ namespace text_survival.Items
             {
                 Description = "Papery inner bark peeled from birch or cedar. Burns well and can be twisted into cordage.",
                 Weight = 0.05,
-                CraftingProperties = [ItemProperty.Tinder, ItemProperty.Binding, ItemProperty.Flammable]
+                FuelMassKg = 0.05,
+                CraftingProperties = [ItemProperty.Tinder, ItemProperty.Fuel_Tinder, ItemProperty.Binding, ItemProperty.Flammable]
             };
             return item;
         }
@@ -179,7 +183,8 @@ namespace text_survival.Items
             {
                 Description = "A carefully prepared nest of dry grass, bark shavings, and plant fluff. Ready to catch the smallest spark.",
                 Weight = 0.03,
-                CraftingProperties = [ItemProperty.Tinder, ItemProperty.Flammable]
+                FuelMassKg = 0.03,
+                CraftingProperties = [ItemProperty.Tinder, ItemProperty.Fuel_Tinder, ItemProperty.Flammable]
             };
             return item;
         }
@@ -262,7 +267,8 @@ namespace text_survival.Items
             {
                 Description = "Blackened wood from incomplete burning. Can be used to harden other wood in fire or as fuel.",
                 Weight = 0.05,
-                CraftingProperties = [ItemProperty.Charcoal, ItemProperty.Flammable]
+                FuelMassKg = 0.05,
+                CraftingProperties = [ItemProperty.Charcoal, ItemProperty.Flammable, ItemProperty.Fuel_Softwood]
             };
             return item;
         }
@@ -306,11 +312,38 @@ namespace text_survival.Items
         {
             var bone = new Item("Animal Bone")
             {
-                Description = "A sturdy bone from a large animal. Good material for tools and weapons.",
+                Description = "A sturdy bone from a large animal. Good material for tools and weapons, or slow-burning fuel.",
                 Weight = 0.3,
-                CraftingProperties = [ItemProperty.Bone]
+                FuelMassKg = 0.3,
+                CraftingProperties = [ItemProperty.Bone, ItemProperty.Fuel_Bone]
             };
             return bone;
+        }
+
+        // --- Fuel Types ---
+
+        public static Item MakeHardwoodLog()
+        {
+            var log = new Item("Hardwood Log")
+            {
+                Description = "Dense hardwood from oak or ash. Burns hot and slow, ideal for long-lasting fires.",
+                Weight = 2.0,
+                FuelMassKg = 2.0,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Flammable, ItemProperty.Fuel_Hardwood]
+            };
+            return log;
+        }
+
+        public static Item MakePeatBlock()
+        {
+            var peat = new Item("Peat Block")
+            {
+                Description = "Compressed organic material from ancient bogs. Burns slowly with a distinctive smoky smell.",
+                Weight = 0.8,
+                FuelMassKg = 0.8,
+                CraftingProperties = [ItemProperty.Flammable, ItemProperty.Fuel_Peat]
+            };
+            return peat;
         }
 
         // ===== SPEAR PROGRESSION (Tier 1-5) =====

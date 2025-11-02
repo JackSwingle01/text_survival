@@ -77,10 +77,6 @@ startingArea.Features.Add(campfire);
 ### 4. Testing Infrastructure
 **Files:** `IO/TestModeIO.cs`, `play_game.sh`, `.gitignore`
 
-**Test Directory Renamed:**
-- OLD: `tmp/` (unsafe)
-- NEW: `.test_game_io/` (safe, hidden)
-
 **play_game.sh Rewritten:** (248 lines)
 - Process management (start/stop/restart/status)
 - Command synchronization (no stale output)

@@ -64,7 +64,9 @@ public class CraftingSystem
                         if (existingFire != null)
                         {
                             // Add fuel to existing fire instead of creating duplicate
-                            existingFire.AddFuel(newFire.FuelRemaining);
+                            // Transfer fuel mass from newly created fire to existing fire
+                            var initialFuel = ItemFactory.MakeFirewood();
+                            existingFire.AddFuel(initialFuel, newFire.FuelMassKg); // Transfer the fuel mass
                             Output.WriteSuccess($"You add fuel to the existing {recipe.LocationFeatureResult.FeatureName}.");
                             break;
                         }
@@ -374,8 +376,9 @@ public class CraftingSystem
             .WithPropertyRequirement(ItemProperty.Firestarter, .2)
             .ResultingInLocationFeature(new LocationFeatureResult("Campfire", location =>
             {
-                var fireFeature = new HeatSourceFeature(location, 20.0);
-                fireFeature.AddFuel(.8);
+                var fireFeature = new HeatSourceFeature(location);
+                var initialFuel = ItemFactory.MakeFirewood(); // 1.5kg softwood
+                fireFeature.AddFuel(initialFuel, 0.8); // Add 0.8kg of fuel
                 return fireFeature;
             }))
             .Build();

@@ -126,56 +126,84 @@ public static class ActionFactory
             {
                 var fire = ctx.currentLocation.GetFeature<HeatSourceFeature>()!;
 
-                // Display fire status
-                string fireStatus;
-                if (fire.IsActive && fire.FuelRemaining > 0)
+                // Display fire status with new physics system
+                string firePhase = fire.GetFirePhase();
+                double fireTemp = fire.GetCurrentFireTemperature();
+                double heatOutput = fire.GetEffectiveHeatOutput();
+                double fuelMinutes = fire.FuelRemaining * 60;
+
+                // Color-coded phase display
+                ConsoleColor phaseColor = firePhase switch
                 {
-                    double fuelMinutes = fire.FuelRemaining * 60;
-                    fireStatus = fire.FuelRemaining switch
+                    "Roaring" => ConsoleColor.Red,
+                    "Building" or "Steady" => ConsoleColor.Yellow,
+                    "Igniting" or "Dying" => ConsoleColor.DarkYellow,
+                    "Embers" => ConsoleColor.DarkYellow,
+                    _ => ConsoleColor.DarkGray
+                };
+
+                Console.ForegroundColor = phaseColor;
+                Output.WriteLine($"\n🔥 {fire.Name}: {firePhase} ({fireTemp:F0}°F)");
+                Console.ResetColor();
+
+                // Show detailed stats
+                if (fire.IsActive || fire.HasEmbers)
+                {
+                    Output.WriteLine($"   Heat contribution: +{heatOutput:F1}°F to location");
+                    Output.WriteLine($"   Fuel remaining: {fire.FuelMassKg:F2} kg (~{fuelMinutes:F0} min)");
+
+                    if (fire.HasEmbers)
                     {
-                        < 0.25 => $"nearly out ({fuelMinutes:F0} min remaining)",
-                        < 0.5 => $"dying ({fuelMinutes:F0} min remaining)",
-                        _ => $"burning well ({fuelMinutes:F0} min remaining)"
-                    };
-                }
-                else if (fire.HasEmbers)
-                {
-                    double emberMinutes = fire.EmberTimeRemaining * 60;
-                    fireStatus = $"glowing embers ({emberMinutes:F0} min remaining)";
-                }
-                else if (fire.FuelRemaining > 0)
-                {
-                    double fuelMinutes = fire.FuelRemaining * 60;
-                    fireStatus = $"cold with fuel ready ({fuelMinutes:F0} min)";
+                        double emberMinutes = fire.EmberTimeRemaining * 60;
+                        Output.WriteLine($"   Embers will last: {emberMinutes:F0} minutes");
+                    }
                 }
                 else
                 {
-                    fireStatus = "cold (no fuel)";
+                    Output.WriteLine($"   Status: Cold fire (no fuel)");
                 }
 
-                Output.WriteLine($"\nThe {fire.Name} is {fireStatus}.");
-                Output.WriteLine($"Fire fuel capacity: {fire.FuelRemaining:F2}/8.00 hours");
+                Output.WriteLine($"   Capacity: {fire.FuelMassKg:F2}/{fire.MaxFuelCapacityKg:F1} kg");
                 Output.WriteLine();
 
-                // Get all flammable items
-                var flammableStacks = ctx.player.inventoryManager.Items
-                    .Where(stack => stack.FirstItem.CraftingProperties.Contains(ItemProperty.Flammable))
+                // Get all fuel items (items with FuelMassKg > 0)
+                var fuelStacks = ctx.player.inventoryManager.Items
+                    .Where(stack => stack.FirstItem.IsFuel())
                     .ToList();
 
                 Output.WriteLine("Available fuel:");
-                var fuelOptions = new List<(ItemStack stack, double fuelValue, bool isSharp)>();
+                var fuelOptions = new List<(ItemStack stack, bool canAdd, bool isSharp)>();
 
-                foreach (var stack in flammableStacks)
+                foreach (var stack in fuelStacks)
                 {
                     var firstItem = stack.FirstItem;
-                    double fuelHours = firstItem.Weight * 0.5;
-                    double fuelMinutesForItem = fuelHours * 60;
+                    bool canAdd = fire.CanAddFuel(firstItem);
                     bool isSharp = firstItem.CraftingProperties.Contains(ItemProperty.Sharp);
 
-                    string warning = isSharp ? " ⚠ SHARP TOOL" : "";
-                    Output.WriteLine($"  {fuelOptions.Count + 1}. {stack.DisplayName} - {fuelMinutesForItem:F0} min each{warning}");
+                    var fuelType = firstItem.GetFuelType();
+                    string fuelInfo = fuelType.HasValue ? $"[{fuelType.Value}]" : "";
 
-                    fuelOptions.Add((stack, fuelHours, isSharp));
+                    // Show fuel mass and estimated burn time
+                    double massKg = firstItem.FuelMassKg;
+                    double burnHours = massKg; // Default 1kg/hr
+                    double minTempRequired = 0;
+
+                    if (fuelType.HasValue)
+                    {
+                        var props = FuelDatabase.Get(fuelType.Value);
+                        burnHours = massKg / props.BurnRateKgPerHour;
+                        minTempRequired = props.MinFireTemperature;
+                    }
+
+                    double burnMinutes = burnHours * 60;
+
+                    string statusIcon = canAdd ? "✓" : "✗";
+                    string warning = isSharp ? " ⚠ SHARP TOOL" : "";
+                    string tempWarning = !canAdd && minTempRequired > 0 ? $" (needs {minTempRequired}°F fire)" : "";
+
+                    Output.WriteLine($"  {statusIcon} {fuelOptions.Count + 1}. {stack.DisplayName} {fuelInfo} - {massKg:F2}kg (~{burnMinutes:F0} min){warning}{tempWarning}");
+
+                    fuelOptions.Add((stack, canAdd, isSharp));
                 }
 
                 Output.WriteLine($"  {fuelOptions.Count + 1}. Cancel");
@@ -198,8 +226,16 @@ public static class ActionFactory
 
                 var selected = fuelOptions[choice - 1];
                 var selectedStack = selected.stack;
-                double selectedFuelValue = selected.fuelValue;
+                bool canAddFuel = selected.canAdd;
                 bool selectedIsSharp = selected.isSharp;
+
+                // Check if fire is hot enough for this fuel
+                if (!canAddFuel)
+                {
+                    Output.WriteWarning("The fire isn't hot enough to burn that fuel type!");
+                    Output.WriteLine("Try adding tinder or kindling first to build up the fire's temperature.");
+                    return;
+                }
 
                 // Warn if burning sharp tool
                 if (selectedIsSharp)
@@ -213,10 +249,10 @@ public static class ActionFactory
                     }
                 }
 
-                // Calculate overflow
-                double maxCanAdd = 8.0 - fire.FuelRemaining;
-                double actualAdded = Math.Min(selectedFuelValue, maxCanAdd);
-                bool overflow = selectedFuelValue > maxCanAdd;
+                // Calculate overflow based on mass capacity
+                double maxCanAddKg = fire.MaxFuelCapacityKg - fire.FuelMassKg;
+                double fuelMassKg = selectedStack.FirstItem.FuelMassKg;
+                bool overflow = fuelMassKg > maxCanAddKg;
 
                 // Remove item from inventory
                 var itemToRemove = selectedStack.Pop();
@@ -226,18 +262,20 @@ public static class ActionFactory
                 bool hadEmbers = fire.HasEmbers;
 
                 // Add fuel to fire (auto-relights from embers)
-                fire.AddFuel(actualAdded);
+                // Note: This uses legacy method - will be refactored later with proper fuel system
+                fire.AddFuel(itemToRemove);
 
                 // Show result
                 Output.WriteLine($"\nYou add the {itemToRemove.Name} to the {fire.Name}.");
                 if (overflow)
                 {
-                    double wastedMinutes = (selectedFuelValue - actualAdded) * 60;
-                    Output.WriteWarning($"The fire was already near capacity. {wastedMinutes:F0} min of fuel was wasted.");
+                    double wastedKg = fuelMassKg - maxCanAddKg;
+                    Output.WriteWarning($"The fire was already near capacity. {wastedKg:F2} kg of fuel was wasted.");
                 }
 
                 double newFuelMinutes = fire.FuelRemaining * 60;
-                Output.WriteLine($"The fire now has {newFuelMinutes:F0} minutes of fuel.");
+                Output.WriteLine($"The fire now has {fire.FuelMassKg:F2} kg of fuel ({newFuelMinutes:F0} minutes).");
+                Output.WriteLine($"Fire temperature: {fire.GetCurrentFireTemperature():F0}°F ({fire.GetFirePhase()})");
 
                 // Show status after adding fuel
                 if (hadEmbers && fire.IsActive)
@@ -312,8 +350,16 @@ public static class ActionFactory
                     return;
                 }
 
+                // Check for tinder (provides +15% bonus)
+                bool hasTinder = inventory.Items.Any(s => s.FirstItem.HasProperty(ItemProperty.Tinder));
+                double tinderBonus = hasTinder ? 0.15 : 0.0;
+
                 // Show tool options
                 Output.WriteLine("\nChoose your fire-making tool:");
+                if (hasTinder)
+                {
+                    Output.WriteLine("  [Tinder available: +15% success bonus]");
+                }
                 int optionNum = 1;
                 foreach (var tool in availableTools)
                 {
@@ -332,6 +378,9 @@ public static class ActionFactory
                         double skillModifier = skill.Level * 0.1;
                         successChance += skillModifier;
                     }
+
+                    // Add tinder bonus
+                    successChance += tinderBonus;
                     successChance = Math.Clamp(successChance, 0.05, 0.95);
 
                     Output.WriteLine($"  {optionNum}. {tool} - {successChance:P0} success chance");
@@ -370,6 +419,9 @@ public static class ActionFactory
                     double skillModifier = playerSkill.Level * 0.1;
                     finalSuccessChance += skillModifier;
                 }
+
+                // Add tinder bonus
+                finalSuccessChance += tinderBonus;
                 finalSuccessChance = Math.Clamp(finalSuccessChance, 0.05, 0.95);
 
                 Output.WriteLine($"\nYou work with the {selectedTool.Name}...");
@@ -394,14 +446,20 @@ public static class ActionFactory
                     if (relightingFire)
                     {
                         Output.WriteSuccess($"\nSuccess! You relight the fire! ({finalSuccessChance:P0} chance)");
-                        existingFire!.AddFuel(0.5); // 30 minutes of initial fuel
+                        var tinderFuel = ItemFactory.MakeTinderBundle(); // 0.03kg tinder
+                        var kindlingFuel = ItemFactory.MakeStick(); // 0.5kg kindling
+                        existingFire!.AddFuel(tinderFuel, 0.03); // Add tinder
+                        existingFire.AddFuel(kindlingFuel, 0.3); // Add kindling
                         existingFire.SetActive(true);
                     }
                     else
                     {
                         Output.WriteSuccess($"\nSuccess! You start a fire! ({finalSuccessChance:P0} chance)");
-                        var newFire = new HeatSourceFeature(ctx.currentLocation, 10.0);
-                        newFire.AddFuel(0.5); // 30 minutes of initial fuel
+                        var newFire = new HeatSourceFeature(ctx.currentLocation);
+                        var tinderFuel = ItemFactory.MakeTinderBundle(); // 0.03kg tinder
+                        var kindlingFuel = ItemFactory.MakeStick(); // 0.5kg kindling
+                        newFire.AddFuel(tinderFuel, 0.03); // Add tinder
+                        newFire.AddFuel(kindlingFuel, 0.3); // Add kindling
                         newFire.SetActive(true);
                         ctx.currentLocation.Features.Add(newFire);
                     }
@@ -1381,34 +1439,36 @@ public static class ActionFactory
             return CreateAction($"Look around {location.Name}")
             .Do(ctx =>
             {
-                // Header with location info
-                Output.WriteSuccess($"\t>>> {location.Name.ToUpper()} <<<");
-                Output.WriteLine("(", location.Parent, " • ", World.GetTimeOfDay(), " • ", location.GetTemperature(), "°F)");
-                Output.WriteLine("\nYou see:");
+                // Calculate box width (54 chars like stats display)
+                const int boxWidth = 54;
+                string locationName = location.Name.ToUpper();
 
-                // Items and objects found here
-                bool hasItems = false;
+                // Top border
+                Console.WriteLine("┌" + new string('─', boxWidth - 2) + "┐");
 
-                // Only show items that have been found (via foraging)
-                foreach (var item in location.Items.Where(i => i.IsFound))
-                {
-                    Output.WriteLine("\t", item);
-                    hasItems = true;
-                }
+                // Location name (centered)
+                int namePadding = (boxWidth - 4 - locationName.Length) / 2;
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.Write("│ " + new string(' ', namePadding) + locationName);
+                Console.ForegroundColor = ConsoleColor.White;
+                int rightPadding = boxWidth - 4 - namePadding - locationName.Length;
+                Console.WriteLine(new string(' ', rightPadding) + " │");
 
-                foreach (var container in location.Containers.Where(c => c.IsFound))
-                {
-                    Output.WriteLine("\t", container, " [container]");
-                    hasItems = true;
-                }
+                // Zone • Time • Temperature
+                string subheader = $"{location.Parent.Name} • {World.GetTimeOfDay()} • {location.GetTemperature():F1}°F";
+                int subPadding = boxWidth - 4 - subheader.Length;
+                Console.ForegroundColor = ConsoleColor.Gray;
+                Console.Write("│ " + subheader);
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine(new string(' ', subPadding) + " │");
 
-                foreach (var npc in location.Npcs.Where(n => n.IsFound))
-                {
-                    Output.WriteLine("\t", npc, " [creature]");
-                    hasItems = true;
-                }
+                // Divider
+                Console.WriteLine("├" + new string('─', boxWidth - 2) + "┤");
 
-                // Display LocationFeatures (campfires, shelters, etc.)
+                // Content section - prioritize features (fires, shelters)
+                bool hasContent = false;
+
+                // Display LocationFeatures FIRST (most important)
                 int deadFiresShown = 0;
                 foreach (var feature in location.Features)
                 {
@@ -1417,83 +1477,179 @@ public static class ActionFactory
                         // Show active fires with status and warmth
                         if (heat.IsActive && heat.FuelRemaining > 0)
                         {
-                            string status = heat.FuelRemaining < 0.5 ? "dying" : "burning";
-                            double hoursLeft = heat.FuelRemaining;
-                            int minutesLeft = (int)(hoursLeft * 60);
-                            string timeStr = minutesLeft >= 60
-                                ? $"{hoursLeft:F1} hr"
-                                : $"{minutesLeft} min";
+                            string status = heat.FuelRemaining < 0.5 ? "Dying" : "Burning";
+                            int minutesLeft = (int)(heat.FuelRemaining * 60);
+                            string timeStr = minutesLeft >= 60 ? $"{heat.FuelRemaining:F1} hr" : $"{minutesLeft} min";
                             double effectiveHeat = heat.GetEffectiveHeatOutput();
-                            Output.WriteLine($"\t{heat.Name} ({status}, {timeStr}) - warming you by +{effectiveHeat:F0}°F");
-                            hasItems = true;
+                            string fireInfo = $"{heat.Name}: {status} ({timeStr}) +{effectiveHeat:F0}°F";
+
+                            Console.Write("│ ");
+                            Console.ForegroundColor = heat.FuelRemaining < 0.5 ? ConsoleColor.Yellow : ConsoleColor.Red;
+                            Console.Write(fireInfo);
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
+                            hasContent = true;
                         }
                         // Show embers with remaining time and reduced warmth
                         else if (heat.HasEmbers && heat.EmberTimeRemaining > 0)
                         {
-                            double hoursLeft = heat.EmberTimeRemaining;
-                            int minutesLeft = (int)(hoursLeft * 60);
-                            string timeStr = minutesLeft >= 60
-                                ? $"{hoursLeft:F1} hr"
-                                : $"{minutesLeft} min";
+                            int minutesLeft = (int)(heat.EmberTimeRemaining * 60);
+                            string timeStr = minutesLeft >= 60 ? $"{heat.EmberTimeRemaining:F1} hr" : $"{minutesLeft} min";
                             double effectiveHeat = heat.GetEffectiveHeatOutput();
-                            Output.WriteLine($"\t{heat.Name} (glowing embers, {timeStr}) - warming you by +{effectiveHeat:F1}°F");
-                            hasItems = true;
+                            string fireInfo = $"{heat.Name}: Embers ({timeStr}) +{effectiveHeat:F1}°F";
+
+                            Console.Write("│ ");
+                            Console.ForegroundColor = ConsoleColor.DarkYellow;
+                            Console.Write(fireInfo);
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
+                            hasContent = true;
                         }
                         // Show fires with fuel but not lit
                         else if (heat.FuelRemaining > 0 && !heat.IsActive)
                         {
                             int minutesLeft = (int)(heat.FuelRemaining * 60);
-                            Output.WriteLine($"\t{heat.Name} (cold, {minutesLeft} min fuel ready)");
-                            hasItems = true;
+                            string fireInfo = $"{heat.Name}: Cold ({minutesLeft} min fuel ready)";
+
+                            Console.Write("│ ");
+                            Console.ForegroundColor = ConsoleColor.DarkGray;
+                            Console.Write(fireInfo);
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
+                            hasContent = true;
                         }
-                        // Show max 1 dead fire per location (can be relit via fire-making recipes)
+                        // Show max 1 dead fire per location
                         else if (deadFiresShown == 0)
                         {
-                            Output.WriteLine($"\t{heat.Name} (cold)");
-                            hasItems = true;
+                            string fireInfo = $"{heat.Name}: Cold";
+
+                            Console.Write("│ ");
+                            Console.ForegroundColor = ConsoleColor.DarkGray;
+                            Console.Write(fireInfo);
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
+                            hasContent = true;
                             deadFiresShown++;
                         }
                     }
                     else if (feature is ShelterFeature shelter)
                     {
-                        // Always show shelters
-                        Output.WriteLine($"\t{shelter.Name} [shelter]");
-                        hasItems = true;
+                        string shelterInfo = $"{shelter.Name} [shelter]";
+                        Console.Write("│ ");
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write(shelterInfo);
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.WriteLine(new string(' ', boxWidth - 4 - shelterInfo.Length) + " │");
+                        hasContent = true;
                     }
                     else if (feature is HarvestableFeature harvestable && harvestable.IsDiscovered)
                     {
-                        // Show harvestable features with status
                         string status = harvestable.GetStatusDescription();
-                        Output.WriteLine($"\t{status}");
-                        hasItems = true;
+                        Console.Write("│ ");
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.Write(status);
+                        Console.ForegroundColor = ConsoleColor.White;
+                        // Truncate if too long
+                        if (status.Length > boxWidth - 4)
+                        {
+                            Console.WriteLine(" │");
+                        }
+                        else
+                        {
+                            Console.WriteLine(new string(' ', boxWidth - 4 - status.Length) + " │");
+                        }
+                        hasContent = true;
                     }
-                    // Don't display ForageFeature or EnvironmentFeature
-                    // (ForageFeature is an abstract mechanic, EnvironmentFeature is the location type)
                 }
 
-                if (!hasItems)
+                // Items, containers, NPCs
+                foreach (var item in location.Items.Where(i => i.IsFound))
                 {
-                    Output.WriteLine("Nothing...");
+                    string itemStr = item.ToString();
+                    Console.Write("│ ");
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Write(itemStr);
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine(new string(' ', boxWidth - 4 - itemStr.Length) + " │");
+                    hasContent = true;
                 }
 
-                // Add spacing before exits if there were items
+                foreach (var container in location.Containers.Where(c => c.IsFound))
+                {
+                    string containerStr = $"{container.Name} [container]";
+                    Console.Write("│ ");
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.Write(containerStr);
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine(new string(' ', boxWidth - 4 - containerStr.Length) + " │");
+                    hasContent = true;
+                }
+
+                foreach (var npc in location.Npcs.Where(n => n.IsFound))
+                {
+                    string npcStr = $"{npc.Name} [creature]";
+                    Console.Write("│ ");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write(npcStr);
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine(new string(' ', boxWidth - 4 - npcStr.Length) + " │");
+                    hasContent = true;
+                }
+
+                // Empty location
+                if (!hasContent)
+                {
+                    Console.WriteLine("│" + new string(' ', boxWidth - 2) + "│");
+                }
+
+                // Exits section
                 var nearbyLocations = location.GetNearbyLocations();
-                if (hasItems && nearbyLocations.Count > 0)
-                {
-                    Output.WriteLine();
-                }
-
-                // Exits
                 if (nearbyLocations.Count > 0)
                 {
-                    Output.WriteLine("Nearby Places:");
+                    Console.WriteLine("│" + new string(' ', boxWidth - 2) + "│");
+
+                    // Build exits on one line
+                    string exitsLine = "Exits: ";
+                    for (int i = 0; i < nearbyLocations.Count; i++)
+                    {
+                        exitsLine += "→ " + nearbyLocations[i].Name;
+                        nearbyLocations[i].IsFound = true;
+                        if (i < nearbyLocations.Count - 1) exitsLine += "  ";
+                    }
+
+                    // Wrap if too long
+                    if (exitsLine.Length <= boxWidth - 4)
+                    {
+                        Console.Write("│ ");
+                        Console.ForegroundColor = ConsoleColor.DarkCyan;
+                        Console.Write(exitsLine);
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.WriteLine(new string(' ', boxWidth - 4 - exitsLine.Length) + " │");
+                    }
+                    else
+                    {
+                        // Split across multiple lines if needed
+                        Console.Write("│ ");
+                        Console.ForegroundColor = ConsoleColor.DarkCyan;
+                        Console.Write("Exits:");
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.WriteLine(new string(' ', boxWidth - 10) + " │");
+
+                        foreach (var nearbyLocation in nearbyLocations)
+                        {
+                            string exitStr = "  → " + nearbyLocation.Name;
+                            Console.Write("│ ");
+                            Console.ForegroundColor = ConsoleColor.DarkCyan;
+                            Console.Write(exitStr);
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine(new string(' ', boxWidth - 4 - exitStr.Length) + " │");
+                        }
+                    }
                 }
-                foreach (var nearbyLocation in nearbyLocations)
-                {
-                    Output.WriteLine("\t→ ", nearbyLocation);
-                    nearbyLocation.IsFound = true;
-                }
-                Output.WriteLine();
+
+                // Bottom border
+                Console.WriteLine("└" + new string('─', boxWidth - 2) + "┘");
+                Console.WriteLine();
             })
             .ThenShow(ctx =>
             {
