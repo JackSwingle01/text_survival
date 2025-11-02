@@ -18,6 +18,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `effect-system.md` - Buff/debuff system and EffectRegistry
 - `body-and-damage.md` - Body part hierarchy and damage processing
 - `survival-processing.md` - Temperature, hunger, thirst mechanics
+- `fire-management-system.md` - Fire states, ember system, and heat source features
+- `skill-check-system.md` - Skill check formulas, success rates, and XP rewards
 - `builder-patterns.md` - Fluent builder patterns used throughout
 - `composition-architecture.md` - Actor composition and manager patterns
 - `factory-patterns.md` - ItemFactory, NPCFactory, etc.
@@ -200,15 +202,43 @@ When adding new content, follow existing factory patterns until JSON migration i
 5. **Property-based crafting**: Items contribute to recipes via properties, not item-specific checks.
 6. **Action menu flow**: Use `.ThenShow()` and `.ThenReturn()` - never manually create menu loops.
 
-## Ice Age Thematic Direction
+## Design Philosophy
 
-Per the README roadmap, the game is moving away from generic RPG elements toward Ice Age authenticity:
-- Replace generic item names with period-appropriate equivalents (flint, bone, hide, etc.)
-- Shamanistic magic requires physical components (herbs, bones, ritual items)
-- Focus on survival mechanics over combat/leveling
-- Emphasize environmental challenges (cold, scarcity, weather)
+**For comprehensive design philosophy, see README.md "Design Philosophy" section** which covers:
+- Technical Principles (simplicity with depth, modularity, realism)
+- Gameplay Design (Ice Age authenticity, survival over combat, emergent storytelling)
+- Biome Design Philosophy (detailed gameplay roles for all 5 biomes)
 
-When adding content, prioritize thematic consistency with the Ice Age setting and survival focus over traditional RPG mechanics.
+**Additional design decisions from recent development:**
+
+### Skill Check Philosophy
+- Base success rates (30-50%) balanced with skill progression (+10%/level)
+- Clamped at 5%-95% to preserve player agency (no pure RNG gates)
+- Failure grants XP (1 XP) to encourage experimentation and learning
+- Used for realistic uncertainty (fire-making, hunting) not arbitrary difficulty
+
+### Fire Management Philosophy
+- **Ember system**: Matches reality (fires leave embers), reduces tedium, rewards proactive management
+- **35% heat / 25% duration**: Tested values providing meaningful grace period without eliminating time pressure
+- **Auto-relight from embers**: UX decision tested against manual relight (manual rejected as too punishing)
+- **Main menu accessibility**: Fire is a "fundamental feature" not buried in submenus (survival-critical)
+
+### Progression Philosophy
+- **Material gating**: Stone → Flint → Bone → Obsidian (geographic scarcity increases with tier)
+- **Skill gating**: Used sparingly, never blocking essential survival tools
+- **Tool tiers**: 4-5 tiers per weapon type (progression feels meaningful, not overwhelming)
+
+### Time Design Philosophy
+- **15-minute foraging intervals**: Enables fire tending (4x per hour), granular time management
+- **8-hour fire capacity**: Realistic overnight burn time, reduces micromanagement
+- **Action pacing**: Crafting times balanced for realism vs fun (5 min simple, 60+ min complex)
+
+### Balance Philosophy
+- **Day-1 viability**: Forest biome must support survival path without perfect RNG
+- **Scarcity with accessibility**: Every material matters, but not punishingly rare
+- **Biome difficulty**: Forest (forgiving) → Plains/Hillside (challenging) → Cave (advanced/prepared)
+
+When adding content, prioritize thematic consistency with Ice Age setting and survival focus over traditional RPG mechanics.
 
 ---
 
@@ -228,3 +258,4 @@ The `documentation/` folder contains **detailed reference guides**, while this C
 - Document all changes by updating the dev/CURRENT-STATUS.md
 - For game design refer to the README especially the Design Philosophy section
 - Whenever the user shares a new piece of game design philosophy make sure to add it to the readme
+- After creating a plan, if it involves significant code changes, please invoke the plan-reviewer-agent

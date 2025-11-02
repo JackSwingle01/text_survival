@@ -688,5 +688,7 @@ public static IGameAction Attack(NPC target)
 - [SKILL.md](../SKILL.md) - Main guidelines
 - [builder-patterns.md](builder-patterns.md) - Builder pattern philosophy
 - [complete-examples.md](complete-examples.md) - Full feature examples
+- [fire-management-system.md](fire-management-system.md) - Fire management action patterns
+- [skill-check-system.md](skill-check-system.md) - Displaying skill check results to players
 
-**Last Updated**: 2025-11-01
+**Last Updated**: 2025-11-02

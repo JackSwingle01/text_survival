@@ -103,6 +103,67 @@ Two fixes were required:
 
 *Incorrect behavior that prevents intended functionality*
 
+### Multiple Campfires Created in Same Location
+
+**Severity:** HIGH - Clutters locations, confuses fire management
+**Location:** `Crafting/CraftingRecipe.cs` - `ResultingInLocationFeature()` method
+**Status:** 🔴 **ACTIVE** (discovered 2025-11-02 during Task 49 playtest)
+
+**Reproduction:**
+1. Start game with campfire in clearing
+2. Let campfire burn out completely (cold, no embers)
+3. Craft "Hand Drill Fire" recipe
+4. Look around location
+
+**Observed:**
+```
+>>> CLEARING <<<
+You see:
+    Campfire (cold)
+    Campfire (cold, 30 min fuel ready)
+```
+
+Two campfires exist in the same location:
+- Original: Depleted, cold, no fuel or embers
+- New: Created by fire-making recipe, has 30 min fuel but unlit
+
+**Expected Behavior:**
+Fire-making recipes should check for existing HeatSourceFeature and either:
+1. Refuel existing campfire if cold/depleted
+2. Relight existing campfire if it has embers
+3. Remove depleted campfire before creating new one
+4. Only create new campfire if none exists
+
+**Root Cause:**
+`CraftingRecipe.ResultingInLocationFeature()` always creates a NEW feature without checking if HeatSourceFeature already exists in the location.
+
+**Impact:**
+- Location clutter (multiple dead/cold campfires accumulate)
+- Confusing UX - which campfire to interact with?
+- "Add Fuel to Fire" and "Start Fire" may target wrong campfire
+- Breaks immersion (why are there 3 campfires in my clearing?)
+
+**Recommendation:**
+```csharp
+// In ResultingInLocationFeature() method:
+var existingFire = location.Features.OfType<HeatSourceFeature>().FirstOrDefault();
+if (existingFire != null)
+{
+    // Refuel/relight existing fire instead of creating new one
+    existingFire.AddFuel(fuelAmount);
+    if (!existingFire.IsActive()) existingFire.SetActive(true);
+}
+else
+{
+    // Create new fire only if none exists
+    location.Features.Add(new HeatSourceFeature(...));
+}
+```
+
+**Priority:** HIGH - affects UX and fire management mechanics
+
+---
+
 ### Time Handling Pattern Inconsistency (Technical Debt)
 
 **Severity:** Medium - Architectural Pattern Inconsistency
@@ -395,6 +456,220 @@ public void Update()
 ## 🟢 Balance & Immersion Issues
 
 *Mechanics that work correctly but feel wrong from gameplay perspective*
+
+### CRITICAL: Fire-Making RNG Death Spiral (Task 49 Blocker)
+
+**Severity:** CRITICAL - Prevents early game progression
+**Location:** Fire-making skill check system
+**Status:** 🔴 **GAME-BREAKING** (discovered 2025-11-02 during Task 49 playtest)
+
+**Issue:**
+Fire-making has 30-50% base success rates and consumes materials on failure. Players can easily fail 3-5 attempts and exhaust all resources before getting a fire started, creating unwinnable scenarios.
+
+**Observed During Playtest:**
+- Attempt 1 (Hand Drill, ~30%): FAILED - consumed 0.55kg materials, gained Firecraft XP
+- Attempt 2 (Hand Drill, ~40%): FAILED - consumed 0.55kg materials
+- Attempt 3 (Hand Drill, ~40%): SUCCESS - consumed 0.55kg materials
+- Attempt 4 (Hand Drill, 30%): FAILED - consumed materials (new location)
+- Attempt 5 (Bow Drill, 50%): FAILED - consumed 5 items including all sticks
+
+**Total**: 5 attempts, 3 failures (60% failure rate), ~12 items consumed
+
+**Player State at Playtest Termination:**
+- Food: 16% (STARVING)
+- Temperature: 40.3°F (severe hypothermia)
+- Energy: 27% (Very Tired)
+- Materials remaining: 2x Firewood, 1x Bark Strips (insufficient for another attempt)
+- **Result**: UNWINNABLE STATE - no materials for fire, dying from cold/hunger
+
+**Root Causes:**
+1. Success rates too low (30-50%) for CRITICAL survival mechanic
+2. Material consumption on failure is too punishing
+3. RNG variance creates death spirals - can fail 3-5 times in a row
+4. Skill XP from failure helps but not enough (30% → 40% still fails often)
+
+**Cascading Failure:**
+```
+Failed fire attempt → Lost materials → Forage for more → Hypothermia worsens
+→ Failed fire attempt → Lost more materials → Starving → No time to recover
+→ Failed fire attempt → Out of materials → GAME OVER
+```
+
+**Impact:**
+- Game is literally unplayable for average players
+- Even optimal play can fail due to RNG
+- No viable survival path with current balance
+- Blocks ALL mid/late-game testing
+- First playthrough experience is "unfair" not "challenging"
+
+**Solutions (Choose ONE or combine):**
+
+**Option A: Increase Success Rates** ⭐ RECOMMENDED
+- Hand Drill: 30% → 50% base
+- Bow Drill: 50% → 70% base
+- Reduces average failures from 3-4 to 1-2
+
+**Option B: Don't Consume Materials on Failure**
+- Keep low success rates but make failures free
+- Still costs time (20-45 min) which creates pressure
+- Materials only consumed on SUCCESS
+
+**Option C: Guaranteed Slow Method**
+- Add "Rub Sticks" option: 100% success, 60 minutes
+- Slower but reliable fallback option
+- Prevents death spirals from bad RNG
+
+**Option D: Partial Success Mechanic**
+- Failure creates "Smoldering Embers" (25% chance)
+- Embers can be fed tinder to become fire
+- Softens the blow of RNG failures
+
+**Recommendation:** **Option A + C** - Increase success rates AND add guaranteed method
+- New players use guaranteed method (learns fire importance)
+- Experienced players risk faster method (rewards skill)
+- Prevents unfair RNG deaths while maintaining challenge
+
+**Priority:** 🔴 **MUST FIX BEFORE FURTHER PLAYTESTING**
+
+---
+
+### CRITICAL: Resource Depletion Death Spiral (Task 49 Blocker)
+
+**Severity:** CRITICAL - Forces dangerous travel before fire established
+**Location:** ForageFeature, starting location resource density
+**Status:** 🔴 **ACTIVE** (discovered 2025-11-02 during Task 49 playtest)
+
+**Issue:**
+Starting location's forage feature depletes rapidly or has low spawn rates. Players exhaust local resources after 2-3 failed fire attempts and must travel while cold/hungry to find more materials.
+
+**Observed Forage Results:**
+
+**Clearing (Starting Location):**
+- Forages 1-4: 100% success (4 items)
+- Forages 5-9: 40% success (2 finds, 3 empty in 5 attempts)
+- **Depleted after ~120 minutes of gameplay**
+
+**Ancient Woodland (After Travel):**
+- Forages 1-8: ~66% success rate
+- Much higher yields including food/water
+- Fresh, undepleted resource pool
+
+**Problem:**
+- Player uses up starting location resources on failed fire attempts
+- Must travel 7+ minutes to new location (exposure risk)
+- Travel accelerates hypothermia and hunger
+- Time spent traveling = time NOT gathering fire materials
+- Creates desperate cycle: Travel → Forage → Fail fire → Travel again
+
+**Impact:**
+- Combines with fire-making RNG to create double death spiral
+- Even with good starting conditions, depletion forces risky choices
+- Travel time conflicts with urgent fire need
+- New location might ALSO deplete if fire-making keeps failing
+
+**Root Causes:**
+1. ForageFeature may have too-aggressive depletion curve
+2. Starting location has lower density than other forest locations
+3. Failed fire-making consumes 3-5x more materials than planned (due to RNG)
+4. No respawn/regeneration of forage resources
+
+**Solutions:**
+
+**Option A: Increase Starting Location Density** ⭐ RECOMMENDED
+- Buff starting clearing to have 2-3x current resource density
+- Ensure at least 15-20 forageable items before depletion
+- Accounts for fire-making failures consuming extra materials
+
+**Option B: Add Visible Items on Ground at Start**
+- Place 2-3 Sticks and 1-2 Tinder items visible (not forageable)
+- Guaranteed materials for at least 1-2 fire attempts
+- Tutorial: "There are some sticks on the ground. You should gather them."
+
+**Option C: Resource Respawn/Regeneration**
+- ForageFeature slowly regenerates items (1-2 per hour)
+- Prevents total depletion
+- Still creates scarcity but not unwinnable state
+
+**Recommendation:** **Options A + B** - Buff starting location AND add visible items
+- Ensures player has materials for 3-4 fire attempts minimum
+- Visible items teach "gather before you need" lesson
+- Prevents forced travel before fire established
+
+**Priority:** 🔴 **CRITICAL** - Required for day-1 survival
+
+---
+
+### HIGH: Food Scarcity Creates Unwinnable State
+
+**Severity:** HIGH - Player starves before able to hunt
+**Location:** Food consumption rate, early-game food sources
+**Status:** 🔴 **ACTIVE** (discovered 2025-11-02 during Task 49 playtest)
+
+**Issue:**
+Food depletes rapidly (~14% per hour) but early-game food sources provide minimal calories. Player reached 16% food (STARVING) before able to craft hunting tools.
+
+**Food Progression Observed:**
+- Start: 50% (Peckish)
+- After 1 hour: 43% (Peckish)
+- After 2 hours: 29% (Hungry)
+- After 2.5 hours: 16% (STARVING)
+
+**Food Consumption Rate:** ~14% per hour
+
+**Food Sources Found:**
+- Wild Mushroom: Restored only **1% food** (negligible!)
+- No berries found
+- No meat (requires hunting tools not yet accessible)
+
+**Path to Hunting:**
+1. Establish fire (to not freeze)
+2. Craft Sharp Rock (5 min, requires 2x Stone from foraging)
+3. Hunt animals with Sharp Rock
+4. Cook meat on fire
+
+**Minimum Time to Hunt:** 3+ hours if everything goes perfectly
+
+**Problem:**
+- Player starving at 16% after 2.5 hours
+- No time to reach hunting (needs 3+ hours minimum)
+- Wild Mushroom provides almost no calories
+- Fire-making failures add 1-2 hours of delays
+- Death from starvation before hunting is possible
+
+**Impact:**
+- Combines with fire-making and resource depletion for triple death spiral
+- Even successful fire-making doesn't solve starvation
+- No viable survival path in current balance
+- Forces player to hunt without fire (hypothermia death instead)
+
+**Solutions:**
+
+**Option A: Reduce Food Consumption Rate** ⭐ RECOMMENDED
+- Current: 14% per hour
+- Proposed: 8-10% per hour (30-40% reduction)
+- Extends survival time from 2.5 hours to 4-5 hours
+- Gives time for fire + tool crafting + hunting
+
+**Option B: Buff Early-Game Food**
+- Wild Mushroom: 1% → 10-15% food
+- Add other gathering: Eggs (5%), Grubs (3%), Nuts (8%)
+- Doesn't require hunting tools
+- Provides stopgap until hunting available
+
+**Option C: Start Player with More Food**
+- Start at 80-100% food instead of 50%
+- Buys time for learning systems
+- More realistic (wouldn't start adventure already hungry)
+
+**Recommendation:** **Options A + B** - Slower consumption AND better early food
+- Reduces time pressure
+- Provides non-hunting food sources
+- Still incentivizes hunting for better nutrition
+- Makes day-1 survival actually possible
+
+**Priority:** 🔴 **HIGH** - Prevents progression without hunting
+
+---
 
 ### Critical: Temperature System Too Punishing (ANALYZED - Physics is Correct!)
 

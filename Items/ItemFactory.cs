@@ -287,7 +287,7 @@ namespace text_survival.Items
         {
             Weapon spear = new Weapon(WeaponType.Spear, WeaponMaterial.Obsidian, "Obsidian Spear")
             {
-                Description = "The ultimate hunting weapon - a razor-sharp obsidian point mounted on a perfectly balanced shaft. Legendary among hunters.",
+                Description = "A razor-sharp obsidian point lashed to a carefully balanced shaft. The finest hunting spear an Ice Age hunter could craft.",
                 Weight = 1.6,
                 CraftingProperties = [ItemProperty.Wood, ItemProperty.Obsidian, ItemProperty.Binding, ItemProperty.Flammable, ItemProperty.Sharp]
             };
@@ -311,7 +311,7 @@ namespace text_survival.Items
         {
             Weapon club = new Weapon(WeaponType.Club, WeaponMaterial.Stone, "Stone-Weighted Club")
             {
-                Description = "A heavy stick with a stone lashed to one end. Devastating impact damage.",
+                Description = "A heavy stick with a stone lashed to one end. Delivers crushing blows that can break bones and skulls.",
                 Weight = 2.0,
                 CraftingProperties = [ItemProperty.Wood, ItemProperty.Stone, ItemProperty.Binding, ItemProperty.Flammable]
             };
@@ -322,7 +322,7 @@ namespace text_survival.Items
         {
             Weapon club = new Weapon(WeaponType.Club, WeaponMaterial.Bone, "Bone-Studded Club")
             {
-                Description = "A fearsome weapon with sharpened bone spikes embedded along its length. Crushes and pierces simultaneously.",
+                Description = "A heavy club with sharpened bone spikes embedded along its length. Each strike crushes and tears flesh.",
                 Weight = 2.2,
                 CraftingProperties = [ItemProperty.Wood, ItemProperty.Bone, ItemProperty.Binding, ItemProperty.Flammable, ItemProperty.Sharp]
             };
@@ -346,7 +346,7 @@ namespace text_survival.Items
         {
             Weapon axe = new Weapon(WeaponType.HandAxe, WeaponMaterial.Flint, "Flint Hand Axe")
             {
-                Description = "A precision-knapped flint blade hafted to a sturdy handle with sinew. Superior wood harvesting capability.",
+                Description = "A carefully shaped flint blade bound to a sturdy handle with sinew. Bites deep into wood with each strike.",
                 Weight = 1.6,
                 CraftingProperties = [ItemProperty.Wood, ItemProperty.Flint, ItemProperty.Binding, ItemProperty.Flammable, ItemProperty.Sharp]
             };
@@ -381,7 +381,7 @@ namespace text_survival.Items
         {
             Weapon knife = new Weapon(WeaponType.Knife, WeaponMaterial.Bone, "Bone Knife")
             {
-                Description = "A fire-hardened bone blade with excellent edge retention. Superior harvesting yields.",
+                Description = "A fire-hardened bone blade that holds its edge well. Excellent for skinning and butchering game.",
                 Weight = 0.3,
                 CraftingProperties = [ItemProperty.Bone, ItemProperty.Binding, ItemProperty.Sharp]
             };
@@ -550,7 +550,7 @@ namespace text_survival.Items
             Item silk = new ArmorModifierItem("Spider Silk", [EquipSpots.Hands, EquipSpots.Feet, EquipSpots.Head])
             {
                 Weight = 0.1,
-                Description = "Fine, strong threads collected from giant spider webs. Useful for binding and insulation.",
+                Description = "Fine, strong threads painstakingly collected from spider webs. Surprisingly useful for binding and insulation.",
                 Warmth = 0.5,
                 CraftingProperties = [ItemProperty.Binding, ItemProperty.Insulation]
             };
@@ -708,7 +708,7 @@ namespace text_survival.Items
         {
             Item fang = new WeaponModifierItem("Saber-Tooth Fang")
             {
-                Description = "A long, curved fang from a saber-tooth tiger. Could be fashioned into a deadly weapon.",
+                Description = "A long, curved fang from a saber-toothed cat. The apex predator's tooth makes a formidable weapon component.",
                 Weight = 0.3,
                 NumUses = 1,
                 Damage = 4,

@@ -156,6 +156,10 @@ Whether recipe needs active fire source.
 .RequiringFire(true)  // Cooking, metalworking, etc.
 ```
 
+**Fire requirement checking**: Requires `HeatSourceFeature` with `IsActive = true` at player's current location. Embers do NOT satisfy fire requirements.
+
+**See also**: [fire-management-system.md](fire-management-system.md) for complete fire mechanics and state management.
+
 ### .Build()
 Creates the final `CraftingRecipe` object.
 
@@ -224,6 +228,7 @@ The system aggregates property quantities across all inventory items:
 
 **Common Skills**:
 - `"Crafting"` - General crafting (default)
+- `"Firecraft"` - Fire-making techniques
 - `"Cooking"` - Food preparation
 - `"Leatherworking"` - Hide processing
 - `"Woodworking"` - Advanced wood items
@@ -242,6 +247,8 @@ int xpGain = recipe.RequiredSkillLevel + 2;
 _player.Skills.GetSkill(recipe.RequiredSkill).GainExperience(xpGain);
 ```
 Higher level recipes give more XP.
+
+**Skill Checks**: For probabilistic success/failure (fire-making, hunting), see [skill-check-system.md](skill-check-system.md) for `.WithSuccessChance()` and `.WithSkillCheck()` methods.
 
 ---
 
@@ -558,8 +565,10 @@ recipe.Execute(player);  // Instant crafting?
 - [builder-patterns.md](builder-patterns.md) - Builder pattern philosophy
 - [factory-patterns.md](factory-patterns.md) - ItemFactory for recipe results
 - [complete-examples.md](complete-examples.md) - Full crafting feature examples
+- [fire-management-system.md](fire-management-system.md) - Fire requirements and heat source integration
+- [skill-check-system.md](skill-check-system.md) - Probabilistic crafting with skill modifiers
 
 ---
 
-**Last Updated**: 2025-11-01
-**Skill Status**: In Progress - Resource files being created
+**Last Updated**: 2025-11-02
+**Skill Status**: Complete - Fire management and skill checks documented

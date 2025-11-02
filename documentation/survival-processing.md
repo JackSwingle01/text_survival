@@ -136,6 +136,13 @@ double totalInsulation = Math.Min(0.9,
     clothingInsulation + shelterInsulation + fatInsulation);
 ```
 
+**Environmental Temperature**: The `environmentTemp` input to `SurvivalProcessor.Process()` comes from `Location.GetTemperature()`, which includes:
+- Zone base temperature
+- Shelter bonuses
+- **Fire heat**: `HeatSourceFeature.GetEffectiveHeatOutput()` (active fires +15°F, embers +5.25°F)
+
+**See also**: [fire-management-system.md](fire-management-system.md) for how fires contribute to environmental temperature.
+
 ### Temperature Effects
 
 ```csharp
@@ -417,5 +424,6 @@ public static void UpdateBody(Player player, int minutes)
 - [SKILL.md](../SKILL.md) - Main guidelines
 - [body-and-damage.md](body-and-damage.md) - Body composition details
 - [effect-system.md](effect-system.md) - Effect creation
+- [fire-management-system.md](fire-management-system.md) - Fire heat contributions to environmental temperature
 
-**Last Updated**: 2025-11-01
+**Last Updated**: 2025-11-02
