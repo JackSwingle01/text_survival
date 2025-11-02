@@ -6,13 +6,38 @@
 
 ## Current State
 
+### ✅ COMPLETED: Temperature Balance Fixes & Testing Infrastructure
+
+**Location**: `dev/complete/temperature-balance-fixes/`
+
+**What's Done**:
+- Temperature physics validation (matches real-world hypothermia data ✓)
+- 3 critical balance fixes (starting gear, campfire, forageable clearing)
+- Testing infrastructure overhaul (play_game.sh process management)
+- Comprehensive documentation (technical analysis + workflow guide)
+
+**Files Modified**: 7 (all compile successfully)
+- Program.cs (starting conditions)
+- ItemFactory.cs (fur wraps)
+- TestModeIO.cs (safe directory)
+- play_game.sh (complete rewrite)
+- .gitignore (updated patterns)
+- ISSUES.md (analysis + results)
+- TESTING.md (new workflow)
+
+**Status**: ✅ Game is now playable - survival time improved from <1hr to ~2hrs
+
+**Documentation**: `dev/complete/temperature-balance-fixes/SESSION-SUMMARY-2025-11-01.md`
+
+---
+
 ### ✅ COMPLETED: Crafting & Foraging Overhaul (Phases 1-3)
 
 **Location**: `dev/complete/crafting-foraging-first-steps/` (moved from active)
 
 **What's Done**:
 - Phase 1: Cleanup & Foundation (5/5 tasks)
-- Phase 2: Material System Enhancement (6/6 tasks)  
+- Phase 2: Material System Enhancement (6/6 tasks)
 - Phase 3: Fire-Making System (6/6 tasks) - BONUS
 
 **Files Modified**: 7 (all compile successfully)
@@ -24,7 +49,9 @@
 - RecipeBuilder.cs
 - CraftingSystem.cs
 
-**Status**: ✅ Implementation complete, untested in gameplay
+**Status**: ✅ Implementation complete, gameplay tested (see temperature fixes above)
+
+**Documentation**: `dev/complete/crafting-foraging-first-steps/SESSION-SUMMARY-2025-11-01.md`
 
 ### 🟡 IN PROGRESS: None
 
@@ -44,22 +71,38 @@
 
 ## Quick Start for Next Session
 
-### If Continuing Implementation (Phase 4+)
+### 🎮 Recommended: Gameplay Testing
+
+Now that the game is playable (survival time fixed), test the crafting/foraging systems:
+
+```bash
+# Use new testing workflow
+./play_game.sh start
+
+# Test checklist:
+# - Verify fur wraps (Worn Fur Chest Wrap, Fur Leg Wraps)
+# - Check starting campfire (15 min warmth)
+# - Forage in clearing (verify bark, grass, tinder available)
+# - Attempt hand drill fire (30% success rate)
+# - Monitor temperature over 60-90 minutes
+# - Test foraging duration issue (currently fixed at 1 hour)
+
+./play_game.sh stop
+```
+
+**Document findings in:** `ISSUES.md`
+
+### 🛠️ Or Continue Implementation (Phase 4+)
 
 1. Read: `crafting-foraging-overhaul/crafting-foraging-overhaul-plan.md`
 2. Start: Phase 4 - Tool Progression (Sharp Rock, Flint Knife, Bone Knife, Obsidian)
 3. Reference: `dev/complete/crafting-foraging-first-steps/SESSION-SUMMARY-2025-11-01.md` for patterns
 
-### If Testing First
+### 📚 Recent Documentation
 
-1. Run: `dotnet run`
-2. Test Checklist:
-   - Start new game (verify tattered wraps, no weapon)
-   - Look around (verify empty location)
-   - Forage in Forest (verify tinder/fibers)
-   - Forage in Cave (verify NO organics)
-   - Attempt Hand Drill fire multiple times (verify failure/success mechanics)
-3. Document issues in: `dev/complete/crafting-foraging-first-steps/TESTING-NOTES.md`
+- **Temperature Analysis**: `documentation/temperature-balance-analysis.md`
+- **Testing Workflow**: `dev/complete/temperature-balance-fixes/TESTING-WORKFLOW-IMPROVEMENTS.md`
+- **Session Summary**: `dev/complete/temperature-balance-fixes/SESSION-SUMMARY-2025-11-01.md`
 
 ## Key Information
 
@@ -94,19 +137,30 @@ new RecipeBuilder()
 
 ## Git Status
 
-**Uncommitted Changes**: 7 files modified (all in this session)
+**Uncommitted Changes**: 14 files modified across 2 completed sessions
 
-**Recommendation**: Test gameplay before committing
+**Recommendation**: Ready to commit
 
 **Files Changed**:
 ```
-M Program.cs
-M Items/ItemFactory.cs
-M Crafting/ItemProperty.cs
-M Environments/LocationFactory.cs
+M .gitignore
+M Actions/ActionBuilder.cs
+M CLAUDE.md
 M Crafting/CraftingRecipe.cs
-M Crafting/RecipeBuilder.cs
 M Crafting/CraftingSystem.cs
+M Crafting/ItemProperty.cs
+M Crafting/RecipeBuilder.cs
+M Environments/LocationFactory.cs
+M IO/Input.cs
+M IO/Output.cs
+M Items/ItemFactory.cs
+M Program.cs
+?? IO/TestModeIO.cs
+?? TESTING.md
+?? dev/active/CURRENT-STATUS.md
+?? dev/complete/crafting-foraging-first-steps/
+?? dev/complete/temperature-balance-fixes/
+?? play_game.sh
 ```
 
 ## Documentation
