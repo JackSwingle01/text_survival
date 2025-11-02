@@ -22,9 +22,10 @@ namespace text_survival.Actors
                 Accuracy = 1.2
             };
 
-            Animal rat = new("Rat", weapon, bodyStats)
+            Animal rat = new("Rat", weapon, bodyStats, AnimalBehaviorType.Prey)
             {
-                Description = "A rat with fleas."
+                Description = "A rat with fleas.",
+                TrackingDifficulty = 3 // Easy to track
             };
             rat.AddLoot(ItemFactory.MakeSmallMeat());
             return rat;
@@ -47,9 +48,10 @@ namespace text_survival.Actors
                 Accuracy = 1.1
             };
 
-            Animal wolf = new("Wolf", weapon, bodyStats)
+            Animal wolf = new("Wolf", weapon, bodyStats, AnimalBehaviorType.Predator)
             {
-                Description = "A wolf."
+                Description = "A wolf.",
+                TrackingDifficulty = 6 // Medium difficulty - intelligent predator
             };
             wolf.AddLoot(ItemFactory.MakeLargeMeat());
             return wolf;
@@ -72,9 +74,10 @@ namespace text_survival.Actors
                 Accuracy = 0.9
             };
 
-            Animal bear = new("Bear", weapon, bodyStats)
+            Animal bear = new("Bear", weapon, bodyStats, AnimalBehaviorType.Predator)
             {
-                Description = "A bear."
+                Description = "A bear.",
+                TrackingDifficulty = 5 // Medium difficulty
             };
             bear.AddLoot(ItemFactory.MakeLargeMeat());
             return bear;
@@ -97,9 +100,10 @@ namespace text_survival.Actors
                 Accuracy = 1.0
             };
 
-            Animal snake = new("Snake", weapon, bodyStats)
+            Animal snake = new("Snake", weapon, bodyStats, AnimalBehaviorType.Predator)
             {
-                Description = "A venomous snake."
+                Description = "A venomous snake.",
+                TrackingDifficulty = 7 // Hard to track - leaves minimal trail
             };
 
             LootTable loot = new LootTable();
@@ -119,7 +123,7 @@ namespace text_survival.Actors
             {
                 type = BodyTypes.Flying,
                 overallWeight = 0.2,   // 200g - small bat
-                fatPercent = 0.20,     // 20% fat 
+                fatPercent = 0.20,     // 20% fat
                 musclePercent = 0.65   // 65% muscle - flying requires strong muscles
             };
 
@@ -130,9 +134,10 @@ namespace text_survival.Actors
                 Accuracy = 0.9
             };
 
-            Animal bat = new("Bat", weapon, bodyStats)
+            Animal bat = new("Bat", weapon, bodyStats, AnimalBehaviorType.Prey)
             {
-                Description = "A small bat with leathery wings."
+                Description = "A small bat with leathery wings.",
+                TrackingDifficulty = 8 // Very hard to track - flies away
             };
 
             return bat;
@@ -155,9 +160,10 @@ namespace text_survival.Actors
                 Accuracy = 1.2
             };
 
-            Animal spider = new("Spider", weapon, bodyStats)
+            Animal spider = new("Spider", weapon, bodyStats, AnimalBehaviorType.Prey)
             {
-                Description = "A venomous spider with long hairy legs."
+                Description = "A venomous spider with long hairy legs.",
+                TrackingDifficulty = 7 // Hard to track - small and stealthy
             };
 
             // TODO: Apply venom effect
@@ -188,9 +194,10 @@ namespace text_survival.Actors
                 Accuracy = 0.85
             };
 
-            Animal caveBear = new("Cave Bear", weapon, bodyStats)
+            Animal caveBear = new("Cave Bear", weapon, bodyStats, AnimalBehaviorType.Predator)
             {
-                Description = "An enormous cave bear with massive claws. It's adapted to cave dwelling and hunting in darkness."
+                Description = "An enormous cave bear with massive claws. It's adapted to cave dwelling and hunting in darkness.",
+                TrackingDifficulty = 4 // Easier to track - large and heavy
             };
 
             // Add more meat due to larger size
@@ -217,9 +224,10 @@ namespace text_survival.Actors
                 Accuracy = 0.7
             };
 
-            Animal mammoth = new("Woolly Mammoth", weapon, bodyStats)
+            Animal mammoth = new("Woolly Mammoth", weapon, bodyStats, AnimalBehaviorType.DangerousPrey)
             {
-                Description = "A massive woolly mammoth with long curved tusks and a thick fur coat."
+                Description = "A massive woolly mammoth with long curved tusks and a thick fur coat.",
+                TrackingDifficulty = 2 // Very easy to track - enormous and heavy
             };
 
             // Add large amount of meat and other rare resources
@@ -247,15 +255,126 @@ namespace text_survival.Actors
                 Accuracy = 1.0
             };
 
-            Animal saberTooth = new("Saber-Tooth Tiger", weapon, bodyStats)
+            Animal saberTooth = new("Saber-Tooth Tiger", weapon, bodyStats, AnimalBehaviorType.Predator)
             {
-                Description = "A fearsome predator with long saber-like canine teeth."
+                Description = "A fearsome predator with long saber-like canine teeth.",
+                TrackingDifficulty = 7 // Hard to track - stealthy apex predator
             };
 
             saberTooth.AddLoot(ItemFactory.MakeLargeMeat());
             saberTooth.AddLoot(ItemFactory.MakeLargeMeat());
 
             return saberTooth;
+        }
+
+        // Prey Animals (MVP Hunting System)
+        public static Animal MakeDeer()
+        {
+            var bodyStats = new BodyCreationInfo
+            {
+                type = BodyTypes.Quadruped,
+                overallWeight = 80,    // 80 kg - medium deer
+                fatPercent = 0.10,     // 10% fat
+                musclePercent = 0.65   // 65% muscle - built for speed
+            };
+
+            // Deer natural weapons (hooves/antlers) - primarily defensive
+            var weapon = new Weapon(WeaponType.Horns, WeaponMaterial.Organic, "Antlers", 100)
+            {
+                Damage = 5,  // Low damage - prey animals
+                Accuracy = 0.8
+            };
+
+            Animal deer = new("Deer", weapon, bodyStats, AnimalBehaviorType.Prey, isHostile: false)
+            {
+                Description = "A graceful deer with large ears alert for danger.",
+                TrackingDifficulty = 4 // Moderate - leaves clear tracks but moves fast
+            };
+
+            deer.AddLoot(ItemFactory.MakeLargeMeat());
+            deer.AddLoot(ItemFactory.MakeLargeMeat());
+            return deer;
+        }
+
+        public static Animal MakeRabbit()
+        {
+            var bodyStats = new BodyCreationInfo
+            {
+                type = BodyTypes.Quadruped,
+                overallWeight = 2,     // 2 kg - small rabbit
+                fatPercent = 0.10,     // 10% fat
+                musclePercent = 0.50   // 50% muscle - quick reflexes
+            };
+
+            // Rabbit has minimal defense
+            var weapon = new Weapon(WeaponType.Unarmed, WeaponMaterial.Organic, "Teeth", 100)
+            {
+                Damage = 1,  // Minimal damage
+                Accuracy = 0.5
+            };
+
+            Animal rabbit = new("Rabbit", weapon, bodyStats, AnimalBehaviorType.Prey, isHostile: false)
+            {
+                Description = "A quick brown rabbit with long ears, ready to bolt at any sign of danger.",
+                TrackingDifficulty = 6 // Hard to track - small and erratic movements
+            };
+
+            rabbit.AddLoot(ItemFactory.MakeSmallMeat());
+            return rabbit;
+        }
+
+        public static Animal MakePtarmigan()
+        {
+            var bodyStats = new BodyCreationInfo
+            {
+                type = BodyTypes.Flying,
+                overallWeight = 0.5,   // 500g - game bird
+                fatPercent = 0.15,     // 15% fat
+                musclePercent = 0.60   // 60% muscle - flight muscles
+            };
+
+            // Ptarmigan has no real defense
+            var weapon = new Weapon(WeaponType.Unarmed, WeaponMaterial.Organic, "Beak", 100)
+            {
+                Damage = 1,  // Minimal damage
+                Accuracy = 0.4
+            };
+
+            Animal ptarmigan = new("Ptarmigan", weapon, bodyStats, AnimalBehaviorType.Prey, isHostile: false)
+            {
+                Description = "A plump game bird with white winter plumage, nearly invisible against the snow.",
+                TrackingDifficulty = 7 // Very hard to track - flies away, good camouflage
+            };
+
+            ptarmigan.AddLoot(ItemFactory.MakeSmallMeat());
+            return ptarmigan;
+        }
+
+        public static Animal MakeFox()
+        {
+            var bodyStats = new BodyCreationInfo
+            {
+                type = BodyTypes.Quadruped,
+                overallWeight = 6,     // 6 kg - small fox
+                fatPercent = 0.20,     // 20% fat - winter coat
+                musclePercent = 0.55   // 55% muscle
+            };
+
+            // Fox can defend itself but primarily flees
+            var weapon = new Weapon(WeaponType.Fangs, WeaponMaterial.Organic, "Sharp Teeth", 100)
+            {
+                Damage = 4,  // Low damage - scavenger
+                Accuracy = 1.0
+            };
+
+            Animal fox = new("Fox", weapon, bodyStats, AnimalBehaviorType.Scavenger, isHostile: false)
+            {
+                Description = "A cunning red fox with alert eyes, weighing whether you're a threat or opportunity.",
+                TrackingDifficulty = 6 // Medium-hard - intelligent and cautious (will flee if outmatched)
+            };
+
+            fox.AddLoot(ItemFactory.MakeSmallMeat());
+            return fox;
         }
 
         // Human NPCs with various weapons

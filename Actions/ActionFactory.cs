@@ -35,6 +35,7 @@ public static class ActionFactory
                         Survival.StartFire(),
                         Survival.HarvestResources(),
                         Survival.Forage(),
+                        Hunting.OpenHuntingMenu(), // MVP Hunting System
                         Inventory.OpenInventory(),
                         Crafting.OpenCraftingMenu(),
                         Describe.CheckStats(),
@@ -1681,5 +1682,149 @@ public static class ActionFactory
         }
     }
 
+    public static class Hunting
+    {
+        /// <summary>
+        /// Main hunting menu - shows available animals to hunt.
+        /// </summary>
+        public static IGameAction OpenHuntingMenu()
+        {
+            return CreateAction("Hunt")
+            .When(ctx =>
+            {
+                // Only show if there are living animals in the location
+                var animals = ctx.currentLocation.Npcs
+                    .OfType<Animal>()
+                    .Where(a => a.IsAlive)
+                    .ToList();
+                return animals.Any();
+            })
+            .Do(ctx => Output.WriteLine("You scan the area for prey..."))
+            .ThenShow(ctx =>
+            {
+                var animals = ctx.currentLocation.Npcs
+                    .OfType<Animal>()
+                    .Where(a => a.IsAlive)
+                    .ToList();
+
+                var actions = new List<IGameAction>();
+
+                // Add action for each animal
+                foreach (var animal in animals)
+                {
+                    actions.Add(BeginHunt(animal));
+                }
+
+                actions.Add(Common.Return("Cancel"));
+                return actions;
+            })
+            .Build();
+        }
+
+        /// <summary>
+        /// Start hunting a specific animal.
+        /// </summary>
+        private static IGameAction BeginHunt(Animal animal)
+        {
+            return CreateAction($"Stalk {animal.Name}")
+            .Do(ctx =>
+            {
+                ctx.player.stealthManager.StartHunting(animal);
+            })
+            .ThenShow(_ => [HuntingSubMenu()])
+            .Build();
+        }
+
+        /// <summary>
+        /// Hunting submenu - shown while actively hunting an animal.
+        /// </summary>
+        private static IGameAction HuntingSubMenu()
+        {
+            return CreateAction("Hunting...")
+            .When(ctx => ctx.player.stealthManager.IsHunting)
+            .ThenShow(ctx =>
+            {
+                if (!ctx.player.stealthManager.IsTargetValid())
+                {
+                    // Target is no longer valid, return to main menu
+                    return new List<IGameAction> { Common.MainMenu() };
+                }
+
+                return new List<IGameAction>
+                {
+                    ApproachAnimal(),
+                    AssessTarget(),
+                    StopHunting(),
+                };
+            })
+            .Build();
+        }
+
+        /// <summary>
+        /// Approach the target animal, reducing distance and checking for detection.
+        /// </summary>
+        private static IGameAction ApproachAnimal()
+        {
+            return CreateAction("Approach")
+            .When(ctx => ctx.player.stealthManager.IsHunting)
+            .Do(ctx =>
+            {
+                bool success = ctx.player.stealthManager.AttemptApproach();
+
+                if (!success)
+                {
+                    // Animal detected us, StealthManager handled the response
+                    // Exit hunting mode
+                    return;
+                }
+
+                // Award XP for successful stealth approach
+                ctx.player.Skills.GetSkill("Hunting").GainExperience(1);
+            })
+            .TakesMinutes(7) // Approach takes 5-10 minutes (average 7)
+            .ThenShow(ctx =>
+            {
+                // If still hunting, return to hunting submenu
+                if (ctx.player.stealthManager.IsHunting)
+                {
+                    return new List<IGameAction> { HuntingSubMenu() };
+                }
+                else
+                {
+                    // Detection occurred, return to main menu
+                    return new List<IGameAction> { Common.MainMenu() };
+                }
+            })
+            .Build();
+        }
+
+        /// <summary>
+        /// Assess the target animal without approaching.
+        /// </summary>
+        private static IGameAction AssessTarget()
+        {
+            return CreateAction("Assess Target")
+            .When(ctx => ctx.player.stealthManager.IsHunting)
+            .Do(ctx => ctx.player.stealthManager.AssessTarget())
+            .WaitForUserInputToContinue()
+            .ThenShow(_ => [HuntingSubMenu()])
+            .Build();
+        }
+
+        /// <summary>
+        /// Stop hunting the current target.
+        /// </summary>
+        private static IGameAction StopHunting()
+        {
+            return CreateAction("Stop Hunting")
+            .When(ctx => ctx.player.stealthManager.IsHunting)
+            .Do(ctx =>
+            {
+                ctx.player.stealthManager.StopHunting("You give up the hunt.");
+            })
+            .ThenReturn()
+            .Build();
+        }
+    }
 
 }

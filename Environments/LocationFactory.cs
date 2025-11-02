@@ -101,17 +101,27 @@ public static class LocationFactory
             location.Features.Add(puddle);
         }
 
-        // Configure the NPC spawner
+        // Configure the NPC spawner - MVP Hunting System
+        // Prey animals more common than predators for viable hunting
         NpcTable npcSpawner = new NpcTable();
-        npcSpawner.AddActor(NpcFactory.MakeWolf, 3.0);   // Common
-        npcSpawner.AddActor(NpcFactory.MakeBear, 1.0);   // Rare
+
+        // Prey animals (common) - primary hunting targets
+        npcSpawner.AddActor(NpcFactory.MakeDeer, 4.0);       // Common - good meat, moderate difficulty
+        npcSpawner.AddActor(NpcFactory.MakeRabbit, 5.0);     // Very common - easy target for beginners
+        npcSpawner.AddActor(NpcFactory.MakePtarmigan, 3.0);  // Common - small game
+        npcSpawner.AddActor(NpcFactory.MakeFox, 2.0);        // Uncommon - scavenger behavior
+
+        // Predators (less common) - dangerous when hunting fails
+        npcSpawner.AddActor(NpcFactory.MakeWolf, 2.0);       // Uncommon - pack hunter
+        npcSpawner.AddActor(NpcFactory.MakeBear, 0.5);       // Rare - very dangerous
+
         location.NpcSpawner = npcSpawner;
 
-        // Determine if we should add NPCs initially (40% chance)
-        if (Utils.DetermineSuccess(.5))
+        // Determine if we should add NPCs initially (60% chance - increased for hunting)
+        if (Utils.DetermineSuccess(.6))
         {
-            // Add 1-2 NPCs from the spawner
-            int npcCount = Utils.RandInt(1, 2);
+            // Add 1-3 NPCs from the spawner (increased range for more hunting opportunities)
+            int npcCount = Utils.RandInt(1, 3);
             location.SpawnNpcs(npcCount);
         }
 
