@@ -344,34 +344,37 @@ Track progress by checking off completed tasks. Update dates as you complete eac
   - **Completed**: 2025-11-02
   - **Notes**: Fire-making 20-45 min (realistic), Sharp Rock 5 min (appropriate)
 
-- [ ] **Task 43**: Balance tool effectiveness - *Effort: M*
+- [ ] **Task 43**: Balance tool effectiveness - *Effort: M* **DEFERRED**
   - Test damage values in combat
   - Test harvesting yields per tier
   - Ensure progression feels rewarding
   - **Completed**: ____
-  - **Status**: Not started (requires combat testing)
+  - **Status**: DEFERRED - Requires late-game balance (moved to BACKLOG.md)
+  - **Reason**: Early game needs polish before late-game testing viable
 
-- [ ] **Task 44**: Test shelter warmth values - *Effort: S*
+- [ ] **Task 44**: Test shelter warmth values - *Effort: S* **DEFERRED**
   - Verify temperature bonuses work ✓ (fire warmth confirmed working)
   - Test survival in different weather
   - Each tier meaningfully better
   - **Completed**: ____
-  - **Status**: Fire warmth verified (+15°F, ember +5.25°F), shelters untested
+  - **Status**: DEFERRED - Fire warmth verified, shelters untested (moved to BACKLOG.md)
+  - **Reason**: Early game needs polish before late-game testing viable
 
-- [ ] **Task 45**: Test biome viability - *Effort: M* **HIGH PRIORITY NEXT**
+- [ ] **Task 45**: Test biome viability - *Effort: M* **DEFERRED**
   - Test starting in each biome: Forest ✓, Plains ⏳, Riverbank ⏳, Cave ⏳, Hillside ⏳
   - Verify each has materials for day-1 fire
   - Verify each has materials for day-1 shelter
   - Identify and fix unplayable biomes (e.g., Cave lacking organics)
   - **Completed**: ____
-  - **Review Note**: Added from plan review as High Risk mitigation
-  - **Status**: Forest validated, 4 biomes remaining
+  - **Status**: DEFERRED - Forest validated, 4 biomes remaining (moved to BACKLOG.md)
+  - **Reason**: Early game needs polish before late-game testing viable
+  - **Note**: Cave is intentionally designed as advanced biome (see README)
 
 ---
 
 ## Phase 10: Polish & Documentation ⏳ (0/4)
 **Target**: Clean up and document
-**Status**: Not Started
+**Status**: In Progress (2025-11-02)
 
 - [ ] **Task 46**: Update item descriptions - *Effort: S*
   - Review all new items

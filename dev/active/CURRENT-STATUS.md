@@ -358,47 +358,33 @@
 
 ---
 
-### 🟡 IN PROGRESS: None
+### 🟡 IN PROGRESS: Phase 10 - Polish
 
-**Testing Backlog** (Phases 4-7, 8):
+**Current Focus**: Item descriptions, documentation updates, Ice Age theming
 
-**Phase 4 - Tool Progression (16 recipes):**
-- [ ] Sharp Rock, Flint Knife, Bone Knife, Obsidian Blade
-- [ ] All 5 spear tiers (Sharpened Stick → Obsidian)
-- [ ] Club progression (Stone-Weighted → Bone-Studded)
-- [ ] Hand axe progression (Stone → Flint)
+**Decision**: Late-game testing (Tasks 43-45) deferred until early-game polish complete
+- **Rationale**: Early game needs refinement before late-game content is viable
+- **Forest biome validated**: Other biomes need early-game improvements first
+- **Tool/Shelter testing**: Deferred to post-Phase 10 (requires late-game balance)
 
-**Phase 5 - Shelter Progression (4 recipes):**
-- [ ] Windbreak (30 min emergency shelter at current location)
-- [ ] Lean-to, Debris Hut, Log Cabin (separate structures)
-- [ ] Shelter warmth bonuses (+2°F, +5°F, +8°F, +15°F)
+**Deferred Testing** (moved to BACKLOG.md):
 
-**Phase 6/8 - Clothing/Armor (7 recipes):**
-- [ ] Bark wrappings (chest/legs, 15 min each)
-- [ ] Grass foot wraps, plant fiber hand bindings (10 min each)
-- [ ] Fur-lined armor set (tunic, leggings, boots)
-- [ ] Verify insulation progression: 0.02 → 0.04 → 0.08-0.12 → 0.15
+**Phase 4-8 Integration Testing:**
+- Tool effectiveness testing (16 weapon/tool recipes)
+- Shelter warmth progression testing (4 shelter tiers)
+- Clothing insulation verification (7 armor recipes)
+- Biome viability testing (Plains, Riverbank, Cave, Hillside)
+- Full progression playtest (day 1 → Log Cabin)
 
-**Phase 7 - Foraging UX (3 changes):**
-- [ ] Verify items hidden until foraged (look around shows "Nothing...")
-- [ ] Test forage output shows grouped items: "Stick (3), River Stone (2)"
-- [ ] Verify time display: "You spent 2 hours searching and found..."
-
-**General Integration Testing:**
-- [ ] Verify all 28 recipes appear in crafting menu
-- [ ] Test material requirements are obtainable via foraging/hunting
-- [ ] Test full day-1 progression: forage → craft Sharp Rock → craft Windbreak
-- [ ] Test mid-game: hunt → craft Flint Knife → craft Lean-to
-- [ ] Test endgame: full fur-lined armor + Log Cabin + Obsidian weapons
-
-**Next Up**: Comprehensive testing session OR Phase 9/10 (Balance & Polish)
+**Next Up**: Phase 10 Polish Tasks (Item descriptions, CLAUDE.md updates, crafting guide)
 
 ### 📋 ACTIVE PLANS
 
 **`crafting-foraging-overhaul/`** (Parent Plan)
-- **Status**: 38/49 tasks complete (Phases 1-8 done, 78%)
-- **Remaining**: Phase 9 (Balance), Phase 10 (Polish)
-- **Note**: Ready for comprehensive testing
+- **Status**: 41/49 tasks complete (84%)
+- **Current Phase**: Phase 10 (Polish) - 0/4 tasks
+- **Deferred**: Phase 9 tasks 43-45 (late-game testing)
+- **Note**: Early-game focus before late-game validation
 
 **`crafting-foraging-first-steps/`** (Completed - moved to dev/complete/)
 - **Status**: 17/17 tasks complete ✅
@@ -407,32 +393,30 @@
 
 ## Quick Start for Next Session
 
-### 🎮 Recommended: Gameplay Testing
+### 🎨 Phase 10 Polish (Current Focus)
 
-Now that the game is playable (survival time fixed), test the crafting/foraging systems:
-
+**Priority 1: Item Descriptions** (Task 46)
 ```bash
-# Use new testing workflow
-./play_game.sh start
+# Review items for Ice Age theming
+grep -r "powerful\|enchanted\|magical" Items/ItemFactory.cs
+grep -r "\+[0-9] damage" Items/
 
-# Test checklist:
-# - Verify fur wraps (Worn Fur Chest Wrap, Fur Leg Wraps)
-# - Check starting campfire (15 min warmth)
-# - Forage in clearing (verify bark, grass, tinder available)
-# - Attempt hand drill fire (30% success rate)
-# - Monitor temperature over 60-90 minutes
-# - Test foraging duration issue (currently fixed at 1 hour)
-
-./play_game.sh stop
+# Focus on fire-making materials (most player-facing):
+# - Tinder Bundle, Bark Strips, Dry Grass, Pine Resin
+# - Sharp Rock, Small Stone, Handstone
+# - Plant Fibers, Rushes
 ```
 
-**Document findings in:** `ISSUES.md`
+**Priority 2: Documentation** (Task 47)
+1. Update CLAUDE.md with skill check system
+2. Document new ItemProperty enums
+3. Document progression philosophy
+4. Add balance changes context
 
-### 🛠️ Or Continue Implementation (Phase 4+)
-
-1. Read: `crafting-foraging-overhaul/crafting-foraging-overhaul-plan.md`
-2. Start: Phase 4 - Tool Progression (Sharp Rock, Flint Knife, Bone Knife, Obsidian)
-3. Reference: `dev/complete/crafting-foraging-first-steps/SESSION-SUMMARY-2025-11-01.md` for patterns
+**Priority 3: Full Playtest** (Task 49 - after descriptions)
+- Complete Start → Log Cabin progression
+- Document pain points and material bottlenecks
+- Final balance adjustments
 
 ### 📚 Recent Documentation
 
