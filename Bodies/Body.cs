@@ -198,7 +198,8 @@ public class Body
         };
         Heal(healing);
 
-        World.Update(minutes); // need to fix, right now we are double updating
+        // Note: Calling action is responsible for updating World.Update(minutes)
+        // to avoid double time updates
 
         return Energy <= 0;
     }

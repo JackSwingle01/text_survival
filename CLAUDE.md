@@ -223,3 +223,8 @@ When adding content, prioritize thematic consistency with the Ice Age setting an
 The `documentation/` folder contains **detailed reference guides**, while this CLAUDE.md is the **quick overview**.
 - Make sure to consult the current plan in ./dev/active
 - When you are done with a dev task, you can move the folder from the active directory to the complete dir
+- When you find issues, document them in ISSUES.md and when you resolve them, remove them from the file
+- Before adding special code for handling 'legacy' or 'backwards compatibility' stop and consult with the user how to proceed. Typically it's a code smell.
+- Document all changes by updating the dev/CURRENT-STATUS.md
+- For game design refer to the README especially the Design Philosophy section
+- Whenever the user shares a new piece of game design philosophy make sure to add it to the readme

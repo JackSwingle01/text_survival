@@ -24,21 +24,22 @@ public static class LocationFactory
         string name = Utils.GetRandomFromList(forestNames);
         location.Name = (adjective + " " + name).Trim();
 
-        // Create a ForageFeature with high resource density for forests (1.2)
-        ForageFeature forageFeature = new ForageFeature(location, 1.2);
+        // Create a ForageFeature with high resource density for forests (1.6 - buffed for better yields)
+        ForageFeature forageFeature = new ForageFeature(location, 1.6);
 
         // Add natural resources to the forage feature - more forest-appropriate items
         forageFeature.AddResource(ItemFactory.MakeBerry, .5);     // Common
         forageFeature.AddResource(ItemFactory.MakeWater, .5);     // Available but not as common
         forageFeature.AddResource(ItemFactory.MakeMushroom, .4);  // Common in forests
-        forageFeature.AddResource(ItemFactory.MakeStick, .8);     // Very common
+        forageFeature.AddResource(ItemFactory.MakeStick, 1.0);    // Very common (buffed)
         forageFeature.AddResource(ItemFactory.MakeFirewood, .4);   // Common
         forageFeature.AddResource(ItemFactory.MakeRoots, .3);     // Fairly common
         forageFeature.AddResource(ItemFactory.MakeFlint, 0.1);     // Rare
+        forageFeature.AddResource(ItemFactory.MakeSmallStone, 0.3);  // Uncommon (for Sharp Rock crafting)
         // Phase 2: New fire-starting and cordage materials
-        forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.5);      // Common
-        forageFeature.AddResource(ItemFactory.MakeBarkStrips, 0.7);    // Very common (trees!)
-        forageFeature.AddResource(ItemFactory.MakePlantFibers, 0.6);   // Common
+        forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.7);      // Common (buffed)
+        forageFeature.AddResource(ItemFactory.MakeBarkStrips, 0.9);    // Very common (trees!) (buffed)
+        forageFeature.AddResource(ItemFactory.MakePlantFibers, 0.8);   // Common (buffed)
         forageFeature.AddResource(ItemFactory.MakeTinderBundle, 0.2);  // Rare (prepared)
 
         // Add the forage feature to the location's features
@@ -97,7 +98,7 @@ public static class LocationFactory
 
         // Add resources to the forage feature - cave-appropriate items
         forageFeature.AddResource(ItemFactory.MakeMushroom, 3.0);  // Can find mushrooms in caves
-        forageFeature.AddResource(ItemFactory.MakeRiverStone, 5.0);     // Very common
+        forageFeature.AddResource(ItemFactory.MakeSmallStone, 5.0);     // Very common
         forageFeature.AddResource(ItemFactory.MakeFlint, 2.0);     // More common in caves
         forageFeature.AddResource(ItemFactory.MakeClay, 1.0);      // Near cave entrances
         forageFeature.AddResource(ItemFactory.MakeObsidianShard, 0.3); // Rare but valuable
@@ -167,7 +168,7 @@ public static class LocationFactory
         forageFeature.AddResource(ItemFactory.MakeFish, 6.0);      // Common
         forageFeature.AddResource(ItemFactory.MakeRoots, 4.0);     // Common near water
         forageFeature.AddResource(ItemFactory.MakeClay, 5.0);      // Common at riverbanks
-        forageFeature.AddResource(ItemFactory.MakeRiverStone, 5.0);     // River stones
+        forageFeature.AddResource(ItemFactory.MakeSmallStone, 5.0);     // River stones
         forageFeature.AddResource(ItemFactory.MakeFlint, 1.0);     // Occasionally found
         // Phase 2: Wetland plants
         forageFeature.AddResource(ItemFactory.MakeRushes, 0.8);        // Very common (water plants)
@@ -228,7 +229,7 @@ public static class LocationFactory
         forageFeature.AddResource(ItemFactory.MakeRoots, 6.0);     // Common
         forageFeature.AddResource(ItemFactory.MakeBerry, 2.0);     // Less common
         forageFeature.AddResource(ItemFactory.MakeStick, 1.0);     // Rare (few trees)
-        forageFeature.AddResource(ItemFactory.MakeRiverStone, 4.0);     // Common
+        forageFeature.AddResource(ItemFactory.MakeSmallStone, 4.0);     // Common
         forageFeature.AddResource(ItemFactory.MakeFlint, 0.5);     // Rare
         // Phase 2: Grassland materials
         forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.8);      // Very common (grassland!)
@@ -288,7 +289,7 @@ public static class LocationFactory
         ForageFeature forageFeature = new ForageFeature(location, 0.9);
 
         // Add resources to the forage feature - hillside-appropriate items
-        forageFeature.AddResource(ItemFactory.MakeRiverStone, 8.0);        // Very common
+        forageFeature.AddResource(ItemFactory.MakeSmallStone, 8.0);        // Very common
         forageFeature.AddResource(ItemFactory.MakeFlint, 3.0);        // More common on hillsides
         forageFeature.AddResource(ItemFactory.MakeObsidianShard, 0.5); // Rare but possible
         forageFeature.AddResource(ItemFactory.MakeRoots, 2.0);         // Less common
@@ -347,7 +348,7 @@ public static class LocationFactory
     {
         var options = new Dictionary<Func<Item>, double> {
             { ItemFactory.MakeMushroom, 4.0 },
-            { ItemFactory.MakeRiverStone, 8.0 },
+            { ItemFactory.MakeSmallStone, 8.0 },
             { ItemFactory.MakeFlint, 3.0 },
             { ItemFactory.MakeBone, 4.0 },
             { ItemFactory.MakeObsidianShard, 0.5 },
@@ -364,7 +365,7 @@ public static class LocationFactory
             { ItemFactory.MakeWater, 8.0 },
             { ItemFactory.MakeFish, 5.0 },
             { ItemFactory.MakeClay, 6.0 },
-            { ItemFactory.MakeRiverStone, 8.0 },
+            { ItemFactory.MakeSmallStone, 8.0 },
             { ItemFactory.MakeFlint, 2.0 },
             { ItemFactory.MakeRoots, 3.0 }
         };
@@ -376,7 +377,7 @@ public static class LocationFactory
     {
         var options = new Dictionary<Func<Item>, double> {
             { ItemFactory.MakeRoots, 6.0 },
-            { ItemFactory.MakeRiverStone, 5.0 },
+            { ItemFactory.MakeSmallStone, 5.0 },
             { ItemFactory.MakeBone, 3.0 },
             { ItemFactory.MakeSinew, 1.0 },
             { ItemFactory.MakeBerry, 2.0 },
@@ -389,7 +390,7 @@ public static class LocationFactory
     private static Item GetRandomHillsideItem()
     {
         var options = new Dictionary<Func<Item>, double> {
-            { ItemFactory.MakeRiverStone, 8.0 },
+            { ItemFactory.MakeSmallStone, 8.0 },
             { ItemFactory.MakeFlint, 5.0 },
             { ItemFactory.MakeObsidianShard, 1.0 },
             { ItemFactory.MakeOchrePigment, 2.0 }

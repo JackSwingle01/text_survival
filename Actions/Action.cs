@@ -12,10 +12,12 @@ public abstract class GameActionBase(string name) : IGameAction
 {
     public virtual string Name { get; set; } = name;
     public virtual bool IsAvailable(GameContext ctx) => true;
+    public virtual int TimeInMinutes => 1; // Default: all actions take 1 minute
+
     public void Execute(GameContext ctx)
     {
         OnExecute(ctx);
-        World.Update(1);
+        World.Update(TimeInMinutes);
         SelectNextAction(ctx);
     }
 

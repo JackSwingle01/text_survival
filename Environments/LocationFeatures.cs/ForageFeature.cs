@@ -6,30 +6,54 @@ namespace text_survival.Environments;
 public class ForageFeature(Location location, double resourceDensity = 1) : LocationFeature("forage", location)
 {
     private readonly double baseResourceDensity = resourceDensity;
-    private int numberOfHoursForaged = 0;
+    private double numberOfHoursForaged = 0;
     private Dictionary<Func<Item>, double> resourceAbundance = [];
     private double ResourceDensity => baseResourceDensity / (numberOfHoursForaged + 1);
 
-    public void Forage(int hours)
+    public void Forage(double hours)
     {
         List<Item> itemsFound = [];
-        for (int i = 0; i < hours; i++)
-        {
-            foreach (Func<Item> factory in resourceAbundance.Keys)
-            {
-                double chance = ResourceDensity * resourceAbundance[factory];
 
-                if (Utils.DetermineSuccess(chance))
-                {
-                    var item = factory();
-                    Output.WriteLine("You found: ", item);
-                    item.IsFound = true;
-                    ParentLocation.Items.Add(item);
-                }
+        // Run foraging checks with time scaling (15 min = 25% of hourly odds)
+        foreach (Func<Item> factory in resourceAbundance.Keys)
+        {
+            double baseChance = ResourceDensity * resourceAbundance[factory];
+            double scaledChance = baseChance * hours; // Scale by time spent
+
+            if (Utils.DetermineSuccess(scaledChance))
+            {
+                var item = factory();
+                item.IsFound = true;
+                ParentLocation.Items.Add(item);
+                itemsFound.Add(item);
             }
-            numberOfHoursForaged++;
         }
-        World.Update(hours * 60);
+
+        // Only deplete if items were actually found
+        if (itemsFound.Count > 0)
+        {
+            numberOfHoursForaged += hours;
+        }
+
+        int minutes = (int)(hours * 60);
+        World.Update(minutes);
+
+        // Display results grouped by item type
+        if (itemsFound.Count > 0)
+        {
+            var groupedItems = itemsFound
+                .GroupBy(item => item.Name)
+                .Select(group => $"{group.Key} ({group.Count()})")
+                .ToList();
+
+            string timeText = minutes == 60 ? "1 hour" : $"{minutes} minutes";
+            Output.WriteLine($"You spent {timeText} searching and found: {string.Join(", ", groupedItems)}");
+        }
+        else
+        {
+            string timeText = minutes == 60 ? "1 hour" : $"{minutes} minutes";
+            Output.WriteLine($"You spent {timeText} searching but found nothing.");
+        }
     }
 
     /// <summary>

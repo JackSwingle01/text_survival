@@ -50,9 +50,9 @@ namespace text_survival
             // Add environment feature
             startingArea.Features.Add(new EnvironmentFeature(startingArea, EnvironmentFeature.LocationType.Forest));
 
-            // Add dying campfire (15 minutes of warmth remaining)
+            // Add starting campfire (1 hour of warmth remaining)
             HeatSourceFeature campfire = new HeatSourceFeature(startingArea, heatOutput: 15.0);
-            campfire.AddFuel(0.25); // 15 minutes = 0.25 hours
+            campfire.AddFuel(1.0); // 60 minutes = 1.0 hour
             campfire.SetActive(true);
             startingArea.Features.Add(campfire);
 

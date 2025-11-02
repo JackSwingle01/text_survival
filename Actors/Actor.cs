@@ -19,6 +19,13 @@ public abstract class Actor
     public virtual void Update()
     {
         EffectRegistry.Update();
+
+        if (CurrentLocation == null)
+        {
+            // Actor not in a valid location, skip survival update
+            return;
+        }
+
         var context = new SurvivalContext
         {
             ActivityLevel = 2,

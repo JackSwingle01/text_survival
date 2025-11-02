@@ -103,7 +103,7 @@ namespace text_survival.Items
             {
                 Description = "Sharp-edged stone perfect for making cutting tools and starting fires.",
                 Weight = 0.2,
-                CraftingProperties = [ItemProperty.Stone, ItemProperty.Firestarter, ItemProperty.Sharp]
+                CraftingProperties = [ItemProperty.Flint, ItemProperty.Firestarter, ItemProperty.Sharp]
             };
             return flint;
         }
@@ -193,11 +193,11 @@ namespace text_survival.Items
 
         // --- Phase 2: Stone Variety ---
 
-        public static Item MakeRiverStone()
+        public static Item MakeSmallStone()
         {
-            var item = new Item("River Stone")
+            var item = new Item("Small Stone")
             {
-                Description = "A smooth, rounded stone from the riverbed. Good for smashing or as a hammer.",
+                Description = "A small, rounded stone. Good for smashing or as a hammer.",
                 Weight = 0.3,
                 CraftingProperties = [ItemProperty.Stone]
             };
@@ -237,48 +237,166 @@ namespace text_survival.Items
             return bone;
         }
 
-        public static Weapon MakeSpear()
+        // ===== SPEAR PROGRESSION (Tier 1-5) =====
+
+        public static Weapon MakeSharpenedStick()
         {
-            Weapon spear = new Weapon(WeaponType.Spear, WeaponMaterial.Wood, "Hunting Spear")
+            Weapon spear = new Weapon(WeaponType.Spear, WeaponMaterial.Wood, "Sharpened Stick")
             {
-                Description = "A long wooden shaft with a sharpened flint point. Good for hunting and defense.",
-                Weight = 1.5,
-                CraftingProperties = [ItemProperty.Wood, ItemProperty.Flammable, ItemProperty.Stone, ItemProperty.Sharp]
+                Description = "A simple wooden stick sharpened to a point. Crude but better than nothing.",
+                Weight = 1.0,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Flammable, ItemProperty.Sharp]
             };
             return spear;
         }
 
-        public static Weapon MakeClub()
+        public static Weapon MakeFireHardenedSpear()
         {
-            Weapon club = new Weapon(WeaponType.Club, WeaponMaterial.Wood, "War Club")
+            Weapon spear = new Weapon(WeaponType.Spear, WeaponMaterial.Wood, "Fire-Hardened Spear")
             {
-                Description = "A heavy wooden club reinforced with stone. Brutal but effective.",
-                Weight = 2.0,
-                CraftingProperties = [ItemProperty.Wood, ItemProperty.Stone, ItemProperty.Flammable]
+                Description = "A wooden spear with its tip hardened in fire. Significantly more durable than a sharpened stick.",
+                Weight = 1.2,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Flammable, ItemProperty.Sharp]
+            };
+            return spear;
+        }
+
+        public static Weapon MakeFlintTippedSpear()
+        {
+            Weapon spear = new Weapon(WeaponType.Spear, WeaponMaterial.Flint, "Flint-Tipped Spear")
+            {
+                Description = "A sturdy spear with a sharp flint point lashed to the shaft. A proper hunting weapon.",
+                Weight = 1.5,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Flint, ItemProperty.Binding, ItemProperty.Flammable, ItemProperty.Sharp]
+            };
+            return spear;
+        }
+
+        public static Weapon MakeBoneTippedSpear()
+        {
+            Weapon spear = new Weapon(WeaponType.Spear, WeaponMaterial.Bone, "Bone-Tipped Spear")
+            {
+                Description = "A fire-hardened bone point attached to a wooden shaft with sinew. Excellent penetration.",
+                Weight = 1.4,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Bone, ItemProperty.Binding, ItemProperty.Flammable, ItemProperty.Sharp]
+            };
+            return spear;
+        }
+
+        public static Weapon MakeObsidianSpear()
+        {
+            Weapon spear = new Weapon(WeaponType.Spear, WeaponMaterial.Obsidian, "Obsidian Spear")
+            {
+                Description = "The ultimate hunting weapon - a razor-sharp obsidian point mounted on a perfectly balanced shaft. Legendary among hunters.",
+                Weight = 1.6,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Obsidian, ItemProperty.Binding, ItemProperty.Flammable, ItemProperty.Sharp]
+            };
+            return spear;
+        }
+
+        // ===== CLUB PROGRESSION (Tier 1-3) =====
+
+        public static Weapon MakeHeavyStick()
+        {
+            Weapon club = new Weapon(WeaponType.Club, WeaponMaterial.Wood, "Heavy Stick")
+            {
+                Description = "A thick, heavy branch. Can be found naturally or used as a crude weapon.",
+                Weight = 1.5,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Flammable]
             };
             return club;
         }
 
-        public static Weapon MakeHandAxe()
+        public static Weapon MakeStoneWeightedClub()
+        {
+            Weapon club = new Weapon(WeaponType.Club, WeaponMaterial.Stone, "Stone-Weighted Club")
+            {
+                Description = "A heavy stick with a stone lashed to one end. Devastating impact damage.",
+                Weight = 2.0,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Stone, ItemProperty.Binding, ItemProperty.Flammable]
+            };
+            return club;
+        }
+
+        public static Weapon MakeBoneStuddedClub()
+        {
+            Weapon club = new Weapon(WeaponType.Club, WeaponMaterial.Bone, "Bone-Studded Club")
+            {
+                Description = "A fearsome weapon with sharpened bone spikes embedded along its length. Crushes and pierces simultaneously.",
+                Weight = 2.2,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Bone, ItemProperty.Binding, ItemProperty.Flammable, ItemProperty.Sharp]
+            };
+            return club;
+        }
+
+        // ===== HAND AXE PROGRESSION (Tier 1-2) =====
+
+        public static Weapon MakeStoneHandAxe()
         {
             Weapon axe = new Weapon(WeaponType.HandAxe, WeaponMaterial.Stone, "Stone Hand Axe")
             {
-                Description = "A sharp stone blade bound to a wooden handle with animal sinew.",
+                Description = "A sharp stone blade bound to a wooden handle. Useful for chopping wood and harvesting.",
                 Weight = 1.8,
-                CraftingProperties = [ItemProperty.Wood, ItemProperty.Stone, ItemProperty.Flammable, ItemProperty.Binding, ItemProperty.Sharp]
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Stone, ItemProperty.Binding, ItemProperty.Flammable, ItemProperty.Sharp]
             };
             return axe;
         }
 
-        public static Weapon MakeKnife()
+        public static Weapon MakeFlintHandAxe()
+        {
+            Weapon axe = new Weapon(WeaponType.HandAxe, WeaponMaterial.Flint, "Flint Hand Axe")
+            {
+                Description = "A precision-knapped flint blade hafted to a sturdy handle with sinew. Superior wood harvesting capability.",
+                Weight = 1.6,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Flint, ItemProperty.Binding, ItemProperty.Flammable, ItemProperty.Sharp]
+            };
+            return axe;
+        }
+
+        // ===== KNIFE PROGRESSION (Tier 1-4) =====
+
+        public static Weapon MakeSharpRock()
+        {
+            Weapon rock = new Weapon(WeaponType.SharpStone, WeaponMaterial.Stone, "Sharp Rock")
+            {
+                Description = "A crude stone with a sharp edge created by smashing rocks together. Barely functional as a cutting tool.",
+                Weight = 0.3,
+                CraftingProperties = [ItemProperty.Stone, ItemProperty.Sharp]
+            };
+            return rock;
+        }
+
+        public static Weapon MakeFlintKnife()
         {
             Weapon knife = new Weapon(WeaponType.Knife, WeaponMaterial.Flint, "Flint Knife")
             {
-                Description = "A razor-sharp flint blade with a bone handle. Essential for skinning and cutting.",
+                Description = "A razor-sharp flint blade lashed to a wooden handle. Excellent for skinning and cutting.",
                 Weight = 0.4,
-                CraftingProperties = [ItemProperty.Stone, ItemProperty.Bone, ItemProperty.Sharp]
+                CraftingProperties = [ItemProperty.Flint, ItemProperty.Wood, ItemProperty.Binding, ItemProperty.Sharp]
             };
             return knife;
+        }
+
+        public static Weapon MakeBoneKnife()
+        {
+            Weapon knife = new Weapon(WeaponType.Knife, WeaponMaterial.Bone, "Bone Knife")
+            {
+                Description = "A fire-hardened bone blade with excellent edge retention. Superior harvesting yields.",
+                Weight = 0.3,
+                CraftingProperties = [ItemProperty.Bone, ItemProperty.Binding, ItemProperty.Sharp]
+            };
+            return knife;
+        }
+
+        public static Weapon MakeObsidianBlade()
+        {
+            Weapon blade = new Weapon(WeaponType.Knife, WeaponMaterial.Obsidian, "Obsidian Blade")
+            {
+                Description = "A wickedly sharp blade of volcanic glass mounted on an antler handle. The finest cutting tool known to Ice Age hunters.",
+                Weight = 0.35,
+                CraftingProperties = [ItemProperty.Obsidian, ItemProperty.Antler, ItemProperty.Binding, ItemProperty.Sharp]
+            };
+            return blade;
         }
 
         public static Armor MakeHideShield()
@@ -292,15 +410,51 @@ namespace text_survival.Items
             return shield;
         }
 
+        // ===== TIER 2-3 ARMOR (Phase 6) =====
+
         public static Armor MakeFurArmor()
         {
             Armor armor = new Armor("Fur Armor", .25, EquipSpots.Chest, 8)
             {
                 Description = "A thick fur pelt worn as protection. Offers warmth and some defense against attacks.",
                 Weight = 3.0,
-                CraftingProperties = [ItemProperty.Hide, ItemProperty.Insulation, ItemProperty.Binding]
+                CraftingProperties = [ItemProperty.Hide, ItemProperty.Fur, ItemProperty.Binding]
             };
             return armor;
+        }
+
+        // Tier 3: Fur-Lined Armor (best cold weather gear)
+        public static Armor MakeFurLinedTunic()
+        {
+            Armor tunic = new Armor("Fur-Lined Tunic", 3.0, EquipSpots.Chest, .15)
+            {
+                Description = "Hide armor lined with thick fur. Excellent protection from both cold and combat.",
+                Weight = 4.0,
+                CraftingProperties = [ItemProperty.Hide, ItemProperty.Fur, ItemProperty.Binding, ItemProperty.Insulation]
+            };
+            return tunic;
+        }
+
+        public static Armor MakeFurLinedLeggings()
+        {
+            Armor leggings = new Armor("Fur-Lined Leggings", 2.5, EquipSpots.Legs, .12)
+            {
+                Description = "Leather leggings with fur lining. Superior warmth for Ice Age winters.",
+                Weight = 3.0,
+                CraftingProperties = [ItemProperty.Hide, ItemProperty.Fur, ItemProperty.Binding]
+            };
+            return leggings;
+        }
+
+        public static Armor MakeFurLinedBoots()
+        {
+            Armor boots = new Armor("Fur-Lined Boots", 1.5, EquipSpots.Feet, .08)
+            {
+                Description = "Sturdy hide boots lined with soft fur. Keeps feet warm in the harshest cold.",
+                Weight = 1.0,
+                CraftingProperties = [ItemProperty.Hide, ItemProperty.Fur, ItemProperty.Binding]
+            };
+            return boots;
         }
 
         public static FoodItem MakeLargeMeat()
@@ -467,6 +621,54 @@ namespace text_survival.Items
             return wrap;
         }
 
+        // ===== EARLY-GAME WRAPPINGS (Phase 6 - Tier 1 craftable) =====
+
+        public static Armor MakeBarkChestWrap()
+        {
+            Armor wrap = new Armor("Bark Chest Wrap", 1.0, EquipSpots.Chest, .04)
+            {
+                Description = "Strips of bark bound around your torso. Crude but provides basic protection from the elements.",
+                Weight = 0.5,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Binding]
+            };
+            return wrap;
+        }
+
+        public static Armor MakeBarkLegWrap()
+        {
+            Armor wrap = new Armor("Bark Leg Wraps", 1.0, EquipSpots.Legs, .03)
+            {
+                Description = "Bark strips wrapped around your legs. Uncomfortable but better than nothing.",
+                Weight = 0.4,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Binding]
+            };
+            return wrap;
+        }
+
+        public static Armor MakeGrassFootWraps()
+        {
+            Armor wrap = new Armor("Grass Foot Wraps", 0.5, EquipSpots.Feet, .02)
+            {
+                Description = "Bundles of dry grass bound around your feet. Provides minimal insulation from cold ground.",
+                Weight = 0.1,
+                CraftingProperties = [ItemProperty.PlantFiber, ItemProperty.Binding]
+            };
+            return wrap;
+        }
+
+        public static Armor MakePlantFiberBindings()
+        {
+            Armor wrap = new Armor("Plant Fiber Bindings", 0.5, EquipSpots.Hands, .015)
+            {
+                Description = "Woven plant fibers wrapped around your hands. Minimal warmth but protects from scrapes.",
+                Weight = 0.05,
+                CraftingProperties = [ItemProperty.PlantFiber]
+            };
+            return wrap;
+        }
+
+        // ===== MID-TIER ARMOR (Phase 6 - Tier 2) =====
+
         public static Armor MakeWornFurChestWrap()
         {
             Armor wrap = new Armor("Worn Fur Chest Wrap", 2.0, EquipSpots.Chest, .08)
@@ -554,7 +756,7 @@ namespace text_survival.Items
             {
                 Description = "A piece of naturally occurring volcanic glass. Can be knapped into extremely sharp tools.",
                 Weight = 0.2,
-                CraftingProperties = [ItemProperty.Stone, ItemProperty.Sharp]
+                CraftingProperties = [ItemProperty.Obsidian, ItemProperty.Sharp]
             };
             return obsidian;
         }

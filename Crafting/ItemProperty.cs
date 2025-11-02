@@ -22,7 +22,10 @@ public enum ItemProperty : byte
     Fur,         // Superior insulation from hunting
     Antler,      // Tool handles and specialized components
     Leather,     // Processed hide (requires tanning)
-    Charcoal     // Fire-hardened wood, fuel
+    Charcoal,    // Fire-hardened wood, fuel
+    // Phase 4 additions for tool progression
+    Flint,       // High-quality stone for sharp blades
+    Obsidian     // Volcanic glass - sharpest material
 }
 
 public class CraftingPropertyRequirement(ItemProperty property, double minQuantity, bool isConsumed = true)

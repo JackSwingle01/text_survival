@@ -10,10 +10,60 @@ A console-based survival RPG set in an Ice Age world with shamanistic elements, 
 - **The Long Dark**: Emphasis on survival through managing hunger, thirst, and harsh weather conditions
 - **RimWorld**: Detailed body part system and emergent storytelling through character interactions
 
-### Design Philosophy:
+### Design Philosophy
+
+#### Technical Principles
 - **Simplicity with Depth**: Simple systems combine for complex outcomes (e.g., a skilled but injured player vs. an unskilled healthy one)
 - **Modularity**: Supports adding features like diseases or prosthetics without major refactoring
 - **Realism**: Grounded mechanics (calorie-based fat dynamics, activity-driven muscle growth)
+
+#### Gameplay Design
+- **Ice Age Authenticity**: Moving away from generic RPG elements toward period-appropriate equivalents (flint, bone, hide)
+- **Survival Over Combat**: Environmental challenges (cold, scarcity, weather) take priority over traditional RPG combat/leveling
+- **Emergent Storytelling**: Systems interact to create unique player stories rather than scripted narratives
+- **Resource Scarcity**: Every material matters; players must plan and adapt to survive
+
+#### Biome Design Philosophy
+
+Each biome serves a distinct gameplay role with intentional resource distributions:
+
+- **Forest (Starting Biome)**
+  - Abundant organic materials (wood, bark, plant fibers)
+  - Good fire-making resources (dry grass, sticks)
+  - Balanced food availability (berries, small game)
+  - Moderate shelter from elements
+  - *Philosophy*: Forgiving starting area with all essentials for day-1 survival
+
+- **Plains**
+  - Grassland materials (dry grass, rushes)
+  - Exposed to weather and temperature extremes
+  - Good hunting grounds (larger game)
+  - Limited natural shelter
+  - *Philosophy*: Risk/reward - great hunting but harsh conditions
+
+- **Riverbank**
+  - Water access (hydration never an issue)
+  - River stones and clay deposits
+  - Rushes and water plants
+  - Occasional fish/waterfowl
+  - *Philosophy*: Specialized resources (stone, water) but limited wood/fire materials
+
+- **Hillside**
+  - Balanced stone and organic mix
+  - Elevated vantage points
+  - Moderate exposure to elements
+  - Mixed foraging (roots, small game)
+  - *Philosophy*: Versatile mid-game area for established players
+
+- **Cave (Advanced Biome)**
+  - **NOT a starting biome** - requires preparation
+  - Low food and plant material (bring your own supplies)
+  - Excellent protection from weather and temperature
+  - Rare materials (obsidian, crystal, mineral deposits)
+  - Potential for dangerous wildlife (bears, cave lions)
+  - *Philosophy*: High-risk, high-reward destination for geared players seeking rare materials or extreme weather shelter
+
+This design ensures each biome feels distinct and encourages strategic movement and planning rather than aimless wandering.
 
 ## Technical Architecture Overview
 

@@ -9,11 +9,23 @@ namespace text_survival
         public static Player? Player { get; set; }
         public static void Update(int minutes)
         {
+            // Enable message batching for multi-minute updates to prevent spam
+            if (minutes > 1)
+            {
+                IO.Output.StartBatching();
+            }
+
             for (int i = 0; i < minutes; i++)
             {
                 Player?.Update();
                 Player?.CurrentZone.Update();
                 Time = Time.AddMinutes(1);
+            }
+
+            // Flush and deduplicate messages after multi-minute update
+            if (minutes > 1)
+            {
+                IO.Output.FlushMessages();
             }
         }
 

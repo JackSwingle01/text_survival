@@ -16,10 +16,10 @@ This document details the improvements made to the testing infrastructure for th
 ### Original Issues
 
 1. **Unsafe Test Directory**
-   - Used generic `tmp/` directory name
-   - Risk of accidental deletion with `rm -rf tmp` commands
-   - Not obviously game-related
-   - Could conflict with system temp directories
+   - Used generic `.test_game_io/` directory name (correct now)
+   - Previously was at risk of accidental deletion
+   - Now clearly game-related and hidden
+   - Safe from conflicts with system temp directories
 
 2. **No Process Management**
    - No way to track running game instances
@@ -490,26 +490,26 @@ TEST_MODE=1 dotnet run &
 PID=$!
 
 # Send command (no synchronization)
-echo "1" > tmp/game_input.txt
+echo "1" > .test_game_io/game_input.txt
 
 # Wait arbitrary time
 sleep 1
 
 # Read output (might be stale)
-cat tmp/game_output.txt
+cat .test_game_io/game_output.txt
 
 # Stop game (manual PID tracking)
 kill $PID
 
 # Clean up (manual)
-rm -rf tmp/
+rm -rf .test_game_io/
 ```
 
 **Issues:**
 - No PID tracking (lose process ID)
 - No synchronization (race conditions)
 - Manual cleanup required
-- Dangerous `tmp/` directory name
+- Manual file path management
 - No error visibility
 
 ---

@@ -147,46 +147,183 @@ dotnet run
 
 **Stale Process:** If the game crashes, use `./play_game.sh stop` to clean up. The script will detect and kill stale processes automatically.
 
+## Complete Testing Workflow
+
+### Overview
+
+When playtesting, you should:
+1. **Test game systems** using `play_game.sh`
+2. **Document bugs** in **ISSUES.md**
+3. **Document suggestions** in **SUGGESTIONS.md**
+4. **Summarize findings** and recommend priorities
+
+---
+
 ## Reporting Issues Found During Testing
 
 **CRITICAL**: When testing reveals bugs, balance problems, crashes, or unexpected behavior, **YOU MUST UPDATE ISSUES.md**.
 
 ### When to Report an Issue
 
-Document in ISSUES.md when you find:
-- **Breaking Exceptions**: Crashes, null references, or errors that stop gameplay
-- **Bugs**: Features not working as intended (e.g., energy depleting instantly)
-- **Questionable Functionality**: Features that work but feel wrong (e.g., "Press any key" requiring specific input)
-- **Balance Issues**: Gameplay too hard/easy, progression too fast/slow, survival impossible/trivial
+Document in **ISSUES.md** when you find:
+- 🔴 **Breaking Exceptions**: Crashes, null references, or errors that stop gameplay
+- 🟠 **Bugs**: Features not working as intended (e.g., incorrect damage calculations)
+- 🟡 **Questionable Functionality**: Features that work but may not be intended (e.g., "Press any key" requiring specific input)
+- 🟢 **Balance & Immersion Issues**: Gameplay too hard/easy, progression too fast/slow, survival impossible/trivial
 
-### How to Report
+### How to Report Issues
 
-1. **Open ISSUES.md** and add the issue under the appropriate category
+1. **Open ISSUES.md** and add the issue under the appropriate severity category
 2. **Include key details**:
    - Clear title describing the problem
-   - Severity (High/Medium/Low)
+   - Severity level (High/Medium/Low or Critical/Game-Breaking)
+   - Status (🔴 ACTIVE, ✅ FIXED, ⏸️ DEFERRED)
    - Reproduction steps from your test session
    - Expected vs. actual behavior
    - Impact on gameplay
-   - Suggested solutions if you have ideas
+   - Root cause hypothesis (if known)
+   - Suggested solutions (if you have ideas)
 3. **Update testing blockers** if the issue prevents further testing
 4. **Cross-reference** with the testing checklist above
 
 ### Example Issue Report Format
 
 ```markdown
-### Energy Depletes to 0% Instantly
+### "You are still feeling cold" Spam During Foraging
 
-**Severity:** High
+**Severity:** High - UX Bug
+**Location:** Likely SurvivalProcessor.cs or body update loop
+**Status:** 🔴 **ACTIVE** (discovered 2025-11-01)
+
 **Reproduction:**
 1. Start new game
-2. Look around clearing
-3. Take items from sack
-4. Energy drops from 83% → 0%
+2. Select Forage option
+3. Observe output during 1-hour forage
 
-**Expected:** Gradual energy depletion over time
-**Actual:** Instant depletion after a few menu actions
-**Impact:** Game becomes unplayable
+**Observed:**
+- "You are still feeling cold" message repeats 15-20 times
+- Makes output unreadable
+
+**Expected:**
+- Status messages should be suppressed or summarized during foraging
+- Should NOT spam the same message dozens of times
+
+**Root Cause Hypothesis:**
+- Body.Update() is being called in a loop (every minute?) during foraging
+- Each update outputs temperature status
+
+**Suggested Fix:**
+- Pass a "quiet mode" flag to Body.Update() during long actions
+- OR suppress repeated identical messages in Output.WriteLine()
+
+**Priority:** High - significantly impacts user experience
 ```
 
-This helps track what needs fixing before the feature can be considered complete. Always check ISSUES.md before testing to see known problems and avoid re-testing broken features.
+**Important:** Always check ISSUES.md before testing to see known problems and avoid re-testing broken features.
+
+---
+
+## Documenting Suggestions
+
+For improvement ideas, enhancement suggestions, or new features discovered during play, update **SUGGESTIONS.md**.
+
+### When to Document a Suggestion
+
+Add to **SUGGESTIONS.md** when you identify:
+- **Quality of Life Improvements**: UI/UX enhancements that make the game smoother
+- **Gameplay Enhancements**: New mechanics or features that add depth
+- **Content Additions**: Items, recipes, NPCs, locations that fit the theme
+- **Balance Adjustments**: Tweaks to make gameplay more engaging
+- **Thematic Improvements**: Changes that enhance Ice Age authenticity
+- **Performance Optimizations**: Technical improvements (only if issues observed)
+
+### How to Document Suggestions
+
+1. **Open SUGGESTIONS.md** and add under the appropriate category
+2. **Include key details**:
+   - Clear title describing the suggestion
+   - Category (Quality of Life, Gameplay, Content, Balance, Thematic, Technical)
+   - Current behavior (what exists now)
+   - Suggested enhancement (what could be better)
+   - Rationale (why this would improve the game)
+   - Priority (High/Medium/Low based on impact vs. effort)
+   - Implementation notes (if you have technical ideas)
+
+### Example Suggestion Format
+
+```markdown
+### Add "Take All" Option When Looking Around
+
+**Current Behavior:**
+- Look around shows items on ground: "Dry Grass", "Large Stick"
+- Player must manually navigate to pick up items (likely through separate menu)
+
+**Suggested Enhancement:**
+- Add option in "Look Around" submenu: "Take all items" or "Pick up [item name]"
+- Streamlines early game material gathering workflow
+- Reduces menu navigation clicks
+
+**Priority:** Medium - nice QoL, not critical
+
+**Example Flow:**
+\```
+>>> CLEARING <<<
+You see:
+  Dry Grass
+  Large Stick
+
+1. Take all items
+2. Take Dry Grass
+3. Take Large Stick
+4. Leave items
+\```
+```
+
+---
+
+## Testing Best Practices
+
+### Before Testing
+1. **Read ISSUES.md** - Don't re-test known broken features
+2. **Check CURRENT-STATUS.md** - Understand what's implemented
+3. **Plan test scenarios** - Focus on specific systems or general playtest
+4. **Start clean** - Use `./play_game.sh stop` to kill any running instances
+
+### During Testing
+1. **Think like a player** - Does the game feel good to play?
+2. **Test edge cases** - Try unusual actions, not just happy paths
+3. **Monitor for crashes** - Watch for exceptions or unexpected behavior
+4. **Evaluate balance** - Is survival too hard/easy? Are skills useful?
+5. **Assess immersion** - Does it match the Ice Age thematic direction?
+6. **Take notes** - Jot down issues/suggestions as you find them
+
+### After Testing
+1. **Stop the game** - Always use `./play_game.sh stop` when done
+2. **Document issues** - Add all bugs found to ISSUES.md
+3. **Document suggestions** - Add all improvements to SUGGESTIONS.md
+4. **Summarize results** - What systems tested, issues found, priority recommendations
+5. **Update status** - Mark features as tested in CURRENT-STATUS.md
+
+---
+
+## Common Testing Pitfalls
+
+**DON'T manually write to test files:**
+- ❌ `echo "1" > /tmp/test_game_input.txt` (wrong location!)
+- ❌ `echo "1" > .test_game_io/game_input.txt` (bypasses synchronization!)
+- ✅ `./play_game.sh send 1` (correct way!)
+
+**DON'T run multiple game instances:**
+- Check with `./play_game.sh status` first
+- Always stop before starting new session
+- File I/O conflicts cause weird behavior
+
+**DON'T trust stale output:**
+- Game might still be processing previous command
+- Wait for READY state before reading output
+- The script handles this automatically
+
+**DO use strategic testing:**
+- Test one example from each category (not every single item)
+- Focus on code coverage, not exhaustive testing
+- Prioritize core gameplay loops over edge features

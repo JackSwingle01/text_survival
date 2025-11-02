@@ -120,12 +120,13 @@ public class Location
             locationTemp += tempDifference * insulation;
         }
 
-        // If there's a heat source, add its effect
+        // If there's a heat source, add its effect (including embers)
         var heatSource = GetFeature<HeatSourceFeature>();
-        if (heatSource != null && heatSource.IsActive)
+        if (heatSource != null)
         {
             // Insulation increases effectiveness of heat sources
-            double heatEffect = heatSource.HeatOutput * Math.Max(insulation, .40); // heat sources are less effective outside
+            double effectiveHeat = heatSource.GetEffectiveHeatOutput();
+            double heatEffect = effectiveHeat * Math.Max(insulation, .40); // heat sources are less effective outside
             locationTemp += heatEffect;
         }
 
@@ -151,6 +152,15 @@ public class Location
     {
         // Locations.ForEach(i => i.Update());
         _npcs.ForEach(n => n.Update());
+
+        // Update location features (fires consume fuel, etc.)
+        foreach (var feature in Features)
+        {
+            if (feature is HeatSourceFeature heatSource)
+            {
+                heatSource.Update(TimeSpan.FromMinutes(1));
+            }
+        }
     }
 
     public List<Location> GetNearbyLocations()
