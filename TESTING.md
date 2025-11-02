@@ -8,6 +8,8 @@ The game supports a **TEST_MODE** that uses file-based I/O for automated testing
 
 The `play_game.sh` script manages the game process and handles all I/O operations automatically.
 
+**CRITICAL**: ALWAYS use the `play_game.sh` script commands. NEVER read from files directly. The script provides all necessary commands (`log`, `tail`, `send`, `read`, etc.) and handles file I/O correctly.
+
 #### Process Management
 
 ```bash
@@ -64,39 +66,17 @@ Once the game is started:
 ./play_game.sh send 3     # Take all
 
 # View results
-./play_game.sh tail
+./play_game.sh read
 
 # Forage for materials
 ./play_game.sh send 2     # Forage
 ./play_game.sh send 2     # Finish foraging
 
 # Check status
-./play_game.sh tail
+./play_game.sh read
 
 # Stop when done
 ./play_game.sh stop
-```
-
-### Manual Test Mode (Advanced)
-
-If you need to start the game manually:
-
-```bash
-TEST_MODE=1 dotnet run &
-```
-
-The game will:
-- Run in the background
-- Create a `./.test_game_io/` directory with I/O files
-- Skip all sleep delays for fast execution
-- Wait for commands via `.test_game_io/game_input.txt`
-- Write output to `.test_game_io/game_output.txt`
-
-## Manual Testing
-
-For full interactive testing without test mode, just run:
-```bash
-dotnet run
 ```
 
 ## Testing Checklist for Crafting/Foraging Overhaul

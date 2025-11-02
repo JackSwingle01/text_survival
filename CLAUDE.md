@@ -50,6 +50,8 @@ dotnet restore
 
 **IMPORTANT**: Claude Code can play the game interactively using `TEST_MODE=1` and the `play_game.sh` helper script for automated testing. See **TESTING.md** for full details and examples.
 
+**CRITICAL**: ALWAYS use the `play_game.sh` script commands to interact with the game. NEVER read from `/tmp/` files directly (e.g., `/tmp/game_output.txt`, `/tmp/game_input.txt`). The script provides proper commands like `./play_game.sh log`, `./play_game.sh tail`, `./play_game.sh send`, etc.
+
 ## Unit Testing
 
 The project includes comprehensive unit tests for calculation systems using **xUnit**. Tests focus on pure functions and calculation logic, providing regression protection for complex formulas.

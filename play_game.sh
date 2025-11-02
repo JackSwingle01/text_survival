@@ -226,14 +226,14 @@ if [ $# -gt 0 ]; then
             echo "Game Interaction:"
             echo "  $0 send <command>    - Send a command to the game"
             echo "  $0 read              - Read all output"
-            echo "  $0 tail [N]          - Read last N lines of output (default 20)"
-            echo "  $0 ready             - Check if game is ready for input"
-            echo "  $0 log [N]           - View last N lines of game log (default 50)"
+            # echo "  $0 tail [N]          - Read last N lines of output (default 20)"
+            # echo "  $0 ready             - Check if game is ready for input"
+            # echo "  $0 log [N]           - View last N lines of game log (default 50)"
             echo ""
             echo "Examples:"
             echo "  $0 start                    - Start the game"
             echo "  $0 send 1                   - Send menu choice '1'"
-            echo "  $0 tail                     - View recent output"
+            echo "  $0 read                     - View recent output"
             echo "  $0 stop                     - Stop the game"
             ;;
         *)
