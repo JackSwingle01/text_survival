@@ -5,4 +5,3 @@ global using text_survival.Effects;
 global using text_survival.Items;
 global using text_survival.Crafting;
 global using text_survival.PlayerComponents;
-global using text_survival.Utils;

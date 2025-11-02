@@ -1,15 +1,135 @@
 # Active Development - Current Status
 
 **Date**: 2025-11-02
-**Last Updated**: 23:45 UTC
-**Status**: ✅ Build Successful - Realistic Fire Temperature System Complete
+**Last Updated**: Unit Testing & Critical Bug Fixes
+**Status**: ✅ Build Successful - All 74 Tests Passing
 
 ---
 
-## Just Completed (23:45 UTC)
+## Recently Completed
 
-### Realistic Fire Temperature System ✅
+### Unit Test Suite & Critical Bug Fixes ✅ **COMPLETED**
+**Date**: 2025-11-02
+**Status**: 74 tests passing, 2 critical bugs fixed
+**Test Coverage**: Comprehensive tests for all calculation systems
+
+**What Was Added**:
+- Complete xUnit test suite covering all calculation systems
+- Test helpers and fixtures for creating test objects
+- Test constants for baseline assertions
+- 9 test files with 74 total tests
+
+**Test Structure**:
+```
+text_survival.Tests/
+├── Bodies/
+│   ├── AbilityCalculatorTests.cs       (13 tests)
+│   ├── CapacityCalculatorTests.cs      (8 tests)
+│   ├── DamageProcessorTests.cs         (10 tests)
+│   ├── TissueTests.cs                  (9 tests)
+│   └── BodyTests.cs                    (5 tests)
+├── Survival/
+│   └── SurvivalProcessorTests.cs       (15 tests)
+├── Utils/
+│   ├── SkillCheckCalculatorTests.cs    (9 tests)
+│   └── UtilsTests.cs                   (6 tests)
+└── TestHelpers/
+    ├── TestFixtures.cs
+    └── TestConstants.cs
+```
+
+**Critical Bugs Found & Fixed**:
+
+1. **Sleep Energy Clamping Bug** 🔴 **HIGH SEVERITY**
+   - **Issue**: `SurvivalProcessor.Sleep()` was clamping energy to 1.0 instead of MAX_ENERGY_MINUTES (960)
+   - **Impact**: Players could never recover from exhaustion - sleep was completely broken
+   - **Fix**: Changed `Math.Min(1, ...)` to `Math.Min(MAX_ENERGY_MINUTES, ...)`
+   - **File**: `Survival/SurvivalProcessor.cs:298`
+   - **Result**: Sleep now properly restores energy up to 16 hours (960 minutes)
+
+2. **Organ Capacity Scaling Bug** 🔴 **HIGH SEVERITY**
+   - **Issue**: Organs didn't scale their capacity contributions with their condition
+   - **Impact**: Destroyed heart still provided 100% blood pumping, destroyed lung still provided 100% breathing
+   - **Symptoms**: Organ damage had NO mechanical effect on character abilities
+   - **Fix**:
+     - Added `GetConditionMultipliers()` override to `Organ` class
+     - Included organs in capacity averaging calculation in `CapacityCalculator`
+   - **Files**:
+     - `Bodies/Organ.cs:27-43`
+     - `Bodies/CapacityCalculator.cs:46-49`
+     - `text_survival.Tests/Bodies/CapacityCalculatorTests.cs:28-73`
+   - **Result**: Organ injuries now have meaningful mechanical consequences
+     - Destroyed heart: Blood pumping drops to ~83% (from 100%)
+     - One destroyed lung: Breathing drops to ~60% (other lung still functions)
+     - Partial damage scales proportionally (50% heart = 50% contribution)
+
+**Code Quality Improvements**:
+- Extracted `SkillCheckCalculator` from `ActionFactory` for testability
+- Created reusable test fixtures and constants
+- All 74 tests passing consistently
+
+**Documentation Updated**:
+- `CLAUDE.md` - Added unit testing section
+- `documentation/body-and-damage.md` - Added organ capacity scaling details
+- `ISSUES.md` - Documented both bugs and fixes
+
+**Files Created**:
+- `text_survival.Tests/text_survival.Tests.csproj`
+- `text_survival.Tests/Usings.cs`
+- `text_survival.Tests/TestHelpers/TestFixtures.cs`
+- `text_survival.Tests/TestHelpers/TestConstants.cs`
+- 9 test files (see structure above)
+- `Utils/SkillCheckCalculator.cs` (extracted for testability)
+
+**Files Modified**:
+- `text_survival.csproj` - Excluded test directory from main compilation
+- `Survival/SurvivalProcessor.cs` - Fixed sleep energy clamping
+- `Bodies/Organ.cs` - Added GetConditionMultipliers()
+- `Bodies/CapacityCalculator.cs` - Include organs in averaging
+- `Actions/ActionFactory.cs` - Refactored to use SkillCheckCalculator
+
+**Testing Status**:
+- ✅ All 74 tests passing
+- ✅ Build successful (0 errors, 2 pre-existing warnings)
+- ✅ Both critical bugs fixed and verified
+- ✅ Comprehensive coverage of calculation systems
+
+**Run Tests**:
+```bash
+dotnet test                                              # Run all tests
+dotnet test --filter "FullyQualifiedName~Survival"       # Survival tests only
+dotnet test --filter "FullyQualifiedName~Bodies"         # Body system tests only
+```
+
+---
+
+### Playtest Results - Fire Temperature System ✅ **TESTED**
+**Date**: 2025-11-02
+**Status**: System works, critical balance issues found
+**Report**: See `PLAYTEST-REPORT-2025-11-02.md` for full details
+
+**Critical Bug Fixed During Playtest**:
+- 🔴 **Stack Overflow** - Circular dependency in temperature calculations (FIXED)
+- Files changed: `Environments/LocationFeatures.cs/HeatSourceFeature.cs` (lines 56, 183)
+- Solution: Use `Parent.Weather.TemperatureInFahrenheit` instead of `GetTemperature()`
+
+**Playtest Findings**:
+- ✅ Fire temperature system compiles and runs (no crashes)
+- ✅ Foraging system works correctly
+- ✅ Temperature physics are mathematically accurate
+- 🔴 **Game is unplayable** - Starting fire burns out too fast, hypothermia kills before player can restart
+- 🔴 Body temp: 69°F after 45 min (fatal hypothermia)
+- 🔴 Resource gathering too slow vs temperature drop rate
+
+**Critical Fixes Required**:
+1. Increase starting fire: 1kg → 3kg fuel (3 hours instead of 1 hour)
+2. Add guaranteed materials on ground: 3 Sticks + 2 Tinder
+3. These will create viable survival path for new players
+
+### Realistic Fire Temperature System ✅ **ARCHIVED**
 **Goal**: Replace binary fire states with physics-based temperature system for realistic fire behavior
+**Status**: Implementation complete, moved to `/dev/complete/realistic-fire-temperature/`
+**Documentation**: See archived folder for full implementation details, formulas, and testing checklist
 
 **Implementation**: Complete mass-based fuel system with realistic combustion physics
 - **6 Fuel Types**: Tinder (450°F), Kindling (600°F), Softwood (750°F), Hardwood (900°F), Bone (650°F), Peat (700°F)
@@ -67,12 +187,15 @@ heatOutput = (fireTemp - ambientTemp) / 90.0 * sqrt(fuelMassKg)
 This scales 800°F fire with 3kg fuel to ~15°F ambient (matching old system).
 
 **Next Steps**:
-1. Run `dotnet run` and playtest fire mechanics
-2. Test temperature progression and fuel restrictions
-3. Validate survival balance impact
-4. Tune constants in FuelType.cs if needed
+1. ✅ Archive documentation (COMPLETE - moved to dev/complete)
+2. ✅ Run comprehensive playtest (COMPLETE - see PLAYTEST-REPORT-2025-11-02.md)
+3. ✅ Fixed critical circular dependency bug (Stack Overflow)
+4. 🔴 **CRITICAL FIXES NEEDED**:
+   - Increase starting fire fuel: 1kg → 3kg (3 hours warmth)
+   - Add guaranteed materials on ground: 3 Sticks + 2 Tinder
+   - These fixes will make game playable (currently unwinnable)
 
-**Detailed Documentation**: See `/dev/active/realistic-fire-temperature-context.md` for complete implementation details, architectural decisions, and testing checklist.
+**Detailed Documentation**: See `/dev/complete/realistic-fire-temperature/` for complete implementation details, architectural decisions, and testing checklist.
 
 ---
 

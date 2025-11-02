@@ -405,22 +405,15 @@ public static class ActionFactory
 
                 var selectedTool = availableTools[choice - 1];
 
-                // Calculate success chance
+                // Calculate success chance using SkillCheckCalculator
                 var (baseChance, skillDC) = GetToolSkillParameters(selectedTool);
-                double finalSuccessChance = baseChance;
                 var playerSkill = ctx.player.Skills.GetSkill("Fire-making");
-                if (skillDC > 0)
-                {
-                    double skillModifier = (playerSkill.Level - skillDC) * 0.1;
-                    finalSuccessChance += skillModifier;
-                }
-                else
-                {
-                    double skillModifier = playerSkill.Level * 0.1;
-                    finalSuccessChance += skillModifier;
-                }
+                double finalSuccessChance = SkillCheckCalculator.CalculateSuccessChance(
+                    baseChance,
+                    playerSkill.Level,
+                    skillDC);
 
-                // Add tinder bonus
+                // Add tinder bonus (fire-making specific)
                 finalSuccessChance += tinderBonus;
                 finalSuccessChance = Math.Clamp(finalSuccessChance, 0.05, 0.95);
 

@@ -50,6 +50,68 @@ dotnet restore
 
 **IMPORTANT**: Claude Code can play the game interactively using `TEST_MODE=1` and the `play_game.sh` helper script for automated testing. See **TESTING.md** for full details and examples.
 
+## Unit Testing
+
+The project includes comprehensive unit tests for calculation systems using **xUnit**. Tests focus on pure functions and calculation logic, providing regression protection for complex formulas.
+
+### Running Tests
+
+```bash
+# Run all unit tests
+dotnet test
+
+# Run tests with detailed output
+dotnet test --logger "console;verbosity=detailed"
+
+# Run specific test class
+dotnet test --filter "FullyQualifiedName~SurvivalProcessorTests"
+
+# Run tests for a specific namespace
+dotnet test --filter "FullyQualifiedName~Bodies"
+```
+
+### Test Structure
+
+Tests are organized in `text_survival.Tests/` mirroring the main project structure:
+
+```
+text_survival.Tests/
+├── Bodies/
+│   ├── AbilityCalculatorTests.cs       # Strength, speed, vitality calculations
+│   ├── CapacityCalculatorTests.cs      # Body capacity and cascading effects
+│   ├── DamageProcessorTests.cs         # Damage penetration and distribution
+│   ├── TissueTests.cs                  # Tissue protection and absorption
+│   └── BodyTests.cs                    # Body composition calculations
+├── Survival/
+│   └── SurvivalProcessorTests.cs       # Temperature, hunger, metabolism
+├── Utils/
+│   ├── SkillCheckCalculatorTests.cs    # Skill check formulas
+│   └── UtilsTests.cs                   # Random number utilities
+└── TestHelpers/
+    ├── TestFixtures.cs                 # Factory methods for test objects
+    └── TestConstants.cs                # Baseline values for assertions
+```
+
+### What's Tested
+
+**High Priority (Calculation Systems)**:
+- `SurvivalProcessor` - Temperature regulation, metabolism, hunger/thirst
+- `AbilityCalculator` - Strength, speed, vitality, cold resistance formulas
+- `CapacityCalculator` - Body capacities with cascading effects (blood loss → consciousness → movement)
+- `DamageProcessor` - Damage penetration through tissue layers
+- `SkillCheckCalculator` - Skill check success rates and XP rewards
+
+**Low Priority (Utilities)**:
+- Body composition properties (weight, fat %, muscle %)
+- Random number generation (statistical tests)
+
+### Unit Tests vs Integration Tests
+
+- **Unit Tests** (xUnit): Test calculation logic and pure functions in isolation
+- **Integration Tests** (TestModeIO): Test full game flow, menu navigation, and gameplay loops
+
+Use unit tests for catching calculation errors and regressions. Use integration tests (`play_game.sh`) for gameplay flow and UX testing.
+
 ## Issue Tracking
 
 **CRITICAL**: When you find bugs, balance issues, questionable functionality, or breaking exceptions during development or testing, **YOU MUST UPDATE ISSUES.md**.

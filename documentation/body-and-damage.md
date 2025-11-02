@@ -113,24 +113,82 @@ public static class CapacityNames
 
 ### Capacity Calculation
 
-Capacities are calculated from body part health:
+Capacities are calculated from body part health and condition:
+
+**Implementation:** `Bodies/CapacityCalculator.cs`
+
+#### How It Works
+
+1. **Base Capacities** - Summed from all body parts (organs provide specific capacities)
+2. **Condition Multipliers** - Averaged from all tissues AND organs in each region
+3. **Final Capacity** - Base capacity × Average condition multiplier
+
+#### Key Formulas
 
 ```csharp
-public double GetCapacityValue(string capacityName)
-{
-    double totalContribution = 0;
-    double weightedHealth = 0;
+// 1. Sum base capacities from organs and tissues
+var baseCapacities = new CapacityContainer();
+foreach (var organ in region.Organs)
+    baseCapacities += organ.GetBaseCapacities();
+foreach (var tissue in region.Tissues)
+    baseCapacities += tissue.GetBaseCapacities();
 
-    foreach (var part in GetAllParts())
+// 2. Average condition multipliers (includes organs!)
+var allParts = tissues.Concat(organs).ToList();
+var allMultipliers = allParts.Select(p => p.GetConditionMultipliers()).ToList();
+var avgMultipliers = AverageCapacityContainers(allMultipliers);
+
+// 3. Apply multipliers to base capacities
+return baseCapacities.ApplyMultipliers(avgMultipliers);
+```
+
+#### Organ Condition Scaling
+
+**IMPORTANT:** Organs scale their capacity contributions based on their condition (as of 2025-11-02 bug fix).
+
+```csharp
+// In Organ.cs - GetConditionMultipliers()
+public override CapacityContainer GetConditionMultipliers()
+{
+    var multipliers = CapacityContainer.GetBaseCapacityMultiplier(); // All 1.0
+
+    // Scale only the capacities this organ provides
+    foreach (var capacityName in CapacityNames.All)
     {
-        if (part.CapacityContributions.TryGetValue(capacityName, out double contribution))
+        if (_baseCapacities.GetCapacity(capacityName) > 0)
         {
-            totalContribution += contribution;
-            weightedHealth += (part.CurrentHealth / part.MaxHealth) * contribution;
+            multipliers.SetCapacity(capacityName, Condition); // 0.0-1.0
         }
     }
 
-    return totalContribution > 0 ? weightedHealth / totalContribution : 0;
+    return multipliers;
+}
+```
+
+**Examples:**
+- Heart at 50% condition → 50% blood pumping contribution
+- Destroyed lung (0% condition) → 0% breathing contribution from that lung
+- Healthy brain (100% condition) → 100% consciousness contribution
+
+**Paired Organs:**
+- One destroyed lung: Breathing capacity = average of (0.0 from destroyed + 1.0 from healthy + tissue conditions)
+- Result: ~50-60% breathing capacity (other lung still works!)
+
+#### Tissue Condition Scaling
+
+Tissues (skin/muscle/bone) also scale their contributions:
+
+```csharp
+// Muscle primarily affects movement and manipulation
+public override CapacityContainer GetConditionMultipliers()
+{
+    return new CapacityContainer
+    {
+        Moving = Condition,        // Direct scaling
+        Manipulation = Condition,  // Direct scaling
+        Breathing = 0.8 + (Condition * 0.2),  // Minimal impact
+        // Other capacities get minimal/no impact
+    };
 }
 ```
 

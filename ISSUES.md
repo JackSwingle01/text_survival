@@ -1,11 +1,74 @@
 # Known Issues - Text Survival RPG
 
-**Last Updated:** 2025-11-02
-**Testing Context:** Comprehensive playtest of Phase 1-8 features
+**Last Updated:** 2025-11-02 (Post-Fire Temperature Implementation)
+**Testing Context:** Fire temperature system playtest
 
 ---
 
 ## 🔴 Breaking Exceptions
+
+*Critical errors that cause crashes or prevent gameplay*
+
+### ~~Fire Temperature Circular Dependency Stack Overflow~~
+
+**Severity:** CRITICAL - Game crashes on startup
+**Location:** `Environments/LocationFeatures.cs/HeatSourceFeature.cs` - GetCurrentFireTemperature() method
+**Status:** ✅ **FIXED** (2025-11-02)
+
+**Reproduction:**
+1. Start game
+2. Game crashes immediately with StackOverflowException
+
+**Root Cause:**
+Circular dependency in temperature calculations:
+- `GetCurrentFireTemperature()` needs ambient temperature
+- Calls `ParentLocation.GetTemperature()` to get ambient temp
+- `Location.GetTemperature()` calculates heat from all features
+- Calls fire's `GetEffectiveHeatOutput()`
+- Which calls `GetCurrentFireTemperature()` again
+- **INFINITE RECURSION → Stack Overflow**
+
+**Stack Trace:**
+```
+at HeatSourceFeature.GetCurrentFireTemperature()
+at HeatSourceFeature.GetEffectiveHeatOutput()
+at Location.GetTemperature()
+at HeatSourceFeature.GetCurrentFireTemperature()
+... (repeats until stack overflow)
+```
+
+**Impact:**
+- 🔴 **COMPLETE BLOCKER** - Game cannot start
+- Cannot test any fire temperature features
+- Cannot test any gameplay at all
+- Blocks all other testing
+
+**Solution:**
+Break the circular dependency by:
+1. **Option A**: Cache ambient temperature at time of fire update, don't recalculate
+2. **Option B**: Pass ambient temp as parameter to GetCurrentFireTemperature()
+3. **Option C**: Use Zone.BaseTemperature directly (excludes fire's own contribution)
+
+**Solution Implemented:**
+```csharp
+// Fixed in both GetCurrentFireTemperature() (line 56) and GetEffectiveHeatOutput() (line 183)
+// BEFORE (BROKEN):
+double ambientTemp = ParentLocation.GetTemperature(); // Causes recursion!
+
+// AFTER (FIXED):
+double ambientTemp = ParentLocation.Parent.Weather.TemperatureInFahrenheit; // Zone weather temp
+```
+
+**Why This Works:**
+- Uses zone's weather temperature directly (doesn't call Location.GetTemperature())
+- Weather temperature is the ambient temp WITHOUT fire contributions
+- Breaks the circular dependency completely
+- Build succeeds with 0 errors
+
+**Files Changed:**
+- `Environments/LocationFeatures.cs/HeatSourceFeature.cs` (lines 56, 183)
+
+---
 
 *Critical errors that cause crashes or prevent gameplay*
 
@@ -1226,4 +1289,69 @@ Even with improved starting conditions (fur wraps + campfire + forageable cleari
 - **Investigation:** Verified Bark Strips [Tinder, Binding, Flammable] and Dry Grass [Tinder, Flammable, Insulation] have NO Wood property
 - **Conclusion:** Algorithm working correctly - only items with required property are consumed
 - **Files:** `Items/ItemFactory.cs` (property definitions), `Crafting/CraftingRecipe.cs:153-184` (ConsumeProperty logic)
+
+### Sleep Energy Clamping Bug (Fixed 2025-11-02)
+- **Issue:** `SurvivalProcessor.Sleep()` was clamping energy to 1.0 instead of MAX_ENERGY_MINUTES (960)
+- **Severity:** HIGH - Breaking bug that prevented proper energy restoration
+- **Location:** `Survival/SurvivalProcessor.cs:298`
+- **Discovery:** Found during unit test creation - Sleep_EnergyRestoration test was failing
+- **Root Cause:** Incorrect Math.Min() parameter - used `1` instead of `MAX_ENERGY_MINUTES`
+- **Symptoms:**
+  - Energy would never restore above 1 minute (effectively 0%)
+  - Players could never recover from exhaustion by sleeping
+  - Sleep mechanic was completely broken
+- **Fix:**
+```csharp
+// BEFORE (BROKEN):
+resultData.Energy = Math.Min(1, resultData.Energy + (BASE_EXHAUSTION_RATE * 2 * minutes));
+
+// AFTER (FIXED):
+resultData.Energy = Math.Min(MAX_ENERGY_MINUTES, resultData.Energy + (BASE_EXHAUSTION_RATE * 2 * minutes));
+```
+- **Impact:** Critical bug that would have made long-term survival impossible
+- **Files Changed:** `Survival/SurvivalProcessor.cs:298`
+- **Test Coverage:** Added comprehensive unit test suite with 74 passing tests
+
+### Organ Capacity Scaling Bug (Fixed 2025-11-02)
+- **Issue:** Organs didn't scale their capacity contributions with their condition
+- **Severity:** HIGH - Game logic bug that made organ damage meaningless
+- **Location:** `Bodies/Organ.cs`, `Bodies/CapacityCalculator.cs`
+- **Discovery:** Found during unit test creation when tests documented organs "always contribute full capacity"
+- **Root Cause:** Organs only implemented `GetBaseCapacities()` but not `GetConditionMultipliers()`, and weren't included in capacity averaging
+- **Symptoms:**
+  - Destroyed heart (Condition = 0.0) still provided 100% blood pumping capacity
+  - Destroyed lung still provided 100% breathing capacity
+  - Organ damage had no mechanical impact on character abilities
+  - Only tissue damage (skin/muscle/bone) affected capacities
+- **Fix:**
+```csharp
+// In Bodies/Organ.cs - Added GetConditionMultipliers() override:
+public override CapacityContainer GetConditionMultipliers()
+{
+    var multipliers = CapacityContainer.GetBaseCapacityMultiplier();
+    foreach (var capacityName in CapacityNames.All)
+    {
+        if (_baseCapacities.GetCapacity(capacityName) > 0)
+        {
+            multipliers.SetCapacity(capacityName, Condition);
+        }
+    }
+    return multipliers;
+}
+
+// In Bodies/CapacityCalculator.cs - Include organs in averaging:
+var allParts = materials.Concat(region.Organs.Cast<Tissue>()).ToList();
+var allMultipliers = allParts.Select(p => p.GetConditionMultipliers()).ToList();
+var avgMultipliers = AverageCapacityContainers(allMultipliers);
+```
+- **Impact:** Major gameplay bug - organ injuries now have meaningful mechanical consequences
+- **Examples:**
+  - Destroyed heart: Blood pumping drops to ~0.83 (from ~1.0)
+  - One destroyed lung: Breathing drops to ~0.5-0.7 (other lung still functions)
+  - Partial organ damage scales proportionally (50% heart = 50% contribution)
+- **Files Changed:**
+  - `Bodies/Organ.cs:27-43` (added GetConditionMultipliers)
+  - `Bodies/CapacityCalculator.cs:46-49` (include organs in averaging)
+  - `text_survival.Tests/Bodies/CapacityCalculatorTests.cs:28-73` (updated 2 tests)
+- **Test Coverage:** All 74 tests pass, organ damage now properly tested
 

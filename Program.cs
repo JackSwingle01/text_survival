@@ -57,12 +57,27 @@ namespace text_survival
             // Add environment feature
             startingArea.Features.Add(new EnvironmentFeature(startingArea, EnvironmentFeature.LocationType.Forest));
 
-            // Add starting campfire (with 1kg softwood fuel)
+            // Add starting campfire (with 4.5kg kindling fuel for 3 hours of warmth)
+            // Note: Must use kindling (0°F requirement) for initial fuel, not softwood (400°F requirement)
+            // Kindling burns at 1.5 kg/hr, so 4.5kg = 3 hours burn time
             HeatSourceFeature campfire = new HeatSourceFeature(startingArea);
-            var startingFuel = ItemFactory.MakeFirewood(); // 1.5 kg softwood
-            campfire.AddFuel(startingFuel, 1.0); // Add 1kg of fuel
-            campfire.SetActive(true);
+            var startingFuel = ItemFactory.MakeStick(); // Large Stick = kindling (0°F requirement)
+            campfire.AddFuel(startingFuel, 4.5); // Add 4.5kg of kindling (auto-lights since MinFireTemp = 0°F)
             startingArea.Features.Add(campfire);
+
+            // Add guaranteed fire-starting materials on ground (set IsFound=true so they're visible)
+            for (int i = 0; i < 3; i++)
+            {
+                var stick = ItemFactory.MakeStick();
+                stick.IsFound = true;
+                startingArea.Items.Add(stick);
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                var tinder = ItemFactory.MakeDryGrass();
+                tinder.IsFound = true;
+                startingArea.Items.Add(tinder);
+            }
 
             zone.Locations.Add(startingArea);
             Player player = new Player(startingArea);

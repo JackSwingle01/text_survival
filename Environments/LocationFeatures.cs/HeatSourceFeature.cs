@@ -53,7 +53,7 @@ public class HeatSourceFeature : LocationFeature
     public double GetCurrentFireTemperature()
     {
         if (!IsActive && !HasEmbers)
-            return ParentLocation.GetTemperature(); // Ambient temperature
+            return ParentLocation.Parent.Weather.TemperatureInFahrenheit; // Zone weather temp (avoids circular dependency)
 
         if (HasEmbers)
             return GetEmberTemperature();
@@ -180,7 +180,7 @@ public class HeatSourceFeature : LocationFeature
     public double GetEffectiveHeatOutput()
     {
         double fireTemp = GetCurrentFireTemperature();
-        double ambientTemp = ParentLocation.GetTemperature();
+        double ambientTemp = ParentLocation.Parent.Weather.TemperatureInFahrenheit; // Zone weather temp (avoids circular dependency)
         double tempDifferential = fireTemp - ambientTemp;
 
         // Negative differential (fire cooler than ambient) produces no heat

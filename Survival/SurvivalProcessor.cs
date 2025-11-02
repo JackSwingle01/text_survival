@@ -295,7 +295,7 @@ public static class SurvivalProcessor
 		};
 
 		// rest restores exhaustion at 2x the rate that you gain it while awake, so 16 hours of wakefulness creates only 8 hours of sleep debt
-		resultData.Energy = Math.Min(1, resultData.Energy + (BASE_EXHAUSTION_RATE * 2 * minutes));
+		resultData.Energy = Math.Min(MAX_ENERGY_MINUTES, resultData.Energy + (BASE_EXHAUSTION_RATE * 2 * minutes));
 		resultData.Hydration = Math.Max(0, resultData.Hydration - (BASE_DEHYDRATION_RATE * .7 * minutes)); // dehydrate at reduced rate while asleep
 		resultData.Calories -= GetCurrentMetabolism(resultData) / 24 / 60 * minutes;
 		return new SurvivalProcessorResult(resultData);

@@ -33,7 +33,7 @@ public static class CapacityCalculator
             baseCapacities += material!.GetBaseCapacities();
         }
 
-        // Step 2: Calculate combined material multipliers
+        // Step 2: Calculate combined material multipliers (including organs)
         // var baseMultipliers = CapacityContainer.GetBaseCapacityMultiplier();
         // foreach (var material in new List<Tissue> { region.Skin, region.Muscle, region.Bone })
         // {
@@ -42,8 +42,11 @@ public static class CapacityCalculator
         //     baseMultipliers = baseMultipliers.ApplyMultipliers(multipliers);
         // }
         // above is OLD way - may remove after testing
-        var materialMultipliers = materials.Select(m => m!.GetConditionMultipliers()).ToList();
-        var avgMultipliers = AverageCapacityContainers(materialMultipliers);
+
+        // Include organs in condition multiplier calculation
+        var allParts = materials.Concat(region.Organs.Cast<Tissue>()).ToList();
+        var allMultipliers = allParts.Select(p => p.GetConditionMultipliers()).ToList();
+        var avgMultipliers = AverageCapacityContainers(allMultipliers);
 
         // Step 3: Apply multipliers to base capacities
         return baseCapacities.ApplyMultipliers(avgMultipliers);

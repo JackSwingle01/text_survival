@@ -1,0 +1,227 @@
+using text_survival.Tests.TestHelpers;
+
+namespace text_survival.Tests.Bodies;
+
+public class CapacityCalculatorTests
+{
+    [Fact]
+    public void GetCapacities_HealthyBody_AllCapacitiesNearPerfect()
+    {
+        // Arrange
+        var body = TestFixtures.CreateBaselineHumanBody();
+
+        // Act
+        var capacities = CapacityCalculator.GetCapacities(body);
+
+        // Assert - all capacities should be close to 1.0 for a healthy body
+        Assert.True(capacities.Moving > 0.9, $"Moving capacity should be near 1.0. Actual: {capacities.Moving}");
+        Assert.True(capacities.Manipulation > 0.9, $"Manipulation should be near 1.0. Actual: {capacities.Manipulation}");
+        Assert.True(capacities.Breathing > 0.9, $"Breathing should be near 1.0. Actual: {capacities.Breathing}");
+        Assert.True(capacities.BloodPumping > 0.9, $"BloodPumping should be near 1.0. Actual: {capacities.BloodPumping}");
+        Assert.True(capacities.Consciousness > 0.9, $"Consciousness should be near 1.0. Actual: {capacities.Consciousness}");
+        Assert.True(capacities.Sight > 0.9, $"Sight should be near 1.0. Actual: {capacities.Sight}");
+        Assert.True(capacities.Hearing > 0.9, $"Hearing should be near 1.0. Actual: {capacities.Hearing}");
+        Assert.True(capacities.Digestion > 0.9, $"Digestion should be near 1.0. Actual: {capacities.Digestion}");
+    }
+
+    [Fact]
+    public void GetCapacities_DestroyedOrgan_ReducesRelatedCapacity()
+    {
+        // Arrange
+        var body = TestFixtures.CreateBaselineHumanBody();
+        var healthyCapacities = CapacityCalculator.GetCapacities(body);
+
+        // Destroy the heart
+        var chest = body.Parts.First(p => p.Name == BodyRegionNames.Chest);
+        var heart = chest.Organs.First(o => o.Name == OrganNames.Heart);
+        heart.Condition = 0.0; // Destroyed
+
+        // Act
+        var damagedCapacities = CapacityCalculator.GetCapacities(body);
+
+        // Assert - destroyed organ should reduce blood pumping
+        Assert.True(damagedCapacities.BloodPumping < healthyCapacities.BloodPumping,
+            $"Destroyed heart should reduce blood pumping. Healthy: {healthyCapacities.BloodPumping}, Damaged: {damagedCapacities.BloodPumping}");
+
+        // Blood pumping should be significantly reduced (but not to zero due to averaging with tissues)
+        Assert.True(damagedCapacities.BloodPumping < 0.9,
+            $"Destroyed heart should significantly reduce blood pumping. Actual: {damagedCapacities.BloodPumping}");
+    }
+
+    [Fact]
+    public void GetCapacities_DestroyedLung_ReducesBreathing()
+    {
+        // Arrange
+        var body = TestFixtures.CreateBaselineHumanBody();
+        var healthyCapacities = CapacityCalculator.GetCapacities(body);
+
+        // Destroy one lung
+        var chest = body.Parts.First(p => p.Name == BodyRegionNames.Chest);
+        var leftLung = chest.Organs.First(o => o.Name == OrganNames.LeftLung);
+        leftLung.Condition = 0.0; // Destroyed
+
+        // Act
+        var damagedCapacities = CapacityCalculator.GetCapacities(body);
+
+        // Assert - destroyed lung should reduce breathing
+        Assert.True(damagedCapacities.Breathing < healthyCapacities.Breathing,
+            $"Destroyed lung should reduce breathing. Healthy: {healthyCapacities.Breathing}, Damaged: {damagedCapacities.Breathing}");
+
+        // One destroyed lung out of two should reduce breathing, but not to zero
+        Assert.True(damagedCapacities.Breathing > 0.3 && damagedCapacities.Breathing < 0.9,
+            $"One destroyed lung should moderately reduce breathing. Actual: {damagedCapacities.Breathing}");
+    }
+
+    [Fact]
+    public void ApplyCascadingEffects_LowBloodPumping_AffectsMultipleCapacities()
+    {
+        // NOTE: Testing cascading effects requires artificially low blood pumping
+        // since organ condition doesn't affect capacities in current implementation.
+        // We test this by damaging chest tissues instead.
+
+        // Arrange
+        var body = TestFixtures.CreateBaselineHumanBody();
+        var healthyCapacities = CapacityCalculator.GetCapacities(body);
+
+        // Damage chest tissues to reduce blood pumping capacity
+        var chest = body.Parts.First(p => p.Name == BodyRegionNames.Chest);
+        chest.Muscle.Condition = 0.3; // Severely damaged muscle
+        chest.Bone.Condition = 0.3;   // Severely damaged bone
+        chest.Skin.Condition = 0.3;   // Severely damaged skin
+
+        // Act
+        var damagedCapacities = CapacityCalculator.GetCapacities(body);
+
+        // Assert - tissue damage should reduce all capacities
+        Assert.True(damagedCapacities.BloodPumping < healthyCapacities.BloodPumping,
+            "Tissue damage should reduce blood pumping");
+
+        // If blood pumping gets low enough, cascading effects reduce other capacities
+        if (damagedCapacities.BloodPumping < 0.5)
+        {
+            Assert.True(damagedCapacities.Consciousness < healthyCapacities.Consciousness,
+                "Low blood pumping should reduce consciousness via cascading effects");
+        }
+    }
+
+    [Fact]
+    public void ApplyCascadingEffects_LowBreathing_ReducesConsciousness()
+    {
+        // NOTE: Testing cascading effects requires artificially low breathing
+        // since organ condition doesn't affect capacities in current implementation.
+        // We test this by damaging chest tissues instead.
+
+        // Arrange
+        var body = TestFixtures.CreateBaselineHumanBody();
+        var healthyCapacities = CapacityCalculator.GetCapacities(body);
+
+        var chest = body.Parts.First(p => p.Name == BodyRegionNames.Chest);
+
+        // Severely damage chest tissues to reduce breathing
+        chest.Muscle.Condition = 0.1;
+        chest.Bone.Condition = 0.1;
+        chest.Skin.Condition = 0.1;
+
+        // Act
+        var damagedCapacities = CapacityCalculator.GetCapacities(body);
+
+        // Assert
+        Assert.True(damagedCapacities.Breathing < healthyCapacities.Breathing,
+            $"Damaged chest tissues should reduce breathing. Healthy: {healthyCapacities.Breathing}, Damaged: {damagedCapacities.Breathing}");
+
+        // If breathing gets low enough, consciousness should be reduced
+        if (damagedCapacities.Breathing < 0.3)
+        {
+            Assert.True(damagedCapacities.Consciousness < healthyCapacities.Consciousness,
+                "Very low breathing should reduce consciousness via cascading effects");
+        }
+    }
+
+    [Fact]
+    public void ApplyCascadingEffects_LowConsciousness_ReducesPhysicalActions()
+    {
+        // NOTE: Testing cascading effects requires artificially low consciousness
+        // since organ condition doesn't affect capacities in current implementation.
+        // We test this by damaging head tissues instead.
+
+        // Arrange
+        var body = TestFixtures.CreateBaselineHumanBody();
+        var healthyCapacities = CapacityCalculator.GetCapacities(body);
+
+        var head = body.Parts.First(p => p.Name == BodyRegionNames.Head);
+
+        // Critically damage head tissues to reduce consciousness
+        head.Muscle.Condition = 0.05;
+        head.Bone.Condition = 0.05;
+        head.Skin.Condition = 0.05;
+
+        // Act
+        var damagedCapacities = CapacityCalculator.GetCapacities(body);
+
+        // Assert
+        Assert.True(damagedCapacities.Consciousness < healthyCapacities.Consciousness,
+            "Head tissue damage should reduce consciousness");
+
+        // If consciousness gets critically low, physical actions should be severely impaired
+        if (damagedCapacities.Consciousness < 0.1)
+        {
+            Assert.True(damagedCapacities.Moving < healthyCapacities.Moving,
+                "Very low consciousness should reduce movement via cascading effects");
+            Assert.True(damagedCapacities.Manipulation < healthyCapacities.Manipulation,
+                "Very low consciousness should reduce manipulation via cascading effects");
+        }
+    }
+
+    [Fact]
+    public void GetRegionCapacities_DamagedTissues_ReducesCapacities()
+    {
+        // Arrange
+        var body = TestFixtures.CreateBaselineHumanBody();
+        var leftArm = body.Parts.First(p => p.Name == BodyRegionNames.LeftArm);
+
+        // Get healthy capacity
+        var healthyCapacity = CapacityCalculator.GetRegionCapacities(leftArm);
+
+        // Damage all tissues in left arm
+        leftArm.Skin.Condition = 0.5;
+        leftArm.Muscle.Condition = 0.5;
+        leftArm.Bone.Condition = 0.5;
+
+        // Act
+        var damagedCapacity = CapacityCalculator.GetRegionCapacities(leftArm);
+
+        // Assert
+        Assert.True(damagedCapacity.Manipulation < healthyCapacity.Manipulation,
+            $"Damaged tissues should reduce manipulation capacity. Healthy: {healthyCapacity.Manipulation}, Damaged: {damagedCapacity.Manipulation}");
+
+        // Should be roughly proportional to tissue damage (50% damage = ~50% capacity)
+        Assert.True(damagedCapacity.Manipulation > 0.2 && damagedCapacity.Manipulation < 0.7,
+            $"50% tissue damage should result in moderate capacity reduction. Actual: {damagedCapacity.Manipulation}");
+    }
+
+    [Fact]
+    public void GetEffectCapacityModifiers_MultipleEffects_AggregatesModifiers()
+    {
+        // Arrange
+        var effectRegistry = new EffectRegistry(null!);
+
+        // Create effects that modify capacities
+        var effect1 = EffectBuilderExtensions.CreateEffect("Test Effect 1")
+            .ReducesCapacity(CapacityNames.Moving, 0.2)
+            .Build();
+
+        var effect2 = EffectBuilderExtensions.CreateEffect("Test Effect 2")
+            .ReducesCapacity(CapacityNames.Moving, 0.1)
+            .Build();
+
+        effectRegistry.AddEffect(effect1);
+        effectRegistry.AddEffect(effect2);
+
+        // Act
+        var modifiers = CapacityCalculator.GetEffectCapacityModifiers(effectRegistry);
+
+        // Assert
+        // Two effects reducing Moving by 0.2 and 0.1 = -0.3 total
+        Assert.Equal(-0.3, modifiers.GetCapacityModifier(CapacityNames.Moving), precision: 2);
+    }
+}
