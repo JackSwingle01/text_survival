@@ -2,20 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## IMPORTANT: Consult the dev-guidelines Skill
+## IMPORTANT: Consult the Documentation
 
-**Always consult the `dev-guidelines` skill** (`.claude/skills/dev-guidelines/`) when working on this codebase. This skill provides comprehensive, detailed guidance on all game systems and architectural patterns.
+**Always consult the comprehensive documentation** in `documentation/` when working on this codebase. This documentation provides detailed guidance on all game systems and architectural patterns.
 
-**The dev-guidelines skill is a LIVING DOCUMENT**:
-- If you encounter contradictions between this file and the skill, **ask the user which should be updated**
-- If implementation patterns have evolved beyond what's documented, **propose updating the skill**
-- If new systems are added that aren't documented, **suggest adding them to the skill**
-- The skill should always reflect the current state and best practices of the codebase
+**The documentation is a LIVING DOCUMENT**:
+- If you encounter contradictions between this file and the documentation, **ask the user which should be updated**
+- If implementation patterns have evolved beyond what's documented, **propose updating the documentation**
+- If new systems are added that aren't documented, **suggest adding them to the documentation**
+- The documentation should always reflect the current state and best practices of the codebase
 
-**How to use the skill**:
-- It will auto-activate when working with C# files or game systems
-- Reference specific resource files for deep dives: `action-system.md`, `crafting-system.md`, `effect-system.md`, etc.
-- Use `complete-examples.md` for end-to-end feature implementation examples
+**Available documentation files**:
+- `action-system.md` - Action builder pattern and menu flow
+- `crafting-system.md` - Property-based crafting and recipes
+- `effect-system.md` - Buff/debuff system and EffectRegistry
+- `body-and-damage.md` - Body part hierarchy and damage processing
+- `survival-processing.md` - Temperature, hunger, thirst mechanics
+- `builder-patterns.md` - Fluent builder patterns used throughout
+- `composition-architecture.md` - Actor composition and manager patterns
+- `factory-patterns.md` - ItemFactory, NPCFactory, etc.
+- `error-handling-and-validation.md` - Error handling conventions
+- `complete-examples.md` - End-to-end feature implementation examples
 
 ## Project Overview
 
@@ -207,12 +214,12 @@ When adding content, prioritize thematic consistency with the Ice Age setting an
 
 ## Maintaining Documentation
 
-**This file and the dev-guidelines skill must stay synchronized**:
+**This file and the documentation folder must stay synchronized**:
 - When architectural patterns change, update both
-- When new systems are added, document them in the skill
+- When new systems are added, document them in `documentation/`
 - When design constraints evolve, reflect changes in both places
 - If something seems outdated or contradictory, ask the user to clarify and update accordingly
 
-The dev-guidelines skill (`.claude/skills/dev-guidelines/`) is the **detailed reference**, while this CLAUDE.md is the **quick overview**.
+The `documentation/` folder contains **detailed reference guides**, while this CLAUDE.md is the **quick overview**.
 - Make sure to consult the current plan in ./dev/active
 - When you are done with a dev task, you can move the folder from the active directory to the complete dir

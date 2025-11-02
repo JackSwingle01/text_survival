@@ -23,15 +23,39 @@ namespace text_survival
             Output.WriteLine();
             Output.WriteDanger("You wake up in the forest, with no memory of how you got there.");
             Output.WriteDanger("Light snow is falling, and you feel the air getting colder.");
-            Output.WriteDanger("You need to find shelter, food, and water to survive.");
+            Output.WriteDanger("The last embers of your campfire are fading...");
+            Output.WriteDanger("You need to gather fuel, find food and water, and survive.");
             Output.WriteLine();
             Output.SleepTime = 10;
             Zone zone = ZoneFactory.MakeForestZone();
             Container oldBag = new Container("Tattered Sack", 10);
             Location startingArea = new Location("Clearing", zone);
-            oldBag.Add(ItemFactory.MakeTatteredChestWrap());
-            oldBag.Add(ItemFactory.MakeTatteredLegWrap());
+
+            // Add starting equipment - basic fur wraps (Ice Age appropriate)
+            oldBag.Add(ItemFactory.MakeWornFurChestWrap());
+            oldBag.Add(ItemFactory.MakeFurLegWraps());
             startingArea.Containers.Add(oldBag);
+
+            // Make the starting clearing forageable (CRITICAL for survival)
+            ForageFeature forageFeature = new ForageFeature(startingArea, 1.0);
+            // Forest clearing materials - basic fire-starting and crafting
+            forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.5);
+            forageFeature.AddResource(ItemFactory.MakeBarkStrips, 0.6);
+            forageFeature.AddResource(ItemFactory.MakePlantFibers, 0.5);
+            forageFeature.AddResource(ItemFactory.MakeStick, 0.7);
+            forageFeature.AddResource(ItemFactory.MakeFirewood, 0.3);
+            forageFeature.AddResource(ItemFactory.MakeTinderBundle, 0.15);
+            startingArea.Features.Add(forageFeature);
+
+            // Add environment feature
+            startingArea.Features.Add(new EnvironmentFeature(startingArea, EnvironmentFeature.LocationType.Forest));
+
+            // Add dying campfire (15 minutes of warmth remaining)
+            HeatSourceFeature campfire = new HeatSourceFeature(startingArea, heatOutput: 15.0);
+            campfire.AddFuel(0.25); // 15 minutes = 0.25 hours
+            campfire.SetActive(true);
+            startingArea.Features.Add(campfire);
+
             zone.Locations.Add(startingArea);
             Player player = new Player(startingArea);
             World.Player = player;

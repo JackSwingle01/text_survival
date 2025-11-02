@@ -5,7 +5,7 @@ namespace text_survival.IO;
 /// </summary>
 public static class TestModeIO
 {
-    private static readonly string TmpDir = Path.Combine(Directory.GetCurrentDirectory(), "tmp");
+    private static readonly string TmpDir = Path.Combine(Directory.GetCurrentDirectory(), ".test_game_io");
     private static readonly string InputFile = Path.Combine(TmpDir, "game_input.txt");
     private static readonly string OutputFile = Path.Combine(TmpDir, "game_output.txt");
     private static readonly string ReadyFile = Path.Combine(TmpDir, "game_ready.txt");

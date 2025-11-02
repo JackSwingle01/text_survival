@@ -366,49 +366,49 @@ return new RecipeBuilder()
 
 | Need to... | Read this |
 |------------|-----------|
-| Create actions with builder pattern | [action-system.md](resources/action-system.md) |
-| Understand body hierarchy and damage | [body-and-damage.md](resources/body-and-damage.md) |
-| Implement survival mechanics | [survival-processing.md](resources/survival-processing.md) |
-| Create crafting recipes | [crafting-system.md](resources/crafting-system.md) |
-| Add effects/buffs/debuffs | [effect-system.md](resources/effect-system.md) |
-| Learn builder pattern philosophy | [builder-patterns.md](resources/builder-patterns.md) |
-| Understand Player/NPC architecture | [composition-architecture.md](resources/composition-architecture.md) |
-| Create items, NPCs, content | [factory-patterns.md](resources/factory-patterns.md) |
-| Handle errors and validation | [error-handling-and-validation.md](resources/error-handling-and-validation.md) |
-| See complete examples | [complete-examples.md](resources/complete-examples.md) |
+| Create actions with builder pattern | [action-system.md](documentation/action-system.md) |
+| Understand body hierarchy and damage | [body-and-damage.md](documentation/body-and-damage.md) |
+| Implement survival mechanics | [survival-processing.md](documentation/survival-processing.md) |
+| Create crafting recipes | [crafting-system.md](documentation/crafting-system.md) |
+| Add effects/buffs/debuffs | [effect-system.md](documentation/effect-system.md) |
+| Learn builder pattern philosophy | [builder-patterns.md](documentation/builder-patterns.md) |
+| Understand Player/NPC architecture | [composition-architecture.md](documentation/composition-architecture.md) |
+| Create items, NPCs, content | [factory-patterns.md](documentation/factory-patterns.md) |
+| Handle errors and validation | [error-handling-and-validation.md](documentation/error-handling-and-validation.md) |
+| See complete examples | [complete-examples.md](documentation/complete-examples.md) |
 
 ---
 
 ## Resource Files
 
-### [action-system.md](resources/action-system.md)
+### [action-system.md](documentation/action-system.md)
 Complete guide to ActionBuilder pattern, menu flow, GameContext, ActionFactory organization, and common extensions.
 
-### [body-and-damage.md](resources/body-and-damage.md)
+### [body-and-damage.md](documentation/body-and-damage.md)
 Body hierarchy (Region → Tissue → Organ), capacity system, body composition (fat/muscle), damage processing, and healing mechanics.
 
-### [survival-processing.md](resources/survival-processing.md)
+### [survival-processing.md](documentation/survival-processing.md)
 Pure function survival processing, temperature regulation, calorie burn, hydration, effect generation, and body composition impacts.
 
-### [crafting-system.md](resources/crafting-system.md)
+### [crafting-system.md](documentation/crafting-system.md)
 Property-based crafting with RecipeBuilder, ItemProperty enum, skill requirements, and result types (Item/Feature/Structure).
 
-### [effect-system.md](resources/effect-system.md)
+### [effect-system.md](documentation/effect-system.md)
 EffectBuilder pattern, EffectRegistry usage, severity system, capacity modifiers, temperature effects, and common patterns.
 
-### [builder-patterns.md](resources/builder-patterns.md)
+### [builder-patterns.md](documentation/builder-patterns.md)
 Cross-cutting builder pattern philosophy, fluent API design, consistency across systems, and extension method patterns.
 
-### [composition-architecture.md](resources/composition-architecture.md)
+### [composition-architecture.md](documentation/composition-architecture.md)
 Actor/Player/NPC hierarchy, manager composition, skills vs body-based stats, and separation of concerns.
 
-### [factory-patterns.md](resources/factory-patterns.md)
+### [factory-patterns.md](documentation/factory-patterns.md)
 ItemFactory, NPCFactory, BodyPartFactory, SpellFactory patterns, static method organization, and future JSON migration notes.
 
-### [error-handling-and-validation.md](resources/error-handling-and-validation.md)
+### [error-handling-and-validation.md](documentation/error-handling-and-validation.md)
 C# exception handling, guard clauses, input validation, error propagation, and async error patterns.
 
-### [complete-examples.md](resources/complete-examples.md)
+### [complete-examples.md](documentation/complete-examples.md)
 Full feature implementations: new action, new item + recipe, new effect, new body part type, new NPC.
 
 ---

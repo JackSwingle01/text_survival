@@ -415,4 +415,7 @@ obj/Debug/net8.0/apphost.exe
 /obj
 /.vs
 output.txt
+# Old test directory (deprecated - now using .test_game_io)
 tmp/
+# Test mode I/O directory
+.test_game_io/

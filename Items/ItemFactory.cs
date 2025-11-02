@@ -467,6 +467,28 @@ namespace text_survival.Items
             return wrap;
         }
 
+        public static Armor MakeWornFurChestWrap()
+        {
+            Armor wrap = new Armor("Worn Fur Chest Wrap", 2.0, EquipSpots.Chest, .08)
+            {
+                Description = "Fur hide wrapped around your torso. Worn and patched, but serviceable for the cold.",
+                Weight = 0.5,
+                CraftingProperties = [ItemProperty.Hide, ItemProperty.Insulation]
+            };
+            return wrap;
+        }
+
+        public static Armor MakeFurLegWraps()
+        {
+            Armor wrap = new Armor("Fur Leg Wraps", 2.0, EquipSpots.Legs, .07)
+            {
+                Description = "Fur wrappings secured around your legs. Provides decent protection from the cold.",
+                Weight = 0.4,
+                CraftingProperties = [ItemProperty.Hide, ItemProperty.Insulation]
+            };
+            return wrap;
+        }
+
         public static Item MakeMammothTusk()
         {
             Item tusk = new WeaponModifierItem("Mammoth Tusk")

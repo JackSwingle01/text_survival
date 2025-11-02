@@ -4,7 +4,82 @@
 
 The game supports a **TEST_MODE** that uses file-based I/O for automated testing. This is the recommended way for Claude Code to play and test the game.
 
-### Starting the Game
+### Using the Helper Script (Recommended)
+
+The `play_game.sh` script manages the game process and handles all I/O operations automatically.
+
+#### Process Management
+
+```bash
+# Start the game in TEST_MODE (handles everything automatically)
+./play_game.sh start
+
+# Check if game is running
+./play_game.sh status
+
+# Stop the game
+./play_game.sh stop
+
+# Restart the game (stop + start)
+./play_game.sh restart
+```
+
+#### Game Interaction
+
+Once the game is started:
+
+```bash
+# Send a menu choice
+./play_game.sh send 1
+
+# View recent game output (last 20 lines)
+./play_game.sh tail
+
+# View more lines of output
+./play_game.sh tail 50
+
+# View all output
+./play_game.sh read
+
+# Check if game is ready for input
+./play_game.sh ready
+
+# View game log (errors, warnings)
+./play_game.sh log
+
+# Get help
+./play_game.sh help
+```
+
+### Example Play Session
+
+```bash
+# Start the game
+./play_game.sh start
+
+# Look around, take items from sack
+./play_game.sh send 1     # Look around
+./play_game.sh send x     # Press any key to continue
+./play_game.sh send 1     # Look in sack
+./play_game.sh send 3     # Take all
+
+# View results
+./play_game.sh tail
+
+# Forage for materials
+./play_game.sh send 2     # Forage
+./play_game.sh send 2     # Finish foraging
+
+# Check status
+./play_game.sh tail
+
+# Stop when done
+./play_game.sh stop
+```
+
+### Manual Test Mode (Advanced)
+
+If you need to start the game manually:
 
 ```bash
 TEST_MODE=1 dotnet run &
@@ -12,56 +87,10 @@ TEST_MODE=1 dotnet run &
 
 The game will:
 - Run in the background
-- Create a `./tmp/` directory with I/O files
+- Create a `./.test_game_io/` directory with I/O files
 - Skip all sleep delays for fast execution
-- Wait for commands via `tmp/game_input.txt`
-- Write output to `tmp/game_output.txt`
-
-### Using the Helper Script
-
-The helper script handles timing internally - no manual sleeps needed!
-
-```bash
-# View current game output
-./play_game.sh tail
-
-# Send a menu choice
-./play_game.sh send 1
-
-# Send "enter" key
-./play_game.sh send ENTER
-
-# Check if game is ready for input
-./play_game.sh ready
-
-# View all output
-./play_game.sh read
-
-# Chain commands (each waits for previous to complete)
-./play_game.sh send 1 && ./play_game.sh send ENTER && ./play_game.sh tail
-```
-
-### Example Play Session
-
-```bash
-# Start the game
-TEST_MODE=1 dotnet run &
-
-# Wait for startup (2 seconds)
-sleep 2
-
-# Look around, continue, look in sack
-./play_game.sh send 1 && ./play_game.sh send ENTER && ./play_game.sh send 1
-
-# View results
-./play_game.sh tail
-
-# Take all items and go back
-./play_game.sh send 3 && ./play_game.sh send 2
-
-# View inventory
-./play_game.sh tail
-```
+- Wait for commands via `.test_game_io/game_input.txt`
+- Write output to `.test_game_io/game_output.txt`
 
 ## Manual Testing
 
@@ -112,7 +141,11 @@ dotnet run
 
 **Console Input in Normal Mode:** The game uses `Console.ReadKey()` which requires interactive terminal. Use TEST_MODE=1 for automated testing.
 
-**Test Files:** Test mode creates `./tmp/` directory with I/O files. This is gitignored and safe to delete.
+**Test Files:** Test mode creates `./.test_game_io/` directory with I/O files. This is gitignored and safe to delete. The helper script manages cleanup automatically.
+
+**Multiple Game Instances:** Always use `./play_game.sh stop` before starting a new session to prevent multiple instances running simultaneously.
+
+**Stale Process:** If the game crashes, use `./play_game.sh stop` to clean up. The script will detect and kill stale processes automatically.
 
 ## Reporting Issues Found During Testing
 
