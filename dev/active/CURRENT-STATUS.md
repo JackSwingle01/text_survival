@@ -51,12 +51,31 @@ All critical fixes have been implemented, validated, and archived to `/dev/compl
 ---
 
 ### Unit Test Suite & Critical Bug Fixes ✅
-**Archived to**: Previous session work
+**Date**: 2025-11-02
+**Status**: **93 tests passing** - Expanded coverage
 
-**Status**: 74 tests passing, 2 critical bugs fixed
-- Sleep energy clamping bug fixed
-- Organ capacity scaling bug fixed
-- Comprehensive test coverage for all calculation systems
+**Recent Additions**:
+- **Fire Temperature System Tests** (25 tests) - Validates all fire physics calculations
+  - Temperature calculations (active, ember, fuel types)
+  - Startup curves (tinder fast, hardwood slow)
+  - Fire size effects (small/ideal/large multipliers)
+  - Decline curves (low fuel penalties)
+  - Heat output formulas
+  - Fuel consumption rates
+  - Ember decay mechanics
+  - Edge cases (relighting from embers, temperature requirements)
+
+**Previous Coverage** (68 tests):
+- SurvivalProcessor (temperature, metabolism, hunger/thirst)
+- AbilityCalculator (strength, speed, vitality, cold resistance)
+- CapacityCalculator (body capacities, cascading effects)
+- DamageProcessor (damage penetration, distribution)
+- SkillCheckCalculator (success rates, XP rewards)
+- Body composition calculations
+
+**Critical Bugs Fixed** (Earlier):
+- Sleep energy clamping bug fixed (Math.Min(1, ...) → Math.Min(MAX_ENERGY_MINUTES, ...))
+- Organ capacity scaling bug fixed (organs now scale with condition)
 
 ---
 

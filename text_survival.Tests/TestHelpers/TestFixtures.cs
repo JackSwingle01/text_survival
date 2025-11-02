@@ -1,3 +1,7 @@
+using text_survival.Actors;
+using text_survival.Environments;
+using text_survival.Items;
+
 namespace text_survival.Tests.TestHelpers;
 
 /// <summary>
@@ -162,6 +166,59 @@ public static class TestFixtures
             Amount = amount,
             Type = damageType,
             TargetPartName = targetPartName
+        };
+    }
+
+    /// <summary>
+    /// Creates a test fire with specified fuel mixture
+    /// </summary>
+    public static HeatSourceFeature CreateTestFire(
+        double initialFuelKg = 0,
+        FuelType? fuelType = null,
+        double maxCapacity = 12.0,
+        bool isActive = false)
+    {
+        // Use factory to create zone with locations
+        var zone = ZoneFactory.MakeForestZone("TestZone", "A test zone", baseTemp: 0); // 0°C = 32°F
+        var location = zone.Locations[0]; // Get first generated location
+
+        var fire = new HeatSourceFeature(location, maxCapacity);
+
+        // Add fuel if specified
+        if (initialFuelKg > 0 && fuelType.HasValue)
+        {
+            // Create a test fuel item
+            var fuelItem = new Item($"Test {fuelType.Value}", initialFuelKg)
+            {
+                FuelMassKg = initialFuelKg,
+                CraftingProperties = new List<ItemProperty> { GetFuelProperty(fuelType.Value) }
+            };
+
+            fire.AddFuel(fuelItem, initialFuelKg);
+
+            if (isActive)
+            {
+                fire.SetActive(true);
+            }
+        }
+
+        return fire;
+    }
+
+    /// <summary>
+    /// Helper to convert FuelType enum to ItemProperty
+    /// </summary>
+    private static ItemProperty GetFuelProperty(FuelType fuelType)
+    {
+        return fuelType switch
+        {
+            FuelType.Tinder => ItemProperty.Fuel_Tinder,
+            FuelType.Kindling => ItemProperty.Fuel_Kindling,
+            FuelType.Softwood => ItemProperty.Fuel_Softwood,
+            FuelType.Hardwood => ItemProperty.Fuel_Hardwood,
+            FuelType.Bone => ItemProperty.Fuel_Bone,
+            FuelType.Peat => ItemProperty.Fuel_Peat,
+            _ => ItemProperty.Fuel_Tinder
         };
     }
 }
