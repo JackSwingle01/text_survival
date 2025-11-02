@@ -37,7 +37,8 @@ namespace text_survival
             startingArea.Containers.Add(oldBag);
 
             // Make the starting clearing forageable (CRITICAL for survival)
-            ForageFeature forageFeature = new ForageFeature(startingArea, 1.0);
+            // 1.75x density provides tutorial generosity (5-8 fire attempts before critical depletion)
+            ForageFeature forageFeature = new ForageFeature(startingArea, 1.75);
             // Forest clearing materials - basic fire-starting and crafting
             forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.5);
             forageFeature.AddResource(ItemFactory.MakeBarkStrips, 0.6);
@@ -45,6 +46,12 @@ namespace text_survival
             forageFeature.AddResource(ItemFactory.MakeStick, 0.7);
             forageFeature.AddResource(ItemFactory.MakeFirewood, 0.3);
             forageFeature.AddResource(ItemFactory.MakeTinderBundle, 0.15);
+            // Food items (improved for early-game survival)
+            forageFeature.AddResource(ItemFactory.MakeBerry, 0.4);
+            forageFeature.AddResource(ItemFactory.MakeMushroom, 0.6);
+            forageFeature.AddResource(ItemFactory.MakeNuts, 0.3);
+            forageFeature.AddResource(ItemFactory.MakeGrubs, 0.4);
+            forageFeature.AddResource(ItemFactory.MakeEggs, 0.2);
             startingArea.Features.Add(forageFeature);
 
             // Add environment feature

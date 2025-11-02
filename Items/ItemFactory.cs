@@ -14,7 +14,7 @@ namespace text_survival.Items
 
         public static FoodItem MakeMushroom()
         {
-            var mushroom = new FoodItem("Wild Mushroom", 25, 5)
+            var mushroom = new FoodItem("Wild Mushroom", 120, 5)
             {
                 Description = "A forest mushroom. Some varieties are nutritious, others are deadly.",
                 Weight = 0.1F
@@ -61,6 +61,36 @@ namespace text_survival.Items
             {
                 Description = "Starchy roots dug from the ground. Tough but nutritious.",
                 Weight = 0.3F,
+            };
+            return item;
+        }
+
+        public static FoodItem MakeNuts()
+        {
+            var item = new FoodItem("Nuts", 100, 5)
+            {
+                Description = "A handful of nuts gathered from forest trees. High in fats and energy.",
+                Weight = 0.15F,
+            };
+            return item;
+        }
+
+        public static FoodItem MakeEggs()
+        {
+            var item = new FoodItem("Bird Eggs", 150, 30)
+            {
+                Description = "Fresh eggs found in a bird's nest. Rich in protein and nutrients.",
+                Weight = 0.2F,
+            };
+            return item;
+        }
+
+        public static FoodItem MakeGrubs()
+        {
+            var item = new FoodItem("Grubs", 80, 10)
+            {
+                Description = "Plump insect larvae found under bark or in rotting logs. Surprisingly nutritious.",
+                Weight = 0.05F,
             };
             return item;
         }
@@ -152,6 +182,52 @@ namespace text_survival.Items
                 CraftingProperties = [ItemProperty.Tinder, ItemProperty.Flammable]
             };
             return item;
+        }
+
+        public static Item MakePineSap()
+        {
+            var item = new Item("Pine Sap")
+            {
+                Description = "Thick golden resin oozing from tree bark. Sticky and fragrant, it hardens in cold air and burns hot. Can be used for waterproofing and adhesives.",
+                Weight = 0.1,
+                CraftingProperties = [ItemProperty.Adhesive, ItemProperty.Waterproofing, ItemProperty.Flammable]
+            };
+            return item;
+        }
+
+        // --- Fire-Making Tools ---
+
+        public static Item MakeHandDrill()
+        {
+            var tool = new Item("Hand Drill", 0.3)
+            {
+                Description = "A simple friction fire starter made from a straight wooden spindle and flat board. Requires skill and patience.",
+                CraftingProperties = [ItemProperty.Wood]
+            };
+            tool.SetDurability(5);
+            return tool;
+        }
+
+        public static Item MakeBowDrill()
+        {
+            var tool = new Item("Bow Drill", 0.5)
+            {
+                Description = "An improved friction fire starter using a bow to spin the drill. More efficient than a hand drill.",
+                CraftingProperties = [ItemProperty.Wood]
+            };
+            tool.SetDurability(8);
+            return tool;
+        }
+
+        public static Item MakeFlintAndSteel()
+        {
+            var tool = new Item("Flint and Steel", 0.4)
+            {
+                Description = "A piece of flint struck against steel creates hot sparks. The most reliable fire-starting method.",
+                CraftingProperties = [ItemProperty.Flint, ItemProperty.Stone]
+            };
+            tool.SetDurability(15);
+            return tool;
         }
 
         // --- Phase 2: Plant Fiber Materials ---

@@ -65,7 +65,7 @@ public class Body
     public double Weight => _baseWeight + BodyFat + Muscle;
     public double BodyTemperature { get; set; }
 
-    private double CalorieStore = 1000;
+    private double CalorieStore = 1500; // 75% of MAX_CALORIES (2000), up from 50% for better early-game survival
     private double Energy = 800;
     private double Hydration = 3000;
 

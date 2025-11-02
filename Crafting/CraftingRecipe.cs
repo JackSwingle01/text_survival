@@ -26,10 +26,6 @@ public class CraftingRecipe(string name, string description = "")
     public int CraftingTimeMinutes { get; set; } = 10;
     public bool RequiresFire { get; set; } = false;
 
-    // Phase 3: Fire-making skill check system
-    public double? BaseSuccessChance { get; set; } = null;  // null = always succeeds (100%)
-    public int? SkillCheckDC { get; set; } = null;          // null = no skill check modifier
-
     public bool CanCraft(Player player)
     {
         // Check skill requirement

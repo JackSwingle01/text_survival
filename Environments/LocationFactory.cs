@@ -41,6 +41,10 @@ public static class LocationFactory
         forageFeature.AddResource(ItemFactory.MakeBarkStrips, 0.9);    // Very common (trees!) (buffed)
         forageFeature.AddResource(ItemFactory.MakePlantFibers, 0.8);   // Common (buffed)
         forageFeature.AddResource(ItemFactory.MakeTinderBundle, 0.2);  // Rare (prepared)
+        // Phase 3: Additional food items for improved early-game survival
+        forageFeature.AddResource(ItemFactory.MakeNuts, 0.3);    // Fairly common in forests
+        forageFeature.AddResource(ItemFactory.MakeGrubs, 0.4);   // Common under bark/logs
+        forageFeature.AddResource(ItemFactory.MakeEggs, 0.2);    // Uncommon (bird nests)
 
         // Add the forage feature to the location's features
         location.Features.Add(forageFeature);
@@ -48,13 +52,54 @@ public static class LocationFactory
         // Add an environment feature for forest
         location.Features.Add(new EnvironmentFeature(location, EnvironmentFeature.LocationType.Forest));
 
-        // Initial items hidden until foraging - items only revealed through Forage action
-        // int itemCount = Utils.RandInt(2, 4);
-        // for (int i = 0; i < itemCount; i++)
-        // {
-        //     Item item = GetRandomForestItem();
-        //     location.Items.Add(item);
-        // }
+        // Add harvestable features (discoverable resource nodes)
+        // Berry Bush - reliable food source (30% spawn chance)
+        if (Utils.DetermineSuccess(0.3))
+        {
+            var berryBush = new HarvestableFeature("berry_bush", "Wild Berry Bush", location)
+            {
+                Description = "A frost-hardy shrub with clusters of dark berries. The branches are thin but flexible."
+            };
+            berryBush.AddResource(ItemFactory.MakeBerry, maxQuantity: 5, respawnHoursPerUnit: 168.0); // 1 week
+            berryBush.AddResource(ItemFactory.MakeStick, maxQuantity: 2, respawnHoursPerUnit: 72.0);  // 3 days
+            location.Features.Add(berryBush);
+        }
+
+        // Willow Stand - crafting materials hub (20% spawn chance)
+        if (Utils.DetermineSuccess(0.2))
+        {
+            var willowStand = new HarvestableFeature("willow_stand", "Arctic Willow Stand", location)
+            {
+                Description = "A dense cluster of low-growing willow shrubs. The thin branches are remarkably flexible, and the bark has medicinal properties."
+            };
+            willowStand.AddResource(ItemFactory.MakePlantFibers, maxQuantity: 8, respawnHoursPerUnit: 48.0);   // 2 days
+            willowStand.AddResource(ItemFactory.MakeBarkStrips, maxQuantity: 4, respawnHoursPerUnit: 72.0);     // 3 days
+            willowStand.AddResource(ItemFactory.MakeHealingHerbs, maxQuantity: 2, respawnHoursPerUnit: 96.0);  // 4 days
+            location.Features.Add(willowStand);
+        }
+
+        // Pine Sap Seep - advanced crafting resource (15% spawn chance)
+        if (Utils.DetermineSuccess(0.15))
+        {
+            var sapSeep = new HarvestableFeature("pine_sap_seep", "Pine Sap Seep", location)
+            {
+                Description = "Thick golden resin oozes from a crack in the pine bark. The air smells sharp and piney."
+            };
+            sapSeep.AddResource(ItemFactory.MakePineSap, maxQuantity: 4, respawnHoursPerUnit: 168.0);         // 7 days
+            sapSeep.AddResource(ItemFactory.MakeTinderBundle, maxQuantity: 1, respawnHoursPerUnit: 240.0);    // 10 days
+            location.Features.Add(sapSeep);
+        }
+
+        // Puddle - small water source (30% spawn chance)
+        if (Utils.DetermineSuccess(0.3))
+        {
+            var puddle = new HarvestableFeature("puddle", "Forest Puddle", location)
+            {
+                Description = "A shallow puddle fed by melting snow. The water is clear and cold."
+            };
+            puddle.AddResource(ItemFactory.MakeWater, maxQuantity: 2, respawnHoursPerUnit: 12.0);  // 12 hours
+            location.Features.Add(puddle);
+        }
 
         // Configure the NPC spawner
         NpcTable npcSpawner = new NpcTable();
@@ -180,6 +225,32 @@ public static class LocationFactory
         // Add an environment feature for riverbank
         location.Features.Add(new EnvironmentFeature(location, EnvironmentFeature.LocationType.RiverBank));
 
+        // Water sources - stream or river (mutually exclusive)
+        if (Utils.DetermineSuccess(0.7))
+        {
+            // River - large water source (70% chance)
+            var river = new HarvestableFeature("river", "Ice-Fed River", location)
+            {
+                Description = "A wide, swift-flowing river fed by glacial meltwater. The current is strong but the water is clear and cold."
+            };
+            river.AddResource(ItemFactory.MakeWater, maxQuantity: 100, respawnHoursPerUnit: 0.1);  // Effectively infinite
+            river.AddResource(ItemFactory.MakeFish, maxQuantity: 8, respawnHoursPerUnit: 24.0);    // 1 day
+            river.AddResource(ItemFactory.MakeClay, maxQuantity: 6, respawnHoursPerUnit: 48.0);    // 2 days (silt deposits)
+            location.Features.Add(river);
+        }
+        else if (Utils.DetermineSuccess(0.3))
+        {
+            // Stream - moderate water source (30% chance of remaining 30%)
+            var stream = new HarvestableFeature("stream", "Mountain Stream", location)
+            {
+                Description = "A narrow stream tumbling over smooth stones. The water is crystal clear and icy cold."
+            };
+            stream.AddResource(ItemFactory.MakeWater, maxQuantity: 10, respawnHoursPerUnit: 1.0);     // 1 hour
+            stream.AddResource(ItemFactory.MakeFish, maxQuantity: 3, respawnHoursPerUnit: 48.0);      // 2 days
+            stream.AddResource(ItemFactory.MakeSmallStone, maxQuantity: 5, respawnHoursPerUnit: 72.0); // 3 days (river stones)
+            location.Features.Add(stream);
+        }
+
         // Initial items hidden until foraging - items only revealed through Forage action
         // int itemCount = Utils.RandInt(2, 4);
         // for (int i = 0; i < itemCount; i++)
@@ -240,6 +311,17 @@ public static class LocationFactory
 
         // Add an environment feature for open plain
         location.Features.Add(new EnvironmentFeature(location, EnvironmentFeature.LocationType.OpenPlain));
+
+        // Puddle - small water source (30% spawn chance)
+        if (Utils.DetermineSuccess(0.3))
+        {
+            var puddle = new HarvestableFeature("puddle", "Meltwater Puddle", location)
+            {
+                Description = "A shallow depression filled with fresh meltwater. Frozen at the edges but drinkable in the center."
+            };
+            puddle.AddResource(ItemFactory.MakeWater, maxQuantity: 2, respawnHoursPerUnit: 12.0);  // 12 hours
+            location.Features.Add(puddle);
+        }
 
         // Initial items hidden until foraging - items only revealed through Forage action
         // int itemCount = Utils.RandInt(1, 3);

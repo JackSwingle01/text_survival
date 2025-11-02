@@ -7,8 +7,32 @@ public class ForageFeature(Location location, double resourceDensity = 1) : Loca
 {
     private readonly double baseResourceDensity = resourceDensity;
     private double numberOfHoursForaged = 0;
+    private DateTime lastForageTime = DateTime.MinValue;
+    private readonly double respawnRateHours = 48.0; // Full respawn takes 48 hours
     private Dictionary<Func<Item>, double> resourceAbundance = [];
-    private double ResourceDensity => baseResourceDensity / (numberOfHoursForaged + 1);
+
+    private double ResourceDensity
+    {
+        get
+        {
+            // Calculate base depleted density
+            double depletedDensity = baseResourceDensity / (numberOfHoursForaged + 1);
+
+            // Calculate respawn recovery if time has passed
+            if (lastForageTime != DateTime.MinValue && numberOfHoursForaged > 0)
+            {
+                double hoursElapsed = (World.GameTime - lastForageTime).TotalHours;
+                double amountDepleted = baseResourceDensity - depletedDensity;
+                double respawnProgress = (hoursElapsed / respawnRateHours) * amountDepleted;
+
+                // EffectiveDensity = min(baseDensity, depletedDensity + respawnProgress)
+                double effectiveDensity = Math.Min(baseResourceDensity, depletedDensity + respawnProgress);
+                return effectiveDensity;
+            }
+
+            return depletedDensity;
+        }
+    }
 
     public void Forage(double hours)
     {
@@ -34,6 +58,9 @@ public class ForageFeature(Location location, double resourceDensity = 1) : Loca
         {
             numberOfHoursForaged += hours;
         }
+
+        // Update last forage time
+        lastForageTime = World.GameTime;
 
         int minutes = (int)(hours * 60);
         World.Update(minutes);

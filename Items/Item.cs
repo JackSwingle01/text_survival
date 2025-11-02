@@ -9,8 +9,30 @@ namespace text_survival.Items
         public double Weight { get; set; } = weight;
         public string Description { get; set; } = "";
         public bool IsFound { get; set; }
-        public int NumUses { get; set; } = -1; // -1 is not consumable
+        public int NumUses { get; set; } = -1; // -1 is not consumable/durable
+        private int InitialUses { get; set; } = -1; // Track max uses for display
         public List<ItemProperty> CraftingProperties = [];
+
+        /// <summary>
+        /// Use the item once, decrementing durability. Returns true if item broke.
+        /// </summary>
+        public bool UseOnce()
+        {
+            if (NumUses <= 0) return true; // Already broken
+            if (NumUses == -1) return false; // Not consumable
+
+            NumUses--;
+            return NumUses <= 0; // Broke on this use
+        }
+
+        /// <summary>
+        /// Set item as durable/consumable with uses
+        /// </summary>
+        public void SetDurability(int uses)
+        {
+            NumUses = uses;
+            InitialUses = uses;
+        }
 
         public void Describe()
         {
@@ -41,6 +63,15 @@ namespace text_survival.Items
         }
         public override string ToString()
         {
+            // Show durability for tools/consumables
+            if (NumUses > 0 && InitialUses > 0)
+            {
+                return $"{Name} ({NumUses}/{InitialUses} uses)";
+            }
+            else if (NumUses == 0)
+            {
+                return $"{Name} (broken)";
+            }
             return Name;
         }
 

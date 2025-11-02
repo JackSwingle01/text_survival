@@ -33,6 +33,7 @@ public static class ActionFactory
                         Describe.LookAround(ctx.currentLocation),
                         Survival.AddFuelToFire(),
                         Survival.StartFire(),
+                        Survival.HarvestResources(),
                         Survival.Forage(),
                         Inventory.OpenInventory(),
                         Crafting.OpenCraftingMenu(),
@@ -268,197 +269,276 @@ public static class ActionFactory
 
                 if (!noFire && !fullyColdFire) return false;
 
-                // Check if player has fire-making materials
-                // Hand Drill: Wood (0.5kg) + Tinder (0.05kg)
-                // Bow Drill: Wood (1.0kg) + Tinder (0.05kg) + Binding (0.1kg)
-                // Flint & Steel: Firestarter + Tinder (0.05kg)
-
+                // Check if player has fire-making tools and materials
                 var inventory = ctx.player.inventoryManager;
 
-                // Calculate total property weights
-                double wood = inventory.Items
-                    .Where(s => s.FirstItem.HasProperty(ItemProperty.Wood, 0))
-                    .Sum(s => s.TotalWeight);
+                // Need a fire-making tool (identified by name)
+                bool hasTool = inventory.Items.Any(s => IsFireMakingTool(s.FirstItem));
+
+                // Need tinder and kindling
                 double tinder = inventory.Items
                     .Where(s => s.FirstItem.HasProperty(ItemProperty.Tinder, 0))
                     .Sum(s => s.TotalWeight);
-                double binding = inventory.Items
-                    .Where(s => s.FirstItem.HasProperty(ItemProperty.Binding, 0))
+                double kindling = inventory.Items
+                    .Where(s => s.FirstItem.HasProperty(ItemProperty.Wood, 0))
                     .Sum(s => s.TotalWeight);
-                bool hasFirestarter = inventory.Items.Any(s => s.FirstItem.CraftingProperties.Contains(ItemProperty.Firestarter));
 
-                bool canHandDrill = wood >= 0.5 && tinder >= 0.05;
-                bool canBowDrill = wood >= 1.0 && tinder >= 0.05 && binding >= 0.1;
-                bool canFlintSteel = hasFirestarter && tinder >= 0.05;
-
-                return canHandDrill || canBowDrill || canFlintSteel;
+                return hasTool && tinder >= 0.05 && kindling >= 0.3;
             })
             .Do(ctx =>
             {
+                var inventory = ctx.player.inventoryManager;
                 var existingFire = ctx.currentLocation.GetFeature<HeatSourceFeature>();
-                bool relightingFire = existingFire != null && existingFire.FuelRemaining == 0;
+                bool relightingFire = existingFire != null;
 
                 if (relightingFire)
                 {
-                    Output.WriteLine($"The {existingFire!.Name} has gone cold. You can relight it.");
+                    Output.WriteLine($"You prepare to relight the fire.");
                 }
                 else
                 {
                     Output.WriteLine("You prepare to start a fire.");
                 }
 
-                Output.WriteLine("\nChoose your fire-making method:");
+                // Find available fire-making tools
+                var availableTools = inventory.Items
+                    .Where(s => IsFireMakingTool(s.FirstItem) && s.FirstItem.NumUses > 0)
+                    .Select(s => s.FirstItem)
+                    .ToList();
 
-                // Check what methods are available
-                var inventory = ctx.player.inventoryManager;
-                double wood = inventory.Items
-                    .Where(s => s.FirstItem.HasProperty(ItemProperty.Wood, 0))
-                    .Sum(s => s.TotalWeight);
-                double tinder = inventory.Items
-                    .Where(s => s.FirstItem.HasProperty(ItemProperty.Tinder, 0))
-                    .Sum(s => s.TotalWeight);
-                double binding = inventory.Items
-                    .Where(s => s.FirstItem.HasProperty(ItemProperty.Binding, 0))
-                    .Sum(s => s.TotalWeight);
-                bool hasFirestarter = inventory.Items.Any(s => s.FirstItem.CraftingProperties.Contains(ItemProperty.Firestarter));
-
-                var methods = new List<(string name, string description, bool canUse, string recipeKey)>();
-
-                // Check available methods based on materials
-                if (wood >= 0.5 && tinder >= 0.05)
+                if (!availableTools.Any())
                 {
-                    methods.Add(("Hand Drill", "Primitive friction method (30% base success)", true, "hand_drill"));
-                }
-                else
-                {
-                    methods.Add(("Hand Drill", "Primitive friction method (30% base success)", false, "hand_drill"));
+                    Output.WriteWarning("You don't have any working fire-making tools!");
+                    return;
                 }
 
-                if (wood >= 1.0 && tinder >= 0.05 && binding >= 0.1)
-                {
-                    methods.Add(("Bow Drill", "Improved friction method (50% base success)", true, "bow_drill"));
-                }
-                else
-                {
-                    methods.Add(("Bow Drill", "Improved friction method (50% base success)", false, "bow_drill"));
-                }
-
-                if (hasFirestarter && tinder >= 0.05)
-                {
-                    methods.Add(("Flint and Steel", "Reliable spark method (90% base success)", true, "flint_steel"));
-                }
-                else
-                {
-                    methods.Add(("Flint and Steel", "Reliable spark method (90% base success)", false, "flint_steel"));
-                }
-
+                // Show tool options
+                Output.WriteLine("\nChoose your fire-making tool:");
                 int optionNum = 1;
-                foreach (var method in methods)
+                foreach (var tool in availableTools)
                 {
-                    string status = method.canUse ? "✓" : "✗ Missing materials";
-                    Output.WriteLine($"  {optionNum}. {method.name} - {method.description} [{status}]");
+                    // Calculate success chance
+                    var toolParams = GetToolSkillParameters(tool);
+                    double successChance = toolParams.baseChance;
+                    var skill = ctx.player.Skills.GetSkill("Fire-making");
+                    if (toolParams.skillDC > 0)
+                    {
+                        double skillModifier = (skill.Level - toolParams.skillDC) * 0.1;
+                        successChance += skillModifier;
+                    }
+                    else
+                    {
+                        // No DC requirement, skill still helps
+                        double skillModifier = skill.Level * 0.1;
+                        successChance += skillModifier;
+                    }
+                    successChance = Math.Clamp(successChance, 0.05, 0.95);
+
+                    Output.WriteLine($"  {optionNum}. {tool} - {successChance:P0} success chance");
                     optionNum++;
                 }
                 Output.WriteLine($"  {optionNum}. Cancel");
 
-                Output.WriteLine("\nSelect a method:");
+                Output.WriteLine("\nSelect a tool:");
                 int choice = Input.ReadInt();
 
-                if (choice < 1 || choice > methods.Count + 1)
+                if (choice < 1 || choice > availableTools.Count + 1)
                 {
                     Output.WriteWarning("Invalid selection.");
                     return;
                 }
 
-                if (choice == methods.Count + 1)
+                if (choice == availableTools.Count + 1)
                 {
                     Output.WriteLine("You decide not to start a fire right now.");
                     return;
                 }
 
-                var selectedMethod = methods[choice - 1];
+                var selectedTool = availableTools[choice - 1];
 
-                if (!selectedMethod.canUse)
+                // Calculate success chance
+                var (baseChance, skillDC) = GetToolSkillParameters(selectedTool);
+                double finalSuccessChance = baseChance;
+                var playerSkill = ctx.player.Skills.GetSkill("Fire-making");
+                if (skillDC > 0)
                 {
-                    Output.WriteWarning("You don't have the required materials for this method.");
-                    return;
-                }
-
-                // Get the recipe from crafting system
-                var craftingManager = new CraftingSystem(ctx.player);
-                if (!craftingManager.Recipes.TryGetValue(selectedMethod.recipeKey, out var recipe))
-                {
-                    Output.WriteWarning("Recipe not found.");
-                    return;
-                }
-
-                // If relighting existing fire, just add fuel directly after consuming materials
-                if (relightingFire)
-                {
-                    // Consume materials manually
-                    foreach (var req in recipe.RequiredProperties.Where(r => r.IsConsumed))
-                    {
-                        double consumed = 0;
-                        var itemsToRemove = new List<Item>();
-
-                        foreach (var stack in inventory.Items.ToList())
-                        {
-                            if (consumed >= req.MinQuantity) break;
-
-                            var stackItem = stack.FirstItem;
-                            if (stackItem.HasProperty(req.Property, 0))
-                            {
-                                while (consumed < req.MinQuantity && stack.Count > 0)
-                                {
-                                    var toRemove = stack.Pop();
-                                    consumed += toRemove.Weight;
-                                    itemsToRemove.Add(toRemove);
-                                }
-                            }
-                        }
-
-                        foreach (var itemToRemove in itemsToRemove)
-                        {
-                            inventory.RemoveFromInventory(itemToRemove);
-                        }
-                    }
-
-                    // Perform skill check inline (based on CraftingSystem.Craft logic)
-                    double successChance = recipe.BaseSuccessChance ?? 1.0;
-                    if (recipe.SkillCheckDC.HasValue)
-                    {
-                        var skill = ctx.player.Skills.GetSkill(recipe.RequiredSkill);
-                        double skillModifier = (skill.Level - recipe.SkillCheckDC.Value) * 0.1;
-                        successChance += skillModifier;
-                    }
-                    successChance = Math.Clamp(successChance, 0.05, 0.95);
-
-                    bool success = Utils.DetermineSuccess(successChance);
-
-                    if (success)
-                    {
-                        Output.WriteLine($"\nSuccess! You relight the {existingFire!.Name}.");
-                        existingFire.AddFuel(0.5); // 30 minutes of initial fuel
-                        existingFire.SetActive(true);
-                        ctx.player.Skills.GetSkill(recipe.RequiredSkill)?.GainExperience(recipe.RequiredSkillLevel + 2);
-                    }
-                    else
-                    {
-                        Output.WriteWarning($"\nYou failed to start the fire. The materials were wasted.");
-                        ctx.player.Skills.GetSkill(recipe.RequiredSkill)?.GainExperience(1);
-                    }
-
-                    World.Update(recipe.CraftingTimeMinutes);
+                    double skillModifier = (playerSkill.Level - skillDC) * 0.1;
+                    finalSuccessChance += skillModifier;
                 }
                 else
                 {
-                    // Use standard crafting system for creating new fire
-                    ctx.CraftingManager.Craft(recipe);
+                    double skillModifier = playerSkill.Level * 0.1;
+                    finalSuccessChance += skillModifier;
+                }
+                finalSuccessChance = Math.Clamp(finalSuccessChance, 0.05, 0.95);
+
+                Output.WriteLine($"\nYou work with the {selectedTool.Name}...");
+                World.Update(15); // 15 minutes per attempt
+
+                // Roll for success
+                bool success = Utils.DetermineSuccess(finalSuccessChance);
+
+                if (success)
+                {
+                    // Success: Consume tinder + kindling + tool durability
+                    ConsumeMaterial(ctx.player, ItemProperty.Tinder, 0.05);
+                    ConsumeMaterial(ctx.player, ItemProperty.Wood, 0.3);
+
+                    bool toolBroke = selectedTool.UseOnce();
+                    if (toolBroke)
+                    {
+                        inventory.RemoveFromInventory(selectedTool);
+                    }
+
+                    // Create or relight fire
+                    if (relightingFire)
+                    {
+                        Output.WriteSuccess($"\nSuccess! You relight the fire! ({finalSuccessChance:P0} chance)");
+                        existingFire!.AddFuel(0.5); // 30 minutes of initial fuel
+                        existingFire.SetActive(true);
+                    }
+                    else
+                    {
+                        Output.WriteSuccess($"\nSuccess! You start a fire! ({finalSuccessChance:P0} chance)");
+                        var newFire = new HeatSourceFeature(ctx.currentLocation, 10.0);
+                        newFire.AddFuel(0.5); // 30 minutes of initial fuel
+                        newFire.SetActive(true);
+                        ctx.currentLocation.Features.Add(newFire);
+                    }
+
+                    playerSkill.GainExperience(3); // Success XP
+                }
+                else
+                {
+                    // Failure: Consume only tinder, tool still loses durability
+                    ConsumeMaterial(ctx.player, ItemProperty.Tinder, 0.05);
+
+                    bool toolBroke = selectedTool.UseOnce();
+                    if (toolBroke)
+                    {
+                        inventory.RemoveFromInventory(selectedTool);
+                    }
+
+                    Output.WriteWarning($"\nYou failed to start the fire. The tinder was wasted. ({finalSuccessChance:P0} chance)");
+                    playerSkill.GainExperience(1); // Failure XP (learning from mistakes)
                 }
             })
-            .TakesMinutes(0) // Handled manually via recipe or World.Update
+            .TakesMinutes(0) // Handled manually via World.Update
             .ThenReturn()
             .Build();
+        }
+
+        private static void ConsumeMaterial(Player player, ItemProperty property, double amount)
+        {
+            double remaining = amount;
+            var eligibleStacks = player.inventoryManager.Items
+                .Where(stack => stack.FirstItem.HasProperty(property, 0))
+                .ToList();
+
+            foreach (var stack in eligibleStacks)
+            {
+                while (stack.Count > 0 && remaining > 0)
+                {
+                    var item = stack.FirstItem;
+                    if (item.Weight <= remaining)
+                    {
+                        remaining -= item.Weight;
+                        var consumed = stack.Pop();
+                        player.inventoryManager.RemoveFromInventory(consumed);
+                    }
+                    else
+                    {
+                        item.Weight -= remaining;
+                        remaining = 0;
+                    }
+                }
+                if (remaining <= 0) break;
+            }
+        }
+
+        private static bool IsFireMakingTool(Item item)
+        {
+            return item.Name is "Hand Drill" or "Bow Drill" or "Flint and Steel";
+        }
+
+        private static (double baseChance, int skillDC) GetToolSkillParameters(Item tool)
+        {
+            return tool.Name switch
+            {
+                "Hand Drill" => (0.30, 0),      // 30% base, no DC
+                "Bow Drill" => (0.50, 1),       // 50% base, DC 1
+                "Flint and Steel" => (0.90, 0), // 90% base, no DC
+                _ => (0.30, 0)                   // Default
+            };
+        }
+
+        // Harvestable Feature Actions
+
+        public static IGameAction HarvestResources()
+        {
+            return CreateAction("Harvest Resources")
+                .When(ctx => ctx.currentLocation.Features
+                    .OfType<HarvestableFeature>()
+                    .Any(f => f.IsDiscovered))
+                .ThenShow(ctx =>
+                {
+                    var harvestables = ctx.currentLocation.Features
+                        .OfType<HarvestableFeature>()
+                        .Where(f => f.IsDiscovered)
+                        .Select(f => InspectHarvestable(f))
+                        .ToList<IGameAction>();
+
+                    harvestables.Add(Common.Return("Back to Main Menu"));
+                    return harvestables;
+                })
+                .Build();
+        }
+
+        public static IGameAction HarvestFromFeature(HarvestableFeature feature)
+        {
+            return CreateAction($"Harvest from {feature.DisplayName}")
+                .When(_ => feature.IsDiscovered && feature.HasAvailableResources())
+                .Do(ctx =>
+                {
+                    var items = feature.Harvest();
+
+                    if (items.Count > 0)
+                    {
+                        foreach (var item in items)
+                        {
+                            ctx.player.TakeItem(item);
+                        }
+
+                        // Group items by name for cleaner display
+                        var grouped = items.GroupBy(i => i.Name)
+                            .Select(g => $"{g.Key} ({g.Count()})");
+                        Output.WriteSuccess($"You harvested: {string.Join(", ", grouped)}");
+                    }
+                    else
+                    {
+                        Output.WriteLine($"The {feature.DisplayName} has been depleted.");
+                    }
+                })
+                .TakesMinutes(5) // Harvesting is quick
+                .ThenReturn()
+                .Build();
+        }
+
+        public static IGameAction InspectHarvestable(HarvestableFeature feature)
+        {
+            return CreateAction($"Inspect {feature.DisplayName}")
+                .When(_ => feature.IsDiscovered)
+                .Do(ctx =>
+                {
+                    Output.WriteLine(feature.Description);
+                    Output.WriteLine();
+                    Output.WriteLine($"Status: {feature.GetStatusDescription()}");
+                })
+                .ThenShow(ctx => [
+                    HarvestFromFeature(feature),
+                    Common.Return()
+                ])
+                .Build();
         }
     }
 
@@ -1378,6 +1458,13 @@ public static class ActionFactory
                     {
                         // Always show shelters
                         Output.WriteLine($"\t{shelter.Name} [shelter]");
+                        hasItems = true;
+                    }
+                    else if (feature is HarvestableFeature harvestable && harvestable.IsDiscovered)
+                    {
+                        // Show harvestable features with status
+                        string status = harvestable.GetStatusDescription();
+                        Output.WriteLine($"\t{status}");
                         hasItems = true;
                     }
                     // Don't display ForageFeature or EnvironmentFeature

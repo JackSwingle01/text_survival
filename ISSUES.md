@@ -103,6 +103,58 @@ Two fixes were required:
 
 *Incorrect behavior that prevents intended functionality*
 
+### ~~Bow Drill Recipe Requires Non-Existent Skill~~
+
+**Severity:** HIGH - Breaking Exception
+**Location:** `Crafting/CraftingSystem.cs` line 168
+**Status:** ✅ **FIXED** (2025-11-02)
+
+**Reproduction:**
+1. Start game
+2. Open crafting menu
+3. Game crashes with `System.ArgumentException: Skill Fire-making does not exist`
+
+**Root Cause:**
+Bow Drill recipe had leftover `.RequiringSkill("Fire-making", 1)` from earlier implementation where skill checks were in recipes. After game balance refactor, skill checks moved to StartFire action, but Bow Drill recipe wasn't updated.
+
+**Stack Trace:**
+```
+System.ArgumentException: Skill Fire-making does not exist.
+   at text_survival.Level.SkillRegistry.GetSkill(String skillName)
+   at text_survival.Crafting.CraftingRecipe.CanCraft(Player player)
+   at text_survival.Crafting.CraftingSystem.GetAvailableRecipes()
+```
+
+**Fix:**
+Removed `.RequiringSkill("Fire-making", 1)` from Bow Drill recipe. Skill check happens in StartFire action, NOT in crafting recipe.
+
+**Before:**
+```csharp
+var bowDrill = new RecipeBuilder()
+    .Named("Bow Drill")
+    .RequiringSkill("Fire-making", 1)  // ← CRASH (skill doesn't exist)
+    .ResultingInItem(ItemFactory.MakeBowDrill)
+```
+
+**After:**
+```csharp
+var bowDrill = new RecipeBuilder()
+    .Named("Bow Drill")
+    .RequiringCraftingTime(45)
+    .WithPropertyRequirement(ItemProperty.Wood, 1.0)
+    .WithPropertyRequirement(ItemProperty.Binding, 0.1)
+    // NO skill requirement - skill check happens in StartFire action
+    .ResultingInItem(ItemFactory.MakeBowDrill)
+```
+
+**Design Lesson:**
+- Crafting = knowledge (can you make it?)
+- Usage = skill (can you use it effectively?)
+- Skill checks belong in actions, not recipes
+- Crafting should always be 100% success (materials + time only)
+
+---
+
 ### Multiple Campfires Created in Same Location
 
 **Severity:** HIGH - Clutters locations, confuses fire management

@@ -78,6 +78,14 @@ dotnet restore
 
 This file helps track technical debt and prioritize fixes. Always check it before starting new work to avoid duplicating efforts or breaking known workarounds.
 
+## Status Documentation
+
+**Keep status documents brief and focused**:
+- Status docs in `dev/active/` should be concise summaries, not comprehensive references
+- Include: what was done, files changed, build status, next steps, key design notes
+- Refer to detailed dev docs in `dev/active/[feature]/` for full context, formulas, and rationale
+- Goal: Quick status check, not full documentation
+
 ## Core Architecture
 
 ### Modular Design Philosophy
