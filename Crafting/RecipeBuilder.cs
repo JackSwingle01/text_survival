@@ -17,6 +17,10 @@ public class RecipeBuilder
     private int _craftingTimeMinutes = 10;
     private bool _requiresFire = false;
 
+    // Phase 3: Fire-making skill check system
+    private double? _baseSuccessChance = null;
+    private int? _skillCheckDC = null;
+
     public RecipeBuilder Named(string name)
     {
         _name = name;
@@ -99,6 +103,20 @@ public class RecipeBuilder
         return this;
     }
 
+    // Phase 3: Fire-making skill check methods
+    public RecipeBuilder WithSuccessChance(double baseChance)
+    {
+        _baseSuccessChance = baseChance;
+        return this;
+    }
+
+    public RecipeBuilder WithSkillCheck(string skillName, int difficultyClass)
+    {
+        _requiredSkill = skillName;
+        _skillCheckDC = difficultyClass;
+        return this;
+    }
+
     public CraftingRecipe Build()
     {
         if (string.IsNullOrWhiteSpace(_name))
@@ -116,7 +134,9 @@ public class RecipeBuilder
             RequiredSkillLevel = _requiredSkillLevel,
             RequiredSkill = _requiredSkill,
             CraftingTimeMinutes = _craftingTimeMinutes,
-            RequiresFire = _requiresFire
+            RequiresFire = _requiresFire,
+            BaseSuccessChance = _baseSuccessChance,
+            SkillCheckDC = _skillCheckDC
         };
         return recipe;
     }

@@ -35,6 +35,11 @@ public static class LocationFactory
         forageFeature.AddResource(ItemFactory.MakeFirewood, .4);   // Common
         forageFeature.AddResource(ItemFactory.MakeRoots, .3);     // Fairly common
         forageFeature.AddResource(ItemFactory.MakeFlint, 0.1);     // Rare
+        // Phase 2: New fire-starting and cordage materials
+        forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.5);      // Common
+        forageFeature.AddResource(ItemFactory.MakeBarkStrips, 0.7);    // Very common (trees!)
+        forageFeature.AddResource(ItemFactory.MakePlantFibers, 0.6);   // Common
+        forageFeature.AddResource(ItemFactory.MakeTinderBundle, 0.2);  // Rare (prepared)
 
         // Add the forage feature to the location's features
         location.Features.Add(forageFeature);
@@ -42,13 +47,13 @@ public static class LocationFactory
         // Add an environment feature for forest
         location.Features.Add(new EnvironmentFeature(location, EnvironmentFeature.LocationType.Forest));
 
-        // Add initial visible items
-        int itemCount = Utils.RandInt(2, 4);
-        for (int i = 0; i < itemCount; i++)
-        {
-            Item item = GetRandomForestItem();
-            location.Items.Add(item);
-        }
+        // Initial items hidden until foraging - items only revealed through Forage action
+        // int itemCount = Utils.RandInt(2, 4);
+        // for (int i = 0; i < itemCount; i++)
+        // {
+        //     Item item = GetRandomForestItem();
+        //     location.Items.Add(item);
+        // }
 
         // Configure the NPC spawner
         NpcTable npcSpawner = new NpcTable();
@@ -92,10 +97,13 @@ public static class LocationFactory
 
         // Add resources to the forage feature - cave-appropriate items
         forageFeature.AddResource(ItemFactory.MakeMushroom, 3.0);  // Can find mushrooms in caves
-        forageFeature.AddResource(ItemFactory.MakeStone, 5.0);     // Very common
+        forageFeature.AddResource(ItemFactory.MakeRiverStone, 5.0);     // Very common
         forageFeature.AddResource(ItemFactory.MakeFlint, 2.0);     // More common in caves
         forageFeature.AddResource(ItemFactory.MakeClay, 1.0);      // Near cave entrances
         forageFeature.AddResource(ItemFactory.MakeObsidianShard, 0.3); // Rare but valuable
+        // Phase 2: Stone variety - NO organics (intentional challenge)
+        forageFeature.AddResource(ItemFactory.MakeHandstone, 0.4);     // Moderate
+        forageFeature.AddResource(ItemFactory.MakeSharpStone, 0.3);    // Uncommon
 
         // Add the forage feature to the location's features
         location.Features.Add(forageFeature);
@@ -103,13 +111,13 @@ public static class LocationFactory
         // Add an environment feature for cave
         location.Features.Add(new EnvironmentFeature(location, EnvironmentFeature.LocationType.Cave));
 
-        // Add initial visible items
-        int itemCount = Utils.RandInt(1, 3);
-        for (int i = 0; i < itemCount; i++)
-        {
-            Item item = GetRandomCaveItem();
-            location.Items.Add(item);
-        }
+        // Initial items hidden until foraging - items only revealed through Forage action
+        // int itemCount = Utils.RandInt(1, 3);
+        // for (int i = 0; i < itemCount; i++)
+        // {
+        //     Item item = GetRandomCaveItem();
+        //     location.Items.Add(item);
+        // }
 
         // Configure the NPC spawner
         NpcTable npcSpawner = new NpcTable();
@@ -159,8 +167,11 @@ public static class LocationFactory
         forageFeature.AddResource(ItemFactory.MakeFish, 6.0);      // Common
         forageFeature.AddResource(ItemFactory.MakeRoots, 4.0);     // Common near water
         forageFeature.AddResource(ItemFactory.MakeClay, 5.0);      // Common at riverbanks
-        forageFeature.AddResource(ItemFactory.MakeStone, 5.0);     // River stones
+        forageFeature.AddResource(ItemFactory.MakeRiverStone, 5.0);     // River stones
         forageFeature.AddResource(ItemFactory.MakeFlint, 1.0);     // Occasionally found
+        // Phase 2: Wetland plants
+        forageFeature.AddResource(ItemFactory.MakeRushes, 0.8);        // Very common (water plants)
+        forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.3);      // Uncommon (wet area)
 
         // Add the forage feature to the location's features
         location.Features.Add(forageFeature);
@@ -168,13 +179,13 @@ public static class LocationFactory
         // Add an environment feature for riverbank
         location.Features.Add(new EnvironmentFeature(location, EnvironmentFeature.LocationType.RiverBank));
 
-        // Add initial visible items
-        int itemCount = Utils.RandInt(2, 4);
-        for (int i = 0; i < itemCount; i++)
-        {
-            Item item = GetRandomRiverbankItem();
-            location.Items.Add(item);
-        }
+        // Initial items hidden until foraging - items only revealed through Forage action
+        // int itemCount = Utils.RandInt(2, 4);
+        // for (int i = 0; i < itemCount; i++)
+        // {
+        //     Item item = GetRandomRiverbankItem();
+        //     location.Items.Add(item);
+        // }
 
         // Configure the NPC spawner for riverbanks
         NpcTable npcSpawner = new NpcTable();
@@ -217,8 +228,11 @@ public static class LocationFactory
         forageFeature.AddResource(ItemFactory.MakeRoots, 6.0);     // Common
         forageFeature.AddResource(ItemFactory.MakeBerry, 2.0);     // Less common
         forageFeature.AddResource(ItemFactory.MakeStick, 1.0);     // Rare (few trees)
-        forageFeature.AddResource(ItemFactory.MakeStone, 4.0);     // Common
+        forageFeature.AddResource(ItemFactory.MakeRiverStone, 4.0);     // Common
         forageFeature.AddResource(ItemFactory.MakeFlint, 0.5);     // Rare
+        // Phase 2: Grassland materials
+        forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.8);      // Very common (grassland!)
+        forageFeature.AddResource(ItemFactory.MakePlantFibers, 0.4);   // Moderate
 
         // Add the forage feature to the location's features
         location.Features.Add(forageFeature);
@@ -226,13 +240,13 @@ public static class LocationFactory
         // Add an environment feature for open plain
         location.Features.Add(new EnvironmentFeature(location, EnvironmentFeature.LocationType.OpenPlain));
 
-        // Add initial visible items
-        int itemCount = Utils.RandInt(1, 3);
-        for (int i = 0; i < itemCount; i++)
-        {
-            Item item = GetRandomPlainsItem();
-            location.Items.Add(item);
-        }
+        // Initial items hidden until foraging - items only revealed through Forage action
+        // int itemCount = Utils.RandInt(1, 3);
+        // for (int i = 0; i < itemCount; i++)
+        // {
+        //     Item item = GetRandomPlainsItem();
+        //     location.Items.Add(item);
+        // }
 
         // Configure the NPC spawner - plains have megafauna!
         var npcSpawner = new NpcTable();
@@ -274,11 +288,15 @@ public static class LocationFactory
         ForageFeature forageFeature = new ForageFeature(location, 0.9);
 
         // Add resources to the forage feature - hillside-appropriate items
-        forageFeature.AddResource(ItemFactory.MakeStone, 8.0);        // Very common
+        forageFeature.AddResource(ItemFactory.MakeRiverStone, 8.0);        // Very common
         forageFeature.AddResource(ItemFactory.MakeFlint, 3.0);        // More common on hillsides
         forageFeature.AddResource(ItemFactory.MakeObsidianShard, 0.5); // Rare but possible
         forageFeature.AddResource(ItemFactory.MakeRoots, 2.0);         // Less common
         forageFeature.AddResource(ItemFactory.MakeOchrePigment, 1.0);  // Sometimes found on hills
+        // Phase 2: Balanced stone/organic mix
+        forageFeature.AddResource(ItemFactory.MakeHandstone, 0.5);     // Common
+        forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.4);      // Moderate
+        forageFeature.AddResource(ItemFactory.MakePlantFibers, 0.3);   // Uncommon
 
         // Add the forage feature to the location's features
         location.Features.Add(forageFeature);
@@ -286,13 +304,13 @@ public static class LocationFactory
         // Add an environment feature for hillside (using cliff as closest match)
         location.Features.Add(new EnvironmentFeature(location, EnvironmentFeature.LocationType.Cliff));
 
-        // Add initial visible items
-        int itemCount = Utils.RandInt(2, 4);
-        for (int i = 0; i < itemCount; i++)
-        {
-            Item item = GetRandomHillsideItem();
-            location.Items.Add(item);
-        }
+        // Initial items hidden until foraging - items only revealed through Forage action
+        // int itemCount = Utils.RandInt(2, 4);
+        // for (int i = 0; i < itemCount; i++)
+        // {
+        //     Item item = GetRandomHillsideItem();
+        //     location.Items.Add(item);
+        // }
 
         // Configure the NPC spawner for hillsides
         NpcTable npcSpawner = new NpcTable();
@@ -318,9 +336,8 @@ public static class LocationFactory
             { ItemFactory.MakeBerry, 4.0 },
             { ItemFactory.MakeStick, 8.0 },
             { ItemFactory.MakeFirewood, 5.0 },
-            { ItemFactory.MakeTorch, 0.5 },
-            { ItemFactory.MakeSpear, 0.2 },
             { ItemFactory.MakeHealingHerbs, 1.0 }
+            // Removed: MakeTorch (crafted), MakeSpear (crafted weapon)
         };
 
         return Utils.GetRandomWeighted(options)();
@@ -330,12 +347,12 @@ public static class LocationFactory
     {
         var options = new Dictionary<Func<Item>, double> {
             { ItemFactory.MakeMushroom, 4.0 },
-            { ItemFactory.MakeStone, 8.0 },
+            { ItemFactory.MakeRiverStone, 8.0 },
             { ItemFactory.MakeFlint, 3.0 },
-            { ItemFactory.MakeTorch, 1.0 },
             { ItemFactory.MakeBone, 4.0 },
             { ItemFactory.MakeObsidianShard, 0.5 },
             { ItemFactory.MakeOchrePigment, 0.2 }
+            // Removed: MakeTorch (crafted)
         };
 
         return Utils.GetRandomWeighted(options)();
@@ -347,7 +364,7 @@ public static class LocationFactory
             { ItemFactory.MakeWater, 8.0 },
             { ItemFactory.MakeFish, 5.0 },
             { ItemFactory.MakeClay, 6.0 },
-            { ItemFactory.MakeStone, 8.0 },
+            { ItemFactory.MakeRiverStone, 8.0 },
             { ItemFactory.MakeFlint, 2.0 },
             { ItemFactory.MakeRoots, 3.0 }
         };
@@ -359,7 +376,7 @@ public static class LocationFactory
     {
         var options = new Dictionary<Func<Item>, double> {
             { ItemFactory.MakeRoots, 6.0 },
-            { ItemFactory.MakeStone, 5.0 },
+            { ItemFactory.MakeRiverStone, 5.0 },
             { ItemFactory.MakeBone, 3.0 },
             { ItemFactory.MakeSinew, 1.0 },
             { ItemFactory.MakeBerry, 2.0 },
@@ -372,11 +389,11 @@ public static class LocationFactory
     private static Item GetRandomHillsideItem()
     {
         var options = new Dictionary<Func<Item>, double> {
-            { ItemFactory.MakeStone, 8.0 },
+            { ItemFactory.MakeRiverStone, 8.0 },
             { ItemFactory.MakeFlint, 5.0 },
             { ItemFactory.MakeObsidianShard, 1.0 },
-            { ItemFactory.MakeOchrePigment, 2.0 },
-            { ItemFactory.MakeHandAxe, 0.2 }
+            { ItemFactory.MakeOchrePigment, 2.0 }
+            // Removed: MakeHandAxe (crafted tool)
         };
 
         return Utils.GetRandomWeighted(options)();

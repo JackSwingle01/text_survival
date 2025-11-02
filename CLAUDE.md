@@ -37,6 +37,38 @@ dotnet clean
 dotnet restore
 ```
 
+## Testing with TEST_MODE
+
+**IMPORTANT**: Claude Code can play the game interactively using `TEST_MODE=1` and the `play_game.sh` helper script for automated testing. See **TESTING.md** for full details and examples.
+
+## Issue Tracking
+
+**CRITICAL**: When you find bugs, balance issues, questionable functionality, or breaking exceptions during development or testing, **YOU MUST UPDATE ISSUES.md**.
+
+**ISSUES.md** is the central issue tracker organized by severity:
+- 🔴 **Breaking Exceptions** - Critical crashes that prevent gameplay
+- 🟠 **Bugs** - Incorrect behavior that prevents intended functionality
+- 🟡 **Questionable Functionality** - Works but may not be intended
+- 🟢 **Balance & Immersion Issues** - Gameplay feel problems
+
+**When to update ISSUES.md**:
+1. Finding a bug during development or testing
+2. Discovering unintended behavior
+3. Identifying balance problems (survival too hard/easy, skills too weak/strong, etc.)
+4. Encountering crashes or exceptions
+5. Noticing UX issues that break immersion
+6. Resolving/fixing an existing issue (mark as resolved with solution)
+
+**Format for new issues**:
+- Clear title describing the problem
+- Severity level (High/Medium/Low)
+- Reproduction steps
+- Expected vs. actual behavior
+- Impact on gameplay
+- Suggested solutions (if applicable)
+
+This file helps track technical debt and prioritize fixes. Always check it before starting new work to avoid duplicating efforts or breaking known workarounds.
+
 ## Core Architecture
 
 ### Modular Design Philosophy
@@ -182,3 +214,5 @@ When adding content, prioritize thematic consistency with the Ice Age setting an
 - If something seems outdated or contradictory, ask the user to clarify and update accordingly
 
 The dev-guidelines skill (`.claude/skills/dev-guidelines/`) is the **detailed reference**, while this CLAUDE.md is the **quick overview**.
+- Make sure to consult the current plan in ./dev/active
+- When you are done with a dev task, you can move the folder from the active directory to the complete dir

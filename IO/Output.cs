@@ -7,6 +7,8 @@ namespace text_survival.IO
 {
     public static class Output
     {
+        // Test mode: set TEST_MODE=1 to skip sleeps and readkeys
+        public static bool TestMode = Environment.GetEnvironmentVariable("TEST_MODE") == "1";
         public static int SleepTime = 200;
         public static ConsoleColor DetermineTextColor(object x)
         {
@@ -32,13 +34,22 @@ namespace text_survival.IO
             foreach (var arg in args)
             {
                 string text = GetFormattedText(arg);
-                if (Console.ForegroundColor == ConsoleColor.White)
+
+                if (TestMode)
                 {
-                    Console.ForegroundColor = DetermineTextColor(arg);
+                    // In test mode, write to file instead of console with colors
+                    TestModeIO.WriteOutput(text);
                 }
-                Console.Write(text);
-                Console.ForegroundColor = ConsoleColor.White;
-                Thread.Sleep(SleepTime);
+                else
+                {
+                    if (Console.ForegroundColor == ConsoleColor.White)
+                    {
+                        Console.ForegroundColor = DetermineTextColor(arg);
+                    }
+                    Console.Write(text);
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Thread.Sleep(SleepTime);
+                }
             }
         }
 

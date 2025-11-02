@@ -12,7 +12,12 @@
         public static string Read()
         {
             string? input = "";
-            if (Config.io == Config.IOType.Console)
+            if (Output.TestMode)
+            {
+                TestModeIO.SignalReady();
+                input = TestModeIO.ReadInput();
+            }
+            else if (Config.io == Config.IOType.Console)
             {
                 input = Console.ReadLine();
             }

@@ -38,6 +38,36 @@ public class CraftingSystem
         // Consume ingredients
         recipe.ConsumeIngredients(_player);
 
+        // Phase 3: Fire-making skill check system
+        if (recipe.BaseSuccessChance.HasValue)
+        {
+            // Calculate success chance
+            double successChance = recipe.BaseSuccessChance.Value;
+
+            if (recipe.SkillCheckDC.HasValue)
+            {
+                var skill = _player.Skills.GetSkill(recipe.RequiredSkill);
+                double skillModifier = (skill.Level - recipe.SkillCheckDC.Value) * 0.1;
+                successChance += skillModifier;
+            }
+
+            // Clamp to 5-95% range (never guaranteed, never impossible)
+            successChance = Math.Clamp(successChance, 0.05, 0.95);
+
+            // Roll for success
+            bool success = Utils.DetermineSuccess(successChance);
+
+            if (!success)
+            {
+                // Failure - materials consumed, small XP, no result
+                Output.WriteWarning($"You failed to craft {recipe.Name}. The materials were consumed in the attempt.");
+                _player.Skills.GetSkill(recipe.RequiredSkill).GainExperience(1); // Learning from failure
+                return;
+            }
+
+            Output.WriteSuccess($"Success! ({successChance:P0} chance)");
+        }
+
         // Generate results based on type
         switch (recipe.ResultType)
         {
@@ -112,6 +142,9 @@ public class CraftingSystem
 
     private void InitializeRecipes()
     {
+        // Phase 3: Fire-Making (critical for survival)
+        CreateFireRecipes();
+
         // Basic Tools
         CreateBasicToolRecipes();
 
@@ -125,7 +158,64 @@ public class CraftingSystem
         CreateCookingRecipes();
     }
 
+    // Phase 3: Fire-Making Recipes with skill checks
+    private void CreateFireRecipes()
+    {
+        // Hand Drill - Primitive friction fire (30% base success, improves with skill)
+        var handDrill = new RecipeBuilder()
+            .Named("Hand Drill Fire")
+            .WithDescription("Primitive fire-making by friction. Difficult but requires only natural materials.")
+            .RequiringCraftingTime(20)
+            .WithPropertyRequirement(ItemProperty.Wood, 0.5)  // Dry stick
+            .WithPropertyRequirement(ItemProperty.Tinder, 0.05) // Tinder bundle
+            .WithSuccessChance(0.3)  // 30% base chance
+            .WithSkillCheck("Firecraft", 0)  // +10% per skill level
+            .ResultingInLocationFeature(new LocationFeatureResult("Campfire", location =>
+            {
+                var fire = new HeatSourceFeature(location, 10.0);
+                fire.AddFuel(0.5);
+                return fire;
+            }))
+            .Build();
+        _recipes.Add("hand_drill", handDrill);
 
+        // Bow Drill - Improved friction fire (50% base success)
+        var bowDrill = new RecipeBuilder()
+            .Named("Bow Drill Fire")
+            .WithDescription("An improved friction fire method using a bow mechanism for consistent pressure.")
+            .RequiringCraftingTime(45)
+            .WithPropertyRequirement(ItemProperty.Wood, 1.0)  // 2 sticks for bow + drill
+            .WithPropertyRequirement(ItemProperty.Binding, 0.1)  // Sinew or plant fiber
+            .WithPropertyRequirement(ItemProperty.Tinder, 0.05)
+            .WithSuccessChance(0.5)  // 50% base chance
+            .WithSkillCheck("Firecraft", 1)  // Requires skill 1+, +10% per level above
+            .ResultingInLocationFeature(new LocationFeatureResult("Campfire", location =>
+            {
+                var fire = new HeatSourceFeature(location, 10.0);
+                fire.AddFuel(0.5);
+                return fire;
+            }))
+            .Build();
+        _recipes.Add("bow_drill", bowDrill);
+
+        // Flint & Steel - Reliable fire (90% success, no skill required)
+        var flintSteel = new RecipeBuilder()
+            .Named("Flint & Steel Fire")
+            .WithDescription("Strike flint against stone to create sparks. Reliable once you have the materials.")
+            .RequiringCraftingTime(5)
+            .WithPropertyRequirement(ItemProperty.Firestarter, 0.2)  // Flint
+            .WithPropertyRequirement(ItemProperty.Stone, 0.3)  // Striker stone
+            .WithPropertyRequirement(ItemProperty.Tinder, 0.05)
+            .WithSuccessChance(0.9)  // 90% success, no skill modifier
+            .ResultingInLocationFeature(new LocationFeatureResult("Campfire", location =>
+            {
+                var fire = new HeatSourceFeature(location, 10.0);
+                fire.AddFuel(0.5);
+                return fire;
+            }))
+            .Build();
+        _recipes.Add("flint_steel", flintSteel);
+    }
 
     private void CreateBasicToolRecipes()
     {

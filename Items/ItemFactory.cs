@@ -119,12 +119,108 @@ namespace text_survival.Items
             return clay;
         }
 
-        public static Item MakeStone()
+        // --- Phase 2: Tinder and Fire-Starting Materials ---
+
+        public static Item MakeDryGrass()
+        {
+            var item = new Item("Dry Grass")
+            {
+                Description = "Dried grass stems, brittle and sun-bleached. Catches fire easily when bundled.",
+                Weight = 0.02,
+                CraftingProperties = [ItemProperty.Tinder, ItemProperty.Flammable, ItemProperty.Insulation]
+            };
+            return item;
+        }
+
+        public static Item MakeBarkStrips()
+        {
+            var item = new Item("Bark Strips")
+            {
+                Description = "Papery inner bark peeled from birch or cedar. Burns well and can be twisted into cordage.",
+                Weight = 0.05,
+                CraftingProperties = [ItemProperty.Tinder, ItemProperty.Binding, ItemProperty.Flammable]
+            };
+            return item;
+        }
+
+        public static Item MakeTinderBundle()
+        {
+            var item = new Item("Tinder Bundle")
+            {
+                Description = "A carefully prepared nest of dry grass, bark shavings, and plant fluff. Ready to catch the smallest spark.",
+                Weight = 0.03,
+                CraftingProperties = [ItemProperty.Tinder, ItemProperty.Flammable]
+            };
+            return item;
+        }
+
+        // --- Phase 2: Plant Fiber Materials ---
+
+        public static Item MakePlantFibers()
+        {
+            var item = new Item("Plant Fibers")
+            {
+                Description = "Tough fibers stripped from plant stems and bark. Can be twisted into serviceable cordage.",
+                Weight = 0.04,
+                CraftingProperties = [ItemProperty.PlantFiber, ItemProperty.Binding]
+            };
+            return item;
+        }
+
+        public static Item MakeRushes()
+        {
+            var item = new Item("Rushes")
+            {
+                Description = "Long, fibrous wetland plants. Useful for weaving, binding, and insulation when dried.",
+                Weight = 0.06,
+                CraftingProperties = [ItemProperty.PlantFiber, ItemProperty.Binding, ItemProperty.Insulation]
+            };
+            return item;
+        }
+
+        // --- Phase 2: Processed Materials ---
+
+        public static Item MakeCharcoal()
+        {
+            var item = new Item("Charcoal")
+            {
+                Description = "Blackened wood from incomplete burning. Can be used to harden other wood in fire or as fuel.",
+                Weight = 0.05,
+                CraftingProperties = [ItemProperty.Charcoal, ItemProperty.Flammable]
+            };
+            return item;
+        }
+
+        // --- Phase 2: Stone Variety ---
+
+        public static Item MakeRiverStone()
         {
             var item = new Item("River Stone")
             {
-                Description = "A smooth river stone. Useful for tools or cooking.",
-                Weight = 0.5,
+                Description = "A smooth, rounded stone from the riverbed. Good for smashing or as a hammer.",
+                Weight = 0.3,
+                CraftingProperties = [ItemProperty.Stone]
+            };
+            return item;
+        }
+
+        public static Item MakeSharpStone()
+        {
+            var item = new Item("Sharp Stone")
+            {
+                Description = "A jagged stone broken to reveal sharp edges. Can be used as a crude cutting tool.",
+                Weight = 0.2,
+                CraftingProperties = [ItemProperty.Stone, ItemProperty.Sharp]
+            };
+            return item;
+        }
+
+        public static Item MakeHandstone()
+        {
+            var item = new Item("Handstone")
+            {
+                Description = "A dense, fist-sized stone that fits comfortably in hand. Ideal for pounding and hammering.",
+                Weight = 0.4,
                 CraftingProperties = [ItemProperty.Stone]
             };
             return item;
@@ -349,6 +445,26 @@ namespace text_survival.Items
                 CraftingProperties = [ItemProperty.Hide, ItemProperty.Binding, ItemProperty.Insulation]
             };
             return shoes;
+        }
+
+        public static Armor MakeTatteredChestWrap()
+        {
+            Armor wrap = new Armor("Tattered Chest Wrap", .5, EquipSpots.Chest, .02)
+            {
+                Description = "Barely more than rags bound around your torso. Provides minimal warmth and protection.",
+                Weight = 0.1
+            };
+            return wrap;
+        }
+
+        public static Armor MakeTatteredLegWrap()
+        {
+            Armor wrap = new Armor("Tattered Leg Wraps", .5, EquipSpots.Legs, .02)
+            {
+                Description = "Torn fabric wrapped crudely around your legs. Better than nothing, barely.",
+                Weight = 0.1
+            };
+            return wrap;
         }
 
         public static Item MakeMammothTusk()

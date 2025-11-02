@@ -415,3 +415,4 @@ obj/Debug/net8.0/apphost.exe
 /obj
 /.vs
 output.txt
+tmp/

@@ -15,7 +15,14 @@ public enum ItemProperty : byte
     Poison,
     Fat,
     Sharp,
-    Clay
+    Clay,
+    // Phase 2 additions for crafting/foraging overhaul
+    Tinder,      // Fire-starting materials (dry grass, bark)
+    PlantFiber,  // Early-game cordage alternative to sinew
+    Fur,         // Superior insulation from hunting
+    Antler,      // Tool handles and specialized components
+    Leather,     // Processed hide (requires tanning)
+    Charcoal     // Fire-hardened wood, fuel
 }
 
 public class CraftingPropertyRequirement(ItemProperty property, double minQuantity, bool isConsumed = true)

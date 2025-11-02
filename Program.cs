@@ -11,6 +11,10 @@ namespace text_survival
     {
         static void Main()
         {
+            if (Output.TestMode)
+            {
+                TestModeIO.Initialize();
+            }
             Output.SleepTime = 500;
             Output.WriteLine();
             Output.WriteLine();
@@ -23,12 +27,10 @@ namespace text_survival
             Output.WriteLine();
             Output.SleepTime = 10;
             Zone zone = ZoneFactory.MakeForestZone();
-            Container oldBag = new Container("Old bag", 10);
+            Container oldBag = new Container("Tattered Sack", 10);
             Location startingArea = new Location("Clearing", zone);
-            oldBag.Add(ItemFactory.MakeKnife());
-            oldBag.Add(ItemFactory.MakeMoccasins());
-            oldBag.Add(ItemFactory.MakeLeatherTunic());
-            oldBag.Add(ItemFactory.MakeLeatherPants());
+            oldBag.Add(ItemFactory.MakeTatteredChestWrap());
+            oldBag.Add(ItemFactory.MakeTatteredLegWrap());
             startingArea.Containers.Add(oldBag);
             zone.Locations.Add(startingArea);
             Player player = new Player(startingArea);

@@ -133,7 +133,15 @@ public static class ActionBuilderExtensions
         return b.Do(_ =>
         {
             Output.WriteLine("Press any key to continue...");
-            Console.ReadKey(true);
+            if (Output.TestMode)
+            {
+                TestModeIO.SignalReady();
+                TestModeIO.ReadInput(); // Wait for command from file
+            }
+            else
+            {
+                Console.ReadKey(true);
+            }
         });
     }
 }
