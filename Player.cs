@@ -16,6 +16,8 @@ public class Player : Actor
     private readonly LocationManager locationManager;
     public readonly InventoryManager inventoryManager;
     public readonly StealthManager stealthManager;
+    public readonly AmmunitionManager ammunitionManager;
+    public readonly HuntingManager huntingManager;
     public readonly SkillRegistry Skills;
     public readonly List<Spell> _spells = [SpellFactory.Bleeding, SpellFactory.Poison, SpellFactory.MinorHeal];
 
@@ -56,6 +58,8 @@ public class Player : Actor
         locationManager = new LocationManager(startingLocation);
         inventoryManager = new(EffectRegistry);
         stealthManager = new(this);
+        ammunitionManager = new(inventoryManager);
+        huntingManager = new(this, ammunitionManager);
         Skills = new SkillRegistry();
     }
 

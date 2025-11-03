@@ -147,6 +147,9 @@ public class CraftingSystem
 
         // Cooking Recipes
         CreateCookingRecipes();
+
+        // MVP Hunting System: Ranged Weapons
+        CreateHuntingRecipes();
     }
 
     // Phase 3: Fire-Making Tool Recipes (100% crafting success, tools are used with skill checks)
@@ -579,5 +582,68 @@ public class CraftingSystem
         cabin.Features.Add(new ShelterFeature(cabin, 0.8, 0.9, 0.9));
         cabin.Features.Add(new EnvironmentFeature(cabin, 15.0, 0.9, 0.9)); // +15°F, excellent protection
         return cabin;
+    }
+
+    // MVP Hunting System: Ranged Weapon Recipes
+    private void CreateHuntingRecipes()
+    {
+        // Simple Bow - Basic hunting weapon
+        var simpleBow = new RecipeBuilder()
+            .Named("Simple Bow")
+            .WithDescription("Craft a simple hunting bow from flexible wood and animal sinew. Requires Hunting skill 1.")
+            .RequiringSkill("Hunting", 1)
+            .RequiringCraftingTime(60) // 1 hour to craft a bow
+            .WithPropertyRequirement(ItemProperty.Wood, 1.5) // Flexible wood for bow stave
+            .WithPropertyRequirement(ItemProperty.Binding, 0.2) // Sinew or plant fiber for bowstring
+            .ResultingInItem(ItemFactory.MakeSimpleBow)
+            .Build();
+        _recipes.Add("simple_bow", simpleBow);
+
+        // Stone Arrow (Basic ammunition)
+        var stoneArrow = new RecipeBuilder()
+            .Named("Stone Arrow")
+            .WithDescription("Craft a basic arrow with stone tip. Essential ammunition for bow hunting.")
+            .RequiringCraftingTime(5) // 5 minutes per arrow
+            .WithPropertyRequirement(ItemProperty.Wood, 0.1) // Shaft
+            .WithPropertyRequirement(ItemProperty.Stone, 0.05) // Stone tip
+            .ResultingInItem(ItemFactory.MakeStoneArrow)
+            .Build();
+        _recipes.Add("stone_arrow", stoneArrow);
+
+        // Flint Arrow (Improved ammunition)
+        var flintArrow = new RecipeBuilder()
+            .Named("Flint Arrow")
+            .WithDescription("Craft an arrow with sharp flint tip. More reliable and deadly than stone arrows.")
+            .RequiringSkill("Hunting", 2)
+            .RequiringCraftingTime(7) // 7 minutes per arrow
+            .WithPropertyRequirement(ItemProperty.Wood, 0.1) // Shaft
+            .WithPropertyRequirement(ItemProperty.Flint, 0.05) // Flint tip
+            .ResultingInItem(ItemFactory.MakeFlintArrow)
+            .Build();
+        _recipes.Add("flint_arrow", flintArrow);
+
+        // Bone Arrow (Advanced ammunition)
+        var boneArrow = new RecipeBuilder()
+            .Named("Bone Arrow")
+            .WithDescription("Craft an arrow with fire-hardened bone tip. Excellent penetration against thick hides.")
+            .RequiringSkill("Hunting", 3)
+            .RequiringCraftingTime(8) // 8 minutes per arrow
+            .WithPropertyRequirement(ItemProperty.Wood, 0.1) // Shaft
+            .WithPropertyRequirement(ItemProperty.Bone, 0.08) // Bone tip
+            .ResultingInItem(ItemFactory.MakeBoneArrow)
+            .Build();
+        _recipes.Add("bone_arrow", boneArrow);
+
+        // Obsidian Arrow (Premium ammunition)
+        var obsidianArrow = new RecipeBuilder()
+            .Named("Obsidian Arrow")
+            .WithDescription("Craft an arrow with razor-sharp obsidian tip. The finest hunting ammunition available.")
+            .RequiringSkill("Hunting", 4)
+            .RequiringCraftingTime(10) // 10 minutes per arrow
+            .WithPropertyRequirement(ItemProperty.Wood, 0.1) // Shaft
+            .WithPropertyRequirement(ItemProperty.Obsidian, 0.05) // Obsidian tip
+            .ResultingInItem(ItemFactory.MakeObsidianArrow)
+            .Build();
+        _recipes.Add("obsidian_arrow", obsidianArrow);
     }
 }

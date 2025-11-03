@@ -14,6 +14,7 @@ public class Location
     private List<Npc> _npcs = [];
     public List<Item> Items = [];
     public List<Container> Containers = [];
+    public List<BloodTrail> BloodTrails = []; // MVP Hunting System - Phase 4
     virtual public Zone Parent { get; }
     public List<LocationFeature> Features = [];
 

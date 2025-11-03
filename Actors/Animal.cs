@@ -42,6 +42,23 @@ namespace text_survival.Actors
         /// </summary>
         public int TrackingDifficulty { get; set; }
 
+        /// <summary>
+        /// Whether this animal is currently bleeding from a wound (Phase 4).
+        /// </summary>
+        public bool IsBleeding { get; set; }
+
+        /// <summary>
+        /// Time when the animal was wounded (Phase 4).
+        /// Used to calculate bleed-out timing.
+        /// </summary>
+        public DateTime? WoundedTime { get; set; }
+
+        /// <summary>
+        /// Severity of the current wound (0.0-1.0) (Phase 4).
+        /// Affects bleed-out rate and blood trail visibility.
+        /// </summary>
+        public double CurrentWoundSeverity { get; set; }
+
         #endregion
 
         #region Constructor

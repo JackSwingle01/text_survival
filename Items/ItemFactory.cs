@@ -880,5 +880,59 @@ namespace text_survival.Items
             };
             return ochre;
         }
+
+        // ===== HUNTING SYSTEM - RANGED WEAPONS (MVP Phase 3) =====
+
+        public static RangedWeapon MakeSimpleBow()
+        {
+            RangedWeapon bow = RangedWeapon.CreateSimpleBow(craftsmanship: 50);
+            bow.Description = "A simple hunting bow crafted from flexible wood and animal sinew. Deadly in skilled hands at medium range.";
+            bow.CraftingProperties = [ItemProperty.Wood, ItemProperty.Binding, ItemProperty.Ranged];
+            return bow;
+        }
+
+        public static Item MakeStoneArrow()
+        {
+            Item arrow = new Item("Stone Arrow")
+            {
+                Description = "A simple arrow with a sharpened stone tip and feather fletching. Basic ammunition for hunting.",
+                Weight = 0.05,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Stone, ItemProperty.Ammunition]
+            };
+            return arrow;
+        }
+
+        public static Item MakeFlintArrow()
+        {
+            Item arrow = new Item("Flint Arrow")
+            {
+                Description = "An arrow with a knapped flint tip. Sharp and reliable for bringing down game.",
+                Weight = 0.06,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Flint, ItemProperty.Ammunition]
+            };
+            return arrow;
+        }
+
+        public static Item MakeBoneArrow()
+        {
+            Item arrow = new Item("Bone Arrow")
+            {
+                Description = "An arrow tipped with sharpened bone. Excellent penetration against thick hides.",
+                Weight = 0.05,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Bone, ItemProperty.Ammunition]
+            };
+            return arrow;
+        }
+
+        public static Item MakeObsidianArrow()
+        {
+            Item arrow = new Item("Obsidian Arrow")
+            {
+                Description = "An arrow with a razor-sharp obsidian tip. The finest hunting ammunition available.",
+                Weight = 0.06,
+                CraftingProperties = [ItemProperty.Wood, ItemProperty.Obsidian, ItemProperty.Ammunition]
+            };
+            return arrow;
+        }
     }
 }

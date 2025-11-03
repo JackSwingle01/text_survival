@@ -37,6 +37,87 @@
 
 **Priority:** HIGH
 
+# Inspect action listed twice and drops. 
+See below:
+
+1. Look around Clearing
+2. Add Fuel to Fire
+3. Forage
+4. Open inventory
+5. Check Stats
+6. Sleep
+7. Go somewhere else
+4
+
+Bag (0.4/10.0):
+
+Select an item:
+1. Dry Grass x3
+2. Bark Strips x2
+3. Plant Fibers
+4. Wild Berries
+5. Wild Mushroom
+6. Close Inventory
+4
+
+
+What would you like to do with the Wild Berries
+1. Use Wild Berries
+2. Inspect Wild Berries
+3. Inspect Wild Berries
+4. Back to inventory
+2
+
+Wild Berries => A handful of red autumn berries. Sweet and juicy. Weight: 0.1kg
+Bag (0.4/10.0):
+
+Select an item:
+1. Dry Grass x3
+2. Bark Strips x2
+3. Plant Fibers
+4. Wild Berries
+5. Wild Mushroom
+6. Close Inventory
+4
+
+
+What would you like to do with the Wild Berries
+1. Use Wild Berries
+2. Inspect Wild Berries
+3. Inspect Wild Berries - duplicate
+4. Back to inventory
+3
+
+You drop the Wild Berries <- Issue here. Selected 3 and it dropped
+You take the Wild Berries from your Bag
+Bag (0.3/10.0):
+
+Select an item:
+1. Dry Grass x3
+2. Bark Strips x2
+3. Plant Fibers
+4. Wild Mushroom
+5. Close Inventory
+4
+
+
+What would you like to do with the Wild Mushroom
+1. Use Wild Mushroom
+2. Inspect Wild Mushroom
+3. Inspect Wild Mushroom
+4. Back to inventory
+1
+
+You eat the Wild Mushroom...You take the Wild Mushroom from your Bag <- also notice this ordering issue
+Bag (0.2/10.0):
+
+Select an item:
+1. Dry Grass x3
+2. Bark Strips x2
+3. Plant Fibers
+4. Close Inventory
+
+
 ---
 
 ### Time Handling Pattern Inconsistency

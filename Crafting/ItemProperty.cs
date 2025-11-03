@@ -35,7 +35,10 @@ public enum ItemProperty : byte
     Fuel_Softwood, // Pine, spruce - fast burning, moderate heat
     Fuel_Hardwood, // Oak, ash - slow burning, high heat
     Fuel_Bone,     // Animal bones - very slow burning, moderate heat
-    Fuel_Peat      // Dried peat - slow burning, smoky
+    Fuel_Peat,     // Dried peat - slow burning, smoky
+    // MVP Hunting System additions
+    Ammunition,    // Arrows, bolts - used for ranged weapons
+    Ranged         // Bow property - ranged weapon
 }
 
 public class CraftingPropertyRequirement(ItemProperty property, double minQuantity, bool isConsumed = true)

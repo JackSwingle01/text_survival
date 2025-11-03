@@ -36,6 +36,7 @@ public static class ActionFactory
                         Survival.HarvestResources(),
                         Survival.Forage(),
                         Hunting.OpenHuntingMenu(), // MVP Hunting System
+                        Hunting.ViewBloodTrails(), // MVP Hunting System - Phase 4
                         Inventory.OpenInventory(),
                         Crafting.OpenCraftingMenu(),
                         Describe.CheckStats(),
@@ -1753,6 +1754,7 @@ public static class ActionFactory
                 return new List<IGameAction>
                 {
                     ApproachAnimal(),
+                    ShootTarget(),
                     AssessTarget(),
                     StopHunting(),
                 };
@@ -1812,6 +1814,58 @@ public static class ActionFactory
         }
 
         /// <summary>
+        /// Shoot the target animal with a ranged weapon.
+        /// </summary>
+        private static IGameAction ShootTarget()
+        {
+            return CreateAction("Shoot")
+            .When(ctx =>
+            {
+                if (!ctx.player.stealthManager.IsHunting)
+                    return false;
+
+                // Check if player has a ranged weapon and ammunition
+                return ctx.player.ammunitionManager.CanShoot(out _);
+            })
+            .Do(ctx =>
+            {
+                Animal? target = ctx.player.stealthManager.GetCurrentTarget();
+                if (target == null)
+                {
+                    Output.WriteLine("You no longer have a target.");
+                    return;
+                }
+
+                // Attempt to shoot the target
+                bool shotFired = ctx.player.huntingManager.ShootTarget(target);
+
+                if (!shotFired)
+                {
+                    // HuntingManager already output the reason
+                    return;
+                }
+
+                // Check if target is still alive and hunting session is still active
+                // (HuntingManager handles stopping the session on kills or detection)
+            })
+            .TakesMinutes(1) // Taking a shot takes about 1 minute
+            .ThenShow(ctx =>
+            {
+                // If still hunting, return to hunting submenu
+                // Otherwise go back to main menu (combat initiated or animal dead)
+                if (ctx.player.stealthManager.IsHunting)
+                {
+                    return new List<IGameAction> { HuntingSubMenu() };
+                }
+                else
+                {
+                    return new List<IGameAction> { Common.MainMenu() };
+                }
+            })
+            .Build();
+        }
+
+        /// <summary>
         /// Stop hunting the current target.
         /// </summary>
         private static IGameAction StopHunting()
@@ -1824,6 +1878,139 @@ public static class ActionFactory
             })
             .ThenReturn()
             .Build();
+        }
+
+        /// <summary>
+        /// View available blood trails in current location (Phase 4).
+        /// </summary>
+        public static IGameAction ViewBloodTrails()
+        {
+            return CreateAction("Track Blood Trail")
+            .When(ctx => ctx.currentLocation.BloodTrails.Any())
+            .Do(ctx => Output.WriteLine("You search for blood trails..."))
+            .ThenShow(ctx =>
+            {
+                var trails = ctx.currentLocation.BloodTrails
+                    .Where(trail => trail.GetFreshness() > 0.0) // Only show trackable trails
+                    .ToList();
+
+                var actions = new List<IGameAction>();
+
+                foreach (var trail in trails)
+                {
+                    actions.Add(FollowBloodTrail(trail));
+                }
+
+                if (!actions.Any())
+                {
+                    Output.WriteLine("All trails have faded beyond tracking...");
+                    return new List<IGameAction> { Common.Return("Back") };
+                }
+
+                actions.Add(Common.Return("Cancel"));
+                return actions;
+            })
+            .Build();
+        }
+
+        /// <summary>
+        /// Attempt to follow a specific blood trail (Phase 4).
+        /// </summary>
+        private static IGameAction FollowBloodTrail(BloodTrail trail)
+        {
+            return CreateAction($"Follow {trail.GetTrailDescription()}")
+            .Do(ctx =>
+            {
+                int huntingSkill = ctx.player.Skills.GetSkill("Hunting").Level;
+                double trackingChance = trail.GetTrackingSuccessChance(huntingSkill);
+
+                Output.WriteLine($"\n{trail.GetTrailDescription()}");
+                Output.WriteLine(trail.GetSeverityDescription());
+                Output.WriteLine($"\nTracking success chance: {trackingChance * 100:F0}%");
+                Thread.Sleep(500);
+
+                double trackingRoll = Utils.RandDouble(0, 1);
+                bool success = trackingRoll < trackingChance;
+
+                if (success)
+                {
+                    Output.WriteLine($"\nYou successfully follow the trail!");
+                    Output.WriteLine($"(Rolled {trackingRoll * 100:F0}% vs {trackingChance * 100:F0}%)");
+
+                    // Award XP for successful tracking
+                    ctx.player.Skills.GetSkill("Hunting").GainExperience(3);
+                    Output.WriteLine("You gain 3 Hunting XP.");
+
+                    trail.IsTracked = true;
+
+                    // Check if animal should have bled out
+                    bool bledOut = CheckBleedOut(trail.SourceAnimal);
+
+                    // Check if animal is still alive
+                    if (trail.SourceAnimal.IsAlive && !bledOut)
+                    {
+                        Output.WriteLine($"\nYou find the wounded {trail.SourceAnimal.Name}!");
+                        // Re-add animal to location so player can engage
+                        trail.SourceAnimal.CurrentLocation = ctx.currentLocation;
+                        Output.WriteLine("The animal is too weak to flee. You can approach or shoot it.");
+                    }
+                    else
+                    {
+                        // Animal died from wounds
+                        if (!trail.SourceAnimal.IsAlive || bledOut)
+                        {
+                            if (bledOut && trail.SourceAnimal.IsAlive)
+                            {
+                                // Kill the animal from bleed-out
+                                var bleedDamage = new DamageInfo(trail.SourceAnimal.Body.Health, DamageType.Bleed, "Blood loss");
+                                trail.SourceAnimal.Body.Damage(bleedDamage);
+                            }
+
+                            Output.WriteLine($"\nYou find the {trail.SourceAnimal.Name}'s corpse.");
+                            Output.WriteLine("It bled out from its wounds.");
+                            // Re-add corpse to location for butchering
+                            trail.SourceAnimal.CurrentLocation = ctx.currentLocation;
+                        }
+                    }
+                }
+                else
+                {
+                    Output.WriteLine($"\nYou lose the trail...");
+                    Output.WriteLine($"(Rolled {trackingRoll * 100:F0}% vs {trackingChance * 100:F0}%)");
+
+                    // Award small XP for attempt
+                    ctx.player.Skills.GetSkill("Hunting").GainExperience(1);
+                }
+            })
+            .TakesMinutes(15) // Tracking takes 15 minutes
+            .WaitForUserInputToContinue()
+            .ThenReturn()
+            .Build();
+        }
+
+        /// <summary>
+        /// Checks if a wounded animal has bled out over time (Phase 4).
+        /// </summary>
+        private static bool CheckBleedOut(Animal animal)
+        {
+            if (!animal.IsBleeding || animal.WoundedTime == null)
+                return false;
+
+            TimeSpan elapsed = World.GameTime - animal.WoundedTime.Value;
+            double hoursElapsed = elapsed.TotalHours;
+
+            // Bleed-out time depends on wound severity
+            // Critical wounds (0.7+): 1-2 hours
+            // Moderate wounds (0.4-0.7): 2-4 hours
+            // Minor wounds (< 0.4): 4-6 hours
+            double bleedOutTime = animal.CurrentWoundSeverity switch
+            {
+                >= 0.7 => 1.5,  // Critical: 1.5 hours
+                >= 0.4 => 3.0,  // Moderate: 3 hours
+                _ => 5.0        // Minor: 5 hours
+            };
+
+            return hoursElapsed >= bleedOutTime;
         }
     }
 

@@ -77,6 +77,14 @@ public class StealthManager
         return true;
     }
 
+    /// <summary>
+    /// Gets the currently targeted animal.
+    /// </summary>
+    public Animal? GetCurrentTarget()
+    {
+        return TargetAnimal;
+    }
+
     #endregion
 
     #region Stealth Approach
