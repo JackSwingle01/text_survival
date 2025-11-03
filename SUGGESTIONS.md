@@ -7,6 +7,53 @@
 
 ## Quality of Life Improvements
 
+### Add Hunting Tutorial Messages
+
+**Current Behavior:**
+- Hunt action appears in main menu with no explanation
+- Players unfamiliar with stealth mechanics may not understand detection risks
+- No guidance on optimal range or when to shoot
+
+**Suggested Enhancement:**
+- First time player selects "Hunt", show brief tutorial:
+  ```
+  💡 HUNTING TIP: Approach carefully to get within range.
+  Animals can detect you more easily at close range.
+  Optimal bow range is 30-50m for best accuracy.
+  ```
+- Add contextual hints during first hunt:
+  - "The deer hasn't noticed you yet. Keep approaching carefully."
+  - "You're getting close - detection risk is increasing!"
+  - "Good range for a shot! (40m)"
+
+**Priority:** Medium - Improves new player experience with hunting system
+
+---
+
+### Show Detection Chance in Approach Action
+
+**Current Behavior:**
+- "Assess Target" shows "Next approach detection risk: 33%"
+- During actual approach, no warning shown
+- Player doesn't know how risky each approach is
+
+**Suggested Enhancement:**
+- Show risk in the Approach action name:
+  ```
+  1. Approach (23% detection risk)
+  2. Assess Target
+  3. Stop Hunting
+  ```
+- Or show risk in action output:
+  ```
+  Approaching... (detection risk: 45%)
+  You carefully move 22m closer...
+  ```
+
+**Priority:** Low - Nice to have for informed decision-making
+
+---
+
 ### Show Success Chance in Crafting Menu (Before Selecting Recipe)
 
 **Current Behavior:**

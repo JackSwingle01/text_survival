@@ -41,6 +41,12 @@ public class Location
             }
         }
     }
+
+    public void RemoveNpc(Npc npc)
+    {
+        _npcs.Remove(npc);
+    }
+
     public virtual NpcTable NpcSpawner { get; set; }
 
 

@@ -1696,7 +1696,7 @@ public static class ActionFactory
                 // Only show if there are living animals in the location
                 var animals = ctx.currentLocation.Npcs
                     .OfType<Animal>()
-                    .Where(a => a.IsAlive)
+                    .Where(a => a.IsAlive && a.CurrentLocation == ctx.currentLocation)
                     .ToList();
                 return animals.Any();
             })
@@ -1705,7 +1705,7 @@ public static class ActionFactory
             {
                 var animals = ctx.currentLocation.Npcs
                     .OfType<Animal>()
-                    .Where(a => a.IsAlive)
+                    .Where(a => a.IsAlive && a.CurrentLocation == ctx.currentLocation)
                     .ToList();
 
                 var actions = new List<IGameAction>();

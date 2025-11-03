@@ -321,6 +321,27 @@ After 4 hours in 38-40°F weather with fur wraps (0.15 insulation), all extremit
 
 *Fixed bugs and completed improvements - newest first*
 
+### New Animal Spawns Inherit Previous Hunt State (Fixed 2025-11-02)
+- **Severity:** HIGH - Broke hunting gameplay loop
+- **Issue:** After first animal fled, subsequent animals spawned at 30m with "Detected" state instead of 100m "Idle"
+- **Root Cause:** When animals fled, `CurrentLocation` was set to null but animals remained in `location._npcs` list with stale state. Hunt menu listed all animals from `_npcs` regardless of CurrentLocation.
+- **Solution:**
+  1. Added `Location.RemoveNpc(npc)` method to properly remove NPCs from `_npcs` list
+  2. Updated 3 flee locations to call `RemoveNpc()` before setting `CurrentLocation = null`:
+     - StealthManager.cs line 198 (HandleAnimalDetection)
+     - HuntingManager.cs line 94 (Shoot miss flee)
+     - HuntingManager.cs line 180 (Wounded flee with blood trail)
+  3. Added defensive filter in ActionFactory.cs hunt menu to check `CurrentLocation == ctx.currentLocation`
+- **Files Modified:**
+  - Environments/Location.cs (added RemoveNpc method)
+  - PlayerComponents/StealthManager.cs (call RemoveNpc on flee)
+  - PlayerComponents/HuntingManager.cs (call RemoveNpc on flee - 2 locations)
+  - Actions/ActionFactory.cs (defensive filter - 2 locations)
+- **Testing:** Confirmed animals now spawn fresh at 100m Idle state every hunt
+- **Result:** ✅ Full hunting loop now functional - can hunt multiple animals sequentially
+
+---
+
 ### Starting Materials Invisible (Fixed 2025-11-02)
 - **Issue:** 5 guaranteed starting materials added to ground but not visible in "Look Around"
 - **Root Cause:** Items had `IsFound = false` by default

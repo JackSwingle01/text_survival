@@ -91,6 +91,7 @@ public class HuntingManager
                 if (target.ShouldFlee(_player))
                 {
                     Output.WriteLine($"The {target.Name} flees!");
+                    target.CurrentLocation?.RemoveNpc(target);
                     target.CurrentLocation = null;
                     _player.stealthManager.StopHunting($"The {target.Name} escaped.");
                 }
@@ -176,6 +177,7 @@ public class HuntingManager
                 Output.WriteLine($"The {target.Name} leaves a blood trail behind...");
                 Output.WriteLine(bloodTrail.GetSeverityDescription());
 
+                target.CurrentLocation?.RemoveNpc(target);
                 target.CurrentLocation = null;
                 _player.stealthManager.StopHunting($"The wounded {target.Name} escaped. You could try tracking it...");
             }

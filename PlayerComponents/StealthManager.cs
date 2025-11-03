@@ -194,7 +194,8 @@ public class StealthManager
         if (animal.ShouldFlee(_player))
         {
             Output.WriteLine($"The {animal.Name} flees!");
-            // Remove animal from location (fled) by setting its location to null
+            // Remove animal from location (fled)
+            animal.CurrentLocation?.RemoveNpc(animal);
             animal.CurrentLocation = null;
             StopHunting($"The {animal.Name} escaped.");
         }
