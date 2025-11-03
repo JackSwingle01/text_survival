@@ -17,12 +17,14 @@ public static class MapRenderer
     /// </summary>
     public static string RenderUnifiedMap(WorldMap worldMap, Zone currentZone, Location currentLocation)
     {
-        // Calculate total height: header + grid + footer
+        // Calculate total height: header + world grid + local header + local grid + footer
         int headerHeight = 4; // Top border + 2 header lines + divider
         int gridHeight = 17; // 5 rows × 3 lines (2 content + 1 border) + top/bottom borders
+        int localHeaderHeight = 2; // Section divider + header
+        int localGridHeight = CalculateLocalGridHeight(currentZone.Locations.Count);
         int footerHeight = 4; // Empty line + legend + prompt + bottom border
 
-        int totalHeight = headerHeight + gridHeight + footerHeight;
+        int totalHeight = headerHeight + gridHeight + localHeaderHeight + localGridHeight + footerHeight;
 
         // Create the master grid
         var masterGrid = new CharacterGrid(BOX_WIDTH, totalHeight);
@@ -57,6 +59,22 @@ public static class MapRenderer
 
         // === 5x5 WORLD GRID ===
         currentRow = Render5x5WorldGrid(masterGrid, currentRow, worldMap, currentZone);
+
+        // === DIVIDER ===
+        RenderDivider(masterGrid, currentRow++);
+
+        // === SECTION HEADER ===
+        masterGrid.SetChar(0, currentRow, '│');
+        masterGrid.SetChar(BOX_WIDTH - 1, currentRow, '│');
+        string sectionHeader = $"  Locations in {currentZone.Name}:";
+        masterGrid.SetText(2, currentRow, sectionHeader);
+        currentRow++;
+
+        // === DIVIDER ===
+        RenderDivider(masterGrid, currentRow++);
+
+        // === LOCAL LOCATIONS GRID ===
+        currentRow = RenderLocalLocationsGrid(masterGrid, currentRow, currentZone.Locations, currentLocation);
 
         // === FOOTER ===
         // Empty row
@@ -249,7 +267,7 @@ public static class MapRenderer
     }
 
     /// <summary>
-    /// Gets display name for a zone (symbol + truncated name or "???")
+    /// Gets display name for a zone (symbol + type name or "???")
     /// </summary>
     private static string GetZoneDisplayName(Zone? zone)
     {
@@ -257,8 +275,9 @@ public static class MapRenderer
             return "???";
 
         string symbol = zone.GetSymbol();
-        string name = TruncateString(zone.Name, 5); // Truncate to ~5 chars to fit with symbol
-        return $"{symbol}{name}";
+        string typeName = zone.Type.ToString(); // "Forest", "Tundra", "CaveSystem", etc.
+        string truncated = TruncateString(typeName, 5);
+        return $"{symbol}{truncated}";
     }
 
     /// <summary>
@@ -597,11 +616,8 @@ public static class MapRenderer
     private static string GetLocationShortName(string fullName)
     {
         var words = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (words.Length > 1)
-        {
-            return words[^1];
-        }
-        return fullName;
+        string lastWord = words[^1]; // Get last word
+        return TruncateString(lastWord, 8); // Ensure fits in cell
     }
 
     /// <summary>
@@ -740,6 +756,158 @@ public static class MapRenderer
     }
 
     /// <summary>
+    /// Calculates the height needed for the local locations grid
+    /// </summary>
+    private static int CalculateLocalGridHeight(int locationCount)
+    {
+        if (locationCount == 0) return 2; // Just top and bottom borders
+
+        int rows = (locationCount + 3) / 4; // Ceiling division for 4 columns
+        return 1 + (rows * 5); // Top border + (rows × 5 lines each: 4 content + 1 border)
+    }
+
+    /// <summary>
+    /// Renders a 4-column grid of locations within the current zone
+    /// </summary>
+    private static int RenderLocalLocationsGrid(CharacterGrid grid, int startRow, List<Location> locations, Location currentLocation)
+    {
+        const int COLS = 4;
+        const int CELL_W = 9;
+        const int CELL_H = 4;
+        const int LEFT_MARGIN = 6; // Center in 54-char box
+
+        int rows = (locations.Count + COLS - 1) / COLS; // Ceiling division
+        int row = startRow;
+
+        // For each row of locations
+        for (int r = 0; r < rows; r++)
+        {
+            // Draw top border or divider
+            DrawHorizontalLocationBorder(grid, row++, r == 0, r == rows - 1, COLS, CELL_W, LEFT_MARGIN);
+
+            // Draw 4 content lines
+            for (int line = 0; line < CELL_H; line++)
+            {
+                DrawLocationContentRow(grid, row++, locations, currentLocation, r, COLS, line, CELL_W, LEFT_MARGIN);
+            }
+        }
+
+        // Draw bottom border
+        DrawHorizontalLocationBorder(grid, row++, false, true, COLS, CELL_W, LEFT_MARGIN);
+
+        return row;
+    }
+
+    /// <summary>
+    /// Draws horizontal border for location grid (top, middle, or bottom)
+    /// </summary>
+    private static void DrawHorizontalLocationBorder(CharacterGrid grid, int row, bool isTop, bool isBottom, int cols, int cellWidth, int leftMargin)
+    {
+        // Draw outer box borders
+        grid.SetChar(0, row, '│');
+        grid.SetChar(BOX_WIDTH - 1, row, '│');
+
+        int x = leftMargin;
+
+        // Left corner
+        if (isTop)
+            grid.SetChar(x++, row, '┌');
+        else if (isBottom)
+            grid.SetChar(x++, row, '└');
+        else
+            grid.SetChar(x++, row, '├');
+
+        // Draw cells with dividers
+        for (int col = 0; col < cols; col++)
+        {
+            // Horizontal line
+            for (int i = 0; i < cellWidth; i++)
+                grid.SetChar(x++, row, '─');
+
+            // Divider or right corner
+            if (col < cols - 1)
+            {
+                // Middle divider
+                if (isTop)
+                    grid.SetChar(x++, row, '┬');
+                else if (isBottom)
+                    grid.SetChar(x++, row, '┴');
+                else
+                    grid.SetChar(x++, row, '┼');
+            }
+            else
+            {
+                // Right corner
+                if (isTop)
+                    grid.SetChar(x++, row, '┐');
+                else if (isBottom)
+                    grid.SetChar(x++, row, '┘');
+                else
+                    grid.SetChar(x++, row, '┤');
+            }
+        }
+    }
+
+    /// <summary>
+    /// Draws one content line across all cells in a location grid row
+    /// </summary>
+    private static void DrawLocationContentRow(CharacterGrid grid, int row, List<Location> locations, Location currentLocation, int gridRow, int cols, int contentLine, int cellWidth, int leftMargin)
+    {
+        // Draw outer box borders
+        grid.SetChar(0, row, '│');
+        grid.SetChar(BOX_WIDTH - 1, row, '│');
+
+        int x = leftMargin;
+        grid.SetChar(x++, row, '│'); // Left border of table
+
+        for (int col = 0; col < cols; col++)
+        {
+            int locationIndex = gridRow * cols + col;
+            string cellText = "";
+
+            if (locationIndex < locations.Count)
+            {
+                var location = locations[locationIndex];
+
+                if (contentLine == 0)
+                {
+                    // Line 1: Location name
+                    cellText = GetLocationShortName(location.Name);
+                }
+                else if (contentLine == 1)
+                {
+                    // Line 2: Current marker
+                    if (location == currentLocation)
+                        cellText = "*";
+                }
+                else
+                {
+                    // Lines 3-4: Features
+                    var features = GetLocationFeatures(location);
+                    int featureIndex = contentLine - 2; // 0 or 1
+                    if (featureIndex < features.Count)
+                    {
+                        cellText = FormatFeature(features[featureIndex]);
+                    }
+                }
+            }
+
+            // Center or left-align text in cell
+            bool centerText = contentLine <= 1; // Center name and marker
+            int padding = centerText ? (cellWidth - cellText.Length) / 2 : 1;
+
+            for (int i = 0; i < padding; i++)
+                grid.SetChar(x++, row, ' ');
+            for (int i = 0; i < cellText.Length && i < cellWidth; i++)
+                grid.SetChar(x++, row, cellText[i]);
+            for (int i = padding + cellText.Length; i < cellWidth; i++)
+                grid.SetChar(x++, row, ' ');
+
+            grid.SetChar(x++, row, '│'); // Cell right border
+        }
+    }
+
+    /// <summary>
     /// Checks if a grid position contains a cell border character
     /// </summary>
     private static bool IsCellBorder(CharacterGrid grid, int x, int y)
@@ -753,6 +921,100 @@ public static class MapRenderer
         return c == '┌' || c == '┐' || c == '└' || c == '┘' ||
                c == '─' || c == '│' || c == '├' || c == '┤' ||
                c == '┬' || c == '┴' || c == '┼';
+    }
+
+    /// <summary>
+    /// Gets prioritized list of features to display for a location (max 2)
+    /// Priority: Fire > Danger > Shelter > Water > Forage > Items
+    /// </summary>
+    private static List<string> GetLocationFeatures(Location location)
+    {
+        var features = new List<string>();
+
+        // 1. Fire status
+        var fireStatus = location.GetActiveFireStatus();
+        if (fireStatus != null)
+        {
+            if (fireStatus.Contains("Burning"))
+                features.Add("fire_burning");
+            else if (fireStatus.Contains("Dying"))
+                features.Add("fire_dying");
+            else if (fireStatus.Contains("Embers"))
+                features.Add("fire_embers");
+        }
+
+        // 2. Danger (hostile NPCs)
+        var threat = location.GetNearbyThreats();
+        if (threat != null)
+        {
+            features.Add("danger");
+        }
+
+        // 3. Shelter
+        var shelter = location.GetShelterStatus();
+        if (shelter != null)
+        {
+            features.Add("shelter");
+        }
+
+        // 4. Water source (not implemented yet - placeholder for future)
+        // TODO: Add water source feature detection when WaterSourceFeature is implemented
+
+        // 5. Forage
+        var forageFeature = location.GetFeature<Environments.ForageFeature>();
+        if (forageFeature != null)
+        {
+            features.Add("forage");
+        }
+
+        // 6. Items on ground
+        if (location.Items.Count > 0)
+        {
+            features.Add($"items_{location.Items.Count}");
+        }
+
+        // Return top 2
+        return features.Take(2).ToList();
+    }
+
+    /// <summary>
+    /// Formats a feature code as icon + text for display
+    /// </summary>
+    private static string FormatFeature(string featureCode)
+    {
+        if (featureCode.StartsWith("fire_"))
+        {
+            return featureCode switch
+            {
+                "fire_burning" => "🔥 Fire",
+                "fire_dying" => "🔥Dying",
+                "fire_embers" => "🔥Embers",
+                _ => "🔥 Fire"
+            };
+        }
+        else if (featureCode == "danger")
+        {
+            return "⚠Danger";
+        }
+        else if (featureCode == "shelter")
+        {
+            return "🏠Shelter";
+        }
+        else if (featureCode == "water")
+        {
+            return "💧 Water";
+        }
+        else if (featureCode == "forage")
+        {
+            return "🌿Forage";
+        }
+        else if (featureCode.StartsWith("items_"))
+        {
+            string count = featureCode.Substring(6);
+            return $"📦 {count}";
+        }
+
+        return "";
     }
 
     private class GridLayout
