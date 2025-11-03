@@ -98,6 +98,48 @@ namespace text_survival.IO
         }
 
         /// <summary>
+        /// Write text with a specific color, automatically saving and restoring the previous color
+        /// </summary>
+        public static void WriteColored(ConsoleColor color, params object[] args)
+        {
+            if (TestMode)
+            {
+                // In test mode, just write without color
+                Write(args);
+                return;
+            }
+
+            ConsoleColor oldColor = Console.ForegroundColor;
+            Console.ForegroundColor = color;
+
+            foreach (var arg in args)
+            {
+                string text = GetFormattedText(arg);
+                Console.Write(text);
+                Thread.Sleep(SleepTime);
+            }
+
+            Console.ForegroundColor = oldColor;
+        }
+
+        /// <summary>
+        /// Write text with a specific color and newline, automatically saving and restoring the previous color
+        /// </summary>
+        public static void WriteLineColored(ConsoleColor color, params object[] args)
+        {
+            WriteColored(color, args);
+
+            if (TestMode)
+            {
+                TestModeIO.WriteOutput("\n");
+            }
+            else
+            {
+                Console.Write("\n");
+            }
+        }
+
+        /// <summary>
         /// Start batching messages (collect instead of display)
         /// </summary>
         public static void StartBatching()
@@ -172,26 +214,17 @@ namespace text_survival.IO
 
         public static void WriteWarning(string str)
         {
-            ConsoleColor oldColor = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            WriteLine(str);
-            Console.ForegroundColor = oldColor;
+            WriteLineColored(ConsoleColor.Yellow, str);
         }
 
         public static void WriteDanger(string str)
         {
-            ConsoleColor oldColor = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.Red;
-            WriteLine(str);
-            Console.ForegroundColor = oldColor;
+            WriteLineColored(ConsoleColor.Red, str);
         }
 
         internal static void WriteSuccess(string str)
         {
-            ConsoleColor oldColor = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.Green;
-            WriteLine(str);
-            Console.ForegroundColor = oldColor;
+            WriteLineColored(ConsoleColor.Green, str);
         }
     }
 }

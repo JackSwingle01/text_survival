@@ -77,7 +77,7 @@ The game is built in C# with a modular architecture, separating concerns into di
 - **Level**: Manages player progression with Skills (e.g., Hunting, Firecraft), moving away from traditional attributes.
 - **Magic**: Implements Spell and Buff (TimedBuff, TriggeredBuff) for shamanistic effects.
 - **Actions**: Actions class dynamically generates player commands (e.g., LookAroundCommand, MoveCommand) based on context.
-- **IO**: Handles console input/output, with plans for web and AI-enhanced modes (AI_IO).
+- **IO**: Abstraction layer for all input/output operations. `Output.cs` handles all text display with color management (`WriteColored`, `WriteLineColored`, `WriteWarning`, etc.), while `Input.cs` handles all user input (`Read`, `ReadInt`, `ReadKey`, etc.). Supports console mode and test mode, with future support for web/GUI interfaces. All direct `Console.*` calls are prohibited outside this namespace to maintain IO-agnostic code.
 - **Event System**: EventHandler decouples systems (e.g., skill leveling triggers experience gain).
 
 ## Character Systems

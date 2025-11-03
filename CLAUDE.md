@@ -166,8 +166,33 @@ The codebase uses a **composition-over-inheritance** approach with systems organ
 - **Effects/** - Buff/debuff system with EffectRegistry for tracking active effects
 - **Magic/** - Spell system integrated with body part targeting
 - **Level/** - Skill-based progression (player-only, not NPCs)
+- **IO/** - Input/Output abstraction layer enabling multiple IO types (console, test mode, future web/GUI)
 
 ### Key Architectural Patterns
+
+#### 0. IO Abstraction Layer (IO/)
+All console interaction goes through the IO namespace to enable future alternative interfaces:
+
+**Output.cs** - All text output
+- `Write(params object[])` - Automatic type-based coloring (NPCs=Red, Items=Cyan, etc.)
+- `WriteLine(params object[])` - Write with newline
+- `WriteColored(ConsoleColor, params object[])` - Write with specific color (auto save/restore)
+- `WriteLineColored(ConsoleColor, params object[])` - Write colored text with newline
+- `WriteWarning(string)` - Yellow text for warnings
+- `WriteDanger(string)` - Red text for danger
+- `WriteSuccess(string)` - Green text for success
+- TestMode support: Routes to `TestModeIO.WriteOutput()` when `TEST_MODE=1`
+
+**Input.cs** - All user input
+- `Read()` - Read line of text
+- `ReadInt()` - Read and validate integer
+- `ReadInt(low, high)` - Read integer within range
+- `ReadYesNo()` - Read yes/no response
+- `ReadKey(bool intercept)` - Read single key press
+- `GetSelectionFromList<T>(List<T>)` - Display numbered list and get selection
+- TestMode support: Routes to `TestModeIO.ReadInput()` when `TEST_MODE=1`
+
+**Critical**: Never use `Console.Write`, `Console.WriteLine`, `Console.ReadLine`, `Console.ReadKey`, or `Console.ForegroundColor` outside the IO namespace. This keeps the codebase IO-agnostic for future web/GUI support.
 
 #### 1. Action System (ActionFactory.cs)
 Actions are built using a fluent builder pattern and return `IGameAction`:
@@ -273,6 +298,7 @@ When adding new content, follow existing factory patterns until JSON migration i
 4. **Explicit time passage**: Actions that take time must call `World.Update(minutes)` or `Body.Update(timespan, context)`.
 5. **Property-based crafting**: Items contribute to recipes via properties, not item-specific checks.
 6. **Action menu flow**: Use `.ThenShow()` and `.ThenReturn()` - never manually create menu loops.
+7. **IO abstraction layer**: All console I/O must go through `Output.cs` and `Input.cs`. Never use `Console.Write`, `Console.WriteLine`, `Console.ReadLine`, `Console.ReadKey`, or `Console.ForegroundColor` directly outside the IO namespace. This enables future support for alternative IO types (web, GUI) without codebase-wide refactoring.
 
 ## Design Philosophy
 
