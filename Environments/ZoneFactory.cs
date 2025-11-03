@@ -51,7 +51,9 @@ public static class ZoneFactory
         }
         
         // Create and return the forest zone
-        return new Zone(name, description, forestLocationTable, baseTemp);
+        var zone = new Zone(name, description, forestLocationTable, baseTemp);
+        zone.Type = ZoneType.Forest;
+        return zone;
     }
     
     public static Zone MakeCaveSystemZone(string name = "", string description = "", double baseTemp = 10)
@@ -105,7 +107,9 @@ public static class ZoneFactory
         }
         
         // Create and return the cave system zone with cooler base temperature
-        return new Zone(name, description, caveLocationTable, baseTemp);
+        var zone = new Zone(name, description, caveLocationTable, baseTemp);
+        zone.Type = ZoneType.CaveSystem;
+        return zone;
     }
     
     public static Zone MakeTundraZone(string name = "", string description = "", double baseTemp = 0)
@@ -157,7 +161,9 @@ public static class ZoneFactory
         }
         
         // Create and return the tundra zone with much colder base temperature
-        return new Zone(name, description, tundraLocationTable, baseTemp);
+        var zone = new Zone(name, description, tundraLocationTable, baseTemp);
+        zone.Type = ZoneType.Tundra;
+        return zone;
     }
     
     public static Zone MakeRiverValleyZone(string name = "", string description = "", double baseTemp = 15)
@@ -209,7 +215,9 @@ public static class ZoneFactory
         }
         
         // Create and return the river valley zone with slightly warmer base temperature
-        return new Zone(name, description, riverValleyLocationTable, baseTemp);
+        var zone = new Zone(name, description, riverValleyLocationTable, baseTemp);
+        zone.Type = ZoneType.RiverValley;
+        return zone;
     }
     
     // // Method to create a complete ice age world with multiple zones

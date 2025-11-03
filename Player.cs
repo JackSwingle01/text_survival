@@ -167,4 +167,37 @@ public class Player : Actor
     }
 
     public void Travel() => locationManager.TravelToAdjacentZone();
+
+    /// <summary>Gets the world map for map UI display</summary>
+    public WorldMap GetWorldMap() => locationManager.GetWorldMap();
+
+    /// <summary>Travel to a location within the current zone using directional navigation</summary>
+    public void TravelToLocalLocation(string direction) => locationManager.TravelToLocalLocation(direction);
+
+    /// <summary>Travel to an adjacent zone in the specified direction</summary>
+    public void TravelToAdjacentZone(string direction)
+    {
+        // Calculate travel time
+        int minutes = UI.MapController.CalculateZoneTravelTime();
+        Output.WriteLine($"You travel {direction.ToLower()} for {minutes} minutes...");
+
+        // Move to the zone in the chosen direction
+        switch (direction)
+        {
+            case "N":
+                locationManager.CurrentZone = locationManager.GetWorldMap().North;
+                break;
+            case "E":
+                locationManager.CurrentZone = locationManager.GetWorldMap().East;
+                break;
+            case "S":
+                locationManager.CurrentZone = locationManager.GetWorldMap().South;
+                break;
+            case "W":
+                locationManager.CurrentZone = locationManager.GetWorldMap().West;
+                break;
+        }
+
+        World.Update(minutes);
+    }
 }

@@ -16,11 +16,6 @@ namespace text_survival
                 TestModeIO.Initialize();
             }
             Output.SleepTime = 500;
-            Output.WriteLine();
-            Output.WriteLine();
-            Output.WriteLine();
-            Output.WriteLine();
-            Output.WriteLine();
             Output.WriteDanger("You wake up in the forest, with no memory of how you got there.");
             Output.WriteDanger("Light snow is falling, and you feel the air getting colder.");
             Output.WriteDanger("The last embers of your campfire are fading...");

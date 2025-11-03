@@ -12,6 +12,9 @@ class LocationManager
         _currentLocation = startingLocation;
     }
     private WorldMap Map { get; }
+
+    /// <summary>Gets the world map for map display</summary>
+    public WorldMap GetWorldMap() => Map;
     public Location CurrentLocation
     {
         get
@@ -95,38 +98,63 @@ class LocationManager
 
     public void TravelToAdjacentZone()
     {
-        Output.WriteLine("Where would you like to go?");
+        // Display unified map
+        string mapDisplay = UI.MapRenderer.RenderUnifiedMap(Map, CurrentZone, CurrentLocation);
+        Output.WriteLine(mapDisplay);
 
-        Output.WriteLine(1, ". North: ", (Map.North.Visited ? Map.North.Name : " Unknown"));
-        Output.WriteLine(2, ". East: ", (Map.East.Visited ? Map.East.Name : " Unknown"));
-        Output.WriteLine(3, ". South: ", (Map.South.Visited ? Map.South.Name : " Unknown"));
-        Output.WriteLine(4, ". West: ", (Map.West.Visited ? Map.West.Name : " Unknown"));
+        // Get directional input
+        string direction = UI.MapController.GetDirectionalInput();
 
-        Output.WriteLine("0. Cancel");
-        int input = Input.ReadInt(0, 4);
-
-        if (input == 0) return;
-
-        int minutes = Utils.RandInt(30, 60);
-        Output.WriteLine("You travel for ", minutes, " minutes...");
-
-        switch (input)
+        if (direction == "Q")
         {
-            case 1:
+            Output.WriteLine("You decide to stay where you are.");
+            return;
+        }
+
+        // Calculate travel time
+        int minutes = UI.MapController.CalculateZoneTravelTime();
+        Output.WriteLine($"You travel {direction.ToLower()} for {minutes} minutes...");
+
+        // Move to the zone in the chosen direction
+        switch (direction)
+        {
+            case "N":
                 CurrentZone = Map.North;
                 break;
-            case 2:
+            case "E":
                 CurrentZone = Map.East;
                 break;
-            case 3:
+            case "S":
                 CurrentZone = Map.South;
                 break;
-            case 4:
+            case "W":
                 CurrentZone = Map.West;
                 break;
         }
 
         World.Update(minutes);
+    }
+
+    /// <summary>
+    /// Travel to a location within the current zone using coordinate-based navigation
+    /// </summary>
+    public void TravelToLocalLocation(string direction)
+    {
+        var destination = UI.MapController.GetLocationInDirection(CurrentZone, CurrentLocation, direction);
+
+        if (destination == null)
+        {
+            Output.WriteLine($"There is no location to the {direction.ToLower()} of here.");
+            return;
+        }
+
+        // Calculate travel time based on distance
+        int minutes = UI.MapController.CalculateLocalTravelTime(CurrentLocation, destination);
+        Output.WriteLine($"You head {direction.ToLower()} toward {destination.Name}...");
+        World.Update(minutes);
+
+        // Set new location
+        CurrentLocation = destination;
     }
 
 }

@@ -144,9 +144,8 @@ public static class ActionFactory
                     _ => ConsoleColor.DarkGray
                 };
 
-                Console.ForegroundColor = phaseColor;
-                Output.WriteLine($"\n🔥 {fire.Name}: {firePhase} ({fireTemp:F0}°F)");
-                Console.ResetColor();
+                Output.Write("\n");
+                Output.WriteLineColored(phaseColor, $"🔥 {fire.Name}: {firePhase} ({fireTemp:F0}°F)");
 
                 // Show detailed stats
                 if (fire.IsActive || fire.HasEmbers)
@@ -553,6 +552,9 @@ public static class ActionFactory
                 .When(_ => feature.IsDiscovered && feature.HasAvailableResources())
                 .Do(ctx =>
                 {
+                    Output.WriteLine("Harvesting will take 5 minutes...");
+                    Output.WriteLine();
+
                     var items = feature.Harvest();
 
                     if (items.Count > 0)
@@ -565,7 +567,7 @@ public static class ActionFactory
                         // Group items by name for cleaner display
                         var grouped = items.GroupBy(i => i.Name)
                             .Select(g => $"{g.Key} ({g.Count()})");
-                        Output.WriteSuccess($"You harvested: {string.Join(", ", grouped)}");
+                        Output.WriteSuccess($"You spent 5 minutes harvesting and gathered: {string.Join(", ", grouped)}");
                     }
                     else
                     {
@@ -602,6 +604,55 @@ public static class ActionFactory
             return CreateAction($"Go to {location.Name}{(location.Visited ? " (Visited)" : "")}")
             .When(_ => location.IsFound)
             .Do(ctx => location.Interact(ctx.player))
+            .ThenReturn()
+            .Build();
+        }
+
+        public static IGameAction GoToLocationByMap()
+        {
+            return CreateAction("Use map to navigate locally")
+            .Do(ctx =>
+            {
+                // Show the unified map
+                string mapDisplay = UI.MapRenderer.RenderUnifiedMap(
+                    ctx.player.GetWorldMap(),
+                    ctx.player.CurrentZone,
+                    ctx.currentLocation
+                );
+                Output.WriteLine(mapDisplay);
+
+                // Get directional input
+                string direction = UI.MapController.GetDirectionalInput();
+
+                if (direction == "Q")
+                {
+                    Output.WriteLine("You decide to stay where you are.");
+                    return;
+                }
+
+                // Try to travel locally first, then zone if no local location
+                var localDestination = UI.MapController.GetLocationInDirection(
+                    ctx.player.CurrentZone,
+                    ctx.currentLocation,
+                    direction
+                );
+
+                if (localDestination != null)
+                {
+                    // Local travel within zone
+                    ctx.player.TravelToLocalLocation(direction);
+                }
+                else
+                {
+                    // No local location in that direction - ask if they want to travel to adjacent zone
+                    Output.WriteLine($"There is no nearby location to the {direction.ToLower()}.");
+                    Output.WriteLine("Would you like to travel to the adjacent region instead? (y/n)");
+                    if (Input.ReadYesNo())
+                    {
+                        ctx.player.TravelToAdjacentZone(direction);
+                    }
+                }
+            })
             .ThenReturn()
             .Build();
         }
@@ -644,6 +695,11 @@ public static class ActionFactory
             .ThenShow(ctx =>
             {
                 var options = new List<IGameAction>();
+
+                // Add new map-based navigation as first option
+                options.Add(GoToLocationByMap());
+
+                // Keep traditional location list for backward compatibility
                 foreach (var location in ctx.currentLocation.GetNearbyLocations())
                 {
                     options.Add(GoToLocation(location));
@@ -1072,14 +1128,13 @@ public static class ActionFactory
 
         private static void DisplayCombatStatus(Player player, Actor enemy)
         {
-            ConsoleColor oldColor = Console.ForegroundColor;
             // Player status
-            Console.ForegroundColor = GetHealthColor(player.Body.Health / player.Body.MaxHealth);
-            Output.WriteLine($"You: {Math.Round(player.Body.Health * 100, 0)}/{Math.Round(player.Body.MaxHealth * 100, 1)} HP");
+            ConsoleColor playerHealthColor = GetHealthColor(player.Body.Health / player.Body.MaxHealth);
+            Output.WriteLineColored(playerHealthColor, $"You: {Math.Round(player.Body.Health * 100, 0)}/{Math.Round(player.Body.MaxHealth * 100, 1)} HP");
+
             // Enemy status
-            Console.ForegroundColor = GetHealthColor(enemy.Body.Health / enemy.Body.MaxHealth);
-            Output.WriteLine($"{enemy.Name}: {Math.Round(enemy.Body.Health * 100, 0)}/{Math.Round(enemy.Body.MaxHealth * 100, 0)} HP");
-            Console.ForegroundColor = oldColor;
+            ConsoleColor enemyHealthColor = GetHealthColor(enemy.Body.Health / enemy.Body.MaxHealth);
+            Output.WriteLineColored(enemyHealthColor, $"{enemy.Name}: {Math.Round(enemy.Body.Health * 100, 0)}/{Math.Round(enemy.Body.MaxHealth * 100, 0)} HP");
         }
 
         private static ConsoleColor GetHealthColor(double healthPercentage)
@@ -1439,26 +1494,24 @@ public static class ActionFactory
                 string locationName = location.Name.ToUpper();
 
                 // Top border
-                Console.WriteLine("┌" + new string('─', boxWidth - 2) + "┐");
+                Output.WriteLine("┌" + new string('─', boxWidth - 2) + "┐");
 
                 // Location name (centered)
                 int namePadding = (boxWidth - 4 - locationName.Length) / 2;
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write("│ " + new string(' ', namePadding) + locationName);
-                Console.ForegroundColor = ConsoleColor.White;
+                Output.Write("│ " + new string(' ', namePadding));
+                Output.WriteColored(ConsoleColor.Cyan, locationName);
                 int rightPadding = boxWidth - 4 - namePadding - locationName.Length;
-                Console.WriteLine(new string(' ', rightPadding) + " │");
+                Output.WriteLine(new string(' ', rightPadding) + " │");
 
                 // Zone • Time • Temperature
                 string subheader = $"{location.Parent.Name} • {World.GetTimeOfDay()} • {location.GetTemperature():F1}°F";
                 int subPadding = boxWidth - 4 - subheader.Length;
-                Console.ForegroundColor = ConsoleColor.Gray;
-                Console.Write("│ " + subheader);
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.WriteLine(new string(' ', subPadding) + " │");
+                Output.Write("│ ");
+                Output.WriteColored(ConsoleColor.Gray, subheader);
+                Output.WriteLine(new string(' ', subPadding) + " │");
 
                 // Divider
-                Console.WriteLine("├" + new string('─', boxWidth - 2) + "┤");
+                Output.WriteLine("├" + new string('─', boxWidth - 2) + "┤");
 
                 // Content section - prioritize features (fires, shelters)
                 bool hasContent = false;
@@ -1478,11 +1531,10 @@ public static class ActionFactory
                             double effectiveHeat = heat.GetEffectiveHeatOutput();
                             string fireInfo = $"{heat.Name}: {status} ({timeStr}) +{effectiveHeat:F0}°F";
 
-                            Console.Write("│ ");
-                            Console.ForegroundColor = heat.FuelRemaining < 0.5 ? ConsoleColor.Yellow : ConsoleColor.Red;
-                            Console.Write(fireInfo);
-                            Console.ForegroundColor = ConsoleColor.White;
-                            Console.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
+                            Output.Write("│ ");
+                            ConsoleColor fireColor = heat.FuelRemaining < 0.5 ? ConsoleColor.Yellow : ConsoleColor.Red;
+                            Output.WriteColored(fireColor, fireInfo);
+                            Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
                             hasContent = true;
                         }
                         // Show embers with remaining time and reduced warmth
@@ -1493,11 +1545,9 @@ public static class ActionFactory
                             double effectiveHeat = heat.GetEffectiveHeatOutput();
                             string fireInfo = $"{heat.Name}: Embers ({timeStr}) +{effectiveHeat:F1}°F";
 
-                            Console.Write("│ ");
-                            Console.ForegroundColor = ConsoleColor.DarkYellow;
-                            Console.Write(fireInfo);
-                            Console.ForegroundColor = ConsoleColor.White;
-                            Console.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
+                            Output.Write("│ ");
+                            Output.WriteColored(ConsoleColor.DarkYellow, fireInfo);
+                            Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
                             hasContent = true;
                         }
                         // Show fires with fuel but not lit
@@ -1506,11 +1556,9 @@ public static class ActionFactory
                             int minutesLeft = (int)(heat.FuelRemaining * 60);
                             string fireInfo = $"{heat.Name}: Cold ({minutesLeft} min fuel ready)";
 
-                            Console.Write("│ ");
-                            Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.Write(fireInfo);
-                            Console.ForegroundColor = ConsoleColor.White;
-                            Console.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
+                            Output.Write("│ ");
+                            Output.WriteColored(ConsoleColor.DarkGray, fireInfo);
+                            Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
                             hasContent = true;
                         }
                         // Show max 1 dead fire per location
@@ -1518,11 +1566,9 @@ public static class ActionFactory
                         {
                             string fireInfo = $"{heat.Name}: Cold";
 
-                            Console.Write("│ ");
-                            Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.Write(fireInfo);
-                            Console.ForegroundColor = ConsoleColor.White;
-                            Console.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
+                            Output.Write("│ ");
+                            Output.WriteColored(ConsoleColor.DarkGray, fireInfo);
+                            Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
                             hasContent = true;
                             deadFiresShown++;
                         }
@@ -1530,28 +1576,24 @@ public static class ActionFactory
                     else if (feature is ShelterFeature shelter)
                     {
                         string shelterInfo = $"{shelter.Name} [shelter]";
-                        Console.Write("│ ");
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.Write(shelterInfo);
-                        Console.ForegroundColor = ConsoleColor.White;
-                        Console.WriteLine(new string(' ', boxWidth - 4 - shelterInfo.Length) + " │");
+                        Output.Write("│ ");
+                        Output.WriteColored(ConsoleColor.Green, shelterInfo);
+                        Output.WriteLine(new string(' ', boxWidth - 4 - shelterInfo.Length) + " │");
                         hasContent = true;
                     }
                     else if (feature is HarvestableFeature harvestable && harvestable.IsDiscovered)
                     {
-                        string status = harvestable.GetStatusDescription();
-                        Console.Write("│ ");
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.Write(status);
-                        Console.ForegroundColor = ConsoleColor.White;
+                        string displayText = $"{harvestable.DisplayName} (harvestable)";
+                        Output.Write("│ ");
+                        Output.WriteColored(ConsoleColor.Yellow, displayText);
                         // Truncate if too long
-                        if (status.Length > boxWidth - 4)
+                        if (displayText.Length > boxWidth - 4)
                         {
-                            Console.WriteLine(" │");
+                            Output.WriteLine(" │");
                         }
                         else
                         {
-                            Console.WriteLine(new string(' ', boxWidth - 4 - status.Length) + " │");
+                            Output.WriteLine(new string(' ', boxWidth - 4 - displayText.Length) + " │");
                         }
                         hasContent = true;
                     }
@@ -1561,47 +1603,41 @@ public static class ActionFactory
                 foreach (var item in location.Items.Where(i => i.IsFound))
                 {
                     string itemStr = item.ToString();
-                    Console.Write("│ ");
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.Write(itemStr);
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine(new string(' ', boxWidth - 4 - itemStr.Length) + " │");
+                    Output.Write("│ ");
+                    Output.WriteColored(ConsoleColor.Cyan, itemStr);
+                    Output.WriteLine(new string(' ', boxWidth - 4 - itemStr.Length) + " │");
                     hasContent = true;
                 }
 
                 foreach (var container in location.Containers.Where(c => c.IsFound))
                 {
                     string containerStr = $"{container.Name} [container]";
-                    Console.Write("│ ");
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.Write(containerStr);
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine(new string(' ', boxWidth - 4 - containerStr.Length) + " │");
+                    Output.Write("│ ");
+                    Output.WriteColored(ConsoleColor.Yellow, containerStr);
+                    Output.WriteLine(new string(' ', boxWidth - 4 - containerStr.Length) + " │");
                     hasContent = true;
                 }
 
                 foreach (var npc in location.Npcs.Where(n => n.IsFound))
                 {
                     string npcStr = $"{npc.Name} [creature]";
-                    Console.Write("│ ");
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write(npcStr);
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine(new string(' ', boxWidth - 4 - npcStr.Length) + " │");
+                    Output.Write("│ ");
+                    Output.WriteColored(ConsoleColor.Red, npcStr);
+                    Output.WriteLine(new string(' ', boxWidth - 4 - npcStr.Length) + " │");
                     hasContent = true;
                 }
 
                 // Empty location
                 if (!hasContent)
                 {
-                    Console.WriteLine("│" + new string(' ', boxWidth - 2) + "│");
+                    Output.WriteLine("│" + new string(' ', boxWidth - 2) + "│");
                 }
 
                 // Exits section
                 var nearbyLocations = location.GetNearbyLocations();
                 if (nearbyLocations.Count > 0)
                 {
-                    Console.WriteLine("│" + new string(' ', boxWidth - 2) + "│");
+                    Output.WriteLine("│" + new string(' ', boxWidth - 2) + "│");
 
                     // Build exits on one line
                     string exitsLine = "Exits: ";
@@ -1615,36 +1651,30 @@ public static class ActionFactory
                     // Wrap if too long
                     if (exitsLine.Length <= boxWidth - 4)
                     {
-                        Console.Write("│ ");
-                        Console.ForegroundColor = ConsoleColor.DarkCyan;
-                        Console.Write(exitsLine);
-                        Console.ForegroundColor = ConsoleColor.White;
-                        Console.WriteLine(new string(' ', boxWidth - 4 - exitsLine.Length) + " │");
+                        Output.Write("│ ");
+                        Output.WriteColored(ConsoleColor.DarkCyan, exitsLine);
+                        Output.WriteLine(new string(' ', boxWidth - 4 - exitsLine.Length) + " │");
                     }
                     else
                     {
                         // Split across multiple lines if needed
-                        Console.Write("│ ");
-                        Console.ForegroundColor = ConsoleColor.DarkCyan;
-                        Console.Write("Exits:");
-                        Console.ForegroundColor = ConsoleColor.White;
-                        Console.WriteLine(new string(' ', boxWidth - 10) + " │");
+                        Output.Write("│ ");
+                        Output.WriteColored(ConsoleColor.DarkCyan, "Exits:");
+                        Output.WriteLine(new string(' ', boxWidth - 10) + " │");
 
                         foreach (var nearbyLocation in nearbyLocations)
                         {
                             string exitStr = "  → " + nearbyLocation.Name;
-                            Console.Write("│ ");
-                            Console.ForegroundColor = ConsoleColor.DarkCyan;
-                            Console.Write(exitStr);
-                            Console.ForegroundColor = ConsoleColor.White;
-                            Console.WriteLine(new string(' ', boxWidth - 4 - exitStr.Length) + " │");
+                            Output.Write("│ ");
+                            Output.WriteColored(ConsoleColor.DarkCyan, exitStr);
+                            Output.WriteLine(new string(' ', boxWidth - 4 - exitStr.Length) + " │");
                         }
                     }
                 }
 
                 // Bottom border
-                Console.WriteLine("└" + new string('─', boxWidth - 2) + "┘");
-                Console.WriteLine();
+                Output.WriteLine("└" + new string('─', boxWidth - 2) + "┘");
+                Output.WriteLine();
             })
             .ThenShow(ctx =>
             {
@@ -1731,6 +1761,18 @@ public static class ActionFactory
             .Do(ctx =>
             {
                 ctx.player.stealthManager.StartHunting(animal);
+
+                // Show weapon range info and warnings
+                var currentDistance = animal.DistanceFromPlayer;
+
+                if (ctx.player.inventoryManager.Weapon is RangedWeapon rangedWeapon)
+                {
+                    Output.WriteLine($"Distance: {currentDistance}m | Your {rangedWeapon.Name} effective range: {rangedWeapon.EffectiveRange}m (max: {rangedWeapon.MaxRange}m)");
+                }
+                else
+                {
+                    Output.WriteWarning("You have no ranged weapon equipped. You'll need to get very close to attack with melee weapons.");
+                }
             })
             .ThenShow(_ => [HuntingSubMenu()])
             .Build();
@@ -1743,6 +1785,34 @@ public static class ActionFactory
         {
             return CreateAction("Hunting...")
             .When(ctx => ctx.player.stealthManager.IsHunting)
+            .Do(ctx =>
+            {
+                // Display distance and shooting range information
+                var target = ctx.player.stealthManager.GetCurrentTarget();
+                if (target != null)
+                {
+                    var currentDistance = target.DistanceFromPlayer;
+                    Output.WriteLine($"Distance: {currentDistance}m");
+                    Output.WriteLine($"Animal state: {target.State}");
+                    Output.WriteLine();
+
+                    // Show distance until in shooting range if ranged weapon equipped
+                    if (ctx.player.inventoryManager.Weapon is RangedWeapon rangedWeapon)
+                    {
+                        var distanceToRange = currentDistance - rangedWeapon.MaxRange;
+                        if (distanceToRange > 0)
+                        {
+                            Output.WriteColored(ConsoleColor.Yellow, $"Distance until shooting range: {distanceToRange}m");
+                            Output.WriteLine();
+                        }
+                        else
+                        {
+                            Output.WriteSuccess("Within shooting range!");
+                            Output.WriteLine();
+                        }
+                    }
+                }
+            })
             .ThenShow(ctx =>
             {
                 if (!ctx.player.stealthManager.IsTargetValid())

@@ -34,13 +34,7 @@ Once the game is started:
 # Send a menu choice
 ./play_game.sh send 1
 
-# View recent game output (last 20 lines)
-./play_game.sh tail
-
-# View more lines of output
-./play_game.sh tail 50
-
-# View all output
+# View recent game output
 ./play_game.sh read
 
 # Check if game is ready for input
