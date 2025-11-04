@@ -17,6 +17,52 @@
 
 *Incorrect behavior that prevents intended functionality*
 
+### 1.2 Survival Stat Consequences Missing (PARTIALLY RESOLVED - IN PROGRESS)
+
+**Severity:** HIGH - Game Balance Issue
+**Location:** `Bodies/Body.cs`, `Bodies/CapacityCalculator.cs`, `Survival/SurvivalProcessor.cs`
+**Status:** ⏳ **IN PROGRESS** (60% Complete - Phases 1-3 of 5 done)
+
+**Original Issue:** Players can survive indefinitely at 0% food/water/energy with no consequences. Stats drain but no damage, capacity penalties, or death occurs.
+
+**Progress (2025-11-03)**:
+- ✅ **Phase 1 COMPLETE**: Starvation system (fat/muscle consumption, organ damage)
+  - Fat consumption: 35 days at realistic calorie burn rates
+  - Muscle catabolism: 7 days after fat depleted
+  - Organ damage: progressive failure after muscle depleted
+  - Added DamageType.Internal to DamageInfo.cs
+
+- ✅ **Phase 2 COMPLETE**: Dehydration & exhaustion tracking
+  - Dehydration: 1-hour grace → 0.2 HP/hr organ damage → death in ~6 hours
+  - Exhaustion: Time tracking (damage via capacity penalties, not HP loss)
+  - Timers reset when stats restored
+
+- ✅ **Phase 3 COMPLETE**: Capacity penalties at low stats
+  - Hunger: -10% to -40% Moving/Manipulation (at 50%, 20%, 1%)
+  - Dehydration: -10% to -60% Consciousness (at 50%, 20%, 1%)
+  - Exhaustion: -10% to -60% Consciousness/Moving (at 50%, 20%, 1%)
+  - Makes player vulnerable to cold/predators/accidents
+
+**Remaining Work**:
+- ⏳ **Phase 4**: Organ regeneration when fed/hydrated/rested (code ready, 30-60 min)
+- ⏳ **Phase 5**: Warning messages at stat thresholds (code ready, 30 min)
+- ⏳ **Testing**: Full gameplay validation with TEST_MODE=1
+- ⏳ **Balance**: Tune timelines/penalties based on testing
+
+**Files Modified**:
+- `Bodies/Body.cs` (~200 lines added)
+- `Bodies/CapacityCalculator.cs` (~90 lines added)
+- `Bodies/DamageInfo.cs` (added Internal damage type)
+
+**Build Status**: ✅ SUCCESS (0 errors)
+**Testing Status**: ❌ NOT YET TESTED (needs TEST_MODE=1 validation)
+
+**Next Session**: Complete Phases 4-5 or test Phases 1-3 before proceeding
+
+**Priority:** HIGH - Core survival gameplay fix
+
+---
+
 ### Multiple Campfires Created in Same Location
 
 **Severity:** HIGH - Clutters locations, confuses fire management

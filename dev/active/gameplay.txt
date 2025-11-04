@@ -1,0 +1,1155 @@
+ke all items
+2. Select items to take
+3. Keep foraging
+4. Leave items and finish foraging
+1
+
+You put the Grubs in your Bag
+You collected 1 item(s).
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold.
+You spent 15 minutes searching and found: Tinder Bundle (1)
+
+
+1. Take all items
+2. Select items to take
+3. Keep foraging
+4. Leave items and finish foraging
+1
+
+You put the Tinder Bundle in your Bag
+You collected 1 item(s).
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold. (occurred 4 times)
+You spent 15 minutes searching and found: Large Stick (1)
+
+
+1. Take all items
+2. Select items to take
+3. Keep foraging
+4. Leave items and finish foraging
+1
+
+You put the Large Stick in your Bag
+You collected 1 item(s).
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold.
+You spent 15 minutes searching and found: Dry Grass (1), Large Stick (1)
+You leveled up Foraging to level 2!
+
+
+1. Take all items
+2. Select items to take
+3. Keep foraging
+4. Leave items and finish foraging
+1
+
+You put the Dry Grass in your Bag
+You put the Large Stick in your Bag
+You collected 2 item(s).
+You are still feeling cold.
+
+
+1. Keep foraging
+2. Finish foraging
+11
+Invalid input. Please enter a number between 1 and 2.
+1
+
+You forage for 15 minutes
+You spent 15 minutes searching and found: Grubs (1)
+
+
+1. Take all items
+2. Select items to take
+3. Keep foraging
+4. Leave items and finish foraging
+1
+
+You put the Grubs in your Bag
+You collected 1 item(s).
+You are still feeling cold.
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold. (occurred 4 times)
+You spent 15 minutes searching but found nothing.
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold. (occurred 6 times)
+You spent 15 minutes searching but found nothing.
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold.
+You spent 15 minutes searching but found nothing.
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold.
+You spent 15 minutes searching and found: Bark Strips (1), Grubs (1)
+
+
+1. Take all items
+2. Select items to take
+3. Keep foraging
+4. Leave items and finish foraging
+1 
+
+You put the Bark Strips in your Bag
+You put the Grubs in your Bag
+You collected 2 item(s).
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold.
+You spent 15 minutes searching and found: Bark Strips (1)
+
+
+1. Take all items
+2. Select items to take
+3. Keep foraging
+4. Leave items and finish foraging
+1
+
+You put the Bark Strips in your Bag
+You collected 1 item(s).
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold.
+You spent 15 minutes searching but found nothing.
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold.
+You spent 15 minutes searching and found: Large Stick (1)
+
+
+1. Take all items
+2. Select items to take
+3. Keep foraging
+4. Leave items and finish foraging
+1
+
+You put the Large Stick in your Bag
+You collected 1 item(s).
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold. (occurred 4 times)
+You spent 15 minutes searching but found nothing.
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You spent 15 minutes searching and found: Grubs (1)
+
+
+1. Take all items
+2. Select items to take
+3. Keep foraging
+4. Leave items and finish foraging
+1
+
+You put the Grubs in your Bag
+You collected 1 item(s).
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold.
+You spent 15 minutes searching but found nothing.
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold.
+You spent 15 minutes searching but found nothing.
+
+
+1. Keep foraging
+2. Finish foraging
+1
+
+You forage for 15 minutes
+You are still feeling cold.
+You spent 15 minutes searching and found: Plant Fibers (1)
+
+
+1. Take all items
+2. Select items to take
+3. Keep foraging
+4. Leave items and finish foraging
+1
+
+You put the Plant Fibers in your Bag
+You collected 1 item(s).
+You are still feeling cold.
+
+
+1. Keep foraging
+2. Finish foraging
+2
+
+┌─────────────────────────────────────────────────────┐
+│ Food:    [░░░░░░░░░░░░░░░░░░░░] 0% - Starving       │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    41.4°F (Cold) - Feels like 32.4°F          │
+└─────────────────────────────────────────────────────┘
+
+
+1. Look around Clearing
+2. Add Fuel to Fire
+3. Forage
+4. Open inventory
+5. Craft Items
+6. Check Stats
+7. Go somewhere else
+1
+
+┌────────────────────────────────────────────────────┐
+│                      CLEARING                      │
+│ Snowy Taiga • Afternoon • 32.3°F                   │
+├────────────────────────────────────────────────────┤
+│ Campfire: Cold                                     │
+│                                                    │
+│ Exits:                                             │
+│   → Shadowy Forest                                 │
+│   → Frigid Pine Stand                              │
+│   → Snow-laden Woodland                            │
+└────────────────────────────────────────────────────┘
+
+Press any key to continue...
+┌─────────────────────────────────────────────────────┐
+│ Food:    [░░░░░░░░░░░░░░░░░░░░] 0% - Starving       │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    41.4°F (Cold) - Feels like 32.3°F          │
+└─────────────────────────────────────────────────────┘
+
+
+1. Look around Clearing
+2. Add Fuel to Fire
+3. Forage
+4. Open inventory
+5. Craft Items
+6. Check Stats
+7. Go somewhere else
+2
+
+
+🔥 Campfire: Cold (32°F)
+   Status: Cold fire (no fuel)
+   Capacity: 0.00/12.0 kg
+
+Available fuel:
+  ✓ 1. Large Stick x7 [Kindling] - 0.50kg (~20 min)
+  ✓ 2. Dry Grass x4 [Tinder] - 0.02kg (~0 min)
+  ✓ 3. Tinder Bundle [Tinder] - 0.03kg (~1 min)
+  ✓ 4. Bark Strips x2 [Tinder] - 0.05kg (~1 min)
+  5. Cancel
+
+Select an item to add as fuel:
+t
+Invalid input. Please enter a number.
+5
+You decide not to add fuel to the fire.
+┌─────────────────────────────────────────────────────┐
+│ Food:    [░░░░░░░░░░░░░░░░░░░░] 0% - Starving       │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    41.4°F (Cold) - Feels like 32.3°F          │
+└─────────────────────────────────────────────────────┘
+You are still feeling cold.
+
+
+1. Look around Clearing
+2. Add Fuel to Fire
+3. Forage
+4. Open inventory
+5. Craft Items
+6. Check Stats
+7. Go somewhere else
+4
+
+Bag (4.3/10.0):
+You are still feeling cold.
+
+Select an item:
+1. Large Stick x7
+2. Dry Grass x4
+3. Plant Fibers x2
+4. Wild Mushroom
+5. Bird Eggs
+6. Grubs x4
+7. Tinder Bundle
+8. Bark Strips x2
+9. Close Inventory
+6
+
+You are still feeling cold.
+
+What would you like to do with the Grubs
+1. Use Grubs
+2. Inspect Grubs
+3. Inspect Grubs
+4. Back to inventory
+1
+
+You eat the Grubs...You take the Grubs from your Bag
+Bag (4.2/10.0):
+You are still feeling cold.
+
+Select an item:
+1. Large Stick x7
+2. Dry Grass x4
+3. Plant Fibers x2
+4. Wild Mushroom
+5. Bird Eggs
+6. Grubs x3
+7. Tinder Bundle
+8. Bark Strips x2
+9. Close Inventory
+5
+
+
+What would you like to do with the Bird Eggs
+1. Use Bird Eggs
+2. Inspect Bird Eggs
+3. Inspect Bird Eggs
+4. Back to inventory
+1
+
+You eat the Bird Eggs...You take the Bird Eggs from your Bag
+Bag (4.0/10.0):
+
+Select an item:
+1. Large Stick x7
+2. Dry Grass x4
+3. Plant Fibers x2
+4. Wild Mushroom
+5. Grubs x3
+6. Tinder Bundle
+7. Bark Strips x2
+8. Close Inventory
+4
+
+
+What would you like to do with the Wild Mushroom
+1. Use Wild Mushroom
+2. Inspect Wild Mushroom
+3. Inspect Wild Mushroom
+4. Back to inventory
+3
+
+You drop the Wild Mushroom
+You take the Wild Mushroom from your Bag
+Bag (3.9/10.0):
+
+Select an item:
+1. Large Stick x7
+2. Dry Grass x4
+3. Plant Fibers x2
+4. Grubs x3
+5. Tinder Bundle
+6. Bark Strips x2
+7. Close Inventory
+7
+
+You are still feeling cold.
+┌─────────────────────────────────────────────────────┐
+│ Food:    [██░░░░░░░░░░░░░░░░░░] 10% - Starving      │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    41.3°F (Cold) - Feels like 32.2°F          │
+└─────────────────────────────────────────────────────┘
+
+
+1. Look around Clearing
+2. Add Fuel to Fire
+3. Forage
+4. Open inventory
+5. Craft Items
+6. Check Stats
+7. Go somewhere else
+1
+
+┌────────────────────────────────────────────────────┐
+│                      CLEARING                      │
+│ Snowy Taiga • Afternoon • 32.2°F                   │
+├────────────────────────────────────────────────────┤
+│ Campfire: Cold                                     │
+│ Wild Mushroom                                      │
+│                                                    │
+│ Exits:                                             │
+│   → Shadowy Forest                                 │
+│   → Frigid Pine Stand                              │
+│   → Snow-laden Woodland                            │
+└────────────────────────────────────────────────────┘
+
+Press any key to continue...
+
+
+1. Pick up Wild Mushroom
+2. Back
+
+Invalid input. Please enter a number.
+1
+
+You take the Wild Mushroom
+You put the Wild Mushroom in your Bag
+You are still feeling cold.
+┌────────────────────────────────────────────────────┐
+│                      CLEARING                      │
+│ Snowy Taiga • Afternoon • 32.1°F                   │
+├────────────────────────────────────────────────────┤
+│ Campfire: Cold                                     │
+│                                                    │
+│ Exits:                                             │
+│   → Shadowy Forest                                 │
+│   → Frigid Pine Stand                              │
+│   → Snow-laden Woodland                            │
+└────────────────────────────────────────────────────┘
+
+Press any key to continue...
+┌─────────────────────────────────────────────────────┐
+│ Food:    [██░░░░░░░░░░░░░░░░░░] 10% - Starving      │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    41.3°F (Cold) - Feels like 32.1°F          │
+└─────────────────────────────────────────────────────┘
+
+
+1. Look around Clearing
+2. Add Fuel to Fire
+3. Forage
+4. Open inventory
+5. Craft Items
+6. Check Stats
+7. Go somewhere else
+4
+
+Bag (4.0/10.0):
+
+Select an item:
+1. Large Stick x7
+2. Dry Grass x4
+3. Plant Fibers x2
+4. Grubs x3
+5. Tinder Bundle
+6. Bark Strips x2
+7. Wild Mushroom
+8. Close Inventory
+7
+
+
+What would you like to do with the Wild Mushroom
+1. Use Wild Mushroom
+2. Inspect Wild Mushroom
+3. Inspect Wild Mushroom
+4. Back to inventory
+1
+
+You eat the Wild Mushroom...You take the Wild Mushroom from your Bag
+You are still feeling cold.
+Bag (3.9/10.0):
+
+Select an item:
+1. Large Stick x7
+2. Dry Grass x4
+3. Plant Fibers x2
+4. Grubs x3
+5. Tinder Bundle
+6. Bark Strips x2
+7. Close Inventory
+1
+
+
+What would you like to do with the Large Stick
+1. Use Large Stick
+2. Inspect Large Stick
+3. Inspect Large Stick
+4. Back to inventory
+1
+
+You don't know what to use the Large Stick for...
+You are still feeling cold.
+You are still feeling cold.
+Bag (3.9/10.0):
+
+Select an item:
+1. Large Stick x7
+2. Dry Grass x4
+3. Plant Fibers x2
+4. Grubs x3
+5. Tinder Bundle
+6. Bark Strips x2
+7. Close Inventory
+6
+
+You are still feeling cold.
+
+What would you like to do with the Bark Strips
+1. Use Bark Strips
+2. Inspect Bark Strips
+3. Inspect Bark Strips
+4. Back to inventory
+1
+
+You don't know what to use the Bark Strips for...
+Bag (3.9/10.0):
+You are still feeling cold.
+
+Select an item:
+1. Large Stick x7
+2. Dry Grass x4
+3. Plant Fibers x2
+4. Grubs x3
+5. Tinder Bundle
+6. Bark Strips x2
+7. Close Inventory
+7
+
+You are still feeling cold.
+┌─────────────────────────────────────────────────────┐
+│ Food:    [███░░░░░░░░░░░░░░░░░] 15% - Starving      │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    41.2°F (Cold) - Feels like 32.0°F          │
+└─────────────────────────────────────────────────────┘
+
+
+1. Look around Clearing
+2. Add Fuel to Fire
+3. Forage
+4. Open inventory
+5. Craft Items
+6. Check Stats
+7. Go somewhere else
+7
+
+You see several places that you can go to from here, or you can pack up and leave the region.
+
+
+1. Use map to navigate locally
+2. Go to Shadowy Forest
+3. Go to Frigid Pine Stand
+4. Go to Snow-laden Woodland
+5. Travel to a different area
+6. Stay Here...
+1
+
+┌────────────────────────────────────────────────────┐
+│                 ═══ WORLD MAP ═══                  │
+│               Known World • Day 125                │
+├────────────────────────────────────────────────────┤
+│  ┌────────┬────────┬────────┬────────┬────────┐    │
+│  │  ???   │  ???   │  ???   │  ???   │  ???   │    │
+│  │        │        │        │        │        │    │
+│  ├────────┼────────┼────────┼────────┼────────┤    │
+│  │  ???   │  ???   │  ???   │  ???   │  ???   │    │
+│  │        │        │        │        │        │    │
+│  ├────────┼────────┼────────┼────────┼────────┤    │
+│  │  ???   │  ???   │🌲For.. │  ???   │  ???   │    │
+│  │        │        │   *    │        │        │    │
+│  ├────────┼────────┼────────┼────────┼────────┤    │
+│  │  ???   │  ???   │  ???   │  ???   │  ???   │    │
+│  │        │        │        │        │        │    │
+│  ├────────┼────────┼────────┼────────┼────────┤    │
+│  │  ???   │  ???   │  ???   │  ???   │  ???   │    │
+│  │        │        │        │        │        │    │
+│  └────────┴────────┴────────┴────────┴────────┘    │
+├────────────────────────────────────────────────────┤
+│   Locations in Snowy Taiga:                        │
+├────────────────────────────────────────────────────┤
+│     ┌─────────┬─────────┬─────────┬─────────┐      │
+│     │ Forest  │  Stand  │Woodland │Clearing │      │
+│     │         │         │         │    *    │      │
+│     │ ⚠Danger │ 🌿Forage│ 🌿Forage│ 🌿Forage│      │
+│     │ 🌿Forage│         │         │         │      │
+│     └─────────┴─────────┴─────────┴─────────┘      │
+│                                                    │
+│ * = Current location                               │
+│ Enter direction (N/E/S/W) or Q to cancel:          │
+└────────────────────────────────────────────────────┘
+q
+Invalid input. Enter N, E, S, W, or Q.
+Q
+You decide to stay where you are.
+┌─────────────────────────────────────────────────────┐
+│ Food:    [███░░░░░░░░░░░░░░░░░] 15% - Starving      │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    41.2°F (Cold) - Feels like 31.9°F          │
+└─────────────────────────────────────────────────────┘
+You are still feeling cold.
+
+
+1. Look around Clearing
+2. Add Fuel to Fire
+3. Forage
+4. Open inventory
+5. Craft Items
+6. Check Stats
+7. Go somewhere else
+7
+
+You see several places that you can go to from here, or you can pack up and leave the region.
+
+
+1. Use map to navigate locally
+2. Go to Shadowy Forest
+3. Go to Frigid Pine Stand
+4. Go to Snow-laden Woodland
+5. Travel to a different area
+6. Stay Here...
+2
+
+You consider heading to the Shadowy Forest...
+Do you want to go there? (y/n)
+y
+You go to the Shadowy Forest
+You are still feeling cold.
+You arrive at the Shadowy Forest after walking 9 minutes.
+You should probably look around.
+┌─────────────────────────────────────────────────────┐
+│ Food:    [██░░░░░░░░░░░░░░░░░░] 14% - Starving      │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    41.1°F (Cold) - Feels like 31.8°F          │
+└─────────────────────────────────────────────────────┘
+
+
+1. Look around Shadowy Forest
+2. Harvest Resources
+3. Forage
+4. Hunt
+5. Open inventory
+6. Craft Items
+7. Check Stats
+8. Go somewhere else
+1
+
+┌────────────────────────────────────────────────────┐
+│                   SHADOWY FOREST                   │
+│ Snowy Taiga • Afternoon • 31.8°F                   │
+├────────────────────────────────────────────────────┤
+│ Forest Puddle (harvestable)                        │
+│                                                    │
+│ Exits:                                             │
+│   → Frigid Pine Stand                              │
+│   → Snow-laden Woodland                            │
+│   → Clearing                                       │
+└────────────────────────────────────────────────────┘
+
+Press any key to continue...
+┌─────────────────────────────────────────────────────┐
+│ Food:    [██░░░░░░░░░░░░░░░░░░] 14% - Starving      │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    41.1°F (Cold) - Feels like 31.7°F          │
+└─────────────────────────────────────────────────────┘
+
+
+1. Look around Shadowy Forest
+2. Harvest Resources
+3. Forage
+4. Hunt
+5. Open inventory
+6. Craft Items
+7. Check Stats
+8. Go somewhere else
+6
+
+What would you like to craft?
+
+--- Items ---
+
+
+1. Craft Hand Drill
+2. Craft Bow Drill
+3. Craft Sharpened Stick
+4. Craft Bark Chest Wrap
+5. Craft Bark Leg Wraps
+6. View All Known Recipes
+7. Show My Materials
+8. Stop crafting
+5
+
+
+Crafting: Bark Leg Wraps
+Description: Bark strips for leg protection.
+Time required: 15 minutes
+Required skill: Crafting (Level 0)
+Result type: Item
+
+Material properties needed:
+- Wood: 0.4+ KG (consumed)
+- Binding: 0.1+ KG (consumed)
+
+Your available materials:
+  ✓ Wood: 3.5/0.4
+  ✓ Binding: 0.2/0.1
+
+This will consume:
+  - Large Stick (0.40kg)
+  - Plant Fibers (0.04kg)
+  - Plant Fibers (0.04kg)
+  - Bark Strips (0.02kg)
+
+Do you want to attempt this craft?
+n
+What would you like to craft?
+
+--- Items ---
+
+
+1. Craft Hand Drill
+2. Craft Bow Drill
+3. Craft Sharpened Stick
+4. Craft Bark Chest Wrap
+5. Craft Bark Leg Wraps
+6. View All Known Recipes
+7. Show My Materials
+8. Stop crafting
+4
+
+
+Crafting: Bark Chest Wrap
+Description: Bark strips bound around torso. Crude but better than rags.
+Time required: 15 minutes
+Required skill: Crafting (Level 0)
+Result type: Item
+
+Material properties needed:
+- Wood: 0.5+ KG (consumed)
+- Binding: 0.1+ KG (consumed)
+
+Your available materials:
+  ✓ Wood: 3.5/0.5
+  ✓ Binding: 0.2/0.1
+
+This will consume:
+  - Large Stick (0.50kg)
+  - Plant Fibers (0.04kg)
+  - Plant Fibers (0.04kg)
+  - Bark Strips (0.02kg)
+
+Do you want to attempt this craft?
+y
+You begin working on Bark Chest Wrap...
+You are still feeling cold.
+You take the Large Stick from your Bag
+You take the Plant Fibers from your Bag
+You take the Plant Fibers from your Bag
+You equip the Bark Chest Wrap
+You successfully crafted: Bark Chest Wrap
+You leveled up Crafting to level 1!
+What would you like to craft?
+
+--- Items ---
+
+
+1. Craft Hand Drill
+2. Craft Sharpened Stick
+3. View All Known Recipes
+4. Show My Materials
+5. Stop crafting
+2
+
+
+Crafting: Sharpened Stick
+Description: Simple wooden stick sharpened to a point.
+Time required: 5 minutes
+Required skill: Crafting (Level 0)
+Result type: Item
+
+Material properties needed:
+- Wood: 0.5+ KG (consumed)
+
+Your available materials:
+  ✓ Wood: 3.0/0.5
+
+This will consume:
+  - Large Stick (0.50kg)
+
+Do you want to attempt this craft?
+y
+You begin working on Sharpened Stick...
+You are still feeling cold.
+You take the Large Stick from your Bag
+You equip the Sharpened Stick
+You successfully crafted: Sharpened Stick
+What would you like to craft?
+
+--- Items ---
+
+
+1. Craft Hand Drill
+2. Craft Sharpened Stick
+3. View All Known Recipes
+4. Show My Materials
+5. Stop crafting
+5
+
+You are still feeling cold.
+┌─────────────────────────────────────────────────────┐
+│ Food:    [██░░░░░░░░░░░░░░░░░░] 13% - Starving      │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    40.9°F (Cold) - Feels like 31.4°F          │
+└─────────────────────────────────────────────────────┘
+
+
+1. Look around Shadowy Forest
+2. Harvest Resources
+3. Forage
+4. Hunt
+5. Open inventory
+6. Craft Items
+7. Check Stats
+8. Go somewhere else
+5
+
+Bag (2.8/10.0):
+
+Select an item:
+1. Large Stick x5
+2. Dry Grass x4
+3. Grubs x3
+4. Tinder Bundle
+5. Bark Strips x2
+6. Close Inventory
+6
+
+You are still feeling cold.
+┌─────────────────────────────────────────────────────┐
+│ Food:    [██░░░░░░░░░░░░░░░░░░] 12% - Starving      │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    40.8°F (Cold) - Feels like 31.3°F          │
+└─────────────────────────────────────────────────────┘
+You are still feeling cold.
+
+
+1. Look around Shadowy Forest
+2. Harvest Resources
+3. Forage
+4. Hunt
+5. Open inventory
+6. Craft Items
+7. Check Stats
+8. Go somewhere else
+4
+
+You scan the area for prey...
+
+
+1. Stalk Fox
+2. Stalk Ptarmigan
+3. Stalk Wolf
+4. Cancel
+2
+
+You begin stalking the Ptarmigan...
+Distance: 100m
+Animal state: Idle
+You have no ranged weapon equipped. You'll need to get very close to attack with melee weapons.
+You are still feeling cold.
+Distance: 100m
+Animal state: Idle
+
+You are still feeling cold.
+
+
+1. Approach
+2. Assess Target
+3. Stop Hunting
+1
+
+You carefully move 23m closer...
+The Ptarmigan spots you!
+The Ptarmigan flees!
+The Ptarmigan escaped.
+You are still feeling cold.
+┌─────────────────────────────────────────────────────┐
+│ Food:    [██░░░░░░░░░░░░░░░░░░] 12% - Starving      │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    40.7°F (Cold) - Feels like 31.2°F          │
+└─────────────────────────────────────────────────────┘
+You are still feeling cold.
+
+
+1. Look around Shadowy Forest
+2. Harvest Resources
+3. Forage
+4. Hunt
+5. Open inventory
+6. Craft Items
+7. Check Stats
+8. Go somewhere else
+6
+
+What would you like to craft?
+
+--- Items ---
+
+
+1. Craft Hand Drill
+2. Craft Sharpened Stick
+3. View All Known Recipes
+4. Show My Materials
+5. Stop crafting
+1
+
+
+Crafting: Hand Drill
+Description: Craft a simple friction fire starter. The tool can be used multiple times to attempt fire-making.
+Time required: 20 minutes
+Required skill: Crafting (Level 0)
+Result type: Item
+
+Material properties needed:
+- Wood: 0.5+ KG (consumed)
+
+Your available materials:
+  ✓ Wood: 2.5/0.5
+
+This will consume:
+  - Large Stick (0.50kg)
+
+Do you want to attempt this craft?
+y
+You begin working on Hand Drill...
+You are still feeling cold.
+You take the Large Stick from your Bag
+You put the Hand Drill (5/5 uses) in your Bag
+You successfully crafted: Hand Drill
+You are still feeling cold.
+What would you like to craft?
+
+--- Items ---
+
+
+1. Craft Hand Drill
+2. Craft Sharpened Stick
+3. View All Known Recipes
+4. Show My Materials
+5. Stop crafting
+5
+
+┌─────────────────────────────────────────────────────┐
+│ Food:    [██░░░░░░░░░░░░░░░░░░] 10% - Starving      │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    40.5°F (Cold) - Feels like 30.8°F          │
+└─────────────────────────────────────────────────────┘
+
+
+1. Look around Shadowy Forest
+2. Start Fire
+3. Harvest Resources
+4. Forage
+5. Hunt
+6. Open inventory
+7. Craft Items
+8. Check Stats
+9. Go somewhere else
+2
+
+You prepare to start a fire.
+
+Choose your fire-making tool:
+  [Tinder available: +15% success bonus]
+Unhandled exception. System.ArgumentException: Skill Fire-making does not exist.
+   at text_survival.Level.SkillRegistry.GetSkill(String skillName) in /Users/jackswingle/Documents/GitHub/text_survival/Level/SkillRegistry.cs:line 64
+   at text_survival.Actions.ActionFactory.Survival.<>c.<StartFire>b__3_1(GameContext ctx) in /Users/jackswingle/Documents/GitHub/text_survival/Actions/ActionFactory.cs:line 370
+   at text_survival.Actions.ActionBuilder.<>c__DisplayClass13_0.<Build>b__2(Action`1 x) in /Users/jackswingle/Documents/GitHub/text_survival/Actions/ActionBuilder.cs:line 66
+   at System.Collections.Generic.List`1.ForEach(Action`1 action)
+   at text_survival.Actions.ActionBuilder.<Build>b__13_0(GameContext ctx) in /Users/jackswingle/Documents/GitHub/text_survival/Actions/ActionBuilder.cs:line 66
+   at text_survival.Actions.DynamicAction.OnExecute(GameContext ctx) in /Users/jackswingle/Documents/GitHub/text_survival/Actions/DynamicAction.cs:line 25
+   at text_survival.Actions.GameActionBase.Execute(GameContext ctx) in /Users/jackswingle/Documents/GitHub/text_survival/Actions/Action.cs:line 19
+   at text_survival.Actions.GameActionBase.SelectNextAction(GameContext ctx) in /Users/jackswingle/Documents/GitHub/text_survival/Actions/Action.cs:line 48
+   at text_survival.Actions.GameActionBase.Execute(GameContext ctx) in /Users/jackswingle/Documents/GitHub/text_survival/Actions/Action.cs:line 21
+   at text_survival.Program.Main() in /Users/jackswingle/Documents/GitHub/text_survival/Program.cs:line 85
+
+
+
+
+
+
+ATTEMPT 2:
+You wake up in the forest, with no memory of how you got there.
+Light snow is falling, and you feel the air getting colder.
+The last embers of your campfire are fading...
+You need to gather fuel, find food and water, and survive.
+
+┌─────────────────────────────────────────────────────┐
+│ Food:    [███████████████░░░░░] 75% - Satisfied     │
+│ Water:   [███████████████░░░░░] 75% - Fine          │
+│ Energy:  [████████████████░░░░] 83% - Alert         │
+│ Temp:    98.6°F (Normal) - Feels like 35.0°F        │
+└─────────────────────────────────────────────────────┘
+
+
+1. Look around Clearing
+2. Forage
+3. Check Stats
+4. Sleep
+5. Go somewhere else
+2
+
+You forage for 15 minutes
+You are still feeling cold.
+You spent 15 minutes searching but found nothing.
+You leveled up Foraging to level 1!
+
+
+1. Take all items
+2. Select items to take
+3. Keep foraging
+4. Leave items and finish foraging
+1
+
+You put the Large Stick in your Bag (Empty)
+You put the Large Stick in your Bag
+You put the Large Stick in your Bag
+You put the Dry Grass in your Bag
+You put the Dry Grass in your Bag
+You collected 5 item(s).
+
+
+1. Keep foraging
+2. Finish foraging
+2
+
+┌─────────────────────────────────────────────────────┐
+│ Food:    [██████████████░░░░░░] 73% - Satisfied     │
+│ Water:   [██████████████░░░░░░] 73% - Fine          │
+│ Energy:  [████████████████░░░░] 81% - Alert         │
+│ Temp:    83.9°F (Cold) - Feels like 37.9°F          │
+└─────────────────────────────────────────────────────┘
+You are still feeling cold.
+
+
+1. Look around Clearing
+2. Add Fuel to Fire
+3. Forage
+4. Open inventory
+5. Craft Items
+6. Check Stats
+7. Sleep
+8. Go somewhere else
+7
+
+How many hours would you like to sleep?
+30000
+You are still feeling cold. (occurred 269914 times)
+┌─────────────────────────────────────────────────────┐
+│ Food:    [░░░░░░░░░░░░░░░░░░░░] 0% - Starving       │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    40.1°F (Cold) - Feels like 32.8°F          │
+└─────────────────────────────────────────────────────┘
+
+
+1. Look around Clearing
+2. Add Fuel to Fire
+3. Forage
+4. Open inventory
+5. Craft Items
+6. Check Stats
+7. Go somewhere else
+1
+
+┌────────────────────────────────────────────────────┐
+│                      CLEARING                      │
+│ Deep Timberland • Morning • 32.8°F                 │
+├────────────────────────────────────────────────────┤
+│ Campfire: Cold                                     │
+│                                                    │
+│ Exits:                                             │
+│   → Primeval Woodland                              │
+│   → Shadowy Birch Grove                            │
+│   → Misty Birch Grove                              │
+└────────────────────────────────────────────────────┘
+
+Press any key to continue...
+┌─────────────────────────────────────────────────────┐
+│ Food:    [░░░░░░░░░░░░░░░░░░░░] 0% - Starving       │
+│ Water:   [░░░░░░░░░░░░░░░░░░░░] 0% - Dehydrated     │
+│ Energy:  [░░░░░░░░░░░░░░░░░░░░] 0% - Exhausted      │
+│ Temp:    40.1°F (Cold) - Feels like 32.9°F          │
+└─────────────────────────────────────────────────────┘
+
+
+1. Look around Clearing
+2. Add Fuel to Fire
+3. Forage
+4. Open inventory
+5. Craft Items
+6. Check Stats
+7. Go somewhere else

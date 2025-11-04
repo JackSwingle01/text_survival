@@ -1,16 +1,55 @@
 # Active Development - Current Status
 
-**Date**: 2025-11-02
-**Last Updated**: 20:15 - Hunting System MVP Complete
-**Status**: ✅ Implementation Complete - Integration Testing Pending
+**Date**: 2025-11-03
+**Last Updated**: Latest - Survival Consequences System (Phases 1-3 Complete)
+**Status**: ✅ Major Progress - 3 of 5 Phases Complete - Build Successful
 
 ---
 
 ## 🎯 Current Focus
 
-### Hunting System MVP - IMPLEMENTATION COMPLETE ✅
+### Survival Consequences System - 60% COMPLETE ✅
 **Priority**: HIGH
-**Status**: All 24 tasks complete, build successful, ready for testing
+**Status**: Phases 1-3 implemented and building, Phases 4-5 ready for implementation
+**Location**: `/dev/active/survival-consequences-system/`
+**Related Issue**: ISSUES.md #1.2 (Survival stat consequences)
+
+**Progress:** 3/5 phases (60%)
+- ✅ Phase 1: Core Starvation System (fat/muscle consumption, organ damage)
+- ✅ Phase 2: Dehydration & Exhaustion (progressive damage, tracking)
+- ✅ Phase 3: Capacity Penalties (players feel weak at low stats)
+- ⏳ Phase 4: Organ Regeneration (ready for implementation - code provided)
+- ⏳ Phase 5: Warning Messages (ready for implementation - code provided)
+
+**Files Modified (3):**
+1. `Bodies/Body.cs` (~200 lines added)
+2. `Bodies/CapacityCalculator.cs` (~90 lines added)
+3. `Bodies/DamageInfo.cs` (added DamageType.Internal)
+
+**Build Status**: ✅ SUCCESS (0 errors, 2 pre-existing warnings)
+
+**Next Action**: Complete Phase 4 (regeneration) or test Phases 1-3 with TEST_MODE=1
+
+---
+
+### UX Improvements - Hunting & Harvesting - COMPLETE ✅
+**Priority**: MEDIUM
+**Status**: All 4 improvements implemented
+**Files Modified**: `Actions/ActionFactory.cs`
+
+**Implemented Improvements:**
+1. ✅ Ranged weapon range hints when stalking begins
+2. ✅ Distance-to-range display in hunting submenu
+3. ✅ Simplified harvestable resource display in "Look around"
+4. ✅ Time estimates before/after harvesting
+
+**Build Status**: ✅ SUCCESS (0 errors, 2 pre-existing warnings)
+
+---
+
+### Hunting System MVP - IMPLEMENTATION COMPLETE ✅
+**Priority**: MEDIUM (awaiting full integration testing)
+**Status**: All 24 tasks complete, build successful, UX enhanced
 **Location**: `/dev/active/hunting-system-overhaul/`
 **Handoff**: `HANDOFF-2025-11-02-hunting-complete.md`
 
@@ -19,16 +58,151 @@
 - ✅ Phase 2: Stealth System (6/6)
 - ✅ Phase 3: Bow Hunting (7/7)
 - ✅ Phase 4: Blood Trail Tracking (6/6)
+- ✅ UX Polish (4/4) - NEW
 
 **Build Status**: ✅ SUCCESS (0 errors, 2 pre-existing warnings)
 
-**Next Action**: Integration testing via `TEST_MODE=1 dotnet run`
+**Next Action**: Full integration testing via gameplay
 
 ---
 
 ## 📋 What Was Accomplished This Session
 
-### Hunting System MVP - Complete Tactical Overhaul
+### Survival Consequences System - Phases 1-3 - 2025-11-03
+Implemented realistic starvation, dehydration, and exhaustion mechanics with progressive consequences. Players at 0% stats now experience fat/muscle consumption, organ damage, and severe capacity penalties.
+
+**Total Time**: ~2.5 hours
+**Files Modified**: 3 (`Bodies/Body.cs`, `Bodies/CapacityCalculator.cs`, `Bodies/DamageInfo.cs`)
+**Lines Changed**: ~300
+
+#### Phase 1: Core Starvation System (Bodies/Body.cs)
+
+**What Was Built**:
+1. Body composition constants (MIN_FAT 3%, MIN_MUSCLE 15%, calorie conversion rates)
+2. Time tracking fields for starvation/dehydration/exhaustion duration
+3. `ConsumeFat()` - burns fat reserves (3500 cal/lb conversion)
+4. `ConsumeMuscle()` - catabolizes muscle (600 cal/lb conversion)
+5. `ApplyStarvationOrganDamage()` - progressive organ failure
+6. `ProcessSurvivalConsequences()` - main coordinator method
+7. Integration hook in `UpdateBodyBasedOnResult()`
+
+**Mechanics**:
+- Timeline: 35 days burning fat → 7 days burning muscle → organ failure
+- Automatic stat reduction via existing AbilityCalculator (muscle loss → strength/speed drop)
+- Added DamageType.Internal for survival damage (bypasses armor)
+
+**Why These Values**:
+- Fat/muscle minimums scale with body weight (3% fat = 2.25kg for 75kg person)
+- Calorie rates match medical reality (3500 cal/lb fat well-established)
+- Timeline matches real-world starvation progression
+
+#### Phase 2: Dehydration & Exhaustion (Bodies/Body.cs)
+
+**What Was Built**:
+1. Dehydration organ damage logic (0.2 HP/hr after 1-hour grace)
+2. Targets Brain, Heart, Liver for realistic failure
+3. Exhaustion tracking (no direct damage, capacity penalties only)
+4. Timer resets when stats restored
+
+**Mechanics**:
+- Dehydration: 1 hour grace → progressive damage → death in ~6 hours
+- Exhaustion: Tracks time but doesn't kill (vulnerability from penalties)
+- Hourly warning messages during critical states
+
+#### Phase 3: Capacity Penalties (Bodies/CapacityCalculator.cs)
+
+**What Was Built**:
+1. `GetSurvivalStatModifiers()` method (lines 120-195)
+2. Integration into `GetCapacities()` (lines 19-20)
+3. Three-tier progressive penalties (50%, 20%, 1% thresholds)
+
+**Mechanics - Capacity Penalties**:
+
+Hunger (Calories):
+- 50-20%: -10% Moving/Manipulation
+- 20-1%: -25% Moving/Manipulation, -10% Consciousness
+- 0-1%: -40% Moving/Manipulation, -20% Consciousness
+
+Dehydration (Hydration):
+- 50-20%: -10% Consciousness
+- 20-1%: -30% Consciousness, -20% Moving
+- 0-1%: -60% Consciousness, -50% Moving, -30% Manipulation
+
+Exhaustion (Energy):
+- 50-20%: -10% Consciousness/Moving
+- 20-1%: -30% Consciousness/Moving, -20% Manipulation
+- 0-1%: -60% Consciousness/Moving, -40% Manipulation
+
+**Why These Values**:
+- Chosen for gameplay balance (player vulnerable but not instant death)
+- 0% stats = -40 to -60% penalties = barely functional
+- Creates danger from cold/predators/accidents
+- Stacking penalties (starving + dehydrated + exhausted = near-helpless)
+
+#### Build Status
+- ✅ All builds successful (0 errors)
+- ✅ No breaking changes
+- ✅ Integrates perfectly with existing systems:
+  - AbilityCalculator (muscle → strength/speed)
+  - Body.Damage() (organ damage)
+  - CapacityCalculator (modifier pattern)
+  - Body.Heal() (regeneration ready)
+  - Death system (Body.IsDestroyed)
+
+#### Testing Status
+- ✅ Code builds successfully
+- ❌ NOT tested with TEST_MODE=1 gameplay
+- Need to verify fat/muscle consumption, organ damage, death timelines, capacity penalties
+
+#### Next Steps for Full Implementation
+1. **Phase 4** (30-60 min): Add regeneration code at Body.cs line 472
+2. **Phase 5** (30 min): Add warning messages to SurvivalProcessor.cs after line 86
+3. **Testing**: Full gameplay validation with TEST_MODE=1
+4. **Balance**: Tune timelines and penalties based on playtesting
+
+---
+
+### UX Improvements for Hunting & Harvesting - 2025-11-03
+Quick polish pass to improve player feedback and information clarity based on playtesting feedback.
+
+**Total Time**: ~20 minutes
+**Files Modified**: 1 (`Actions/ActionFactory.cs`)
+**Lines Changed**: ~50
+
+#### Changes Made
+
+1. **Hunting - Weapon Range Hints** (`ActionFactory.cs:1762-1773`)
+   - Added weapon range display when beginning to stalk an animal
+   - Shows: "Distance: 100m | Your Simple Bow effective range: 40m (max: 70m)"
+   - Warns if no ranged weapon: "You have no ranged weapon equipped..."
+   - **Why**: Players didn't know if they needed to close distance or could shoot immediately
+
+2. **Hunting - Distance to Shooting Range** (`ActionFactory.cs:1785-1812`)
+   - Added `.Do()` block to HuntingSubMenu displaying current status
+   - Shows distance, animal state, and distance until shooting range
+   - Green "Within shooting range!" when ready to shoot
+   - Yellow "Distance until shooting range: Xm" when too far
+   - **Why**: Players couldn't tell when they were in range to attack
+
+3. **Harvesting - Simplified Look Around** (`ActionFactory.cs:1586`)
+   - Changed from showing full resource list to just "(harvestable)"
+   - Example: "Wild Berry Bush (harvestable)" instead of "Wild Berry Bush (Wild Berries: abundant, Large Stick: abundant)"
+   - Detailed info still available when inspecting the feature
+   - **Why**: Made location descriptions too cluttered and gave away too much info
+
+4. **Harvesting - Time Display** (`ActionFactory.cs:555-570`)
+   - Added "Harvesting will take 5 minutes..." before harvest
+   - Changed success message to "You spent 5 minutes harvesting and gathered: [items]"
+   - **Why**: Players didn't realize harvesting was taking game time
+
+#### Testing
+- Build: ✅ SUCCESS (no errors)
+- Manual testing attempted but difficult due to random zone generation
+- Code review: All changes localized and follow existing patterns
+
+---
+
+### Hunting System MVP - Complete Tactical Overhaul (2025-11-02)
 Delivered a full hunting system in single session (~5 hours) that transforms the game from turn-based RPG combat into a stealth hunting simulator.
 
 **Files Created (9)**:

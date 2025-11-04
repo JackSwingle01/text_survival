@@ -367,7 +367,7 @@ public static class ActionFactory
                     // Calculate success chance
                     var toolParams = GetToolSkillParameters(tool);
                     double successChance = toolParams.baseChance;
-                    var skill = ctx.player.Skills.GetSkill("Fire-making");
+                    var skill = ctx.player.Skills.GetSkill("Firecraft");
                     if (toolParams.skillDC > 0)
                     {
                         double skillModifier = (skill.Level - toolParams.skillDC) * 0.1;
@@ -408,7 +408,7 @@ public static class ActionFactory
 
                 // Calculate success chance using SkillCheckCalculator
                 var (baseChance, skillDC) = GetToolSkillParameters(selectedTool);
-                var playerSkill = ctx.player.Skills.GetSkill("Fire-making");
+                var playerSkill = ctx.player.Skills.GetSkill("Firecraft");
                 double finalSuccessChance = SkillCheckCalculator.CalculateSuccessChance(
                     baseChance,
                     playerSkill.Level,

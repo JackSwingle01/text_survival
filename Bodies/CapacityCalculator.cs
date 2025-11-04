@@ -15,6 +15,10 @@ public static class CapacityCalculator
         var bodyModifier = GetEffectCapacityModifiers(body.EffectRegistry);
         total = total.ApplyModifier(bodyModifier);
 
+        // Apply survival stat penalties (hunger, thirst, exhaustion)
+        var survivalModifier = GetSurvivalStatModifiers(body);
+        total = total.ApplyModifier(survivalModifier);
+
         // Apply cascading effects
         return ApplyCascadingEffects(total);
     }
@@ -107,6 +111,87 @@ public static class CapacityCalculator
             total += mod;
         }
         return total;
+    }
+
+    /// <summary>
+    /// Calculate capacity modifiers from survival stats (hunger, thirst, exhaustion).
+    /// These penalties make the player vulnerable before death.
+    /// </summary>
+    private static CapacityModifierContainer GetSurvivalStatModifiers(Body body)
+    {
+        var modifiers = new CapacityModifierContainer();
+        var data = body.BundleSurvivalData();
+
+        // Get current survival stats (0-100%)
+        double caloriePercent = data.Calories / Survival.SurvivalProcessor.MAX_CALORIES;
+        double hydrationPercent = data.Hydration / Survival.SurvivalProcessor.MAX_HYDRATION;
+        double energyPercent = data.Energy / Survival.SurvivalProcessor.MAX_ENERGY_MINUTES;
+
+        // ===== HUNGER PENALTIES =====
+        // Progressive weakness as calories drop
+        if (caloriePercent < 0.50)  // Below 50%
+        {
+            if (caloriePercent < 0.01) // Starving (0-1%)
+            {
+                modifiers.SetCapacityModifier(CapacityNames.Moving, -0.40);
+                modifiers.SetCapacityModifier(CapacityNames.Manipulation, -0.40);
+                modifiers.SetCapacityModifier(CapacityNames.Consciousness, -0.20);
+            }
+            else if (caloriePercent < 0.20) // Very hungry (1-20%)
+            {
+                modifiers.SetCapacityModifier(CapacityNames.Moving, -0.25);
+                modifiers.SetCapacityModifier(CapacityNames.Manipulation, -0.25);
+                modifiers.SetCapacityModifier(CapacityNames.Consciousness, -0.10);
+            }
+            else // Hungry (20-50%)
+            {
+                modifiers.SetCapacityModifier(CapacityNames.Moving, -0.10);
+                modifiers.SetCapacityModifier(CapacityNames.Manipulation, -0.10);
+            }
+        }
+
+        // ===== DEHYDRATION PENALTIES =====
+        // Affects consciousness and movement
+        if (hydrationPercent < 0.50)
+        {
+            if (hydrationPercent < 0.01) // Severely dehydrated (0-1%)
+            {
+                modifiers.SetCapacityModifier(CapacityNames.Consciousness, -0.60);
+                modifiers.SetCapacityModifier(CapacityNames.Moving, -0.50);
+                modifiers.SetCapacityModifier(CapacityNames.Manipulation, -0.30);
+            }
+            else if (hydrationPercent < 0.20) // Very thirsty (1-20%)
+            {
+                modifiers.SetCapacityModifier(CapacityNames.Consciousness, -0.30);
+                modifiers.SetCapacityModifier(CapacityNames.Moving, -0.20);
+            }
+            else // Thirsty (20-50%)
+            {
+                modifiers.SetCapacityModifier(CapacityNames.Consciousness, -0.10);
+            }
+        }
+
+        // ===== EXHAUSTION PENALTIES =====
+        // Severe penalties allowing indefinite wakefulness but with major debuffs
+        if (energyPercent < 0.01) // Exhausted (near 0%)
+        {
+            modifiers.SetCapacityModifier(CapacityNames.Consciousness, -0.60);
+            modifiers.SetCapacityModifier(CapacityNames.Moving, -0.60);
+            modifiers.SetCapacityModifier(CapacityNames.Manipulation, -0.40);
+        }
+        else if (energyPercent < 0.20) // Very tired (1-20%)
+        {
+            modifiers.SetCapacityModifier(CapacityNames.Consciousness, -0.30);
+            modifiers.SetCapacityModifier(CapacityNames.Moving, -0.30);
+            modifiers.SetCapacityModifier(CapacityNames.Manipulation, -0.20);
+        }
+        else if (energyPercent < 0.50) // Tired (20-50%)
+        {
+            modifiers.SetCapacityModifier(CapacityNames.Consciousness, -0.10);
+            modifiers.SetCapacityModifier(CapacityNames.Moving, -0.10);
+        }
+
+        return modifiers;
     }
 
 }
