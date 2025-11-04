@@ -83,10 +83,42 @@ public static class SurvivalProcessor
 
 		AddTemperatureEffects(data, oldTemperature, result);
 
+		// Add warning messages for critical thresholds
+		if (data.IsPlayer)
+		{
+			double caloriePercent = data.Calories / MAX_CALORIES;
+			double hydrationPercent = data.Hydration / MAX_HYDRATION;
+			double energyPercent = data.Energy / MAX_ENERGY_MINUTES;
+
+			// Hunger warnings
+			if (caloriePercent <= 0.01 && Utils.DetermineSuccess(0.1))
+				result.Messages.Add("You are starving to death!");
+			else if (caloriePercent <= 0.20 && Utils.DetermineSuccess(0.05))
+				result.Messages.Add("You're desperately hungry.");
+			else if (caloriePercent <= 0.50 && Utils.DetermineSuccess(0.02))
+				result.Messages.Add("You're getting very hungry.");
+
+			// Thirst warnings
+			if (hydrationPercent <= 0.01 && Utils.DetermineSuccess(0.1))
+				result.Messages.Add("You are dying of thirst!");
+			else if (hydrationPercent <= 0.20 && Utils.DetermineSuccess(0.05))
+				result.Messages.Add("You're desperately thirsty.");
+			else if (hydrationPercent <= 0.50 && Utils.DetermineSuccess(0.02))
+				result.Messages.Add("You're getting quite thirsty.");
+
+			// Exhaustion warnings
+			if (energyPercent <= 0.01 && Utils.DetermineSuccess(0.1))
+				result.Messages.Add("You're so exhausted you can barely stay awake.");
+			else if (energyPercent <= 0.20 && Utils.DetermineSuccess(0.05))
+				result.Messages.Add("You're extremely tired.");
+			else if (energyPercent <= 0.50 && Utils.DetermineSuccess(0.02))
+				result.Messages.Add("You're getting tired.");
+		}
+
 		return result;
 	}
 
-	private static double GetCurrentMetabolism(SurvivalData data)
+	public static double GetCurrentMetabolism(SurvivalData data)
 	{
 		// Base BMR uses the Harris-Benedict equation (simplified)
 		double bmr = 370 + (21.6 * data.BodyStats.MuscleWeight) + (6.17 * data.BodyStats.FatWeight); // bigger creature more calories

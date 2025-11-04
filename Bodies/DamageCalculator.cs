@@ -20,12 +20,30 @@ public static class DamageProcessor
     {
         var result = new DamageResult();
 
-        // If targeting specific part, find it
+        // Check if targeting a specific organ by name
+        Organ? targetOrgan = null;
         BodyRegion hitPart;
+
         if (damageInfo.TargetPartName != null)
         {
-            hitPart = BodyTargetHelper.GetPartByName(body, damageInfo.TargetPartName)
-                     ?? BodyTargetHelper.GetRandomMajorPartByCoverage(body);
+            // Try to find organ first (only for Internal damage to prevent armor bypass exploits)
+            if (damageInfo.Type == DamageType.Internal)
+            {
+                var allOrgans = BodyTargetHelper.GetAllOrgans(body);
+                targetOrgan = allOrgans.FirstOrDefault(o => o.Name == damageInfo.TargetPartName);
+            }
+
+            if (targetOrgan != null)
+            {
+                // Find the body part containing this organ
+                hitPart = body.Parts.First(p => p.Organs.Contains(targetOrgan));
+            }
+            else
+            {
+                // Fall back to body part targeting
+                hitPart = BodyTargetHelper.GetPartByName(body, damageInfo.TargetPartName)
+                         ?? BodyTargetHelper.GetRandomMajorPartByCoverage(body);
+            }
         }
         else
         {
@@ -36,14 +54,29 @@ public static class DamageProcessor
         result.HitPartName = hitPart.Name;
         result.HitPartHealthBefore = hitPart.Condition;
 
-        DamagePart(hitPart, damageInfo, result);
+        // If we have a specific organ target, damage it directly
+        if (targetOrgan != null)
+        {
+            result.OrganHit = true;
+            result.OrganHitName = targetOrgan.Name;
+            double organHealthBefore = targetOrgan.Condition;
+            DamageTissue(targetOrgan, damageInfo);
+            result.TissuesDamaged.Add((targetOrgan.Name, organHealthBefore - targetOrgan.Condition));
+        }
+        else
+        {
+            DamagePart(hitPart, damageInfo, result);
+        }
 
         result.HitPartHealthAfter = hitPart.Condition;
         return result;
     }
     private static void DamagePart(BodyRegion part, DamageInfo damageInfo, DamageResult result)
     {
-        double remainingDamage = PenetrateLayers(part, damageInfo, result);
+        // Internal damage bypasses armor layers (starvation, dehydration, disease)
+        double remainingDamage = damageInfo.Type == DamageType.Internal
+            ? damageInfo.Amount
+            : PenetrateLayers(part, damageInfo, result);
         if (remainingDamage <= 0) return;
 
         var hitOrgan = BodyTargetHelper.SelectRandomOrganToHit(part, damageInfo.Amount);

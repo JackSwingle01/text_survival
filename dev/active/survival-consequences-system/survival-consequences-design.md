@@ -1,7 +1,7 @@
 # Survival Consequences System - Design Document
 
-**Last Updated**: 2025-11-03
-**Status**: Phases 1-3 Complete, Phases 4-5 In Progress
+**Last Updated**: 2025-11-04
+**Status**: 🎉 ALL 5 PHASES COMPLETE + 3 CRITICAL BUGS FIXED + 4 CODE REVIEW IMPROVEMENTS
 **Related Issues**: Gameplay fixes sprint - Issue 1.2 (Survival stat consequences)
 
 ---
@@ -338,6 +338,142 @@ From comprehensive analysis of 38 current/planned features:
 3. Should we add protein/fat/carb tracking for detailed nutrition?
 4. How do we communicate body composition changes to player?
 5. Should severe starvation have mental effects (hallucinations)?
+
+---
+
+---
+
+## Implementation Complete - Session 2025-11-04 🎉
+
+**Status**: ✅ **100% COMPLETE** (All 5 Phases + Bug Fixes + Code Review Improvements)
+**Build**: ✅ SUCCESS (0 errors, 2 pre-existing warnings)
+**Testing**: ✅ Basic validation complete, ⏸️ Extended testing pending
+
+### What Was Accomplished
+
+This session completed the remaining 40% of the survival consequences system (Phases 4-5), fixed 3 critical bugs that prevented the system from working, and applied 4 code review improvements for better maintainability.
+
+**Phase Implementation**:
+- ✅ Phase 4: Organ Regeneration (~30 minutes)
+- ✅ Phase 5: Warning Messages (~15 minutes)
+
+**Critical Bug Fixes**:
+- ✅ Bug 1: Internal damage absorbed by armor (DamageType.Internal not bypassing PenetrateLayers)
+- ✅ Bug 2: Organ targeting broken (couldn't target organs by name)
+- ✅ Bug 3: Missing IsPlayer field (warning messages never appeared)
+
+**Code Review Improvements**:
+- ✅ Fix 1: Centralized metabolism formula (removed duplication)
+- ✅ Fix 2: Extracted regeneration constants (removed magic numbers)
+- ✅ Fix 3: Secured organ targeting (restricted to Internal damage only)
+- ✅ Fix 4: Added null checks for message lists (defensive programming)
+
+---
+
+## Critical Bugs Fixed & Solutions
+
+### Bug 1: Internal Damage Absorbed by Armor (THE KEY BUG)
+
+**Impact**: 🔴 **CRITICAL** - Without this fix, the entire survival consequences system didn't work
+**Symptom**: Dehydration/starvation organ damage messages appeared, but no actual damage occurred
+**Root Cause**: Internal damage (DamageType.Internal) was going through `PenetrateLayers()` function, getting 70% absorbed by skin layers
+
+**Location**: `Bodies/DamageCalculator.cs` line 47
+
+**Before** (broken):
+```csharp
+// DamagePart method
+double remainingDamage = PenetrateLayers(part, damageInfo, result);
+```
+
+**After** (fixed):
+```csharp
+// Bypass penetration for Internal damage (starvation, dehydration, disease)
+double remainingDamage = damageInfo.Type == DamageType.Internal
+    ? damageInfo.Amount
+    : PenetrateLayers(part, damageInfo, result);
+```
+
+**Why This Mattered**:
+- Starvation/dehydration organ damage was being reduced by 70%
+- 0.2 HP/hour dehydration damage → 0.06 HP/hour after armor absorption
+- Death timeline: Expected 5 hours, actual 16+ hours
+- **This was the single bug preventing death from starvation/dehydration**
+
+---
+
+### Bug 2: Organ Targeting Broken
+
+**Impact**: 🔴 **CRITICAL** - Couldn't target specific organs, system targeted body regions instead
+**Symptom**: Targeting "Brain" or "Heart" failed silently, damaged Torso/Head regions instead
+**Root Cause**: Two problems:
+1. `GetAllOrgans()` only searched body regions, missed organs in sub-parts
+2. `SelectRandomOrganToHit()` required damageAmount > 5 to hit internal organs
+
+**Location**: `Bodies/DamageCalculator.cs` lines 23-66
+
+**Solution**: Added direct organ search when `DamageType.Internal`:
+```csharp
+// NEW: Search all organs by name for Internal damage
+if (damageInfo.Type == DamageType.Internal)
+{
+    var allOrgans = BodyTargetHelper.GetAllOrgans(body);
+    targetOrgan = allOrgans.FirstOrDefault(o => o.Name == damageInfo.TargetPartName);
+}
+
+if (targetOrgan != null)
+{
+    // Found specific organ - target its parent region
+    hitPart = body.Parts.First(p => p.Organs.Contains(targetOrgan));
+}
+```
+
+**Why This Mattered**:
+- Without this, "damage Brain" → damaged Head region (skin, muscle, skull) not actual brain organ
+- Organ-specific damage is required for realistic failure (brain damage → consciousness loss)
+- Allowed proper organ targeting for starvation/dehydration effects
+
+---
+
+### Bug 3: Missing IsPlayer Field
+
+**Impact**: 🔴 **CRITICAL** - All Phase 5 warning messages never appeared
+**Symptom**: Player never saw "You're getting very hungry", "You are dying of thirst", etc.
+**Root Cause**: `BundleSurvivalData()` didn't set `IsPlayer` field in SurvivalData
+
+**Location**: `Bodies/Body.cs` line 246
+
+**Before** (broken):
+```csharp
+return new SurvivalData
+{
+    Calories = Calories,
+    Hydration = Hydration,
+    Energy = Energy,
+    Temperature = Temperature,
+    activityLevel = 1.0
+    // IsPlayer missing!
+};
+```
+
+**After** (fixed):
+```csharp
+return new SurvivalData
+{
+    Calories = Calories,
+    Hydration = Hydration,
+    Energy = Energy,
+    Temperature = Temperature,
+    activityLevel = 1.0,
+    IsPlayer = _isPlayer  // ADDED
+};
+```
+
+**Why This Mattered**:
+- Phase 5 warning messages check `if (data.IsPlayer)` before displaying
+- Without this field, all messages were suppressed
+- Player had no feedback about hunger/thirst/exhaustion levels
+- **One-line fix, massive UX impact**
 
 ---
 

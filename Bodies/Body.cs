@@ -78,6 +78,12 @@ public class Body
     private const double CALORIES_PER_LB_MUSCLE = 600;   // Protein catabolism
     private const double LB_TO_KG = 0.454;
 
+    // Regeneration thresholds
+    private const double REGEN_MIN_CALORIES_PERCENT = 0.10;     // Need >10% calories to heal
+    private const double REGEN_MIN_HYDRATION_PERCENT = 0.10;    // Need >10% hydration to heal
+    private const double REGEN_MAX_ENERGY_PERCENT = 0.50;       // Need <50% exhaustion to heal (rested)
+    private const double BASE_HEALING_PER_HOUR = 0.1;           // 10% organ recovery per hour (10 hours to full heal)
+
     // Track time at critical levels for progressive damage
     private int _minutesStarving = 0;      // Time at 0% calories
     private int _minutesDehydrated = 0;    // Time at 0% hydration
@@ -243,6 +249,7 @@ public class Body
         Hydration = Hydration,
         Energy = Energy,
         BodyStats = GetBodyStats(),
+        IsPlayer = IsPlayer,
     };
 
     public BodyStats GetBodyStats() => new BodyStats
@@ -280,7 +287,7 @@ public class Body
 
             // Message based on severity
             double fatPercent = BodyFatPercentage;
-            if (IsPlayer)
+            if (IsPlayer && messages != null)
             {
                 if (fatPercent < 0.08)
                     messages.Add("Your body is consuming the last of your fat reserves... You're becoming dangerously thin.");
@@ -294,7 +301,7 @@ public class Body
         {
             // Burn all available fat, still have deficit
             BodyFat = MIN_FAT * Weight;
-            if (IsPlayer)
+            if (IsPlayer && messages != null)
             {
                 messages.Add("Your body has exhausted all available fat reserves!");
             }
@@ -326,7 +333,7 @@ public class Body
 
             // Critical warnings - muscle loss is serious
             double musclePercent = MusclePercentage;
-            if (IsPlayer)
+            if (IsPlayer && messages != null)
             {
                 if (musclePercent < 0.18)
                     messages.Add("Your body is cannibalizing muscle tissue! You feel extremely weak.");
@@ -339,7 +346,7 @@ public class Body
         else
         {
             Muscle = MIN_MUSCLE * Weight;
-            if (IsPlayer)
+            if (IsPlayer && messages != null)
             {
                 messages.Add("Your body has consumed almost all muscle tissue. Organ damage imminent!");
             }
@@ -386,10 +393,7 @@ public class Body
             _minutesStarving += minutesElapsed;
 
             // Calculate how many calories we needed but didn't have
-            // We need to recalculate based on metabolism
-            double currentMetabolism = 370 + (21.6 * Muscle) + (6.17 * BodyFat);
-            currentMetabolism *= 0.7 + (0.3 * Health); // Injured bodies need more
-            currentMetabolism *= data.activityLevel;
+            double currentMetabolism = SurvivalProcessor.GetCurrentMetabolism(data);
             double calorieDeficit = (currentMetabolism / 24.0 / 60.0) * minutesElapsed;
 
             // Stage 1: Consume fat reserves
@@ -406,7 +410,7 @@ public class Body
             {
                 ApplyStarvationOrganDamage(minutesElapsed);
 
-                if (IsPlayer && _minutesStarving % 60 == 0) // Every hour
+                if (IsPlayer && _minutesStarving % 60 == 0 && result.Messages != null) // Every hour
                 {
                     result.Messages.Add($"You are starving to death... ({(int)(_minutesStarving / 1440)} days without food)");
                 }
@@ -441,7 +445,7 @@ public class Body
                     Source = "Dehydration"
                 });
 
-                if (IsPlayer && _minutesDehydrated % 60 == 0) // Every hour
+                if (IsPlayer && _minutesDehydrated % 60 == 0 && result.Messages != null) // Every hour
                 {
                     result.Messages.Add($"Your organs are failing from dehydration... ({_minutesDehydrated / 60} hours without water)");
                 }
@@ -459,7 +463,7 @@ public class Body
 
             // Exhaustion doesn't directly kill, but creates vulnerability
             // Track for potential future features (hallucinations, forced sleep, etc.)
-            if (IsPlayer && _minutesExhausted > 480 && _minutesExhausted % 120 == 0) // Every 2 hours after 8 hours
+            if (IsPlayer && _minutesExhausted > 480 && _minutesExhausted % 120 == 0 && result.Messages != null) // Every 2 hours after 8 hours
             {
                 result.Messages.Add("You're so exhausted you can barely function...");
             }
@@ -469,7 +473,34 @@ public class Body
             _minutesExhausted = 0;
         }
 
-        // TODO: Regeneration (Phase 4)
+        // ===== NATURAL ORGAN REGENERATION =====
+        // Only heal when ALL systems above critical levels
+        bool wellFed = data.Calories > SurvivalProcessor.MAX_CALORIES * REGEN_MIN_CALORIES_PERCENT;
+        bool hydrated = data.Hydration > SurvivalProcessor.MAX_HYDRATION * REGEN_MIN_HYDRATION_PERCENT;
+        bool rested = data.Energy < SurvivalProcessor.MAX_ENERGY_MINUTES * REGEN_MAX_ENERGY_PERCENT;
+
+        if (wellFed && hydrated && rested)
+        {
+            // Calculate healing based on nutrition quality
+            double nutritionQuality = Math.Min(1.0, data.Calories / SurvivalProcessor.MAX_CALORIES);
+            double healingThisUpdate = (BASE_HEALING_PER_HOUR / 60.0) * minutesElapsed * nutritionQuality;
+
+            // Use existing healing system
+            HealingInfo healing = new HealingInfo
+            {
+                Amount = healingThisUpdate,
+                Type = "natural regeneration",
+                Quality = nutritionQuality
+            };
+
+            Heal(healing);
+
+            // Occasional feedback (don't spam)
+            if (IsPlayer && Health < 1.0 && minutesElapsed % 60 == 0 && Random.Shared.NextDouble() < 0.2 && result.Messages != null)
+            {
+                result.Messages.Add("Your body is slowly healing...");
+            }
+        }
     }
 
     #endregion
