@@ -2,9 +2,22 @@
 
 A console-based survival RPG set in an Ice Age world with shamanistic elements, inspired by games like RimWorld and The Long Dark. The game emphasizes deep, interconnected systems, leveraging its text-only format to create immersive survival gameplay without the overhead of graphics. Players must navigate procedurally generated environments, manage survival needs, engage in combat, craft tools, and use shamanistic magic to survive harsh conditions.
 
+## Getting Started
+
+```bash
+# Build the project
+dotnet build
+
+# Run the game
+dotnet run
+
+# Run tests
+dotnet test
+```
+
 ## Game Vision and Core Concept
 
-**Text Survival** is evolving from a traditional RPG into a focused survival experience where resource management, environmental challenges, and dynamic character interactions are paramount. Set in an Ice Age world where cold, scarcity, and rugged terrain shape gameplay, the player must adapt and overcome through skill development and strategic decision-making.
+**Text Survival** is a focused survival experience where resource management, environmental challenges, and dynamic character interactions are paramount. Set in an Ice Age world where cold, scarcity, and rugged terrain shape gameplay, the player must adapt and overcome through skill development and strategic decision-making.
 
 ### Inspirations:
 - **The Long Dark**: Emphasis on survival through managing hunger, thirst, and harsh weather conditions
@@ -18,176 +31,137 @@ A console-based survival RPG set in an Ice Age world with shamanistic elements, 
 - **Realism**: Grounded mechanics (calorie-based fat dynamics, activity-driven muscle growth)
 
 #### Gameplay Design
-- **Ice Age Authenticity**: Moving away from generic RPG elements toward period-appropriate equivalents (flint, bone, hide)
+- **Ice Age Authenticity**: Period-appropriate materials and tools (flint, bone, hide)
 - **Survival Over Combat**: Environmental challenges (cold, scarcity, weather) take priority over traditional RPG combat/leveling
 - **Emergent Storytelling**: Systems interact to create unique player stories rather than scripted narratives
 - **Resource Scarcity**: Every material matters; players must plan and adapt to survive
 
-#### Biome Design Philosophy
+## Implemented Systems
+
+### Survival System
+- **Temperature Regulation**: Exponential heat transfer model with body temperature tracking
+- **Hunger/Thirst**: Calorie-based metabolism with realistic fat/muscle dynamics (7700 kcal = 1 kg fat)
+- **Exhaustion**: Activity-driven fatigue system
+- **Dynamic Effects**: Hypothermia, frostbite, sweating, and other condition-based effects
+
+### Body System
+- **Hierarchical Structure**: BodyRegion -> Tissues (Skin, Muscle, Bone) -> Organs
+- **Damage Processing**: Penetration-based damage through tissue layers
+- **Capacities**: Body parts contribute to capacities (Moving, Manipulation, Breathing, etc.) which derive stats
+- **Body Composition**: Tracks fat and muscle in kg with dynamic percentages affecting Speed, Vitality, and cold resistance
+
+### Combat & Hunting
+- **Turn-based Combat**: Driven by body-derived stats (Strength, Speed)
+- **Hunting System**: Stealth-based approach with ranged weapons, tracking, and blood trails
+- **Ammunition Management**: Bow/arrow system with different projectile types
+- **Animal AI**: Behavior states (Grazing, Alert, Fleeing) based on player actions
+
+### Crafting System
+- **Property-Based**: Items tagged with properties (Stone, Wood, Flammable, Sharp, etc.)
+- **Recipe Builder**: Fluent API for defining recipes with property requirements
+- **Skill Requirements**: Recipes can require specific skill levels
+- **Result Types**: Craft items, location features (fires, shelters), or structures
+
+### Fire Management
+- **Fire States**: Burning, Embers, Dead with realistic transitions
+- **Ember System**: Fires leave embers allowing easier relight
+- **Heat Distribution**: Exponential heat transfer affecting player temperature
+- **Fuel System**: Different fuel types with varying burn times and heat output
+
+### Location & Environment
+- **Zone System**: Procedurally generated zones containing multiple locations
+- **Biomes**: Forest, Plains, Riverbank, Hillside, Cave - each with distinct resources
+- **Location Features**: Forage spots, harvestable resources, heat sources, shelters
+- **Weather System**: Dynamic weather affecting visibility, temperature, and actions
+
+### Skills & Progression
+- **Player-Only Skills**: Hunting, FireMaking, Skinning, ToolCrafting, Shamanism
+- **Skill Checks**: Base success rates with skill bonuses, clamped 5%-95%
+- **XP System**: Both success and failure grant XP to encourage experimentation
+
+### Action System
+- **Builder Pattern**: Fluent API for creating context-aware actions
+- **Menu Chaining**: Actions flow naturally via `.ThenShow()` and `.ThenReturn()`
+- **Conditional Availability**: Actions filtered based on `.When()` conditions
+- **Dynamic Context**: GameContext provides access to player, location, and game state
+
+### Effects System
+- **EffectRegistry**: Per-actor tracking of active buffs/debuffs
+- **Effect Builder**: Create effects with severity, duration, capacity modifiers
+- **Body Part Targeting**: Effects can target specific body parts or whole body
+
+### IO Abstraction
+- **Output.cs**: All text display with automatic type-based coloring
+- **Input.cs**: All user input with validation helpers
+- **Test Mode**: Routes I/O through TestModeIO for automated testing
+
+## Biomes
 
 Each biome serves a distinct gameplay role with intentional resource distributions:
 
-- **Forest (Starting Biome)**
-  - Abundant organic materials (wood, bark, plant fibers)
-  - Good fire-making resources (dry grass, sticks)
-  - Balanced food availability (berries, small game)
-  - Moderate shelter from elements
-  - *Philosophy*: Forgiving starting area with all essentials for day-1 survival
+- **Forest (Starting Biome)**: Abundant organic materials, good fire-making resources, balanced food availability. Forgiving starting area with all essentials for day-1 survival.
 
-- **Plains**
-  - Grassland materials (dry grass, rushes)
-  - Exposed to weather and temperature extremes
-  - Good hunting grounds (larger game)
-  - Limited natural shelter
-  - *Philosophy*: Risk/reward - great hunting but harsh conditions
+- **Plains**: Grassland materials, exposed to weather extremes, good hunting grounds. Risk/reward - great hunting but harsh conditions.
 
-- **Riverbank**
-  - Water access (hydration never an issue)
-  - River stones and clay deposits
-  - Rushes and water plants
-  - Occasional fish/waterfowl
-  - *Philosophy*: Specialized resources (stone, water) but limited wood/fire materials
+- **Riverbank**: Water access, river stones and clay, rushes and water plants. Specialized resources but limited wood/fire materials.
 
-- **Hillside**
-  - Balanced stone and organic mix
-  - Elevated vantage points
-  - Moderate exposure to elements
-  - Mixed foraging (roots, small game)
-  - *Philosophy*: Versatile mid-game area for established players
+- **Hillside**: Balanced stone and organic mix, elevated vantage points. Versatile mid-game area for established players.
 
-- **Cave (Advanced Biome)**
-  - **NOT a starting biome** - requires preparation
-  - Low food and plant material (bring your own supplies)
-  - Excellent protection from weather and temperature
-  - Rare materials (obsidian, crystal, mineral deposits)
-  - Potential for dangerous wildlife (bears, cave lions)
-  - *Philosophy*: High-risk, high-reward destination for geared players seeking rare materials or extreme weather shelter
+- **Cave (Advanced)**: NOT a starting biome - requires preparation. Excellent weather protection, rare materials (obsidian), but low food and dangerous wildlife.
 
-This design ensures each biome feels distinct and encourages strategic movement and planning rather than aimless wandering.
+## Testing
 
-## Technical Architecture Overview
+### Unit Tests
+Comprehensive xUnit tests for calculation systems:
+- Body capacity and damage calculations
+- Survival processing (temperature, metabolism)
+- Skill check formulas
 
-The game is built in C# with a modular architecture, separating concerns into distinct systems:
+```bash
+dotnet test
+```
 
-- **Actors**: Manages entities like Player and NPC (subclasses Humanoid, Animal) with interfaces like ICombatant, IBuffable, and ISpellCaster. Includes BodyPart for tracking health.
-- **Items**: Includes Item, Container, FoodItem, Weapon, Armor, and Gear, with interfaces like IEquippable and IEdible. Inventory supports basic item management but lacks stacking.
-- **Environments**: Features Zone, Location (e.g., Cave, River), and WorldMap for infinite procedural generation.
-- **Survival**: Modules (HungerModule, ThirstModule, ExhaustionModule, TemperatureModule) simulate survival needs, impacting health.
-- **Combat**: Combat class handles turn-based fights, integrating actors and items.
-- **Level**: Manages player progression with Skills (e.g., Hunting, Firecraft), moving away from traditional attributes.
-- **Magic**: Implements Spell and Buff (TimedBuff, TriggeredBuff) for shamanistic effects.
-- **Actions**: Actions class dynamically generates player commands (e.g., LookAroundCommand, MoveCommand) based on context.
-- **IO**: Abstraction layer for all input/output operations. `Output.cs` handles all text display with color management (`WriteColored`, `WriteLineColored`, `WriteWarning`, etc.), while `Input.cs` handles all user input (`Read`, `ReadInt`, `ReadKey`, etc.). Supports console mode and test mode, with future support for web/GUI interfaces. All direct `Console.*` calls are prohibited outside this namespace to maintain IO-agnostic code.
-- **Event System**: EventHandler decouples systems (e.g., skill leveling triggers experience gain).
+### Integration Testing
+Interactive test mode via `play_game.sh` for gameplay flow testing:
 
-## Character Systems
+```bash
+./play_game.sh start    # Start game in test mode
+./play_game.sh send "1" # Send input
+./play_game.sh log      # View game output
+./play_game.sh stop     # Stop game
+```
 
-### Body System
+## Project Structure
 
-#### Structure:
-- **Humans**: Detailed hierarchy (e.g., Torso → Heart, Arm → Hand → Fingers)
-- **Animals**: Simplified but compatible (e.g., Wolf: Body, Head, Legs, Tail)
+```
+text_survival/
+├── Actions/           # Action system with builder pattern
+├── Actors/            # Player, NPC, Animal classes
+├── Bodies/            # Body part hierarchy and damage
+├── Crafting/          # Recipe-based crafting system
+├── Effects/           # Buff/debuff system
+├── Environments/      # Zone, Location, Features
+├── IO/                # Input/Output abstraction
+├── Items/             # Item hierarchy and factories
+├── Level/             # Skills and progression
+├── Magic/             # Spell system
+├── PlayerComponents/  # Player managers (Hunting, Stealth, etc.)
+├── Survival/          # Survival processing
+├── UI/                # Map rendering and UI components
+├── Utils/             # Calculators and helpers
+├── documentation/     # Detailed system documentation
+└── dev/               # Development notes and plans
+```
 
-#### Capacities:
-- Body parts contribute to capacities (e.g., Leg affects Moving with a value of 0.5)
-- Stats are calculated from aggregated capacities (e.g., Speed = Moving * (1 - BodyFatPercentage / 100))
+## Documentation
 
-#### Body Composition:
-- Tracks fat and muscle in kilograms, with percentages dynamically calculated
-- Fat reduces speed but aids cold resistance; muscle boosts strength
+See the `documentation/` folder for detailed system guides:
+- `action-system.md` - Action builder pattern and menu flow
+- `crafting-system.md` - Property-based crafting and recipes
+- `body-and-damage.md` - Body part hierarchy and damage processing
+- `survival-processing.md` - Temperature, hunger, thirst mechanics
+- `fire-management-system.md` - Fire states and heat sources
+- `skill-check-system.md` - Skill check formulas and XP
+- And more...
 
-### Skills and Stats
-
-#### Skills:
-- Exclusive to the player, representing mental or knowledge-based abilities:
-  - **Hunting**: Improves tracking and animal yields
-  - **FireMaking**: Reduces fire-building time and cold damage
-  - **Skinning**: Increases hide/bone yields
-  - **ToolCrafting**: Unlocks advanced recipes
-  - **Shamanism**: Enhances magic rituals
-- Improve with use via an XP system and do not decrease, reflecting permanent learning
-
-#### Body-Derived Stats:
-- Physical attributes derived from the body part system, applicable to both players and NPCs
-- Influenced by body condition (injuries, fat, muscle), not skill progression
-
-### NPCs
-- Rely solely on body-derived stats, no skills
-- Differentiated by body traits (e.g., Wolf: high Speed; Mammoth: high Vitality)
-
-### Player Progression
-- **Mental Growth**: Skills enhance with practice, improving combat or crafting outcomes
-- **Physical Dynamics**: Stats fluctuate with body condition, not skill loss
-
-## Core Mechanics
-
-### Survival Mechanics
-- **SurvivalManager**: Monitors hunger, thirst, fatigue, and body fat/muscle
-- Realistic conversion: 7700 kcal = 1 kg of fat
-- Cold resistance tied to Vitality and fat percentage
-
-### Combat
-- Driven by body-derived stats (Strength, Speed) for all characters
-- Player-specific boost from skills (e.g., Hunting increases accuracy and critical hit chance)
-- **Ranged Hunting**: A distinct mechanic for non-hostile wildlife, leveraging Hunting skill
-
-### Injury and Healing
-- Damage to body parts impacts capacities (e.g., injured Leg lowers Moving)
-- Features include pain, scarring, and specific effects (e.g., Spine damage causing paralysis)
-
-### Shamanistic Magic
-- Requires specific items (herbs, bones) for spells like SpiritSummon, FireRitual, and WeatherCall
-- Tied to Shamanism skill for modifiers and effectiveness
-
-### Weather System
-- Dynamic weather (blizzards, fog) per Zone, affecting visibility, temperature, and action success
-- WeatherCall spell allows limited influence over weather conditions
-
-## Development Roadmap
-
-### Immediate (1-2 Weeks)
-- Refactor Player using composition (SurvivalManager, InventoryManager, CombatController, etc.)
-- Fix inventory stacking with ItemStack implementation
-- Simplify event system using C#'s event and delegate via GameEventManager
-- Implement TimeManager and enhanced actions system (time elapsed, calorie burn, skill modifiers)
-
-### Short-Term (2-4 Weeks)
-- Redesign skills for survival focus, removing traditional RPG attributes
-- Adopt JSON data-driven design for items, NPCs, locations, and recipes
-- Develop crafting system for tools, weapons, and gear
-- Implement weather system affecting gameplay
-
-### Mid-Term (4-8 Weeks)
-- Complete injury/disease system with detailed body part tracking
-- Implement shamanistic magic system requiring gathered materials
-- Add barter-based trading system integrated with DialogueSystem
-- Develop Body Composition System tracking weight, fat, and muscle
-
-### Long-Term (8+ Weeks)
-- Polish IO with rich, Ice Age-specific descriptions
-- Integrate AI dialogue for non-hostile NPC interactions
-- Add win condition (GreatSpirit boss, SpiritTotem)
-- Test and balance gameplay systems
-
-## Planned Enhancements
-
-### Systems Revamps
-- **Refactor Player Class**: Split into focused components using composition
-- **Fix Inventory Stacking**: Implement ItemStack for better inventory management
-- **Simplify Event System**: Use C#'s native event and delegate system
-- **Data-Driven Design**: JSON templates for content to improve maintainability and support modding
-
-### Content Additions
-- **More Items**: Flint tools, furs, bone weapons
-- **New NPCs**: Sabertooth, mammoth, tribal humans
-- **New Locations**: Glacial cliffs, tundra, frozen lakes
-
-### Mechanical Improvements
-- **Armor Revamp**: Materials-based system with randomized stats
-- **Crafting System**: JSON-driven with skill-based quality tiers
-- **Thematic Overhaul**: Replace RPG elements with Ice Age equivalents
-- **Enhanced Locations**: Biome-specific mechanics and vivid descriptions
-
-## Conclusion
-
-"Text Survival" aims to deliver a rich survival experience through its Ice Age setting, detailed character systems, and modular mechanics. This vision blends realism and emergent complexity, offering a foundation for future growth and a unique gameplay identity. By leveraging the text-based format, the game can focus on deep systems and immersive storytelling without graphical limitations.
+See `CLAUDE.md` for development guidelines when contributing.
