@@ -14,6 +14,7 @@ public class SurvivalContext
     public double LocationTemperature;
     public double ClothingInsulation;
     public double ActivityLevel;
+    public bool SuppressMessages; // Suppress status messages (e.g., during sleep)
 }
 
 public class Body
@@ -35,7 +36,7 @@ public class Body
     public double MaxHealth => 1;
     public bool IsDestroyed => Health <= 0;
 
-    public bool IsTired => Energy > 60; // can sleep for at least 1 hr
+    public bool IsTired => Energy < SurvivalProcessor.MAX_ENERGY_MINUTES; // Can sleep if not fully rested
 
     public readonly EffectRegistry EffectRegistry;
 
@@ -88,6 +89,7 @@ public class Body
     private int _minutesStarving = 0;      // Time at 0% calories
     private int _minutesDehydrated = 0;    // Time at 0% hydration
     private int _minutesExhausted = 0;     // Time at 0% energy
+    private int _minutesHypothermic = 0;   // Time at severe hypothermia (<89.6°F)
 
     /// <summary>
     /// Damage application rules: 
@@ -163,11 +165,11 @@ public class Body
         data.activityLevel = context.ActivityLevel;
 
         var result = SurvivalProcessor.Process(data, (int)timePassed.TotalMinutes, EffectRegistry.GetAll());
-        UpdateBodyBasedOnResult(result);
+        UpdateBodyBasedOnResult(result, context.SuppressMessages);
     }
 
 
-    private void UpdateBodyBasedOnResult(SurvivalProcessorResult result)
+    private void UpdateBodyBasedOnResult(SurvivalProcessorResult result, bool suppressMessages = false)
     {
         var resultData = result.Data;
         BodyTemperature = resultData.Temperature;
@@ -179,12 +181,16 @@ public class Body
 
         // Process survival consequences (starvation, dehydration, exhaustion)
         int minutesElapsed = 1; // Body.Update always called with 1 minute intervals
-        ProcessSurvivalConsequences(result, minutesElapsed);
+        ProcessSurvivalConsequences(result, minutesElapsed, suppressMessages);
 
-        foreach (string message in result.Messages)
+        // Only print messages if not suppressed
+        if (!suppressMessages)
         {
-            string formattedMessage = message.Replace("{target}", OwnerName);
-            Output.WriteLine(formattedMessage);
+            foreach (string message in result.Messages)
+            {
+                string formattedMessage = message.Replace("{target}", OwnerName);
+                Output.WriteLine(formattedMessage);
+            }
         }
     }
 
@@ -383,7 +389,8 @@ public class Body
     /// </summary>
     /// <param name="result">Result from SurvivalProcessor containing updated stats</param>
     /// <param name="minutesElapsed">Minutes that passed this update</param>
-    private void ProcessSurvivalConsequences(SurvivalProcessorResult result, int minutesElapsed)
+    /// <param name="suppressMessages">Suppress status messages (e.g., during sleep)</param>
+    private void ProcessSurvivalConsequences(SurvivalProcessorResult result, int minutesElapsed, bool suppressMessages = false)
     {
         var data = result.Data;
 
@@ -410,7 +417,7 @@ public class Body
             {
                 ApplyStarvationOrganDamage(minutesElapsed);
 
-                if (IsPlayer && _minutesStarving % 60 == 0 && result.Messages != null) // Every hour
+                if (!suppressMessages && IsPlayer && _minutesStarving % 60 == 0 && result.Messages != null) // Every hour
                 {
                     result.Messages.Add($"You are starving to death... ({(int)(_minutesStarving / 1440)} days without food)");
                 }
@@ -445,7 +452,7 @@ public class Body
                     Source = "Dehydration"
                 });
 
-                if (IsPlayer && _minutesDehydrated % 60 == 0 && result.Messages != null) // Every hour
+                if (!suppressMessages && IsPlayer && _minutesDehydrated % 60 == 0 && result.Messages != null) // Every hour
                 {
                     result.Messages.Add($"Your organs are failing from dehydration... ({_minutesDehydrated / 60} hours without water)");
                 }
@@ -463,7 +470,7 @@ public class Body
 
             // Exhaustion doesn't directly kill, but creates vulnerability
             // Track for potential future features (hallucinations, forced sleep, etc.)
-            if (IsPlayer && _minutesExhausted > 480 && _minutesExhausted % 120 == 0 && result.Messages != null) // Every 2 hours after 8 hours
+            if (!suppressMessages && IsPlayer && _minutesExhausted > 480 && _minutesExhausted % 120 == 0 && result.Messages != null) // Every 2 hours after 8 hours
             {
                 result.Messages.Add("You're so exhausted you can barely function...");
             }
@@ -471,6 +478,51 @@ public class Body
         else
         {
             _minutesExhausted = 0;
+        }
+
+        // ===== SEVERE HYPOTHERMIA PROGRESSION =====
+        // Severe hypothermia (<89.6°F body temperature) causes organ damage
+        const double SEVERE_HYPOTHERMIA_THRESHOLD = 89.6; // Must match SurvivalProcessor constant
+
+        if (data.Temperature < SEVERE_HYPOTHERMIA_THRESHOLD)
+        {
+            _minutesHypothermic += minutesElapsed;
+
+            // Hypothermia kills through organ failure (heart, brain)
+            // Timeline: ~2-4 hours at severe hypothermia = death (realistic)
+            if (_minutesHypothermic > 30) // After 30 minutes at severe hypothermia, start organ damage
+            {
+                // Damage scales with severity: 40°F is much worse than 85°F
+                double severityFactor = Math.Min(1.0, (SEVERE_HYPOTHERMIA_THRESHOLD - data.Temperature) / 50.0);
+
+                // Base: 0.15 HP/hr at threshold (89.6°F) → 0.3 HP/hr at 40°F
+                // Death in ~3-7 hours depending on severity
+                double damagePerHour = 0.15 + (0.15 * severityFactor);
+                double damagePerMinute = damagePerHour / 60.0;
+                double totalDamage = damagePerMinute * minutesElapsed;
+
+                // Cold primarily affects core organs (heart stops, brain damage)
+                var coreOrgans = new[] { "Heart", "Brain", "Lungs" };
+                string target = coreOrgans[Random.Shared.Next(coreOrgans.Length)];
+
+                Damage(new DamageInfo
+                {
+                    Amount = totalDamage,
+                    Type = DamageType.Internal,
+                    TargetPartName = target,
+                    Source = "Hypothermia"
+                });
+
+                if (!suppressMessages && IsPlayer && _minutesHypothermic % 30 == 0 && result.Messages != null) // Every 30 minutes
+                {
+                    double hours = _minutesHypothermic / 60.0;
+                    result.Messages.Add($"Your core body temperature is dangerously low... Your organs are failing... ({hours:F1} hours at {data.Temperature:F1}°F)");
+                }
+            }
+        }
+        else
+        {
+            _minutesHypothermic = 0; // Reset timer when warmed up
         }
 
         // ===== NATURAL ORGAN REGENERATION =====

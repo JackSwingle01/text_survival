@@ -21,10 +21,11 @@ public class Player : Actor
     public readonly SkillRegistry Skills;
     public readonly List<Spell> _spells = [SpellFactory.Bleeding, SpellFactory.Poison, SpellFactory.MinorHeal];
 
-    public override void Update()
+    public override void Update(bool suppressMessages = false)
     {
         EffectRegistry.Update();
         var context = GetSurvivalContext();
+        context.SuppressMessages = suppressMessages;
         Body.Update(TimeSpan.FromMinutes(1), context);
     }
 
@@ -88,9 +89,12 @@ public class Player : Actor
         // handle special logic for each item type
         if (item is FoodItem food)
         {
+            // Remove from inventory first so message order is correct
+            inventoryManager.RemoveFromInventory(food);
             string eating_type = food.WaterContent > food.Calories ? "drink" : "eat";
             Output.Write($"You {eating_type} the ", food, "...");
             Body.Consume(food);
+            return; // Early return since we already removed from inventory
         }
         else if (item is ConsumableItem consumable)
         {

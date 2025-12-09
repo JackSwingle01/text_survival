@@ -16,7 +16,7 @@ public abstract class Actor
     public bool IsAlive => !Body.IsDestroyed;
     public abstract Weapon ActiveWeapon { get; protected set; }
 
-    public virtual void Update()
+    public virtual void Update(bool suppressMessages = false)
     {
         EffectRegistry.Update();
 
@@ -30,6 +30,7 @@ public abstract class Actor
         {
             ActivityLevel = 2,
             LocationTemperature = CurrentLocation.GetTemperature(),
+            SuppressMessages = suppressMessages,
         };
         Body.Update(TimeSpan.FromMinutes(1), context);
     }

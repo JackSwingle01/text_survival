@@ -1,6 +1,6 @@
 # Known Issues - Text Survival RPG
 
-**Last Updated:** 2025-11-02 (Post-Critical Fixes)
+**Last Updated:** 2025-11-04 (Hypothermia Death + Bug Fixes)
 **Status:** ✅ All critical bugs resolved - Game is fully playable
 
 ---
@@ -13,155 +13,107 @@
 
 ---
 
+## ✅ Recently Resolved
+
+### Death System (IMPLEMENTED 2025-11-04)
+**Severity**: BLOCKER - Game never ended
+**Status**: ✅ **RESOLVED**
+
+**What Was Fixed**:
+- Added death check in main game loop (Program.cs)
+- Implemented comprehensive death screen showing:
+  - Cause of death analysis (which organ failed, or hypothermia/dehydration/starvation)
+  - Final survival stats (health, calories, hydration, energy, temperature)
+  - Body composition at death (weight, fat %, muscle %)
+  - Time survived (days, hours, minutes)
+- Game now exits cleanly when player dies
+
+**Implementation**:
+- Location: `Program.cs` lines 12-88 (DisplayDeathScreen method)
+- Death check: After each action execution
+- Causes tracked: Brain death, cardiac arrest, respiratory failure, liver failure, hypothermia, dehydration, starvation
+
+---
+
 ## 🟠 Bugs
 
 *Incorrect behavior that prevents intended functionality*
 
-### 1.2 Survival Stat Consequences Missing (PARTIALLY RESOLVED - IN PROGRESS)
+### 1.2 Survival Stat Consequences (RESOLVED ✅)
 
 **Severity:** HIGH - Game Balance Issue
 **Location:** `Bodies/Body.cs`, `Bodies/CapacityCalculator.cs`, `Survival/SurvivalProcessor.cs`
-**Status:** ⏳ **IN PROGRESS** (60% Complete - Phases 1-3 of 5 done)
+**Status:** ✅ **RESOLVED** (2025-11-04 - All phases complete)
 
-**Original Issue:** Players can survive indefinitely at 0% food/water/energy with no consequences. Stats drain but no damage, capacity penalties, or death occurs.
+**Original Issue:** Players can survive indefinitely at 0% food/water/energy/extreme cold with no consequences.
 
-**Progress (2025-11-03)**:
-- ✅ **Phase 1 COMPLETE**: Starvation system (fat/muscle consumption, organ damage)
-  - Fat consumption: 35 days at realistic calorie burn rates
-  - Muscle catabolism: 7 days after fat depleted
-  - Organ damage: progressive failure after muscle depleted
-  - Added DamageType.Internal to DamageInfo.cs
+**Implementation Complete (2025-11-04)**:
+- ✅ **Phase 1**: Starvation system (fat/muscle consumption, organ damage)
+- ✅ **Phase 2**: Dehydration & exhaustion tracking
+- ✅ **Phase 3**: Capacity penalties at low stats
+- ✅ **Phase 4**: Organ regeneration when fed/hydrated/rested
+- ✅ **Phase 5**: Warning messages at stat thresholds
+- ✅ **NEW**: Hypothermia organ damage (<89.6°F body temp → death in 3-7 hours)
 
-- ✅ **Phase 2 COMPLETE**: Dehydration & exhaustion tracking
-  - Dehydration: 1-hour grace → 0.2 HP/hr organ damage → death in ~6 hours
-  - Exhaustion: Time tracking (damage via capacity penalties, not HP loss)
-  - Timers reset when stats restored
-
-- ✅ **Phase 3 COMPLETE**: Capacity penalties at low stats
-  - Hunger: -10% to -40% Moving/Manipulation (at 50%, 20%, 1%)
-  - Dehydration: -10% to -60% Consciousness (at 50%, 20%, 1%)
-  - Exhaustion: -10% to -60% Consciousness/Moving (at 50%, 20%, 1%)
-  - Makes player vulnerable to cold/predators/accidents
-
-**Remaining Work**:
-- ⏳ **Phase 4**: Organ regeneration when fed/hydrated/rested (code ready, 30-60 min)
-- ⏳ **Phase 5**: Warning messages at stat thresholds (code ready, 30 min)
-- ⏳ **Testing**: Full gameplay validation with TEST_MODE=1
-- ⏳ **Balance**: Tune timelines/penalties based on testing
+**Hypothermia Death System**:
+- Below 89.6°F: Progressive organ damage to Heart/Brain/Lungs
+- Damage scales with temperature (40°F = 0.3 HP/hr, 85°F = 0.15 HP/hr)
+- 30-minute grace period before damage starts
+- Death in 3-7 hours depending on severity
+- Location: `Bodies/Body.cs` lines 477-520
 
 **Files Modified**:
-- `Bodies/Body.cs` (~200 lines added)
+- `Bodies/Body.cs` (~300 lines added)
 - `Bodies/CapacityCalculator.cs` (~90 lines added)
+- `Survival/SurvivalProcessor.cs` (~35 lines added)
 - `Bodies/DamageInfo.cs` (added Internal damage type)
 
 **Build Status**: ✅ SUCCESS (0 errors)
-**Testing Status**: ❌ NOT YET TESTED (needs TEST_MODE=1 validation)
-
-**Next Session**: Complete Phases 4-5 or test Phases 1-3 before proceeding
-
-**Priority:** HIGH - Core survival gameplay fix
+**Testing Status**: ⚠️ Needs extended playtesting for balance validation
 
 ---
 
-### Multiple Campfires Created in Same Location
+### Multiple Campfires Created in Same Location (ALREADY FIXED ✅)
 
 **Severity:** HIGH - Clutters locations, confuses fire management
-**Location:** `Crafting/CraftingRecipe.cs` - `ResultingInLocationFeature()` method
-**Status:** 🔴 **ACTIVE**
+**Location:** `Crafting/CraftingSystem.cs` lines 60-73
+**Status:** ✅ **ALREADY FIXED** (Verified 2025-11-04)
 
-**Reproduction:**
-1. Let campfire burn out completely (cold, no embers)
-2. Craft "Hand Drill Fire" recipe
-3. Look around location - two campfires exist
+**Fix Implementation:**
+CraftingSystem.Craft() now checks for existing HeatSourceFeature before creating a new one:
+```csharp
+if (feature is HeatSourceFeature newFire)
+{
+    var existingFire = _player.CurrentLocation.Features.OfType<HeatSourceFeature>().FirstOrDefault();
+    if (existingFire != null)
+    {
+        existingFire.AddFuel(initialFuel, newFire.FuelMassKg);
+        Output.WriteSuccess($"You add fuel to the existing {recipe.LocationFeatureResult.FeatureName}.");
+        break;
+    }
+}
+```
 
-**Expected:** Fire-making recipes should check for existing HeatSourceFeature and refuel/relight it instead of creating a duplicate.
+**Note:** StartFire action (ActionFactory.cs lines 330-331) also checks for existing fires and handles relighting correctly.
 
-**Impact:**
-- Location clutter (multiple dead campfires accumulate)
-- Confusing UX - which campfire to interact with?
-- Breaks immersion
+### Inspect Action Listed Twice and Drops Item (FIXED ✅)
 
-**Priority:** HIGH
+**Severity:** HIGH - Breaking user experience
+**Location:** `Actions/ActionFactory.cs` line 727
+**Status:** ✅ **FIXED** (2025-11-04)
 
-# Inspect action listed twice and drops. 
-See below:
+**Issues Found:**
+1. **Duplicate "Inspect" label**: DropItem action had `CreateAction($"Inspect {item}")` instead of `CreateAction($"Drop {item}")`
+2. **Message ordering**: "You eat the X" appeared before "You take the X from your Bag"
 
-1. Look around Clearing
-2. Add Fuel to Fire
-3. Forage
-4. Open inventory
-5. Check Stats
-6. Sleep
-7. Go somewhere else
-4
+**Fixes Applied:**
+1. Changed line 727: `"Inspect {item}"` → `"Drop {item}"`
+2. Moved `inventoryManager.RemoveFromInventory(food)` to occur BEFORE eating message in Player.cs line 92
+3. Added early return after food consumption to prevent double removal
 
-Bag (0.4/10.0):
-
-Select an item:
-1. Dry Grass x3
-2. Bark Strips x2
-3. Plant Fibers
-4. Wild Berries
-5. Wild Mushroom
-6. Close Inventory
-4
-
-
-What would you like to do with the Wild Berries
-1. Use Wild Berries
-2. Inspect Wild Berries
-3. Inspect Wild Berries
-4. Back to inventory
-2
-
-Wild Berries => A handful of red autumn berries. Sweet and juicy. Weight: 0.1kg
-Bag (0.4/10.0):
-
-Select an item:
-1. Dry Grass x3
-2. Bark Strips x2
-3. Plant Fibers
-4. Wild Berries
-5. Wild Mushroom
-6. Close Inventory
-4
-
-
-What would you like to do with the Wild Berries
-1. Use Wild Berries
-2. Inspect Wild Berries
-3. Inspect Wild Berries - duplicate
-4. Back to inventory
-3
-
-You drop the Wild Berries <- Issue here. Selected 3 and it dropped
-You take the Wild Berries from your Bag
-Bag (0.3/10.0):
-
-Select an item:
-1. Dry Grass x3
-2. Bark Strips x2
-3. Plant Fibers
-4. Wild Mushroom
-5. Close Inventory
-4
-
-
-What would you like to do with the Wild Mushroom
-1. Use Wild Mushroom
-2. Inspect Wild Mushroom
-3. Inspect Wild Mushroom
-4. Back to inventory
-1
-
-You eat the Wild Mushroom...You take the Wild Mushroom from your Bag <- also notice this ordering issue
-Bag (0.2/10.0):
-
-Select an item:
-1. Dry Grass x3
-2. Bark Strips x2
-3. Plant Fibers
-4. Close Inventory
+**Files Modified:**
+- `Actions/ActionFactory.cs` (line 727)
+- `Player.cs` (lines 91-96)
 
 
 ---
@@ -267,19 +219,19 @@ The "Press any key to continue..." prompt requires user input, but sending empty
 
 ---
 
-### Sleep Option Disappears When Exhausted
+### Sleep Option Disappears When Exhausted (FIXED ✅)
 
 **Severity:** Low
-**Location:** Action menu generation
-**Status:** 🟡 **ACTIVE**
+**Location:** `Bodies/Body.cs` line 38
+**Status:** ✅ **FIXED** (2025-11-04)
 
-**Reproduction:**
-1. Player reaches 0% energy
-2. Sleep option is hidden from main menu
+**Root Cause:**
+IsTired property had backwards logic: `Energy > 60` (only allow sleep if NOT tired)
 
-**Expected:** Player should be able to sleep when exhausted
+**Fix:**
+Changed to: `Energy < SurvivalProcessor.MAX_ENERGY_MINUTES` (allow sleep if not fully rested)
 
-**Impact:** Frustrating UX where exhausted player cannot immediately rest
+**Impact:** Players can now sleep whenever they want, especially when exhausted (0% energy)
 
 ---
 

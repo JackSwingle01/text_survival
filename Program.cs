@@ -9,6 +9,84 @@ namespace text_survival
 {
     public class Program
     {
+        static void DisplayDeathScreen(Player player)
+        {
+            Output.WriteLine("\n\n");
+            Output.WriteLine("═══════════════════════════════════════════════════════════");
+            Output.WriteDanger("                       YOU DIED                            ");
+            Output.WriteLine("═══════════════════════════════════════════════════════════");
+            Output.WriteLine("\n");
+
+            // Determine cause of death
+            string causeOfDeath = DetermineCauseOfDeath(player);
+            Output.WriteLineColored(ConsoleColor.Red, $"Cause of Death: {causeOfDeath}");
+            Output.WriteLine("\n");
+
+            // Get survival data
+            var survivalData = player.Body.BundleSurvivalData();
+
+            // Show survival stats at time of death
+            Output.WriteLine("═══ Final Survival Stats ═══");
+            Output.WriteLine($"Health: {player.Body.Health * 100:F1}%");
+            Output.WriteLine($"Calories: {survivalData.Calories:F0}/{Survival.SurvivalProcessor.MAX_CALORIES:F0} ({survivalData.Calories / Survival.SurvivalProcessor.MAX_CALORIES * 100:F1}%)");
+            Output.WriteLine($"Hydration: {survivalData.Hydration:F0}/{Survival.SurvivalProcessor.MAX_HYDRATION:F0} ({survivalData.Hydration / Survival.SurvivalProcessor.MAX_HYDRATION * 100:F1}%)");
+            Output.WriteLine($"Energy: {survivalData.Energy:F0}/{Survival.SurvivalProcessor.MAX_ENERGY_MINUTES:F0} ({survivalData.Energy / Survival.SurvivalProcessor.MAX_ENERGY_MINUTES * 100:F1}%)");
+            Output.WriteLine($"Body Temperature: {player.Body.BodyTemperature:F1}°F");
+            Output.WriteLine("\n");
+
+            // Show body composition
+            Output.WriteLine("═══ Body Composition ═══");
+            Output.WriteLine($"Weight: {player.Body.Weight:F1} kg");
+            Output.WriteLine($"Body Fat: {player.Body.BodyFat:F1} kg ({player.Body.BodyFatPercentage * 100:F1}%)");
+            Output.WriteLine($"Muscle Mass: {player.Body.Muscle:F1} kg ({player.Body.MusclePercentage * 100:F1}%)");
+            Output.WriteLine("\n");
+
+            // Show time survived
+            Output.WriteLine("═══ Time Survived ═══");
+            var startTime = new DateTime(2025, 1, 1, 9, 0, 0); // Game start time
+            var timeSurvived = World.GameTime - startTime;
+            int days = timeSurvived.Days;
+            int hours = timeSurvived.Hours;
+            int minutes = timeSurvived.Minutes;
+            Output.WriteLine($"You survived for {days} days, {hours} hours, and {minutes} minutes.");
+            Output.WriteLine("\n");
+
+            Output.WriteLine("═══════════════════════════════════════════════════════════");
+            Output.WriteLine("                    GAME OVER                              ");
+            Output.WriteLine("═══════════════════════════════════════════════════════════");
+            Output.WriteLine("\n");
+        }
+
+        static string DetermineCauseOfDeath(Player player)
+        {
+            var body = player.Body;
+            var survivalData = body.BundleSurvivalData();
+
+            // Check critical organ failure
+            var brain = body.Parts.SelectMany(p => p.Organs).FirstOrDefault(o => o.Name == "Brain");
+            var heart = body.Parts.SelectMany(p => p.Organs).FirstOrDefault(o => o.Name == "Heart");
+            var lungs = body.Parts.SelectMany(p => p.Organs).FirstOrDefault(o => o.Name == "Lungs");
+            var liver = body.Parts.SelectMany(p => p.Organs).FirstOrDefault(o => o.Name == "Liver");
+
+            if (brain?.Condition <= 0) return "Brain death";
+            if (heart?.Condition <= 0) return "Cardiac arrest";
+            if (lungs?.Condition <= 0) return "Respiratory failure";
+            if (liver?.Condition <= 0) return "Liver failure";
+
+            // Check survival stat contexts
+            if (body.BodyTemperature < 89.6)
+                return "Severe hypothermia (core body temperature too low)";
+
+            if (survivalData.Hydration <= 0)
+                return "Severe dehydration";
+
+            if (survivalData.Calories <= 0 && body.BodyFatPercentage < 0.05)
+                return "Starvation (complete organ failure)";
+
+            // Default
+            return "Multiple organ failure";
+        }
+
         static void Main()
         {
             if (Output.TestMode)
@@ -83,6 +161,13 @@ namespace text_survival
             while (true)
             {
                 defaultAction.Execute(context);
+
+                // Check for death after each action
+                if (player.Body.IsDestroyed)
+                {
+                    DisplayDeathScreen(player);
+                    break;
+                }
             }
         }
     }

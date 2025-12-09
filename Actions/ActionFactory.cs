@@ -98,10 +98,19 @@ public static class ActionFactory
             .When(ctx => ctx.player.Body.IsTired)
             .Do(ctx =>
             {
-                Output.WriteLine("How many hours would you like to sleep?");
-                int minutes = Input.ReadInt() * 60;
+                Output.WriteLine("How many hours would you like to sleep? (1-24)");
+                int hours = Input.ReadInt();
+
+                // Validate sleep duration
+                if (hours < 1 || hours > 24)
+                {
+                    Output.WriteWarning("You can only sleep for 1-24 hours at a time.");
+                    return;
+                }
+
+                int minutes = hours * 60;
                 ctx.player.Body.Rest(minutes);
-                World.Update(minutes);
+                World.Update(minutes, suppressMessages: true); // Suppress status messages during sleep
             })
             .TakesMinutes(0) // Handles time manually based on user input
             .ThenReturn()
@@ -724,7 +733,7 @@ public static class ActionFactory
 
         public static IGameAction DropItem(Item item)
         {
-            return CreateAction($"Inspect {item}")
+            return CreateAction($"Drop {item}")
             .ShowMessage($"You drop the {item}")
             .Do(ctx => ctx.player.DropItem(item))
             .ThenShow(_ => [OpenInventory()])
