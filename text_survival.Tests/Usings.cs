@@ -4,4 +4,5 @@ global using text_survival.Survival;
 global using text_survival.Effects;
 global using text_survival.Items;
 global using text_survival.Crafting;
-global using text_survival.PlayerComponents;
+global using text_survival.Combat;
+using text_survival.Actors.Player;

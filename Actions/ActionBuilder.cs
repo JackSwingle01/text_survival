@@ -1,4 +1,6 @@
 using text_survival.Actors;
+using text_survival.Actors.NPCs;
+using text_survival.Combat;
 using text_survival.IO;
 
 namespace text_survival.Actions;

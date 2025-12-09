@@ -1,4 +1,5 @@
 using text_survival.Actors;
+using text_survival.Actors.NPCs;
 
 namespace text_survival;
 

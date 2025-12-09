@@ -1,8 +1,8 @@
-﻿using text_survival.Bodies;
+using text_survival.Bodies;
+using text_survival.Combat;
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Items;
-using text_survival.PlayerComponents;
 
 namespace text_survival.Actors;
 

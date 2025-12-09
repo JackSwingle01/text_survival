@@ -1,4 +1,6 @@
+using text_survival.Core;
 using text_survival.IO;
+
 namespace text_survival.Actions;
 
 public interface IGameAction

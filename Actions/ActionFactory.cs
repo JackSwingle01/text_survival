@@ -1,10 +1,18 @@
 using text_survival.Actors;
+using text_survival.Actors.NPCs;
+using text_survival.Actors.Player;
 using text_survival.Bodies;
+using text_survival.Combat;
+using text_survival.Core;
 using text_survival.Crafting;
 using text_survival.Environments;
+using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Magic;
+using text_survival.Skills;
+using text_survival.Survival;
+using text_survival.UI;
 
 namespace text_survival.Actions;
 

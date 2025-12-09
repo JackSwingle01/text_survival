@@ -1,6 +1,12 @@
 
 using text_survival.Environments;
+using text_survival.Environments.Features;
+using text_survival.Actors.Player;
+using text_survival.Environments.Features;
 using text_survival.Items;
+using text_survival.Environments.Features;
+using text_survival.Actors.Player;
+using text_survival.Environments.Features;
 
 namespace text_survival.Crafting;
 

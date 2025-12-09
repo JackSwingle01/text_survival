@@ -1,5 +1,7 @@
-using text_survival.Environments;
 using System.Text;
+using text_survival.Core;
+using text_survival.Environments;
+using text_survival.Environments.Features;
 
 namespace text_survival.UI;
 
@@ -961,7 +963,7 @@ public static class MapRenderer
         // TODO: Add water source feature detection when WaterSourceFeature is implemented
 
         // 5. Forage
-        var forageFeature = location.GetFeature<Environments.ForageFeature>();
+        var forageFeature = location.GetFeature<ForageFeature>();
         if (forageFeature != null)
         {
             features.Add("forage");

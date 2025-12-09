@@ -1,4 +1,6 @@
-﻿namespace text_survival.IO
+using text_survival.Core;
+
+namespace text_survival.IO
 {
     public static class Input
     {

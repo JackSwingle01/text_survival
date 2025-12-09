@@ -156,17 +156,23 @@ This file helps track technical debt and prioritize fixes. Always check it befor
 
 The codebase uses a **composition-over-inheritance** approach with systems organized into focused namespaces:
 
-- **Bodies/** - Hierarchical body part system with injury tracking, capacities, and body composition (fat/muscle)
-- **Actors/** - Base Actor class with Player and NPC subclasses; uses composition via managers (CombatManager, InventoryManager, etc.)
+- **Core/** - Game entry point, world state, and configuration (Program.cs, World.cs, Config.cs)
 - **Actions/** - Action system using builder pattern (`ActionBuilder`) to create context-aware dynamic actions
-- **Items/** - Item hierarchy with property-based crafting system (ItemProperty enum)
-- **Environments/** - Zone → Location hierarchy with Features (ShelterFeature, HeatSourceFeature, ForageFeature)
-- **Survival/** - SurvivalProcessor handles temperature, hunger, thirst, and exhaustion calculations
+- **Actors/** - Base Actor class in root, with subfolders:
+  - **Actors/Player/** - Player class and manager components (InventoryManager, LocationManager, StealthManager, etc.)
+  - **Actors/NPCs/** - NPC, Animal classes and NPCFactory
+- **Bodies/** - Hierarchical body part system with injury tracking, capacities, and body composition (fat/muscle)
+- **Combat/** - Combat system (CombatManager, CombatNarrator, CombatUtils)
 - **Crafting/** - Recipe-based crafting using property requirements and builder pattern
 - **Effects/** - Buff/debuff system with EffectRegistry for tracking active effects
-- **Magic/** - Spell system integrated with body part targeting
-- **Level/** - Skill-based progression (player-only, not NPCs)
+- **Environments/** - Zone → Location hierarchy, with subfolders:
+  - **Environments/Features/** - Location features (ShelterFeature, HeatSourceFeature, ForageFeature, etc.)
+  - **Environments/Factories/** - Location and Zone factories
+- **Items/** - Item hierarchy with property-based crafting system (ItemProperty enum)
 - **IO/** - Input/Output abstraction layer enabling multiple IO types (console, test mode, future web/GUI)
+- **Magic/** - Spell system integrated with body part targeting
+- **Skills/** - Skill-based progression (player-only, not NPCs)
+- **Survival/** - SurvivalProcessor handles temperature, hunger, thirst, and exhaustion calculations
 
 ### Key Architectural Patterns
 
