@@ -1,4 +1,5 @@
 using text_survival.Actors;
+using text_survival.Actors.Player;
 using text_survival.Bodies;
 
 namespace text_survival.Effects;

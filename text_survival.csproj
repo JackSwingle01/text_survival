@@ -11,4 +11,10 @@
     <Folder Include="Items\SpecificItems\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Exclude test project from main project compilation -->
+    <Compile Remove="text_survival.Tests/**" />
+    <None Include="text_survival.Tests/**" />
+  </ItemGroup>
+
 </Project>

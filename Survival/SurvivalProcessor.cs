@@ -1,4 +1,5 @@
 using text_survival.Bodies;
+using text_survival.Core;
 using text_survival.Effects;
 
 namespace text_survival.Survival;
@@ -83,10 +84,42 @@ public static class SurvivalProcessor
 
 		AddTemperatureEffects(data, oldTemperature, result);
 
+		// Add warning messages for critical thresholds
+		if (data.IsPlayer)
+		{
+			double caloriePercent = data.Calories / MAX_CALORIES;
+			double hydrationPercent = data.Hydration / MAX_HYDRATION;
+			double energyPercent = data.Energy / MAX_ENERGY_MINUTES;
+
+			// Hunger warnings
+			if (caloriePercent <= 0.01 && Utils.DetermineSuccess(0.1))
+				result.Messages.Add("You are starving to death!");
+			else if (caloriePercent <= 0.20 && Utils.DetermineSuccess(0.05))
+				result.Messages.Add("You're desperately hungry.");
+			else if (caloriePercent <= 0.50 && Utils.DetermineSuccess(0.02))
+				result.Messages.Add("You're getting very hungry.");
+
+			// Thirst warnings
+			if (hydrationPercent <= 0.01 && Utils.DetermineSuccess(0.1))
+				result.Messages.Add("You are dying of thirst!");
+			else if (hydrationPercent <= 0.20 && Utils.DetermineSuccess(0.05))
+				result.Messages.Add("You're desperately thirsty.");
+			else if (hydrationPercent <= 0.50 && Utils.DetermineSuccess(0.02))
+				result.Messages.Add("You're getting quite thirsty.");
+
+			// Exhaustion warnings
+			if (energyPercent <= 0.01 && Utils.DetermineSuccess(0.1))
+				result.Messages.Add("You're so exhausted you can barely stay awake.");
+			else if (energyPercent <= 0.20 && Utils.DetermineSuccess(0.05))
+				result.Messages.Add("You're extremely tired.");
+			else if (energyPercent <= 0.50 && Utils.DetermineSuccess(0.02))
+				result.Messages.Add("You're getting tired.");
+		}
+
 		return result;
 	}
 
-	private static double GetCurrentMetabolism(SurvivalData data)
+	public static double GetCurrentMetabolism(SurvivalData data)
 	{
 		// Base BMR uses the Harris-Benedict equation (simplified)
 		double bmr = 370 + (21.6 * data.BodyStats.MuscleWeight) + (6.17 * data.BodyStats.FatWeight); // bigger creature more calories
@@ -220,7 +253,8 @@ public static class SurvivalProcessor
 
 			foreach (var extremityName in extremityNames)
 			{
-				double severity = Math.Clamp((SevereHypothermiaThreshold - data.Temperature) / 5.0, 0.01, 1.0);
+				// Reduced from /5.0 to /10.0 to slow frostbite progression by 50%
+				double severity = Math.Clamp((SevereHypothermiaThreshold - data.Temperature) / 10.0, 0.01, 1.0);
 
 				string applicationMessage;
 				string removalMessage;
@@ -241,7 +275,7 @@ public static class SurvivalProcessor
 					.Temperature(TemperatureType.Frostbite)
 					.WithApplyMessage(applicationMessage)
 					.WithSeverity(severity)
-					.AllowMultiple(true)
+					.AllowMultiple(false) // Fixed: prevent infinite stacking on same body part
 					.WithRemoveMessage(removalMessage)
 					.Targeting(extremityName)
 					.Build();
@@ -278,13 +312,26 @@ public static class SurvivalProcessor
 
 	public static SurvivalProcessorResult Sleep(SurvivalData data, int minutes)
 	{
-		// starve at 1/2 rate - handled in GetCurrentMetabolism
-		data.activityLevel = .5;
+		// Create a copy to maintain pure function design (don't mutate input)
+		var resultData = new SurvivalData
+		{
+			Calories = data.Calories,
+			Hydration = data.Hydration,
+			Energy = data.Energy,
+			Temperature = data.Temperature,
+			ColdResistance = data.ColdResistance,
+			BodyStats = data.BodyStats,
+			equipmentInsulation = data.equipmentInsulation,
+			environmentalTemp = data.environmentalTemp,
+			activityLevel = .5, // starve at 1/2 rate - handled in GetCurrentMetabolism
+			IsPlayer = data.IsPlayer
+		};
+
 		// rest restores exhaustion at 2x the rate that you gain it while awake, so 16 hours of wakefulness creates only 8 hours of sleep debt
-		data.Energy = Math.Min(1, data.Energy + (BASE_EXHAUSTION_RATE * 2 * minutes));
-		data.Hydration = Math.Max(0, data.Hydration - (BASE_DEHYDRATION_RATE * .7 * minutes)); // dehydrate at reduced rate while asleep
-		data.Calories = data.Calories -= GetCurrentMetabolism(data) / 24 / 60 * minutes;
-		return new SurvivalProcessorResult(data);
+		resultData.Energy = Math.Min(MAX_ENERGY_MINUTES, resultData.Energy + (BASE_EXHAUSTION_RATE * 2 * minutes));
+		resultData.Hydration = Math.Max(0, resultData.Hydration - (BASE_DEHYDRATION_RATE * .7 * minutes)); // dehydrate at reduced rate while asleep
+		resultData.Calories -= GetCurrentMetabolism(resultData) / 24 / 60 * minutes;
+		return new SurvivalProcessorResult(resultData);
 	}
 
 }

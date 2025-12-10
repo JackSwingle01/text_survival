@@ -8,6 +8,7 @@
         HandAxe,        // Cutting tool and weapon
         Knife,          // Sharp tool made of flint or similar
         SharpStone,     // Primitive cutting tool
+        Bow,            // Ranged hunting weapon (MVP Hunting System)
 
         // Natural weapons
         Unarmed,        // Human fists
@@ -146,6 +147,13 @@
                     Accuracy = 1.1;
                     Weight = 0.3;
                     break;
+                case WeaponType.Bow:
+                    // Bow stats set by RangedWeapon class
+                    Damage = 12;
+                    BlockChance = 0.0;
+                    Accuracy = 0.7;
+                    Weight = 1.0;
+                    break;
                 case WeaponType.Unarmed:
                     Damage = 2;
                     BlockChance = 0.01;
@@ -194,6 +202,7 @@
                 WeaponType.SharpStone => WeaponClass.Blade,
                 WeaponType.HandAxe => WeaponClass.Blade,
                 WeaponType.Spear => WeaponClass.Pierce,
+                WeaponType.Bow => WeaponClass.Pierce, // Arrows pierce
                 WeaponType.Club => WeaponClass.Blunt,
                 WeaponType.Unarmed => WeaponClass.Unarmed,
                 WeaponType.Claws => WeaponClass.Claw,
@@ -243,6 +252,7 @@
                 WeaponType.HandAxe => "Hand Axe",
                 WeaponType.Knife => "Knife",
                 WeaponType.SharpStone => "Sharp Stone",
+                WeaponType.Bow => "Bow",
                 WeaponType.Unarmed => "Fists",
                 WeaponType.Claws => "Claws",
                 WeaponType.Fangs => "Fangs",

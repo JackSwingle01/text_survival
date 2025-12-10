@@ -1,4 +1,6 @@
-﻿namespace text_survival.IO
+using text_survival.Core;
+
+namespace text_survival.IO
 {
     public static class Input
     {
@@ -12,7 +14,12 @@
         public static string Read()
         {
             string? input = "";
-            if (Config.io == Config.IOType.Console)
+            if (Output.TestMode)
+            {
+                TestModeIO.SignalReady();
+                input = TestModeIO.ReadInput();
+            }
+            else if (Config.io == Config.IOType.Console)
             {
                 input = Console.ReadLine();
             }
@@ -32,6 +39,42 @@
         //     manualResetEvent.Reset();
         //     return userInput;
         // }
+
+        /// <summary>
+        /// Read a single key press from the user
+        /// </summary>
+        /// <param name="intercept">If true, the pressed key will not be displayed in the console</param>
+        /// <returns>ConsoleKeyInfo representing the key that was pressed</returns>
+        public static ConsoleKeyInfo ReadKey(bool intercept = true)
+        {
+            if (Output.TestMode)
+            {
+                // In test mode, simulate a key press by reading a character from input
+                TestModeIO.SignalReady();
+                string input = TestModeIO.ReadInput();
+
+                // Convert the first character to a ConsoleKey (or use Enter if empty)
+                if (string.IsNullOrEmpty(input))
+                {
+                    return new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false);
+                }
+
+                char keyChar = input[0];
+                ConsoleKey key = char.IsLetter(keyChar) ? (ConsoleKey)Enum.Parse(typeof(ConsoleKey), keyChar.ToString().ToUpper()) : ConsoleKey.Enter;
+                return new ConsoleKeyInfo(keyChar, key, false, false, false);
+            }
+            else if (Config.io == Config.IOType.Console)
+            {
+                return Console.ReadKey(intercept);
+            }
+            else if (Config.io == Config.IOType.Web)
+            {
+                throw new NotImplementedException();
+            }
+
+            // Fallback (shouldn't reach here)
+            return new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false);
+        }
 
         public static int ReadInt()
         {

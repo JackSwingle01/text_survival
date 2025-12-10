@@ -1,7 +1,9 @@
-﻿
-using text_survival.Actors;
+﻿using text_survival.Environments.Features;
+using text_survival.Actors.Player;
+using text_survival.Actors.NPCs;
 using text_survival.IO;
 using text_survival.Items;
+
 
 namespace text_survival.Environments;
 
@@ -10,12 +12,17 @@ public class Location
     public string Name;
     public bool Visited = false;
     public bool IsFound { get; set; } = false;
-    public IReadOnlyList<Npc> Npcs =>_npcs.AsReadOnly();
+    public IReadOnlyList<Npc> Npcs => _npcs.AsReadOnly();
     private List<Npc> _npcs = [];
     public List<Item> Items = [];
     public List<Container> Containers = [];
+    public List<BloodTrail> BloodTrails = []; // MVP Hunting System - Phase 4
     virtual public Zone Parent { get; }
     public List<LocationFeature> Features = [];
+
+    // Map UI coordinates
+    public int CoordinateX { get; set; } = 0;
+    public int CoordinateY { get; set; } = 0;
 
     #region Initialization
 
@@ -40,6 +47,12 @@ public class Location
             }
         }
     }
+
+    public void RemoveNpc(Npc npc)
+    {
+        _npcs.Remove(npc);
+    }
+
     public virtual NpcTable NpcSpawner { get; set; }
 
 
@@ -57,7 +70,7 @@ public class Location
             Output.WriteLine("You decide to stay.");
         }
     }
-    
+
     public double GetTemperature()
     {
         // Get zone's weather temperature (in Fahrenheit)
@@ -120,12 +133,13 @@ public class Location
             locationTemp += tempDifference * insulation;
         }
 
-        // If there's a heat source, add its effect
+        // If there's a heat source, add its effect (including embers)
         var heatSource = GetFeature<HeatSourceFeature>();
-        if (heatSource != null && heatSource.IsActive)
+        if (heatSource != null)
         {
             // Insulation increases effectiveness of heat sources
-            double heatEffect = heatSource.HeatOutput * Math.Max(insulation, .40); // heat sources are less effective outside
+            double effectiveHeat = heatSource.GetEffectiveHeatOutput();
+            double heatEffect = effectiveHeat * Math.Max(insulation, .40); // heat sources are less effective outside
             locationTemp += heatEffect;
         }
 
@@ -151,6 +165,15 @@ public class Location
     {
         // Locations.ForEach(i => i.Update());
         _npcs.ForEach(n => n.Update());
+
+        // Update location features (fires consume fuel, etc.)
+        foreach (var feature in Features)
+        {
+            if (feature is HeatSourceFeature heatSource)
+            {
+                heatSource.Update(TimeSpan.FromMinutes(1));
+            }
+        }
     }
 
     public List<Location> GetNearbyLocations()
@@ -167,6 +190,120 @@ public class Location
         }
         return nearbyLocations;
     }
+
+    #region Map UI Helpers
+
+    /// <summary>Returns fire status string for map display, or null if no fire</summary>
+    public string? GetActiveFireStatus()
+    {
+        var heatSource = GetFeature<HeatSourceFeature>();
+        if (heatSource == null) return null;
+
+        var phase = heatSource.GetFirePhase();
+        if (phase == "Cold") return null;
+
+        string fireIcon = "🔥";
+        if (phase == "Embers")
+        {
+            return $"{fireIcon} Embers ({heatSource.EmberTimeRemaining:F0}m)";
+        }
+        else if (phase == "Dying")
+        {
+            return $"{fireIcon} Dying ({heatSource.FuelRemaining:F1}h)";
+        }
+        else if (heatSource.IsActive)
+        {
+            return $"{fireIcon} Burning ({heatSource.FuelRemaining:F1}h)";
+        }
+
+        return null;
+    }
+
+    /// <summary>Returns shelter status string for map display, or null if no shelter</summary>
+    public string? GetShelterStatus()
+    {
+        var shelter = GetFeature<ShelterFeature>();
+        if (shelter == null) return null;
+
+        double tempBonus = GetTemperature() - Parent.Weather.TemperatureInFahrenheit;
+        return $"🏠 Shelter: +{tempBonus:F0}°F";
+    }
+
+    /// <summary>Returns nearby threats string for map display, or null if none</summary>
+    public string? GetNearbyThreats()
+    {
+        if (_npcs.Count == 0) return null;
+
+        var hostileNpcs = _npcs.Where(n => n.IsHostile).ToList();
+        if (hostileNpcs.Count == 0) return null;
+
+        if (hostileNpcs.Count == 1)
+        {
+            return $"⚠ {hostileNpcs[0].Name}";
+        }
+        else
+        {
+            return $"⚠ {hostileNpcs.Count} threats";
+        }
+    }
+
+    /// <summary>Returns wildlife traces string for map display, or null if none</summary>
+    public string? GetWildlifeTraces()
+    {
+        if (BloodTrails.Count > 0)
+        {
+            var freshTrails = BloodTrails.Where(t => t.GetFreshness() > 0.1).ToList();
+            if (freshTrails.Count > 0)
+            {
+                return $"🩸 {freshTrails.Count} blood trail(s)";
+            }
+        }
+
+        // Check for non-hostile NPCs (wildlife)
+        var wildlife = _npcs.Where(n => !n.IsHostile).ToList();
+        if (wildlife.Count > 0)
+        {
+            if (wildlife.Count == 1)
+            {
+                return $"🦌 {wildlife[0].Name} seen";
+            }
+            else
+            {
+                return $"🦌 {wildlife.Count} animals";
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Returns item summary string for map display, or null if no items</summary>
+    public string? GetItemSummary()
+    {
+        if (Items.Count == 0 && Containers.Count == 0) return null;
+
+        List<string> summary = [];
+
+        if (Items.Count > 0)
+        {
+            if (Items.Count <= 2)
+            {
+                summary.Add(string.Join(", ", Items.Select(i => i.Name)));
+            }
+            else
+            {
+                summary.Add($"{Items.Count} items");
+            }
+        }
+
+        if (Containers.Count > 0)
+        {
+            summary.Add($"{Containers.Count} container(s)");
+        }
+
+        return summary.Count > 0 ? $"📦 {string.Join(", ", summary)}" : null;
+    }
+
+    #endregion Map UI Helpers
 
     public override string ToString() => Name;
 }

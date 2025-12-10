@@ -12,7 +12,12 @@ public class EffectRegistry(Actor owner)
 
         if (!effect.CanHaveMultiple) // if you can't have multiple then we need to check for existing
         {
-            var existingEffect = _effects.FirstOrDefault(e => e.EffectKind == effect.EffectKind);
+            // Check for existing effect with same kind AND same target body part
+            // This prevents infinite stacking of effects like Frostbite on the same body part
+            var existingEffect = _effects.FirstOrDefault(e =>
+                e.EffectKind == effect.EffectKind &&
+                e.TargetBodyPart == effect.TargetBodyPart);
+
             if (existingEffect != null) // if we find existing, update, otherwise apply it below
             {
                 double newSeverity = Math.Max(existingEffect.Severity, effect.Severity); // for now go with the more severe effect, but maybe we change this to most recent?

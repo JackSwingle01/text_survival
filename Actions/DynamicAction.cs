@@ -5,13 +5,15 @@ public class DynamicAction(
     Func<GameContext, bool>? isAvailable,
     Action<GameContext>? onExecute,
     Func<GameContext, List<IGameAction>>? getNextActions,
-    string? userPrompt
+    string? userPrompt,
+    int timeInMinutes = 1
 ) : GameActionBase(name)
 {
     private readonly Func<GameContext, bool>? _isAvailable = isAvailable;
     private readonly Action<GameContext>? _onExecute = onExecute;
     private readonly Func<GameContext, List<IGameAction>>? _getNextActions = getNextActions;
     private readonly string? _userPrompt = userPrompt;
+    public override int TimeInMinutes => timeInMinutes;
 
     public override bool IsAvailable(GameContext ctx)
     {

@@ -1,4 +1,5 @@
-﻿
+using text_survival.Environments.Factories;
+
 namespace text_survival.Environments
 {
     public class WorldMap
@@ -22,6 +23,22 @@ namespace text_survival.Environments
         public Zone East => GetZone(X + 1, Y);
         public Zone West => GetZone(X - 1, Y);
 
+        /// <summary>Returns the coordinates of the current zone</summary>
+        public (int x, int y) GetCurrentCoordinates() => (X, Y);
+
+        /// <summary>Returns the coordinates of a specific zone, or null if not found</summary>
+        public (int x, int y)? GetZoneCoordinates(Zone zone)
+        {
+            foreach (var kvp in map)
+            {
+                if (kvp.Value == zone)
+                {
+                    return kvp.Key;
+                }
+            }
+            return null;
+        }
+
 
         public void MoveNorth() => MoveTo(X, Y + 1);
         public void MoveSouth() => MoveTo(X, Y - 1);
@@ -37,7 +54,7 @@ namespace text_survival.Environments
             zone.Visited = true;
         }
 
-        private Zone GetZone(int x, int y)
+        public Zone GetZone(int x, int y)
         {
             Zone? zone = map.GetValueOrDefault((x, y));
             if (zone == null)

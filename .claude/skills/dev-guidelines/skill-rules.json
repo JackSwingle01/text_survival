@@ -1,0 +1,65 @@
+{
+  "dev-guidelines": {
+    "type": "domain",
+    "enforcement": "suggest",
+    "priority": "high",
+    "promptTriggers": {
+      "keywords": [
+        "action",
+        "ActionBuilder",
+        "ActionFactory",
+        "builder pattern",
+        "body",
+        "damage",
+        "Body.Damage",
+        "survival",
+        "SurvivalProcessor",
+        "crafting",
+        "recipe",
+        "RecipeBuilder",
+        "effect",
+        "EffectBuilder",
+        "EffectRegistry",
+        "player",
+        "NPC",
+        "composition",
+        "manager",
+        "C# game",
+        "game system",
+        "property-based",
+        "ItemProperty"
+      ],
+      "intentPatterns": [
+        "(create|add|implement|build).*?action",
+        "(create|add|implement|build).*?recipe",
+        "(create|add|implement|build).*?effect",
+        "(create|add|implement|build).*?body.*?part",
+        "(implement|build|create).*?survival.*?(system|mechanic)",
+        "(use|apply|implement).*?builder.*?pattern",
+        "(create|add).*?NPC",
+        "(create|add).*?item",
+        "how.*?(action|recipe|effect|body|survival).*?work",
+        "player.*?vs.*?NPC",
+        "composition.*?architecture"
+      ]
+    },
+    "fileTriggers": {
+      "pathPatterns": [
+        "**/*.cs"
+      ],
+      "contentPatterns": [
+        "ActionBuilder",
+        "RecipeBuilder",
+        "EffectBuilder",
+        "Body\\.Damage",
+        "SurvivalProcessor",
+        "namespace.*?Actions",
+        "namespace.*?Crafting",
+        "namespace.*?Effects",
+        "namespace.*?Bodies",
+        "namespace.*?Survival",
+        "public class.*?Manager"
+      ]
+    }
+  }
+}

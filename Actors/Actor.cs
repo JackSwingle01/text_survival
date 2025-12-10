@@ -1,8 +1,8 @@
-﻿using text_survival.Bodies;
+using text_survival.Bodies;
+using text_survival.Combat;
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Items;
-using text_survival.PlayerComponents;
 
 namespace text_survival.Actors;
 
@@ -16,13 +16,21 @@ public abstract class Actor
     public bool IsAlive => !Body.IsDestroyed;
     public abstract Weapon ActiveWeapon { get; protected set; }
 
-    public virtual void Update()
+    public virtual void Update(bool suppressMessages = false)
     {
         EffectRegistry.Update();
+
+        if (CurrentLocation == null)
+        {
+            // Actor not in a valid location, skip survival update
+            return;
+        }
+
         var context = new SurvivalContext
         {
             ActivityLevel = 2,
             LocationTemperature = CurrentLocation.GetTemperature(),
+            SuppressMessages = suppressMessages,
         };
         Body.Update(TimeSpan.FromMinutes(1), context);
     }

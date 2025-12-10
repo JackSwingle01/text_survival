@@ -1,4 +1,6 @@
 using text_survival.Actors;
+using text_survival.Actors.NPCs;
+using text_survival.Combat;
 using text_survival.IO;
 
 namespace text_survival.Actions;
@@ -10,6 +12,7 @@ public class ActionBuilder
     private readonly List<Action<GameContext>> _onExecuteActions = [];
     private Func<GameContext, List<IGameAction>>? _getNextActions;
     private string? _userPrompt;
+    private int _timeInMinutes = 1; // Default: all actions take 1 minute unless specified
 
     public ActionBuilder Named(string name)
     {
@@ -47,6 +50,11 @@ public class ActionBuilder
         return this;
     }
 
+    public void SetTimeInMinutes(int minutes)
+    {
+        _timeInMinutes = minutes;
+    }
+
     public IGameAction Build()
     {
         if (string.IsNullOrWhiteSpace(_name))
@@ -72,7 +80,8 @@ public class ActionBuilder
             isAvailable: combinedRequirements,
             onExecute: combinedAction,
             getNextActions: _getNextActions,
-            userPrompt: _userPrompt
+            userPrompt: _userPrompt,
+            timeInMinutes: _timeInMinutes
         );
     }
 }
@@ -108,7 +117,8 @@ public static class ActionBuilderExtensions
 
     public static ActionBuilder TakesMinutes(this ActionBuilder b, int minutes)
     {
-        return b.Do(ctx => World.Update(minutes));
+        b.SetTimeInMinutes(minutes);
+        return b;
     }
 
     public static ActionBuilder OnlyIfCanBypassHostiles(this ActionBuilder b)
@@ -133,7 +143,7 @@ public static class ActionBuilderExtensions
         return b.Do(_ =>
         {
             Output.WriteLine("Press any key to continue...");
-            Console.ReadKey(true);
+            Input.ReadKey(true);
         });
     }
 }

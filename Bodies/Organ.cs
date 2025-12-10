@@ -23,4 +23,22 @@ public class Organ(string name, double toughness, CapacityContainer capacities, 
     {
         return _baseCapacities;
     }
+
+    public override CapacityContainer GetConditionMultipliers()
+    {
+        // Organs scale their specific capacities with condition
+        // Non-contributing capacities return 1.0 (no effect on averaging)
+        var multipliers = CapacityContainer.GetBaseCapacityMultiplier();
+
+        // Scale only the capacities this organ actually provides
+        foreach (var capacityName in CapacityNames.All)
+        {
+            if (_baseCapacities.GetCapacity(capacityName) > 0)
+            {
+                multipliers.SetCapacity(capacityName, Condition);
+            }
+        }
+
+        return multipliers;
+    }
 }

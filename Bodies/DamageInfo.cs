@@ -11,6 +11,7 @@ public enum DamageType
     Pierce,
     Poison,
     Bleed,
+    Internal, // Internal damage from starvation/dehydration (bypasses armor)
 
 }
 public class DamageInfo

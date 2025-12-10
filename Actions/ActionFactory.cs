@@ -1,10 +1,18 @@
 using text_survival.Actors;
+using text_survival.Actors.NPCs;
+using text_survival.Actors.Player;
 using text_survival.Bodies;
+using text_survival.Combat;
+using text_survival.Core;
 using text_survival.Crafting;
 using text_survival.Environments;
+using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Magic;
+using text_survival.Skills;
+using text_survival.Survival;
+using text_survival.UI;
 
 namespace text_survival.Actions;
 
@@ -31,7 +39,12 @@ public static class ActionFactory
                    .Do(ctx => BodyDescriber.DescribeSurvivalStats(ctx.player.Body.BundleSurvivalData(), ctx.player.GetSurvivalContext()))
                    .ThenShow(ctx => [
                         Describe.LookAround(ctx.currentLocation),
+                        Survival.AddFuelToFire(),
+                        Survival.StartFire(),
+                        Survival.HarvestResources(),
                         Survival.Forage(),
+                        Hunting.OpenHuntingMenu(), // MVP Hunting System
+                        Hunting.ViewBloodTrails(), // MVP Hunting System - Phase 4
                         Inventory.OpenInventory(),
                         Crafting.OpenCraftingMenu(),
                         Describe.CheckStats(),
@@ -46,16 +59,44 @@ public static class ActionFactory
     {
         public static IGameAction Forage(string name = "Forage")
         {
-            return CreateAction("Forage")
+            return CreateAction(name)
                 .When(ctx => ctx.currentLocation.GetFeature<ForageFeature>() != null)
-                .ShowMessage("You forage for 1 hour")
+                .ShowMessage("You forage for 15 minutes")
                 .Do(ctx =>
                 {
                     var forageFeature = ctx.currentLocation.GetFeature<ForageFeature>()!;
-                    forageFeature.Forage(1);
+                    forageFeature.Forage(0.25); // 15 minutes = 0.25 hours
                 })
                 .AndGainExperience("Foraging")
-                .ThenShow(_ => [Forage("Keep foraging"), Common.Return("Finish foraging")])
+                .TakesMinutes(0) // ForageFeature.Forage() handles time update internally
+                .ThenShow(ctx =>
+                {
+                    // Get items that were just found (marked with IsFound = true)
+                    var foundItems = ctx.currentLocation.Items
+                        .Where(i => i.IsFound)
+                        .ToList();
+
+                    if (foundItems.Any())
+                    {
+                        // Show collection options
+                        return new List<IGameAction>
+                        {
+                            Inventory.TakeAllFoundItems(),
+                            Inventory.SelectFoundItems(),
+                            Forage("Keep foraging"),
+                            Common.Return("Leave items and finish foraging")
+                        };
+                    }
+                    else
+                    {
+                        // No items found, continue foraging or return
+                        return new List<IGameAction>
+                        {
+                            Forage("Keep foraging"),
+                            Common.Return("Finish foraging")
+                        };
+                    }
+                })
                 .Build();
         }
 
@@ -65,11 +106,511 @@ public static class ActionFactory
             .When(ctx => ctx.player.Body.IsTired)
             .Do(ctx =>
             {
-                Output.WriteLine("How many hours would you like to sleep?");
-                ctx.player.Body.Rest(Input.ReadInt() * 60);
+                Output.WriteLine("How many hours would you like to sleep? (1-24)");
+                int hours = Input.ReadInt();
+
+                // Validate sleep duration
+                if (hours < 1 || hours > 24)
+                {
+                    Output.WriteWarning("You can only sleep for 1-24 hours at a time.");
+                    return;
+                }
+
+                int minutes = hours * 60;
+                ctx.player.Body.Rest(minutes);
+                World.Update(minutes, suppressMessages: true); // Suppress status messages during sleep
             })
+            .TakesMinutes(0) // Handles time manually based on user input
             .ThenReturn()
             .Build();
+        }
+
+        public static IGameAction AddFuelToFire()
+        {
+            return CreateAction("Add Fuel to Fire")
+            .When(ctx =>
+            {
+                // Check if there's a fire at the location
+                var fire = ctx.currentLocation.GetFeature<HeatSourceFeature>();
+                if (fire == null) return false;
+
+                // Check if player has any flammable items
+                var flammableItems = ctx.player.inventoryManager.Items
+                    .Where(stack => stack.FirstItem.CraftingProperties.Contains(ItemProperty.Flammable))
+                    .ToList();
+
+                return flammableItems.Count > 0;
+            })
+            .Do(ctx =>
+            {
+                var fire = ctx.currentLocation.GetFeature<HeatSourceFeature>()!;
+
+                // Display fire status with new physics system
+                string firePhase = fire.GetFirePhase();
+                double fireTemp = fire.GetCurrentFireTemperature();
+                double heatOutput = fire.GetEffectiveHeatOutput();
+                double fuelMinutes = fire.FuelRemaining * 60;
+
+                // Color-coded phase display
+                ConsoleColor phaseColor = firePhase switch
+                {
+                    "Roaring" => ConsoleColor.Red,
+                    "Building" or "Steady" => ConsoleColor.Yellow,
+                    "Igniting" or "Dying" => ConsoleColor.DarkYellow,
+                    "Embers" => ConsoleColor.DarkYellow,
+                    _ => ConsoleColor.DarkGray
+                };
+
+                Output.Write("\n");
+                Output.WriteLineColored(phaseColor, $"🔥 {fire.Name}: {firePhase} ({fireTemp:F0}°F)");
+
+                // Show detailed stats
+                if (fire.IsActive || fire.HasEmbers)
+                {
+                    Output.WriteLine($"   Heat contribution: +{heatOutput:F1}°F to location");
+                    Output.WriteLine($"   Fuel remaining: {fire.FuelMassKg:F2} kg (~{fuelMinutes:F0} min)");
+
+                    if (fire.HasEmbers)
+                    {
+                        double emberMinutes = fire.EmberTimeRemaining * 60;
+                        Output.WriteLine($"   Embers will last: {emberMinutes:F0} minutes");
+                    }
+                }
+                else
+                {
+                    Output.WriteLine($"   Status: Cold fire (no fuel)");
+                }
+
+                Output.WriteLine($"   Capacity: {fire.FuelMassKg:F2}/{fire.MaxFuelCapacityKg:F1} kg");
+                Output.WriteLine();
+
+                // Get all fuel items (items with FuelMassKg > 0)
+                var fuelStacks = ctx.player.inventoryManager.Items
+                    .Where(stack => stack.FirstItem.IsFuel())
+                    .ToList();
+
+                Output.WriteLine("Available fuel:");
+                var fuelOptions = new List<(ItemStack stack, bool canAdd, bool isSharp)>();
+
+                foreach (var stack in fuelStacks)
+                {
+                    var firstItem = stack.FirstItem;
+                    bool canAdd = fire.CanAddFuel(firstItem);
+                    bool isSharp = firstItem.CraftingProperties.Contains(ItemProperty.Sharp);
+
+                    var fuelType = firstItem.GetFuelType();
+                    string fuelInfo = fuelType.HasValue ? $"[{fuelType.Value}]" : "";
+
+                    // Show fuel mass and estimated burn time
+                    double massKg = firstItem.FuelMassKg;
+                    double burnHours = massKg; // Default 1kg/hr
+                    double minTempRequired = 0;
+
+                    if (fuelType.HasValue)
+                    {
+                        var props = FuelDatabase.Get(fuelType.Value);
+                        burnHours = massKg / props.BurnRateKgPerHour;
+                        minTempRequired = props.MinFireTemperature;
+                    }
+
+                    double burnMinutes = burnHours * 60;
+
+                    string statusIcon = canAdd ? "✓" : "✗";
+                    string warning = isSharp ? " ⚠ SHARP TOOL" : "";
+                    string tempWarning = !canAdd && minTempRequired > 0 ? $" (needs {minTempRequired}°F fire)" : "";
+
+                    Output.WriteLine($"  {statusIcon} {fuelOptions.Count + 1}. {stack.DisplayName} {fuelInfo} - {massKg:F2}kg (~{burnMinutes:F0} min){warning}{tempWarning}");
+
+                    fuelOptions.Add((stack, canAdd, isSharp));
+                }
+
+                Output.WriteLine($"  {fuelOptions.Count + 1}. Cancel");
+                Output.WriteLine();
+                Output.WriteLine("Select an item to add as fuel:");
+
+                int choice = Input.ReadInt();
+
+                if (choice < 1 || choice > fuelOptions.Count + 1)
+                {
+                    Output.WriteWarning("Invalid selection.");
+                    return;
+                }
+
+                if (choice == fuelOptions.Count + 1)
+                {
+                    Output.WriteLine("You decide not to add fuel to the fire.");
+                    return;
+                }
+
+                var selected = fuelOptions[choice - 1];
+                var selectedStack = selected.stack;
+                bool canAddFuel = selected.canAdd;
+                bool selectedIsSharp = selected.isSharp;
+
+                // Check if fire is hot enough for this fuel
+                if (!canAddFuel)
+                {
+                    Output.WriteWarning("The fire isn't hot enough to burn that fuel type!");
+                    Output.WriteLine("Try adding tinder or kindling first to build up the fire's temperature.");
+                    return;
+                }
+
+                // Warn if burning sharp tool
+                if (selectedIsSharp)
+                {
+                    Output.WriteWarning($"Warning: {selectedStack.FirstItem.Name} is a sharp tool!");
+                    Output.WriteLine("Are you sure you want to burn it? (yes/no)");
+                    if (!Input.ReadYesNo())
+                    {
+                        Output.WriteLine("You decide not to burn it.");
+                        return;
+                    }
+                }
+
+                // Calculate overflow based on mass capacity
+                double maxCanAddKg = fire.MaxFuelCapacityKg - fire.FuelMassKg;
+                double fuelMassKg = selectedStack.FirstItem.FuelMassKg;
+                bool overflow = fuelMassKg > maxCanAddKg;
+
+                // Remove item from inventory
+                var itemToRemove = selectedStack.Pop();
+                ctx.player.inventoryManager.RemoveFromInventory(itemToRemove);
+
+                // Track ember state before adding fuel
+                bool hadEmbers = fire.HasEmbers;
+
+                // Add fuel to fire (auto-relights from embers)
+                // Note: This uses legacy method - will be refactored later with proper fuel system
+                fire.AddFuel(itemToRemove);
+
+                // Show result
+                Output.WriteLine($"\nYou add the {itemToRemove.Name} to the {fire.Name}.");
+                if (overflow)
+                {
+                    double wastedKg = fuelMassKg - maxCanAddKg;
+                    Output.WriteWarning($"The fire was already near capacity. {wastedKg:F2} kg of fuel was wasted.");
+                }
+
+                double newFuelMinutes = fire.FuelRemaining * 60;
+                Output.WriteLine($"The fire now has {fire.FuelMassKg:F2} kg of fuel ({newFuelMinutes:F0} minutes).");
+                Output.WriteLine($"Fire temperature: {fire.GetCurrentFireTemperature():F0}°F ({fire.GetFirePhase()})");
+
+                // Show status after adding fuel
+                if (hadEmbers && fire.IsActive)
+                {
+                    Output.WriteLine("The embers ignite the new fuel! The fire springs back to life.");
+                }
+                else if (!fire.IsActive)
+                {
+                    Output.WriteWarning("\nThe fire is cold. You need to use 'Start Fire' to light it with proper fire-making materials.");
+                }
+
+                World.Update(1); // Takes 1 minute to add fuel
+            })
+            .TakesMinutes(0) // Handled manually via World.Update(1)
+            .ThenReturn()
+            .Build();
+        }
+
+        public static IGameAction StartFire()
+        {
+            return CreateAction("Start Fire")
+            .When(ctx =>
+            {
+                var fire = ctx.currentLocation.GetFeature<HeatSourceFeature>();
+
+                // Show if no fire exists OR if fire is fully cold (not embers)
+                bool noFire = fire == null;
+                bool fullyColdFire = fire != null && fire.FuelRemaining == 0 && !fire.HasEmbers;
+
+                if (!noFire && !fullyColdFire) return false;
+
+                // Check if player has fire-making tools and materials
+                var inventory = ctx.player.inventoryManager;
+
+                // Need a fire-making tool (identified by name)
+                bool hasTool = inventory.Items.Any(s => IsFireMakingTool(s.FirstItem));
+
+                // Need tinder and kindling
+                double tinder = inventory.Items
+                    .Where(s => s.FirstItem.HasProperty(ItemProperty.Tinder, 0))
+                    .Sum(s => s.TotalWeight);
+                double kindling = inventory.Items
+                    .Where(s => s.FirstItem.HasProperty(ItemProperty.Wood, 0))
+                    .Sum(s => s.TotalWeight);
+
+                return hasTool && tinder >= 0.05 && kindling >= 0.3;
+            })
+            .Do(ctx =>
+            {
+                var inventory = ctx.player.inventoryManager;
+                var existingFire = ctx.currentLocation.GetFeature<HeatSourceFeature>();
+                bool relightingFire = existingFire != null;
+
+                if (relightingFire)
+                {
+                    Output.WriteLine($"You prepare to relight the fire.");
+                }
+                else
+                {
+                    Output.WriteLine("You prepare to start a fire.");
+                }
+
+                // Find available fire-making tools
+                var availableTools = inventory.Items
+                    .Where(s => IsFireMakingTool(s.FirstItem) && s.FirstItem.NumUses > 0)
+                    .Select(s => s.FirstItem)
+                    .ToList();
+
+                if (!availableTools.Any())
+                {
+                    Output.WriteWarning("You don't have any working fire-making tools!");
+                    return;
+                }
+
+                // Check for tinder (provides +15% bonus)
+                bool hasTinder = inventory.Items.Any(s => s.FirstItem.HasProperty(ItemProperty.Tinder));
+                double tinderBonus = hasTinder ? 0.15 : 0.0;
+
+                // Show tool options
+                Output.WriteLine("\nChoose your fire-making tool:");
+                if (hasTinder)
+                {
+                    Output.WriteLine("  [Tinder available: +15% success bonus]");
+                }
+                int optionNum = 1;
+                foreach (var tool in availableTools)
+                {
+                    // Calculate success chance
+                    var toolParams = GetToolSkillParameters(tool);
+                    double successChance = toolParams.baseChance;
+                    var skill = ctx.player.Skills.GetSkill("Firecraft");
+                    if (toolParams.skillDC > 0)
+                    {
+                        double skillModifier = (skill.Level - toolParams.skillDC) * 0.1;
+                        successChance += skillModifier;
+                    }
+                    else
+                    {
+                        // No DC requirement, skill still helps
+                        double skillModifier = skill.Level * 0.1;
+                        successChance += skillModifier;
+                    }
+
+                    // Add tinder bonus
+                    successChance += tinderBonus;
+                    successChance = Math.Clamp(successChance, 0.05, 0.95);
+
+                    Output.WriteLine($"  {optionNum}. {tool} - {successChance:P0} success chance");
+                    optionNum++;
+                }
+                Output.WriteLine($"  {optionNum}. Cancel");
+
+                Output.WriteLine("\nSelect a tool:");
+                int choice = Input.ReadInt();
+
+                if (choice < 1 || choice > availableTools.Count + 1)
+                {
+                    Output.WriteWarning("Invalid selection.");
+                    return;
+                }
+
+                if (choice == availableTools.Count + 1)
+                {
+                    Output.WriteLine("You decide not to start a fire right now.");
+                    return;
+                }
+
+                var selectedTool = availableTools[choice - 1];
+
+                // Calculate success chance using SkillCheckCalculator
+                var (baseChance, skillDC) = GetToolSkillParameters(selectedTool);
+                var playerSkill = ctx.player.Skills.GetSkill("Firecraft");
+                double finalSuccessChance = SkillCheckCalculator.CalculateSuccessChance(
+                    baseChance,
+                    playerSkill.Level,
+                    skillDC);
+
+                // Add tinder bonus (fire-making specific)
+                finalSuccessChance += tinderBonus;
+                finalSuccessChance = Math.Clamp(finalSuccessChance, 0.05, 0.95);
+
+                Output.WriteLine($"\nYou work with the {selectedTool.Name}...");
+                World.Update(15); // 15 minutes per attempt
+
+                // Roll for success
+                bool success = Utils.DetermineSuccess(finalSuccessChance);
+
+                if (success)
+                {
+                    // Success: Consume tinder + kindling + tool durability
+                    ConsumeMaterial(ctx.player, ItemProperty.Tinder, 0.05);
+                    ConsumeMaterial(ctx.player, ItemProperty.Wood, 0.3);
+
+                    bool toolBroke = selectedTool.UseOnce();
+                    if (toolBroke)
+                    {
+                        inventory.RemoveFromInventory(selectedTool);
+                    }
+
+                    // Create or relight fire
+                    if (relightingFire)
+                    {
+                        Output.WriteSuccess($"\nSuccess! You relight the fire! ({finalSuccessChance:P0} chance)");
+                        var tinderFuel = ItemFactory.MakeTinderBundle(); // 0.03kg tinder
+                        var kindlingFuel = ItemFactory.MakeStick(); // 0.5kg kindling
+                        existingFire!.AddFuel(tinderFuel, 0.03); // Add tinder
+                        existingFire.AddFuel(kindlingFuel, 0.3); // Add kindling
+                        existingFire.SetActive(true);
+                    }
+                    else
+                    {
+                        Output.WriteSuccess($"\nSuccess! You start a fire! ({finalSuccessChance:P0} chance)");
+                        var newFire = new HeatSourceFeature(ctx.currentLocation);
+                        var tinderFuel = ItemFactory.MakeTinderBundle(); // 0.03kg tinder
+                        var kindlingFuel = ItemFactory.MakeStick(); // 0.5kg kindling
+                        newFire.AddFuel(tinderFuel, 0.03); // Add tinder
+                        newFire.AddFuel(kindlingFuel, 0.3); // Add kindling
+                        newFire.SetActive(true);
+                        ctx.currentLocation.Features.Add(newFire);
+                    }
+
+                    playerSkill.GainExperience(3); // Success XP
+                }
+                else
+                {
+                    // Failure: Consume only tinder, tool still loses durability
+                    ConsumeMaterial(ctx.player, ItemProperty.Tinder, 0.05);
+
+                    bool toolBroke = selectedTool.UseOnce();
+                    if (toolBroke)
+                    {
+                        inventory.RemoveFromInventory(selectedTool);
+                    }
+
+                    Output.WriteWarning($"\nYou failed to start the fire. The tinder was wasted. ({finalSuccessChance:P0} chance)");
+                    playerSkill.GainExperience(1); // Failure XP (learning from mistakes)
+                }
+            })
+            .TakesMinutes(0) // Handled manually via World.Update
+            .ThenReturn()
+            .Build();
+        }
+
+        private static void ConsumeMaterial(Player player, ItemProperty property, double amount)
+        {
+            double remaining = amount;
+            var eligibleStacks = player.inventoryManager.Items
+                .Where(stack => stack.FirstItem.HasProperty(property, 0))
+                .ToList();
+
+            foreach (var stack in eligibleStacks)
+            {
+                while (stack.Count > 0 && remaining > 0)
+                {
+                    var item = stack.FirstItem;
+                    if (item.Weight <= remaining)
+                    {
+                        remaining -= item.Weight;
+                        var consumed = stack.Pop();
+                        player.inventoryManager.RemoveFromInventory(consumed);
+                    }
+                    else
+                    {
+                        item.Weight -= remaining;
+                        remaining = 0;
+                    }
+                }
+                if (remaining <= 0) break;
+            }
+        }
+
+        private static bool IsFireMakingTool(Item item)
+        {
+            return item.Name is "Hand Drill" or "Bow Drill" or "Flint and Steel";
+        }
+
+        private static (double baseChance, int skillDC) GetToolSkillParameters(Item tool)
+        {
+            return tool.Name switch
+            {
+                "Hand Drill" => (0.30, 0),      // 30% base, no DC
+                "Bow Drill" => (0.50, 1),       // 50% base, DC 1
+                "Flint and Steel" => (0.90, 0), // 90% base, no DC
+                _ => (0.30, 0)                   // Default
+            };
+        }
+
+        // Harvestable Feature Actions
+
+        public static IGameAction HarvestResources()
+        {
+            return CreateAction("Harvest Resources")
+                .When(ctx => ctx.currentLocation.Features
+                    .OfType<HarvestableFeature>()
+                    .Any(f => f.IsDiscovered))
+                .ThenShow(ctx =>
+                {
+                    var harvestables = ctx.currentLocation.Features
+                        .OfType<HarvestableFeature>()
+                        .Where(f => f.IsDiscovered)
+                        .Select(f => InspectHarvestable(f))
+                        .ToList<IGameAction>();
+
+                    harvestables.Add(Common.Return("Back to Main Menu"));
+                    return harvestables;
+                })
+                .Build();
+        }
+
+        public static IGameAction HarvestFromFeature(HarvestableFeature feature)
+        {
+            return CreateAction($"Harvest from {feature.DisplayName}")
+                .When(_ => feature.IsDiscovered && feature.HasAvailableResources())
+                .Do(ctx =>
+                {
+                    Output.WriteLine("Harvesting will take 5 minutes...");
+                    Output.WriteLine();
+
+                    var items = feature.Harvest();
+
+                    if (items.Count > 0)
+                    {
+                        foreach (var item in items)
+                        {
+                            ctx.player.TakeItem(item);
+                        }
+
+                        // Group items by name for cleaner display
+                        var grouped = items.GroupBy(i => i.Name)
+                            .Select(g => $"{g.Key} ({g.Count()})");
+                        Output.WriteSuccess($"You spent 5 minutes harvesting and gathered: {string.Join(", ", grouped)}");
+                    }
+                    else
+                    {
+                        Output.WriteLine($"The {feature.DisplayName} has been depleted.");
+                    }
+                })
+                .TakesMinutes(5) // Harvesting is quick
+                .ThenReturn()
+                .Build();
+        }
+
+        public static IGameAction InspectHarvestable(HarvestableFeature feature)
+        {
+            return CreateAction($"Inspect {feature.DisplayName}")
+                .When(_ => feature.IsDiscovered)
+                .Do(ctx =>
+                {
+                    Output.WriteLine(feature.Description);
+                    Output.WriteLine();
+                    Output.WriteLine($"Status: {feature.GetStatusDescription()}");
+                })
+                .ThenShow(ctx => [
+                    HarvestFromFeature(feature),
+                    Common.Return()
+                ])
+                .Build();
         }
     }
 
@@ -80,6 +621,55 @@ public static class ActionFactory
             return CreateAction($"Go to {location.Name}{(location.Visited ? " (Visited)" : "")}")
             .When(_ => location.IsFound)
             .Do(ctx => location.Interact(ctx.player))
+            .ThenReturn()
+            .Build();
+        }
+
+        public static IGameAction GoToLocationByMap()
+        {
+            return CreateAction("Use map to navigate locally")
+            .Do(ctx =>
+            {
+                // Show the unified map
+                string mapDisplay = UI.MapRenderer.RenderUnifiedMap(
+                    ctx.player.GetWorldMap(),
+                    ctx.player.CurrentZone,
+                    ctx.currentLocation
+                );
+                Output.WriteLine(mapDisplay);
+
+                // Get directional input
+                string direction = UI.MapController.GetDirectionalInput();
+
+                if (direction == "Q")
+                {
+                    Output.WriteLine("You decide to stay where you are.");
+                    return;
+                }
+
+                // Try to travel locally first, then zone if no local location
+                var localDestination = UI.MapController.GetLocationInDirection(
+                    ctx.player.CurrentZone,
+                    ctx.currentLocation,
+                    direction
+                );
+
+                if (localDestination != null)
+                {
+                    // Local travel within zone
+                    ctx.player.TravelToLocalLocation(direction);
+                }
+                else
+                {
+                    // No local location in that direction - ask if they want to travel to adjacent zone
+                    Output.WriteLine($"There is no nearby location to the {direction.ToLower()}.");
+                    Output.WriteLine("Would you like to travel to the adjacent region instead? (y/n)");
+                    if (Input.ReadYesNo())
+                    {
+                        ctx.player.TravelToAdjacentZone(direction);
+                    }
+                }
+            })
             .ThenReturn()
             .Build();
         }
@@ -122,6 +712,11 @@ public static class ActionFactory
             .ThenShow(ctx =>
             {
                 var options = new List<IGameAction>();
+
+                // Add new map-based navigation as first option
+                options.Add(GoToLocationByMap());
+
+                // Keep traditional location list for backward compatibility
                 foreach (var location in ctx.currentLocation.GetNearbyLocations())
                 {
                     options.Add(GoToLocation(location));
@@ -146,7 +741,7 @@ public static class ActionFactory
 
         public static IGameAction DropItem(Item item)
         {
-            return CreateAction($"Inspect {item}")
+            return CreateAction($"Drop {item}")
             .ShowMessage($"You drop the {item}")
             .Do(ctx => ctx.player.DropItem(item))
             .ThenShow(_ => [OpenInventory()])
@@ -158,6 +753,78 @@ public static class ActionFactory
             return CreateAction($"Use {item}")
             .Do(ctx => ctx.player.UseItem(item))
             .ThenShow(_ => [OpenInventory()])
+            .Build();
+        }
+
+        public static IGameAction TakeAllFoundItems()
+        {
+            return CreateAction("Take all items")
+            .Do(ctx =>
+            {
+                var foundItems = ctx.currentLocation.Items
+                    .Where(i => i.IsFound)
+                    .ToList();
+
+                foreach (var item in foundItems)
+                {
+                    ctx.player.TakeItem(item);
+                }
+
+                Output.WriteLine($"You collected {foundItems.Count} item(s).");
+            })
+            .ThenShow(_ => [Survival.Forage("Keep foraging"), Common.Return("Finish foraging")])
+            .Build();
+        }
+
+        public static IGameAction SelectFoundItems()
+        {
+            return CreateAction("Select items to take")
+            .ThenShow(ctx =>
+            {
+                var foundItems = ctx.currentLocation.Items
+                    .Where(i => i.IsFound)
+                    .ToList();
+
+                var actions = new List<IGameAction>();
+                foreach (var item in foundItems)
+                {
+                    actions.Add(PickUpItemFromForaging(item));
+                }
+                actions.Add(Survival.Forage("Keep foraging"));
+                actions.Add(Common.Return("Finish foraging"));
+                return actions;
+            })
+            .Build();
+        }
+
+        public static IGameAction PickUpItemFromForaging(Item item)
+        {
+            return CreateAction($"Take {item.Name}")
+            .When(_ => item.IsFound)
+            .ShowMessage($"You take the {item}")
+            .Do(ctx => ctx.player.TakeItem(item))
+            .ThenShow(ctx =>
+            {
+                // Check if there are more items to collect
+                var remainingItems = ctx.currentLocation.Items
+                    .Where(i => i.IsFound)
+                    .ToList();
+
+                if (remainingItems.Any())
+                {
+                    // Still items left, show select menu again
+                    return new List<IGameAction> { SelectFoundItems() };
+                }
+                else
+                {
+                    // No more items, continue foraging or return
+                    return new List<IGameAction>
+                    {
+                        Survival.Forage("Keep foraging"),
+                        Common.Return("Finish foraging")
+                    };
+                }
+            })
             .Build();
         }
 
@@ -478,14 +1145,13 @@ public static class ActionFactory
 
         private static void DisplayCombatStatus(Player player, Actor enemy)
         {
-            ConsoleColor oldColor = Console.ForegroundColor;
             // Player status
-            Console.ForegroundColor = GetHealthColor(player.Body.Health / player.Body.MaxHealth);
-            Output.WriteLine($"You: {Math.Round(player.Body.Health * 100, 0)}/{Math.Round(player.Body.MaxHealth * 100, 1)} HP");
+            ConsoleColor playerHealthColor = GetHealthColor(player.Body.Health / player.Body.MaxHealth);
+            Output.WriteLineColored(playerHealthColor, $"You: {Math.Round(player.Body.Health * 100, 0)}/{Math.Round(player.Body.MaxHealth * 100, 1)} HP");
+
             // Enemy status
-            Console.ForegroundColor = GetHealthColor(enemy.Body.Health / enemy.Body.MaxHealth);
-            Output.WriteLine($"{enemy.Name}: {Math.Round(enemy.Body.Health * 100, 0)}/{Math.Round(enemy.Body.MaxHealth * 100, 0)} HP");
-            Console.ForegroundColor = oldColor;
+            ConsoleColor enemyHealthColor = GetHealthColor(enemy.Body.Health / enemy.Body.MaxHealth);
+            Output.WriteLineColored(enemyHealthColor, $"{enemy.Name}: {Math.Round(enemy.Body.Health * 100, 0)}/{Math.Round(enemy.Body.MaxHealth * 100, 0)} HP");
         }
 
         private static ConsoleColor GetHealthColor(double healthPercentage)
@@ -665,6 +1331,17 @@ public static class ActionFactory
                     Output.WriteLine("\nYour available materials:");
                     ShowPlayerProperties(ctx.player, recipe.RequiredProperties);
 
+                    // Show preview of what will be consumed
+                    var preview = recipe.PreviewConsumption(ctx.player);
+                    if (preview.Count > 0)
+                    {
+                        Output.WriteLine("\nThis will consume:");
+                        foreach (var (itemName, amount) in preview)
+                        {
+                            Output.WriteLine($"  - {itemName} ({amount:F2}kg)");
+                        }
+                    }
+
                     Output.WriteLine("\nDo you want to attempt this craft?");
 
                     if (Input.ReadYesNo())
@@ -672,6 +1349,7 @@ public static class ActionFactory
                         ctx.CraftingManager.Craft(recipe);
                     }
                 })
+                .TakesMinutes(0) // CraftingManager.Craft() handles time update internally
                 .ThenShow(ctx => [OpenCraftingMenu()])
                 .Build();
         }
@@ -828,57 +1506,191 @@ public static class ActionFactory
             return CreateAction($"Look around {location.Name}")
             .Do(ctx =>
             {
-                // Header with location info
-                Output.WriteSuccess($"\t>>> {location.Name.ToUpper()} <<<");
-                Output.WriteLine("(", location.Parent, " • ", World.GetTimeOfDay(), " • ", location.GetTemperature(), "°F)");
-                Output.WriteLine("\nYou see:");
+                // Calculate box width (54 chars like stats display)
+                const int boxWidth = 54;
+                string locationName = location.Name.ToUpper();
 
-                // Items and objects found here
-                bool hasItems = false;
+                // Top border
+                Output.WriteLine("┌" + new string('─', boxWidth - 2) + "┐");
 
-                foreach (var item in location.Items)
+                // Location name (centered)
+                int namePadding = (boxWidth - 4 - locationName.Length) / 2;
+                Output.Write("│ " + new string(' ', namePadding));
+                Output.WriteColored(ConsoleColor.Cyan, locationName);
+                int rightPadding = boxWidth - 4 - namePadding - locationName.Length;
+                Output.WriteLine(new string(' ', rightPadding) + " │");
+
+                // Zone • Time • Temperature
+                string subheader = $"{location.Parent.Name} • {World.GetTimeOfDay()} • {location.GetTemperature():F1}°F";
+                int subPadding = boxWidth - 4 - subheader.Length;
+                Output.Write("│ ");
+                Output.WriteColored(ConsoleColor.Gray, subheader);
+                Output.WriteLine(new string(' ', subPadding) + " │");
+
+                // Divider
+                Output.WriteLine("├" + new string('─', boxWidth - 2) + "┤");
+
+                // Content section - prioritize features (fires, shelters)
+                bool hasContent = false;
+
+                // Display LocationFeatures FIRST (most important)
+                int deadFiresShown = 0;
+                foreach (var feature in location.Features)
                 {
-                    Output.WriteLine("\t", item);
-                    item.IsFound = true;
-                    hasItems = true;
+                    if (feature is HeatSourceFeature heat)
+                    {
+                        // Show active fires with status and warmth
+                        if (heat.IsActive && heat.FuelRemaining > 0)
+                        {
+                            string status = heat.FuelRemaining < 0.5 ? "Dying" : "Burning";
+                            int minutesLeft = (int)(heat.FuelRemaining * 60);
+                            string timeStr = minutesLeft >= 60 ? $"{heat.FuelRemaining:F1} hr" : $"{minutesLeft} min";
+                            double effectiveHeat = heat.GetEffectiveHeatOutput();
+                            string fireInfo = $"{heat.Name}: {status} ({timeStr}) +{effectiveHeat:F0}°F";
+
+                            Output.Write("│ ");
+                            ConsoleColor fireColor = heat.FuelRemaining < 0.5 ? ConsoleColor.Yellow : ConsoleColor.Red;
+                            Output.WriteColored(fireColor, fireInfo);
+                            Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
+                            hasContent = true;
+                        }
+                        // Show embers with remaining time and reduced warmth
+                        else if (heat.HasEmbers && heat.EmberTimeRemaining > 0)
+                        {
+                            int minutesLeft = (int)(heat.EmberTimeRemaining * 60);
+                            string timeStr = minutesLeft >= 60 ? $"{heat.EmberTimeRemaining:F1} hr" : $"{minutesLeft} min";
+                            double effectiveHeat = heat.GetEffectiveHeatOutput();
+                            string fireInfo = $"{heat.Name}: Embers ({timeStr}) +{effectiveHeat:F1}°F";
+
+                            Output.Write("│ ");
+                            Output.WriteColored(ConsoleColor.DarkYellow, fireInfo);
+                            Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
+                            hasContent = true;
+                        }
+                        // Show fires with fuel but not lit
+                        else if (heat.FuelRemaining > 0 && !heat.IsActive)
+                        {
+                            int minutesLeft = (int)(heat.FuelRemaining * 60);
+                            string fireInfo = $"{heat.Name}: Cold ({minutesLeft} min fuel ready)";
+
+                            Output.Write("│ ");
+                            Output.WriteColored(ConsoleColor.DarkGray, fireInfo);
+                            Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
+                            hasContent = true;
+                        }
+                        // Show max 1 dead fire per location
+                        else if (deadFiresShown == 0)
+                        {
+                            string fireInfo = $"{heat.Name}: Cold";
+
+                            Output.Write("│ ");
+                            Output.WriteColored(ConsoleColor.DarkGray, fireInfo);
+                            Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
+                            hasContent = true;
+                            deadFiresShown++;
+                        }
+                    }
+                    else if (feature is ShelterFeature shelter)
+                    {
+                        string shelterInfo = $"{shelter.Name} [shelter]";
+                        Output.Write("│ ");
+                        Output.WriteColored(ConsoleColor.Green, shelterInfo);
+                        Output.WriteLine(new string(' ', boxWidth - 4 - shelterInfo.Length) + " │");
+                        hasContent = true;
+                    }
+                    else if (feature is HarvestableFeature harvestable && harvestable.IsDiscovered)
+                    {
+                        string displayText = $"{harvestable.DisplayName} (harvestable)";
+                        Output.Write("│ ");
+                        Output.WriteColored(ConsoleColor.Yellow, displayText);
+                        // Truncate if too long
+                        if (displayText.Length > boxWidth - 4)
+                        {
+                            Output.WriteLine(" │");
+                        }
+                        else
+                        {
+                            Output.WriteLine(new string(' ', boxWidth - 4 - displayText.Length) + " │");
+                        }
+                        hasContent = true;
+                    }
                 }
 
-                foreach (var container in location.Containers)
+                // Items, containers, NPCs
+                foreach (var item in location.Items.Where(i => i.IsFound))
                 {
-                    Output.WriteLine("\t", container, " [container]");
-                    container.IsFound = true;
-                    hasItems = true;
+                    string itemStr = item.ToString();
+                    Output.Write("│ ");
+                    Output.WriteColored(ConsoleColor.Cyan, itemStr);
+                    Output.WriteLine(new string(' ', boxWidth - 4 - itemStr.Length) + " │");
+                    hasContent = true;
                 }
 
-                foreach (var npc in location.Npcs)
+                foreach (var container in location.Containers.Where(c => c.IsFound))
                 {
-                    Output.WriteLine("\t", npc, " [creature]");
-                    npc.IsFound = true;
-                    hasItems = true;
+                    string containerStr = $"{container.Name} [container]";
+                    Output.Write("│ ");
+                    Output.WriteColored(ConsoleColor.Yellow, containerStr);
+                    Output.WriteLine(new string(' ', boxWidth - 4 - containerStr.Length) + " │");
+                    hasContent = true;
                 }
 
-                if (!hasItems)
+                foreach (var npc in location.Npcs.Where(n => n.IsFound))
                 {
-                    Output.WriteLine("Nothing...");
+                    string npcStr = $"{npc.Name} [creature]";
+                    Output.Write("│ ");
+                    Output.WriteColored(ConsoleColor.Red, npcStr);
+                    Output.WriteLine(new string(' ', boxWidth - 4 - npcStr.Length) + " │");
+                    hasContent = true;
                 }
 
-                // Add spacing before exits if there were items
+                // Empty location
+                if (!hasContent)
+                {
+                    Output.WriteLine("│" + new string(' ', boxWidth - 2) + "│");
+                }
+
+                // Exits section
                 var nearbyLocations = location.GetNearbyLocations();
-                if (hasItems && nearbyLocations.Count > 0)
-                {
-                    Output.WriteLine();
-                }
-
-                // Exits
                 if (nearbyLocations.Count > 0)
                 {
-                    Output.WriteLine("Nearby Places:");
+                    Output.WriteLine("│" + new string(' ', boxWidth - 2) + "│");
+
+                    // Build exits on one line
+                    string exitsLine = "Exits: ";
+                    for (int i = 0; i < nearbyLocations.Count; i++)
+                    {
+                        exitsLine += "→ " + nearbyLocations[i].Name;
+                        nearbyLocations[i].IsFound = true;
+                        if (i < nearbyLocations.Count - 1) exitsLine += "  ";
+                    }
+
+                    // Wrap if too long
+                    if (exitsLine.Length <= boxWidth - 4)
+                    {
+                        Output.Write("│ ");
+                        Output.WriteColored(ConsoleColor.DarkCyan, exitsLine);
+                        Output.WriteLine(new string(' ', boxWidth - 4 - exitsLine.Length) + " │");
+                    }
+                    else
+                    {
+                        // Split across multiple lines if needed
+                        Output.Write("│ ");
+                        Output.WriteColored(ConsoleColor.DarkCyan, "Exits:");
+                        Output.WriteLine(new string(' ', boxWidth - 10) + " │");
+
+                        foreach (var nearbyLocation in nearbyLocations)
+                        {
+                            string exitStr = "  → " + nearbyLocation.Name;
+                            Output.Write("│ ");
+                            Output.WriteColored(ConsoleColor.DarkCyan, exitStr);
+                            Output.WriteLine(new string(' ', boxWidth - 4 - exitStr.Length) + " │");
+                        }
+                    }
                 }
-                foreach (var nearbyLocation in nearbyLocations)
-                {
-                    Output.WriteLine("\t→ ", nearbyLocation);
-                    nearbyLocation.IsFound = true;
-                }
+
+                // Bottom border
+                Output.WriteLine("└" + new string('─', boxWidth - 2) + "┘");
                 Output.WriteLine();
             })
             .ThenShow(ctx =>
@@ -918,5 +1730,375 @@ public static class ActionFactory
         }
     }
 
+    public static class Hunting
+    {
+        /// <summary>
+        /// Main hunting menu - shows available animals to hunt.
+        /// </summary>
+        public static IGameAction OpenHuntingMenu()
+        {
+            return CreateAction("Hunt")
+            .When(ctx =>
+            {
+                // Only show if there are living animals in the location
+                var animals = ctx.currentLocation.Npcs
+                    .OfType<Animal>()
+                    .Where(a => a.IsAlive && a.CurrentLocation == ctx.currentLocation)
+                    .ToList();
+                return animals.Any();
+            })
+            .Do(ctx => Output.WriteLine("You scan the area for prey..."))
+            .ThenShow(ctx =>
+            {
+                var animals = ctx.currentLocation.Npcs
+                    .OfType<Animal>()
+                    .Where(a => a.IsAlive && a.CurrentLocation == ctx.currentLocation)
+                    .ToList();
+
+                var actions = new List<IGameAction>();
+
+                // Add action for each animal
+                foreach (var animal in animals)
+                {
+                    actions.Add(BeginHunt(animal));
+                }
+
+                actions.Add(Common.Return("Cancel"));
+                return actions;
+            })
+            .Build();
+        }
+
+        /// <summary>
+        /// Start hunting a specific animal.
+        /// </summary>
+        private static IGameAction BeginHunt(Animal animal)
+        {
+            return CreateAction($"Stalk {animal.Name}")
+            .Do(ctx =>
+            {
+                ctx.player.stealthManager.StartHunting(animal);
+
+                // Show weapon range info and warnings
+                var currentDistance = animal.DistanceFromPlayer;
+
+                if (ctx.player.inventoryManager.Weapon is RangedWeapon rangedWeapon)
+                {
+                    Output.WriteLine($"Distance: {currentDistance}m | Your {rangedWeapon.Name} effective range: {rangedWeapon.EffectiveRange}m (max: {rangedWeapon.MaxRange}m)");
+                }
+                else
+                {
+                    Output.WriteWarning("You have no ranged weapon equipped. You'll need to get very close to attack with melee weapons.");
+                }
+            })
+            .ThenShow(_ => [HuntingSubMenu()])
+            .Build();
+        }
+
+        /// <summary>
+        /// Hunting submenu - shown while actively hunting an animal.
+        /// </summary>
+        private static IGameAction HuntingSubMenu()
+        {
+            return CreateAction("Hunting...")
+            .When(ctx => ctx.player.stealthManager.IsHunting)
+            .Do(ctx =>
+            {
+                // Display distance and shooting range information
+                var target = ctx.player.stealthManager.GetCurrentTarget();
+                if (target != null)
+                {
+                    var currentDistance = target.DistanceFromPlayer;
+                    Output.WriteLine($"Distance: {currentDistance}m");
+                    Output.WriteLine($"Animal state: {target.State}");
+                    Output.WriteLine();
+
+                    // Show distance until in shooting range if ranged weapon equipped
+                    if (ctx.player.inventoryManager.Weapon is RangedWeapon rangedWeapon)
+                    {
+                        var distanceToRange = currentDistance - rangedWeapon.MaxRange;
+                        if (distanceToRange > 0)
+                        {
+                            Output.WriteColored(ConsoleColor.Yellow, $"Distance until shooting range: {distanceToRange}m");
+                            Output.WriteLine();
+                        }
+                        else
+                        {
+                            Output.WriteSuccess("Within shooting range!");
+                            Output.WriteLine();
+                        }
+                    }
+                }
+            })
+            .ThenShow(ctx =>
+            {
+                if (!ctx.player.stealthManager.IsTargetValid())
+                {
+                    // Target is no longer valid, return to main menu
+                    return new List<IGameAction> { Common.MainMenu() };
+                }
+
+                return new List<IGameAction>
+                {
+                    ApproachAnimal(),
+                    ShootTarget(),
+                    AssessTarget(),
+                    StopHunting(),
+                };
+            })
+            .Build();
+        }
+
+        /// <summary>
+        /// Approach the target animal, reducing distance and checking for detection.
+        /// </summary>
+        private static IGameAction ApproachAnimal()
+        {
+            return CreateAction("Approach")
+            .When(ctx => ctx.player.stealthManager.IsHunting)
+            .Do(ctx =>
+            {
+                bool success = ctx.player.stealthManager.AttemptApproach();
+
+                if (!success)
+                {
+                    // Animal detected us, StealthManager handled the response
+                    // Exit hunting mode
+                    return;
+                }
+
+                // Award XP for successful stealth approach
+                ctx.player.Skills.GetSkill("Hunting").GainExperience(1);
+            })
+            .TakesMinutes(7) // Approach takes 5-10 minutes (average 7)
+            .ThenShow(ctx =>
+            {
+                // If still hunting, return to hunting submenu
+                if (ctx.player.stealthManager.IsHunting)
+                {
+                    return new List<IGameAction> { HuntingSubMenu() };
+                }
+                else
+                {
+                    // Detection occurred, return to main menu
+                    return new List<IGameAction> { Common.MainMenu() };
+                }
+            })
+            .Build();
+        }
+
+        /// <summary>
+        /// Assess the target animal without approaching.
+        /// </summary>
+        private static IGameAction AssessTarget()
+        {
+            return CreateAction("Assess Target")
+            .When(ctx => ctx.player.stealthManager.IsHunting)
+            .Do(ctx => ctx.player.stealthManager.AssessTarget())
+            .WaitForUserInputToContinue()
+            .ThenShow(_ => [HuntingSubMenu()])
+            .Build();
+        }
+
+        /// <summary>
+        /// Shoot the target animal with a ranged weapon.
+        /// </summary>
+        private static IGameAction ShootTarget()
+        {
+            return CreateAction("Shoot")
+            .When(ctx =>
+            {
+                if (!ctx.player.stealthManager.IsHunting)
+                    return false;
+
+                // Check if player has a ranged weapon and ammunition
+                return ctx.player.ammunitionManager.CanShoot(out _);
+            })
+            .Do(ctx =>
+            {
+                Animal? target = ctx.player.stealthManager.GetCurrentTarget();
+                if (target == null)
+                {
+                    Output.WriteLine("You no longer have a target.");
+                    return;
+                }
+
+                // Attempt to shoot the target
+                bool shotFired = ctx.player.huntingManager.ShootTarget(target);
+
+                if (!shotFired)
+                {
+                    // HuntingManager already output the reason
+                    return;
+                }
+
+                // Check if target is still alive and hunting session is still active
+                // (HuntingManager handles stopping the session on kills or detection)
+            })
+            .TakesMinutes(1) // Taking a shot takes about 1 minute
+            .ThenShow(ctx =>
+            {
+                // If still hunting, return to hunting submenu
+                // Otherwise go back to main menu (combat initiated or animal dead)
+                if (ctx.player.stealthManager.IsHunting)
+                {
+                    return new List<IGameAction> { HuntingSubMenu() };
+                }
+                else
+                {
+                    return new List<IGameAction> { Common.MainMenu() };
+                }
+            })
+            .Build();
+        }
+
+        /// <summary>
+        /// Stop hunting the current target.
+        /// </summary>
+        private static IGameAction StopHunting()
+        {
+            return CreateAction("Stop Hunting")
+            .When(ctx => ctx.player.stealthManager.IsHunting)
+            .Do(ctx =>
+            {
+                ctx.player.stealthManager.StopHunting("You give up the hunt.");
+            })
+            .ThenReturn()
+            .Build();
+        }
+
+        /// <summary>
+        /// View available blood trails in current location (Phase 4).
+        /// </summary>
+        public static IGameAction ViewBloodTrails()
+        {
+            return CreateAction("Track Blood Trail")
+            .When(ctx => ctx.currentLocation.BloodTrails.Any())
+            .Do(ctx => Output.WriteLine("You search for blood trails..."))
+            .ThenShow(ctx =>
+            {
+                var trails = ctx.currentLocation.BloodTrails
+                    .Where(trail => trail.GetFreshness() > 0.0) // Only show trackable trails
+                    .ToList();
+
+                var actions = new List<IGameAction>();
+
+                foreach (var trail in trails)
+                {
+                    actions.Add(FollowBloodTrail(trail));
+                }
+
+                if (!actions.Any())
+                {
+                    Output.WriteLine("All trails have faded beyond tracking...");
+                    return new List<IGameAction> { Common.Return("Back") };
+                }
+
+                actions.Add(Common.Return("Cancel"));
+                return actions;
+            })
+            .Build();
+        }
+
+        /// <summary>
+        /// Attempt to follow a specific blood trail (Phase 4).
+        /// </summary>
+        private static IGameAction FollowBloodTrail(BloodTrail trail)
+        {
+            return CreateAction($"Follow {trail.GetTrailDescription()}")
+            .Do(ctx =>
+            {
+                int huntingSkill = ctx.player.Skills.GetSkill("Hunting").Level;
+                double trackingChance = trail.GetTrackingSuccessChance(huntingSkill);
+
+                Output.WriteLine($"\n{trail.GetTrailDescription()}");
+                Output.WriteLine(trail.GetSeverityDescription());
+                Output.WriteLine($"\nTracking success chance: {trackingChance * 100:F0}%");
+                Thread.Sleep(500);
+
+                double trackingRoll = Utils.RandDouble(0, 1);
+                bool success = trackingRoll < trackingChance;
+
+                if (success)
+                {
+                    Output.WriteLine($"\nYou successfully follow the trail!");
+                    Output.WriteLine($"(Rolled {trackingRoll * 100:F0}% vs {trackingChance * 100:F0}%)");
+
+                    // Award XP for successful tracking
+                    ctx.player.Skills.GetSkill("Hunting").GainExperience(3);
+                    Output.WriteLine("You gain 3 Hunting XP.");
+
+                    trail.IsTracked = true;
+
+                    // Check if animal should have bled out
+                    bool bledOut = CheckBleedOut(trail.SourceAnimal);
+
+                    // Check if animal is still alive
+                    if (trail.SourceAnimal.IsAlive && !bledOut)
+                    {
+                        Output.WriteLine($"\nYou find the wounded {trail.SourceAnimal.Name}!");
+                        // Re-add animal to location so player can engage
+                        trail.SourceAnimal.CurrentLocation = ctx.currentLocation;
+                        Output.WriteLine("The animal is too weak to flee. You can approach or shoot it.");
+                    }
+                    else
+                    {
+                        // Animal died from wounds
+                        if (!trail.SourceAnimal.IsAlive || bledOut)
+                        {
+                            if (bledOut && trail.SourceAnimal.IsAlive)
+                            {
+                                // Kill the animal from bleed-out
+                                var bleedDamage = new DamageInfo(trail.SourceAnimal.Body.Health, DamageType.Bleed, "Blood loss");
+                                trail.SourceAnimal.Body.Damage(bleedDamage);
+                            }
+
+                            Output.WriteLine($"\nYou find the {trail.SourceAnimal.Name}'s corpse.");
+                            Output.WriteLine("It bled out from its wounds.");
+                            // Re-add corpse to location for butchering
+                            trail.SourceAnimal.CurrentLocation = ctx.currentLocation;
+                        }
+                    }
+                }
+                else
+                {
+                    Output.WriteLine($"\nYou lose the trail...");
+                    Output.WriteLine($"(Rolled {trackingRoll * 100:F0}% vs {trackingChance * 100:F0}%)");
+
+                    // Award small XP for attempt
+                    ctx.player.Skills.GetSkill("Hunting").GainExperience(1);
+                }
+            })
+            .TakesMinutes(15) // Tracking takes 15 minutes
+            .WaitForUserInputToContinue()
+            .ThenReturn()
+            .Build();
+        }
+
+        /// <summary>
+        /// Checks if a wounded animal has bled out over time (Phase 4).
+        /// </summary>
+        private static bool CheckBleedOut(Animal animal)
+        {
+            if (!animal.IsBleeding || animal.WoundedTime == null)
+                return false;
+
+            TimeSpan elapsed = World.GameTime - animal.WoundedTime.Value;
+            double hoursElapsed = elapsed.TotalHours;
+
+            // Bleed-out time depends on wound severity
+            // Critical wounds (0.7+): 1-2 hours
+            // Moderate wounds (0.4-0.7): 2-4 hours
+            // Minor wounds (< 0.4): 4-6 hours
+            double bleedOutTime = animal.CurrentWoundSeverity switch
+            {
+                >= 0.7 => 1.5,  // Critical: 1.5 hours
+                >= 0.4 => 3.0,  // Moderate: 3 hours
+                _ => 5.0        // Minor: 5 hours
+            };
+
+            return hoursElapsed >= bleedOutTime;
+        }
+    }
 
 }

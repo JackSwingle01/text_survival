@@ -1,4 +1,6 @@
+using text_survival.Core;
 using text_survival.IO;
+
 namespace text_survival.Actions;
 
 public interface IGameAction
@@ -12,10 +14,12 @@ public abstract class GameActionBase(string name) : IGameAction
 {
     public virtual string Name { get; set; } = name;
     public virtual bool IsAvailable(GameContext ctx) => true;
+    public virtual int TimeInMinutes => 1; // Default: all actions take 1 minute
+
     public void Execute(GameContext ctx)
     {
         OnExecute(ctx);
-        World.Update(1);
+        World.Update(TimeInMinutes);
         SelectNextAction(ctx);
     }
 
