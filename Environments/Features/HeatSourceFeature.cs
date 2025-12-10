@@ -1,4 +1,3 @@
-using text_survival.Environments;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
@@ -6,18 +5,15 @@ namespace text_survival.Environments.Features;
 public class HeatSourceFeature : LocationFeature
 {
     // Fire State
-    public bool IsActive { get; private set; }
+    public bool IsActive => FuelMassKg > 0;
     public bool HasEmbers { get; private set; }
 
     // Fuel Management (mass-based, not time-based)
     public double FuelMassKg { get; private set; }
     public double MaxFuelCapacityKg { get; private set; }
-    private Dictionary<FuelType, double> _fuelMixture = new(); // Track fuel types and their masses
+    private Dictionary<FuelType, double> _fuelMixture = []; // Track fuel types and their masses
 
-    /// <summary>
-    /// Legacy property: Estimated fuel remaining in hours (for backward compatibility)
-    /// </summary>
-    public double FuelRemaining
+    public double HoursRemaining
     {
         get
         {
@@ -31,19 +27,16 @@ public class HeatSourceFeature : LocationFeature
     public double FireAgeMinutes { get; private set; } // Time since fire started/rekindled
     private double _emberDuration; // Total ember duration when embers started
     public double EmberTimeRemaining { get; private set; } // Time remaining for embers
-    private double _totalBurnTime; // Track total burn time for ember calculation
 
     public HeatSourceFeature(Location location, double maxCapacityKg = 12.0)
         : base("Campfire", location)
     {
-        IsActive = false;
         HasEmbers = false;
         FuelMassKg = 0;
         MaxFuelCapacityKg = maxCapacityKg;
         FireAgeMinutes = 0;
         EmberTimeRemaining = 0;
         _emberDuration = 0;
-        _totalBurnTime = 0;
     }
 
     #region Temperature Calculations
@@ -244,7 +237,6 @@ public class HeatSourceFeature : LocationFeature
         // Auto-relight from embers (embers still have heat to ignite fuel)
         if (HasEmbers && FuelMassKg > 0)
         {
-            IsActive = true;
             HasEmbers = false;
             EmberTimeRemaining = 0;
             FireAgeMinutes = 0; // Reset fire age when relighting
@@ -255,9 +247,7 @@ public class HeatSourceFeature : LocationFeature
         if (!IsActive && !HasEmbers && props.MinFireTemperature == 0)
         {
             // This fuel can start a fire from cold (used with Start Fire action)
-            IsActive = true;
             FireAgeMinutes = 0;
-            _totalBurnTime = 0;
         }
 
         return true;
@@ -305,14 +295,11 @@ public class HeatSourceFeature : LocationFeature
         double minutesElapsed = elapsed.TotalMinutes;
         FireAgeMinutes += minutesElapsed;
 
-        if (IsActive && FuelMassKg > 0)
+        if (FuelMassKg > 0)
         {
             // Calculate fuel consumption
             double burnRateKgPerHour = GetWeightedBurnRate();
             double fuelConsumed = burnRateKgPerHour * (minutesElapsed / 60.0);
-
-            // Track total burn time for ember calculation
-            _totalBurnTime += minutesElapsed / 60.0;
 
             // Consume fuel proportionally from each fuel type in mixture
             if (FuelMassKg > 0)
@@ -335,16 +322,14 @@ public class HeatSourceFeature : LocationFeature
             // Transition to embers when fuel depleted
             if (FuelMassKg <= 0)
             {
-                IsActive = false;
                 HasEmbers = true;
 
                 // Embers last 25% of total burn time
-                _emberDuration = _totalBurnTime * 0.25;
+                _emberDuration = FireAgeMinutes / 60 * 0.25;
                 EmberTimeRemaining = _emberDuration;
 
                 FuelMassKg = 0;
                 _fuelMixture.Clear();
-                _totalBurnTime = 0; // Reset for next fire
             }
         }
         else if (HasEmbers)
@@ -357,25 +342,6 @@ public class HeatSourceFeature : LocationFeature
                 HasEmbers = false;
                 _emberDuration = 0;
             }
-        }
-    }
-
-    /// <summary>
-    /// Manually activate fire (for fire-starting actions)
-    /// </summary>
-    public void SetActive(bool active)
-    {
-        if (active && FuelMassKg > 0)
-        {
-            IsActive = true;
-            HasEmbers = false;
-            EmberTimeRemaining = 0;
-            FireAgeMinutes = 0;
-            _totalBurnTime = 0;
-        }
-        else if (!active)
-        {
-            IsActive = false;
         }
     }
 
