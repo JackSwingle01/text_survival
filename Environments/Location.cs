@@ -1,28 +1,9 @@
-﻿
-using text_survival.Actors;
-using text_survival.Environments.Features;
+﻿using text_survival.Environments.Features;
 using text_survival.Actors.Player;
-using text_survival.Environments.Features;
 using text_survival.Actors.NPCs;
-using text_survival.Environments.Features;
-using text_survival.Actors.Player;
-using text_survival.Environments.Features;
 using text_survival.IO;
-using text_survival.Environments.Features;
-using text_survival.Actors.Player;
-using text_survival.Environments.Features;
-using text_survival.Actors.NPCs;
-using text_survival.Environments.Features;
-using text_survival.Actors.Player;
-using text_survival.Environments.Features;
 using text_survival.Items;
-using text_survival.Environments.Features;
-using text_survival.Actors.Player;
-using text_survival.Environments.Features;
-using text_survival.Actors.NPCs;
-using text_survival.Environments.Features;
-using text_survival.Actors.Player;
-using text_survival.Environments.Features;
+
 
 namespace text_survival.Environments;
 
@@ -31,7 +12,7 @@ public class Location
     public string Name;
     public bool Visited = false;
     public bool IsFound { get; set; } = false;
-    public IReadOnlyList<Npc> Npcs =>_npcs.AsReadOnly();
+    public IReadOnlyList<Npc> Npcs => _npcs.AsReadOnly();
     private List<Npc> _npcs = [];
     public List<Item> Items = [];
     public List<Container> Containers = [];
@@ -89,7 +70,7 @@ public class Location
             Output.WriteLine("You decide to stay.");
         }
     }
-    
+
     public double GetTemperature()
     {
         // Get zone's weather temperature (in Fahrenheit)
