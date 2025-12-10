@@ -1,5 +1,4 @@
 using text_survival.Actors.Player;
-using text_survival.Environments;
 
 namespace text_survival.Core
 {

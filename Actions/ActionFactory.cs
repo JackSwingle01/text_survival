@@ -10,9 +10,6 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Magic;
-using text_survival.Skills;
-using text_survival.Survival;
-using text_survival.UI;
 
 namespace text_survival.Actions;
 
@@ -38,7 +35,7 @@ public static class ActionFactory
             return CreateAction("Main Menu")
                    .Do(ctx => BodyDescriber.DescribeSurvivalStats(ctx.player.Body.BundleSurvivalData(), ctx.player.GetSurvivalContext()))
                    .ThenShow(ctx => [
-                        Describe.LookAround(ctx.currentLocation),
+                        Describe.LookAround(ctx.CurrentLocation),
                         Survival.AddFuelToFire(),
                         Survival.StartFire(),
                         Survival.HarvestResources(),
@@ -60,11 +57,11 @@ public static class ActionFactory
         public static IGameAction Forage(string name = "Forage")
         {
             return CreateAction(name)
-                .When(ctx => ctx.currentLocation.GetFeature<ForageFeature>() != null)
+                .When(ctx => ctx.CurrentLocation.GetFeature<ForageFeature>() != null)
                 .ShowMessage("You forage for 15 minutes")
                 .Do(ctx =>
                 {
-                    var forageFeature = ctx.currentLocation.GetFeature<ForageFeature>()!;
+                    var forageFeature = ctx.CurrentLocation.GetFeature<ForageFeature>()!;
                     forageFeature.Forage(0.25); // 15 minutes = 0.25 hours
                 })
                 .AndGainExperience("Foraging")
@@ -72,7 +69,7 @@ public static class ActionFactory
                 .ThenShow(ctx =>
                 {
                     // Get items that were just found (marked with IsFound = true)
-                    var foundItems = ctx.currentLocation.Items
+                    var foundItems = ctx.CurrentLocation.Items
                         .Where(i => i.IsFound)
                         .ToList();
 
@@ -131,7 +128,7 @@ public static class ActionFactory
             .When(ctx =>
             {
                 // Check if there's a fire at the location
-                var fire = ctx.currentLocation.GetFeature<HeatSourceFeature>();
+                var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
                 if (fire == null) return false;
 
                 // Check if player has any flammable items
@@ -143,7 +140,7 @@ public static class ActionFactory
             })
             .Do(ctx =>
             {
-                var fire = ctx.currentLocation.GetFeature<HeatSourceFeature>()!;
+                var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>()!;
 
                 // Display fire status with new physics system
                 string firePhase = fire.GetFirePhase();
@@ -317,7 +314,7 @@ public static class ActionFactory
             return CreateAction("Start Fire")
             .When(ctx =>
             {
-                var fire = ctx.currentLocation.GetFeature<HeatSourceFeature>();
+                var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
 
                 // Show if no fire exists OR if fire is fully cold (not embers)
                 bool noFire = fire == null;
@@ -344,7 +341,7 @@ public static class ActionFactory
             .Do(ctx =>
             {
                 var inventory = ctx.player.inventoryManager;
-                var existingFire = ctx.currentLocation.GetFeature<HeatSourceFeature>();
+                var existingFire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
                 bool relightingFire = existingFire != null;
 
                 if (relightingFire)
@@ -461,18 +458,16 @@ public static class ActionFactory
                         var kindlingFuel = ItemFactory.MakeStick(); // 0.5kg kindling
                         existingFire!.AddFuel(tinderFuel, 0.03); // Add tinder
                         existingFire.AddFuel(kindlingFuel, 0.3); // Add kindling
-                        existingFire.SetActive(true);
                     }
                     else
                     {
                         Output.WriteSuccess($"\nSuccess! You start a fire! ({finalSuccessChance:P0} chance)");
-                        var newFire = new HeatSourceFeature(ctx.currentLocation);
+                        var newFire = new HeatSourceFeature(ctx.CurrentLocation);
                         var tinderFuel = ItemFactory.MakeTinderBundle(); // 0.03kg tinder
                         var kindlingFuel = ItemFactory.MakeStick(); // 0.5kg kindling
                         newFire.AddFuel(tinderFuel, 0.03); // Add tinder
                         newFire.AddFuel(kindlingFuel, 0.3); // Add kindling
-                        newFire.SetActive(true);
-                        ctx.currentLocation.Features.Add(newFire);
+                        ctx.CurrentLocation.Features.Add(newFire);
                     }
 
                     playerSkill.GainExperience(3); // Success XP
@@ -546,12 +541,12 @@ public static class ActionFactory
         public static IGameAction HarvestResources()
         {
             return CreateAction("Harvest Resources")
-                .When(ctx => ctx.currentLocation.Features
+                .When(ctx => ctx.CurrentLocation.Features
                     .OfType<HarvestableFeature>()
                     .Any(f => f.IsDiscovered))
                 .ThenShow(ctx =>
                 {
-                    var harvestables = ctx.currentLocation.Features
+                    var harvestables = ctx.CurrentLocation.Features
                         .OfType<HarvestableFeature>()
                         .Where(f => f.IsDiscovered)
                         .Select(f => InspectHarvestable(f))
@@ -634,7 +629,7 @@ public static class ActionFactory
                 string mapDisplay = UI.MapRenderer.RenderUnifiedMap(
                     ctx.player.GetWorldMap(),
                     ctx.player.CurrentZone,
-                    ctx.currentLocation
+                    ctx.CurrentLocation
                 );
                 Output.WriteLine(mapDisplay);
 
@@ -650,7 +645,7 @@ public static class ActionFactory
                 // Try to travel locally first, then zone if no local location
                 var localDestination = UI.MapController.GetLocationInDirection(
                     ctx.player.CurrentZone,
-                    ctx.currentLocation,
+                    ctx.CurrentLocation,
                     direction
                 );
 
@@ -677,7 +672,7 @@ public static class ActionFactory
         public static IGameAction Travel()
         {
             return CreateAction("Travel to a different area")
-            .When(ctx => ctx.currentLocation.GetFeature<ShelterFeature>() == null) // when not inside a shelter
+            .When(ctx => ctx.CurrentLocation.GetFeature<ShelterFeature>() == null) // when not inside a shelter
             .Do(ctx => ctx.player.Travel()) // todo move out of player class
             .ThenReturn()
             .Build();
@@ -689,7 +684,7 @@ public static class ActionFactory
             .When(ctx => AbilityCalculator.CalculateVitality(ctx.player.Body) > .2)
             .Do(ctx => // just determine what text to display
             {
-                var locations = ctx.currentLocation.GetNearbyLocations().Where(l => l.IsFound).ToList();
+                var locations = ctx.CurrentLocation.GetNearbyLocations().Where(l => l.IsFound).ToList();
                 bool inside = ctx.player.CurrentLocation.GetFeature<ShelterFeature>() != null;
                 if (inside)
                 {
@@ -717,7 +712,7 @@ public static class ActionFactory
                 options.Add(GoToLocationByMap());
 
                 // Keep traditional location list for backward compatibility
-                foreach (var location in ctx.currentLocation.GetNearbyLocations())
+                foreach (var location in ctx.CurrentLocation.GetNearbyLocations())
                 {
                     options.Add(GoToLocation(location));
                 }
@@ -761,7 +756,7 @@ public static class ActionFactory
             return CreateAction("Take all items")
             .Do(ctx =>
             {
-                var foundItems = ctx.currentLocation.Items
+                var foundItems = ctx.CurrentLocation.Items
                     .Where(i => i.IsFound)
                     .ToList();
 
@@ -781,7 +776,7 @@ public static class ActionFactory
             return CreateAction("Select items to take")
             .ThenShow(ctx =>
             {
-                var foundItems = ctx.currentLocation.Items
+                var foundItems = ctx.CurrentLocation.Items
                     .Where(i => i.IsFound)
                     .ToList();
 
@@ -806,7 +801,7 @@ public static class ActionFactory
             .ThenShow(ctx =>
             {
                 // Check if there are more items to collect
-                var remainingItems = ctx.currentLocation.Items
+                var remainingItems = ctx.CurrentLocation.Items
                     .Where(i => i.IsFound)
                     .ToList();
 
@@ -875,8 +870,8 @@ public static class ActionFactory
                  .When(ctx => container.IsFound &&
                             !container.IsEmpty)
                  .OnlyIfBlockedByHostiles()
-                 .Do(ctx => Output.WriteLine("You couldn't get past the ", CombatUtils.GetFastestHostileNpc(ctx.currentLocation)!, "!"))
-                 .ThenShow(ctx => [Combat.StartCombat(CombatUtils.GetFastestHostileNpc(ctx.currentLocation)!)])
+                 .Do(ctx => Output.WriteLine("You couldn't get past the ", CombatUtils.GetFastestHostileNpc(ctx.CurrentLocation)!, "!"))
+                 .ThenShow(ctx => [Combat.StartCombat(CombatUtils.GetFastestHostileNpc(ctx.CurrentLocation)!)])
                  .Build();
         }
 
@@ -1741,18 +1736,18 @@ public static class ActionFactory
             .When(ctx =>
             {
                 // Only show if there are living animals in the location
-                var animals = ctx.currentLocation.Npcs
+                var animals = ctx.CurrentLocation.Npcs
                     .OfType<Animal>()
-                    .Where(a => a.IsAlive && a.CurrentLocation == ctx.currentLocation)
+                    .Where(a => a.IsAlive && a.CurrentLocation == ctx.CurrentLocation)
                     .ToList();
                 return animals.Any();
             })
             .Do(ctx => Output.WriteLine("You scan the area for prey..."))
             .ThenShow(ctx =>
             {
-                var animals = ctx.currentLocation.Npcs
+                var animals = ctx.CurrentLocation.Npcs
                     .OfType<Animal>()
-                    .Where(a => a.IsAlive && a.CurrentLocation == ctx.currentLocation)
+                    .Where(a => a.IsAlive && a.CurrentLocation == ctx.CurrentLocation)
                     .ToList();
 
                 var actions = new List<IGameAction>();
@@ -1973,11 +1968,11 @@ public static class ActionFactory
         public static IGameAction ViewBloodTrails()
         {
             return CreateAction("Track Blood Trail")
-            .When(ctx => ctx.currentLocation.BloodTrails.Any())
+            .When(ctx => ctx.CurrentLocation.BloodTrails.Any())
             .Do(ctx => Output.WriteLine("You search for blood trails..."))
             .ThenShow(ctx =>
             {
-                var trails = ctx.currentLocation.BloodTrails
+                var trails = ctx.CurrentLocation.BloodTrails
                     .Where(trail => trail.GetFreshness() > 0.0) // Only show trackable trails
                     .ToList();
 
@@ -2038,7 +2033,7 @@ public static class ActionFactory
                     {
                         Output.WriteLine($"\nYou find the wounded {trail.SourceAnimal.Name}!");
                         // Re-add animal to location so player can engage
-                        trail.SourceAnimal.CurrentLocation = ctx.currentLocation;
+                        trail.SourceAnimal.CurrentLocation = ctx.CurrentLocation;
                         Output.WriteLine("The animal is too weak to flee. You can approach or shoot it.");
                     }
                     else
@@ -2056,7 +2051,7 @@ public static class ActionFactory
                             Output.WriteLine($"\nYou find the {trail.SourceAnimal.Name}'s corpse.");
                             Output.WriteLine("It bled out from its wounds.");
                             // Re-add corpse to location for butchering
-                            trail.SourceAnimal.CurrentLocation = ctx.currentLocation;
+                            trail.SourceAnimal.CurrentLocation = ctx.CurrentLocation;
                         }
                     }
                 }

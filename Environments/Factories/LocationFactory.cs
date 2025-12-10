@@ -1,4 +1,3 @@
-using text_survival.Actors;
 using text_survival.Actors.NPCs;
 using text_survival.Environments.Features;
 using text_survival.Items;

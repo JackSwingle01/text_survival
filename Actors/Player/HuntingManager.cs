@@ -1,4 +1,3 @@
-using text_survival.Actors;
 using text_survival.Actors.NPCs;
 using text_survival.Bodies;
 using text_survival.Core;

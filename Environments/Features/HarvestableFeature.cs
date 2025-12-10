@@ -1,5 +1,4 @@
 using text_survival.Core;
-using text_survival.IO;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;

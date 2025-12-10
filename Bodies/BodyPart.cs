@@ -1,8 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Runtime.CompilerServices;
-using text_survival.IO;
-
-namespace text_survival.Bodies;
+﻿namespace text_survival.Bodies;
 
 
 public static class BodyRegionNames

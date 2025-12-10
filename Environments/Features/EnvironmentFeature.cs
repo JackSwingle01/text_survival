@@ -1,5 +1,3 @@
-using text_survival.Environments;
-
 namespace text_survival.Environments.Features;
 
 public class EnvironmentFeature : LocationFeature

@@ -1,5 +1,4 @@
 ﻿using text_survival.Effects;
-using text_survival.Magic;
 
 namespace text_survival.Items
 {

@@ -1,10 +1,8 @@
 using text_survival.Actions;
 using text_survival.Actors.Player;
-using text_survival.Crafting;
 using text_survival.Environments;
 using text_survival.Environments.Factories;
 using text_survival.Environments.Features;
-using text_survival.Events;
 using text_survival.IO;
 using text_survival.Items;
 

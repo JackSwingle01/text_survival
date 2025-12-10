@@ -1,6 +1,3 @@
-using text_survival;
-using text_survival.Environments;
-
 namespace text_survival.Environments.Features;
 
 public class ShelterFeature : LocationFeature

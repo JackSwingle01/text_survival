@@ -1,7 +1,5 @@
-using text_survival.Actors;
 using text_survival.Actors.NPCs;
 using text_survival.IO;
-using text_survival.Actors.NPCs;
 
 namespace text_survival.Actors.Player;
 

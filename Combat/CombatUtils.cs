@@ -2,11 +2,7 @@
 using text_survival.Bodies;
 using text_survival.Actors.Player;
 using text_survival.Actors.NPCs;
-using text_survival.Actors.Player;
 using text_survival.Environments;
-using text_survival.Actors.Player;
-using text_survival.Actors.NPCs;
-using text_survival.Actors.Player;
 
 namespace text_survival.Combat;
 

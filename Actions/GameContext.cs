@@ -8,8 +8,11 @@ namespace text_survival.Actions;
 public class GameContext(Player player)
 {
     public Player player = player;
-    public Location currentLocation => player.CurrentLocation;
+    public Location CurrentLocation => player.CurrentLocation;
     public IGameAction? NextActionOverride { get; set; }
     public Npc? EngagedEnemy;
     public CraftingSystem CraftingManager = new CraftingSystem(player); 
+    public CampManager Camp = player.Camp;
+    public Location? CampLocation = player.Camp.CampLocation;
+    public bool IsAtCamp => CurrentLocation == CampLocation;
 }

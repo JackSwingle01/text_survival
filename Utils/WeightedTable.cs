@@ -1,8 +1,6 @@
-﻿using text_survival.Actors;
-using text_survival.Environments;
+﻿using text_survival.Environments;
 using text_survival.Actors.NPCs;
 using text_survival.Items;
-using text_survival.Actors.NPCs;
 
 namespace text_survival;
 

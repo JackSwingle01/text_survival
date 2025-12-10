@@ -1,6 +1,4 @@
-﻿using text_survival.IO;
-
-namespace text_survival.Core
+﻿namespace text_survival.Core
 {
     public static class Config
     {

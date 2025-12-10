@@ -1,4 +1,3 @@
-using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.Core;
 using text_survival.Effects;
@@ -62,6 +61,7 @@ public class Player : Actor
         ammunitionManager = new(inventoryManager);
         huntingManager = new(this, ammunitionManager);
         Skills = new SkillRegistry();
+        Camp = new CampManager(startingLocation);
     }
 
     public void DropItem(Item item)

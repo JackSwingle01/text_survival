@@ -1,4 +1,3 @@
-using text_survival.Actors;
 using text_survival.Actors.NPCs;
 using text_survival.Combat;
 using text_survival.IO;
@@ -107,7 +106,7 @@ public static class ActionBuilderExtensions
 
     public static ActionBuilder ThenLookAround(this ActionBuilder b)
     {
-        return b.ThenShow(ctx => [ActionFactory.Describe.LookAround(ctx.currentLocation)]);
+        return b.ThenShow(ctx => [ActionFactory.Describe.LookAround(ctx.CurrentLocation)]);
     }
 
     public static ActionBuilder AndGainExperience(this ActionBuilder b, string skillName, int xp = 1)
@@ -125,7 +124,7 @@ public static class ActionBuilderExtensions
     {
         return b.When(ctx =>
         {
-            Npc? npc = CombatUtils.GetFastestHostileNpc(ctx.currentLocation);
+            Npc? npc = CombatUtils.GetFastestHostileNpc(ctx.CurrentLocation);
             return npc == null || CombatUtils.SpeedCheck(ctx.player, npc);
         });
     }
@@ -133,7 +132,7 @@ public static class ActionBuilderExtensions
     {
         return b.When(ctx =>
         {
-            Npc? npc = CombatUtils.GetFastestHostileNpc(ctx.currentLocation);
+            Npc? npc = CombatUtils.GetFastestHostileNpc(ctx.CurrentLocation);
             return npc != null && !CombatUtils.SpeedCheck(ctx.player, npc);
         });
     }
