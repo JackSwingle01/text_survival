@@ -1,9 +1,7 @@
 using text_survival.Environments;
 using text_survival.Core;
 using text_survival.IO;
-using text_survival.Core;
 using text_survival.Items;
-using text_survival.Core;
 
 namespace text_survival.Actors.Player;
 

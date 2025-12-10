@@ -12,6 +12,7 @@ namespace text_survival.Actors.Player;
 
 public class Player : Actor
 {
+    public readonly CampManager Camp;
     private readonly LocationManager locationManager;
     public readonly InventoryManager inventoryManager;
     public readonly StealthManager stealthManager;

@@ -209,11 +209,11 @@ public class Location
         }
         else if (phase == "Dying")
         {
-            return $"{fireIcon} Dying ({heatSource.FuelRemaining:F1}h)";
+            return $"{fireIcon} Dying ({heatSource.HoursRemaining:F1}h)";
         }
         else if (heatSource.IsActive)
         {
-            return $"{fireIcon} Burning ({heatSource.FuelRemaining:F1}h)";
+            return $"{fireIcon} Burning ({heatSource.HoursRemaining:F1}h)";
         }
 
         return null;

@@ -149,7 +149,7 @@ public static class ActionFactory
                 string firePhase = fire.GetFirePhase();
                 double fireTemp = fire.GetCurrentFireTemperature();
                 double heatOutput = fire.GetEffectiveHeatOutput();
-                double fuelMinutes = fire.FuelRemaining * 60;
+                double fuelMinutes = fire.HoursRemaining * 60;
 
                 // Color-coded phase display
                 ConsoleColor phaseColor = firePhase switch
@@ -291,7 +291,7 @@ public static class ActionFactory
                     Output.WriteWarning($"The fire was already near capacity. {wastedKg:F2} kg of fuel was wasted.");
                 }
 
-                double newFuelMinutes = fire.FuelRemaining * 60;
+                double newFuelMinutes = fire.HoursRemaining * 60;
                 Output.WriteLine($"The fire now has {fire.FuelMassKg:F2} kg of fuel ({newFuelMinutes:F0} minutes).");
                 Output.WriteLine($"Fire temperature: {fire.GetCurrentFireTemperature():F0}°F ({fire.GetFirePhase()})");
 
@@ -321,7 +321,7 @@ public static class ActionFactory
 
                 // Show if no fire exists OR if fire is fully cold (not embers)
                 bool noFire = fire == null;
-                bool fullyColdFire = fire != null && fire.FuelRemaining == 0 && !fire.HasEmbers;
+                bool fullyColdFire = fire != null && fire.HoursRemaining == 0 && !fire.HasEmbers;
 
                 if (!noFire && !fullyColdFire) return false;
 
@@ -1540,16 +1540,16 @@ public static class ActionFactory
                     if (feature is HeatSourceFeature heat)
                     {
                         // Show active fires with status and warmth
-                        if (heat.IsActive && heat.FuelRemaining > 0)
+                        if (heat.IsActive && heat.HoursRemaining > 0)
                         {
-                            string status = heat.FuelRemaining < 0.5 ? "Dying" : "Burning";
-                            int minutesLeft = (int)(heat.FuelRemaining * 60);
-                            string timeStr = minutesLeft >= 60 ? $"{heat.FuelRemaining:F1} hr" : $"{minutesLeft} min";
+                            string status = heat.HoursRemaining < 0.5 ? "Dying" : "Burning";
+                            int minutesLeft = (int)(heat.HoursRemaining * 60);
+                            string timeStr = minutesLeft >= 60 ? $"{heat.HoursRemaining:F1} hr" : $"{minutesLeft} min";
                             double effectiveHeat = heat.GetEffectiveHeatOutput();
                             string fireInfo = $"{heat.Name}: {status} ({timeStr}) +{effectiveHeat:F0}°F";
 
                             Output.Write("│ ");
-                            ConsoleColor fireColor = heat.FuelRemaining < 0.5 ? ConsoleColor.Yellow : ConsoleColor.Red;
+                            ConsoleColor fireColor = heat.HoursRemaining < 0.5 ? ConsoleColor.Yellow : ConsoleColor.Red;
                             Output.WriteColored(fireColor, fireInfo);
                             Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
                             hasContent = true;
@@ -1568,9 +1568,9 @@ public static class ActionFactory
                             hasContent = true;
                         }
                         // Show fires with fuel but not lit
-                        else if (heat.FuelRemaining > 0 && !heat.IsActive)
+                        else if (heat.HoursRemaining > 0 && !heat.IsActive)
                         {
-                            int minutesLeft = (int)(heat.FuelRemaining * 60);
+                            int minutesLeft = (int)(heat.HoursRemaining * 60);
                             string fireInfo = $"{heat.Name}: Cold ({minutesLeft} min fuel ready)";
 
                             Output.Write("│ ");
