@@ -1,113 +1,161 @@
-using text_survival.Actors.Player;
-using text_survival.Core;
 using text_survival.Environments;
 using text_survival.Environments.Features;
+using text_survival.IO;
+using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions;
 
-public partial class ExpeditionProcessor
+public class ExpeditionRunner(GameContext ctx)
 {
-    public class SegmentResult(int timeElapsed)
-    {
-        public int TimeElapsed { get; set; } = timeElapsed;
-    }
+    /// <summary>
+    /// Expeditions follow the following flow:
+    /// Select Expedition Type (Forage, Hunt, Explore ...)
+    /// Select Location (filtered by available resources)
+    /// Show Plan (confirm Y/N)
+    /// Process Chunk:
+    ///     -> Make progress on stage 
+    ///         -> Event gets triggered
+    ///             -> event specific logic
+    ///     -> Continue or Abort? (abort changes phase to HeadBack but you still have to complete progress to camp)
+    /// Complete 
+    ///     -> show results
+    /// Return to camp    
+    ///     
+    /// </summary>
+    /// <returns></returns>
 
-    private readonly int SEGMENT_TIME_MINUTES = 5;
-    public SegmentResult RunExpedtionSegment(Expedition expedition, Player player)
+    private readonly GameContext ctx = ctx;
+    public void RunExpedition(ExpeditionType expeditionType)
     {
-        int t = 0;
-        while (t < SEGMENT_TIME_MINUTES)
+        if (expeditionType == ExpeditionType.Forage)
         {
-            World.Update(1);
-            expedition.IncrementTime(1);
-            t++;
+            RunForageExpedition();
+        }
 
-            // check for events, encounters, etc.
-            // TODO
+        throw new NotImplementedException("Expedition Type Not Implemented");
+    }
+    public void RunForageExpedition()
+    {
+        // select desitination
+        var locations = ctx.CurrentLocation.GetNearbyLocations().Where(x => IsLocationValidForExpeditionType(x, ExpeditionType.Forage));
+        var locChoice = new Choice<Location>("Where would you like to go?");
+        foreach (Location location in locations)
+        {
+            int minutes = MapController.CalculateLocalTravelTime(ctx.CurrentLocation, location);
+            // todo - add a builder that handles the logic for this to make it more dynamic
+            string label = $"{location.Name} (~{minutes} min)";
+            locChoice.AddOption(label, location);
+        }
+        Location destination = locChoice.GetPlayerChoice();
+        int travelTime = MapController.CalculateLocalTravelTime(ctx.CurrentLocation, destination);
 
-            if (expedition.IsPhaseComplete())
+        // choose work time
+        var workTimeChoice = new Choice<int>("How long should you work?");
+        workTimeChoice.AddOption("Quick gather - 15 min", 15);
+        workTimeChoice.AddOption("Standard search - 30 min", 30);
+        workTimeChoice.AddOption("Thourough search - 60 min", 60);
+        int workTime = workTimeChoice.GetPlayerChoice();
+
+        Expedition expedition = new Expedition(ctx.CurrentLocation, destination, ExpeditionType.Forage, travelTime, workTime, timeVarianceMinutes: 10, exposureFactor: 1, detectionRisk: .1);
+
+        // show plan
+        DisplayExpeditionPreview(expedition, ctx.Camp.GetFireMinutesRemaining());
+        Output.WriteLine("Do you want to proceed with this plan? (y/n)");
+        if (!Input.ReadYesNo())
+        {
+            Output.WriteLine("You change your mind");
+            return;
+        }
+
+        // start
+        Output.WriteLine($"You have started the expedition: {expedition.Type}.");
+        expedition.AdvancePhase(); // NotStarted -> TravelingOut
+
+        // main loop
+        while (!expedition.IsComplete)
+        {
+            ExpeditionProcessor runner = new ExpeditionProcessor();
+            var result = runner.RunExpedtionSegment(expedition, ctx.player);
+            DisplayQueuedExpeditionLogs(expedition);
+
+            // show check if the user wants to turn back early
+            if (expedition.CurrentPhase == ExpeditionPhase.TravelingOut || expedition.CurrentPhase == ExpeditionPhase.Working)
             {
-                break;
+                Output.WriteLine("Continue?");
+                if (!Input.ReadYesNo())
+                    CancelExpedition(expedition);
             }
         }
 
-        if (expedition.CurrentPhase == ExpeditionPhase.Working)
-        {
-            DoWork(expedition, t);
-        }
-        AddSegmentUpdate(expedition, t);
-        if (expedition.IsPhaseComplete())
-        {
-            HandlePhaseCompletion(expedition);
-        }
-        return new SegmentResult(t);
+        // complete expedition
+        DisplayQueuedExpeditionLogs(expedition);
+        return;
     }
 
-    private void HandlePhaseCompletion(Expedition exp)
+    private static bool IsLocationValidForExpeditionType(Location location, ExpeditionType expeditionType)
     {
-        exp.AdvancePhase();
-        if (exp.IsComplete)
+        if (expeditionType == ExpeditionType.Forage)
         {
-            exp.AddLog("You have returned from your expedition.");
+            if (location.GetFeature<ForageFeature>() is not null)
+                return true;
+            return false;
+        }
+        else if (expeditionType == ExpeditionType.Hunt)
+        {
+            return false;
+        }
+        else if (expeditionType == ExpeditionType.Gather)
+        {
+            if (location.GetFeature<HarvestableFeature>() is not null)
+                return true;
+            return false;
+        }
+        else if (expeditionType == ExpeditionType.Explore)
+        {
+            return true;
         }
         else
         {
-            exp.AddLog($"You are now {exp.GetPhaseDisplayName().ToLower()}.");
+            return false;
         }
+
     }
 
-    private static void DoWork(Expedition exp, int minutes)
+    public static void DisplayExpeditionPreview(Expedition expedition, double FireMinutesRemaining)
     {
-        if (exp.Type == ExpeditionType.Forage)
+        Output.WriteLine($"{expedition.Type.ToString().ToUpper()} - {expedition.endLocation}\n");
+        Output.WriteLine($"It's about a {expedition.TravelTimeMinutes} minute walk each way.");
+        Output.WriteLine($"Once you get there it's {expedition.WorkTimeWithVariance} minutes of {expedition.GetPhaseDisplayName(ExpeditionPhase.Working).ToLower()}.");
+        Output.WriteLine($"A {expedition.TotalEstimatedTimeMinutes} minute round trip if all goes well.\n");
+
+        Output.WriteLine(expedition.GetSummaryNotes() + '\n');
+
+        double fireTime = FireMinutesRemaining - expedition.TotalEstimatedTimeMinutes;
+        string fireMessage = ExpeditionProcessor.GetFireMarginMessage(fireTime);
+        if (FireMinutesRemaining > 0)
+            Output.WriteLine($"The fire has about {FireMinutesRemaining} minutes left.");
+        Output.WriteLine(fireMessage);
+        Output.WriteLine();
+    }
+
+    private static void DisplayQueuedExpeditionLogs(Expedition exp)
+    {
+        exp.GetFlushLogs().ForEach(s => Output.WriteLine(s));
+    }
+
+
+    private void CancelExpedition(Expedition expedition)
+    {
+        Output.WriteLine("Are you sure you want to cancel the expedition and return to camp?");
+        Output.Write("This will end your current expedition and you will start to return to camp.");
+        bool confirm = Input.ReadYesNo();
+        if (!confirm)
         {
-            DoForageWork(exp, minutes);
+            Output.WriteLine("You decide to keep pushing forward.");
+            return;
         }
+        expedition.CancelExpedition();
+        Output.WriteLine("You decide it's best to head back. You start returning to camp.");
     }
-    private static void DoForageWork(Expedition exp, int minutes)
-    {
-        Location location = exp.endLocation;
-        var feature = location.GetFeature<ForageFeature>();
-        if (feature is null) throw new InvalidOperationException("Can't forage here.");
-        var items = feature.Forage(minutes / 60);
-        exp.LootCollected.AddRange(items);
-        if (items.Count > 0)
-        {
-            var groupedItems = items
-                .GroupBy(item => item.Name)
-                .Select(group => $"{group.Key} ({group.Count()})")
-                .ToList();
-
-            string timeText = minutes == 60 ? "1 hour" : $"{minutes} minutes";
-            exp.AddLog($"You spent {timeText} searching and found: {string.Join(", ", groupedItems)}");
-        }
-        else
-        {
-            string timeText = minutes == 60 ? "1 hour" : $"{minutes} minutes";
-            exp.AddLog($"You spent {timeText} searching but found nothing.");
-        }
-    }
-
-    private static void AddSegmentUpdate(Expedition expedition, int minutesPassed)
-    {
-        string action = expedition.CurrentPhase switch
-        {
-            ExpeditionPhase.TravelingOut => "walk",
-            ExpeditionPhase.Working => "work",
-            ExpeditionPhase.TravelingBack => "walk",
-            _ => "unknown"
-        };
-        expedition.AddLog($"You {action} for {minutesPassed} minutes.");
-    }
-
-    public static string GetFireMarginMessage(double marginMinutes)
-    {
-        if (double.IsNegativeInfinity(marginMinutes)) return "You have no fire.";
-        if (marginMinutes < 0) return "The fire probably won't last until you return. Make sure you know what you're doing.";
-        if (marginMinutes < 15) return "The fire should barely last until you're back. But it will be tight.";
-        if (marginMinutes < 30) return "You should have enough time to get back to the fire as long as you don't have any delays.";
-        if (marginMinutes < 60) return "You have a decent fire, it should last until you get back with a good margin.";
-        return "You have plenty of time left on the fire. You should be good to go.";
-    }
-
 
 }

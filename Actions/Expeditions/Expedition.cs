@@ -96,6 +96,21 @@ public class Expedition(Location startLocation, Location endLocation, Expedition
             return "High";
     }
 
+    public string GetSummaryNotes()
+    {
+        string notes = "";
+        if (detectionRisk > .2)
+        {
+            notes += "High detection risk. ";
+        }
+        if (ExposureFactor > .8)
+        {
+            notes += "The route is exposed to the weather.";
+        }
+        return notes;
+    }
+
+    public string WorkTimeWithVariance => $"{WorkTimeMinutes - TimeVarianceMinutes}-{WorkTimeMinutes + TimeVarianceMinutes}";
     public void AddLog(string log)
     {
         if (!string.IsNullOrEmpty(log))
@@ -110,9 +125,10 @@ public class Expedition(Location startLocation, Location endLocation, Expedition
         return logs;
     }
 
-    public string GetPhaseDisplayName()
+    public string GetPhaseDisplayName(ExpeditionPhase? phase = null)
     {
-        return CurrentPhase switch
+        phase ??= CurrentPhase;
+        return phase switch
         {
             ExpeditionPhase.NotStarted => "Preparing",
             ExpeditionPhase.TravelingOut => $"Traveling to {endLocation.Name}",

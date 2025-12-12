@@ -8,14 +8,9 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Core;
+using text_survival.Actions.Expeditions;
 
 namespace text_survival.Actions;
-
-public class Option<T>(string label, T item)
-{
-    public string Label = label;
-    public T Item = item;
-}
 
 public class Choice<T>(string? propmt = null)
 {
@@ -64,6 +59,8 @@ public partial class GameRunner(GameContext ctx)
 
     private void RunCampMenu()
     {
+        ExpeditionRunner expeditionRunner = new(ctx);
+        
         var choice = new Choice<Action>();
         choice.AddOption("Look around", LookAround);
 
@@ -74,7 +71,7 @@ public partial class GameRunner(GameContext ctx)
             choice.AddOption("Start fire", StartFire);
 
         if (CanForage())
-            choice.AddOption("Forage", RunForageExpedition);
+            choice.AddOption("Forage", expeditionRunner.RunForageExpedition);
 
         if (CanHunt())
             choice.AddOption("Hunt", RunHuntingMenu);
@@ -823,37 +820,6 @@ public partial class GameRunner(GameContext ctx)
     {
         // Basic check - can always forage if you have energy
         return AbilityCalculator.CalculateVitality(ctx.player.Body) > 0.2;
-    }
-
-    private void RunForageExpedition()
-    {
-        // Placeholder - integrate with ExpeditionActions or implement directly
-        Output.WriteLine("You set out to forage...");
-        World.Update(30);
-
-        // Simple foraging - find items based on location
-        var foundItems = ctx.CurrentLocation.Items.Where(i => !i.IsFound).Take(3).ToList();
-
-        if (foundItems.Count == 0)
-        {
-            Output.WriteLine("You didn't find anything useful.");
-            return;
-        }
-
-        foreach (var item in foundItems)
-        {
-            item.IsFound = true;
-            Output.WriteLine($"You found: {item.Name}");
-        }
-
-        Output.WriteLine("\nWhat would you like to do?");
-        var choice = new Choice<Action>();
-        choice.AddOption("Take all items", () => TakeAllFoundItems(foundItems));
-        choice.AddOption("Select items to take", () => SelectFoundItems(foundItems));
-        choice.AddOption("Keep foraging", RunForageExpedition);
-        choice.AddOption("Finish foraging", () => { });
-
-        choice.GetPlayerChoice().Invoke();
     }
 
     private void TakeAllFoundItems(List<Item> foundItems)
