@@ -24,22 +24,21 @@ namespace text_survival.Core
             Output.WriteLine("\n");
 
             // Get survival data
-            var survivalData = player.Body.BundleSurvivalData();
-
+            var body = player.Body;
             // Show survival stats at time of death
             Output.WriteLine("═══ Final Survival Stats ═══");
             Output.WriteLine($"Health: {player.Body.Health * 100:F1}%");
-            Output.WriteLine($"Calories: {survivalData.Calories:F0}/{Survival.SurvivalProcessor.MAX_CALORIES:F0} ({survivalData.Calories / Survival.SurvivalProcessor.MAX_CALORIES * 100:F1}%)");
-            Output.WriteLine($"Hydration: {survivalData.Hydration:F0}/{Survival.SurvivalProcessor.MAX_HYDRATION:F0} ({survivalData.Hydration / Survival.SurvivalProcessor.MAX_HYDRATION * 100:F1}%)");
-            Output.WriteLine($"Energy: {survivalData.Energy:F0}/{Survival.SurvivalProcessor.MAX_ENERGY_MINUTES:F0} ({survivalData.Energy / Survival.SurvivalProcessor.MAX_ENERGY_MINUTES * 100:F1}%)");
+            Output.WriteLine($"Calories: {body.CalorieStore:F0}/{Survival.SurvivalProcessor.MAX_CALORIES:F0} ({body.CalorieStore / Survival.SurvivalProcessor.MAX_CALORIES * 100:F1}%)");
+            Output.WriteLine($"Hydration: {body.Hydration:F0}/{Survival.SurvivalProcessor.MAX_HYDRATION:F0} ({body.Hydration / Survival.SurvivalProcessor.MAX_HYDRATION * 100:F1}%)");
+            Output.WriteLine($"Energy: {body.Energy:F0}/{Survival.SurvivalProcessor.MAX_ENERGY_MINUTES:F0} ({body.Energy / Survival.SurvivalProcessor.MAX_ENERGY_MINUTES * 100:F1}%)");
             Output.WriteLine($"Body Temperature: {player.Body.BodyTemperature:F1}°F");
             Output.WriteLine("\n");
 
             // Show body composition
             Output.WriteLine("═══ Body Composition ═══");
             Output.WriteLine($"Weight: {player.Body.Weight:F1} kg");
-            Output.WriteLine($"Body Fat: {player.Body.BodyFat:F1} kg ({player.Body.BodyFatPercentage * 100:F1}%)");
-            Output.WriteLine($"Muscle Mass: {player.Body.Muscle:F1} kg ({player.Body.MusclePercentage * 100:F1}%)");
+            Output.WriteLine($"Body Fat: {player.Body.BodyFatKG:F1} kg ({player.Body.BodyFatPercentage * 100:F1}%)");
+            Output.WriteLine($"Muscle Mass: {player.Body.MuscleKG:F1} kg ({player.Body.MusclePercentage * 100:F1}%)");
             Output.WriteLine("\n");
 
             // Show time survived
@@ -61,7 +60,6 @@ namespace text_survival.Core
         static string DetermineCauseOfDeath(Player player)
         {
             var body = player.Body;
-            var survivalData = body.BundleSurvivalData();
 
             // Check critical organ failure
             var brain = body.Parts.SelectMany(p => p.Organs).FirstOrDefault(o => o.Name == "Brain");
@@ -78,10 +76,10 @@ namespace text_survival.Core
             if (body.BodyTemperature < 89.6)
                 return "Severe hypothermia (core body temperature too low)";
 
-            if (survivalData.Hydration <= 0)
+            if (body.Hydration <= 0)
                 return "Severe dehydration";
 
-            if (survivalData.Calories <= 0 && body.BodyFatPercentage < 0.05)
+            if (body.CalorieStore <= 0 && body.BodyFatPercentage < 0.05)
                 return "Starvation (complete organ failure)";
 
             // Default

@@ -1,12 +1,26 @@
+using text_survival.Bodies;
 using text_survival.Effects;
 
 namespace text_survival.Survival;
 
-
-public class SurvivalProcessorResult(SurvivalData data)
+public class SurvivalProcessorResult
 {
-	public SurvivalData Data { get; set; } = data;
-	public List<Effect> Effects { get; set; } = [];
-	public List<string> Messages { get; set; } = [];
-}
+    public SurvivalStatsDelta StatsDelta = new();
+    public List<Effect> Effects = [];
+    public List<string> Messages = [];
+    public List<DamageInfo> DamageEvents = [];
+    public List<HealingInfo> HealingEvents = [];
+    public double FatToConsume;
+    public double MuscleToConsume;
 
+    public void Combine(SurvivalProcessorResult other)
+    {
+        StatsDelta = StatsDelta.Add(other.StatsDelta);
+        Effects.AddRange(other.Effects);
+        Messages.AddRange(other.Messages);
+        DamageEvents.AddRange(other.DamageEvents);
+        HealingEvents.AddRange(other.HealingEvents);
+        FatToConsume += other.FatToConsume;
+        MuscleToConsume += other.MuscleToConsume;
+    }
+}

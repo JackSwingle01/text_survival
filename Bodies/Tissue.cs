@@ -3,6 +3,10 @@ namespace text_survival.Bodies;
 public class Tissue(string name, double toughness = 1)
 {
     public string Name { get; } = name;
+
+    /// <summary>
+    /// 0-1 value
+    /// </summary>
     public double Condition { get; set; } = 1.0;
     public double Toughness { get; set; } = toughness;
 

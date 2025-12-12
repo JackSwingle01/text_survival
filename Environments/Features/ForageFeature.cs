@@ -1,5 +1,4 @@
 using text_survival.Core;
-using text_survival.IO;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
@@ -35,7 +34,7 @@ public class ForageFeature(Location location, double resourceDensity = 1) : Loca
         }
     }
 
-    public void Forage(double hours)
+    public List<Item> Forage(double hours)
     {
         List<Item> itemsFound = [];
 
@@ -49,7 +48,6 @@ public class ForageFeature(Location location, double resourceDensity = 1) : Loca
             {
                 var item = factory();
                 item.IsFound = true;
-                ParentLocation.Items.Add(item);
                 itemsFound.Add(item);
             }
         }
@@ -66,22 +64,7 @@ public class ForageFeature(Location location, double resourceDensity = 1) : Loca
         int minutes = (int)(hours * 60);
         World.Update(minutes);
 
-        // Display results grouped by item type
-        if (itemsFound.Count > 0)
-        {
-            var groupedItems = itemsFound
-                .GroupBy(item => item.Name)
-                .Select(group => $"{group.Key} ({group.Count()})")
-                .ToList();
-
-            string timeText = minutes == 60 ? "1 hour" : $"{minutes} minutes";
-            Output.WriteLine($"You spent {timeText} searching and found: {string.Join(", ", groupedItems)}");
-        }
-        else
-        {
-            string timeText = minutes == 60 ? "1 hour" : $"{minutes} minutes";
-            Output.WriteLine($"You spent {timeText} searching but found nothing.");
-        }
+        return itemsFound;
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using text_survival.Actors;
 using text_survival.Bodies;
 
@@ -20,11 +21,25 @@ namespace text_survival.Effects
         public bool CanHaveMultiple { get; protected set; } = false;
         public bool IsActive { get; protected set; } = true;
         public double Severity { get; protected set; } = severity; // multiplier for survival and capacity effects
-        public double hourlySeverityChange { get; protected set; } = hourlySeverityChange;
+        public double HourlySeverityChange { get; protected set; } = hourlySeverityChange;
         public bool RequiresTreatment { get; protected set; } = false;
         public CapacityModifierContainer CapacityModifiers { get; set; } = new(); // gets applied in body
-        public SurvivalStatsUpdate SurvivalStatsEffect { get; set; } = new(); // gets applied in survival processor
+        public SurvivalStatsDelta SurvivalStatsDelta { get; set; } = new(); // gets applied in survival processor
         // public List<TreatmentOption> TreatmentOptions {get;}
+
+        // Status messages
+        public string? ApplicationMessage;
+        public string? RemovalMessage;
+
+        public class ThresholdMessage(double severityThreshold, string message, bool whenRising)
+        {
+            public double Threshold = severityThreshold;
+            public string Message = message;
+            public bool WhenRising = whenRising;
+            public bool WhenDropping => !WhenRising;
+        }
+        public readonly List<ThresholdMessage> ThresholdMessages = [];
+
         #endregion
 
         #region  core algorithm methods - typically don't override
@@ -35,6 +50,8 @@ namespace text_survival.Effects
         {
             IsActive = true;
             OnApply(target);
+            if (!string.IsNullOrWhiteSpace(ApplicationMessage))
+                target.AddLog(ApplicationMessage);
         }
 
         /// <summary>
@@ -50,9 +67,9 @@ namespace text_survival.Effects
 
             OnUpdate(target);
 
-            if (!RequiresTreatment && hourlySeverityChange > 0)
+            if (!RequiresTreatment || HourlySeverityChange > 0)
             {
-                double minuteChange = hourlySeverityChange / 60;
+                double minuteChange = HourlySeverityChange / 60;
                 UpdateSeverity(target, minuteChange);
             }
 
@@ -71,6 +88,8 @@ namespace text_survival.Effects
             if (!IsActive) return;
             OnRemove(target);
             IsActive = false;
+            if (!string.IsNullOrWhiteSpace(RemovalMessage))
+                target.AddLog(RemovalMessage);
         }
 
         /// <summary>
@@ -84,11 +103,36 @@ namespace text_survival.Effects
 
             Severity = Math.Clamp(Severity + severityChange, 0, 1);
 
+            var message = GetThresholdMessage(oldSeverity, Severity);
+            if (!string.IsNullOrWhiteSpace(message))
+                target.AddLog(message);
+
             if (Math.Abs(oldSeverity - Severity) > 0.01)
             {
                 OnSeverityChange(target, oldSeverity, Severity);
             }
         }
+
+        private string? GetThresholdMessage(double oldSeverity, double newSeverity)
+        {
+            if (oldSeverity == newSeverity) return null;
+            bool increasing = oldSeverity < newSeverity;
+
+            double low = Math.Min(oldSeverity, newSeverity);
+            double high = Math.Max(oldSeverity, newSeverity);
+
+            var crossed = ThresholdMessages
+                .Where(x => x.WhenRising == increasing) // filter by increasing/decreasing
+                .Where(x => low < x.Threshold && x.Threshold < high); // get all between
+
+            // early return in case of 0 or 1 found
+            if (!crossed.Any()) return null;
+            if (crossed.Count() == 1) return crossed.First().Message;
+            // else get the max or min threshold passed
+            var mostSignifigant = increasing ? crossed.MaxBy(x => x.Threshold) : crossed.MinBy(x => x.Threshold);
+            return mostSignifigant?.Message;
+        }
+
         #endregion
 
 

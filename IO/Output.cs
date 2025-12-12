@@ -212,6 +212,11 @@ namespace text_survival.IO
             MessageBuffer.Clear();
         }
 
+        public static void WriteAll(List<string> lines)
+        {
+            lines.ForEach(l => WriteLine(l));
+        }
+
 
         public static void WriteWarning(string str)
         {

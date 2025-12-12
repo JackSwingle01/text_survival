@@ -1,3 +1,4 @@
+using text_survival.Actions.Expeditions;
 using text_survival.Actors;
 using text_survival.Actors.NPCs;
 using text_survival.Actors.Player;
@@ -33,20 +34,21 @@ public static class ActionFactory
         public static IGameAction MainMenu()
         {
             return CreateAction("Main Menu")
-                   .Do(ctx => BodyDescriber.DescribeSurvivalStats(ctx.player.Body.BundleSurvivalData(), ctx.player.GetSurvivalContext()))
+                   .Do(ctx => BodyDescriber.DescribeSurvivalStats(ctx.player.Body, ctx.player.GetSurvivalContext()))
                    .ThenShow(ctx => [
                         Describe.LookAround(ctx.CurrentLocation),
                         Survival.AddFuelToFire(),
                         Survival.StartFire(),
-                        Survival.HarvestResources(),
-                        Survival.Forage(),
-                        Hunting.OpenHuntingMenu(), // MVP Hunting System
-                        Hunting.ViewBloodTrails(), // MVP Hunting System - Phase 4
+                        // Survival.HarvestResources(),
+                        // Survival.Forage(),
+                        // Hunting.OpenHuntingMenu(), // MVP Hunting System
+                        // Hunting.ViewBloodTrails(), // MVP Hunting System - Phase 4
+                        ExpeditionActions.SelectExpedition(ExpeditionType.Forage),
                         Inventory.OpenInventory(),
                         Crafting.OpenCraftingMenu(),
                         Describe.CheckStats(),
                         Survival.Sleep(),
-                        Movement.Move(),
+                        // Movement.Move(),
                    ])
                    .Build();
         }
@@ -73,7 +75,7 @@ public static class ActionFactory
                         .Where(i => i.IsFound)
                         .ToList();
 
-                    if (foundItems.Any())
+                    if (foundItems.Count != 0)
                     {
                         // Show collection options
                         return new List<IGameAction>
@@ -87,11 +89,11 @@ public static class ActionFactory
                     else
                     {
                         // No items found, continue foraging or return
-                        return new List<IGameAction>
-                        {
+                        return
+                        [
                             Forage("Keep foraging"),
                             Common.Return("Finish foraging")
-                        };
+                        ];
                     }
                 })
                 .Build();
@@ -115,7 +117,7 @@ public static class ActionFactory
 
                 int minutes = hours * 60;
                 ctx.player.Body.Rest(minutes);
-                World.Update(minutes, suppressMessages: true); // Suppress status messages during sleep
+                World.Update(minutes); // Suppress status messages during sleep
             })
             .TakesMinutes(0) // Handles time manually based on user input
             .ThenReturn()

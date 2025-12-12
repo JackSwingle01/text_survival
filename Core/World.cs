@@ -8,27 +8,18 @@ namespace text_survival.Core
         public static DateTime GameTime { get; set; } = new DateTime(2025, 1, 1, 9, 0, 0); // Full date/time for resource respawn tracking
 
         public static Player? Player { get; set; }
-        public static void Update(int minutes, bool suppressMessages = false)
+        public static void Update(int minutes)
         {
-            // Enable message batching for multi-minute updates to prevent spam
-            if (minutes > 1 && !suppressMessages)
-            {
-                IO.Output.StartBatching();
-            }
-
             for (int i = 0; i < minutes; i++)
             {
-                Player?.Update(suppressMessages);
+                Player?.Update();
                 Player?.CurrentZone.Update();
                 Time = Time.AddMinutes(1);
                 GameTime = GameTime.AddMinutes(1); // Keep GameTime in sync
             }
-
-            // Flush and deduplicate messages after multi-minute update
-            if (minutes > 1 && !suppressMessages)
-            {
-                IO.Output.FlushMessages();
-            }
+            var logs = Player?.GetFlushLogs();
+            if (logs is not null && logs.Count != 0)
+                IO.Output.WriteAll(logs);
         }
 
         public enum TimeOfDay

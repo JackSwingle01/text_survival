@@ -159,9 +159,9 @@ namespace text_survival.Bodies
 
         private static string GetTrendIndicator(Effect effect)
         {
-            if (effect.hourlySeverityChange > 0)
+            if (effect.HourlySeverityChange > 0)
                 return " +";
-            else if (effect.hourlySeverityChange < 0)
+            else if (effect.HourlySeverityChange < 0)
                 return " -";
             else
                 return "";
@@ -177,15 +177,15 @@ namespace text_survival.Bodies
 
 
 
-        public static void DescribeSurvivalStats(SurvivalData data, SurvivalContext context)
+        public static void DescribeSurvivalStats(Body body, SurvivalContext context)
         {
             const int boxWidth = 53;
             const int barWidth = 20;
 
             // Calculate percentages
-            int caloriesPercent = (int)(data.Calories / SurvivalProcessor.MAX_CALORIES * 100);
-            int hydrationPercent = (int)(data.Hydration / SurvivalProcessor.MAX_HYDRATION * 100);
-            int energyPercent = (int)(data.Energy / SurvivalProcessor.MAX_ENERGY_MINUTES * 100);
+            int caloriesPercent = (int)(body.CalorieStore / SurvivalProcessor.MAX_CALORIES * 100);
+            int hydrationPercent = (int)(body.Hydration / SurvivalProcessor.MAX_HYDRATION * 100);
+            int energyPercent = (int)(body.Energy / SurvivalProcessor.MAX_ENERGY_MINUTES * 100);
 
             // Create progress bars
             string caloriesBar = CreateProgressBar(caloriesPercent, barWidth);
@@ -196,13 +196,13 @@ namespace text_survival.Bodies
             string caloriesStatus = GetCaloriesStatus(caloriesPercent);
             string hydrationStatus = GetHydrationStatus(hydrationPercent);
             string exhaustionStatus = GetEnergyStatus(energyPercent);
-            string tempStatus = GetTemperatureStatus(data.Temperature);
+            string tempStatus = GetTemperatureStatus(body.BodyTemperature);
 
             // Build status lines
             string healthLine = $"Food:    [{caloriesBar}] {caloriesPercent}% - {caloriesStatus}";
             string waterLine =  $"Water:   [{hydrationBar}] {hydrationPercent}% - {hydrationStatus}";
             string energyLine = $"Energy:  [{energyBar}] {energyPercent}% - {exhaustionStatus}";
-            string tempLine =   $"Temp:    {data.Temperature:F1}°F ({tempStatus}) - Feels like {context.LocationTemperature:F1}°F";
+            string tempLine =   $"Temp:    {body.BodyTemperature:F1}°F ({tempStatus}) - Feels like {context.LocationTemperature:F1}°F";
 
             // Display with proper padding
             Output.WriteLine($"┌{new string('─', boxWidth)}┐");

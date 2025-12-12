@@ -11,7 +11,7 @@ public class EffectBuilder
     private string? _targetBodyPart = null;
     private double _severity = 1.0;
     private double _severityChangeRate = 0;
-    private List<SurvivalStatsUpdate> _survivalStatsUpdates = [];
+    private List<SurvivalStatsDelta> _survivalStatsUpdates = [];
     private bool _canHaveMultiple = false;
     private bool _requiresTreatment = false;
     private readonly CapacityModifierContainer _capacityModifiers = new();
@@ -21,6 +21,11 @@ public class EffectBuilder
     private readonly List<Action<Actor>> _onUpdateActions = [];
     private readonly List<Action<Actor, double, double>> _onSeverityChangeActions = [];
     private readonly List<Action<Actor>> _onRemoveActions = [];
+
+    // Messages
+    private string? _applicationMessage;
+    private string? _removalMessage;
+    private readonly List<Effect.ThresholdMessage> _thresholdMessages = [];
 
     public EffectBuilder Named(string effectKind)
     {
@@ -100,10 +105,38 @@ public class EffectBuilder
         return this;
     }
 
-    public EffectBuilder WithSurvivalStatsUpdate(SurvivalStatsUpdate minuteUpdate)
+    public EffectBuilder WithSurvivalStatsDelta(SurvivalStatsDelta minuteUpdate)
     {
         _survivalStatsUpdates.Add(minuteUpdate);
         return this;
+    }
+
+    public EffectBuilder WithApplicationMessage(string message)
+    {
+        _applicationMessage = message;
+        return this;
+    }
+
+    public EffectBuilder WithRemovalMessage(string message)
+    {
+        _removalMessage = message;
+        return this;
+    }
+
+    public EffectBuilder WithThresholdMessage(double threshold, string message, bool whenRising)
+    {
+        _thresholdMessages.Add(new Effect.ThresholdMessage(threshold, message, whenRising));
+        return this;
+    }
+
+    public EffectBuilder WithRisingThreshold(double threshold, string message)
+    {
+        return WithThresholdMessage(threshold, message, whenRising: true);
+    }
+
+    public EffectBuilder WithFallingThreshold(double threshold, string message)
+    {
+        return WithThresholdMessage(threshold, message, whenRising: false);
     }
 
     public DynamicEffect Build()
@@ -139,7 +172,7 @@ public class EffectBuilder
             combinedOnRemove = target => _onRemoveActions.ForEach(action => action(target));
         }
 
-        SurvivalStatsUpdate combinedStatsUpdate = new();
+        SurvivalStatsDelta combinedStatsUpdate = new();
         foreach (var update in _survivalStatsUpdates)
         {
             combinedStatsUpdate = combinedStatsUpdate.Add(update);
@@ -154,11 +187,14 @@ public class EffectBuilder
             canHaveMultiple: _canHaveMultiple,
             requiresTreatment: _requiresTreatment,
             capacityModifiers: _capacityModifiers,
+            survivalStatsDelta: combinedStatsUpdate,
+            applicationMessage: _applicationMessage,
+            removalMessage: _removalMessage,
+            thresholdMessages: _thresholdMessages,
             onApply: combinedOnApply,
             onUpdate: combinedOnUpdate,
             onSeverityChange: combinedOnSeverityChange,
             onRemove: combinedOnRemove
-
         );
     }
 }
@@ -176,9 +212,9 @@ public static class EffectBuilderExtensions
             .AllowMultiple(true)
             .ReducesCapacity(CapacityNames.BloodPumping, 0.2)
             .ReducesCapacity(CapacityNames.Consciousness, 0.1)
-            .WithApplyMessage("{target} is bleeding!")
+            .WithApplicationMessage("{target} is bleeding!")
             .WithPeriodicMessage("Blood continues to flow from {target}'s wound...")
-            .WhenSeverityDropsBelowWithMessage(0.2, "{target}'s bleeding is slowing")
+            .WithFallingThreshold(0.2, "{target}'s bleeding is slowing")
             .OnUpdate(target =>
             {
                 double damage = (damagePerHour / 60.0) * builder.Build().Severity;
@@ -269,7 +305,7 @@ public static class EffectBuilderExtensions
 
     public static EffectBuilder WithDuration(this EffectBuilder builder, int minutes)
     {
-        return builder.WithHourlySeverityChange(-1.0 / minutes);
+        return builder.WithHourlySeverityChange(-60.0 / minutes);
     }
 
     public static EffectBuilder Permanent(this EffectBuilder builder)
@@ -282,19 +318,20 @@ public static class EffectBuilderExtensions
         return builder.WithHourlySeverityChange(rate);
     }
 
-    // Message helpers
+    // Message helpers - static versions use built-in properties
     public static EffectBuilder WithApplyMessage(this EffectBuilder builder, string message)
     {
         if (string.IsNullOrWhiteSpace(message)) return builder;
-        return builder.OnApply(target => IO.Output.WriteLine(message.Replace("{target}", target.Name)));
+        return builder.WithApplicationMessage(message);
     }
 
     public static EffectBuilder WithRemoveMessage(this EffectBuilder builder, string message)
     {
         if (string.IsNullOrWhiteSpace(message)) return builder;
-        return builder.OnRemove(target => IO.Output.WriteLine(message.Replace("{target}", target.Name)));
+        return builder.WithRemovalMessage(message);
     }
 
+    // Periodic messages still need hooks (no built-in support for random chance)
     public static EffectBuilder WithPeriodicMessage(this EffectBuilder builder, string message, double chance = 0.05)
     {
         if (string.IsNullOrWhiteSpace(message)) return builder;
@@ -302,31 +339,31 @@ public static class EffectBuilderExtensions
         {
             if (Utils.DetermineSuccess(chance))
             {
-                IO.Output.WriteLine(message.Replace("{target}", target.Name));
+                target.AddLog(message.Replace("{target}", target.Name));
             }
         });
     }
 
     public static EffectBuilder AsInstantEffect(this EffectBuilder builder)
     {
-        return builder.WithHourlySeverityChange(-999); // should make it last only one tick
+        return builder.WithHourlySeverityChange(-999);
     }
 
     public static EffectBuilder CausesDehydration(this EffectBuilder builder, double hydrationLossPerMinute)
     {
-        return builder.WithSurvivalStatsUpdate(new SurvivalStatsUpdate { Hydration = -hydrationLossPerMinute });
+        return builder.WithSurvivalStatsDelta(new SurvivalStatsDelta { HydrationDelta = -hydrationLossPerMinute });
     }
 
     public static EffectBuilder CausesExhaustion(this EffectBuilder builder, double exhaustionPerMinute)
     {
-        return builder.WithSurvivalStatsUpdate(new SurvivalStatsUpdate { Energy = exhaustionPerMinute });
+        return builder.WithSurvivalStatsDelta(new SurvivalStatsDelta { EnergyDelta = exhaustionPerMinute });
     }
 
     public static EffectBuilder AffectsTemperature(this EffectBuilder builder, double hourlyTemperatureChange)
     {
-        return builder.WithSurvivalStatsUpdate(new SurvivalStatsUpdate()
+        return builder.WithSurvivalStatsDelta(new SurvivalStatsDelta()
         {
-            Temperature = hourlyTemperatureChange / 60
+            TemperatureDelta = hourlyTemperatureChange / 60
         });
     }
 
@@ -348,6 +385,8 @@ public static class EffectBuilderExtensions
             target.EffectRegistry.AddEffect(effectToApply);
         });
     }
+
+    // Threshold action hooks (for custom logic)
     public static EffectBuilder WhenSeverityDropsBelow(this EffectBuilder builder, double threshold, Action<Actor> action)
     {
         return builder.OnSeverityChange((target, oldSeverity, newSeverity) =>
@@ -370,29 +409,19 @@ public static class EffectBuilderExtensions
         });
     }
 
+    // Threshold message helpers - use built-in threshold system
     public static EffectBuilder WhenSeverityDropsBelowWithMessage(this EffectBuilder builder, double threshold, string message)
     {
         if (string.IsNullOrWhiteSpace(message)) return builder;
-        return builder.OnSeverityChange((target, oldSeverity, newSeverity) =>
-        {
-            if (newSeverity < threshold && oldSeverity >= threshold)
-            {
-                IO.Output.WriteLine(message.Replace("{target}", target.Name));
-            }
-        });
+        return builder.WithFallingThreshold(threshold, message);
     }
 
     public static EffectBuilder WhenSeverityRisesAboveWithMessage(this EffectBuilder builder, double threshold, string message)
     {
         if (string.IsNullOrWhiteSpace(message)) return builder;
-        return builder.OnSeverityChange((target, oldSeverity, newSeverity) =>
-        {
-            if (newSeverity > threshold && oldSeverity <= threshold)
-            {
-                IO.Output.WriteLine(message.Replace("{target}", target.Name));
-            }
-        });
+        return builder.WithRisingThreshold(threshold, message);
     }
+
     public static EffectBuilder ClearsEffectType(this EffectBuilder builder, string effectKindToClear)
     {
         return builder.OnApply(target =>

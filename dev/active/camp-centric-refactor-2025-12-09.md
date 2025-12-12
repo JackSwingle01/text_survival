@@ -1,6 +1,6 @@
-# Camp-Centric Survival Refactor Plan
-Date: 2025-12-09
-Status: Planning Complete - Ready for Implementation
+# Camp-Centric Survival Refactor Plan (Updated)
+Date: 2025-12-10
+Status: Architecture Refined - Ready for Implementation
 
  Overview
 
@@ -12,170 +12,393 @@ Transform the game from a location-navigation model to a camp-centric expedition
 
 ---
 
- Phase 1: Camp Foundation
+ Critical Architecture Decision: Non-Blocking Expeditions
 
- 1.1 Create CampManager
+Problem with original approach: The plan called for `ExpeditionRunner` to process expeditions in a `while(true)` loop inside a `.Do()` block. This blocks the game loop and prevents:
+- Player choices during events
+- UI updates during long expeditions
+- Any interaction until expedition completes
 
-New File: `Actors/Player/CampManager.cs`
+Solution: Expeditions are state machines executed as chained actions, not blocking loops.
 
+ The Pattern
+
+Instead of:
 ```csharp
-public class CampManager
-{
-    public Location? CampLocation { get; private set; }
-    public HeatSourceFeature? Fire => CampLocation?.GetFeature<HeatSourceFeature>();
-    public ShelterFeature? Shelter => CampLocation?.GetFeature<ShelterFeature>();
-
-    public double GetFireMarginMinutes(int expeditionMinutes)
-    {
-        if (Fire == null || !Fire.IsActive && !Fire.HasEmbers)
-            return double.NegativeInfinity;
-        return Fire.GetMinutesRemaining() - expeditionMinutes;
+// BAD - Blocking
+.Do(ctx => {
+    while (!expedition.IsComplete) {
+        runner.ProcessChunk(expedition, player);
     }
+})
+```
 
-    public void SetCamp(Location location) { ... }
-    public void AbandonCamp() { ... }
+Use:
+```csharp
+// GOOD - Non-blocking, chainable
+public static IGameAction ProcessExpeditionChunk(Expedition expedition)
+{
+    return CreateAction($"{expedition.CurrentPhase}...")
+        .Do(ctx => {
+            var result = ExpeditionRunner.ProcessChunk(expedition, ctx.player);
+            // Process ONE chunk only
+        })
+        .ThenShow(ctx => GetNextExpeditionAction(expedition))
+        .Build();
+}
+
+private static List<IGameAction> GetNextExpeditionAction(Expedition expedition)
+{
+    // Check for events first
+    var evt = ExpeditionRunner.CheckForEvents(expedition);
+    if (evt != null)
+        return GetEventResponses(evt, expedition);
+
+    // Check if complete
+    if (expedition.IsComplete)
+        return [ShowExpeditionResults(expedition)];
+
+    // Continue to next chunk (recursive chain)
+    return [ProcessExpeditionChunk(expedition)];
 }
 ```
 
- 1.2 Modify Player and Context
-
-File: `Actors/Player/Player.cs`
-- Add `public readonly CampManager campManager;`
-
-File: `Actions/GameContext.cs`
-- Add `public CampManager CampManager => player.campManager;`
-- Add `public Location? Camp => player.campManager.CampLocation;`
-- Add `public bool IsAtCamp => player.locationManager.CurrentLocation == Camp;`
-
- 1.3 Update Program.cs
-
-Set initial camp on game start:
-```csharp
-player.campManager.SetCamp(startingArea);
-```
+This makes each chunk a discrete action. The action system's `ThenShow` creates the loop, but player can make choices at event boundaries.
 
 ---
 
- Phase 2: Expedition System Core
+ Phase 1: Camp Foundation (Done)
+
+ 1.1 CampManager
+File: `Actors/Player/CampManager.cs` - Already exists
+
+ 1.2 Player/Context Integration
+- `Player.cs` has `Camp` property
+- `GameContext.cs` has camp context helpers
+
+ 1.3 Program.cs
+- Initial camp is set on game start
+
+---
+
+ Phase 2: Expedition Core (Partially Done)
 
  2.1 Expedition Infrastructure
 
-New File: `Expeditions/ExpeditionPhase.cs`
-```csharp
-public enum ExpeditionPhase { NotStarted, TravelOut, Working, TravelBack, Completed, Aborted }
-```
+Existing Files (in `Actions/Expeditions/`):
+- `ExpeditionPhase.cs` - Phase enum
+- `ExpeditionType.cs` - Type enum (Forage, Hunt, etc.)
+- `Expedition.cs` - Data class
 
-New File: `Expeditions/ActivityType.cs`
-```csharp
-public enum ActivityType { Forage, Hunt, Explore, Gather, Scout }
-```
-
-New File: `Expeditions/Expedition.cs`
+Needs Update: `Expedition.cs` should have:
 ```csharp
 public class Expedition
 {
-    public Location Destination { get; }
-    public Location Camp { get; }
-    public ActivityType Activity { get; }
+    // Identity
+    public Location startLocation { get; }
+    public Location endLocation { get; }
+    public ExpeditionType Type { get; }
 
     // Time calculations
-    public int TravelTimeOutMinutes { get; }
-    public int WorkTimeBaseMinutes { get; }
-    public int WorkTimeVarianceMinutes { get; }
-    public int TravelTimeBackMinutes { get; }
-    public int TotalEstimatedMinutes => TravelTimeOutMinutes + WorkTimeBaseMinutes + TravelTimeBackMinutes;
+    public int TravelTimeMinutes { get; }
+    public int WorkTimeMinutes { get; }
+    public int TimeVarianceMinutes { get; }
+    public int TotalEstimatedTimeMinutes => (TravelTimeMinutes * 2) + WorkTimeMinutes;
 
     // Risk factors
     public double ExposureFactor { get; }
     public double DetectionRisk { get; }
 
-    // State
+    // State (mutable)
     public ExpeditionPhase CurrentPhase { get; private set; }
-    public int ElapsedInPhaseMinutes { get; private set; }
-    public int TotalElapsedMinutes { get; private set; }
+    public int MinutesElapsedPhase { get; private set; }
+    public int MinutesElapsedTotal { get; private set; }
 
     // Results
-    public List<Item> ItemsGathered { get; } = new();
-    public List<string> EventLog { get; } = new();
+    public List<Item> LootCollected { get; } = new();
+    public List<string> EventsLog { get; } = new();
+
+    // State transitions
+    public void IncrementTime(int minutes);
+    public bool IsPhaseComplete();
+    public void AdvancePhase();
+    public bool IsComplete => CurrentPhase == ExpeditionPhase.Completed;
 }
 ```
-
-New File: `Expeditions/ExpeditionFactory.cs`
-- `CreateForageExpedition(destination, camp)`
-- `CreateHuntExpedition(destination, camp, target)`
-- `CreateExploreExpedition(camp)`
-- Uses coordinate distance for travel time calculation
 
  2.2 Fire Margin Calculator
 
-New File: `Expeditions/FireMarginCalculator.cs`
+New File: `Actions/Expeditions/FireMarginCalculator.cs`
 ```csharp
-public enum MarginStatus { Comfortable, Tight, Risky, VeryRisky }
+public enum MarginStatus { Comfortable, Tight, Risky, VeryRisky, NoFire }
 
-public static MarginStatus GetStatus(double marginMinutes)
+public static class FireMarginCalculator
 {
-    if (marginMinutes > 30) return Comfortable;
-    if (marginMinutes > 0) return Tight;
-    if (marginMinutes > -15) return Risky;
-    return VeryRisky;
+    public static MarginStatus GetStatus(double marginMinutes)
+    {
+        if (double.IsNegativeInfinity(marginMinutes)) return NoFire;
+        if (marginMinutes > 30) return Comfortable;
+        if (marginMinutes > 0) return Tight;
+        if (marginMinutes > -15) return Risky;
+        return VeryRisky;
+    }
+
+    public static string GetWarningMessage(MarginStatus status, double margin) { ... }
 }
 ```
 
- 2.3 Expedition Runner
+ 2.3 Expedition Runner (Update Needed)
 
-New File: `Expeditions/ExpeditionRunner.cs`
+File: `Actions/Expeditions/ExpeditionRunner.cs`
 
-Core execution loop that processes expeditions in 5-minute chunks:
+Change from "runs entire expedition" to "processes single chunk":
+
 ```csharp
-public ExpeditionChunkResult ProcessChunk(Expedition expedition, Player player)
+public class ExpeditionRunner
 {
-    for (int i = 0; i < CHUNK_SIZE; i++)
+    private const int CHUNK_SIZE_MINUTES = 5;
+
+    public class ChunkResult
     {
-        player.Update();           // Tick survival
-        World.Update(1, true);     // Tick world (fire burns)
-
-        var evt = CheckForEvents(expedition, player);
-        if (evt.HasEvent) return new ChunkResult { Event = evt };
-
-        expedition.AddElapsedTime(1);
+        public int MinutesProcessed { get; init; }
+        public bool PhaseCompleted { get; init; }
+        public ExpeditionEvent? Event { get; init; }
     }
-    return new ChunkResult { MinutesProcessed = CHUNK_SIZE };
+
+    /// <summary>
+    /// Process ONE chunk of expedition time. Does not loop.
+    /// </summary>
+    public static ChunkResult ProcessChunk(Expedition expedition, Player player)
+    {
+        int processed = 0;
+        while (processed < CHUNK_SIZE_MINUTES)
+        {
+            World.Update(1, true);
+            player.Update();
+            expedition.IncrementTime(1);
+            processed++;
+
+            // Check for events
+            var evt = CheckForEvents(expedition, player);
+            if (evt != null)
+            {
+                return new ChunkResult
+                {
+                    MinutesProcessed = processed,
+                    Event = evt
+                };
+            }
+
+            // Check for phase completion
+            if (expedition.IsPhaseComplete())
+            {
+                return new ChunkResult
+                {
+                    MinutesProcessed = processed,
+                    PhaseCompleted = true
+                };
+            }
+        }
+
+        return new ChunkResult { MinutesProcessed = processed };
+    }
+
+    public static ExpeditionEvent? CheckForEvents(Expedition exp, Player player) { ... }
+    public static void DisplayPreview(Expedition exp, double fireMinutes) { ... }
 }
 ```
 
 ---
 
- Phase 3: Expedition Actions
+ Phase 3: Expedition Actions (Core Focus)
 
- 3.1 Create ExpeditionActions
+ 3.1 Action Architecture
 
-New File: `Actions/ExpeditionActions.cs`
+File: `Actions/Expeditions/ExpeditionActions.cs`
 
-Key actions:
-- `SelectForageExpedition()` - Choose destination for foraging
-- `SelectHuntExpedition()` - Choose destination for hunting
-- `SelectExploreExpedition()` - Dedicated exploration action
-- `ShowExpeditionSummary(expedition)` - Display time/margin, confirm
-- `ExecuteExpeditionPhase(expedition)` - Run expedition loop
-- `WorkPhaseMenu(expedition)` - Options during work phase
-- `ExpeditionComplete(expedition)` - Show results, transfer items
-
- 3.2 Expedition Confirmation Flow
+The expedition flow is a series of chained actions:
 
 ```
-1. Player selects "Forage"
-2. Shows destination list with travel times + margins
-3. Player selects destination
-4. Shows expedition summary:
-   "Deep Forest — ~70 min round trip
-    Fire will have ~15 min remaining
-    Proceed?"
-5. Player confirms → expedition begins
-6. Chunks process with event checks
-7. On completion → results + back to camp
+SelectForageExpedition()
+    --> ShowDestinationPicker()
+        --> ShowExpeditionPlan(expedition)
+            --> ProcessExpeditionChunk(expedition)  <--+
+                |-- [Event] --> HandleEvent(event)    |
+                |               --> Continue/Abort ---+
+                |-- [Phase Done] --> ProcessNext... --+
+                --> [Complete] --> ShowResults(expedition)
+                                    --> Return to MainMenu
 ```
 
- 3.3 Refactor Main Menu
+ 3.2 Key Actions
+
+```csharp
+public static class ExpeditionActions
+{
+    // Entry point: Select expedition type and destination
+    public static IGameAction SelectForageExpedition()
+    {
+        return CreateAction("Forage")
+            .ThenShow(ctx => GetForageDestinations(ctx))
+            .Build();
+    }
+
+    private static List<IGameAction> GetForageDestinations(GameContext ctx)
+    {
+        var locations = ctx.Camp.GetNearbyForageLocations();
+        var actions = locations.Select(loc =>
+            CreateDestinationAction(loc, ExpeditionType.Forage, ctx)
+        ).ToList();
+        actions.Add(ActionFactory.Common.Return("Never mind"));
+        return actions;
+    }
+
+    private static IGameAction CreateDestinationAction(
+        Location loc, ExpeditionType type, GameContext ctx)
+    {
+        var expedition = ExpeditionFactory.Create(type, ctx.CampLocation, loc);
+        var margin = ctx.Camp.GetFireMarginMinutes(expedition.TotalEstimatedTimeMinutes);
+        var status = FireMarginCalculator.GetStatus(margin);
+
+        string label = $"{loc.Name} (~{expedition.TotalEstimatedTimeMinutes} min)";
+        if (status == MarginStatus.Risky || status == MarginStatus.VeryRisky)
+            label += " ⚠";
+
+        return CreateAction(label)
+            .ThenShow(_ => [ShowExpeditionPlan(expedition)])
+            .Build();
+    }
+
+    // Preview and confirm
+    public static IGameAction ShowExpeditionPlan(Expedition expedition)
+    {
+        return CreateAction("Review Plan")
+            .Do(ctx => ExpeditionRunner.DisplayPreview(
+                expedition,
+                ctx.Camp.GetFireMinutesRemaining()))
+            .WithPrompt("Proceed with this expedition?")
+            .ThenShow(_ => [
+                StartExpedition(expedition),
+                ActionFactory.Common.Return("Never mind")
+            ])
+            .Build();
+    }
+
+    // Begin expedition - transitions to first chunk
+    public static IGameAction StartExpedition(Expedition expedition)
+    {
+        return CreateAction("Begin Expedition")
+            .Do(ctx => {
+                Output.WriteLine($"You set out for {expedition.endLocation.Name}...");
+                expedition.AdvancePhase(); // NotStarted --> TravelingOut
+            })
+            .ThenShow(_ => [ProcessExpeditionChunk(expedition)])
+            .Build();
+    }
+
+    // Core loop action - processes ONE chunk, chains to next
+    public static IGameAction ProcessExpeditionChunk(Expedition expedition)
+    {
+        string phaseName = expedition.CurrentPhase switch
+        {
+            ExpeditionPhase.TravelingOut => "Traveling...",
+            ExpeditionPhase.Working => "Working...",
+            ExpeditionPhase.TravelingBack => "Returning...",
+            _ => "..."
+        };
+
+        return CreateAction(phaseName)
+            .Do(ctx => {
+                var result = ExpeditionRunner.ProcessChunk(expedition, ctx.player);
+
+                // Store result for ThenShow to use
+                ctx.LastChunkResult = result;
+
+                if (result.PhaseCompleted)
+                    expedition.AdvancePhase();
+            })
+            .ThenShow(ctx => GetNextExpeditionActions(expedition, ctx))
+            .Build();
+    }
+
+    private static List<IGameAction> GetNextExpeditionActions(
+        Expedition expedition, GameContext ctx)
+    {
+        var result = ctx.LastChunkResult;
+
+        // Event occurred - show event responses
+        if (result?.Event != null)
+            return GetEventResponses(result.Event, expedition);
+
+        // Expedition complete - show results
+        if (expedition.IsComplete)
+            return [ShowExpeditionResults(expedition)];
+
+        // Continue to next chunk (automatic, player just sees progress)
+        return [ProcessExpeditionChunk(expedition)];
+    }
+
+    // Event handling
+    private static List<IGameAction> GetEventResponses(
+        ExpeditionEvent evt, Expedition expedition)
+    {
+        return evt.Type switch
+        {
+            ExpeditionEventType.FireWarning => [
+                ContinueExpedition(expedition, "Press on"),
+                AbortExpedition(expedition, "Head back now")
+            ],
+            ExpeditionEventType.Encounter => [
+                FightEncounter(expedition, evt),
+                FleeEncounter(expedition, evt)
+            ],
+            _ => [ContinueExpedition(expedition, "Continue")]
+        };
+    }
+
+    // Results
+    public static IGameAction ShowExpeditionResults(Expedition expedition)
+    {
+        return CreateAction("Expedition Complete")
+            .Do(ctx => {
+                Output.WriteLine($"You return to camp after {expedition.MinutesElapsedTotal} minutes.");
+                // Display loot, fire status, etc.
+            })
+            .ThenReturn() // Back to main menu
+            .Build();
+    }
+}
+```
+
+ 3.3 GameContext Addition
+
+File: `Actions/GameContext.cs`
+
+Add field to pass chunk results between Do and ThenShow:
+```csharp
+public ExpeditionRunner.ChunkResult? LastChunkResult { get; set; }
+```
+
+---
+
+ Phase 4: Adapt Existing Systems
+
+ 4.1 Foraging --> Expedition Work Phase
+
+During `Working` phase for forage expeditions, call existing `ForageFeature`:
+
+```csharp
+// Inside ProcessChunk when phase is Working:
+if (expedition.Type == ExpeditionType.Forage)
+{
+    var feature = expedition.endLocation.GetFeature<ForageFeature>();
+    var items = feature?.ForageOnce(); // Get items for this work increment
+    if (items != null)
+        expedition.LootCollected.AddRange(items);
+}
+```
+
+ 4.2 Main Menu Refactor
 
 File: `Actions/ActionFactory.cs`
 
@@ -185,16 +408,16 @@ public static IGameAction MainMenu()
     return CreateAction("Main Menu")
         .Do(ctx => {
             ShowSurvivalStats(ctx);
-            if (ctx.IsAtCamp) CampStatusDisplay.Show(ctx.CampManager);
+            CampStatusDisplay.Show(ctx.Camp);
         })
-        .ThenShow(ctx => ctx.IsAtCamp ? GetCampActions(ctx) : GetExpeditionActions(ctx))
+        .ThenShow(ctx => GetCampActions(ctx))
         .Build();
 }
 
 private static List<IGameAction> GetCampActions(GameContext ctx)
 {
     return [
-        // Camp actions (no travel)
+        // Camp actions (instant, at camp)
         Survival.TendFire(),
         Survival.Rest(),
         Survival.EatDrink(),
@@ -213,217 +436,130 @@ private static List<IGameAction> GetCampActions(GameContext ctx)
 
 ---
 
- Phase 4: Adapt Existing Systems
+ Phase 5: Events (MVP)
 
- 4.1 Foraging → Expedition
+ 5.1 Event Types
 
-Current `ForageFeature.Forage()` stays the same, called from expedition work phase:
-```csharp
-public static IGameAction DoForageWork(Expedition expedition)
-{
-    return CreateAction("Search for resources (15 min)")
-        .Do(ctx => {
-            var feature = expedition.Destination.GetFeature<ForageFeature>();
-            feature.Forage(0.25);
-            expedition.ItemsGathered.AddRange(GetFoundItems());
-        })
-        .ThenShow(_ => [WorkPhaseMenu(expedition)])
-        .Build();
-}
-```
-
- 4.2 Hunting → Expedition
-
-- Keep `StealthManager` for stealth state tracking
-- Hunt expedition's work phase uses existing approach/shoot sequence
-- Variable work time based on tracking success
-
- 4.3 Movement → Move Camp
-
-Remove: `GoToLocation()`, `GoToLocationByMap()`, `Travel()`
-
-Replace with: `MoveCamp()` action with two options:
-1. Within zone (10-30 min): Move to nearby location, easy
-2. To new zone (60-120 min): Big journey, more events
-
-```csharp
-public static IGameAction MoveCamp()
-{
-    return CreateAction("Move Camp")
-        .When(ctx => ctx.IsAtCamp)
-        .ThenShow(ctx => [
-            MoveCampWithinZone(),
-            MoveCampToNewZone(),
-            Common.Return("Stay here")
-        ])
-        .Build();
-}
-```
-
----
-
- Phase 5: Event System (MVP)
-
- 5.1 Basic Event Types
-
-New File: `Expeditions/ExpeditionEvent.cs`
+New File: `Actions/Expeditions/ExpeditionEvent.cs`
 ```csharp
 public enum ExpeditionEventType
 {
-    FireDanger,   // Fire margin low
-    Encounter,    // Hostile animal
-    Discovery,    // Found something
-    Weather,      // Weather change
-    Injury        // Minor injury
+    FireWarning,    // Fire margin getting dangerous
+    Encounter,      // Wildlife encounter
+    Discovery,      // Found something interesting
+    Weather,        // Weather change
+    Injury          // Minor injury event
+}
+
+public class ExpeditionEvent
+{
+    public ExpeditionEventType Type { get; init; }
+    public string Description { get; init; }
+    public object? Data { get; init; } // Animal for encounters, Item for discoveries, etc.
 }
 ```
 
- 5.2 Event Checking
-
-During expedition chunks, check for:
-1. Fire danger: If margin drops below threshold, warn player
-2. Encounters: Random hostile encounter based on DetectionRisk
-3. Discovery: Random find during exploration
-
- 5.3 Event Responses
+ 5.2 Event Checking (Simple MVP)
 
 ```csharp
-public static List<IGameAction> GetEventResponses(ExpeditionEvent evt, Expedition exp)
+public static ExpeditionEvent? CheckForEvents(Expedition exp, Player player)
 {
-    return evt.Type switch
+    // Fire warning: check every chunk during travel back
+    if (exp.CurrentPhase == ExpeditionPhase.TravelingBack)
     {
-        FireDanger => [ContinueExpedition(exp), AbortExpedition(exp)],
-        Encounter => [FightEncounter(exp, evt.Animal), FleeEncounter(exp)],
-        _ => [ContinueExpedition(exp)]
-    };
+        var remainingTime = exp.GetRemainingTimeEstimate();
+        var fireMargin = player.Camp.GetFireMarginMinutes(remainingTime);
+        if (fireMargin < 10 && !exp.HasWarnedAboutFire)
+        {
+            exp.HasWarnedAboutFire = true;
+            return new ExpeditionEvent
+            {
+                Type = ExpeditionEventType.FireWarning,
+                Description = $"Your fire will have only ~{fireMargin:F0} minutes when you return."
+            };
+        }
+    }
+
+    // Random encounter during work phase
+    if (exp.CurrentPhase == ExpeditionPhase.Working)
+    {
+        if (Random.Shared.NextDouble() < exp.DetectionRisk * 0.1)
+        {
+            // Create encounter event
+        }
+    }
+
+    return null;
 }
 ```
 
 ---
 
- Phase 6: Polish and Integration
+ Implementation Order (Updated)
 
- 6.1 Camp Status Display
+ Batch 1: Foundation (Done)
+- CampManager exists
+- Player/Context have camp access
+- Expedition data class exists
 
-New File: `UI/CampStatusDisplay.cs`
-```
-┌──────── CAMP STATUS ────────┐
-  Fire: Steady (45 min)
-  Temperature: 28°F
-  Shelter: Lean-to (wind -40%)
-└─────────────────────────────┘
-```
+ Batch 2: Runner Refactor
+1. Update `ExpeditionRunner.cs` to process single chunks (not loop)
+2. Add `ChunkResult` class with event support
+3. Add `CheckForEvents()` stub (returns null for now)
+4. Test: Can process one chunk and return
 
- 6.2 Expedition Summary
+ Batch 3: Action Chain Pattern
+1. Update `ExpeditionActions.cs` with non-blocking pattern
+2. Add `LastChunkResult` to `GameContext`
+3. Implement: `SelectForageExpedition` --> `ShowExpeditionPlan` --> `ProcessExpeditionChunk` chain
+4. Test: Can start and complete a forage expedition
 
-On return, show:
-- Time elapsed
-- Items gathered (grouped)
-- Fire status
-- Any injuries/consequences
+ Batch 4: Fire Margin Integration
+1. Create `FireMarginCalculator.cs`
+2. Add margin display to destination picker
+3. Add margin display to expedition preview
+4. Test: Fire warnings show correctly
 
- 6.3 Testing
+ Batch 5: Events MVP
+1. Create `ExpeditionEvent.cs`
+2. Implement fire warning event
+3. Implement event response actions
+4. Test: Fire warning interrupts expedition
 
-- Test forage expeditions with various fire margins
-- Test hunt expeditions with existing stealth system
-- Test move camp within zone and between zones
-- Test event interrupts (fire warning, encounters)
+ Batch 6: Main Menu Integration
+1. Update `ActionFactory.MainMenu()` to use expedition actions
+2. Remove old movement/forage actions
+3. Add `CampStatusDisplay`
+4. Full integration test
 
 ---
 
- File Summary
+ Files to Modify/Create
 
- New Files (10)
-
-| File | Purpose |
-|------|---------|
-| `Actors/Player/CampManager.cs` | Camp state, fire margin calculation |
-| `Expeditions/ExpeditionPhase.cs` | Phase enum |
-| `Expeditions/ActivityType.cs` | Activity enum |
-| `Expeditions/Expedition.cs` | Expedition data class |
-| `Expeditions/ExpeditionFactory.cs` | Create expedition instances |
-| `Expeditions/ExpeditionRunner.cs` | Chunk-based execution loop |
-| `Expeditions/ExpeditionEvent.cs` | Event types and data |
-| `Expeditions/FireMarginCalculator.cs` | Margin status calculation |
-| `Actions/ExpeditionActions.cs` | All expedition-related actions |
-| `UI/CampStatusDisplay.cs` | Camp status rendering |
-
- Modified Files (5)
-
+ Modify
 | File | Changes |
 |------|---------|
-| `Actors/Player/Player.cs` | Add CampManager |
-| `Actions/GameContext.cs` | Add camp/expedition context |
-| `Actions/ActionFactory.cs` | New main menu, remove old movement |
-| `Actors/Player/LocationManager.cs` | Simplify (no more "move to" locations) |
-| `Core/Program.cs` | Set initial camp |
+| `Actions/Expeditions/ExpeditionRunner.cs` | Single-chunk processing, no loop |
+| `Actions/Expeditions/ExpeditionActions.cs` | Non-blocking chained actions |
+| `Actions/GameContext.cs` | Add `LastChunkResult` field |
+| `Actions/ActionFactory.cs` | New main menu with expedition actions |
 
- Unchanged Files (Reused)
-
-- `Environments/Location.cs` - Already has camp features
-- `Environments/Features/HeatSourceFeature.cs` - Fire physics unchanged
-- `Environments/Features/ForageFeature.cs` - Called from expeditions
-- `Actors/Player/StealthManager.cs` - Used for hunt expeditions
-- `Environments/Zone.cs` - Used for move camp between zones
-
----
-
- Implementation Order
-
- Batch 1: Foundation
-1. Create `CampManager.cs`
-2. Modify `Player.cs` to use CampManager
-3. Modify `GameContext.cs` with camp context
-4. Update `Program.cs` to set initial camp
-5. Build & test: Player has camp reference
-
- Batch 2: Expedition Core
-1. Create `Expeditions/` folder with enums
-2. Create `Expedition.cs` data class
-3. Create `ExpeditionFactory.cs`
-4. Create `FireMarginCalculator.cs`
-5. Build & test: Can create expedition objects
-
- Batch 3: Expedition Runner
-1. Create `ExpeditionRunner.cs`
-2. Create `ExpeditionEvent.cs`
-3. Build & test: Expeditions process in chunks
-
- Batch 4: Forage Expedition
-1. Create `ExpeditionActions.cs` with forage actions
-2. Refactor main menu to use expedition actions
-3. Remove old standalone forage action
-4. Build & test: Full forage expedition flow
-
- Batch 5: Hunt + Explore
-1. Add hunt expedition to `ExpeditionActions.cs`
-2. Integrate existing `StealthManager`
-3. Add explore expedition
-4. Build & test: Hunt and explore work
-
- Batch 6: Move Camp
-1. Create `MoveCamp()` action
-2. Remove old movement actions
-3. Test within-zone and between-zone moves
-4. Build & test: Camp relocation works
-
- Batch 7: Polish
-1. Create `CampStatusDisplay.cs`
-2. Improve expedition summary display
-3. Add fire margin warnings to UI
-4. Full integration testing
+ Create
+| File | Purpose |
+|------|---------|
+| `Actions/Expeditions/FireMarginCalculator.cs` | Margin status and warnings |
+| `Actions/Expeditions/ExpeditionEvent.cs` | Event types and data |
+| `UI/CampStatusDisplay.cs` | Camp status rendering |
 
 ---
 
  Key Design Decisions
 
-1. Camp is just a Location - No new Camp class, CampManager references a Location
-2. Expeditions are data objects - Not actions themselves, processed by runner
-3. Chunk-based execution - 5-minute chunks for granular event checking
-4. Fire margin is automatic - Calculated and displayed on all expedition selections
-5. Zones stay for now - Used for "big journey" move camp option
-6. Events are minimal MVP - Fire warnings and basic encounters only
-7. Existing systems adapted - ForageFeature, StealthManager reused
+1. Non-blocking execution - Expeditions chain actions via `ThenShow`, not blocking loops
+2. Chunk results in context - `GameContext.LastChunkResult` passes data between `Do` and `ThenShow`
+3. Events interrupt naturally - Events are just different `ThenShow` results
+4. ActionBuilder unchanged - No need to modify the builder pattern
+5. ExpeditionRunner is stateless - It processes chunks, actions manage state flow
 
 ---
 
@@ -431,50 +567,50 @@ On return, show:
 
 ```
 1. Player selects action type (Forage)
-         ↓
+         |
 2. Player selects location (Deep Forest)
-         ↓
+         |
 3. System calculates expedition shape:
    - Travel out: 25 min
-   - Work time: 20 min (±10 variance)
+   - Work time: 20 min (+/-10 variance)
    - Travel back: 25 min
    - Total estimate: 70 min (range: 60-80)
-         ↓
+         |
 4. System checks fire margin:
    - Fire remaining: 85 min
    - Margin after: 5-25 min
    - Verdict: Tight but possible
-         ↓
+         |
 5. Player sees summary and confirms:
-   "Deep Forest — ~70 min round trip
+   "Deep Forest - ~70 min round trip
     Fire will have ~15 min remaining
     Proceed?"
-         ↓
+         |
 6. Expedition begins
-         ↓
+         |
 7. Phase: TRAVEL OUT
-   - Loop in chunks (5 min each)
+   - Process in chunks (5 min each)
    - Each chunk: tick survival, tick world (fire burns)
    - Event check each chunk (lower probability)
    - Player not shown granular updates, just interrupts
-         ↓
+         |
 8. Phase: WORK
-   - Roll actual duration (20 min ± 10)
-   - Loop in chunks
+   - Roll actual duration (20 min +/- 10)
+   - Process in chunks
    - Each chunk: tick survival, tick world
    - Event check each chunk (higher probability)
    - Events may offer abort: "Storm coming. Head back now?"
-         ↓
+         |
 9. Phase: TRAVEL BACK
    - Same as travel out
    - Events can still happen
    - Tension if fire margin is thin
-         ↓
+         |
 10. Arrival
     - Results presented (what you found/caught)
     - Fire status shown
     - Consequences resolved (if fire died, if injured, etc.)
-         ↓
+         |
 11. Back to camp menu
 ```
 

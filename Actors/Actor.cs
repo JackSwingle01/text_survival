@@ -16,7 +16,7 @@ public abstract class Actor
     public bool IsAlive => !Body.IsDestroyed;
     public abstract Weapon ActiveWeapon { get; protected set; }
 
-    public virtual void Update(bool suppressMessages = false)
+    public virtual void Update()
     {
         EffectRegistry.Update();
 
@@ -30,9 +30,7 @@ public abstract class Actor
         {
             ActivityLevel = 2,
             LocationTemperature = CurrentLocation.GetTemperature(),
-            SuppressMessages = suppressMessages,
         };
-        Body.Update(TimeSpan.FromMinutes(1), context);
     }
     public Body Body { get; init; }
     public EffectRegistry EffectRegistry { get; init; }
@@ -46,6 +44,15 @@ public abstract class Actor
         EffectRegistry = new EffectRegistry(this);
         this.combatManager = new CombatManager(this);
         Body = new Body(Name, stats, EffectRegistry);
+    }
+
+    private readonly List<string> _messageLog = [];
+    public void AddLog(string message) => _messageLog.Add(message);
+    public List<string> GetFlushLogs()
+    {
+        var messages = _messageLog.ToList();
+        _messageLog.Clear();
+        return messages;
     }
 }
 

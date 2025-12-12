@@ -14,7 +14,7 @@ public abstract class GameActionBase(string name) : IGameAction
 {
     public virtual string Name { get; set; } = name;
     public virtual bool IsAvailable(GameContext ctx) => true;
-    public virtual int TimeInMinutes => 1; // Default: all actions take 1 minute
+    public virtual int TimeInMinutes => 0;
 
     public void Execute(GameContext ctx)
     {

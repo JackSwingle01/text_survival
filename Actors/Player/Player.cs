@@ -6,6 +6,7 @@ using text_survival.IO;
 using text_survival.Items;
 using text_survival.Magic;
 using text_survival.Skills;
+using text_survival.Survival;
 
 namespace text_survival.Actors.Player;
 
@@ -20,12 +21,13 @@ public class Player : Actor
     public readonly SkillRegistry Skills;
     public readonly List<Spell> _spells = [SpellFactory.Bleeding, SpellFactory.Poison, SpellFactory.MinorHeal];
 
-    public override void Update(bool suppressMessages = false)
+    public override void Update()
     {
         EffectRegistry.Update();
         var context = GetSurvivalContext();
-        context.SuppressMessages = suppressMessages;
-        Body.Update(TimeSpan.FromMinutes(1), context);
+        var result = SurvivalProcessor.Process(Body, context, 1);
+        Body.ApplyResult(result);
+        result.Messages.ForEach(AddLog);
     }
 
     public SurvivalContext GetSurvivalContext() => new SurvivalContext
@@ -105,7 +107,7 @@ public class Player : Actor
         }
         else if (item is Gear gear)
         {
-            Output.WriteLine("You equip the ", gear);
+            AddLog($"You equip the {gear}");
             inventoryManager.Equip(gear);
             foreach (Effect effect in gear.EquipEffects)
             {
@@ -117,11 +119,11 @@ public class Player : Actor
         {
             if (ModifyWeapon(weaponMod.Damage))
             {
-                Output.WriteLine("You use the ", weaponMod, " to modify your ", inventoryManager.Weapon);
+                AddLog($"You use the {weaponMod} to modify your {inventoryManager.Weapon}");
             }
             else
             {
-                Output.WriteLine("You don't have a weapon equipped to modify.");
+                AddLog("You don't have a weapon equipped to modify.");
                 return;
             }
         }
@@ -129,17 +131,17 @@ public class Player : Actor
         {
             if (ModifyArmor(armorMod.ValidArmorTypes[0], armorMod.Rating, armorMod.Warmth))
             {
-                Output.WriteLine("You use the ", armorMod, " to modify your armor.");
+                AddLog($"You use the {armorMod} to modify your armor.");
             }
             else
             {
-                Output.WriteLine("You don't have any armor you can use that on.");
+                AddLog("You don't have any armor you can use that on.");
                 return;
             }
         }
         else
         {
-            Output.Write("You don't know what to use the ", item, " for...\n");
+            AddLog($"You don't know what to use the {item} for...");
             return;
         }
         // shared logic for all item types
@@ -183,7 +185,7 @@ public class Player : Actor
     {
         // Calculate travel time
         int minutes = UI.MapController.CalculateZoneTravelTime();
-        Output.WriteLine($"You travel {direction.ToLower()} for {minutes} minutes...");
+        AddLog($"You travel {direction.ToLower()} for {minutes} minutes...");
 
         // Move to the zone in the chosen direction
         switch (direction)
@@ -204,4 +206,6 @@ public class Player : Actor
 
         World.Update(minutes);
     }
+
+
 }

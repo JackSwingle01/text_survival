@@ -3,7 +3,6 @@ using text_survival.Bodies;
 
 namespace text_survival.Effects;
 
-// Dynamic effect class to support the builder
 public class DynamicEffect : Effect
 {
     private readonly Action<Actor>? _onApply;
@@ -20,26 +19,33 @@ public class DynamicEffect : Effect
         bool canHaveMultiple,
         bool requiresTreatment,
         CapacityModifierContainer capacityModifiers,
+        SurvivalStatsDelta? survivalStatsDelta = null,
+        string? applicationMessage = null,
+        string? removalMessage = null,
+        List<ThresholdMessage>? thresholdMessages = null,
         Action<Actor>? onApply = null,
         Action<Actor>? onUpdate = null,
         Action<Actor, double, double>? onSeverityChange = null,
-        Action<Actor>? onRemove = null,
-        SurvivalStatsUpdate? survivalStatsUpdate = null)
+        Action<Actor>? onRemove = null)
         : base(effectKind, source, targetBodyPart, severity, severityChangeRate)
     {
         CanHaveMultiple = canHaveMultiple;
         RequiresTreatment = requiresTreatment;
-
         CapacityModifiers = capacityModifiers;
+        
+        if (survivalStatsDelta != null)
+            SurvivalStatsDelta = survivalStatsDelta;
+        
+        ApplicationMessage = applicationMessage;
+        RemovalMessage = removalMessage;
+        
+        if (thresholdMessages != null)
+            ThresholdMessages.AddRange(thresholdMessages);
 
         _onApply = onApply;
         _onUpdate = onUpdate;
         _onSeverityChange = onSeverityChange;
         _onRemove = onRemove;
-        if (survivalStatsUpdate != null)
-        {
-            this.SurvivalStatsEffect = survivalStatsUpdate;
-        }
     }
 
     protected override void OnApply(Actor target) => _onApply?.Invoke(target);
