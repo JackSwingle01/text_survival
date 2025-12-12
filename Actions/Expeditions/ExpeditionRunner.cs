@@ -5,7 +5,7 @@ using text_survival.Environments.Features;
 
 namespace text_survival.Actions.Expeditions;
 
-public class ExpeditionRunner
+public partial class ExpeditionProcessor
 {
     public class SegmentResult(int timeElapsed)
     {

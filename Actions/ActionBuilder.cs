@@ -99,16 +99,6 @@ public static class ActionBuilderExtensions
         return b.Do(_ => Output.WriteLine(message));
     }
 
-    public static ActionBuilder ThenOpenInventory(this ActionBuilder b)
-    {
-        return b.ThenShow(ctx => [ActionFactory.Inventory.OpenInventory()]);
-    }
-
-    public static ActionBuilder ThenLookAround(this ActionBuilder b)
-    {
-        return b.ThenShow(ctx => [ActionFactory.Describe.LookAround(ctx.CurrentLocation)]);
-    }
-
     public static ActionBuilder AndGainExperience(this ActionBuilder b, string skillName, int xp = 1)
     {
         return b.Do(ctx => ctx.player.Skills.GetSkill(skillName).GainExperience(xp));

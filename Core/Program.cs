@@ -154,20 +154,12 @@ namespace text_survival.Core
             zone.Locations.Add(startingArea);
             Player player = new Player(startingArea);
             World.Player = player;
-            
-            var defaultAction = ActionFactory.Common.MainMenu();
-            var context = new GameContext(player);
-            while (true)
-            {
-                defaultAction.Execute(context);
 
-                // Check for death after each action
-                if (player.Body.IsDestroyed)
-                {
-                    DisplayDeathScreen(player);
-                    break;
-                }
-            }
+            var context = new GameContext(player);
+
+            GameRunner runner = new GameRunner(context);
+            runner.Run();
+            DisplayDeathScreen(player);
         }
     }
 }

@@ -153,5 +153,11 @@ namespace text_survival.IO
 
             return list[input - 1];
         }
+
+        public static void WaitForKey()
+        {
+            Output.WriteLine("Press any key to continue...");
+            ReadKey();
+        }
     }
 }

@@ -1,12 +1,12 @@
-using System.Net.Http.Headers;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.UI;
+using text_survival.Actions.Expeditions;
 
-namespace text_survival.Actions.Expeditions;
+namespace text_survival.Actions;
 
-public static class ExpeditionActions
+public class ExpeditionRunner(GameContext ctx)
 {
     /// <summary>
     /// Expeditions follow the following flow:
@@ -25,35 +25,63 @@ public static class ExpeditionActions
     /// </summary>
     /// <returns></returns>
 
-
-    public static IGameAction SelectExpedition(ExpeditionType expeditionType)
+    private readonly GameContext ctx = ctx;
+    public void RunExpedition(ExpeditionType expeditionType)
     {
-        return ActionBuilderExtensions.CreateAction(expeditionType.ToString())
-            .ThenShow(ctx => GetDestinations(ctx, expeditionType))
-            .Build();
-    }
-
-    private static List<IGameAction> GetDestinations(GameContext ctx, ExpeditionType expeditionType)
-    {
-        var locations = ctx.CurrentLocation.GetNearbyLocations();
-        var actions = locations.Select(loc => CreateDestinationAction(loc, expeditionType, ctx)).ToList();
-        if (actions.Count == 0)
+        if (expeditionType == ExpeditionType.Forage)
         {
-            actions = [ActionFactory.Common.Return("No valid locaitons to go to.")];
+            RunForageExpedition();
         }
-        return actions;
-    }
 
-    private static IGameAction CreateDestinationAction(Location location, ExpeditionType type, GameContext ctx)
+        throw new NotImplementedException("Expedition Type Not Implemented");
+    }
+    public void RunForageExpedition()
     {
-        int minutes = MapController.CalculateLocalTravelTime(ctx.CurrentLocation, location);
-        // todo - add a builder that handles the logic for this to make it more dynamic
-        Expedition expedition = new Expedition(ctx.CurrentLocation, location, type, minutes, workTimeMinutes: 30, timeVarianceMinutes: 10, exposureFactor: 1, detectionRisk: .1);
-        string label = $"{location.Name} (~{expedition.TotalEstimatedTimeMinutes} min) - Danger: {expedition.DangerLevel()}";
-        return ActionBuilderExtensions.CreateAction(label)
-                                    .When(_ => IsLocationValidForExpeditionType(location, type))
-                                    .ThenShow(_ => [ShowExpedtionPlan(expedition)])
-                                    .Build();
+        // select desitination
+        var locations = ctx.CurrentLocation.GetNearbyLocations().Where(x => IsLocationValidForExpeditionType(x, ExpeditionType.Forage));
+        var choice = new Choice<Expedition>("Where would you like to go?");
+        foreach (Location location in locations)
+        {
+            int minutes = MapController.CalculateLocalTravelTime(ctx.CurrentLocation, location);
+            // todo - add a builder that handles the logic for this to make it more dynamic
+            Expedition exp = new Expedition(ctx.CurrentLocation, location, ExpeditionType.Forage, minutes, workTimeMinutes: 30, timeVarianceMinutes: 10, exposureFactor: 1, detectionRisk: .1);
+            string label = $"{location.Name} (~{exp.TotalEstimatedTimeMinutes} min) - Danger: {exp.DangerLevel()}";
+            choice.AddOption(label, exp);
+        }
+        Expedition expedition = choice.GetPlayerChoice();
+
+        // show plan
+        DisplayExpeditionPreview(expedition, ctx.Camp.GetFireMinutesRemaining());
+        Output.WriteLine("Do you want to proceed with this plan?");
+        if (!Input.ReadYesNo())
+        {
+            Output.WriteLine("You change your mind");
+            return;
+        }
+
+        // start
+        Output.WriteLine($"You have started the expedition: {expedition.Type}.");
+        expedition.AdvancePhase(); // NotStarted -> TravelingOut
+
+        // main loop
+        while (!expedition.IsComplete)
+        {
+            ExpeditionProcessor runner = new ExpeditionProcessor();
+            var result = runner.RunExpedtionSegment(expedition, ctx.player);
+            DisplayQueuedExpeditionLogs(expedition);
+
+            // show check if the user wants to turn back early
+            if (expedition.CurrentPhase == ExpeditionPhase.TravelingOut || expedition.CurrentPhase == ExpeditionPhase.Working)
+            {
+                Output.WriteLine("Continue?");
+                if (!Input.ReadYesNo())
+                    CancelExpedition(expedition);
+            }
+        }
+
+        // complete expedition
+        DisplayQueuedExpeditionLogs(expedition);
+        return;
     }
 
     private static bool IsLocationValidForExpeditionType(Location location, ExpeditionType expeditionType)
@@ -85,19 +113,6 @@ public static class ExpeditionActions
 
     }
 
-    public static IGameAction ShowExpedtionPlan(Expedition expedition)
-    {
-        return ActionBuilderExtensions.CreateAction("View Expedition Plan")
-            .ShowMessage("\nYou stop to plan out your expedition.")
-            .Do((ctx) =>
-            {
-                DisplayExpeditionPreview(expedition, ctx.Camp.GetFireMinutesRemaining());
-            })
-            .WithPrompt("Do you wish to proceed with this expedition?")
-            .ThenShow(x => [ActionFactory.Common.Return("Never mind"), StartExpedition(expedition)])
-            .Build();
-    }
-
     public static void DisplayExpeditionPreview(Expedition expedition, double FireMinutesRemaining)
     {
         Output.WriteLine($"Expedition Type: ", expedition.Type);
@@ -109,74 +124,29 @@ public static class ExpeditionActions
         if (dangerLevel != "Low")
             Output.WriteWarning($"Danger Level: {dangerLevel}");
         double fireTime = FireMinutesRemaining - expedition.TotalEstimatedTimeMinutes;
-        string fireMessage = ExpeditionRunner.GetFireMarginMessage(fireTime);
+        string fireMessage = ExpeditionProcessor.GetFireMarginMessage(fireTime);
         Output.WriteLine(fireMessage);
         Output.WriteLine();
     }
 
-    public static IGameAction StartExpedition(Expedition expedition)
-    {
-        return ActionBuilderExtensions.CreateAction("Start Expedition")
-            .Do((ctx) =>
-            {
-                Output.WriteLine($"You have started the expedition: {expedition.Type}.");
-                expedition.AdvancePhase(); // NotStarted -> TravelingOut
-            })
-            .ThenShow(x => [ProcessExpeditionSegment(expedition)])
-            .Build();
-    }
-
-    public static IGameAction ProcessExpeditionSegment(Expedition expedition)
-    {
-        return ActionBuilderExtensions.CreateAction($"Continue {expedition.GetPhaseDisplayName()}")
-            .Do(ctx =>
-            {
-                ExpeditionRunner runner = new ExpeditionRunner();
-                var result = runner.RunExpedtionSegment(expedition, ctx.player);
-                DisplayQueuedExpeditionLogs(expedition);
-            })
-            .ThenShow(ctx => GetNextExpeditionActions(expedition))
-            .Build();
-    }
     private static void DisplayQueuedExpeditionLogs(Expedition exp)
     {
         exp.GetFlushLogs().ForEach(s => Output.WriteLine(s));
     }
 
-    public static IGameAction CancelExpedition(Expedition expedition)
+
+    private void CancelExpedition(Expedition expedition)
     {
-        return ActionBuilderExtensions.CreateAction("Head Back to Camp")
-            .When(x => expedition.CurrentPhase == ExpeditionPhase.TravelingOut || expedition.CurrentPhase == ExpeditionPhase.Working)
-            .WithPrompt("Are you sure you want to cancel the expedition and return to camp?")
-            .Do(ctx =>
-            {
-                Output.Write("This will end your current expedition and you will start to return to camp.");
-                bool confirm = Input.ReadYesNo();
-                if (!confirm)
-                {
-                    Output.WriteLine("You decide to continue your expedition.");
-                    return;
-                }
-                expedition.CancelExpedition();
-                Output.WriteLine("You have cancelled the expedition and are returning to camp.");
-            })
-            .ThenShow(x => GetNextExpeditionActions(expedition))
-            .Build();
+        Output.WriteLine("Are you sure you want to cancel the expedition and return to camp?");
+        Output.Write("This will end your current expedition and you will start to return to camp.");
+        bool confirm = Input.ReadYesNo();
+        if (!confirm)
+        {
+            Output.WriteLine("You decide to keep pushing forward.");
+            return;
+        }
+        expedition.CancelExpedition();
+        Output.WriteLine("You decide it's best to head back. You start returning to camp.");
     }
 
-    private static List<IGameAction> GetNextExpeditionActions(Expedition expedition)
-    {
-        // todo check for events
-        List<IGameAction> actions = [];
-        if (!expedition.IsComplete)
-        {
-            actions.Add(ProcessExpeditionSegment(expedition));
-            actions.Add(CancelExpedition(expedition));
-        }
-        else
-        {
-            actions.Add(ActionFactory.Common.Return("Return to Camp"));
-        }
-        return actions;
-    }
 }
