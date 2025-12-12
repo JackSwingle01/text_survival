@@ -1,29 +1,27 @@
-using text_survival.Effects;
 using text_survival.Survival;
 
 namespace text_survival.Bodies;
 
 public static class CapacityCalculator
 {
-    public static CapacityContainer GetCapacities(Body body)
+    public static CapacityContainer GetCapacities(Body body, CapacityModifierContainer effectModifiers)
     {
-        CapacityContainer total = new();
+        CapacityContainer baseCapacities = new();
         foreach (var part in body.Parts)
         {
-            total += GetRegionCapacities(part);
+            baseCapacities += GetRegionCapacities(part);
         }
-
-        // Apply body-wide effect modifiers
-        var bodyModifier = GetEffectCapacityModifiers(body.EffectRegistry);
-        total = total.ApplyModifier(bodyModifier);
+        // Apply effect modifiers
+        var withEffects = baseCapacities.ApplyModifier(effectModifiers);
 
         // Apply survival stat penalties (hunger, thirst, exhaustion)
         var survivalModifier = GetSurvivalStatModifiers(body);
-        total = total.ApplyModifier(survivalModifier);
+        var withSurvival = withEffects.ApplyModifier(survivalModifier);
 
         // Apply cascading effects
-        return ApplyCascadingEffects(total);
+        return ApplyCascadingEffects(withSurvival);
     }
+
 
     public static CapacityContainer GetRegionCapacities(BodyRegion region)
     {
@@ -92,16 +90,6 @@ public static class CapacityCalculator
         return result;
     }
 
-    public static CapacityModifierContainer GetEffectCapacityModifiers(EffectRegistry effectRegistry)
-    {
-        CapacityModifierContainer total = new();
-        var modifiers = effectRegistry.GetAll().Select(e => e.CapacityModifiers).ToList();
-        foreach (var mod in modifiers)
-        {
-            total += mod;
-        }
-        return total;
-    }
 
     #region Survival Stat Modifiers
 

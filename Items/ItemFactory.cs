@@ -605,20 +605,6 @@ namespace text_survival.Items
             return herbs;
         }
 
-        public static Item MakeBandage()
-        {
-            var bandage = new ConsumableItem("Bark Bandage")
-            {
-                Description = "Strips of inner tree bark pounded soft. Can bind wounds and stop bleeding.",
-                Weight = 0.1,
-                CraftingProperties = [ItemProperty.Binding],
-                Effects = [
-                    EffectBuilderExtensions.CreateEffect("stop bleed").From("bandage").ClearsEffectType("bleeding").AsInstantEffect().Build()
-                ]
-            };
-            return bandage;
-        }
-
         public static Gear MakeTorch()
         {
             Gear torch = new Gear("Pine Torch", 0.8)

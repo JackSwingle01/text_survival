@@ -16,7 +16,6 @@ public class Body
 {
     public readonly bool IsPlayer = false;
     public readonly List<BodyRegion> Parts;
-    public readonly EffectRegistry EffectRegistry;
     public readonly string OwnerName;
 
     private readonly double _baseWeight;
@@ -37,11 +36,10 @@ public class Body
     public double Energy { get; private set; } = 800;
     public double Hydration { get; private set; } = 3000;
 
-    public Body(string ownerName, BodyCreationInfo stats, EffectRegistry effectRegistry)
+    public Body(string ownerName, BodyCreationInfo stats)
     {
         OwnerName = ownerName;
         IsPlayer = stats.IsPlayer;
-        EffectRegistry = effectRegistry;
         Parts = BodyPartFactory.CreateBody(stats.type);
 
         BodyFatKG = stats.overallWeight * stats.fatPercent;
@@ -127,12 +125,6 @@ public class Body
         // Body composition
         BodyFatKG = Math.Max(0, BodyFatKG - result.FatToConsume);
         MuscleKG = Math.Max(0, MuscleKG - result.MuscleToConsume);
-
-        // Effects
-        foreach (var effect in result.Effects)
-        {
-            EffectRegistry.AddEffect(effect);
-        }
 
         // Damage
         foreach (var damage in result.DamageEvents)

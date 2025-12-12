@@ -1,58 +1,49 @@
+using text_survival.Core;
 using text_survival.Effects;
+using text_survival.Environments.Features;
 using text_survival.Items;
 
 namespace text_survival.Actions;
 
-public enum EventCondtion
-{
-    IsDaytime,
-    AtCamp,
-    Sleeping,
-    Traveling,
-    Resting,
-    Working,
-    HasFood,
-    HasMeat,
-    HasFirewood,
-    HasStones,
-    Injured,
-    Bleeding,
-    Slow,
-    FireBurning,
-    
 
-}
-public class EventResult(string message)
+public class EventResult(string message, double weight = 1)
 {
+    public string Message = message;
+    public double Weight = weight;
     public int TimeAddedMinutes;
     public bool AbortsExpedition;
     public Effect? NewEffect;
     public Item? NewItem;
-    public string Message = message;
 }
-public class EventChoice(string label, string description, EventResult result, List<EventCondtion>? conditions = null)
+public class EventChoice(string label, string description, List<EventResult> results, List<EventCondition>? conditions = null)
 {
     public string Label = label;
     public string Description = description;
-    public readonly List<EventCondtion> RequiredConditions = conditions ?? [];
-    public EventResult Result = result;
+    public readonly List<EventCondition> RequiredConditions = conditions ?? [];
+    public List<EventResult> Result = results;
+    public EventResult DetermineResult() => Utils.GetRandomWeighted(Result.ToDictionary(x => x, x => x.Weight));
 }
 
 public class GameEvent(string name, string description, double baseChancePerHour = .01)
 {
     public string Name = name;
     public string Description = description;
-    public readonly List<EventCondtion> RequiredConditions = [];
-    public double BaseChancePerMinute = ChanceHourToMinute(baseChancePerHour);
-    public readonly Dictionary<EventCondtion, double> ChanceModifiers = [];
+    public readonly List<EventCondition> RequiredConditions = [];
+    public double BaseChancePerMinute = RateToChancePerMinute(baseChancePerHour);
+    public readonly Dictionary<EventCondition, double> ChanceModifiers = [];
     public Choice<EventChoice> Choices = new("What do you do?");
+    public void AddChoice(EventChoice c) => Choices.AddOption(c.Label, c);
 
-    // Helper since percent per hour in minutes in is NOT equal to percent/60
-    private static double ChanceHourToMinute(double chancePerHour) => 1 - Math.Pow(1 - chancePerHour, 1.0 / 60);
-
-    public bool CheckCondition(EventCondtion condtition, GameContext ctx)
+    /// <summary>
+    /// Helper since percent per hour in minutes in is NOT equal to percent/60
+    /// </summary>
+    /// <param name="eventsPerHour">1 means "on average, 1 event per hour"</param>
+    /// <returns></returns>
+    private static double RateToChancePerMinute(double eventsPerHour) 
     {
-
-        return false;
+        double ratePerMinute = eventsPerHour / 60.0;
+        return 1 - Math.Exp(-ratePerMinute);
     }
 }
+
+

@@ -40,7 +40,6 @@ public static class SurvivalProcessor
 	{
 		var result = ProcessBaseNeeds(body, context, minutesElapsed);
 		result.Combine(ProcessTemperature(body, context));
-		result.Combine(ProcessActiveEffects(body));
 
 		// Project stats after delta to check consequences
 		double projectedCalories = body.CalorieStore + result.StatsDelta.CalorieDelta;
@@ -96,18 +95,6 @@ public static class SurvivalProcessor
 			},
 			Effects = GetTemperatureEffects(body),
 		};
-	}
-
-	private static SurvivalProcessorResult ProcessActiveEffects(Body body)
-	{
-		var delta = new SurvivalStatsDelta();
-		foreach (Effect effect in body.EffectRegistry.GetAll())
-		{
-			var effectDelta = effect.SurvivalStatsDelta.ApplyMultiplier(effect.Severity);
-			delta = delta.Add(effectDelta);
-		}
-
-		return new SurvivalProcessorResult { StatsDelta = delta };
 	}
 
 	private static SurvivalProcessorResult ProcessStarvation(Body body, double projectedCalories, int minutesElapsed)
@@ -310,34 +297,23 @@ public static class SurvivalProcessor
 		bmr *= 0.7 + (0.3 * body.Health);
 		return bmr * activityLevel;
 	}
-
 	private static List<Effect> GetTemperatureEffects(Body body)
 	{
 		List<Effect> effects = [];
 		var stage = GetTemperatureStage(body.BodyTemperature);
 
 		if (stage == TemperatureStage.Cold || stage == TemperatureStage.Freezing)
-		{
 			effects.AddRange(GetColdEffects(body));
-		}
 		else if (stage == TemperatureStage.Hot)
 		{
 			double severity = Math.Clamp((body.BodyTemperature - HyperthermiaThreshold) / 10.0, 0.01, 1.0);
-			effects.Add(EffectBuilderExtensions
-				.CreateEffect("Heat Exposure")
-				.Temperature(TemperatureType.Hyperthermia)
-				.WithSeverity(severity)
-				.Build());
+			effects.Add(EffectFactory.Hyperthermia(severity));
 		}
 
 		if (body.BodyTemperature > SweatingThreshold)
 		{
 			double severity = Math.Clamp((body.BodyTemperature - SweatingThreshold) / 4.0, 0.10, 1.0);
-			effects.Add(EffectBuilderExtensions
-				.CreateEffect("Sweating")
-				.CausesDehydration(1000 / 60 * severity)
-				.WithSeverity(severity)
-				.Build());
+			effects.Add(EffectFactory.Sweating(severity));
 		}
 
 		return effects;
@@ -350,46 +326,21 @@ public static class SurvivalProcessor
 		if (body.BodyTemperature < ShiveringThreshold)
 		{
 			double intensity = Math.Clamp((ShiveringThreshold - body.BodyTemperature) / 5.0, 0.01, 1.0);
-			effects.Add(EffectBuilderExtensions
-				.CreateEffect("Shivering")
-				.WithSeverity(intensity)
-				.ReducesCapacity(CapacityNames.Manipulation, 0.2)
-				.AllowMultiple(false)
-				.AffectsTemperature(3)
-				.WithHourlySeverityChange(-2)
-				.Build());
+			effects.Add(EffectFactory.Shivering(intensity));
 		}
 
 		if (body.BodyTemperature < HypothermiaThreshold)
 		{
 			double severity = Math.Clamp((HypothermiaThreshold - body.BodyTemperature) / 10.0, 0.01, 1.0);
-
-			effects.Add(EffectBuilderExtensions
-				.CreateEffect("Hypothermia")
-				.Temperature(TemperatureType.Hypothermia)
-				.WithApplyMessage($"Your core is getting very cold, you feel like you're starting to get hypothermia.. Severity = {severity}")
-				.WithSeverity(severity)
-				.AllowMultiple(false)
-				.WithRemoveMessage("You're warming up enough and starting to feel better, the hypothermia has passed..")
-				.Build());
+			effects.Add(EffectFactory.Hypothermia(severity));
 		}
 
 		if (body.BodyTemperature < SevereHypothermiaThreshold)
 		{
-			var extremities = new[] { "Left Arm", "Right Arm", "Left Leg", "Right Leg" };
-			foreach (var extremity in extremities)
+			double severity = Math.Clamp((SevereHypothermiaThreshold - body.BodyTemperature) / 10.0, 0.01, 1.0);
+			foreach (var extremity in new[] { "Left Arm", "Right Arm", "Left Leg", "Right Leg" })
 			{
-				double severity = Math.Clamp((SevereHypothermiaThreshold - body.BodyTemperature) / 10.0, 0.01, 1.0);
-
-				effects.Add(EffectBuilderExtensions
-					.CreateEffect("Frostbite")
-					.Temperature(TemperatureType.Frostbite)
-					.WithApplyMessage($"Your {extremity.ToLower()} is getting dangerously cold, you're developing frostbite! Severity = {severity}")
-					.WithSeverity(severity)
-					.AllowMultiple(false)
-					.WithRemoveMessage($"The feeling is returning to your {extremity.ToLower()}, the frostbite is healing..")
-					.Targeting(extremity)
-					.Build());
+				effects.Add(EffectFactory.Frostbite(extremity, severity));
 			}
 		}
 

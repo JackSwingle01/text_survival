@@ -819,7 +819,7 @@ public partial class GameRunner(GameContext ctx)
     private bool CanForage()
     {
         // Basic check - can always forage if you have energy
-        return AbilityCalculator.CalculateVitality(ctx.player.Body) > 0.2;
+        return ctx.player.Vitality > 0.2;
     }
 
     private void TakeAllFoundItems(List<Item> foundItems)
@@ -1286,9 +1286,8 @@ public partial class GameRunner(GameContext ctx)
 
         ctx.player.IsEngaged = true;
         enemy.IsEngaged = true;
-        ctx.EngagedEnemy = enemy;
 
-        bool enemyFirstStrike = AbilityCalculator.CalculateSpeed(enemy.Body) > AbilityCalculator.CalculateSpeed(ctx.player.Body);
+        bool enemyFirstStrike = enemy.Speed > ctx.player.Speed;
 
         if (enemyFirstStrike)
         {
@@ -1321,7 +1320,7 @@ public partial class GameRunner(GameContext ctx)
         if (ctx.player.Skills.Fighting.Level > 1)
             choice.AddOption($"Targeted Attack {enemy.Name}", () => TargetedAttackEnemy(enemy));
 
-        if (AbilityCalculator.CalculateSpeed(ctx.player.Body) > 0.25)
+        if (ctx.player.Speed > 0.25)
             choice.AddOption("Flee", () => AttemptFlee(enemy));
 
         choice.GetPlayerChoice().Invoke();
@@ -1467,7 +1466,7 @@ public partial class GameRunner(GameContext ctx)
 
     private void CheckStats()
     {
-        BodyDescriber.Describe(ctx.player.Body);
+        BodyDescriber.Describe(ctx.player);
         ctx.player.Skills.Describe();
         Input.WaitForKey();
     }

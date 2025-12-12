@@ -25,7 +25,7 @@ public class CombatManager
         }
 
         // modifiers
-        double strengthModifier = (AbilityCalculator.CalculateStrength(Owner.Body) / 2) + .5; // str determines up to 50%
+        double strengthModifier = (Owner.Strength / 2) + .5; // str determines up to 50%
         // A smaller health modifier up to 30%
         double healthModifier = 0.7 + (0.3 * (Owner.Body.Health / Owner.Body.MaxHealth));
         // todo factor in any effects like adrenaline, etc.
@@ -40,13 +40,12 @@ public class CombatManager
 
     public double DetermineDodgeChance(Actor target)
     {
-
         double dodgeLevel = 0;
         if (target is Player player)
             dodgeLevel = player.Skills.Reflexes.Level;
 
         double baseDodge = dodgeLevel / 100;
-        double speedDiff = AbilityCalculator.CalculateSpeed(target.Body) - AbilityCalculator.CalculateSpeed(Owner.Body);
+        double speedDiff = target.Speed - Owner.Speed;
         double chance = baseDodge + speedDiff;
         // Output.WriteLine("Debug: Dodge Chance = ", chance);
         chance = Math.Clamp(chance, 0, .95);
@@ -82,7 +81,7 @@ public class CombatManager
         if (target is Player player)
             blockLevel = player.Skills.Defense.Level;
         double skillBonus = blockLevel / 100;
-        double attributeAvg = AbilityCalculator.CalculateStrength(target.Body); // todo 
+        double attributeAvg = target.Strength; // todo 
         double blockAtbAvg = target.ActiveWeapon.BlockChance + attributeAvg / 2;
         double blockChance = blockAtbAvg + skillBonus;
         if (Utils.DetermineSuccess(blockChance))

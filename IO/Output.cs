@@ -28,7 +28,6 @@ namespace text_survival.IO
                 Zone => ConsoleColor.Blue,
                 Location => ConsoleColor.DarkBlue,
                 Enum => ConsoleColor.Gray,
-                IGameAction => ConsoleColor.White,
                 null => ConsoleColor.Red,
                 _ => ConsoleColor.Red,
             };

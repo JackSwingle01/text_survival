@@ -1,3 +1,4 @@
+using text_survival.Core;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
@@ -60,7 +61,6 @@ public class ExpeditionRunner(GameContext ctx)
 
         // show plan
         DisplayExpeditionPreview(expedition, ctx.Camp.GetFireMinutesRemaining());
-        Output.WriteLine("Do you want to proceed with this plan? (y/n)");
         if (!Input.ReadYesNo())
         {
             Output.WriteLine("You change your mind");
@@ -69,60 +69,97 @@ public class ExpeditionRunner(GameContext ctx)
 
         // start
         Output.WriteLine($"You have started the expedition: {expedition.Type}.");
+        ctx.Expedition = expedition;
         expedition.AdvancePhase(); // NotStarted -> TravelingOut
 
         // main loop
         while (!expedition.IsComplete)
         {
             ExpeditionProcessor runner = new ExpeditionProcessor();
-            var result = runner.RunExpedtionSegment(expedition, ctx.player);
+            var result = runner.RunExpeditionSegment(expedition, ctx);
             DisplayQueuedExpeditionLogs(expedition);
+
+            if (result.Event is not null)
+            {
+                HandleEvent(result.Event);
+            }
 
             // show check if the user wants to turn back early
             if (expedition.CurrentPhase == ExpeditionPhase.TravelingOut || expedition.CurrentPhase == ExpeditionPhase.Working)
             {
                 Output.WriteLine("Continue?");
                 if (!Input.ReadYesNo())
-                    CancelExpedition(expedition);
+                    CancelExpedition();
             }
         }
 
         // complete expedition
         DisplayQueuedExpeditionLogs(expedition);
+        ctx.Expedition = null;
         return;
+    }
+
+    private void HandleEvent(GameEvent evt)
+    {
+        Output.WriteLine("".PadRight(50, '-'));
+        Output.WriteLine($"** {evt.Name} **");
+        Output.WriteLine(evt.Description + "\n");
+        Output.WriteLine("".PadRight(50, '-'));
+        var choice = evt.Choices.GetPlayerChoice();
+        Output.WriteLine(choice.Description + "\n");
+
+        Output.WriteLine("".PadRight(50, '-'));
+        var outcome = choice.DetermineResult();
+        Output.WriteLine(outcome.Message);
+
+        if (outcome.TimeAddedMinutes != 0)
+        {
+            Output.WriteLine($"(+{outcome.TimeAddedMinutes} minutes)");
+            World.Update(outcome.TimeAddedMinutes);
+        }
+
+        if (outcome.NewEffect is not null)
+        {
+            ctx.player.EffectRegistry.AddEffect(outcome.NewEffect);
+        }
+
+        if (outcome.NewItem is not null)
+        {
+            ctx.player.TakeItem(outcome.NewItem);
+            Output.WriteLine($"You found: {outcome.NewItem.Name}");
+        }
+
+        if (outcome.AbortsExpedition && !ctx.Expedition!.IsComplete)
+        {
+            ctx.Expedition!.CancelExpedition();
+        }
+        Output.WriteLine("".PadRight(50, '-'));
     }
 
     private static bool IsLocationValidForExpeditionType(Location location, ExpeditionType expeditionType)
     {
-        if (expeditionType == ExpeditionType.Forage)
+        switch (expeditionType)
         {
-            if (location.GetFeature<ForageFeature>() is not null)
+            case ExpeditionType.Forage:
+                if (location.HasFeature<ForageFeature>())
+                    return true;
+                return false;
+            case ExpeditionType.Hunt:
+                return false;
+            case ExpeditionType.Gather:
+                if (location.HasFeature<HarvestableFeature>())
+                    return true;
+                return false;
+            case ExpeditionType.Explore:
                 return true;
-            return false;
+            default:
+                return false;
         }
-        else if (expeditionType == ExpeditionType.Hunt)
-        {
-            return false;
-        }
-        else if (expeditionType == ExpeditionType.Gather)
-        {
-            if (location.GetFeature<HarvestableFeature>() is not null)
-                return true;
-            return false;
-        }
-        else if (expeditionType == ExpeditionType.Explore)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-
     }
 
     public static void DisplayExpeditionPreview(Expedition expedition, double FireMinutesRemaining)
     {
+        Output.WriteLine("".PadRight(50, '-'));
         Output.WriteLine($"{expedition.Type.ToString().ToUpper()} - {expedition.endLocation}\n");
         Output.WriteLine($"It's about a {expedition.TravelTimeMinutes} minute walk each way.");
         Output.WriteLine($"Once you get there it's {expedition.WorkTimeWithVariance} minutes of {expedition.GetPhaseDisplayName(ExpeditionPhase.Working).ToLower()}.");
@@ -136,6 +173,8 @@ public class ExpeditionRunner(GameContext ctx)
             Output.WriteLine($"The fire has about {FireMinutesRemaining} minutes left.");
         Output.WriteLine(fireMessage);
         Output.WriteLine();
+        Output.WriteLine("Do you want to proceed with this plan? (y/n)");
+        Output.WriteLine("".PadRight(50, '-'));
     }
 
     private static void DisplayQueuedExpeditionLogs(Expedition exp)
@@ -144,8 +183,11 @@ public class ExpeditionRunner(GameContext ctx)
     }
 
 
-    private void CancelExpedition(Expedition expedition)
+    private void CancelExpedition()
     {
+        if (ctx.Expedition is null)
+            throw new InvalidOperationException("Can't cancel expedition out of context");
+
         Output.WriteLine("Are you sure you want to cancel the expedition and return to camp?");
         Output.Write("This will end your current expedition and you will start to return to camp.");
         bool confirm = Input.ReadYesNo();
@@ -154,7 +196,7 @@ public class ExpeditionRunner(GameContext ctx)
             Output.WriteLine("You decide to keep pushing forward.");
             return;
         }
-        expedition.CancelExpedition();
+        ctx.Expedition.CancelExpedition();
         Output.WriteLine("You decide it's best to head back. You start returning to camp.");
     }
 

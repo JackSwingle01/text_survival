@@ -1,5 +1,5 @@
-
 using text_survival.Actors;
+using text_survival.Bodies;
 using text_survival.IO;
 namespace text_survival.Effects;
 
@@ -19,21 +19,26 @@ public class EffectRegistry(Actor owner)
 
             if (existingEffect != null) // if we find existing, update, otherwise apply it below
             {
-                double newSeverity = Math.Max(existingEffect.Severity, effect.Severity); // for now go with the more severe effect, but maybe we change this to most recent?
-                existingEffect.UpdateSeverity(_owner, newSeverity);
+                double severityChange = Math.Abs(existingEffect.Severity - effect.Severity); // for now go with the more severe effect, but maybe we change this to most recent?
+                UpdateSeverity(existingEffect, severityChange);
                 return;
             }
         }
         // if multiple are allowed or if no existing, then it's new -> apply it
         _effects.Add(effect);
-        effect.Apply(_owner);
+        effect.IsActive = true;
+        _owner.AddLog(effect.ApplicationMessage);
     }
 
     public void RemoveEffect(Effect effect)
     {
         if (_effects.Remove(effect))
         {
-            effect.Remove(_owner);
+            if (!effect.IsActive) return;
+            // todo add removal logic
+            effect.IsActive = false;
+            if (!string.IsNullOrWhiteSpace(effect.RemovalMessage))
+                _owner.AddLog(effect.RemovalMessage);
         }
         else
         {
@@ -42,12 +47,73 @@ public class EffectRegistry(Actor owner)
     }
     public void Update()
     {
-        _effects.ForEach(e => e.Update(_owner));
+        foreach (Effect effect in _effects)
+        {
+            if (!effect.IsActive) continue;
+
+            // todo add update logic
+
+            AdvanceSeverityProgress(effect);
+        }
         // Clean up inactive effects
-        _effects.RemoveAll(e => !e.IsActive);
+        _effects.RemoveAll(e => !e.IsActive || e.Severity <= 0);
     }
 
-    public List<Effect> GetAll() => _effects;
+    /// <summary>
+    /// Gets called every minute if the severity change rate is not 0
+    /// </summary>
+    private void AdvanceSeverityProgress(Effect effect)
+    {
+        if (!effect.IsActive) return;
+
+        // block natural healing if it requires treatment
+        if (effect.RequiresTreatment && effect.HourlySeverityChange < 0) return;
+
+        double minuteChange = effect.HourlySeverityChange / 60;
+
+        UpdateSeverity(effect, minuteChange);
+    }
+
+    private void UpdateSeverity(Effect effect, double change)
+    {
+        double oldSeverity = effect.Severity;
+
+        effect.Severity = Math.Clamp(effect.Severity + change, 0, 1);
+
+        var message = GetThresholdMessage(effect, oldSeverity);
+        if (!string.IsNullOrWhiteSpace(message))
+            _owner.AddLog(message);
+
+        if (Math.Abs(oldSeverity - effect.Severity) >= 0.001)
+        {
+            // todo severity change logic
+        }
+    }
+
+    private static string? GetThresholdMessage(Effect effect, double oldSeverity)
+    {
+        double newSeverity = effect.Severity;
+
+        if (oldSeverity == newSeverity) return null;
+        bool increasing = oldSeverity < newSeverity;
+
+        double low = Math.Min(oldSeverity, newSeverity);
+        double high = Math.Max(oldSeverity, newSeverity);
+
+        var crossed = effect.ThresholdMessages
+            .Where(x => x.WhenRising == increasing) // filter by increasing/decreasing
+            .Where(x => low < x.Threshold && x.Threshold < high); // get all between
+
+        // early return in case of 0 or 1 found
+        if (!crossed.Any()) return null;
+        if (crossed.Count() == 1) return crossed.First().Message;
+        // else get the max or min threshold passed
+        var mostSignificant = increasing ? crossed.MaxBy(x => x.Threshold) : crossed.MinBy(x => x.Threshold);
+        return mostSignificant?.Message;
+    }
+
+
+    public List<Effect> GetAll() => _effects.Where(e => e.IsActive).ToList();
     public List<Effect> GetEffectsByKind(string kind) => [.. _effects.Where(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase))];
     public void RemoveEffectsByKind(string kind)
     {
@@ -58,6 +124,35 @@ public class EffectRegistry(Actor owner)
         }
     }
 
+    public SurvivalStatsDelta GetSurvivalDelta()
+    {
+        var delta = new SurvivalStatsDelta();
+        GetAll().ForEach(e => delta.Combine(e.StatsDelta.ApplyMultiplier(e.Severity)));
+        return delta;
+    }
+
+    public List<DamageInfo> GetDamagesPerMinute()
+    {
+        var damages = new List<DamageInfo>();
+        foreach (Effect e in GetAll())
+        {
+            if (e.Damage is null) continue;
+            var damage = new DamageInfo(e.Damage.PerHour / 60 * e.Severity, e.Damage.Type, e.Source, e.TargetBodyPart);
+            damages.Add(damage);
+        }
+        return damages;
+    }
+
+    public CapacityModifierContainer GetCapacityModifiers()
+    {
+        CapacityModifierContainer total = new();
+        var modifiers = GetAll().Select(e => e.CapacityModifiers).ToList();
+        foreach (var mod in modifiers)
+        {
+            total += mod;
+        }
+        return total;
+    }
 
     private readonly Actor _owner = owner;
     private List<Effect> _effects = [];

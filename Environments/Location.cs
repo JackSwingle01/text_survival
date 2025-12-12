@@ -34,6 +34,7 @@ public class Location
     }
 
     public T? GetFeature<T>() where T : LocationFeature => Features.OfType<T>().FirstOrDefault();
+    public bool HasFeature<T>() where T : LocationFeature => GetFeature<T>() is not null;
 
     public void SpawnNpcs(int numNpcs)
     {

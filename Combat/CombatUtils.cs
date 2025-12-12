@@ -1,5 +1,4 @@
 ﻿using text_survival.Actors;
-using text_survival.Bodies;
 using text_survival.Actors.Player;
 using text_survival.Actors.NPCs;
 using text_survival.Environments;
@@ -45,6 +44,6 @@ public static class CombatUtils
         {
             athleticsBonus = player.Skills.Reflexes.Level;
         }
-        return AbilityCalculator.CalculateSpeed(actor.Body) + athleticsBonus;
+        return actor.Speed + athleticsBonus;
     }
 }

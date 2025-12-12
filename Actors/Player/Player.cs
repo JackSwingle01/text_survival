@@ -4,7 +4,6 @@ using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Items;
-using text_survival.Magic;
 using text_survival.Skills;
 using text_survival.Survival;
 
@@ -19,15 +18,20 @@ public class Player : Actor
     public readonly AmmunitionManager ammunitionManager;
     public readonly HuntingManager huntingManager;
     public readonly SkillRegistry Skills;
-    public readonly List<Spell> _spells = [SpellFactory.Bleeding, SpellFactory.Poison, SpellFactory.MinorHeal];
-
     public override void Update()
     {
-        EffectRegistry.Update();
         var context = GetSurvivalContext();
+
         var result = SurvivalProcessor.Process(Body, context, 1);
-        Body.ApplyResult(result);
+
+        result.Effects.ForEach(EffectRegistry.AddEffect);
         result.Messages.ForEach(AddLog);
+
+        EffectRegistry.Update();
+        result.StatsDelta.Combine(EffectRegistry.GetSurvivalDelta());
+        result.DamageEvents.AddRange(EffectRegistry.GetDamagesPerMinute());
+
+        Body.ApplyResult(result);
     }
 
     public SurvivalContext GetSurvivalContext() => new SurvivalContext

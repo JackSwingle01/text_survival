@@ -1,3 +1,5 @@
+using System.Diagnostics.Tracing;
+using System.Threading.Tasks.Sources;
 using text_survival.Actors.Player;
 using text_survival.Core;
 using text_survival.Environments;
@@ -7,15 +9,17 @@ namespace text_survival.Actions.Expeditions;
 
 public class ExpeditionProcessor
 {
-    public class SegmentResult(int timeElapsed)
+    public class SegmentResult(int timeElapsed, GameEvent? gameEvent)
     {
         public int TimeElapsed { get; set; } = timeElapsed;
+        public GameEvent? Event { get; set; } = gameEvent;
     }
 
     private readonly int SEGMENT_TIME_MINUTES = 5;
-    public SegmentResult RunExpedtionSegment(Expedition expedition, Player player)
+    public SegmentResult RunExpeditionSegment(Expedition expedition, GameContext ctx)
     {
         int t = 0;
+        GameEvent? evt = null;
         while (t < SEGMENT_TIME_MINUTES)
         {
             World.Update(1);
@@ -23,9 +27,9 @@ public class ExpeditionProcessor
             t++;
 
             // check for events, encounters, etc.
-            // TODO
+            evt = GameEventRegistry.GetEventOnTick(ctx);
 
-            if (expedition.IsPhaseComplete())
+            if (evt is not null || expedition.IsPhaseComplete())
             {
                 break;
             }
@@ -40,7 +44,7 @@ public class ExpeditionProcessor
         {
             HandlePhaseCompletion(expedition);
         }
-        return new SegmentResult(t);
+        return new SegmentResult(t, evt);
     }
 
     private static void HandlePhaseCompletion(Expedition exp)
