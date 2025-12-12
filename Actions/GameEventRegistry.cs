@@ -29,8 +29,10 @@ public static class GameEventRegistry
             }
 
             if (Utils.DetermineSuccess(chance))
+            {
                 Output.WriteLine($"Debug: event triggered with chance: {chance}");
-            triggered.Add(evt);
+                triggered.Add(evt);
+            }
         }
 
         // Return one at random if any triggered
