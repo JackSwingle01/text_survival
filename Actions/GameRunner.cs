@@ -45,6 +45,7 @@ public partial class GameRunner(GameContext ctx)
         {
             ShowStatus();
             RunCampMenu();
+            World.Update(1);
         }
     }
 
@@ -60,7 +61,7 @@ public partial class GameRunner(GameContext ctx)
     private void RunCampMenu()
     {
         ExpeditionRunner expeditionRunner = new(ctx);
-        
+
         var choice = new Choice<Action>();
         choice.AddOption("Look around", LookAround);
 
@@ -77,7 +78,7 @@ public partial class GameRunner(GameContext ctx)
             choice.AddOption("Hunt", RunHuntingMenu);
 
         if (CanHarvest())
-            choice.AddOption("Harvest resources", RunHarvestMenu);
+            choice.AddOption("Harvest resources", expeditionRunner.RunHarvestExpedition);
 
         if (CanCraft())
             choice.AddOption("Craft", RunCraftingMenu);
@@ -96,213 +97,111 @@ public partial class GameRunner(GameContext ctx)
     // ═══════════════════════════════════════════════════════════════════════════
     // LOOK AROUND
     // ═══════════════════════════════════════════════════════════════════════════
-
     private void LookAround()
     {
         var location = ctx.CurrentLocation;
-        const int boxWidth = 54;
-        string locationName = location.Name.ToUpper();
+        Output.WriteLine();
 
-        // Top border
-        Output.WriteLine("┌" + new string('─', boxWidth - 2) + "┐");
+        // Location and conditions
+        Output.WriteLine($"You're at {location.Name}. It's {World.GetTimeOfDay().ToString().ToLower()}, {location.GetTemperature():F0}°F.");
+        Output.WriteLine();
 
-        // Location name (centered)
-        int namePadding = (boxWidth - 4 - locationName.Length) / 2;
-        Output.Write("│ " + new string(' ', namePadding));
-        Output.WriteColored(ConsoleColor.Cyan, locationName);
-        int rightPadding = boxWidth - 4 - namePadding - locationName.Length;
-        Output.WriteLine(new string(' ', rightPadding) + " │");
+        // Fire status - most important
+        var fire = location.GetFeature<HeatSourceFeature>();
+        if (fire != null)
+            Output.WriteLine(DescribeFire(fire));
 
-        // Zone • Time • Temperature
-        string subheader = $"{location.Parent.Name} • {World.GetTimeOfDay()} • {location.GetTemperature():F1}°F";
-        int subPadding = boxWidth - 4 - subheader.Length;
-        Output.Write("│ ");
-        Output.WriteColored(ConsoleColor.Gray, subheader);
-        Output.WriteLine(new string(' ', subPadding) + " │");
+        // Shelter
+        var shelter = location.GetFeature<ShelterFeature>();
+        if (shelter != null)
+            Output.WriteLine($"You have a {shelter.Name.ToLower()} here.");
 
-        // Divider
-        Output.WriteLine("├" + new string('─', boxWidth - 2) + "┤");
+        // Harvestables
+        foreach (var h in location.Features.OfType<HarvestableFeature>().Where(f => f.IsDiscovered))
+            Output.WriteLine($"There's a {h.DisplayName.ToLower()} nearby.");
 
-        bool hasContent = false;
-        int deadFiresShown = 0;
-
-        // Display LocationFeatures
-        foreach (var feature in location.Features)
-        {
-            if (feature is HeatSourceFeature heat)
-            {
-                hasContent |= DisplayFireStatus(heat, boxWidth, ref deadFiresShown);
-            }
-            else if (feature is ShelterFeature shelter)
-            {
-                string shelterInfo = $"{shelter.Name} [shelter]";
-                Output.Write("│ ");
-                Output.WriteColored(ConsoleColor.Green, shelterInfo);
-                Output.WriteLine(new string(' ', boxWidth - 4 - shelterInfo.Length) + " │");
-                hasContent = true;
-            }
-            else if (feature is HarvestableFeature harvestable && harvestable.IsDiscovered)
-            {
-                string displayText = $"{harvestable.DisplayName} (harvestable)";
-                Output.Write("│ ");
-                Output.WriteColored(ConsoleColor.Yellow, displayText);
-                if (displayText.Length > boxWidth - 4)
-                    Output.WriteLine(" │");
-                else
-                    Output.WriteLine(new string(' ', boxWidth - 4 - displayText.Length) + " │");
-                hasContent = true;
-            }
-        }
-
-        // Items
-        foreach (var item in location.Items.Where(i => i.IsFound))
-        {
-            string itemStr = item.ToString();
-            Output.Write("│ ");
-            Output.WriteColored(ConsoleColor.Cyan, itemStr);
-            Output.WriteLine(new string(' ', boxWidth - 4 - itemStr.Length) + " │");
-            hasContent = true;
-        }
+        // Items on ground
+        var foundItems = location.Items.Where(i => i.IsFound).ToList();
+        if (foundItems.Count == 1)
+            Output.WriteLine($"You notice a {foundItems[0].Name.ToLower()} on the ground.");
+        else if (foundItems.Count > 1)
+            Output.WriteLine($"On the ground you see: {string.Join(", ", foundItems.Select(i => i.Name.ToLower()))}.");
 
         // Containers
-        foreach (var container in location.Containers.Where(c => c.IsFound))
-        {
-            string containerStr = $"{container.Name} [container]";
-            Output.Write("│ ");
-            Output.WriteColored(ConsoleColor.Yellow, containerStr);
-            Output.WriteLine(new string(' ', boxWidth - 4 - containerStr.Length) + " │");
-            hasContent = true;
-        }
+        foreach (var c in location.Containers.Where(c => c.IsFound && !c.IsEmpty))
+            Output.WriteLine($"There's a {c.Name.ToLower()} here.");
 
         // NPCs
         foreach (var npc in location.Npcs.Where(n => n.IsFound))
         {
-            string npcStr = $"{npc.Name} [creature]";
-            Output.Write("│ ");
-            Output.WriteColored(ConsoleColor.Red, npcStr);
-            Output.WriteLine(new string(' ', boxWidth - 4 - npcStr.Length) + " │");
-            hasContent = true;
+            if (npc.IsAlive)
+                Output.WriteLineColored(ConsoleColor.Red, $"A {npc.Name.ToLower()} is here.");
+            else
+                Output.WriteLine($"The body of a {npc.Name.ToLower()} lies here.");
         }
-
-        if (!hasContent)
-            Output.WriteLine("│" + new string(' ', boxWidth - 2) + "│");
 
         // Exits
-        var nearbyLocations = location.GetNearbyLocations();
-        if (nearbyLocations.Count > 0)
+        var nearby = location.GetNearbyLocations();
+        if (nearby.Count > 0)
         {
-            Output.WriteLine("│" + new string(' ', boxWidth - 2) + "│");
-            string exitsLine = "Exits: ";
-            for (int i = 0; i < nearbyLocations.Count; i++)
-            {
-                exitsLine += "→ " + nearbyLocations[i].Name;
-                nearbyLocations[i].IsFound = true;
-                if (i < nearbyLocations.Count - 1) exitsLine += "  ";
-            }
-
-            if (exitsLine.Length <= boxWidth - 4)
-            {
-                Output.Write("│ ");
-                Output.WriteColored(ConsoleColor.DarkCyan, exitsLine);
-                Output.WriteLine(new string(' ', boxWidth - 4 - exitsLine.Length) + " │");
-            }
-            else
-            {
-                Output.Write("│ ");
-                Output.WriteColored(ConsoleColor.DarkCyan, "Exits:");
-                Output.WriteLine(new string(' ', boxWidth - 10) + " │");
-                foreach (var nearbyLocation in nearbyLocations)
-                {
-                    string exitStr = "  → " + nearbyLocation.Name;
-                    Output.Write("│ ");
-                    Output.WriteColored(ConsoleColor.DarkCyan, exitStr);
-                    Output.WriteLine(new string(' ', boxWidth - 4 - exitStr.Length) + " │");
-                }
-            }
+            nearby.ForEach(n => n.IsFound = true);
+            Output.WriteLine();
+            Output.WriteLine($"From here you could reach {FormatList(nearby.Select(n => n.Name))}.");
         }
 
-        Output.WriteLine("└" + new string('─', boxWidth - 2) + "┘");
         Output.WriteLine();
 
-        // Present interaction options
+        // Interactions
         var choice = new Choice<Action>();
 
-        foreach (Npc npc in ctx.CurrentLocation.Npcs.Where(n => n.IsFound))
+        foreach (var npc in location.Npcs.Where(n => n.IsFound))
         {
             if (npc.IsAlive)
-                choice.AddOption($"Fight {npc.Name}", () => StartCombat(npc));
+                choice.AddOption($"Fight the {npc.Name.ToLower()}", () => StartCombat(npc));
             else if (!npc.Loot.IsEmpty)
-                choice.AddOption($"Loot {npc.Name}", () => OpenContainer(npc.Loot));
+                choice.AddOption($"Search the {npc.Name.ToLower()}", () => OpenContainer(npc.Loot));
         }
 
-        foreach (Item item in ctx.CurrentLocation.Items.Where(i => i.IsFound))
-        {
-            choice.AddOption($"Pick up {item.Name}", () => PickUpItem(item));
-        }
+        foreach (var item in foundItems)
+            choice.AddOption($"Pick up the {item.Name.ToLower()}", () => PickUpItem(item));
 
-        foreach (var container in ctx.CurrentLocation.Containers.Where(c => c.IsFound && !c.IsEmpty))
-        {
-            choice.AddOption($"Open {container.Name}", () => OpenContainer(container));
-        }
+        foreach (var container in location.Containers.Where(c => c.IsFound && !c.IsEmpty))
+            choice.AddOption($"Open the {container.Name.ToLower()}", () => OpenContainer(container));
 
         choice.AddOption("Back", () => { });
 
-        Input.WaitForKey();
         choice.GetPlayerChoice().Invoke();
     }
 
-    private static bool DisplayFireStatus(HeatSourceFeature heat, int boxWidth, ref int deadFiresShown)
+    private static string DescribeFire(HeatSourceFeature fire)
     {
-        if (heat.IsActive && heat.HoursRemaining > 0)
+        if (fire.IsActive && fire.HoursRemaining > 0)
         {
-            string status = heat.HoursRemaining < 0.5 ? "Dying" : "Burning";
-            int minutesLeft = (int)(heat.HoursRemaining * 60);
-            string timeStr = minutesLeft >= 60 ? $"{heat.HoursRemaining:F1} hr" : $"{minutesLeft} min";
-            double effectiveHeat = heat.GetEffectiveHeatOutput();
-            string fireInfo = $"{heat.Name}: {status} ({timeStr}) +{effectiveHeat:F0}°F";
-
-            Output.Write("│ ");
-            ConsoleColor fireColor = heat.HoursRemaining < 0.5 ? ConsoleColor.Yellow : ConsoleColor.Red;
-            Output.WriteColored(fireColor, fireInfo);
-            Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
-            return true;
+            int minutes = (int)(fire.HoursRemaining * 60);
+            if (fire.HoursRemaining < 0.25)
+                return $"Your fire is dying down, maybe {minutes} minutes left.";
+            if (fire.HoursRemaining < 0.5)
+                return $"The fire is getting low. About {minutes} minutes of fuel left.";
+            return $"Your fire is burning steadily. You have about {minutes} minutes of fuel.";
         }
-
-        if (heat.HasEmbers && heat.EmberTimeRemaining > 0)
+        if (fire.HasEmbers)
         {
-            int minutesLeft = (int)(heat.EmberTimeRemaining * 60);
-            string timeStr = minutesLeft >= 60 ? $"{heat.EmberTimeRemaining:F1} hr" : $"{minutesLeft} min";
-            double effectiveHeat = heat.GetEffectiveHeatOutput();
-            string fireInfo = $"{heat.Name}: Embers ({timeStr}) +{effectiveHeat:F1}°F";
-
-            Output.Write("│ ");
-            Output.WriteColored(ConsoleColor.DarkYellow, fireInfo);
-            Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
-            return true;
+            int minutes = (int)(fire.EmberTimeRemaining * 60);
+            return $"The fire has burned down to embers. They'll last maybe {minutes} more minutes.";
         }
+        return "Your fire pit is cold.";
+    }
 
-        if (heat.HoursRemaining > 0 && !heat.IsActive)
+    private static string FormatList(IEnumerable<string> items)
+    {
+        var list = items.ToList();
+        return list.Count switch
         {
-            int minutesLeft = (int)(heat.HoursRemaining * 60);
-            string fireInfo = $"{heat.Name}: Cold ({minutesLeft} min fuel ready)";
-
-            Output.Write("│ ");
-            Output.WriteColored(ConsoleColor.DarkGray, fireInfo);
-            Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
-            return true;
-        }
-
-        if (deadFiresShown == 0)
-        {
-            string fireInfo = $"{heat.Name}: Cold";
-            Output.Write("│ ");
-            Output.WriteColored(ConsoleColor.DarkGray, fireInfo);
-            Output.WriteLine(new string(' ', boxWidth - 4 - fireInfo.Length) + " │");
-            deadFiresShown++;
-            return true;
-        }
-
-        return false;
+            0 => "",
+            1 => list[0],
+            2 => $"{list[0]} or {list[1]}",
+            _ => $"{string.Join(", ", list.Take(list.Count - 1))}, or {list.Last()}"
+        };
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -822,103 +721,16 @@ public partial class GameRunner(GameContext ctx)
         return ctx.player.Vitality > 0.2;
     }
 
-    private void TakeAllFoundItems(List<Item> foundItems)
-    {
-        foreach (var item in foundItems)
-        {
-            ctx.player.TakeItem(item);
-        }
-        Output.WriteLine($"You collected {foundItems.Count} item(s).");
-    }
-
-    private void SelectFoundItems(List<Item> foundItems)
-    {
-        foreach (var item in foundItems.ToList())
-        {
-            Output.WriteLine($"\nTake {item.Name}? (y/n)");
-            if (Input.ReadYesNo())
-            {
-                ctx.player.TakeItem(item);
-                Output.WriteLine($"You take the {item.Name}");
-            }
-        }
-    }
-
     // ═══════════════════════════════════════════════════════════════════════════
     // HARVESTING
     // ═══════════════════════════════════════════════════════════════════════════
 
     private bool CanHarvest()
     {
-        return ctx.CurrentLocation.Features
-            .OfType<HarvestableFeature>()
-            .Any(f => f.IsDiscovered && f.HasAvailableResources());
-    }
-
-    private void RunHarvestMenu()
-    {
-        var harvestables = ctx.CurrentLocation.Features
-            .OfType<HarvestableFeature>()
-            .Where(f => f.IsDiscovered)
-            .ToList();
-
-        var choice = new Choice<Action>();
-
-        foreach (var harvestable in harvestables)
-        {
-            choice.AddOption($"Inspect {harvestable.DisplayName}", () => InspectHarvestable(harvestable));
-        }
-
-        choice.AddOption("Back", () => { });
-
-        choice.GetPlayerChoice().Invoke();
-    }
-
-    private void InspectHarvestable(HarvestableFeature feature)
-    {
-        Output.WriteLine(feature.Description);
-        Output.WriteLine();
-        Output.WriteLine($"Status: {feature.GetStatusDescription()}");
-
-        if (feature.HasAvailableResources())
-        {
-            var choice = new Choice<Action>();
-            choice.AddOption($"Harvest from {feature.DisplayName}", () => HarvestFromFeature(feature));
-            choice.AddOption("Back", () => { });
-
-            choice.GetPlayerChoice().Invoke();
-        }
-        else
-        {
-            Output.WriteLine($"The {feature.DisplayName} has been depleted.");
-            Input.WaitForKey();
-        }
-    }
-
-    private void HarvestFromFeature(HarvestableFeature feature)
-    {
-        Output.WriteLine("Harvesting will take 5 minutes...");
-        Output.WriteLine();
-
-        var items = feature.Harvest();
-
-        if (items.Count > 0)
-        {
-            foreach (var item in items)
-            {
-                ctx.player.TakeItem(item);
-            }
-
-            var grouped = items.GroupBy(i => i.Name)
-                .Select(g => $"{g.Key} ({g.Count()})");
-            Output.WriteSuccess($"You spent 5 minutes harvesting and gathered: {string.Join(", ", grouped)}");
-        }
-        else
-        {
-            Output.WriteLine($"The {feature.DisplayName} has been depleted.");
-        }
-
-        World.Update(5);
+        return ctx.CurrentLocation.GetNearbyLocations()
+            .Any(l => l.Features
+                .OfType<HarvestableFeature>()
+                .Any(f => f.IsDiscovered && f.HasAvailableResources()));
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1438,7 +1250,7 @@ public partial class GameRunner(GameContext ctx)
     private static int CalculateExperienceGain(Npc enemy)
     {
         int baseXP = 5;
-        double sizeMultiplier = Math.Clamp(enemy.Body.Weight / 50, 0.5, 3.0);
+        double sizeMultiplier = Math.Clamp(enemy.Body.WeightKG / 50, 0.5, 3.0);
         double weaponMultiplier = Math.Clamp(enemy.ActiveWeapon.Damage / 8, 0.5, 2.0);
         return (int)(baseXP * sizeMultiplier * weaponMultiplier);
     }

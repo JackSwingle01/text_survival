@@ -84,9 +84,9 @@ namespace text_survival.Environments
 
         }
 
-        public void Update()
+        public void Update(int minutes)
         {
-            Locations.ForEach(x => x.Update());
+            Locations.ForEach(x => x.Update(minutes));
         }
 
         /// <summary>Returns emoji symbol for this zone type for map display</summary>

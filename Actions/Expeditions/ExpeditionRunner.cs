@@ -26,18 +26,9 @@ public class ExpeditionRunner(GameContext ctx)
     /// <returns></returns>
 
     private readonly GameContext ctx = ctx;
-    public void RunExpedition(ExpeditionType expeditionType)
-    {
-        if (expeditionType == ExpeditionType.Forage)
-        {
-            RunForageExpedition();
-        }
-
-        throw new NotImplementedException("Expedition Type Not Implemented");
-    }
     public void RunForageExpedition()
     {
-        // select desitination
+        // select destination
         var locations = ctx.CurrentLocation.GetNearbyLocations().Where(x => IsLocationValidForExpeditionType(x, ExpeditionType.Forage));
         var locChoice = new Choice<Location>("Where would you like to go?");
         foreach (Location location in locations)
@@ -51,7 +42,7 @@ public class ExpeditionRunner(GameContext ctx)
         int travelTime = MapController.CalculateLocalTravelTime(ctx.CurrentLocation, destination);
 
         // choose work time
-        var workTimeChoice = new Choice<int>("How long should you work?");
+        var workTimeChoice = new Choice<int>("How long should you forage?");
         workTimeChoice.AddOption("Quick gather - 15 min", 15);
         workTimeChoice.AddOption("Standard search - 30 min", 30);
         workTimeChoice.AddOption("Thourough search - 60 min", 60);
@@ -59,64 +50,163 @@ public class ExpeditionRunner(GameContext ctx)
 
         Expedition expedition = new Expedition(ctx.CurrentLocation, destination, ExpeditionType.Forage, travelTime, workTime, timeVarianceMinutes: 10, exposureFactor: 1, detectionRisk: .1);
 
-        // show plan
+        ExpeditionMainLoop(expedition);
+    }
+
+    public void RunHarvestExpedition()
+    {
+        // select destination
+        var locations = ctx.CurrentLocation.GetNearbyLocations().Where(x => IsLocationValidForExpeditionType(x, ExpeditionType.Gather));
+        var locChoice = new Choice<Location>("Where would you like to go?");
+        foreach (Location location in locations)
+        {
+            int minutes = MapController.CalculateLocalTravelTime(ctx.CurrentLocation, location);
+            var harvestables = location.Features
+                .OfType<HarvestableFeature>()
+                .Where(f => f.IsDiscovered)
+                .Select(h => h.DisplayName)
+                .ToList();
+            string label = $"{location.Name} (~{minutes} min) - {string.Join(", ", harvestables)}";
+            locChoice.AddOption(label, location);
+        }
+        Location destination = locChoice.GetPlayerChoice();
+        int travelTime = MapController.CalculateLocalTravelTime(ctx.CurrentLocation, destination);
+        int workTime = 30;
+
+        Expedition expedition = new Expedition(ctx.CurrentLocation, destination, ExpeditionType.Gather, travelTime, workTime, timeVarianceMinutes: 10, exposureFactor: 1, detectionRisk: .1);
+
+        ExpeditionMainLoop(expedition);
+    }
+    private void ExpeditionMainLoop(Expedition expedition)
+    {
+        // show preview
         DisplayExpeditionPreview(expedition, ctx.Camp.GetFireMinutesRemaining());
         if (!Input.ReadYesNo())
         {
-            Output.WriteLine("You change your mind");
+            Output.WriteLine("You change your mind.");
             return;
         }
 
-        // start
-        Output.WriteLine($"You have started the expedition: {expedition.Type}.");
+        // start expedition
+        Output.WriteLine($"You set out to {expedition.Type.ToString().ToLower()}.");
         ctx.Expedition = expedition;
-        expedition.AdvancePhase(); // NotStarted -> TravelingOut
+        expedition.AdvancePhase(); // not started -> heading out
 
         // main loop
         while (!expedition.IsComplete)
         {
-            ExpeditionProcessor runner = new ExpeditionProcessor();
-            var result = runner.RunExpeditionSegment(expedition, ctx);
+            var result = expedition.RunExpeditionPhase(ctx);
+            World.Update(result.TimeElapsed);
             DisplayQueuedExpeditionLogs(expedition);
 
             if (result.Event is not null)
             {
                 HandleEvent(result.Event);
+                if (expedition.IsComplete) break;
             }
 
-            // show check if the user wants to turn back early
-            if (expedition.CurrentPhase == ExpeditionPhase.TravelingOut || expedition.CurrentPhase == ExpeditionPhase.Working)
+            // Prompt at phase completion
+            if (expedition.IsPhaseComplete() && !expedition.IsComplete)
             {
-                Output.WriteLine("\nContinue? (y/n)");
-                if (!Input.ReadYesNo())
+                if (expedition.CurrentPhase == ExpeditionPhase.TravelingBack)
+                {
+                    expedition.AdvancePhase();
+                }
+                else if (!PromptContinueExpedition(expedition))
+                {
                     CancelExpedition();
-                Output.WriteLine();
+                }
+                else
+                {
+                    expedition.AdvancePhase();
+                }
             }
         }
 
-        // complete expedition
+        // end expedition
         DisplayQueuedExpeditionLogs(expedition);
         ctx.Expedition = null;
-        return;
     }
+    private bool PromptContinueExpedition(Expedition expedition)
+    {
+        Output.WriteLine();
+        string nextPhase = expedition.GetPhaseDisplayName(expedition.CurrentPhase + 1);
+        Output.WriteLine($"You have completed {expedition.GetPhaseDisplayName()}. You are about to start {nextPhase}.");
+        // // Show fire margin for context
+        // double fireRemaining = ctx.Camp.GetFireMinutesRemaining();
+        // int returnTime = expedition.TravelOutTimeMinutes;
+        // double margin = fireRemaining - returnTime;
+        // Output.WriteLine($"Fire margin: ~{(int)margin} min if you head back now.");
 
+        if (expedition.CurrentPhase == ExpeditionPhase.Working)
+        {
+            // Check if there's reason to stay
+            bool canContinue = expedition.Type switch
+            {
+                ExpeditionType.Gather => expedition.endLocation.Features
+                    .OfType<HarvestableFeature>()
+                    .Any(f => f.IsDiscovered && f.HasAvailableResources()),
+                ExpeditionType.Forage => true,
+                _ => false
+            };
+
+            if (!canContinue)
+            {
+                Output.WriteLine("There's nothing more to do here.");
+                return true;
+            }
+
+            var choice = new Choice<string>("What do you want to do?");
+            choice.AddOption("Keep working (15 more minutes)", "continue");
+            choice.AddOption("Head back to camp", "return");
+            choice.AddOption("Abort expedition", "abort");
+
+            string result = choice.GetPlayerChoice();
+            if (result == "continue")
+            {
+                expedition.AddWorkTimeMinutes(15);
+                return true;
+            }
+            else if (result == "return")
+            {
+                Output.WriteLine($"You start heading back.");
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            // Traveling phases - simple continue/abort
+            Output.WriteLine($"\nStart {nextPhase}? (y/n)");
+            return Input.ReadYesNo();
+        }
+    }
     private void HandleEvent(GameEvent evt)
     {
         Output.WriteLine("".PadRight(50, '-'));
+        Output.WriteLine("EVENT:");
         Output.WriteLine($"** {evt.Name} **");
         Output.WriteLine(evt.Description + "\n");
-        Output.WriteLine("".PadRight(50, '-'));
         var choice = evt.Choices.GetPlayerChoice();
         Output.WriteLine(choice.Description + "\n");
-
         Output.WriteLine("".PadRight(50, '-'));
+
         var outcome = choice.DetermineResult();
+        HandleOutcome(outcome);
+    }
+    private void HandleOutcome(EventResult outcome)
+    {
+        Output.WriteLine("OUTCOME:");
         Output.WriteLine(outcome.Message);
 
         if (outcome.TimeAddedMinutes != 0)
         {
             Output.WriteLine($"(+{outcome.TimeAddedMinutes} minutes)");
             World.Update(outcome.TimeAddedMinutes);
+            ctx.Expedition?.AddDelayTime(outcome.TimeAddedMinutes);
         }
 
         if (outcome.NewEffect is not null)
@@ -136,7 +226,6 @@ public class ExpeditionRunner(GameContext ctx)
         }
         Output.WriteLine("".PadRight(50, '-'));
     }
-
     private static bool IsLocationValidForExpeditionType(Location location, ExpeditionType expeditionType)
     {
         switch (expeditionType)
@@ -161,21 +250,42 @@ public class ExpeditionRunner(GameContext ctx)
     public static void DisplayExpeditionPreview(Expedition expedition, double FireMinutesRemaining)
     {
         Output.WriteLine("".PadRight(50, '-'));
+        Output.WriteLine("PLAN:");
         Output.WriteLine($"{expedition.Type.ToString().ToUpper()} - {expedition.endLocation}\n");
-        Output.WriteLine($"It's about a {expedition.TravelTimeMinutes} minute walk each way.");
+        Output.WriteLine($"It's about a {expedition.TravelOutTimeMinutes} minute walk each way.");
         Output.WriteLine($"Once you get there it's {expedition.WorkTimeWithVariance} minutes of {expedition.GetPhaseDisplayName(ExpeditionPhase.Working).ToLower()}.");
         Output.WriteLine($"A {expedition.TotalEstimatedTimeMinutes} minute round trip if all goes well.\n");
 
+        Output.WriteLine(GetLocationNotes(expedition.endLocation));
         Output.WriteLine(expedition.GetSummaryNotes() + '\n');
 
         double fireTime = FireMinutesRemaining - expedition.TotalEstimatedTimeMinutes;
-        string fireMessage = ExpeditionProcessor.GetFireMarginMessage(fireTime);
+        string fireMessage = GetFireMarginMessage(fireTime);
         if (FireMinutesRemaining > 0)
             Output.WriteLine($"The fire has about {FireMinutesRemaining} minutes left.");
         Output.WriteLine(fireMessage);
         Output.WriteLine();
         Output.WriteLine("Do you want to proceed with this plan? (y/n)");
         Output.WriteLine("".PadRight(50, '-'));
+    }
+
+    private static string GetLocationNotes(Location location)
+    {
+        string notes = "";
+        var harvestables = location.Features
+                .OfType<HarvestableFeature>()
+                .Where(f => f.IsDiscovered)
+                .ToList();
+        if (harvestables.Count != 0)
+        {
+            notes += "The location has stuff to harvest:\n";
+            foreach (var h in harvestables)
+            {
+                notes += $"{h.DisplayName} - {h.Description}\n";
+            }
+        }
+
+        return notes;
     }
 
     private static void DisplayQueuedExpeditionLogs(Expedition exp)
@@ -199,6 +309,16 @@ public class ExpeditionRunner(GameContext ctx)
         }
         ctx.Expedition.CancelExpedition();
         Output.WriteLine("You decide it's best to head back. You start returning to camp.");
+    }
+
+    public static string GetFireMarginMessage(double marginMinutes)
+    {
+        if (double.IsNegativeInfinity(marginMinutes)) return "You have no fire.";
+        if (marginMinutes < 0) return "The fire probably won't last until you return. Make sure you know what you're doing.";
+        if (marginMinutes < 15) return "The fire should last until you're back. But it will be tight.";
+        if (marginMinutes < 30) return "You should have enough time to get back to the fire as long as you don't have any delays.";
+        if (marginMinutes < 60) return "You have a decent fire, it should last until you get back with a good margin.";
+        return "You have plenty of time left on the fire. You should be good to go.";
     }
 
 }

@@ -1,6 +1,4 @@
-using text_survival.Core;
 using text_survival.Effects;
-using text_survival.Environments.Features;
 using text_survival.Items;
 
 namespace text_survival.Actions;

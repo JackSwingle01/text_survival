@@ -1,5 +1,4 @@
 // Body.cs
-using text_survival.Effects;
 using text_survival.Items;
 using text_survival.Survival;
 
@@ -27,9 +26,9 @@ public class Body
 
     public double BodyFatKG { get; private set; }
     public double MuscleKG { get; private set; }
-    public double BodyFatPercentage => BodyFatKG / Weight;
-    public double MusclePercentage => MuscleKG / Weight;
-    public double Weight => _baseWeight + BodyFatKG + MuscleKG;
+    public double BodyFatPercentage => BodyFatKG / WeightKG;
+    public double MusclePercentage => MuscleKG / WeightKG;
+    public double WeightKG => _baseWeight + BodyFatKG + MuscleKG;
     public double BodyTemperature { get; private set; }
 
     public double CalorieStore { get; private set; } = 1500;
@@ -181,4 +180,6 @@ public class Body
             return stats;
         }
     }
+
+    public double BaseColdResistance { get; } = 0;
 }

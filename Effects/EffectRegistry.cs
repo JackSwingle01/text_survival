@@ -45,7 +45,7 @@ public class EffectRegistry(Actor owner)
             Output.WriteWarning("ERROR: couldn't find effect to remove."); // shouldn't hit this, but soft error for now
         }
     }
-    public void Update()
+    public void Update(int minutes)
     {
         foreach (Effect effect in _effects)
         {
@@ -53,7 +53,7 @@ public class EffectRegistry(Actor owner)
 
             // todo add update logic
 
-            AdvanceSeverityProgress(effect);
+            AdvanceSeverityProgress(effect, minutes);
         }
         // Clean up inactive effects
         _effects.RemoveAll(e => !e.IsActive || e.Severity <= 0);
@@ -62,16 +62,16 @@ public class EffectRegistry(Actor owner)
     /// <summary>
     /// Gets called every minute if the severity change rate is not 0
     /// </summary>
-    private void AdvanceSeverityProgress(Effect effect)
+    private void AdvanceSeverityProgress(Effect effect, int minutes)
     {
         if (!effect.IsActive) return;
 
         // block natural healing if it requires treatment
         if (effect.RequiresTreatment && effect.HourlySeverityChange < 0) return;
 
-        double minuteChange = effect.HourlySeverityChange / 60;
+        double change = effect.HourlySeverityChange / 60 * minutes;
 
-        UpdateSeverity(effect, minuteChange);
+        UpdateSeverity(effect, change);
     }
 
     private void UpdateSeverity(Effect effect, double change)

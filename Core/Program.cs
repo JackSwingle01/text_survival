@@ -36,7 +36,7 @@ namespace text_survival.Core
 
             // Show body composition
             Output.WriteLine("═══ Body Composition ═══");
-            Output.WriteLine($"Weight: {player.Body.Weight:F1} kg");
+            Output.WriteLine($"Weight: {player.Body.WeightKG:F1} kg");
             Output.WriteLine($"Body Fat: {player.Body.BodyFatKG:F1} kg ({player.Body.BodyFatPercentage * 100:F1}%)");
             Output.WriteLine($"Muscle Mass: {player.Body.MuscleKG:F1} kg ({player.Body.MusclePercentage * 100:F1}%)");
             Output.WriteLine("\n");

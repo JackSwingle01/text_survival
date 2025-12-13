@@ -18,19 +18,19 @@ public class Player : Actor
     public readonly AmmunitionManager ammunitionManager;
     public readonly HuntingManager huntingManager;
     public readonly SkillRegistry Skills;
-    public override void Update()
+    public override void Update(int minutes)
     {
         var context = GetSurvivalContext();
 
-        var result = SurvivalProcessor.Process(Body, context, 1);
+        var result = SurvivalProcessor.Process(Body, context, minutes);
 
         result.Effects.ForEach(EffectRegistry.AddEffect);
         result.Messages.ForEach(AddLog);
 
-        EffectRegistry.Update();
+        EffectRegistry.Update(minutes);
         result.StatsDelta.Combine(EffectRegistry.GetSurvivalDelta());
         result.DamageEvents.AddRange(EffectRegistry.GetDamagesPerMinute());
-
+        Output.WriteLine($"Debug temp delta: {result.StatsDelta.TemperatureDelta}");
         Body.ApplyResult(result);
     }
 

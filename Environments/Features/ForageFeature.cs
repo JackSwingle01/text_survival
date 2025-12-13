@@ -60,10 +60,7 @@ public class ForageFeature(Location location, double resourceDensity = 1) : Loca
 
         // Update last forage time
         lastForageTime = World.GameTime;
-
-        int minutes = (int)(hours * 60);
-        World.Update(minutes);
-
+        
         return itemsFound;
     }
 

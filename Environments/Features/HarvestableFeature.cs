@@ -15,6 +15,13 @@ public class HarvestableFeature : LocationFeature
     public string Description { get; set; } = "";
     public bool IsDiscovered { get; set; } = true; // Start discovered for v1
 
+    /// <summary>
+    /// Minutes of work required to complete one harvest cycle.
+    /// Each cycle yields one of each non-depleted resource.
+    /// </summary>
+    public int MinutesToHarvest { get; set; } = 5;
+
+    private int _minutesWorked = 0;
     private readonly Dictionary<Func<Item>, HarvestableResource> _resources = [];
 
     public HarvestableFeature(string name, string displayName, Location location)
@@ -51,26 +58,61 @@ public class HarvestableFeature : LocationFeature
     }
 
     /// <summary>
-    /// Harvest all available resources from this feature.
-    /// Returns list of items harvested (may be empty if depleted).
+    /// Work for the specified minutes, yielding items when harvest cycles complete.
+    /// Each completed cycle drops one of each non-depleted resource.
     /// </summary>
-    public List<Item> Harvest()
+    /// <param name="minutes">Minutes of work to perform</param>
+    /// <returns>List of items harvested (may be empty if no cycles completed)</returns>
+    public List<Item> Harvest(int minutes)
     {
         UpdateRespawn();
         var items = new List<Item>();
 
-        foreach (var resource in _resources.Values)
+        _minutesWorked += minutes;
+
+        while (_minutesWorked >= MinutesToHarvest && HasAvailableResources())
         {
-            if (resource.CurrentQuantity > 0)
+            _minutesWorked -= MinutesToHarvest;
+
+            foreach (var resource in _resources.Values)
             {
-                var item = resource.ItemFactory();
-                items.Add(item);
-                resource.CurrentQuantity--;
-                resource.LastHarvestTime = World.GameTime;
+                if (resource.CurrentQuantity > 0)
+                {
+                    var item = resource.ItemFactory();
+                    items.Add(item);
+                    resource.CurrentQuantity--;
+                    resource.LastHarvestTime = World.GameTime;
+                }
             }
         }
 
+        // Reset worked minutes if depleted (no partial progress on empty resource)
+        if (!HasAvailableResources())
+        {
+            _minutesWorked = 0;
+        }
+
         return items;
+    }
+
+    /// <summary>
+    /// Get total minutes required to fully harvest all remaining resources,
+    /// accounting for work already done toward the current cycle.
+    /// </summary>
+    public int GetTotalMinutesToHarvest()
+    {
+        UpdateRespawn();
+
+        if (!_resources.Values.Any())
+            return 0;
+
+        int maxRemaining = _resources.Values.Max(r => r.CurrentQuantity);
+
+        if (maxRemaining == 0)
+            return 0;
+
+        int totalMinutes = maxRemaining * MinutesToHarvest;
+        return Math.Max(0, totalMinutes - _minutesWorked);
     }
 
     /// <summary>
@@ -99,10 +141,10 @@ public class HarvestableFeature : LocationFeature
 
         if (descriptions.Count == 0)
         {
-            return $"{DisplayName} (no resources)";
+            return $"no resources";
         }
 
-        return $"{DisplayName} ({string.Join(", ", descriptions)})";
+        return $"{string.Join(", ", descriptions)})";
     }
 
     /// <summary>

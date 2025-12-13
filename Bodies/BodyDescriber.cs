@@ -27,7 +27,7 @@ namespace text_survival.Bodies
             Output.WriteLine("│ Health              │ ", healthValueStr.PadRight(19), " │ ", healthStatus.PadRight(19), " │");
 
             // Body composition row
-            string bodyCompValue = $"{Math.Round(body.Weight * 2.2, 1)} lbs";
+            string bodyCompValue = $"{Math.Round(body.WeightKG * 2.2, 1)} lbs";
             string bodyCompStatus = $"{(int)(body.BodyFatPercentage * 100)}% fat, {(int)(body.MusclePercentage * 100)}% muscle";
             Output.WriteLine("│ Body Composition    │ ", bodyCompValue.PadRight(19), " │ ", bodyCompStatus.PadRight(19), " │");
 

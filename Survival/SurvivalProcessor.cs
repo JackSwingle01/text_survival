@@ -39,7 +39,7 @@ public static class SurvivalProcessor
 	public static SurvivalProcessorResult Process(Body body, SurvivalContext context, int minutesElapsed)
 	{
 		var result = ProcessBaseNeeds(body, context, minutesElapsed);
-		result.Combine(ProcessTemperature(body, context));
+		result.Combine(ProcessTemperature(body, context, minutesElapsed));
 
 		// Project stats after delta to check consequences
 		double projectedCalories = body.CalorieStore + result.StatsDelta.CalorieDelta;
@@ -67,31 +67,44 @@ public static class SurvivalProcessor
 				EnergyDelta = -(BASE_EXHAUSTION_RATE * minutesElapsed),
 				HydrationDelta = -(BASE_DEHYDRATION_RATE * minutesElapsed),
 				CalorieDelta = -caloriesBurned,
-				TemperatureDelta = caloriesBurned / 24000.0,
+				TemperatureDelta = 0 // caloriesBurned / 24000.0, - handled in ProcessTemperature
 			}
 		};
 	}
 
-	private static SurvivalProcessorResult ProcessTemperature(Body body, SurvivalContext context)
+	private static SurvivalProcessorResult ProcessTemperature(Body body, SurvivalContext context, int minutes)
 	{
+		// heat_capacity = mass * specific heat 
+		// dT/dt = (heat_in - heat_out) / heat_capacity
+		// Q_loss = h * surface_area * deltaT * (1 - insulation) | h = heat transfer coef: air -> 7, wind -> 20, water -> 400
+		// Human body: surface_area = 1.8m^2, specific heat = 3.5 J/KG*C or .83 kcal/kg*F
+
+		double specificHeat = 0.83; // for calories in F
+		double surfaceArea = 1.8; // m^2
+		double heatCapacity = body.WeightKG * specificHeat; // kg * kcal/kg*F = kcal / F
+		double h = 7; // avg. todo - determine based on condition (wind/water)
+
 		double coldResistance = AbilityCalculator.CalculateColdResistance(body);
 		double naturalInsulation = Math.Clamp(coldResistance, 0, 1);
 		double totalInsulation = Math.Clamp(naturalInsulation + context.ClothingInsulation, 0, 0.95);
 
 		double skinTemp = body.BodyTemperature - 8.4;
-		double tempDifferential = context.LocationTemperature - skinTemp;
-		double insulatedDiff = tempDifferential * (1 - totalInsulation);
+		double tempDifferential = skinTemp - context.LocationTemperature;
+		double deltaT = tempDifferential * (5.0 / 9.0); // convert to C
 
-		double tempDiffMagnitude = Math.Abs(insulatedDiff);
-		double baseRate = 1.0 / 120.0;
-		double exponentialFactor = 1.0 + (tempDiffMagnitude / 40.0);
-		double rate = baseRate * exponentialFactor;
+		double heatLossW = h * surfaceArea * deltaT * (1 - totalInsulation);
+		double heatLossHr = heatLossW * 0.86; // convert from W to kcal/hr
+		double heatGainHr = GetCurrentMetabolism(body, context.ActivityLevel) / 24; // metabolism from per day to hour
+
+		double netHeatHr = heatGainHr - heatLossHr;
+
+		double tempChange = netHeatHr / heatCapacity; // kcal/hr * F/kcal = F/hr
 
 		return new SurvivalProcessorResult
 		{
 			StatsDelta = new SurvivalStatsDelta
 			{
-				TemperatureDelta = insulatedDiff * rate,
+				TemperatureDelta = tempChange / 60 * minutes,
 			},
 			Effects = GetTemperatureEffects(body),
 		};
@@ -108,7 +121,7 @@ public static class SurvivalProcessor
 		result.StatsDelta.CalorieDelta = deficit;
 
 		// Calculate available fat
-		double minFat = MIN_FAT_PERCENT * body.Weight;
+		double minFat = MIN_FAT_PERCENT * body.WeightKG;
 		double availableFat = Math.Max(0, body.BodyFatKG - minFat);
 		double caloriesFromFat = availableFat * CALORIES_PER_KG_FAT;
 
@@ -132,7 +145,7 @@ public static class SurvivalProcessor
 			result.Messages.Add("Your body has exhausted all available fat reserves!");
 
 		// Calculate available muscle
-		double minMuscle = MIN_MUSCLE_PERCENT * body.Weight;
+		double minMuscle = MIN_MUSCLE_PERCENT * body.WeightKG;
 		double availableMuscle = Math.Max(0, body.MuscleKG - minMuscle);
 		double caloriesFromMuscle = availableMuscle * CALORIES_PER_KG_MUSCLE;
 

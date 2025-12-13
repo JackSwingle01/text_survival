@@ -10,13 +10,12 @@ namespace text_survival.Core
         public static Player? Player { get; set; }
         public static void Update(int minutes)
         {
-            for (int i = 0; i < minutes; i++)
-            {
-                Player?.Update();
-                Player?.CurrentZone.Update();
-                Time = Time.AddMinutes(1);
-                GameTime = GameTime.AddMinutes(1); // Keep GameTime in sync
-            }
+
+            Player?.Update(minutes);
+            Player?.CurrentZone.Update(minutes);
+            Time = Time.AddMinutes(minutes);
+            GameTime = GameTime.AddMinutes(minutes); // Keep GameTime in sync
+
             var logs = Player?.GetFlushLogs();
             if (logs is not null && logs.Count != 0)
                 IO.Output.WriteAll(logs);

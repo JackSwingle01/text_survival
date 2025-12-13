@@ -17,7 +17,7 @@ public abstract class Actor
     public bool IsAlive => !Body.IsDestroyed;
     public abstract Weapon ActiveWeapon { get; protected set; }
 
-    public virtual void Update()
+    public virtual void Update(int minutes)
     {
 
         if (CurrentLocation == null)
@@ -31,9 +31,9 @@ public abstract class Actor
             ActivityLevel = 2,
             LocationTemperature = CurrentLocation.GetTemperature(),
         };
-        var result = SurvivalProcessor.Process(Body, context, 1);
+        var result = SurvivalProcessor.Process(Body, context, minutes);
 
-        EffectRegistry.Update();
+        EffectRegistry.Update(minutes);
         var delta = EffectRegistry.GetSurvivalDelta();
         var damages = EffectRegistry.GetDamagesPerMinute();
 

@@ -38,7 +38,7 @@ public static class AbilityCalculator
     {
         var capacities = CapacityCalculator.GetCapacities(body, effectModifiers);
 
-        double baseWeight = body.Weight - body.MuscleKG - body.BodyFatKG;
+        double baseWeight = body.WeightKG - body.MuscleKG - body.BodyFatKG;
         double bfPercent = body.BodyFatPercentage;
         double musclePercent = body.MusclePercentage;
 
@@ -54,10 +54,10 @@ public static class AbilityCalculator
             fatPenalty = (bfPercent - Body.BaselineHumanStats.fatPercent) * 1.5;
         fatPenalty += body.BodyFatKG / 10 / 100;
 
-        double structuralWeightRatio = baseWeight / body.Weight / 0.45;
+        double structuralWeightRatio = baseWeight / body.WeightKG / 0.45;
         double weightEffect = -(Math.Pow(structuralWeightRatio, 0.7) - 1.0);
 
-        double sizeRatio = body.Weight / Body.BaselineHumanStats.overallWeight;
+        double sizeRatio = body.WeightKG / Body.BaselineHumanStats.overallWeight;
         double sizeModifier = 1 - 0.03 * Math.Log(sizeRatio, 2);
 
         return capacities.Moving * (1 + muscleModifier - fatPenalty + weightEffect) * sizeModifier;
@@ -81,18 +81,22 @@ public static class AbilityCalculator
     // Doesn't use capacities, just body composition
     public static double CalculateColdResistance(Body body)
     {
+        // Base resistance: fur, feathers, blubber (species-dependent)
+        double baseResistance = body.BaseColdResistance;
+        
+        // Body fat provides modest insulation, diminishing returns past normal levels
         double bfPercent = body.BodyFatPercentage;
-
-        double baseColdResistance = 0.5;
         double fatInsulation;
 
         if (bfPercent < 0.05)
-            fatInsulation = bfPercent / 0.05 * 0.1;
+            fatInsulation = bfPercent / 0.05 * 0.05;  // 0-5% -> 0-5% insulation (dangerously thin)
         else if (bfPercent < 0.15)
-            fatInsulation = 0.1 + ((bfPercent - 0.05) / 0.1 * 0.15);
+            fatInsulation = 0.05 + ((bfPercent - 0.05) / 0.10 * 0.10);  // 5-15% -> 5-15% insulation
+        else if (bfPercent < 0.30)
+            fatInsulation = 0.15 + ((bfPercent - 0.15) / 0.15 * 0.05);  // 15-30% -> 15-20% insulation
         else
-            fatInsulation = 0.25 + ((bfPercent - 0.15) * 0.15);
+            fatInsulation = 0.20;  // Cap at 20% - you're not a walrus
 
-        return baseColdResistance + fatInsulation;
+        return Math.Clamp(baseResistance + fatInsulation, 0, 0.95);
     }
 }

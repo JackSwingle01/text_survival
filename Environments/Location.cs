@@ -162,17 +162,17 @@ public class Location
         return 35.74 + (0.6215 * temperatureF) - (35.75 * windPowFactor) + (0.4275 * temperatureF * windPowFactor);
     }
 
-    public void Update()
+    public void Update(int minutes)
     {
         // Locations.ForEach(i => i.Update());
-        _npcs.ForEach(n => n.Update());
+        _npcs.ForEach(n => n.Update(minutes));
 
         // Update location features (fires consume fuel, etc.)
         foreach (var feature in Features)
         {
             if (feature is HeatSourceFeature heatSource)
             {
-                heatSource.Update(TimeSpan.FromMinutes(1));
+                heatSource.Update(TimeSpan.FromMinutes(minutes));
             }
         }
     }
