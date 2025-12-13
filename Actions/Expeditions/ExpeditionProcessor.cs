@@ -35,11 +35,11 @@ public class ExpeditionProcessor
             }
         }
 
+        AddSegmentUpdate(expedition, t);
         if (expedition.CurrentPhase == ExpeditionPhase.Working)
         {
             DoWork(expedition, t);
         }
-        AddSegmentUpdate(expedition, t);
         if (expedition.IsPhaseComplete())
         {
             HandlePhaseCompletion(expedition);

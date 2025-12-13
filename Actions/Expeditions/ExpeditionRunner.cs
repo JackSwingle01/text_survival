@@ -87,9 +87,10 @@ public class ExpeditionRunner(GameContext ctx)
             // show check if the user wants to turn back early
             if (expedition.CurrentPhase == ExpeditionPhase.TravelingOut || expedition.CurrentPhase == ExpeditionPhase.Working)
             {
-                Output.WriteLine("Continue?");
+                Output.WriteLine("\nContinue? (y/n)");
                 if (!Input.ReadYesNo())
                     CancelExpedition();
+                Output.WriteLine();
             }
         }
 
@@ -189,7 +190,7 @@ public class ExpeditionRunner(GameContext ctx)
             throw new InvalidOperationException("Can't cancel expedition out of context");
 
         Output.WriteLine("Are you sure you want to cancel the expedition and return to camp?");
-        Output.Write("This will end your current expedition and you will start to return to camp.");
+        Output.WriteLine("This will end your current expedition and you will start to return to camp. (y/n)");
         bool confirm = Input.ReadYesNo();
         if (!confirm)
         {

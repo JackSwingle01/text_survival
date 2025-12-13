@@ -146,7 +146,7 @@ namespace text_survival.Bodies
             string status = effect.Severity.ToString();
             string target = GetEffectTarget(effect);
 
-            Output.WriteLine("│ ", effect.EffectKind.PadRight(19), " │ ", valueStr.PadRight(19), " │ ", status.PadRight(11), " │ ", target.PadRight(5), " │");
+            Output.WriteLine("│ ", effect.EffectKind.PadRight(19), " │ ", valueStr.PadRight(19), " │ ", target.PadRight(5), " │");
         }
 
         private static string CreateProgressBar(int percent, int width)
@@ -208,7 +208,7 @@ namespace text_survival.Bodies
             if (string.IsNullOrEmpty(effect.TargetBodyPart))
                 return "Core";
             else
-                return effect.TargetBodyPart.Length > 5 ? effect.TargetBodyPart.Substring(0, 5) : effect.TargetBodyPart;
+                return effect.TargetBodyPart;
         }
 
 
