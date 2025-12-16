@@ -1,25 +1,24 @@
 using text_survival.Environments;
 using text_survival.Environments.Features;
+using text_survival.Items;
 namespace text_survival.Actors.Player;
 
 
-public class CampManager (Location startingLocation)
+public class Camp(Location startingLocation)
 {
-    public Location CampLocation {get; private set;} = startingLocation;
-    public HeatSourceFeature? Fire => CampLocation.GetFeature<HeatSourceFeature>();
-    public ShelterFeature? Shelter => CampLocation.GetFeature<ShelterFeature>();
+    public Location Location { get; private set; } = startingLocation;
+    public HeatSourceFeature? Fire => Location.GetFeature<HeatSourceFeature>();
+    public ShelterFeature? Shelter => Location.GetFeature<ShelterFeature>();
+    public List<Item> Stash => Location.Items;
 
-    public double GetFireMinutesRemaining()
+    public double FireMinutesRemaining =>
+        HasActiveFire ? Fire!.HoursRemaining * 60 : 0;
+
+    public bool HasActiveFire => Fire?.IsActive == true;
+
+    public void MoveTo(Location newLocation)
     {
-        if (Fire is null || !Fire.IsActive)
-        {
-            return 0;
-        }
-        return Fire.HoursRemaining * 60;
-    }
-    
-    public void SetCamp(Location locaiton)
-    {
-        CampLocation = locaiton;
+        Location = newLocation;
+        newLocation.Explore();
     }
 }

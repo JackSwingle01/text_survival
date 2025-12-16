@@ -10,8 +10,9 @@ namespace text_survival.Core
 {
     public class Program
     {
-        static void DisplayDeathScreen(Player player)
+        static void DisplayDeathScreen(GameContext ctx)
         {
+            Player player = ctx.player;
             Output.WriteLine("\n\n");
             Output.WriteLine("═══════════════════════════════════════════════════════════");
             Output.WriteDanger("                       YOU DIED                            ");
@@ -44,7 +45,7 @@ namespace text_survival.Core
             // Show time survived
             Output.WriteLine("═══ Time Survived ═══");
             var startTime = new DateTime(2025, 1, 1, 9, 0, 0); // Game start time
-            var timeSurvived = World.GameTime - startTime;
+            var timeSurvived = ctx.GameTime - startTime;
             int days = timeSurvived.Days;
             int hours = timeSurvived.Hours;
             int minutes = timeSurvived.Minutes;
@@ -100,39 +101,19 @@ namespace text_survival.Core
             Output.WriteLine();
             Output.SleepTime = 10;
             Zone zone = ZoneFactory.MakeForestZone();
-            Container oldBag = new Container("Tattered Sack", 10);
-            Location startingArea = new Location("Clearing", zone);
+            Location startingArea = zone.Graph.Sites.First(s => s.Name == "Forest Clearing");
 
             // Add starting equipment - basic fur wraps (Ice Age appropriate)
-            oldBag.Add(ItemFactory.MakeWornFurChestWrap());
-            oldBag.Add(ItemFactory.MakeFurLegWraps());
-            startingArea.Containers.Add(oldBag);
-
-            // Make the starting clearing forageable (CRITICAL for survival)
-            // 1.75x density provides tutorial generosity (5-8 fire attempts before critical depletion)
-            ForageFeature forageFeature = new ForageFeature(startingArea, 1.75);
-            // Forest clearing materials - basic fire-starting and crafting
-            forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.5);
-            forageFeature.AddResource(ItemFactory.MakeBarkStrips, 0.6);
-            forageFeature.AddResource(ItemFactory.MakePlantFibers, 0.5);
-            forageFeature.AddResource(ItemFactory.MakeStick, 0.7);
-            forageFeature.AddResource(ItemFactory.MakeFirewood, 0.3);
-            forageFeature.AddResource(ItemFactory.MakeTinderBundle, 0.15);
-            // Food items (improved for early-game survival)
-            forageFeature.AddResource(ItemFactory.MakeBerry, 0.4);
-            forageFeature.AddResource(ItemFactory.MakeMushroom, 0.6);
-            forageFeature.AddResource(ItemFactory.MakeNuts, 0.3);
-            forageFeature.AddResource(ItemFactory.MakeGrubs, 0.4);
-            forageFeature.AddResource(ItemFactory.MakeEggs, 0.2);
-            startingArea.Features.Add(forageFeature);
+            startingArea.Items.Add(ItemFactory.MakeWornFurChestWrap());
+            startingArea.Items.Add(ItemFactory.MakeFurLegWraps());
 
             // Add environment feature
-            startingArea.Features.Add(new EnvironmentFeature(startingArea, EnvironmentFeature.LocationType.Forest));
+            startingArea.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
 
             // Add starting campfire (with 4.5kg kindling fuel for 3 hours of warmth)
             // Note: Must use kindling (0°F requirement) for initial fuel, not softwood (400°F requirement)
             // Kindling burns at 1.5 kg/hr, so 4.5kg = 3 hours burn time
-            HeatSourceFeature campfire = new HeatSourceFeature(startingArea);
+            HeatSourceFeature campfire = new HeatSourceFeature();
             var startingFuel = ItemFactory.MakeStick(); // Large Stick = kindling (0°F requirement)
             campfire.AddFuel(startingFuel, 4.5); // Add 4.5kg of kindling (auto-lights since MinFireTemp = 0°F)
             startingArea.Features.Add(campfire);
@@ -151,15 +132,13 @@ namespace text_survival.Core
                 startingArea.Items.Add(tinder);
             }
 
-            zone.Locations.Add(startingArea);
-            Player player = new Player(startingArea);
-            World.Player = player;
-
-            var context = new GameContext(player);
+            Player player = new Player();
+            Camp camp = new Camp(startingArea);
+            GameContext context = new GameContext(player, camp);
 
             GameRunner runner = new GameRunner(context);
             runner.Run();
-            DisplayDeathScreen(player);
+            DisplayDeathScreen(context);
         }
     }
 }

@@ -28,8 +28,8 @@ public class HeatSourceFeature : LocationFeature
     private double _emberDuration; // Total ember duration when embers started
     public double EmberTimeRemaining { get; private set; } // Time remaining for embers
 
-    public HeatSourceFeature(Location location, double maxCapacityKg = 12.0)
-        : base("Campfire", location)
+    public HeatSourceFeature(double maxCapacityKg = 12.0)
+        : base("Campfire")
     {
         HasEmbers = false;
         FuelMassKg = 0;
@@ -48,7 +48,7 @@ public class HeatSourceFeature : LocationFeature
     public double GetCurrentFireTemperature()
     {
         if (!IsActive && !HasEmbers)
-            return ParentLocation.Parent.Weather.TemperatureInFahrenheit; // Zone weather temp (avoids circular dependency)
+            return 0;
 
         if (HasEmbers)
             return GetEmberTemperature();
@@ -172,10 +172,9 @@ public class HeatSourceFeature : LocationFeature
     /// Convert internal fire temperature to ambient heat output (°F added to location temp).
     /// Uses physics: heat radiation scales with temperature differential and fire mass.
     /// </summary>
-    public double GetEffectiveHeatOutput()
+    public double GetEffectiveHeatOutput(double ambientTemp)
     {
         double fireTemp = GetCurrentFireTemperature();
-        double ambientTemp = ParentLocation.Parent.Weather.TemperatureInFahrenheit; // Zone weather temp (avoids circular dependency)
         double tempDifferential = fireTemp - ambientTemp;
 
         // Negative differential (fire cooler than ambient) produces no heat

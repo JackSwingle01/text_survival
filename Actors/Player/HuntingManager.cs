@@ -1,6 +1,5 @@
 using text_survival.Actors.NPCs;
 using text_survival.Bodies;
-using text_survival.Core;
 using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Items;
@@ -29,7 +28,7 @@ public class HuntingManager
     /// <param name="target">The animal to shoot</param>
     /// <param name="targetBodyPart">Optional body part to target (null for torso)</param>
     /// <returns>True if shot was successful (hit or miss), false if couldn't shoot</returns>
-    public bool ShootTarget(Animal target, string? targetBodyPart = null)
+    public bool ShootTarget(Animal target, Location location, DateTime currentTime, string? targetBodyPart = null)
     {
         // Verify can shoot
         if (!_ammunitionManager.CanShoot(out string reason))
@@ -92,8 +91,7 @@ public class HuntingManager
                 if (target.ShouldFlee(_player))
                 {
                     Output.WriteLine($"The {target.Name} flees!");
-                    target.CurrentLocation?.RemoveNpc(target);
-                    target.CurrentLocation = null;
+                    location?.RemoveNpc(target);
                     _player.stealthManager.StopHunting($"The {target.Name} escaped.");
                 }
                 else
@@ -166,20 +164,19 @@ public class HuntingManager
 
                 // Create blood trail (Phase 4)
                 double woundSeverity = CalculateWoundSeverity(target, finalDamage);
-                var currentLocation = _player.CurrentLocation;
-                var bloodTrail = new BloodTrail(target, currentLocation, woundSeverity);
+                var currentLocation = location;
+                var bloodTrail = new BloodTrail(target, currentLocation, woundSeverity, currentTime);
                 currentLocation.BloodTrails.Add(bloodTrail);
 
                 // Mark animal as bleeding for bleed-out tracking
                 target.IsBleeding = true;
-                target.WoundedTime = World.GameTime;
+                target.WoundedTime = currentTime;
                 target.CurrentWoundSeverity = woundSeverity;
 
                 Output.WriteLine($"The {target.Name} leaves a blood trail behind...");
                 Output.WriteLine(bloodTrail.GetSeverityDescription());
 
-                target.CurrentLocation?.RemoveNpc(target);
-                target.CurrentLocation = null;
+                location.RemoveNpc(target);
                 _player.stealthManager.StopHunting($"The wounded {target.Name} escaped. You could try tracking it...");
             }
             else

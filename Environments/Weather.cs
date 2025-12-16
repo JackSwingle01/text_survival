@@ -1,10 +1,7 @@
 using text_survival;
-using text_survival.Core;
-using text_survival.Environments;
 
 public class ZoneWeather
 {
-
     // todo: improve sunrise and sunset logic,
     // todo: add more continuity and state to more granular changes
     public double BaseTemperature { get; private set; } // In Celsius
@@ -12,6 +9,7 @@ public class ZoneWeather
     public double Precipitation { get; private set; } // 0-1 intensity
     public double WindSpeed { get; private set; }    // 0-1 intensity
     public double CloudCover { get; private set; }   // 0-1 coverage
+    public int Elevation { get; }
 
     // Season tracking
     public enum Season { Winter, Spring, Summer, Fall }
@@ -29,17 +27,16 @@ public class ZoneWeather
         Stormy      // Thunderstorms (rare, mostly summer)
     }
 
-    // Add to ZoneWeather class
     public double SunlightIntensity
     {
         get
         {
             // No sun at night
-            if (!IsDaytime())
+            if (!IsDaytime(Time))
                 return 0;
 
             // Base sun intensity from time of day
-            double timeOfDayFactor = GetSunIntensityByTime();
+            double timeOfDayFactor = GetSunIntensityByTime(Time);
 
             // Reduction factors from weather conditions
             double cloudReduction = CloudCover * 0.9; // Clouds block up to 90% of sunlight
@@ -60,10 +57,10 @@ public class ZoneWeather
         }
     }
 
-    private bool IsDaytime()
+    private bool IsDaytime(DateTime time)
     {
         // todo: flesh this out and combine it with the temperature cycle 
-        int hour = World.Time.Hour;
+        int hour = time.Hour;
 
         // Seasonal variation in daylight hours
         int sunriseHour, sunsetHour;
@@ -92,14 +89,14 @@ public class ZoneWeather
         return hour >= sunriseHour && hour < sunsetHour;
     }
 
-    private double GetSunIntensityByTime()
+    private double GetSunIntensityByTime(DateTime time)
     {
         // Get sun intensity purely based on time of day (0-1)
-        int hour = World.Time.Hour;
-        int minute = World.Time.Minute;
+        int hour = time.Hour;
+        int minute = time.Minute;
 
         // No sunlight before sunrise or after sunset
-        if (!IsDaytime())
+        if (!IsDaytime(time))
             return 0;
 
         // Convert to minutes since sunrise (0-720)
@@ -117,15 +114,12 @@ public class ZoneWeather
     private TimeSpan _weatherDuration;
     private TimeSpan _timeSinceChange = TimeSpan.Zero;
 
-    // Zone this weather belongs to
-    private Zone _zone;
+    private DateTime Time { get; set; }
 
-    public ZoneWeather(Zone zone)
+    public ZoneWeather(double baseTemp)
     {
-        _zone = zone;
-
         // Initialize with fall weather
-        BaseTemperature = 0; // 0°C is about 32°F - freezing point
+        BaseTemperature = baseTemp;
         CurrentCondition = WeatherCondition.Clear;
         Precipitation = 0;
         WindSpeed = 0.3; // Moderate wind - 30% of maximum
@@ -134,8 +128,9 @@ public class ZoneWeather
         _weatherDuration = TimeSpan.FromHours(6);
     }
 
-    public void Update(TimeSpan elapsed)
+    public void Update(DateTime newTime)
     {
+        TimeSpan elapsed = newTime - Time;
         _timeSinceChange += elapsed;
 
         // Time to change weather?
@@ -144,6 +139,7 @@ public class ZoneWeather
             GenerateNewWeather();
             _timeSinceChange = TimeSpan.Zero;
         }
+        Time = newTime;
     }
 
     private void GenerateNewWeather()
@@ -193,10 +189,10 @@ public class ZoneWeather
         }
 
         // Apply zone-specific modifications
-        if (_zone.Elevation > 0)
+        if (Elevation > 0)
         {
             // Higher elevation = colder (-0.6°C per 100m elevation)
-            double elevationEffect = _zone.Elevation * -0.006; // -0.6% per 100m
+            double elevationEffect = Elevation * -0.006; // -0.6% per 100m
             minTemp += elevationEffect;
             maxTemp += elevationEffect;
         }
@@ -327,7 +323,7 @@ public class ZoneWeather
         int minutesInDay = 24 * 60;
         int coldestTime = 4 * 60; // 4 AM
 
-        int currentMinute = World.Time.Hour * 60 + World.Time.Minute;
+        int currentMinute = Time.Hour * 60 + Time.Minute;
         double minSinceColdest = currentMinute - coldestTime;
         double percentOfDay = minSinceColdest / minutesInDay; // scale so .5 is warmest and 0/1 is coldest
         double radians = 2 * Math.PI * percentOfDay; // scale for Cos

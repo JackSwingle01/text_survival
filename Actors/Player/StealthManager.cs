@@ -1,4 +1,5 @@
 using text_survival.Actors.NPCs;
+using text_survival.Environments;
 using text_survival.IO;
 
 namespace text_survival.Actors.Player;
@@ -68,11 +69,11 @@ public class StealthManager
             return false;
         }
 
-        if (TargetAnimal.CurrentLocation != _player.CurrentLocation)
-        {
-            StopHunting($"The {TargetAnimal.Name} has fled to another location.");
-            return false;
-        }
+        // if (TargetAnimal.CurrentLocation != _player.CurrentLocation)
+        // {
+        //     StopHunting($"The {TargetAnimal.Name} has fled to another location.");
+        //     return false;
+        // }
 
         return true;
     }
@@ -93,7 +94,7 @@ public class StealthManager
     /// Attempt to approach the target animal, reducing distance and checking for detection.
     /// </summary>
     /// <returns>True if approach successful (not detected), false if detected</returns>
-    public bool AttemptApproach()
+    public bool AttemptApproach(Location location)
     {
         if (!IsTargetValid())
             return false;
@@ -127,7 +128,7 @@ public class StealthManager
         {
             animal.BecomeDetected();
             Output.WriteLine($"The {animal.Name} spots you!");
-            HandleAnimalDetection(animal);
+            HandleAnimalDetection(animal, location);
             return false;
         }
         else if (becameAlert)
@@ -188,15 +189,14 @@ public class StealthManager
     /// Handle what happens when animal detects the player.
     /// Animal response depends on behavior type.
     /// </summary>
-    private void HandleAnimalDetection(Animal animal)
+    private void HandleAnimalDetection(Animal animal, Location location)
     {
         // Check if animal should flee
         if (animal.ShouldFlee(_player))
         {
             Output.WriteLine($"The {animal.Name} flees!");
             // Remove animal from location (fled)
-            animal.CurrentLocation?.RemoveNpc(animal);
-            animal.CurrentLocation = null;
+            location?.RemoveNpc(animal);
             StopHunting($"The {animal.Name} escaped.");
         }
         else

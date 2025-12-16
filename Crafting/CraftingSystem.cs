@@ -1,5 +1,5 @@
+using text_survival.Actions;
 using text_survival.Actors.Player;
-using text_survival.Core;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
@@ -10,11 +10,12 @@ namespace text_survival.Crafting;
 public class CraftingSystem
 {
     private readonly Dictionary<string, CraftingRecipe> _recipes = [];
-    private readonly Player _player;
-
-    public CraftingSystem(Player player)
+    private Player _player => _ctx.player;
+    private Camp _camp => _ctx.Camp;
+    private readonly GameContext _ctx;
+    public CraftingSystem(GameContext ctx)
     {
-        _player = player;
+        _ctx = ctx;
         InitializeRecipes();
     }
 
@@ -22,12 +23,12 @@ public class CraftingSystem
 
     public List<CraftingRecipe> GetAvailableRecipes()
     {
-        return _recipes.Values.Where(recipe => recipe.CanCraft(_player)).ToList();
+        return _recipes.Values.Where(recipe => recipe.CanCraft(_player, _camp)).ToList();
     }
 
     public void Craft(CraftingRecipe recipe)
     {
-        if (!recipe.CanCraft(_player))
+        if (!recipe.CanCraft(_player, _camp))
         {
             Output.WriteWarning("You cannot craft this item right now.");
             return;
@@ -36,7 +37,7 @@ public class CraftingSystem
         Output.WriteLine($"You begin working on {recipe.Name}...");
 
         // Consume time
-        World.Update(recipe.CraftingTimeMinutes);
+        _ctx.Update(recipe.CraftingTimeMinutes);
 
         // Consume ingredients
         recipe.ConsumeIngredients(_player);
@@ -58,12 +59,12 @@ public class CraftingSystem
             case CraftingResultType.LocationFeature:
                 if (recipe.LocationFeatureResult != null)
                 {
-                    var feature = recipe.LocationFeatureResult.FeatureFactory(_player.CurrentLocation);
+                    var feature = recipe.LocationFeatureResult.FeatureFactory(_camp.Location);
 
                     // Check for duplicate HeatSourceFeature (campfire bug fix)
                     if (feature is HeatSourceFeature newFire)
                     {
-                        var existingFire = _player.CurrentLocation.Features.OfType<HeatSourceFeature>().FirstOrDefault();
+                        var existingFire = _camp.Fire;
                         if (existingFire != null)
                         {
                             // Add fuel to existing fire instead of creating duplicate
@@ -75,7 +76,7 @@ public class CraftingSystem
                         }
                     }
 
-                    _player.CurrentLocation.Features.Add(feature);
+                    _camp.Location.Features.Add(feature);
                     Output.WriteSuccess($"You successfully built: {recipe.LocationFeatureResult.FeatureName}");
                 }
                 break;
@@ -83,9 +84,9 @@ public class CraftingSystem
             case CraftingResultType.Shelter:
                 if (recipe.NewLocationResult != null)
                 {
-                    var newLocation = recipe.NewLocationResult.LocationFactory(_player.CurrentZone);
-                    _player.CurrentZone.Locations.Add(newLocation);
-                    newLocation.IsFound = true;
+                    var newLocation = recipe.NewLocationResult.LocationFactory(_camp.Location.Parent);
+                    _camp.Location.AddBidirectionalConnection(newLocation);
+                    _camp.Location.Explore();
                     Output.WriteSuccess($"You successfully built: {recipe.NewLocationResult.LocationName}");
                     Output.WriteLine($"The {newLocation.Name} is now accessible from this area.");
                 }
@@ -164,7 +165,7 @@ public class CraftingSystem
             .WithDescription("Craft a simple friction fire starter. The tool can be used multiple times to attempt fire-making.")
             .RequiringCraftingTime(20)
             .WithPropertyRequirement(ItemProperty.Wood, 0.5)  // Dry stick
-            // NO BaseSuccessChance = 100% crafting success
+                                                              // NO BaseSuccessChance = 100% crafting success
             .ResultingInItem(ItemFactory.MakeHandDrill)
             .Build();
         _recipes.Add("hand_drill", handDrill);
@@ -176,7 +177,7 @@ public class CraftingSystem
             .RequiringCraftingTime(45)
             .WithPropertyRequirement(ItemProperty.Wood, 1.0)  // Wood for bow + drill
             .WithPropertyRequirement(ItemProperty.Binding, 0.1)  // Sinew or plant fiber
-            // NO skill requirement - skill check happens in StartFire action
+                                                                 // NO skill requirement - skill check happens in StartFire action
             .ResultingInItem(ItemFactory.MakeBowDrill)
             .Build();
         _recipes.Add("bow_drill", bowDrill);
@@ -188,7 +189,7 @@ public class CraftingSystem
             .RequiringCraftingTime(5)
             .WithPropertyRequirement(ItemProperty.Flint, 0.2)  // Flint
             .WithPropertyRequirement(ItemProperty.Stone, 0.3)  // Striker stone
-            // NO BaseSuccessChance = 100% crafting success
+                                                               // NO BaseSuccessChance = 100% crafting success
             .ResultingInItem(ItemFactory.MakeFlintAndSteel)
             .Build();
         _recipes.Add("flint_steel", flintSteel);
@@ -382,7 +383,7 @@ public class CraftingSystem
             .WithPropertyRequirement(ItemProperty.Firestarter, .2)
             .ResultingInLocationFeature(new LocationFeatureResult("Campfire", location =>
             {
-                var fireFeature = new HeatSourceFeature(location);
+                var fireFeature = new HeatSourceFeature();
                 var initialFuel = ItemFactory.MakeFirewood(); // 1.5kg softwood
                 fireFeature.AddFuel(initialFuel, 0.8); // Add 0.8kg of fuel
                 return fireFeature;
@@ -404,7 +405,7 @@ public class CraftingSystem
             .ResultingInLocationFeature(new LocationFeatureResult("Windbreak", location =>
             {
                 // Creates a simple wind/weather barrier at current location
-                return new EnvironmentFeature(location, 2.0, 0.2, 0.3); // +2°F, minimal coverage
+                return new EnvironmentFeature(2.0, 0.2, 0.3); // +2°F, minimal coverage
             }))
             .Build();
         _recipes.Add("windbreak", windbreak);
@@ -564,8 +565,8 @@ public class CraftingSystem
     {
         var shelter = new Location("Lean-to Shelter", parent);
         // Tier 2: Moderate protection - angled roof blocks rain/wind from one direction
-        shelter.Features.Add(new ShelterFeature(shelter, 0.35, 0.5, 0.5));
-        shelter.Features.Add(new EnvironmentFeature(shelter, 5.0, 0.5, 0.5)); // +5°F, moderate weather block
+        shelter.Features.Add(new ShelterFeature(0.35, 0.5, 0.5));
+        shelter.Features.Add(new EnvironmentFeature(5.0, 0.5, 0.5)); // +5°F, moderate weather block
         return shelter;
     }
 
@@ -573,8 +574,8 @@ public class CraftingSystem
     {
         var shelter = new Location("Debris Hut", parent);
         // Tier 3: Good protection - small enclosed space well-insulated with debris
-        shelter.Features.Add(new ShelterFeature(shelter, 0.5, 0.7, 0.7));
-        shelter.Features.Add(new EnvironmentFeature(shelter, 8.0, 0.7, 0.7)); // +8°F, good protection, dry
+        shelter.Features.Add(new ShelterFeature(0.5, 0.7, 0.7));
+        shelter.Features.Add(new EnvironmentFeature(8.0, 0.7, 0.7)); // +8°F, good protection, dry
         return shelter;
     }
 
@@ -582,8 +583,8 @@ public class CraftingSystem
     {
         var cabin = new Location("Log Cabin", parent);
         // Tier 4: Excellent protection - solid structure with fireplace
-        cabin.Features.Add(new ShelterFeature(cabin, 0.8, 0.9, 0.9));
-        cabin.Features.Add(new EnvironmentFeature(cabin, 15.0, 0.9, 0.9)); // +15°F, excellent protection
+        cabin.Features.Add(new ShelterFeature(0.8, 0.9, 0.9));
+        cabin.Features.Add(new EnvironmentFeature(15.0, 0.9, 0.9)); // +15°F, excellent protection
         return cabin;
     }
 

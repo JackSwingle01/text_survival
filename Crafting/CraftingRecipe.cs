@@ -28,7 +28,7 @@ public class CraftingRecipe(string name, string description = "")
     public int CraftingTimeMinutes { get; set; } = 10;
     public bool RequiresFire { get; set; } = false;
 
-    public bool CanCraft(Player player)
+    public bool CanCraft(Player player, Camp camp)
     {
         // Check skill requirement
         var skill = player.Skills.GetSkill(RequiredSkill);
@@ -40,14 +40,14 @@ public class CraftingRecipe(string name, string description = "")
             return false;
 
         // Check location requirements
-        if (RequiresFire && !HasFire(player.CurrentLocation))
+        if (RequiresFire && !camp.HasActiveFire)
             return false;
 
         // Check specific result type requirements
         if (ResultType == CraftingResultType.Shelter && NewLocationResult != null)
         {
             // Can't build shelter inside another shelter
-            if (player.CurrentLocation.GetFeature<ShelterFeature>() != null)
+            if (camp.Shelter != null)
                 return false;
         }
 

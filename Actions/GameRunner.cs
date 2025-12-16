@@ -7,7 +7,6 @@ using text_survival.Crafting;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
-using text_survival.Core;
 using text_survival.Actions.Expeditions;
 
 namespace text_survival.Actions;
@@ -45,13 +44,13 @@ public partial class GameRunner(GameContext ctx)
         {
             ShowStatus();
             RunCampMenu();
-            World.Update(1);
+            ctx.Update(1);
         }
     }
 
     private void ShowStatus()
     {
-        BodyDescriber.DescribeSurvivalStats(ctx.player.Body, ctx.player.GetSurvivalContext());
+        BodyDescriber.DescribeSurvivalStats(ctx.player.Body, ctx);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -61,6 +60,7 @@ public partial class GameRunner(GameContext ctx)
     private void RunCampMenu()
     {
         ExpeditionRunner expeditionRunner = new(ctx);
+        ExploreRunner exploreRunner = new (ctx);
 
         var choice = new Choice<Action>();
         choice.AddOption("Look around", LookAround);
@@ -71,18 +71,12 @@ public partial class GameRunner(GameContext ctx)
         if (CanStartFire())
             choice.AddOption("Start fire", StartFire);
 
-        if (CanForage())
-            choice.AddOption("Forage", expeditionRunner.RunForageExpedition);
+        if (expeditionRunner.GetGatherableLocations().Any() || CanHunt())
+            choice.AddOption("Go on expedition", ChooseExpeditionType);
 
-        if (CanHunt())
-            choice.AddOption("Hunt", RunHuntingMenu);
-
-        if (CanHarvest())
-            choice.AddOption("Harvest resources", expeditionRunner.RunHarvestExpedition);
-
-        if (CanCraft())
-            choice.AddOption("Craft", RunCraftingMenu);
-
+        if (exploreRunner.HasUnexploredReachable())
+            choice.AddOption("Explore", exploreRunner.Run);
+            
         if (HasItems())
             choice.AddOption("Inventory", RunInventoryMenu);
 
@@ -90,6 +84,18 @@ public partial class GameRunner(GameContext ctx)
 
         if (ctx.player.Body.IsTired)
             choice.AddOption("Sleep", Sleep);
+
+        choice.GetPlayerChoice().Invoke();
+    }
+
+    private void ChooseExpeditionType()
+    {
+        ExpeditionRunner expeditionRunner = new(ctx);
+        var choice = new Choice<Action>();
+        if (expeditionRunner.GetGatherableLocations().Any())
+            choice.AddOption("Gather", expeditionRunner.RunForageExpedition);
+        if (CanHunt())
+            choice.AddOption("Hunt", RunHuntingMenu);
 
         choice.GetPlayerChoice().Invoke();
     }
@@ -103,7 +109,7 @@ public partial class GameRunner(GameContext ctx)
         Output.WriteLine();
 
         // Location and conditions
-        Output.WriteLine($"You're at {location.Name}. It's {World.GetTimeOfDay().ToString().ToLower()}, {location.GetTemperature():F0}°F.");
+        Output.WriteLine($"You're at {location.Name}. It's {ctx.GetTimeOfDay().ToString().ToLower()}, {location.GetTemperature():F0}°F.");
         Output.WriteLine();
 
         // Fire status - most important
@@ -127,10 +133,6 @@ public partial class GameRunner(GameContext ctx)
         else if (foundItems.Count > 1)
             Output.WriteLine($"On the ground you see: {string.Join(", ", foundItems.Select(i => i.Name.ToLower()))}.");
 
-        // Containers
-        foreach (var c in location.Containers.Where(c => c.IsFound && !c.IsEmpty))
-            Output.WriteLine($"There's a {c.Name.ToLower()} here.");
-
         // NPCs
         foreach (var npc in location.Npcs.Where(n => n.IsFound))
         {
@@ -141,10 +143,9 @@ public partial class GameRunner(GameContext ctx)
         }
 
         // Exits
-        var nearby = location.GetNearbyLocations();
-        if (nearby.Count > 0)
+        var nearby = location.Connections;
+        if (nearby.Count != 0)
         {
-            nearby.ForEach(n => n.IsFound = true);
             Output.WriteLine();
             Output.WriteLine($"From here you could reach {FormatList(nearby.Select(n => n.Name))}.");
         }
@@ -164,9 +165,6 @@ public partial class GameRunner(GameContext ctx)
 
         foreach (var item in foundItems)
             choice.AddOption($"Pick up the {item.Name.ToLower()}", () => PickUpItem(item));
-
-        foreach (var container in location.Containers.Where(c => c.IsFound && !c.IsEmpty))
-            choice.AddOption($"Open the {container.Name.ToLower()}", () => OpenContainer(container));
 
         choice.AddOption("Back", () => { });
 
@@ -255,7 +253,7 @@ public partial class GameRunner(GameContext ctx)
         // Display fire status
         string firePhase = fire.GetFirePhase();
         double fireTemp = fire.GetCurrentFireTemperature();
-        double heatOutput = fire.GetEffectiveHeatOutput();
+        double heatOutput = fire.GetEffectiveHeatOutput(ctx.CurrentLocation.GetTemperature());
         double fuelMinutes = fire.HoursRemaining * 60;
 
         ConsoleColor phaseColor = firePhase switch
@@ -403,7 +401,7 @@ public partial class GameRunner(GameContext ctx)
         else if (!fire.IsActive)
             Output.WriteWarning("\nThe fire is cold. You need to use 'Start Fire' to light it with proper fire-making materials.");
 
-        World.Update(1);
+        ctx.Update(1);
     }
 
     private void StartFire()
@@ -488,7 +486,7 @@ public partial class GameRunner(GameContext ctx)
         finalSuccessChance = Math.Clamp(finalSuccessChance, 0.05, 0.95);
 
         Output.WriteLine($"\nYou work with the {selectedTool.Name}...");
-        World.Update(15);
+        ctx.Update(15);
 
         bool success = Utils.DetermineSuccess(finalSuccessChance);
 
@@ -512,7 +510,7 @@ public partial class GameRunner(GameContext ctx)
             else
             {
                 Output.WriteSuccess($"\nSuccess! You start a fire! ({finalSuccessChance:P0} chance)");
-                var newFire = new HeatSourceFeature(ctx.CurrentLocation);
+                var newFire = new HeatSourceFeature();
                 var tinderFuel = ItemFactory.MakeTinderBundle();
                 var kindlingFuel = ItemFactory.MakeStick();
                 newFire.AddFuel(tinderFuel, 0.03);
@@ -591,7 +589,7 @@ public partial class GameRunner(GameContext ctx)
 
         int minutes = hours * 60;
         ctx.player.Body.Rest(minutes);
-        World.Update(minutes);
+        ctx.Update(minutes);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -712,240 +710,218 @@ public partial class GameRunner(GameContext ctx)
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // FORAGING / EXPEDITIONS
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    private bool CanForage()
-    {
-        // Basic check - can always forage if you have energy
-        return ctx.player.Vitality > 0.2;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // HARVESTING
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    private bool CanHarvest()
-    {
-        return ctx.CurrentLocation.GetNearbyLocations()
-            .Any(l => l.Features
-                .OfType<HarvestableFeature>()
-                .Any(f => f.IsDiscovered && f.HasAvailableResources()));
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
     // CRAFTING
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private bool CanCraft() => ctx.CraftingManager.GetAvailableRecipes().Count > 0;
+    // private bool CanCraft() => ctx.CraftingManager.GetAvailableRecipes().Count > 0;
 
-    private void RunCraftingMenu()
-    {
-        var availableRecipes = ctx.CraftingManager.GetAvailableRecipes();
+    // private void RunCraftingMenu()
+    // {
+    //     var availableRecipes = ctx.CraftingManager.GetAvailableRecipes();
 
-        if (availableRecipes.Count == 0)
-        {
-            Output.WriteLine("You don't know how to craft anything here, or you lack the required materials.");
-            Input.WaitForKey();
-            return;
-        }
+    //     if (availableRecipes.Count == 0)
+    //     {
+    //         Output.WriteLine("You don't know how to craft anything here, or you lack the required materials.");
+    //         Input.WaitForKey();
+    //         return;
+    //     }
 
-        Output.WriteLine("What would you like to craft?");
+    //     Output.WriteLine("What would you like to craft?");
 
-        var itemRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.Item).ToList();
-        var featureRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.LocationFeature).ToList();
-        var shelterRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.Shelter).ToList();
+    //     var itemRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.Item).ToList();
+    //     var featureRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.LocationFeature).ToList();
+    //     var shelterRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.Shelter).ToList();
 
-        var choice = new Choice<Action>();
+    //     var choice = new Choice<Action>();
 
-        if (itemRecipes.Count != 0)
-        {
-            Output.WriteLine("\n--- Items ---");
-            foreach (var recipe in itemRecipes)
-                choice.AddOption($"Craft {recipe.Name}", () => CraftItem(recipe));
-        }
+    //     if (itemRecipes.Count != 0)
+    //     {
+    //         Output.WriteLine("\n--- Items ---");
+    //         foreach (var recipe in itemRecipes)
+    //             choice.AddOption($"Craft {recipe.Name}", () => CraftItem(recipe));
+    //     }
 
-        if (featureRecipes.Count != 0)
-        {
-            Output.WriteLine("\n--- Build Features ---");
-            foreach (var recipe in featureRecipes)
-                choice.AddOption($"Craft {recipe.Name}", () => CraftItem(recipe));
-        }
+    //     if (featureRecipes.Count != 0)
+    //     {
+    //         Output.WriteLine("\n--- Build Features ---");
+    //         foreach (var recipe in featureRecipes)
+    //             choice.AddOption($"Craft {recipe.Name}", () => CraftItem(recipe));
+    //     }
 
-        if (shelterRecipes.Count != 0)
-        {
-            Output.WriteLine("\n--- Build Shelters ---");
-            foreach (var recipe in shelterRecipes)
-                choice.AddOption($"Craft {recipe.Name}", () => CraftItem(recipe));
-        }
+    //     if (shelterRecipes.Count != 0)
+    //     {
+    //         Output.WriteLine("\n--- Build Shelters ---");
+    //         foreach (var recipe in shelterRecipes)
+    //             choice.AddOption($"Craft {recipe.Name}", () => CraftItem(recipe));
+    //     }
 
-        choice.AddOption("View All Known Recipes", ShowAllRecipes);
-        choice.AddOption("Show My Materials", ShowAvailableMaterials);
-        choice.AddOption("Stop crafting", () => { });
+    //     choice.AddOption("View All Known Recipes", ShowAllRecipes);
+    //     choice.AddOption("Show My Materials", ShowAvailableMaterials);
+    //     choice.AddOption("Stop crafting", () => { });
 
-        choice.GetPlayerChoice().Invoke();
-    }
+    //     choice.GetPlayerChoice().Invoke();
+    // }
 
-    private void CraftItem(CraftingRecipe recipe)
-    {
-        Output.WriteLine($"\nCrafting: {recipe.Name}");
-        Output.WriteLine($"Description: {recipe.Description}");
-        Output.WriteLine($"Time required: {recipe.CraftingTimeMinutes} minutes");
-        Output.WriteLine($"Required skill: {recipe.RequiredSkill} (Level {recipe.RequiredSkillLevel})");
-        Output.WriteLine($"Result type: {recipe.ResultType}");
+    // private void CraftItem(CraftingRecipe recipe)
+    // {
+    //     Output.WriteLine($"\nCrafting: {recipe.Name}");
+    //     Output.WriteLine($"Description: {recipe.Description}");
+    //     Output.WriteLine($"Time required: {recipe.CraftingTimeMinutes} minutes");
+    //     Output.WriteLine($"Required skill: {recipe.RequiredSkill} (Level {recipe.RequiredSkillLevel})");
+    //     Output.WriteLine($"Result type: {recipe.ResultType}");
 
-        if (recipe.RequiresFire)
-            Output.WriteLine("Requires: Active fire");
+    //     if (recipe.RequiresFire)
+    //         Output.WriteLine("Requires: Active fire");
 
-        Output.WriteLine("\nMaterial properties needed:");
-        foreach (var req in recipe.RequiredProperties)
-        {
-            string consumed = req.IsConsumed ? "(consumed)" : "(used)";
-            Output.WriteLine($"- {req.Property}: {req.MinQuantity:F1}+ KG {consumed}");
-        }
+    //     Output.WriteLine("\nMaterial properties needed:");
+    //     foreach (var req in recipe.RequiredProperties)
+    //     {
+    //         string consumed = req.IsConsumed ? "(consumed)" : "(used)";
+    //         Output.WriteLine($"- {req.Property}: {req.MinQuantity:F1}+ KG {consumed}");
+    //     }
 
-        Output.WriteLine("\nYour available materials:");
-        ShowPlayerMaterials(recipe.RequiredProperties);
+    //     Output.WriteLine("\nYour available materials:");
+    //     ShowPlayerMaterials(recipe.RequiredProperties);
 
-        var preview = recipe.PreviewConsumption(ctx.player);
-        if (preview.Count > 0)
-        {
-            Output.WriteLine("\nThis will consume:");
-            foreach (var (itemName, amount) in preview)
-            {
-                Output.WriteLine($"  - {itemName} ({amount:F2}kg)");
-            }
-        }
+    //     var preview = recipe.PreviewConsumption(ctx.player);
+    //     if (preview.Count > 0)
+    //     {
+    //         Output.WriteLine("\nThis will consume:");
+    //         foreach (var (itemName, amount) in preview)
+    //         {
+    //             Output.WriteLine($"  - {itemName} ({amount:F2}kg)");
+    //         }
+    //     }
 
-        Output.WriteLine("\nDo you want to attempt this craft?");
+    //     Output.WriteLine("\nDo you want to attempt this craft?");
 
-        if (Input.ReadYesNo())
-        {
-            ctx.CraftingManager.Craft(recipe);
-        }
+    //     if (Input.ReadYesNo())
+    //     {
+    //         ctx.CraftingManager.Craft(recipe);
+    //     }
 
-        RunCraftingMenu();
-    }
+    //     RunCraftingMenu();
+    // }
 
-    private void ShowAllRecipes()
-    {
-        Output.WriteLine("\n=== [ Known Recipes ] ===");
+    // private void ShowAllRecipes()
+    // {
+    //     Output.WriteLine("\n=== [ Known Recipes ] ===");
 
-        var craftingManager = new CraftingSystem(ctx.player);
-        var allRecipes = craftingManager.Recipes.Values
-            .GroupBy(r => r.ResultType)
-            .ToList();
+    //     var craftingManager = new CraftingSystem(ctx);
+    //     var allRecipes = craftingManager.Recipes.Values
+    //         .GroupBy(r => r.ResultType)
+    //         .ToList();
 
-        foreach (var group in allRecipes)
-        {
-            Output.WriteLine($"\n--- [ {group.Key} Recipes ] ---");
-            foreach (var recipe in group)
-            {
-                PrintRecipeTable(recipe);
-                Output.WriteLine();
-            }
-        }
+    //     foreach (var group in allRecipes)
+    //     {
+    //         Output.WriteLine($"\n--- [ {group.Key} Recipes ] ---");
+    //         foreach (var recipe in group)
+    //         {
+    //             PrintRecipeTable(recipe);
+    //             Output.WriteLine();
+    //         }
+    //     }
 
-        Input.WaitForKey();
-        RunCraftingMenu();
-    }
+    //     Input.WaitForKey();
+    //     RunCraftingMenu();
+    // }
 
-    private void PrintRecipeTable(CraftingRecipe recipe)
-    {
-        bool canCraft = recipe.CanCraft(ctx.player);
-        string status = canCraft ? "[✓]" : "[✗]";
+    // private void PrintRecipeTable(CraftingRecipe recipe)
+    // {
+    //     bool canCraft = recipe.CanCraft(ctx.player, ctx.Camp);
+    //     string status = canCraft ? "[✓]" : "[✗]";
 
-        string header = $">>> {recipe.Name.ToUpper()} {status} <<<";
-        int tableWidth = 64;
+    //     string header = $">>> {recipe.Name.ToUpper()} {status} <<<";
+    //     int tableWidth = 64;
 
-        Output.WriteLine($"┌{new string('─', tableWidth)}┐");
-        Output.WriteLine($"│{header.PadLeft((tableWidth + header.Length) / 2).PadRight(tableWidth)}│");
-        Output.WriteLine($"├{new string('─', tableWidth)}┤");
+    //     Output.WriteLine($"┌{new string('─', tableWidth)}┐");
+    //     Output.WriteLine($"│{header.PadLeft((tableWidth + header.Length) / 2).PadRight(tableWidth)}│");
+    //     Output.WriteLine($"├{new string('─', tableWidth)}┤");
 
-        string fireReq = recipe.RequiresFire ? " • Fire Required" : "";
-        string infoRow = $"{recipe.CraftingTimeMinutes} min • {recipe.RequiredSkill} level {recipe.RequiredSkillLevel}{fireReq}";
-        Output.WriteLine($"│ {infoRow.PadRight(tableWidth - 2)} │");
+    //     string fireReq = recipe.RequiresFire ? " • Fire Required" : "";
+    //     string infoRow = $"{recipe.CraftingTimeMinutes} min • {recipe.RequiredSkill} level {recipe.RequiredSkillLevel}{fireReq}";
+    //     Output.WriteLine($"│ {infoRow.PadRight(tableWidth - 2)} │");
 
-        string description = recipe.Description;
-        if (description.Length > tableWidth - 2)
-            description = string.Concat(description.AsSpan(0, tableWidth - 5), "...");
-        Output.WriteLine($"│ {description.PadRight(tableWidth - 2)} │");
+    //     string description = recipe.Description;
+    //     if (description.Length > tableWidth - 2)
+    //         description = string.Concat(description.AsSpan(0, tableWidth - 5), "...");
+    //     Output.WriteLine($"│ {description.PadRight(tableWidth - 2)} │");
 
-        Output.WriteLine($"├───────────────────────────────────┬────────┬─────────┬─────────┤");
-        Output.WriteLine($"│ Material                          │ Qty    │ Quality │ Consumed│");
-        Output.WriteLine($"├───────────────────────────────────┼────────┼─────────┼─────────┤");
+    //     Output.WriteLine($"├───────────────────────────────────┬────────┬─────────┬─────────┤");
+    //     Output.WriteLine($"│ Material                          │ Qty    │ Quality │ Consumed│");
+    //     Output.WriteLine($"├───────────────────────────────────┼────────┼─────────┼─────────┤");
 
-        foreach (var req in recipe.RequiredProperties)
-        {
-            string propertyName = req.Property.ToString();
-            string material = propertyName.Length > 31 ? propertyName[..28] + "..." : propertyName;
-            string quantity = $"{req.MinQuantity:F1}x";
-            string consumed = req.IsConsumed ? "✓" : "✗";
+    //     foreach (var req in recipe.RequiredProperties)
+    //     {
+    //         string propertyName = req.Property.ToString();
+    //         string material = propertyName.Length > 31 ? propertyName[..28] + "..." : propertyName;
+    //         string quantity = $"{req.MinQuantity:F1}x";
+    //         string consumed = req.IsConsumed ? "✓" : "✗";
 
-            Output.WriteLine($"│ {material,-33} │ {quantity,6} │ {0,7} │ {consumed,7} │");
-        }
+    //         Output.WriteLine($"│ {material,-33} │ {quantity,6} │ {0,7} │ {consumed,7} │");
+    //     }
 
-        Output.WriteLine($"└───────────────────────────────────┴────────┴─────────┴─────────┘");
-    }
+    //     Output.WriteLine($"└───────────────────────────────────┴────────┴─────────┴─────────┘");
+    // }
 
-    private void ShowAvailableMaterials()
-    {
-        Output.WriteLine("\n=== Your Material Properties ===");
+    // private void ShowAvailableMaterials()
+    // {
+    //     Output.WriteLine("\n=== Your Material Properties ===");
 
-        var propertyTotals = new Dictionary<ItemProperty, (double amount, int items)>();
+    //     var propertyTotals = new Dictionary<ItemProperty, (double amount, int items)>();
 
-        foreach (var stack in ctx.player.inventoryManager.Items)
-        {
-            var item = stack.FirstItem;
-            foreach (var property in item.CraftingProperties)
-            {
-                if (!propertyTotals.ContainsKey(property))
-                    propertyTotals[property] = (0, 0);
+    //     foreach (var stack in ctx.player.inventoryManager.Items)
+    //     {
+    //         var item = stack.FirstItem;
+    //         foreach (var property in item.CraftingProperties)
+    //         {
+    //             if (!propertyTotals.ContainsKey(property))
+    //                 propertyTotals[property] = (0, 0);
 
-                var current = propertyTotals[property];
-                propertyTotals[property] = (
-                    current.amount + (item.Weight * stack.Count),
-                    current.items + stack.Count
-                );
-            }
-        }
+    //             var current = propertyTotals[property];
+    //             propertyTotals[property] = (
+    //                 current.amount + (item.Weight * stack.Count),
+    //                 current.items + stack.Count
+    //             );
+    //         }
+    //     }
 
-        foreach (var kvp in propertyTotals.OrderBy(x => x.Key))
-        {
-            var (amount, items) = kvp.Value;
-            Output.WriteLine($"{kvp.Key}: {amount:F1} total");
-        }
+    //     foreach (var kvp in propertyTotals.OrderBy(x => x.Key))
+    //     {
+    //         var (amount, items) = kvp.Value;
+    //         Output.WriteLine($"{kvp.Key}: {amount:F1} total");
+    //     }
 
-        if (!propertyTotals.Any())
-            Output.WriteLine("You don't have any materials with useful properties.");
+    //     if (!propertyTotals.Any())
+    //         Output.WriteLine("You don't have any materials with useful properties.");
 
-        Input.WaitForKey();
-        RunCraftingMenu();
-    }
+    //     Input.WaitForKey();
+    //     RunCraftingMenu();
+    // }
 
-    private void ShowPlayerMaterials(List<CraftingPropertyRequirement> requirements)
-    {
-        foreach (var req in requirements)
-        {
-            double totalAmount = 0;
-            int itemCount = 0;
+    // private void ShowPlayerMaterials(List<CraftingPropertyRequirement> requirements)
+    // {
+    //     foreach (var req in requirements)
+    //     {
+    //         double totalAmount = 0;
+    //         int itemCount = 0;
 
-            foreach (var stack in ctx.player.inventoryManager.Items)
-            {
-                var property = stack.FirstItem.GetProperty(req.Property);
-                if (property != null)
-                {
-                    totalAmount += stack.TotalWeight;
-                    itemCount += stack.Count;
-                }
-            }
+    //         foreach (var stack in ctx.player.inventoryManager.Items)
+    //         {
+    //             var property = stack.FirstItem.GetProperty(req.Property);
+    //             if (property != null)
+    //             {
+    //                 totalAmount += stack.TotalWeight;
+    //                 itemCount += stack.Count;
+    //             }
+    //         }
 
-            bool sufficient = totalAmount >= req.MinQuantity;
-            string status = sufficient ? "✓" : "✗";
+    //         bool sufficient = totalAmount >= req.MinQuantity;
+    //         string status = sufficient ? "✓" : "✗";
 
-            Output.WriteLine($"  {status} {req.Property}: {totalAmount:F1}/{req.MinQuantity:F1}");
-        }
-    }
+    //         Output.WriteLine($"  {status} {req.Property}: {totalAmount:F1}/{req.MinQuantity:F1}");
+    //     }
+    // }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // HUNTING
@@ -955,7 +931,7 @@ public partial class GameRunner(GameContext ctx)
     {
         var animals = ctx.CurrentLocation.Npcs
             .OfType<Animal>()
-            .Where(a => a.IsAlive && a.CurrentLocation == ctx.CurrentLocation)
+            .Where(a => a.IsAlive)
             .ToList();
         return animals.Any();
     }
@@ -966,7 +942,7 @@ public partial class GameRunner(GameContext ctx)
 
         var animals = ctx.CurrentLocation.Npcs
             .OfType<Animal>()
-            .Where(a => a.IsAlive && a.CurrentLocation == ctx.CurrentLocation)
+            .Where(a => a.IsAlive)
             .ToList();
 
         var choice = new Choice<Action>();
@@ -1045,12 +1021,12 @@ public partial class GameRunner(GameContext ctx)
 
     private void ApproachAnimal()
     {
-        bool success = ctx.player.stealthManager.AttemptApproach();
+        bool success = ctx.player.stealthManager.AttemptApproach(ctx.CurrentLocation);
 
         if (success)
             ctx.player.Skills.GetSkill("Hunting").GainExperience(1);
 
-        World.Update(7);
+        ctx.Update(7);
 
         if (ctx.player.stealthManager.IsHunting)
             RunHuntingSubMenu();
@@ -1072,8 +1048,8 @@ public partial class GameRunner(GameContext ctx)
             return;
         }
 
-        ctx.player.huntingManager.ShootTarget(target);
-        World.Update(1);
+        ctx.player.huntingManager.ShootTarget(target, ctx.CurrentLocation, ctx.GameTime);
+        ctx.Update(1);
 
         if (ctx.player.stealthManager.IsHunting)
             RunHuntingSubMenu();

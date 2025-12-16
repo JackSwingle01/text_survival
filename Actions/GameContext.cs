@@ -4,26 +4,25 @@ using text_survival.Environments;
 using text_survival.Actions.Expeditions;
 using text_survival.Core;
 using text_survival.Environments.Features;
+using System.Transactions;
 
 namespace text_survival.Actions;
 
-public class GameContext(Player player)
+public class GameContext(Player player, Camp camp)
 {
     public Player player = player;
-    public Location CurrentLocation => player.CurrentLocation;
-    public CraftingSystem CraftingManager = new CraftingSystem(player);
-    public CampManager Camp = player.Camp;
-    public Location? CampLocation = player.Camp.CampLocation;
-    public bool IsAtCamp => CurrentLocation == CampLocation;
+    public Location CurrentLocation => Expedition?.CurrentLocation ?? Camp.Location;
+    public Camp Camp = camp;
+    public bool IsAtCamp => CurrentLocation == Camp.Location;
     public Expedition? Expedition;
-
+    public Zone Zone => CurrentLocation.Parent;
     public bool Check(EventCondition condition)
     {
         return condition switch
         {
-            EventCondition.IsDaytime => World.GetTimeOfDay() == World.TimeOfDay.Morning ||
-                         World.GetTimeOfDay() == World.TimeOfDay.Afternoon ||
-                         World.GetTimeOfDay() == World.TimeOfDay.Evening,
+            EventCondition.IsDaytime => GetTimeOfDay() == TimeOfDay.Morning ||
+                         GetTimeOfDay() == TimeOfDay.Afternoon ||
+                         GetTimeOfDay() == TimeOfDay.Evening,
             EventCondition.Traveling => throw new NotImplementedException(),
             EventCondition.Resting => throw new NotImplementedException(),
             EventCondition.Working => throw new NotImplementedException(),
@@ -38,6 +37,43 @@ public class GameContext(Player player)
             EventCondition.Inside => CurrentLocation.HasFeature<ShelterFeature>(),
             EventCondition.Outside => !Check(EventCondition.Inside),
             _ => throw new NotImplementedException(),
+        };
+    }
+    public DateTime GameTime { get; set; } = new DateTime(2025, 1, 1, 9, 0, 0); // Full date/time for resource respawn tracking
+    public void Update(int minutes)
+    {
+        player.Update(minutes, player.GetSurvivalContext(CurrentLocation));
+        CurrentLocation.Parent.Update(minutes, GameTime);
+        GameTime = GameTime.AddMinutes(minutes); // Keep GameTime in sync
+
+        var logs = player?.GetFlushLogs();
+        if (logs is not null && logs.Count != 0)
+            IO.Output.WriteAll(logs);
+    }
+
+    public enum TimeOfDay
+    {
+        Night,
+        Dawn,
+        Morning,
+        Afternoon,
+        Noon,
+        Evening,
+        Dusk
+    }
+
+    public TimeOfDay GetTimeOfDay()
+    {
+        return GameTime.Hour switch
+        {
+            < 5 => TimeOfDay.Night,
+            < 6 => TimeOfDay.Dawn,
+            < 11 => TimeOfDay.Morning,
+            < 13 => TimeOfDay.Noon,
+            < 17 => TimeOfDay.Afternoon,
+            < 20 => TimeOfDay.Evening,
+            < 21 => TimeOfDay.Dusk,
+            _ => TimeOfDay.Night
         };
     }
 }

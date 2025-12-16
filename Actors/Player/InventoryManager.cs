@@ -178,4 +178,9 @@ public class InventoryManager
     {
         Output.WriteLine(Inventory, " (", Inventory.Weight(), "/", Inventory.MaxWeight, "):");
     }
+
+    internal double GetEncumbrance()
+    {
+        return 0;
+    }
 }

@@ -1,28 +1,55 @@
 ﻿using text_survival.Environments.Features;
-using text_survival.Actors.Player;
 using text_survival.Actors.NPCs;
-using text_survival.IO;
 using text_survival.Items;
+using text_survival.Bodies;
 
 
 namespace text_survival.Environments;
 
 public class Location
 {
-    public string Name;
-    public bool Visited = false;
-    public bool IsFound { get; set; } = false;
+
+    // Identity
+    public string Name { get; }
+    public string Description { get; set; } = "";
+    public Zone Parent { get; }
+
+    // Graph - just references, no wrapper
+    public List<Location> Connections { get; } = [];
+
+    // Environment
+    public TerrainType Terrain { get; set; } = TerrainType.Clear;
+    public double Exposure { get; set; } = 0.5;
+
+    // Traversal - 0 for sites, >0 for paths
+    public int BaseTraversalMinutes { get; set; } = 0;
+
+    // Discovery
+    public bool Explored { get; private set; } = false;
+
+    // Features, items, etc. (unchanged)
+    public List<LocationFeature> Features { get; } = [];
+    public List<Item> Items { get; } = [];
+
+    // Derived
+    public bool IsPath => BaseTraversalMinutes > 0;
+    public bool IsSite => BaseTraversalMinutes == 0;
+
+    public void AddConnection(Location other)
+    {
+        if (!Connections.Contains(other))
+            Connections.Add(other);
+    }
+
+    public void AddBidirectionalConnection(Location other)
+    {
+        AddConnection(other);
+        other.AddConnection(this);
+    }
     public IReadOnlyList<Npc> Npcs => _npcs.AsReadOnly();
     private List<Npc> _npcs = [];
-    public List<Item> Items = [];
-    public List<Container> Containers = [];
     public List<BloodTrail> BloodTrails = []; // MVP Hunting System - Phase 4
-    virtual public Zone Parent { get; }
-    public List<LocationFeature> Features = [];
 
-    // Map UI coordinates
-    public int CoordinateX { get; set; } = 0;
-    public int CoordinateY { get; set; } = 0;
 
     #region Initialization
 
@@ -36,6 +63,9 @@ public class Location
     public T? GetFeature<T>() where T : LocationFeature => Features.OfType<T>().FirstOrDefault();
     public bool HasFeature<T>() where T : LocationFeature => GetFeature<T>() is not null;
 
+    public List<Location> GetUnexploredConnections()
+        => Connections.Where(l => !l.Explored).ToList();
+
     public void SpawnNpcs(int numNpcs)
     {
         for (int i = 0; i < numNpcs; i++)
@@ -44,7 +74,6 @@ public class Location
             if (npc is not null)
             {
                 _npcs.Add(npc);
-                npc.CurrentLocation = this;
             }
         }
     }
@@ -58,19 +87,6 @@ public class Location
 
 
     #endregion Initialization
-    public void Interact(Player player)
-    {
-        Output.WriteLine("You consider heading to the " + Name + "...");
-        Output.WriteLine("Do you want to go there? (y/n)");
-        if (Input.ReadYesNo())
-        {
-            player.CurrentLocation = this;
-        }
-        else
-        {
-            Output.WriteLine("You decide to stay.");
-        }
-    }
 
     public double GetTemperature()
     {
@@ -139,7 +155,7 @@ public class Location
         if (heatSource != null)
         {
             // Insulation increases effectiveness of heat sources
-            double effectiveHeat = heatSource.GetEffectiveHeatOutput();
+            double effectiveHeat = heatSource.GetEffectiveHeatOutput(locationTemp);
             double heatEffect = effectiveHeat * Math.Max(insulation, .40); // heat sources are less effective outside
             locationTemp += heatEffect;
         }
@@ -164,147 +180,54 @@ public class Location
 
     public void Update(int minutes)
     {
-        // Locations.ForEach(i => i.Update());
-        _npcs.ForEach(n => n.Update(minutes));
+        SurvivalContext context = new()
+        {
+            ActivityLevel = 1,
+            LocationTemperature = GetTemperature(),
+        };
+        _npcs.ForEach(n => n.Update(minutes, context));
 
         // Update location features (fires consume fuel, etc.)
         foreach (var feature in Features)
         {
-            if (feature is HeatSourceFeature heatSource)
-            {
-                heatSource.Update(TimeSpan.FromMinutes(minutes));
-            }
+            feature.Update(minutes);
         }
     }
 
-    public List<Location> GetNearbyLocations()
+
+    public void Explore()
     {
-        List<Location> nearbyLocations = [];
-        if (Parent.Locations.Count > 0)
-        {
-            foreach (var location in Parent.Locations)
-            {
-                if (location == this)
-                    continue;
-                nearbyLocations.Add(location);
-            }
-        }
-        return nearbyLocations;
+        Explored = true;
     }
 
-    #region Map UI Helpers
-
-    /// <summary>Returns fire status string for map display, or null if no fire</summary>
-    public string? GetActiveFireStatus()
+    public string GetGatherSummary()
     {
-        var heatSource = GetFeature<HeatSourceFeature>();
-        if (heatSource == null) return null;
+        var parts = new List<string>();
 
-        var phase = heatSource.GetFirePhase();
-        if (phase == "Cold") return null;
-
-        string fireIcon = "🔥";
-        if (phase == "Embers")
+        var forage = GetFeature<ForageFeature>();
+        if (forage != null)
         {
-            return $"{fireIcon} Embers ({heatSource.EmberTimeRemaining:F0}m)";
-        }
-        else if (phase == "Dying")
-        {
-            return $"{fireIcon} Dying ({heatSource.HoursRemaining:F1}h)";
-        }
-        else if (heatSource.IsActive)
-        {
-            return $"{fireIcon} Burning ({heatSource.HoursRemaining:F1}h)";
+            var categories = forage.GetTopCategories(3);  // "food, wood, stone"
+            parts.Add($"foraging: {string.Join(", ", categories)}");
         }
 
-        return null;
+        var harvestables = Features
+            .OfType<HarvestableFeature>()
+            .Where(h => h.IsDiscovered && h.HasAvailableResources())
+            .Select(h => h.DisplayName);
+
+        if (harvestables.Any())
+            parts.AddRange(harvestables);
+
+        return string.Join(" | ", parts);
     }
-
-    /// <summary>Returns shelter status string for map display, or null if no shelter</summary>
-    public string? GetShelterStatus()
-    {
-        var shelter = GetFeature<ShelterFeature>();
-        if (shelter == null) return null;
-
-        double tempBonus = GetTemperature() - Parent.Weather.TemperatureInFahrenheit;
-        return $"🏠 Shelter: +{tempBonus:F0}°F";
-    }
-
-    /// <summary>Returns nearby threats string for map display, or null if none</summary>
-    public string? GetNearbyThreats()
-    {
-        if (_npcs.Count == 0) return null;
-
-        var hostileNpcs = _npcs.Where(n => n.IsHostile).ToList();
-        if (hostileNpcs.Count == 0) return null;
-
-        if (hostileNpcs.Count == 1)
-        {
-            return $"⚠ {hostileNpcs[0].Name}";
-        }
-        else
-        {
-            return $"⚠ {hostileNpcs.Count} threats";
-        }
-    }
-
-    /// <summary>Returns wildlife traces string for map display, or null if none</summary>
-    public string? GetWildlifeTraces()
-    {
-        if (BloodTrails.Count > 0)
-        {
-            var freshTrails = BloodTrails.Where(t => t.GetFreshness() > 0.1).ToList();
-            if (freshTrails.Count > 0)
-            {
-                return $"🩸 {freshTrails.Count} blood trail(s)";
-            }
-        }
-
-        // Check for non-hostile NPCs (wildlife)
-        var wildlife = _npcs.Where(n => !n.IsHostile).ToList();
-        if (wildlife.Count > 0)
-        {
-            if (wildlife.Count == 1)
-            {
-                return $"🦌 {wildlife[0].Name} seen";
-            }
-            else
-            {
-                return $"🦌 {wildlife.Count} animals";
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>Returns item summary string for map display, or null if no items</summary>
-    public string? GetItemSummary()
-    {
-        if (Items.Count == 0 && Containers.Count == 0) return null;
-
-        List<string> summary = [];
-
-        if (Items.Count > 0)
-        {
-            if (Items.Count <= 2)
-            {
-                summary.Add(string.Join(", ", Items.Select(i => i.Name)));
-            }
-            else
-            {
-                summary.Add($"{Items.Count} items");
-            }
-        }
-
-        if (Containers.Count > 0)
-        {
-            summary.Add($"{Containers.Count} container(s)");
-        }
-
-        return summary.Count > 0 ? $"📦 {string.Join(", ", summary)}" : null;
-    }
-
-    #endregion Map UI Helpers
-
-    public override string ToString() => Name;
+}
+public enum TerrainType
+{
+    Clear,      // Easy travel
+    Rough,      // Slower
+    Snow,       // Weather dependent
+    Steep,      // Directional difficulty
+    Water,       // Requires crossing/swimming
+    Hazardous
 }

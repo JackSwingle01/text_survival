@@ -1,7 +1,7 @@
+using text_survival.Actions;
 using text_survival.Bodies;
 using text_survival.Combat;
 using text_survival.Effects;
-using text_survival.Environments;
 using text_survival.Items;
 using text_survival.Survival;
 
@@ -10,27 +10,14 @@ namespace text_survival.Actors;
 public abstract class Actor
 {
     public string Name;
-    public virtual Location? CurrentLocation { get; set; }
     public virtual void Attack(Actor target, string? bodyPart = null) => combatManager.Attack(target, bodyPart);
 
     public bool IsEngaged { get; set; }
     public bool IsAlive => !Body.IsDestroyed;
     public abstract Weapon ActiveWeapon { get; protected set; }
 
-    public virtual void Update(int minutes)
+    public virtual void Update(int minutes, SurvivalContext context)
     {
-
-        if (CurrentLocation == null)
-        {
-            // Actor not in a valid location, skip survival update
-            return;
-        }
-
-        var context = new SurvivalContext
-        {
-            ActivityLevel = 2,
-            LocationTemperature = CurrentLocation.GetTemperature(),
-        };
         var result = SurvivalProcessor.Process(Body, context, minutes);
 
         EffectRegistry.Update(minutes);

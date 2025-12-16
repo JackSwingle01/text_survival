@@ -1,3 +1,4 @@
+using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Effects;
 using text_survival.IO;
@@ -213,7 +214,7 @@ namespace text_survival.Bodies
 
 
 
-        public static void DescribeSurvivalStats(Body body, SurvivalContext context)
+        public static void DescribeSurvivalStats(Body body, GameContext context)
         {
             const int boxWidth = 53;
             const int barWidth = 20;
@@ -238,7 +239,7 @@ namespace text_survival.Bodies
             string healthLine = $"Food:    [{caloriesBar}] {caloriesPercent}% - {caloriesStatus}";
             string waterLine = $"Water:   [{hydrationBar}] {hydrationPercent}% - {hydrationStatus}";
             string energyLine = $"Energy:  [{energyBar}] {energyPercent}% - {exhaustionStatus}";
-            string tempLine = $"Temp:    {body.BodyTemperature:F1}°F ({tempStatus}) - Feels like {context.LocationTemperature:F1}°F";
+            string tempLine = $"Temp:    {body.BodyTemperature:F1}°F ({tempStatus}) - Feels like {context.CurrentLocation.GetTemperature():F1}°F";
 
             // Display with proper padding
             Output.WriteLine($"┌{new string('─', boxWidth)}┐");

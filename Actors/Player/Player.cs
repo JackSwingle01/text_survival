@@ -1,5 +1,5 @@
+using text_survival.Actions;
 using text_survival.Bodies;
-using text_survival.Core;
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.IO;
@@ -11,17 +11,13 @@ namespace text_survival.Actors.Player;
 
 public class Player : Actor
 {
-    public readonly CampManager Camp;
-    private readonly LocationManager locationManager;
     public readonly InventoryManager inventoryManager;
     public readonly StealthManager stealthManager;
     public readonly AmmunitionManager ammunitionManager;
     public readonly HuntingManager huntingManager;
     public readonly SkillRegistry Skills;
-    public override void Update(int minutes)
+    public override void Update(int minutes, SurvivalContext context)
     {
-        var context = GetSurvivalContext();
-
         var result = SurvivalProcessor.Process(Body, context, minutes);
 
         result.Effects.ForEach(EffectRegistry.AddEffect);
@@ -34,10 +30,10 @@ public class Player : Actor
         Body.ApplyResult(result);
     }
 
-    public SurvivalContext GetSurvivalContext() => new SurvivalContext
+    public SurvivalContext GetSurvivalContext(Location currentLocation) => new SurvivalContext
     {
-        ActivityLevel = 2,
-        LocationTemperature = locationManager.CurrentLocation.GetTemperature(),
+        ActivityLevel = 1.5, // default - todo update
+        LocationTemperature = currentLocation.GetTemperature(),
         ClothingInsulation = inventoryManager.ClothingInsulation,
     };
 
@@ -49,44 +45,29 @@ public class Player : Actor
         }
     }
 
-    // Location-related methods
-    public override Location CurrentLocation
-    {
-        get => locationManager.CurrentLocation;
-        set => locationManager.CurrentLocation = value;
-    }
-
-    public Zone CurrentZone => locationManager.CurrentZone;
-
-    public Player(Location startingLocation) : base("Player", Body.BaselinePlayerStats)
+    public Player() : base("Player", Body.BaselinePlayerStats)
     {
         Name = "Player";
-        locationManager = new LocationManager(startingLocation);
         inventoryManager = new(EffectRegistry);
         stealthManager = new(this);
         ammunitionManager = new(inventoryManager);
         huntingManager = new(this, ammunitionManager);
         Skills = new SkillRegistry();
-        Camp = new CampManager(startingLocation);
     }
 
     public void DropItem(Item item)
     {
         inventoryManager.RemoveFromInventory(item);
-        locationManager.AddItemToLocation(item);
     }
 
     public void TakeItem(Item item)
     {
-        locationManager.RemoveItemFromLocation(item);
-
         // QOL - auto equip gear if you can
         if (item is IEquippable equipment && inventoryManager.CanAutoEquip(equipment))
         {
             inventoryManager.Equip(equipment);
             return;
         }
-
         inventoryManager.AddToInventory(item);
     }
 
@@ -175,41 +156,4 @@ public class Player : Actor
         armor.Insulation += warmth;
         return true;
     }
-
-    public void Travel() => locationManager.TravelToAdjacentZone();
-
-    /// <summary>Gets the world map for map UI display</summary>
-    public WorldMap GetWorldMap() => locationManager.GetWorldMap();
-
-    /// <summary>Travel to a location within the current zone using directional navigation</summary>
-    public void TravelToLocalLocation(string direction) => locationManager.TravelToLocalLocation(direction);
-
-    /// <summary>Travel to an adjacent zone in the specified direction</summary>
-    public void TravelToAdjacentZone(string direction)
-    {
-        // Calculate travel time
-        int minutes = UI.MapController.CalculateZoneTravelTime();
-        AddLog($"You travel {direction.ToLower()} for {minutes} minutes...");
-
-        // Move to the zone in the chosen direction
-        switch (direction)
-        {
-            case "N":
-                locationManager.CurrentZone = locationManager.GetWorldMap().North;
-                break;
-            case "E":
-                locationManager.CurrentZone = locationManager.GetWorldMap().East;
-                break;
-            case "S":
-                locationManager.CurrentZone = locationManager.GetWorldMap().South;
-                break;
-            case "W":
-                locationManager.CurrentZone = locationManager.GetWorldMap().West;
-                break;
-        }
-
-        World.Update(minutes);
-    }
-
-
 }

@@ -1,4 +1,3 @@
-using text_survival.Core;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
@@ -24,10 +23,33 @@ public class HarvestableFeature : LocationFeature
     private int _minutesWorked = 0;
     private readonly Dictionary<Func<Item>, HarvestableResource> _resources = [];
 
-    public HarvestableFeature(string name, string displayName, Location location)
-        : base(name, location)
+    public HarvestableFeature(string name, string displayName)
+        : base(name)
     {
         DisplayName = displayName;
+    }
+
+    /// <summary>
+    /// Advance respawn timers for all depleted resources.
+    /// </summary>
+    public void Update(int minutes)
+    {
+        double hours = minutes / 60.0;
+
+        foreach (var resource in _resources.Values)
+        {
+            if (resource.CurrentQuantity < resource.MaxQuantity)
+            {
+                resource.RespawnProgressHours += hours;
+
+                while (resource.RespawnProgressHours >= resource.RespawnHoursPerUnit &&
+                       resource.CurrentQuantity < resource.MaxQuantity)
+                {
+                    resource.RespawnProgressHours -= resource.RespawnHoursPerUnit;
+                    resource.CurrentQuantity++;
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -43,8 +65,7 @@ public class HarvestableFeature : LocationFeature
             ItemFactory = itemFactory,
             MaxQuantity = maxQuantity,
             CurrentQuantity = maxQuantity,
-            RespawnHoursPerUnit = respawnHoursPerUnit,
-            LastHarvestTime = DateTime.MinValue
+            RespawnHoursPerUnit = respawnHoursPerUnit
         };
     }
 
@@ -53,7 +74,6 @@ public class HarvestableFeature : LocationFeature
     /// </summary>
     public bool HasAvailableResources()
     {
-        UpdateRespawn();
         return _resources.Values.Any(r => r.CurrentQuantity > 0);
     }
 
@@ -65,7 +85,6 @@ public class HarvestableFeature : LocationFeature
     /// <returns>List of items harvested (may be empty if no cycles completed)</returns>
     public List<Item> Harvest(int minutes)
     {
-        UpdateRespawn();
         var items = new List<Item>();
 
         _minutesWorked += minutes;
@@ -81,7 +100,7 @@ public class HarvestableFeature : LocationFeature
                     var item = resource.ItemFactory();
                     items.Add(item);
                     resource.CurrentQuantity--;
-                    resource.LastHarvestTime = World.GameTime;
+                    resource.RespawnProgressHours = 0; // Reset respawn progress on harvest
                 }
             }
         }
@@ -101,8 +120,6 @@ public class HarvestableFeature : LocationFeature
     /// </summary>
     public int GetTotalMinutesToHarvest()
     {
-        UpdateRespawn();
-
         if (!_resources.Values.Any())
             return 0;
 
@@ -120,8 +137,6 @@ public class HarvestableFeature : LocationFeature
     /// </summary>
     public string GetStatusDescription()
     {
-        UpdateRespawn();
-
         var descriptions = new List<string>();
         foreach (var resource in _resources.Values)
         {
@@ -148,39 +163,6 @@ public class HarvestableFeature : LocationFeature
     }
 
     /// <summary>
-    /// Update respawn progress for all resources based on time elapsed.
-    /// Called lazily when Harvest() or GetStatusDescription() is invoked.
-    /// </summary>
-    private void UpdateRespawn()
-    {
-        foreach (var resource in _resources.Values)
-        {
-            // Skip if already at max or never harvested
-            if (resource.CurrentQuantity >= resource.MaxQuantity ||
-                resource.LastHarvestTime == DateTime.MinValue)
-            {
-                continue;
-            }
-
-            double hoursSinceHarvest = (World.GameTime - resource.LastHarvestTime).TotalHours;
-            int unitsRespawned = (int)(hoursSinceHarvest / resource.RespawnHoursPerUnit);
-
-            if (unitsRespawned > 0)
-            {
-                resource.CurrentQuantity = Math.Min(
-                    resource.MaxQuantity,
-                    resource.CurrentQuantity + unitsRespawned
-                );
-
-                // Update last harvest time to account for respawned units
-                // (prevents compound respawn if checked multiple times in same period)
-                double hoursUsed = unitsRespawned * resource.RespawnHoursPerUnit;
-                resource.LastHarvestTime = resource.LastHarvestTime.AddHours(hoursUsed);
-            }
-        }
-    }
-
-    /// <summary>
     /// Internal class to track individual resource state within a harvestable feature
     /// </summary>
     private class HarvestableResource
@@ -189,6 +171,6 @@ public class HarvestableFeature : LocationFeature
         public int MaxQuantity { get; set; }
         public int CurrentQuantity { get; set; }
         public double RespawnHoursPerUnit { get; set; }
-        public DateTime LastHarvestTime { get; set; }
+        public double RespawnProgressHours { get; set; }
     }
 }

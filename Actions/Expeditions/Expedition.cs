@@ -1,3 +1,4 @@
+using text_survival.Actors.Player;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
@@ -8,97 +9,111 @@ public enum ExpeditionPhase { NotStarted = 0, TravelingOut = 1, Working = 2, Tra
 
 public enum ExpeditionType { Forage, Hunt, Explore, Gather }
 
-public class Expedition(Location startLocation, Location endLocation, ExpeditionType type,
-                        int travelTimeMinutes, int workTimeMinutes, int timeVarianceMinutes,
-                        double exposureFactor, double detectionRisk)
+public class Expedition(List<Location> path, int destinationIndex, Player player,
+                        ExpeditionType type, int workTimeMinutes)
 {
-    public Location startLocation { get; } = startLocation;
-    public Location endLocation { get; } = endLocation;
     public ExpeditionType Type { get; } = type;
+    private readonly Player Player = player; // just for reading player stats for traversal
+    /// <summary>
+    /// Path is: start -> t1 -> ... -> tn -> dest -> tn -> ... t1 -> start
+    /// i.e. include the start and 
+    /// </summary>
+    public List<Location> Path { get; } = path;
+    public int CurrentIndex { get; private set; } = 0;
+    public int DestinationIndex { get; private set; } = destinationIndex;
 
-    public int TravelOutTimeMinutes { get; private set; } = travelTimeMinutes;
-    public int TravelBackTimeMinutes { get; private set; } = travelTimeMinutes;
+    // time tracking 
     public int WorkTimeMinutes { get; private set; } = workTimeMinutes;
-    public int TimeVarianceMinutes { get; } = timeVarianceMinutes;
-
-    public int TotalEstimatedTimeMinutes => TravelOutTimeMinutes + TravelBackTimeMinutes + WorkTimeMinutes;
-
-    public double ExposureFactor { get; } = exposureFactor; // 0-1
-    public double DetectionRisk { get; } = detectionRisk; // 0-1
-
-    public ExpeditionPhase CurrentPhase { get; private set; }
-    public int MinutesElapsedPhase { get; private set; }
     public int MinutesElapsedTotal { get; private set; }
+    public int MinutesSpentAtLocation { get; private set; }
 
-    public List<Item> LootCollected { get; } = [];
-    private List<string> EventsLog { get; } = [];
+    // derived properties
+    public ExpeditionPhase CurrentPhase
+    {
+        get
+        {
+            if (CurrentIndex == 0) return ExpeditionPhase.NotStarted;
+            else if (CurrentIndex > 0 && CurrentIndex < DestinationIndex) return ExpeditionPhase.TravelingOut;
+            else if (CurrentIndex == DestinationIndex) return ExpeditionPhase.Working;
+            else if (CurrentIndex > DestinationIndex && CurrentIndex < Path.Count - 1) return ExpeditionPhase.TravelingBack;
+            else if (CurrentIndex == Path.Count - 1) return ExpeditionPhase.Completed;
+            else throw new InvalidDataException("Current Index is Invalid");
+        }
+    }
+    public Location CurrentLocation => Path[CurrentIndex];
+    public Location Destination => Path[DestinationIndex];
     public bool IsComplete => CurrentPhase == ExpeditionPhase.Completed;
 
+
+    // results
+    public List<Item> LootCollected { get; } = [];
+    private List<string> EventsLog { get; } = [];
+
+
+    // methods
     public void IncrementTime(int minutes)
     {
-        MinutesElapsedPhase += minutes;
         MinutesElapsedTotal += minutes;
+        MinutesSpentAtLocation += minutes;
     }
 
-    public bool IsPhaseComplete()
+    public bool ReadyToAdvanceLocation()
     {
-        return CurrentPhase switch
+        if (CurrentPhase == ExpeditionPhase.NotStarted) return true;
+        else if (CurrentPhase == ExpeditionPhase.TravelingOut || CurrentPhase == ExpeditionPhase.TravelingBack)
         {
-            ExpeditionPhase.TravelingOut => MinutesElapsedPhase >= TravelOutTimeMinutes,
-            ExpeditionPhase.Working => MinutesElapsedPhase >= WorkTimeMinutes,
-            ExpeditionPhase.TravelingBack => MinutesElapsedPhase >= TravelBackTimeMinutes,
-            _ => true,
-        };
+            return MinutesSpentAtLocation >= TimeToTraverseLocation();
+        }
+        else if (CurrentPhase == ExpeditionPhase.Working) return MinutesSpentAtLocation >= WorkTimeMinutes;
+        else if (CurrentPhase == ExpeditionPhase.Completed) return false;
+        return false;
+    }
+    private int TimeToTraverseLocation()
+    {
+        return TravelProcessor.GetTraversalMinutes(CurrentLocation, player);
     }
 
-    public void AdvancePhase()
+    public void AdvancePath()
     {
-        if (IsComplete)
-            throw new InvalidOperationException("Expedition is already completed.");
-
-        int nextPhase = (int)CurrentPhase + 1;
-
-        if (nextPhase > (int)ExpeditionPhase.Completed)
-            throw new InvalidOperationException("No further phases available.");
-
-        CurrentPhase = (ExpeditionPhase)nextPhase;
-        MinutesElapsedPhase = 0;
+        CurrentIndex++;
+        MinutesSpentAtLocation = 0;
     }
 
     public void CancelExpedition()
     {
-        TravelBackTimeMinutes = GetMinutesBack(); ;
-        CurrentPhase = ExpeditionPhase.TravelingBack;
-        MinutesElapsedPhase = 0;
+        // get the distance back
+        CurrentIndex = DestinationIndex + Math.Abs(DestinationIndex - CurrentIndex);
+        if (CurrentIndex == DestinationIndex)
+        {
+            AdvancePath();
+        }
+        MinutesSpentAtLocation = GetProgressBackForLocation();
     }
 
-    public int GetMinutesBack()
+    private int GetProgressBackForLocation()
     {
         if (CurrentPhase == ExpeditionPhase.TravelingOut)
-            return MinutesElapsedPhase; // return the way we came
-        else if (CurrentPhase == ExpeditionPhase.Working)
-            return TravelBackTimeMinutes; // full trip back
+            return TimeToTraverseLocation() - MinutesSpentAtLocation; // return the way we came
         else if (CurrentPhase == ExpeditionPhase.TravelingBack)
-            return TravelBackTimeMinutes - MinutesElapsedPhase; // already heading back
+            return MinutesSpentAtLocation; // already heading back
         else
-            throw new InvalidOperationException("Expedition is already completed.");
+            return 0;
     }
 
-    public string GetSummaryNotes()
-    {
-        string notes = "";
-        if (detectionRisk > .2)
-        {
-            notes += "High detection risk. ";
-        }
-        if (ExposureFactor > .8)
-        {
-            notes += "The route is exposed to the weather.";
-        }
-        return notes;
-    }
+    // public string GetSummaryNotes()
+    // {
+    //     string notes = "";
+    //     if (DetectionRisk > .2)
+    //     {
+    //         notes += "High detection risk. ";
+    //     }
+    //     if (ExposureFactor > .8)
+    //     {
+    //         notes += "The route is exposed to the weather.";
+    //     }
+    //     return notes;
+    // }
 
-    public string WorkTimeWithVariance => $"{WorkTimeMinutes - TimeVarianceMinutes}-{WorkTimeMinutes + TimeVarianceMinutes}";
     public void AddLog(string log)
     {
         if (!string.IsNullOrEmpty(log))
@@ -119,7 +134,7 @@ public class Expedition(Location startLocation, Location endLocation, Expedition
         return phase switch
         {
             ExpeditionPhase.NotStarted => "preparing",
-            ExpeditionPhase.TravelingOut => $"traveling to {endLocation.Name}",
+            ExpeditionPhase.TravelingOut => $"traveling to {Path[DestinationIndex].Name}",
             ExpeditionPhase.Working => Type switch
             {
                 ExpeditionType.Forage => "foraging",
@@ -128,18 +143,10 @@ public class Expedition(Location startLocation, Location endLocation, Expedition
                 ExpeditionType.Gather => "gathering",
                 _ => "working"
             },
-            ExpeditionPhase.TravelingBack => $"returning to {startLocation.Name}",
+            ExpeditionPhase.TravelingBack => $"returning to {Path.Last().Name}",
             ExpeditionPhase.Completed => "completed",
             _ => "unknown"
         };
-    }
-
-    public void CompleteWorkPhaseEarly()
-    {
-        if (CurrentPhase == ExpeditionPhase.Working)
-        {
-            AdvancePhase();
-        }
     }
 
     public void AddWorkTimeMinutes(int minutes)
@@ -157,7 +164,7 @@ public class Expedition(Location startLocation, Location endLocation, Expedition
     {
         int t = 0;
         GameEvent? evt = null;
-        while (!IsPhaseComplete())
+        while (!ReadyToAdvanceLocation())
         {
             IncrementTime(1);
             t++;
@@ -165,7 +172,7 @@ public class Expedition(Location startLocation, Location endLocation, Expedition
             // check for events, encounters, etc.
             evt = GameEventRegistry.GetEventOnTick(ctx);
 
-            if (evt is not null || IsPhaseComplete())
+            if (evt is not null || ReadyToAdvanceLocation())
             {
                 break;
             }
@@ -192,8 +199,7 @@ public class Expedition(Location startLocation, Location endLocation, Expedition
     }
     private void DoForageWork(int minutes)
     {
-        Location location = endLocation;
-        var feature = location.GetFeature<ForageFeature>() ?? throw new InvalidOperationException("Can't forage here.");
+        var feature = CurrentLocation.GetFeature<ForageFeature>() ?? throw new InvalidOperationException("Can't forage here.");
         var items = feature.Forage(minutes / 60.0);
         LootCollected.AddRange(items);
         if (items.Count > 0)
@@ -215,14 +221,14 @@ public class Expedition(Location startLocation, Location endLocation, Expedition
 
     private void DoHarvestWork(int minutes)
     {
-        var feature = endLocation.Features
+        var feature = CurrentLocation.Features
                 .OfType<HarvestableFeature>()
                 .FirstOrDefault(f => f.IsDiscovered && f.HasAvailableResources());
 
         if (feature is null)
         {
             AddLog("There's nothing left to harvest here.");
-            CompleteWorkPhaseEarly();
+            AdvancePath();
             return;
         }
 
@@ -267,19 +273,6 @@ public class Expedition(Location startLocation, Location endLocation, Expedition
     /// <param name="minutes"></param>
     public void AddDelayTime(int minutes)
     {
-        IncrementTime(minutes);
-        if (CurrentPhase == ExpeditionPhase.TravelingOut)
-        {
-            TravelOutTimeMinutes += minutes;
-        }
-        else if (CurrentPhase == ExpeditionPhase.Working)
-        {
-            WorkTimeMinutes += minutes;
-        }
-        else if (CurrentPhase == ExpeditionPhase.TravelingBack)
-        {
-            TravelBackTimeMinutes += minutes;
-        }
-
+        MinutesElapsedTotal += minutes;
     }
 }

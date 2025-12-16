@@ -16,14 +16,14 @@ public class EnvironmentFeature : LocationFeature
     public double NaturalOverheadCoverage { get; } = 0;
     public double NaturalWindProtection { get; } = 0;
 
-    public EnvironmentFeature(Location location, double tempModifier, double overheadCoverage, double windProtection) : base("shelter", location)
+    public EnvironmentFeature(double tempModifier, double overheadCoverage, double windProtection) : base("shelter")
     {
         TemperatureModifier = tempModifier;
         NaturalOverheadCoverage = overheadCoverage;
         NaturalWindProtection = windProtection;
     }
-    public EnvironmentFeature(Location location, LocationType type)
-        : base("locationType", location)
+    public EnvironmentFeature(LocationType type)
+        : base("locationType")
     {
         Type = type;
 
