@@ -74,7 +74,7 @@ public partial class GameRunner(GameContext ctx)
         if (expeditionRunner.GetGatherableLocations().Any() || CanHunt())
             choice.AddOption("Go on expedition", ChooseExpeditionType);
 
-        if (exploreRunner.HasUnexploredReachable())
+        // if (exploreRunner.HasUnexploredReachable(state))
             choice.AddOption("Explore", exploreRunner.Run);
             
         if (HasItems())
