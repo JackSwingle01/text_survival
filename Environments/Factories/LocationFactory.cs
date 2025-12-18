@@ -23,10 +23,8 @@ public static class LocationFactory
 
         var location = new Location(name, parent)
         {
-            Description = "A stretch of snow-covered trees offering some shelter from the wind.",
             Exposure = 0.4,
             Terrain = TerrainType.Clear,
-            
         };
 
         // Forage feature
@@ -115,10 +113,8 @@ public static class LocationFactory
 
         var location = new Location(name, parent)
         {
-            Description = "A sheltered opening in the rock, protected from the worst of the elements.",
             Exposure = 0.1,
             Terrain = TerrainType.Clear,
-            
         };
 
         // Forage feature - caves have fewer organics
@@ -157,10 +153,8 @@ public static class LocationFactory
 
         var location = new Location(name, parent)
         {
-            Description = "A riverbank with access to water and good foraging along the muddy shore.",
             Exposure = 0.6,
             Terrain = TerrainType.Clear,
-            
         };
 
         // Forage feature
@@ -221,10 +215,8 @@ public static class LocationFactory
 
         var location = new Location(name, parent)
         {
-            Description = "Open terrain with little shelter from the wind, but good visibility.",
             Exposure = 0.9,
             Terrain = TerrainType.Clear,
-            
         };
 
         // Forage feature - sparse
@@ -271,10 +263,8 @@ public static class LocationFactory
 
         var location = new Location(name, parent)
         {
-            Description = "Rocky terrain with good stone resources and a view of the surroundings.",
             Exposure = 0.7,
             Terrain = TerrainType.Steep,
-            
         };
 
         // Forage feature - stone-heavy
@@ -309,7 +299,6 @@ public static class LocationFactory
 
         var location = new Location(name, parent)
         {
-            Description = "A natural clearing among the trees, somewhat sheltered from the wind.",
             Exposure = 0.4,
             Terrain = TerrainType.Clear,
         };
@@ -355,11 +344,9 @@ public static class LocationFactory
 
         var location = new Location(name, parent)
         {
-            Description = "A path winding through the trees.",
             BaseTraversalMinutes = traversalMinutes,
             Exposure = exposure,
             Terrain = terrain,
-            
         };
 
         return location;
@@ -386,11 +373,9 @@ public static class LocationFactory
 
         var location = new Location(name, parent)
         {
-            Description = "An exposed stretch with little shelter from the elements.",
             BaseTraversalMinutes = traversalMinutes,
             Exposure = exposure,
             Terrain = terrain,
-            
         };
 
         return location;
@@ -416,7 +401,6 @@ public static class LocationFactory
 
         var location = new Location(name, parent)
         {
-            Description = "A difficult climb over rocky terrain.",
             BaseTraversalMinutes = traversalMinutes,
             Exposure = exposure,
             Terrain = TerrainType.Steep,
@@ -445,11 +429,9 @@ public static class LocationFactory
 
         var location = new Location(name, parent)
         {
-            Description = "Difficult terrain that slows progress.",
             BaseTraversalMinutes = traversalMinutes,
             Exposure = exposure,
             Terrain = TerrainType.Rough,
-            
         };
 
         return location;

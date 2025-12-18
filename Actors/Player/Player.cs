@@ -26,7 +26,7 @@ public class Player : Actor
         EffectRegistry.Update(minutes);
         result.StatsDelta.Combine(EffectRegistry.GetSurvivalDelta());
         result.DamageEvents.AddRange(EffectRegistry.GetDamagesPerMinute());
-        Output.WriteLine($"Debug temp delta: {result.StatsDelta.TemperatureDelta}");
+        // Output.WriteLine($"Debug temp delta: {result.StatsDelta.TemperatureDelta}");
         Body.ApplyResult(result);
     }
 

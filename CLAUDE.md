@@ -52,26 +52,11 @@ text_survival/
 └── UI/             # Display rendering
 ```
 
-## Architecture Quick Reference
+## Guidelines
 
-```
-Runners    → Control flow, player decisions, display UI
-Processors → Stateless domain logic, returns results
-Data       → Hold state, minimal behavior
-```
-
-- **GameRunner** calls into specific runners (ExpeditionRunner, etc.)
-- **Processors** (SurvivalProcessor, ExpeditionProcessor) take data, return deltas/effects/messages
-- **Data objects** (Body, Expedition, Location) hold state; owners apply processor results
-- **Features** live on locations, currently hybrid data+behavior
-
-## Critical Boundaries
-
+- **Simple > Complex.** Write direct, obvious code. Don't add layers or abstractions unless complexity genuinely demands it.
 - **IO Namespace**: All input/output through `Output.cs` and `Input.cs`. Never use `Console.Write`, `Console.ReadLine`, etc. directly.
-
-- **Single Mutation Entry Points**: Use `Body.Damage(DamageInfo)` for damage — never modify body parts directly. Processors return results, callers apply.
-
-- **Backwards-Compatibility Smell**: Before adding special code for "legacy" handling, stop and consult. Usually means something should be migrated or removed.
+- **Body.Damage()**: Use `Body.Damage(DamageInfo)` for damage — never modify body parts directly.
 
 ## Issue Tracking
 

@@ -162,28 +162,25 @@ public class Expedition(List<Location> path, int destinationIndex, Player player
 
     public SegmentResult RunExpeditionPhase(GameContext ctx)
     {
-        int t = 0;
-        GameEvent? evt = null;
-        while (!ReadyToAdvanceLocation())
-        {
-            IncrementTime(1);
-            t++;
+        int remainingTime = GetRemainingTimeInPhase();
+        var tickResult = GameEventRegistry.RunTicks(ctx, remainingTime);
 
-            // check for events, encounters, etc.
-            evt = GameEventRegistry.GetEventOnTick(ctx);
+        IncrementTime(tickResult.MinutesElapsed);
+        AddSegmentUpdate(tickResult.MinutesElapsed);
 
-            if (evt is not null || ReadyToAdvanceLocation())
-            {
-                break;
-            }
-        }
-
-        AddSegmentUpdate(t);
         if (CurrentPhase == ExpeditionPhase.Working)
         {
-            DoWork(t);
+            DoWork(tickResult.MinutesElapsed);
         }
-        return new SegmentResult(t, evt);
+        return new SegmentResult(tickResult.MinutesElapsed, tickResult.TriggeredEvent);
+    }
+
+    private int GetRemainingTimeInPhase()
+    {
+        if (CurrentPhase == ExpeditionPhase.Working)
+            return WorkTimeMinutes - MinutesSpentAtLocation;
+        else
+            return TimeToTraverseLocation() - MinutesSpentAtLocation;
     }
 
     private void DoWork(int minutes)

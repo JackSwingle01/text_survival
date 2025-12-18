@@ -5,10 +5,48 @@ namespace text_survival.Actions;
 
 public static class GameEventRegistry
 {
+    public record TickResult(int MinutesElapsed, GameEvent? TriggeredEvent);
+
     public static List<GameEvent> AllEvents { get; } =
     [
         WeatherTurning()
     ];
+
+    // Flavor messages - displayed at progress intervals, not random events
+    private static readonly List<string> FlavorMessages =
+    [
+        "You spot animal tracks in the snow. Something passed through here recently.",
+        "The wind shifts direction, carrying a bitter chill.",
+        "A crow caws somewhere in the distance.",
+        "The snow crunches beneath your feet with each step.",
+        "Bare branches rattle in the wind above you.",
+        "Your breath fogs in the cold air.",
+        "You're making good time.",
+        "The path ahead is clear."
+    ];
+
+    public static string GetRandomFlavorMessage() => Utils.GetRandomFromList(FlavorMessages);
+
+    /// <summary>
+    /// Runs minute-by-minute ticks, checking for events each minute.
+    /// Returns when targetMinutes is reached OR an event triggers.
+    /// Caller is responsible for calling ctx.Update() with the elapsed time.
+    /// </summary>
+    public static TickResult RunTicks(GameContext ctx, int targetMinutes)
+    {
+        int elapsed = 0;
+        GameEvent? evt = null;
+
+        while (elapsed < targetMinutes)
+        {
+            elapsed++;
+            evt = GetEventOnTick(ctx);
+            if (evt is not null)
+                break;
+        }
+
+        return new TickResult(elapsed, evt);
+    }
 
     public static GameEvent? GetEventOnTick(GameContext ctx)
     {
@@ -30,7 +68,6 @@ public static class GameEventRegistry
 
             if (Utils.DetermineSuccess(chance))
             {
-                Output.WriteLine($"Debug: event triggered with chance: {chance}");
                 triggered.Add(evt);
             }
         }
@@ -88,4 +125,5 @@ public static class GameEventRegistry
 
         return evt;
     }
+
 }

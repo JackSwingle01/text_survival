@@ -33,4 +33,11 @@ public class LocationGraph
         
         _locations.Add(path);
     }
+
+    public void ConnectWithPath(Location path, Location a, Location b)
+    {
+        a.AddBidirectionalConnection(path);
+        path.AddBidirectionalConnection(b);
+        _locations.Add(path);
+    }
 }

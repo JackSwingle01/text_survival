@@ -101,7 +101,7 @@ namespace text_survival.Core
             Output.WriteLine();
             Output.SleepTime = 10;
             Zone zone = ZoneFactory.MakeForestZone();
-            Location startingArea = zone.Graph.Sites.First(s => s.Name == "Forest Clearing");
+            Location startingArea = zone.Graph.All.First(s => s.Name == "Forest Clearing");
 
             // Add starting equipment - basic fur wraps (Ice Age appropriate)
             startingArea.Items.Add(ItemFactory.MakeWornFurChestWrap());

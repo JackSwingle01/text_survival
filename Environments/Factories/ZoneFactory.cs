@@ -1,17 +1,28 @@
 namespace text_survival.Environments;
 
+using text_survival.Environments.Factories;
 using text_survival.Environments.Features;
 
 public static class ZoneFactory
 {
     public static Zone MakeForestZone()
     {
+        var generator = new ZoneGenerator
+        {
+            TargetLocationCount = 100,
+            MaxConnections = 4
+        };
+        return generator.GenerateForestZone("Pine Forest", "A vast expanse of evergreens.", baseTemp: 25);
+    }
+
+    // Keep manual version for testing/comparison
+    public static Zone MakeForestZoneManual()
+    {
         var zone = new Zone("Pine Forest", "A dense forest of evergreens.", baseTemp: 25);
 
         // Create sites
         var clearing = new Location("Forest Clearing", zone)
         {
-            Description = "A small clearing among the pines.",
             Exposure = 0.4,
         };
         clearing.Explore();
@@ -20,7 +31,6 @@ public static class ZoneFactory
 
         var grove = new Location("Birch Grove", zone)
         {
-            Description = "A stand of white birch trees.",
             Exposure = 0.3,
         };
         grove.Features.Add(new ForageFeature(.8));
@@ -28,14 +38,12 @@ public static class ZoneFactory
 
         var outcrop = new Location("Rocky Outcrop", zone)
         {
-            Description = "Exposed rocks jutting from the hillside.",
             Exposure = 0.9,
         };
         zone.Graph.Add(outcrop);
 
         var cave = new Location("Shallow Cave", zone)
         {
-            Description = "A depression in the rock face.",
             Exposure = 0.1,
         };
         cave.Features.Add(new ShelterFeature(.4, .2, .4));
@@ -62,6 +70,4 @@ public static class ZoneFactory
 
         return zone;
     }
-
-
 }

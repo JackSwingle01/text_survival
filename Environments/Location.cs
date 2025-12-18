@@ -11,7 +11,34 @@ public class Location
 
     // Identity
     public string Name { get; }
-    public string Description { get; set; } = "";
+    public string Description
+    {
+        get
+        {
+            // Start with environment base
+            var env = GetFeature<EnvironmentFeature>();
+            string baseDesc = env?.GetDescription() ?? GetTerrainDescription();
+
+            // Build suffix for dynamic elements
+            var additions = new List<string>();
+
+            var shelter = GetFeature<ShelterFeature>();
+            if (shelter != null)
+                additions.Add(GetShelterClause(shelter));
+
+            var fire = GetFeature<HeatSourceFeature>();
+            if (fire != null && (fire.IsActive || fire.HasEmbers))
+                additions.Add(GetFireClause(fire));
+
+            // Combine into single sentence
+            if (additions.Count == 0)
+                return baseDesc;
+
+            // Strip period from base, add clauses
+            string core = baseDesc.TrimEnd('.');
+            return $"{core}, {string.Join(" and ", additions)}.";
+        }
+    }
     public Zone Parent { get; }
 
     // Graph - just references, no wrapper
@@ -26,6 +53,7 @@ public class Location
 
     // Discovery
     public bool Explored { get; private set; } = false;
+    public int DistanceFromStart { get; set; } = -1;  // Graph distance in hops, -1 = not calculated
 
     // Features, items, etc. (unchanged)
     public List<LocationFeature> Features { get; } = [];
@@ -221,6 +249,45 @@ public class Location
 
         return string.Join(" | ", parts);
     }
+
+    #region Description Helpers
+
+    private string GetTerrainDescription() => Terrain switch
+    {
+        TerrainType.Rough => "Rough terrain with uneven ground.",
+        TerrainType.Snow => "Snow-covered ground.",
+        TerrainType.Steep => "Steep terrain requiring careful footing.",
+        TerrainType.Water => "Waterlogged ground.",
+        TerrainType.Hazardous => "Dangerous terrain.",
+        _ => "An unremarkable area."
+    };
+
+    private string GetShelterClause(ShelterFeature s)
+    {
+        double quality = (s.TemperatureInsulation + s.OverheadCoverage + s.WindCoverage) / 3;
+        return quality switch
+        {
+            >= 0.7 => "with solid shelter",
+            >= 0.4 => "with basic shelter",
+            _ => "with minimal cover"
+        };
+    }
+
+    private string GetFireClause(HeatSourceFeature f)
+    {
+        if (!f.IsActive && f.HasEmbers) return "with glowing embers";
+        return f.GetFirePhase() switch
+        {
+            "Igniting" => "with a small fire starting",
+            "Building" => "with a growing fire",
+            "Roaring" => "with a roaring fire",
+            "Steady" => "with a steady fire",
+            "Dying" => "with a dying fire",
+            _ => "with a fire"
+        };
+    }
+
+    #endregion
 }
 public enum TerrainType
 {

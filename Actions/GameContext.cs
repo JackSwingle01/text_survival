@@ -4,6 +4,7 @@ using text_survival.Environments;
 using text_survival.Actions.Expeditions;
 using text_survival.Core;
 using text_survival.Environments.Features;
+using text_survival.UI;
 using System.Transactions;
 
 namespace text_survival.Actions;
@@ -48,7 +49,7 @@ public class GameContext(Player player, Camp camp)
 
         var logs = player?.GetFlushLogs();
         if (logs is not null && logs.Count != 0)
-            IO.Output.WriteAll(logs);
+            GameDisplay.AddNarrative(logs);
     }
 
     public enum TimeOfDay

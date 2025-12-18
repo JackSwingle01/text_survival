@@ -11,7 +11,7 @@ public class EnvironmentFeature : LocationFeature
         RiverBank,      // Water nearby, but exposure
         HighGround      // More wind but better visibility
     }
-    private LocationType Type;
+    public LocationType Type { get; private set; }
     public double TemperatureModifier { get; } = 0; // degrees F adjustment
     public double NaturalOverheadCoverage { get; } = 0;
     public double NaturalWindProtection { get; } = 0;
