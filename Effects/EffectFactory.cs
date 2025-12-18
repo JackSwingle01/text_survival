@@ -107,6 +107,29 @@ public static class EffectFactory
         ApplicationMessage = "You're going to have a nasty bruise."
     };
 
+    public static Effect Fear(double severity) => new()
+    {
+        EffectKind = "Shaken",
+        Source = "fear",
+        Severity = severity,
+        HourlySeverityChange = -0.1,  // Fades relatively quickly
+        CapacityModifiers = Capacities((CapacityNames.Manipulation, -0.15)),
+        ApplicationMessage = "Your hands are shaking."
+    };
+
+    public static Effect AnimalAttack(double severity) => new()
+    {
+        EffectKind = "Mauled",
+        Source = "injury",
+        Severity = severity,
+        HourlySeverityChange = -0.02,
+        RequiresTreatment = true,
+        CapacityModifiers = Capacities(
+            (CapacityNames.Moving, -0.25),
+            (CapacityNames.Manipulation, -0.15)),
+        ApplicationMessage = "You've been mauled. Blood runs down your arm."
+    };
+
     private static CapacityModifierContainer Capacities(params (string name, double value)[] modifiers)
     {
         var container = new CapacityModifierContainer();

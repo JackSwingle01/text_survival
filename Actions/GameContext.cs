@@ -1,13 +1,10 @@
 using text_survival.Actors.Player;
 using text_survival.Bodies;
-using text_survival.Crafting;
 using text_survival.Environments;
 using text_survival.Actions.Expeditions;
-using text_survival.Core;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
-using System.Transactions;
 
 namespace text_survival.Actions;
 
@@ -42,6 +39,8 @@ public class GameContext(Player player, Camp camp)
             EventCondition.FireBurning => Camp.HasActiveFire,
             EventCondition.Inside => CurrentLocation.HasFeature<ShelterFeature>(),
             EventCondition.Outside => !Check(EventCondition.Inside),
+            EventCondition.InAnimalTerritory => CurrentLocation.HasFeature<AnimalTerritoryFeature>(),
+            EventCondition.HasPredators => CurrentLocation.GetFeature<AnimalTerritoryFeature>()?.HasPredators() ?? false,
             _ => false,
         };
     }
@@ -106,5 +105,6 @@ public enum EventCondition
     FireBurning,
     Outside,
     Inside,
-
+    InAnimalTerritory,
+    HasPredators,
 }

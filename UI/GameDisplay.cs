@@ -1,11 +1,11 @@
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using text_survival.Actions;
-using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
+using text_survival.Items;
 using text_survival.Survival;
 
 namespace text_survival.UI;
@@ -197,8 +197,8 @@ public static class GameDisplay
 
             lines.Add(new Markup($"[{phaseColor}]{phase}[/]"));
             lines.Add(new Markup($"[{timeColor}]{minutes} min remaining[/]"));
-            lines.Add(new Markup($"[grey]+{fire.GetEffectiveHeatOutput(ctx.CurrentLocation.GetTemperature()):F0}°F heat[/]"));
-            lines.Add(new Text(""));
+            lines.Add(new Markup($"[grey]{fire.FuelMassKg:F1}/{fire.MaxFuelCapacityKg:F0} kg fuel[/]"));
+            lines.Add(new Markup($"[yellow]+{fire.GetEffectiveHeatOutput(ctx.CurrentLocation.GetTemperature()):F0}°F heat[/]"));
         }
 
         return new Panel(new Rows(lines))
@@ -215,22 +215,35 @@ public static class GameDisplay
         var inv = ctx.Inventory;
         var lines = new List<IRenderable>();
 
-        // Weight bar
-        double weightPercent = inv.MaxWeightKg > 0 ? inv.CurrentWeightKg / inv.MaxWeightKg * 100 : 0;
-        string weightColor = GetWeightColor(weightPercent);
-        lines.Add(new Markup($"{CreateColoredBar((int)weightPercent, 12, weightColor)} [{weightColor}]{inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0}kg[/]"));
+        // Breakdown chart
+        var chart = new BreakdownChart().HideTags().Width(20);
 
-        // Category breakdown
+        if (inv.FuelWeightKg > 0) chart.AddItem("Fuel", inv.FuelWeightKg, Color.Orange1);
+        if (inv.FoodWeightKg > 0) chart.AddItem("Food", inv.FoodWeightKg, Color.Green);
+        if (inv.WaterWeightKg > 0) chart.AddItem("Water", inv.WaterWeightKg, Color.Blue);
+        if (inv.ToolsWeightKg > 0) chart.AddItem("Tools", inv.ToolsWeightKg, Color.Grey);
+        if (inv.RemainingCapacityKg > 0 && inv.RemainingCapacityKg < double.MaxValue)
+            chart.AddItem("Free", inv.RemainingCapacityKg, Color.Grey23);
+
+        if (inv.CurrentWeightKg > 0 || inv.MaxWeightKg > 0)
+            lines.Add(chart);
+
+        // Category breakdown text
         var parts = new List<string>();
         if (inv.FuelWeightKg > 0) parts.Add($"[orange1]Fuel {inv.FuelWeightKg:F1}[/]");
         if (inv.FoodWeightKg > 0) parts.Add($"[green]Food {inv.FoodWeightKg:F1}[/]");
         if (inv.WaterWeightKg > 0) parts.Add($"[blue]Water {inv.WaterWeightKg:F1}[/]");
         if (inv.ToolsWeightKg > 0) parts.Add($"[grey]Tools {inv.ToolsWeightKg:F1}[/]");
+        
+        if (parts.Count == 0)
+            parts.Add("[grey]Empty[/]");
+        
+        lines.Add(new Columns(parts));
 
-        if (parts.Count > 0)
-            lines.Add(new Markup(string.Join(" ", parts)));
-        else
-            lines.Add(new Markup("[grey]Empty[/]"));
+        // Weight summary
+        double weightPercent = inv.MaxWeightKg > 0 ? inv.CurrentWeightKg / inv.MaxWeightKg * 100 : 0;
+        string weightColor = GetWeightColor(weightPercent);
+        lines.Add(new Markup($"[{weightColor}]{inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0}kg[/]"));
 
         // Pad to match other panels
         while (lines.Count < 4)
@@ -241,7 +254,7 @@ public static class GameDisplay
             Header = new PanelHeader(" INVENTORY ", Justify.Left),
             Border = BoxBorder.Rounded,
             Padding = new Padding(1, 0, 1, 0),
-            Expand = true
+            Expand = true,
         };
     }
 
@@ -263,7 +276,7 @@ public static class GameDisplay
 
         return new Panel(new Rows(lines))
         {
-            Header = new PanelHeader(" NARRATIVE ", Justify.Left),
+            Header = new PanelHeader(" LOGS ", Justify.Left),
             Border = BoxBorder.Rounded,
             Padding = new Padding(1, 0, 1, 0),
             Expand = true
@@ -434,6 +447,178 @@ public static class GameDisplay
             TerrainType.Hazardous => "Dangerous area",
             _ => "Open ground"
         };
+    }
+
+    #endregion
+
+    #region Inventory Screen
+
+    public static void RenderInventoryScreen(GameContext ctx)
+    {
+        if (Output.TestMode)
+        {
+            RenderInventoryTestMode(ctx);
+            return;
+        }
+
+        AnsiConsole.Clear();
+
+        var inv = ctx.Inventory;
+
+        // Build left column: Equipment + Tools
+        var leftLines = new List<IRenderable>
+        {
+            new Markup("[bold underline]EQUIPPED[/]"),
+            new Text("")
+        };
+
+        // Weapon
+        if (inv.Weapon != null)
+            leftLines.Add(new Markup($"[white]Weapon:[/] [yellow]{Markup.Escape(inv.Weapon.Name)}[/] [grey]({inv.Weapon.Damage:F0} dmg)[/]"));
+        else
+            leftLines.Add(new Markup("[white]Weapon:[/] [grey]—[/]"));
+
+        // Armor slots
+        AddEquipmentLine(leftLines, "Head", inv.Head);
+        AddEquipmentLine(leftLines, "Chest", inv.Chest);
+        AddEquipmentLine(leftLines, "Legs", inv.Legs);
+        AddEquipmentLine(leftLines, "Feet", inv.Feet);
+        AddEquipmentLine(leftLines, "Hands", inv.Hands);
+
+        leftLines.Add(new Text(""));
+        leftLines.Add(new Markup($"[cyan]Total Insulation:[/] [white]{inv.TotalInsulation * 100:F0}%[/]"));
+
+        // Tools section
+        leftLines.Add(new Text(""));
+        leftLines.Add(new Markup("[bold underline]TOOLS[/]"));
+        leftLines.Add(new Text(""));
+
+        if (inv.Tools.Count == 0)
+        {
+            leftLines.Add(new Markup("[grey]No tools[/]"));
+        }
+        else
+        {
+            foreach (var tool in inv.Tools)
+            {
+                string weaponInfo = tool.IsWeapon ? $" [grey]({tool.Damage:F0} dmg)[/]" : "";
+                leftLines.Add(new Markup($"[white]{Markup.Escape(tool.Name)}[/] [grey]({tool.Weight:F1}kg)[/]{weaponInfo}"));
+            }
+        }
+
+        // Special items
+        if (inv.Special.Count > 0)
+        {
+            leftLines.Add(new Text(""));
+            leftLines.Add(new Markup("[bold underline]SPECIAL[/]"));
+            leftLines.Add(new Text(""));
+            foreach (var item in inv.Special)
+            {
+                leftLines.Add(new Markup($"[magenta]{Markup.Escape(item.Name)}[/] [grey]({item.Weight:F1}kg)[/]"));
+            }
+        }
+
+        // Build right column: Resources
+        var rightLines = new List<IRenderable>
+        {
+            new Markup("[bold underline]RESOURCES[/]"),
+            new Text("")
+        };
+
+        // Fuel
+        rightLines.Add(new Markup("[orange1 bold]Fuel[/]"));
+        if (inv.LogCount > 0)
+            rightLines.Add(new Markup($"  [white]{inv.LogCount} logs[/] [grey]({inv.Logs.Sum():F1}kg)[/]"));
+        if (inv.StickCount > 0)
+            rightLines.Add(new Markup($"  [white]{inv.StickCount} sticks[/] [grey]({inv.Sticks.Sum():F1}kg)[/]"));
+        if (inv.TinderCount > 0)
+            rightLines.Add(new Markup($"  [white]{inv.TinderCount} tinder[/] [grey]({inv.Tinder.Sum():F2}kg)[/]"));
+        if (!inv.HasFuel && inv.TinderCount == 0)
+            rightLines.Add(new Markup("  [grey]None[/]"));
+        else
+            rightLines.Add(new Markup($"  [grey italic]~{inv.TotalFuelBurnTimeHours:F1} hrs burn time[/]"));
+
+        rightLines.Add(new Text(""));
+
+        // Food
+        rightLines.Add(new Markup("[green bold]Food[/]"));
+        if (inv.CookedMeatCount > 0)
+            rightLines.Add(new Markup($"  [white]{inv.CookedMeatCount} cooked meat[/] [grey]({inv.CookedMeat.Sum():F1}kg)[/]"));
+        if (inv.RawMeatCount > 0)
+            rightLines.Add(new Markup($"  [yellow]{inv.RawMeatCount} raw meat[/] [grey]({inv.RawMeat.Sum():F1}kg)[/]"));
+        if (inv.BerryCount > 0)
+            rightLines.Add(new Markup($"  [white]{inv.BerryCount} berries[/] [grey]({inv.Berries.Sum():F2}kg)[/]"));
+        if (!inv.HasFood)
+            rightLines.Add(new Markup("  [grey]None[/]"));
+
+        rightLines.Add(new Text(""));
+
+        // Water
+        rightLines.Add(new Markup("[blue bold]Water[/]"));
+        if (inv.HasWater)
+            rightLines.Add(new Markup($"  [white]{inv.WaterLiters:F1}L[/]"));
+        else
+            rightLines.Add(new Markup("  [grey]None[/]"));
+
+        // Pad columns to same height
+        int maxLines = Math.Max(leftLines.Count, rightLines.Count);
+        while (leftLines.Count < maxLines) leftLines.Add(new Text(""));
+        while (rightLines.Count < maxLines) rightLines.Add(new Text(""));
+
+        // Build layout
+        var leftPanel = new Panel(new Rows(leftLines))
+        {
+            Border = BoxBorder.None,
+            Padding = new Padding(1, 0, 2, 0)
+        };
+
+        var rightPanel = new Panel(new Rows(rightLines))
+        {
+            Border = BoxBorder.None,
+            Padding = new Padding(2, 0, 1, 0)
+        };
+
+        var columns = new Columns(leftPanel, rightPanel).Expand();
+
+        // Weight summary
+        double weightPercent = inv.MaxWeightKg > 0 ? inv.CurrentWeightKg / inv.MaxWeightKg * 100 : 0;
+        string weightColor = GetWeightColor(weightPercent);
+        var weightLine = new Markup($"\n[{weightColor}]Weight: {inv.CurrentWeightKg:F1} / {inv.MaxWeightKg:F0} kg[/]");
+
+        var content = new Rows(columns, weightLine);
+
+        var mainPanel = new Panel(content)
+        {
+            Header = new PanelHeader(" INVENTORY ", Justify.Center),
+            Border = BoxBorder.Double,
+            Padding = new Padding(1, 1, 1, 1),
+            Expand = true
+        };
+
+        AnsiConsole.Write(mainPanel);
+    }
+
+    private static void AddEquipmentLine(List<IRenderable> lines, string slot, Equipment? equipment)
+    {
+        if (equipment != null)
+            lines.Add(new Markup($"[white]{slot}:[/] [cyan]{Markup.Escape(equipment.Name)}[/] [grey](+{equipment.Insulation * 100:F0}%)[/]"));
+        else
+            lines.Add(new Markup($"[white]{slot}:[/] [grey]—[/]"));
+    }
+
+    private static void RenderInventoryTestMode(GameContext ctx)
+    {
+        var inv = ctx.Inventory;
+        TestModeIO.WriteOutput($"[Inventory: {inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0}kg]\n");
+
+        if (inv.Weapon != null)
+            TestModeIO.WriteOutput($"  Weapon: {inv.Weapon.Name}\n");
+
+        if (inv.LogCount > 0) TestModeIO.WriteOutput($"  Logs: {inv.LogCount}\n");
+        if (inv.StickCount > 0) TestModeIO.WriteOutput($"  Sticks: {inv.StickCount}\n");
+        if (inv.TinderCount > 0) TestModeIO.WriteOutput($"  Tinder: {inv.TinderCount}\n");
+        if (inv.HasFood) TestModeIO.WriteOutput($"  Food: {inv.FoodWeightKg:F1}kg\n");
+        if (inv.HasWater) TestModeIO.WriteOutput($"  Water: {inv.WaterLiters:F1}L\n");
     }
 
     #endregion

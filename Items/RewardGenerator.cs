@@ -5,7 +5,10 @@ public enum RewardPool
     None,
     BasicSupplies,      // Sticks, tinder, berries - common finds
     AbandonedCamp,      // Left-behind tool + supplies
-    HiddenCache         // Valuable tool + good fuel
+    HiddenCache,        // Valuable tool + good fuel
+    BasicMeat,          // Small amount of raw meat (scavenged)
+    LargeMeat,          // Significant meat haul (thorough butchering)
+    GameTrailDiscovery  // Minor supplies (info reward placeholder)
 }
 
 public static class RewardGenerator
@@ -17,6 +20,9 @@ public static class RewardGenerator
             RewardPool.BasicSupplies => GenerateBasicSupplies(),
             RewardPool.AbandonedCamp => GenerateAbandonedCamp(),
             RewardPool.HiddenCache => GenerateHiddenCache(),
+            RewardPool.BasicMeat => GenerateBasicMeat(),
+            RewardPool.LargeMeat => GenerateLargeMeat(),
+            RewardPool.GameTrailDiscovery => GenerateGameTrailDiscovery(),
             _ => new FoundResources()
         };
     }
@@ -92,6 +98,37 @@ public static class RewardGenerator
         // Plus good fuel
         resources.AddLog(RandomWeight(1.5, 2.5), "a seasoned hardwood log");
 
+        return resources;
+    }
+
+    private static FoundResources GenerateBasicMeat()
+    {
+        var resources = new FoundResources();
+        // Quick scavenge - small amount of meat
+        resources.AddRawMeat(RandomWeight(0.3, 0.6), "some scavenged meat");
+        return resources;
+    }
+
+    private static FoundResources GenerateLargeMeat()
+    {
+        var resources = new FoundResources();
+        // Thorough butchering - significant haul
+        int cuts = Random.Shared.Next(2, 4); // 2-3 portions
+        for (int i = 0; i < cuts; i++)
+        {
+            resources.AddRawMeat(RandomWeight(0.4, 0.8), null);
+        }
+        return resources;
+    }
+
+    private static FoundResources GenerateGameTrailDiscovery()
+    {
+        var resources = new FoundResources();
+        // Minor supplies as placeholder - info reward in future
+        if (Random.Shared.Next(2) == 0)
+            resources.AddStick(RandomWeight(0.2, 0.4), "a walking stick");
+        else
+            resources.AddTinder(RandomWeight(0.1, 0.2), "some dried grass");
         return resources;
     }
 

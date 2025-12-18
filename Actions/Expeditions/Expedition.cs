@@ -100,20 +100,6 @@ public class Expedition(List<Location> path, int destinationIndex, Player player
             return 0;
     }
 
-    // public string GetSummaryNotes()
-    // {
-    //     string notes = "";
-    //     if (DetectionRisk > .2)
-    //     {
-    //         notes += "High detection risk. ";
-    //     }
-    //     if (ExposureFactor > .8)
-    //     {
-    //         notes += "The route is exposed to the weather.";
-    //     }
-    //     return notes;
-    // }
-
     public void AddLog(string log)
     {
         if (!string.IsNullOrEmpty(log))
@@ -183,7 +169,7 @@ public class Expedition(List<Location> path, int destinationIndex, Player player
             return TimeToTraverseLocation() - MinutesSpentAtLocation;
     }
 
-    private void DoWork(int minutes, GameContext ctx)
+    public void DoWork(int minutes, GameContext ctx)
     {
         if (Type == ExpeditionType.Forage)
         {

@@ -127,22 +127,6 @@ public partial class GameRunner(GameContext ctx)
         double heatOutput = fire.GetEffectiveHeatOutput(ctx.CurrentLocation.GetTemperature());
         double fuelMinutes = fire.HoursRemaining * 60;
 
-        GameDisplay.AddNarrative("");
-        GameDisplay.AddNarrative($"Fire: {firePhase} ({fireTemp:F0}°F)");
-
-        if (fire.IsActive || fire.HasEmbers)
-        {
-            GameDisplay.AddNarrative($"  Heat: +{heatOutput:F1}°F | Fuel: {fire.FuelMassKg:F2}kg (~{fuelMinutes:F0} min)");
-
-            if (fire.HasEmbers)
-            {
-                double emberMinutes = fire.EmberTimeRemaining * 60;
-                GameDisplay.AddNarrative($"  Embers will last: {emberMinutes:F0} minutes");
-            }
-        }
-
-        GameDisplay.AddNarrative($"  Capacity: {fire.FuelMassKg:F2}/{fire.MaxFuelCapacityKg:F1} kg");
-
         // Build fuel options - only show options that can actually be added
         var fuelChoices = new List<string>();
         var fuelMap = new Dictionary<string, (string name, FuelType type, Func<double> takeFunc)>();
@@ -200,9 +184,6 @@ public partial class GameRunner(GameContext ctx)
         fire.AddFuel(mass, fuelType);
 
         GameDisplay.AddNarrative($"You add a {name} ({mass:F2}kg) to the fire.");
-
-        double newFuelMinutes = fire.HoursRemaining * 60;
-        GameDisplay.AddNarrative($"Fire: {fire.FuelMassKg:F2}kg fuel ({newFuelMinutes:F0} min) | {fire.GetCurrentFireTemperature():F0}°F ({fire.GetFirePhase()})");
 
         if (hadEmbers && fire.IsActive)
             GameDisplay.AddNarrative("The embers ignite the fuel! The fire springs back to life.");
@@ -326,14 +307,9 @@ public partial class GameRunner(GameContext ctx)
         };
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // SLEEP
-    // ═══════════════════════════════════════════════════════════════════════════
-
     private void Sleep()
     {
-        GameDisplay.AddNarrative("How many hours would you like to sleep? (1-24)");
-        int hours = Input.ReadInt();
+        int hours = Input.ReadInt("How many hours would you like to sleep?");
 
         if (hours < 1 || hours > 24)
         {
@@ -358,8 +334,7 @@ public partial class GameRunner(GameContext ctx)
 
     private void RunInventoryMenu()
     {
-        // Inventory is shown in the INVENTORY panel - just refresh and wait
-        GameDisplay.Render(ctx, addSeparator: false);
+        GameDisplay.RenderInventoryScreen(ctx);
         Input.WaitForKey("Press any key to return...");
     }
 

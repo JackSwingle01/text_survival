@@ -189,4 +189,49 @@ public class AnimalTerritoryFeature : LocationFeature
             _ => 10
         };
     }
+
+    // Event system helpers
+
+    /// <summary>
+    /// Get a random animal name based on spawn weights (for event text).
+    /// </summary>
+    public string GetRandomAnimalName()
+    {
+        var entry = SelectRandomAnimal();
+        return entry?.AnimalType ?? "animal";
+    }
+
+    /// <summary>
+    /// Check if any predators exist in this territory.
+    /// </summary>
+    public bool HasPredators() => _possibleAnimals.Any(a => IsPredatorType(a.AnimalType));
+
+    /// <summary>
+    /// Get a random predator name from this territory (for "Something Watching" event).
+    /// </summary>
+    public string? GetRandomPredatorName()
+    {
+        var predators = _possibleAnimals.Where(a => IsPredatorType(a.AnimalType)).ToList();
+        if (predators.Count == 0) return null;
+
+        double totalWeight = predators.Sum(a => a.SpawnWeight);
+        double roll = Random.Shared.NextDouble() * totalWeight;
+        double cumulative = 0;
+        foreach (var entry in predators)
+        {
+            cumulative += entry.SpawnWeight;
+            if (roll <= cumulative)
+                return entry.AnimalType;
+        }
+        return predators.Last().AnimalType;
+    }
+
+    private static bool IsPredatorType(string animalType)
+    {
+        return animalType.ToLower() switch
+        {
+            "wolf" or "bear" or "cave bear" => true,
+            _ => false
+        };
+    }
 }

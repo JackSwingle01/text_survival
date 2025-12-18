@@ -61,35 +61,6 @@ public class ExpeditionRunner(GameContext ctx)
         ExpeditionMainLoop(expedition);
     }
 
-    // public void RunHarvestExpedition()
-    // {
-    //     // select destination
-    //     var locations = TravelProcessor.GetReachableSites(ctx.CurrentLocation).Where(x => IsLocationValidForExpeditionType(x, ExpeditionType.Gather));
-    //     var locChoice = new Choice<Location>("Where would you like to go?");
-    //     foreach (Location location in locations)
-    //     {
-    //         var path = TravelProcessor.FindPath(ctx.CurrentLocation, location);
-    //         if (path == null) continue;
-    //         var estimate = TravelProcessor.GetPathMinutes(path, ctx.player);
-    //         // todo explored info check
-    //         var harvestables = location.Features
-    //             .OfType<HarvestableFeature>()
-    //             .Where(f => f.IsDiscovered)
-    //             .Select(h => h.DisplayName)
-    //             .ToList();
-    //         string label = $"{location.Name} (~{estimate} min) - {string.Join(", ", harvestables)}";
-    //         locChoice.AddOption(label, location);
-    //     }
-    //     Location destination = locChoice.GetPlayerChoice();
-    //     var travelPath = TravelProcessor.BuildRoundTripPath(ctx.CurrentLocation, destination)!;
-    //     var travelEstimate = TravelProcessor.GetPathMinutes(travelPath, ctx.player);
-    //     int workTime = 30;
-
-    //     Expedition expedition = new Expedition(travelPath, travelPath.IndexOf(destination), ctx.player, ExpeditionType.Gather, workTime);
-
-    //     ExpeditionMainLoop(expedition);
-    // }
-
     public List<Location> GetGatherableLocations()
     {
         return ctx.Zone.Graph.All
@@ -99,10 +70,6 @@ public class ExpeditionRunner(GameContext ctx)
                         l.Features.OfType<HarvestableFeature>().Any(h => h.IsDiscovered))
             .ToList();
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // HUNT EXPEDITION
-    // ═══════════════════════════════════════════════════════════════════════════
 
     public void RunHuntExpedition()
     {
@@ -355,6 +322,44 @@ public class ExpeditionRunner(GameContext ctx)
         FinishTravelSegment(expedition, elapsed - startElapsed);
     }
 
+    private void RunWorkWithProgress(Expedition expedition)
+    {
+        int startElapsed = expedition.MinutesSpentAtLocation;
+        int elapsed = startElapsed;
+        GameEvent? triggeredEvent = null;
+        string workType = expedition.GetPhaseDisplayName();
+
+        while (elapsed < expedition.WorkTimeMinutes && triggeredEvent == null)
+        {
+            Output.Progress($"{char.ToUpper(workType[0]) + workType[1..]} at {expedition.Destination.Name}...",
+                expedition.WorkTimeMinutes, task =>
+            {
+                task.Increment(elapsed);
+
+                while (elapsed < expedition.WorkTimeMinutes && triggeredEvent == null)
+                {
+                    var result = RunExpeditionTick(expedition);
+                    elapsed += result.MinutesElapsed;
+                    task.Increment(result.MinutesElapsed);
+                    triggeredEvent = result.Event;
+                    Thread.Sleep(100);
+                }
+            });
+
+            if (triggeredEvent != null)
+            {
+                GameDisplay.Render(ctx);
+                HandleEvent(triggeredEvent);
+                triggeredEvent = null;
+                if (expedition.IsComplete) break;
+            }
+        }
+
+        // Apply work results after time has passed
+        int workedMinutes = elapsed - startElapsed;
+        expedition.DoWork(workedMinutes, ctx);
+    }
+
     // --- End Travel Progress Helpers ---
 
     private void ExpeditionMainLoop(Expedition expedition)
@@ -388,15 +393,8 @@ public class ExpeditionRunner(GameContext ctx)
             }
             else
             {
-                var result = expedition.RunExpeditionPhase(ctx);
-                ctx.Update(result.TimeElapsed);
+                RunWorkWithProgress(expedition);
                 DisplayQueuedExpeditionLogs(expedition);
-
-                if (result.Event is not null)
-                {
-                    HandleEvent(result.Event);
-                    if (expedition.IsComplete) break;
-                }
             }
 
             // Prompt at phase completion
@@ -478,14 +476,12 @@ public class ExpeditionRunner(GameContext ctx)
     }
     private void HandleEvent(GameEvent evt)
     {
-        GameDisplay.AddNarrative("".PadRight(50, '-'));
         GameDisplay.AddNarrative("EVENT:");
         GameDisplay.AddNarrative($"** {evt.Name} **");
         GameDisplay.AddNarrative(evt.Description + "\n");
         GameDisplay.Render(ctx);
         var choice = evt.Choices.GetPlayerChoice();
         GameDisplay.AddNarrative(choice.Description + "\n");
-        GameDisplay.AddNarrative("".PadRight(50, '-'));
 
         var outcome = choice.DetermineResult();
         HandleOutcome(outcome);
@@ -524,7 +520,6 @@ public class ExpeditionRunner(GameContext ctx)
         {
             ctx.Expedition!.CancelExpedition();
         }
-        GameDisplay.AddNarrative("".PadRight(50, '-'));
     }
     private static bool IsLocationValidForExpeditionType(Location location, ExpeditionType expeditionType)
     {
@@ -550,7 +545,6 @@ public class ExpeditionRunner(GameContext ctx)
     public void DisplayExpeditionPreview(Expedition expedition, double FireMinutesRemaining)
     {
         int travelTime = TravelProcessor.GetPathMinutes(expedition.Path, ctx.player, ctx.Inventory);
-        GameDisplay.AddNarrative("".PadRight(50, '-'));
         GameDisplay.AddNarrative("PLAN:");
         GameDisplay.AddNarrative($"{expedition.Type.ToString().ToUpper()} - {expedition.Destination.Name}\n");
         GameDisplay.AddNarrative($"It's about a {travelTime / 2} minute walk each way.");
@@ -571,11 +565,10 @@ public class ExpeditionRunner(GameContext ctx)
         double fireTime = FireMinutesRemaining - TravelProcessor.GetPathMinutes(expedition.Path, ctx.player, ctx.Inventory);
         string fireMessage = GetFireMarginMessage(fireTime);
         if (FireMinutesRemaining > 0)
-            GameDisplay.AddNarrative($"The fire has about {FireMinutesRemaining} minutes left.");
+            GameDisplay.AddNarrative($"The fire has about {(int)FireMinutesRemaining} minutes left.");
         GameDisplay.AddNarrative(fireMessage);
         GameDisplay.AddNarrative("\n");
         GameDisplay.AddNarrative("Do you want to proceed with this plan? (y/n)");
-        GameDisplay.AddNarrative("".PadRight(50, '-'));
     }
 
     private static string GetLocationNotes(Location location)
