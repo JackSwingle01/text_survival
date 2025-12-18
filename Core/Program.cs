@@ -5,6 +5,7 @@ using text_survival.Environments.Factories;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
+using text_survival.UI;
 
 namespace text_survival.Core
 {
@@ -13,49 +14,49 @@ namespace text_survival.Core
         static void DisplayDeathScreen(GameContext ctx)
         {
             Player player = ctx.player;
-            Output.WriteLine("\n\n");
-            Output.WriteLine("═══════════════════════════════════════════════════════════");
-            Output.WriteDanger("                       YOU DIED                            ");
-            Output.WriteLine("═══════════════════════════════════════════════════════════");
-            Output.WriteLine("\n");
+            GameDisplay.AddNarrative("\n\n");
+            GameDisplay.AddNarrative("═══════════════════════════════════════════════════════════");
+            GameDisplay.AddDanger("                       YOU DIED                            ");
+            GameDisplay.AddNarrative("═══════════════════════════════════════════════════════════");
+            GameDisplay.AddNarrative("\n");
 
             // Determine cause of death
             string causeOfDeath = DetermineCauseOfDeath(player);
-            Output.WriteLineColored(ConsoleColor.Red, $"Cause of Death: {causeOfDeath}");
-            Output.WriteLine("\n");
+            GameDisplay.AddDanger($"Cause of Death: {causeOfDeath}");
+            GameDisplay.AddNarrative("\n");
 
             // Get survival data
             var body = player.Body;
             // Show survival stats at time of death
-            Output.WriteLine("═══ Final Survival Stats ═══");
-            Output.WriteLine($"Health: {player.Body.Health * 100:F1}%");
-            Output.WriteLine($"Calories: {body.CalorieStore:F0}/{Survival.SurvivalProcessor.MAX_CALORIES:F0} ({body.CalorieStore / Survival.SurvivalProcessor.MAX_CALORIES * 100:F1}%)");
-            Output.WriteLine($"Hydration: {body.Hydration:F0}/{Survival.SurvivalProcessor.MAX_HYDRATION:F0} ({body.Hydration / Survival.SurvivalProcessor.MAX_HYDRATION * 100:F1}%)");
-            Output.WriteLine($"Energy: {body.Energy:F0}/{Survival.SurvivalProcessor.MAX_ENERGY_MINUTES:F0} ({body.Energy / Survival.SurvivalProcessor.MAX_ENERGY_MINUTES * 100:F1}%)");
-            Output.WriteLine($"Body Temperature: {player.Body.BodyTemperature:F1}°F");
-            Output.WriteLine("\n");
+            GameDisplay.AddNarrative("═══ Final Survival Stats ═══");
+            GameDisplay.AddNarrative($"Health: {player.Body.Health * 100:F1}%");
+            GameDisplay.AddNarrative($"Calories: {body.CalorieStore:F0}/{Survival.SurvivalProcessor.MAX_CALORIES:F0} ({body.CalorieStore / Survival.SurvivalProcessor.MAX_CALORIES * 100:F1}%)");
+            GameDisplay.AddNarrative($"Hydration: {body.Hydration:F0}/{Survival.SurvivalProcessor.MAX_HYDRATION:F0} ({body.Hydration / Survival.SurvivalProcessor.MAX_HYDRATION * 100:F1}%)");
+            GameDisplay.AddNarrative($"Energy: {body.Energy:F0}/{Survival.SurvivalProcessor.MAX_ENERGY_MINUTES:F0} ({body.Energy / Survival.SurvivalProcessor.MAX_ENERGY_MINUTES * 100:F1}%)");
+            GameDisplay.AddNarrative($"Body Temperature: {player.Body.BodyTemperature:F1}°F");
+            GameDisplay.AddNarrative("\n");
 
             // Show body composition
-            Output.WriteLine("═══ Body Composition ═══");
-            Output.WriteLine($"Weight: {player.Body.WeightKG:F1} kg");
-            Output.WriteLine($"Body Fat: {player.Body.BodyFatKG:F1} kg ({player.Body.BodyFatPercentage * 100:F1}%)");
-            Output.WriteLine($"Muscle Mass: {player.Body.MuscleKG:F1} kg ({player.Body.MusclePercentage * 100:F1}%)");
-            Output.WriteLine("\n");
+            GameDisplay.AddNarrative("═══ Body Composition ═══");
+            GameDisplay.AddNarrative($"Weight: {player.Body.WeightKG:F1} kg");
+            GameDisplay.AddNarrative($"Body Fat: {player.Body.BodyFatKG:F1} kg ({player.Body.BodyFatPercentage * 100:F1}%)");
+            GameDisplay.AddNarrative($"Muscle Mass: {player.Body.MuscleKG:F1} kg ({player.Body.MusclePercentage * 100:F1}%)");
+            GameDisplay.AddNarrative("\n");
 
             // Show time survived
-            Output.WriteLine("═══ Time Survived ═══");
+            GameDisplay.AddNarrative("═══ Time Survived ═══");
             var startTime = new DateTime(2025, 1, 1, 9, 0, 0); // Game start time
             var timeSurvived = ctx.GameTime - startTime;
             int days = timeSurvived.Days;
             int hours = timeSurvived.Hours;
             int minutes = timeSurvived.Minutes;
-            Output.WriteLine($"You survived for {days} days, {hours} hours, and {minutes} minutes.");
-            Output.WriteLine("\n");
+            GameDisplay.AddNarrative($"You survived for {days} days, {hours} hours, and {minutes} minutes.");
+            GameDisplay.AddNarrative("\n");
 
-            Output.WriteLine("═══════════════════════════════════════════════════════════");
-            Output.WriteLine("                    GAME OVER                              ");
-            Output.WriteLine("═══════════════════════════════════════════════════════════");
-            Output.WriteLine("\n");
+            GameDisplay.AddNarrative("═══════════════════════════════════════════════════════════");
+            GameDisplay.AddNarrative("                    GAME OVER                              ");
+            GameDisplay.AddNarrative("═══════════════════════════════════════════════════════════");
+            GameDisplay.AddNarrative("\n");
         }
 
         static string DetermineCauseOfDeath(Player player)
@@ -93,13 +94,7 @@ namespace text_survival.Core
             {
                 TestModeIO.Initialize();
             }
-            Output.SleepTime = 500;
-            Output.WriteDanger("You wake up in the forest, with no memory of how you got there.");
-            Output.WriteDanger("Light snow is falling, and you feel the air getting colder.");
-            Output.WriteDanger("The last embers of your campfire are fading...");
-            Output.WriteDanger("You need to gather fuel, find food and water, and survive.");
-            Output.WriteLine();
-            Output.SleepTime = 10;
+
             Zone zone = ZoneFactory.MakeForestZone();
             Location startingArea = zone.Graph.All.First(s => s.Name == "Forest Clearing");
 
@@ -135,6 +130,12 @@ namespace text_survival.Core
             Player player = new Player();
             Camp camp = new Camp(startingArea);
             GameContext context = new GameContext(player, camp);
+
+            GameDisplay.AddDanger("You wake up in the forest, with no memory of how you got there.");
+            GameDisplay.AddDanger("Light snow is falling, and you feel the air getting colder.");
+            GameDisplay.AddDanger("The last embers of your campfire are fading...");
+            GameDisplay.AddDanger("You need to gather fuel, find food and water, and survive.");
+            GameDisplay.AddNarrative("");
 
             GameRunner runner = new GameRunner(context);
             runner.Run();

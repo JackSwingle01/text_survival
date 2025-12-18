@@ -1,6 +1,7 @@
 using text_survival.Crafting;
 using text_survival.IO;
 using text_survival.Items;
+using text_survival.UI;
 
 namespace text_survival.Actors.Player;
 
@@ -67,7 +68,7 @@ public class AmmunitionManager
 
         if (!hasArrow)
         {
-            Output.WriteLine("You have no arrows!");
+            GameDisplay.AddNarrative("You have no arrows!");
             return false;
         }
 
@@ -94,13 +95,13 @@ public class AmmunitionManager
             // Missed shot - 30% chance to find arrow
             if (Utils.DetermineSuccess(0.30))
             {
-                Output.WriteLine($"You recover your {arrow.Name} from the ground.");
+                GameDisplay.AddNarrative($"You recover your {arrow.Name} from the ground.");
                 _inventoryManager.AddToInventory(arrow);
                 return 1;
             }
             else
             {
-                Output.WriteLine($"Your {arrow.Name} is lost in the undergrowth.");
+                GameDisplay.AddNarrative($"Your {arrow.Name} is lost in the undergrowth.");
                 return 0;
             }
         }
@@ -109,13 +110,13 @@ public class AmmunitionManager
             // Hit target - 60% chance to recover from corpse
             if (Utils.DetermineSuccess(0.60))
             {
-                Output.WriteLine($"You recover your {arrow.Name} from the {targetName}'s corpse.");
+                GameDisplay.AddNarrative($"You recover your {arrow.Name} from the {targetName}'s corpse.");
                 _inventoryManager.AddToInventory(arrow);
                 return 1;
             }
             else
             {
-                Output.WriteLine($"Your {arrow.Name} broke on impact and cannot be recovered.");
+                GameDisplay.AddNarrative($"Your {arrow.Name} broke on impact and cannot be recovered.");
                 return 0;
             }
         }

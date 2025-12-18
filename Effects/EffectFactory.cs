@@ -23,7 +23,7 @@ public static class EffectFactory
             (CapacityNames.Consciousness, -0.5),
             (CapacityNames.Moving, -0.3),
             (CapacityNames.BloodPumping, -0.2)),
-        ApplicationMessage = "{target} is overheating!"
+        ApplicationMessage = "You are overheating!"
     };
 
     public static Effect Sweating(double severity) => new()
@@ -56,8 +56,8 @@ public static class EffectFactory
             (CapacityNames.Manipulation, -0.3),
             (CapacityNames.Consciousness, -0.5),
             (CapacityNames.BloodPumping, -0.2)),
-        ApplicationMessage = "{target} is getting dangerously cold...",
-        RemovalMessage = "{target} is warming up, the hypothermia has passed."
+        ApplicationMessage = "You are getting dangerously cold...",
+        RemovalMessage = "You are warming up, the hypothermia has passed."
     };
 
     public static Effect Frostbite(string bodyPart, double severity) => new()
@@ -72,8 +72,8 @@ public static class EffectFactory
             (CapacityNames.Manipulation, -0.5),
             (CapacityNames.Moving, -0.5),
             (CapacityNames.BloodPumping, -0.2)),
-        ApplicationMessage = $"{{target}}'s {bodyPart.ToLower()} is developing frostbite!",
-        RemovalMessage = $"The feeling is returning to {{target}}'s {bodyPart.ToLower()}."
+        ApplicationMessage = $"Your {bodyPart.ToLower()} is developing frostbite!",
+        RemovalMessage = $"The feeling is returning to your {bodyPart.ToLower()}."
     };
 
     private static CapacityModifierContainer Capacities(params (string name, double value)[] modifiers)

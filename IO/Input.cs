@@ -1,5 +1,6 @@
 using Spectre.Console;
 using text_survival.Core;
+using text_survival.UI;
 
 namespace text_survival.IO
 {
@@ -53,38 +54,53 @@ namespace text_survival.IO
             return new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false);
         }
 
-        public static int ReadInt()
-        {
-            while (true)
-            {
-                string? input = Read();
-                if (int.TryParse(input, out int result))
-                    return result;
-
-                Output.WriteLine("Invalid input. Please enter a number.");
-            }
-        }
-
-        public static int ReadInt(int low, int high)
-        {
-            while (true)
-            {
-                int input = ReadInt();
-                if (input >= low && input <= high)
-                {
-                    Output.WriteLine();
-                    return input;
-                }
-
-                Output.WriteLine("Invalid input. Please enter a number between ", low, " and ", high, ".");
-            }
-        }
-
-        public static bool ReadYesNo()
+        public static int ReadInt(string prompt = "Enter a number:")
         {
             if (Output.TestMode)
             {
-                // Fall back to manual parsing in test mode
+                TestModeIO.WriteOutput($"[{prompt}]\n");
+                while (true)
+                {
+                    string? input = Read();
+                    if (int.TryParse(input, out int result))
+                        return result;
+                    GameDisplay.AddNarrative("Invalid input. Please enter a number.");
+                }
+            }
+
+            return AnsiConsole.Ask<int>(prompt);
+        }
+
+        public static int ReadInt(int low, int high, string prompt = "")
+        {
+            string displayPrompt = string.IsNullOrEmpty(prompt)
+                ? $"Enter a number ({low}-{high}):"
+                : prompt;
+
+            if (Output.TestMode)
+            {
+                TestModeIO.WriteOutput($"[{displayPrompt}]\n");
+                while (true)
+                {
+                    string? input = Read();
+                    if (int.TryParse(input, out int result) && result >= low && result <= high)
+                        return result;
+                    GameDisplay.AddNarrative($"Invalid input. Please enter a number between {low} and {high}.");
+                }
+            }
+
+            return AnsiConsole.Prompt(
+                new TextPrompt<int>(displayPrompt)
+                    .Validate(n => n >= low && n <= high
+                        ? ValidationResult.Success()
+                        : ValidationResult.Error($"Enter a number between {low} and {high}")));
+        }
+
+        public static bool ReadYesNo(string prompt = "Continue?")
+        {
+            if (Output.TestMode)
+            {
+                TestModeIO.WriteOutput($"[{prompt}]\n");
                 while (true)
                 {
                     string? input = Read().Trim().ToLower();
@@ -92,11 +108,11 @@ namespace text_survival.IO
                         return true;
                     if (input == "n" || input == "no")
                         return false;
-                    Output.WriteLine("Invalid input. Please enter 'y' or 'n'.");
+                    GameDisplay.AddNarrative("Invalid input. Please enter 'y' or 'n'.");
                 }
             }
 
-            return AnsiConsole.Confirm("", defaultValue: true);
+            return AnsiConsole.Confirm(prompt, defaultValue: true);
         }
 
         /// <summary>
@@ -306,55 +322,6 @@ namespace text_survival.IO
                         : ValidationResult.Error($"Enter a number between {min} and {max}")));
         }
 
-        // Legacy method - prefer Select<T> for new code
-        public static T? GetSelectionFromList<T>(List<T> list, bool cancelOption = false, string cancelMessage = "Cancel")
-        {
-            if (Output.TestMode || list.Count == 0)
-            {
-                // Fall back to numbered selection in test mode
-                list.ForEach(i =>
-                {
-                    if (i != null) Output.WriteLine(list.IndexOf(i) + 1, ". ", i);
-                });
-
-                int input;
-                if (cancelOption)
-                {
-                    Output.WriteLine(0, ". ", cancelMessage);
-                    input = ReadInt(0, list.Count);
-                    if (input == 0)
-                        return default;
-                }
-                else
-                {
-                    input = ReadInt(1, list.Count);
-                }
-
-                return list[input - 1];
-            }
-
-            // Use Spectre selection
-            if (cancelOption)
-            {
-                var choices = list.Cast<object>().Prepend(cancelMessage).ToList();
-                var result = AnsiConsole.Prompt(
-                    new SelectionPrompt<object>()
-                        .Title("Select an option:")
-                        .PageSize(10)
-                        .AddChoices(choices));
-
-                if (result is string s && s == cancelMessage)
-                    return default;
-                return (T)result;
-            }
-
-            return AnsiConsole.Prompt(
-                new SelectionPrompt<T>()
-                    .Title("Select an option:")
-                    .PageSize(10)
-                    .AddChoices(list.Where(x => x != null).Cast<T>()));
-        }
-
         public static void WaitForKey(string message = "Press any key to continue...")
         {
             if (Output.TestMode)
@@ -365,8 +332,8 @@ namespace text_survival.IO
                 return;
             }
 
-            Output.WriteLineImmediate(message);
-            Console.ReadKey(true);
+            AnsiConsole.MarkupLine($"[grey]{message}[/]");
+            AnsiConsole.Console.Input.ReadKey(true);
         }
     }
 }

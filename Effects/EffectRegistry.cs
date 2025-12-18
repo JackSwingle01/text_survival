@@ -1,6 +1,8 @@
 using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.IO;
+using text_survival.UI;
+
 namespace text_survival.Effects;
 
 public class EffectRegistry(Actor owner)
@@ -42,7 +44,7 @@ public class EffectRegistry(Actor owner)
         }
         else
         {
-            Output.WriteWarning("ERROR: couldn't find effect to remove."); // shouldn't hit this, but soft error for now
+            GameDisplay.AddWarning("ERROR: couldn't find effect to remove."); // shouldn't hit this, but soft error for now
         }
     }
     public void Update(int minutes)

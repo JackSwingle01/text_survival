@@ -4,6 +4,7 @@ using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
+using text_survival.UI;
 
 namespace text_survival.Crafting;
 
@@ -30,11 +31,11 @@ public class CraftingSystem
     {
         if (!recipe.CanCraft(_player, _camp))
         {
-            Output.WriteWarning("You cannot craft this item right now.");
+            GameDisplay.AddWarning("You cannot craft this item right now.");
             return;
         }
 
-        Output.WriteLine($"You begin working on {recipe.Name}...");
+        GameDisplay.AddNarrative($"You begin working on {recipe.Name}...");
 
         // Consume time
         _ctx.Update(recipe.CraftingTimeMinutes);
@@ -52,7 +53,7 @@ public class CraftingSystem
                 foreach (var item in items)
                 {
                     _player.TakeItem(item);
-                    Output.WriteSuccess($"You successfully crafted: {item.Name}");
+                    GameDisplay.AddSuccess($"You successfully crafted: {item.Name}");
                 }
                 break;
 
@@ -71,13 +72,13 @@ public class CraftingSystem
                             // Transfer fuel mass from newly created fire to existing fire
                             var initialFuel = ItemFactory.MakeFirewood();
                             existingFire.AddFuel(initialFuel, newFire.FuelMassKg); // Transfer the fuel mass
-                            Output.WriteSuccess($"You add fuel to the existing {recipe.LocationFeatureResult.FeatureName}.");
+                            GameDisplay.AddSuccess($"You add fuel to the existing {recipe.LocationFeatureResult.FeatureName}.");
                             break;
                         }
                     }
 
                     _camp.Location.Features.Add(feature);
-                    Output.WriteSuccess($"You successfully built: {recipe.LocationFeatureResult.FeatureName}");
+                    GameDisplay.AddSuccess($"You successfully built: {recipe.LocationFeatureResult.FeatureName}");
                 }
                 break;
 
@@ -87,8 +88,8 @@ public class CraftingSystem
                     var newLocation = recipe.NewLocationResult.LocationFactory(_camp.Location.Parent);
                     _camp.Location.AddBidirectionalConnection(newLocation);
                     _camp.Location.Explore();
-                    Output.WriteSuccess($"You successfully built: {recipe.NewLocationResult.LocationName}");
-                    Output.WriteLine($"The {newLocation.Name} is now accessible from this area.");
+                    GameDisplay.AddSuccess($"You successfully built: {recipe.NewLocationResult.LocationName}");
+                    GameDisplay.AddNarrative($"The {newLocation.Name} is now accessible from this area.");
                 }
                 break;
         }

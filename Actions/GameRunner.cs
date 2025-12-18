@@ -12,9 +12,9 @@ using text_survival.UI;
 
 namespace text_survival.Actions;
 
-public class Choice<T>(string? propmt = null)
+public class Choice<T>(string? prompt = null)
 {
-    public string? Prompt = propmt;
+    public string? Prompt = prompt;
     private readonly Dictionary<string, T> options = [];
     public void AddOption(string label, T item)
     {
@@ -26,11 +26,7 @@ public class Choice<T>(string? propmt = null)
         {
             throw new InvalidOperationException("No Choices Available");
         }
-        if (Prompt is not null)
-        {
-            GameDisplay.AddNarrative(Prompt);
-        }
-        string choice = Input.GetSelectionFromList(options.Keys.ToList())!;
+        string choice = Input.Select(Prompt ?? "Choose:", options.Keys);
         return options[choice];
     }
 }
@@ -1154,7 +1150,7 @@ public partial class GameRunner(GameContext ctx)
                 allParts.Add(part);
         }
 
-        return Input.GetSelectionFromList(allParts, true);
+        return Input.SelectOrCancel("Select target:", allParts);
     }
 
     private void AttemptFlee(Npc enemy)
@@ -1235,7 +1231,7 @@ public partial class GameRunner(GameContext ctx)
 
     private void CheckStats()
     {
-        BodyDescriber.Describe(ctx.player);
+        // BodyDescriber.Describe(ctx.player);
         ctx.player.Skills.Describe();
         Input.WaitForKey();
     }

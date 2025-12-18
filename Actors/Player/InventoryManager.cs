@@ -1,6 +1,7 @@
 using text_survival.Effects;
 using text_survival.IO;
 using text_survival.Items;
+using text_survival.UI;
 
 namespace text_survival.Actors.Player;
 
@@ -33,13 +34,13 @@ public class InventoryManager
 
     public void AddToInventory(Item item)
     {
-        Output.WriteLine("You put the ", item, " in your ", Inventory);
+        GameDisplay.AddNarrative($"You put the {item} in your {Inventory}");
         Inventory.Add(item);
     }
 
     public void RemoveFromInventory(Item item)
     {
-        Output.WriteLine("You take the ", item, " from your ", Inventory);
+        GameDisplay.AddNarrative($"You take the {item} from your {Inventory}");
         Inventory.Remove(item);
     }
 
@@ -82,7 +83,7 @@ public class InventoryManager
                 HeldItem = gear;
                 break;
             default:
-                Output.WriteLine("You can't equip that.");
+                GameDisplay.AddNarrative("You can't equip that.");
                 return;
         }
         Inventory.Remove((Item)item);
@@ -94,7 +95,7 @@ public class InventoryManager
 
         if (item is Weapon weapon && !IsArmed)
         {
-            Output.WriteLine($"You equip the {weapon}");
+            GameDisplay.AddNarrative($"You equip the {weapon}");
             return true;
         }
         else if (item is Armor armor)
@@ -102,13 +103,13 @@ public class InventoryManager
             var existingItem = Armor.FirstOrDefault(i => i.EquipSpot == armor.EquipSpot);
             if (existingItem == null)
             {
-                Output.WriteLine($"You equip the {armor}");
+                GameDisplay.AddNarrative($"You equip the {armor}");
                 return true;
             }
         }
         else if (item is Gear gear && HeldItem == null)
         {
-            Output.WriteLine($"You didn't have anything in your hand yet so you equip the {item}");
+            GameDisplay.AddNarrative($"You didn't have anything in your hand yet so you equip the {item}");
             return true;
         }
         return false;
@@ -131,27 +132,27 @@ public class InventoryManager
                 HeldItem = null;
                 break;
             default:
-                Output.WriteLine("You can't unequip that.");
+                GameDisplay.AddNarrative("You can't unequip that.");
                 return;
         }
-        Output.WriteLine("You unequip ", gear);
+        GameDisplay.AddNarrative($"You unequip {gear}");
         Inventory.Add(gear);
         gear.EquipEffects.ForEach(_effectRegistry.RemoveEffect);
     }
     public void CheckGear()
     {
         DescribeGear(this);
-        Output.WriteLine("Would you like to unequip an item?");
+        GameDisplay.AddNarrative("Would you like to unequip an item?");
         if (Input.ReadYesNo()) return;
 
-        Output.WriteLine("Which item would you like to unequip?");
+        GameDisplay.AddNarrative("Which item would you like to unequip?");
         // get list of all equipment
         var equipment = new List<IEquippable>();
         equipment.AddRange(Armor);
         if (IsArmed) equipment.Add(Weapon);
         if (HeldItem != null) equipment.Add(HeldItem);
 
-        var choice = Input.GetSelectionFromList(equipment, true);
+        var choice = Input.SelectOrCancel("Select item:", equipment);
         if (choice == null) return;
         Unequip(choice);
     }
@@ -160,23 +161,23 @@ public class InventoryManager
     {
         if (inv.IsArmed)
         {
-            Output.Write("Weapon => ");
+            GameDisplay.AddNarrative("Weapon => ");
             inv.Weapon.Describe();
         }
         foreach (Armor armor in inv.Armor)
         {
-            Output.Write(armor.EquipSpot, " => ");
+            GameDisplay.AddNarrative($"{armor.EquipSpot} => ");
             armor.Describe();
         }
         if (inv.HeldItem is not null)
         {
-            Output.Write("Held Item => ");
+            GameDisplay.AddNarrative("Held Item => ");
             inv.HeldItem.Describe();
         }
     }
     public void Describe()
     {
-        Output.WriteLine(Inventory, " (", Inventory.Weight(), "/", Inventory.MaxWeight, "):");
+        GameDisplay.AddNarrative($"{Inventory} ({Inventory.Weight()}/{Inventory.MaxWeight}):");
     }
 
     internal double GetEncumbrance()

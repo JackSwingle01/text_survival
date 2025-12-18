@@ -3,6 +3,7 @@ using text_survival.Actors.Player;
 using text_survival.Bodies;
 using text_survival.IO;
 using text_survival.Items;
+using text_survival.UI;
 
 namespace text_survival.Combat;
 
@@ -47,7 +48,7 @@ public class CombatManager
         double baseDodge = dodgeLevel / 100;
         double speedDiff = target.Speed - Owner.Speed;
         double chance = baseDodge + speedDiff;
-        // Output.WriteLine("Debug: Dodge Chance = ", chance);
+        // GameDisplay.AddNarrative("Debug: Dodge Chance = ", chance);
         chance = Math.Clamp(chance, 0, .95);
         return chance;
     }
@@ -57,7 +58,7 @@ public class CombatManager
         double dodgeChance = DetermineDodgeChance(target);
         if (Utils.DetermineSuccess(dodgeChance))
         {
-            Output.WriteLine($"{Owner} dodged the attack!");
+            GameDisplay.AddNarrative($"{Owner} dodged the attack!");
             return true;
         }
         return false;
@@ -65,11 +66,11 @@ public class CombatManager
 
     public bool DetermineHit()
     {
-        // Output.WriteLine("Debug: hit Chance: ", Owner.ActiveWeapon.Accuracy);
+        // GameDisplay.AddNarrative("Debug: hit Chance: ", Owner.ActiveWeapon.Accuracy);
         double hitChance = Math.Clamp(Owner.ActiveWeapon.Accuracy, .01, .95);
         if (!Utils.DetermineSuccess(hitChance))
         {
-            Output.WriteLine($"{Owner} missed!");
+            GameDisplay.AddNarrative($"{Owner} missed!");
             return false;
         }
         return true;
@@ -86,7 +87,7 @@ public class CombatManager
         double blockChance = blockAtbAvg + skillBonus;
         if (Utils.DetermineSuccess(blockChance))
         {
-            Output.WriteLine($"{target} blocked the attack!");
+            GameDisplay.AddNarrative($"{target} blocked the attack!");
             return true;
         }
         return false;
@@ -99,7 +100,7 @@ public class CombatManager
         {
             // Use our narrator for rich descriptions
             string description = CombatNarrator.DescribeAttack(Owner, target, null, false, true, false);
-            Output.WriteLine(description);
+            GameDisplay.AddNarrative(description);
             return;
         }
 
@@ -107,7 +108,7 @@ public class CombatManager
         if (!isHit)
         {
             string description = CombatNarrator.DescribeAttack(Owner, target, null, false, false, false);
-            Output.WriteLine(description);
+            GameDisplay.AddNarrative(description);
             return;
         }
 
@@ -116,7 +117,7 @@ public class CombatManager
         if (isBlocked)
         {
             string description = CombatNarrator.DescribeAttack(Owner, target, null, true, false, true);
-            Output.WriteLine(description);
+            GameDisplay.AddNarrative(description);
             return;
         }
 
@@ -139,7 +140,7 @@ public class CombatManager
         DamageResult damageResult = DamageProcessor.DamageBody(damageInfo, target.Body);
 
         string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damageResult, true, false, false);
-        Output.WriteLine(attackDescription);
+        GameDisplay.AddNarrative(attackDescription);
 
         // Add weapon-specific effect descriptions
         if (damageResult.TotalDamageDealt > 0)
@@ -159,15 +160,15 @@ public class CombatManager
     {
         if (weaponClass == WeaponClass.Blade && damage > 10)
         {
-            Output.WriteDanger("Blood sprays from the wound!");
+            GameDisplay.AddDanger("Blood sprays from the wound!");
         }
         else if (weaponClass == WeaponClass.Blunt && damage > 12)
         {
-            Output.WriteDanger("You hear a sickening crack!");
+            GameDisplay.AddDanger("You hear a sickening crack!");
         }
         else if (weaponClass == WeaponClass.Pierce && damage > 15)
         {
-            Output.WriteDanger("The attack pierces deep into the flesh!");
+            GameDisplay.AddDanger("The attack pierces deep into the flesh!");
         }
     }
 

@@ -1,5 +1,6 @@
 ﻿using text_survival.Crafting;
 using text_survival.IO;
+using text_survival.UI;
 
 namespace text_survival.Items
 {
@@ -41,30 +42,30 @@ namespace text_survival.Items
 
         public void Describe()
         {
-            Output.Write(this, " => ", Description, " ");
+            GameDisplay.AddNarrative($"{this} => {Description} ");
             if (this is Weapon weapon)
             {
-                Output.Write("Damage: ", weapon.Damage, " hp, ");
-                Output.Write("Hit Chance: ", weapon.Accuracy * 100, "%, ");
+                GameDisplay.AddNarrative($"Damage: {weapon.Damage} hp, ");
+                GameDisplay.AddNarrative($"Hit Chance: {weapon.Accuracy * 100}%, ");
                 if (weapon.BlockChance != 0)
                 {
-                    Output.Write(", BlockChance: ", weapon.BlockChance * 100, "%, ");
+                    GameDisplay.AddNarrative($", BlockChance: {weapon.BlockChance * 100}%, ");
                 }
             }
             else if (this is Armor armor)
             {
                 if (armor.Rating != 0)
-                    Output.Write("Defense: ", armor.Rating * 100, "%, ");
+                    GameDisplay.AddNarrative($"Defense: {armor.Rating * 100}%, ");
 
                 if (armor.Insulation != 0)
-                    Output.Write("Warmth: ", armor.Insulation, "F, ");
+                    GameDisplay.AddNarrative($"Warmth: {armor.Insulation}F, ");
             }
 
             if (Weight != 0)
             {
-                Output.Write("Weight: ", Weight, "kg");
+                GameDisplay.AddNarrative($"Weight: {Weight}kg");
             }
-            Output.WriteLine();
+            GameDisplay.AddNarrative("\n");
         }
         public override string ToString()
         {

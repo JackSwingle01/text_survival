@@ -1,4 +1,5 @@
 ﻿using text_survival.IO;
+using text_survival.UI;
 
 namespace text_survival.Items
 {
@@ -21,7 +22,7 @@ namespace text_survival.Items
         {
             if (item.Weight + Weight() > MaxWeight)
             {
-                Output.Write("The ", this, "is full!\n");
+                GameDisplay.AddNarrative($"The {this} is full!\n");
                 return;
             }
             Items.Add(item);

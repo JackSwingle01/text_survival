@@ -10,13 +10,10 @@ namespace text_survival.UI;
 public static class GameDisplay
 {
     private static readonly NarrativeLog _log = new();
-    private const int LineDelayMs = 150;
 
     public static void AddNarrative(string text, LogLevel level = LogLevel.Normal)
     {
         _log.Add(text, level);
-        if (!Output.TestMode && !string.IsNullOrEmpty(text))
-            Thread.Sleep(LineDelayMs);
     }
 
     public static void AddNarrative(IEnumerable<string> texts)
@@ -28,10 +25,11 @@ public static class GameDisplay
     public static void AddSuccess(string text) => AddNarrative(text, LogLevel.Success);
     public static void AddWarning(string text) => AddNarrative(text, LogLevel.Warning);
     public static void AddDanger(string text) => AddNarrative(text, LogLevel.Danger);
+    public static void AddSeparator() => AddNarrative("", LogLevel.Normal);
 
     public static void ClearNarrative() => _log.Clear();
 
-    public static void Render(GameContext ctx)
+    public static void Render(GameContext ctx, bool addSeparator = true)
     {
         if (Output.TestMode)
         {
@@ -39,13 +37,12 @@ public static class GameDisplay
             return;
         }
 
+        if (addSeparator)
+            _log.Add("· · ·", LogLevel.System);
+
         AnsiConsole.Clear();
-
-        // Write panels sequentially - no Layout needed
         AnsiConsole.Write(BuildStatusPanel(ctx));
-        AnsiConsole.Write(BuildNarrativePanel());
-
-        // Menu/prompts appear below naturally via Input system
+        AnsiConsole.Write(BuildNarrativePanel(ctx));
     }
 
     private static IRenderable BuildStatusPanel(GameContext ctx)
@@ -62,37 +59,41 @@ public static class GameDisplay
             .HideHeaders()
             .AddColumn(new TableColumn("Label").Width(8))
             .AddColumn(new TableColumn("Bar").Width(22))
-            .AddColumn(new TableColumn("Pct").Width(5))
-            .AddColumn(new TableColumn("Status").Width(12));
+            .AddColumn(new TableColumn("Pct").Width(6))
+            .AddColumn(new TableColumn("Status").Width(14))
+            .AddColumn(new TableColumn("Extra").Width(16));
 
         table.AddRow(
             new Text("Food:"),
             new Markup(CreateColoredBar(caloriesPercent, 20, GetFoodColor(caloriesPercent))),
             new Text($"{caloriesPercent}%"),
-            new Text(GetCaloriesStatus(caloriesPercent))
+            new Text(GetCaloriesStatus(caloriesPercent)),
+            new Text("")
         );
 
         table.AddRow(
             new Text("Water:"),
             new Markup(CreateColoredBar(hydrationPercent, 20, GetWaterColor(hydrationPercent))),
             new Text($"{hydrationPercent}%"),
-            new Text(GetHydrationStatus(hydrationPercent))
+            new Text(GetHydrationStatus(hydrationPercent)),
+            new Text("")
         );
 
         table.AddRow(
             new Text("Energy:"),
             new Markup(CreateColoredBar(energyPercent, 20, GetEnergyColor(energyPercent))),
             new Text($"{energyPercent}%"),
-            new Text(GetEnergyStatus(energyPercent))
+            new Text(GetEnergyStatus(energyPercent)),
+            new Text("")
         );
 
         string tempStatus = GetTemperatureStatus(body.BodyTemperature);
-        string feelsLike = $"Feels: {ctx.CurrentLocation.GetTemperature():F0}°F";
         table.AddRow(
             new Text("Temp:"),
-            new Text($"{body.BodyTemperature:F1}°F"),
-            new Text($"({tempStatus})"),
-            new Text(feelsLike)
+            new Text($"{body.BodyTemperature:F1}°F ({tempStatus})"),
+            new Text(""),
+            new Text($"Feels: {ctx.CurrentLocation.GetTemperature():F0}°F"),
+            new Text("")
         );
 
         // Fire status if present
@@ -103,9 +104,10 @@ public static class GameDisplay
             string fireColor = GetFireColor(phase);
             table.AddRow(
                 new Markup($"[{fireColor}]Fire:[/]"),
-                new Markup($"[{fireColor}]{phase}[/]"),
-                new Markup($"[{fireColor}]{minutes} min[/]"),
-                new Markup($"[{fireColor}]{fire.GetCurrentFireTemperature():F0}°F[/]")
+                new Markup($"[{fireColor}]{phase} ({minutes} min)[/]"),
+                new Text(""),
+                new Markup($"[{fireColor}]{fire.GetCurrentFireTemperature():F0}°F[/]"),
+                new Text("")
             );
         }
 
@@ -116,7 +118,7 @@ public static class GameDisplay
         };
     }
 
-    private static IRenderable BuildNarrativePanel()
+    private static IRenderable BuildNarrativePanel(GameContext ctx)
     {
         var entries = _log.GetVisible();
         var lines = new List<IRenderable>();
@@ -132,8 +134,10 @@ public static class GameDisplay
         for (int i = 0; i < padding; i++)
             lines.Add(new Text(""));
 
+        string header = $" {ctx.CurrentLocation.Name} | {ctx.GetTimeOfDay()} ";
         return new Panel(new Rows(lines))
         {
+            Header = new PanelHeader(header),
             Border = BoxBorder.Rounded,
             Padding = new Padding(1, 0, 1, 0)
         };

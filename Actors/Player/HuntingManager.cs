@@ -3,6 +3,7 @@ using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Items;
+using text_survival.UI;
 
 namespace text_survival.Actors.Player;
 
@@ -33,7 +34,7 @@ public class HuntingManager
         // Verify can shoot
         if (!_ammunitionManager.CanShoot(out string reason))
         {
-            Output.WriteLine(reason);
+            GameDisplay.AddNarrative(reason);
             return false;
         }
 
@@ -42,7 +43,7 @@ public class HuntingManager
 
         if (arrow == null)
         {
-            Output.WriteLine("You have no arrows!");
+            GameDisplay.AddNarrative("You have no arrows!");
             return false;
         }
 
@@ -52,7 +53,7 @@ public class HuntingManager
             return false;
         }
 
-        Output.WriteLine($"You nock your {arrow.Name} and draw back the bowstring...");
+        GameDisplay.AddNarrative($"You nock your {arrow.Name} and draw back the bowstring...");
         Thread.Sleep(500);
 
         // Calculate accuracy
@@ -72,8 +73,8 @@ public class HuntingManager
 
         if (!hit)
         {
-            Output.WriteLine($"Your arrow flies wide, missing the {target.Name}!");
-            Output.WriteLine($"Hit chance was {hitChance * 100:F0}% (rolled {hitRoll * 100:F0}%)");
+            GameDisplay.AddNarrative($"Your arrow flies wide, missing the {target.Name}!");
+            GameDisplay.AddNarrative($"Hit chance was {hitChance * 100:F0}% (rolled {hitRoll * 100:F0}%)");
 
             // Award small XP for attempt
             _player.Skills.GetSkill("Hunting").GainExperience(1);
@@ -85,18 +86,18 @@ public class HuntingManager
             if (target.State != AnimalState.Detected)
             {
                 target.BecomeDetected();
-                Output.WriteLine($"The {target.Name} is alerted by your miss!");
+                GameDisplay.AddNarrative($"The {target.Name} is alerted by your miss!");
 
                 // Handle detection response
                 if (target.ShouldFlee(_player))
                 {
-                    Output.WriteLine($"The {target.Name} flees!");
+                    GameDisplay.AddNarrative($"The {target.Name} flees!");
                     location?.RemoveNpc(target);
                     _player.stealthManager.StopHunting($"The {target.Name} escaped.");
                 }
                 else
                 {
-                    Output.WriteLine($"The {target.Name} attacks!");
+                    GameDisplay.AddNarrative($"The {target.Name} attacks!");
                     _player.IsEngaged = true;
                     target.IsEngaged = true;
                     _player.stealthManager.StopHunting($"Combat initiated with {target.Name}!");
@@ -107,8 +108,8 @@ public class HuntingManager
         }
 
         // HIT!
-        Output.WriteLine($"Your arrow strikes true!");
-        Output.WriteLine($"Hit chance was {hitChance * 100:F0}% (rolled {hitRoll * 100:F0}%)");
+        GameDisplay.AddNarrative($"Your arrow strikes true!");
+        GameDisplay.AddNarrative($"Hit chance was {hitChance * 100:F0}% (rolled {hitRoll * 100:F0}%)");
 
         // Calculate damage
         double baseDamage = bow.Damage;
@@ -135,8 +136,8 @@ public class HuntingManager
 
         if (!target.IsAlive)
         {
-            Output.WriteLine($"The {target.Name} collapses, dead!");
-            Output.WriteLine($"You gain {xpReward} Hunting XP.");
+            GameDisplay.AddNarrative($"The {target.Name} collapses, dead!");
+            GameDisplay.AddNarrative($"You gain {xpReward} Hunting XP.");
 
             // Try to recover arrow from corpse
             _ammunitionManager.AttemptArrowRecovery(true, arrow, target.Name);
@@ -146,8 +147,8 @@ public class HuntingManager
         }
         else
         {
-            Output.WriteLine($"The {target.Name} is wounded!");
-            Output.WriteLine($"You gain {xpReward} Hunting XP.");
+            GameDisplay.AddNarrative($"The {target.Name} is wounded!");
+            GameDisplay.AddNarrative($"You gain {xpReward} Hunting XP.");
 
             // Try to recover arrow
             _ammunitionManager.AttemptArrowRecovery(true, arrow, target.Name);
@@ -160,7 +161,7 @@ public class HuntingManager
 
             if (target.ShouldFlee(_player))
             {
-                Output.WriteLine($"The wounded {target.Name} flees!");
+                GameDisplay.AddNarrative($"The wounded {target.Name} flees!");
 
                 // Create blood trail (Phase 4)
                 double woundSeverity = CalculateWoundSeverity(target, finalDamage);
@@ -173,15 +174,15 @@ public class HuntingManager
                 target.WoundedTime = currentTime;
                 target.CurrentWoundSeverity = woundSeverity;
 
-                Output.WriteLine($"The {target.Name} leaves a blood trail behind...");
-                Output.WriteLine(bloodTrail.GetSeverityDescription());
+                GameDisplay.AddNarrative($"The {target.Name} leaves a blood trail behind...");
+                GameDisplay.AddNarrative(bloodTrail.GetSeverityDescription());
 
                 location.RemoveNpc(target);
                 _player.stealthManager.StopHunting($"The wounded {target.Name} escaped. You could try tracking it...");
             }
             else
             {
-                Output.WriteLine($"The wounded {target.Name} attacks in desperation!");
+                GameDisplay.AddNarrative($"The wounded {target.Name} attacks in desperation!");
                 _player.IsEngaged = true;
                 target.IsEngaged = true;
                 _player.stealthManager.StopHunting($"Combat initiated with wounded {target.Name}!");

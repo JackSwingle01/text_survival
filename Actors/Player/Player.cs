@@ -6,6 +6,7 @@ using text_survival.IO;
 using text_survival.Items;
 using text_survival.Skills;
 using text_survival.Survival;
+using text_survival.UI;
 
 namespace text_survival.Actors.Player;
 
@@ -26,7 +27,7 @@ public class Player : Actor
         EffectRegistry.Update(minutes);
         result.StatsDelta.Combine(EffectRegistry.GetSurvivalDelta());
         result.DamageEvents.AddRange(EffectRegistry.GetDamagesPerMinute());
-        // Output.WriteLine($"Debug temp delta: {result.StatsDelta.TemperatureDelta}");
+        // GameDisplay.AddNarrative($"Debug temp delta: {result.StatsDelta.TemperatureDelta}");
         Body.ApplyResult(result);
     }
 
@@ -79,7 +80,7 @@ public class Player : Actor
             // Remove from inventory first so message order is correct
             inventoryManager.RemoveFromInventory(food);
             string eating_type = food.WaterContent > food.Calories ? "drink" : "eat";
-            Output.Write($"You {eating_type} the ", food, "...");
+            GameDisplay.AddNarrative($"You {eating_type} the {food}...");
             Body.Consume(food);
             return; // Early return since we already removed from inventory
         }

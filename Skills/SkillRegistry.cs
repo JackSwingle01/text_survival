@@ -1,4 +1,5 @@
 ﻿using text_survival.IO;
+using text_survival.UI;
 
 namespace text_survival.Skills
 {
@@ -33,7 +34,7 @@ namespace text_survival.Skills
 
         public void Describe()
         {
-            Output.WriteLine("\nSkills:");
+            GameDisplay.AddNarrative("\nSkills:");
 
             var allSkills = new[] { Fighting, Endurance, Reflexes, Defense, Hunting, Crafting, Foraging, Firecraft, Mending, Healing, Magic };
 
@@ -41,7 +42,7 @@ namespace text_survival.Skills
             {
                 if (skill.Level > 0)
                 {
-                    Output.WriteLine($"{skill.Name}: {skill.Level} ({skill.Xp}/{skill.LevelUpThreshold})");
+                    GameDisplay.AddNarrative($"{skill.Name}: {skill.Level} ({skill.Xp}/{skill.LevelUpThreshold})");
                 }
             }
         }

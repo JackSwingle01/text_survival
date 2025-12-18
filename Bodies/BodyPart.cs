@@ -77,7 +77,7 @@ public class BodyRegion(string name, double coverage)
     //     }
 
     //     // Output description line
-    //     Output.WriteLine($"- {Name} is {damageDescription} ({healthPercent}%)");
+    //     GameDisplay.AddNarrative($"- {Name} is {damageDescription} ({healthPercent}%)");
     // }
     public override string ToString() => Name;
 }

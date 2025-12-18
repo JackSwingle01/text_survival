@@ -1,6 +1,7 @@
 using text_survival.Actors.Player;
 using text_survival.Environments;
 using text_survival.IO;
+using text_survival.UI;
 
 namespace text_survival.Actions;
 
@@ -42,10 +43,11 @@ public class ExploreRunner(GameContext ctx)
     public void Run()
     {
         ExploreState state = new(_ctx.CurrentLocation);
-        Output.Write("Begin Exploration...");
+        GameDisplay.AddNarrative("Begin Exploration...");
 
         do
         {
+            GameDisplay.Render(_ctx);
             Choice<Location?> choice = new("Where do you go?");
             var connections = state.CurrentLocation.Connections;
             int unknownCount = 0;
@@ -69,43 +71,33 @@ public class ExploreRunner(GameContext ctx)
             int travelTime = TravelProcessor.GetTraversalMinutes(next, _ctx.player);
             int timeRemaining = travelTime;
             int timeElapsed = 0;
-            HashSet<int> shownThresholds = new();
-            List<string> flavorToShow = new();
+            bool flavorShown = false;
+            string? pendingFlavor = null;
+            double flavorThreshold = Random.Shared.NextDouble() * 0.4 + 0.3; // 30-70%
 
             while (timeRemaining > 0)
             {
                 GameEvent? triggeredEvent = null;
                 int ticksThisSegment = timeRemaining;
 
-                // Run progress bar - exits early if event triggers
+                // Run progress bar - exits early if event or flavor triggers
                 Output.Progress($"Traveling to {next.Name}...", travelTime, task =>
                 {
                     // Start from current progress
                     task.Increment(timeElapsed);
 
-                    for (int i = 0; i < ticksThisSegment && triggeredEvent == null; i++)
+                    for (int i = 0; i < ticksThisSegment && triggeredEvent == null && pendingFlavor == null; i++)
                     {
                         var tickResult = GameEventRegistry.RunTicks(_ctx, 1);
                         _ctx.Update(tickResult.MinutesElapsed);
                         timeElapsed += tickResult.MinutesElapsed;
                         task.Increment(tickResult.MinutesElapsed);
 
-                        // Collect flavor at progress thresholds (show after progress bar)
+                        // Check for flavor interrupt
                         double progress = (double)timeElapsed / travelTime;
-                        if (progress >= 0.25 && !shownThresholds.Contains(25))
+                        if (!flavorShown && progress >= flavorThreshold)
                         {
-                            flavorToShow.Add(GameEventRegistry.GetRandomFlavorMessage());
-                            shownThresholds.Add(25);
-                        }
-                        else if (progress >= 0.50 && !shownThresholds.Contains(50))
-                        {
-                            flavorToShow.Add(GameEventRegistry.GetRandomFlavorMessage());
-                            shownThresholds.Add(50);
-                        }
-                        else if (progress >= 0.75 && !shownThresholds.Contains(75))
-                        {
-                            flavorToShow.Add(GameEventRegistry.GetRandomFlavorMessage());
-                            shownThresholds.Add(75);
+                            pendingFlavor = GameEventRegistry.GetRandomFlavorMessage();
                         }
 
                         if (tickResult.TriggeredEvent != null)
@@ -117,25 +109,32 @@ public class ExploreRunner(GameContext ctx)
                     }
                 });
 
-                // Show collected flavor messages
-                foreach (var flavor in flavorToShow)
-                    Output.WriteLine(flavor);
-                flavorToShow.Clear();
-
                 timeRemaining = travelTime - timeElapsed;
+
+                // Handle flavor interrupt
+                if (pendingFlavor != null)
+                {
+                    GameDisplay.AddNarrative(pendingFlavor);
+                    GameDisplay.Render(_ctx);
+                    Input.WaitForKey();
+                    pendingFlavor = null;
+                    flavorShown = true;
+                }
 
                 // Handle event outside progress context (prompts work here)
                 if (triggeredEvent != null)
                 {
+                    GameDisplay.Render(_ctx);
                     HandleEvent(triggeredEvent);
                 }
             }
 
             state.MoveTo(next, travelTime);
             next.Explore();
-            Output.WriteLine($"You have arrived at {state.CurrentLocation.Name}: {state.CurrentLocation.Description}. {state.CurrentLocation.GetGatherSummary()}");
+            GameDisplay.AddNarrative($"You have arrived at {state.CurrentLocation.Name}: {state.CurrentLocation.Description}. {state.CurrentLocation.GetGatherSummary()}");
         } while (!state.IsAtOrigin);
-        Output.WriteLine("You made it back to camp.");
+        GameDisplay.AddNarrative("You made it back to camp.");
+        GameDisplay.Render(_ctx);
     }
     public bool HasUnexploredReachable(ExploreState state)
     {
@@ -144,26 +143,27 @@ public class ExploreRunner(GameContext ctx)
 
     private void HandleEvent(GameEvent evt)
     {
-        Output.WriteLine("".PadRight(50, '-'));
-        Output.WriteLine("EVENT:");
-        Output.WriteLine($"** {evt.Name} **");
-        Output.WriteLine(evt.Description + "\n");
+        GameDisplay.AddNarrative("EVENT:");
+        GameDisplay.AddNarrative($"** {evt.Name} **");
+        GameDisplay.AddNarrative(evt.Description + "\n");
+        GameDisplay.Render(_ctx);
         var choice = evt.Choices.GetPlayerChoice();
-        Output.WriteLine(choice.Description + "\n");
-        Output.WriteLine("".PadRight(50, '-'));
-
+        GameDisplay.AddNarrative(choice.Description + "\n");
+        Output.ProgressSimple("...", 10);
         var outcome = choice.DetermineResult();
         HandleOutcome(outcome);
+        GameDisplay.Render(_ctx);
+        Input.WaitForKey();
     }
 
     private void HandleOutcome(EventResult outcome)
     {
-        Output.WriteLine("OUTCOME:");
-        Output.WriteLine(outcome.Message);
+        GameDisplay.AddNarrative("OUTCOME:");
+        GameDisplay.AddNarrative(outcome.Message);
 
         if (outcome.TimeAddedMinutes != 0)
         {
-            Output.WriteLine($"(+{outcome.TimeAddedMinutes} minutes)");
+            GameDisplay.AddNarrative($"(+{outcome.TimeAddedMinutes} minutes)");
             _ctx.Update(outcome.TimeAddedMinutes);
         }
 
@@ -175,9 +175,7 @@ public class ExploreRunner(GameContext ctx)
         if (outcome.NewItem is not null)
         {
             _ctx.player.TakeItem(outcome.NewItem);
-            Output.WriteLine($"You found: {outcome.NewItem.Name}");
+            GameDisplay.AddNarrative($"You found: {outcome.NewItem.Name}");
         }
-
-        Output.WriteLine("".PadRight(50, '-'));
     }
 }

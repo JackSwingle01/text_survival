@@ -2,6 +2,7 @@
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
+using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions;
 
@@ -29,6 +30,7 @@ public class ExpeditionRunner(GameContext ctx)
     {
         // select destination
         var locations = GetGatherableLocations();
+        GameDisplay.Render(ctx);
         var locChoice = new Choice<Location>("Where would you like to go?");
         foreach (Location location in locations)
         {
@@ -43,6 +45,7 @@ public class ExpeditionRunner(GameContext ctx)
         var travelEstimate = TravelProcessor.GetPathMinutes(travelPath, ctx.player);
 
         // choose work time
+        GameDisplay.Render(ctx);
         var workTimeChoice = new Choice<int>("How long should you forage?");
         workTimeChoice.AddOption("Quick gather - 15 min", 15);
         workTimeChoice.AddOption("Standard search - 30 min", 30);
@@ -96,14 +99,15 @@ public class ExpeditionRunner(GameContext ctx)
     {
         // show preview
         DisplayExpeditionPreview(expedition, ctx.Camp.FireMinutesRemaining);
+        GameDisplay.Render(ctx);
         if (!Input.ReadYesNo())
         {
-            Output.WriteLine("You change your mind.");
+            GameDisplay.AddNarrative("You change your mind.");
             return;
         }
 
         // start expedition
-        Output.WriteLine($"You set out to {expedition.Type.ToString().ToLower()}.");
+        GameDisplay.AddNarrative($"You set out to {expedition.Type.ToString().ToLower()}.");
         ctx.Expedition = expedition;
 
         // main loop
@@ -139,14 +143,15 @@ public class ExpeditionRunner(GameContext ctx)
     }
     private bool PromptContinueExpedition(Expedition expedition)
     {
-        Output.WriteLine();
+        GameDisplay.AddNarrative("\n");
         string nextPhase = expedition.GetPhaseDisplayName(expedition.CurrentPhase + 1);
-        Output.WriteLine($"You have completed {expedition.GetPhaseDisplayName()}. You are about to start {nextPhase}.");
+        GameDisplay.AddNarrative($"You have completed {expedition.GetPhaseDisplayName()}. You are about to start {nextPhase}.");
         // // Show fire margin for context
         // double fireRemaining = ctx.Camp.GetFireMinutesRemaining();
         // int returnTime = expedition.TravelOutTimeMinutes;
         // double margin = fireRemaining - returnTime;
-        // Output.WriteLine($"Fire margin: ~{(int)margin} min if you head back now.");
+        // GameDisplay.AddNarrative($"Fire margin: ~{(int)margin} min if you head back now.");
+        GameDisplay.Render(ctx);
 
         if (expedition.CurrentPhase == ExpeditionPhase.Working)
         {
@@ -162,7 +167,7 @@ public class ExpeditionRunner(GameContext ctx)
 
             if (!canContinue)
             {
-                Output.WriteLine("There's nothing more to do here.");
+                GameDisplay.AddNarrative("There's nothing more to do here.");
                 return true;
             }
 
@@ -179,7 +184,7 @@ public class ExpeditionRunner(GameContext ctx)
             }
             else if (result == "return")
             {
-                Output.WriteLine($"You start heading back.");
+                GameDisplay.AddNarrative($"You start heading back.");
                 return true;
             }
             else
@@ -190,31 +195,32 @@ public class ExpeditionRunner(GameContext ctx)
         else
         {
             // Traveling phases - simple continue/abort
-            Output.WriteLine($"\nStart {nextPhase}? (y/n)");
+            GameDisplay.AddNarrative($"\nStart {nextPhase}? (y/n)");
             return Input.ReadYesNo();
         }
     }
     private void HandleEvent(GameEvent evt)
     {
-        Output.WriteLine("".PadRight(50, '-'));
-        Output.WriteLine("EVENT:");
-        Output.WriteLine($"** {evt.Name} **");
-        Output.WriteLine(evt.Description + "\n");
+        GameDisplay.AddNarrative("".PadRight(50, '-'));
+        GameDisplay.AddNarrative("EVENT:");
+        GameDisplay.AddNarrative($"** {evt.Name} **");
+        GameDisplay.AddNarrative(evt.Description + "\n");
+        GameDisplay.Render(ctx);
         var choice = evt.Choices.GetPlayerChoice();
-        Output.WriteLine(choice.Description + "\n");
-        Output.WriteLine("".PadRight(50, '-'));
+        GameDisplay.AddNarrative(choice.Description + "\n");
+        GameDisplay.AddNarrative("".PadRight(50, '-'));
 
         var outcome = choice.DetermineResult();
         HandleOutcome(outcome);
     }
     private void HandleOutcome(EventResult outcome)
     {
-        Output.WriteLine("OUTCOME:");
-        Output.WriteLine(outcome.Message);
+        GameDisplay.AddNarrative("OUTCOME:");
+        GameDisplay.AddNarrative(outcome.Message);
 
         if (outcome.TimeAddedMinutes != 0)
         {
-            Output.WriteLine($"(+{outcome.TimeAddedMinutes} minutes)");
+            GameDisplay.AddNarrative($"(+{outcome.TimeAddedMinutes} minutes)");
             ctx.Update(outcome.TimeAddedMinutes);
             ctx.Expedition?.AddDelayTime(outcome.TimeAddedMinutes);
         }
@@ -227,14 +233,14 @@ public class ExpeditionRunner(GameContext ctx)
         if (outcome.NewItem is not null)
         {
             ctx.player.TakeItem(outcome.NewItem);
-            Output.WriteLine($"You found: {outcome.NewItem.Name}");
+            GameDisplay.AddNarrative($"You found: {outcome.NewItem.Name}");
         }
 
         if (outcome.AbortsExpedition && !ctx.Expedition!.IsComplete)
         {
             ctx.Expedition!.CancelExpedition();
         }
-        Output.WriteLine("".PadRight(50, '-'));
+        GameDisplay.AddNarrative("".PadRight(50, '-'));
     }
     private static bool IsLocationValidForExpeditionType(Location location, ExpeditionType expeditionType)
     {
@@ -260,24 +266,24 @@ public class ExpeditionRunner(GameContext ctx)
     public void DisplayExpeditionPreview(Expedition expedition, double FireMinutesRemaining)
     {
         int travelTime = TravelProcessor.GetPathMinutes(expedition.Path, ctx.player);
-        Output.WriteLine("".PadRight(50, '-'));
-        Output.WriteLine("PLAN:");
-        Output.WriteLine($"{expedition.Type.ToString().ToUpper()} - {expedition.Destination.Name}\n");
-        Output.WriteLine($"It's about a {travelTime / 2} minute walk each way.");
-        Output.WriteLine($"Once you get there it's {expedition.WorkTimeMinutes} minutes of {expedition.GetPhaseDisplayName(ExpeditionPhase.Working).ToLower()}.");
-        Output.WriteLine($"A {travelTime + expedition.WorkTimeMinutes} minute round trip if all goes well.\n");
+        GameDisplay.AddNarrative("".PadRight(50, '-'));
+        GameDisplay.AddNarrative("PLAN:");
+        GameDisplay.AddNarrative($"{expedition.Type.ToString().ToUpper()} - {expedition.Destination.Name}\n");
+        GameDisplay.AddNarrative($"It's about a {travelTime / 2} minute walk each way.");
+        GameDisplay.AddNarrative($"Once you get there it's {expedition.WorkTimeMinutes} minutes of {expedition.GetPhaseDisplayName(ExpeditionPhase.Working).ToLower()}.");
+        GameDisplay.AddNarrative($"A {travelTime + expedition.WorkTimeMinutes} minute round trip if all goes well.\n");
 
-        Output.WriteLine(GetLocationNotes(expedition.Destination));
-        // Output.WriteLine(expedition.GetSummaryNotes() + '\n');
+        GameDisplay.AddNarrative(GetLocationNotes(expedition.Destination));
+        // GameDisplay.AddNarrative(expedition.GetSummaryNotes() + '\n');
 
         double fireTime = FireMinutesRemaining - TravelProcessor.GetPathMinutes(expedition.Path, ctx.player);
         string fireMessage = GetFireMarginMessage(fireTime);
         if (FireMinutesRemaining > 0)
-            Output.WriteLine($"The fire has about {FireMinutesRemaining} minutes left.");
-        Output.WriteLine(fireMessage);
-        Output.WriteLine();
-        Output.WriteLine("Do you want to proceed with this plan? (y/n)");
-        Output.WriteLine("".PadRight(50, '-'));
+            GameDisplay.AddNarrative($"The fire has about {FireMinutesRemaining} minutes left.");
+        GameDisplay.AddNarrative(fireMessage);
+        GameDisplay.AddNarrative("\n");
+        GameDisplay.AddNarrative("Do you want to proceed with this plan? (y/n)");
+        GameDisplay.AddNarrative("".PadRight(50, '-'));
     }
 
     private static string GetLocationNotes(Location location)
@@ -301,7 +307,7 @@ public class ExpeditionRunner(GameContext ctx)
 
     private static void DisplayQueuedExpeditionLogs(Expedition exp)
     {
-        exp.GetFlushLogs().ForEach(s => Output.WriteLine(s));
+        exp.GetFlushLogs().ForEach(s => GameDisplay.AddNarrative(s));
     }
 
 
@@ -310,16 +316,17 @@ public class ExpeditionRunner(GameContext ctx)
         if (ctx.Expedition is null)
             throw new InvalidOperationException("Can't cancel expedition out of context");
 
-        Output.WriteLine("Are you sure you want to cancel the expedition and return to camp?");
-        Output.WriteLine("This will end your current expedition and you will start to return to camp. (y/n)");
+        GameDisplay.AddNarrative("Are you sure you want to cancel the expedition and return to camp?");
+        GameDisplay.AddNarrative("This will end your current expedition and you will start to return to camp. (y/n)");
+        GameDisplay.Render(ctx);
         bool confirm = Input.ReadYesNo();
         if (!confirm)
         {
-            Output.WriteLine("You decide to keep pushing forward.");
+            GameDisplay.AddNarrative("You decide to keep pushing forward.");
             return;
         }
         ctx.Expedition.CancelExpedition();
-        Output.WriteLine("You decide it's best to head back. You start returning to camp.");
+        GameDisplay.AddNarrative("You decide it's best to head back. You start returning to camp.");
     }
 
     public static string GetFireMarginMessage(double marginMinutes)
