@@ -1,9 +1,11 @@
 using text_survival.Actors.Player;
+using text_survival.Bodies;
 using text_survival.Crafting;
 using text_survival.Environments;
 using text_survival.Actions.Expeditions;
 using text_survival.Core;
 using text_survival.Environments.Features;
+using text_survival.Items;
 using text_survival.UI;
 using System.Transactions;
 
@@ -15,6 +17,9 @@ public class GameContext(Player player, Camp camp)
     public Location CurrentLocation => Expedition?.CurrentLocation ?? Camp.Location;
     public Camp Camp = camp;
     public bool IsAtCamp => CurrentLocation == Camp.Location;
+
+    // Player's carried inventory (aggregate-based)
+    public Inventory Inventory { get; } = Inventory.CreatePlayerInventory(15.0);
     public Expedition? Expedition;
     public Zone Zone => CurrentLocation.Parent;
     public bool Check(EventCondition condition)
@@ -24,26 +29,33 @@ public class GameContext(Player player, Camp camp)
             EventCondition.IsDaytime => GetTimeOfDay() == TimeOfDay.Morning ||
                          GetTimeOfDay() == TimeOfDay.Afternoon ||
                          GetTimeOfDay() == TimeOfDay.Evening,
-            EventCondition.Traveling => throw new NotImplementedException(),
-            EventCondition.Resting => throw new NotImplementedException(),
-            EventCondition.Working => throw new NotImplementedException(),
-            EventCondition.HasFood => throw new NotImplementedException(),
-            EventCondition.HasMeat => throw new NotImplementedException(),
-            EventCondition.HasFirewood => throw new NotImplementedException(),
-            EventCondition.HasStones => throw new NotImplementedException(),
-            EventCondition.Injured => throw new NotImplementedException(),
-            EventCondition.Bleeding => throw new NotImplementedException(),
-            EventCondition.Slow => throw new NotImplementedException(),
-            EventCondition.FireBurning => throw new NotImplementedException(),
+            EventCondition.Traveling => Expedition != null,
+            EventCondition.Resting => false, // TODO: implement when rest system exists
+            EventCondition.Working => Expedition?.CurrentPhase == Expeditions.ExpeditionPhase.Working,
+            EventCondition.HasFood => Inventory.HasFood,
+            EventCondition.HasMeat => Inventory.CookedMeat.Count > 0 || Inventory.RawMeat.Count > 0,
+            EventCondition.HasFirewood => Inventory.HasFuel,
+            EventCondition.HasStones => false, // TODO: implement if stones become a resource
+            EventCondition.Injured => player.Body.Parts.Any(p => p.Condition < 1.0),
+            EventCondition.Bleeding => player.EffectRegistry.GetAll().Any(e => e.EffectKind.Equals("Bleeding", StringComparison.OrdinalIgnoreCase)),
+            EventCondition.Slow => Bodies.CapacityCalculator.GetCapacities(player.Body, player.GetEffectModifiers()).Moving < 0.7,
+            EventCondition.FireBurning => Camp.HasActiveFire,
             EventCondition.Inside => CurrentLocation.HasFeature<ShelterFeature>(),
             EventCondition.Outside => !Check(EventCondition.Inside),
-            _ => throw new NotImplementedException(),
+            _ => false,
         };
     }
     public DateTime GameTime { get; set; } = new DateTime(2025, 1, 1, 9, 0, 0); // Full date/time for resource respawn tracking
+    public SurvivalContext GetSurvivalContext() => new SurvivalContext
+    {
+        ActivityLevel = 1.5,
+        LocationTemperature = CurrentLocation.GetTemperature(),
+        ClothingInsulation = Inventory.TotalInsulation,
+    };
+
     public void Update(int minutes)
     {
-        player.Update(minutes, player.GetSurvivalContext(CurrentLocation));
+        player.Update(minutes, GetSurvivalContext());
         CurrentLocation.Parent.Update(minutes, GameTime);
         GameTime = GameTime.AddMinutes(minutes); // Keep GameTime in sync
 

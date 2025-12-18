@@ -1,7 +1,6 @@
 using text_survival.Actors.NPCs;
 using text_survival.Bodies;
 using text_survival.Environments;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
 
@@ -9,231 +8,47 @@ namespace text_survival.Actors.Player;
 
 /// <summary>
 /// Manages ranged hunting mechanics including shooting, accuracy, and damage.
-/// Integrates with AmmunitionManager and Body.Damage() system.
 /// </summary>
 public class HuntingManager
 {
     private readonly Player _player;
-    private readonly AmmunitionManager _ammunitionManager;
 
-    public HuntingManager(Player player, AmmunitionManager ammunitionManager)
+    public HuntingManager(Player player)
     {
         _player = player;
-        _ammunitionManager = ammunitionManager;
     }
 
     /// <summary>
     /// Attempts to shoot a target animal with a ranged weapon.
-    /// Handles accuracy calculation, damage, arrow consumption, and recovery.
+    /// Currently stubbed - ranged hunting not yet implemented with new inventory.
     /// </summary>
-    /// <param name="target">The animal to shoot</param>
-    /// <param name="targetBodyPart">Optional body part to target (null for torso)</param>
-    /// <returns>True if shot was successful (hit or miss), false if couldn't shoot</returns>
-    public bool ShootTarget(Animal target, Location location, DateTime currentTime, string? targetBodyPart = null)
+    public bool ShootTarget(Animal target, Location location, DateTime currentTime, Inventory inventory, string? targetBodyPart = null)
     {
-        // Verify can shoot
-        if (!_ammunitionManager.CanShoot(out string reason))
+        // Check for ranged weapon in inventory
+        var weapon = inventory.Weapon;
+        if (weapon == null || !weapon.IsWeapon)
         {
-            GameDisplay.AddNarrative(reason);
+            GameDisplay.AddNarrative("You need a weapon to hunt.");
             return false;
         }
 
-        RangedWeapon bow = (RangedWeapon)_player.inventoryManager.Weapon;
-        Item? arrow = _ammunitionManager.GetBestAvailableArrow();
-
-        if (arrow == null)
-        {
-            GameDisplay.AddNarrative("You have no arrows!");
-            return false;
-        }
-
-        // Consume arrow
-        if (!_ammunitionManager.ConsumeArrow(arrow))
-        {
-            return false;
-        }
-
-        GameDisplay.AddNarrative($"You nock your {arrow.Name} and draw back the bowstring...");
-        Thread.Sleep(500);
-
-        // Calculate accuracy
-        int huntingSkill = _player.Skills.GetSkill("Hunting").Level;
-        bool isConcealed = _player.stealthManager.IsHunting && target.State != AnimalState.Detected;
-
-        double hitChance = HuntingCalculator.CalculateRangedAccuracy(
-            target.DistanceFromPlayer,
-            bow.BaseAccuracy,
-            huntingSkill,
-            isConcealed
-        );
-
-        // Roll for hit
-        double hitRoll = Utils.RandDouble(0, 1);
-        bool hit = hitRoll < hitChance;
-
-        if (!hit)
-        {
-            GameDisplay.AddNarrative($"Your arrow flies wide, missing the {target.Name}!");
-            GameDisplay.AddNarrative($"Hit chance was {hitChance * 100:F0}% (rolled {hitRoll * 100:F0}%)");
-
-            // Award small XP for attempt
-            _player.Skills.GetSkill("Hunting").GainExperience(1);
-
-            // Try to recover arrow
-            _ammunitionManager.AttemptArrowRecovery(false, arrow, target.Name);
-
-            // Animal detects player if missed
-            if (target.State != AnimalState.Detected)
-            {
-                target.BecomeDetected();
-                GameDisplay.AddNarrative($"The {target.Name} is alerted by your miss!");
-
-                // Handle detection response
-                if (target.ShouldFlee(_player))
-                {
-                    GameDisplay.AddNarrative($"The {target.Name} flees!");
-                    location?.RemoveNpc(target);
-                    _player.stealthManager.StopHunting($"The {target.Name} escaped.");
-                }
-                else
-                {
-                    GameDisplay.AddNarrative($"The {target.Name} attacks!");
-                    _player.IsEngaged = true;
-                    target.IsEngaged = true;
-                    _player.stealthManager.StopHunting($"Combat initiated with {target.Name}!");
-                }
-            }
-
-            return true;
-        }
-
-        // HIT!
-        GameDisplay.AddNarrative($"Your arrow strikes true!");
-        GameDisplay.AddNarrative($"Hit chance was {hitChance * 100:F0}% (rolled {hitRoll * 100:F0}%)");
-
-        // Calculate damage
-        double baseDamage = bow.Damage;
-        double arrowModifier = _ammunitionManager.GetArrowDamageModifier(arrow);
-        double finalDamage = baseDamage * arrowModifier;
-
-        // Determine hit location (default to torso if not specified)
-        string hitLocation = targetBodyPart ?? "torso";
-
-        // Apply damage through Body system
-        var damageInfo = new DamageInfo
-        {
-            Amount = finalDamage,
-            Type = DamageType.Pierce, // Arrows pierce
-            TargetPartName = hitLocation,
-            Source = $"{_player.Name}'s {arrow.Name}"
-        };
-
-        target.Body.Damage(damageInfo);
-
-        // Award XP for successful hit
-        int xpReward = target.IsAlive ? 3 : 5; // More XP for kill
-        _player.Skills.GetSkill("Hunting").GainExperience(xpReward);
-
-        if (!target.IsAlive)
-        {
-            GameDisplay.AddNarrative($"The {target.Name} collapses, dead!");
-            GameDisplay.AddNarrative($"You gain {xpReward} Hunting XP.");
-
-            // Try to recover arrow from corpse
-            _ammunitionManager.AttemptArrowRecovery(true, arrow, target.Name);
-
-            // End hunting session
-            _player.stealthManager.StopHunting($"You successfully hunted the {target.Name}.");
-        }
-        else
-        {
-            GameDisplay.AddNarrative($"The {target.Name} is wounded!");
-            GameDisplay.AddNarrative($"You gain {xpReward} Hunting XP.");
-
-            // Try to recover arrow
-            _ammunitionManager.AttemptArrowRecovery(true, arrow, target.Name);
-
-            // Wounded animal response
-            if (target.State != AnimalState.Detected)
-            {
-                target.BecomeDetected();
-            }
-
-            if (target.ShouldFlee(_player))
-            {
-                GameDisplay.AddNarrative($"The wounded {target.Name} flees!");
-
-                // Create blood trail (Phase 4)
-                double woundSeverity = CalculateWoundSeverity(target, finalDamage);
-                var currentLocation = location;
-                var bloodTrail = new BloodTrail(target, currentLocation, woundSeverity, currentTime);
-                currentLocation.BloodTrails.Add(bloodTrail);
-
-                // Mark animal as bleeding for bleed-out tracking
-                target.IsBleeding = true;
-                target.WoundedTime = currentTime;
-                target.CurrentWoundSeverity = woundSeverity;
-
-                GameDisplay.AddNarrative($"The {target.Name} leaves a blood trail behind...");
-                GameDisplay.AddNarrative(bloodTrail.GetSeverityDescription());
-
-                location.RemoveNpc(target);
-                _player.stealthManager.StopHunting($"The wounded {target.Name} escaped. You could try tracking it...");
-            }
-            else
-            {
-                GameDisplay.AddNarrative($"The wounded {target.Name} attacks in desperation!");
-                _player.IsEngaged = true;
-                target.IsEngaged = true;
-                _player.stealthManager.StopHunting($"Combat initiated with wounded {target.Name}!");
-            }
-        }
-
-        return true;
+        // For now, only melee hunting is supported
+        // TODO: Implement ranged hunting with arrows stored in Inventory.Special
+        GameDisplay.AddNarrative("Ranged hunting not yet implemented. Use stealth approach for melee.");
+        return false;
     }
 
     /// <summary>
-    /// Calculates wound severity based on damage dealt vs target's max health.
-    /// Returns value 0.0 to 1.0 for blood trail intensity.
+    /// Gets info about player's current weapon setup.
     /// </summary>
-    private double CalculateWoundSeverity(Animal target, double damageDealt)
+    public string GetWeaponInfo(Inventory inventory)
     {
-        // Severity based on percentage of max health lost
-        double healthPercentageLost = damageDealt / target.Body.MaxHealth;
-
-        // Also factor in current health status
-        double currentHealthPercent = target.Body.Health / target.Body.MaxHealth;
-
-        // Severe wounds = high damage relative to max health
-        // Critical wounds = low remaining health
-        double severity = (healthPercentageLost * 0.6) + ((1.0 - currentHealthPercent) * 0.4);
-
-        return Math.Clamp(severity, 0.1, 1.0); // Minimum 0.1 (always some blood)
-    }
-
-    /// <summary>
-    /// Gets info about player's current ranged weapon setup.
-    /// </summary>
-    public string GetRangedWeaponInfo()
-    {
-        if (_player.inventoryManager.Weapon is not RangedWeapon bow)
+        var weapon = inventory.Weapon;
+        if (weapon == null)
         {
-            return "No ranged weapon equipped.";
+            return "No weapon equipped.";
         }
 
-        int arrowCount = _ammunitionManager.GetAmmunitionCount("Arrow");
-        Item? bestArrow = _ammunitionManager.GetBestAvailableArrow();
-
-        string info = $"Weapon: {bow.Name}\n";
-        info += $"Effective Range: {bow.EffectiveRange:F0}m\n";
-        info += $"Max Range: {bow.MaxRange:F0}m\n";
-        info += $"Arrows: {arrowCount}";
-
-        if (bestArrow != null)
-        {
-            info += $" (Best: {bestArrow.Name})";
-        }
-
-        return info;
+        return $"Weapon: {weapon.Name} (Damage: {weapon.Damage ?? 0}, Accuracy: {weapon.Accuracy ?? 0:F1})";
     }
 }

@@ -1,6 +1,9 @@
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using text_survival.Actions;
+using text_survival.Bodies;
+using text_survival.Effects;
+using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Survival;
@@ -41,80 +44,204 @@ public static class GameDisplay
             _log.Add("· · ·", LogLevel.System);
 
         AnsiConsole.Clear();
-        AnsiConsole.Write(BuildStatusPanel(ctx));
+
+        // Build the 4-panel grid layout
+        var topRow = new Columns(
+            BuildSurvivalPanel(ctx),
+            BuildEnvironmentPanel(ctx)
+        ).Expand();
+
+        var bottomRow = new Columns(
+            BuildBodyPanel(ctx),
+            BuildFirePanel(ctx),
+            BuildInventoryPanel(ctx)
+        ).Expand();
+
+        AnsiConsole.Write(topRow);
+        AnsiConsole.Write(bottomRow);
         AnsiConsole.Write(BuildNarrativePanel(ctx));
     }
 
-    private static IRenderable BuildStatusPanel(GameContext ctx)
+    #region Panel Builders
+
+    private static IRenderable BuildSurvivalPanel(GameContext ctx)
     {
         var body = ctx.player.Body;
-        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
 
         int caloriesPercent = (int)(body.CalorieStore / SurvivalProcessor.MAX_CALORIES * 100);
         int hydrationPercent = (int)(body.Hydration / SurvivalProcessor.MAX_HYDRATION * 100);
         int energyPercent = (int)(body.Energy / SurvivalProcessor.MAX_ENERGY_MINUTES * 100);
 
-        var table = new Table()
-            .Border(TableBorder.None)
-            .HideHeaders()
-            .AddColumn(new TableColumn("Label").Width(8))
-            .AddColumn(new TableColumn("Bar").Width(22))
-            .AddColumn(new TableColumn("Pct").Width(6))
-            .AddColumn(new TableColumn("Status").Width(14))
-            .AddColumn(new TableColumn("Extra").Width(16));
+        var lines = new List<IRenderable>
+        {
+            new Markup($"Food   {CreateColoredBar(caloriesPercent, 12, GetFoodColor(caloriesPercent))} [white]{GetCaloriesStatus(caloriesPercent)}[/]"),
+            new Markup($"Water  {CreateColoredBar(hydrationPercent, 12, GetWaterColor(hydrationPercent))} [white]{GetHydrationStatus(hydrationPercent)}[/]"),
+            new Markup($"Energy {CreateColoredBar(energyPercent, 12, GetEnergyColor(energyPercent))} [white]{GetEnergyStatus(energyPercent)}[/]"),
+            new Markup($"Temp   [white]{body.BodyTemperature:F1}°F[/] [{GetTempColor(body.BodyTemperature)}]{GetTemperatureStatus(body.BodyTemperature)}[/]")
+        };
 
-        table.AddRow(
-            new Text("Food:"),
-            new Markup(CreateColoredBar(caloriesPercent, 20, GetFoodColor(caloriesPercent))),
-            new Text($"{caloriesPercent}%"),
-            new Text(GetCaloriesStatus(caloriesPercent)),
-            new Text("")
-        );
+        return new Panel(new Rows(lines))
+        {
+            Header = new PanelHeader(" SURVIVAL ", Justify.Left),
+            Border = BoxBorder.Rounded,
+            Padding = new Padding(1, 0, 1, 0),
+            Expand = true
+        };
+    }
 
-        table.AddRow(
-            new Text("Water:"),
-            new Markup(CreateColoredBar(hydrationPercent, 20, GetWaterColor(hydrationPercent))),
-            new Text($"{hydrationPercent}%"),
-            new Text(GetHydrationStatus(hydrationPercent)),
-            new Text("")
-        );
+    private static IRenderable BuildEnvironmentPanel(GameContext ctx)
+    {
+        var location = ctx.CurrentLocation;
+        double ambientTemp = location.GetTemperature();
 
-        table.AddRow(
-            new Text("Energy:"),
-            new Markup(CreateColoredBar(energyPercent, 20, GetEnergyColor(energyPercent))),
-            new Text($"{energyPercent}%"),
-            new Text(GetEnergyStatus(energyPercent)),
-            new Text("")
-        );
+        // Time display - Day X — HH:MM AM/PM (TimeOfDay)
+        var startDate = new DateTime(2025, 1, 1);
+        int dayNumber = (ctx.GameTime - startDate).Days + 1;
+        string clockTime = ctx.GameTime.ToString("h:mm tt");
+        string timeOfDay = ctx.GetTimeOfDay().ToString();
 
-        string tempStatus = GetTemperatureStatus(body.BodyTemperature);
-        table.AddRow(
-            new Text("Temp:"),
-            new Text($"{body.BodyTemperature:F1}°F ({tempStatus})"),
-            new Text(""),
-            new Text($"Feels: {ctx.CurrentLocation.GetTemperature():F0}°F"),
-            new Text("")
-        );
+        var lines = new List<IRenderable>
+        {
+            new Markup($"[yellow bold]Day {dayNumber}[/] — [white]{clockTime}[/] [grey]({timeOfDay})[/]"),
+            new Markup($"[white bold]{Markup.Escape(location.Name)}[/] — [grey]{ambientTemp:F0}°F[/]"),
+            new Markup($"[grey italic]{Markup.Escape(GetShortDescription(location))}[/]")
+        };
 
-        // Fire status if present
-        if (fire != null && (fire.IsActive || fire.HasEmbers))
+        // Show available features (foraging, harvestables)
+        string gatherSummary = location.GetGatherSummary();
+        if (!string.IsNullOrEmpty(gatherSummary))
+        {
+            lines.Add(new Markup($"[green]{Markup.Escape(gatherSummary)}[/]"));
+        }
+
+        return new Panel(new Rows(lines))
+        {
+            Header = new PanelHeader(" ENVIRONMENT ", Justify.Left),
+            Border = BoxBorder.Rounded,
+            Padding = new Padding(1, 0, 1, 0),
+            Expand = true
+        };
+    }
+
+    private static IRenderable BuildBodyPanel(GameContext ctx)
+    {
+        var body = ctx.player.Body;
+        var effects = ctx.player.EffectRegistry.GetAll();
+        var damagedParts = body.Parts.Where(p => p.Condition < 1.0).ToList();
+
+        var lines = new List<IRenderable>();
+
+        // Injuries
+        if (damagedParts.Count == 0)
+        {
+            lines.Add(new Markup("[grey]No injuries[/]"));
+        }
+        else
+        {
+            foreach (var part in damagedParts.Take(3)) // Limit to 3 to avoid overflow
+            {
+                string severity = GetInjurySeverity(part.Condition);
+                string color = GetInjuryColor(part.Condition);
+                lines.Add(new Markup($"[{color}]{Markup.Escape(part.Name)} — {severity}[/]"));
+            }
+            if (damagedParts.Count > 3)
+                lines.Add(new Markup($"[grey]+{damagedParts.Count - 3} more...[/]"));
+        }
+
+        // Effects
+        if (effects.Count > 0)
+        {
+            lines.Add(new Text("")); // Spacer
+            foreach (var effect in effects.Take(3)) // Limit to 3
+            {
+                string trend = GetEffectTrend(effect);
+                string color = GetEffectColor(effect);
+                lines.Add(new Markup($"[{color}]• {Markup.Escape(effect.EffectKind)} {trend}[/]"));
+            }
+            if (effects.Count > 3)
+                lines.Add(new Markup($"[grey]+{effects.Count - 3} more...[/]"));
+        }
+
+        // Pad to minimum height for consistent layout
+        while (lines.Count < 4)
+            lines.Add(new Text(""));
+
+        return new Panel(new Rows(lines))
+        {
+            Header = new PanelHeader(" BODY ", Justify.Left),
+            Border = BoxBorder.Rounded,
+            Padding = new Padding(1, 0, 1, 0),
+            Expand = true
+        };
+    }
+
+    private static IRenderable BuildFirePanel(GameContext ctx)
+    {
+        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+
+        var lines = new List<IRenderable>();
+
+        if (fire == null || (!fire.IsActive && !fire.HasEmbers))
+        {
+            lines.Add(new Markup("[grey]No fire[/]"));
+            lines.Add(new Text(""));
+            lines.Add(new Text(""));
+            lines.Add(new Text(""));
+        }
+        else
         {
             string phase = fire.GetFirePhase();
             int minutes = (int)(fire.HoursRemaining * 60);
-            string fireColor = GetFireColor(phase);
-            table.AddRow(
-                new Markup($"[{fireColor}]Fire:[/]"),
-                new Markup($"[{fireColor}]{phase} ({minutes} min)[/]"),
-                new Text(""),
-                new Markup($"[{fireColor}]{fire.GetCurrentFireTemperature():F0}°F[/]"),
-                new Text("")
-            );
+            string timeColor = GetFireTimeColor(minutes);
+            string phaseColor = GetFirePhaseColor(phase);
+
+            lines.Add(new Markup($"[{phaseColor}]{phase}[/]"));
+            lines.Add(new Markup($"[{timeColor}]{minutes} min remaining[/]"));
+            lines.Add(new Markup($"[grey]+{fire.GetEffectiveHeatOutput(ctx.CurrentLocation.GetTemperature()):F0}°F heat[/]"));
+            lines.Add(new Text(""));
         }
 
-        return new Panel(table)
+        return new Panel(new Rows(lines))
         {
+            Header = new PanelHeader(" FIRE ", Justify.Left),
             Border = BoxBorder.Rounded,
-            Padding = new Padding(1, 0, 1, 0)
+            Padding = new Padding(1, 0, 1, 0),
+            Expand = true
+        };
+    }
+
+    private static IRenderable BuildInventoryPanel(GameContext ctx)
+    {
+        var inv = ctx.Inventory;
+        var lines = new List<IRenderable>();
+
+        // Weight bar
+        double weightPercent = inv.MaxWeightKg > 0 ? inv.CurrentWeightKg / inv.MaxWeightKg * 100 : 0;
+        string weightColor = GetWeightColor(weightPercent);
+        lines.Add(new Markup($"{CreateColoredBar((int)weightPercent, 12, weightColor)} [{weightColor}]{inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0}kg[/]"));
+
+        // Category breakdown
+        var parts = new List<string>();
+        if (inv.FuelWeightKg > 0) parts.Add($"[orange1]Fuel {inv.FuelWeightKg:F1}[/]");
+        if (inv.FoodWeightKg > 0) parts.Add($"[green]Food {inv.FoodWeightKg:F1}[/]");
+        if (inv.WaterWeightKg > 0) parts.Add($"[blue]Water {inv.WaterWeightKg:F1}[/]");
+        if (inv.ToolsWeightKg > 0) parts.Add($"[grey]Tools {inv.ToolsWeightKg:F1}[/]");
+
+        if (parts.Count > 0)
+            lines.Add(new Markup(string.Join(" ", parts)));
+        else
+            lines.Add(new Markup("[grey]Empty[/]"));
+
+        // Pad to match other panels
+        while (lines.Count < 4)
+            lines.Add(new Text(""));
+
+        return new Panel(new Rows(lines))
+        {
+            Header = new PanelHeader(" INVENTORY ", Justify.Left),
+            Border = BoxBorder.Rounded,
+            Padding = new Padding(1, 0, 1, 0),
+            Expand = true
         };
     }
 
@@ -134,14 +261,18 @@ public static class GameDisplay
         for (int i = 0; i < padding; i++)
             lines.Add(new Text(""));
 
-        string header = $" {ctx.CurrentLocation.Name} | {ctx.GetTimeOfDay()} ";
         return new Panel(new Rows(lines))
         {
-            Header = new PanelHeader(header),
+            Header = new PanelHeader(" NARRATIVE ", Justify.Left),
             Border = BoxBorder.Rounded,
-            Padding = new Padding(1, 0, 1, 0)
+            Padding = new Padding(1, 0, 1, 0),
+            Expand = true
         };
     }
+
+    #endregion
+
+    #region Color Helpers
 
     private static string CreateColoredBar(int percent, int width, string color)
     {
@@ -180,7 +311,16 @@ public static class GameDisplay
         _ => "red"
     };
 
-    private static string GetFireColor(string phase) => phase switch
+    private static string GetTempColor(double temp) => temp switch
+    {
+        >= 100 => "red",
+        >= 99 => "yellow",
+        >= 97 => "green",
+        >= 95 => "cyan",
+        _ => "blue"
+    };
+
+    private static string GetFirePhaseColor(string phase) => phase switch
     {
         "Roaring" => "red",
         "Building" or "Steady" => "yellow",
@@ -188,6 +328,38 @@ public static class GameDisplay
         "Embers" => "maroon",
         _ => "grey"
     };
+
+    private static string GetFireTimeColor(int minutes) => minutes switch
+    {
+        >= 30 => "green",
+        >= 15 => "yellow",
+        _ => "red"
+    };
+
+    private static string GetWeightColor(double percent) => percent switch
+    {
+        >= 90 => "red",
+        >= 70 => "yellow",
+        _ => "green"
+    };
+
+    private static string GetInjuryColor(double condition) => condition switch
+    {
+        <= 0.2 => "red",
+        <= 0.5 => "yellow",
+        _ => "white"
+    };
+
+    private static string GetEffectColor(Effect effect)
+    {
+        if (effect.HourlySeverityChange > 0) return "red";      // Worsening
+        if (effect.HourlySeverityChange < 0) return "green";    // Improving
+        return "grey";                                           // Stable
+    }
+
+    #endregion
+
+    #region Status Text Helpers
 
     private static string GetCaloriesStatus(int percent) => percent switch
     {
@@ -226,6 +398,48 @@ public static class GameDisplay
         _ => "Cold"
     };
 
+    private static string GetInjurySeverity(double condition) => condition switch
+    {
+        <= 0 => "Destroyed",
+        <= 0.2 => "Critical",
+        <= 0.4 => "Severe",
+        <= 0.6 => "Moderate",
+        <= 0.8 => "Light",
+        _ => "Minor"
+    };
+
+    private static string GetEffectTrend(Effect effect)
+    {
+        if (effect.HourlySeverityChange > 0) return "(↑)";
+        if (effect.HourlySeverityChange < 0) return "(↓)";
+        return "";
+    }
+
+    private static string GetShortDescription(Environments.Location location)
+    {
+        // Get environment feature for terrain description
+        var env = location.GetFeature<EnvironmentFeature>();
+        if (env != null)
+        {
+            return env.GetDescription();
+        }
+
+        // Fallback to terrain type
+        return location.Terrain switch
+        {
+            TerrainType.Rough => "Rough, uneven ground",
+            TerrainType.Snow => "Snow-covered terrain",
+            TerrainType.Steep => "Steep incline",
+            TerrainType.Water => "Near water",
+            TerrainType.Hazardous => "Dangerous area",
+            _ => "Open ground"
+        };
+    }
+
+    #endregion
+
+    #region Test Mode
+
     private static void RenderTestMode(GameContext ctx)
     {
         var body = ctx.player.Body;
@@ -243,7 +457,17 @@ public static class GameDisplay
             TestModeIO.WriteOutput($"[Fire: {fire.GetFirePhase()} - {minutes} min]\n");
         }
 
+        // Add body/effects info to test mode
+        var effects = ctx.player.EffectRegistry.GetAll();
+        if (effects.Count > 0)
+        {
+            var effectNames = effects.Select(e => e.EffectKind);
+            TestModeIO.WriteOutput($"[Effects: {string.Join(", ", effectNames)}]\n");
+        }
+
         foreach (var (text, _) in _log.GetVisible())
             TestModeIO.WriteOutput(text + "\n");
     }
+
+    #endregion
 }

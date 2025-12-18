@@ -1,10 +1,11 @@
 using text_survival.Actors.Player;
+using text_survival.Items;
 
 namespace text_survival.Environments;
 
 public static class TravelProcessor
 {
-    public static int GetTraversalMinutes(Location location, Player player)
+    public static int GetTraversalMinutes(Location location, Player player, Inventory? inventory = null)
     {
         if (location.BaseTraversalMinutes == 0) return 0;
 
@@ -17,10 +18,13 @@ public static class TravelProcessor
         if (weather.Precipitation > 0.5)
             multiplier *= 1 + (weather.Precipitation * 0.2);
 
-        // Player state
-        double encumbrance = player.inventoryManager.GetEncumbrance();
-        if (encumbrance > 0.5)
-            multiplier *= 1 + (encumbrance * 0.4);
+        // Encumbrance from inventory
+        if (inventory != null && inventory.MaxWeightKg > 0)
+        {
+            double encumbrance = inventory.CurrentWeightKg / inventory.MaxWeightKg;
+            if (encumbrance > 0.5)
+                multiplier *= 1 + (encumbrance * 0.4);
+        }
 
         double speed = player.Speed;
         if (speed < 1.0)
@@ -31,9 +35,9 @@ public static class TravelProcessor
         return (int)Math.Ceiling(location.BaseTraversalMinutes * multiplier);
     }
 
-    public static int GetPathMinutes(List<Location> path, Player player)
+    public static int GetPathMinutes(List<Location> path, Player player, Inventory? inventory = null)
     {
-        return path.Skip(1).Sum(loc => GetTraversalMinutes(loc, player));
+        return path.Skip(1).Sum(loc => GetTraversalMinutes(loc, player, inventory));
     }
 
     public static List<Location>? FindPath(Location start, Location target)

@@ -1,7 +1,4 @@
-﻿using text_survival.Actors;
-using text_survival.Crafting;
-using text_survival.Effects;
-
+﻿using text_survival.Crafting;
 
 namespace text_survival.Items
 {
@@ -508,64 +505,6 @@ namespace text_survival.Items
             return blade;
         }
 
-        public static Armor MakeHideShield()
-        {
-            Armor shield = new Armor("Hide Shield", .15, EquipSpots.Hands, 1)
-            {
-                Description = "A wooden frame covered with animal hide. Offers basic protection.",
-                Weight = 2.0,
-                CraftingProperties = [ItemProperty.Wood, ItemProperty.Hide, ItemProperty.Binding]
-            };
-            return shield;
-        }
-
-        // ===== TIER 2-3 ARMOR (Phase 6) =====
-
-        public static Armor MakeFurArmor()
-        {
-            Armor armor = new Armor("Fur Armor", .25, EquipSpots.Chest, 8)
-            {
-                Description = "A thick fur pelt worn as protection. Offers warmth and some defense against attacks.",
-                Weight = 3.0,
-                CraftingProperties = [ItemProperty.Hide, ItemProperty.Fur, ItemProperty.Binding]
-            };
-            return armor;
-        }
-
-        // Tier 3: Fur-Lined Armor (best cold weather gear)
-        public static Armor MakeFurLinedTunic()
-        {
-            Armor tunic = new Armor("Fur-Lined Tunic", 3.0, EquipSpots.Chest, .15)
-            {
-                Description = "Hide armor lined with thick fur. Excellent protection from both cold and combat.",
-                Weight = 4.0,
-                CraftingProperties = [ItemProperty.Hide, ItemProperty.Fur, ItemProperty.Binding, ItemProperty.Insulation]
-            };
-            return tunic;
-        }
-
-        public static Armor MakeFurLinedLeggings()
-        {
-            Armor leggings = new Armor("Fur-Lined Leggings", 2.5, EquipSpots.Legs, .12)
-            {
-                Description = "Leather leggings with fur lining. Superior warmth for Ice Age winters.",
-                Weight = 3.0,
-                CraftingProperties = [ItemProperty.Hide, ItemProperty.Fur, ItemProperty.Binding]
-            };
-            return leggings;
-        }
-
-        public static Armor MakeFurLinedBoots()
-        {
-            Armor boots = new Armor("Fur-Lined Boots", 1.5, EquipSpots.Feet, .08)
-            {
-                Description = "Sturdy hide boots lined with soft fur. Keeps feet warm in the harshest cold.",
-                Weight = 1.0,
-                CraftingProperties = [ItemProperty.Hide, ItemProperty.Fur, ItemProperty.Binding]
-            };
-            return boots;
-        }
-
         public static FoodItem MakeLargeMeat()
         {
             var item = new FoodItem("Large Game Meat", 600, 0)
@@ -605,17 +544,6 @@ namespace text_survival.Items
             return herbs;
         }
 
-        public static Gear MakeTorch()
-        {
-            Gear torch = new Gear("Pine Torch", 0.8)
-            {
-                Description = "A branch wrapped with resin-soaked pine needles. Provides light and warmth.",
-                Insulation = 0.2,
-                CraftingProperties = [ItemProperty.Flammable, ItemProperty.Wood]
-            };
-            return torch;
-        }
-
         public static FoodItem MakeFish()
         {
             var item = new FoodItem("River Fish", 200, 0)
@@ -642,148 +570,13 @@ namespace text_survival.Items
 
         public static Item MakeSpiderSilk()
         {
-            Item silk = new ArmorModifierItem("Spider Silk", [EquipSpots.Hands, EquipSpots.Feet, EquipSpots.Head])
+            Item silk = new Item("Spider Silk")
             {
                 Weight = 0.1,
                 Description = "Fine, strong threads painstakingly collected from spider webs. Surprisingly useful for binding and insulation.",
-                Warmth = 0.5,
                 CraftingProperties = [ItemProperty.Binding, ItemProperty.Insulation]
             };
             return silk;
-        }
-
-        public static Armor MakeFurHood()
-        {
-            Armor hood = new Armor("Fur Hood", .05, EquipSpots.Head, .8)
-            {
-                Description = "A hood made from animal fur. Keeps the head and ears warm in frigid weather.",
-                Weight = 0.3,
-                CraftingProperties = [ItemProperty.Hide, ItemProperty.Insulation]
-            };
-            return hood;
-        }
-
-        public static Armor MakeLeatherTunic()
-        {
-            Armor tunic = new Armor("Leather Tunic", .10, EquipSpots.Chest, .12)
-            {
-                Description = "A simple tunic made from tanned animal hide. Basic protection from the elements.",
-                Weight = 1.5,
-                CraftingProperties = [ItemProperty.Hide, ItemProperty.Binding, ItemProperty.Insulation]
-            };
-            return tunic;
-        }
-
-        public static Armor MakeLeatherPants()
-        {
-            Armor leggings = new Armor("Leather Pants", .08, EquipSpots.Legs, .1)
-            {
-                Description = "Pants made from tanned animal hide. Protects the legs from brush and minor injuries.",
-                Weight = 1.0,
-                CraftingProperties = [ItemProperty.Hide, ItemProperty.Binding, ItemProperty.Insulation]
-            };
-            return leggings;
-        }
-
-        public static Armor MakeMoccasins()
-        {
-            Armor shoes = new Armor("Hide Moccasins", .03, EquipSpots.Feet, .06)
-            {
-                Description = "Soft footwear made from animal hide. More durable than bare feet on rough terrain.",
-                Weight = 0.4,
-                CraftingProperties = [ItemProperty.Hide, ItemProperty.Binding, ItemProperty.Insulation]
-            };
-            return shoes;
-        }
-
-        public static Armor MakeTatteredChestWrap()
-        {
-            Armor wrap = new Armor("Tattered Chest Wrap", .5, EquipSpots.Chest, .02)
-            {
-                Description = "Barely more than rags bound around your torso. Provides minimal warmth and protection.",
-                Weight = 0.1
-            };
-            return wrap;
-        }
-
-        public static Armor MakeTatteredLegWrap()
-        {
-            Armor wrap = new Armor("Tattered Leg Wraps", .5, EquipSpots.Legs, .02)
-            {
-                Description = "Torn fabric wrapped crudely around your legs. Better than nothing, barely.",
-                Weight = 0.1
-            };
-            return wrap;
-        }
-
-        // ===== EARLY-GAME WRAPPINGS (Phase 6 - Tier 1 craftable) =====
-
-        public static Armor MakeBarkChestWrap()
-        {
-            Armor wrap = new Armor("Bark Chest Wrap", 1.0, EquipSpots.Chest, .04)
-            {
-                Description = "Strips of bark bound around your torso. Crude but provides basic protection from the elements.",
-                Weight = 0.5,
-                CraftingProperties = [ItemProperty.Wood, ItemProperty.Binding]
-            };
-            return wrap;
-        }
-
-        public static Armor MakeBarkLegWrap()
-        {
-            Armor wrap = new Armor("Bark Leg Wraps", 1.0, EquipSpots.Legs, .03)
-            {
-                Description = "Bark strips wrapped around your legs. Uncomfortable but better than nothing.",
-                Weight = 0.4,
-                CraftingProperties = [ItemProperty.Wood, ItemProperty.Binding]
-            };
-            return wrap;
-        }
-
-        public static Armor MakeGrassFootWraps()
-        {
-            Armor wrap = new Armor("Grass Foot Wraps", 0.5, EquipSpots.Feet, .02)
-            {
-                Description = "Bundles of dry grass bound around your feet. Provides minimal insulation from cold ground.",
-                Weight = 0.1,
-                CraftingProperties = [ItemProperty.PlantFiber, ItemProperty.Binding]
-            };
-            return wrap;
-        }
-
-        public static Armor MakePlantFiberBindings()
-        {
-            Armor wrap = new Armor("Plant Fiber Bindings", 0.5, EquipSpots.Hands, .015)
-            {
-                Description = "Woven plant fibers wrapped around your hands. Minimal warmth but protects from scrapes.",
-                Weight = 0.05,
-                CraftingProperties = [ItemProperty.PlantFiber]
-            };
-            return wrap;
-        }
-
-        // ===== MID-TIER ARMOR (Phase 6 - Tier 2) =====
-
-        public static Armor MakeWornFurChestWrap()
-        {
-            Armor wrap = new Armor("Worn Fur Chest Wrap", 2.0, EquipSpots.Chest, .08)
-            {
-                Description = "Fur hide wrapped around your torso. Worn and patched, but serviceable for the cold.",
-                Weight = 0.5,
-                CraftingProperties = [ItemProperty.Hide, ItemProperty.Insulation]
-            };
-            return wrap;
-        }
-
-        public static Armor MakeFurLegWraps()
-        {
-            Armor wrap = new Armor("Fur Leg Wraps", 2.0, EquipSpots.Legs, .07)
-            {
-                Description = "Fur wrappings secured around your legs. Provides decent protection from the cold.",
-                Weight = 0.4,
-                CraftingProperties = [ItemProperty.Hide, ItemProperty.Insulation]
-            };
-            return wrap;
         }
 
         public static Item MakeMammothTusk()
@@ -832,17 +625,6 @@ namespace text_survival.Items
                 CraftingProperties = [ItemProperty.Binding]
             };
             return sinew;
-        }
-
-        public static Armor MakeBoneNecklace()
-        {
-            Armor necklace = new Armor("Bone Talisman", 0, EquipSpots.Chest, 0.5)
-            {
-                Description = "A primitive necklace made from small bones and stones. Said to bring good fortune.",
-                Weight = 0.1,
-                CraftingProperties = [ItemProperty.Bone]
-            };
-            return necklace;
         }
 
         public static Item MakeObsidianShard()

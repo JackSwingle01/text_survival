@@ -76,6 +76,37 @@ public static class EffectFactory
         RemovalMessage = $"The feeling is returning to your {bodyPart.ToLower()}."
     };
 
+    public static Effect SprainedAnkle(double severity) => new()
+    {
+        EffectKind = "Sprained Ankle",
+        Source = "injury",
+        Severity = severity,
+        HourlySeverityChange = -0.01,
+        RequiresTreatment = true,
+        CapacityModifiers = Capacities((CapacityNames.Moving, -0.4)),
+        ApplicationMessage = "You've twisted your ankle.",
+        RemovalMessage = "Your ankle feels stable again."
+    };
+
+    public static Effect MinorCut(double severity) => new()
+    {
+        EffectKind = "Cut",
+        Source = "injury",
+        Severity = severity,
+        HourlySeverityChange = -0.05,
+        CapacityModifiers = Capacities((CapacityNames.Manipulation, -0.1)),
+        ApplicationMessage = "You've cut yourself."
+    };
+
+    public static Effect Bruised(double severity) => new()
+    {
+        EffectKind = "Bruise",
+        Source = "injury",
+        Severity = severity,
+        HourlySeverityChange = -0.02,
+        ApplicationMessage = "You're going to have a nasty bruise."
+    };
+
     private static CapacityModifierContainer Capacities(params (string name, double value)[] modifiers)
     {
         var container = new CapacityModifierContainer();

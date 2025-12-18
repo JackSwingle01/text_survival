@@ -19,9 +19,6 @@ public class Body
 
     private readonly double _baseWeight;
 
-    public double Health => CalculateOverallHealth();
-    public double MaxHealth => 1;
-    public bool IsDestroyed => Health <= 0;
     public bool IsTired => Energy < SurvivalProcessor.MAX_ENERGY_MINUTES;
 
     public double BodyFatKG { get; private set; }
@@ -48,12 +45,6 @@ public class Body
         BodyTemperature = 98.6;
     }
 
-    private double CalculateOverallHealth()
-    {
-        double health = Parts.Average(p => p.Condition);
-        health = Parts.SelectMany(p => p.Organs.Select(o => o.Condition)).ToList().Append(health).Min();
-        return health;
-    }
 
     public void Damage(DamageInfo damageInfo)
     {
@@ -140,11 +131,20 @@ public class Body
 
     public void Consume(FoodItem food)
     {
-        CalorieStore += food.Calories;
-        Hydration += food.WaterContent;
+        var digestion = GetDigestionCapacity();
+        double absorptionRate = 0.5 + (0.5 * digestion);  // 50-100% absorption
+
+        CalorieStore += food.Calories * absorptionRate;
+        Hydration += food.WaterContent;  // Water absorption unaffected
 
         if (food.HealthEffect != null) Heal(food.HealthEffect);
         if (food.DamageEffect != null) Damage(food.DamageEffect);
+    }
+
+    private double GetDigestionCapacity()
+    {
+        var capacities = CapacityCalculator.GetCapacities(this, new CapacityModifierContainer());
+        return capacities.Digestion;
     }
 
     public bool Rest(int minutes)

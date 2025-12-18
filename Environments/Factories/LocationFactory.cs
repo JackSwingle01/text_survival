@@ -1,5 +1,4 @@
 using text_survival.Environments.Features;
-using text_survival.Items;
 
 namespace text_survival.Environments.Factories;
 
@@ -11,10 +10,9 @@ public static class LocationFactory
     {
         List<string> forestNames = ["Forest", "Woodland", "Grove", "Thicket", "Pine Stand", "Birch Grove"];
         List<string> forestAdjectives = [
-            "Frost-bitten", "Snow-laden", "Ice-coated", "Permafrost", "Glacial", "Silent", "Frozen", "Snowy",
-            "Windswept", "Frigid", "Boreal", "Primeval", "Shadowy", "Ancient", "Taiga",
-            "Frosty", "Dark", "Foggy", "Overgrown", "Dense", "Old", "Misty", "Quiet",
-            "Pristine", "Forgotten", "Cold", "Verdant", "Mossy", "Wet"
+            "Frost-bitten", "Snow-laden", "Ice-coated", "Silent", "Frozen", "Snowy",
+            "Windswept", "Frigid", "Boreal", "Primeval", "Shadowy", "Ancient",
+            "Frosty", "Dark", "Foggy", "Overgrown", "Dense", "Old", "Misty", "Quiet"
         ];
 
         string adjective = Utils.GetRandomFromList(forestAdjectives);
@@ -27,27 +25,23 @@ public static class LocationFactory
             Terrain = TerrainType.Clear,
         };
 
-        // Forage feature
-        var forageFeature = new ForageFeature(1.6);
-        forageFeature.AddResource(ItemFactory.MakeBerry, .5);
-        forageFeature.AddResource(ItemFactory.MakeWater, .5);
-        forageFeature.AddResource(ItemFactory.MakeMushroom, .4);
-        forageFeature.AddResource(ItemFactory.MakeStick, 1.0);
-        forageFeature.AddResource(ItemFactory.MakeFirewood, .4);
-        forageFeature.AddResource(ItemFactory.MakeRoots, .3);
-        forageFeature.AddResource(ItemFactory.MakeFlint, 0.1);
-        forageFeature.AddResource(ItemFactory.MakeSmallStone, 0.3);
-        forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.7);
-        forageFeature.AddResource(ItemFactory.MakeBarkStrips, 0.9);
-        forageFeature.AddResource(ItemFactory.MakePlantFibers, 0.8);
-        forageFeature.AddResource(ItemFactory.MakeTinderBundle, 0.2);
-        forageFeature.AddResource(ItemFactory.MakeNuts, 0.3);
-        forageFeature.AddResource(ItemFactory.MakeGrubs, 0.4);
-        forageFeature.AddResource(ItemFactory.MakeEggs, 0.2);
+        // Forage feature - forest is rich in fuel
+        var forageFeature = new ForageFeature(1.6)
+            .AddLogs(0.3, 1.5, 3.5)        // good logs
+            .AddSticks(0.8, 0.2, 0.6)      // plenty of sticks
+            .AddTinder(0.6, 0.02, 0.08)    // bark, dry leaves
+            .AddBerries(0.3, 0.05, 0.15);  // occasional berries
         location.Features.Add(forageFeature);
 
         // Environment feature
         location.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
+
+        // Animal territory - forests have good game
+        var animalTerritory = new AnimalTerritoryFeature(1.2)
+            .AddDeer(1.0)
+            .AddRabbit(0.8)
+            .AddFox(0.3);
+        location.Features.Add(animalTerritory);
 
         // Harvestables (spawn chance)
         if (Utils.DetermineSuccess(0.3))
@@ -56,41 +50,36 @@ public static class LocationFactory
             {
                 Description = "A frost-hardy shrub with clusters of dark berries."
             };
-            berryBush.AddResource(ItemFactory.MakeBerry, maxQuantity: 5, respawnHoursPerUnit: 168.0);
-            berryBush.AddResource(ItemFactory.MakeStick, maxQuantity: 2, respawnHoursPerUnit: 72.0);
+            berryBush.AddResource(HarvestResourceType.Berries, maxQuantity: 5, weightPerUnit: 0.1,
+                respawnHoursPerUnit: 168.0, displayName: "berries");
             location.Features.Add(berryBush);
         }
 
         if (Utils.DetermineSuccess(0.2))
         {
-            var willowStand = new HarvestableFeature("willow_stand", "Arctic Willow Stand")
+            var deadfall = new HarvestableFeature("deadfall", "Fallen Tree")
             {
-                Description = "A dense cluster of low-growing willow shrubs with flexible branches."
+                Description = "A wind-felled tree with dry, harvestable wood.",
+                MinutesToHarvest = 10
             };
-            willowStand.AddResource(ItemFactory.MakePlantFibers, maxQuantity: 8, respawnHoursPerUnit: 48.0);
-            willowStand.AddResource(ItemFactory.MakeBarkStrips, maxQuantity: 4, respawnHoursPerUnit: 72.0);
-            willowStand.AddResource(ItemFactory.MakeHealingHerbs, maxQuantity: 2, respawnHoursPerUnit: 96.0);
-            location.Features.Add(willowStand);
+            deadfall.AddResource(HarvestResourceType.Log, maxQuantity: 4, weightPerUnit: 2.5,
+                respawnHoursPerUnit: 720.0, displayName: "firewood");  // logs don't really respawn
+            deadfall.AddResource(HarvestResourceType.Stick, maxQuantity: 8, weightPerUnit: 0.3,
+                respawnHoursPerUnit: 168.0, displayName: "branches");
+            deadfall.AddResource(HarvestResourceType.Tinder, maxQuantity: 3, weightPerUnit: 0.05,
+                respawnHoursPerUnit: 168.0, displayName: "bark strips");
+            location.Features.Add(deadfall);
         }
 
-        if (Utils.DetermineSuccess(0.15))
-        {
-            var sapSeep = new HarvestableFeature("pine_sap_seep", "Pine Sap Seep")
-            {
-                Description = "Thick golden resin oozes from a crack in the pine bark."
-            };
-            sapSeep.AddResource(ItemFactory.MakePineSap, maxQuantity: 4, respawnHoursPerUnit: 168.0);
-            sapSeep.AddResource(ItemFactory.MakeTinderBundle, maxQuantity: 1, respawnHoursPerUnit: 240.0);
-            location.Features.Add(sapSeep);
-        }
-
-        if (Utils.DetermineSuccess(0.3))
+        if (Utils.DetermineSuccess(0.25))
         {
             var puddle = new HarvestableFeature("puddle", "Forest Puddle")
             {
-                Description = "A shallow puddle fed by melting snow."
+                Description = "A shallow puddle fed by melting snow.",
+                MinutesToHarvest = 2
             };
-            puddle.AddResource(ItemFactory.MakeWater, maxQuantity: 2, respawnHoursPerUnit: 12.0);
+            puddle.AddResource(HarvestResourceType.Water, maxQuantity: 3, weightPerUnit: 0.5,
+                respawnHoursPerUnit: 12.0, displayName: "water");
             location.Features.Add(puddle);
         }
 
@@ -101,10 +90,9 @@ public static class LocationFactory
     {
         List<string> caveNames = ["Cave", "Cavern", "Grotto", "Hollow", "Shelter"];
         List<string> caveAdjectives = [
-            "Icicle-lined", "Frost-rimmed", "Ice-floored", "Bone-strewn", "Mammoth-bone", "Winding", "Ancient",
-            "Hidden", "Ancestral", "Painted", "Rocky", "Echoing", "Ice-walled", "Hibernation",
-            "Crystal-ice", "Glacier-carved", "Frosty", "Icy", "Dark", "Shadowy", "Damp", "Deep",
-            "Frozen", "Narrow", "Secluded", "Granite", "Glowing", "Cold", "Crystal", "Protected"
+            "Icicle-lined", "Frost-rimmed", "Bone-strewn", "Winding", "Ancient",
+            "Hidden", "Rocky", "Echoing", "Deep", "Dark", "Shadowy", "Damp",
+            "Frozen", "Narrow", "Secluded", "Cold", "Protected"
         ];
 
         string adjective = Utils.GetRandomFromList(caveAdjectives);
@@ -117,15 +105,9 @@ public static class LocationFactory
             Terrain = TerrainType.Clear,
         };
 
-        // Forage feature - caves have fewer organics
-        var forageFeature = new ForageFeature(0.8);
-        forageFeature.AddResource(ItemFactory.MakeMushroom, 3.0);
-        forageFeature.AddResource(ItemFactory.MakeSmallStone, 5.0);
-        forageFeature.AddResource(ItemFactory.MakeFlint, 2.0);
-        forageFeature.AddResource(ItemFactory.MakeClay, 1.0);
-        forageFeature.AddResource(ItemFactory.MakeObsidianShard, 0.3);
-        forageFeature.AddResource(ItemFactory.MakeHandstone, 0.4);
-        forageFeature.AddResource(ItemFactory.MakeSharpStone, 0.3);
+        // Caves have very little forage - minimal fuel, no food
+        var forageFeature = new ForageFeature(0.3)
+            .AddTinder(0.2, 0.01, 0.03);  // occasional dry debris
         location.Features.Add(forageFeature);
 
         // Environment feature
@@ -141,10 +123,9 @@ public static class LocationFactory
     {
         List<string> riverNames = ["River", "Stream", "Creek", "Brook", "Rapids", "Ford", "Shallows"];
         List<string> riverAdjectives = [
-            "Ice-rimmed", "Glacial", "Snowmelt", "Half-frozen", "Ice-flow", "Narrow", "Mammoth-crossing",
-            "Frozen-edged", "Icy", "Slush-filled", "Ice-bridged", "Cold", "Mist-shrouded", "Foggy",
-            "Glacier-fed", "Thawing", "Crystalline", "Frigid", "Quiet", "Thundering", "Glistening",
-            "Rushing", "Flowing", "Clear", "Muddy", "Wide", "Rocky", "Sandy", "Shallow", "Deep"
+            "Ice-rimmed", "Glacial", "Snowmelt", "Half-frozen", "Narrow",
+            "Icy", "Cold", "Mist-shrouded", "Foggy", "Crystalline", "Frigid",
+            "Rushing", "Flowing", "Clear", "Shallow", "Deep"
         ];
 
         string adjective = Utils.GetRandomFromList(riverAdjectives);
@@ -157,44 +138,24 @@ public static class LocationFactory
             Terrain = TerrainType.Clear,
         };
 
-        // Forage feature
-        var forageFeature = new ForageFeature(1.1);
-        forageFeature.AddResource(ItemFactory.MakeWater, 10.0);
-        forageFeature.AddResource(ItemFactory.MakeFish, 6.0);
-        forageFeature.AddResource(ItemFactory.MakeRoots, 4.0);
-        forageFeature.AddResource(ItemFactory.MakeClay, 5.0);
-        forageFeature.AddResource(ItemFactory.MakeSmallStone, 5.0);
-        forageFeature.AddResource(ItemFactory.MakeFlint, 1.0);
-        forageFeature.AddResource(ItemFactory.MakeRushes, 0.8);
-        forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.3);
+        // Riverbeds have driftwood, limited other resources
+        var forageFeature = new ForageFeature(1.0)
+            .AddSticks(0.5, 0.2, 0.5)     // driftwood
+            .AddLogs(0.2, 1.0, 2.0);       // occasional larger driftwood
         location.Features.Add(forageFeature);
 
         // Environment feature
         location.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.RiverBank));
 
-        // Water source harvestable
-        if (Utils.DetermineSuccess(0.7))
+        // Water source harvestable - always present at rivers
+        var river = new HarvestableFeature("river", "Ice-Fed River")
         {
-            var river = new HarvestableFeature("river", "Ice-Fed River")
-            {
-                Description = "A swift-flowing river fed by glacial meltwater. Cold but clear."
-            };
-            river.AddResource(ItemFactory.MakeWater, maxQuantity: 100, respawnHoursPerUnit: 0.1);
-            river.AddResource(ItemFactory.MakeFish, maxQuantity: 8, respawnHoursPerUnit: 24.0);
-            river.AddResource(ItemFactory.MakeClay, maxQuantity: 6, respawnHoursPerUnit: 48.0);
-            location.Features.Add(river);
-        }
-        else
-        {
-            var stream = new HarvestableFeature("stream", "Mountain Stream")
-            {
-                Description = "A narrow stream over smooth stones. Crystal clear and icy cold."
-            };
-            stream.AddResource(ItemFactory.MakeWater, maxQuantity: 10, respawnHoursPerUnit: 1.0);
-            stream.AddResource(ItemFactory.MakeFish, maxQuantity: 3, respawnHoursPerUnit: 48.0);
-            stream.AddResource(ItemFactory.MakeSmallStone, maxQuantity: 5, respawnHoursPerUnit: 72.0);
-            location.Features.Add(stream);
-        }
+            Description = "A swift-flowing river fed by glacial meltwater. Cold but clear.",
+            MinutesToHarvest = 1
+        };
+        river.AddResource(HarvestResourceType.Water, maxQuantity: 100, weightPerUnit: 1.0,
+            respawnHoursPerUnit: 0.1, displayName: "water");  // effectively unlimited
+        location.Features.Add(river);
 
         return location;
     }
@@ -203,10 +164,9 @@ public static class LocationFactory
     {
         List<string> plainNames = ["Plain", "Steppe", "Tundra", "Grassland", "Prairie", "Meadow"];
         List<string> plainAdjectives = [
-            "Windswept", "Permafrost", "Glacial", "Frozen", "Vast", "Rolling", "Endless", "Mammoth-trampled",
-            "Snow-covered", "Ice-plain", "Desolate", "Frosty", "Exposed", "Bison-grazed",
-            "Bleak", "Stark", "Harsh", "Woolly", "Flat", "Frost-cracked",
-            "Open", "Windy", "Cold", "Barren", "Grassy", "Empty", "Rocky", "Wild"
+            "Windswept", "Frozen", "Vast", "Rolling", "Endless",
+            "Snow-covered", "Desolate", "Frosty", "Exposed",
+            "Bleak", "Stark", "Harsh", "Flat", "Open", "Windy", "Cold", "Barren", "Wild"
         ];
 
         string adjective = Utils.GetRandomFromList(plainAdjectives);
@@ -219,28 +179,32 @@ public static class LocationFactory
             Terrain = TerrainType.Clear,
         };
 
-        // Forage feature - sparse
-        var forageFeature = new ForageFeature(0.7);
-        forageFeature.AddResource(ItemFactory.MakeRoots, 6.0);
-        forageFeature.AddResource(ItemFactory.MakeBerry, 2.0);
-        forageFeature.AddResource(ItemFactory.MakeStick, 1.0);
-        forageFeature.AddResource(ItemFactory.MakeSmallStone, 4.0);
-        forageFeature.AddResource(ItemFactory.MakeFlint, 0.5);
-        forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.8);
-        forageFeature.AddResource(ItemFactory.MakePlantFibers, 0.4);
+        // Plains are sparse - mainly dry grass for tinder
+        var forageFeature = new ForageFeature(0.5)
+            .AddTinder(0.7, 0.03, 0.1)    // dry grass is common
+            .AddSticks(0.2, 0.1, 0.3)     // occasional scrub
+            .AddBerries(0.15, 0.03, 0.1); // sparse berries
         location.Features.Add(forageFeature);
 
         // Environment feature
         location.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.OpenPlain));
 
-        // Occasional water
-        if (Utils.DetermineSuccess(0.3))
+        // Animal territory - plains have small game and birds
+        var animalTerritory = new AnimalTerritoryFeature(0.8)
+            .AddRabbit(1.0)
+            .AddPtarmigan(0.7);
+        location.Features.Add(animalTerritory);
+
+        // Occasional meltwater
+        if (Utils.DetermineSuccess(0.2))
         {
             var puddle = new HarvestableFeature("puddle", "Meltwater Puddle")
             {
-                Description = "A shallow depression with fresh meltwater. Frozen at edges."
+                Description = "A shallow depression with fresh meltwater. Frozen at edges.",
+                MinutesToHarvest = 2
             };
-            puddle.AddResource(ItemFactory.MakeWater, maxQuantity: 2, respawnHoursPerUnit: 12.0);
+            puddle.AddResource(HarvestResourceType.Water, maxQuantity: 2, weightPerUnit: 0.5,
+                respawnHoursPerUnit: 24.0, displayName: "water");
             location.Features.Add(puddle);
         }
 
@@ -249,12 +213,11 @@ public static class LocationFactory
 
     public static Location MakeHillside(Zone parent)
     {
-        List<string> hillNames = ["Ridge", "Moraine", "Slope", "Drift", "Crag", "Bluff", "Outcrop", "Hill", "Knoll"];
+        List<string> hillNames = ["Ridge", "Slope", "Crag", "Bluff", "Outcrop", "Hill", "Knoll"];
         List<string> hillAdjectives = [
-            "Glacier-carved", "Ice-cracked", "Snow-swept", "Wind-scoured", "Ice-exposed", "Frost-heaved", "Craggy",
-            "Rugged", "Snow-capped", "Icy", "Ice-scarred", "Stone", "High", "Misty", "Frost-shattered",
-            "Eroded", "Ancient", "Granite", "Shaded", "Splintered",
-            "Rocky", "Steep", "Gentle", "Windswept", "Exposed", "Barren", "Weathered"
+            "Glacier-carved", "Ice-cracked", "Snow-swept", "Wind-scoured", "Craggy",
+            "Rugged", "Snow-capped", "Icy", "Stone", "High", "Misty",
+            "Rocky", "Steep", "Windswept", "Exposed", "Barren", "Weathered"
         ];
 
         string adjective = Utils.GetRandomFromList(hillAdjectives);
@@ -267,16 +230,10 @@ public static class LocationFactory
             Terrain = TerrainType.Steep,
         };
 
-        // Forage feature - stone-heavy
-        var forageFeature = new ForageFeature(0.9);
-        forageFeature.AddResource(ItemFactory.MakeSmallStone, 8.0);
-        forageFeature.AddResource(ItemFactory.MakeFlint, 3.0);
-        forageFeature.AddResource(ItemFactory.MakeObsidianShard, 0.5);
-        forageFeature.AddResource(ItemFactory.MakeRoots, 2.0);
-        forageFeature.AddResource(ItemFactory.MakeOchrePigment, 1.0);
-        forageFeature.AddResource(ItemFactory.MakeHandstone, 0.5);
-        forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.4);
-        forageFeature.AddResource(ItemFactory.MakePlantFibers, 0.3);
+        // Hills have sparse vegetation
+        var forageFeature = new ForageFeature(0.4)
+            .AddTinder(0.3, 0.02, 0.05)   // limited dry material
+            .AddSticks(0.15, 0.1, 0.25);  // scrub brush
         location.Features.Add(forageFeature);
 
         // Environment feature
@@ -303,18 +260,22 @@ public static class LocationFactory
             Terrain = TerrainType.Clear,
         };
 
-        // Moderate foraging
-        var forageFeature = new ForageFeature(1.0);
-        forageFeature.AddResource(ItemFactory.MakeBerry, 0.4);
-        forageFeature.AddResource(ItemFactory.MakeStick, 0.8);
-        forageFeature.AddResource(ItemFactory.MakeFirewood, 0.5);
-        forageFeature.AddResource(ItemFactory.MakeDryGrass, 0.6);
-        forageFeature.AddResource(ItemFactory.MakePlantFibers, 0.5);
-        forageFeature.AddResource(ItemFactory.MakeSmallStone, 0.3);
+        // Clearings have moderate resources
+        var forageFeature = new ForageFeature(1.0)
+            .AddSticks(0.6, 0.15, 0.4)
+            .AddLogs(0.2, 1.0, 2.5)
+            .AddTinder(0.5, 0.02, 0.06)
+            .AddBerries(0.25, 0.05, 0.12);
         location.Features.Add(forageFeature);
 
         // Environment - use Forest since clearings are typically in forests
         location.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
+
+        // Animal territory - clearings attract deer for grazing
+        var animalTerritory = new AnimalTerritoryFeature(1.0)
+            .AddDeer(1.2)
+            .AddRabbit(0.6);
+        location.Features.Add(animalTerritory);
 
         return location;
     }

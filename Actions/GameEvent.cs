@@ -11,7 +11,7 @@ public class EventResult(string message, double weight = 1)
     public int TimeAddedMinutes;
     public bool AbortsExpedition;
     public Effect? NewEffect;
-    public Item? NewItem;
+    public RewardPool RewardPool = RewardPool.None;
 }
 public class EventChoice(string label, string description, List<EventResult> results, List<EventCondition>? conditions = null)
 {

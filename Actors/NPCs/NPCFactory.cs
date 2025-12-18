@@ -27,7 +27,6 @@ namespace text_survival.Actors.NPCs
                 Description = "A rat with fleas.",
                 TrackingDifficulty = 3 // Easy to track
             };
-            rat.AddLoot(ItemFactory.MakeSmallMeat());
             return rat;
         }
 
@@ -53,7 +52,6 @@ namespace text_survival.Actors.NPCs
                 Description = "A wolf.",
                 TrackingDifficulty = 6 // Medium difficulty - intelligent predator
             };
-            wolf.AddLoot(ItemFactory.MakeLargeMeat());
             return wolf;
         }
 
@@ -79,7 +77,6 @@ namespace text_survival.Actors.NPCs
                 Description = "A bear.",
                 TrackingDifficulty = 5 // Medium difficulty
             };
-            bear.AddLoot(ItemFactory.MakeLargeMeat());
             return bear;
         }
 
@@ -105,11 +102,6 @@ namespace text_survival.Actors.NPCs
                 Description = "A venomous snake.",
                 TrackingDifficulty = 7 // Hard to track - leaves minimal trail
             };
-
-            LootTable loot = new LootTable();
-            loot.AddItem(ItemFactory.MakeSmallMeat, 2);
-            loot.AddItem(ItemFactory.MakeVenomSac);
-            snake.AddLoot(loot.GenerateRandomItem());
 
             // TODO: Apply venom effect
             // snake.ApplyEffect(new PoisonEffect("venom", "natural", 0.8, 2, 180));
@@ -169,11 +161,6 @@ namespace text_survival.Actors.NPCs
             // TODO: Apply venom effect
             // spider.ApplyEffect(new PoisonEffect("venom", "natural", 0.6, 1, 120));
 
-            var loot = new LootTable();
-            loot.AddItem(ItemFactory.MakeSpiderSilk);
-            loot.AddItem(ItemFactory.MakeVenomSac);
-            spider.AddLoot(loot.GenerateRandomItem());
-
             return spider;
         }
 
@@ -199,10 +186,6 @@ namespace text_survival.Actors.NPCs
                 Description = "An enormous cave bear with massive claws. It's adapted to cave dwelling and hunting in darkness.",
                 TrackingDifficulty = 4 // Easier to track - large and heavy
             };
-
-            // Add more meat due to larger size
-            caveBear.AddLoot(ItemFactory.MakeLargeMeat());
-            caveBear.AddLoot(ItemFactory.MakeLargeMeat());
 
             return caveBear;
         }
@@ -230,11 +213,6 @@ namespace text_survival.Actors.NPCs
                 TrackingDifficulty = 2 // Very easy to track - enormous and heavy
             };
 
-            // Add large amount of meat and other rare resources
-            mammoth.AddLoot(ItemFactory.MakeLargeMeat());
-            mammoth.AddLoot(ItemFactory.MakeLargeMeat());
-            mammoth.AddLoot(ItemFactory.MakeLargeMeat());
-
             return mammoth;
         }
 
@@ -260,9 +238,6 @@ namespace text_survival.Actors.NPCs
                 Description = "A fearsome predator with long saber-like canine teeth.",
                 TrackingDifficulty = 7 // Hard to track - stealthy apex predator
             };
-
-            saberTooth.AddLoot(ItemFactory.MakeLargeMeat());
-            saberTooth.AddLoot(ItemFactory.MakeLargeMeat());
 
             return saberTooth;
         }
@@ -291,8 +266,6 @@ namespace text_survival.Actors.NPCs
                 TrackingDifficulty = 4 // Moderate - leaves clear tracks but moves fast
             };
 
-            deer.AddLoot(ItemFactory.MakeLargeMeat());
-            deer.AddLoot(ItemFactory.MakeLargeMeat());
             return deer;
         }
 
@@ -319,7 +292,6 @@ namespace text_survival.Actors.NPCs
                 TrackingDifficulty = 6 // Hard to track - small and erratic movements
             };
 
-            rabbit.AddLoot(ItemFactory.MakeSmallMeat());
             return rabbit;
         }
 
@@ -346,7 +318,6 @@ namespace text_survival.Actors.NPCs
                 TrackingDifficulty = 7 // Very hard to track - flies away, good camouflage
             };
 
-            ptarmigan.AddLoot(ItemFactory.MakeSmallMeat());
             return ptarmigan;
         }
 
@@ -373,7 +344,6 @@ namespace text_survival.Actors.NPCs
                 TrackingDifficulty = 6 // Medium-hard - intelligent and cautious (will flee if outmatched)
             };
 
-            fox.AddLoot(ItemFactory.MakeSmallMeat());
             return fox;
         }
 
@@ -401,9 +371,6 @@ namespace text_survival.Actors.NPCs
                 Description = "A lean, muscular hunter from a nearby tribe."
             };
 
-            // Add some basic equipment to loot
-            hunter.AddLoot(ItemFactory.MakeSmallMeat());
-
             return hunter;
         }
 
@@ -430,9 +397,6 @@ namespace text_survival.Actors.NPCs
                 Description = "A fierce warrior with ritual paint markings."
             };
 
-            // Add some loot
-            warrior.AddLoot(new Weapon(WeaponType.Knife, WeaponMaterial.Flint, "Knapped-Flint Scraper", 60));
-
             return warrior;
         }
 
@@ -458,9 +422,6 @@ namespace text_survival.Actors.NPCs
             {
                 Description = "An elderly shaman adorned with animal bones and feathers."
             };
-
-            // Add some rare loot
-            shaman.AddLoot(new Weapon(WeaponType.Knife, WeaponMaterial.Obsidian, "Night-Glass Ritual Knife", 95));
 
             return shaman;
         }

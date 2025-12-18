@@ -46,7 +46,7 @@ public class Expedition(List<Location> path, int destinationIndex, Player player
 
 
     // results
-    public List<Item> LootCollected { get; } = [];
+    public List<string> CollectionLog { get; } = [];  // Descriptions of collected resources for end summary
     private List<string> EventsLog { get; } = [];
 
 
@@ -170,7 +170,7 @@ public class Expedition(List<Location> path, int destinationIndex, Player player
 
         if (CurrentPhase == ExpeditionPhase.Working)
         {
-            DoWork(tickResult.MinutesElapsed);
+            DoWork(tickResult.MinutesElapsed, ctx);
         }
         return new SegmentResult(tickResult.MinutesElapsed, tickResult.TriggeredEvent);
     }
@@ -183,31 +183,35 @@ public class Expedition(List<Location> path, int destinationIndex, Player player
             return TimeToTraverseLocation() - MinutesSpentAtLocation;
     }
 
-    private void DoWork(int minutes)
+    private void DoWork(int minutes, GameContext ctx)
     {
         if (Type == ExpeditionType.Forage)
         {
-            DoForageWork(minutes);
+            DoForageWork(minutes, ctx);
         }
-        if (Type == ExpeditionType.Gather)
+        else if (Type == ExpeditionType.Gather)
         {
-            DoHarvestWork(minutes);
+            DoHarvestWork(minutes, ctx);
         }
+        // Note: Hunt type is handled by ExpeditionRunner.RunHuntingWorkPhase()
+        // which runs interactively instead of through this automated work phase
     }
-    private void DoForageWork(int minutes)
+
+    private void DoForageWork(int minutes, GameContext ctx)
     {
         var feature = CurrentLocation.GetFeature<ForageFeature>() ?? throw new InvalidOperationException("Can't forage here.");
-        var items = feature.Forage(minutes / 60.0);
-        LootCollected.AddRange(items);
-        if (items.Count > 0)
+        var found = feature.Forage(minutes / 60.0);
+
+        if (!found.IsEmpty)
         {
-            var groupedItems = items
-                .GroupBy(item => item.Name)
-                .Select(group => $"{group.Key} ({group.Count()})")
-                .ToList();
+            // Add directly to player inventory
+            ctx.Inventory.Add(found);
+
+            // Log descriptions for end summary
+            CollectionLog.AddRange(found.Descriptions);
 
             string timeText = minutes == 60 ? "1 hour" : $"{minutes} minutes";
-            AddLog($"You spent {timeText} searching and found: {string.Join(", ", groupedItems)}");
+            AddLog($"You spent {timeText} searching and found: {string.Join(", ", found.Descriptions)}");
         }
         else
         {
@@ -216,7 +220,7 @@ public class Expedition(List<Location> path, int destinationIndex, Player player
         }
     }
 
-    private void DoHarvestWork(int minutes)
+    private void DoHarvestWork(int minutes, GameContext ctx)
     {
         var feature = CurrentLocation.Features
                 .OfType<HarvestableFeature>()
@@ -229,14 +233,16 @@ public class Expedition(List<Location> path, int destinationIndex, Player player
             return;
         }
 
-        var items = feature.Harvest(minutes);
-        if (items.Count > 0)
+        var found = feature.Harvest(minutes);
+        if (!found.IsEmpty)
         {
-            LootCollected.AddRange(items);
+            // Add directly to player inventory
+            ctx.Inventory.Add(found);
 
-            var grouped = items.GroupBy(i => i.Name)
-                .Select(g => $"{g.Key} ({g.Count()})");
-            AddLog($"You spent {minutes} minutes harvesting and gathered: {string.Join(", ", grouped)}");
+            // Log descriptions for end summary
+            CollectionLog.AddRange(found.Descriptions);
+
+            AddLog($"You spent {minutes} minutes harvesting and gathered: {string.Join(", ", found.Descriptions)}");
             if (feature.GetTotalMinutesToHarvest() > 0)
             {
                 AddLog($"The {feature.DisplayName} is now {feature.GetStatusDescription()} and has {feature.GetTotalMinutesToHarvest()} minutes left of harvesting until depleted.");

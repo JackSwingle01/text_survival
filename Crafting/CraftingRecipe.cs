@@ -66,21 +66,10 @@ public class CraftingRecipe(string name, string description = "")
 
     private static bool HasSufficientProperty(Player player, CraftingPropertyRequirement requirement)
     {
-        double totalAmount = 0;
-        int itemCount = 0;
-
-        foreach (var stack in player.inventoryManager.Items)
-        {
-            var item = stack.FirstItem;
-            var property = item.GetProperty(requirement.Property);
-
-            if (property != null)
-            {
-                totalAmount += stack.TotalWeight;
-                itemCount += stack.Count;
-            }
-        }
-        return totalAmount >= requirement.MinQuantity;
+        // TODO: Rework crafting requirements to check new aggregate Inventory
+        // For now, all property requirements are considered met
+        // The old discrete item system (inventoryManager) has been removed
+        return true;
     }
 
     private static bool HasFire(Location location)
@@ -101,84 +90,15 @@ public class CraftingRecipe(string name, string description = "")
     /// </summary>
     public List<(string ItemName, double Amount)> PreviewConsumption(Player player)
     {
-        var preview = new List<(string, double)>();
-
-        foreach (var requirement in RequiredProperties.Where(r => r.IsConsumed))
-        {
-            double remainingNeeded = requirement.MinQuantity;
-            var eligibleStacks = player.inventoryManager.Items
-                .Where(stack => stack.FirstItem.HasProperty(requirement.Property, 0))
-                .ToList();
-
-            foreach (var stack in eligibleStacks)
-            {
-                // Create a copy of the stack to iterate without modifying
-                var stackCopy = new List<Item>(stack.Items);
-                int stackIndex = 0;
-
-                while (stackIndex < stackCopy.Count && remainingNeeded > 0)
-                {
-                    var item = stackCopy[stackIndex];
-                    var property = item.GetProperty(requirement.Property);
-
-                    if (property != null && item.Weight <= remainingNeeded)
-                    {
-                        // Would consume entire item
-                        preview.Add((item.Name, item.Weight));
-                        remainingNeeded -= item.Weight;
-                        stackIndex++;
-                    }
-                    else if (property != null)
-                    {
-                        // Would partially consume item
-                        preview.Add((item.Name, remainingNeeded));
-                        remainingNeeded = 0;
-                    }
-                    else
-                    {
-                        // Item doesn't have the property, skip it
-                        stackIndex++;
-                    }
-                }
-
-                if (remainingNeeded <= 0) break;
-            }
-        }
-
-        return preview;
+        // TODO: Rework to use new aggregate Inventory system
+        // The old discrete item system (inventoryManager) has been removed
+        return [];
     }
 
     private static void ConsumeProperty(Player player, CraftingPropertyRequirement requirement)
     {
-        double remainingNeeded = requirement.MinQuantity;
-        var eligibleStacks = player.inventoryManager.Items
-            .Where(stack => stack.FirstItem.HasProperty(requirement.Property, 0))
-            .ToList();
-
-        foreach (var stack in eligibleStacks)
-        {
-            while (stack.Count > 0 && remainingNeeded > 0)
-            {
-                var item = stack.FirstItem;
-                var property = item.GetProperty(requirement.Property);
-
-                if (property != null && item.Weight <= remainingNeeded)
-                {
-                    // Consume entire item
-                    remainingNeeded -= item.Weight;
-                    var consumedItem = stack.Pop();
-                    player.inventoryManager.RemoveFromInventory(consumedItem);
-                }
-                else if (property != null)
-                {
-                    // Partially consume item (reduce its property amount)
-                    item.Weight -= remainingNeeded;
-                    remainingNeeded = 0;
-                }
-            }
-
-            if (remainingNeeded <= 0) break;
-        }
+        // TODO: Rework crafting consumption to use new aggregate Inventory system
+        // The old discrete item system (inventoryManager) has been removed
     }
 
     public List<Item> GenerateItemResults(Player player)

@@ -4,6 +4,8 @@ namespace text_survival.Tests.Bodies;
 
 public class CapacityCalculatorTests
 {
+    private static CapacityModifierContainer NoEffects => new();
+
     [Fact]
     public void GetCapacities_HealthyBody_AllCapacitiesNearPerfect()
     {
@@ -11,7 +13,7 @@ public class CapacityCalculatorTests
         var body = TestFixtures.CreateBaselineHumanBody();
 
         // Act
-        var capacities = CapacityCalculator.GetCapacities(body);
+        var capacities = CapacityCalculator.GetCapacities(body, NoEffects);
 
         // Assert - all capacities should be close to 1.0 for a healthy body
         Assert.True(capacities.Moving > 0.9, $"Moving capacity should be near 1.0. Actual: {capacities.Moving}");
@@ -29,7 +31,7 @@ public class CapacityCalculatorTests
     {
         // Arrange
         var body = TestFixtures.CreateBaselineHumanBody();
-        var healthyCapacities = CapacityCalculator.GetCapacities(body);
+        var healthyCapacities = CapacityCalculator.GetCapacities(body, NoEffects);
 
         // Destroy the heart
         var chest = body.Parts.First(p => p.Name == BodyRegionNames.Chest);
@@ -37,7 +39,7 @@ public class CapacityCalculatorTests
         heart.Condition = 0.0; // Destroyed
 
         // Act
-        var damagedCapacities = CapacityCalculator.GetCapacities(body);
+        var damagedCapacities = CapacityCalculator.GetCapacities(body, NoEffects);
 
         // Assert - destroyed organ should reduce blood pumping
         Assert.True(damagedCapacities.BloodPumping < healthyCapacities.BloodPumping,
@@ -53,7 +55,7 @@ public class CapacityCalculatorTests
     {
         // Arrange
         var body = TestFixtures.CreateBaselineHumanBody();
-        var healthyCapacities = CapacityCalculator.GetCapacities(body);
+        var healthyCapacities = CapacityCalculator.GetCapacities(body, NoEffects);
 
         // Destroy one lung
         var chest = body.Parts.First(p => p.Name == BodyRegionNames.Chest);
@@ -61,7 +63,7 @@ public class CapacityCalculatorTests
         leftLung.Condition = 0.0; // Destroyed
 
         // Act
-        var damagedCapacities = CapacityCalculator.GetCapacities(body);
+        var damagedCapacities = CapacityCalculator.GetCapacities(body, NoEffects);
 
         // Assert - destroyed lung should reduce breathing
         Assert.True(damagedCapacities.Breathing < healthyCapacities.Breathing,
@@ -81,7 +83,7 @@ public class CapacityCalculatorTests
 
         // Arrange
         var body = TestFixtures.CreateBaselineHumanBody();
-        var healthyCapacities = CapacityCalculator.GetCapacities(body);
+        var healthyCapacities = CapacityCalculator.GetCapacities(body, NoEffects);
 
         // Damage chest tissues to reduce blood pumping capacity
         var chest = body.Parts.First(p => p.Name == BodyRegionNames.Chest);
@@ -90,7 +92,7 @@ public class CapacityCalculatorTests
         chest.Skin.Condition = 0.3;   // Severely damaged skin
 
         // Act
-        var damagedCapacities = CapacityCalculator.GetCapacities(body);
+        var damagedCapacities = CapacityCalculator.GetCapacities(body, NoEffects);
 
         // Assert - tissue damage should reduce all capacities
         Assert.True(damagedCapacities.BloodPumping < healthyCapacities.BloodPumping,
@@ -113,7 +115,7 @@ public class CapacityCalculatorTests
 
         // Arrange
         var body = TestFixtures.CreateBaselineHumanBody();
-        var healthyCapacities = CapacityCalculator.GetCapacities(body);
+        var healthyCapacities = CapacityCalculator.GetCapacities(body, NoEffects);
 
         var chest = body.Parts.First(p => p.Name == BodyRegionNames.Chest);
 
@@ -123,7 +125,7 @@ public class CapacityCalculatorTests
         chest.Skin.Condition = 0.1;
 
         // Act
-        var damagedCapacities = CapacityCalculator.GetCapacities(body);
+        var damagedCapacities = CapacityCalculator.GetCapacities(body, NoEffects);
 
         // Assert
         Assert.True(damagedCapacities.Breathing < healthyCapacities.Breathing,
@@ -146,7 +148,7 @@ public class CapacityCalculatorTests
 
         // Arrange
         var body = TestFixtures.CreateBaselineHumanBody();
-        var healthyCapacities = CapacityCalculator.GetCapacities(body);
+        var healthyCapacities = CapacityCalculator.GetCapacities(body, NoEffects);
 
         var head = body.Parts.First(p => p.Name == BodyRegionNames.Head);
 
@@ -156,7 +158,7 @@ public class CapacityCalculatorTests
         head.Skin.Condition = 0.05;
 
         // Act
-        var damagedCapacities = CapacityCalculator.GetCapacities(body);
+        var damagedCapacities = CapacityCalculator.GetCapacities(body, NoEffects);
 
         // Assert
         Assert.True(damagedCapacities.Consciousness < healthyCapacities.Consciousness,
@@ -200,28 +202,20 @@ public class CapacityCalculatorTests
     }
 
     [Fact]
-    public void GetEffectCapacityModifiers_MultipleEffects_AggregatesModifiers()
+    public void GetCapacities_WithEffectModifiers_AppliesModifiers()
     {
         // Arrange
-        var effectRegistry = new EffectRegistry(null!);
-
-        // Create effects that modify capacities
-        var effect1 = EffectBuilderExtensions.CreateEffect("Test Effect 1")
-            .ReducesCapacity(CapacityNames.Moving, 0.2)
-            .Build();
-
-        var effect2 = EffectBuilderExtensions.CreateEffect("Test Effect 2")
-            .ReducesCapacity(CapacityNames.Moving, 0.1)
-            .Build();
-
-        effectRegistry.AddEffect(effect1);
-        effectRegistry.AddEffect(effect2);
+        var body = TestFixtures.CreateBaselineHumanBody();
+        var noEffects = new CapacityModifierContainer();
+        var withPenalty = new CapacityModifierContainer();
+        withPenalty.SetCapacityModifier(CapacityNames.Moving, -0.3);
 
         // Act
-        var modifiers = CapacityCalculator.GetEffectCapacityModifiers(effectRegistry);
+        var capacitiesNoEffects = CapacityCalculator.GetCapacities(body, noEffects);
+        var capacitiesWithPenalty = CapacityCalculator.GetCapacities(body, withPenalty);
 
-        // Assert
-        // Two effects reducing Moving by 0.2 and 0.1 = -0.3 total
-        Assert.Equal(-0.3, modifiers.GetCapacityModifier(CapacityNames.Moving), precision: 2);
+        // Assert - effect modifier should reduce moving capacity
+        Assert.True(capacitiesWithPenalty.Moving < capacitiesNoEffects.Moving,
+            $"Effect modifier should reduce moving. Without: {capacitiesNoEffects.Moving}, With: {capacitiesWithPenalty.Moving}");
     }
 }

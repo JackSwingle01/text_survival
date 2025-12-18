@@ -67,10 +67,16 @@ public static class AbilityCalculator
     {
         var capacities = CapacityCalculator.GetCapacities(body, effectModifiers);
 
-        double organFunction = (2 * (capacities.Breathing + capacities.BloodPumping) + capacities.Digestion) / 5;
-
-        return organFunction;
+        // Vitality = minimum of critical life-sustaining systems
+        // If any critical system fails (heart, lungs, or brain), you die
+        return Math.Min(
+            capacities.Breathing,
+            Math.Min(capacities.BloodPumping, capacities.Consciousness)
+        );
     }
+
+    // Overload for simpler calls without effect modifiers
+    public static double CalculateVitality(Body body) => CalculateVitality(body, new CapacityModifierContainer());
 
     public static double CalculatePerception(Body body, CapacityModifierContainer effectModifiers)
     {

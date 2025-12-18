@@ -29,7 +29,7 @@ namespace text_survival.Core
             var body = player.Body;
             // Show survival stats at time of death
             GameDisplay.AddNarrative("═══ Final Survival Stats ═══");
-            GameDisplay.AddNarrative($"Health: {player.Body.Health * 100:F1}%");
+            GameDisplay.AddNarrative($"Vitality: {player.Vitality * 100:F1}%");
             GameDisplay.AddNarrative($"Calories: {body.CalorieStore:F0}/{Survival.SurvivalProcessor.MAX_CALORIES:F0} ({body.CalorieStore / Survival.SurvivalProcessor.MAX_CALORIES * 100:F1}%)");
             GameDisplay.AddNarrative($"Hydration: {body.Hydration:F0}/{Survival.SurvivalProcessor.MAX_HYDRATION:F0} ({body.Hydration / Survival.SurvivalProcessor.MAX_HYDRATION * 100:F1}%)");
             GameDisplay.AddNarrative($"Energy: {body.Energy:F0}/{Survival.SurvivalProcessor.MAX_ENERGY_MINUTES:F0} ({body.Energy / Survival.SurvivalProcessor.MAX_ENERGY_MINUTES * 100:F1}%)");
@@ -98,38 +98,33 @@ namespace text_survival.Core
             Zone zone = ZoneFactory.MakeForestZone();
             Location startingArea = zone.Graph.All.First(s => s.Name == "Forest Clearing");
 
-            // Add starting equipment - basic fur wraps (Ice Age appropriate)
-            startingArea.Items.Add(ItemFactory.MakeWornFurChestWrap());
-            startingArea.Items.Add(ItemFactory.MakeFurLegWraps());
+            // Starting equipment - basic fur wraps (Ice Age appropriate)
+            // (Equipment is equipped directly to player inventory below)
 
             // Add environment feature
             startingArea.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
 
             // Add starting campfire (with 4.5kg kindling fuel for 3 hours of warmth)
-            // Note: Must use kindling (0°F requirement) for initial fuel, not softwood (400°F requirement)
             // Kindling burns at 1.5 kg/hr, so 4.5kg = 3 hours burn time
             HeatSourceFeature campfire = new HeatSourceFeature();
-            var startingFuel = ItemFactory.MakeStick(); // Large Stick = kindling (0°F requirement)
-            campfire.AddFuel(startingFuel, 4.5); // Add 4.5kg of kindling (auto-lights since MinFireTemp = 0°F)
+            campfire.AddFuel(4.5, FuelType.Kindling); // Auto-lights since MinFireTemp = 0°F
             startingArea.Features.Add(campfire);
-
-            // Add guaranteed fire-starting materials on ground (set IsFound=true so they're visible)
-            for (int i = 0; i < 3; i++)
-            {
-                var stick = ItemFactory.MakeStick();
-                stick.IsFound = true;
-                startingArea.Items.Add(stick);
-            }
-            for (int i = 0; i < 2; i++)
-            {
-                var tinder = ItemFactory.MakeDryGrass();
-                tinder.IsFound = true;
-                startingArea.Items.Add(tinder);
-            }
 
             Player player = new Player();
             Camp camp = new Camp(startingArea);
             GameContext context = new GameContext(player, camp);
+
+            // Equip starting clothing
+            context.Inventory.Equip(Equipment.WornFurChestWrap());
+            context.Inventory.Equip(Equipment.FurLegWraps());
+
+            // Add starting supplies to player's aggregate inventory
+            context.Inventory.Tools.Add(Tool.FireStriker("Flint and Steel"));  // Fire-starting tool
+            context.Inventory.Sticks.Add(0.3);  // A stick for kindling
+            context.Inventory.Sticks.Add(0.25);
+            context.Inventory.Sticks.Add(0.35);
+            context.Inventory.Tinder.Add(0.05); // Some tinder
+            context.Inventory.Tinder.Add(0.04);
 
             GameDisplay.AddDanger("You wake up in the forest, with no memory of how you got there.");
             GameDisplay.AddDanger("Light snow is falling, and you feel the air getting colder.");

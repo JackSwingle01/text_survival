@@ -4,6 +4,8 @@ namespace text_survival.Tests.Bodies;
 
 public class AbilityCalculatorTests
 {
+    private static CapacityModifierContainer NoEffects => new();
+
     [Fact]
     public void CalculateStrength_BaselineHuman_ReturnsExpectedValue()
     {
@@ -23,7 +25,7 @@ public class AbilityCalculatorTests
         // Result ≈ 0.977
 
         // Act
-        double strength = AbilityCalculator.CalculateStrength(body);
+        double strength = AbilityCalculator.CalculateStrength(body, NoEffects);
 
         // Assert
         Assert.True(strength > 0.9 && strength < 1.1,
@@ -37,8 +39,8 @@ public class AbilityCalculatorTests
         var body = TestFixtures.CreateCustomHumanBody(weight: 90, fatPercent: 0.10, musclePercent: 0.45);
 
         // Act
-        double strength = AbilityCalculator.CalculateStrength(body);
-        double baselineStrength = AbilityCalculator.CalculateStrength(TestFixtures.CreateBaselineHumanBody());
+        double strength = AbilityCalculator.CalculateStrength(body, NoEffects);
+        double baselineStrength = AbilityCalculator.CalculateStrength(TestFixtures.CreateBaselineHumanBody(), NoEffects);
 
         // Assert
         Assert.True(strength > baselineStrength,
@@ -54,7 +56,7 @@ public class AbilityCalculatorTests
         // Low fat penalty: (0.05 - 0.03) * 3.0 = 0.06 penalty
 
         // Act
-        double strength = AbilityCalculator.CalculateStrength(body);
+        double strength = AbilityCalculator.CalculateStrength(body, NoEffects);
 
         // Since muscle is slightly higher, but fat penalty is significant, result should be lower than high-fat equivalent
         // Assert
@@ -69,7 +71,7 @@ public class AbilityCalculatorTests
         var body = TestFixtures.CreateBaselineHumanBody();
 
         // Act
-        double speed = AbilityCalculator.CalculateSpeed(body);
+        double speed = AbilityCalculator.CalculateSpeed(body, NoEffects);
 
         // Assert
         // Baseline human with current formulas gives ~0.85 speed
@@ -87,7 +89,7 @@ public class AbilityCalculatorTests
         // fatPenalty = (0.35 - 0.15) * 1.5 = 0.30 (30% penalty)
 
         // Act
-        double speed = AbilityCalculator.CalculateSpeed(body);
+        double speed = AbilityCalculator.CalculateSpeed(body, NoEffects);
 
         // Assert
         Assert.True(speed < 0.8,
@@ -104,7 +106,7 @@ public class AbilityCalculatorTests
         // sizeModifier = 1 - 0.03 * Log2(10) ≈ 1 - 0.03 * 3.32 ≈ 0.90
 
         // Act
-        double speed = AbilityCalculator.CalculateSpeed(body);
+        double speed = AbilityCalculator.CalculateSpeed(body, NoEffects);
 
         // Assert
         Assert.True(speed < 1.0,
@@ -119,8 +121,8 @@ public class AbilityCalculatorTests
         var baselineBody = TestFixtures.CreateBaselineHumanBody();
 
         // Act
-        double smallSpeed = AbilityCalculator.CalculateSpeed(body);
-        double baselineSpeed = AbilityCalculator.CalculateSpeed(baselineBody);
+        double smallSpeed = AbilityCalculator.CalculateSpeed(body, NoEffects);
+        double baselineSpeed = AbilityCalculator.CalculateSpeed(baselineBody, NoEffects);
 
         // Assert
         Assert.True(smallSpeed > baselineSpeed,
@@ -138,7 +140,7 @@ public class AbilityCalculatorTests
         // With perfect health: (2 * (1.0 + 1.0) + 1.0) / 5 = 5 / 5 = 1.0
 
         // Act
-        double vitality = AbilityCalculator.CalculateVitality(body);
+        double vitality = AbilityCalculator.CalculateVitality(body, NoEffects);
 
         // Assert
         Assert.Equal(1.0, vitality, precision: 2);
@@ -153,7 +155,7 @@ public class AbilityCalculatorTests
         // Fat contribution in optimal range (10-25%): 0.05
 
         // Act
-        double vitality = AbilityCalculator.CalculateVitality(optimalBody);
+        double vitality = AbilityCalculator.CalculateVitality(optimalBody, NoEffects);
 
         // Assert - vitality should be close to 1.0 with perfect organ function
         Assert.True(vitality > 0.9,
@@ -170,7 +172,7 @@ public class AbilityCalculatorTests
         // Perfect health: (1.0 + 1.0) / 2 = 1.0
 
         // Act
-        double perception = AbilityCalculator.CalculatePerception(body);
+        double perception = AbilityCalculator.CalculatePerception(body, NoEffects);
 
         // Assert
         Assert.Equal(1.0, perception, precision: 2);
@@ -182,14 +184,14 @@ public class AbilityCalculatorTests
         // Arrange - very low fat (3%)
         var body = TestFixtures.CreateCustomHumanBody(weight: 70, fatPercent: 0.03, musclePercent: 0.35);
 
-        // Fat insulation (< 5%): 0.03 / 0.05 * 0.1 = 0.06
-        // Total = 0.5 + 0.06 = 0.56
+        // Fat insulation (< 5%): 0.03 / 0.05 * 0.05 = 0.03
+        // Total = 0.0 + 0.03 = 0.03 (base cold resistance is 0 for humans)
 
         // Act
         double coldResistance = AbilityCalculator.CalculateColdResistance(body);
 
         // Assert
-        Assert.True(coldResistance > 0.5 && coldResistance < 0.6,
+        Assert.True(coldResistance >= 0 && coldResistance < 0.1,
             $"Low fat should provide minimal insulation. Actual: {coldResistance}");
     }
 
@@ -200,14 +202,14 @@ public class AbilityCalculatorTests
         var body = TestFixtures.CreateCustomHumanBody(weight: 75, fatPercent: 0.10, musclePercent: 0.30);
 
         // Fat insulation (5-15%):
-        // fatInsulation = 0.1 + ((0.10 - 0.05) / 0.1 * 0.15) = 0.1 + 0.075 = 0.175
-        // Total = 0.5 + 0.175 = 0.675
+        // fatInsulation = 0.05 + ((0.10 - 0.05) / 0.10 * 0.10) = 0.05 + 0.05 = 0.10
+        // Total = 0.0 + 0.10 = 0.10 (base cold resistance is 0 for humans)
 
         // Act
         double coldResistance = AbilityCalculator.CalculateColdResistance(body);
 
         // Assert
-        Assert.True(coldResistance > 0.65 && coldResistance < 0.70,
+        Assert.True(coldResistance >= 0.05 && coldResistance < 0.20,
             $"Optimal fat should provide good insulation. Actual: {coldResistance}");
     }
 
@@ -218,14 +220,14 @@ public class AbilityCalculatorTests
         var body = TestFixtures.CreateCustomHumanBody(weight: 90, fatPercent: 0.30, musclePercent: 0.25);
 
         // Fat insulation (>15%):
-        // fatInsulation = 0.25 + ((0.30 - 0.15) * 0.15) = 0.25 + 0.0225 = 0.2725
-        // Total = 0.5 + 0.2725 = 0.7725
+        // fatInsulation = 0.15 + ((0.30 - 0.15) / 0.15 * 0.05) = 0.15 + 0.05 = 0.20
+        // Total = 0.0 + 0.20 = 0.20 (base cold resistance is 0 for humans)
 
         // Act
         double coldResistance = AbilityCalculator.CalculateColdResistance(body);
 
         // Assert
-        Assert.True(coldResistance > 0.75 && coldResistance < 0.80,
+        Assert.True(coldResistance >= 0.15 && coldResistance <= 0.25,
             $"High fat should provide excellent insulation with diminishing returns. Actual: {coldResistance}");
     }
 }

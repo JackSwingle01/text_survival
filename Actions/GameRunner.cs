@@ -55,7 +55,6 @@ public partial class GameRunner(GameContext ctx)
         ExploreRunner exploreRunner = new (ctx);
 
         var choice = new Choice<Action>();
-        choice.AddOption("Look around", LookAround);
 
         if (HasActiveFire())
             choice.AddOption("Tend fire", TendFire);
@@ -63,7 +62,7 @@ public partial class GameRunner(GameContext ctx)
         if (CanStartFire())
             choice.AddOption("Start fire", StartFire);
 
-        if (expeditionRunner.GetGatherableLocations().Any() || CanHunt())
+        if (expeditionRunner.GetGatherableLocations().Any() || expeditionRunner.GetHuntableLocations().Any())
             choice.AddOption("Go on expedition", ChooseExpeditionType);
 
         // if (exploreRunner.HasUnexploredReachable(state))
@@ -71,8 +70,6 @@ public partial class GameRunner(GameContext ctx)
             
         if (HasItems())
             choice.AddOption("Inventory", RunInventoryMenu);
-
-        choice.AddOption("Check stats", CheckStats);
 
         if (ctx.player.Body.IsTired)
             choice.AddOption("Sleep", Sleep);
@@ -86,94 +83,10 @@ public partial class GameRunner(GameContext ctx)
         var choice = new Choice<Action>();
         if (expeditionRunner.GetGatherableLocations().Any())
             choice.AddOption("Gather", expeditionRunner.RunForageExpedition);
-        if (CanHunt())
-            choice.AddOption("Hunt", RunHuntingMenu);
+        if (expeditionRunner.GetHuntableLocations().Any())
+            choice.AddOption("Hunt", expeditionRunner.RunHuntExpedition);
 
         choice.GetPlayerChoice().Invoke();
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // LOOK AROUND
-    // ═══════════════════════════════════════════════════════════════════════════
-    private void LookAround()
-    {
-        var location = ctx.CurrentLocation;
-        GameDisplay.AddNarrative("");
-
-        // Location and conditions
-        GameDisplay.AddNarrative($"You're at {location.Name}, {location.Description}.\nIt's {ctx.GetTimeOfDay().ToString().ToLower()}, {location.GetTemperature():F0}°F.");
-        GameDisplay.AddNarrative("");
-
-        // Fire status - most important
-        var fire = location.GetFeature<HeatSourceFeature>();
-        if (fire != null)
-            GameDisplay.AddNarrative(DescribeFire(fire));
-
-        // Shelter
-        var shelter = location.GetFeature<ShelterFeature>();
-        if (shelter != null)
-            GameDisplay.AddNarrative($"You have a {shelter.Name.ToLower()} here.");
-
-        // Harvestables
-        foreach (var h in location.Features.OfType<HarvestableFeature>().Where(f => f.IsDiscovered))
-            GameDisplay.AddNarrative($"There's a {h.DisplayName.ToLower()} nearby.");
-
-        // Items on ground
-        var foundItems = location.Items.Where(i => i.IsFound).ToList();
-        if (foundItems.Count == 1)
-            GameDisplay.AddNarrative($"You notice a {foundItems[0].Name.ToLower()} on the ground.");
-        else if (foundItems.Count > 1)
-            GameDisplay.AddNarrative($"On the ground you see: {string.Join(", ", foundItems.Select(i => i.Name.ToLower()))}.");
-
-        // NPCs
-        foreach (var npc in location.Npcs.Where(n => n.IsFound))
-        {
-            if (npc.IsAlive)
-                GameDisplay.AddDanger($"A {npc.Name.ToLower()} is here.");
-            else
-                GameDisplay.AddNarrative($"The body of a {npc.Name.ToLower()} lies here.");
-        }
-
-        // Exits
-        var nearby = location.Connections;
-        if (nearby.Count != 0)
-        {
-            GameDisplay.AddNarrative("");
-            GameDisplay.AddNarrative($"From here you could reach {FormatList(nearby.Select(n => n.Name))}.");
-        }
-
-        GameDisplay.AddNarrative("");
-    }
-
-    private static string DescribeFire(HeatSourceFeature fire)
-    {
-        if (fire.IsActive && fire.HoursRemaining > 0)
-        {
-            int minutes = (int)(fire.HoursRemaining * 60);
-            if (fire.HoursRemaining < 0.25)
-                return $"Your fire is dying down, maybe {minutes} minutes left.";
-            if (fire.HoursRemaining < 0.5)
-                return $"The fire is getting low. About {minutes} minutes of fuel left.";
-            return $"Your fire is burning steadily. You have about {minutes} minutes of fuel.";
-        }
-        if (fire.HasEmbers)
-        {
-            int minutes = (int)(fire.EmberTimeRemaining * 60);
-            return $"The fire has burned down to embers. They'll last maybe {minutes} more minutes.";
-        }
-        return "Your fire pit is cold.";
-    }
-
-    private static string FormatList(IEnumerable<string> items)
-    {
-        var list = items.ToList();
-        return list.Count switch
-        {
-            0 => "",
-            1 => list[0],
-            2 => $"{list[0]} or {list[1]}",
-            _ => $"{string.Join(", ", list.Take(list.Count - 1))}, or {list.Last()}"
-        };
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -185,11 +98,8 @@ public partial class GameRunner(GameContext ctx)
         var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
         if (fire == null) return false;
 
-        var flammableItems = ctx.player.inventoryManager.Items
-            .Where(stack => stack.FirstItem.CraftingProperties.Contains(ItemProperty.Flammable))
-            .ToList();
-
-        return flammableItems.Count > 0;
+        // Show "Tend fire" if there's an active fire AND we have fuel to add
+        return (fire.IsActive || fire.HasEmbers) && ctx.Inventory.HasFuel;
     }
 
     private bool CanStartFire()
@@ -197,32 +107,19 @@ public partial class GameRunner(GameContext ctx)
         var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
 
         bool noFire = fire == null;
-        bool fullyColdFire = fire != null && fire.HoursRemaining == 0 && !fire.HasEmbers;
+        bool coldFire = fire != null && !fire.IsActive && !fire.HasEmbers;
 
-        if (!noFire && !fullyColdFire) return false;
+        if (!noFire && !coldFire) return false;
 
-        var inventory = ctx.player.inventoryManager;
-
-        bool hasTool = inventory.Items.Any(s => IsFireMakingTool(s.FirstItem));
-
-        double tinder = inventory.Items
-            .Where(s => s.FirstItem.HasProperty(ItemProperty.Tinder, 0))
-            .Sum(s => s.TotalWeight);
-        double kindling = inventory.Items
-            .Where(s => s.FirstItem.HasProperty(ItemProperty.Wood, 0))
-            .Sum(s => s.TotalWeight);
-
-        return hasTool && tinder >= 0.05 && kindling >= 0.3;
-    }
-
-    private static bool IsFireMakingTool(Item item)
-    {
-        return item.Name is "Hand Drill" or "Bow Drill" or "Flint and Steel";
+        // Need a fire tool and materials
+        bool hasTool = ctx.Inventory.Tools.Any(t => t.Type == ToolType.FireStriker);
+        return hasTool && ctx.Inventory.CanStartFire;
     }
 
     private void TendFire()
     {
         var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>()!;
+        var inv = ctx.Inventory;
 
         // Display fire status
         string firePhase = fire.GetFirePhase();
@@ -230,265 +127,182 @@ public partial class GameRunner(GameContext ctx)
         double heatOutput = fire.GetEffectiveHeatOutput(ctx.CurrentLocation.GetTemperature());
         double fuelMinutes = fire.HoursRemaining * 60;
 
-        ConsoleColor phaseColor = firePhase switch
-        {
-            "Roaring" => ConsoleColor.Red,
-            "Building" or "Steady" => ConsoleColor.Yellow,
-            "Igniting" or "Dying" => ConsoleColor.DarkYellow,
-            "Embers" => ConsoleColor.DarkYellow,
-            _ => ConsoleColor.DarkGray
-        };
-
         GameDisplay.AddNarrative("");
-        GameDisplay.AddNarrative($"🔥 {fire.Name}: {firePhase} ({fireTemp:F0}°F)");
+        GameDisplay.AddNarrative($"Fire: {firePhase} ({fireTemp:F0}°F)");
 
         if (fire.IsActive || fire.HasEmbers)
         {
-            GameDisplay.AddNarrative($"   Heat contribution: +{heatOutput:F1}°F to location");
-            GameDisplay.AddNarrative($"   Fuel remaining: {fire.FuelMassKg:F2} kg (~{fuelMinutes:F0} min)");
+            GameDisplay.AddNarrative($"  Heat: +{heatOutput:F1}°F | Fuel: {fire.FuelMassKg:F2}kg (~{fuelMinutes:F0} min)");
 
             if (fire.HasEmbers)
             {
                 double emberMinutes = fire.EmberTimeRemaining * 60;
-                GameDisplay.AddNarrative($"   Embers will last: {emberMinutes:F0} minutes");
+                GameDisplay.AddNarrative($"  Embers will last: {emberMinutes:F0} minutes");
             }
         }
-        else
+
+        GameDisplay.AddNarrative($"  Capacity: {fire.FuelMassKg:F2}/{fire.MaxFuelCapacityKg:F1} kg");
+
+        // Build fuel options - only show options that can actually be added
+        var fuelChoices = new List<string>();
+        var fuelMap = new Dictionary<string, (string name, FuelType type, Func<double> takeFunc)>();
+
+        if (inv.Logs.Count > 0 && fire.CanAddFuel(FuelType.Softwood))
         {
-            GameDisplay.AddNarrative($"   Status: Cold fire (no fuel)");
+            string label = $"Add log ({inv.Logs.Count} @ {inv.Logs.Sum():F1}kg)";
+            fuelChoices.Add(label);
+            fuelMap[label] = ("log", FuelType.Softwood, inv.TakeSmallestLog);
         }
 
-        GameDisplay.AddNarrative($"   Capacity: {fire.FuelMassKg:F2}/{fire.MaxFuelCapacityKg:F1} kg");
-        GameDisplay.AddNarrative("");
-
-        // Get all fuel items
-        var fuelStacks = ctx.player.inventoryManager.Items
-            .Where(stack => stack.FirstItem.IsFuel())
-            .ToList();
-
-        if (fuelStacks.Count == 0)
+        if (inv.Sticks.Count > 0 && fire.CanAddFuel(FuelType.Kindling))
         {
-            GameDisplay.AddNarrative("You have no fuel to add.");
+            string label = $"Add stick ({inv.Sticks.Count} @ {inv.Sticks.Sum():F1}kg)";
+            fuelChoices.Add(label);
+            fuelMap[label] = ("stick", FuelType.Kindling, inv.TakeSmallestStick);
+        }
+
+        if (inv.Tinder.Count > 0 && fire.CanAddFuel(FuelType.Tinder))
+        {
+            string label = $"Add tinder ({inv.Tinder.Count} @ {inv.Tinder.Sum():F2}kg)";
+            fuelChoices.Add(label);
+            fuelMap[label] = ("tinder", FuelType.Tinder, inv.TakeTinder);
+        }
+
+        if (fuelChoices.Count == 0)
+        {
+            // Check if we have fuel but fire is too cold
+            bool hasFuelButTooCold = (inv.Logs.Count > 0 || inv.Sticks.Count > 0) && inv.Tinder.Count == 0;
+            if (hasFuelButTooCold)
+            {
+                GameDisplay.AddWarning("The fire is too cold. You need tinder to build it up first.");
+            }
+            else
+            {
+                GameDisplay.AddNarrative("You have no fuel to add.");
+            }
             Input.WaitForKey();
             return;
         }
 
-        GameDisplay.AddNarrative("Available fuel:");
-        var fuelOptions = new List<(ItemStack stack, bool canAdd, bool isSharp)>();
+        fuelChoices.Add("Cancel");
 
-        foreach (var stack in fuelStacks)
-        {
-            var firstItem = stack.FirstItem;
-            bool canAdd = fire.CanAddFuel(firstItem);
-            bool isSharp = firstItem.CraftingProperties.Contains(ItemProperty.Sharp);
+        GameDisplay.Render(ctx, addSeparator: false);
+        string choice = Input.Select("Add fuel:", fuelChoices);
 
-            var fuelType = firstItem.GetFuelType();
-            string fuelInfo = fuelType.HasValue ? $"[{fuelType.Value}]" : "";
-
-            double massKg = firstItem.FuelMassKg;
-            double burnHours = massKg;
-            double minTempRequired = 0;
-
-            if (fuelType.HasValue)
-            {
-                var props = FuelDatabase.Get(fuelType.Value);
-                burnHours = massKg / props.BurnRateKgPerHour;
-                minTempRequired = props.MinFireTemperature;
-            }
-
-            double burnMinutes = burnHours * 60;
-
-            string statusIcon = canAdd ? "✓" : "✗";
-            string warning = isSharp ? " ⚠ SHARP TOOL" : "";
-            string tempWarning = !canAdd && minTempRequired > 0 ? $" (needs {minTempRequired}°F fire)" : "";
-
-            GameDisplay.AddNarrative($"  {statusIcon} {fuelOptions.Count + 1}. {stack.DisplayName} {fuelInfo} - {massKg:F2}kg (~{burnMinutes:F0} min){warning}{tempWarning}");
-
-            fuelOptions.Add((stack, canAdd, isSharp));
-        }
-
-        GameDisplay.AddNarrative($"  {fuelOptions.Count + 1}. Cancel");
-        GameDisplay.AddNarrative("");
-        GameDisplay.AddNarrative("Select an item to add as fuel:");
-
-        int choice = Input.ReadInt();
-
-        if (choice < 1 || choice > fuelOptions.Count + 1)
-        {
-            GameDisplay.AddWarning("Invalid selection.");
+        if (choice == "Cancel")
             return;
-        }
 
-        if (choice == fuelOptions.Count + 1)
-        {
-            GameDisplay.AddNarrative("You decide not to add fuel to the fire.");
-            return;
-        }
-
-        var selected = fuelOptions[choice - 1];
-        var selectedStack = selected.stack;
-        bool canAddFuel = selected.canAdd;
-        bool selectedIsSharp = selected.isSharp;
-
-        if (!canAddFuel)
-        {
-            GameDisplay.AddWarning("The fire isn't hot enough to burn that fuel type!");
-            GameDisplay.AddNarrative("Try adding tinder or kindling first to build up the fire's temperature.");
-            return;
-        }
-
-        if (selectedIsSharp)
-        {
-            GameDisplay.AddWarning($"Warning: {selectedStack.FirstItem.Name} is a sharp tool!");
-            GameDisplay.AddNarrative("Are you sure you want to burn it? (yes/no)");
-            if (!Input.ReadYesNo())
-            {
-                GameDisplay.AddNarrative("You decide not to burn it.");
-                return;
-            }
-        }
-
-        double maxCanAddKg = fire.MaxFuelCapacityKg - fire.FuelMassKg;
-        double fuelMassKg = selectedStack.FirstItem.FuelMassKg;
-        bool overflow = fuelMassKg > maxCanAddKg;
-
-        var itemToRemove = selectedStack.Pop();
-        ctx.player.inventoryManager.RemoveFromInventory(itemToRemove);
-
+        var (name, fuelType, takeFunc) = fuelMap[choice];
         bool hadEmbers = fire.HasEmbers;
 
-        fire.AddFuel(itemToRemove);
+        // Take fuel from inventory and add to fire
+        double mass = takeFunc();
+        fire.AddFuel(mass, fuelType);
 
-        GameDisplay.AddNarrative($"\nYou add the {itemToRemove.Name} to the {fire.Name}.");
-        if (overflow)
-        {
-            double wastedKg = fuelMassKg - maxCanAddKg;
-            GameDisplay.AddWarning($"The fire was already near capacity. {wastedKg:F2} kg of fuel was wasted.");
-        }
+        GameDisplay.AddNarrative($"You add a {name} ({mass:F2}kg) to the fire.");
 
         double newFuelMinutes = fire.HoursRemaining * 60;
-        GameDisplay.AddNarrative($"The fire now has {fire.FuelMassKg:F2} kg of fuel ({newFuelMinutes:F0} minutes).");
-        GameDisplay.AddNarrative($"Fire temperature: {fire.GetCurrentFireTemperature():F0}°F ({fire.GetFirePhase()})");
+        GameDisplay.AddNarrative($"Fire: {fire.FuelMassKg:F2}kg fuel ({newFuelMinutes:F0} min) | {fire.GetCurrentFireTemperature():F0}°F ({fire.GetFirePhase()})");
 
         if (hadEmbers && fire.IsActive)
-            GameDisplay.AddNarrative("The embers ignite the new fuel! The fire springs back to life.");
-        else if (!fire.IsActive)
-            GameDisplay.AddWarning("\nThe fire is cold. You need to use 'Start Fire' to light it with proper fire-making materials.");
+            GameDisplay.AddNarrative("The embers ignite the fuel! The fire springs back to life.");
 
         ctx.Update(1);
     }
 
     private void StartFire()
     {
-        var inventory = ctx.player.inventoryManager;
+        var inv = ctx.Inventory;
         var existingFire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
         bool relightingFire = existingFire != null;
 
         if (relightingFire)
-            GameDisplay.AddNarrative($"You prepare to relight the fire.");
+            GameDisplay.AddNarrative("You prepare to relight the fire.");
         else
             GameDisplay.AddNarrative("You prepare to start a fire.");
 
-        var availableTools = inventory.Items
-            .Where(s => IsFireMakingTool(s.FirstItem) && s.FirstItem.NumUses > 0)
-            .Select(s => s.FirstItem)
-            .ToList();
+        // Get fire-making tools from aggregate inventory
+        var fireTools = inv.Tools.Where(t => t.Type == ToolType.FireStriker).ToList();
 
-        if (!availableTools.Any())
+        if (fireTools.Count == 0)
         {
-            GameDisplay.AddWarning("You don't have any working fire-making tools!");
+            GameDisplay.AddWarning("You don't have any fire-making tools!");
             return;
         }
 
-        bool hasTinder = inventory.Items.Any(s => s.FirstItem.HasProperty(ItemProperty.Tinder));
-        double tinderBonus = hasTinder ? 0.15 : 0.0;
+        bool hasTinder = inv.Tinder.Count > 0;
+        bool hasKindling = inv.Sticks.Count > 0;
 
-        GameDisplay.AddNarrative("\nChoose your fire-making tool:");
-        if (hasTinder)
-            GameDisplay.AddNarrative("  [Tinder available: +15% success bonus]");
-
-        int optionNum = 1;
-        foreach (var tool in availableTools)
+        if (!hasTinder)
         {
-            var toolParams = GetToolSkillParameters(tool);
-            double successChance = toolParams.baseChance;
-            var skill = ctx.player.Skills.GetSkill("Firecraft");
-            if (toolParams.skillDC > 0)
-            {
-                double skillModifier = (skill.Level - toolParams.skillDC) * 0.1;
-                successChance += skillModifier;
-            }
-            else
-            {
-                double skillModifier = skill.Level * 0.1;
-                successChance += skillModifier;
-            }
+            GameDisplay.AddWarning("You don't have any tinder to start a fire!");
+            return;
+        }
 
-            successChance += tinderBonus;
+        if (!hasKindling)
+        {
+            GameDisplay.AddWarning("You don't have any kindling to start a fire!");
+            return;
+        }
+
+        GameDisplay.AddNarrative($"Materials: {inv.Tinder.Count} tinder, {inv.Sticks.Count} kindling");
+
+        // Build tool options with success chances
+        var toolChoices = new List<string>();
+        var toolMap = new Dictionary<string, (Tool tool, double chance)>();
+
+        foreach (var tool in fireTools)
+        {
+            double baseChance = GetFireToolBaseChance(tool);
+            var skill = ctx.player.Skills.GetSkill("Firecraft");
+            double successChance = baseChance + (skill.Level * 0.1);
             successChance = Math.Clamp(successChance, 0.05, 0.95);
 
-            GameDisplay.AddNarrative($"  {optionNum}. {tool} - {successChance:P0} success chance");
-            optionNum++;
-        }
-        GameDisplay.AddNarrative($"  {optionNum}. Cancel");
-
-        GameDisplay.AddNarrative("\nSelect a tool:");
-        int choice = Input.ReadInt();
-
-        if (choice < 1 || choice > availableTools.Count + 1)
-        {
-            GameDisplay.AddWarning("Invalid selection.");
-            return;
+            string label = $"{tool.Name} - {successChance:P0} success chance";
+            toolChoices.Add(label);
+            toolMap[label] = (tool, successChance);
         }
 
-        if (choice == availableTools.Count + 1)
+        toolChoices.Add("Cancel");
+
+        GameDisplay.Render(ctx, addSeparator: false);
+        string choice = Input.Select("Choose fire-making tool:", toolChoices);
+
+        if (choice == "Cancel")
         {
             GameDisplay.AddNarrative("You decide not to start a fire right now.");
             return;
         }
 
-        var selectedTool = availableTools[choice - 1];
+        var (selectedTool, finalChance) = toolMap[choice];
 
-        var (baseChance, skillDC) = GetToolSkillParameters(selectedTool);
-        var playerSkill = ctx.player.Skills.GetSkill("Firecraft");
-        double finalSuccessChance = SkillCheckCalculator.CalculateSuccessChance(
-            baseChance,
-            playerSkill.Level,
-            skillDC);
-
-        finalSuccessChance += tinderBonus;
-        finalSuccessChance = Math.Clamp(finalSuccessChance, 0.05, 0.95);
-
-        GameDisplay.AddNarrative($"\nYou work with the {selectedTool.Name}...");
+        GameDisplay.AddNarrative($"You work with the {selectedTool.Name}...");
         ctx.Update(15);
 
-        bool success = Utils.DetermineSuccess(finalSuccessChance);
+        bool success = Utils.DetermineSuccess(finalChance);
+
+        // Always consume tinder on attempt
+        double tinderUsed = inv.TakeTinder();
 
         if (success)
         {
-            ConsumeMaterial(ctx.player, ItemProperty.Tinder, 0.05);
-            ConsumeMaterial(ctx.player, ItemProperty.Wood, 0.3);
+            // Also consume a stick for kindling
+            double kindlingUsed = inv.TakeSmallestStick();
 
-            bool toolBroke = selectedTool.UseOnce();
-            if (toolBroke)
-                inventory.RemoveFromInventory(selectedTool);
+            var playerSkill = ctx.player.Skills.GetSkill("Firecraft");
 
             if (relightingFire)
             {
-                GameDisplay.AddSuccess($"\nSuccess! You relight the fire! ({finalSuccessChance:P0} chance)");
-                var tinderFuel = ItemFactory.MakeTinderBundle();
-                var kindlingFuel = ItemFactory.MakeStick();
-                existingFire!.AddFuel(tinderFuel, 0.03);
-                existingFire.AddFuel(kindlingFuel, 0.3);
+                GameDisplay.AddSuccess($"Success! You relight the fire! ({finalChance:P0} chance)");
+                existingFire!.AddFuel(tinderUsed, FuelType.Tinder);
+                existingFire.AddFuel(kindlingUsed, FuelType.Kindling);
             }
             else
             {
-                GameDisplay.AddSuccess($"\nSuccess! You start a fire! ({finalSuccessChance:P0} chance)");
+                GameDisplay.AddSuccess($"Success! You start a fire! ({finalChance:P0} chance)");
                 var newFire = new HeatSourceFeature();
-                var tinderFuel = ItemFactory.MakeTinderBundle();
-                var kindlingFuel = ItemFactory.MakeStick();
-                newFire.AddFuel(tinderFuel, 0.03);
-                newFire.AddFuel(kindlingFuel, 0.3);
+                newFire.AddFuel(tinderUsed, FuelType.Tinder);
+                newFire.AddFuel(kindlingUsed, FuelType.Kindling);
                 ctx.CurrentLocation.Features.Add(newFire);
             }
 
@@ -496,53 +310,19 @@ public partial class GameRunner(GameContext ctx)
         }
         else
         {
-            ConsumeMaterial(ctx.player, ItemProperty.Tinder, 0.05);
-
-            bool toolBroke = selectedTool.UseOnce();
-            if (toolBroke)
-                inventory.RemoveFromInventory(selectedTool);
-
-            GameDisplay.AddWarning($"\nYou failed to start the fire. The tinder was wasted. ({finalSuccessChance:P0} chance)");
-            playerSkill.GainExperience(1);
+            GameDisplay.AddWarning($"You failed to start the fire. The tinder was wasted. ({finalChance:P0} chance)");
+            ctx.player.Skills.GetSkill("Firecraft").GainExperience(1);
         }
     }
 
-    private static void ConsumeMaterial(Player player, ItemProperty property, double amount)
-    {
-        double remaining = amount;
-        var eligibleStacks = player.inventoryManager.Items
-            .Where(stack => stack.FirstItem.HasProperty(property, 0))
-            .ToList();
-
-        foreach (var stack in eligibleStacks)
-        {
-            while (stack.Count > 0 && remaining > 0)
-            {
-                var item = stack.FirstItem;
-                if (item.Weight <= remaining)
-                {
-                    remaining -= item.Weight;
-                    var consumed = stack.Pop();
-                    player.inventoryManager.RemoveFromInventory(consumed);
-                }
-                else
-                {
-                    item.Weight -= remaining;
-                    remaining = 0;
-                }
-            }
-            if (remaining <= 0) break;
-        }
-    }
-
-    private static (double baseChance, int skillDC) GetToolSkillParameters(Item tool)
+    private static double GetFireToolBaseChance(Tool tool)
     {
         return tool.Name switch
         {
-            "Hand Drill" => (0.30, 0),
-            "Bow Drill" => (0.50, 1),
-            "Flint and Steel" => (0.90, 0),
-            _ => (0.30, 0)
+            "Hand Drill" => 0.30,
+            "Bow Drill" => 0.50,
+            "Fire Striker" or "Flint and Steel" => 0.90,
+            _ => 0.50  // Default for generic fire strikers
         };
     }
 
@@ -570,117 +350,17 @@ public partial class GameRunner(GameContext ctx)
     // INVENTORY
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private bool HasItems() => ctx.player.inventoryManager.Items.Any();
+    private bool HasItems()
+    {
+        var inv = ctx.Inventory;
+        return inv.HasFuel || inv.HasFood || inv.HasWater || inv.Tools.Count > 0;
+    }
 
     private void RunInventoryMenu()
     {
-        ctx.player.inventoryManager.Describe();
-
-        var choice = new Choice<Action>();
-
-        foreach (ItemStack stack in ctx.player.inventoryManager.Items)
-        {
-            choice.AddOption(stack.DisplayName, () => RunItemMenu(stack));
-        }
-
-        choice.AddOption("Close Inventory", () => { });
-
-        GameDisplay.AddNarrative("\nSelect an item:");
-        choice.GetPlayerChoice().Invoke();
-    }
-
-    private void RunItemMenu(ItemStack stack)
-    {
-        Item item = stack.Peek();
-
-        var choice = new Choice<Action>();
-        choice.AddOption($"Use {item}", () => UseItem(item));
-        choice.AddOption($"Inspect {item}", () => InspectItem(item));
-        choice.AddOption($"Drop {item}", () => DropItem(item));
-        choice.AddOption("Back to inventory", RunInventoryMenu);
-
-        GameDisplay.AddNarrative($"\nWhat would you like to do with the {item.Name}?");
-        choice.GetPlayerChoice().Invoke();
-    }
-
-    private void UseItem(Item item)
-    {
-        ctx.player.UseItem(item);
-        RunInventoryMenu();
-    }
-
-    private void InspectItem(Item item)
-    {
-        item.Describe();
-        Input.WaitForKey();
-        RunInventoryMenu();
-    }
-
-    private void DropItem(Item item)
-    {
-        GameDisplay.AddNarrative($"You drop the {item}");
-        ctx.player.DropItem(item);
-        RunInventoryMenu();
-    }
-
-    private void PickUpItem(Item item)
-    {
-        if (!item.IsFound) return;
-
-        GameDisplay.AddNarrative($"You take the {item}");
-        ctx.player.TakeItem(item);
-    }
-
-    private void OpenContainer(Container container)
-    {
-        GameDisplay.AddNarrative($"You open the {container}");
-
-        var itemStacks = ItemStack.CreateStacksFromItems(container.Items);
-
-        while (!container.IsEmpty)
-        {
-            var choice = new Choice<Action>();
-            string selectedLabel = "";
-
-            itemStacks = ItemStack.CreateStacksFromItems(container.Items);
-            foreach (var stack in itemStacks)
-            {
-                choice.AddOption($"Take {stack.DisplayName}", () => TakeStackFromContainer(container, stack));
-            }
-
-            if (itemStacks.Count > 1)
-                choice.AddOption("Take all", () => TakeAllFromContainer(container));
-
-            string closeLabel = $"Close {container.Name}";
-            choice.AddOption(closeLabel, () => { selectedLabel = closeLabel; });
-
-            GameDisplay.AddNarrative("\nSelect an item:");
-            var action = choice.GetPlayerChoice();
-            action.Invoke();
-
-            if (selectedLabel.StartsWith("Close") || container.IsEmpty)
-                break;
-        }
-    }
-
-    private void TakeStackFromContainer(Container container, ItemStack stack)
-    {
-        while (stack.Count > 0)
-        {
-            var item = stack.Pop();
-            container.Remove(item);
-            ctx.player.TakeItem(item);
-        }
-    }
-
-    private void TakeAllFromContainer(Container container)
-    {
-        while (!container.IsEmpty)
-        {
-            var item = container.Items.First();
-            container.Remove(item);
-            ctx.player.TakeItem(item);
-        }
+        // Inventory is shown in the INVENTORY panel - just refresh and wait
+        GameDisplay.Render(ctx, addSeparator: false);
+        Input.WaitForKey("Press any key to return...");
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -898,141 +578,6 @@ public partial class GameRunner(GameContext ctx)
     // }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // HUNTING
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    private bool CanHunt()
-    {
-        var animals = ctx.CurrentLocation.Npcs
-            .OfType<Animal>()
-            .Where(a => a.IsAlive)
-            .ToList();
-        return animals.Any();
-    }
-
-    private void RunHuntingMenu()
-    {
-        GameDisplay.AddNarrative("You scan the area for prey...");
-
-        var animals = ctx.CurrentLocation.Npcs
-            .OfType<Animal>()
-            .Where(a => a.IsAlive)
-            .ToList();
-
-        var choice = new Choice<Action>();
-
-        foreach (var animal in animals)
-        {
-            choice.AddOption($"Stalk {animal.Name}", () => BeginHunt(animal));
-        }
-
-        choice.AddOption("Cancel", () => { });
-
-        choice.GetPlayerChoice().Invoke();
-    }
-
-    private void BeginHunt(Animal animal)
-    {
-        ctx.player.stealthManager.StartHunting(animal);
-
-        var currentDistance = animal.DistanceFromPlayer;
-
-        if (ctx.player.inventoryManager.Weapon is RangedWeapon rangedWeapon)
-        {
-            GameDisplay.AddNarrative($"Distance: {currentDistance}m | Your {rangedWeapon.Name} effective range: {rangedWeapon.EffectiveRange}m (max: {rangedWeapon.MaxRange}m)");
-        }
-        else
-        {
-            GameDisplay.AddWarning("You have no ranged weapon equipped. You'll need to get very close to attack with melee weapons.");
-        }
-
-        RunHuntingSubMenu();
-    }
-
-    private void RunHuntingSubMenu()
-    {
-        if (!ctx.player.stealthManager.IsHunting)
-            return;
-
-        var target = ctx.player.stealthManager.GetCurrentTarget();
-        if (target != null)
-        {
-            var currentDistance = target.DistanceFromPlayer;
-            GameDisplay.AddNarrative($"Distance: {currentDistance}m");
-            GameDisplay.AddNarrative($"Animal state: {target.State}");
-            GameDisplay.AddNarrative("");
-
-            if (ctx.player.inventoryManager.Weapon is RangedWeapon rangedWeapon)
-            {
-                var distanceToRange = currentDistance - rangedWeapon.MaxRange;
-                if (distanceToRange > 0)
-                {
-                    GameDisplay.AddWarning($"Distance until shooting range: {distanceToRange}m");
-                }
-                else
-                {
-                    GameDisplay.AddSuccess("Within shooting range!");
-                }
-            }
-        }
-
-        if (!ctx.player.stealthManager.IsTargetValid())
-            return;
-
-        var choice = new Choice<Action>();
-        choice.AddOption("Approach", ApproachAnimal);
-        choice.AddOption("Assess Target", AssessTarget);
-
-        if (ctx.player.ammunitionManager.CanShoot(out _))
-            choice.AddOption("Shoot", ShootTarget);
-
-        choice.AddOption("Stop Hunting", StopHunting);
-
-        choice.GetPlayerChoice().Invoke();
-    }
-
-    private void ApproachAnimal()
-    {
-        bool success = ctx.player.stealthManager.AttemptApproach(ctx.CurrentLocation);
-
-        if (success)
-            ctx.player.Skills.GetSkill("Hunting").GainExperience(1);
-
-        ctx.Update(7);
-
-        if (ctx.player.stealthManager.IsHunting)
-            RunHuntingSubMenu();
-    }
-
-    private void AssessTarget()
-    {
-        ctx.player.stealthManager.AssessTarget();
-        Input.WaitForKey();
-        RunHuntingSubMenu();
-    }
-
-    private void ShootTarget()
-    {
-        Animal? target = ctx.player.stealthManager.GetCurrentTarget();
-        if (target == null)
-        {
-            GameDisplay.AddNarrative("You no longer have a target.");
-            return;
-        }
-
-        ctx.player.huntingManager.ShootTarget(target, ctx.CurrentLocation, ctx.GameTime);
-        ctx.Update(1);
-
-        if (ctx.player.stealthManager.IsHunting)
-            RunHuntingSubMenu();
-    }
-
-    private void StopHunting()
-    {
-        ctx.player.stealthManager.StopHunting("You give up the hunt.");
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
     // COMBAT
     // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1105,7 +650,8 @@ public partial class GameRunner(GameContext ctx)
 
     private void AttackEnemy(Npc enemy)
     {
-        ctx.player.Attack(enemy);
+        var weapon = ctx.Inventory.Weapon?.ToWeapon();
+        ctx.player.Attack(enemy, weapon);
 
         if (!enemy.IsAlive)
             EndCombat(enemy);
@@ -1120,7 +666,8 @@ public partial class GameRunner(GameContext ctx)
 
         if (targetPart != null)
         {
-            ctx.player.Attack(enemy, targetPart.Name);
+            var weapon = ctx.Inventory.Weapon?.ToWeapon();
+            ctx.player.Attack(enemy, weapon, targetPart.Name);
 
             if (!enemy.IsAlive)
                 EndCombat(enemy);
@@ -1205,13 +752,13 @@ public partial class GameRunner(GameContext ctx)
 
     private void DisplayCombatStatus(Npc enemy)
     {
-        double playerHealthPct = ctx.player.Body.Health / ctx.player.Body.MaxHealth;
-        string playerHp = $"You: {Math.Round(ctx.player.Body.Health * 100, 0)}/{Math.Round(ctx.player.Body.MaxHealth * 100, 1)} HP";
-        AddHealthMessage(playerHp, playerHealthPct);
+        double playerVitality = ctx.player.Vitality;
+        string playerStatus = $"You: {Math.Round(playerVitality * 100, 0)}% Vitality";
+        AddHealthMessage(playerStatus, playerVitality);
 
-        double enemyHealthPct = enemy.Body.Health / enemy.Body.MaxHealth;
-        string enemyHp = $"{enemy.Name}: {Math.Round(enemy.Body.Health * 100, 0)}/{Math.Round(enemy.Body.MaxHealth * 100, 0)} HP";
-        AddHealthMessage(enemyHp, enemyHealthPct);
+        double enemyVitality = enemy.Vitality;
+        string enemyStatus = $"{enemy.Name}: {Math.Round(enemyVitality * 100, 0)}% Vitality";
+        AddHealthMessage(enemyStatus, enemyVitality);
     }
 
     private static void AddHealthMessage(string message, double healthPercentage)
@@ -1222,17 +769,5 @@ public partial class GameRunner(GameContext ctx)
             GameDisplay.AddWarning(message);
         else
             GameDisplay.AddSuccess(message);
-    }
-
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // STATS
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    private void CheckStats()
-    {
-        // BodyDescriber.Describe(ctx.player);
-        ctx.player.Skills.Describe();
-        Input.WaitForKey();
     }
 }

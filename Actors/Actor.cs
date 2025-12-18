@@ -10,10 +10,11 @@ namespace text_survival.Actors;
 public abstract class Actor
 {
     public string Name;
-    public virtual void Attack(Actor target, string? bodyPart = null) => combatManager.Attack(target, bodyPart);
+    public virtual void Attack(Actor target, Weapon? weaponOverride = null, string? bodyPart = null)
+        => combatManager.Attack(target, weaponOverride, bodyPart);
 
     public bool IsEngaged { get; set; }
-    public bool IsAlive => !Body.IsDestroyed;
+    public bool IsAlive => Vitality > 0;
     public abstract Weapon ActiveWeapon { get; protected set; }
 
     public virtual void Update(int minutes, SurvivalContext context)

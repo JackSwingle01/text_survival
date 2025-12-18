@@ -1,7 +1,5 @@
 ﻿using text_survival.Actors;
 using text_survival.Actors.Player;
-using text_survival.Actors.NPCs;
-using text_survival.Environments;
 
 namespace text_survival.Combat;
 
@@ -13,28 +11,6 @@ public static class CombatUtils
         double enemyCheck = CalcSpeedCheck(enemy);
 
         return playerCheck >= enemyCheck;
-    }
-
-    public static Npc? GetFastestHostileNpc(Location location)
-    {
-        double fastestCheck = 0;
-        Npc? fastestNpc = null;
-        foreach (Npc npc in location.Npcs)
-        {
-            if (npc == fastestNpc) continue;
-            if (!npc.IsAlive) continue;
-            if (!npc.IsHostile) continue;
-
-            fastestNpc ??= npc;
-
-            var currentNpcCheck = CalcSpeedCheck(npc);
-            if (currentNpcCheck > fastestCheck)
-            {
-                fastestNpc = npc;
-                fastestCheck = currentNpcCheck;
-            }
-        }
-        return fastestNpc;
     }
 
     public static double CalcSpeedCheck(Actor actor)

@@ -109,6 +109,8 @@ Features are what make locations useful:
 
 **HeatSourceFeature** — Fire. The anchor. Has fuel, burns down, produces heat. Can bank to embers, relight, die completely.
 
+**AnimalTerritoryFeature** — Defines what game can be found at a location. Animals spawn dynamically when searching, not pre-placed. Game density depletes with successful hunts and respawns over time.
+
 ---
 
 ## Survival Simulation
@@ -267,6 +269,7 @@ Features live on locations. Currently a hybrid — data objects with some behavi
 ## What's Working
 
 - Basic expedition loop (forage type)
+- Hunt expedition with territory-based game spawning (search -> stalk -> kill -> density depletes)
 - Fire system with fuel consumption and heat output
 - Survival stat ticking (energy, hydration, calories, temperature)
 - Body system with parts and capacities
@@ -277,10 +280,9 @@ Features live on locations. Currently a hybrid — data objects with some behavi
 ## What's Next
 
 1. **Events during expeditions** — the layer that makes expeditions tense
-2. **Hunt expedition type** — different work phase, different event table
-3. **Threat encounters** — data-driven boldness system
-4. **Location discovery** — unknown → hinted → visible → explored
-5. **Crafting rework** — need-based instead of recipe lists
+2. **Threat encounters** — data-driven boldness system
+3. **Location discovery** — unknown → hinted → visible → explored
+4. **Crafting rework** — need-based instead of recipe lists
 
 ## Explicitly Dropped
 

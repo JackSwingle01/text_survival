@@ -161,7 +161,7 @@ public class StealthManager
         GameDisplay.AddNarrative($"\n=== {animal.Name} ===");
         GameDisplay.AddNarrative($"Distance: {animal.DistanceFromPlayer:F0}m");
         GameDisplay.AddNarrative($"State: {animal.State}");
-        GameDisplay.AddNarrative($"Health: {animal.Body.Health:F0}/{animal.Body.MaxHealth:F0}");
+        GameDisplay.AddNarrative($"Vitality: {animal.Vitality * 100:F0}%");
         GameDisplay.AddNarrative($"Behavior: {animal.BehaviorType}");
 
         // Show detection chance for next approach
@@ -196,8 +196,6 @@ public class StealthManager
         if (animal.ShouldFlee(_player))
         {
             GameDisplay.AddNarrative($"The {animal.Name} flees!");
-            // Remove animal from location (fled)
-            location?.RemoveNpc(animal);
             StopHunting($"The {animal.Name} escaped.");
         }
         else

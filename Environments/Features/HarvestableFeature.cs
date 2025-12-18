@@ -2,11 +2,20 @@ using text_survival.Items;
 
 namespace text_survival.Environments.Features;
 
+public enum HarvestResourceType
+{
+    Log,
+    Stick,
+    Tinder,
+    Berries,
+    Water
+}
+
 /// <summary>
-/// Represents a discoverable resource node that can be harvested for items.
+/// Represents a discoverable resource node that can be harvested.
 /// Unlike ForageFeature (RNG-based searching), HarvestableFeature is a visible,
 /// quantity-based resource that respawns over time.
-/// Examples: berry bushes, willow stands, water sources, sap seeps
+/// Examples: berry bushes, deadfall pile, water source, willow stand
 /// </summary>
 public class HarvestableFeature : LocationFeature
 {
@@ -16,12 +25,12 @@ public class HarvestableFeature : LocationFeature
 
     /// <summary>
     /// Minutes of work required to complete one harvest cycle.
-    /// Each cycle yields one of each non-depleted resource.
+    /// Each cycle yields one unit of each non-depleted resource.
     /// </summary>
     public int MinutesToHarvest { get; set; } = 5;
 
     private int _minutesWorked = 0;
-    private readonly Dictionary<Func<Item>, HarvestableResource> _resources = [];
+    private readonly List<HarvestableResource> _resources = [];
 
     public HarvestableFeature(string name, string displayName)
         : base(name)
@@ -32,11 +41,11 @@ public class HarvestableFeature : LocationFeature
     /// <summary>
     /// Advance respawn timers for all depleted resources.
     /// </summary>
-    public void Update(int minutes)
+    public new void Update(int minutes)
     {
         double hours = minutes / 60.0;
 
-        foreach (var resource in _resources.Values)
+        foreach (var resource in _resources)
         {
             if (resource.CurrentQuantity < resource.MaxQuantity)
             {
@@ -55,18 +64,24 @@ public class HarvestableFeature : LocationFeature
     /// <summary>
     /// Add a harvestable resource to this feature.
     /// </summary>
-    /// <param name="itemFactory">Factory to create the item when harvested</param>
+    /// <param name="type">Type of resource</param>
     /// <param name="maxQuantity">Maximum available quantity</param>
+    /// <param name="weightPerUnit">Weight in kg per unit harvested</param>
     /// <param name="respawnHoursPerUnit">Hours required to respawn one unit</param>
-    public void AddResource(Func<Item> itemFactory, int maxQuantity, double respawnHoursPerUnit)
+    /// <param name="displayName">Name for display (e.g., "berries", "dry wood")</param>
+    public HarvestableFeature AddResource(HarvestResourceType type, int maxQuantity, double weightPerUnit,
+        double respawnHoursPerUnit, string displayName)
     {
-        _resources[itemFactory] = new HarvestableResource
+        _resources.Add(new HarvestableResource
         {
-            ItemFactory = itemFactory,
+            Type = type,
             MaxQuantity = maxQuantity,
             CurrentQuantity = maxQuantity,
-            RespawnHoursPerUnit = respawnHoursPerUnit
-        };
+            WeightPerUnit = weightPerUnit,
+            RespawnHoursPerUnit = respawnHoursPerUnit,
+            DisplayName = displayName
+        });
+        return this;
     }
 
     /// <summary>
@@ -74,18 +89,18 @@ public class HarvestableFeature : LocationFeature
     /// </summary>
     public bool HasAvailableResources()
     {
-        return _resources.Values.Any(r => r.CurrentQuantity > 0);
+        return _resources.Any(r => r.CurrentQuantity > 0);
     }
 
     /// <summary>
-    /// Work for the specified minutes, yielding items when harvest cycles complete.
+    /// Work for the specified minutes, yielding resources when harvest cycles complete.
     /// Each completed cycle drops one of each non-depleted resource.
     /// </summary>
     /// <param name="minutes">Minutes of work to perform</param>
-    /// <returns>List of items harvested (may be empty if no cycles completed)</returns>
-    public List<Item> Harvest(int minutes)
+    /// <returns>FoundResources with harvested items</returns>
+    public FoundResources Harvest(int minutes)
     {
-        var items = new List<Item>();
+        var found = new FoundResources();
 
         _minutesWorked += minutes;
 
@@ -93,37 +108,59 @@ public class HarvestableFeature : LocationFeature
         {
             _minutesWorked -= MinutesToHarvest;
 
-            foreach (var resource in _resources.Values)
+            foreach (var resource in _resources)
             {
                 if (resource.CurrentQuantity > 0)
                 {
-                    var item = resource.ItemFactory();
-                    items.Add(item);
+                    AddResourceToFound(found, resource);
                     resource.CurrentQuantity--;
-                    resource.RespawnProgressHours = 0; // Reset respawn progress on harvest
+                    resource.RespawnProgressHours = 0;
                 }
             }
         }
 
-        // Reset worked minutes if depleted (no partial progress on empty resource)
+        // Reset worked minutes if depleted
         if (!HasAvailableResources())
         {
             _minutesWorked = 0;
         }
 
-        return items;
+        return found;
+    }
+
+    private static void AddResourceToFound(FoundResources found, HarvestableResource resource)
+    {
+        string description = $"some {resource.DisplayName}";
+
+        switch (resource.Type)
+        {
+            case HarvestResourceType.Log:
+                found.AddLog(resource.WeightPerUnit, description);
+                break;
+            case HarvestResourceType.Stick:
+                found.AddStick(resource.WeightPerUnit, description);
+                break;
+            case HarvestResourceType.Tinder:
+                found.AddTinder(resource.WeightPerUnit, description);
+                break;
+            case HarvestResourceType.Berries:
+                found.AddBerries(resource.WeightPerUnit, description);
+                break;
+            case HarvestResourceType.Water:
+                found.AddWater(resource.WeightPerUnit, description);
+                break;
+        }
     }
 
     /// <summary>
-    /// Get total minutes required to fully harvest all remaining resources,
-    /// accounting for work already done toward the current cycle.
+    /// Get total minutes required to fully harvest all remaining resources.
     /// </summary>
     public int GetTotalMinutesToHarvest()
     {
-        if (!_resources.Values.Any())
+        if (!_resources.Any())
             return 0;
 
-        int maxRemaining = _resources.Values.Max(r => r.CurrentQuantity);
+        int maxRemaining = _resources.Max(r => r.CurrentQuantity);
 
         if (maxRemaining == 0)
             return 0;
@@ -138,11 +175,8 @@ public class HarvestableFeature : LocationFeature
     public string GetStatusDescription()
     {
         var descriptions = new List<string>();
-        foreach (var resource in _resources.Values)
+        foreach (var resource in _resources)
         {
-            // Create a sample item to get its name
-            var sampleItem = resource.ItemFactory();
-
             string status = resource.CurrentQuantity switch
             {
                 0 => "depleted",
@@ -151,25 +185,24 @@ public class HarvestableFeature : LocationFeature
                 _ => "abundant"
             };
 
-            descriptions.Add($"{sampleItem.Name}: {status}");
+            descriptions.Add($"{resource.DisplayName}: {status}");
         }
 
         if (descriptions.Count == 0)
         {
-            return $"no resources";
+            return "no resources";
         }
 
-        return $"{string.Join(", ", descriptions)})";
+        return string.Join(", ", descriptions);
     }
 
-    /// <summary>
-    /// Internal class to track individual resource state within a harvestable feature
-    /// </summary>
     private class HarvestableResource
     {
-        public Func<Item> ItemFactory { get; set; } = null!;
+        public HarvestResourceType Type { get; set; }
+        public string DisplayName { get; set; } = "";
         public int MaxQuantity { get; set; }
         public int CurrentQuantity { get; set; }
+        public double WeightPerUnit { get; set; }
         public double RespawnHoursPerUnit { get; set; }
         public double RespawnProgressHours { get; set; }
     }

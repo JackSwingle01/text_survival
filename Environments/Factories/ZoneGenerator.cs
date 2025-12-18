@@ -71,13 +71,12 @@ public class ZoneGenerator
             BaseTraversalMinutes = 5
         };
 
-        var forageFeature = new ForageFeature(1.0);
-        forageFeature.AddResource(Items.ItemFactory.MakeBerry, 0.4);
-        forageFeature.AddResource(Items.ItemFactory.MakeStick, 0.8);
-        forageFeature.AddResource(Items.ItemFactory.MakeFirewood, 0.5);
-        forageFeature.AddResource(Items.ItemFactory.MakeDryGrass, 0.6);
-        forageFeature.AddResource(Items.ItemFactory.MakePlantFibers, 0.5);
-        forageFeature.AddResource(Items.ItemFactory.MakeSmallStone, 0.3);
+        // Starting location has moderate resources
+        var forageFeature = new ForageFeature(1.0)
+            .AddSticks(0.6, 0.15, 0.4)
+            .AddLogs(0.25, 1.0, 2.5)
+            .AddTinder(0.5, 0.02, 0.06)
+            .AddBerries(0.2, 0.05, 0.12);
         start.Features.Add(forageFeature);
 
         start.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));

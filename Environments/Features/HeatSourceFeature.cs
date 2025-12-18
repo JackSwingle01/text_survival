@@ -193,45 +193,39 @@ public class HeatSourceFeature : LocationFeature
     #region Fuel Management
 
     /// <summary>
-    /// Check if a fuel item can be added to the fire based on current temperature
+    /// Check if fuel of a given type can be added to the fire based on current temperature
     /// </summary>
-    public bool CanAddFuel(Item fuelItem)
+    public bool CanAddFuel(FuelType fuelType)
     {
-        var fuelType = fuelItem.GetFuelType();
-        if (!fuelType.HasValue) return false;
-
         // Check if fire is at capacity
         if (FuelMassKg >= MaxFuelCapacityKg) return false;
 
         // Check minimum temperature requirement
-        var props = FuelDatabase.Get(fuelType.Value);
+        var props = FuelDatabase.Get(fuelType);
         double currentTemp = GetCurrentFireTemperature();
 
         return currentTemp >= props.MinFireTemperature;
     }
 
     /// <summary>
-    /// Add fuel item to the fire. Checks temperature requirements.
+    /// Add fuel to the fire by mass and type.
     /// </summary>
-    public bool AddFuel(Item fuelItem, double massToAdd)
+    public bool AddFuel(double massKg, FuelType fuelType)
     {
-        var fuelType = fuelItem.GetFuelType();
-        if (!fuelType.HasValue) return false;
-
         // Validate temperature requirement
-        if (!CanAddFuel(fuelItem)) return false;
+        if (!CanAddFuel(fuelType)) return false;
 
         // Add to fuel mass (capped at max capacity)
         double spaceAvailable = MaxFuelCapacityKg - FuelMassKg;
-        double actualMassAdded = Math.Min(massToAdd, spaceAvailable);
+        double actualMassAdded = Math.Min(massKg, spaceAvailable);
 
         FuelMassKg += actualMassAdded;
 
         // Track fuel type in mixture
-        if (_fuelMixture.ContainsKey(fuelType.Value))
-            _fuelMixture[fuelType.Value] += actualMassAdded;
+        if (_fuelMixture.ContainsKey(fuelType))
+            _fuelMixture[fuelType] += actualMassAdded;
         else
-            _fuelMixture[fuelType.Value] = actualMassAdded;
+            _fuelMixture[fuelType] = actualMassAdded;
 
         // Auto-relight from embers (embers still have heat to ignite fuel)
         if (HasEmbers && FuelMassKg > 0)
@@ -242,7 +236,7 @@ public class HeatSourceFeature : LocationFeature
         }
 
         // If adding to cold fire and fuel type can ignite from cold (tinder/kindling)
-        var props = FuelDatabase.Get(fuelType.Value);
+        var props = FuelDatabase.Get(fuelType);
         if (!IsActive && !HasEmbers && props.MinFireTemperature == 0)
         {
             // This fuel can start a fire from cold (used with Start Fire action)
@@ -250,16 +244,6 @@ public class HeatSourceFeature : LocationFeature
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Legacy method: Add fuel by item (uses item's fuel mass).
-    /// For backward compatibility with existing code.
-    /// </summary>
-    public bool AddFuel(Item fuelItem)
-    {
-        if (fuelItem.FuelMassKg <= 0) return false;
-        return AddFuel(fuelItem, fuelItem.FuelMassKg);
     }
 
     /// <summary>
@@ -289,9 +273,9 @@ public class HeatSourceFeature : LocationFeature
     /// <summary>
     /// Update fire state based on time elapsed
     /// </summary>
-    public void Update(TimeSpan elapsed)
+    public override void Update(int minutes)
     {
-        double minutesElapsed = elapsed.TotalMinutes;
+        double minutesElapsed = minutes;
         FireAgeMinutes += minutesElapsed;
 
         if (FuelMassKg > 0)

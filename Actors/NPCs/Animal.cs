@@ -132,13 +132,13 @@ namespace text_survival.Actors.NPCs
 
         /// <summary>
         /// Simple threat assessment for scavengers.
-        /// Returns true if player appears stronger (higher health + better weapon).
+        /// Returns true if player appears stronger (higher vitality + better weapon).
         /// </summary>
         private bool AssessIfOutmatched(Actor player)
         {
-            // Simple heuristic: compare health and weapon damage
-            double playerThreat = player.Body.Health + player.ActiveWeapon.Damage;
-            double animalThreat = this.Body.Health + this.ActiveWeapon.Damage;
+            // Simple heuristic: compare vitality and weapon damage
+            double playerThreat = player.Vitality + player.ActiveWeapon.Damage;
+            double animalThreat = this.Vitality + this.ActiveWeapon.Damage;
 
             return playerThreat > animalThreat * 1.2; // Needs to be clearly outmatched
         }

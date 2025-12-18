@@ -52,14 +52,7 @@ namespace text_survival.Items
                     GameDisplay.AddNarrative($", BlockChance: {weapon.BlockChance * 100}%, ");
                 }
             }
-            else if (this is Armor armor)
-            {
-                if (armor.Rating != 0)
-                    GameDisplay.AddNarrative($"Defense: {armor.Rating * 100}%, ");
-
-                if (armor.Insulation != 0)
-                    GameDisplay.AddNarrative($"Warmth: {armor.Insulation}F, ");
-            }
+            // Note: Equipment (clothing/armor) now uses separate Equipment class
 
             if (Weight != 0)
             {

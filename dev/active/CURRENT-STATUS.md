@@ -1,12 +1,58 @@
 # Active Development - Current Status
 
-**Date**: 2025-11-04
-**Last Updated**: Hypothermia Death + Bug Fixes Session
-**Status**: 🎉 MAJOR PROGRESS - Hypothermia death implemented + 4 critical UX bugs fixed - Build Successful
+**Date**: 2025-12-18
+**Last Updated**: AnimalTerritoryFeature Refactor Session
+**Status**: Hunt expedition refactored with search-based game spawning - Build Successful
 
 ---
 
-## 🎯 Today's Session Accomplishments (2025-11-04)
+## 2025-12-18: AnimalTerritoryFeature Refactor
+
+### Summary
+Refactored the hunting system to use a search-based game spawning approach instead of pre-placed NPCs. Animals now spawn dynamically when the player searches a location, with density that depletes after successful hunts and respawns over time.
+
+### New: AnimalTerritoryFeature
+- **Location**: `Environments/Features/AnimalTerritoryFeature.cs`
+- Defines spawn weights for different animal types at a location
+- Manages game density (0.0 to 1.0) that affects spawn success
+- Density depletes when animals are killed
+- Density respawns over time (configurable rate)
+- Spawn logic: roll against density, then weighted random animal selection
+
+### Hunt Expedition Flow (Updated)
+1. Player initiates hunt expedition to location with AnimalTerritoryFeature
+2. **Search phase**: Player searches for game, spawning rolls against density
+3. **Stalk phase**: If animal found, player stalks to close distance
+4. **Kill phase**: Combat/ranged attack on animal
+5. **Density depletion**: Successful kill reduces location's game density
+
+### Removed (Cleaned Up)
+- `Location.Npcs` list (animals no longer pre-placed)
+- `Location.SpawnNpcs()` method
+- `Location.RemoveNpc()` method
+- `NpcSpawner` class (replaced by AnimalTerritoryFeature)
+- Old hunting code from GameRunner that relied on pre-placed NPCs
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `Environments/Features/AnimalTerritoryFeature.cs` | **NEW** - Territory feature with spawn weights and density |
+| `Environments/LocationFactory.cs` | Updated to add AnimalTerritoryFeature instead of spawning NPCs |
+| `Actions/Expeditions/ExpeditionRunner.cs` | Hunt expedition uses search-based flow |
+| `Environments/Location.cs` | Removed Npcs list, SpawnNpcs, RemoveNpc |
+| `Actions/GameRunner.cs` | Removed old hunting code |
+| `Combat/CombatUtils.cs` | Updated for new animal spawning |
+| `Actors/Player/StealthManager.cs` | Updated for search-based hunting |
+
+### Design Notes
+- Aligns with expedition philosophy: commit to a hunt, time investment, uncertain outcome
+- Depletion creates pressure: over-hunting an area forces ranging further or moving camp
+- Dynamic spawning reduces memory footprint (no persistent NPC list)
+- Respawn rate can be tuned per-location for balance
+
+---
+
+## 2025-11-04: Hypothermia Death + Bug Fixes Session
 
 ### Session 1: Hypothermia Death + Bug Fixes
 

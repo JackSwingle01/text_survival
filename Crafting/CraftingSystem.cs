@@ -52,7 +52,8 @@ public class CraftingSystem
                 var items = recipe.GenerateItemResults(_player);
                 foreach (var item in items)
                 {
-                    _player.TakeItem(item);
+                    // Add crafted item to location for player to pick up
+                    _camp.Location.Items.Add(item);
                     GameDisplay.AddSuccess($"You successfully crafted: {item.Name}");
                 }
                 break;
@@ -69,9 +70,7 @@ public class CraftingSystem
                         if (existingFire != null)
                         {
                             // Add fuel to existing fire instead of creating duplicate
-                            // Transfer fuel mass from newly created fire to existing fire
-                            var initialFuel = ItemFactory.MakeFirewood();
-                            existingFire.AddFuel(initialFuel, newFire.FuelMassKg); // Transfer the fuel mass
+                            existingFire.AddFuel(newFire.FuelMassKg, FuelType.Kindling);
                             GameDisplay.AddSuccess($"You add fuel to the existing {recipe.LocationFeatureResult.FeatureName}.");
                             break;
                         }
@@ -101,35 +100,9 @@ public class CraftingSystem
 
     private static void ConsumeProperty(Player player, CraftingPropertyRequirement requirement)
     {
-        double remainingNeeded = requirement.MinQuantity;
-        var eligibleStacks = player.inventoryManager.Items
-            .Where(stack => stack.FirstItem.HasProperty(requirement.Property, 0))
-            .ToList();
-
-        foreach (var stack in eligibleStacks)
-        {
-            while (stack.Count > 0 && remainingNeeded > 0)
-            {
-                var item = stack.FirstItem;
-                var property = item.GetProperty(requirement.Property);
-
-                if (property != null && item.Weight <= remainingNeeded)
-                {
-                    // Consume entire item
-                    remainingNeeded -= item.Weight;
-                    var consumedItem = stack.Pop();
-                    player.inventoryManager.RemoveFromInventory(consumedItem);
-                }
-                else if (property != null)
-                {
-                    // Partially consume item
-                    item.Weight -= remainingNeeded;
-                    remainingNeeded = 0;
-                }
-            }
-
-            if (remainingNeeded <= 0) break;
-        }
+        // TODO: Rework crafting to use new aggregate Inventory system
+        // For now, crafting ingredient consumption is stubbed out
+        // The old discrete item system (inventoryManager) has been removed
     }
 
 
@@ -385,8 +358,7 @@ public class CraftingSystem
             .ResultingInLocationFeature(new LocationFeatureResult("Campfire", location =>
             {
                 var fireFeature = new HeatSourceFeature();
-                var initialFuel = ItemFactory.MakeFirewood(); // 1.5kg softwood
-                fireFeature.AddFuel(initialFuel, 0.8); // Add 0.8kg of fuel
+                fireFeature.AddFuel(0.8, FuelType.Kindling); // Add 0.8kg of fuel
                 return fireFeature;
             }))
             .Build();
@@ -471,93 +443,12 @@ public class CraftingSystem
     }
 
     // Phase 6/8: Clothing and Armor Recipes
+    // TODO: Rework clothing crafting to produce Equipment instead of Armor items
+    // The old Armor class has been removed - Equipment is now used for clothing/armor
     private void CreateClothingRecipes()
     {
-        // ===== TIER 1: EARLY-GAME WRAPPINGS =====
-
-        // Bark Chest Wrap - Day 1 upgrade from tattered rags
-        var barkChest = new RecipeBuilder()
-            .Named("Bark Chest Wrap")
-            .WithDescription("Bark strips bound around torso. Crude but better than rags.")
-            .RequiringCraftingTime(15)
-            .WithPropertyRequirement(ItemProperty.Wood, 0.5) // Bark strips
-            .WithPropertyRequirement(ItemProperty.Binding, 0.1)
-            .ResultingInItem(ItemFactory.MakeBarkChestWrap)
-            .Build();
-        _recipes.Add("bark_chest_wrap", barkChest);
-
-        // Bark Leg Wraps
-        var barkLegs = new RecipeBuilder()
-            .Named("Bark Leg Wraps")
-            .WithDescription("Bark strips for leg protection.")
-            .RequiringCraftingTime(15)
-            .WithPropertyRequirement(ItemProperty.Wood, 0.4)
-            .WithPropertyRequirement(ItemProperty.Binding, 0.1)
-            .ResultingInItem(ItemFactory.MakeBarkLegWrap)
-            .Build();
-        _recipes.Add("bark_leg_wrap", barkLegs);
-
-        // Grass Foot Wraps
-        var grassFeet = new RecipeBuilder()
-            .Named("Grass Foot Wraps")
-            .WithDescription("Bundles of grass for minimal foot protection.")
-            .RequiringCraftingTime(10)
-            .WithPropertyRequirement(ItemProperty.PlantFiber, 0.3)
-            .WithPropertyRequirement(ItemProperty.Binding, 0.05)
-            .ResultingInItem(ItemFactory.MakeGrassFootWraps)
-            .Build();
-        _recipes.Add("grass_foot_wraps", grassFeet);
-
-        // Plant Fiber Bindings
-        var fiberHands = new RecipeBuilder()
-            .Named("Plant Fiber Bindings")
-            .WithDescription("Woven plant fibers for hand protection.")
-            .RequiringCraftingTime(10)
-            .WithPropertyRequirement(ItemProperty.PlantFiber, 0.2)
-            .ResultingInItem(ItemFactory.MakePlantFiberBindings)
-            .Build();
-        _recipes.Add("plant_fiber_bindings", fiberHands);
-
-        // ===== TIER 3: FUR-LINED ARMOR (requires hunting) =====
-
-        // Fur-Lined Tunic - Best chest protection
-        var furTunic = new RecipeBuilder()
-            .Named("Fur-Lined Tunic")
-            .WithDescription("Hide armor lined with thick fur. Best cold weather protection.")
-            .RequiringSkill("Crafting", 2)
-            .RequiringCraftingTime(120) // 2 hours
-            .WithPropertyRequirement(ItemProperty.Hide, 2.0)
-            .WithPropertyRequirement(ItemProperty.Fur, 1.0)
-            .WithPropertyRequirement(ItemProperty.Binding, 0.5)
-            .ResultingInItem(ItemFactory.MakeFurLinedTunic)
-            .Build();
-        _recipes.Add("fur_lined_tunic", furTunic);
-
-        // Fur-Lined Leggings
-        var furLegs = new RecipeBuilder()
-            .Named("Fur-Lined Leggings")
-            .WithDescription("Leather leggings with fur lining for superior warmth.")
-            .RequiringSkill("Crafting", 2)
-            .RequiringCraftingTime(90)
-            .WithPropertyRequirement(ItemProperty.Hide, 1.5)
-            .WithPropertyRequirement(ItemProperty.Fur, 0.8)
-            .WithPropertyRequirement(ItemProperty.Binding, 0.3)
-            .ResultingInItem(ItemFactory.MakeFurLinedLeggings)
-            .Build();
-        _recipes.Add("fur_lined_leggings", furLegs);
-
-        // Fur-Lined Boots
-        var furBoots = new RecipeBuilder()
-            .Named("Fur-Lined Boots")
-            .WithDescription("Sturdy boots with fur lining. Best foot protection.")
-            .RequiringSkill("Crafting", 2)
-            .RequiringCraftingTime(60)
-            .WithPropertyRequirement(ItemProperty.Hide, 1.0)
-            .WithPropertyRequirement(ItemProperty.Fur, 0.5)
-            .WithPropertyRequirement(ItemProperty.Binding, 0.2)
-            .ResultingInItem(ItemFactory.MakeFurLinedBoots)
-            .Build();
-        _recipes.Add("fur_lined_boots", furBoots);
+        // Clothing recipes temporarily disabled during inventory system migration
+        // Equipment crafting will be re-implemented using the new Equipment class
     }
 
     // Phase 5: Shelter creation methods (Tier 2-4)

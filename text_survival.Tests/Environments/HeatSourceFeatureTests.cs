@@ -5,10 +5,12 @@ namespace text_survival.Tests.Environments;
 
 public class HeatSourceFeatureTests
 {
+    private const double AmbientTemp = 32.0; // 0°C = 32°F
+
     #region Basic Temperature Calculations
 
     [Fact]
-    public void GetCurrentFireTemperature_ColdFire_ReturnsAmbientTemperature()
+    public void GetCurrentFireTemperature_ColdFire_ReturnsZero()
     {
         // Arrange
         var fire = TestFixtures.CreateTestFire();
@@ -16,24 +18,24 @@ public class HeatSourceFeatureTests
         // Act
         double temp = fire.GetCurrentFireTemperature();
 
-        // Assert
-        Assert.Equal(32.0, temp); // 0°C = 32°F ambient temp
+        // Assert - cold fire (no fuel, no embers) returns 0
+        Assert.Equal(0.0, temp);
     }
 
     [Fact]
-    public void GetCurrentFireTemperature_ActiveFire_ReturnsHigherThanAmbient()
+    public void GetCurrentFireTemperature_ActiveFire_ReturnsHigherThanZero()
     {
         // Arrange
-        var fire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling, isActive: true);
+        var fire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling);
 
         // Simulate fire burning past startup phase
-        fire.Update(TimeSpan.FromMinutes(15));
+        fire.Update(15);
 
         // Act
         double temp = fire.GetCurrentFireTemperature();
 
         // Assert
-        Assert.True(temp > 32.0, $"Active fire should be hotter than ambient. Actual: {temp}°F");
+        Assert.True(temp > 0, $"Active fire should have temperature. Actual: {temp}°F");
         Assert.True(temp < 1000.0, $"Fire temp should be realistic. Actual: {temp}°F");
     }
 
@@ -41,23 +43,18 @@ public class HeatSourceFeatureTests
     public void GetCurrentFireTemperature_HardwoodVsTinder_HardwoodHotter()
     {
         // Arrange
-        var tinderFire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Tinder, isActive: true);
+        var tinderFire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Tinder);
 
         // For hardwood, use kindling (burns slower) to maintain heat, then add hardwood
-        var hardwoodFire = TestFixtures.CreateTestFire(initialFuelKg: 4.0, fuelType: FuelType.Kindling, isActive: true);
-        hardwoodFire.Update(TimeSpan.FromMinutes(10)); // Get fire very hot (kindling reaches 600°F)
+        var hardwoodFire = TestFixtures.CreateTestFire(initialFuelKg: 4.0, fuelType: FuelType.Kindling);
+        hardwoodFire.Update(10); // Get fire very hot (kindling reaches 600°F)
 
         // Add hardwood once fire is hot enough (requires 500°F)
-        var hardwood = new Item("Hardwood", 0.5)
-        {
-            FuelMassKg = 5.0,
-            CraftingProperties = new List<ItemProperty> { ItemProperty.Fuel_Hardwood }
-        };
-        hardwoodFire.AddFuel(hardwood, 5.0);
+        hardwoodFire.AddFuel(5.0, FuelType.Hardwood);
 
         // Both fires past startup
-        tinderFire.Update(TimeSpan.FromMinutes(10));
-        hardwoodFire.Update(TimeSpan.FromMinutes(30)); // Let hardwood fully ignite
+        tinderFire.Update(10);
+        hardwoodFire.Update(30); // Let hardwood fully ignite
 
         // Act
         double tinderTemp = tinderFire.GetCurrentFireTemperature();
@@ -77,10 +74,10 @@ public class HeatSourceFeatureTests
     public void Update_FuelDepleted_TransitionsToEmbers()
     {
         // Arrange
-        var fire = TestFixtures.CreateTestFire(initialFuelKg: 1.0, fuelType: FuelType.Tinder, isActive: true);
+        var fire = TestFixtures.CreateTestFire(initialFuelKg: 1.0, fuelType: FuelType.Tinder);
 
         // Act - Burn past depletion (tinder burns at 3kg/hour, so 1kg = 20 min)
-        fire.Update(TimeSpan.FromMinutes(25));
+        fire.Update(25);
 
         // Assert
         Assert.False(fire.IsActive, "Fire should no longer be active");
@@ -92,17 +89,17 @@ public class HeatSourceFeatureTests
     public void GetCurrentFireTemperature_Embers_LowerThanActiveFire()
     {
         // Arrange
-        var fire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling, isActive: true);
+        var fire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling);
 
         // Let fire reach peak temperature
-        fire.Update(TimeSpan.FromMinutes(15));
+        fire.Update(15);
         double activeTempBefore = fire.GetCurrentFireTemperature();
 
         // Burn until embers (kindling burns at 1.5kg/hour, so 3kg = 120 min)
-        fire.Update(TimeSpan.FromMinutes(110)); // Burn past depletion to embers
+        fire.Update(110); // Burn past depletion to embers
 
         // Let embers cool significantly (they start at peak temp)
-        fire.Update(TimeSpan.FromMinutes(15));
+        fire.Update(15);
 
         // Act
         double emberTemp = fire.GetCurrentFireTemperature();
@@ -111,20 +108,20 @@ public class HeatSourceFeatureTests
         Assert.True(fire.HasEmbers, "Fire should have embers");
         Assert.True(emberTemp < activeTempBefore,
             $"Cooled embers should be lower temp than peak active fire. Active: {activeTempBefore}°F, Ember: {emberTemp}°F");
-        Assert.True(emberTemp > 32.0, "Embers should still be warm");
+        Assert.True(emberTemp > 0, "Embers should still be warm");
     }
 
     [Fact]
     public void Update_EmbersDecayOverTime()
     {
         // Arrange
-        var fire = TestFixtures.CreateTestFire(initialFuelKg: 1.0, fuelType: FuelType.Kindling, isActive: true);
-        fire.Update(TimeSpan.FromMinutes(45)); // Transition to embers
+        var fire = TestFixtures.CreateTestFire(initialFuelKg: 1.0, fuelType: FuelType.Kindling);
+        fire.Update(45); // Transition to embers
 
         double initialEmberTime = fire.EmberTimeRemaining;
 
         // Act
-        fire.Update(TimeSpan.FromMinutes(5));
+        fire.Update(5);
 
         // Assert
         Assert.True(fire.EmberTimeRemaining < initialEmberTime,
@@ -135,11 +132,11 @@ public class HeatSourceFeatureTests
     public void Update_EmbersEventuallyExtinguish()
     {
         // Arrange
-        var fire = TestFixtures.CreateTestFire(initialFuelKg: 1.0, fuelType: FuelType.Kindling, isActive: true);
-        fire.Update(TimeSpan.FromMinutes(45)); // Transition to embers
+        var fire = TestFixtures.CreateTestFire(initialFuelKg: 1.0, fuelType: FuelType.Kindling);
+        fire.Update(45); // Transition to embers
 
         // Act - Wait well past ember duration
-        fire.Update(TimeSpan.FromMinutes(30));
+        fire.Update(30);
 
         // Assert
         Assert.False(fire.HasEmbers, "Embers should be extinguished");
@@ -154,11 +151,11 @@ public class HeatSourceFeatureTests
     public void GetCurrentFireTemperature_SmallFire_ReducedTemp()
     {
         // Arrange
-        var smallFire = TestFixtures.CreateTestFire(initialFuelKg: 0.5, fuelType: FuelType.Kindling, isActive: true);
-        var idealFire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling, isActive: true);
+        var smallFire = TestFixtures.CreateTestFire(initialFuelKg: 0.5, fuelType: FuelType.Kindling);
+        var idealFire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling);
 
-        smallFire.Update(TimeSpan.FromMinutes(15));
-        idealFire.Update(TimeSpan.FromMinutes(15));
+        smallFire.Update(15);
+        idealFire.Update(15);
 
         // Act
         double smallTemp = smallFire.GetCurrentFireTemperature();
@@ -174,11 +171,11 @@ public class HeatSourceFeatureTests
     public void GetCurrentFireTemperature_LargeFire_BonusTemp()
     {
         // Arrange - Use kindling which doesn't require hot fire to start
-        var idealFire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling, isActive: true);
-        var largeFire = TestFixtures.CreateTestFire(initialFuelKg: 9.0, fuelType: FuelType.Kindling, isActive: true);
+        var idealFire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling);
+        var largeFire = TestFixtures.CreateTestFire(initialFuelKg: 9.0, fuelType: FuelType.Kindling);
 
-        idealFire.Update(TimeSpan.FromMinutes(15));
-        largeFire.Update(TimeSpan.FromMinutes(15));
+        idealFire.Update(15);
+        largeFire.Update(15);
 
         // Act
         double idealTemp = idealFire.GetCurrentFireTemperature();
@@ -198,13 +195,13 @@ public class HeatSourceFeatureTests
     public void GetCurrentFireTemperature_FreshFire_BelowPeakTemp()
     {
         // Arrange
-        var fire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling, isActive: true);
+        var fire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling);
 
         // Act - Immediately after starting (0 minutes)
         double freshTemp = fire.GetCurrentFireTemperature();
 
         // Warm up
-        fire.Update(TimeSpan.FromMinutes(20));
+        fire.Update(20);
         double warmedTemp = fire.GetCurrentFireTemperature();
 
         // Assert
@@ -217,12 +214,12 @@ public class HeatSourceFeatureTests
     public void GetCurrentFireTemperature_TinderStartsFasterThanHardwood()
     {
         // Arrange
-        var tinderFire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Tinder, isActive: true);
-        var hardwoodFire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Hardwood, isActive: true);
+        var tinderFire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Tinder);
+        var hardwoodFire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Hardwood);
 
         // Act - Both after 5 minutes
-        tinderFire.Update(TimeSpan.FromMinutes(5));
-        hardwoodFire.Update(TimeSpan.FromMinutes(5));
+        tinderFire.Update(5);
+        hardwoodFire.Update(5);
 
         double tinderTemp = tinderFire.GetCurrentFireTemperature();
         double hardwoodTemp = hardwoodFire.GetCurrentFireTemperature();
@@ -241,11 +238,11 @@ public class HeatSourceFeatureTests
     public void GetCurrentFireTemperature_LowFuel_ReducedTemp()
     {
         // Arrange
-        var fullFuelFire = TestFixtures.CreateTestFire(initialFuelKg: 6.0, fuelType: FuelType.Kindling, maxCapacity: 12.0, isActive: true);
-        var lowFuelFire = TestFixtures.CreateTestFire(initialFuelKg: 2.0, fuelType: FuelType.Kindling, maxCapacity: 12.0, isActive: true);
+        var fullFuelFire = TestFixtures.CreateTestFire(initialFuelKg: 6.0, fuelType: FuelType.Kindling, maxCapacity: 12.0);
+        var lowFuelFire = TestFixtures.CreateTestFire(initialFuelKg: 2.0, fuelType: FuelType.Kindling, maxCapacity: 12.0);
 
-        fullFuelFire.Update(TimeSpan.FromMinutes(15));
-        lowFuelFire.Update(TimeSpan.FromMinutes(15));
+        fullFuelFire.Update(15);
+        lowFuelFire.Update(15);
 
         // Act
         double fullTemp = fullFuelFire.GetCurrentFireTemperature();
@@ -268,7 +265,7 @@ public class HeatSourceFeatureTests
         var fire = TestFixtures.CreateTestFire();
 
         // Act
-        double heatOutput = fire.GetEffectiveHeatOutput();
+        double heatOutput = fire.GetEffectiveHeatOutput(AmbientTemp);
 
         // Assert
         Assert.Equal(0.0, heatOutput);
@@ -278,11 +275,11 @@ public class HeatSourceFeatureTests
     public void GetEffectiveHeatOutput_ActiveFire_ReturnsPositiveHeat()
     {
         // Arrange - Use kindling which starts easily
-        var fire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling, isActive: true);
-        fire.Update(TimeSpan.FromMinutes(15));
+        var fire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling);
+        fire.Update(15);
 
         // Act
-        double heatOutput = fire.GetEffectiveHeatOutput();
+        double heatOutput = fire.GetEffectiveHeatOutput(AmbientTemp);
 
         // Assert
         Assert.True(heatOutput > 0,
@@ -293,15 +290,15 @@ public class HeatSourceFeatureTests
     public void GetEffectiveHeatOutput_LargerFire_MoreHeat()
     {
         // Arrange
-        var smallFire = TestFixtures.CreateTestFire(initialFuelKg: 1.0, fuelType: FuelType.Kindling, isActive: true);
-        var largeFire = TestFixtures.CreateTestFire(initialFuelKg: 5.0, fuelType: FuelType.Kindling, isActive: true);
+        var smallFire = TestFixtures.CreateTestFire(initialFuelKg: 1.0, fuelType: FuelType.Kindling);
+        var largeFire = TestFixtures.CreateTestFire(initialFuelKg: 5.0, fuelType: FuelType.Kindling);
 
-        smallFire.Update(TimeSpan.FromMinutes(15));
-        largeFire.Update(TimeSpan.FromMinutes(15));
+        smallFire.Update(15);
+        largeFire.Update(15);
 
         // Act
-        double smallHeat = smallFire.GetEffectiveHeatOutput();
-        double largeHeat = largeFire.GetEffectiveHeatOutput();
+        double smallHeat = smallFire.GetEffectiveHeatOutput(AmbientTemp);
+        double largeHeat = largeFire.GetEffectiveHeatOutput(AmbientTemp);
 
         // Assert
         Assert.True(largeHeat > smallHeat,
@@ -316,11 +313,11 @@ public class HeatSourceFeatureTests
     public void Update_ConsumsFuelOverTime()
     {
         // Arrange
-        var fire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling, isActive: true);
+        var fire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling);
         double initialFuel = fire.FuelMassKg;
 
         // Act
-        fire.Update(TimeSpan.FromMinutes(30));
+        fire.Update(30);
 
         // Assert
         Assert.True(fire.FuelMassKg < initialFuel,
@@ -330,13 +327,13 @@ public class HeatSourceFeatureTests
     }
 
     [Fact]
-    public void FuelRemaining_ReturnsEstimatedHours()
+    public void HoursRemaining_ReturnsEstimatedHours()
     {
         // Arrange
-        var fire = TestFixtures.CreateTestFire(initialFuelKg: 1.5, fuelType: FuelType.Kindling, isActive: true);
+        var fire = TestFixtures.CreateTestFire(initialFuelKg: 1.5, fuelType: FuelType.Kindling);
 
         // Act
-        double fuelHours = fire.FuelRemaining;
+        double fuelHours = fire.HoursRemaining;
 
         // Assert
         // Kindling burns at 1.5kg/hour, so 1.5kg should last 1 hour
@@ -352,18 +349,13 @@ public class HeatSourceFeatureTests
     public void AddFuel_ToEmbers_RelightsFireAutomatically()
     {
         // Arrange
-        var fire = TestFixtures.CreateTestFire(initialFuelKg: 1.0, fuelType: FuelType.Tinder, isActive: true);
-        fire.Update(TimeSpan.FromMinutes(25)); // Burn to embers
+        var fire = TestFixtures.CreateTestFire(initialFuelKg: 1.0, fuelType: FuelType.Tinder);
+        fire.Update(25); // Burn to embers
 
         Assert.True(fire.HasEmbers, "Fire should have embers before test");
 
-        // Act
-        var newFuel = new Item("Kindling", 0.5)
-        {
-            FuelMassKg = 2.0,
-            CraftingProperties = new List<ItemProperty> { ItemProperty.Fuel_Kindling }
-        };
-        fire.AddFuel(newFuel, 2.0);
+        // Act - add kindling fuel
+        fire.AddFuel(2.0, FuelType.Kindling);
 
         // Assert
         Assert.True(fire.IsActive, "Adding fuel to embers should relight fire");
@@ -374,21 +366,14 @@ public class HeatSourceFeatureTests
     public void CanAddFuel_RequiresMinimumTemperature()
     {
         // Arrange
-        var coldFire = TestFixtures.CreateTestFire(initialFuelKg: 0.5, fuelType: FuelType.Tinder, isActive: true);
+        var coldFire = TestFixtures.CreateTestFire(initialFuelKg: 0.5, fuelType: FuelType.Tinder);
 
-        // Hardwood requires 500°F to ignite
-        var hardwood = new Item("Hardwood", 0.5)
-        {
-            FuelMassKg = 1.0,
-            CraftingProperties = new List<ItemProperty> { ItemProperty.Fuel_Hardwood }
-        };
-
-        // Act
-        bool canAddImmediately = coldFire.CanAddFuel(hardwood);
+        // Act - hardwood requires 500°F to ignite
+        bool canAddImmediately = coldFire.CanAddFuel(FuelType.Hardwood);
 
         // Warm up the fire
-        coldFire.Update(TimeSpan.FromMinutes(10));
-        bool canAddAfterWarmup = coldFire.CanAddFuel(hardwood);
+        coldFire.Update(10);
+        bool canAddAfterWarmup = coldFire.CanAddFuel(FuelType.Hardwood);
 
         // Assert
         Assert.False(canAddImmediately,

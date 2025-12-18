@@ -14,10 +14,10 @@ public class CombatManager
         Owner = owner;
     }
 
-    public double DetermineDamage()
+    public double DetermineDamage(Weapon weapon)
     {
         // base weapon and skill
-        double baseDamage = Owner.ActiveWeapon.Damage;
+        double baseDamage = weapon.Damage;
 
         double skillBonus = 0;
         if (Owner is Player player)
@@ -27,13 +27,13 @@ public class CombatManager
 
         // modifiers
         double strengthModifier = (Owner.Strength / 2) + .5; // str determines up to 50%
-        // A smaller health modifier up to 30%
-        double healthModifier = 0.7 + (0.3 * (Owner.Body.Health / Owner.Body.MaxHealth));
+        // Vitality affects damage output - low organ function = weaker attacks
+        double vitalityModifier = 0.7 + (0.3 * Owner.Vitality);
         // todo factor in any effects like adrenaline, etc.
         // This could be expanded based on your EffectRegistry
         double effectsModifier = 1.0;
         double randomModifier = Utils.RandDouble(.5, 1.5);
-        double totalModifier = strengthModifier * healthModifier * effectsModifier * randomModifier;
+        double totalModifier = strengthModifier * vitalityModifier * effectsModifier * randomModifier;
 
         double damage = (baseDamage + skillBonus) * totalModifier;
         return damage >= 0 ? damage : 0;
@@ -64,10 +64,10 @@ public class CombatManager
         return false;
     }
 
-    public bool DetermineHit()
+    public bool DetermineHit(Weapon weapon)
     {
-        // GameDisplay.AddNarrative("Debug: hit Chance: ", Owner.ActiveWeapon.Accuracy);
-        double hitChance = Math.Clamp(Owner.ActiveWeapon.Accuracy, .01, .95);
+        // GameDisplay.AddNarrative("Debug: hit Chance: ", weapon.Accuracy);
+        double hitChance = Math.Clamp(weapon.Accuracy, .01, .95);
         if (!Utils.DetermineSuccess(hitChance))
         {
             GameDisplay.AddNarrative($"{Owner} missed!");
@@ -93,8 +93,10 @@ public class CombatManager
         return false;
     }
 
-    public void Attack(Actor target, string? targetedPart = null)
+    public void Attack(Actor target, Weapon? weaponOverride = null, string? targetedPart = null)
     {
+        Weapon weapon = weaponOverride ?? Owner.ActiveWeapon;
+
         bool isDodged = DetermineDodge(target);
         if (isDodged)
         {
@@ -104,7 +106,7 @@ public class CombatManager
             return;
         }
 
-        bool isHit = DetermineHit();
+        bool isHit = DetermineHit(weapon);
         if (!isHit)
         {
             string description = CombatNarrator.DescribeAttack(Owner, target, null, false, false, false);
@@ -121,9 +123,9 @@ public class CombatManager
             return;
         }
 
-        double damage = DetermineDamage();
+        double damage = DetermineDamage(weapon);
 
-        DamageType type = Owner.ActiveWeapon.Class switch
+        DamageType type = weapon.Class switch
         {
             WeaponClass.Blade or WeaponClass.Claw => DamageType.Sharp,
             WeaponClass.Pierce => DamageType.Pierce,
@@ -145,14 +147,14 @@ public class CombatManager
         // Add weapon-specific effect descriptions
         if (damageResult.TotalDamageDealt > 0)
         {
-            AddWeaponEffectDescription(Owner.ActiveWeapon.Class, damageResult.TotalDamageDealt);
+            AddWeaponEffectDescription(weapon.Class, damageResult.TotalDamageDealt);
         }
 
         if (target is Player player)
         {
             player.Skills.Fighting.GainExperience(1);
         }
-        
+
         Thread.Sleep(1000);
     }
 

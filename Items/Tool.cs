@@ -1,0 +1,140 @@
+namespace text_survival.Items;
+
+/// <summary>
+/// Simple tool that "just works" - no condition/degradation tracking.
+/// Tools can optionally have combat properties (Damage, Accuracy, etc.)
+/// Examples: axe (chops AND fights), knife (cuts AND fights), fire striker (utility only)
+/// </summary>
+public class Tool
+{
+    public string Name { get; set; }
+    public ToolType Type { get; set; }
+    public double Weight { get; set; }
+
+    // Optional combat properties - null means not a weapon
+    public double? Damage { get; set; }
+    public double? Accuracy { get; set; }
+    public double? BlockChance { get; set; }
+    public WeaponClass? WeaponClass { get; set; }
+
+    // Computed property - true if this tool can be used as a weapon
+    public bool IsWeapon => Damage.HasValue;
+
+    // Static fallback for unarmed combat
+    public static Tool Unarmed { get; } = new("Fists", ToolType.Unarmed, 0)
+    {
+        Damage = 2,
+        Accuracy = 1.5,
+        BlockChance = 0.01,
+        WeaponClass = Items.WeaponClass.Unarmed
+    };
+
+    public Tool(string name, ToolType type, double weight = 0.5)
+    {
+        Name = name;
+        Type = type;
+        Weight = weight;
+    }
+
+    public override string ToString() => Name;
+
+    /// <summary>
+    /// Converts this tool to a Weapon for combat system compatibility.
+    /// Throws if this tool has no combat properties.
+    /// </summary>
+    public Weapon ToWeapon()
+    {
+        if (!IsWeapon)
+            throw new InvalidOperationException($"Tool '{Name}' is not a weapon");
+
+        return new Weapon(
+            GetWeaponType(),
+            WeaponMaterial.Other,
+            Name,
+            craftsmanship: 100) // Use 100 to avoid craftsmanship modifier (it divides by 100)
+        {
+            Damage = Damage!.Value,
+            Accuracy = Accuracy!.Value,
+            BlockChance = BlockChance!.Value,
+            Class = WeaponClass!.Value,
+            Weight = Weight
+        };
+    }
+
+    private WeaponType GetWeaponType()
+    {
+        return Type switch
+        {
+            ToolType.Knife => WeaponType.Knife,
+            ToolType.Axe => WeaponType.HandAxe,
+            ToolType.Spear => WeaponType.Spear,
+            ToolType.Club => WeaponType.Club,
+            ToolType.Unarmed => WeaponType.Unarmed,
+            _ => WeaponType.Unarmed
+        };
+    }
+
+    // Factory methods for common tools
+
+    /// <summary>Stone axe - chops wood AND fights (Damage 12, Blade)</summary>
+    public static Tool Axe(string name = "Stone Axe") =>
+        new(name, ToolType.Axe, 1.5)
+        {
+            Damage = 12,
+            Accuracy = 0.8,
+            BlockChance = 0.05,
+            WeaponClass = Items.WeaponClass.Blade
+        };
+
+    /// <summary>Flint knife - cuts AND fights (Damage 6, Blade)</summary>
+    public static Tool Knife(string name = "Flint Knife") =>
+        new(name, ToolType.Knife, 0.3)
+        {
+            Damage = 6,
+            Accuracy = 1.4,
+            BlockChance = 0.02,
+            WeaponClass = Items.WeaponClass.Blade
+        };
+
+    /// <summary>Fire striker - utility only, no combat stats</summary>
+    public static Tool FireStriker(string name = "Fire Striker") =>
+        new(name, ToolType.FireStriker, 0.2);
+
+    /// <summary>Water container - utility only, no combat stats</summary>
+    public static Tool WaterContainer(string name = "Waterskin", double weight = 0.3) =>
+        new(name, ToolType.WaterContainer, weight);
+
+    /// <summary>Wooden spear - hunting AND fighting (Damage 8, Pierce)</summary>
+    public static Tool Spear(string name = "Wooden Spear") =>
+        new(name, ToolType.Spear, 2.0)
+        {
+            Damage = 8,
+            Accuracy = 1.2,
+            BlockChance = 0.12,
+            WeaponClass = Items.WeaponClass.Pierce
+        };
+
+    /// <summary>Club - blunt force weapon (Damage 10, Blunt)</summary>
+    public static Tool Club(string name = "Wooden Club") =>
+        new(name, ToolType.Club, 2.0)
+        {
+            Damage = 10,
+            Accuracy = 0.9,
+            BlockChance = 0.08,
+            WeaponClass = Items.WeaponClass.Blunt
+        };
+}
+
+public enum ToolType
+{
+    Axe,
+    Knife,
+    FireStriker,
+    WaterContainer,
+    Spear,
+    Club,
+    Scraper,
+    Needle,
+    Cordage,
+    Unarmed
+}

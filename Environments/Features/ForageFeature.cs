@@ -1,7 +1,18 @@
-using text_survival.Crafting;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
+
+public enum ForageResourceType
+{
+    Log,
+    Stick,
+    Tinder,
+    Berries,
+    RawMeat,  // Small game found while foraging
+    Water
+}
+
+public record ForageResource(ForageResourceType Type, double Abundance, double MinWeight, double MaxWeight);
 
 public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage")
 {
@@ -10,7 +21,8 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
     private double hoursSinceLastForage = 0;
     private bool hasForagedBefore = false;
     private readonly double respawnRateHours = 48.0; // Full respawn takes 48 hours
-    private Dictionary<Func<Item>, double> resourceAbundance = [];
+    private readonly List<ForageResource> resources = [];
+    private static readonly Random rng = new();
 
     public override void Update(int minutes)
     {
@@ -30,7 +42,6 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
         {
             double amountDepleted = baseResourceDensity - depletedDensity;
             double respawnProgress = (hoursSinceLastForage / respawnRateHours) * amountDepleted;
-            // EffectiveDensity = min(baseDensity, depletedDensity + respawnProgress)
             double effectiveDensity = Math.Min(baseResourceDensity, depletedDensity + respawnProgress);
             return effectiveDensity;
         }
@@ -38,75 +49,122 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
         return depletedDensity;
     }
 
-    public List<Item> Forage(double hours)
+    /// <summary>
+    /// Forage for resources. Returns FoundResources with varying weights.
+    /// </summary>
+    public FoundResources Forage(double hours)
     {
-        List<Item> itemsFound = [];
+        var found = new FoundResources();
 
-        // Run foraging checks with time scaling (15 min = 25% of hourly odds)
-        foreach (Func<Item> factory in resourceAbundance.Keys)
+        foreach (var resource in resources)
         {
-            double baseChance = ResourceDensity() * resourceAbundance[factory];
-            double scaledChance = baseChance * hours; // Scale by time spent
+            double baseChance = ResourceDensity() * resource.Abundance;
+            double scaledChance = baseChance * hours;
+
             if (Utils.DetermineSuccess(scaledChance))
             {
-                var item = factory();
-                item.IsFound = true;
-                itemsFound.Add(item);
+                double weight = RandomWeight(resource.MinWeight, resource.MaxWeight);
+                AddResourceToFound(found, resource.Type, weight);
             }
         }
 
-        // Only deplete if items were actually found
-        if (itemsFound.Count > 0)
+        // Only deplete if resources were found
+        if (!found.IsEmpty)
         {
             numberOfHoursForaged += hours;
         }
 
-        // Reset time since last forage
         hoursSinceLastForage = 0;
         hasForagedBefore = true;
 
-        return itemsFound;
+        return found;
     }
 
-    /// <summary>
-    /// Adds a resource type that can be found when foraging at this location.
-    /// </summary>
-    /// <param name="factory">A function that creates new instances of the item when found</param>
-    /// <param name="abundance">How common this resource is. With default resource density (1.0), 
-    /// an abundance of 0.5 means a 50% chance of finding this item in the first hour of foraging.
-    /// Values ≥ 1.0 typically result in guaranteed finds each hour (at least initially).
-    /// The actual chance each hour = current ResourceDensity × abundance, so chances decrease 
-    /// over time as the area becomes depleted from continued foraging.</param>
-    public void AddResource(Func<Item> factory, double abundance)
+    private static double RandomWeight(double min, double max)
     {
-        resourceAbundance.Add(factory, abundance);
+        return min + rng.NextDouble() * (max - min);
     }
 
-    /// <summary>
-    /// Returns the top ItemProperty tags by weighted abundance at this location.
-    /// </summary>
-    /// <param name="count">Number of top categories to return (default 3)</param>
-    /// <returns>List of ItemProperty values sorted by total abundance</returns>
-    public List<ItemProperty> GetTopCategories(int count = 3)
+    private static void AddResourceToFound(FoundResources found, ForageResourceType type, double weight)
     {
-        var propertyAbundance = new Dictionary<ItemProperty, double>();
-
-        foreach (var (factory, abundance) in resourceAbundance)
+        switch (type)
         {
-            var item = factory();
-            foreach (var property in item.CraftingProperties)
-            {
-                if (!propertyAbundance.TryAdd(property, abundance))
-                {
-                    propertyAbundance[property] += abundance;
-                }
-            }
+            case ForageResourceType.Log:
+                found.AddLog(weight);
+                break;
+            case ForageResourceType.Stick:
+                found.AddStick(weight);
+                break;
+            case ForageResourceType.Tinder:
+                found.AddTinder(weight);
+                break;
+            case ForageResourceType.Berries:
+                found.AddBerries(weight);
+                break;
+            case ForageResourceType.RawMeat:
+                found.AddRawMeat(weight);
+                break;
+            case ForageResourceType.Water:
+                found.AddWater(weight);
+                break;
         }
+    }
 
-        return propertyAbundance
-            .OrderByDescending(kvp => kvp.Value)
-            .Take(count)
-            .Select(kvp => kvp.Key)
-            .ToList();
+    /// <summary>
+    /// Add a resource type that can be found when foraging.
+    /// </summary>
+    /// <param name="type">Type of resource</param>
+    /// <param name="abundance">Chance to find per hour at full density (0.5 = 50% chance)</param>
+    /// <param name="minWeight">Minimum weight when found</param>
+    /// <param name="maxWeight">Maximum weight when found</param>
+    public ForageFeature AddResource(ForageResourceType type, double abundance, double minWeight, double maxWeight)
+    {
+        resources.Add(new ForageResource(type, abundance, minWeight, maxWeight));
+        return this;
+    }
+
+    // Convenience methods for common configurations
+    public ForageFeature AddLogs(double abundance = 0.3, double minKg = 1.0, double maxKg = 3.0) =>
+        AddResource(ForageResourceType.Log, abundance, minKg, maxKg);
+
+    public ForageFeature AddSticks(double abundance = 0.6, double minKg = 0.1, double maxKg = 0.5) =>
+        AddResource(ForageResourceType.Stick, abundance, minKg, maxKg);
+
+    public ForageFeature AddTinder(double abundance = 0.4, double minKg = 0.02, double maxKg = 0.08) =>
+        AddResource(ForageResourceType.Tinder, abundance, minKg, maxKg);
+
+    public ForageFeature AddBerries(double abundance = 0.2, double minKg = 0.05, double maxKg = 0.2) =>
+        AddResource(ForageResourceType.Berries, abundance, minKg, maxKg);
+
+    /// <summary>
+    /// Get summary of what can be found here for display.
+    /// </summary>
+    public List<string> GetAvailableResourceTypes()
+    {
+        return resources.Select(r => r.Type switch
+        {
+            ForageResourceType.Log => "firewood",
+            ForageResourceType.Stick => "kindling",
+            ForageResourceType.Tinder => "tinder",
+            ForageResourceType.Berries => "berries",
+            ForageResourceType.RawMeat => "small game",
+            ForageResourceType.Water => "water",
+            _ => "resources"
+        }).Distinct().ToList();
+    }
+
+    /// <summary>
+    /// Get a description of the forage quality based on resource density.
+    /// </summary>
+    public string GetQualityDescription()
+    {
+        double density = ResourceDensity();
+        return density switch
+        {
+            >= 0.8 => "abundant",
+            >= 0.5 => "decent",
+            >= 0.3 => "sparse",
+            _ => "picked over"
+        };
     }
 }

@@ -1,5 +1,4 @@
 ﻿using text_survival.Environments.Features;
-using text_survival.Actors.NPCs;
 using text_survival.Items;
 using text_survival.Bodies;
 
@@ -59,6 +58,7 @@ public class Location
     public List<LocationFeature> Features { get; } = [];
     public List<Item> Items { get; } = [];
 
+
     // Derived
     public bool IsPath => BaseTraversalMinutes > 0;
     public bool IsSite => BaseTraversalMinutes == 0;
@@ -74,8 +74,6 @@ public class Location
         AddConnection(other);
         other.AddConnection(this);
     }
-    public IReadOnlyList<Npc> Npcs => _npcs.AsReadOnly();
-    private List<Npc> _npcs = [];
     public List<BloodTrail> BloodTrails = []; // MVP Hunting System - Phase 4
 
 
@@ -85,7 +83,6 @@ public class Location
     {
         Name = name;
         Parent = parent;
-        NpcSpawner = new();
     }
 
     public T? GetFeature<T>() where T : LocationFeature => Features.OfType<T>().FirstOrDefault();
@@ -94,24 +91,6 @@ public class Location
     public List<Location> GetUnexploredConnections()
         => Connections.Where(l => !l.Explored).ToList();
 
-    public void SpawnNpcs(int numNpcs)
-    {
-        for (int i = 0; i < numNpcs; i++)
-        {
-            var npc = NpcSpawner.GenerateRandom();
-            if (npc is not null)
-            {
-                _npcs.Add(npc);
-            }
-        }
-    }
-
-    public void RemoveNpc(Npc npc)
-    {
-        _npcs.Remove(npc);
-    }
-
-    public virtual NpcTable NpcSpawner { get; set; }
 
 
     #endregion Initialization
@@ -213,7 +192,6 @@ public class Location
             ActivityLevel = 1,
             LocationTemperature = GetTemperature(),
         };
-        _npcs.ForEach(n => n.Update(minutes, context));
 
         // Update location features (fires consume fuel, etc.)
         foreach (var feature in Features)
@@ -228,6 +206,46 @@ public class Location
         Explored = true;
     }
 
+    public string GetUnexploredHint(Actors.Player.Player player)
+    {
+        // Check EnvironmentFeature first for location type
+        var env = GetFeature<EnvironmentFeature>();
+        string terrain;
+
+        if (env != null)
+        {
+            terrain = env.Type switch
+            {
+                EnvironmentFeature.LocationType.Forest => "Wooded area",
+                EnvironmentFeature.LocationType.Cave => "Dark opening",
+                EnvironmentFeature.LocationType.RiverBank => "Water nearby",
+                EnvironmentFeature.LocationType.Cliff => "Cliff face",
+                EnvironmentFeature.LocationType.HighGround => "High ground",
+                EnvironmentFeature.LocationType.OpenPlain => "Open ground",
+                _ => "Unknown terrain"
+            };
+        }
+        else
+        {
+            // Fallback to TerrainType
+            terrain = Terrain switch
+            {
+                TerrainType.Snow => "Snowy area",
+                TerrainType.Rough => "Rocky terrain",
+                TerrainType.Steep => "Steep climb",
+                TerrainType.Water => "Water crossing",
+                TerrainType.Hazardous => "Dangerous ground",
+                _ => "Open ground"
+            };
+        }
+
+        int minutes = TravelProcessor.GetTraversalMinutes(this, player);
+        int rounded = ((minutes + 7) / 15) * 15;  // Round to nearest 15
+        rounded = Math.Max(15, rounded);  // Minimum 15 min
+
+        return $"{terrain} (~{rounded} min)";
+    }
+
     public string GetGatherSummary()
     {
         var parts = new List<string>();
@@ -235,8 +253,9 @@ public class Location
         var forage = GetFeature<ForageFeature>();
         if (forage != null)
         {
-            var categories = forage.GetTopCategories(3);  // "food, wood, stone"
-            parts.Add($"foraging: {string.Join(", ", categories)}");
+            var resources = forage.GetAvailableResourceTypes();
+            if (resources.Count > 0)
+                parts.Add($"foraging: {string.Join(", ", resources.Take(3))}");
         }
 
         var harvestables = Features

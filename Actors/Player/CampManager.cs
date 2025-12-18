@@ -9,7 +9,9 @@ public class Camp(Location startingLocation)
     public Location Location { get; private set; } = startingLocation;
     public HeatSourceFeature? Fire => Location.GetFeature<HeatSourceFeature>();
     public ShelterFeature? Shelter => Location.GetFeature<ShelterFeature>();
-    public List<Item> Stash => Location.Items;
+
+    // Camp storage (aggregate-based, unlimited capacity)
+    public Inventory Storage { get; } = Inventory.CreateCampStorage();
 
     public double FireMinutesRemaining =>
         HasActiveFire ? Fire!.HoursRemaining * 60 : 0;

@@ -171,7 +171,7 @@ public static class SurvivalProcessor
 		// Organ damage - nothing left to burn
 		if (deficit > 0)
 		{
-			double damagePerMinute = 0.1 / 60.0;
+			double damagePerMinute = 0.5 / 60.0;  // 0.5/hour = death in ~10 hours
 			double damage = damagePerMinute * minutesElapsed;
 
 			var vitalOrgans = new[] { "Heart", "Liver", "Brain", "Lungs" };
@@ -194,7 +194,7 @@ public static class SurvivalProcessor
 		if (projectedHydration > 0)
 			return new SurvivalProcessorResult();
 
-		double damagePerMinute = 0.2 / 60.0;
+		double damagePerMinute = 1.0 / 60.0;  // 1.0/hour = death in ~5 hours
 		double damage = damagePerMinute * minutesElapsed;
 
 		var affectedOrgans = new[] { "Brain", "Heart", "Liver" };
@@ -221,7 +221,7 @@ public static class SurvivalProcessor
 			return new SurvivalProcessorResult();
 
 		double severityFactor = Math.Min(1.0, (SevereHypothermiaThreshold - projectedTemp) / 50.0);
-		double damagePerHour = 0.15 + (0.15 * severityFactor);
+		double damagePerHour = 1.0 + (1.0 * severityFactor);  // 1.0-2.0/hour = death in 3-6 hours
 		double damage = (damagePerHour / 60.0) * minutesElapsed;
 
 		var coreOrgans = new[] { "Heart", "Brain", "Lungs" };
@@ -248,11 +248,18 @@ public static class SurvivalProcessor
 		bool hydrated = projectedHydration > MAX_HYDRATION * REGEN_MIN_HYDRATION_PERCENT;
 		bool rested = body.Energy < MAX_ENERGY_MINUTES * REGEN_MAX_ENERGY_PERCENT;
 
-		if (!wellFed || !hydrated || !rested || body.Health >= 1.0)
+		// Check if any body parts need healing
+		bool fullyHealed = body.Parts.All(p => p.Condition >= 1.0) &&
+		                   body.Parts.SelectMany(p => p.Organs).All(o => o.Condition >= 1.0);
+		if (!wellFed || !hydrated || !rested || fullyHealed)
 			return new SurvivalProcessorResult();
 
+		// Digestion capacity affects how well nutrients support healing
+		var capacities = CapacityCalculator.GetCapacities(body, new CapacityModifierContainer());
+		double digestionQuality = capacities.Digestion;
+
 		double nutritionQuality = Math.Min(1.0, projectedCalories / MAX_CALORIES);
-		double healingAmount = (BASE_HEALING_PER_HOUR / 60.0) * minutesElapsed * nutritionQuality;
+		double healingAmount = (BASE_HEALING_PER_HOUR / 60.0) * minutesElapsed * nutritionQuality * digestionQuality;
 
 		var result = new SurvivalProcessorResult
 		{
@@ -307,7 +314,9 @@ public static class SurvivalProcessor
 	public static double GetCurrentMetabolism(Body body, double activityLevel)
 	{
 		double bmr = 370 + (21.6 * body.MuscleKG) + (6.17 * body.BodyFatKG);
-		bmr *= 0.7 + (0.3 * body.Health);
+		// Organ condition affects metabolism - damaged organs = less efficient
+		double organCondition = body.Parts.SelectMany(p => p.Organs).Average(o => o.Condition);
+		bmr *= 0.7 + (0.3 * organCondition);
 		return bmr * activityLevel;
 	}
 	private static List<Effect> GetTemperatureEffects(Body body)

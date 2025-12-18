@@ -37,7 +37,7 @@
         Organic,        // Natural animal weapons
         Other           // Miscellaneous
     }
-    public class Weapon : Gear
+    public class Weapon : Item
     {
         public WeaponClass Class { get; set; }
         public WeaponMaterial Material { get; set; }
@@ -61,7 +61,6 @@
 
             Type = type;
             Material = material;
-            EquipEffects = [];
         }
 
         private void ApplyCraftsmanshipModifier()
