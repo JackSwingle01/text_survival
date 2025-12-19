@@ -129,6 +129,14 @@ public class Tool
     public static Tool FireStriker(string name = "Fire Striker") =>
         new(name, ToolType.FireStriker, 0.2);
 
+    /// <summary>Hand drill - primitive friction fire-starter</summary>
+    public static Tool HandDrill(string name = "Hand Drill") =>
+        new(name, ToolType.HandDrill, 0.3);
+
+    /// <summary>Bow drill - better friction fire-starter</summary>
+    public static Tool BowDrill(string name = "Bow Drill") =>
+        new(name, ToolType.BowDrill, 0.5);
+
     /// <summary>Water container - utility only, no combat stats</summary>
     public static Tool WaterContainer(string name = "Waterskin", double weight = 0.3) =>
         new(name, ToolType.WaterContainer, weight);

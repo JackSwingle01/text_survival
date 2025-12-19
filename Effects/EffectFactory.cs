@@ -49,8 +49,7 @@ public static class EffectFactory
         EffectKind = "Hypothermia",
         Source = "temperature",
         Severity = severity,
-        HourlySeverityChange = -0.02,
-        RequiresTreatment = true,
+        HourlySeverityChange = -0.5,
         CapacityModifiers = Capacities(
             (CapacityNames.Moving, -0.3),
             (CapacityNames.Manipulation, -0.3),

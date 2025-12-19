@@ -47,7 +47,8 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 1.1
             };
 
-            Animal wolf = new("Wolf", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large)
+            Animal wolf = new("Wolf", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
+                speedMps: 8.0, pursuitCommitment: 60.0)
             {
                 Description = "A wolf.",
                 TrackingDifficulty = 6 // Medium difficulty - intelligent predator
@@ -72,7 +73,8 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 0.9
             };
 
-            Animal bear = new("Bear", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large)
+            Animal bear = new("Bear", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
+                speedMps: 5.0, pursuitCommitment: 30.0)
             {
                 Description = "A bear.",
                 TrackingDifficulty = 5 // Medium difficulty
@@ -181,7 +183,8 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 0.85
             };
 
-            Animal caveBear = new("Cave Bear", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large)
+            Animal caveBear = new("Cave Bear", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
+                speedMps: 4.5, pursuitCommitment: 25.0)
             {
                 Description = "An enormous cave bear with massive claws. It's adapted to cave dwelling and hunting in darkness.",
                 TrackingDifficulty = 4 // Easier to track - large and heavy
@@ -233,7 +236,8 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 1.0
             };
 
-            Animal saberTooth = new("Saber-Tooth Tiger", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large)
+            Animal saberTooth = new("Saber-Tooth Tiger", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
+                speedMps: 9.0, pursuitCommitment: 45.0)
             {
                 Description = "A fearsome predator with long saber-like canine teeth.",
                 TrackingDifficulty = 7 // Hard to track - stealthy apex predator

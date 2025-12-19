@@ -1,4 +1,5 @@
 using text_survival.Actors.NPCs;
+using text_survival.Actors.Player;
 
 namespace text_survival;
 
@@ -179,6 +180,54 @@ public static class HuntingCalculator
         if (targetIsSmall) accuracy *= 0.5;
 
         return Math.Clamp(accuracy, 0.05, 0.95);
+    }
+
+    #endregion
+
+    #region Pursuit Resolution
+
+    /// <summary>
+    /// Calculates whether a player can escape a pursuing predator.
+    /// Uses physics-based calculation: can player maintain enough distance until predator gives up?
+    /// </summary>
+    /// <param name="player">The fleeing player</param>
+    /// <param name="predator">The pursuing animal</param>
+    /// <param name="headStartMeters">Current distance (head start) in meters</param>
+    /// <returns>Tuple of (escaped, narrative description)</returns>
+    public static (bool escaped, string narrative) CalculatePursuitOutcome(
+        Player player,
+        Animal predator,
+        double headStartMeters)
+    {
+        // Player speed (uses body capacity for injuries)
+        double playerBaseSpeed = 6.0; // m/s jogging
+        double movementCapacity = player.GetCapacities().Moving;
+        double playerSpeed = playerBaseSpeed * movementCapacity;
+
+        // Predator speed from animal data
+        double predatorSpeed = predator.SpeedMps;
+
+        // Can player outrun?
+        if (playerSpeed >= predatorSpeed)
+        {
+            return (true, $"You're faster than the {predator.Name}. You escape easily.");
+        }
+
+        // Pursuit calculation
+        double speedDiff = predatorSpeed - playerSpeed;
+        double catchTime = headStartMeters / speedDiff;
+
+        // Predator commitment from animal data
+        double commitment = predator.PursuitCommitmentSeconds;
+
+        if (catchTime > commitment)
+        {
+            return (true, $"The {predator.Name} chases but gives up after {commitment:F0} seconds. You escape.");
+        }
+        else
+        {
+            return (false, $"The {predator.Name} is faster. It catches you in {catchTime:F0} seconds!");
+        }
     }
 
     #endregion

@@ -60,6 +60,9 @@ public partial class GameRunner(GameContext ctx)
     {
         var choice = new Choice<Action>();
 
+        if (CanRestByFire())
+            choice.AddOption("Wait", Wait);
+
         if (HasActiveFire())
             choice.AddOption("Tend fire", TendFire);
 
@@ -80,9 +83,6 @@ public partial class GameRunner(GameContext ctx)
 
         if (HasItems())
             choice.AddOption("Inventory", RunInventoryMenu);
-
-        if (CanRestByFire())
-            choice.AddOption("Rest by the fire", RestByFire);
 
         if (ctx.player.Body.IsTired)
             choice.AddOption("Sleep", Sleep);
@@ -155,6 +155,11 @@ public partial class GameRunner(GameContext ctx)
         if (fire == null || (!fire.IsActive && !fire.HasEmbers))
             return;
 
+        // Don't warn when fire is growing
+        string phase = fire.GetFirePhase();
+        if (phase == "Igniting" || phase == "Building")
+            return;
+
         int minutes = (int)(fire.HoursRemaining * 60);
 
         if (minutes <= 5)
@@ -173,7 +178,10 @@ public partial class GameRunner(GameContext ctx)
         if (!noFire && !coldFire) return false;
 
         // Need a fire tool and materials
-        bool hasTool = ctx.Inventory.Tools.Any(t => t.Type == ToolType.FireStriker);
+        bool hasTool = ctx.Inventory.Tools.Any(t =>
+            t.Type == ToolType.FireStriker ||
+            t.Type == ToolType.HandDrill ||
+            t.Type == ToolType.BowDrill);
         return hasTool && ctx.Inventory.CanStartFire;
     }
 
@@ -183,152 +191,89 @@ public partial class GameRunner(GameContext ctx)
         return fire != null && fire.IsActive;
     }
 
-    private void RestByFire()
-    {
-        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>()!;
-
-        // Show current status
-        string firePhase = fire.GetFirePhase();
-        double fuelMinutes = fire.HoursRemaining * 60;
-        double locationTemp = ctx.CurrentLocation.GetTemperature();
-
-        GameDisplay.AddNarrative($"Fire: {firePhase} (~{fuelMinutes:F0} min fuel remaining)");
-        GameDisplay.AddNarrative($"Temperature: {locationTemp:F0}°F");
-
-        var durationChoices = new List<string>
-        {
-            "15 minutes",
-            "30 minutes",
-            "60 minutes",
-            "Cancel"
-        };
-
-        GameDisplay.Render(ctx, addSeparator: false);
-        string choice = Input.Select("How long do you want to rest?", durationChoices);
-
-        if (choice == "Cancel")
-            return;
-
-        int minutes = choice switch
-        {
-            "15 minutes" => 15,
-            "30 minutes" => 30,
-            "60 minutes" => 60,
-            _ => 0
-        };
-
-        if (minutes == 0) return;
-
-        GameDisplay.AddNarrative($"You huddle close to the fire to warm up...");
-
-        // Update with reduced activity (1.0) and high fire proximity (2.0 = huddling)
-        ctx.Update(minutes, 1.0, 2.0);
-
-        // Show result
-        double newTemp = ctx.CurrentLocation.GetTemperature();
-        double newFuelMinutes = fire.HoursRemaining * 60;
-        GameDisplay.AddNarrative($"You feel warmer after resting by the fire.");
-
-        if (fire.IsActive)
-            GameDisplay.AddNarrative($"Fire: {fire.GetFirePhase()} (~{newFuelMinutes:F0} min remaining)");
-        else if (fire.HasEmbers)
-            GameDisplay.AddWarning("The fire has died down to embers.");
-        else
-            GameDisplay.AddDanger("The fire has gone out!");
-    }
-
     private void TendFire()
     {
         var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>()!;
         var inv = ctx.Inventory;
 
-        // Display fire status
-        string firePhase = fire.GetFirePhase();
-        double fireTemp = fire.GetCurrentFireTemperature();
-        double heatOutput = fire.GetEffectiveHeatOutput(ctx.CurrentLocation.GetTemperature());
-        double fuelMinutes = fire.HoursRemaining * 60;
-
-        // Build fuel options - only show options that can actually be added
-        var fuelChoices = new List<string>();
-        var fuelMap = new Dictionary<string, (string name, FuelType type, Func<double> takeFunc)>();
-
-        if (inv.Logs.Count > 0)
+        while (true)
         {
-            if (fire.CanAddFuel(FuelType.Softwood))
+            // Build fuel options - only show options that can actually be added
+            var fuelChoices = new List<string>();
+            var fuelMap = new Dictionary<string, (string name, FuelType type, Func<double> takeFunc)>();
+
+            if (inv.Logs.Count > 0)
             {
-                string label = $"Add log ({inv.Logs.Count} @ {inv.Logs.Sum():F1}kg)";
+                if (fire.CanAddFuel(FuelType.Softwood))
+                {
+                    string label = $"Add log ({inv.Logs.Count} @ {inv.Logs.Sum():F1}kg)";
+                    fuelChoices.Add(label);
+                    fuelMap[label] = ("log", FuelType.Softwood, inv.TakeSmallestLog);
+                }
+                else
+                {
+                    // Show greyed-out option explaining why logs can't be added yet
+                    string disabledLabel = "[dim]Add log (fire too small)[/]";
+                    fuelChoices.Add(disabledLabel);
+                    fuelMap[disabledLabel] = ("disabled", FuelType.Softwood, () => 0);
+                }
+            }
+
+            if (inv.Sticks.Count > 0 && fire.CanAddFuel(FuelType.Kindling))
+            {
+                string label = $"Add stick ({inv.Sticks.Count} @ {inv.Sticks.Sum():F1}kg)";
                 fuelChoices.Add(label);
-                fuelMap[label] = ("log", FuelType.Softwood, inv.TakeSmallestLog);
+                fuelMap[label] = ("stick", FuelType.Kindling, inv.TakeSmallestStick);
             }
-            else
+
+            if (inv.Tinder.Count > 0 && fire.CanAddFuel(FuelType.Tinder))
             {
-                // Show greyed-out option explaining why logs can't be added yet
-                string disabledLabel = "[dim]Add log (fire too small)[/]";
-                fuelChoices.Add(disabledLabel);
-                fuelMap[disabledLabel] = ("disabled", FuelType.Softwood, () => 0);
+                string label = $"Add tinder ({inv.Tinder.Count} @ {inv.Tinder.Sum():F2}kg)";
+                fuelChoices.Add(label);
+                fuelMap[label] = ("tinder", FuelType.Tinder, inv.TakeTinder);
             }
-        }
 
-        if (inv.Sticks.Count > 0 && fire.CanAddFuel(FuelType.Kindling))
-        {
-            string label = $"Add stick ({inv.Sticks.Count} @ {inv.Sticks.Sum():F1}kg)";
-            fuelChoices.Add(label);
-            fuelMap[label] = ("stick", FuelType.Kindling, inv.TakeSmallestStick);
-        }
-
-        if (inv.Tinder.Count > 0 && fire.CanAddFuel(FuelType.Tinder))
-        {
-            string label = $"Add tinder ({inv.Tinder.Count} @ {inv.Tinder.Sum():F2}kg)";
-            fuelChoices.Add(label);
-            fuelMap[label] = ("tinder", FuelType.Tinder, inv.TakeTinder);
-        }
-
-        if (fuelChoices.Count == 0)
-        {
-            // Check if we have fuel but fire is too cold
-            bool hasFuelButTooCold = (inv.Logs.Count > 0 || inv.Sticks.Count > 0) && inv.Tinder.Count == 0;
-            if (hasFuelButTooCold)
+            if (fuelChoices.Count == 0)
             {
-                GameDisplay.AddWarning("The fire is too cold. You need tinder to build it up first.");
+                // Check if we have fuel but fire is too cold
+                bool hasFuelButTooCold = (inv.Logs.Count > 0 || inv.Sticks.Count > 0) && inv.Tinder.Count == 0;
+                if (hasFuelButTooCold)
+                    GameDisplay.AddWarning("The fire is too cold. You need tinder to build it up first.");
+                else
+                    GameDisplay.AddNarrative("You have no fuel to add.");
+                return;
             }
-            else
+
+            fuelChoices.Add("Done");
+
+            GameDisplay.Render(ctx, addSeparator: false);
+            string choice = Input.Select("Add fuel:", fuelChoices);
+
+            if (choice == "Done")
+                return;
+
+            var (name, fuelType, takeFunc) = fuelMap[choice];
+
+            // Handle disabled option (fire too small for logs)
+            if (name == "disabled")
             {
-                GameDisplay.AddNarrative("You have no fuel to add.");
+                GameDisplay.AddWarning("The fire needs to be bigger before you can add logs. Add more kindling first.");
+                continue;
             }
-            Input.WaitForKey();
-            return;
+
+            bool hadEmbers = fire.HasEmbers;
+
+            // Take fuel from inventory and add to fire
+            double mass = takeFunc();
+            fire.AddFuel(mass, fuelType);
+
+            GameDisplay.AddNarrative($"You add a {name} ({mass:F2}kg) to the fire.");
+
+            if (hadEmbers && fire.IsActive)
+                GameDisplay.AddNarrative("The embers ignite the fuel! The fire springs back to life.");
+
+            ctx.Update(1);
         }
-
-        fuelChoices.Add("Cancel");
-
-        GameDisplay.Render(ctx, addSeparator: false);
-        string choice = Input.Select("Add fuel:", fuelChoices);
-
-        if (choice == "Cancel")
-            return;
-
-        var (name, fuelType, takeFunc) = fuelMap[choice];
-
-        // Handle disabled option (fire too small for logs)
-        if (name == "disabled")
-        {
-            GameDisplay.AddWarning("The fire needs to be bigger before you can add logs. Add more kindling first.");
-            Input.WaitForKey();
-            return;
-        }
-
-        bool hadEmbers = fire.HasEmbers;
-
-        // Take fuel from inventory and add to fire
-        double mass = takeFunc();
-        fire.AddFuel(mass, fuelType);
-
-        GameDisplay.AddNarrative($"You add a {name} ({mass:F2}kg) to the fire.");
-
-        if (hadEmbers && fire.IsActive)
-            GameDisplay.AddNarrative("The embers ignite the fuel! The fire springs back to life.");
-
-        ctx.Update(1);
     }
 
     private void StartFire()
@@ -343,7 +288,10 @@ public partial class GameRunner(GameContext ctx)
             GameDisplay.AddNarrative("You prepare to start a fire.");
 
         // Get fire-making tools from aggregate inventory
-        var fireTools = inv.Tools.Where(t => t.Type == ToolType.FireStriker).ToList();
+        var fireTools = inv.Tools.Where(t =>
+            t.Type == ToolType.FireStriker ||
+            t.Type == ToolType.HandDrill ||
+            t.Type == ToolType.BowDrill).ToList();
 
         if (fireTools.Count == 0)
         {
@@ -462,6 +410,12 @@ public partial class GameRunner(GameContext ctx)
         int minutes = hours * 60;
         ctx.player.Body.Rest(minutes);
         ctx.Update(minutes);
+    }
+
+    private void Wait()
+    {
+        GameDisplay.AddNarrative("You wait, watching your fire...");
+        ctx.Update(1, 1.0, 2.0);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

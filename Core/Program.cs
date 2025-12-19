@@ -96,6 +96,11 @@ namespace text_survival.Core
             }
 
             Zone zone = ZoneFactory.MakeForestZone();
+
+            // Initialize weather for game start time (9:00 AM, Jan 1)
+            var gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
+            zone.Weather.Update(gameStartTime);
+
             Location startingArea = zone.Graph.All.First(s => s.Name == "Forest Clearing");
 
             // Starting equipment - basic fur wraps (Ice Age appropriate)
@@ -105,7 +110,7 @@ namespace text_survival.Core
             startingArea.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
 
             HeatSourceFeature campfire = new HeatSourceFeature();
-            campfire.AddFuel(2, FuelType.Kindling); // Auto-lights since MinFireTemp = 0°F
+            campfire.AddFuel(2, FuelType.Kindling); // Unlit - player must start it
             startingArea.Features.Add(campfire);
 
             Player player = new Player();
@@ -117,16 +122,16 @@ namespace text_survival.Core
             context.Inventory.Equip(Equipment.FurLegWraps());
 
             // Add starting supplies to player's aggregate inventory
-            context.Inventory.Tools.Add(Tool.FireStriker("Flint and Steel"));  // Fire-starting tool
+            context.Inventory.Tools.Add(Tool.HandDrill());  // Fire-starting tool
             context.Inventory.Sticks.Add(0.3);  // A stick for kindling
             context.Inventory.Sticks.Add(0.25);
             context.Inventory.Sticks.Add(0.35);
             context.Inventory.Tinder.Add(0.05); // Some tinder
             context.Inventory.Tinder.Add(0.04);
 
-            GameDisplay.AddDanger("You wake up in the forest, with no memory of how you got there.");
-            GameDisplay.AddDanger("Light snow is falling, and you feel the air getting colder.");
-            GameDisplay.AddDanger("You have a small fire, but it won't last long without more fuel...");
+            GameDisplay.AddDanger("You wake up in the forest, shivering. You don't remember how you got here.");
+            GameDisplay.AddDanger("Snow drifts down through the pines. The cold is already seeping into your bones.");
+            GameDisplay.AddDanger("There's a fire pit nearby with some kindling. You need to get it lit — fast.");
             GameDisplay.AddDanger("You need to gather fuel, find food and water, and survive.");
 
             GameRunner runner = new GameRunner(context);

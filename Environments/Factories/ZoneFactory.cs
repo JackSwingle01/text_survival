@@ -12,13 +12,13 @@ public static class ZoneFactory
             TargetLocationCount = 100,
             InitialRevealedCount = 1
         };
-        return generator.GenerateForestZone("Pine Forest", "A vast expanse of evergreens.", baseTemp: 25);
+        return generator.GenerateForestZone("Pine Forest", "A vast expanse of evergreens.", baseTemp: -10);
     }
 
     // Keep manual version for testing/comparison
     public static Zone MakeForestZoneManual()
     {
-        var zone = new Zone("Pine Forest", "A dense forest of evergreens.", baseTemp: 25);
+        var zone = new Zone("Pine Forest", "A dense forest of evergreens.", baseTemp: -10);
 
         // Create sites
         var clearing = new Location("Forest Clearing", zone)

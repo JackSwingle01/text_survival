@@ -73,11 +73,22 @@ namespace text_survival.Actors.NPCs
         /// </summary>
         public double EncounterBoldness { get; set; }
 
+        /// <summary>
+        /// Speed in meters per second for pursuit calculations.
+        /// </summary>
+        public double SpeedMps { get; }
+
+        /// <summary>
+        /// How long this animal will chase before giving up (seconds).
+        /// </summary>
+        public double PursuitCommitmentSeconds { get; }
+
         #endregion
 
         #region Constructor
 
-        public Animal(string name, Weapon weapon, BodyCreationInfo bodyStats, AnimalBehaviorType behaviorType, AnimalSize size, bool isHostile = true)
+        public Animal(string name, Weapon weapon, BodyCreationInfo bodyStats, AnimalBehaviorType behaviorType, AnimalSize size,
+            double speedMps = 6.0, double pursuitCommitment = 45.0, bool isHostile = true)
             : base(name, weapon, bodyStats)
         {
             Name = name;
@@ -89,6 +100,8 @@ namespace text_survival.Actors.NPCs
             FailedStealthChecks = 0;
             TrackingDifficulty = 5; // Default medium difficulty
             IsHostile = isHostile; // Set hostility based on animal type (prey = false, predator = true)
+            SpeedMps = speedMps;
+            PursuitCommitmentSeconds = pursuitCommitment;
         }
 
         #endregion

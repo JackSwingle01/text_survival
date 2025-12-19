@@ -25,7 +25,7 @@ public class HeatSourceFeature : LocationFeature
         get
         {
             if (BurningMassKg <= 0) return 0;
-            double burnRate = GetWeightedBurnRate();
+            double burnRate = EffectiveBurnRateKgPerHour;
             return burnRate > 0 ? BurningMassKg / burnRate : 0;
         }
     }
@@ -35,11 +35,14 @@ public class HeatSourceFeature : LocationFeature
         get
         {
             if (TotalMassKg <= 0) return 0;
-            double burnRate = GetWeightedBurnRate();
+            double burnRate = EffectiveBurnRateKgPerHour;
             if (burnRate <= 0) burnRate = 1.0; // Fallback
             return TotalMassKg / burnRate;
         }
     }
+
+    public double EffectiveBurnRateKgPerHour =>
+        BurningMassKg > 0 ? GetWeightedBurnRate() * GetFireSizeBurnMultiplier() : 0;
 
     // Ember tracking
     private double _emberDuration;
@@ -137,6 +140,17 @@ public class HeatSourceFeature : LocationFeature
         if (BurningMassKg < 1.5) return 0.85;  // Medium
         if (BurningMassKg < 3.0) return 1.0;   // Good
         return 1.1;                             // Large
+    }
+
+    /// <summary>
+    /// Fire size affects burn rate (larger fires consume fuel faster)
+    /// </summary>
+    private double GetFireSizeBurnMultiplier()
+    {
+        if (BurningMassKg < 1.0) return 0.9;   // Small - burns slower
+        if (BurningMassKg < 3.0) return 1.0;   // Sweet spot
+        if (BurningMassKg < 6.0) return 1.1;   // Large - burns faster
+        return 1.2;                             // Huge - hungry fire
     }
 
     /// <summary>
@@ -327,7 +341,7 @@ public class HeatSourceFeature : LocationFeature
 
         double currentTemp = GetCurrentFireTemperature();
         double tempMultiplier = Math.Max(0.5, currentTemp / 400.0);
-        double massMultiplier = 1.0 + (BurningMassKg * 0.5); // Exponential feedback!
+        double massMultiplier = 1.0 + (BurningMassKg * 0.3); // Exponential feedback
 
         foreach (var (fuelType, unburnedMass) in _unburnedMixture.ToList())
         {
@@ -360,7 +374,7 @@ public class HeatSourceFeature : LocationFeature
         // Capture temperature BEFORE consumption for ember transition
         _lastBurningTemperature = GetActiveFireTemperature();
 
-        double burnRate = GetWeightedBurnRate();
+        double burnRate = GetWeightedBurnRate() * GetFireSizeBurnMultiplier();
         double consumed = burnRate * (minutesElapsed / 60.0);
 
         // Cap consumption at available burning mass

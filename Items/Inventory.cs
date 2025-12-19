@@ -216,6 +216,23 @@ public class Inventory
     public bool HasFood => CookedMeat.Count > 0 || RawMeat.Count > 0 || Berries.Count > 0;
 
     /// <summary>
+    /// Check if carrying any meat (raw or cooked).
+    /// </summary>
+    public bool HasMeat => RawMeat.Count > 0 || CookedMeat.Count > 0;
+
+    /// <summary>
+    /// Drops all meat (raw and cooked). Returns total weight dropped.
+    /// Used for predator encounters where player sacrifices meat to escape.
+    /// </summary>
+    public double DropAllMeat()
+    {
+        double total = RawMeat.Sum() + CookedMeat.Sum();
+        RawMeat.Clear();
+        CookedMeat.Clear();
+        return total;
+    }
+
+    /// <summary>
     /// Check if there's any water available.
     /// </summary>
     public bool HasWater => WaterLiters > 0;

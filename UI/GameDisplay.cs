@@ -45,16 +45,16 @@ public static class GameDisplay
 
         AnsiConsole.Clear();
 
-        // Build the 5-panel grid layout
+        // Build the 6-panel grid layout
         var topRow = new Columns(
-            BuildSurvivalPanel(ctx),
             BuildEnvironmentPanel(ctx),
-            BuildCapacitiesPanel(ctx)
+            BuildTemperaturePanel(ctx),
+            BuildSurvivalPanel(ctx)
         ).Expand();
 
         var bottomRow = new Columns(
-            BuildBodyPanel(ctx),
             BuildFirePanel(ctx),
+            BuildBodyPanel(ctx),
             BuildInventoryPanel(ctx)
         ).Expand();
 
@@ -72,13 +72,14 @@ public static class GameDisplay
         int caloriesPercent = (int)(body.CalorieStore / SurvivalProcessor.MAX_CALORIES * 100);
         int hydrationPercent = (int)(body.Hydration / SurvivalProcessor.MAX_HYDRATION * 100);
         int energyPercent = (int)(body.Energy / SurvivalProcessor.MAX_ENERGY_MINUTES * 100);
+        int healthPercent = (int)(ctx.player.Vitality * 100);
 
         var lines = new List<IRenderable>
         {
+            new Markup($"Health {CreateColoredBar(healthPercent, 12, GetCapacityColor(healthPercent))} [white]{GetHealthStatus(healthPercent)}[/]"),
             new Markup($"Food   {CreateColoredBar(caloriesPercent, 12, GetFoodColor(caloriesPercent))} [white]{GetCaloriesStatus(caloriesPercent)}[/]"),
             new Markup($"Water  {CreateColoredBar(hydrationPercent, 12, GetWaterColor(hydrationPercent))} [white]{GetHydrationStatus(hydrationPercent)}[/]"),
-            new Markup($"Energy {CreateColoredBar(energyPercent, 12, GetEnergyColor(energyPercent))} [white]{GetEnergyStatus(energyPercent)}[/]"),
-            new Markup($"Temp   [white]{body.BodyTemperature:F1}°F[/] [{GetTempColor(body.BodyTemperature)}]{GetTemperatureStatus(body.BodyTemperature)}[/]")
+            new Markup($"Energy {CreateColoredBar(energyPercent, 12, GetEnergyColor(energyPercent))} [white]{GetEnergyStatus(energyPercent)}[/]")
         };
 
         return new Panel(new Rows(lines))
@@ -124,27 +125,43 @@ public static class GameDisplay
         };
     }
 
-    private static IRenderable BuildCapacitiesPanel(GameContext ctx)
+    private static IRenderable BuildTemperaturePanel(GameContext ctx)
     {
-        var capacities = ctx.player.GetCapacities();
-        double vitality = ctx.player.Vitality;
+        var body = ctx.player.Body;
+        var location = ctx.CurrentLocation;
+        var fire = location.GetFeature<HeatSourceFeature>();
 
-        int vitalityPercent = (int)(vitality * 100);
-        int movingPercent = (int)(capacities.Moving * 100);
-        int manipulationPercent = (int)(capacities.Manipulation * 100);
-        int consciousnessPercent = (int)(capacities.Consciousness * 100);
+        double bodyTemp = body.BodyTemperature;
+        double zoneTemp = location.Parent.Weather.TemperatureInFahrenheit;
+        double locationTemp = location.GetTemperature(); // Includes all modifiers + fire
+        double fireHeat = fire?.GetEffectiveHeatOutput(zoneTemp) ?? 0;
+
+        // Line 2: Ambient breakdown
+        string ambientLine;
+        if (fireHeat > 0.5)
+        {
+            double baseTemp = locationTemp - fireHeat;
+            ambientLine = $"Air   [grey]{baseTemp:F0}°F[/] + [yellow]Fire {fireHeat:F0}°F[/] = [white]{locationTemp:F0}°F felt[/]";
+        }
+        else
+        {
+            ambientLine = $"Air   [grey]{locationTemp:F0}°F[/]";
+        }
+
+        // Line 3: Trend
+        var (arrow, trendDesc, trendColor) = GetHeatTrend(bodyTemp, locationTemp, ctx.Inventory.TotalInsulation);
 
         var lines = new List<IRenderable>
         {
-            new Markup($"Vitality {CreateColoredBar(vitalityPercent, 10, GetCapacityColor(vitalityPercent))} [{GetCapacityColor(vitalityPercent)}]{vitalityPercent}%[/]"),
-            new Markup($"Moving   {CreateColoredBar(movingPercent, 10, GetCapacityColor(movingPercent))} [{GetCapacityColor(movingPercent)}]{movingPercent}%[/]"),
-            new Markup($"Hands    {CreateColoredBar(manipulationPercent, 10, GetCapacityColor(manipulationPercent))} [{GetCapacityColor(manipulationPercent)}]{manipulationPercent}%[/]"),
-            new Markup($"Focus    {CreateColoredBar(consciousnessPercent, 10, GetCapacityColor(consciousnessPercent))} [{GetCapacityColor(consciousnessPercent)}]{consciousnessPercent}%[/]")
+            new Markup($"Body  {CreateTemperatureBar(bodyTemp)} [white]{bodyTemp:F1}°F[/] [{GetTempColor(bodyTemp)}]{GetTemperatureStatus(bodyTemp)}[/]"),
+            new Markup(ambientLine),
+            new Markup($"Trend [{trendColor}]{arrow} {trendDesc}[/]"),
+            new Text("") // Padding
         };
 
         return new Panel(new Rows(lines))
         {
-            Header = new PanelHeader(" CAPACITIES ", Justify.Left),
+            Header = new PanelHeader(" TEMPERATURE ", Justify.Left),
             Border = BoxBorder.Rounded,
             Padding = new Padding(1, 0, 1, 0),
             Expand = true
@@ -258,13 +275,13 @@ public static class GameDisplay
             string phaseColor = GetFirePhaseColor(phase);
 
             lines.Add(new Markup($"[{phaseColor}]{phase}[/]"));
-            lines.Add(new Markup($"[{timeColor}]{minutes} min remaining[/]"));
+            lines.Add(new Markup($"[{timeColor}]{minutes} min remaining[/] [grey]({fire.EffectiveBurnRateKgPerHour:F1} kg/hr)[/]"));
 
-            // Show fuel status with catching indicator
+            // Show fuel status with unlit indicator
             string fuelStatus;
             if (fire.UnburnedMassKg > 0.1)
             {
-                fuelStatus = $"[grey]{fire.BurningMassKg:F1}kg burning[/] [yellow](+{fire.UnburnedMassKg:F1}kg catching)[/]";
+                fuelStatus = $"[yellow]{fire.BurningMassKg:F1}kg burning[/] [grey](+{fire.UnburnedMassKg:F1}kg unlit)[/]";
             }
             else
             {
@@ -451,9 +468,83 @@ public static class GameDisplay
         _ => "red"
     };
 
+    private static string CreateTemperatureBar(double bodyTemp, int width = 12)
+    {
+        // Range: 87°F (death) to 102°F (severe hyperthermia)
+        const double minTemp = 87.0;
+        const double maxTemp = 102.0;
+
+        double position = (bodyTemp - minTemp) / (maxTemp - minTemp);
+        position = Math.Clamp(position, 0, 1);
+
+        int filled = (int)(position * width);
+        int empty = width - filled;
+
+        string color = GetTempBarColor(bodyTemp);
+        return $"[{color}]{new string('█', filled)}[/][grey]{new string('░', empty)}[/]";
+    }
+
+    private static string GetTempBarColor(double temp) => temp switch
+    {
+        < 89.6 => "red",      // Severe hypothermia
+        < 95.0 => "blue",     // Hypothermia
+        < 97.0 => "cyan",     // Cool/shivering
+        < 99.0 => "green",    // Normal/safe
+        < 100.0 => "yellow",  // Hot/sweating
+        _ => "red"            // Hyperthermia
+    };
+
+    private static (string arrow, string description, string color) GetHeatTrend(
+        double bodyTemp,
+        double effectiveAmbientTemp,
+        double clothingInsulation)
+    {
+        // Skin is approximately 8°F cooler than core body temp
+        double skinTemp = bodyTemp - 8.4;
+        double effectiveInsulation = Math.Clamp(clothingInsulation, 0, 0.95);
+        double tempDifferential = (skinTemp - effectiveAmbientTemp) * (1 - effectiveInsulation);
+
+        // Very small differential = stable
+        if (Math.Abs(tempDifferential) < 2)
+            return ("→", "Stable", "green");
+
+        bool cooling = tempDifferential > 0;
+        string arrow = cooling ? "↓" : "↑";
+
+        string speed = Math.Abs(tempDifferential) switch
+        {
+            > 25 => "rapidly",
+            > 12 => "steadily",
+            > 5 => "slowly",
+            _ => "very slowly"
+        };
+
+        string action = cooling ? "Cooling" : "Warming";
+
+        // Color based on whether trend is concerning
+        string color;
+        if (cooling && bodyTemp < 97)
+            color = "cyan";      // Cooling when already cold - concerning
+        else if (!cooling && bodyTemp > 99)
+            color = "yellow";    // Warming when already hot - concerning
+        else
+            color = "grey";      // Normal trend toward equilibrium
+
+        return (arrow, $"{action} {speed}", color);
+    }
+
     #endregion
 
     #region Status Text Helpers
+
+    private static string GetHealthStatus(int percent) => percent switch
+    {
+        >= 90 => "Healthy",
+        >= 70 => "Fine",
+        >= 50 => "Hurt",
+        >= 25 => "Wounded",
+        _ => "Critical"
+    };
 
     private static string GetCaloriesStatus(int percent) => percent switch
     {
@@ -709,14 +800,21 @@ public static class GameDisplay
     private static void RenderTestMode(GameContext ctx)
     {
         var body = ctx.player.Body;
+        var location = ctx.CurrentLocation;
 
         int caloriesPercent = (int)(body.CalorieStore / SurvivalProcessor.MAX_CALORIES * 100);
         int hydrationPercent = (int)(body.Hydration / SurvivalProcessor.MAX_HYDRATION * 100);
         int energyPercent = (int)(body.Energy / SurvivalProcessor.MAX_ENERGY_MINUTES * 100);
 
-        TestModeIO.WriteOutput($"[Status: Food {caloriesPercent}%, Water {hydrationPercent}%, Energy {energyPercent}%, Temp {body.BodyTemperature:F1}°F]\n");
+        TestModeIO.WriteOutput($"[Status: Food {caloriesPercent}%, Water {hydrationPercent}%, Energy {energyPercent}%]\n");
 
-        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+        // Temperature detail
+        var fire = location.GetFeature<HeatSourceFeature>();
+        double zoneTemp = location.Parent.Weather.TemperatureInFahrenheit;
+        double locationTemp = location.GetTemperature();
+        double fireHeat = fire?.GetEffectiveHeatOutput(zoneTemp) ?? 0;
+        TestModeIO.WriteOutput($"[Temp: Body {body.BodyTemperature:F1}°F, Air {locationTemp:F0}°F, Fire +{fireHeat:F0}°F]\n");
+
         if (fire != null && (fire.IsActive || fire.HasEmbers))
         {
             int minutes = (int)(fire.HoursRemaining * 60);
