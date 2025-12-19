@@ -89,7 +89,8 @@ public static class SurvivalProcessor
 		double totalInsulation = Math.Clamp(naturalInsulation + context.ClothingInsulation, 0, 0.95);
 
 		double skinTemp = body.BodyTemperature - 8.4;
-		double tempDifferential = skinTemp - context.LocationTemperature;
+		double effectiveTemp = context.LocationTemperature + context.FireProximityBonus;
+		double tempDifferential = skinTemp - effectiveTemp;
 		double deltaT = tempDifferential * (5.0 / 9.0); // convert to C
 
 		double heatLossW = h * surfaceArea * deltaT * (1 - totalInsulation);
@@ -227,6 +228,14 @@ public static class SurvivalProcessor
 		var coreOrgans = new[] { "Heart", "Brain", "Lungs" };
 		string target = coreOrgans[Random.Shared.Next(coreOrgans.Length)];
 
+		// Escalating message based on severity - always shown so player knows they're dying
+		string urgency = severityFactor switch
+		{
+			>= 0.7 => "Your organs are shutting down!",
+			>= 0.4 => "You're dying from the cold...",
+			_ => "Your core is dangerously cold..."
+		};
+
 		return new SurvivalProcessorResult
 		{
 			DamageEvents = [
@@ -238,7 +247,7 @@ public static class SurvivalProcessor
 					Source = "Hypothermia"
 				}
 			],
-			Messages = [$"Your core body temperature is dangerously low ({projectedTemp:F1}°F)... Your organs are failing..."],
+			Messages = [urgency],
 		};
 	}
 
@@ -360,10 +369,8 @@ public static class SurvivalProcessor
 		if (body.BodyTemperature < SevereHypothermiaThreshold)
 		{
 			double severity = Math.Clamp((SevereHypothermiaThreshold - body.BodyTemperature) / 10.0, 0.01, 1.0);
-			foreach (var extremity in new[] { "Left Arm", "Right Arm", "Left Leg", "Right Leg" })
-			{
-				effects.Add(EffectFactory.Frostbite(extremity, severity));
-			}
+			// Single consolidated frostbite effect with escalating messages
+			effects.Add(EffectFactory.Frostbite(severity));
 		}
 
 		return effects;

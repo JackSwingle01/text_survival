@@ -112,7 +112,8 @@ public static class TestFixtures
     }
 
     /// <summary>
-    /// Creates a test fire with specified fuel mixture
+    /// Creates a test fire with specified fuel mixture.
+    /// Fuel is added and ignited so the fire is actively burning.
     /// </summary>
     public static HeatSourceFeature CreateTestFire(
         double initialFuelKg = 0,
@@ -125,6 +126,8 @@ public static class TestFixtures
         if (initialFuelKg > 0 && fuelType.HasValue)
         {
             fire.AddFuel(initialFuelKg, fuelType.Value);
+            // Ignite the fuel so the fire is actively burning
+            fire.IgniteAll();
         }
 
         return fire;

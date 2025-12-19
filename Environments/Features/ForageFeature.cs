@@ -9,7 +9,9 @@ public enum ForageResourceType
     Tinder,
     Berries,
     RawMeat,  // Small game found while foraging
-    Water
+    Water,
+    Stone,        // For crafting tools
+    PlantFiber    // For bindings/cordage
 }
 
 public record ForageResource(ForageResourceType Type, double Abundance, double MinWeight, double MaxWeight);
@@ -61,7 +63,19 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
             double baseChance = ResourceDensity() * resource.Abundance;
             double scaledChance = baseChance * hours;
 
-            if (Utils.DetermineSuccess(scaledChance))
+            // Guaranteed finds from floor of scaledChance
+            int guaranteedFinds = (int)Math.Floor(scaledChance);
+            double remainder = scaledChance - guaranteedFinds;
+
+            // Add guaranteed items
+            for (int i = 0; i < guaranteedFinds; i++)
+            {
+                double weight = RandomWeight(resource.MinWeight, resource.MaxWeight);
+                AddResourceToFound(found, resource.Type, weight);
+            }
+
+            // Roll for fractional remainder
+            if (remainder > 0 && Utils.DetermineSuccess(remainder))
             {
                 double weight = RandomWeight(resource.MinWeight, resource.MaxWeight);
                 AddResourceToFound(found, resource.Type, weight);
@@ -107,6 +121,12 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
             case ForageResourceType.Water:
                 found.AddWater(weight);
                 break;
+            case ForageResourceType.Stone:
+                found.AddStone(weight);
+                break;
+            case ForageResourceType.PlantFiber:
+                found.AddPlantFiber(weight);
+                break;
         }
     }
 
@@ -136,6 +156,12 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
     public ForageFeature AddBerries(double abundance = 0.2, double minKg = 0.05, double maxKg = 0.2) =>
         AddResource(ForageResourceType.Berries, abundance, minKg, maxKg);
 
+    public ForageFeature AddStone(double abundance = 0.3, double minKg = 0.2, double maxKg = 0.5) =>
+        AddResource(ForageResourceType.Stone, abundance, minKg, maxKg);
+
+    public ForageFeature AddPlantFiber(double abundance = 0.4, double minKg = 0.05, double maxKg = 0.15) =>
+        AddResource(ForageResourceType.PlantFiber, abundance, minKg, maxKg);
+
     /// <summary>
     /// Get summary of what can be found here for display.
     /// </summary>
@@ -149,6 +175,8 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
             ForageResourceType.Berries => "berries",
             ForageResourceType.RawMeat => "small game",
             ForageResourceType.Water => "water",
+            ForageResourceType.Stone => "stone",
+            ForageResourceType.PlantFiber => "plant fiber",
             _ => "resources"
         }).Distinct().ToList();
     }

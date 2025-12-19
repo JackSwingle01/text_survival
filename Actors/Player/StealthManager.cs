@@ -1,6 +1,5 @@
 using text_survival.Actors.NPCs;
 using text_survival.Environments;
-using text_survival.IO;
 using text_survival.UI;
 
 namespace text_survival.Actors.Player;
@@ -70,21 +69,7 @@ public class StealthManager
             return false;
         }
 
-        // if (TargetAnimal.CurrentLocation != _player.CurrentLocation)
-        // {
-        //     StopHunting($"The {TargetAnimal.Name} has fled to another location.");
-        //     return false;
-        // }
-
         return true;
-    }
-
-    /// <summary>
-    /// Gets the currently targeted animal.
-    /// </summary>
-    public Animal? GetCurrentTarget()
-    {
-        return TargetAnimal;
     }
 
     #endregion
@@ -178,7 +163,7 @@ public class StealthManager
 
         if (animal.State == AnimalState.Alert)
         {
-            GameDisplay.AddNarrative("⚠️ Animal is alert - detection chance increased!");
+            GameDisplay.AddNarrative("! Animal is alert - detection chance increased!");
         }
     }
 

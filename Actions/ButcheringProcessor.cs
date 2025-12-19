@@ -4,7 +4,7 @@ using text_survival.Items;
 namespace text_survival.Actions;
 
 /// <summary>
-/// Converts killed animals into usable resources (meat, hides).
+/// Converts killed animals into usable resources (meat, bone, hide, sinew).
 /// </summary>
 public static class ButcheringProcessor
 {
@@ -12,28 +12,96 @@ public static class ButcheringProcessor
     /// Butcher a killed animal into meat and other resources.
     /// </summary>
     /// <param name="animal">The dead animal to butcher</param>
-    /// <returns>FoundResources containing meat yield</returns>
+    /// <returns>FoundResources containing meat, bone, hide, and sinew yields</returns>
     public static FoundResources Butcher(Animal animal)
     {
         var result = new FoundResources();
+        double bodyWeight = animal.Body.WeightKG;
+        string animalName = animal.Name.ToLower();
 
-        // ~40% of body weight is usable meat
-        double meatYieldKg = animal.Body.WeightKG * 0.4;
+        // Meat: ~40% of body weight
+        AddMeat(result, bodyWeight * 0.4, animalName);
 
+        // Bone: ~15% of body weight (2-4 bones depending on size)
+        AddBones(result, bodyWeight * 0.15, animalName);
+
+        // Hide: ~10% of body weight (1 hide)
+        AddHide(result, bodyWeight * 0.10, animalName);
+
+        // Sinew: ~5% of body weight (tendons for cordage)
+        AddSinew(result, bodyWeight * 0.05, animalName);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Butcher without a knife - reduced yield, no hide/sinew (can't process properly).
+    /// </summary>
+    public static FoundResources ButcherWithoutKnife(Animal animal)
+    {
+        var result = new FoundResources();
+        double bodyWeight = animal.Body.WeightKG;
+        string animalName = animal.Name.ToLower();
+
+        // Only ~20% meat yield when tearing by hand
+        AddMeat(result, bodyWeight * 0.2, animalName);
+
+        // Can still crack bones
+        AddBones(result, bodyWeight * 0.10, animalName);
+
+        // No hide or sinew - need cutting tool
+
+        return result;
+    }
+
+    private static void AddMeat(FoundResources result, double totalKg, string animalName)
+    {
         // Split into portions (roughly 0.5-1.5kg each)
-        while (meatYieldKg > 0.3)
+        while (totalKg > 0.3)
         {
-            double portionSize = Math.Min(meatYieldKg, 0.5 + Random.Shared.NextDouble());
-            result.AddRawMeat(portionSize, $"{animal.Name.ToLower()} meat");
-            meatYieldKg -= portionSize;
+            double portionSize = Math.Min(totalKg, 0.5 + Random.Shared.NextDouble());
+            result.AddRawMeat(portionSize, $"{animalName} meat");
+            totalKg -= portionSize;
         }
 
         // Add any remaining scraps
-        if (meatYieldKg > 0.1)
+        if (totalKg > 0.1)
         {
-            result.AddRawMeat(meatYieldKg, $"scraps of {animal.Name.ToLower()} meat");
+            result.AddRawMeat(totalKg, $"scraps of {animalName} meat");
         }
+    }
 
-        return result;
+    private static void AddBones(FoundResources result, double totalKg, string animalName)
+    {
+        // Split into 2-4 bones depending on total weight
+        int boneCount = totalKg switch
+        {
+            < 0.3 => 1,
+            < 0.8 => 2,
+            < 1.5 => 3,
+            _ => 4
+        };
+
+        double perBone = totalKg / boneCount;
+        for (int i = 0; i < boneCount; i++)
+        {
+            result.AddBone(perBone, $"{animalName} bone");
+        }
+    }
+
+    private static void AddHide(FoundResources result, double totalKg, string animalName)
+    {
+        if (totalKg > 0.1)
+        {
+            result.AddHide(totalKg, $"{animalName} hide");
+        }
+    }
+
+    private static void AddSinew(FoundResources result, double totalKg, string animalName)
+    {
+        if (totalKg > 0.05)
+        {
+            result.AddSinew(totalKg, $"{animalName} sinew");
+        }
     }
 }

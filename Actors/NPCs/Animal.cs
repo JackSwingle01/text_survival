@@ -1,4 +1,5 @@
-﻿using text_survival.Bodies;
+﻿using text_survival.Actors.Player;
+using text_survival.Bodies;
 using text_survival.Items;
 
 namespace text_survival.Actors.NPCs
@@ -18,6 +19,13 @@ namespace text_survival.Actors.NPCs
         /// Prey flee, Predators attack, Scavengers assess threat.
         /// </summary>
         public AnimalBehaviorType BehaviorType { get; set; }
+
+        /// <summary>
+        /// Size category affecting weapon effectiveness.
+        /// Small game: stones work, spears have accuracy penalty.
+        /// Large game: spears required, stones ineffective.
+        /// </summary>
+        public AnimalSize Size { get; set; }
 
         /// <summary>
         /// Current awareness state: Idle (unaware) → Alert (suspicious) → Detected (knows player is there)
@@ -59,16 +67,23 @@ namespace text_survival.Actors.NPCs
         /// </summary>
         public double CurrentWoundSeverity { get; set; }
 
+        /// <summary>
+        /// Current boldness during a predator encounter. Initialized from CalculateBoldness(),
+        /// then modified by player actions (standing ground reduces, backing away increases).
+        /// </summary>
+        public double EncounterBoldness { get; set; }
+
         #endregion
 
         #region Constructor
 
-        public Animal(string name, Weapon weapon, BodyCreationInfo bodyStats, AnimalBehaviorType behaviorType, bool isHostile = true)
+        public Animal(string name, Weapon weapon, BodyCreationInfo bodyStats, AnimalBehaviorType behaviorType, AnimalSize size, bool isHostile = true)
             : base(name, weapon, bodyStats)
         {
             Name = name;
             ActiveWeapon = weapon;
             BehaviorType = behaviorType;
+            Size = size;
             State = AnimalState.Idle;
             DistanceFromPlayer = 100.0; // Start at safe range
             FailedStealthChecks = 0;
@@ -132,15 +147,35 @@ namespace text_survival.Actors.NPCs
 
         /// <summary>
         /// Simple threat assessment for scavengers.
-        /// Returns true if player appears stronger (higher vitality + better weapon).
+        /// Returns true if player appears stronger.
         /// </summary>
         private bool AssessIfOutmatched(Actor player)
         {
             // Simple heuristic: compare vitality and weapon damage
-            double playerThreat = player.Vitality + player.ActiveWeapon.Damage;
-            double animalThreat = this.Vitality + this.ActiveWeapon.Damage;
+            double playerThreat = player.Vitality * player.ActiveWeapon.Damage * player.Body.WeightKG;
+            double animalThreat = this.Vitality * this.ActiveWeapon.Damage * this.Body.WeightKG;
 
-            return playerThreat > animalThreat * 1.2; // Needs to be clearly outmatched
+            return playerThreat > animalThreat * .8; // Needs to clearly outmatch
+        }
+
+        /// <summary>
+        /// Calculates initial boldness for a predator encounter based on observable factors.
+        /// All factors are visible to the player so they can reason about outcomes.
+        /// </summary>
+        public double CalculateBoldness(Player.Player player, Inventory inventory)
+        {
+            double boldness = 0.4; // Base boldness
+
+            // Factors that increase boldness (observable to player)
+            bool hasMeat = inventory.RawMeat.Count > 0 || inventory.CookedMeat.Count > 0;
+            if (hasMeat) boldness += 0.20;
+            if (player.Vitality < 0.7) boldness += 0.15;
+
+            // Factors that decrease boldness (observable to player)
+            if (player.Body.WeightKG > this.Body.WeightKG) boldness -= 0.10;
+            // TODO Phase 4: fire/torch check (-0.30)
+
+            return Math.Clamp(boldness, 0.0, 1.0);
         }
 
         #endregion

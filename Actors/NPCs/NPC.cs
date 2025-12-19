@@ -9,7 +9,6 @@ namespace text_survival.Actors.NPCs
 
         // Basic properties
         public string Description { get; set; }
-        public bool IsFound { get; set; }
         public bool IsHostile { get; protected set; } // Protected set to allow Animal subclass to override
         public override Weapon ActiveWeapon { get; protected set; }
 

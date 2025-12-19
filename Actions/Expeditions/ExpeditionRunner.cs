@@ -1,4 +1,3 @@
-
 using text_survival.Actors.NPCs;
 using text_survival.Bodies;
 using text_survival.Environments;
@@ -11,141 +10,375 @@ namespace text_survival.Actions.Expeditions;
 
 public class ExpeditionRunner(GameContext ctx)
 {
-    private record TickResult(int MinutesElapsed, GameEvent? Event);
+    private readonly GameContext _ctx = ctx;
+    private bool PlayerDied => !_ctx.player.IsAlive;
+
     /// <summary>
-    /// Expeditions follow the following flow:
-    /// Select Expedition Type (Forage, Hunt, Explore ...)
-    /// Select Location (filtered by available resources)
-    /// Show Plan (confirm Y/N)
-    /// Process Chunk:
-    ///     -> Make progress on stage 
-    ///         -> Event gets triggered
-    ///             -> event specific logic
-    ///     -> Continue or Abort? (abort changes phase to HeadBack but you still have to complete progress to camp)
-    /// Complete 
-    ///     -> show results
-    /// Return to camp    
-    ///     
+    /// Main entry point - starts a flexible expedition from camp
+    /// Player travels to other locations, works, then returns
     /// </summary>
-    /// <returns></returns>
-
-    private readonly GameContext ctx = ctx;
-    public void RunForageExpedition()
+    public void Run()
     {
-        // select destination
-        var locations = GetGatherableLocations();
-        GameDisplay.Render(ctx);
-        var locChoice = new Choice<Location>("Where would you like to go?");
-        foreach (Location location in locations)
-        {
-            var path = TravelProcessor.FindPath(ctx.CurrentLocation, location);
-            if (path == null) continue;
-            var estimate = TravelProcessor.GetPathMinutes(path, ctx.player, ctx.Inventory);
-            string label = $"{location.Name} (~{estimate} min)";
-            locChoice.AddOption(label, location);
-        }
-        Location destination = locChoice.GetPlayerChoice();
-        var travelPath = TravelProcessor.BuildRoundTripPath(ctx.CurrentLocation, destination)!;
-        var travelEstimate = TravelProcessor.GetPathMinutes(travelPath, ctx.player, ctx.Inventory);
+        var expedition = new Expedition(_ctx.CurrentLocation, _ctx.player);
+        _ctx.Expedition = expedition;
 
-        // choose work time
-        GameDisplay.Render(ctx);
+        GameDisplay.AddNarrative("Where do you want to go?");
+        GameDisplay.Render(_ctx);
+
+        // First, pick a destination from camp
+        bool wentSomewhere = DoTravel(expedition);
+        if (!wentSomewhere)
+        {
+            // Player cancelled travel, didn't actually leave
+            _ctx.Expedition = null;
+            return;
+        }
+
+        // Now we're away from camp - main loop
+        bool stayOut = true;
+        while (stayOut && !PlayerDied)
+        {
+            GameDisplay.Render(_ctx);
+
+            var actionChoice = new Choice<string>("What do you do?");
+
+            // Work options (not at camp - camp work is separate)
+            if (!expedition.IsAtCamp && HasWorkOptions(expedition.CurrentLocation))
+                actionChoice.AddOption("Work here", "work");
+
+            // Travel options
+            actionChoice.AddOption("Travel to another location", "travel");
+
+            // Return to camp option
+            if (!expedition.IsAtCamp)
+                actionChoice.AddOption("Return to camp", "return");
+            else
+                stayOut = false; // Already back at camp, exit loop
+
+            if (stayOut)
+            {
+                string action = actionChoice.GetPlayerChoice();
+
+                if (action == "work")
+                {
+                    DoWork(expedition);
+                }
+                else if (action == "travel")
+                {
+                    DoTravel(expedition);
+                }
+                else // return
+                {
+                    ReturnToCamp(expedition);
+                    stayOut = false;
+                }
+            }
+        }
+
+        // Expedition ended
+        _ctx.Expedition = null;
+
+        if (PlayerDied) return;
+
+        // Back at camp
+        GameDisplay.AddNarrative("You made it back to camp.");
+        DisplayExpeditionSummary(expedition);
+        GameDisplay.Render(_ctx);
+    }
+
+    /// <summary>
+    /// Shows travel options and moves to selected destination.
+    /// Returns true if travel occurred, false if cancelled.
+    /// </summary>
+    private bool DoTravel(Expedition expedition)
+    {
+        var connections = expedition.CurrentLocation.Connections;
+        if (connections.Count == 0)
+        {
+            GameDisplay.AddNarrative("There's nowhere to go from here.");
+            return false;
+        }
+
+        // Show travel options
+        var choice = new Choice<Location?>("Where do you go?");
+
+        foreach (var con in connections)
+        {
+            string lbl;
+            if (con.Explored)
+            {
+                int minutes = TravelProcessor.GetTraversalMinutes(con, _ctx.player, _ctx.Inventory);
+                lbl = $"{con.Name} (~{minutes} min)";
+            }
+            else
+            {
+                lbl = con.GetUnexploredHint(_ctx.player);
+            }
+
+            if (con == _ctx.Camp.Location)
+                lbl += " - Camp";
+            if (con == expedition.TravelHistory.ElementAtOrDefault(1))
+                lbl += " (backtrack)";
+
+            choice.AddOption(lbl, con);
+        }
+
+        choice.AddOption("Cancel", null);
+
+        var destination = choice.GetPlayerChoice();
+        if (destination == null) return false;
+
+        // Travel with progress bar
+        int travelTime = TravelProcessor.GetTraversalMinutes(destination, _ctx.player, _ctx.Inventory);
+        expedition.State = ExpeditionState.Traveling;
+
+        bool died = RunTravelWithProgress(expedition, destination, travelTime);
+        if (died) return false;
+
+        expedition.MoveTo(destination, travelTime);
+        destination.Explore();
+
+        GameDisplay.AddNarrative($"You arrive at {expedition.CurrentLocation.Name}.");
+        if (!string.IsNullOrEmpty(expedition.CurrentLocation.Description))
+            GameDisplay.AddNarrative(expedition.CurrentLocation.Description);
+
+        return true;
+    }
+
+    private void ReturnToCamp(Expedition expedition)
+    {
+        GameDisplay.AddNarrative("You head back toward camp...");
+
+        // Walk back through travel history
+        while (!expedition.IsAtCamp && !PlayerDied)
+        {
+            // Next location is always the second item in the stack (backtrack)
+            var nextLocation = expedition.TravelHistory.ElementAtOrDefault(1);
+            if (nextLocation == null) break;
+
+            int travelTime = TravelProcessor.GetTraversalMinutes(nextLocation, _ctx.player, _ctx.Inventory);
+            expedition.State = ExpeditionState.Traveling;
+
+            bool died = RunTravelWithProgress(expedition, nextLocation, travelTime);
+            if (died) break;
+
+            expedition.MoveTo(nextLocation, travelTime);
+        }
+    }
+
+    private void DoWork(Expedition expedition)
+    {
+        var workChoice = GetWorkOptions(expedition.CurrentLocation);
+        if (workChoice == null) return;
+
+        string workType = workChoice.GetPlayerChoice();
+        expedition.State = ExpeditionState.Working;
+
+        switch (workType)
+        {
+            case "forage":
+                DoForageWork(expedition);
+                break;
+            case "harvest":
+                DoHarvestWork(expedition);
+                break;
+            case "hunt":
+                DoHuntWork(expedition);
+                break;
+            case "explore":
+                DoExploreWork(expedition);
+                break;
+            case "cancel":
+                break;
+        }
+
+        expedition.State = ExpeditionState.Traveling;
+    }
+
+    private bool HasWorkOptions(Location location)
+    {
+        if (location.HasFeature<ForageFeature>())
+            return true;
+
+        var harvestables = location.Features
+            .OfType<HarvestableFeature>()
+            .Where(h => h.IsDiscovered && h.HasAvailableResources());
+        if (harvestables.Any())
+            return true;
+
+        if (location.HasFeature<AnimalTerritoryFeature>())
+            return true;
+
+        // Can explore if there are unrevealed locations in the zone
+        if (_ctx.Zone.HasUnrevealedLocations())
+            return true;
+
+        return false;
+    }
+
+    private Choice<string>? GetWorkOptions(Location location)
+    {
+        var choice = new Choice<string>("What work do you want to do?");
+        bool hasOptions = false;
+
+        if (location.HasFeature<ForageFeature>())
+        {
+            var forage = location.GetFeature<ForageFeature>()!;
+            choice.AddOption($"Forage for resources ({forage.GetQualityDescription()})", "forage");
+            hasOptions = true;
+        }
+
+        var harvestables = location.Features
+            .OfType<HarvestableFeature>()
+            .Where(h => h.IsDiscovered && h.HasAvailableResources());
+        if (harvestables.Any())
+        {
+            choice.AddOption("Harvest resources", "harvest");
+            hasOptions = true;
+        }
+
+        if (location.HasFeature<AnimalTerritoryFeature>())
+        {
+            var territory = location.GetFeature<AnimalTerritoryFeature>()!;
+            choice.AddOption($"Hunt ({territory.GetQualityDescription()})", "hunt");
+            hasOptions = true;
+        }
+
+        if (_ctx.Zone.HasUnrevealedLocations())
+        {
+            choice.AddOption("Explore the area (discover new locations)", "explore");
+            hasOptions = true;
+        }
+
+        choice.AddOption("Cancel", "cancel");
+        return hasOptions ? choice : null;
+    }
+
+    // --- Work Methods ---
+
+    private void DoForageWork(Expedition expedition)
+    {
+        GameDisplay.Render(_ctx);
         var workTimeChoice = new Choice<int>("How long should you forage?");
         workTimeChoice.AddOption("Quick gather - 15 min", 15);
         workTimeChoice.AddOption("Standard search - 30 min", 30);
         workTimeChoice.AddOption("Thorough search - 60 min", 60);
         int workTime = workTimeChoice.GetPlayerChoice();
 
-        Expedition expedition = new Expedition(travelPath, travelPath.IndexOf(destination), ctx.player, ExpeditionType.Gather, workTime);
+        bool died = RunWorkWithProgress(expedition, workTime, "Foraging");
+        if (died) return;
 
-        ExpeditionMainLoop(expedition);
-    }
+        var feature = expedition.CurrentLocation.GetFeature<ForageFeature>()!;
+        var found = feature.Forage(workTime / 60.0);
+        _ctx.Inventory.Add(found);
 
-    public List<Location> GetGatherableLocations()
-    {
-        return ctx.Zone.Graph.All
-            .Where(l => l.Explored)
-            .Where(l => l != ctx.CurrentLocation)
-            .Where(l => l.HasFeature<ForageFeature>() ||
-                        l.Features.OfType<HarvestableFeature>().Any(h => h.IsDiscovered))
-            .ToList();
-    }
-
-    public void RunHuntExpedition()
-    {
-        var locations = GetHuntableLocations();
-        if (locations.Count == 0)
+        string quality = feature.GetQualityDescription();
+        if (found.IsEmpty)
         {
-            GameDisplay.AddNarrative("You don't know of any hunting grounds with game.");
+            GameDisplay.AddNarrative(GetForageFailureMessage(quality));
+        }
+        else
+        {
+            foreach (var desc in found.Descriptions)
+            {
+                GameDisplay.AddNarrative($"You found {desc}");
+                expedition.CollectionLog.Add(desc);
+            }
+            if (quality == "sparse" || quality == "picked over")
+                GameDisplay.AddNarrative("Resources here are getting scarce.");
+        }
+        GameDisplay.Render(_ctx);
+        Input.WaitForKey();
+    }
+
+    private void DoHarvestWork(Expedition expedition)
+    {
+        var harvestables = expedition.CurrentLocation.Features
+            .OfType<HarvestableFeature>()
+            .Where(h => h.IsDiscovered && h.HasAvailableResources())
+            .ToList();
+
+        if (harvestables.Count == 0)
+        {
+            GameDisplay.AddNarrative("There's nothing to harvest here.");
             return;
         }
 
-        GameDisplay.Render(ctx);
-        var locChoice = new Choice<Location>("Where would you like to hunt?");
-        foreach (Location location in locations)
+        HarvestableFeature target;
+        if (harvestables.Count == 1)
         {
-            var path = TravelProcessor.FindPath(ctx.CurrentLocation, location);
-            if (path == null) continue;
-            var estimate = TravelProcessor.GetPathMinutes(path, ctx.player, ctx.Inventory);
-            string hint = GetHuntingHint(location);
-            string label = $"{location.Name} (~{estimate} min) - {hint}";
-            locChoice.AddOption(label, location);
+            target = harvestables[0];
         }
-        Location destination = locChoice.GetPlayerChoice();
-        var travelPath = TravelProcessor.BuildRoundTripPath(ctx.CurrentLocation, destination)!;
+        else
+        {
+            GameDisplay.Render(_ctx);
+            var harvestChoice = new Choice<HarvestableFeature>("What do you want to harvest?");
+            foreach (var h in harvestables)
+            {
+                harvestChoice.AddOption($"{h.DisplayName} - {h.GetStatusDescription()}", h);
+            }
+            target = harvestChoice.GetPlayerChoice();
+        }
 
-        // Hunt expeditions are open-ended (workTime = 0, we'll track manually)
-        Expedition expedition = new Expedition(travelPath, travelPath.IndexOf(destination), ctx.player, ExpeditionType.Hunt, 0);
+        GameDisplay.Render(_ctx);
+        var workTimeChoice = new Choice<int>($"How long should you harvest {target.DisplayName}?");
+        workTimeChoice.AddOption("Quick work - 15 min", 15);
+        workTimeChoice.AddOption("Standard work - 30 min", 30);
+        workTimeChoice.AddOption("Thorough work - 60 min", 60);
+        int workTime = workTimeChoice.GetPlayerChoice();
 
-        ExpeditionMainLoop(expedition);
+        bool died = RunWorkWithProgress(expedition, workTime, "Harvesting");
+        if (died) return;
+
+        var found = target.Harvest(workTime);
+        _ctx.Inventory.Add(found);
+
+        if (found.IsEmpty)
+        {
+            GameDisplay.AddNarrative("You didn't get anything.");
+        }
+        else
+        {
+            foreach (var desc in found.Descriptions)
+            {
+                GameDisplay.AddNarrative($"You harvested {desc}");
+                expedition.CollectionLog.Add(desc);
+            }
+        }
+
+        GameDisplay.AddNarrative($"{target.DisplayName}: {target.GetStatusDescription()}");
+        GameDisplay.Render(_ctx);
+        Input.WaitForKey();
     }
 
-    public List<Location> GetHuntableLocations()
+    private void DoHuntWork(Expedition expedition)
     {
-        return ctx.Zone.Graph.All
-            .Where(l => l.Explored)
-            .Where(l => l != ctx.CurrentLocation)
-            .Where(l => l.HasFeature<AnimalTerritoryFeature>())
-            .ToList();
-    }
-
-    private static string GetHuntingHint(Location location)
-    {
-        var feature = location.GetFeature<AnimalTerritoryFeature>();
-        if (feature == null) return "no signs of game";
-        return feature.GetDescription();
-    }
-
-    private void RunHuntingWorkPhase(Expedition expedition)
-    {
-        var destination = expedition.Destination;
-        var feature = destination.GetFeature<AnimalTerritoryFeature>();
-        int totalHuntingMinutes = 0;
-
+        var feature = expedition.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
         if (feature == null)
         {
             GameDisplay.AddNarrative("There's no game to be found here.");
             return;
         }
 
-        while (true)
+        while (!PlayerDied)
         {
             GameDisplay.AddNarrative($"\nYou scan the area for signs of game...");
             GameDisplay.AddNarrative($"Game density: {feature.GetQualityDescription()}");
-            GameDisplay.Render(ctx);
+            GameDisplay.Render(_ctx);
 
             var choice = new Choice<string>("What do you do?");
             choice.AddOption("Search for game (~15 min)", "search");
-            choice.AddOption("Done hunting - head back", "done");
+            choice.AddOption("Done hunting", "done");
 
             string action = choice.GetPlayerChoice();
             if (action == "done")
                 break;
 
-            // Search costs time
             int searchTime = 15;
-            ctx.Update(searchTime);
-            totalHuntingMinutes += searchTime;
+            _ctx.Update(searchTime);
+            expedition.AddTime(searchTime);
+
+            if (PlayerDied) break;
 
             Animal? found = feature.SearchForGame(searchTime);
             if (found == null)
@@ -155,7 +388,7 @@ public class ExpeditionRunner(GameContext ctx)
             }
 
             GameDisplay.AddNarrative($"You spot a {found.Name}!");
-            GameDisplay.Render(ctx);
+            GameDisplay.Render(_ctx);
 
             var huntChoice = new Choice<bool>("Do you want to stalk it?");
             huntChoice.AddOption($"Stalk the {found.Name}", true);
@@ -164,33 +397,61 @@ public class ExpeditionRunner(GameContext ctx)
             if (!huntChoice.GetPlayerChoice())
                 continue;
 
-            int huntMinutes = RunSingleHunt(found, destination, expedition);
-            totalHuntingMinutes += huntMinutes;
-            ctx.Update(huntMinutes);
+            int huntMinutes = RunSingleHunt(found, expedition.CurrentLocation, expedition);
+            _ctx.Update(huntMinutes);
+            expedition.AddTime(huntMinutes);
 
-            // Record successful hunt if animal was killed
+            if (PlayerDied) break;
+
             if (!found.IsAlive)
             {
                 feature.RecordSuccessfulHunt();
             }
         }
-
-        expedition.AddLog($"You spent {totalHuntingMinutes} minutes hunting.");
     }
 
     private int RunSingleHunt(Animal target, Location location, Expedition expedition)
     {
-        ctx.player.stealthManager.StartHunting(target);
+        _ctx.player.stealthManager.StartHunting(target);
         int minutesSpent = 0;
 
-        while (ctx.player.stealthManager.IsHunting && ctx.player.stealthManager.IsTargetValid())
+        bool hasSpear = _ctx.Inventory.Weapon?.Type == ToolType.Spear;
+        bool hasStones = _ctx.Inventory.StoneCount > 0;
+
+        if (!hasSpear && !hasStones)
+        {
+            GameDisplay.AddWarning("You don't have a ranged weapon so you need to get very close. This will be difficult.");
+        }
+
+        while (_ctx.player.stealthManager.IsHunting && _ctx.player.stealthManager.IsTargetValid())
         {
             GameDisplay.AddNarrative($"\nDistance: {target.DistanceFromPlayer:F0}m | State: {target.State}");
-            GameDisplay.Render(ctx);
+            GameDisplay.Render(_ctx);
 
             var choice = new Choice<string>("What do you do?");
             choice.AddOption("Approach carefully", "approach");
             choice.AddOption("Assess target", "assess");
+
+            // Add throw options if player has ranged weapons and is in range
+            hasSpear = _ctx.Inventory.Weapon?.Type == ToolType.Spear;
+            hasStones = _ctx.Inventory.StoneCount > 0;
+
+            if (hasSpear)
+            {
+                double spearRange = GetSpearRange(_ctx.Inventory.Weapon!);
+                if (target.DistanceFromPlayer <= spearRange)
+                {
+                    double hitChance = CalculateSpearHitChance(_ctx.Inventory.Weapon!, target);
+                    choice.AddOption($"Throw {_ctx.Inventory.Weapon!.Name} ({hitChance:P0} hit)", "throw_spear");
+                }
+            }
+
+            if (hasStones && target.Size == AnimalSize.Small && target.DistanceFromPlayer <= 12)
+            {
+                double hitChance = CalculateStoneHitChance(target);
+                choice.AddOption($"Throw stone ({hitChance:P0} hit) [{_ctx.Inventory.StoneCount} left]", "throw_stone");
+            }
+
             choice.AddOption("Give up this hunt", "stop");
 
             string action = choice.GetPlayerChoice();
@@ -198,37 +459,52 @@ public class ExpeditionRunner(GameContext ctx)
             switch (action)
             {
                 case "approach":
-                    bool success = ctx.player.stealthManager.AttemptApproach(location);
+                    bool success = _ctx.player.stealthManager.AttemptApproach(location);
                     minutesSpent += 7;
 
                     if (success)
-                        ctx.player.Skills.GetSkill("Hunting").GainExperience(1);
-
-                    // Check if we got close enough for melee
-                    if (target.DistanceFromPlayer <= 5 && target.State != AnimalState.Detected)
                     {
-                        GameDisplay.AddNarrative("You're close enough to strike!");
-                        GameDisplay.Render(ctx);
+                        _ctx.player.Skills.GetSkill("Hunting").GainExperience(1);
 
-                        var attackChoice = new Choice<bool>("Attack?");
-                        attackChoice.AddOption("Strike now!", true);
-                        attackChoice.AddOption("Back off", false);
-
-                        if (attackChoice.GetPlayerChoice())
+                        if (target.DistanceFromPlayer <= 5 && target.State != AnimalState.Detected)
                         {
-                            PerformKill(target, expedition);
+                            GameDisplay.AddNarrative("You're close enough to strike!");
+                            GameDisplay.Render(_ctx);
+
+                            var attackChoice = new Choice<bool>("Attack?");
+                            attackChoice.AddOption("Strike now!", true);
+                            attackChoice.AddOption("Back off", false);
+
+                            if (attackChoice.GetPlayerChoice())
+                            {
+                                PerformKill(target, expedition);
+                            }
                         }
+                    }
+                    else if (target.IsEngaged)
+                    {
+                        // TODO: combat
                     }
                     break;
 
                 case "assess":
-                    ctx.player.stealthManager.AssessTarget();
+                    _ctx.player.stealthManager.AssessTarget();
                     minutesSpent += 2;
                     Input.WaitForKey();
                     break;
 
+                case "throw_spear":
+                    PerformRangedAttack(target, expedition, isSpear: true);
+                    minutesSpent += 2;
+                    break;
+
+                case "throw_stone":
+                    PerformRangedAttack(target, expedition, isSpear: false);
+                    minutesSpent += 2;
+                    break;
+
                 case "stop":
-                    ctx.player.stealthManager.StopHunting("You abandon the hunt.");
+                    _ctx.player.stealthManager.StopHunting("You abandon the hunt.");
                     break;
             }
         }
@@ -240,252 +516,304 @@ public class ExpeditionRunner(GameContext ctx)
     {
         GameDisplay.AddNarrative($"You strike! The {target.Name} falls.");
 
-        // Deal lethal damage (stealth kill - massive damage to heart)
         target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, "stealth kill", "Heart"));
+        _ctx.player.stealthManager.StopHunting();
 
-        ctx.player.stealthManager.StopHunting();
-
-        // Butcher and collect meat
         var loot = ButcheringProcessor.Butcher(target);
-        ctx.Inventory.Add(loot);
+        _ctx.Inventory.Add(loot);
 
-        expedition.CollectionLog.AddRange(loot.Descriptions);
-        expedition.AddLog($"You killed and butchered a {target.Name}, collecting {loot.TotalWeightKg:F1}kg of meat.");
-
-        ctx.player.Skills.GetSkill("Hunting").GainExperience(5);
+        _ctx.player.Skills.GetSkill("Hunting").GainExperience(5);
         GameDisplay.AddNarrative($"You butcher the {target.Name} and collect {loot.TotalWeightKg:F1}kg of meat.");
+
+        foreach (var desc in loot.Descriptions)
+            expedition.CollectionLog.Add(desc);
+
         Input.WaitForKey();
     }
 
-    // --- Travel Progress Helpers ---
+    #region Ranged Hunting Helpers
 
-    private TickResult RunExpeditionTick(Expedition expedition)
+    private void PerformRangedAttack(Animal target, Expedition expedition, bool isSpear)
     {
-        var tickResult = GameEventRegistry.RunTicks(ctx, 1);
-        ctx.Update(tickResult.MinutesElapsed);
-        expedition.IncrementTime(tickResult.MinutesElapsed);
-        return new TickResult(tickResult.MinutesElapsed, tickResult.TriggeredEvent);
-    }
+        var weapon = _ctx.Inventory.Weapon;
 
-    private (int total, int elapsed, string destination) GetTravelInfo(Expedition expedition)
-    {
-        int total = TravelProcessor.GetTraversalMinutes(expedition.CurrentLocation, ctx.player, ctx.Inventory);
-        int elapsed = expedition.MinutesSpentAtLocation;
-        string dest = expedition.CurrentPhase == ExpeditionPhase.TravelingOut
-            ? expedition.Destination.Name
-            : ctx.CurrentLocation.Name;
-        return (total, elapsed, dest);
-    }
+        // Calculate hit chance
+        bool applySmallPenalty = isSpear && target.Size == AnimalSize.Small;
+        double hitChance = HuntingCalculator.CalculateThrownAccuracy(
+            target.DistanceFromPlayer,
+            isSpear ? GetSpearRange(weapon!) : 12,
+            isSpear ? GetSpearBaseAccuracy(weapon!) : 0.65,
+            applySmallPenalty
+        );
 
-    private void HandleTravelInterrupt(Expedition expedition, GameEvent evt)
-    {
-        GameDisplay.Render(ctx);
-        HandleEvent(evt);
-    }
-
-    private void FinishTravelSegment(Expedition expedition, int minutesTraveled)
-    {
-        expedition.AddLog($"You walk for {minutesTraveled} minutes.");
-        DisplayQueuedExpeditionLogs(expedition);
-    }
-
-    private void RunTravelWithProgress(Expedition expedition)
-    {
-        var (totalTime, startElapsed, destination) = GetTravelInfo(expedition);
-        int elapsed = startElapsed;
-        GameEvent? triggeredEvent = null;
-
-        while (elapsed < totalTime && triggeredEvent == null)
+        // Consume stone immediately (it's thrown either way)
+        if (!isSpear)
         {
-            Output.Progress($"Traveling to {destination}...", totalTime, task =>
-            {
-                task.Increment(elapsed);
-
-                while (elapsed < totalTime && triggeredEvent == null)
-                {
-                    var result = RunExpeditionTick(expedition);
-                    elapsed += result.MinutesElapsed;
-                    task.Increment(result.MinutesElapsed);
-                    triggeredEvent = result.Event;
-                    Thread.Sleep(100);
-                }
-            });
-
-            if (triggeredEvent != null)
-            {
-                HandleTravelInterrupt(expedition, triggeredEvent);
-                triggeredEvent = null;
-                if (expedition.IsComplete) break;
-            }
+            _ctx.Inventory.TakeStone();
         }
 
-        FinishTravelSegment(expedition, elapsed - startElapsed);
-    }
+        bool hit = Utils.RandDouble(0, 1) < hitChance;
 
-    private void RunWorkWithProgress(Expedition expedition)
-    {
-        int startElapsed = expedition.MinutesSpentAtLocation;
-        int elapsed = startElapsed;
-        GameEvent? triggeredEvent = null;
-        string workType = expedition.GetPhaseDisplayName();
-
-        while (elapsed < expedition.WorkTimeMinutes && triggeredEvent == null)
+        if (hit)
         {
-            Output.Progress($"{char.ToUpper(workType[0]) + workType[1..]} at {expedition.Destination.Name}...",
-                expedition.WorkTimeMinutes, task =>
-            {
-                task.Increment(elapsed);
+            // Kill
+            string weaponName = isSpear ? weapon!.Name : "stone";
+            GameDisplay.AddNarrative($"Your {weaponName} strikes true! The {target.Name} falls.");
+            target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, "thrown weapon", "Heart"));
 
-                while (elapsed < expedition.WorkTimeMinutes && triggeredEvent == null)
-                {
-                    var result = RunExpeditionTick(expedition);
-                    elapsed += result.MinutesElapsed;
-                    task.Increment(result.MinutesElapsed);
-                    triggeredEvent = result.Event;
-                    Thread.Sleep(100);
-                }
-            });
+            // Butcher
+            var loot = ButcheringProcessor.Butcher(target);
+            _ctx.Inventory.Add(loot);
 
-            if (triggeredEvent != null)
-            {
-                GameDisplay.Render(ctx);
-                HandleEvent(triggeredEvent);
-                triggeredEvent = null;
-                if (expedition.IsComplete) break;
-            }
+            GameDisplay.AddNarrative($"You butcher the {target.Name} and collect {loot.TotalWeightKg:F1}kg of meat.");
+            foreach (var desc in loot.Descriptions)
+                expedition.CollectionLog.Add(desc);
+
+            _ctx.player.stealthManager.StopHunting("Hunt successful.");
+            Input.WaitForKey();
         }
+        else
+        {
+            // Miss
+            string weaponName = isSpear ? weapon!.Name : "stone";
+            GameDisplay.AddNarrative($"Your {weaponName} misses! The {target.Name} bolts.");
 
-        // Apply work results after time has passed
-        int workedMinutes = elapsed - startElapsed;
-        expedition.DoWork(workedMinutes, ctx);
+            if (isSpear)
+            {
+                // Spear recovery: spend time searching
+                GameDisplay.AddNarrative("You spend a few minutes searching for your spear...");
+                _ctx.Update(3);
+                expedition.AddTime(3);
+            }
+
+            // Animal flees
+            _ctx.player.stealthManager.StopHunting($"The {target.Name} escaped.");
+            Input.WaitForKey();
+        }
     }
 
-    // --- End Travel Progress Helpers ---
-
-    private void ExpeditionMainLoop(Expedition expedition)
+    private static double GetSpearRange(Tool spear)
     {
-        // show preview
-        DisplayExpeditionPreview(expedition, ctx.Camp.FireMinutesRemaining);
-        GameDisplay.Render(ctx);
-        if (!Input.ReadYesNo())
+        // Stone-tipped spears have longer range
+        return spear.Name.Contains("Stone") ? 25 : 20;
+    }
+
+    private static double GetSpearBaseAccuracy(Tool spear)
+    {
+        // Stone-tipped spears are more accurate
+        return spear.Name.Contains("Stone") ? 0.75 : 0.70;
+    }
+
+    private double CalculateSpearHitChance(Tool spear, Animal target)
+    {
+        bool applySmallPenalty = target.Size == AnimalSize.Small;
+        return HuntingCalculator.CalculateThrownAccuracy(
+            target.DistanceFromPlayer,
+            GetSpearRange(spear),
+            GetSpearBaseAccuracy(spear),
+            applySmallPenalty
+        );
+    }
+
+    private double CalculateStoneHitChance(Animal target)
+    {
+        // Stones don't get small target penalty (they're designed for small game)
+        return HuntingCalculator.CalculateThrownAccuracy(
+            target.DistanceFromPlayer,
+            12,
+            0.65,
+            targetIsSmall: false
+        );
+    }
+
+    #endregion
+
+    private void DoExploreWork(Expedition expedition)
+    {
+        // Check if there are unrevealed locations
+        if (!_ctx.Zone.HasUnrevealedLocations())
         {
-            GameDisplay.AddNarrative("You change your mind.");
+            GameDisplay.AddNarrative("You've explored everything reachable from here.");
             return;
         }
 
-        // start expedition
-        GameDisplay.AddNarrative($"You set out to {expedition.Type.ToString().ToLower()}.");
-        ctx.Expedition = expedition;
+        var location = expedition.CurrentLocation;
+        double successChance = CalculateExploreChance(location);
 
-        // main loop
-        while (!expedition.IsComplete)
+        GameDisplay.Render(_ctx);
+        var timeChoice = new Choice<int>($"How thoroughly should you scout? ({successChance:P0} chance to find something)");
+        timeChoice.AddOption("Quick scout - 15 min", 15);
+        timeChoice.AddOption("Standard scout - 30 min (+10%)", 30);
+        timeChoice.AddOption("Thorough scout - 60 min (+20%)", 60);
+        int exploreTime = timeChoice.GetPlayerChoice();
+
+        // Longer scouting improves chances
+        double timeBonus = exploreTime switch
         {
-            if (expedition.CurrentPhase == ExpeditionPhase.TravelingOut ||
-                expedition.CurrentPhase == ExpeditionPhase.TravelingBack)
+            30 => 0.10,
+            60 => 0.20,
+            _ => 0.0
+        };
+        double finalChance = Math.Min(0.95, successChance + timeBonus);
+
+        bool died = RunWorkWithProgress(expedition, exploreTime, "Exploring");
+        if (died) return;
+
+        // Roll for success
+        if (Utils.RandDouble(0, 1) <= finalChance)
+        {
+            var newLocation = _ctx.Zone.RevealRandomLocation(location);
+
+            if (newLocation != null)
             {
-                RunTravelWithProgress(expedition);
-            }
-            else if (expedition.Type == ExpeditionType.Hunt)
-            {
-                // Hunt has interactive work phase
-                RunHuntingWorkPhase(expedition);
-                DisplayQueuedExpeditionLogs(expedition);
+                GameDisplay.AddSuccess($"You discovered a new area: {newLocation.Name}!");
+                if (!string.IsNullOrEmpty(newLocation.Description))
+                    GameDisplay.AddNarrative(newLocation.Description);
+
+                expedition.AddLog($"Discovered: {newLocation.Name}");
             }
             else
             {
-                RunWorkWithProgress(expedition);
-                DisplayQueuedExpeditionLogs(expedition);
-            }
-
-            // Prompt at phase completion
-            if (expedition.ReadyToAdvanceLocation() && !expedition.IsComplete)
-            {
-                if (expedition.CurrentPhase != ExpeditionPhase.TravelingBack && !PromptContinueExpedition(expedition))
-                {
-                    CancelExpedition();
-                }
-                else
-                {
-                    expedition.AdvancePath();
-                }
-            }
-        }
-
-        // end expedition
-        DisplayQueuedExpeditionLogs(expedition);
-        ctx.Expedition = null;
-    }
-    private bool PromptContinueExpedition(Expedition expedition)
-    {
-        GameDisplay.AddNarrative("\n");
-        string nextPhase = expedition.GetPhaseDisplayName(expedition.CurrentPhase + 1);
-        GameDisplay.AddNarrative($"You have completed {expedition.GetPhaseDisplayName()}. You are about to start {nextPhase}.");
-        // // Show fire margin for context
-        // double fireRemaining = ctx.Camp.GetFireMinutesRemaining();
-        // int returnTime = expedition.TravelOutTimeMinutes;
-        // double margin = fireRemaining - returnTime;
-        // GameDisplay.AddNarrative($"Fire margin: ~{(int)margin} min if you head back now.");
-        GameDisplay.Render(ctx);
-
-        if (expedition.CurrentPhase == ExpeditionPhase.Working)
-        {
-            // Check if there's reason to stay
-            bool canContinue = expedition.Type switch
-            {
-                ExpeditionType.Gather => expedition.Destination.Features
-                    .OfType<HarvestableFeature>()
-                    .Any(f => f.IsDiscovered && f.HasAvailableResources()),
-                ExpeditionType.Forage => true,
-                ExpeditionType.Hunt => false, // Hunt phase handles its own continuation
-                _ => false
-            };
-
-            if (!canContinue)
-            {
-                GameDisplay.AddNarrative("There's nothing more to do here.");
-                return true;
-            }
-
-            var choice = new Choice<string>("What do you want to do?");
-            choice.AddOption("Keep working (15 more minutes)", "continue");
-            choice.AddOption("Head back to camp", "return");
-            choice.AddOption("Abort expedition", "abort");
-
-            string result = choice.GetPlayerChoice();
-            if (result == "continue")
-            {
-                expedition.AddWorkTimeMinutes(15);
-                return true;
-            }
-            else if (result == "return")
-            {
-                GameDisplay.AddNarrative($"You start heading back.");
-                return true;
-            }
-            else
-            {
-                return false;
+                GameDisplay.AddNarrative("You scouted the area but found no new paths.");
             }
         }
         else
         {
-            // Traveling phases - simple continue/abort
-            GameDisplay.AddNarrative($"\nStart {nextPhase}? (y/n)");
-            return Input.ReadYesNo();
+            GameDisplay.AddNarrative("You searched the area but couldn't find any new paths.");
         }
+
+        GameDisplay.Render(_ctx);
+        Input.WaitForKey();
     }
+
+    /// <summary>
+    /// Calculate chance to discover a new location.
+    /// Decreases exponentially with existing connections.
+    /// </summary>
+    private static double CalculateExploreChance(Location location)
+    {
+        int connections = location.Connections.Count;
+        double baseChance = 0.90;
+        double decayFactor = 0.55; // Each connection multiplies chance by this
+
+        return baseChance * Math.Pow(decayFactor, connections);
+    }
+
+    // --- Progress Bar Helpers ---
+
+    /// <summary>
+    /// Runs travel with a progress bar. Returns true if player died during travel.
+    /// </summary>
+    private bool RunTravelWithProgress(Expedition expedition, Location destination, int totalTime)
+    {
+        int elapsed = 0;
+        GameEvent? triggeredEvent = null;
+        bool died = false;
+
+        while (elapsed < totalTime && !died)
+        {
+            Output.Progress($"Traveling to {destination.Name}...", totalTime, task =>
+            {
+                task?.Increment(elapsed);
+
+                while (elapsed < totalTime && triggeredEvent == null && !died)
+                {
+                    var tickResult = GameEventRegistry.RunTicks(_ctx, 1);
+                    _ctx.Update(tickResult.MinutesElapsed);
+                    elapsed += tickResult.MinutesElapsed;
+                    task?.Increment(tickResult.MinutesElapsed);
+
+                    if (PlayerDied)
+                    {
+                        died = true;
+                        break;
+                    }
+
+                    if (tickResult.TriggeredEvent != null)
+                        triggeredEvent = tickResult.TriggeredEvent;
+
+                    Thread.Sleep(100);
+                }
+            });
+
+            if (died) break;
+
+            if (triggeredEvent != null)
+            {
+                HandleEvent(triggeredEvent);
+                triggeredEvent = null;
+            }
+        }
+
+        return died;
+    }
+
+    /// <summary>
+    /// Runs work with a progress bar. Returns true if player died during work.
+    /// </summary>
+    private bool RunWorkWithProgress(Expedition expedition, int workMinutes, string workType)
+    {
+        int elapsed = 0;
+        GameEvent? triggeredEvent = null;
+        bool died = false;
+
+        while (elapsed < workMinutes && !died)
+        {
+            Output.Progress($"{workType} at {expedition.CurrentLocation.Name}...", workMinutes, task =>
+            {
+                task?.Increment(elapsed);
+
+                while (elapsed < workMinutes && triggeredEvent == null && !died)
+                {
+                    var tickResult = GameEventRegistry.RunTicks(_ctx, 1);
+                    _ctx.Update(tickResult.MinutesElapsed);
+                    elapsed += tickResult.MinutesElapsed;
+                    expedition.AddTime(tickResult.MinutesElapsed);
+                    task?.Increment(tickResult.MinutesElapsed);
+
+                    if (PlayerDied)
+                    {
+                        died = true;
+                        break;
+                    }
+
+                    if (tickResult.TriggeredEvent != null)
+                        triggeredEvent = tickResult.TriggeredEvent;
+
+                    Thread.Sleep(100);
+                }
+            });
+
+            if (died) break;
+
+            if (triggeredEvent != null)
+            {
+                HandleEvent(triggeredEvent);
+                triggeredEvent = null;
+            }
+        }
+
+        return died;
+    }
+
     private void HandleEvent(GameEvent evt)
     {
         GameDisplay.AddNarrative("EVENT:");
         GameDisplay.AddNarrative($"** {evt.Name} **");
         GameDisplay.AddNarrative(evt.Description + "\n");
-        GameDisplay.Render(ctx);
+        GameDisplay.Render(_ctx);
+
         var choice = evt.Choices.GetPlayerChoice();
         GameDisplay.AddNarrative(choice.Description + "\n");
+        Input.WaitForKey();
+        Output.ProgressSimple(">", 10);
 
         var outcome = choice.DetermineResult();
         HandleOutcome(outcome);
+        GameDisplay.Render(_ctx);
+        Input.WaitForKey();
     }
+
     private void HandleOutcome(EventResult outcome)
     {
         GameDisplay.AddNarrative("OUTCOME:");
@@ -494,13 +822,12 @@ public class ExpeditionRunner(GameContext ctx)
         if (outcome.TimeAddedMinutes != 0)
         {
             GameDisplay.AddNarrative($"(+{outcome.TimeAddedMinutes} minutes)");
-            ctx.Update(outcome.TimeAddedMinutes);
-            ctx.Expedition?.AddDelayTime(outcome.TimeAddedMinutes);
+            _ctx.Update(outcome.TimeAddedMinutes);
         }
 
         if (outcome.NewEffect is not null)
         {
-            ctx.player.EffectRegistry.AddEffect(outcome.NewEffect);
+            _ctx.player.EffectRegistry.AddEffect(outcome.NewEffect);
         }
 
         if (outcome.RewardPool != RewardPool.None)
@@ -508,120 +835,71 @@ public class ExpeditionRunner(GameContext ctx)
             var resources = RewardGenerator.Generate(outcome.RewardPool);
             if (!resources.IsEmpty)
             {
-                ctx.Inventory.Add(resources);
+                _ctx.Inventory.Add(resources);
                 foreach (var desc in resources.Descriptions)
                 {
                     GameDisplay.AddNarrative($"You found {desc}");
                 }
             }
         }
-
-        if (outcome.AbortsExpedition && !ctx.Expedition!.IsComplete)
-        {
-            ctx.Expedition!.CancelExpedition();
-        }
-    }
-    private static bool IsLocationValidForExpeditionType(Location location, ExpeditionType expeditionType)
-    {
-        switch (expeditionType)
-        {
-            case ExpeditionType.Forage:
-                if (location.HasFeature<ForageFeature>())
-                    return true;
-                return false;
-            case ExpeditionType.Hunt:
-                return false;
-            case ExpeditionType.Gather:
-                if (location.HasFeature<HarvestableFeature>())
-                    return true;
-                return false;
-            case ExpeditionType.Explore:
-                return true;
-            default:
-                return false;
-        }
     }
 
-    public void DisplayExpeditionPreview(Expedition expedition, double FireMinutesRemaining)
+    private void DisplayExpeditionSummary(Expedition expedition)
     {
-        int travelTime = TravelProcessor.GetPathMinutes(expedition.Path, ctx.player, ctx.Inventory);
-        GameDisplay.AddNarrative("PLAN:");
-        GameDisplay.AddNarrative($"{expedition.Type.ToString().ToUpper()} - {expedition.Destination.Name}\n");
-        GameDisplay.AddNarrative($"It's about a {travelTime / 2} minute walk each way.");
-
-        if (expedition.Type == ExpeditionType.Hunt)
+        if (expedition.CollectionLog.Count > 0)
         {
-            GameDisplay.AddNarrative("Hunting time varies - you'll decide when to head back.");
-            GameDisplay.AddNarrative($"Travel alone is a {travelTime} minute round trip.\n");
-        }
-        else
-        {
-            GameDisplay.AddNarrative($"Once you get there it's {expedition.WorkTimeMinutes} minutes of {expedition.GetPhaseDisplayName(ExpeditionPhase.Working).ToLower()}.");
-            GameDisplay.AddNarrative($"A {travelTime + expedition.WorkTimeMinutes} minute round trip if all goes well.\n");
-        }
-
-        GameDisplay.AddNarrative(GetLocationNotes(expedition.Destination));
-
-        double fireTime = FireMinutesRemaining - TravelProcessor.GetPathMinutes(expedition.Path, ctx.player, ctx.Inventory);
-        string fireMessage = GetFireMarginMessage(fireTime);
-        if (FireMinutesRemaining > 0)
-            GameDisplay.AddNarrative($"The fire has about {(int)FireMinutesRemaining} minutes left.");
-        GameDisplay.AddNarrative(fireMessage);
-        GameDisplay.AddNarrative("\n");
-        GameDisplay.AddNarrative("Do you want to proceed with this plan? (y/n)");
-    }
-
-    private static string GetLocationNotes(Location location)
-    {
-        string notes = "";
-        var harvestables = location.Features
-                .OfType<HarvestableFeature>()
-                .Where(f => f.IsDiscovered)
-                .ToList();
-        if (harvestables.Count != 0)
-        {
-            notes += "The location has stuff to harvest:\n";
-            foreach (var h in harvestables)
+            GameDisplay.AddNarrative("\n--- Expedition Summary ---");
+            GameDisplay.AddNarrative($"Time away: {expedition.MinutesElapsedTotal} minutes");
+            GameDisplay.AddNarrative("Collected:");
+            foreach (var item in expedition.CollectionLog)
             {
-                notes += $"{h.DisplayName} - {h.Description}\n";
+                GameDisplay.AddNarrative($"  - {item}");
             }
         }
 
-        return notes;
-    }
-
-    private static void DisplayQueuedExpeditionLogs(Expedition exp)
-    {
-        exp.GetFlushLogs().ForEach(s => GameDisplay.AddNarrative(s));
-    }
-
-
-    private void CancelExpedition()
-    {
-        if (ctx.Expedition is null)
-            throw new InvalidOperationException("Can't cancel expedition out of context");
-
-        GameDisplay.AddNarrative("Are you sure you want to cancel the expedition and return to camp?");
-        GameDisplay.AddNarrative("This will end your current expedition and you will start to return to camp. (y/n)");
-        GameDisplay.Render(ctx);
-        bool confirm = Input.ReadYesNo();
-        if (!confirm)
+        var logs = expedition.FlushLogs();
+        foreach (var log in logs)
         {
-            GameDisplay.AddNarrative("You decide to keep pushing forward.");
-            return;
+            GameDisplay.AddNarrative(log);
         }
-        ctx.Expedition.CancelExpedition();
-        GameDisplay.AddNarrative("You decide it's best to head back. You start returning to camp.");
+
+        Input.WaitForKey();
     }
 
-    public static string GetFireMarginMessage(double marginMinutes)
+    private static string GetForageFailureMessage(string quality)
     {
-        if (double.IsNegativeInfinity(marginMinutes)) return "You have no fire.";
-        if (marginMinutes < 0) return "The fire probably won't last until you return. Make sure you know what you're doing.";
-        if (marginMinutes < 15) return "The fire should last until you're back. But it will be tight.";
-        if (marginMinutes < 30) return "You should have enough time to get back to the fire as long as you don't have any delays.";
-        if (marginMinutes < 60) return "You have a decent fire, it should last until you get back with a good margin.";
-        return "You have plenty of time left on the fire. You should be good to go.";
-    }
+        string[] messages = quality switch
+        {
+            "abundant" => [
+                "You find plenty, but it's all frozen solid or rotted through. The area is rich - just not this haul.",
+                "Fresh snow buries everything. You dig, but there's more here than you had time to uncover.",
+                "A rich area, but everything usable is just out of reach. A longer search would help.",
+                "You find things, but they crumble apart - frozen and brittle. Plenty more here though.",
+                "Ice coats everything. Resources are visible beneath but locked away. The area is clearly bountiful."
+            ],
+            "decent" => [
+                "You find a few scraps, but nothing worth keeping. The area still has potential.",
+                "You turn up a few things, but nothing quite usable. There's more here with patience.",
+                "Resources here take more effort to find. A more thorough search might turn something up.",
+                "You turn up some possibilities, but nothing usable. More thorough searching might help.",
+                "A modest area. You didn't find much this time, but it's not exhausted."
+            ],
+            "sparse" => [
+                "Slim pickings. Most of what was here has already been taken.",
+                "You find traces of what this place once offered. It's nearly spent.",
+                "Hardly anything left. You'd need luck to find something useful here.",
+                "The area is almost picked clean. Time to look elsewhere.",
+                "Scraps and remnants. This place won't sustain you much longer."
+            ],
+            _ => [
+                "Nothing. This place has been stripped bare.",
+                "You search thoroughly and find nothing. Whatever was here is gone.",
+                "Completely exhausted. You're wasting time here.",
+                "Barren. Not a single useful thing remains.",
+                "Empty. There's nothing left to find."
+            ]
+        };
 
+        return messages[Random.Shared.Next(messages.Length)];
+    }
 }

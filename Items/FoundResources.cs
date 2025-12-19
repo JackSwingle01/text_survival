@@ -19,6 +19,13 @@ public class FoundResources
     // Water in liters
     public double WaterLiters { get; set; }
 
+    // Crafting materials - each entry is item weight in kg
+    public List<double> Stone { get; set; } = [];
+    public List<double> Bone { get; set; } = [];
+    public List<double> Hide { get; set; } = [];
+    public List<double> PlantFiber { get; set; } = [];
+    public List<double> Sinew { get; set; } = [];
+
     // Discrete items
     public List<Tool> Tools { get; set; } = [];
     public List<Item> Special { get; set; } = [];
@@ -35,6 +42,11 @@ public class FoundResources
         RawMeat.Count == 0 &&
         Berries.Count == 0 &&
         WaterLiters == 0 &&
+        Stone.Count == 0 &&
+        Bone.Count == 0 &&
+        Hide.Count == 0 &&
+        PlantFiber.Count == 0 &&
+        Sinew.Count == 0 &&
         Tools.Count == 0 &&
         Special.Count == 0;
 
@@ -42,6 +54,7 @@ public class FoundResources
         Logs.Sum() + Sticks.Sum() + Tinder.Sum() +
         CookedMeat.Sum() + RawMeat.Sum() + Berries.Sum() +
         WaterLiters +
+        Stone.Sum() + Bone.Sum() + Hide.Sum() + PlantFiber.Sum() + Sinew.Sum() +
         Tools.Sum(t => t.Weight) +
         Special.Sum(i => i.Weight);
 
@@ -103,6 +116,41 @@ public class FoundResources
         return this;
     }
 
+    public FoundResources AddStone(double weightKg, string? description = null)
+    {
+        Stone.Add(weightKg);
+        Descriptions.Add(description ?? DescribeStone(weightKg));
+        return this;
+    }
+
+    public FoundResources AddBone(double weightKg, string? description = null)
+    {
+        Bone.Add(weightKg);
+        Descriptions.Add(description ?? DescribeBone(weightKg));
+        return this;
+    }
+
+    public FoundResources AddHide(double weightKg, string? description = null)
+    {
+        Hide.Add(weightKg);
+        Descriptions.Add(description ?? DescribeHide(weightKg));
+        return this;
+    }
+
+    public FoundResources AddPlantFiber(double weightKg, string? description = null)
+    {
+        PlantFiber.Add(weightKg);
+        Descriptions.Add(description ?? "a bundle of plant fibers");
+        return this;
+    }
+
+    public FoundResources AddSinew(double weightKg, string? description = null)
+    {
+        Sinew.Add(weightKg);
+        Descriptions.Add(description ?? "some animal sinew");
+        return this;
+    }
+
     // Description helpers
     private static string DescribeLog(double kg) => kg switch
     {
@@ -115,7 +163,7 @@ public class FoundResources
     private static string DescribeStick(double kg) => kg switch
     {
         < 0.2 => "some twigs",
-        < 0.4 => "a sturdy stick",
+        < 0.4 => "a stick",
         _ => "a thick branch"
     };
 
@@ -131,5 +179,26 @@ public class FoundResources
         < 0.3 => "a small cut of meat",
         < 0.6 => "a portion of meat",
         _ => "a large piece of meat"
+    };
+
+    private static string DescribeStone(double kg) => kg switch
+    {
+        < 0.2 => "a small stone",
+        < 0.4 => "a good-sized stone",
+        _ => "a heavy stone"
+    };
+
+    private static string DescribeBone(double kg) => kg switch
+    {
+        < 0.2 => "a small bone",
+        < 0.5 => "a sturdy bone",
+        _ => "a large bone"
+    };
+
+    private static string DescribeHide(double kg) => kg switch
+    {
+        < 0.5 => "a small hide",
+        < 1.0 => "a decent hide",
+        _ => "a large hide"
     };
 }

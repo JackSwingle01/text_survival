@@ -1,8 +1,63 @@
 # Active Development - Current Status
 
 **Date**: 2025-12-18
-**Last Updated**: AnimalTerritoryFeature Refactor Session
-**Status**: Hunt expedition refactored with search-based game spawning - Build Successful
+**Last Updated**: Need-Based Crafting System Implementation
+**Status**: Crafting system replaced with need-based approach - Build Successful
+
+---
+
+## 2025-12-18: Need-Based Crafting System
+
+### Summary
+Replaced the old recipe-based crafting system with a need-based system. Players select what they need (fire-starting, cutting tool, hunting weapon), then see what they can make from available materials. Binary tools (works/broken) with no quality tiers.
+
+### Design Decisions
+- **Need-based flow**: Player picks category → sees options from current materials → crafts
+- **Binary tools**: No quality tiers. Durability (uses before breaking) varies by material
+- **MVP scope**: 3 categories now, 3 more (shelter, clothing, containers) deferred
+- **Aggregate materials**: Stone, Bone, Hide, PlantFiber, Sinew added to Inventory
+
+### New Files
+| File | Purpose |
+|------|---------|
+| `Crafting/NeedCategory.cs` | Enum of need categories (FireStarting, CuttingTool, HuntingWeapon) |
+| `Crafting/CraftOption.cs` | Defines craftable items with requirements and factory |
+| `Crafting/NeedCraftingSystem.cs` | Initializes 8 craft options across 3 categories |
+| `Actions/CraftingRunner.cs` | UI for need-based crafting menu |
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `Items/Inventory.cs` | Added 5 material aggregates (Stone, Bone, Hide, PlantFiber, Sinew), Take methods, counts |
+| `Items/FoundResources.cs` | Added material lists and fluent builder methods |
+| `Items/Tool.cs` | Added Durability property, IsBroken/Works checks, Use() method |
+| `Actions/ButcheringProcessor.cs` | Now yields bone (~15%), hide (~10%), sinew (~5%) in addition to meat |
+| `Environments/Features/ForageFeature.cs` | Added Stone and PlantFiber resource types |
+| `Actions/GameRunner.cs` | Added "Work on a project" menu option, removed 200+ lines of old code |
+
+### Deleted Files
+- `Crafting/RecipeBuilder.cs`
+- `Crafting/CraftingSystem.cs`
+- `Crafting/CraftingRecipe.cs`
+
+### Craftable Items (MVP)
+**Fire-starting**:
+- Hand Drill (2 sticks, durability: 5)
+- Bow Drill (3 sticks + 1 plantfiber, durability: 15)
+
+**Cutting tools**:
+- Sharp Rock (2 stones, durability: 3)
+- Stone Knife (1 stone + 1 stick + 1 plantfiber, durability: 10)
+- Bone Knife (1 bone + 1 plantfiber, durability: 8)
+
+**Hunting weapons**:
+- Wooden Spear (3 sticks, durability: 5)
+- Heavy Spear (1 log, durability: 8)
+- Stone-Tipped Spear (1 log + 1 stone + 1 plantfiber, durability: 12)
+
+### Build Status
+- 0 errors, 2 pre-existing warnings
+- All tests pass
 
 ---
 

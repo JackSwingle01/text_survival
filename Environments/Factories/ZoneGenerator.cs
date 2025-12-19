@@ -5,8 +5,7 @@ namespace text_survival.Environments.Factories;
 public class ZoneGenerator
 {
     public int TargetLocationCount { get; set; } = 100;
-    public int MaxConnections { get; set; } = 4;
-    public double ExtraEdgeProbability { get; set; } = 0.25;
+    public int InitialRevealedCount { get; set; } = 1; // Just camp - player must scout to discover locations
 
     // Location type weights for forest zone
     private static readonly List<(Func<Zone, Location> Factory, double Weight, int MinTraversal, int MaxTraversal)> ForestLocationWeights =
@@ -23,41 +22,34 @@ public class ZoneGenerator
     {
         var zone = new Zone(name, description, baseTemp);
 
-        // Create starting location
+        // Create starting location (camp)
         var start = CreateStartingLocation(zone);
         zone.Graph.Add(start);
 
-        // Track locations with available connection slots
-        var availableLocations = new List<Location> { start };
-
-        // Generate locations until we reach target
-        while (zone.Graph.All.Count < TargetLocationCount)
+        // Generate all locations first (but don't connect them yet)
+        var allLocations = new List<Location>();
+        while (allLocations.Count < TargetLocationCount - 1) // -1 because start is already created
         {
-            if (availableLocations.Count == 0)
-                break;
-
-            // Pick a random location with available slots
-            var parent = availableLocations[Utils.RandInt(0, availableLocations.Count - 1)];
-
-            // Generate new location with traversal time
             var newLocation = GenerateRandomLocation(zone);
-            zone.Graph.Add(newLocation);
-
-            // Connect directly
-            parent.AddBidirectionalConnection(newLocation);
-
-            // Update availability
-            if (GetConnectionCount(newLocation) < MaxConnections)
-                availableLocations.Add(newLocation);
-            if (GetConnectionCount(parent) >= MaxConnections)
-                availableLocations.Remove(parent);
+            allLocations.Add(newLocation);
         }
 
-        // Add extra connections for interconnectedness
-        AddExtraConnections(zone);
+        // Connect a few initial locations to the starting area
+        int initialToReveal = Math.Min(InitialRevealedCount - 1, allLocations.Count); // -1 for start
+        for (int i = 0; i < initialToReveal; i++)
+        {
+            var location = allLocations[i];
+            start.AddBidirectionalConnection(location);
+            zone.Graph.Add(location);
+            location.Explore();
+            location.DistanceFromStart = 1;
+        }
 
-        // Calculate distances from start
-        CalculateDistances(zone, start);
+        // Put the rest in the unrevealed pool
+        for (int i = initialToReveal; i < allLocations.Count; i++)
+        {
+            zone.AddUnrevealedLocation(allLocations[i]);
+        }
 
         return zone;
     }
@@ -71,12 +63,13 @@ public class ZoneGenerator
             BaseTraversalMinutes = 5
         };
 
-        // Starting location has moderate resources
-        var forageFeature = new ForageFeature(1.0)
-            .AddSticks(0.6, 0.15, 0.4)
-            .AddLogs(0.25, 1.0, 2.5)
-            .AddTinder(0.5, 0.02, 0.06)
-            .AddBerries(0.2, 0.05, 0.12);
+        // Starting location - matches Forest for abundant fuel
+        var forageFeature = new ForageFeature(2.0)
+            .AddSticks(3.0, 0.2, 0.6)
+            .AddLogs(1.5, 1.5, 3.5)
+            .AddTinder(2.0, 0.02, 0.08)
+            .AddBerries(0.3, 0.05, 0.15)
+            .AddPlantFiber(0.5, 0.05, 0.15);
         start.Features.Add(forageFeature);
 
         start.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
@@ -106,70 +99,5 @@ public class ZoneGenerator
         var fallback = LocationFactory.MakeForest(zone);
         fallback.BaseTraversalMinutes = Utils.RandInt(8, 15);
         return fallback;
-    }
-
-    private void AddExtraConnections(Zone zone)
-    {
-        var locations = zone.Graph.All.ToList();
-
-        // Shuffle to avoid bias
-        for (int i = locations.Count - 1; i > 0; i--)
-        {
-            int j = Utils.RandInt(0, i);
-            (locations[i], locations[j]) = (locations[j], locations[i]);
-        }
-
-        foreach (var location in locations)
-        {
-            if (GetConnectionCount(location) >= MaxConnections)
-                continue;
-
-            // Find candidates not already connected
-            var candidates = locations
-                .Where(l => l != location
-                    && GetConnectionCount(l) < MaxConnections
-                    && !location.Connections.Contains(l))
-                .ToList();
-
-            foreach (var candidate in candidates)
-            {
-                if (GetConnectionCount(location) >= MaxConnections)
-                    break;
-
-                if (Utils.DetermineSuccess(ExtraEdgeProbability))
-                {
-                    location.AddBidirectionalConnection(candidate);
-                }
-            }
-        }
-    }
-
-    private int GetConnectionCount(Location location)
-    {
-        return location.Connections.Count;
-    }
-
-    private void CalculateDistances(Zone zone, Location start)
-    {
-        var visited = new HashSet<Location>();
-        var queue = new Queue<(Location Location, int Distance)>();
-
-        queue.Enqueue((start, 0));
-        visited.Add(start);
-
-        while (queue.Count > 0)
-        {
-            var (current, distance) = queue.Dequeue();
-            current.DistanceFromStart = distance;
-
-            foreach (var neighbor in current.Connections)
-            {
-                if (!visited.Contains(neighbor))
-                {
-                    visited.Add(neighbor);
-                    queue.Enqueue((neighbor, distance + 1));
-                }
-            }
-        }
     }
 }

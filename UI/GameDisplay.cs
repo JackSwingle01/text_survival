@@ -41,14 +41,15 @@ public static class GameDisplay
         }
 
         if (addSeparator)
-            _log.Add("· · ·", LogLevel.System);
+            _log.AddSeparator();
 
         AnsiConsole.Clear();
 
-        // Build the 4-panel grid layout
+        // Build the 5-panel grid layout
         var topRow = new Columns(
             BuildSurvivalPanel(ctx),
-            BuildEnvironmentPanel(ctx)
+            BuildEnvironmentPanel(ctx),
+            BuildCapacitiesPanel(ctx)
         ).Expand();
 
         var bottomRow = new Columns(
@@ -123,6 +124,33 @@ public static class GameDisplay
         };
     }
 
+    private static IRenderable BuildCapacitiesPanel(GameContext ctx)
+    {
+        var capacities = ctx.player.GetCapacities();
+        double vitality = ctx.player.Vitality;
+
+        int vitalityPercent = (int)(vitality * 100);
+        int movingPercent = (int)(capacities.Moving * 100);
+        int manipulationPercent = (int)(capacities.Manipulation * 100);
+        int consciousnessPercent = (int)(capacities.Consciousness * 100);
+
+        var lines = new List<IRenderable>
+        {
+            new Markup($"Vitality {CreateColoredBar(vitalityPercent, 10, GetCapacityColor(vitalityPercent))} [{GetCapacityColor(vitalityPercent)}]{vitalityPercent}%[/]"),
+            new Markup($"Moving   {CreateColoredBar(movingPercent, 10, GetCapacityColor(movingPercent))} [{GetCapacityColor(movingPercent)}]{movingPercent}%[/]"),
+            new Markup($"Hands    {CreateColoredBar(manipulationPercent, 10, GetCapacityColor(manipulationPercent))} [{GetCapacityColor(manipulationPercent)}]{manipulationPercent}%[/]"),
+            new Markup($"Focus    {CreateColoredBar(consciousnessPercent, 10, GetCapacityColor(consciousnessPercent))} [{GetCapacityColor(consciousnessPercent)}]{consciousnessPercent}%[/]")
+        };
+
+        return new Panel(new Rows(lines))
+        {
+            Header = new PanelHeader(" CAPACITIES ", Justify.Left),
+            Border = BoxBorder.Rounded,
+            Padding = new Padding(1, 0, 1, 0),
+            Expand = true
+        };
+    }
+
     private static IRenderable BuildBodyPanel(GameContext ctx)
     {
         var body = ctx.player.Body;
@@ -156,7 +184,8 @@ public static class GameDisplay
             {
                 string trend = GetEffectTrend(effect);
                 string color = GetEffectColor(effect);
-                lines.Add(new Markup($"[{color}]• {Markup.Escape(effect.EffectKind)} {trend}[/]"));
+                int severityPercent = (int)(effect.Severity * 100);
+                lines.Add(new Markup($"[{color}]• {Markup.Escape(effect.EffectKind)} {severityPercent}% {trend}[/]"));
             }
             if (effects.Count > 3)
                 lines.Add(new Markup($"[grey]+{effects.Count - 3} more...[/]"));
@@ -181,23 +210,68 @@ public static class GameDisplay
 
         var lines = new List<IRenderable>();
 
-        if (fire == null || (!fire.IsActive && !fire.HasEmbers))
+        if (fire == null)
         {
-            lines.Add(new Markup("[grey]No fire[/]"));
+            lines.Add(new Markup("[grey]No fire pit[/]"));
             lines.Add(new Text(""));
+            lines.Add(new Text(""));
+            lines.Add(new Text(""));
+        }
+        else if (!fire.IsActive && !fire.HasEmbers)
+        {
+            // Fire pit exists but not burning
+            lines.Add(new Markup("[grey]Cold[/]"));
+
+            if (fire.TotalMassKg > 0)
+            {
+                int litPercent = (int)(fire.BurningMassKg / fire.TotalMassKg * 100);
+                lines.Add(new Markup($"[grey]{fire.TotalMassKg:F1}kg fuel[/] [white]({litPercent}% lit)[/]"));
+            }
+            else
+            {
+                lines.Add(new Markup("[grey]No fuel[/]"));
+            }
             lines.Add(new Text(""));
             lines.Add(new Text(""));
         }
         else
         {
             string phase = fire.GetFirePhase();
-            int minutes = (int)(fire.HoursRemaining * 60);
+
+            // Use total fuel time when catching, otherwise burning time
+            int minutes;
+            if (fire.HasEmbers)
+            {
+                minutes = (int)(fire.EmberTimeRemaining * 60);
+            }
+            else if (fire.UnburnedMassKg > 0.1)
+            {
+                // Fuel is catching - show total estimated time
+                minutes = (int)(fire.TotalHoursRemaining * 60);
+            }
+            else
+            {
+                minutes = (int)(fire.BurningHoursRemaining * 60);
+            }
+
             string timeColor = GetFireTimeColor(minutes);
             string phaseColor = GetFirePhaseColor(phase);
 
             lines.Add(new Markup($"[{phaseColor}]{phase}[/]"));
             lines.Add(new Markup($"[{timeColor}]{minutes} min remaining[/]"));
-            lines.Add(new Markup($"[grey]{fire.FuelMassKg:F1}/{fire.MaxFuelCapacityKg:F0} kg fuel[/]"));
+
+            // Show fuel status with catching indicator
+            string fuelStatus;
+            if (fire.UnburnedMassKg > 0.1)
+            {
+                fuelStatus = $"[grey]{fire.BurningMassKg:F1}kg burning[/] [yellow](+{fire.UnburnedMassKg:F1}kg catching)[/]";
+            }
+            else
+            {
+                fuelStatus = $"[grey]{fire.TotalMassKg:F1}/{fire.MaxFuelCapacityKg:F0} kg fuel[/]";
+            }
+            lines.Add(new Markup(fuelStatus));
+
             lines.Add(new Markup($"[yellow]+{fire.GetEffectiveHeatOutput(ctx.CurrentLocation.GetTemperature()):F0}°F heat[/]"));
         }
 
@@ -209,7 +283,6 @@ public static class GameDisplay
             Expand = true
         };
     }
-
     private static IRenderable BuildInventoryPanel(GameContext ctx)
     {
         var inv = ctx.Inventory;
@@ -217,11 +290,12 @@ public static class GameDisplay
 
         // Breakdown chart
         var chart = new BreakdownChart().HideTags().Width(20);
-
         if (inv.FuelWeightKg > 0) chart.AddItem("Fuel", inv.FuelWeightKg, Color.Orange1);
         if (inv.FoodWeightKg > 0) chart.AddItem("Food", inv.FoodWeightKg, Color.Green);
         if (inv.WaterWeightKg > 0) chart.AddItem("Water", inv.WaterWeightKg, Color.Blue);
         if (inv.ToolsWeightKg > 0) chart.AddItem("Tools", inv.ToolsWeightKg, Color.Grey);
+        if (inv.EquipmentWeightKg > 0) chart.AddItem("Gear", inv.EquipmentWeightKg, Color.Purple);
+        if (inv.SpecialWeightKg > 0) chart.AddItem("Special", inv.SpecialWeightKg, Color.Yellow);
         if (inv.RemainingCapacityKg > 0 && inv.RemainingCapacityKg < double.MaxValue)
             chart.AddItem("Free", inv.RemainingCapacityKg, Color.Grey23);
 
@@ -230,22 +304,21 @@ public static class GameDisplay
 
         // Category breakdown text
         var parts = new List<string>();
-        if (inv.FuelWeightKg > 0) parts.Add($"[orange1]Fuel {inv.FuelWeightKg:F1}[/]");
-        if (inv.FoodWeightKg > 0) parts.Add($"[green]Food {inv.FoodWeightKg:F1}[/]");
-        if (inv.WaterWeightKg > 0) parts.Add($"[blue]Water {inv.WaterWeightKg:F1}[/]");
-        if (inv.ToolsWeightKg > 0) parts.Add($"[grey]Tools {inv.ToolsWeightKg:F1}[/]");
-        
+        if (inv.FuelWeightKg > 0) parts.Add($"[orange1]Fuel {inv.FuelWeightKg:F1}kg[/]");
+        if (inv.FoodWeightKg > 0) parts.Add($"[green]Food {inv.FoodWeightKg:F1}kg[/]");
+        if (inv.WaterWeightKg > 0) parts.Add($"[blue]Water {inv.WaterWeightKg:F1}kg[/]");
+        if (inv.ToolsWeightKg > 0) parts.Add($"[grey]Tools {inv.ToolsWeightKg:F1}kg[/]");
+        if (inv.EquipmentWeightKg > 0) parts.Add($"[purple]Gear {inv.EquipmentWeightKg:F1}kg[/]");
+        if (inv.SpecialWeightKg > 0) parts.Add($"[yellow]Special {inv.SpecialWeightKg:F1}kg[/]");
         if (parts.Count == 0)
             parts.Add("[grey]Empty[/]");
-        
         lines.Add(new Columns(parts));
 
-        // Weight summary
         double weightPercent = inv.MaxWeightKg > 0 ? inv.CurrentWeightKg / inv.MaxWeightKg * 100 : 0;
         string weightColor = GetWeightColor(weightPercent);
         lines.Add(new Markup($"[{weightColor}]{inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0}kg[/]"));
 
-        // Pad to match other panels
+        // Pad to 4 lines
         while (lines.Count < 4)
             lines.Add(new Text(""));
 
@@ -369,6 +442,14 @@ public static class GameDisplay
         if (effect.HourlySeverityChange < 0) return "green";    // Improving
         return "grey";                                           // Stable
     }
+
+    private static string GetCapacityColor(int percent) => percent switch
+    {
+        >= 80 => "green",
+        >= 50 => "yellow",
+        >= 25 => "orange1",
+        _ => "red"
+    };
 
     #endregion
 

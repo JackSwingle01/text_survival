@@ -152,6 +152,37 @@ public static class HuntingCalculator
 
     #endregion
 
+    #region Thrown Weapons
+
+    /// <summary>
+    /// Calculates accuracy for thrown weapons (spears, stones).
+    /// Simple formula: closer is better, no optimal range band.
+    /// </summary>
+    /// <param name="distance">Distance to target in meters</param>
+    /// <param name="maxRange">Maximum effective range of weapon</param>
+    /// <param name="baseAccuracy">Base accuracy of weapon (0.65 for stone, 0.70-0.75 for spears)</param>
+    /// <param name="targetIsSmall">True if targeting small game (applies 50% penalty for spears)</param>
+    /// <returns>Hit chance (0.0 - 1.0)</returns>
+    public static double CalculateThrownAccuracy(
+        double distance,
+        double maxRange,
+        double baseAccuracy,
+        bool targetIsSmall)
+    {
+        // Beyond max range = 0%
+        if (distance > maxRange) return 0;
+
+        // Closer is better (linear falloff from max range)
+        double accuracy = baseAccuracy * (1.0 - distance / maxRange);
+
+        // Small target penalty (spears only — stones pass false)
+        if (targetIsSmall) accuracy *= 0.5;
+
+        return Math.Clamp(accuracy, 0.05, 0.95);
+    }
+
+    #endregion
+
     #region Blood Trail Tracking (Phase 4)
 
     /// <summary>

@@ -26,11 +26,12 @@ public static class LocationFactory
         };
 
         // Forage feature - forest is rich in fuel
-        var forageFeature = new ForageFeature(1.6)
-            .AddLogs(0.3, 1.5, 3.5)        // good logs
-            .AddSticks(0.8, 0.2, 0.6)      // plenty of sticks
-            .AddTinder(0.6, 0.02, 0.08)    // bark, dry leaves
-            .AddBerries(0.3, 0.05, 0.15);  // occasional berries
+        var forageFeature = new ForageFeature(2.0)
+            .AddLogs(1.5, 1.5, 3.5)        // good logs
+            .AddSticks(3.0, 0.2, 0.6)      // plenty of sticks
+            .AddTinder(2.0, 0.02, 0.08)    // bark, dry leaves
+            .AddBerries(0.3, 0.05, 0.15)   // occasional berries
+            .AddPlantFiber(0.5, 0.05, 0.15); // bark strips, roots for cordage
         location.Features.Add(forageFeature);
 
         // Environment feature
@@ -138,10 +139,11 @@ public static class LocationFactory
             Terrain = TerrainType.Clear,
         };
 
-        // Riverbeds have driftwood, limited other resources
-        var forageFeature = new ForageFeature(1.0)
-            .AddSticks(0.5, 0.2, 0.5)     // driftwood
-            .AddLogs(0.2, 1.0, 2.0);       // occasional larger driftwood
+        // Riverbeds have driftwood, limited other resources, but good stone
+        var forageFeature = new ForageFeature(1.2)
+            .AddSticks(2.0, 0.2, 0.5)     // driftwood
+            .AddLogs(1.0, 1.0, 2.0)       // occasional larger driftwood
+            .AddStone(0.6, 0.2, 0.5);     // river-smoothed stones, good for knapping
         location.Features.Add(forageFeature);
 
         // Environment feature
@@ -183,7 +185,8 @@ public static class LocationFactory
         var forageFeature = new ForageFeature(0.5)
             .AddTinder(0.7, 0.03, 0.1)    // dry grass is common
             .AddSticks(0.2, 0.1, 0.3)     // occasional scrub
-            .AddBerries(0.15, 0.03, 0.1); // sparse berries
+            .AddBerries(0.15, 0.03, 0.1)  // sparse berries
+            .AddPlantFiber(0.6, 0.05, 0.12); // dry grass for cordage
         location.Features.Add(forageFeature);
 
         // Environment feature
@@ -230,10 +233,11 @@ public static class LocationFactory
             Terrain = TerrainType.Steep,
         };
 
-        // Hills have sparse vegetation
+        // Hills have sparse vegetation but exposed stone
         var forageFeature = new ForageFeature(0.4)
             .AddTinder(0.3, 0.02, 0.05)   // limited dry material
-            .AddSticks(0.15, 0.1, 0.25);  // scrub brush
+            .AddSticks(0.15, 0.1, 0.25)   // scrub brush
+            .AddStone(0.5, 0.25, 0.6);    // exposed rock for tools
         location.Features.Add(forageFeature);
 
         // Environment feature
@@ -261,11 +265,12 @@ public static class LocationFactory
         };
 
         // Clearings have moderate resources
-        var forageFeature = new ForageFeature(1.0)
-            .AddSticks(0.6, 0.15, 0.4)
-            .AddLogs(0.2, 1.0, 2.5)
-            .AddTinder(0.5, 0.02, 0.06)
-            .AddBerries(0.25, 0.05, 0.12);
+        var forageFeature = new ForageFeature(1.3)
+            .AddSticks(2.5, 0.15, 0.4)
+            .AddLogs(1.0, 1.0, 2.5)
+            .AddTinder(1.8, 0.02, 0.06)
+            .AddBerries(0.25, 0.05, 0.12)
+            .AddPlantFiber(0.4, 0.05, 0.1); // undergrowth for cordage
         location.Features.Add(forageFeature);
 
         // Environment - use Forest since clearings are typically in forests

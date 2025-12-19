@@ -57,7 +57,11 @@ public static class EffectFactory
             (CapacityNames.Consciousness, -0.5),
             (CapacityNames.BloodPumping, -0.2)),
         ApplicationMessage = "You are getting dangerously cold...",
-        RemovalMessage = "You are warming up, the hypothermia has passed."
+        RemovalMessage = "You are warming up, the hypothermia has passed.",
+        ThresholdMessages = [
+            new Effect.ThresholdMessage(0.33, "The cold is getting dangerous. Your movements are sluggish.", true),
+            new Effect.ThresholdMessage(0.67, "Severe hypothermia setting in. You need warmth NOW.", true),
+        ]
     };
 
     public static Effect Frostbite(string bodyPart, double severity) => new()
@@ -74,6 +78,29 @@ public static class EffectFactory
             (CapacityNames.BloodPumping, -0.2)),
         ApplicationMessage = $"Your {bodyPart.ToLower()} is developing frostbite!",
         RemovalMessage = $"The feeling is returning to your {bodyPart.ToLower()}."
+    };
+
+    /// <summary>
+    /// Consolidated frostbite effect for extremities (no specific body part).
+    /// Uses escalating threshold messages instead of 4 separate effects.
+    /// </summary>
+    public static Effect Frostbite(double severity) => new()
+    {
+        EffectKind = "Frostbite",
+        Source = "temperature",
+        Severity = severity,
+        HourlySeverityChange = -0.02,
+        RequiresTreatment = true,
+        CapacityModifiers = Capacities(
+            (CapacityNames.Manipulation, -0.5),
+            (CapacityNames.Moving, -0.5),
+            (CapacityNames.BloodPumping, -0.2)),
+        ApplicationMessage = "Your extremities are going numb from the cold.",
+        RemovalMessage = "Feeling is returning to your extremities.",
+        ThresholdMessages = [
+            new Effect.ThresholdMessage(0.33, "Your fingers and toes are turning white.", true),
+            new Effect.ThresholdMessage(0.67, "Severe frostbite - tissue damage is spreading!", true),
+        ]
     };
 
     public static Effect SprainedAnkle(double severity) => new()

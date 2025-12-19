@@ -5,38 +5,61 @@ namespace text_survival.Environments.Features;
 public class HeatSourceFeature : LocationFeature
 {
     // Fire State
-    public bool IsActive => FuelMassKg > 0;
+    public bool IsActive => BurningMassKg > 0;
     public bool HasEmbers { get; private set; }
 
-    // Fuel Management (mass-based, not time-based)
-    public double FuelMassKg { get; private set; }
+    // Two-mass fuel model: unburned + burning = total
+    public double UnburnedMassKg { get; private set; }
+    public double BurningMassKg { get; private set; }
+    public double TotalMassKg => UnburnedMassKg + BurningMassKg;
     public double MaxFuelCapacityKg { get; private set; }
-    private Dictionary<FuelType, double> _fuelMixture = []; // Track fuel types and their masses
 
-    public double HoursRemaining
+    private Dictionary<FuelType, double> _unburnedMixture = [];
+    private Dictionary<FuelType, double> _burningMixture = [];
+
+    // Time remaining calculations
+    public double HoursRemaining => BurningHoursRemaining; // Backwards compatibility
+
+    public double BurningHoursRemaining
     {
         get
         {
-            if (FuelMassKg <= 0) return 0;
+            if (BurningMassKg <= 0) return 0;
             double burnRate = GetWeightedBurnRate();
-            return burnRate > 0 ? FuelMassKg / burnRate : 0;
+            return burnRate > 0 ? BurningMassKg / burnRate : 0;
         }
     }
 
-    // Fire Physics
-    public double FireAgeMinutes { get; private set; } // Time since fire started/rekindled
-    private double _emberDuration; // Total ember duration when embers started
-    public double EmberTimeRemaining { get; private set; } // Time remaining for embers
+    public double TotalHoursRemaining
+    {
+        get
+        {
+            if (TotalMassKg <= 0) return 0;
+            double burnRate = GetWeightedBurnRate();
+            if (burnRate <= 0) burnRate = 1.0; // Fallback
+            return TotalMassKg / burnRate;
+        }
+    }
+
+    // Ember tracking
+    private double _emberDuration;
+    private double _emberStartTemperature;
+    private double _lastBurningTemperature; // Captured before consumption for ember transition
+    public double EmberTimeRemaining { get; private set; }
+
+    // Catching mechanic constants
+    private const double BaseCatchRate = 0.1; // kg/min baseline
 
     public HeatSourceFeature(double maxCapacityKg = 12.0)
         : base("Campfire")
     {
         HasEmbers = false;
-        FuelMassKg = 0;
+        UnburnedMassKg = 0;
+        BurningMassKg = 0;
         MaxFuelCapacityKg = maxCapacityKg;
-        FireAgeMinutes = 0;
         EmberTimeRemaining = 0;
         _emberDuration = 0;
+        _emberStartTemperature = 0;
     }
 
     #region Temperature Calculations
@@ -57,41 +80,43 @@ public class HeatSourceFeature : LocationFeature
     }
 
     /// <summary>
-    /// Calculate active fire temperature based on physics model
+    /// Calculate active fire temperature based on burning mass.
+    /// No startup curve - temperature is real combustion temp.
     /// </summary>
     private double GetActiveFireTemperature()
     {
-        double peakTemp = GetWeightedPeakTemperature();
-        double fireSizeMultiplier = GetFireSizeMultiplier();
-        double ageMultiplier = GetStartupMultiplier();
-        double declineMultiplier = GetDeclineMultiplier();
+        if (BurningMassKg <= 0) return 0;
 
-        return peakTemp * fireSizeMultiplier * ageMultiplier * declineMultiplier;
+        double peakTemp = GetWeightedPeakTemperature();
+        double sizeMultiplier = GetFireSizeMultiplier();
+
+        return peakTemp * sizeMultiplier;
     }
 
     /// <summary>
-    /// Calculate ember phase temperature with exponential decay
+    /// Calculate ember phase temperature with exponential decay.
+    /// Starts at the temperature the fire was before transitioning to embers.
     /// </summary>
     private double GetEmberTemperature()
     {
-        if (_emberDuration <= 0) return 300; // Minimum ember temp
+        if (_emberDuration <= 0) return Math.Max(200, _emberStartTemperature * 0.3);
 
         double progress = EmberTimeRemaining / _emberDuration;
         // Square root decay: embers cool slowly at first, then faster
-        return 600.0 * Math.Pow(progress, 0.5);
+        return _emberStartTemperature * Math.Pow(progress, 0.5);
     }
 
     /// <summary>
-    /// Get weighted average peak temperature from fuel mixture
+    /// Get weighted average peak temperature from burning fuel mixture
     /// </summary>
     private double GetWeightedPeakTemperature()
     {
-        if (_fuelMixture.Count == 0 || FuelMassKg <= 0) return 450; // Default to tinder temp
+        if (_burningMixture.Count == 0 || BurningMassKg <= 0) return 450; // Default to tinder temp
 
         double totalWeightedTemp = 0;
         double totalMass = 0;
 
-        foreach (var (fuelType, mass) in _fuelMixture)
+        foreach (var (fuelType, mass) in _burningMixture)
         {
             var props = FuelDatabase.Get(fuelType);
             totalWeightedTemp += props.PeakTemperature * mass;
@@ -103,69 +128,15 @@ public class HeatSourceFeature : LocationFeature
 
     /// <summary>
     /// Fire size affects temperature (larger fires burn hotter due to better oxygen flow)
+    /// Based on burning mass, not total fuel
     /// </summary>
     private double GetFireSizeMultiplier()
     {
-        if (FuelMassKg < 1.0) return 0.7;  // Small fire: inefficient
-        if (FuelMassKg < 2.0) return 0.85; // Small-medium
-        if (FuelMassKg < 5.0) return 1.0;  // Ideal size
-        if (FuelMassKg < 8.0) return 1.05; // Large
-        return 1.1; // Very large: maximum efficiency
-    }
-
-    /// <summary>
-    /// Startup curve: fires take time to reach peak temperature
-    /// Sigmoid function: slow start, rapid middle, slow approach to peak
-    /// </summary>
-    private double GetStartupMultiplier()
-    {
-        // Get weighted average startup time
-        double avgStartupTime = GetWeightedStartupTime();
-
-        // Sigmoid parameters
-        double inflectionPoint = avgStartupTime * 0.6; // 60% of startup time
-        double steepness = 0.4; // Controls curve sharpness
-
-        // Sigmoid: 1 / (1 + e^(-k * (x - inflection)))
-        double exponent = -steepness * (FireAgeMinutes - inflectionPoint);
-        double sigmoid = 1.0 / (1.0 + Math.Exp(exponent));
-
-        // Scale from 0.4 to 1.0 (fires start at 40% of peak temp)
-        return 0.4 + (sigmoid * 0.6);
-    }
-
-    /// <summary>
-    /// Get weighted average startup time from fuel mixture
-    /// </summary>
-    private double GetWeightedStartupTime()
-    {
-        if (_fuelMixture.Count == 0) return 5; // Default fast startup
-
-        double totalWeightedTime = 0;
-        double totalMass = 0;
-
-        foreach (var (fuelType, mass) in _fuelMixture)
-        {
-            var props = FuelDatabase.Get(fuelType);
-            totalWeightedTime += props.StartupTimeMinutes * mass;
-            totalMass += mass;
-        }
-
-        return totalMass > 0 ? totalWeightedTime / totalMass : 5;
-    }
-
-    /// <summary>
-    /// Decline curve: temperature drops as fuel depletes below 30%
-    /// </summary>
-    private double GetDeclineMultiplier()
-    {
-        double fuelPercent = FuelMassKg / MaxFuelCapacityKg;
-        double declineThreshold = 0.3; // 30% fuel remaining
-
-        if (fuelPercent >= declineThreshold) return 1.0; // Full temperature
-
-        // Power function for gradual decline
-        return Math.Pow(fuelPercent / declineThreshold, 0.6);
+        if (BurningMassKg < 0.3) return 0.5;   // Tiny
+        if (BurningMassKg < 0.7) return 0.7;   // Small
+        if (BurningMassKg < 1.5) return 0.85;  // Medium
+        if (BurningMassKg < 3.0) return 1.0;   // Good
+        return 1.1;                             // Large
     }
 
     /// <summary>
@@ -180,10 +151,9 @@ public class HeatSourceFeature : LocationFeature
         // Negative differential (fire cooler than ambient) produces no heat
         if (tempDifferential <= 0) return 0;
 
-        // Heat output scales with temperature differential and fire size
-        // Formula calibrated: 800°F fire with 3kg fuel ~15°F output (current system)
-        double fireSizeMultiplier = Math.Sqrt(Math.Max(FuelMassKg, 0.5));
-        double heatOutput = (tempDifferential / 90.0) * fireSizeMultiplier;
+        // Heat output scales with temperature differential and burning fire size
+        double fireSizeMultiplier = Math.Sqrt(Math.Max(BurningMassKg, 0.5));
+        double heatOutput = (tempDifferential / 60.0) * fireSizeMultiplier;
 
         return Math.Max(0, heatOutput);
     }
@@ -198,7 +168,7 @@ public class HeatSourceFeature : LocationFeature
     public bool CanAddFuel(FuelType fuelType)
     {
         // Check if fire is at capacity
-        if (FuelMassKg >= MaxFuelCapacityKg) return false;
+        if (TotalMassKg >= MaxFuelCapacityKg) return false;
 
         // Check minimum temperature requirement
         var props = FuelDatabase.Get(fuelType);
@@ -208,55 +178,98 @@ public class HeatSourceFeature : LocationFeature
     }
 
     /// <summary>
-    /// Add fuel to the fire by mass and type.
+    /// Add fuel to the fire. Fuel goes to unburned pile and catches over time.
     /// </summary>
     public bool AddFuel(double massKg, FuelType fuelType)
     {
         // Validate temperature requirement
         if (!CanAddFuel(fuelType)) return false;
 
-        // Add to fuel mass (capped at max capacity)
-        double spaceAvailable = MaxFuelCapacityKg - FuelMassKg;
+        // Add to unburned fuel (capped at max capacity)
+        double spaceAvailable = MaxFuelCapacityKg - TotalMassKg;
         double actualMassAdded = Math.Min(massKg, spaceAvailable);
 
-        FuelMassKg += actualMassAdded;
+        UnburnedMassKg += actualMassAdded;
 
-        // Track fuel type in mixture
-        if (_fuelMixture.ContainsKey(fuelType))
-            _fuelMixture[fuelType] += actualMassAdded;
+        // Track fuel type in unburned mixture
+        if (_unburnedMixture.ContainsKey(fuelType))
+            _unburnedMixture[fuelType] += actualMassAdded;
         else
-            _fuelMixture[fuelType] = actualMassAdded;
+            _unburnedMixture[fuelType] = actualMassAdded;
 
-        // Auto-relight from embers (embers still have heat to ignite fuel)
-        if (HasEmbers && FuelMassKg > 0)
+        // Auto-relight from embers: immediately ignite added fuel
+        if (HasEmbers && GetEmberTemperature() >= FuelDatabase.Get(fuelType).MinFireTemperature)
         {
+            // Transfer from unburned to burning (relight)
+            TransferToBurning(fuelType, actualMassAdded);
             HasEmbers = false;
             EmberTimeRemaining = 0;
-            FireAgeMinutes = 0; // Reset fire age when relighting
-        }
-
-        // If adding to cold fire and fuel type can ignite from cold (tinder/kindling)
-        var props = FuelDatabase.Get(fuelType);
-        if (!IsActive && !HasEmbers && props.MinFireTemperature == 0)
-        {
-            // This fuel can start a fire from cold (used with Start Fire action)
-            FireAgeMinutes = 0;
+            _emberDuration = 0;
         }
 
         return true;
     }
 
     /// <summary>
-    /// Get weighted average burn rate from current fuel mixture (kg/hour)
+    /// Ignite fuel - transfers from unburned to burning.
+    /// Used when starting a fire or relighting from embers.
+    /// </summary>
+    public void IgniteFuel(FuelType fuelType, double massKg)
+    {
+        double available = _unburnedMixture.GetValueOrDefault(fuelType, 0);
+        double toIgnite = Math.Min(massKg, available);
+
+        if (toIgnite > 0)
+        {
+            TransferToBurning(fuelType, toIgnite);
+        }
+    }
+
+    /// <summary>
+    /// Ignite all unburned fuel of types that can ignite from cold (tinder/kindling)
+    /// </summary>
+    public void IgniteAll()
+    {
+        foreach (var (fuelType, mass) in _unburnedMixture.ToList())
+        {
+            var props = FuelDatabase.Get(fuelType);
+            if (props.MinFireTemperature == 0 && mass > 0)
+            {
+                TransferToBurning(fuelType, mass);
+            }
+        }
+    }
+
+    private void TransferToBurning(FuelType fuelType, double massKg)
+    {
+        // Remove from unburned
+        if (_unburnedMixture.ContainsKey(fuelType))
+        {
+            _unburnedMixture[fuelType] -= massKg;
+            if (_unburnedMixture[fuelType] <= 0.001)
+                _unburnedMixture.Remove(fuelType);
+        }
+        UnburnedMassKg = Math.Max(0, UnburnedMassKg - massKg);
+
+        // Add to burning
+        if (_burningMixture.ContainsKey(fuelType))
+            _burningMixture[fuelType] += massKg;
+        else
+            _burningMixture[fuelType] = massKg;
+        BurningMassKg += massKg;
+    }
+
+    /// <summary>
+    /// Get weighted average burn rate from burning fuel mixture (kg/hour)
     /// </summary>
     private double GetWeightedBurnRate()
     {
-        if (_fuelMixture.Count == 0 || FuelMassKg <= 0) return 1.0; // Default burn rate
+        if (_burningMixture.Count == 0 || BurningMassKg <= 0) return 1.0;
 
         double totalWeightedRate = 0;
         double totalMass = 0;
 
-        foreach (var (fuelType, mass) in _fuelMixture)
+        foreach (var (fuelType, mass) in _burningMixture)
         {
             var props = FuelDatabase.Get(fuelType);
             totalWeightedRate += props.BurnRateKgPerHour * mass;
@@ -276,43 +289,19 @@ public class HeatSourceFeature : LocationFeature
     public override void Update(int minutes)
     {
         double minutesElapsed = minutes;
-        FireAgeMinutes += minutesElapsed;
 
-        if (FuelMassKg > 0)
+        if (BurningMassKg > 0)
         {
-            // Calculate fuel consumption
-            double burnRateKgPerHour = GetWeightedBurnRate();
-            double fuelConsumed = burnRateKgPerHour * (minutesElapsed / 60.0);
+            // 1. Process catching: unburned fuel catches fire
+            ProcessCatching(minutesElapsed);
 
-            // Consume fuel proportionally from each fuel type in mixture
-            if (FuelMassKg > 0)
+            // 2. Consume burning fuel
+            ProcessConsumption(minutesElapsed);
+
+            // 3. Check for transition to embers
+            if (BurningMassKg <= 0)
             {
-                double consumptionRatio = fuelConsumed / FuelMassKg;
-                var fuelTypes = _fuelMixture.Keys.ToList();
-
-                foreach (var fuelType in fuelTypes)
-                {
-                    _fuelMixture[fuelType] *= (1.0 - consumptionRatio);
-
-                    // Remove fuel types that are depleted
-                    if (_fuelMixture[fuelType] < 0.001)
-                        _fuelMixture.Remove(fuelType);
-                }
-            }
-
-            FuelMassKg = Math.Max(0, FuelMassKg - fuelConsumed);
-
-            // Transition to embers when fuel depleted
-            if (FuelMassKg <= 0)
-            {
-                HasEmbers = true;
-
-                // Embers last 25% of total burn time
-                _emberDuration = FireAgeMinutes / 60 * 0.25;
-                EmberTimeRemaining = _emberDuration;
-
-                FuelMassKg = 0;
-                _fuelMixture.Clear();
+                TransitionToEmbers();
             }
         }
         else if (HasEmbers)
@@ -324,8 +313,90 @@ public class HeatSourceFeature : LocationFeature
             {
                 HasEmbers = false;
                 _emberDuration = 0;
+                _emberStartTemperature = 0;
             }
         }
+    }
+
+    /// <summary>
+    /// Process the catching mechanic: unburned fuel gradually catches fire
+    /// </summary>
+    private void ProcessCatching(double minutesElapsed)
+    {
+        if (UnburnedMassKg <= 0 || BurningMassKg <= 0) return;
+
+        double currentTemp = GetCurrentFireTemperature();
+        double tempMultiplier = Math.Max(0.5, currentTemp / 400.0);
+        double massMultiplier = 1.0 + (BurningMassKg * 0.5); // Exponential feedback!
+
+        foreach (var (fuelType, unburnedMass) in _unburnedMixture.ToList())
+        {
+            if (unburnedMass <= 0) continue;
+
+            var props = FuelDatabase.Get(fuelType);
+
+            // Check if fire is hot enough to ignite this fuel type
+            if (currentTemp < props.MinFireTemperature) continue;
+
+            // Use burn rate as fuel-type multiplier (fast-burning = fast-catching)
+            double fuelMultiplier = props.BurnRateKgPerHour;
+            double catchRate = BaseCatchRate * tempMultiplier * massMultiplier * fuelMultiplier;
+            double catching = Math.Min(unburnedMass, catchRate * minutesElapsed);
+
+            if (catching > 0)
+            {
+                TransferToBurning(fuelType, catching);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Process fuel consumption: burning fuel is consumed
+    /// </summary>
+    private void ProcessConsumption(double minutesElapsed)
+    {
+        if (BurningMassKg <= 0) return;
+
+        // Capture temperature BEFORE consumption for ember transition
+        _lastBurningTemperature = GetActiveFireTemperature();
+
+        double burnRate = GetWeightedBurnRate();
+        double consumed = burnRate * (minutesElapsed / 60.0);
+
+        // Cap consumption at available burning mass
+        consumed = Math.Min(consumed, BurningMassKg);
+
+        // Proportionally remove from burning mixture
+        double ratio = consumed / BurningMassKg;
+        foreach (var (fuelType, mass) in _burningMixture.ToList())
+        {
+            _burningMixture[fuelType] *= (1.0 - ratio);
+
+            // Remove depleted fuel types
+            if (_burningMixture[fuelType] < 0.001)
+                _burningMixture.Remove(fuelType);
+        }
+
+        BurningMassKg = Math.Max(0, BurningMassKg - consumed);
+    }
+
+    /// <summary>
+    /// Transition from active fire to embers
+    /// </summary>
+    private void TransitionToEmbers()
+    {
+        // Use temperature captured before consumption (mixture is now empty)
+        _emberStartTemperature = _lastBurningTemperature;
+
+        HasEmbers = true;
+
+        // Embers last based on how much fuel burned (rough estimate)
+        // More fuel burned = more embers = longer duration
+        _emberDuration = Math.Max(0.25, _emberStartTemperature / 600.0 * 0.5); // 0.25 to 0.5 hours
+        EmberTimeRemaining = _emberDuration;
+
+        BurningMassKg = 0;
+        _burningMixture.Clear();
     }
 
     /// <summary>
@@ -335,15 +406,13 @@ public class HeatSourceFeature : LocationFeature
     {
         if (!IsActive && !HasEmbers) return "Cold";
 
-        double temp = GetCurrentFireTemperature();
-        double fuelPercent = FuelMassKg / MaxFuelCapacityKg;
-        double peakTemp = GetWeightedPeakTemperature();
-
         if (HasEmbers) return "Embers";
-        if (FireAgeMinutes < 5) return "Igniting";
-        if (temp < peakTemp * 0.9) return "Building";
-        if (fuelPercent > 0.5) return "Roaring";
-        if (fuelPercent > 0.3) return "Steady";
+
+        // Phases based on burning mass and catching state
+        if (BurningMassKg < 0.3) return "Igniting";
+        if (UnburnedMassKg > BurningMassKg * 0.5) return "Building";
+        if (BurningMassKg > 3.0) return "Roaring";
+        if (BurningMassKg > 1.0) return "Steady";
         return "Dying";
     }
 

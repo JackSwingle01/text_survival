@@ -9,6 +9,7 @@ public class SurvivalContext
     public double LocationTemperature;
     public double ClothingInsulation;
     public double ActivityLevel;
+    public double FireProximityBonus; // Direct radiant heat from fire proximity (0-2 scale multiplied by fire heat)
 }
 
 public class Body

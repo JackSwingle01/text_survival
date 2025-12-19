@@ -85,7 +85,7 @@ public static class FuelDatabase
         [FuelType.Softwood] = new FuelProperties(
             peakTemperature: 750,        // Good heat output
             burnRateKgPerHour: 1.0,      // Baseline burn rate (1kg/hour)
-            minFireTemperature: 400,     // Need established fire (ignition phase complete)
+            minFireTemperature: 200,     // Need some fire establishment, but not roaring
             ignitionBonus: 0,
             startupTimeMinutes: 15       // Takes time to reach full burn
         ),

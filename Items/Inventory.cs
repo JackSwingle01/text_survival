@@ -22,6 +22,13 @@ public class Inventory
     // Water in liters
     public double WaterLiters { get; set; }
 
+    // Crafting materials - each entry is item weight in kg
+    public List<double> Stone { get; set; } = [];       // ~0.3kg each, from foraging
+    public List<double> Bone { get; set; } = [];        // From butchering
+    public List<double> Hide { get; set; } = [];        // From butchering
+    public List<double> PlantFiber { get; set; } = [];  // ~0.1kg bundles, from foraging
+    public List<double> Sinew { get; set; } = [];       // From butchering
+
     // Discrete items - identity matters
     public List<Tool> Tools { get; set; } = [];
     public List<Item> Special { get; set; } = [];  // Quest items, trophies
@@ -38,6 +45,7 @@ public class Inventory
     public double FuelWeightKg => Logs.Sum() + Sticks.Sum() + Tinder.Sum();
     public double FoodWeightKg => CookedMeat.Sum() + RawMeat.Sum() + Berries.Sum();
     public double WaterWeightKg => WaterLiters;  // 1L water = 1kg
+    public double CraftingMaterialsWeightKg => Stone.Sum() + Bone.Sum() + Hide.Sum() + PlantFiber.Sum() + Sinew.Sum();
     public double ToolsWeightKg => Tools.Sum(t => t.Weight);
     public double SpecialWeightKg => Special.Sum(i => i.Weight);
 
@@ -46,7 +54,7 @@ public class Inventory
         (Feet?.Weight ?? 0) + (Hands?.Weight ?? 0) + (Weapon?.Weight ?? 0);
 
     public double CurrentWeightKg =>
-        FuelWeightKg + FoodWeightKg + WaterWeightKg + ToolsWeightKg + SpecialWeightKg + EquipmentWeightKg;
+        FuelWeightKg + FoodWeightKg + WaterWeightKg + CraftingMaterialsWeightKg + ToolsWeightKg + SpecialWeightKg + EquipmentWeightKg;
 
     /// <summary>
     /// Total insulation from all worn equipment (0-1 scale per slot, summed).
@@ -74,6 +82,11 @@ public class Inventory
     public int CookedMeatCount => CookedMeat.Count;
     public int RawMeatCount => RawMeat.Count;
     public int BerryCount => Berries.Count;
+    public int StoneCount => Stone.Count;
+    public int BoneCount => Bone.Count;
+    public int HideCount => Hide.Count;
+    public int PlantFiberCount => PlantFiber.Count;
+    public int SinewCount => Sinew.Count;
 
     /// <summary>
     /// Add resources from foraging, harvesting, or other collection.
@@ -87,6 +100,11 @@ public class Inventory
         RawMeat.AddRange(resources.RawMeat);
         Berries.AddRange(resources.Berries);
         WaterLiters += resources.WaterLiters;
+        Stone.AddRange(resources.Stone);
+        Bone.AddRange(resources.Bone);
+        Hide.AddRange(resources.Hide);
+        PlantFiber.AddRange(resources.PlantFiber);
+        Sinew.AddRange(resources.Sinew);
         Tools.AddRange(resources.Tools);
         Special.AddRange(resources.Special);
     }
@@ -128,6 +146,66 @@ public class Inventory
     }
 
     /// <summary>
+    /// Remove and return one stone.
+    /// Returns 0 if no stones available.
+    /// </summary>
+    public double TakeStone()
+    {
+        if (Stone.Count == 0) return 0;
+        var piece = Stone[0];
+        Stone.RemoveAt(0);
+        return piece;
+    }
+
+    /// <summary>
+    /// Remove and return one bone.
+    /// Returns 0 if no bones available.
+    /// </summary>
+    public double TakeBone()
+    {
+        if (Bone.Count == 0) return 0;
+        var piece = Bone[0];
+        Bone.RemoveAt(0);
+        return piece;
+    }
+
+    /// <summary>
+    /// Remove and return one hide.
+    /// Returns 0 if no hides available.
+    /// </summary>
+    public double TakeHide()
+    {
+        if (Hide.Count == 0) return 0;
+        var piece = Hide[0];
+        Hide.RemoveAt(0);
+        return piece;
+    }
+
+    /// <summary>
+    /// Remove and return one bundle of plant fiber.
+    /// Returns 0 if no plant fiber available.
+    /// </summary>
+    public double TakePlantFiber()
+    {
+        if (PlantFiber.Count == 0) return 0;
+        var piece = PlantFiber[0];
+        PlantFiber.RemoveAt(0);
+        return piece;
+    }
+
+    /// <summary>
+    /// Remove and return one piece of sinew.
+    /// Returns 0 if no sinew available.
+    /// </summary>
+    public double TakeSinew()
+    {
+        if (Sinew.Count == 0) return 0;
+        var piece = Sinew[0];
+        Sinew.RemoveAt(0);
+        return piece;
+    }
+
+    /// <summary>
     /// Check if there's enough fuel and tinder to start a fire.
     /// </summary>
     public bool CanStartFire => Tinder.Count > 0 && (Sticks.Count > 0 || Logs.Count > 0);
@@ -144,8 +222,17 @@ public class Inventory
 
     /// <summary>
     /// Check if there's any fuel available.
+    /// Tinder burns fast (inefficient) but counts as fuel.
     /// </summary>
-    public bool HasFuel => Logs.Count > 0 || Sticks.Count > 0;
+    public bool HasFuel => Logs.Count > 0 || Sticks.Count > 0 || Tinder.Count > 0;
+
+    /// <summary>
+    /// Check if there are any crafting materials available.
+    /// Includes sticks (can be used for crafting) and dedicated materials.
+    /// </summary>
+    public bool HasCraftingMaterials =>
+        Stone.Count > 0 || Bone.Count > 0 || Hide.Count > 0 ||
+        PlantFiber.Count > 0 || Sinew.Count > 0 || Sticks.Count > 1 || Logs.Count > 0;
 
     /// <summary>
     /// Equip armor/clothing to the appropriate slot.

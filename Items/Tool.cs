@@ -11,6 +11,22 @@ public class Tool
     public ToolType Type { get; set; }
     public double Weight { get; set; }
 
+    /// <summary>
+    /// Uses remaining before tool breaks. -1 means infinite durability.
+    /// </summary>
+    public int Durability { get; set; } = -1;
+
+    /// <summary>
+    /// Check if tool is broken (0 durability).
+    /// Tools with -1 durability never break.
+    /// </summary>
+    public bool IsBroken => Durability == 0;
+
+    /// <summary>
+    /// Check if tool works (not broken).
+    /// </summary>
+    public bool Works => Durability != 0;
+
     // Optional combat properties - null means not a weapon
     public double? Damage { get; set; }
     public double? Accuracy { get; set; }
@@ -34,6 +50,19 @@ public class Tool
         Name = name;
         Type = type;
         Weight = weight;
+    }
+
+    /// <summary>
+    /// Use the tool once, decrementing durability.
+    /// Returns true if tool is still usable, false if broken.
+    /// </summary>
+    public bool Use()
+    {
+        if (Durability == -1) return true; // Infinite durability
+        if (Durability == 0) return false; // Already broken
+
+        Durability--;
+        return Durability > 0;
     }
 
     public override string ToString() => Name;
@@ -130,6 +159,8 @@ public enum ToolType
     Axe,
     Knife,
     FireStriker,
+    HandDrill,    // Friction fire-starter
+    BowDrill,     // Better friction fire-starter
     WaterContainer,
     Spear,
     Club,

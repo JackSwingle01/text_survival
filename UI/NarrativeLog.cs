@@ -12,12 +12,22 @@ public enum LogLevel
 public class NarrativeLog
 {
     public const int MAX_VISIBLE_LINES = 20;
+    private const string SEPARATOR = "· · ·";
     private readonly List<(string Text, LogLevel Level)> _entries = [];
 
     public void Add(string text, LogLevel level = LogLevel.Normal)
     {
         _entries.Add((text, level));
     }
+
+    public void AddSeparator()
+    {
+        if (_entries.Count > 0 && !LastEntryIsSeparator())
+            _entries.Add((SEPARATOR, LogLevel.System));
+    }
+
+    public bool LastEntryIsSeparator() =>
+        _entries.Count > 0 && _entries[^1].Text == SEPARATOR;
 
     public void AddRange(IEnumerable<string> texts, LogLevel level = LogLevel.Normal)
     {

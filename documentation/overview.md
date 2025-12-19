@@ -109,7 +109,7 @@ Features are what make locations useful:
 
 **HeatSourceFeature** — Fire. The anchor. Has fuel, burns down, produces heat. Can bank to embers, relight, die completely.
 
-**AnimalTerritoryFeature** — Defines what game can be found at a location. Animals spawn dynamically when searching, not pre-placed. Game density depletes with successful hunts and respawns over time.
+**AnimalTerritoryFeature** — Defines what game can be found at a location. Animals spawn dynamically when searching, not pre-placed. Game density depletes with successful hunts and respawns over time. Also provides helpers for the event system (random animal names, predator identification).
 
 ---
 
@@ -180,21 +180,40 @@ The wolf encounter isn't scripted. It emerges from: player carrying meat + injur
 
 ---
 
-## Events (Planned — Top Priority)
+## Events
 
 Events trigger during expedition phases based on:
-- Location (wolf territory)
+- Location (wolf territory, animal territory)
 - Player activity (hunting attracts predators)
 - Player state (injured, carrying food, bleeding)
 - Time and weather
 
 Events aren't random encounters — they're contextual interrupts that create decisions. The same wolf sighting plays differently when healthy vs injured, when camp is close vs far, when carrying meat vs not.
 
+### Architecture
+
+Events use a factory pattern — each event type is a function that takes `GameContext` and returns a `GameEvent`. This allows events to bake location-specific context into their descriptions at trigger time (e.g., "Fresh deer tracks" instead of generic "animal tracks").
+
+### Current Events
+
+**Weather/Environmental:**
+- **Weather Worsening** — Storm approaching, choose to push through, seek shelter, or abort
+- **Treacherous Footing** — Hazardous terrain during travel
+- **Minor Accident** — Injury during work
+
+**Opportunity:**
+- **Something Catches Your Eye** — Potential discovery during work (supplies, abandoned camp, hidden cache)
+
+**Animal Territory Events** (require AnimalTerritoryFeature):
+- **Fresh Carcass** — Find a predator's recent kill, risk scavenging for meat
+- **Tracks** — Animal tracks to follow, note, or avoid
+- **Something Watching** — Predator awareness, chance modifiers for carrying meat or being injured
+
 Events can:
-- Escalate (sighting → approaching → attacking)
-- Chain (finding tracks → following → ambush)
-- Offer opportunities (spot a deer while foraging — abandon forage to hunt?)
-- Force tradeoffs (storm coming — push through or abort?)
+- Add time to expeditions
+- Apply effects (injuries, fear, cold)
+- Grant rewards via RewardPools
+- Force expedition abort
 
 ---
 
@@ -211,17 +230,30 @@ Actions query properties. A "burn" action checks flammability and burn rate. Beh
 
 ---
 
-## Crafting (Needs Rework)
+## Crafting
 
-Current system is recipe-based. Design direction is need-based:
+Need-based crafting system. Player expresses a need, sees what's craftable from available materials.
 
-Don't show craftable items. Show categories of need:
-- Fire-starting supplies
-- Cordage or bindings
-- Tools or weapons
-- Shelter improvement
+**Need Categories** (MVP):
+- Fire-starting supplies (Hand Drill, Bow Drill)
+- Cutting tools (Sharp Rock, Stone Knife, Bone Knife)
+- Hunting weapons (Wooden Spear, Heavy Spear, Stone-Tipped Spear)
 
-Player picks a category, sees what's possible with current materials, decides whether to proceed. A walking stick isn't a recipe — it's a query for wood meeting certain criteria (shoulder-height, straight, solid).
+**Crafting Materials** (aggregate resources in Inventory):
+- Stone — from foraging (riverbanks, rocky areas)
+- Bone — from butchering animals (~15% body weight)
+- Hide — from butchering animals (~10% body weight)
+- PlantFiber — from foraging (forests, grasslands)
+- Sinew — from butchering animals (~5% body weight)
+
+**Binary Tools**: Tools either work or they're broken. No quality tiers. Different materials affect durability (uses before breaking), not effectiveness.
+
+**Flow**: Camp menu → "Work on a project" → Select need category → See craftable options → Craft. Time passes, materials consumed, tool added to inventory.
+
+**Future Categories** (not yet implemented):
+- Shelter improvements (LocationFeatures)
+- Clothing/warmth (Equipment from hides)
+- Containers/carrying (capacity bonuses)
 
 ---
 
@@ -232,7 +264,8 @@ Player picks a category, sees what's possible with current materials, decides wh
 **Runners** — Control flow, player decisions, display UI
 - GameRunner: main loop, calls into specific runners
 - ExpeditionRunner: expedition flow from selection to completion
-- (Future: CombatRunner, CraftingRunner)
+- CraftingRunner: need-based crafting UI
+- CampWorkRunner: foraging and scouting at camp
 
 **Processors** — Stateless domain logic, returns results
 - SurvivalProcessor: calculates stat changes per tick, returns delta + effects + messages
@@ -276,13 +309,15 @@ Features live on locations. Currently a hybrid — data objects with some behavi
 - Effects system with severity and modifiers
 - Location graph with travel times
 - Expedition phases with fire margin display
+- Event system with factory pattern, contextual triggers, and 7 event types
+- **Need-based crafting** with 3 categories (fire-starting, cutting tools, hunting weapons)
 
 ## What's Next
 
-1. **Events during expeditions** — the layer that makes expeditions tense
-2. **Threat encounters** — data-driven boldness system
-3. **Location discovery** — unknown → hinted → visible → explored
-4. **Crafting rework** — need-based instead of recipe lists
+1. **Threat encounters** — data-driven boldness system
+2. **Location discovery** — unknown → hinted → visible → explored
+3. **More crafting categories** — shelter, clothing, containers
+4. **More events** — expand event variety based on playtesting
 
 ## Explicitly Dropped
 

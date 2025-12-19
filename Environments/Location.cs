@@ -255,7 +255,7 @@ public class Location
         {
             var resources = forage.GetAvailableResourceTypes();
             if (resources.Count > 0)
-                parts.Add($"foraging: {string.Join(", ", resources.Take(3))}");
+                parts.Add($"Foraging: {string.Join(", ", resources.Take(3))}");
         }
 
         var harvestables = Features

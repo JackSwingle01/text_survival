@@ -28,7 +28,7 @@ public class GameContext(Player player, Camp camp)
                          GetTimeOfDay() == TimeOfDay.Evening,
             EventCondition.Traveling => Expedition != null,
             EventCondition.Resting => false, // TODO: implement when rest system exists
-            EventCondition.Working => Expedition?.CurrentPhase == Expeditions.ExpeditionPhase.Working,
+            EventCondition.Working => Expedition?.State == Expeditions.ExpeditionState.Working,
             EventCondition.HasFood => Inventory.HasFood,
             EventCondition.HasMeat => Inventory.CookedMeat.Count > 0 || Inventory.RawMeat.Count > 0,
             EventCondition.HasFirewood => Inventory.HasFuel,
@@ -57,6 +57,41 @@ public class GameContext(Player player, Camp camp)
         player.Update(minutes, GetSurvivalContext());
         CurrentLocation.Parent.Update(minutes, GameTime);
         GameTime = GameTime.AddMinutes(minutes); // Keep GameTime in sync
+
+        var logs = player?.GetFlushLogs();
+        if (logs is not null && logs.Count != 0)
+            GameDisplay.AddNarrative(logs);
+    }
+
+    public void Update(int minutes, double activityLevel)
+    {
+        var context = GetSurvivalContext();
+        context.ActivityLevel = activityLevel;
+        player.Update(minutes, context);
+        CurrentLocation.Parent.Update(minutes, GameTime);
+        GameTime = GameTime.AddMinutes(minutes);
+
+        var logs = player?.GetFlushLogs();
+        if (logs is not null && logs.Count != 0)
+            GameDisplay.AddNarrative(logs);
+    }
+
+    public void Update(int minutes, double activityLevel, double fireProximityMultiplier)
+    {
+        var context = GetSurvivalContext();
+        context.ActivityLevel = activityLevel;
+
+        // Calculate fire proximity bonus if there's an active fire
+        var fire = CurrentLocation.GetFeature<HeatSourceFeature>();
+        if (fire != null && fire.IsActive)
+        {
+            double fireHeat = fire.GetEffectiveHeatOutput(CurrentLocation.GetTemperature());
+            context.FireProximityBonus = fireHeat * fireProximityMultiplier;
+        }
+
+        player.Update(minutes, context);
+        CurrentLocation.Parent.Update(minutes, GameTime);
+        GameTime = GameTime.AddMinutes(minutes);
 
         var logs = player?.GetFlushLogs();
         if (logs is not null && logs.Count != 0)

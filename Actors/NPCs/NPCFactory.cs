@@ -22,7 +22,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 1.2
             };
 
-            Animal rat = new("Rat", weapon, bodyStats, AnimalBehaviorType.Prey)
+            Animal rat = new("Rat", weapon, bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small)
             {
                 Description = "A rat with fleas.",
                 TrackingDifficulty = 3 // Easy to track
@@ -47,7 +47,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 1.1
             };
 
-            Animal wolf = new("Wolf", weapon, bodyStats, AnimalBehaviorType.Predator)
+            Animal wolf = new("Wolf", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large)
             {
                 Description = "A wolf.",
                 TrackingDifficulty = 6 // Medium difficulty - intelligent predator
@@ -72,7 +72,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 0.9
             };
 
-            Animal bear = new("Bear", weapon, bodyStats, AnimalBehaviorType.Predator)
+            Animal bear = new("Bear", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large)
             {
                 Description = "A bear.",
                 TrackingDifficulty = 5 // Medium difficulty
@@ -97,7 +97,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 1.0
             };
 
-            Animal snake = new("Snake", weapon, bodyStats, AnimalBehaviorType.Predator)
+            Animal snake = new("Snake", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Small)
             {
                 Description = "A venomous snake.",
                 TrackingDifficulty = 7 // Hard to track - leaves minimal trail
@@ -126,7 +126,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 0.9
             };
 
-            Animal bat = new("Bat", weapon, bodyStats, AnimalBehaviorType.Prey)
+            Animal bat = new("Bat", weapon, bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small)
             {
                 Description = "A small bat with leathery wings.",
                 TrackingDifficulty = 8 // Very hard to track - flies away
@@ -152,7 +152,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 1.2
             };
 
-            Animal spider = new("Spider", weapon, bodyStats, AnimalBehaviorType.Prey)
+            Animal spider = new("Spider", weapon, bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small)
             {
                 Description = "A venomous spider with long hairy legs.",
                 TrackingDifficulty = 7 // Hard to track - small and stealthy
@@ -181,7 +181,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 0.85
             };
 
-            Animal caveBear = new("Cave Bear", weapon, bodyStats, AnimalBehaviorType.Predator)
+            Animal caveBear = new("Cave Bear", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large)
             {
                 Description = "An enormous cave bear with massive claws. It's adapted to cave dwelling and hunting in darkness.",
                 TrackingDifficulty = 4 // Easier to track - large and heavy
@@ -207,7 +207,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 0.7
             };
 
-            Animal mammoth = new("Woolly Mammoth", weapon, bodyStats, AnimalBehaviorType.DangerousPrey)
+            Animal mammoth = new("Woolly Mammoth", weapon, bodyStats, AnimalBehaviorType.DangerousPrey, AnimalSize.Large)
             {
                 Description = "A massive woolly mammoth with long curved tusks and a thick fur coat.",
                 TrackingDifficulty = 2 // Very easy to track - enormous and heavy
@@ -233,7 +233,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 1.0
             };
 
-            Animal saberTooth = new("Saber-Tooth Tiger", weapon, bodyStats, AnimalBehaviorType.Predator)
+            Animal saberTooth = new("Saber-Tooth Tiger", weapon, bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large)
             {
                 Description = "A fearsome predator with long saber-like canine teeth.",
                 TrackingDifficulty = 7 // Hard to track - stealthy apex predator
@@ -260,7 +260,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 0.8
             };
 
-            Animal deer = new("Deer", weapon, bodyStats, AnimalBehaviorType.Prey, isHostile: false)
+            Animal deer = new("Deer", weapon, bodyStats, AnimalBehaviorType.Prey, AnimalSize.Large, isHostile: false)
             {
                 Description = "A graceful deer with large ears alert for danger.",
                 TrackingDifficulty = 4 // Moderate - leaves clear tracks but moves fast
@@ -286,7 +286,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 0.5
             };
 
-            Animal rabbit = new("Rabbit", weapon, bodyStats, AnimalBehaviorType.Prey, isHostile: false)
+            Animal rabbit = new("Rabbit", weapon, bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small, isHostile: false)
             {
                 Description = "A quick brown rabbit with long ears, ready to bolt at any sign of danger.",
                 TrackingDifficulty = 6 // Hard to track - small and erratic movements
@@ -312,7 +312,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 0.4
             };
 
-            Animal ptarmigan = new("Ptarmigan", weapon, bodyStats, AnimalBehaviorType.Prey, isHostile: false)
+            Animal ptarmigan = new("Ptarmigan", weapon, bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small, isHostile: false)
             {
                 Description = "A plump game bird with white winter plumage, nearly invisible against the snow.",
                 TrackingDifficulty = 7 // Very hard to track - flies away, good camouflage
@@ -338,7 +338,7 @@ namespace text_survival.Actors.NPCs
                 Accuracy = 1.0
             };
 
-            Animal fox = new("Fox", weapon, bodyStats, AnimalBehaviorType.Scavenger, isHostile: false)
+            Animal fox = new("Fox", weapon, bodyStats, AnimalBehaviorType.Scavenger, AnimalSize.Small, isHostile: false)
             {
                 Description = "A cunning red fox with alert eyes, weighing whether you're a threat or opportunity.",
                 TrackingDifficulty = 6 // Medium-hard - intelligent and cautious (will flee if outmatched)

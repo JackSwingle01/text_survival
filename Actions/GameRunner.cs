@@ -40,9 +40,16 @@ public partial class GameRunner(GameContext ctx)
         while (ctx.player.IsAlive)
         {
             GameDisplay.Render(ctx);
+            CheckFireWarning();
             RunCampMenu();
             ctx.Update(1);
         }
+
+        // Player died from survival conditions - show death message
+        GameDisplay.AddDanger("Your vision fades to black as you collapse...");
+        GameDisplay.AddDanger("You have died.");
+        GameDisplay.Render(ctx, addSeparator: false);
+        Input.WaitForKey();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -51,9 +58,6 @@ public partial class GameRunner(GameContext ctx)
 
     private void RunCampMenu()
     {
-        ExpeditionRunner expeditionRunner = new(ctx);
-        ExploreRunner exploreRunner = new (ctx);
-
         var choice = new Choice<Action>();
 
         if (HasActiveFire())
@@ -62,14 +66,23 @@ public partial class GameRunner(GameContext ctx)
         if (CanStartFire())
             choice.AddOption("Start fire", StartFire);
 
-        if (expeditionRunner.GetGatherableLocations().Any() || expeditionRunner.GetHuntableLocations().Any())
-            choice.AddOption("Go on expedition", ChooseExpeditionType);
+        // Work around camp - foraging, exploring without leaving
+        if (HasCampWork())
+            choice.AddOption(GetCampWorkLabel(), WorkAroundCamp);
 
-        // if (exploreRunner.HasUnexploredReachable(state))
-            choice.AddOption("Explore", exploreRunner.Run);
-            
+        // Crafting - make tools from available materials
+        if (ctx.Inventory.HasCraftingMaterials)
+            choice.AddOption("Crafting", RunCrafting);
+
+        // Leave camp - travel to other locations (only show if destinations exist)
+        if (ctx.Camp.Location.Connections.Count > 0)
+            choice.AddOption("Leave camp", LeaveCamp);
+
         if (HasItems())
             choice.AddOption("Inventory", RunInventoryMenu);
+
+        if (CanRestByFire())
+            choice.AddOption("Rest by the fire", RestByFire);
 
         if (ctx.player.Body.IsTired)
             choice.AddOption("Sleep", Sleep);
@@ -77,16 +90,50 @@ public partial class GameRunner(GameContext ctx)
         choice.GetPlayerChoice().Invoke();
     }
 
-    private void ChooseExpeditionType()
+    private bool HasCampWork()
     {
-        ExpeditionRunner expeditionRunner = new(ctx);
-        var choice = new Choice<Action>();
-        if (expeditionRunner.GetGatherableLocations().Any())
-            choice.AddOption("Gather", expeditionRunner.RunForageExpedition);
-        if (expeditionRunner.GetHuntableLocations().Any())
-            choice.AddOption("Hunt", expeditionRunner.RunHuntExpedition);
+        var campLocation = ctx.Camp.Location;
 
-        choice.GetPlayerChoice().Invoke();
+        if (campLocation.HasFeature<ForageFeature>())
+            return true;
+
+        if (ctx.Zone.HasUnrevealedLocations())
+            return true;
+
+        return false;
+    }
+
+    private string GetCampWorkLabel()
+    {
+        var options = new List<string>();
+
+        if (ctx.Camp.Location.HasFeature<ForageFeature>())
+            options.Add("Forage");
+
+        if (ctx.Zone.HasUnrevealedLocations())
+            options.Add("Scout");
+
+        return options.Count > 0
+            ? $"Work near camp ({string.Join(", ", options)})"
+            : "Work near camp";
+    }
+
+    private void WorkAroundCamp()
+    {
+        var campWorkRunner = new CampWorkRunner(ctx);
+        campWorkRunner.Run();
+    }
+
+    private void RunCrafting()
+    {
+        var craftingRunner = new CraftingRunner(ctx);
+        craftingRunner.Run();
+    }
+
+    private void LeaveCamp()
+    {
+        var expeditionRunner = new ExpeditionRunner(ctx);
+        expeditionRunner.Run();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -102,6 +149,20 @@ public partial class GameRunner(GameContext ctx)
         return (fire.IsActive || fire.HasEmbers) && ctx.Inventory.HasFuel;
     }
 
+    private void CheckFireWarning()
+    {
+        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+        if (fire == null || (!fire.IsActive && !fire.HasEmbers))
+            return;
+
+        int minutes = (int)(fire.HoursRemaining * 60);
+
+        if (minutes <= 5)
+            GameDisplay.AddDanger($"Your fire will die in {minutes} minutes!");
+        else if (minutes <= 15)
+            GameDisplay.AddWarning($"Fire burning low - {minutes} minutes remaining.");
+    }
+
     private bool CanStartFire()
     {
         var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
@@ -114,6 +175,66 @@ public partial class GameRunner(GameContext ctx)
         // Need a fire tool and materials
         bool hasTool = ctx.Inventory.Tools.Any(t => t.Type == ToolType.FireStriker);
         return hasTool && ctx.Inventory.CanStartFire;
+    }
+
+    private bool CanRestByFire()
+    {
+        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+        return fire != null && fire.IsActive;
+    }
+
+    private void RestByFire()
+    {
+        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>()!;
+
+        // Show current status
+        string firePhase = fire.GetFirePhase();
+        double fuelMinutes = fire.HoursRemaining * 60;
+        double locationTemp = ctx.CurrentLocation.GetTemperature();
+
+        GameDisplay.AddNarrative($"Fire: {firePhase} (~{fuelMinutes:F0} min fuel remaining)");
+        GameDisplay.AddNarrative($"Temperature: {locationTemp:F0}°F");
+
+        var durationChoices = new List<string>
+        {
+            "15 minutes",
+            "30 minutes",
+            "60 minutes",
+            "Cancel"
+        };
+
+        GameDisplay.Render(ctx, addSeparator: false);
+        string choice = Input.Select("How long do you want to rest?", durationChoices);
+
+        if (choice == "Cancel")
+            return;
+
+        int minutes = choice switch
+        {
+            "15 minutes" => 15,
+            "30 minutes" => 30,
+            "60 minutes" => 60,
+            _ => 0
+        };
+
+        if (minutes == 0) return;
+
+        GameDisplay.AddNarrative($"You huddle close to the fire to warm up...");
+
+        // Update with reduced activity (1.0) and high fire proximity (2.0 = huddling)
+        ctx.Update(minutes, 1.0, 2.0);
+
+        // Show result
+        double newTemp = ctx.CurrentLocation.GetTemperature();
+        double newFuelMinutes = fire.HoursRemaining * 60;
+        GameDisplay.AddNarrative($"You feel warmer after resting by the fire.");
+
+        if (fire.IsActive)
+            GameDisplay.AddNarrative($"Fire: {fire.GetFirePhase()} (~{newFuelMinutes:F0} min remaining)");
+        else if (fire.HasEmbers)
+            GameDisplay.AddWarning("The fire has died down to embers.");
+        else
+            GameDisplay.AddDanger("The fire has gone out!");
     }
 
     private void TendFire()
@@ -131,11 +252,21 @@ public partial class GameRunner(GameContext ctx)
         var fuelChoices = new List<string>();
         var fuelMap = new Dictionary<string, (string name, FuelType type, Func<double> takeFunc)>();
 
-        if (inv.Logs.Count > 0 && fire.CanAddFuel(FuelType.Softwood))
+        if (inv.Logs.Count > 0)
         {
-            string label = $"Add log ({inv.Logs.Count} @ {inv.Logs.Sum():F1}kg)";
-            fuelChoices.Add(label);
-            fuelMap[label] = ("log", FuelType.Softwood, inv.TakeSmallestLog);
+            if (fire.CanAddFuel(FuelType.Softwood))
+            {
+                string label = $"Add log ({inv.Logs.Count} @ {inv.Logs.Sum():F1}kg)";
+                fuelChoices.Add(label);
+                fuelMap[label] = ("log", FuelType.Softwood, inv.TakeSmallestLog);
+            }
+            else
+            {
+                // Show greyed-out option explaining why logs can't be added yet
+                string disabledLabel = "[dim]Add log (fire too small)[/]";
+                fuelChoices.Add(disabledLabel);
+                fuelMap[disabledLabel] = ("disabled", FuelType.Softwood, () => 0);
+            }
         }
 
         if (inv.Sticks.Count > 0 && fire.CanAddFuel(FuelType.Kindling))
@@ -177,6 +308,15 @@ public partial class GameRunner(GameContext ctx)
             return;
 
         var (name, fuelType, takeFunc) = fuelMap[choice];
+
+        // Handle disabled option (fire too small for logs)
+        if (name == "disabled")
+        {
+            GameDisplay.AddWarning("The fire needs to be bigger before you can add logs. Add more kindling first.");
+            Input.WaitForKey();
+            return;
+        }
+
         bool hadEmbers = fire.HasEmbers;
 
         // Take fuel from inventory and add to fire
@@ -277,6 +417,7 @@ public partial class GameRunner(GameContext ctx)
                 GameDisplay.AddSuccess($"Success! You relight the fire! ({finalChance:P0} chance)");
                 existingFire!.AddFuel(tinderUsed, FuelType.Tinder);
                 existingFire.AddFuel(kindlingUsed, FuelType.Kindling);
+                existingFire.IgniteFuel(FuelType.Tinder, tinderUsed);
             }
             else
             {
@@ -284,6 +425,7 @@ public partial class GameRunner(GameContext ctx)
                 var newFire = new HeatSourceFeature();
                 newFire.AddFuel(tinderUsed, FuelType.Tinder);
                 newFire.AddFuel(kindlingUsed, FuelType.Kindling);
+                newFire.IgniteFuel(FuelType.Tinder, tinderUsed);
                 ctx.CurrentLocation.Features.Add(newFire);
             }
 
@@ -339,226 +481,12 @@ public partial class GameRunner(GameContext ctx)
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // CRAFTING
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    // private bool CanCraft() => ctx.CraftingManager.GetAvailableRecipes().Count > 0;
-
-    // private void RunCraftingMenu()
-    // {
-    //     var availableRecipes = ctx.CraftingManager.GetAvailableRecipes();
-
-    //     if (availableRecipes.Count == 0)
-    //     {
-    //         GameDisplay.AddNarrative("You don't know how to craft anything here, or you lack the required materials.");
-    //         Input.WaitForKey();
-    //         return;
-    //     }
-
-    //     GameDisplay.AddNarrative("What would you like to craft?");
-
-    //     var itemRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.Item).ToList();
-    //     var featureRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.LocationFeature).ToList();
-    //     var shelterRecipes = availableRecipes.Where(r => r.ResultType == CraftingResultType.Shelter).ToList();
-
-    //     var choice = new Choice<Action>();
-
-    //     if (itemRecipes.Count != 0)
-    //     {
-    //         GameDisplay.AddNarrative("\n--- Items ---");
-    //         foreach (var recipe in itemRecipes)
-    //             choice.AddOption($"Craft {recipe.Name}", () => CraftItem(recipe));
-    //     }
-
-    //     if (featureRecipes.Count != 0)
-    //     {
-    //         GameDisplay.AddNarrative("\n--- Build Features ---");
-    //         foreach (var recipe in featureRecipes)
-    //             choice.AddOption($"Craft {recipe.Name}", () => CraftItem(recipe));
-    //     }
-
-    //     if (shelterRecipes.Count != 0)
-    //     {
-    //         GameDisplay.AddNarrative("\n--- Build Shelters ---");
-    //         foreach (var recipe in shelterRecipes)
-    //             choice.AddOption($"Craft {recipe.Name}", () => CraftItem(recipe));
-    //     }
-
-    //     choice.AddOption("View All Known Recipes", ShowAllRecipes);
-    //     choice.AddOption("Show My Materials", ShowAvailableMaterials);
-    //     choice.AddOption("Stop crafting", () => { });
-
-    //     choice.GetPlayerChoice().Invoke();
-    // }
-
-    // private void CraftItem(CraftingRecipe recipe)
-    // {
-    //     GameDisplay.AddNarrative($"\nCrafting: {recipe.Name}");
-    //     GameDisplay.AddNarrative($"Description: {recipe.Description}");
-    //     GameDisplay.AddNarrative($"Time required: {recipe.CraftingTimeMinutes} minutes");
-    //     GameDisplay.AddNarrative($"Required skill: {recipe.RequiredSkill} (Level {recipe.RequiredSkillLevel})");
-    //     GameDisplay.AddNarrative($"Result type: {recipe.ResultType}");
-
-    //     if (recipe.RequiresFire)
-    //         GameDisplay.AddNarrative("Requires: Active fire");
-
-    //     GameDisplay.AddNarrative("\nMaterial properties needed:");
-    //     foreach (var req in recipe.RequiredProperties)
-    //     {
-    //         string consumed = req.IsConsumed ? "(consumed)" : "(used)";
-    //         GameDisplay.AddNarrative($"- {req.Property}: {req.MinQuantity:F1}+ KG {consumed}");
-    //     }
-
-    //     GameDisplay.AddNarrative("\nYour available materials:");
-    //     ShowPlayerMaterials(recipe.RequiredProperties);
-
-    //     var preview = recipe.PreviewConsumption(ctx.player);
-    //     if (preview.Count > 0)
-    //     {
-    //         GameDisplay.AddNarrative("\nThis will consume:");
-    //         foreach (var (itemName, amount) in preview)
-    //         {
-    //             GameDisplay.AddNarrative($"  - {itemName} ({amount:F2}kg)");
-    //         }
-    //     }
-
-    //     GameDisplay.AddNarrative("\nDo you want to attempt this craft?");
-
-    //     if (Input.ReadYesNo())
-    //     {
-    //         ctx.CraftingManager.Craft(recipe);
-    //     }
-
-    //     RunCraftingMenu();
-    // }
-
-    // private void ShowAllRecipes()
-    // {
-    //     GameDisplay.AddNarrative("\n=== [ Known Recipes ] ===");
-
-    //     var craftingManager = new CraftingSystem(ctx);
-    //     var allRecipes = craftingManager.Recipes.Values
-    //         .GroupBy(r => r.ResultType)
-    //         .ToList();
-
-    //     foreach (var group in allRecipes)
-    //     {
-    //         GameDisplay.AddNarrative($"\n--- [ {group.Key} Recipes ] ---");
-    //         foreach (var recipe in group)
-    //         {
-    //             PrintRecipeTable(recipe);
-    //             GameDisplay.AddNarrative("");
-    //         }
-    //     }
-
-    //     Input.WaitForKey();
-    //     RunCraftingMenu();
-    // }
-
-    // private void PrintRecipeTable(CraftingRecipe recipe)
-    // {
-    //     bool canCraft = recipe.CanCraft(ctx.player, ctx.Camp);
-    //     string status = canCraft ? "[✓]" : "[✗]";
-
-    //     string header = $">>> {recipe.Name.ToUpper()} {status} <<<";
-    //     int tableWidth = 64;
-
-    //     GameDisplay.AddNarrative($"┌{new string('─', tableWidth)}┐");
-    //     GameDisplay.AddNarrative($"│{header.PadLeft((tableWidth + header.Length) / 2).PadRight(tableWidth)}│");
-    //     GameDisplay.AddNarrative($"├{new string('─', tableWidth)}┤");
-
-    //     string fireReq = recipe.RequiresFire ? " • Fire Required" : "";
-    //     string infoRow = $"{recipe.CraftingTimeMinutes} min • {recipe.RequiredSkill} level {recipe.RequiredSkillLevel}{fireReq}";
-    //     GameDisplay.AddNarrative($"│ {infoRow.PadRight(tableWidth - 2)} │");
-
-    //     string description = recipe.Description;
-    //     if (description.Length > tableWidth - 2)
-    //         description = string.Concat(description.AsSpan(0, tableWidth - 5), "...");
-    //     GameDisplay.AddNarrative($"│ {description.PadRight(tableWidth - 2)} │");
-
-    //     GameDisplay.AddNarrative($"├───────────────────────────────────┬────────┬─────────┬─────────┤");
-    //     GameDisplay.AddNarrative($"│ Material                          │ Qty    │ Quality │ Consumed│");
-    //     GameDisplay.AddNarrative($"├───────────────────────────────────┼────────┼─────────┼─────────┤");
-
-    //     foreach (var req in recipe.RequiredProperties)
-    //     {
-    //         string propertyName = req.Property.ToString();
-    //         string material = propertyName.Length > 31 ? propertyName[..28] + "..." : propertyName;
-    //         string quantity = $"{req.MinQuantity:F1}x";
-    //         string consumed = req.IsConsumed ? "✓" : "✗";
-
-    //         GameDisplay.AddNarrative($"│ {material,-33} │ {quantity,6} │ {0,7} │ {consumed,7} │");
-    //     }
-
-    //     GameDisplay.AddNarrative($"└───────────────────────────────────┴────────┴─────────┴─────────┘");
-    // }
-
-    // private void ShowAvailableMaterials()
-    // {
-    //     GameDisplay.AddNarrative("\n=== Your Material Properties ===");
-
-    //     var propertyTotals = new Dictionary<ItemProperty, (double amount, int items)>();
-
-    //     foreach (var stack in ctx.player.inventoryManager.Items)
-    //     {
-    //         var item = stack.FirstItem;
-    //         foreach (var property in item.CraftingProperties)
-    //         {
-    //             if (!propertyTotals.ContainsKey(property))
-    //                 propertyTotals[property] = (0, 0);
-
-    //             var current = propertyTotals[property];
-    //             propertyTotals[property] = (
-    //                 current.amount + (item.Weight * stack.Count),
-    //                 current.items + stack.Count
-    //             );
-    //         }
-    //     }
-
-    //     foreach (var kvp in propertyTotals.OrderBy(x => x.Key))
-    //     {
-    //         var (amount, items) = kvp.Value;
-    //         GameDisplay.AddNarrative($"{kvp.Key}: {amount:F1} total");
-    //     }
-
-    //     if (!propertyTotals.Any())
-    //         GameDisplay.AddNarrative("You don't have any materials with useful properties.");
-
-    //     Input.WaitForKey();
-    //     RunCraftingMenu();
-    // }
-
-    // private void ShowPlayerMaterials(List<CraftingPropertyRequirement> requirements)
-    // {
-    //     foreach (var req in requirements)
-    //     {
-    //         double totalAmount = 0;
-    //         int itemCount = 0;
-
-    //         foreach (var stack in ctx.player.inventoryManager.Items)
-    //         {
-    //             var property = stack.FirstItem.GetProperty(req.Property);
-    //             if (property != null)
-    //             {
-    //                 totalAmount += stack.TotalWeight;
-    //                 itemCount += stack.Count;
-    //             }
-    //         }
-
-    //         bool sufficient = totalAmount >= req.MinQuantity;
-    //         string status = sufficient ? "✓" : "✗";
-
-    //         GameDisplay.AddNarrative($"  {status} {req.Property}: {totalAmount:F1}/{req.MinQuantity:F1}");
-    //     }
-    // }
-
-    // ═══════════════════════════════════════════════════════════════════════════
     // COMBAT
     // ═══════════════════════════════════════════════════════════════════════════
 
     private void StartCombat(Npc enemy)
     {
-        if (!enemy.IsAlive || !enemy.IsFound) return;
+        if (!enemy.IsAlive) return;
 
         GameDisplay.AddNarrative("!");
         Thread.Sleep(500);

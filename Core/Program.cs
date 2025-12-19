@@ -104,10 +104,8 @@ namespace text_survival.Core
             // Add environment feature
             startingArea.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
 
-            // Add starting campfire (with 4.5kg kindling fuel for 3 hours of warmth)
-            // Kindling burns at 1.5 kg/hr, so 4.5kg = 3 hours burn time
             HeatSourceFeature campfire = new HeatSourceFeature();
-            campfire.AddFuel(4.5, FuelType.Kindling); // Auto-lights since MinFireTemp = 0°F
+            campfire.AddFuel(2, FuelType.Kindling); // Auto-lights since MinFireTemp = 0°F
             startingArea.Features.Add(campfire);
 
             Player player = new Player();
@@ -128,9 +126,8 @@ namespace text_survival.Core
 
             GameDisplay.AddDanger("You wake up in the forest, with no memory of how you got there.");
             GameDisplay.AddDanger("Light snow is falling, and you feel the air getting colder.");
-            GameDisplay.AddDanger("The last embers of your campfire are fading...");
+            GameDisplay.AddDanger("You have a small fire, but it won't last long without more fuel...");
             GameDisplay.AddDanger("You need to gather fuel, find food and water, and survive.");
-            GameDisplay.AddNarrative("");
 
             GameRunner runner = new GameRunner(context);
             runner.Run();

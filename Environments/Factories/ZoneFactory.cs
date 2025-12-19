@@ -10,7 +10,7 @@ public static class ZoneFactory
         var generator = new ZoneGenerator
         {
             TargetLocationCount = 100,
-            MaxConnections = 4
+            InitialRevealedCount = 1
         };
         return generator.GenerateForestZone("Pine Forest", "A vast expanse of evergreens.", baseTemp: 25);
     }

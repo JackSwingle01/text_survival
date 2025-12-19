@@ -82,7 +82,7 @@ public class HeatSourceFeatureTests
         // Assert
         Assert.False(fire.IsActive, "Fire should no longer be active");
         Assert.True(fire.HasEmbers, "Fire should have embers");
-        Assert.Equal(0.0, fire.FuelMassKg);
+        Assert.Equal(0.0, fire.BurningMassKg);
     }
 
     [Fact]
@@ -189,50 +189,10 @@ public class HeatSourceFeatureTests
 
     #endregion
 
-    #region Startup Curve
+    // Note: Startup curve tests removed - startup curve was replaced by two-mass model
+    // where fuel takes time to catch, not time to reach temperature
 
-    [Fact]
-    public void GetCurrentFireTemperature_FreshFire_BelowPeakTemp()
-    {
-        // Arrange
-        var fire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling);
-
-        // Act - Immediately after starting (0 minutes)
-        double freshTemp = fire.GetCurrentFireTemperature();
-
-        // Warm up
-        fire.Update(20);
-        double warmedTemp = fire.GetCurrentFireTemperature();
-
-        // Assert
-        // Fresh fire should start cooler and warm up
-        Assert.True(freshTemp < warmedTemp,
-            $"Fresh fire should be cooler than warmed fire. Fresh: {freshTemp}°F, Warmed: {warmedTemp}°F");
-    }
-
-    [Fact]
-    public void GetCurrentFireTemperature_TinderStartsFasterThanHardwood()
-    {
-        // Arrange
-        var tinderFire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Tinder);
-        var hardwoodFire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Hardwood);
-
-        // Act - Both after 5 minutes
-        tinderFire.Update(5);
-        hardwoodFire.Update(5);
-
-        double tinderTemp = tinderFire.GetCurrentFireTemperature();
-        double hardwoodTemp = hardwoodFire.GetCurrentFireTemperature();
-
-        // Assert
-        // Tinder (3min startup) should be closer to peak than hardwood (20min startup)
-        Assert.True(tinderTemp > hardwoodTemp,
-            $"Tinder should heat faster than hardwood. Tinder: {tinderTemp}°F, Hardwood: {hardwoodTemp}°F");
-    }
-
-    #endregion
-
-    #region Decline Curve
+    #region Fire Size Effects
 
     [Fact]
     public void GetCurrentFireTemperature_LowFuel_ReducedTemp()
@@ -314,15 +274,15 @@ public class HeatSourceFeatureTests
     {
         // Arrange
         var fire = TestFixtures.CreateTestFire(initialFuelKg: 3.0, fuelType: FuelType.Kindling);
-        double initialFuel = fire.FuelMassKg;
+        double initialFuel = fire.BurningMassKg;
 
         // Act
         fire.Update(30);
 
         // Assert
-        Assert.True(fire.FuelMassKg < initialFuel,
+        Assert.True(fire.BurningMassKg < initialFuel,
             "Fire should consume fuel over time");
-        Assert.True(fire.FuelMassKg > 0,
+        Assert.True(fire.BurningMassKg > 0,
             "Fire should still have fuel remaining");
     }
 
