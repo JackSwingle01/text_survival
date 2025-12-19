@@ -12,6 +12,10 @@ public class Player : Actor
     public readonly HuntingManager huntingManager;
     public readonly SkillRegistry Skills;
 
+    // Last survival delta and duration for UI trend display
+    public SurvivalStatsDelta? LastSurvivalDelta { get; private set; }
+    public int LastUpdateMinutes { get; private set; } = 1;
+
     public override void Update(int minutes, SurvivalContext context)
     {
         var result = SurvivalProcessor.Process(Body, context, minutes);
@@ -22,6 +26,11 @@ public class Player : Actor
         EffectRegistry.Update(minutes);
         result.StatsDelta.Combine(EffectRegistry.GetSurvivalDelta());
         result.DamageEvents.AddRange(EffectRegistry.GetDamagesPerMinute());
+
+        // Store delta and duration for UI trend display
+        LastSurvivalDelta = result.StatsDelta;
+        LastUpdateMinutes = minutes;
+
         Body.ApplyResult(result);
     }
 

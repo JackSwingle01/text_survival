@@ -120,6 +120,7 @@ namespace text_survival.Core
             // Equip starting clothing
             context.Inventory.Equip(Equipment.WornFurChestWrap());
             context.Inventory.Equip(Equipment.FurLegWraps());
+            context.Inventory.Equip(Equipment.FurBoots());
 
             // Add starting supplies to player's aggregate inventory
             context.Inventory.Tools.Add(Tool.HandDrill());  // Fire-starting tool

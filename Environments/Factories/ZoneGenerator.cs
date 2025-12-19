@@ -74,6 +74,14 @@ public class ZoneGenerator
 
         start.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
 
+        // Natural shelter from dense forest provides protection at camp
+        start.Features.Add(new ShelterFeature(
+            name: "Overhang",
+            tempInsulation: 0.55,    // Fire effectiveness increases from 40% to 55%
+            overheadCoverage: 0.3,   // Some protection from snow/rain
+            windCoverage: 0.4        // Moderate wind protection from trees
+        ));
+
         start.Explore();
         start.DistanceFromStart = 0;
         return start;

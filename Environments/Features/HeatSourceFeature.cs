@@ -51,7 +51,7 @@ public class HeatSourceFeature : LocationFeature
     public double EmberTimeRemaining { get; private set; }
 
     // Catching mechanic constants
-    private const double BaseCatchRate = 0.1; // kg/min baseline
+    private const double BaseCatchRate = 0.05; // kg/min baseline
 
     public HeatSourceFeature(double maxCapacityKg = 12.0)
         : base("Campfire")
@@ -135,10 +135,10 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     private double GetFireSizeMultiplier()
     {
-        if (BurningMassKg < 0.3) return 0.5;   // Tiny
-        if (BurningMassKg < 0.7) return 0.7;   // Small
-        if (BurningMassKg < 1.5) return 0.85;  // Medium
-        if (BurningMassKg < 3.0) return 1.0;   // Good
+        if (BurningMassKg < 0.5) return 0.5;   // Tiny
+        if (BurningMassKg < 1.0) return 0.7;   // Small
+        if (BurningMassKg < 2.0) return 0.85;  // Medium
+        if (BurningMassKg < 4.0) return 1.0;   // Good
         return 1.1;                             // Large
     }
 
@@ -147,9 +147,9 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     private double GetFireSizeBurnMultiplier()
     {
-        if (BurningMassKg < 1.0) return 0.9;   // Small - burns slower
-        if (BurningMassKg < 3.0) return 1.0;   // Sweet spot
-        if (BurningMassKg < 6.0) return 1.1;   // Large - burns faster
+        if (BurningMassKg < 1.5) return 0.9;   // Small - burns slower
+        if (BurningMassKg < 4.0) return 1.0;   // Sweet spot
+        if (BurningMassKg < 7.0) return 1.1;   // Large - burns faster
         return 1.2;                             // Huge - hungry fire
     }
 
@@ -341,7 +341,7 @@ public class HeatSourceFeature : LocationFeature
 
         double currentTemp = GetCurrentFireTemperature();
         double tempMultiplier = Math.Max(0.5, currentTemp / 400.0);
-        double massMultiplier = 1.0 + (BurningMassKg * 0.3); // Exponential feedback
+        double massMultiplier = 1.0 + (BurningMassKg * 0.15); // Exponential feedback
 
         foreach (var (fuelType, unburnedMass) in _unburnedMixture.ToList())
         {
@@ -423,10 +423,10 @@ public class HeatSourceFeature : LocationFeature
         if (HasEmbers) return "Embers";
 
         // Phases based on burning mass and catching state
-        if (BurningMassKg < 0.3) return "Igniting";
+        if (BurningMassKg < 0.5) return "Igniting";
         if (UnburnedMassKg > BurningMassKg * 0.5) return "Building";
-        if (BurningMassKg > 3.0) return "Roaring";
-        if (BurningMassKg > 1.0) return "Steady";
+        if (BurningMassKg > 4.0) return "Roaring";
+        if (BurningMassKg > 1.5) return "Steady";
         return "Dying";
     }
 

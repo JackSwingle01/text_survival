@@ -46,7 +46,7 @@ public static class ZoneFactory
         {
             Exposure = 0.1,
         };
-        cave.Features.Add(new ShelterFeature(.4, .2, .4));
+        cave.Features.Add(new ShelterFeature("Cave", .4, .2, .4));
         zone.Graph.Add(cave);
 
         // Create paths

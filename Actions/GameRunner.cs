@@ -345,44 +345,57 @@ public partial class GameRunner(GameContext ctx)
 
         var (selectedTool, finalChance) = toolMap[choice];
 
-        GameDisplay.AddNarrative($"You work with the {selectedTool.Name}...");
-        ctx.Update(15);
-
-        bool success = Utils.DetermineSuccess(finalChance);
-
-        // Always consume tinder on attempt
-        double tinderUsed = inv.TakeTinder();
-
-        if (success)
+        while (true)
         {
-            // Also consume a stick for kindling
-            double kindlingUsed = inv.TakeSmallestStick();
+            GameDisplay.AddNarrative($"You work with the {selectedTool.Name}...");
+            ctx.Update(15);
 
-            var playerSkill = ctx.player.Skills.GetSkill("Firecraft");
+            bool success = Utils.DetermineSuccess(finalChance);
 
-            if (relightingFire)
+            // Always consume tinder on attempt
+            double tinderUsed = inv.TakeTinder();
+
+            if (success)
             {
-                GameDisplay.AddSuccess($"Success! You relight the fire! ({finalChance:P0} chance)");
-                existingFire!.AddFuel(tinderUsed, FuelType.Tinder);
-                existingFire.AddFuel(kindlingUsed, FuelType.Kindling);
-                existingFire.IgniteFuel(FuelType.Tinder, tinderUsed);
+                // Also consume a stick for kindling
+                double kindlingUsed = inv.TakeSmallestStick();
+
+                var playerSkill = ctx.player.Skills.GetSkill("Firecraft");
+
+                if (relightingFire)
+                {
+                    GameDisplay.AddSuccess($"Success! You relight the fire! ({finalChance:P0} chance)");
+                    existingFire!.AddFuel(tinderUsed, FuelType.Tinder);
+                    existingFire.AddFuel(kindlingUsed, FuelType.Kindling);
+                    existingFire.IgniteFuel(FuelType.Tinder, tinderUsed);
+                }
+                else
+                {
+                    GameDisplay.AddSuccess($"Success! You start a fire! ({finalChance:P0} chance)");
+                    var newFire = new HeatSourceFeature();
+                    newFire.AddFuel(tinderUsed, FuelType.Tinder);
+                    newFire.AddFuel(kindlingUsed, FuelType.Kindling);
+                    newFire.IgniteFuel(FuelType.Tinder, tinderUsed);
+                    ctx.CurrentLocation.Features.Add(newFire);
+                }
+
+                playerSkill.GainExperience(3);
+                break;
             }
             else
             {
-                GameDisplay.AddSuccess($"Success! You start a fire! ({finalChance:P0} chance)");
-                var newFire = new HeatSourceFeature();
-                newFire.AddFuel(tinderUsed, FuelType.Tinder);
-                newFire.AddFuel(kindlingUsed, FuelType.Kindling);
-                newFire.IgniteFuel(FuelType.Tinder, tinderUsed);
-                ctx.CurrentLocation.Features.Add(newFire);
-            }
+                GameDisplay.AddWarning($"You failed to start the fire. The tinder was wasted. ({finalChance:P0} chance)");
+                ctx.player.Skills.GetSkill("Firecraft").GainExperience(1);
 
-            playerSkill.GainExperience(3);
-        }
-        else
-        {
-            GameDisplay.AddWarning($"You failed to start the fire. The tinder was wasted. ({finalChance:P0} chance)");
-            ctx.player.Skills.GetSkill("Firecraft").GainExperience(1);
+                // Check if retry is possible
+                if (inv.Tinder.Count > 0 && inv.Sticks.Count > 0)
+                {
+                    GameDisplay.Render(ctx, addSeparator: false);
+                    if (Input.Confirm($"Try again with {selectedTool.Name}?"))
+                        continue;
+                }
+                break;
+            }
         }
     }
 
@@ -414,7 +427,7 @@ public partial class GameRunner(GameContext ctx)
 
     private void Wait()
     {
-        GameDisplay.AddNarrative("You wait, watching your fire...");
+        // GameDisplay.AddNarrative("You wait, watching your fire...");
         ctx.Update(1, 1.0, 2.0);
     }
 

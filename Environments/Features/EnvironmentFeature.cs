@@ -83,4 +83,16 @@ public class EnvironmentFeature : LocationFeature
         };
     }
 
+    // Get short name for use in shelter-first descriptions
+    public string GetShortName() => Type switch
+    {
+        LocationType.Forest => "a dense forest",
+        LocationType.Cave => "a cave",
+        LocationType.Cliff => "a cliff face",
+        LocationType.RiverBank => "the riverbank",
+        LocationType.HighGround => "the high ground",
+        LocationType.OpenPlain => "the open plain",
+        _ => "the area"
+    };
+
 }

@@ -148,8 +148,11 @@ public static class GameDisplay
             ambientLine = $"Air   [grey]{locationTemp:F0}°F[/]";
         }
 
-        // Line 3: Trend
-        var (arrow, trendDesc, trendColor) = GetHeatTrend(bodyTemp, locationTemp, ctx.Inventory.TotalInsulation);
+        // Line 3: Trend (uses actual calculated delta from survival processor)
+        var (arrow, trendDesc, trendColor) = GetHeatTrend(
+            bodyTemp,
+            ctx.player.LastSurvivalDelta?.TemperatureDelta,
+            ctx.player.LastUpdateMinutes);
 
         var lines = new List<IRenderable>
         {
@@ -496,41 +499,39 @@ public static class GameDisplay
 
     private static (string arrow, string description, string color) GetHeatTrend(
         double bodyTemp,
-        double effectiveAmbientTemp,
-        double clothingInsulation)
+        double? temperatureDeltaTotal,
+        int minutes)
     {
-        // Skin is approximately 8°F cooler than core body temp
-        double skinTemp = bodyTemp - 8.4;
-        double effectiveInsulation = Math.Clamp(clothingInsulation, 0, 0.95);
-        double tempDifferential = (skinTemp - effectiveAmbientTemp) * (1 - effectiveInsulation);
-
-        // Very small differential = stable
-        if (Math.Abs(tempDifferential) < 2)
+        // No data yet = stable
+        if (temperatureDeltaTotal is null || minutes <= 0)
             return ("→", "Stable", "green");
 
-        bool cooling = tempDifferential > 0;
+        // Convert total change to per-hour rate
+        double deltaPerHour = (temperatureDeltaTotal.Value / minutes) * 60;
+
+        if (Math.Abs(deltaPerHour) < 0.05)
+            return ("→", "Stable", "green");
+
+        bool cooling = deltaPerHour < 0;
         string arrow = cooling ? "↓" : "↑";
 
-        string speed = Math.Abs(tempDifferential) switch
+        string speed = Math.Abs(deltaPerHour) switch
         {
-            > 25 => "rapidly",
-            > 12 => "steadily",
-            > 5 => "slowly",
+            > 2.0 => "rapidly",
+            > 1.0 => "steadily",
+            > 0.3 => "slowly",
             _ => "very slowly"
         };
 
         string action = cooling ? "Cooling" : "Warming";
+        string rate = $"({deltaPerHour:+0.0;-0.0}°/hr)";
 
         // Color based on whether trend is concerning
-        string color;
-        if (cooling && bodyTemp < 97)
-            color = "cyan";      // Cooling when already cold - concerning
-        else if (!cooling && bodyTemp > 99)
-            color = "yellow";    // Warming when already hot - concerning
-        else
-            color = "grey";      // Normal trend toward equilibrium
+        string color = (cooling && bodyTemp < 97) ? "cyan"
+                     : (!cooling && bodyTemp > 99) ? "yellow"
+                     : "grey";
 
-        return (arrow, $"{action} {speed}", color);
+        return (arrow, $"{action} {speed} {rate}", color);
     }
 
     #endregion
@@ -602,23 +603,7 @@ public static class GameDisplay
 
     private static string GetShortDescription(Environments.Location location)
     {
-        // Get environment feature for terrain description
-        var env = location.GetFeature<EnvironmentFeature>();
-        if (env != null)
-        {
-            return env.GetDescription();
-        }
-
-        // Fallback to terrain type
-        return location.Terrain switch
-        {
-            TerrainType.Rough => "Rough, uneven ground",
-            TerrainType.Snow => "Snow-covered terrain",
-            TerrainType.Steep => "Steep incline",
-            TerrainType.Water => "Near water",
-            TerrainType.Hazardous => "Dangerous area",
-            _ => "Open ground"
-        };
+        return location.Description;
     }
 
     #endregion

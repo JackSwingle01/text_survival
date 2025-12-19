@@ -7,7 +7,7 @@ public class ShelterFeature : LocationFeature
     public double OverheadCoverage { get; } = 0; // rain / snow / sun protection 0-1
     public double WindCoverage { get; } = 0; // wind protection 0-1
     // public double Durability {get; private}
-    public ShelterFeature( double tempInsulation, double overheadCoverage, double windCoverage) : base("shelter")
+    public ShelterFeature(string name, double tempInsulation, double overheadCoverage, double windCoverage) : base(name)
     {
         TemperatureInsulation = tempInsulation;
         OverheadCoverage = overheadCoverage;

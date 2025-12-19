@@ -115,7 +115,7 @@ public static class LocationFactory
         location.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Cave));
 
         // Shelter feature - caves provide natural shelter
-        location.Features.Add(new ShelterFeature(.5, 1, .9));
+        location.Features.Add(new ShelterFeature("Cave", .5, 1, .9));
 
         return location;
     }

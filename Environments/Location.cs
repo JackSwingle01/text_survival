@@ -14,28 +14,31 @@ public class Location
     {
         get
         {
-            // Start with environment base
             var env = GetFeature<EnvironmentFeature>();
-            string baseDesc = env?.GetDescription() ?? GetTerrainDescription();
-
-            // Build suffix for dynamic elements
-            var additions = new List<string>();
-
             var shelter = GetFeature<ShelterFeature>();
-            if (shelter != null)
-                additions.Add(GetShelterClause(shelter));
-
             var fire = GetFeature<HeatSourceFeature>();
-            if (fire != null && (fire.IsActive || fire.HasEmbers))
-                additions.Add(GetFireClause(fire));
+            bool hasFire = fire != null && (fire.IsActive || fire.HasEmbers);
 
-            // Combine into single sentence
-            if (additions.Count == 0)
+            // Shelter-first: "Beneath an overhang in a dense forest, with a crackling fire."
+            if (shelter != null)
+            {
+                string shelterClause = GetShelterClause(shelter);
+                // Capitalize first letter
+                shelterClause = char.ToUpper(shelterClause[0]) + shelterClause[1..];
+
+                string envName = env?.GetShortName() ?? "the area";
+                string fireClause = hasFire ? $", {GetFireClause(fire!)}" : "";
+                return $"{shelterClause} in {envName}{fireClause}.";
+            }
+
+            // No shelter: use full environment description
+            string baseDesc = env?.GetDescription() ?? GetTerrainDescription();
+            if (!hasFire)
                 return baseDesc;
 
-            // Strip period from base, add clauses
+            // Add fire clause
             string core = baseDesc.TrimEnd('.');
-            return $"{core}, {string.Join(" and ", additions)}.";
+            return $"{core}, {GetFireClause(fire!)}.";
         }
     }
     public Zone Parent { get; }
@@ -284,11 +287,12 @@ public class Location
     private string GetShelterClause(ShelterFeature s)
     {
         double quality = (s.TemperatureInsulation + s.OverheadCoverage + s.WindCoverage) / 3;
+        string name = s.Name.ToLower();
         return quality switch
         {
-            >= 0.7 => "with solid shelter",
-            >= 0.4 => "with basic shelter",
-            _ => "with minimal cover"
+            >= 0.7 => $"well-sheltered by {name}",
+            >= 0.4 => $"beneath {name}",
+            _ => $"with only {name} for cover"
         };
     }
 
