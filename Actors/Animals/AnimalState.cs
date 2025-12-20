@@ -1,4 +1,4 @@
-namespace text_survival.Actors.NPCs
+namespace text_survival.Actors.Animals
 {
     /// <summary>
     /// Represents the animal's awareness of and response to the player's presence.

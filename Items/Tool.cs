@@ -2,7 +2,7 @@ namespace text_survival.Items;
 
 /// <summary>
 /// Simple tool that "just works" - no condition/degradation tracking.
-/// Tools can optionally have combat properties (Damage, Accuracy, etc.)
+/// Tools can optionally have combat properties (Damage, BlockChance, etc.)
 /// Examples: axe (chops AND fights), knife (cuts AND fights), fire striker (utility only)
 /// </summary>
 public class Tool
@@ -27,23 +27,13 @@ public class Tool
     /// </summary>
     public bool Works => Durability != 0;
 
-    // Optional combat properties - null means not a weapon
+    // Combat properties - null means not a weapon
     public double? Damage { get; set; }
-    public double? Accuracy { get; set; }
     public double? BlockChance { get; set; }
     public WeaponClass? WeaponClass { get; set; }
 
     // Computed property - true if this tool can be used as a weapon
     public bool IsWeapon => Damage.HasValue;
-
-    // Static fallback for unarmed combat
-    public static Tool Unarmed { get; } = new("Fists", ToolType.Unarmed, 0)
-    {
-        Damage = 2,
-        Accuracy = 1.5,
-        BlockChance = 0.01,
-        WeaponClass = Items.WeaponClass.Unarmed
-    };
 
     public Tool(string name, ToolType type, double weight = 0.5)
     {
@@ -67,42 +57,6 @@ public class Tool
 
     public override string ToString() => Name;
 
-    /// <summary>
-    /// Converts this tool to a Weapon for combat system compatibility.
-    /// Throws if this tool has no combat properties.
-    /// </summary>
-    public Weapon ToWeapon()
-    {
-        if (!IsWeapon)
-            throw new InvalidOperationException($"Tool '{Name}' is not a weapon");
-
-        return new Weapon(
-            GetWeaponType(),
-            WeaponMaterial.Other,
-            Name,
-            craftsmanship: 100) // Use 100 to avoid craftsmanship modifier (it divides by 100)
-        {
-            Damage = Damage!.Value,
-            Accuracy = Accuracy!.Value,
-            BlockChance = BlockChance!.Value,
-            Class = WeaponClass!.Value,
-            Weight = Weight
-        };
-    }
-
-    private WeaponType GetWeaponType()
-    {
-        return Type switch
-        {
-            ToolType.Knife => WeaponType.Knife,
-            ToolType.Axe => WeaponType.HandAxe,
-            ToolType.Spear => WeaponType.Spear,
-            ToolType.Club => WeaponType.Club,
-            ToolType.Unarmed => WeaponType.Unarmed,
-            _ => WeaponType.Unarmed
-        };
-    }
-
     // Factory methods for common tools
 
     /// <summary>Stone axe - chops wood AND fights (Damage 12, Blade)</summary>
@@ -110,7 +64,6 @@ public class Tool
         new(name, ToolType.Axe, 1.5)
         {
             Damage = 12,
-            Accuracy = 0.8,
             BlockChance = 0.05,
             WeaponClass = Items.WeaponClass.Blade
         };
@@ -120,7 +73,6 @@ public class Tool
         new(name, ToolType.Knife, 0.3)
         {
             Damage = 6,
-            Accuracy = 1.4,
             BlockChance = 0.02,
             WeaponClass = Items.WeaponClass.Blade
         };
@@ -146,7 +98,6 @@ public class Tool
         new(name, ToolType.Spear, 2.0)
         {
             Damage = 8,
-            Accuracy = 1.2,
             BlockChance = 0.12,
             WeaponClass = Items.WeaponClass.Pierce
         };
@@ -156,7 +107,6 @@ public class Tool
         new(name, ToolType.Club, 2.0)
         {
             Damage = 10,
-            Accuracy = 0.9,
             BlockChance = 0.08,
             WeaponClass = Items.WeaponClass.Blunt
         };
@@ -167,8 +117,8 @@ public enum ToolType
     Axe,
     Knife,
     FireStriker,
-    HandDrill,    // Friction fire-starter
-    BowDrill,     // Better friction fire-starter
+    HandDrill,
+    BowDrill,
     WaterContainer,
     Spear,
     Club,
@@ -176,4 +126,16 @@ public enum ToolType
     Needle,
     Cordage,
     Unarmed
+}
+
+/// <summary>
+/// Combat style of a weapon - determines attack verb and damage type calculation.
+/// </summary>
+public enum WeaponClass
+{
+    Blade,      // Slashing attacks (axes, knives)
+    Blunt,      // Crushing attacks (clubs)
+    Pierce,     // Piercing attacks (spears)
+    Claw,       // Animal natural weapons
+    Unarmed     // Bare fists
 }

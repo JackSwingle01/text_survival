@@ -2,6 +2,14 @@ using text_survival.Bodies;
 
 namespace text_survival.Effects;
 
+/// <summary>
+/// Effects represent ongoing PROCESSES, not structural damage.
+/// - Body.Damage() for physical injuries (cuts, bruises, mauling)
+/// - Effects for processes (bleeding, infection, temperature conditions, sprains)
+///
+/// Structural injuries (cuts, bruises, mauling) are body part damage, not effects.
+/// Effects are things that happen over time: bleeding, frostbite, hypothermia, fear.
+/// </summary>
 public static class EffectFactory
 {
     public static Effect Cold(double degreesPerHour, int durationMinutes) => new()
@@ -114,24 +122,8 @@ public static class EffectFactory
         RemovalMessage = "Your ankle feels stable again."
     };
 
-    public static Effect MinorCut(double severity) => new()
-    {
-        EffectKind = "Cut",
-        Source = "injury",
-        Severity = severity,
-        HourlySeverityChange = -0.05,
-        CapacityModifiers = Capacities((CapacityNames.Manipulation, -0.1)),
-        ApplicationMessage = "You've cut yourself."
-    };
-
-    public static Effect Bruised(double severity) => new()
-    {
-        EffectKind = "Bruise",
-        Source = "injury",
-        Severity = severity,
-        HourlySeverityChange = -0.02,
-        ApplicationMessage = "You're going to have a nasty bruise."
-    };
+    // MinorCut and Bruised removed - these are now body part damage, not effects.
+    // Use Body.Damage() with DamageType.Sharp or DamageType.Blunt instead.
 
     public static Effect Fear(double severity) => new()
     {
@@ -143,17 +135,25 @@ public static class EffectFactory
         ApplicationMessage = "Your hands are shaking."
     };
 
-    public static Effect AnimalAttack(double severity) => new()
+    // AnimalAttack (Mauled) removed - this is now body part damage.
+    // Use Body.Damage() with DamageType.Sharp and high damage amount.
+    // Bleeding is triggered automatically from the damage if skin is broken.
+
+    /// <summary>
+    /// Bleeding effect - triggered automatically by sharp/pierce damage to skin.
+    /// Drains Blood via DamageType.Bleed at 3000ml/hour at full severity (~50 min to death).
+    /// </summary>
+    public static Effect Bleeding(double severity) => new()
     {
-        EffectKind = "Mauled",
-        Source = "injury",
+        EffectKind = "Bleeding",
+        Source = "wound",
         Severity = severity,
-        HourlySeverityChange = -0.02,
-        RequiresTreatment = true,
-        CapacityModifiers = Capacities(
-            (CapacityNames.Moving, -0.25),
-            (CapacityNames.Manipulation, -0.15)),
-        ApplicationMessage = "You've been mauled. Blood runs down your arm."
+        HourlySeverityChange = -0.1,  // Decays slowly; minor wounds stabilize before death
+        RequiresTreatment = true,     // Stops at 0.05 floor until treated
+        Damage = new(3000, DamageType.Bleed),  // 3000 ml/hour at severity 1.0
+        TargetBodyPart = "Blood",
+        ApplicationMessage = "You're bleeding.",
+        RemovalMessage = "The bleeding has stopped."
     };
 
     private static CapacityModifierContainer Capacities(params (string name, double value)[] modifiers)

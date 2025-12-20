@@ -1,4 +1,4 @@
-namespace text_survival.Actors.NPCs
+namespace text_survival.Actors.Animals
 {
     /// <summary>
     /// Defines how an animal responds to player detection and interaction.

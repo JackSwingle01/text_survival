@@ -221,8 +221,15 @@ public static class SurvivalProcessor
 		if (projectedTemp >= SevereHypothermiaThreshold)
 			return new SurvivalProcessorResult();
 
-		double severityFactor = Math.Min(1.0, (SevereHypothermiaThreshold - projectedTemp) / 50.0);
-		double damagePerHour = 1.0 + (1.0 * severityFactor);  // 1.0-2.0/hour = death in 3-6 hours
+		// Severity reaches 100% at ~80°F (realistic lethal threshold)
+		double severityFactor = Math.Min(1.0, (SevereHypothermiaThreshold - projectedTemp) / 10.0);
+
+		// Damage scales more aggressively at high severity
+		// Low severity (just below 89.6°F): ~0.5/hour
+		// High severity (~80°F): ~8/hour = death in ~45 minutes
+		double damagePerHour = severityFactor < 0.5
+			? 0.5 + (1.0 * severityFactor)              // 0.5-1.0/hour for mild
+			: 1.0 + (14.0 * (severityFactor - 0.5));    // 1.0-8.0/hour for severe
 		double damage = (damagePerHour / 60.0) * minutesElapsed;
 
 		var coreOrgans = new[] { "Heart", "Brain", "Lungs" };
@@ -257,10 +264,12 @@ public static class SurvivalProcessor
 		bool hydrated = projectedHydration > MAX_HYDRATION * REGEN_MIN_HYDRATION_PERCENT;
 		bool rested = body.Energy < MAX_ENERGY_MINUTES * REGEN_MAX_ENERGY_PERCENT;
 
-		// Check if any body parts need healing
+		// Check if any body parts or blood need healing
 		bool fullyHealed = body.Parts.All(p => p.Condition >= 1.0) &&
 		                   body.Parts.SelectMany(p => p.Organs).All(o => o.Condition >= 1.0);
-		if (!wellFed || !hydrated || !rested || fullyHealed)
+		bool bloodFull = body.Blood.Condition >= 1.0;
+
+		if (!wellFed || !hydrated || !rested || (fullyHealed && bloodFull))
 			return new SurvivalProcessorResult();
 
 		// Digestion capacity affects how well nutrients support healing
@@ -270,17 +279,24 @@ public static class SurvivalProcessor
 		double nutritionQuality = Math.Min(1.0, projectedCalories / MAX_CALORIES);
 		double healingAmount = (BASE_HEALING_PER_HOUR / 60.0) * minutesElapsed * nutritionQuality * digestionQuality;
 
-		var result = new SurvivalProcessorResult
+		var result = new SurvivalProcessorResult();
+
+		// Blood regenerates slowly when well-fed, hydrated, rested (at half rate of tissue healing)
+		if (!bloodFull)
 		{
-			HealingEvents = [
-				new HealingInfo
-				{
-					Amount = healingAmount,
-					Type = "natural regeneration",
-					Quality = nutritionQuality
-				}
-			],
-		};
+			result.BloodHealing = healingAmount * 0.5;
+		}
+
+		// Body part healing
+		if (!fullyHealed)
+		{
+			result.HealingEvents.Add(new HealingInfo
+			{
+				Amount = healingAmount,
+				Type = "natural regeneration",
+				Quality = nutritionQuality
+			});
+		}
 
 		if (Random.Shared.NextDouble() < 0.01)
 			result.Messages.Add("Your body is slowly healing...");

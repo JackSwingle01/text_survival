@@ -41,7 +41,42 @@ public class GameContext(Player player, Camp camp)
             EventCondition.Outside => !Check(EventCondition.Inside),
             EventCondition.InAnimalTerritory => CurrentLocation.HasFeature<AnimalTerritoryFeature>(),
             EventCondition.HasPredators => CurrentLocation.GetFeature<AnimalTerritoryFeature>()?.HasPredators() ?? false,
+
+            // Weather conditions
+            EventCondition.IsSnowing => Zone.Weather.CurrentCondition is ZoneWeather.WeatherCondition.LightSnow
+                                     or ZoneWeather.WeatherCondition.Blizzard,
+            EventCondition.IsBlizzard => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Blizzard,
+            EventCondition.IsRaining => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Rainy,
+            EventCondition.IsStormy => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Stormy,
+            EventCondition.HighWind => Zone.Weather.WindSpeed > 0.6,
+            EventCondition.IsClear => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Clear,
+            EventCondition.IsMisty => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Misty,
+            EventCondition.ExtremelyCold => Zone.Weather.BaseTemperature < -25,
+            EventCondition.WeatherWorsening => Zone.Weather.WeatherJustChanged && IsWeatherWorsening(Zone.Weather),
+
             _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Determines if weather transitioned to a worse condition.
+    /// </summary>
+    private static bool IsWeatherWorsening(ZoneWeather w)
+    {
+        if (w.PreviousCondition == null) return false;
+
+        return (w.PreviousCondition, w.CurrentCondition) switch
+        {
+            // Any non-clear is worse than clear
+            (ZoneWeather.WeatherCondition.Clear, _) when w.CurrentCondition != ZoneWeather.WeatherCondition.Clear => true,
+            // Precipitation is worse than cloudy
+            (ZoneWeather.WeatherCondition.Cloudy, ZoneWeather.WeatherCondition.LightSnow or ZoneWeather.WeatherCondition.Rainy
+                or ZoneWeather.WeatherCondition.Blizzard or ZoneWeather.WeatherCondition.Stormy) => true,
+            // Blizzard is worse than light snow
+            (ZoneWeather.WeatherCondition.LightSnow, ZoneWeather.WeatherCondition.Blizzard) => true,
+            // Storm is worse than rain
+            (ZoneWeather.WeatherCondition.Rainy, ZoneWeather.WeatherCondition.Stormy) => true,
+            _ => false
         };
     }
     public DateTime GameTime { get; set; } = new DateTime(2025, 1, 1, 9, 0, 0); // Full date/time for resource respawn tracking
@@ -142,4 +177,17 @@ public enum EventCondition
     Inside,
     InAnimalTerritory,
     HasPredators,
+
+    // Weather conditions
+    IsSnowing,
+    IsBlizzard,
+    IsRaining,
+    IsStormy,
+    HighWind,
+    IsClear,
+    IsMisty,
+    ExtremelyCold,
+
+    // Weather transitions
+    WeatherWorsening,
 }

@@ -2,7 +2,6 @@ using Spectre.Console;
 using Spectre.Console.Rendering;
 using text_survival.Actions;
 using text_survival.Effects;
-using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
@@ -32,7 +31,16 @@ public static class GameDisplay
 
     public static void ClearNarrative() => _log.Clear();
 
-    public static void Render(GameContext ctx, bool addSeparator = true)
+    /// <summary>
+    /// Render the game display with optional status text.
+    /// Status text style: laconic, character perspective (e.g. "Resting." "Planning." "Thinking.")
+    /// </summary>
+    public static void Render(
+        GameContext ctx,
+        bool addSeparator = true,
+        string? statusText = null,
+        int? progress = null,
+        int? progressTotal = null)
     {
         if (Output.TestMode)
         {
@@ -46,21 +54,80 @@ public static class GameDisplay
         AnsiConsole.Clear();
 
         // Build the 6-panel grid layout
+        // Top row: Environment info | Bottom row: Player info
         var topRow = new Columns(
-            BuildEnvironmentPanel(ctx),
-            BuildTemperaturePanel(ctx),
-            BuildSurvivalPanel(ctx)
+            BuildTimeWeatherPanel(ctx),
+            BuildFirePanel(ctx),
+            BuildLocationPanel(ctx)
         ).Expand();
 
         var bottomRow = new Columns(
-            BuildFirePanel(ctx),
-            BuildBodyPanel(ctx),
-            BuildInventoryPanel(ctx)
+            BuildTemperaturePanel(ctx),
+            BuildSurvivalPanel(ctx),
+            BuildInventoryPanel(ctx),
+            BuildEffectsPanel(ctx),
+            BuildInjuriesPanel(ctx)
         ).Expand();
 
         AnsiConsole.Write(topRow);
         AnsiConsole.Write(bottomRow);
         AnsiConsole.Write(BuildNarrativePanel(ctx));
+        AnsiConsole.Write(BuildStatusPanel(statusText, progress, progressTotal));
+    }
+
+    /// <summary>
+    /// Render a progress loop with status panel updates. Updates game time by default.
+    /// </summary>
+    public static void UpdateAndRenderProgress(GameContext ctx, string statusText, int minutes, bool updateTime = true, double fireProximityMultiplier = 0)
+    {
+        for (int i = 0; i < minutes; i++)
+        {
+            Render(ctx, addSeparator: false, statusText: statusText, progress: i, progressTotal: minutes);
+            if (updateTime)
+                ctx.Update(1, 1.0, fireProximityMultiplier);
+            Thread.Sleep(100);
+        }
+    }
+
+    private static IRenderable BuildStatusPanel(string? statusText, int? progress, int? progressTotal)
+    {
+        string content;
+
+        if (progress.HasValue && progressTotal.HasValue && progressTotal.Value > 0)
+        {
+            // Show progress bar with text - Spectre style
+            int percent = progress.Value * 100 / progressTotal.Value;
+            bool complete = progress.Value >= progressTotal.Value;
+            string bar = CreateSpectreProgressBar(percent, 40, complete);
+            string text = statusText ?? "Working";
+            string color = complete ? "green" : "yellow";
+            content = $"[{color}]{Markup.Escape(text)}[/] {bar} [white]{percent}%[/]";
+        }
+        else if (!string.IsNullOrEmpty(statusText))
+        {
+            // Just show status text
+            content = $"[grey]{Markup.Escape(statusText)}[/]";
+        }
+        else
+        {
+            // Empty/idle state
+            content = "[grey]—[/]";
+        }
+
+        return new Panel(new Markup(content))
+        {
+            Border = BoxBorder.Rounded,
+            Padding = new Padding(1, 0, 1, 0),
+            Expand = true
+        };
+    }
+
+    private static string CreateSpectreProgressBar(int percent, int width, bool complete)
+    {
+        int filled = Math.Clamp(percent * width / 100, 0, width);
+        int empty = width - filled;
+        string color = complete ? "green" : "yellow";
+        return $"[{color}]{new string('━', filled)}[/][grey]{new string('━', empty)}[/]";
     }
 
     #region Panel Builders
@@ -72,7 +139,10 @@ public static class GameDisplay
         int caloriesPercent = (int)(body.CalorieStore / SurvivalProcessor.MAX_CALORIES * 100);
         int hydrationPercent = (int)(body.Hydration / SurvivalProcessor.MAX_HYDRATION * 100);
         int energyPercent = (int)(body.Energy / SurvivalProcessor.MAX_ENERGY_MINUTES * 100);
-        int healthPercent = (int)(ctx.player.Vitality * 100);
+        // Ceiling ensures 0.4% shows as 1% not 0% - player shouldn't see 0% while alive
+        int healthPercent = ctx.player.IsAlive
+            ? Math.Max(1, (int)Math.Ceiling(ctx.player.Vitality * 100))
+            : 0;
 
         var lines = new List<IRenderable>
         {
@@ -91,34 +161,129 @@ public static class GameDisplay
         };
     }
 
-    private static IRenderable BuildEnvironmentPanel(GameContext ctx)
+    private static IRenderable BuildTimeWeatherPanel(GameContext ctx)
     {
-        var location = ctx.CurrentLocation;
-        double ambientTemp = location.GetTemperature();
-
-        // Time display - Day X — HH:MM AM/PM (TimeOfDay)
+        var weather = ctx.CurrentLocation.Parent.Weather;
         var startDate = new DateTime(2025, 1, 1);
         int dayNumber = (ctx.GameTime - startDate).Days + 1;
         string clockTime = ctx.GameTime.ToString("h:mm tt");
         string timeOfDay = ctx.GetTimeOfDay().ToString();
 
+        // Daylight info
+        string daylightLine;
+        if (weather.IsDaytime(ctx.GameTime))
+        {
+            double hoursUntilSunset = weather.GetHoursUntilSunset(ctx.GameTime);
+            if (hoursUntilSunset < 1)
+            {
+                int minutes = (int)(hoursUntilSunset * 60);
+                daylightLine = $"[yellow]{minutes} min til dusk[/]";
+            }
+            else
+            {
+                daylightLine = $"[grey]{hoursUntilSunset:F1} hrs til dusk[/]";
+            }
+        }
+        else
+        {
+            double hoursUntilSunrise = weather.GetHoursUntilSunrise(ctx.GameTime);
+            daylightLine = $"[blue]Night[/] — [grey]{hoursUntilSunrise:F1} hrs til dawn[/]";
+        }
+
+        // Weather condition
+        string condition = weather.GetConditionLabel();
+        string conditionColor = condition switch
+        {
+            "Clear" => "white",
+            "Cloudy" => "grey",
+            "Misty" => "grey",
+            "Light Snow" => "cyan",
+            "Rain" => "blue",
+            "Blizzard" => "red",
+            "Storm" => "red",
+            _ => "white"
+        };
+
+        // Weather numbers line
+        string windLabel = weather.GetWindLabel();
+        string precipLabel = weather.GetPrecipitationLabel();
+        int cloudPercent = (int)(weather.CloudCover * 100);
+
         var lines = new List<IRenderable>
         {
             new Markup($"[yellow bold]Day {dayNumber}[/] — [white]{clockTime}[/] [grey]({timeOfDay})[/]"),
-            new Markup($"[white bold]{Markup.Escape(location.Name)}[/] — [grey]{ambientTemp:F0}°F[/]"),
-            new Markup($"[grey italic]{Markup.Escape(GetShortDescription(location))}[/]")
+            new Markup(daylightLine),
+            new Markup($"[{conditionColor}]{condition}[/]"),
+            new Markup($"[grey]Wind:[/] {windLabel}  [grey]Precip:[/] {precipLabel}")
         };
-
-        // Show available features (foraging, harvestables)
-        string gatherSummary = location.GetGatherSummary();
-        if (!string.IsNullOrEmpty(gatherSummary))
-        {
-            lines.Add(new Markup($"[green]{Markup.Escape(gatherSummary)}[/]"));
-        }
 
         return new Panel(new Rows(lines))
         {
-            Header = new PanelHeader(" ENVIRONMENT ", Justify.Left),
+            Header = new PanelHeader(" TIME/WEATHER ", Justify.Left),
+            Border = BoxBorder.Rounded,
+            Padding = new Padding(1, 0, 1, 0),
+            Expand = true
+        };
+    }
+
+    private static IRenderable BuildLocationPanel(GameContext ctx)
+    {
+        var location = ctx.CurrentLocation;
+
+        var lines = new List<IRenderable>
+        {
+            new Markup($"[white bold]{Markup.Escape(location.Name)}[/]"),
+            new Markup($"[grey italic]{Markup.Escape(GetShortDescription(location))}[/]")
+        };
+
+        // Build feature summary
+        var features = new List<string>();
+
+        // Foraging
+        var forage = location.GetFeature<ForageFeature>();
+        if (forage != null)
+        {
+            var resources = forage.GetAvailableResourceTypes();
+            if (resources.Count > 0)
+                features.Add($"[green]Forage:[/] {string.Join(", ", resources.Take(3))}");
+        }
+
+        // Hunting/game
+        var territory = location.GetFeature<AnimalTerritoryFeature>();
+        if (territory != null)
+        {
+            features.Add($"[yellow]Game:[/] {territory.GetDescription()}");
+        }
+
+        // Water
+        var water = location.GetFeature<WaterFeature>();
+        if (water != null)
+        {
+            features.Add($"[blue]Water[/]");
+        }
+
+        // Shelter
+        var shelter = location.GetFeature<ShelterFeature>();
+        if (shelter != null)
+        {
+            features.Add($"[cyan]Shelter:[/] {shelter.Name}");
+        }
+
+        // Add features to display
+        if (features.Count > 0)
+        {
+            lines.Add(new Markup(string.Join("  ", features.Take(2))));
+            if (features.Count > 2)
+                lines.Add(new Markup(string.Join("  ", features.Skip(2).Take(2))));
+        }
+
+        // Pad to 4 lines
+        while (lines.Count < 4)
+            lines.Add(new Text(""));
+
+        return new Panel(new Rows(lines))
+        {
+            Header = new PanelHeader(" LOCATION ", Justify.Left),
             Border = BoxBorder.Rounded,
             Padding = new Padding(1, 0, 1, 0),
             Expand = true
@@ -171,53 +336,108 @@ public static class GameDisplay
         };
     }
 
-    private static IRenderable BuildBodyPanel(GameContext ctx)
+    private static IRenderable BuildInventoryPanel(GameContext ctx)
     {
-        var body = ctx.player.Body;
-        var effects = ctx.player.EffectRegistry.GetAll();
-        var damagedParts = body.Parts.Where(p => p.Condition < 1.0).ToList();
+        var inventory = ctx.Inventory;
 
+        int weightPercent = (int)(inventory.CurrentWeightKg / inventory.MaxWeightKg * 100);
+
+        var lines = new List<IRenderable>
+        {
+            new Markup($"Weight {CreateColoredBar(weightPercent, 5, GetCapacityColor(weightPercent))} [white]{weightPercent}%[/]"),
+            
+        };
+
+        return new Panel(new Rows(lines))
+        {
+            Header = new PanelHeader(" GEAR ", Justify.Left),
+            Border = BoxBorder.Rounded,
+            Padding = new Padding(1, 0, 1, 0),
+            Expand = true
+        };
+    }
+
+    private static IRenderable BuildEffectsPanel(GameContext ctx)
+    {
+        var effects = ctx.player.EffectRegistry.GetAll();
         var lines = new List<IRenderable>();
 
-        // Injuries
-        if (damagedParts.Count == 0)
+        if (effects.Count > 0)
         {
-            lines.Add(new Markup("[grey]No injuries[/]"));
+            foreach (var effect in effects.Take(4))
+            {
+                string trend = GetEffectTrend(effect);
+                string color = GetEffectColor(effect);
+                int severityPercent = Math.Max(1, (int)Math.Ceiling(effect.Severity * 100));
+                lines.Add(new Markup($"[{color}]{Markup.Escape(effect.EffectKind)} {severityPercent}%{trend}[/]"));
+            }
+            if (effects.Count > 4)
+                lines.Add(new Markup($"[grey]+{effects.Count - 4} more...[/]"));
         }
         else
         {
-            foreach (var part in damagedParts.Take(3)) // Limit to 3 to avoid overflow
+            lines.Add(new Markup("[grey]None[/]"));
+        }
+
+        while (lines.Count < 4) lines.Add(new Text(""));
+
+        return new Panel(new Rows(lines))
+        {
+            Header = new PanelHeader(" EFFECTS ", Justify.Left),
+            Border = BoxBorder.Rounded,
+            Padding = new Padding(1, 0, 1, 0),
+            Expand = true
+        };
+    }
+
+    private static IRenderable BuildInjuriesPanel(GameContext ctx)
+    {
+        var body = ctx.player.Body;
+        var damagedParts = body.Parts.Where(p => p.Condition < 0.95).ToList();
+        var lines = new List<IRenderable>();
+
+        // Blood status
+        if (body.Blood.Condition < 0.95)
+        {
+            int bloodPercent = (int)(body.Blood.Condition * 100);
+            string bloodStatus = body.Blood.Condition switch
             {
-                string severity = GetInjurySeverity(part.Condition);
+                >= 0.80 => "minor blood loss",
+                >= 0.65 => "blood loss",
+                >= 0.50 => "severe blood loss",
+                _ => "critical blood loss"
+            };
+            string bloodColor = body.Blood.Condition switch
+            {
+                >= 0.80 => "yellow",
+                >= 0.65 => "orange1",
+                >= 0.50 => "red",
+                _ => "red bold"
+            };
+            lines.Add(new Markup($"[{bloodColor}]{bloodStatus} ({bloodPercent}%)[/]"));
+        }
+
+        if (damagedParts.Count == 0 && body.Blood.Condition >= 0.95)
+        {
+            lines.Add(new Markup("[grey]None[/]"));
+        }
+        else if (damagedParts.Count > 0)
+        {
+            foreach (var part in damagedParts.Take(3))
+            {
                 string color = GetInjuryColor(part.Condition);
-                lines.Add(new Markup($"[{color}]{Markup.Escape(part.Name)} — {severity}[/]"));
+                int percent = (int)(part.Condition * 100);
+                lines.Add(new Markup($"[{color}]{Markup.Escape(part.Name)} ({percent}%)[/]"));
             }
             if (damagedParts.Count > 3)
                 lines.Add(new Markup($"[grey]+{damagedParts.Count - 3} more...[/]"));
         }
 
-        // Effects
-        if (effects.Count > 0)
-        {
-            lines.Add(new Text("")); // Spacer
-            foreach (var effect in effects.Take(3)) // Limit to 3
-            {
-                string trend = GetEffectTrend(effect);
-                string color = GetEffectColor(effect);
-                int severityPercent = (int)(effect.Severity * 100);
-                lines.Add(new Markup($"[{color}]• {Markup.Escape(effect.EffectKind)} {severityPercent}% {trend}[/]"));
-            }
-            if (effects.Count > 3)
-                lines.Add(new Markup($"[grey]+{effects.Count - 3} more...[/]"));
-        }
-
-        // Pad to minimum height for consistent layout
-        while (lines.Count < 4)
-            lines.Add(new Text(""));
+        while (lines.Count < 4) lines.Add(new Text(""));
 
         return new Panel(new Rows(lines))
         {
-            Header = new PanelHeader(" BODY ", Justify.Left),
+            Header = new PanelHeader(" INJURIES ", Justify.Left),
             Border = BoxBorder.Rounded,
             Padding = new Padding(1, 0, 1, 0),
             Expand = true
@@ -303,53 +523,6 @@ public static class GameDisplay
             Expand = true
         };
     }
-    private static IRenderable BuildInventoryPanel(GameContext ctx)
-    {
-        var inv = ctx.Inventory;
-        var lines = new List<IRenderable>();
-
-        // Breakdown chart
-        var chart = new BreakdownChart().HideTags().Width(20);
-        if (inv.FuelWeightKg > 0) chart.AddItem("Fuel", inv.FuelWeightKg, Color.Orange1);
-        if (inv.FoodWeightKg > 0) chart.AddItem("Food", inv.FoodWeightKg, Color.Green);
-        if (inv.WaterWeightKg > 0) chart.AddItem("Water", inv.WaterWeightKg, Color.Blue);
-        if (inv.ToolsWeightKg > 0) chart.AddItem("Tools", inv.ToolsWeightKg, Color.Grey);
-        if (inv.EquipmentWeightKg > 0) chart.AddItem("Gear", inv.EquipmentWeightKg, Color.Purple);
-        if (inv.SpecialWeightKg > 0) chart.AddItem("Special", inv.SpecialWeightKg, Color.Yellow);
-        if (inv.RemainingCapacityKg > 0 && inv.RemainingCapacityKg < double.MaxValue)
-            chart.AddItem("Free", inv.RemainingCapacityKg, Color.Grey23);
-
-        if (inv.CurrentWeightKg > 0 || inv.MaxWeightKg > 0)
-            lines.Add(chart);
-
-        // Category breakdown text
-        var parts = new List<string>();
-        if (inv.FuelWeightKg > 0) parts.Add($"[orange1]Fuel {inv.FuelWeightKg:F1}kg[/]");
-        if (inv.FoodWeightKg > 0) parts.Add($"[green]Food {inv.FoodWeightKg:F1}kg[/]");
-        if (inv.WaterWeightKg > 0) parts.Add($"[blue]Water {inv.WaterWeightKg:F1}kg[/]");
-        if (inv.ToolsWeightKg > 0) parts.Add($"[grey]Tools {inv.ToolsWeightKg:F1}kg[/]");
-        if (inv.EquipmentWeightKg > 0) parts.Add($"[purple]Gear {inv.EquipmentWeightKg:F1}kg[/]");
-        if (inv.SpecialWeightKg > 0) parts.Add($"[yellow]Special {inv.SpecialWeightKg:F1}kg[/]");
-        if (parts.Count == 0)
-            parts.Add("[grey]Empty[/]");
-        lines.Add(new Columns(parts));
-
-        double weightPercent = inv.MaxWeightKg > 0 ? inv.CurrentWeightKg / inv.MaxWeightKg * 100 : 0;
-        string weightColor = GetWeightColor(weightPercent);
-        lines.Add(new Markup($"[{weightColor}]{inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0}kg[/]"));
-
-        // Pad to 4 lines
-        while (lines.Count < 4)
-            lines.Add(new Text(""));
-
-        return new Panel(new Rows(lines))
-        {
-            Header = new PanelHeader(" INVENTORY ", Justify.Left),
-            Border = BoxBorder.Rounded,
-            Padding = new Padding(1, 0, 1, 0),
-            Expand = true,
-        };
-    }
 
     private static IRenderable BuildNarrativePanel(GameContext ctx)
     {
@@ -384,7 +557,7 @@ public static class GameDisplay
     {
         int filled = Math.Clamp(percent * width / 100, 0, width);
         int empty = width - filled;
-        return $"[{color}]{new string('█', filled)}[/][grey]{new string('░', empty)}[/]";
+        return $"[grey][[[/][{color}]{new string('█', filled)}[/][grey]{new string('░', empty)}]][/]";
     }
 
     private static string GetLogColor(LogLevel level) => level switch
@@ -484,7 +657,7 @@ public static class GameDisplay
         int empty = width - filled;
 
         string color = GetTempBarColor(bodyTemp);
-        return $"[{color}]{new string('█', filled)}[/][grey]{new string('░', empty)}[/]";
+        return $"[grey][[[/][{color}]{new string('█', filled)}[/][grey]{new string('░', empty)}]][/]";
     }
 
     private static string GetTempBarColor(double temp) => temp switch
@@ -586,12 +759,13 @@ public static class GameDisplay
 
     private static string GetInjurySeverity(double condition) => condition switch
     {
-        <= 0 => "Destroyed",
-        <= 0.2 => "Critical",
-        <= 0.4 => "Severe",
-        <= 0.6 => "Moderate",
-        <= 0.8 => "Light",
-        _ => "Minor"
+        <= 0.10 => "destroyed",
+        <= 0.30 => "critically damaged",
+        <= 0.50 => "badly wounded",
+        <= 0.70 => "gashed",
+        <= 0.85 => "cut",
+        <= 0.95 => "scratched",
+        _ => "minor"  // Shouldn't show if >= 0.95, but fallback
     };
 
     private static string GetEffectTrend(Effect effect)
@@ -610,17 +784,18 @@ public static class GameDisplay
 
     #region Inventory Screen
 
-    public static void RenderInventoryScreen(GameContext ctx)
+    public static void RenderInventoryScreen(GameContext ctx, Inventory? inventory = null, string? title = null)
     {
+        var inv = inventory ?? ctx.Inventory;
+        var headerTitle = title ?? "INVENTORY";
+
         if (Output.TestMode)
         {
-            RenderInventoryTestMode(ctx);
+            RenderInventoryTestMode(inv, headerTitle);
             return;
         }
 
         AnsiConsole.Clear();
-
-        var inv = ctx.Inventory;
 
         // Column 1: Gear (Equipment + Tools)
         var gearLines = new List<IRenderable>
@@ -630,37 +805,52 @@ public static class GameDisplay
         };
 
         // Weapon
+        gearLines.Add(new Markup("[white bold]Weapon:[/]"));
         if (inv.Weapon != null)
-            gearLines.Add(new Markup($"[yellow]{Markup.Escape(inv.Weapon.Name)}[/] [grey]({inv.Weapon.Damage:F0} dmg)[/]"));
+            gearLines.Add(new Markup($"  [yellow]{Markup.Escape(inv.Weapon.Name)}[/] [grey]({inv.Weapon.Damage:F0} dmg)[/]"));
         else
-            gearLines.Add(new Markup("[grey]No weapon[/]"));
+            gearLines.Add(new Markup("  [grey]None[/]"));
 
         // Armor slots
-        AddEquipmentLineCompact(gearLines, inv.Head);
-        AddEquipmentLineCompact(gearLines, inv.Chest);
-        AddEquipmentLineCompact(gearLines, inv.Legs);
-        AddEquipmentLineCompact(gearLines, inv.Feet);
-        AddEquipmentLineCompact(gearLines, inv.Hands);
-
-        if (inv.TotalInsulation > 0)
-            gearLines.Add(new Markup($"[cyan]+{inv.TotalInsulation * 100:F0}% insulation[/]"));
-
-        gearLines.Add(new Text(""));
+        gearLines.Add(new Markup("[white bold]Armor:[/]"));
+        if (inv.Head != null || inv.Chest != null || inv.Legs != null || inv.Feet != null || inv.Hands != null)
+        {
+            AddEquipmentLine(gearLines, "  Head", inv.Head);
+            AddEquipmentLine(gearLines, "  Chest", inv.Chest);
+            AddEquipmentLine(gearLines, "  Legs", inv.Legs);
+            AddEquipmentLine(gearLines, "  Feet", inv.Feet);
+            AddEquipmentLine(gearLines, "  Hands", inv.Hands);
+            if (inv.TotalInsulation > 0)
+                gearLines.Add(new Markup($"  [cyan]+{inv.TotalInsulation * 100:F0}% insulation[/]"));
+        }
+        else
+        {
+            gearLines.Add(new Markup("  [grey]None[/]"));
+        }
 
         // Tools
+        gearLines.Add(new Markup("[white bold]Tools:[/]"));
         if (inv.Tools.Count > 0)
         {
             foreach (var tool in inv.Tools)
             {
                 string weaponInfo = tool.IsWeapon ? $" [grey]({tool.Damage:F0} dmg)[/]" : "";
-                gearLines.Add(new Markup($"[white]{Markup.Escape(tool.Name)}[/]{weaponInfo}"));
+                gearLines.Add(new Markup($"  [white]{Markup.Escape(tool.Name)}[/]{weaponInfo}"));
             }
+        }
+        else
+        {
+            gearLines.Add(new Markup("  [grey]None[/]"));
         }
 
         // Special items
-        foreach (var item in inv.Special)
+        if (inv.Special.Count > 0)
         {
-            gearLines.Add(new Markup($"[magenta]{Markup.Escape(item.Name)}[/]"));
+            gearLines.Add(new Markup("[white bold]Special:[/]"));
+            foreach (var item in inv.Special)
+            {
+                gearLines.Add(new Markup($"  [magenta]{Markup.Escape(item.Name)}[/]"));
+            }
         }
 
         // Column 2: Fuel
@@ -688,16 +878,28 @@ public static class GameDisplay
             new Text("")
         };
 
-        if (inv.CookedMeatCount > 0)
-            foodLines.Add(new Markup($"[white]{inv.CookedMeatCount} cooked meat[/] [grey]({inv.CookedMeat.Sum():F1}kg)[/]"));
-        if (inv.RawMeatCount > 0)
-            foodLines.Add(new Markup($"[yellow]{inv.RawMeatCount} raw meat[/] [grey]({inv.RawMeat.Sum():F1}kg)[/]"));
-        if (inv.BerryCount > 0)
-            foodLines.Add(new Markup($"[white]{inv.BerryCount} berries[/] [grey]({inv.Berries.Sum():F2}kg)[/]"));
+        // Food subcategory
+        foodLines.Add(new Markup("[white bold]Food:[/]"));
+        if (inv.HasFood)
+        {
+            if (inv.CookedMeatCount > 0)
+                foodLines.Add(new Markup($"  [white]{inv.CookedMeatCount} cooked meat[/] [grey]({inv.CookedMeat.Sum():F1}kg)[/]"));
+            if (inv.RawMeatCount > 0)
+                foodLines.Add(new Markup($"  [yellow]{inv.RawMeatCount} raw meat[/] [grey]({inv.RawMeat.Sum():F1}kg)[/]"));
+            if (inv.BerryCount > 0)
+                foodLines.Add(new Markup($"  [white]{inv.BerryCount} berries[/] [grey]({inv.Berries.Sum():F2}kg)[/]"));
+        }
+        else
+        {
+            foodLines.Add(new Markup("  [grey]None[/]"));
+        }
+
+        // Water subcategory
+        foodLines.Add(new Markup("[white bold]Water:[/]"));
         if (inv.HasWater)
-            foodLines.Add(new Markup($"[blue]{inv.WaterLiters:F1}L water[/]"));
-        if (!inv.HasFood && !inv.HasWater)
-            foodLines.Add(new Markup("[grey]None[/]"));
+            foodLines.Add(new Markup($"  [blue]{inv.WaterLiters:F1}L[/]"));
+        else
+            foodLines.Add(new Markup("  [grey]None[/]"));
 
         // Column 4: Materials
         var matLines = new List<IRenderable>
@@ -743,19 +945,13 @@ public static class GameDisplay
 
         var mainPanel = new Panel(content)
         {
-            Header = new PanelHeader(" INVENTORY ", Justify.Center),
+            Header = new PanelHeader($" {headerTitle} ", Justify.Center),
             Border = BoxBorder.Double,
             Padding = new Padding(1, 1, 1, 1),
             Expand = true
         };
 
         AnsiConsole.Write(mainPanel);
-    }
-
-    private static void AddEquipmentLineCompact(List<IRenderable> lines, Equipment? equipment)
-    {
-        if (equipment != null)
-            lines.Add(new Markup($"[cyan]{Markup.Escape(equipment.Name)}[/] [grey](+{equipment.Insulation * 100:F0}%)[/]"));
     }
 
     private static void AddEquipmentLine(List<IRenderable> lines, string slot, Equipment? equipment)
@@ -766,10 +962,9 @@ public static class GameDisplay
             lines.Add(new Markup($"[white]{slot}:[/] [grey]—[/]"));
     }
 
-    private static void RenderInventoryTestMode(GameContext ctx)
+    private static void RenderInventoryTestMode(Inventory inv, string title)
     {
-        var inv = ctx.Inventory;
-        TestModeIO.WriteOutput($"[Inventory: {inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0}kg]\n");
+        TestModeIO.WriteOutput($"[{title}: {inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0}kg]\n");
 
         if (inv.Weapon != null)
             TestModeIO.WriteOutput($"  Weapon: {inv.Weapon.Name}\n");
@@ -807,6 +1002,13 @@ public static class GameDisplay
         {
             int minutes = (int)(fire.HoursRemaining * 60);
             TestModeIO.WriteOutput($"[Fire: {fire.GetFirePhase()} - {minutes} min]\n");
+        }
+
+        // Add blood status to test mode
+        if (body.Blood.Condition < 0.95)
+        {
+            int bloodPercent = (int)(body.Blood.Condition * 100);
+            TestModeIO.WriteOutput($"[Blood: {bloodPercent}%]\n");
         }
 
         // Add body/effects info to test mode

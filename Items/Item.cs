@@ -43,17 +43,6 @@ namespace text_survival.Items
         public void Describe()
         {
             GameDisplay.AddNarrative($"{this} => {Description} ");
-            if (this is Weapon weapon)
-            {
-                GameDisplay.AddNarrative($"Damage: {weapon.Damage} hp, ");
-                GameDisplay.AddNarrative($"Hit Chance: {weapon.Accuracy * 100}%, ");
-                if (weapon.BlockChance != 0)
-                {
-                    GameDisplay.AddNarrative($", BlockChance: {weapon.BlockChance * 100}%, ");
-                }
-            }
-            // Note: Equipment (clothing/armor) now uses separate Equipment class
-
             if (Weight != 0)
             {
                 GameDisplay.AddNarrative($"Weight: {Weight}kg");

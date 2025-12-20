@@ -1,4 +1,4 @@
-using text_survival.Actors.NPCs;
+using text_survival.Actors.Animals;
 
 namespace text_survival.Environments.Features;
 
@@ -96,14 +96,14 @@ public class AnimalTerritoryFeature : LocationFeature
     {
         return animalType.ToLower() switch
         {
-            "deer" => NpcFactory.MakeDeer(),
-            "rabbit" => NpcFactory.MakeRabbit(),
-            "ptarmigan" => NpcFactory.MakePtarmigan(),
-            "fox" => NpcFactory.MakeFox(),
-            "wolf" => NpcFactory.MakeWolf(),
-            "bear" => NpcFactory.MakeBear(),
-            "cave bear" => NpcFactory.MakeCaveBear(),
-            "rat" => NpcFactory.MakeRat(),
+            "deer" => AnimalFactory.MakeDeer(),
+            "rabbit" => AnimalFactory.MakeRabbit(),
+            "ptarmigan" => AnimalFactory.MakePtarmigan(),
+            "fox" => AnimalFactory.MakeFox(),
+            "wolf" => AnimalFactory.MakeWolf(),
+            "bear" => AnimalFactory.MakeBear(),
+            "cave bear" => AnimalFactory.MakeCaveBear(),
+            "rat" => AnimalFactory.MakeRat(),
             _ => null
         };
     }

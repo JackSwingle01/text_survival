@@ -24,7 +24,7 @@ public class WorkRunner(GameContext ctx)
             return WorkResult.Empty(0);
         }
 
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Planning.");
         var workTimeChoice = new Choice<int>("How long should you forage?");
         workTimeChoice.AddOption("Quick gather - 15 min", 15);
         workTimeChoice.AddOption("Standard search - 30 min", 30);
@@ -44,6 +44,7 @@ public class WorkRunner(GameContext ctx)
 
         if (found.IsEmpty)
         {
+            GameDisplay.AddNarrative("You find nothing.");
             GameDisplay.AddNarrative(GetForageFailureMessage(quality));
         }
         else
@@ -60,7 +61,7 @@ public class WorkRunner(GameContext ctx)
                 GameDisplay.AddNarrative("Resources here are getting scarce.");
         }
 
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Thinking.");
         Input.WaitForKey();
 
         // Check weight limit and force drop if needed
@@ -89,7 +90,7 @@ public class WorkRunner(GameContext ctx)
         }
         else
         {
-            GameDisplay.Render(_ctx);
+            GameDisplay.Render(_ctx, statusText: "Planning.");
             var harvestChoice = new Choice<HarvestableFeature>("What do you want to harvest?");
             foreach (var h in harvestables)
             {
@@ -98,7 +99,7 @@ public class WorkRunner(GameContext ctx)
             target = harvestChoice.GetPlayerChoice();
         }
 
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Planning.");
         var workTimeChoice = new Choice<int>($"How long should you harvest {target.DisplayName}?");
         workTimeChoice.AddOption("Quick work - 15 min", 15);
         workTimeChoice.AddOption("Standard work - 30 min", 30);
@@ -127,7 +128,7 @@ public class WorkRunner(GameContext ctx)
         }
 
         GameDisplay.AddNarrative($"{target.DisplayName}: {target.GetStatusDescription()}");
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Thinking.");
         Input.WaitForKey();
 
         // Check weight limit and force drop if needed
@@ -146,7 +147,7 @@ public class WorkRunner(GameContext ctx)
 
         double successChance = CalculateExploreChance(location);
 
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Planning.");
         var timeChoice = new Choice<int>($"How thoroughly should you scout? ({successChance:P0} chance to find something)");
         timeChoice.AddOption("Quick scout - 15 min", 15);
         timeChoice.AddOption("Standard scout - 30 min (+10%)", 30);
@@ -190,7 +191,7 @@ public class WorkRunner(GameContext ctx)
             GameDisplay.AddNarrative("You searched the area but couldn't find any new paths.");
         }
 
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Thinking.");
         Input.WaitForKey();
 
         return new WorkResult([], discovered, exploreTime, false);
@@ -209,32 +210,33 @@ public class WorkRunner(GameContext ctx)
         bool died = false;
 
         double fireProximity = fireProximityOverride ?? GetFireProximity(location);
+        string statusText = $"{workType} at {location.Name}...";
 
         while (elapsed < workMinutes && !died)
         {
-            Output.Progress($"{workType} at {location.Name}...", workMinutes, task =>
+            while (elapsed < workMinutes && triggeredEvent == null && !died)
             {
-                task?.Increment(elapsed);
+                GameDisplay.Render(_ctx,
+                    addSeparator: false,
+                    statusText: statusText,
+                    progress: elapsed,
+                    progressTotal: workMinutes);
 
-                while (elapsed < workMinutes && triggeredEvent == null && !died)
+                var tickResult = GameEventRegistry.RunTicks(_ctx, 1);
+                _ctx.Update(tickResult.MinutesElapsed, 1.5, fireProximity);
+                elapsed += tickResult.MinutesElapsed;
+
+                if (PlayerDied)
                 {
-                    var tickResult = GameEventRegistry.RunTicks(_ctx, 1);
-                    _ctx.Update(tickResult.MinutesElapsed, 1.5, fireProximity);
-                    elapsed += tickResult.MinutesElapsed;
-                    task?.Increment(tickResult.MinutesElapsed);
-
-                    if (PlayerDied)
-                    {
-                        died = true;
-                        break;
-                    }
-
-                    if (tickResult.TriggeredEvent != null)
-                        triggeredEvent = tickResult.TriggeredEvent;
-
-                    Thread.Sleep(100);
+                    died = true;
+                    break;
                 }
-            });
+
+                if (tickResult.TriggeredEvent != null)
+                    triggeredEvent = tickResult.TriggeredEvent;
+
+                Thread.Sleep(100);
+            }
 
             if (died) break;
 
@@ -363,32 +365,32 @@ public class WorkRunner(GameContext ctx)
         string[] messages = quality switch
         {
             "abundant" => [
-                "You find plenty, but it's all frozen solid or rotted through. The area is rich - just not this haul.",
-                "Fresh snow buries everything. You dig, but there's more here than you had time to uncover.",
-                "A rich area, but everything usable is just out of reach. A longer search would help.",
-                "You find things, but they crumble apart - frozen and brittle. Plenty more here though.",
-                "Ice coats everything. Resources are visible beneath but locked away. The area is clearly bountiful."
+                "Fresh snow. Everything's buried.",
+                "What you spot is rotten through.",
+                "Frozen solid to the ground. Can't pry it loose.",
+                "A sound nearby. You wait it out, lose your momentum.",
+                "Ice crust over everything. Takes too long to break through."
             ],
             "decent" => [
-                "You find a few scraps, but nothing worth keeping. The area still has potential.",
-                "You turn up a few things, but nothing quite usable. There's more here with patience.",
-                "Resources here take more effort to find. A more thorough search might turn something up.",
-                "You turn up some possibilities, but nothing usable. More thorough searching might help.",
-                "A modest area. You didn't find much this time, but it's not exhausted."
+                "Hollow log, empty inside. Wasted time.",
+                "Wind-scoured ground. Bare rock in every crevice.",
+                "Drifts deeper than they looked. Hard to search properly.",
+                "What you find crumbles apart in your hands.",
+                "Steep terrain. You cover less ground than planned."
             ],
             "sparse" => [
-                "Slim pickings. Most of what was here has already been taken.",
-                "You find traces of what this place once offered. It's nearly spent.",
-                "Hardly anything left. You'd need luck to find something useful here.",
-                "The area is almost picked clean. Time to look elsewhere.",
-                "Scraps and remnants. This place won't sustain you much longer."
+                "Slim pickings. Most of it's already gone.",
+                "Traces of what was here. Nearly spent.",
+                "Hardly anything left. You'd need luck.",
+                "Almost picked clean. Time to look elsewhere.",
+                "Scraps and remnants. This place won't last."
             ],
             _ => [
-                "Nothing. This place has been stripped bare.",
-                "You search thoroughly and find nothing. Whatever was here is gone.",
-                "Completely exhausted. You're wasting time here.",
-                "Barren. Not a single useful thing remains.",
-                "Empty. There's nothing left to find."
+                "Stripped bare.",
+                "It's gone. All of it.",
+                "You're wasting time here.",
+                "Barren.",
+                "Move on."
             ]
         };
 
@@ -408,7 +410,7 @@ public class WorkRunner(GameContext ctx)
         GameDisplay.ClearNarrative();
         GameDisplay.AddWarning($"You're carrying too much! ({inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0} kg)");
         GameDisplay.AddNarrative("You must drop some items.");
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Overburdened.");
         Input.WaitForKey();
 
         // Create a dummy "drop target" that just discards items
@@ -424,7 +426,7 @@ public class WorkRunner(GameContext ctx)
 
             GameDisplay.ClearNarrative();
             GameDisplay.AddWarning($"Over capacity by {-inv.RemainingCapacityKg:F1} kg. Drop something.");
-            GameDisplay.Render(_ctx);
+            GameDisplay.Render(_ctx, statusText: "Overburdened.");
 
             string selected = Input.Select("Drop which item?", options);
             int idx = options.IndexOf(selected);
@@ -434,7 +436,7 @@ public class WorkRunner(GameContext ctx)
         }
 
         GameDisplay.AddNarrative("You adjust your load and continue.");
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Relieved.");
         Input.WaitForKey();
     }
 }

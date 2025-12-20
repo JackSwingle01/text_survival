@@ -17,6 +17,7 @@ public class Body
     public readonly bool IsPlayer = false;
     public readonly List<BodyRegion> Parts;
     public readonly string OwnerName;
+    public Blood Blood { get; } = new();
 
     private readonly double _baseWeight;
 
@@ -47,9 +48,9 @@ public class Body
     }
 
 
-    public void Damage(DamageInfo damageInfo)
+    public DamageResult Damage(DamageInfo damageInfo)
     {
-        DamageProcessor.DamageBody(damageInfo, this);
+        return DamageProcessor.DamageBody(damageInfo, this);
     }
 
     public void Heal(HealingInfo healingInfo)
@@ -116,6 +117,12 @@ public class Body
         // Body composition
         BodyFatKG = Math.Max(0, BodyFatKG - result.FatToConsume);
         MuscleKG = Math.Max(0, MuscleKG - result.MuscleToConsume);
+
+        // Blood regeneration
+        if (result.BloodHealing > 0)
+        {
+            Blood.Condition = Math.Min(1.0, Blood.Condition + result.BloodHealing);
+        }
 
         // Damage
         foreach (var damage in result.DamageEvents)

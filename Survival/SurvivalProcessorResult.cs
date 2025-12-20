@@ -12,6 +12,7 @@ public class SurvivalProcessorResult
     public List<HealingInfo> HealingEvents = [];
     public double FatToConsume;
     public double MuscleToConsume;
+    public double BloodHealing;  // Blood regeneration (0-1 condition units)
 
     public void Combine(SurvivalProcessorResult other)
     {
@@ -22,5 +23,6 @@ public class SurvivalProcessorResult
         HealingEvents.AddRange(other.HealingEvents);
         FatToConsume += other.FatToConsume;
         MuscleToConsume += other.MuscleToConsume;
+        BloodHealing += other.BloodHealing;
     }
 }

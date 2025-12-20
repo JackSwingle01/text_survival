@@ -120,11 +120,11 @@ public class SurvivalProcessorTests
         // Act
         var result = SurvivalProcessor.Process(body, context, 1);
 
-        // Assert - if body temp < 89.6°F, should have frostbite effects
+        // Assert - if body temp < 89.6°F, should have frostbite effect
         if (body.BodyTemperature < 89.6)
         {
             var frostbiteEffects = result.Effects.Where(e => e.EffectKind == "Frostbite").ToList();
-            Assert.Equal(4, frostbiteEffects.Count); // One for each extremity
+            Assert.Single(frostbiteEffects); // Consolidated frostbite effect with escalating messages
         }
     }
 

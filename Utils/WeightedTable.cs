@@ -1,5 +1,5 @@
 ﻿using text_survival.Environments;
-using text_survival.Actors.NPCs;
+using text_survival.Actors.Animals;
 using text_survival.Items;
 
 namespace text_survival;
@@ -71,10 +71,10 @@ public class LocationTable
 }
 
 
-public class NpcTable : GenericWeightedTable<Npc>
+public class AnimalTable : GenericWeightedTable<Animal>
 {
-    public void AddActor(Func<Npc> actorFactory, double weight = 1)
+    public void AddAnimal(Func<Animal> animalFactory, double weight = 1)
     {
-        AddFactory(actorFactory, weight);
+        AddFactory(animalFactory, weight);
     }
 }

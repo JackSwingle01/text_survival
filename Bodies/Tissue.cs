@@ -34,7 +34,7 @@ public class Tissue(string name, double toughness = 1)
     public double SharpMultiplier { get; set; } = 1.0;
     public double PierceMultiplier { get; set; } = 1.0;
 
-    public double GetProtection(DamageType damageType)
+    public virtual double GetProtection(DamageType damageType)
     {
         // protection provided to sub layers
         double baseProtection = Toughness * Condition;
@@ -48,7 +48,7 @@ public class Tissue(string name, double toughness = 1)
         };
     }
 
-    public double GetNaturalAbsorption(DamageType damageType)
+    public virtual double GetNaturalAbsorption(DamageType damageType)
     {
         double baseThreshold = Name switch
         {

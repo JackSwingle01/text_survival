@@ -16,6 +16,12 @@ public class Player : Actor
     public SurvivalStatsDelta? LastSurvivalDelta { get; private set; }
     public int LastUpdateMinutes { get; private set; } = 1;
 
+    // Combat defaults (unarmed) - actual weapon passed to Attack()
+    public override double AttackDamage => 2;
+    public override double BlockChance => 0.01;
+    public override string AttackName => "fists";
+    public override DamageType AttackType => DamageType.Blunt;
+
     public override void Update(int minutes, SurvivalContext context)
     {
         var result = SurvivalProcessor.Process(Body, context, minutes);
@@ -32,13 +38,6 @@ public class Player : Actor
         LastUpdateMinutes = minutes;
 
         Body.ApplyResult(result);
-    }
-
-    // Fallback weapon - actual weapon comes from ctx.Inventory.Weapon via Attack() override
-    public override Weapon ActiveWeapon
-    {
-        get => Tool.Unarmed.ToWeapon();
-        protected set { }  // No-op - weapons live in Inventory now
     }
 
     public Player() : base("Player", Body.BaselinePlayerStats)

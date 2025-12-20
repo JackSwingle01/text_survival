@@ -1,4 +1,4 @@
-using text_survival.Actors.NPCs;
+using text_survival.Actors.Animals;
 using text_survival.Actors.Player;
 
 namespace text_survival;
@@ -86,6 +86,35 @@ public static class HuntingCalculator
         // If roll is within 20% of detection threshold, animal becomes alert
         double alertThreshold = detectionChance - 0.20;
         return detectionRoll >= alertThreshold && detectionRoll < detectionChance;
+    }
+
+    /// <summary>
+    /// Calculates detection chance with animal traits and activity factored in.
+    /// More nervous animals are harder to approach. Grazing animals are easier.
+    /// </summary>
+    /// <param name="distance">Current distance from animal in meters</param>
+    /// <param name="animal">The target animal (provides state, nervousness, activity)</param>
+    /// <param name="huntingSkill">Player's Hunting skill level</param>
+    /// <param name="failedAttempts">Number of previous failed stealth checks</param>
+    /// <returns>Detection chance (0.0 - 1.0)</returns>
+    public static double CalculateDetectionChanceWithTraits(
+        double distance,
+        Animal animal,
+        int huntingSkill,
+        int failedAttempts = 0)
+    {
+        // Get base detection using existing formula
+        double baseChance = CalculateDetectionChance(distance, animal.State, huntingSkill, failedAttempts);
+
+        // Apply nervousness modifier: nervous (0.9) = 1.4x harder, calm (0.1) = 0.6x easier
+        // Formula: 0.5 + nervousness maps [0,1] to [0.5, 1.5]
+        double nervousnessModifier = 0.5 + animal.Nervousness;
+        baseChance *= nervousnessModifier;
+
+        // Apply activity modifier from animal
+        baseChance *= animal.GetActivityDetectionModifier();
+
+        return Math.Clamp(baseChance, 0.05, 0.95);
     }
 
     #endregion

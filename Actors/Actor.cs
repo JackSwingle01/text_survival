@@ -9,12 +9,18 @@ namespace text_survival.Actors;
 public abstract class Actor
 {
     public string Name;
-    public virtual void Attack(Actor target, Weapon? weaponOverride = null, string? bodyPart = null)
-        => combatManager.Attack(target, weaponOverride, bodyPart);
+
+    // Combat interface - subclasses provide these from their weapon/natural attacks
+    public abstract double AttackDamage { get; }
+    public abstract double BlockChance { get; }
+    public abstract string AttackName { get; }
+    public abstract DamageType AttackType { get; }
+
+    public virtual void Attack(Actor target, Tool? weapon = null, string? bodyPart = null)
+        => combatManager.Attack(target, weapon, bodyPart);
 
     public bool IsEngaged { get; set; }
     public bool IsAlive => Vitality > 0;
-    public abstract Weapon ActiveWeapon { get; protected set; }
 
     public virtual void Update(int minutes, SurvivalContext context)
     {

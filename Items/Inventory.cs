@@ -244,6 +244,14 @@ public class Inventory
     public bool HasFuel => Logs.Count > 0 || Sticks.Count > 0 || Tinder.Count > 0;
 
     /// <summary>
+    /// Check if inventory has a cutting tool (knife or axe) for butchering.
+    /// Checks both equipped weapon and unequipped tools.
+    /// </summary>
+    public bool HasCuttingTool =>
+        (Weapon != null && (Weapon.Type == ToolType.Knife || Weapon.Type == ToolType.Axe)) ||
+        Tools.Any(t => t.Type == ToolType.Knife || t.Type == ToolType.Axe);
+
+    /// <summary>
     /// Check if there are any crafting materials available.
     /// Includes sticks (can be used for crafting) and dedicated materials.
     /// </summary>
@@ -330,6 +338,45 @@ public class Inventory
         var removed = Weapon;
         Weapon = null;
         return removed;
+    }
+
+    /// <summary>
+    /// Gets or equips a weapon of the specified type.
+    /// If no matching weapon is equipped, checks Tools and auto-equips.
+    /// Prompts player if multiple matching weapons are available.
+    /// </summary>
+    public Tool? GetOrEquipWeapon(ToolType? type = null)
+    {
+        // Already have matching weapon equipped?
+        if (Weapon != null && (type == null || Weapon.Type == type))
+            return Weapon;
+
+        // Find matching weapons in Tools
+        var available = Tools.Where(t => t.IsWeapon && (type == null || t.Type == type)).ToList();
+
+        if (available.Count == 0)
+            return null;
+
+        Tool toEquip;
+        if (available.Count == 1)
+        {
+            toEquip = available[0];
+        }
+        else
+        {
+            // Prompt player to choose
+            var choice = new Actions.Choice<Tool>("Which weapon?");
+            foreach (var w in available)
+                choice.AddOption($"{w.Name} ({w.Damage:F0} dmg)", w);
+            toEquip = choice.GetPlayerChoice();
+        }
+
+        Tools.Remove(toEquip);
+        var previous = EquipWeapon(toEquip);
+        if (previous != null)
+            Tools.Add(previous);
+
+        return toEquip;
     }
 
     /// <summary>

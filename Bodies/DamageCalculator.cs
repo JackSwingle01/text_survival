@@ -1,3 +1,5 @@
+using text_survival.Effects;
+
 namespace text_survival.Bodies;
 
 public class DamageResult
@@ -11,6 +13,7 @@ public class DamageResult
     public bool OrganHit { get; set; }
     public string? OrganHitName { get; set; }
     public bool WasPenetrating { get; set; } // Did damage go through layers
+    public Effect? TriggeredEffect { get; set; }  // e.g., Bleeding from sharp damage
 }
 
 
@@ -19,6 +22,17 @@ public static class DamageProcessor
     public static DamageResult DamageBody(DamageInfo damageInfo, Body body)
     {
         var result = new DamageResult();
+
+        // Handle Blood targeting for Bleed/Internal damage (blood loss bypasses body parts)
+        if (damageInfo.TargetPartName == "Blood" &&
+            (damageInfo.Type == DamageType.Bleed || damageInfo.Type == DamageType.Internal))
+        {
+            double healthBefore = body.Blood.Condition;
+            DamageTissue(body.Blood, damageInfo);
+            result.HitPartName = "Blood";
+            result.TissuesDamaged.Add(("Blood", healthBefore - body.Blood.Condition));
+            return result;
+        }
 
         // Check if targeting a specific organ by name
         Organ? targetOrgan = null;
@@ -69,6 +83,15 @@ public static class DamageProcessor
         }
 
         result.HitPartHealthAfter = hitPart.Condition;
+
+        // Check for bleeding trigger - sharp/pierce damage that broke skin
+        if ((damageInfo.Type == DamageType.Sharp || damageInfo.Type == DamageType.Pierce)
+            && result.TissuesDamaged.Any(t => t.TissueName == "Skin" && t.DamageTaken > 0.05))
+        {
+            double bleedSeverity = Math.Clamp(result.TotalDamageDealt * 0.05, 0.1, 0.6);
+            result.TriggeredEffect = EffectFactory.Bleeding(bleedSeverity);
+        }
+
         return result;
     }
     private static void DamagePart(BodyRegion part, DamageInfo damageInfo, DamageResult result)

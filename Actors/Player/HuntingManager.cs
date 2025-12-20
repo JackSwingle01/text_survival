@@ -1,4 +1,4 @@
-using text_survival.Actors.NPCs;
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Items;
@@ -49,6 +49,6 @@ public class HuntingManager
             return "No weapon equipped.";
         }
 
-        return $"Weapon: {weapon.Name} (Damage: {weapon.Damage ?? 0}, Accuracy: {weapon.Accuracy ?? 0:F1})";
+        return $"Weapon: {weapon.Name} (Damage: {weapon.Damage ?? 0})";
     }
 }

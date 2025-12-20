@@ -1,4 +1,4 @@
-using text_survival.Actors.NPCs;
+using text_survival.Actors.Animals;
 using text_survival.Core;
 
 namespace text_survival.Environments;

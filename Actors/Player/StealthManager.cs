@@ -1,4 +1,4 @@
-using text_survival.Actors.NPCs;
+using text_survival.Actors.Animals;
 using text_survival.Environments;
 using text_survival.UI;
 
@@ -93,11 +93,11 @@ public class StealthManager
 
         GameDisplay.AddNarrative($"You carefully move {approachDistance:F0}m closer...");
 
-        // Check for detection
+        // Check for detection (uses traits + activity)
         int huntingSkill = _player.Skills.GetSkill("Hunting").Level;
-        double detectionChance = HuntingCalculator.CalculateDetectionChance(
+        double detectionChance = HuntingCalculator.CalculateDetectionChanceWithTraits(
             newDistance,
-            animal.State,
+            animal,
             huntingSkill,
             animal.FailedStealthChecks
         );
@@ -106,8 +106,12 @@ public class StealthManager
         bool detected = detectionRoll < detectionChance;
         bool becameAlert = !detected && HuntingCalculator.ShouldBecomeAlert(detectionRoll, detectionChance);
 
-        // Update distance
+        // Update distance and activity (time passed during approach)
         animal.DistanceFromPlayer = newDistance;
+        if (animal.CheckActivityChange(7, out var newActivity) && newActivity.HasValue)
+        {
+            GameDisplay.AddNarrative($"The {animal.Name} shifts—now {animal.GetActivityDescription()}.");
+        }
 
         // Handle detection results
         if (detected)
@@ -143,23 +147,28 @@ public class StealthManager
 
         Animal animal = TargetAnimal!;
 
-        GameDisplay.AddNarrative($"\n=== {animal.Name} ===");
+        GameDisplay.AddNarrative($"\n=== {animal.GetTraitDescription()} ===");
         GameDisplay.AddNarrative($"Distance: {animal.DistanceFromPlayer:F0}m");
-        GameDisplay.AddNarrative($"State: {animal.State}");
+        GameDisplay.AddNarrative($"Activity: {animal.GetActivityDescription()}");
         GameDisplay.AddNarrative($"Vitality: {animal.Vitality * 100:F0}%");
-        GameDisplay.AddNarrative($"Behavior: {animal.BehaviorType}");
 
-        // Show detection chance for next approach
+        // Show detection chance for next approach (uses traits + activity)
         int huntingSkill = _player.Skills.GetSkill("Hunting").Level;
         double nextApproachDistance = animal.DistanceFromPlayer - 25; // Average approach
-        double detectionChance = HuntingCalculator.CalculateDetectionChance(
+        double detectionChance = HuntingCalculator.CalculateDetectionChanceWithTraits(
             nextApproachDistance,
-            animal.State,
+            animal,
             huntingSkill,
             animal.FailedStealthChecks
         );
 
         GameDisplay.AddNarrative($"\nNext approach detection risk: {detectionChance * 100:F0}%");
+
+        // Hint about activity affecting detection
+        if (animal.CurrentActivity == AnimalActivity.Grazing)
+            GameDisplay.AddNarrative("It's distracted—a good time to approach.");
+        else if (animal.CurrentActivity == AnimalActivity.Alert)
+            GameDisplay.AddNarrative("It's very alert—approaching now is risky.");
 
         if (animal.State == AnimalState.Alert)
         {

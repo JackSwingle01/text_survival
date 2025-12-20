@@ -97,7 +97,6 @@ public class NeedCraftingSystem
             {
                 Durability = durability,
                 Damage = 4,
-                Accuracy = 1.2,
                 BlockChance = 0.01,
                 WeaponClass = WeaponClass.Blade
             }
@@ -120,7 +119,6 @@ public class NeedCraftingSystem
             {
                 Durability = durability,
                 Damage = 6,
-                Accuracy = 1.4,
                 BlockChance = 0.02,
                 WeaponClass = WeaponClass.Blade
             }
@@ -142,7 +140,6 @@ public class NeedCraftingSystem
             {
                 Durability = durability,
                 Damage = 5,
-                Accuracy = 1.3,
                 BlockChance = 0.02,
                 WeaponClass = WeaponClass.Blade
             }
@@ -168,7 +165,6 @@ public class NeedCraftingSystem
             {
                 Durability = durability,
                 Damage = 7,
-                Accuracy = 1.1,
                 BlockChance = 0.10,
                 WeaponClass = WeaponClass.Pierce
             }
@@ -187,7 +183,6 @@ public class NeedCraftingSystem
             {
                 Durability = durability,
                 Damage = 9,
-                Accuracy = 1.0,
                 BlockChance = 0.12,
                 WeaponClass = WeaponClass.Pierce
             }
@@ -210,7 +205,6 @@ public class NeedCraftingSystem
             {
                 Durability = durability,
                 Damage = 12,
-                Accuracy = 1.2,
                 BlockChance = 0.12,
                 WeaponClass = WeaponClass.Pierce
             }

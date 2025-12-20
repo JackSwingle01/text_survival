@@ -11,7 +11,7 @@ public enum LogLevel
 
 public class NarrativeLog
 {
-    public const int MAX_VISIBLE_LINES = 20;
+    public const int MAX_VISIBLE_LINES = 16;
     private const string SEPARATOR = "· · ·";
     private readonly List<(string Text, LogLevel Level)> _entries = [];
 

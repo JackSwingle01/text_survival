@@ -18,8 +18,11 @@ public static class CapacityCalculator
         var survivalModifier = GetSurvivalStatModifiers(body);
         var withSurvival = withEffects.ApplyModifier(survivalModifier);
 
-        // Apply cascading effects
-        return ApplyCascadingEffects(withSurvival);
+        // Blood multiplies BloodPumping (Heart pumps, Blood is what gets pumped)
+        withSurvival.BloodPumping *= body.Blood.Condition;
+
+        // Apply cascading effects (pass blood condition for circulation cascade)
+        return ApplyCascadingEffects(withSurvival, body.Blood.Condition);
     }
 
 
@@ -60,14 +63,15 @@ public static class CapacityCalculator
         return result;
     }
 
-    private static CapacityContainer ApplyCascadingEffects(CapacityContainer baseCapacities)
+    private static CapacityContainer ApplyCascadingEffects(CapacityContainer baseCapacities, double bloodCondition)
     {
         var result = baseCapacities;
 
-        // Poor blood circulation affects everything
-        if (result.BloodPumping < 0.5)
+        // Blood loss fatal at 50% - circulation fails
+        // Only triggers from actual blood loss, not BloodPumping capacity reductions (cold, etc.)
+        if (bloodCondition < 1.0)
         {
-            double circulationPenalty = 1.0 - (0.5 - result.BloodPumping);
+            double circulationPenalty = Math.Max(0, (bloodCondition - 0.5) / 0.5);
             result.Consciousness *= circulationPenalty;
             result.Moving *= circulationPenalty;
             result.Manipulation *= circulationPenalty;

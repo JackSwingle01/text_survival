@@ -37,7 +37,6 @@ public class EffectRegistry(Actor owner)
         if (_effects.Remove(effect))
         {
             if (!effect.IsActive) return;
-            // todo add removal logic
             effect.IsActive = false;
             if (!string.IsNullOrWhiteSpace(effect.RemovalMessage))
                 _owner.AddLog(effect.RemovalMessage);
@@ -53,8 +52,6 @@ public class EffectRegistry(Actor owner)
         {
             if (!effect.IsActive) continue;
 
-            // todo add update logic
-
             AdvanceSeverityProgress(effect, minutes);
         }
         // Clean up inactive effects
@@ -68,28 +65,25 @@ public class EffectRegistry(Actor owner)
     {
         if (!effect.IsActive) return;
 
-        // block natural healing if it requires treatment
-        if (effect.RequiresTreatment && effect.HourlySeverityChange < 0) return;
-
         double change = effect.HourlySeverityChange / 60 * minutes;
 
         UpdateSeverity(effect, change);
     }
 
+    private const double RequiresTreatmentFloor = 0.05;
+
     private void UpdateSeverity(Effect effect, double change)
     {
         double oldSeverity = effect.Severity;
 
-        effect.Severity = Math.Clamp(effect.Severity + change, 0, 1);
+        // Effects that require treatment decay to a floor instead of fully clearing
+        double floor = effect.RequiresTreatment ? RequiresTreatmentFloor : 0;
+        effect.Severity = Math.Clamp(effect.Severity + change, floor, 1);
 
         var message = GetThresholdMessage(effect, oldSeverity);
         if (!string.IsNullOrWhiteSpace(message))
             _owner.AddLog(message);
 
-        if (Math.Abs(oldSeverity - effect.Severity) >= 0.001)
-        {
-            // todo severity change logic
-        }
     }
 
     private static string? GetThresholdMessage(Effect effect, double oldSeverity)

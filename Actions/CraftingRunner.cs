@@ -22,7 +22,7 @@ public class CraftingRunner(GameContext ctx)
         if (needs.Count == 0)
         {
             GameDisplay.AddNarrative("You don't have materials to make anything useful.");
-            GameDisplay.Render(_ctx);
+            GameDisplay.Render(_ctx, statusText: "Thinking.");
             Input.WaitForKey();
             return;
         }
@@ -34,7 +34,7 @@ public class CraftingRunner(GameContext ctx)
         }
         choice.AddOption("Never mind", null);
 
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Thinking.");
         var selectedNeed = choice.GetPlayerChoice();
 
         if (selectedNeed == null)
@@ -57,13 +57,13 @@ public class CraftingRunner(GameContext ctx)
         if (craftable.Count == 0)
         {
             GameDisplay.AddNarrative($"You need {GetNeedDescription(need)}, but don't have materials to make one.");
-            GameDisplay.Render(_ctx);
+            GameDisplay.Render(_ctx, statusText: "Thinking.");
             Input.WaitForKey();
             return false;
         }
 
         GameDisplay.AddNarrative($"You could make {GetNeedDescription(need)}. Craft one now?");
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Thinking.");
 
         var confirm = new Choice<bool>("Craft now?");
         confirm.AddOption("Yes", true);
@@ -102,7 +102,7 @@ public class CraftingRunner(GameContext ctx)
         if (craftable.Count == 0)
         {
             GameDisplay.AddNarrative("You can't make anything right now.");
-            GameDisplay.Render(_ctx);
+            GameDisplay.Render(_ctx, statusText: "Thinking.");
             Input.WaitForKey();
             return false;
         }
@@ -117,7 +117,7 @@ public class CraftingRunner(GameContext ctx)
 
         choice.AddOption("Cancel", null);
 
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Planning.");
         var selected = choice.GetPlayerChoice();
 
         if (selected == null)
@@ -129,22 +129,41 @@ public class CraftingRunner(GameContext ctx)
     private bool DoCraft(CraftOption option)
     {
         GameDisplay.AddNarrative($"You begin working on a {option.Name}...");
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Working.");
 
         // Time passes
         _ctx.Update(option.CraftingTimeMinutes);
 
         // Create the tool
         var tool = option.Craft(_ctx.Inventory);
-        _ctx.Inventory.Tools.Add(tool);
 
-        GameDisplay.AddSuccess($"You crafted a {tool.Name}!");
+        // Auto-equip weapons, otherwise add to tools
+        if (tool.IsWeapon)
+        {
+            var previous = _ctx.Inventory.EquipWeapon(tool);
+            if (previous != null)
+            {
+                _ctx.Inventory.Tools.Add(previous);
+                GameDisplay.AddSuccess($"You crafted a {tool.Name}!");
+                GameDisplay.AddNarrative($"You swap your {previous.Name} for the {tool.Name}.");
+            }
+            else
+            {
+                GameDisplay.AddSuccess($"You crafted a {tool.Name}!");
+                GameDisplay.AddNarrative($"You equip the {tool.Name}.");
+            }
+        }
+        else
+        {
+            _ctx.Inventory.Tools.Add(tool);
+            GameDisplay.AddSuccess($"You crafted a {tool.Name}!");
+        }
         if (option.Durability > 0)
         {
             GameDisplay.AddNarrative($"It should last for about {option.Durability} uses.");
         }
 
-        GameDisplay.Render(_ctx);
+        GameDisplay.Render(_ctx, statusText: "Satisfied.");
         Input.WaitForKey();
 
         return true;

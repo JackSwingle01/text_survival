@@ -1,4 +1,4 @@
-namespace text_survival.Actors.NPCs
+namespace text_survival.Actors.Animals
 {
     /// <summary>
     /// Size category for animals, affecting weapon effectiveness.
