@@ -622,120 +622,117 @@ public static class GameDisplay
 
         var inv = ctx.Inventory;
 
-        // Build left column: Equipment + Tools
-        var leftLines = new List<IRenderable>
+        // Column 1: Gear (Equipment + Tools)
+        var gearLines = new List<IRenderable>
         {
-            new Markup("[bold underline]EQUIPPED[/]"),
+            new Markup("[bold underline]GEAR[/]"),
             new Text("")
         };
 
         // Weapon
         if (inv.Weapon != null)
-            leftLines.Add(new Markup($"[white]Weapon:[/] [yellow]{Markup.Escape(inv.Weapon.Name)}[/] [grey]({inv.Weapon.Damage:F0} dmg)[/]"));
+            gearLines.Add(new Markup($"[yellow]{Markup.Escape(inv.Weapon.Name)}[/] [grey]({inv.Weapon.Damage:F0} dmg)[/]"));
         else
-            leftLines.Add(new Markup("[white]Weapon:[/] [grey]—[/]"));
+            gearLines.Add(new Markup("[grey]No weapon[/]"));
 
         // Armor slots
-        AddEquipmentLine(leftLines, "Head", inv.Head);
-        AddEquipmentLine(leftLines, "Chest", inv.Chest);
-        AddEquipmentLine(leftLines, "Legs", inv.Legs);
-        AddEquipmentLine(leftLines, "Feet", inv.Feet);
-        AddEquipmentLine(leftLines, "Hands", inv.Hands);
+        AddEquipmentLineCompact(gearLines, inv.Head);
+        AddEquipmentLineCompact(gearLines, inv.Chest);
+        AddEquipmentLineCompact(gearLines, inv.Legs);
+        AddEquipmentLineCompact(gearLines, inv.Feet);
+        AddEquipmentLineCompact(gearLines, inv.Hands);
 
-        leftLines.Add(new Text(""));
-        leftLines.Add(new Markup($"[cyan]Total Insulation:[/] [white]{inv.TotalInsulation * 100:F0}%[/]"));
+        if (inv.TotalInsulation > 0)
+            gearLines.Add(new Markup($"[cyan]+{inv.TotalInsulation * 100:F0}% insulation[/]"));
 
-        // Tools section
-        leftLines.Add(new Text(""));
-        leftLines.Add(new Markup("[bold underline]TOOLS[/]"));
-        leftLines.Add(new Text(""));
+        gearLines.Add(new Text(""));
 
-        if (inv.Tools.Count == 0)
-        {
-            leftLines.Add(new Markup("[grey]No tools[/]"));
-        }
-        else
+        // Tools
+        if (inv.Tools.Count > 0)
         {
             foreach (var tool in inv.Tools)
             {
                 string weaponInfo = tool.IsWeapon ? $" [grey]({tool.Damage:F0} dmg)[/]" : "";
-                leftLines.Add(new Markup($"[white]{Markup.Escape(tool.Name)}[/] [grey]({tool.Weight:F1}kg)[/]{weaponInfo}"));
+                gearLines.Add(new Markup($"[white]{Markup.Escape(tool.Name)}[/]{weaponInfo}"));
             }
         }
 
         // Special items
-        if (inv.Special.Count > 0)
+        foreach (var item in inv.Special)
         {
-            leftLines.Add(new Text(""));
-            leftLines.Add(new Markup("[bold underline]SPECIAL[/]"));
-            leftLines.Add(new Text(""));
-            foreach (var item in inv.Special)
-            {
-                leftLines.Add(new Markup($"[magenta]{Markup.Escape(item.Name)}[/] [grey]({item.Weight:F1}kg)[/]"));
-            }
+            gearLines.Add(new Markup($"[magenta]{Markup.Escape(item.Name)}[/]"));
         }
 
-        // Build right column: Resources
-        var rightLines = new List<IRenderable>
+        // Column 2: Fuel
+        var fuelLines = new List<IRenderable>
         {
-            new Markup("[bold underline]RESOURCES[/]"),
+            new Markup("[orange1 bold underline]FUEL[/]"),
             new Text("")
         };
 
-        // Fuel
-        rightLines.Add(new Markup("[orange1 bold]Fuel[/]"));
         if (inv.LogCount > 0)
-            rightLines.Add(new Markup($"  [white]{inv.LogCount} logs[/] [grey]({inv.Logs.Sum():F1}kg)[/]"));
+            fuelLines.Add(new Markup($"[white]{inv.LogCount} logs[/] [grey]({inv.Logs.Sum():F1}kg)[/]"));
         if (inv.StickCount > 0)
-            rightLines.Add(new Markup($"  [white]{inv.StickCount} sticks[/] [grey]({inv.Sticks.Sum():F1}kg)[/]"));
+            fuelLines.Add(new Markup($"[white]{inv.StickCount} sticks[/] [grey]({inv.Sticks.Sum():F1}kg)[/]"));
         if (inv.TinderCount > 0)
-            rightLines.Add(new Markup($"  [white]{inv.TinderCount} tinder[/] [grey]({inv.Tinder.Sum():F2}kg)[/]"));
-        if (!inv.HasFuel && inv.TinderCount == 0)
-            rightLines.Add(new Markup("  [grey]None[/]"));
+            fuelLines.Add(new Markup($"[white]{inv.TinderCount} tinder[/] [grey]({inv.Tinder.Sum():F2}kg)[/]"));
+        if (!inv.HasFuel)
+            fuelLines.Add(new Markup("[grey]None[/]"));
         else
-            rightLines.Add(new Markup($"  [grey italic]~{inv.TotalFuelBurnTimeHours:F1} hrs burn time[/]"));
+            fuelLines.Add(new Markup($"[grey italic]~{inv.TotalFuelBurnTimeHours:F1} hrs[/]"));
 
-        rightLines.Add(new Text(""));
+        // Column 3: Food/Water
+        var foodLines = new List<IRenderable>
+        {
+            new Markup("[green bold underline]FOOD/WATER[/]"),
+            new Text("")
+        };
 
-        // Food
-        rightLines.Add(new Markup("[green bold]Food[/]"));
         if (inv.CookedMeatCount > 0)
-            rightLines.Add(new Markup($"  [white]{inv.CookedMeatCount} cooked meat[/] [grey]({inv.CookedMeat.Sum():F1}kg)[/]"));
+            foodLines.Add(new Markup($"[white]{inv.CookedMeatCount} cooked meat[/] [grey]({inv.CookedMeat.Sum():F1}kg)[/]"));
         if (inv.RawMeatCount > 0)
-            rightLines.Add(new Markup($"  [yellow]{inv.RawMeatCount} raw meat[/] [grey]({inv.RawMeat.Sum():F1}kg)[/]"));
+            foodLines.Add(new Markup($"[yellow]{inv.RawMeatCount} raw meat[/] [grey]({inv.RawMeat.Sum():F1}kg)[/]"));
         if (inv.BerryCount > 0)
-            rightLines.Add(new Markup($"  [white]{inv.BerryCount} berries[/] [grey]({inv.Berries.Sum():F2}kg)[/]"));
-        if (!inv.HasFood)
-            rightLines.Add(new Markup("  [grey]None[/]"));
-
-        rightLines.Add(new Text(""));
-
-        // Water
-        rightLines.Add(new Markup("[blue bold]Water[/]"));
+            foodLines.Add(new Markup($"[white]{inv.BerryCount} berries[/] [grey]({inv.Berries.Sum():F2}kg)[/]"));
         if (inv.HasWater)
-            rightLines.Add(new Markup($"  [white]{inv.WaterLiters:F1}L[/]"));
-        else
-            rightLines.Add(new Markup("  [grey]None[/]"));
+            foodLines.Add(new Markup($"[blue]{inv.WaterLiters:F1}L water[/]"));
+        if (!inv.HasFood && !inv.HasWater)
+            foodLines.Add(new Markup("[grey]None[/]"));
+
+        // Column 4: Materials
+        var matLines = new List<IRenderable>
+        {
+            new Markup("[purple bold underline]MATERIALS[/]"),
+            new Text("")
+        };
+
+        if (inv.StoneCount > 0)
+            matLines.Add(new Markup($"[white]{inv.StoneCount} stone[/] [grey]({inv.Stone.Sum():F1}kg)[/]"));
+        if (inv.BoneCount > 0)
+            matLines.Add(new Markup($"[white]{inv.BoneCount} bone[/] [grey]({inv.Bone.Sum():F1}kg)[/]"));
+        if (inv.HideCount > 0)
+            matLines.Add(new Markup($"[white]{inv.HideCount} hide[/] [grey]({inv.Hide.Sum():F1}kg)[/]"));
+        if (inv.PlantFiberCount > 0)
+            matLines.Add(new Markup($"[white]{inv.PlantFiberCount} plant fiber[/] [grey]({inv.PlantFiber.Sum():F2}kg)[/]"));
+        if (inv.SinewCount > 0)
+            matLines.Add(new Markup($"[white]{inv.SinewCount} sinew[/] [grey]({inv.Sinew.Sum():F2}kg)[/]"));
+        if (!inv.HasCraftingMaterials)
+            matLines.Add(new Markup("[grey]None[/]"));
 
         // Pad columns to same height
-        int maxLines = Math.Max(leftLines.Count, rightLines.Count);
-        while (leftLines.Count < maxLines) leftLines.Add(new Text(""));
-        while (rightLines.Count < maxLines) rightLines.Add(new Text(""));
+        int maxLines = Math.Max(Math.Max(gearLines.Count, fuelLines.Count), Math.Max(foodLines.Count, matLines.Count));
+        while (gearLines.Count < maxLines) gearLines.Add(new Text(""));
+        while (fuelLines.Count < maxLines) fuelLines.Add(new Text(""));
+        while (foodLines.Count < maxLines) foodLines.Add(new Text(""));
+        while (matLines.Count < maxLines) matLines.Add(new Text(""));
 
         // Build layout
-        var leftPanel = new Panel(new Rows(leftLines))
-        {
-            Border = BoxBorder.None,
-            Padding = new Padding(1, 0, 2, 0)
-        };
+        var gearPanel = new Panel(new Rows(gearLines)) { Border = BoxBorder.None, Padding = new Padding(1, 0, 1, 0) };
+        var fuelPanel = new Panel(new Rows(fuelLines)) { Border = BoxBorder.None, Padding = new Padding(1, 0, 1, 0) };
+        var foodPanel = new Panel(new Rows(foodLines)) { Border = BoxBorder.None, Padding = new Padding(1, 0, 1, 0) };
+        var matPanel = new Panel(new Rows(matLines)) { Border = BoxBorder.None, Padding = new Padding(1, 0, 1, 0) };
 
-        var rightPanel = new Panel(new Rows(rightLines))
-        {
-            Border = BoxBorder.None,
-            Padding = new Padding(2, 0, 1, 0)
-        };
-
-        var columns = new Columns(leftPanel, rightPanel).Expand();
+        var columns = new Columns(gearPanel, fuelPanel, foodPanel, matPanel).Expand();
 
         // Weight summary
         double weightPercent = inv.MaxWeightKg > 0 ? inv.CurrentWeightKg / inv.MaxWeightKg * 100 : 0;
@@ -753,6 +750,12 @@ public static class GameDisplay
         };
 
         AnsiConsole.Write(mainPanel);
+    }
+
+    private static void AddEquipmentLineCompact(List<IRenderable> lines, Equipment? equipment)
+    {
+        if (equipment != null)
+            lines.Add(new Markup($"[cyan]{Markup.Escape(equipment.Name)}[/] [grey](+{equipment.Insulation * 100:F0}%)[/]"));
     }
 
     private static void AddEquipmentLine(List<IRenderable> lines, string slot, Equipment? equipment)

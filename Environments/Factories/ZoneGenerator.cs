@@ -56,7 +56,7 @@ public class ZoneGenerator
 
     private Location CreateStartingLocation(Zone zone)
     {
-        var start = new Location("Forest Clearing", zone)
+        var start = new Location("Forest Camp", zone)
         {
             Exposure = 0.4,
             Terrain = TerrainType.Clear,

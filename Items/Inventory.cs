@@ -342,5 +342,102 @@ public class Inventory
     /// Create a camp storage with unlimited capacity.
     /// </summary>
     public static Inventory CreateCampStorage() =>
-        new() { MaxWeightKg = -1 };
+        new() { MaxWeightKg = 500.0 };
+
+    /// <summary>
+    /// Get a list of all transferable items with descriptions for UI.
+    /// Returns tuples of (category, description, weight, transferAction).
+    /// </summary>
+    public List<(string Category, string Description, double Weight, Action TransferTo)> GetTransferableItems(Inventory target)
+    {
+        var items = new List<(string, string, double, Action)>();
+
+        // Fuel
+        for (int i = 0; i < Logs.Count; i++)
+        {
+            int idx = i;
+            double w = Logs[idx];
+            items.Add(("Fuel", $"Log ({w:F1}kg)", w, () => { target.Logs.Add(w); Logs.RemoveAt(idx); }));
+        }
+        for (int i = 0; i < Sticks.Count; i++)
+        {
+            int idx = i;
+            double w = Sticks[idx];
+            items.Add(("Fuel", $"Stick ({w:F2}kg)", w, () => { target.Sticks.Add(w); Sticks.RemoveAt(idx); }));
+        }
+        for (int i = 0; i < Tinder.Count; i++)
+        {
+            int idx = i;
+            double w = Tinder[idx];
+            items.Add(("Fuel", $"Tinder ({w:F2}kg)", w, () => { target.Tinder.Add(w); Tinder.RemoveAt(idx); }));
+        }
+
+        // Food
+        for (int i = 0; i < CookedMeat.Count; i++)
+        {
+            int idx = i;
+            double w = CookedMeat[idx];
+            items.Add(("Food", $"Cooked meat ({w:F1}kg)", w, () => { target.CookedMeat.Add(w); CookedMeat.RemoveAt(idx); }));
+        }
+        for (int i = 0; i < RawMeat.Count; i++)
+        {
+            int idx = i;
+            double w = RawMeat[idx];
+            items.Add(("Food", $"Raw meat ({w:F1}kg)", w, () => { target.RawMeat.Add(w); RawMeat.RemoveAt(idx); }));
+        }
+        for (int i = 0; i < Berries.Count; i++)
+        {
+            int idx = i;
+            double w = Berries[idx];
+            items.Add(("Food", $"Berries ({w:F2}kg)", w, () => { target.Berries.Add(w); Berries.RemoveAt(idx); }));
+        }
+
+        // Water (transfer in 0.5L increments)
+        if (WaterLiters >= 0.5)
+        {
+            items.Add(("Water", $"Water (0.5L)", 0.5, () => { target.WaterLiters += 0.5; WaterLiters -= 0.5; }));
+        }
+
+        // Materials
+        for (int i = 0; i < Stone.Count; i++)
+        {
+            int idx = i;
+            double w = Stone[idx];
+            items.Add(("Materials", $"Stone ({w:F1}kg)", w, () => { target.Stone.Add(w); Stone.RemoveAt(idx); }));
+        }
+        for (int i = 0; i < Bone.Count; i++)
+        {
+            int idx = i;
+            double w = Bone[idx];
+            items.Add(("Materials", $"Bone ({w:F1}kg)", w, () => { target.Bone.Add(w); Bone.RemoveAt(idx); }));
+        }
+        for (int i = 0; i < Hide.Count; i++)
+        {
+            int idx = i;
+            double w = Hide[idx];
+            items.Add(("Materials", $"Hide ({w:F1}kg)", w, () => { target.Hide.Add(w); Hide.RemoveAt(idx); }));
+        }
+        for (int i = 0; i < PlantFiber.Count; i++)
+        {
+            int idx = i;
+            double w = PlantFiber[idx];
+            items.Add(("Materials", $"Plant fiber ({w:F2}kg)", w, () => { target.PlantFiber.Add(w); PlantFiber.RemoveAt(idx); }));
+        }
+        for (int i = 0; i < Sinew.Count; i++)
+        {
+            int idx = i;
+            double w = Sinew[idx];
+            items.Add(("Materials", $"Sinew ({w:F2}kg)", w, () => { target.Sinew.Add(w); Sinew.RemoveAt(idx); }));
+        }
+
+        // Tools
+        for (int i = 0; i < Tools.Count; i++)
+        {
+            int idx = i;
+            var tool = Tools[idx];
+            items.Add(("Tools", $"{tool.Name} ({tool.Weight:F1}kg)", tool.Weight, () => { target.Tools.Add(tool); Tools.RemoveAt(idx); }));
+        }
+
+        return items;
+    }
 }

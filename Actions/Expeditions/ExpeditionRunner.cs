@@ -174,182 +174,46 @@ public class ExpeditionRunner(GameContext ctx)
         string workType = workChoice.GetPlayerChoice();
         expedition.State = ExpeditionState.Working;
 
+        var work = new WorkRunner(_ctx);
+        WorkResult? result = null;
+
         switch (workType)
         {
             case "forage":
-                DoForageWork(expedition);
+                result = work.DoForage(expedition.CurrentLocation);
                 break;
             case "harvest":
-                DoHarvestWork(expedition);
+                result = work.DoHarvest(expedition.CurrentLocation);
                 break;
             case "hunt":
                 DoHuntWork(expedition);
                 break;
             case "explore":
-                DoExploreWork(expedition);
+                result = work.DoExplore(expedition.CurrentLocation);
                 break;
             case "cancel":
                 break;
         }
 
+        // Log results to expedition
+        if (result != null)
+        {
+            expedition.CollectionLog.AddRange(result.CollectedItems);
+            expedition.AddTime(result.MinutesElapsed);
+            if (result.DiscoveredLocation != null)
+                expedition.AddLog($"Discovered: {result.DiscoveredLocation.Name}");
+        }
+
         expedition.State = ExpeditionState.Traveling;
     }
 
-    private bool HasWorkOptions(Location location)
-    {
-        if (location.HasFeature<ForageFeature>())
-            return true;
+    private bool HasWorkOptions(Location location) =>
+        WorkRunner.HasWorkOptions(_ctx, location, includeHunt: true);
 
-        var harvestables = location.Features
-            .OfType<HarvestableFeature>()
-            .Where(h => h.IsDiscovered && h.HasAvailableResources());
-        if (harvestables.Any())
-            return true;
+    private Choice<string>? GetWorkOptions(Location location) =>
+        WorkRunner.GetWorkOptions(_ctx, location, includeHunt: true);
 
-        if (location.HasFeature<AnimalTerritoryFeature>())
-            return true;
-
-        // Can explore if there are unrevealed locations in the zone
-        if (_ctx.Zone.HasUnrevealedLocations())
-            return true;
-
-        return false;
-    }
-
-    private Choice<string>? GetWorkOptions(Location location)
-    {
-        var choice = new Choice<string>("What work do you want to do?");
-        bool hasOptions = false;
-
-        if (location.HasFeature<ForageFeature>())
-        {
-            var forage = location.GetFeature<ForageFeature>()!;
-            choice.AddOption($"Forage for resources ({forage.GetQualityDescription()})", "forage");
-            hasOptions = true;
-        }
-
-        var harvestables = location.Features
-            .OfType<HarvestableFeature>()
-            .Where(h => h.IsDiscovered && h.HasAvailableResources());
-        if (harvestables.Any())
-        {
-            choice.AddOption("Harvest resources", "harvest");
-            hasOptions = true;
-        }
-
-        if (location.HasFeature<AnimalTerritoryFeature>())
-        {
-            var territory = location.GetFeature<AnimalTerritoryFeature>()!;
-            choice.AddOption($"Hunt ({territory.GetQualityDescription()})", "hunt");
-            hasOptions = true;
-        }
-
-        if (_ctx.Zone.HasUnrevealedLocations())
-        {
-            choice.AddOption("Explore the area (discover new locations)", "explore");
-            hasOptions = true;
-        }
-
-        choice.AddOption("Cancel", "cancel");
-        return hasOptions ? choice : null;
-    }
-
-    // --- Work Methods ---
-
-    private void DoForageWork(Expedition expedition)
-    {
-        GameDisplay.Render(_ctx);
-        var workTimeChoice = new Choice<int>("How long should you forage?");
-        workTimeChoice.AddOption("Quick gather - 15 min", 15);
-        workTimeChoice.AddOption("Standard search - 30 min", 30);
-        workTimeChoice.AddOption("Thorough search - 60 min", 60);
-        int workTime = workTimeChoice.GetPlayerChoice();
-
-        bool died = RunWorkWithProgress(expedition, workTime, "Foraging");
-        if (died) return;
-
-        var feature = expedition.CurrentLocation.GetFeature<ForageFeature>()!;
-        var found = feature.Forage(workTime / 60.0);
-        _ctx.Inventory.Add(found);
-
-        string quality = feature.GetQualityDescription();
-        if (found.IsEmpty)
-        {
-            GameDisplay.AddNarrative(GetForageFailureMessage(quality));
-        }
-        else
-        {
-            foreach (var desc in found.Descriptions)
-            {
-                GameDisplay.AddNarrative($"You found {desc}");
-                expedition.CollectionLog.Add(desc);
-            }
-            if (quality == "sparse" || quality == "picked over")
-                GameDisplay.AddNarrative("Resources here are getting scarce.");
-        }
-        GameDisplay.Render(_ctx);
-        Input.WaitForKey();
-    }
-
-    private void DoHarvestWork(Expedition expedition)
-    {
-        var harvestables = expedition.CurrentLocation.Features
-            .OfType<HarvestableFeature>()
-            .Where(h => h.IsDiscovered && h.HasAvailableResources())
-            .ToList();
-
-        if (harvestables.Count == 0)
-        {
-            GameDisplay.AddNarrative("There's nothing to harvest here.");
-            return;
-        }
-
-        HarvestableFeature target;
-        if (harvestables.Count == 1)
-        {
-            target = harvestables[0];
-        }
-        else
-        {
-            GameDisplay.Render(_ctx);
-            var harvestChoice = new Choice<HarvestableFeature>("What do you want to harvest?");
-            foreach (var h in harvestables)
-            {
-                harvestChoice.AddOption($"{h.DisplayName} - {h.GetStatusDescription()}", h);
-            }
-            target = harvestChoice.GetPlayerChoice();
-        }
-
-        GameDisplay.Render(_ctx);
-        var workTimeChoice = new Choice<int>($"How long should you harvest {target.DisplayName}?");
-        workTimeChoice.AddOption("Quick work - 15 min", 15);
-        workTimeChoice.AddOption("Standard work - 30 min", 30);
-        workTimeChoice.AddOption("Thorough work - 60 min", 60);
-        int workTime = workTimeChoice.GetPlayerChoice();
-
-        bool died = RunWorkWithProgress(expedition, workTime, "Harvesting");
-        if (died) return;
-
-        var found = target.Harvest(workTime);
-        _ctx.Inventory.Add(found);
-
-        if (found.IsEmpty)
-        {
-            GameDisplay.AddNarrative("You didn't get anything.");
-        }
-        else
-        {
-            foreach (var desc in found.Descriptions)
-            {
-                GameDisplay.AddNarrative($"You harvested {desc}");
-                expedition.CollectionLog.Add(desc);
-            }
-        }
-
-        GameDisplay.AddNarrative($"{target.DisplayName}: {target.GetStatusDescription()}");
-        GameDisplay.Render(_ctx);
-        Input.WaitForKey();
-    }
+    // --- Hunting (stays here - interactive, not time-passage based) ---
 
     private void DoHuntWork(Expedition expedition)
     {
@@ -375,6 +239,8 @@ public class ExpeditionRunner(GameContext ctx)
                 break;
 
             int searchTime = 15;
+            GameDisplay.Render(_ctx);
+            Output.ProgressSimple("Searching for game...", searchTime);
             _ctx.Update(searchTime);
             expedition.AddTime(searchTime);
 
@@ -398,6 +264,11 @@ public class ExpeditionRunner(GameContext ctx)
                 continue;
 
             int huntMinutes = RunSingleHunt(found, expedition.CurrentLocation, expedition);
+            if (huntMinutes > 0)
+            {
+                GameDisplay.Render(_ctx);
+                Output.ProgressSimple("Stalking...", huntMinutes);
+            }
             _ctx.Update(huntMinutes);
             expedition.AddTime(huntMinutes);
 
@@ -807,77 +678,6 @@ public class ExpeditionRunner(GameContext ctx)
 
     #endregion
 
-    private void DoExploreWork(Expedition expedition)
-    {
-        // Check if there are unrevealed locations
-        if (!_ctx.Zone.HasUnrevealedLocations())
-        {
-            GameDisplay.AddNarrative("You've explored everything reachable from here.");
-            return;
-        }
-
-        var location = expedition.CurrentLocation;
-        double successChance = CalculateExploreChance(location);
-
-        GameDisplay.Render(_ctx);
-        var timeChoice = new Choice<int>($"How thoroughly should you scout? ({successChance:P0} chance to find something)");
-        timeChoice.AddOption("Quick scout - 15 min", 15);
-        timeChoice.AddOption("Standard scout - 30 min (+10%)", 30);
-        timeChoice.AddOption("Thorough scout - 60 min (+20%)", 60);
-        int exploreTime = timeChoice.GetPlayerChoice();
-
-        // Longer scouting improves chances
-        double timeBonus = exploreTime switch
-        {
-            30 => 0.10,
-            60 => 0.20,
-            _ => 0.0
-        };
-        double finalChance = Math.Min(0.95, successChance + timeBonus);
-
-        bool died = RunWorkWithProgress(expedition, exploreTime, "Exploring");
-        if (died) return;
-
-        // Roll for success
-        if (Utils.RandDouble(0, 1) <= finalChance)
-        {
-            var newLocation = _ctx.Zone.RevealRandomLocation(location);
-
-            if (newLocation != null)
-            {
-                GameDisplay.AddSuccess($"You discovered a new area: {newLocation.Name}!");
-                if (!string.IsNullOrEmpty(newLocation.Description))
-                    GameDisplay.AddNarrative(newLocation.Description);
-
-                expedition.AddLog($"Discovered: {newLocation.Name}");
-            }
-            else
-            {
-                GameDisplay.AddNarrative("You scouted the area but found no new paths.");
-            }
-        }
-        else
-        {
-            GameDisplay.AddNarrative("You searched the area but couldn't find any new paths.");
-        }
-
-        GameDisplay.Render(_ctx);
-        Input.WaitForKey();
-    }
-
-    /// <summary>
-    /// Calculate chance to discover a new location.
-    /// Decreases exponentially with existing connections.
-    /// </summary>
-    private static double CalculateExploreChance(Location location)
-    {
-        int connections = location.Connections.Count;
-        double baseChance = 0.90;
-        double decayFactor = 0.55; // Each connection multiplies chance by this
-
-        return baseChance * Math.Pow(decayFactor, connections);
-    }
-
     // --- Progress Bar Helpers ---
 
     /// <summary>
@@ -919,108 +719,12 @@ public class ExpeditionRunner(GameContext ctx)
 
             if (triggeredEvent != null)
             {
-                HandleEvent(triggeredEvent);
+                GameEventRegistry.HandleEvent(_ctx, triggeredEvent);
                 triggeredEvent = null;
             }
         }
 
         return died;
-    }
-
-    /// <summary>
-    /// Runs work with a progress bar. Returns true if player died during work.
-    /// </summary>
-    private bool RunWorkWithProgress(Expedition expedition, int workMinutes, string workType)
-    {
-        int elapsed = 0;
-        GameEvent? triggeredEvent = null;
-        bool died = false;
-
-        while (elapsed < workMinutes && !died)
-        {
-            Output.Progress($"{workType} at {expedition.CurrentLocation.Name}...", workMinutes, task =>
-            {
-                task?.Increment(elapsed);
-
-                while (elapsed < workMinutes && triggeredEvent == null && !died)
-                {
-                    var tickResult = GameEventRegistry.RunTicks(_ctx, 1);
-                    _ctx.Update(tickResult.MinutesElapsed);
-                    elapsed += tickResult.MinutesElapsed;
-                    expedition.AddTime(tickResult.MinutesElapsed);
-                    task?.Increment(tickResult.MinutesElapsed);
-
-                    if (PlayerDied)
-                    {
-                        died = true;
-                        break;
-                    }
-
-                    if (tickResult.TriggeredEvent != null)
-                        triggeredEvent = tickResult.TriggeredEvent;
-
-                    Thread.Sleep(100);
-                }
-            });
-
-            if (died) break;
-
-            if (triggeredEvent != null)
-            {
-                HandleEvent(triggeredEvent);
-                triggeredEvent = null;
-            }
-        }
-
-        return died;
-    }
-
-    private void HandleEvent(GameEvent evt)
-    {
-        GameDisplay.AddNarrative("EVENT:");
-        GameDisplay.AddNarrative($"** {evt.Name} **");
-        GameDisplay.AddNarrative(evt.Description + "\n");
-        GameDisplay.Render(_ctx);
-
-        var choice = evt.Choices.GetPlayerChoice();
-        GameDisplay.AddNarrative(choice.Description + "\n");
-        Input.WaitForKey();
-        Output.ProgressSimple(">", 10);
-
-        var outcome = choice.DetermineResult();
-        HandleOutcome(outcome);
-        GameDisplay.Render(_ctx);
-        Input.WaitForKey();
-    }
-
-    private void HandleOutcome(EventResult outcome)
-    {
-        GameDisplay.AddNarrative("OUTCOME:");
-        GameDisplay.AddNarrative(outcome.Message);
-
-        if (outcome.TimeAddedMinutes != 0)
-        {
-            GameDisplay.AddNarrative($"(+{outcome.TimeAddedMinutes} minutes)");
-            _ctx.Update(outcome.TimeAddedMinutes);
-        }
-
-        if (outcome.NewEffect is not null)
-        {
-            _ctx.player.EffectRegistry.AddEffect(outcome.NewEffect);
-        }
-
-        if (outcome.RewardPool != RewardPool.None)
-        {
-            var resources = RewardGenerator.Generate(outcome.RewardPool);
-            if (!resources.IsEmpty)
-            {
-                _ctx.Inventory.Add(resources);
-                foreach (var desc in resources.Descriptions)
-                {
-                    GameDisplay.AddNarrative($"You found {desc}");
-                }
-            }
-        }
     }
 
     private void DisplayExpeditionSummary(Expedition expedition)
@@ -1043,42 +747,5 @@ public class ExpeditionRunner(GameContext ctx)
         }
 
         Input.WaitForKey();
-    }
-
-    private static string GetForageFailureMessage(string quality)
-    {
-        string[] messages = quality switch
-        {
-            "abundant" => [
-                "You find plenty, but it's all frozen solid or rotted through. The area is rich - just not this haul.",
-                "Fresh snow buries everything. You dig, but there's more here than you had time to uncover.",
-                "A rich area, but everything usable is just out of reach. A longer search would help.",
-                "You find things, but they crumble apart - frozen and brittle. Plenty more here though.",
-                "Ice coats everything. Resources are visible beneath but locked away. The area is clearly bountiful."
-            ],
-            "decent" => [
-                "You find a few scraps, but nothing worth keeping. The area still has potential.",
-                "You turn up a few things, but nothing quite usable. There's more here with patience.",
-                "Resources here take more effort to find. A more thorough search might turn something up.",
-                "You turn up some possibilities, but nothing usable. More thorough searching might help.",
-                "A modest area. You didn't find much this time, but it's not exhausted."
-            ],
-            "sparse" => [
-                "Slim pickings. Most of what was here has already been taken.",
-                "You find traces of what this place once offered. It's nearly spent.",
-                "Hardly anything left. You'd need luck to find something useful here.",
-                "The area is almost picked clean. Time to look elsewhere.",
-                "Scraps and remnants. This place won't sustain you much longer."
-            ],
-            _ => [
-                "Nothing. This place has been stripped bare.",
-                "You search thoroughly and find nothing. Whatever was here is gone.",
-                "Completely exhausted. You're wasting time here.",
-                "Barren. Not a single useful thing remains.",
-                "Empty. There's nothing left to find."
-            ]
-        };
-
-        return messages[Random.Shared.Next(messages.Length)];
     }
 }

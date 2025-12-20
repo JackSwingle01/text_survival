@@ -74,7 +74,7 @@ public class CraftOption
     }
 
     /// <summary>
-    /// Get a summary string for display.
+    /// Get a summary string for display (shows status).
     /// </summary>
     public string GetRequirementsSummary(Inventory inventory)
     {
@@ -85,6 +85,15 @@ public class CraftOption
             string status = have >= req.Count ? "ok" : $"need {req.Count - have} more";
             parts.Add($"{req.Count} {req.Material.ToLower()} ({status})");
         }
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// Get a short requirements list for display (just counts).
+    /// </summary>
+    public string GetRequirementsShort()
+    {
+        var parts = Requirements.Select(r => $"{r.Count} {r.Material.ToLower()}");
         return string.Join(", ", parts);
     }
 

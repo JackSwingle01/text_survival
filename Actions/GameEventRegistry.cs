@@ -1,6 +1,8 @@
 using text_survival.Effects;
 using text_survival.Environments.Features;
+using text_survival.IO;
 using text_survival.Items;
+using text_survival.UI;
 
 namespace text_survival.Actions;
 
@@ -73,6 +75,62 @@ public static class GameEventRegistry
         // Return one at random if any triggered
         return triggered.Count == 0 ? null : Utils.GetRandomFromList(triggered);
     }
+
+    /// <summary>
+    /// Handle a triggered event - display, get player choice, apply outcome.
+    /// </summary>
+    public static void HandleEvent(GameContext ctx, GameEvent evt)
+    {
+        GameDisplay.AddNarrative("EVENT:");
+        GameDisplay.AddNarrative($"** {evt.Name} **");
+        GameDisplay.AddNarrative(evt.Description + "\n");
+        GameDisplay.Render(ctx);
+
+        var choice = evt.Choices.GetPlayerChoice();
+        GameDisplay.AddNarrative(choice.Description + "\n");
+        Input.WaitForKey();
+        Output.ProgressSimple(">", 10);
+
+        var outcome = choice.DetermineResult();
+        HandleOutcome(ctx, outcome);
+        GameDisplay.Render(ctx);
+        Input.WaitForKey();
+    }
+
+    /// <summary>
+    /// Apply an event outcome - time, effects, rewards.
+    /// </summary>
+    public static void HandleOutcome(GameContext ctx, EventResult outcome)
+    {
+        GameDisplay.AddNarrative("OUTCOME:");
+        GameDisplay.AddNarrative(outcome.Message);
+
+        if (outcome.TimeAddedMinutes != 0)
+        {
+            GameDisplay.AddNarrative($"(+{outcome.TimeAddedMinutes} minutes)");
+            ctx.Update(outcome.TimeAddedMinutes);
+        }
+
+        if (outcome.NewEffect is not null)
+        {
+            ctx.player.EffectRegistry.AddEffect(outcome.NewEffect);
+        }
+
+        if (outcome.RewardPool != RewardPool.None)
+        {
+            var resources = RewardGenerator.Generate(outcome.RewardPool);
+            if (!resources.IsEmpty)
+            {
+                ctx.Inventory.Add(resources);
+                foreach (var desc in resources.Descriptions)
+                {
+                    GameDisplay.AddNarrative($"You found {desc}");
+                }
+            }
+        }
+    }
+
+    // === EVENT FACTORIES ===
 
     private static GameEvent WeatherTurning(GameContext ctx)
     {

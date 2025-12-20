@@ -111,7 +111,7 @@ public class CraftingRunner(GameContext ctx)
 
         foreach (var option in craftable)
         {
-            string label = $"{option.Name} ({option.CraftingTimeMinutes} min)";
+            string label = $"{option.Name} - {option.GetRequirementsShort()} - {option.CraftingTimeMinutes} min";
             choice.AddOption(label, option);
         }
 

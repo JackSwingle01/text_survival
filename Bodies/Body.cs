@@ -142,6 +142,25 @@ public class Body
         if (food.DamageEffect != null) Damage(food.DamageEffect);
     }
 
+    /// <summary>
+    /// Add calories directly (from eating simple foods like berries, meat).
+    /// Calories per kg: Cooked meat ~2500, Raw meat ~1500, Berries ~500
+    /// </summary>
+    public void AddCalories(double calories)
+    {
+        var digestion = GetDigestionCapacity();
+        double absorptionRate = 0.5 + (0.5 * digestion);
+        CalorieStore = Math.Min(SurvivalProcessor.MAX_CALORIES, CalorieStore + calories * absorptionRate);
+    }
+
+    /// <summary>
+    /// Add hydration directly (from drinking water). 1L = 1000ml hydration.
+    /// </summary>
+    public void AddHydration(double ml)
+    {
+        Hydration = Math.Min(SurvivalProcessor.MAX_HYDRATION, Hydration + ml);
+    }
+
     private double GetDigestionCapacity()
     {
         var capacities = CapacityCalculator.GetCapacities(this, new CapacityModifierContainer());

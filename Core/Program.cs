@@ -101,7 +101,7 @@ namespace text_survival.Core
             var gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
             zone.Weather.Update(gameStartTime);
 
-            Location startingArea = zone.Graph.All.First(s => s.Name == "Forest Clearing");
+            Location startingArea = zone.Graph.All.First(s => s.Name == "Forest Camp");
 
             // Starting equipment - basic fur wraps (Ice Age appropriate)
             // (Equipment is equipped directly to player inventory below)

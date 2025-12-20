@@ -42,7 +42,6 @@ public partial class GameRunner(GameContext ctx)
             GameDisplay.Render(ctx);
             CheckFireWarning();
             RunCampMenu();
-            ctx.Update(1);
         }
 
         // Player died from survival conditions - show death message
@@ -66,6 +65,10 @@ public partial class GameRunner(GameContext ctx)
         if (HasActiveFire())
             choice.AddOption("Tend fire", TendFire);
 
+        // Cook/Melt - requires active fire
+        if (HasActiveFire() && (ctx.Inventory.RawMeatCount > 0 || true)) // Snow always available (Ice Age)
+            choice.AddOption("Cook/Melt", CookMelt);
+
         if (CanStartFire())
             choice.AddOption("Start fire", StartFire);
 
@@ -77,9 +80,17 @@ public partial class GameRunner(GameContext ctx)
         if (ctx.Inventory.HasCraftingMaterials)
             choice.AddOption("Crafting", RunCrafting);
 
+        // Eat/Drink - consume food and water
+        if (ctx.Inventory.HasFood || ctx.Inventory.HasWater)
+            choice.AddOption("Eat/Drink", EatDrink);
+
         // Leave camp - travel to other locations (only show if destinations exist)
         if (ctx.Camp.Location.Connections.Count > 0)
             choice.AddOption("Leave camp", LeaveCamp);
+
+        // Storage - only at camp
+        if (ctx.CurrentLocation == ctx.Camp.Location)
+            choice.AddOption("Manage storage", ManageStorage);
 
         if (HasItems())
             choice.AddOption("Inventory", RunInventoryMenu);
@@ -90,38 +101,46 @@ public partial class GameRunner(GameContext ctx)
         choice.GetPlayerChoice().Invoke();
     }
 
-    private bool HasCampWork()
-    {
-        var campLocation = ctx.Camp.Location;
-
-        if (campLocation.HasFeature<ForageFeature>())
-            return true;
-
-        if (ctx.Zone.HasUnrevealedLocations())
-            return true;
-
-        return false;
-    }
+    private bool HasCampWork() =>
+        WorkRunner.HasWorkOptions(ctx, ctx.Camp.Location);
 
     private string GetCampWorkLabel()
     {
-        var options = new List<string>();
-
-        if (ctx.Camp.Location.HasFeature<ForageFeature>())
-            options.Add("Forage");
-
-        if (ctx.Zone.HasUnrevealedLocations())
-            options.Add("Scout");
-
-        return options.Count > 0
-            ? $"Work near camp ({string.Join(", ", options)})"
+        var labels = WorkRunner.GetWorkLabels(ctx, ctx.Camp.Location);
+        return labels.Count > 0
+            ? $"Work near camp ({string.Join(", ", labels)})"
             : "Work near camp";
     }
 
     private void WorkAroundCamp()
     {
-        var campWorkRunner = new CampWorkRunner(ctx);
-        campWorkRunner.Run();
+        var campLocation = ctx.Camp.Location;
+        var work = new WorkRunner(ctx);
+
+        var choice = new Choice<string>("What do you want to do?");
+
+        if (campLocation.HasFeature<ForageFeature>())
+        {
+            var forage = campLocation.GetFeature<ForageFeature>()!;
+            choice.AddOption($"Forage nearby ({forage.GetQualityDescription()})", "forage");
+        }
+
+        if (ctx.Zone.HasUnrevealedLocations())
+            choice.AddOption("Scout the area (discover new locations)", "scout");
+
+        choice.AddOption("Cancel", "cancel");
+
+        string action = choice.GetPlayerChoice();
+
+        switch (action)
+        {
+            case "forage":
+                work.DoForage(campLocation);
+                break;
+            case "scout":
+                work.DoExplore(campLocation);
+                break;
+        }
     }
 
     private void RunCrafting()
@@ -348,6 +367,8 @@ public partial class GameRunner(GameContext ctx)
         while (true)
         {
             GameDisplay.AddNarrative($"You work with the {selectedTool.Name}...");
+            GameDisplay.Render(ctx, addSeparator: false);
+            Output.ProgressSimple("Starting fire...", 15);
             ctx.Update(15);
 
             bool success = Utils.DetermineSuccess(finalChance);
@@ -445,6 +466,233 @@ public partial class GameRunner(GameContext ctx)
     {
         GameDisplay.RenderInventoryScreen(ctx);
         Input.WaitForKey("Press any key to return...");
+    }
+
+    private void EatDrink()
+    {
+        var inv = ctx.Inventory;
+        var body = ctx.player.Body;
+
+        while (true)
+        {
+            GameDisplay.ClearNarrative();
+
+            int caloriesPercent = (int)(body.CalorieStore / Survival.SurvivalProcessor.MAX_CALORIES * 100);
+            int hydrationPercent = (int)(body.Hydration / Survival.SurvivalProcessor.MAX_HYDRATION * 100);
+            GameDisplay.AddNarrative($"Food: {caloriesPercent}% | Water: {hydrationPercent}%");
+            GameDisplay.Render(ctx);
+
+            var options = new List<string>();
+            var consumeActions = new Dictionary<string, Action>();
+
+            // Add food options
+            if (inv.CookedMeatCount > 0)
+            {
+                double w = inv.CookedMeat[0];
+                string opt = $"Cooked meat ({w:F1}kg) - ~{(int)(w * 2500)} cal";
+                options.Add(opt);
+                consumeActions[opt] = () =>
+                {
+                    inv.CookedMeat.RemoveAt(0);
+                    body.AddCalories(w * 2500);
+                    GameDisplay.AddSuccess($"You eat the cooked meat. (+{(int)(w * 2500)} cal)");
+                };
+            }
+
+            if (inv.RawMeatCount > 0)
+            {
+                double w = inv.RawMeat[0];
+                string opt = $"Raw meat ({w:F1}kg) - ~{(int)(w * 1500)} cal [risk of illness]";
+                options.Add(opt);
+                consumeActions[opt] = () =>
+                {
+                    inv.RawMeat.RemoveAt(0);
+                    body.AddCalories(w * 1500);
+                    GameDisplay.AddWarning($"You eat the raw meat. (+{(int)(w * 1500)} cal)");
+                    // TODO: Add chance of food poisoning
+                };
+            }
+
+            if (inv.BerryCount > 0)
+            {
+                double w = inv.Berries[0];
+                string opt = $"Berries ({w:F2}kg) - ~{(int)(w * 500)} cal";
+                options.Add(opt);
+                consumeActions[opt] = () =>
+                {
+                    inv.Berries.RemoveAt(0);
+                    body.AddCalories(w * 500);
+                    body.AddHydration(w * 200); // Berries have some water content
+                    GameDisplay.AddSuccess($"You eat the berries. (+{(int)(w * 500)} cal)");
+                };
+            }
+
+            if (inv.HasWater && inv.WaterLiters >= 0.25)
+            {
+                string opt = $"Drink water (0.25L)";
+                options.Add(opt);
+                consumeActions[opt] = () =>
+                {
+                    inv.WaterLiters -= 0.25;
+                    body.AddHydration(250);
+                    GameDisplay.AddSuccess("You drink some water. (+250 hydration)");
+                };
+            }
+
+            options.Add("Done");
+
+            if (options.Count == 1)
+            {
+                GameDisplay.AddNarrative("You have nothing to eat or drink.");
+                GameDisplay.Render(ctx);
+                Input.WaitForKey();
+                break;
+            }
+
+            string choice = Input.Select("What would you like to consume?", options);
+
+            if (choice == "Done")
+                break;
+
+            consumeActions[choice]();
+            ctx.Update(5); // Eating takes a few minutes
+            GameDisplay.Render(ctx);
+            Input.WaitForKey();
+        }
+    }
+
+    private void CookMelt()
+    {
+        var inv = ctx.Inventory;
+
+        while (true)
+        {
+            GameDisplay.ClearNarrative();
+            GameDisplay.AddNarrative($"Water: {inv.WaterLiters:F1}L | Raw meat: {inv.RawMeatCount}");
+            GameDisplay.Render(ctx);
+
+            var options = new List<string>();
+            var actions = new Dictionary<string, Action>();
+
+            // Cook raw meat
+            if (inv.RawMeatCount > 0)
+            {
+                double w = inv.RawMeat[0];
+                string opt = $"Cook raw meat ({w:F1}kg) - 5 min";
+                options.Add(opt);
+                actions[opt] = () =>
+                {
+                    GameDisplay.Render(ctx);
+                    Output.ProgressSimple("Cooking meat...", 5);
+                    inv.RawMeat.RemoveAt(0);
+                    inv.CookedMeat.Add(w);
+                    ctx.Update(5);
+                    GameDisplay.AddSuccess($"Cooked {w:F1}kg of meat.");
+                };
+            }
+
+            // Melt snow (always available in Ice Age)
+            string snowOpt = "Melt snow for water - 5 min";
+            options.Add(snowOpt);
+            actions[snowOpt] = () =>
+            {
+                GameDisplay.Render(ctx);
+                Output.ProgressSimple("Melting snow...", 5);
+                inv.WaterLiters += 0.5;
+                ctx.Update(5);
+                GameDisplay.AddSuccess("Melted snow into 0.5L of water.");
+            };
+
+            options.Add("Done");
+
+            string choice = Input.Select("What would you like to do?", options);
+
+            if (choice == "Done")
+                break;
+
+            actions[choice]();
+            GameDisplay.Render(ctx);
+            Input.WaitForKey();
+        }
+    }
+
+    private void ManageStorage()
+    {
+        var playerInv = ctx.Inventory;
+        var campStorage = ctx.Camp.Storage;
+
+        while (true)
+        {
+            GameDisplay.ClearNarrative();
+            GameDisplay.AddNarrative($"Your inventory: {playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg");
+            GameDisplay.AddNarrative($"Camp storage: {campStorage.CurrentWeightKg:F1} kg");
+            GameDisplay.Render(ctx);
+
+            var choice = Input.Select("What would you like to do?", ["Store items", "Retrieve items", "Back"]);
+
+            if (choice == "Back")
+                break;
+
+            if (choice == "Store items")
+            {
+                var items = playerInv.GetTransferableItems(campStorage);
+                if (items.Count == 0)
+                {
+                    GameDisplay.AddNarrative("You have nothing to store.");
+                    GameDisplay.Render(ctx);
+                    Input.WaitForKey();
+                    continue;
+                }
+
+                var options = items.Select(i => $"{i.Description}").ToList();
+                options.Add("Cancel");
+
+                GameDisplay.Render(ctx);
+                string selected = Input.Select("Store which item?", options);
+
+                if (selected != "Cancel")
+                {
+                    int idx = options.IndexOf(selected);
+                    items[idx].TransferTo();
+                    GameDisplay.AddNarrative($"Stored {items[idx].Description}");
+                }
+            }
+            else if (choice == "Retrieve items")
+            {
+                var items = campStorage.GetTransferableItems(playerInv);
+                if (items.Count == 0)
+                {
+                    GameDisplay.AddNarrative("Camp storage is empty.");
+                    GameDisplay.Render(ctx);
+                    Input.WaitForKey();
+                    continue;
+                }
+
+                var options = items.Select(i => $"{i.Description}").ToList();
+                options.Add("Cancel");
+
+                GameDisplay.Render(ctx);
+                string selected = Input.Select("Retrieve which item?", options);
+
+                if (selected != "Cancel")
+                {
+                    int idx = options.IndexOf(selected);
+                    double itemWeight = items[idx].Weight;
+
+                    // Check weight limit
+                    if (!playerInv.CanCarry(itemWeight))
+                    {
+                        GameDisplay.AddWarning($"You can't carry that much! ({playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg)");
+                        GameDisplay.Render(ctx);
+                        Input.WaitForKey();
+                        continue;
+                    }
+
+                    items[idx].TransferTo();
+                    GameDisplay.AddNarrative($"Retrieved {items[idx].Description}");
+                }
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

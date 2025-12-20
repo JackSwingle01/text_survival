@@ -288,11 +288,12 @@ public class Location
     {
         double quality = (s.TemperatureInsulation + s.OverheadCoverage + s.WindCoverage) / 3;
         string name = s.Name.ToLower();
+        string article = "aeiou".Contains(name[0]) ? "an" : "a";
         return quality switch
         {
-            >= 0.7 => $"well-sheltered by {name}",
-            >= 0.4 => $"beneath {name}",
-            _ => $"with only {name} for cover"
+            >= 0.7 => $"well-sheltered by {article} {name}",
+            >= 0.4 => $"beneath {article} {name}",
+            _ => $"with only {article} {name} for cover"
         };
     }
 
