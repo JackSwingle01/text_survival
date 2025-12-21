@@ -197,12 +197,14 @@ public static class HuntingCalculator
     /// <param name="maxRange">Maximum effective range of weapon</param>
     /// <param name="baseAccuracy">Base accuracy of weapon (0.65 for stone, 0.70-0.75 for spears)</param>
     /// <param name="targetIsSmall">True if targeting small game (applies 50% penalty for spears)</param>
+    /// <param name="manipulationPenalty">Penalty from manipulation impairment (e.g., 0.15 for -15%)</param>
     /// <returns>Hit chance (0.0 - 1.0)</returns>
     public static double CalculateThrownAccuracy(
         double distance,
         double maxRange,
         double baseAccuracy,
-        bool targetIsSmall)
+        bool targetIsSmall,
+        double manipulationPenalty = 0.0)
     {
         // Beyond max range = 0%
         if (distance > maxRange) return 0;
@@ -212,6 +214,9 @@ public static class HuntingCalculator
 
         // Small target penalty (spears only — stones pass false)
         if (targetIsSmall) accuracy *= 0.5;
+
+        // Manipulation impairment penalty (e.g., clumsy hands)
+        accuracy -= manipulationPenalty;
 
         return Math.Clamp(accuracy, 0.05, 0.95);
     }

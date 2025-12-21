@@ -218,7 +218,7 @@ public static class EffectFactory
 
     /// <summary>
     /// Pain - triggered automatically by physical damage.
-    /// Reduces Manipulation and Consciousness. Fades naturally.
+    /// Reduces Manipulation, Consciousness, and Perception. Fades naturally.
     /// </summary>
     public static Effect Pain(double severity) => new()
     {
@@ -229,13 +229,73 @@ public static class EffectFactory
         RequiresTreatment = false,     // Pain fades naturally
         CapacityModifiers = Capacities(
             (CapacityNames.Manipulation, -0.25),
-            (CapacityNames.Consciousness, -0.15)),
+            (CapacityNames.Consciousness, -0.15),
+            (CapacityNames.Sight, -0.15),      // Pain makes it hard to focus
+            (CapacityNames.Hearing, -0.10)),   // Throbbing distracts from sounds
         ApplicationMessage = "You're in pain.",
         RemovalMessage = "The pain has subsided.",
         ThresholdMessages = [
             new Effect.ThresholdMessage(0.5, "The pain is intense, making it hard to focus.", true),
             new Effect.ThresholdMessage(0.75, "Agonizing pain threatens to overwhelm you.", true),
         ]
+    };
+
+    // === SURVIVAL STAT EFFECTS ===
+
+    /// <summary>
+    /// Hungry - triggered when calories drop below 30%.
+    /// At full severity (0% calories): -35% Moving, -35% Manipulation, -15% Consciousness
+    /// </summary>
+    public static Effect Hungry(double severity) => new()
+    {
+        EffectKind = "Hungry",
+        Source = "survival",
+        Severity = severity,
+        HourlySeverityChange = -1.0,  // Decays quickly when not refreshed
+        CapacityModifiers = Capacities(
+            (CapacityNames.Moving, -0.35),
+            (CapacityNames.Manipulation, -0.35),
+            (CapacityNames.Consciousness, -0.15)),
+        ApplicationMessage = "Your stomach growls. You're getting hungry.",
+        RemovalMessage = "You feel better after eating."
+    };
+
+    /// <summary>
+    /// Thirsty - triggered when hydration drops below 30%.
+    /// At full severity (0% hydration): -40% Moving, -25% Manipulation, -45% Consciousness
+    /// </summary>
+    public static Effect Thirsty(double severity) => new()
+    {
+        EffectKind = "Thirsty",
+        Source = "survival",
+        Severity = severity,
+        HourlySeverityChange = -1.0,
+        CapacityModifiers = Capacities(
+            (CapacityNames.Moving, -0.40),
+            (CapacityNames.Manipulation, -0.25),
+            (CapacityNames.Consciousness, -0.45)),
+        ApplicationMessage = "Your mouth is dry. You need water.",
+        RemovalMessage = "Your thirst is quenched."
+    };
+
+    /// <summary>
+    /// Tired - triggered when energy drops below 30%.
+    /// At full severity (0% energy): -45% Moving, -30% Manipulation, -45% Consciousness, reduced Perception
+    /// </summary>
+    public static Effect Tired(double severity) => new()
+    {
+        EffectKind = "Tired",
+        Source = "survival",
+        Severity = severity,
+        HourlySeverityChange = -1.0,
+        CapacityModifiers = Capacities(
+            (CapacityNames.Moving, -0.45),
+            (CapacityNames.Manipulation, -0.30),
+            (CapacityNames.Consciousness, -0.45),
+            (CapacityNames.Sight, -0.25),      // Droopy eyes, hard to focus
+            (CapacityNames.Hearing, -0.15)),   // Drowsy, less alert to sounds
+        ApplicationMessage = "You're getting tired. Your eyelids feel heavy.",
+        RemovalMessage = "You feel refreshed after resting."
     };
 
     /// <summary>
@@ -401,6 +461,28 @@ public static class EffectFactory
         HourlySeverityChange = -60.0 / durationMinutes,
         CapacityModifiers = Capacities((CapacityNames.Manipulation, -0.3)),
         ApplicationMessage = "Your hands are clumsy and uncoordinated."
+    };
+
+    /// <summary>
+    /// Dazed - head trauma causing disorientation and sensory impairment.
+    /// Triggered by blunt damage to head or severe impacts (falls, accidents).
+    /// Reduces perception (sight/hearing) and consciousness.
+    /// </summary>
+    public static Effect Dazed(double severity) => new()
+    {
+        EffectKind = "Dazed",
+        Source = "concussion",
+        Severity = severity,
+        HourlySeverityChange = -0.15,  // ~6-7 hours to clear
+        CapacityModifiers = Capacities(
+            (CapacityNames.Sight, -0.4),
+            (CapacityNames.Hearing, -0.3),
+            (CapacityNames.Consciousness, -0.2)),
+        ApplicationMessage = "Your vision swims. Everything seems distant.",
+        RemovalMessage = "Your head finally clears.",
+        ThresholdMessages = [
+            new Effect.ThresholdMessage(0.5, "The ringing in your ears is deafening.", true),
+        ]
     };
 
     /// <summary>

@@ -1,5 +1,6 @@
 using text_survival.Actions;
 using text_survival.Actors.Animals;
+using text_survival.Bodies;
 using text_survival.Items;
 using text_survival.UI;
 
@@ -7,11 +8,25 @@ public static class ButcherRunner
 {
     public static FoundResources ButcherAnimal(Animal animal, GameContext ctx)
     {
-        if (ctx.Inventory.HasCuttingTool)
-            return Butcher(animal);
+        FoundResources result;
 
-        GameDisplay.AddWarning("Without a cutting tool, you tear what meat you can by hand...");
-        return ButcherWithoutKnife(animal);
+        if (ctx.Inventory.HasCuttingTool)
+            result = Butcher(animal);
+        else
+        {
+            GameDisplay.AddWarning("Without a cutting tool, you tear what meat you can by hand...");
+            result = ButcherWithoutKnife(animal);
+        }
+
+        // Manipulation impairment reduces yield (-20%)
+        var manipulation = ctx.player.GetCapacities().Manipulation;
+        if (AbilityCalculator.IsManipulationImpaired(manipulation))
+        {
+            GameDisplay.AddWarning("Your unsteady hands waste some of the meat.");
+            result.ApplyYieldMultiplier(0.8);
+        }
+
+        return result;
     }
 
     /// <summary>

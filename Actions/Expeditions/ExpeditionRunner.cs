@@ -442,13 +442,18 @@ public class ExpeditionRunner(GameContext ctx)
     {
         var weapon = _ctx.Inventory.Weapon;
 
+        // Calculate manipulation penalty for thrown accuracy
+        var manipulation = _ctx.player.GetCapacities().Manipulation;
+        double manipPenalty = Bodies.AbilityCalculator.IsManipulationImpaired(manipulation) ? 0.15 : 0.0;
+
         // Calculate hit chance
         bool applySmallPenalty = isSpear && target.Size == AnimalSize.Small;
         double hitChance = HuntingCalculator.CalculateThrownAccuracy(
             target.DistanceFromPlayer,
             isSpear ? GetSpearRange(weapon!) : 12,
             isSpear ? GetSpearBaseAccuracy(weapon!) : 0.65,
-            applySmallPenalty
+            applySmallPenalty,
+            manipPenalty
         );
 
         // Consume stone immediately (it's thrown either way)
@@ -511,23 +516,31 @@ public class ExpeditionRunner(GameContext ctx)
 
     private double CalculateSpearHitChance(Tool spear, Animal target)
     {
+        var manipulation = _ctx.player.GetCapacities().Manipulation;
+        double manipPenalty = Bodies.AbilityCalculator.IsManipulationImpaired(manipulation) ? 0.15 : 0.0;
+
         bool applySmallPenalty = target.Size == AnimalSize.Small;
         return HuntingCalculator.CalculateThrownAccuracy(
             target.DistanceFromPlayer,
             GetSpearRange(spear),
             GetSpearBaseAccuracy(spear),
-            applySmallPenalty
+            applySmallPenalty,
+            manipPenalty
         );
     }
 
     private double CalculateStoneHitChance(Animal target)
     {
+        var manipulation = _ctx.player.GetCapacities().Manipulation;
+        double manipPenalty = Bodies.AbilityCalculator.IsManipulationImpaired(manipulation) ? 0.15 : 0.0;
+
         // Stones don't get small target penalty (they're designed for small game)
         return HuntingCalculator.CalculateThrownAccuracy(
             target.DistanceFromPlayer,
             12,
             0.65,
-            targetIsSmall: false
+            targetIsSmall: false,
+            manipPenalty
         );
     }
 

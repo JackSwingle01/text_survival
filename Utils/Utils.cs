@@ -4,12 +4,7 @@ namespace text_survival
 {
     public static class Utils
     {
-        private static readonly Random random = new Random(DateTime.Now.Millisecond);
-
-        static Utils()
-        {
-            random = new Random(DateTime.Now.Millisecond);
-        }
+        private static readonly Random random = new Random();
 
         public static int Roll(int sides)
         {
@@ -73,7 +68,7 @@ namespace text_survival
             cumulativeWeight += pair.Value;
             if (roll <= cumulativeWeight)
                 {
-                    GameDisplay.AddNarrative($"Debug: Odds: {pair.Value / totalWeight * 100}%");
+                    GameDisplay.AddNarrative($"Debug: Odds: {pair.Value / totalWeight * 100:F2}%");
                     return pair.Key;
                 }
         }

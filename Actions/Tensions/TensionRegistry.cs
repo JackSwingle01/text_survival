@@ -102,6 +102,12 @@ public class TensionRegistry
         {
             tension.Severity = Math.Clamp(tension.Severity + amount, 0.0, 1.0);
         }
+        else if (amount > 0)
+        {
+            // Create new tension with the escalation amount as initial severity
+            // Use Custom factory with minimal decay (0.01/hr) and camp decay enabled
+            AddTension(ActiveTension.Custom(type, amount, decayPerHour: 0.01, decaysAtCamp: true));
+        }
     }
 
     /// <summary>

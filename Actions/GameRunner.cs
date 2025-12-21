@@ -57,8 +57,13 @@ public partial class GameRunner(GameContext ctx)
     private void RunCampMenu()
     {
         var choice = new Choice<Action>();
-        var isImpaired = AbilityCalculator.IsConsciousnessImpaired(
-            ctx.player.GetCapacities().Consciousness);
+        var capacities = ctx.player.GetCapacities();
+        var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
+        var isLimping = AbilityCalculator.IsMovingImpaired(capacities.Moving);
+        var isClumsy = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
+        var isFoggy = AbilityCalculator.IsPerceptionImpaired(
+            AbilityCalculator.CalculatePerception(ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers()));
+        var isWinded = AbilityCalculator.IsBreathingImpaired(capacities.Breathing);
 
         // Sleep emphasized when impaired
         if (isImpaired || ctx.player.Body.IsTired)
@@ -78,14 +83,38 @@ public partial class GameRunner(GameContext ctx)
 
         // Work around camp - foraging, exploring without leaving
         if (HasCampWork())
-            choice.AddOption("Work near camp", WorkAroundCamp);
+        {
+            string workLabel = "Work near camp";
+            if (isFoggy && isWinded)
+                workLabel = "Work near camp (foggy, winded)";
+            else if (isFoggy)
+                workLabel = "Work near camp (your senses are dulled)";
+            else if (isWinded)
+                workLabel = "Work near camp (you're short of breath)";
+            choice.AddOption(workLabel, WorkAroundCamp);
+        }
 
         // Leave camp - travel to other locations (only show if destinations exist)
         if (ctx.Camp.Location.Connections.Count > 0)
         {
-            string leaveLabel = isImpaired
-                ? "Leave camp (you're not thinking clearly)"
-                : "Leave camp";
+            // Build descriptors for travel-affecting impairments
+            var travelImpairments = new List<string>();
+            if (isImpaired) travelImpairments.Add("impaired");
+            if (isLimping) travelImpairments.Add("limping");
+            if (isWinded) travelImpairments.Add("winded");
+
+            string leaveLabel = travelImpairments.Count switch
+            {
+                0 => "Leave camp",
+                1 => travelImpairments[0] switch
+                {
+                    "impaired" => "Leave camp (you're not thinking clearly)",
+                    "limping" => "Leave camp (your movement is limited)",
+                    "winded" => "Leave camp (you're short of breath)",
+                    _ => "Leave camp"
+                },
+                _ => $"Leave camp ({string.Join(", ", travelImpairments)})"
+            };
             choice.AddOption(leaveLabel, LeaveCamp);
         }
 
@@ -99,7 +128,10 @@ public partial class GameRunner(GameContext ctx)
 
         // Crafting - make tools from available materials
         if (ctx.Inventory.HasCraftingMaterials)
-            choice.AddOption("Crafting", RunCrafting);
+        {
+            string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
+            choice.AddOption(craftLabel, RunCrafting);
+        }
 
         if (HasItems() || ctx.Camp.Storage.CurrentWeightKg > 0)
             choice.AddOption("Inventory", RunInventoryMenu);
@@ -363,11 +395,15 @@ public partial class GameRunner(GameContext ctx)
 
         var (selectedTool, _) = toolMap[choice];
 
-        // Check consciousness impairment once before the loop
-        var isImpaired = AbilityCalculator.IsConsciousnessImpaired(
-            ctx.player.GetCapacities().Consciousness);
+        // Check impairments once before the loop
+        var capacities = ctx.player.GetCapacities();
+        var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
+        var isClumsy = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
+
         if (isImpaired)
-            GameDisplay.AddWarning("Your shaking hands make this harder.");
+            GameDisplay.AddWarning("Your foggy mind makes this harder.");
+        if (isClumsy)
+            GameDisplay.AddWarning("Your unsteady hands make this harder.");
 
         while (true)
         {
@@ -378,9 +414,13 @@ public partial class GameRunner(GameContext ctx)
             var skill = ctx.player.Skills.GetSkill("Firecraft");
             double finalChance = baseChance + (skill.Level * 0.1);
 
-            // Consciousness impairment penalty
+            // Consciousness impairment penalty (-20%)
             if (isImpaired)
                 finalChance -= 0.2;
+
+            // Manipulation impairment penalty (-25%)
+            if (isClumsy)
+                finalChance -= 0.25;
 
             finalChance = Math.Clamp(finalChance, 0.05, 0.95);
 
@@ -915,7 +955,6 @@ public partial class GameRunner(GameContext ctx)
         if (!ctx.player.IsAlive)
         {
             GameDisplay.AddDanger("Your vision fades to black as you collapse... You have died!");
-            Environment.Exit(0);
         }
         else if (!enemy.IsAlive)
         {

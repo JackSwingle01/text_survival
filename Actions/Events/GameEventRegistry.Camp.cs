@@ -10,8 +10,7 @@ public static partial class GameEventRegistry
     private static GameEvent VerminRaid(GameContext ctx)
     {
         return new GameEvent("Vermin Raid",
-            "Scratching from your supply cache. Something small has found your food stores.")
-            .Weight(1.0)
+            "Scratching from your supply cache. Something small has found your food stores.", 1.0)
             .Requires(EventCondition.AtCamp, EventCondition.HasFood, EventCondition.Awake)
             .MoreLikelyIf(EventCondition.Night, 1.5)
             .Choice("Set a Trap",
@@ -70,8 +69,7 @@ public static partial class GameEventRegistry
     private static GameEvent ShelterGroans(GameContext ctx)
     {
         return new GameEvent("Shelter Groans",
-            "A crack from above. Your shelter is taking strain. Snow load or wind — something's giving.")
-            .Weight(1.2)
+            "A crack from above. Your shelter is taking strain. Snow load or wind — something's giving.", 0.2)
             .Requires(EventCondition.AtCamp, EventCondition.HasShelter)
             .MoreLikelyIf(EventCondition.HighWind, 2.0)
             .MoreLikelyIf(EventCondition.IsSnowing, 1.5)
@@ -81,6 +79,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You hold it together. Shelter survives, but it's weaker.", 0.55, 10)
                         .WithEffects(EffectFactory.Exhausted(0.3, 45))
+                        .ModifiesFeature(typeof(ShelterFeature), 0.05)
                         .CreateTension("ShelterWeakened", 0.2, ctx.CurrentLocation),
                     new EventResult("Partial collapse. Shelter damaged but standing.", 0.30, 15)
                         .CreateTension("ShelterWeakened", 0.4, ctx.CurrentLocation)
@@ -89,6 +88,7 @@ public static partial class GameEventRegistry
                     new EventResult("It comes down on you.", 0.05, 5)
                         .Damage(8, DamageType.Blunt, "debris")
                         .WithEffects(EffectFactory.Cold(-15, 60))
+                        .ModifiesFeature(typeof(ShelterFeature), 0.7)
                 ])
             .Choice("Reinforce with Materials",
                 "Use branches and debris to prop up weak points.",
@@ -120,8 +120,7 @@ public static partial class GameEventRegistry
     private static GameEvent ChokingSmoke(GameContext ctx)
     {
         return new GameEvent("Choking Smoke",
-            "The wind shifts. Thick smoke floods back into your space. You can't breathe.")
-            .Weight(0.8)
+            "The wind shifts. Thick smoke floods back into your space. You can't breathe.", 0.8)
             .Requires(EventCondition.AtCamp, EventCondition.FireBurning, EventCondition.Awake)
             .MoreLikelyIf(EventCondition.HighWind, 2.0)
             .MoreLikelyIf(EventCondition.HasShelter, 1.5)
@@ -158,8 +157,7 @@ public static partial class GameEventRegistry
     private static GameEvent EmbersScatter(GameContext ctx)
     {
         return new GameEvent("Embers Scatter",
-            "A gust catches the dying fire. Embers scatter across your camp.")
-            .Weight(0.6)
+            "A gust catches the dying fire. Embers scatter across your camp.", 0.6)
             .Requires(EventCondition.AtCamp, EventCondition.FireBurning, EventCondition.Awake)
             .MoreLikelyIf(EventCondition.HighWind, 2.5)
             .Choice("Stomp Them Out",
@@ -197,8 +195,7 @@ public static partial class GameEventRegistry
         var predator = territory?.GetRandomPredatorName() ?? "Wolf";
 
         return new GameEvent("Rustle at Camp Edge",
-            $"Rustling at the camp perimeter. Something drawn by the scent of your food.")
-            .Weight(0.8)
+            $"Rustling at the camp perimeter. Something drawn by the scent of your food.", 0.8)
             .Requires(EventCondition.AtCamp, EventCondition.HasFood, EventCondition.Awake)
             .MoreLikelyIf(EventCondition.Night, 2.0)
             .MoreLikelyIf(EventCondition.HasMeat, 1.5)
@@ -242,8 +239,7 @@ public static partial class GameEventRegistry
     private static GameEvent MeltingReveal(GameContext ctx)
     {
         return new GameEvent("Melting Reveal",
-            "The heat from your fire has melted the permafrost beneath. Something's emerging from the ground.")
-            .Weight(0.4)
+            "The heat from your fire has melted the permafrost beneath. Something's emerging from the ground.", 0.4)
             .Requires(EventCondition.AtCamp, EventCondition.FireBurning, EventCondition.IsCampWork)
             .Choice("Excavate",
                 "Dig it out. See what's there.",
@@ -273,6 +269,148 @@ public static partial class GameEventRegistry
                     new EventResult("You pile snow back over it. Whatever it was stays buried.", 0.80, 5),
                     new EventResult("Something about it stays with you. An uneasy feeling.", 0.20, 5)
                         .WithEffects(EffectFactory.Shaken(0.15))
+                ]);
+    }
+
+    // === DISTURBED ARC EVENTS ===
+
+    private static GameEvent Nightmare(GameContext ctx)
+    {
+        var disturbedTension = ctx.Tensions.GetTension("Disturbed");
+        var source = disturbedTension?.Description ?? "something terrible";
+
+        return new GameEvent("Nightmare",
+            $"You jolt awake, heart pounding. Images of {source} linger behind your eyes. The fire has burned lower than you'd like.", 1.5)
+            .Requires(EventCondition.AtCamp, EventCondition.Disturbed, EventCondition.IsSleeping)
+            .MoreLikelyIf(EventCondition.DisturbedHigh, 2.0)
+            .MoreLikelyIf(EventCondition.Night, 1.5)
+            .Choice("Try to Sleep Again",
+                "Close your eyes. Push it down.",
+                [
+                    new EventResult("Sleep eventually returns, but it's fitful.", 0.50, 30)
+                        .WithEffects(EffectFactory.Exhausted(0.2, 120)),
+                    new EventResult("Every time you close your eyes, you see it again.", 0.30, 60)
+                        .WithEffects(EffectFactory.Exhausted(0.35, 180))
+                        .Escalate("Disturbed", 0.1),
+                    new EventResult("Sleep won't come. You lie awake until dawn.", 0.15, 120)
+                        .WithEffects(EffectFactory.Exhausted(0.5, 240)),
+                    new EventResult("Somehow, you find rest. The dream fades.", 0.05, 0)
+                        .WithEffects(EffectFactory.Rested(0.1, 60))
+                        .Escalate("Disturbed", -0.1)
+                ])
+            .Choice("Stay Awake",
+                "No more sleep tonight. Tend the fire.",
+                [
+                    new EventResult("You feed the fire and watch the darkness. No more dreams.", 0.70, 90)
+                        .Costs(ResourceType.Fuel, 1)
+                        .Escalate("Disturbed", -0.05),
+                    new EventResult("The night stretches on. You're exhausted but won't risk sleeping.", 0.30, 120)
+                        .WithEffects(EffectFactory.Exhausted(0.4, 180))
+                ],
+                requires: [EventCondition.HasFuel])
+            .Choice("Move Around",
+                "Walk it off. Get your blood moving.",
+                [
+                    new EventResult("The cold air clears your head. You feel more grounded.", 0.60, 20)
+                        .WithEffects(EffectFactory.Cold(-5, 20))
+                        .Escalate("Disturbed", -0.05),
+                    new EventResult("The darkness feels oppressive. Every shadow hides something.", 0.30, 15)
+                        .WithEffects(EffectFactory.Cold(-8, 25), EffectFactory.Paranoid(0.2)),
+                    new EventResult("A noise in the dark. Probably nothing. Probably.", 0.10, 10)
+                        .WithEffects(EffectFactory.Cold(-5, 15))
+                        .CreateTension("Stalked", 0.15)
+                ]);
+    }
+
+    private static GameEvent NightTerrors(GameContext ctx)
+    {
+        return new GameEvent("Night Terrors",
+            "You're convinced something is out there. In the dark. Watching. Waiting. Every sound is a footstep, every rustle is breathing.", 0.8)
+            .Requires(EventCondition.AtCamp, EventCondition.Disturbed, EventCondition.Night, EventCondition.Awake)
+            .MoreLikelyIf(EventCondition.DisturbedHigh, 2.5)
+            .MoreLikelyIf(EventCondition.Stalked, 3.0)
+            .Choice("Build Up the Fire",
+                "Light drives back the dark. And whatever's in it.",
+                [
+                    new EventResult("The fire blazes. The circle of light expands. Nothing there.", 0.70, 10)
+                        .Costs(ResourceType.Fuel, 2)
+                        .Escalate("Disturbed", -0.05),
+                    new EventResult("The flames reveal nothing. But you're not convinced.", 0.25, 10)
+                        .Costs(ResourceType.Fuel, 2)
+                        .WithEffects(EffectFactory.Paranoid(0.15)),
+                    new EventResult("In the flickering light, you see movement. Real this time.", 0.05, 5)
+                        .Costs(ResourceType.Fuel, 2)
+                        .CreateTension("Stalked", 0.3)
+                ],
+                requires: [EventCondition.HasFuel])
+            .Choice("Investigate",
+                "Know for certain. Even if it kills you.",
+                [
+                    new EventResult("Nothing. Just your mind playing tricks.", 0.40, 15)
+                        .WithEffects(EffectFactory.Shaken(0.2)),
+                    new EventResult("You find nothing but you don't feel better.", 0.35, 20)
+                        .WithEffects(EffectFactory.Paranoid(0.25), EffectFactory.Cold(-8, 25)),
+                    new EventResult("Wait. Was that... no. Nothing. Nothing.", 0.20, 15)
+                        .WithEffects(EffectFactory.Fear(0.3))
+                        .Escalate("Disturbed", 0.15),
+                    new EventResult("Something WAS there. You see it slink away.", 0.05, 10)
+                        .CreateTension("Stalked", 0.35)
+                ])
+            .Choice("Endure It",
+                "Stay still. Don't give in to the fear.",
+                [
+                    new EventResult("You sit through the night. Tense. Watching. Dawn eventually comes.", 0.50, 60)
+                        .WithEffects(EffectFactory.Exhausted(0.3, 120)),
+                    new EventResult("You can't do this forever. Your nerves are shot.", 0.35, 45)
+                        .WithEffects(EffectFactory.Paranoid(0.3))
+                        .Escalate("Disturbed", 0.1),
+                    new EventResult("Somehow, sitting with the fear helps. You feel stronger.", 0.15, 30)
+                        .Escalate("Disturbed", -0.15)
+                        .WithEffects(EffectFactory.Hardened(0.1, 120))
+                ]);
+    }
+
+    private static GameEvent ProcessingTrauma(GameContext ctx)
+    {
+        var disturbedTension = ctx.Tensions.GetTension("Disturbed");
+        var source = disturbedTension?.Description ?? "what you saw";
+
+        return new GameEvent("Processing",
+            $"Sitting by the fire, your thoughts keep returning to {source}. Maybe it's time to let yourself think about it.", 0.6)
+            .Requires(EventCondition.AtCamp, EventCondition.Disturbed, EventCondition.NearFire, EventCondition.Awake)
+            .MoreLikelyIf(EventCondition.DisturbedHigh, 1.5)
+            .Choice("Sit With It",
+                "Don't push it away. Let it come.",
+                [
+                    new EventResult("It's painful. But when you're done, something has shifted.", 0.50, 45)
+                        .Escalate("Disturbed", -0.25)
+                        .WithEffects(EffectFactory.Exhausted(0.2, 60)),
+                    new EventResult("You think about it until the fire burns low. Somehow, that helps.", 0.30, 60)
+                        .Escalate("Disturbed", -0.35)
+                        .WithEffects(EffectFactory.Rested(0.1, 30)),
+                    new EventResult("Too much. You have to stop. But you made progress.", 0.15, 30)
+                        .Escalate("Disturbed", -0.1)
+                        .WithEffects(EffectFactory.Shaken(0.2)),
+                    new EventResult("The fire helps. Warmth, light, life. The dead stay dead.", 0.05, 30)
+                        .ResolveTension("Disturbed")
+                        .WithEffects(EffectFactory.Hardened(0.15, 180), EffectFactory.Focused(0.2, 90))
+                ])
+            .Choice("Distract Yourself",
+                "Work. Keep your hands busy. Don't think.",
+                [
+                    new EventResult("You find small tasks. Organize supplies. Keep moving.", 0.60, 30)
+                        .WithEffects(EffectFactory.Focused(0.1, 45)),
+                    new EventResult("It works for now. But it'll come back.", 0.40, 25)
+                ])
+            .Choice("Push It Down",
+                "Not now. Not ever. Bury it.",
+                [
+                    new EventResult("You shove it deep. The thoughts recede.", 0.50, 5),
+                    new EventResult("It doesn't stay down. Comes back worse.", 0.35, 5)
+                        .Escalate("Disturbed", 0.1),
+                    new EventResult("Something hardens inside you. Not healthy, but effective.", 0.15, 5)
+                        .Escalate("Disturbed", -0.15)
+                        .WithEffects(EffectFactory.Hardened(0.1, 120))
                 ]);
     }
 }

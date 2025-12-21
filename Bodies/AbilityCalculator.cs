@@ -87,6 +87,22 @@ public static class AbilityCalculator
     // Consciousness impairment check - used for mental fog effects
     public static bool IsConsciousnessImpaired(double consciousness) => consciousness < 0.5;
 
+    // Moving impairment check - used for limping effects
+    public static bool IsMovingImpaired(double moving) => moving < 0.5;
+
+    // Manipulation impairment check - used for clumsy/fumbling effects
+    public static bool IsManipulationImpaired(double manipulation) => manipulation < 0.5;
+
+    // BloodPumping impairment check - used for weak circulation effects
+    public static bool IsBloodPumpingImpaired(double bloodPumping) => bloodPumping < 0.5;
+
+    // Perception impairment check - used for foggy/dulled senses effects
+    public static bool IsPerceptionImpaired(double perception) => perception < 0.5;
+
+    // Breathing impairment check - used for winded/short of breath effects
+    // Lower threshold (0.75) because Coughing only reduces breathing by 0.25
+    public static bool IsBreathingImpaired(double breathing) => breathing < 0.75;
+
     // Doesn't use capacities, just body composition
     public static double CalculateColdResistance(Body body)
     {

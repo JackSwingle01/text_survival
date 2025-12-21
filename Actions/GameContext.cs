@@ -86,7 +86,7 @@ public class GameContext(Player player, Camp camp)
             EventCondition.IsDaytime => GetTimeOfDay() == TimeOfDay.Morning ||
                          GetTimeOfDay() == TimeOfDay.Afternoon ||
                          GetTimeOfDay() == TimeOfDay.Evening,
-            EventCondition.Traveling => Expedition != null,
+            EventCondition.Traveling => CurrentActivity == ActivityType.Traveling,
             EventCondition.Resting => false, // TODO: implement when rest system exists
             EventCondition.Working => Expedition?.State == ExpeditionState.Working,
             EventCondition.HasFood => Inventory.HasFood,
@@ -137,6 +137,9 @@ public class GameContext(Player player, Camp camp)
             EventCondition.ShelterWeakened => Tensions.HasTension("ShelterWeakened"),
             EventCondition.FoodScentStrong => Tensions.HasTension("FoodScentStrong"),
             EventCondition.Hunted => Tensions.HasTension("Hunted"),
+            EventCondition.Disturbed => Tensions.HasTension("Disturbed"),
+            EventCondition.DisturbedHigh => Tensions.HasTensionAbove("Disturbed", 0.5),
+            EventCondition.DisturbedCritical => Tensions.HasTensionAbove("Disturbed", 0.7),
 
             // Camp/expedition state
             EventCondition.AtCamp => IsAtCamp,
@@ -157,6 +160,14 @@ public class GameContext(Player player, Camp camp)
             EventCondition.LowTemperature => player.Body.BodyTemperature < 96.0,
             EventCondition.Impaired => AbilityCalculator.IsConsciousnessImpaired(
                 player.GetCapacities().Consciousness),
+            EventCondition.Limping => AbilityCalculator.IsMovingImpaired(
+                player.GetCapacities().Moving),
+            EventCondition.Clumsy => AbilityCalculator.IsManipulationImpaired(
+                player.GetCapacities().Manipulation),
+            EventCondition.Foggy => AbilityCalculator.IsPerceptionImpaired(
+                AbilityCalculator.CalculatePerception(player.Body, player.EffectRegistry.GetCapacityModifiers())),
+            EventCondition.Winded => AbilityCalculator.IsBreathingImpaired(
+                player.GetCapacities().Breathing),
 
             // Activity conditions (for event filtering)
             EventCondition.IsSleeping => CurrentActivity == ActivityType.Sleeping,
@@ -217,15 +228,16 @@ public class GameContext(Player player, Camp camp)
         {
             elapsed++;
 
+            // Update survival/zone/tensions (always runs)
+            UpdateInternal(1, config.Activity, GetEffectiveFireProximity(config.Fire));
+
             // Check for event (only if activity allows events)
             if (config.Event > 0)
             {
                 evt = GameEventRegistry.GetEventOnTick(this, config.Event);
-                break;
+                if (evt != null)
+                    break; // Only break when an event actually triggers
             }
-
-            // Update survival/zone/tensions
-            UpdateInternal(1, config.Activity, GetEffectiveFireProximity(config.Fire));
 
             // Optional render with status from config
             if (render && !string.IsNullOrEmpty(config.Status))
@@ -373,6 +385,9 @@ public enum EventCondition
     ShelterWeakened,    // Shelter has been damaged
     FoodScentStrong,    // Strong food scent attracting predators
     Hunted,             // Actively being hunted by a predator
+    Disturbed,          // Player witnessed disturbing content (death, remains)
+    DisturbedHigh,      // Disturbed with severity > 0.5
+    DisturbedCritical,  // Disturbed with severity > 0.7
 
     // Camp/expedition state
     AtCamp,             // Player is at camp (not on expedition)
@@ -392,6 +407,10 @@ public enum EventCondition
     LowHydration,       // Player hydration below threshold
     LowTemperature,     // Player core temperature is low
     Impaired,           // Player consciousness is impaired (< 0.5)
+    Limping,            // Player moving capacity is impaired (< 0.5)
+    Clumsy,             // Player manipulation capacity is impaired (< 0.5)
+    Foggy,              // Player perception is impaired (< 0.5)
+    Winded,             // Player breathing is impaired (< 0.75)
 
     // Activity conditions (for event filtering based on what player is doing)
     IsSleeping,         // Player is sleeping

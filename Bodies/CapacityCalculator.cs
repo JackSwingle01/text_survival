@@ -1,5 +1,3 @@
-using text_survival.Survival;
-
 namespace text_survival.Bodies;
 
 public static class CapacityCalculator
@@ -11,18 +9,14 @@ public static class CapacityCalculator
         {
             baseCapacities += GetRegionCapacities(part);
         }
-        // Apply effect modifiers
+        // Apply effect modifiers (includes survival stat effects like Hungry, Thirsty, Tired)
         var withEffects = baseCapacities.ApplyModifier(effectModifiers);
 
-        // Apply survival stat penalties (hunger, thirst, exhaustion)
-        var survivalModifier = GetSurvivalStatModifiers(body);
-        var withSurvival = withEffects.ApplyModifier(survivalModifier);
-
         // Blood multiplies BloodPumping (Heart pumps, Blood is what gets pumped)
-        withSurvival.BloodPumping *= body.Blood.Condition;
+        withEffects.BloodPumping *= body.Blood.Condition;
 
         // Apply cascading effects (pass blood condition for circulation cascade)
-        return ApplyCascadingEffects(withSurvival, body.Blood.Condition);
+        return ApplyCascadingEffects(withEffects, body.Blood.Condition);
     }
 
 
@@ -93,124 +87,4 @@ public static class CapacityCalculator
 
         return result;
     }
-
-
-    #region Survival Stat Modifiers
-
-    private static CapacityModifierContainer GetSurvivalStatModifiers(Body body)
-    {
-        double caloriePercent = body.CalorieStore / SurvivalProcessor.MAX_CALORIES;
-        double hydrationPercent = body.Hydration / SurvivalProcessor.MAX_HYDRATION;
-        double energyPercent = body.Energy / SurvivalProcessor.MAX_ENERGY_MINUTES;
-
-        var modifiers = new CapacityModifierContainer();
-
-        modifiers.SetCapacityModifier(CapacityNames.Moving,
-            GetMovingModifier(caloriePercent, hydrationPercent, energyPercent));
-
-        modifiers.SetCapacityModifier(CapacityNames.Manipulation,
-            GetManipulationModifier(caloriePercent, hydrationPercent, energyPercent));
-
-        modifiers.SetCapacityModifier(CapacityNames.Consciousness,
-            GetConsciousnessModifier(caloriePercent, hydrationPercent, energyPercent));
-
-        return modifiers;
-    }
-
-    /// <summary>
-    /// Combines effectiveness multipliers. 0.6 * 0.7 = 0.42, returns -0.58
-    /// </summary>
-    private static double CombineMultiplicative(params double[] effectivenessValues)
-    {
-        double combined = 1.0;
-        foreach (var eff in effectivenessValues)
-        {
-            combined *= eff;
-        }
-        return combined - 1.0;
-    }
-
-    private static double GetMovingModifier(double calories, double hydration, double energy)
-    {
-        double fromHunger = calories switch
-        {
-            < 0.01 => 0.65,  // Starving
-            < 0.20 => 0.80,  // Very hungry
-            < 0.50 => 0.92,  // Hungry
-            _ => 1.0
-        };
-
-        double fromThirst = hydration switch
-        {
-            < 0.01 => 0.60,  // Severely dehydrated
-            < 0.20 => 0.85,  // Very thirsty
-            _ => 1.0
-        };
-
-        double fromExhaustion = energy switch
-        {
-            < 0.01 => 0.55,  // Exhausted
-            < 0.20 => 0.75,  // Very tired
-            < 0.50 => 0.92,  // Tired
-            _ => 1.0
-        };
-
-        return CombineMultiplicative(fromHunger, fromThirst, fromExhaustion);
-    }
-
-    private static double GetManipulationModifier(double calories, double hydration, double energy)
-    {
-        double fromHunger = calories switch
-        {
-            < 0.01 => 0.65,
-            < 0.20 => 0.80,
-            < 0.50 => 0.92,
-            _ => 1.0
-        };
-
-        double fromThirst = hydration switch
-        {
-            < 0.01 => 0.75,
-            _ => 1.0
-        };
-
-        double fromExhaustion = energy switch
-        {
-            < 0.01 => 0.70,
-            < 0.20 => 0.85,
-            _ => 1.0
-        };
-
-        return CombineMultiplicative(fromHunger, fromThirst, fromExhaustion);
-    }
-
-    private static double GetConsciousnessModifier(double calories, double hydration, double energy)
-    {
-        double fromHunger = calories switch
-        {
-            < 0.01 => 0.85,
-            < 0.20 => 0.92,
-            _ => 1.0
-        };
-
-        double fromThirst = hydration switch
-        {
-            < 0.01 => 0.55,  // Dehydration hits consciousness hard
-            < 0.20 => 0.75,
-            < 0.50 => 0.92,
-            _ => 1.0
-        };
-
-        double fromExhaustion = energy switch
-        {
-            < 0.01 => 0.55,  // Exhaustion hits consciousness hard
-            < 0.20 => 0.75,
-            < 0.50 => 0.92,
-            _ => 1.0
-        };
-
-        return CombineMultiplicative(fromHunger, fromThirst, fromExhaustion);
-    }
-
-    #endregion
 }

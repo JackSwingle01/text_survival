@@ -267,7 +267,7 @@ public static class GameDisplay
         var shelter = location.GetFeature<ShelterFeature>();
         if (shelter != null)
         {
-            features.Add($"[cyan]Shelter:[/] {shelter.Name}");
+            features.Add($"[cyan]Shelter:[/] {shelter.Name}: ins:{shelter.TemperatureInsulation * 100:F0}, wnd:{shelter.WindCoverage * 100:F0}, cov:{shelter.OverheadCoverage * 100:F0}");
         }
 
         // Add features to display

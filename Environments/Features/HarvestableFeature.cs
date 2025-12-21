@@ -41,7 +41,7 @@ public class HarvestableFeature : LocationFeature
     /// <summary>
     /// Advance respawn timers for all depleted resources.
     /// </summary>
-    public new void Update(int minutes)
+    public override void Update(int minutes)
     {
         double hours = minutes / 60.0;
 

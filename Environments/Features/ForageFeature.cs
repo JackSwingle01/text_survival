@@ -86,10 +86,9 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
         if (!found.IsEmpty)
         {
             numberOfHoursForaged += hours;
+            hoursSinceLastForage = 0;
+            hasForagedBefore = true;
         }
-
-        hoursSinceLastForage = 0;
-        hasForagedBefore = true;
 
         return found;
     }

@@ -96,8 +96,12 @@ public class StealthManager
 
         // Check for detection (uses traits + activity)
         int huntingSkill = _player.Skills.GetSkill("Hunting").Level;
-        double impairedMultiplier = AbilityCalculator.IsConsciousnessImpaired(
-            _player.GetCapacities().Consciousness) ? 1.3 : 1.0;
+        double impairedMultiplier = 1.0;
+        if (AbilityCalculator.IsConsciousnessImpaired(_player.GetCapacities().Consciousness))
+            impairedMultiplier *= 1.3;  // +30% detection when mentally impaired
+        if (AbilityCalculator.IsPerceptionImpaired(
+            AbilityCalculator.CalculatePerception(_player.Body, _player.EffectRegistry.GetCapacityModifiers())))
+            impairedMultiplier *= 1.3;  // +30% detection when senses are foggy
         double detectionChance = HuntingCalculator.CalculateDetectionChanceWithTraits(
             newDistance,
             animal,
@@ -159,8 +163,12 @@ public class StealthManager
         // Show detection chance for next approach (uses traits + activity)
         int huntingSkill = _player.Skills.GetSkill("Hunting").Level;
         double nextApproachDistance = animal.DistanceFromPlayer - 25; // Average approach
-        double impairedMultiplier = AbilityCalculator.IsConsciousnessImpaired(
-            _player.GetCapacities().Consciousness) ? 1.3 : 1.0;
+        double impairedMultiplier = 1.0;
+        if (AbilityCalculator.IsConsciousnessImpaired(_player.GetCapacities().Consciousness))
+            impairedMultiplier *= 1.3;
+        if (AbilityCalculator.IsPerceptionImpaired(
+            AbilityCalculator.CalculatePerception(_player.Body, _player.EffectRegistry.GetCapacityModifiers())))
+            impairedMultiplier *= 1.3;
         double detectionChance = HuntingCalculator.CalculateDetectionChanceWithTraits(
             nextApproachDistance,
             animal,

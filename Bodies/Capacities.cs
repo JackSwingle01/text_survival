@@ -171,4 +171,16 @@ public class CapacityModifierContainer
             );
         return new CapacityModifierContainer { capacities = newModifiers };
     }
+
+    /// <summary>
+    /// Scales all modifiers by a multiplier (typically effect severity).
+    /// </summary>
+    public CapacityModifierContainer ApplyMultiplier(double multiplier)
+    {
+        var newModifiers = capacities.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value * multiplier
+        );
+        return new CapacityModifierContainer { capacities = newModifiers };
+    }
 }

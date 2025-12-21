@@ -21,8 +21,8 @@ public class EffectRegistry(Actor owner)
 
             if (existingEffect != null) // if we find existing, update, otherwise apply it below
             {
-                double severityChange = Math.Abs(existingEffect.Severity - effect.Severity); // for now go with the more severe effect, but maybe we change this to most recent?
-                UpdateSeverity(existingEffect, severityChange);
+                // Take the more severe of the two - natural decay handles reduction
+                existingEffect.Severity = Math.Max(existingEffect.Severity, effect.Severity);
                 return;
             }
         }
@@ -143,10 +143,11 @@ public class EffectRegistry(Actor owner)
     public CapacityModifierContainer GetCapacityModifiers()
     {
         CapacityModifierContainer total = new();
-        var modifiers = GetAll().Select(e => e.CapacityModifiers).ToList();
-        foreach (var mod in modifiers)
+        foreach (var effect in GetAll())
         {
-            total += mod;
+            // Scale capacity modifiers by severity
+            var scaled = effect.CapacityModifiers.ApplyMultiplier(effect.Severity);
+            total += scaled;
         }
         return total;
     }

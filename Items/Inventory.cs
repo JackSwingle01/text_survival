@@ -116,8 +116,11 @@ public class Inventory
     public double TakeSmallestLog()
     {
         if (Logs.Count == 0) return 0;
-        var smallest = Logs.Min();
-        Logs.Remove(smallest);
+        int minIndex = 0;
+        for (int i = 1; i < Logs.Count; i++)
+            if (Logs[i] < Logs[minIndex]) minIndex = i;
+        double smallest = Logs[minIndex];
+        Logs.RemoveAt(minIndex);
         return smallest;
     }
 
@@ -128,8 +131,11 @@ public class Inventory
     public double TakeSmallestStick()
     {
         if (Sticks.Count == 0) return 0;
-        var smallest = Sticks.Min();
-        Sticks.Remove(smallest);
+        int minIndex = 0;
+        for (int i = 1; i < Sticks.Count; i++)
+            if (Sticks[i] < Sticks[minIndex]) minIndex = i;
+        double smallest = Sticks[minIndex];
+        Sticks.RemoveAt(minIndex);
         return smallest;
     }
 
@@ -428,41 +434,59 @@ public class Inventory
         // Fuel
         for (int i = 0; i < Logs.Count; i++)
         {
-            int idx = i;
-            double w = Logs[idx];
-            items.Add(("Fuel", $"Log ({w:F1}kg)", w, () => { target.Logs.Add(w); Logs.RemoveAt(idx); }));
+            double w = Logs[i];
+            items.Add(("Fuel", $"Log ({w:F1}kg)", w, () => {
+                target.Logs.Add(w);
+                int currentIdx = Logs.IndexOf(w);
+                if (currentIdx >= 0) Logs.RemoveAt(currentIdx);
+            }));
         }
         for (int i = 0; i < Sticks.Count; i++)
         {
-            int idx = i;
-            double w = Sticks[idx];
-            items.Add(("Fuel", $"Stick ({w:F2}kg)", w, () => { target.Sticks.Add(w); Sticks.RemoveAt(idx); }));
+            double w = Sticks[i];
+            items.Add(("Fuel", $"Stick ({w:F2}kg)", w, () => {
+                target.Sticks.Add(w);
+                int currentIdx = Sticks.IndexOf(w);
+                if (currentIdx >= 0) Sticks.RemoveAt(currentIdx);
+            }));
         }
         for (int i = 0; i < Tinder.Count; i++)
         {
-            int idx = i;
-            double w = Tinder[idx];
-            items.Add(("Fuel", $"Tinder ({w:F2}kg)", w, () => { target.Tinder.Add(w); Tinder.RemoveAt(idx); }));
+            double w = Tinder[i];
+            items.Add(("Fuel", $"Tinder ({w:F2}kg)", w, () => {
+                target.Tinder.Add(w);
+                int currentIdx = Tinder.IndexOf(w);
+                if (currentIdx >= 0) Tinder.RemoveAt(currentIdx);
+            }));
         }
 
         // Food
         for (int i = 0; i < CookedMeat.Count; i++)
         {
-            int idx = i;
-            double w = CookedMeat[idx];
-            items.Add(("Food", $"Cooked meat ({w:F1}kg)", w, () => { target.CookedMeat.Add(w); CookedMeat.RemoveAt(idx); }));
+            double w = CookedMeat[i];
+            items.Add(("Food", $"Cooked meat ({w:F1}kg)", w, () => {
+                target.CookedMeat.Add(w);
+                int currentIdx = CookedMeat.IndexOf(w);
+                if (currentIdx >= 0) CookedMeat.RemoveAt(currentIdx);
+            }));
         }
         for (int i = 0; i < RawMeat.Count; i++)
         {
-            int idx = i;
-            double w = RawMeat[idx];
-            items.Add(("Food", $"Raw meat ({w:F1}kg)", w, () => { target.RawMeat.Add(w); RawMeat.RemoveAt(idx); }));
+            double w = RawMeat[i];
+            items.Add(("Food", $"Raw meat ({w:F1}kg)", w, () => {
+                target.RawMeat.Add(w);
+                int currentIdx = RawMeat.IndexOf(w);
+                if (currentIdx >= 0) RawMeat.RemoveAt(currentIdx);
+            }));
         }
         for (int i = 0; i < Berries.Count; i++)
         {
-            int idx = i;
-            double w = Berries[idx];
-            items.Add(("Food", $"Berries ({w:F2}kg)", w, () => { target.Berries.Add(w); Berries.RemoveAt(idx); }));
+            double w = Berries[i];
+            items.Add(("Food", $"Berries ({w:F2}kg)", w, () => {
+                target.Berries.Add(w);
+                int currentIdx = Berries.IndexOf(w);
+                if (currentIdx >= 0) Berries.RemoveAt(currentIdx);
+            }));
         }
 
         // Water (transfer in 0.5L increments)
@@ -474,41 +498,59 @@ public class Inventory
         // Materials
         for (int i = 0; i < Stone.Count; i++)
         {
-            int idx = i;
-            double w = Stone[idx];
-            items.Add(("Materials", $"Stone ({w:F1}kg)", w, () => { target.Stone.Add(w); Stone.RemoveAt(idx); }));
+            double w = Stone[i];
+            items.Add(("Materials", $"Stone ({w:F1}kg)", w, () => {
+                target.Stone.Add(w);
+                int currentIdx = Stone.IndexOf(w);
+                if (currentIdx >= 0) Stone.RemoveAt(currentIdx);
+            }));
         }
         for (int i = 0; i < Bone.Count; i++)
         {
-            int idx = i;
-            double w = Bone[idx];
-            items.Add(("Materials", $"Bone ({w:F1}kg)", w, () => { target.Bone.Add(w); Bone.RemoveAt(idx); }));
+            double w = Bone[i];
+            items.Add(("Materials", $"Bone ({w:F1}kg)", w, () => {
+                target.Bone.Add(w);
+                int currentIdx = Bone.IndexOf(w);
+                if (currentIdx >= 0) Bone.RemoveAt(currentIdx);
+            }));
         }
         for (int i = 0; i < Hide.Count; i++)
         {
-            int idx = i;
-            double w = Hide[idx];
-            items.Add(("Materials", $"Hide ({w:F1}kg)", w, () => { target.Hide.Add(w); Hide.RemoveAt(idx); }));
+            double w = Hide[i];
+            items.Add(("Materials", $"Hide ({w:F1}kg)", w, () => {
+                target.Hide.Add(w);
+                int currentIdx = Hide.IndexOf(w);
+                if (currentIdx >= 0) Hide.RemoveAt(currentIdx);
+            }));
         }
         for (int i = 0; i < PlantFiber.Count; i++)
         {
-            int idx = i;
-            double w = PlantFiber[idx];
-            items.Add(("Materials", $"Plant fiber ({w:F2}kg)", w, () => { target.PlantFiber.Add(w); PlantFiber.RemoveAt(idx); }));
+            double w = PlantFiber[i];
+            items.Add(("Materials", $"Plant fiber ({w:F2}kg)", w, () => {
+                target.PlantFiber.Add(w);
+                int currentIdx = PlantFiber.IndexOf(w);
+                if (currentIdx >= 0) PlantFiber.RemoveAt(currentIdx);
+            }));
         }
         for (int i = 0; i < Sinew.Count; i++)
         {
-            int idx = i;
-            double w = Sinew[idx];
-            items.Add(("Materials", $"Sinew ({w:F2}kg)", w, () => { target.Sinew.Add(w); Sinew.RemoveAt(idx); }));
+            double w = Sinew[i];
+            items.Add(("Materials", $"Sinew ({w:F2}kg)", w, () => {
+                target.Sinew.Add(w);
+                int currentIdx = Sinew.IndexOf(w);
+                if (currentIdx >= 0) Sinew.RemoveAt(currentIdx);
+            }));
         }
 
         // Tools
         for (int i = 0; i < Tools.Count; i++)
         {
-            int idx = i;
-            var tool = Tools[idx];
-            items.Add(("Tools", $"{tool.Name} ({tool.Weight:F1}kg)", tool.Weight, () => { target.Tools.Add(tool); Tools.RemoveAt(idx); }));
+            var tool = Tools[i];
+            items.Add(("Tools", $"{tool.Name} ({tool.Weight:F1}kg)", tool.Weight, () => {
+                target.Tools.Add(tool);
+                int currentIdx = Tools.IndexOf(tool);
+                if (currentIdx >= 0) Tools.RemoveAt(currentIdx);
+            }));
         }
 
         return items;

@@ -103,6 +103,15 @@ public static class DamageProcessor
             result.TriggeredEffects.Add(EffectFactory.Pain(painSeverity));
         }
 
+        // Check for dazed trigger - blunt damage to head
+        if (damageInfo.Type == DamageType.Blunt
+            && result.HitPartName.Equals("Head", StringComparison.OrdinalIgnoreCase)
+            && result.TotalDamageDealt > 0.05)
+        {
+            double dazedSeverity = Math.Clamp(result.TotalDamageDealt * 0.15, 0.2, 0.8);
+            result.TriggeredEffects.Add(EffectFactory.Dazed(dazedSeverity));
+        }
+
         return result;
     }
     private static void DamagePart(BodyRegion part, DamageInfo damageInfo, DamageResult result)

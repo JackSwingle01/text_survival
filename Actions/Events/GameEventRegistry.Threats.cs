@@ -16,7 +16,7 @@ public static partial class GameEventRegistry
 
         var evt = new GameEvent(
             "Fresh Carcass",
-            $"Something killed a {animal.ToLower()} recently. The meat's still good, but you didn't make this kill.");
+            $"Something killed a {animal.ToLower()} recently. The meat's still good, but you didn't make this kill.", 0.5);
         evt.BaseWeight = 0.5;  // Territory-specific reward
 
         evt.RequiredConditions.Add(EventCondition.Working);
@@ -72,8 +72,7 @@ public static partial class GameEventRegistry
         var follow = new EventChoice("Follow Them",
             "The trail is clear. You could track this animal.",
             [
-                new EventResult("The tracks lead nowhere. You lose the trail.", weight: 0.4f)
-                { TimeAddedMinutes = 20 },
+                new EventResult("The tracks lead nowhere. You lose the trail.", weight: 0.4f, 20),
                 new EventResult("You spot the animal in the distance but can't get close.", weight: 0.35f)
                 { TimeAddedMinutes = 25 },
                 new EventResult("You find a game trail — good hunting ground.", weight: 0.15f)
@@ -574,6 +573,8 @@ public static partial class GameEventRegistry
         evt.RequiredConditions.Add(EventCondition.Night);
         evt.RequiredConditions.Add(EventCondition.Awake);
         evt.WeightModifiers.Add(EventCondition.Stalked, 2.0);
+        evt.WeightModifiers.Add(EventCondition.Disturbed, 2.5);
+        evt.WeightModifiers.Add(EventCondition.DisturbedHigh, 3.5);
 
         var throwFuel = new EventChoice("Throw Fuel on Fire",
             "More light. Drive back the darkness.",
@@ -1011,5 +1012,57 @@ public static partial class GameEventRegistry
         evt.AddChoice(markDirection);
         evt.AddChoice(avoidArea);
         return evt;
+    }
+
+    // === DISTURBED ARC INTERSECTION EVENTS ===
+
+    private static GameEvent ShadowMovement(GameContext ctx)
+    {
+        var stalkedTension = ctx.Tensions.GetTension("Stalked");
+        var predator = stalkedTension?.AnimalType ?? "something";
+
+        return new GameEvent("Shadow Movement",
+            $"Movement in your peripheral vision. Your heart hammers. Is it the {predator.ToLower()}? Or your mind again?")
+            .Weight(2.0)
+            .Requires(EventCondition.Disturbed, EventCondition.Stalked)
+            .MoreLikelyIf(EventCondition.DisturbedHigh, 1.5)
+            .MoreLikelyIf(EventCondition.StalkedHigh, 1.5)
+            .Choice("Assume It's Real",
+                "Act as if the threat is real. Better safe than dead.",
+                [
+                    new EventResult("You react defensively. Nothing attacks. Was it real?", 0.40, 10)
+                        .WithEffects(EffectFactory.Paranoid(0.2)),
+                    new EventResult("It WAS real. Your vigilance saved you.", 0.25, 5)
+                        .Escalate("Stalked", 0.15)
+                        .WithEffects(EffectFactory.Fear(0.2)),
+                    new EventResult("False alarm. Your nerves are fraying.", 0.25, 8)
+                        .Escalate("Disturbed", 0.1),
+                    new EventResult("You spin to face it. The predator is there.", 0.10, 0)
+                        .Encounter(stalkedTension?.AnimalType ?? "Wolf", 25, 0.5)
+                ])
+            .Choice("Assume It's Nothing",
+                "You're jumping at shadows. Stay calm.",
+                [
+                    new EventResult("Nothing happens. You were right. Probably.", 0.45, 5),
+                    new EventResult("Your calm is justified. The mind plays tricks.", 0.25, 5)
+                        .Escalate("Disturbed", -0.05),
+                    new EventResult("It wasn't nothing. It was watching. Now it knows you're not alert.", 0.20, 0)
+                        .Escalate("Stalked", 0.25)
+                        .WithEffects(EffectFactory.Fear(0.25)),
+                    new EventResult("Fatal mistake. It strikes.", 0.10, 0)
+                        .Encounter(stalkedTension?.AnimalType ?? "Wolf", 10, 0.75)
+                ])
+            .Choice("Stop and Observe",
+                "Freeze. Watch. Listen. Know the difference.",
+                [
+                    new EventResult("Patient observation. Nothing there but your fears.", 0.35, 15)
+                        .Escalate("Disturbed", -0.05),
+                    new EventResult("You wait. And wait. The tension is unbearable.", 0.30, 20)
+                        .WithEffects(EffectFactory.Exhausted(0.2, 60)),
+                    new EventResult("You see it clearly now. It's real. And it sees you.", 0.25, 10)
+                        .ResolveTension("Stalked")
+                        .CreateTension("Hunted", 0.5, animalType: stalkedTension?.AnimalType),
+                    new EventResult("Nothing. Just paranoia. Or maybe it left.", 0.10, 15)
+                ]);
     }
 }

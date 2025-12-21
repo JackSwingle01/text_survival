@@ -143,6 +143,20 @@ public class ActiveTension
     );
 
     /// <summary>
+    /// Player witnessed disturbing content (death, remains, violence).
+    /// Decays very slowly - trauma takes time to process.
+    /// SourceLocation tracks where it happened for resolution events.
+    /// </summary>
+    public static ActiveTension Disturbed(double severity, Location? sourceLocation = null, string? description = null) => new(
+        type: "Disturbed",
+        severity: severity,
+        decayPerHour: 0.02,
+        decaysAtCamp: true,
+        sourceLocation: sourceLocation,
+        description: description
+    );
+
+    /// <summary>
     /// Generic factory for custom tension types.
     /// </summary>
     public static ActiveTension Custom(

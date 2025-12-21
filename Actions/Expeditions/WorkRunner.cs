@@ -1,3 +1,4 @@
+using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
@@ -31,6 +32,21 @@ public class WorkRunner(GameContext ctx)
         workTimeChoice.AddOption("Thorough search - 60 min", 60);
         int workTime = workTimeChoice.GetPlayerChoice();
 
+        // Movement impairment slows foraging (+20%)
+        var capacities = _ctx.player.GetCapacities();
+        if (AbilityCalculator.IsMovingImpaired(capacities.Moving))
+        {
+            workTime = (int)(workTime * 1.20);
+            GameDisplay.AddWarning("Your limited movement slows the work.");
+        }
+
+        // Breathing impairment slows foraging (+15%)
+        if (AbilityCalculator.IsBreathingImpaired(capacities.Breathing))
+        {
+            workTime = (int)(workTime * 1.15);
+            GameDisplay.AddWarning("Your labored breathing slows the work.");
+        }
+
         GameDisplay.AddNarrative("You search the area for resources...");
 
         bool died = RunWorkWithProgress(location, workTime, ActivityType.Foraging);
@@ -38,6 +54,16 @@ public class WorkRunner(GameContext ctx)
             return WorkResult.Died(workTime);
 
         var found = feature.Forage(workTime / 60.0);
+
+        // Perception impairment reduces forage yield (-15%)
+        var perception = AbilityCalculator.CalculatePerception(
+            _ctx.player.Body, _ctx.player.EffectRegistry.GetCapacityModifiers());
+        if (AbilityCalculator.IsPerceptionImpaired(perception))
+        {
+            found.ApplyForageMultiplier(0.85);
+            GameDisplay.AddWarning("Your foggy senses cause you to miss some resources.");
+        }
+
         _ctx.Inventory.Add(found);
 
         var collected = new List<string>();
@@ -157,6 +183,14 @@ public class WorkRunner(GameContext ctx)
         timeChoice.AddOption("Standard scout - 30 min (+10%)", 30);
         timeChoice.AddOption("Thorough scout - 60 min (+20%)", 60);
         int exploreTime = timeChoice.GetPlayerChoice();
+
+        // Breathing impairment slows exploration (+15%)
+        var breathing = _ctx.player.GetCapacities().Breathing;
+        if (AbilityCalculator.IsBreathingImpaired(breathing))
+        {
+            exploreTime = (int)(exploreTime * 1.15);
+            GameDisplay.AddWarning("Your labored breathing slows the scouting.");
+        }
 
         double timeBonus = exploreTime switch
         {

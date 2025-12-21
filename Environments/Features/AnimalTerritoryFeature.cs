@@ -17,6 +17,7 @@ public class AnimalTerritoryFeature : LocationFeature
     private readonly List<AnimalSpawnEntry> _possibleAnimals = [];
     private readonly double _baseGameDensity;
     private double _gameDensity;
+    private double _initialDepletedDensity;
     private double _hoursSinceLastHunt;
     private bool _hasBeenHunted;
     private readonly double _respawnRateHours = 72.0; // Full respawn takes 72 hours
@@ -32,11 +33,9 @@ public class AnimalTerritoryFeature : LocationFeature
         if (_hasBeenHunted && _gameDensity < _baseGameDensity)
         {
             _hoursSinceLastHunt += minutes / 60.0;
-
-            // Gradually restore density
-            double depletedAmount = _baseGameDensity - _gameDensity;
-            double respawnProgress = (_hoursSinceLastHunt / _respawnRateHours) * depletedAmount;
-            _gameDensity = Math.Min(_baseGameDensity, _gameDensity + respawnProgress);
+            double depletedAmount = _baseGameDensity - _initialDepletedDensity;
+            double respawnProgress = Math.Min(1.0, _hoursSinceLastHunt / _respawnRateHours);
+            _gameDensity = _initialDepletedDensity + (depletedAmount * respawnProgress);
         }
     }
 
@@ -70,6 +69,7 @@ public class AnimalTerritoryFeature : LocationFeature
     public void RecordSuccessfulHunt()
     {
         _gameDensity *= 0.7; // 30% depletion per kill
+        _initialDepletedDensity = _gameDensity;
         _hoursSinceLastHunt = 0;
         _hasBeenHunted = true;
     }

@@ -97,13 +97,13 @@ public class EventChoice(string label, string description, List<EventResult> res
     public EventResult DetermineResult() => Utils.GetRandomWeighted(Result.ToDictionary(x => x, x => x.Weight));
 }
 
-public class GameEvent(string name, string description)
+public class GameEvent(string name, string description, double weight)
 {
     public string Name = name;
     public string Description = description;
     public readonly List<EventCondition> RequiredConditions = [];
 
-    public double BaseWeight = 1.0;  // Selection weight (not trigger chance)
+    public double BaseWeight = weight;  // Selection weight (not trigger chance)
     public readonly Dictionary<EventCondition, double> WeightModifiers = [];
 
     private List<EventChoice> _choices = [];
@@ -117,12 +117,6 @@ public class GameEvent(string name, string description)
     public void AddChoice(EventChoice c) => _choices.Add(c);
 
     // === Fluent builder methods ===
-
-    public GameEvent Weight(double weight)
-    {
-        BaseWeight = weight;
-        return this;
-    }
 
     public GameEvent Requires(params EventCondition[] conditions)
     {

@@ -49,7 +49,7 @@ public static partial class GameEventRegistry
         UnexpectedYield,
         ExposedPosition,
         NaturalShelterSpotted,
-        DriftwoodDebris,
+        Debris,
 
         // Camp infrastructure events (GameEventRegistry.Camp.cs)
         VerminRaid,
@@ -85,9 +85,26 @@ public static partial class GameEventRegistry
         // Wound/Infection Arc
         WoundFesters,
         FeverSetsIn,
+        // Disturbed Arc
+        Nightmare,
+        NightTerrors,
+        ProcessingTrauma,
+        IntrusiveThought,
+        LostTime,
+        FacingTheSource,
+        ShadowMovement,
 
         // Consciousness events (GameEventRegistry.Consciousness.cs)
-        LostYourBearings
+        LostYourBearings,
+
+        // Moving impairment events (GameEventRegistry.Moving.cs)
+        StrugglingToKeepPace,
+
+        // Manipulation impairment events (GameEventRegistry.Manipulation.cs)
+        FumblingHands,
+
+        // Perception impairment events (GameEventRegistry.Perception.cs)
+        DulledSenses
     ];
 
     /// <summary>
@@ -243,6 +260,7 @@ public static partial class GameEventRegistry
                 "FoodScentStrong" => ActiveTension.FoodScentStrong(tc.Severity),
                 "Hunted" => ActiveTension.Hunted(tc.Severity, tc.AnimalType),
                 "MarkedDiscovery" => ActiveTension.MarkedDiscovery(tc.Severity, tc.RelevantLocation, tc.Description),
+                "Disturbed" => ActiveTension.Disturbed(tc.Severity, tc.RelevantLocation, tc.Description),
                 _ => ActiveTension.Custom(tc.Type, tc.Severity, 0.05, true, tc.RelevantLocation, tc.AnimalType, tc.Direction, tc.Description)
             };
             ctx.Tensions.AddTension(tension);

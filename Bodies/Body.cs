@@ -19,7 +19,7 @@ public class Body
     public readonly string OwnerName;
     public Blood Blood { get; } = new();
 
-    private readonly double _baseWeight;
+    private double _baseWeight;
 
     public bool IsTired => Energy < SurvivalProcessor.MAX_ENERGY_MINUTES;
 
@@ -45,6 +45,17 @@ public class Body
         _baseWeight = stats.overallWeight - BodyFatKG - MuscleKG;
 
         BodyTemperature = 98.6;
+    }
+
+    /// <summary>
+    /// Applies a size modifier to the body weight (for animal trait generation).
+    /// Scales base weight, fat, and muscle proportionally.
+    /// </summary>
+    public void ApplySizeModifier(double modifier)
+    {
+        _baseWeight *= modifier;
+        BodyFatKG *= modifier;
+        MuscleKG *= modifier;
     }
 
 

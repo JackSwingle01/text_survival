@@ -144,7 +144,7 @@ public class CombatManager
             AddDamageEffectDescription(damageType, damageResult.TotalDamageDealt);
         }
 
-        if (target is Player player)
+        if (Owner is Player player)
         {
             player.Skills.Fighting.GainExperience(1);
         }

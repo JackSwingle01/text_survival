@@ -33,6 +33,45 @@ public class FoundResources
     // Narrative descriptions for expedition log ("a heavy log", "some berries")
     public List<string> Descriptions { get; set; } = [];
 
+    /// <summary>
+    /// Apply a multiplier to all resource yields (e.g., 0.8 for -20% yield).
+    /// Useful for penalties like manipulation impairment.
+    /// </summary>
+    public void ApplyYieldMultiplier(double multiplier)
+    {
+        for (int i = 0; i < RawMeat.Count; i++)
+            RawMeat[i] *= multiplier;
+        for (int i = 0; i < CookedMeat.Count; i++)
+            CookedMeat[i] *= multiplier;
+        for (int i = 0; i < Bone.Count; i++)
+            Bone[i] *= multiplier;
+        for (int i = 0; i < Hide.Count; i++)
+            Hide[i] *= multiplier;
+        for (int i = 0; i < Sinew.Count; i++)
+            Sinew[i] *= multiplier;
+    }
+
+    /// <summary>
+    /// Apply a multiplier to forageable resources (e.g., 0.85 for -15% yield).
+    /// Useful for perception impairment - you miss things while foraging.
+    /// </summary>
+    public void ApplyForageMultiplier(double multiplier)
+    {
+        for (int i = 0; i < Logs.Count; i++)
+            Logs[i] *= multiplier;
+        for (int i = 0; i < Sticks.Count; i++)
+            Sticks[i] *= multiplier;
+        for (int i = 0; i < Tinder.Count; i++)
+            Tinder[i] *= multiplier;
+        for (int i = 0; i < Berries.Count; i++)
+            Berries[i] *= multiplier;
+        for (int i = 0; i < Stone.Count; i++)
+            Stone[i] *= multiplier;
+        for (int i = 0; i < PlantFiber.Count; i++)
+            PlantFiber[i] *= multiplier;
+        WaterLiters *= multiplier;
+    }
+
     // Convenience check
     public bool IsEmpty =>
         Logs.Count == 0 &&

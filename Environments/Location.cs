@@ -170,9 +170,9 @@ public class Location
         // Precipitation effects
         double precipitation = Parent.Weather.Precipitation;
         precipitation *= 1 - overheadCoverage;
-        // todo, determine if this effects temp directly or if we use this elsewhere 
+        // todo, determine if this effects temp directly or if we use this elsewhere
         double precipitationCooling = precipitation * 5; //  simple up to 5°F cooling for now
-        locationTemp -= precipitationCooling * (1 - overheadCoverage);
+        locationTemp -= precipitationCooling;
 
         // ------ STEP 3: Apply shelter effects if present ------
         double insulation = 0;

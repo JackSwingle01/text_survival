@@ -131,14 +131,23 @@ public class CraftingRunner(GameContext ctx)
     {
         GameDisplay.AddNarrative($"You begin working on a {option.Name}...");
 
-        // Consciousness impairment slows crafting
-        var consciousness = _ctx.player.GetCapacities().Consciousness;
+        var capacities = _ctx.player.GetCapacities();
         int totalTime = option.CraftingTimeMinutes;
-        if (AbilityCalculator.IsConsciousnessImpaired(consciousness))
+
+        // Consciousness impairment slows crafting (+25%)
+        if (AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness))
         {
             totalTime = (int)(totalTime * 1.25);
             GameDisplay.AddWarning("Your foggy mind slows the work.");
         }
+
+        // Manipulation impairment slows crafting (+30%)
+        if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
+        {
+            totalTime = (int)(totalTime * 1.30);
+            GameDisplay.AddWarning("Your unsteady hands slow the work.");
+        }
+
         int elapsed = 0;
         bool interrupted = false;
 
