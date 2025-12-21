@@ -1,25 +1,22 @@
-using System.Runtime;
-using Microsoft.VisualBasic;
 using text_survival.Actors;
 using text_survival.Actors.Player;
 using text_survival.Bodies;
-using text_survival.IO;
 using text_survival.Items;
+using text_survival.UI;
 
 namespace text_survival.Combat;
 
 public class CombatManager
 {
+    private const double MELEE_HIT_RATE = 0.90;
+
     public CombatManager(Actor owner)
     {
         Owner = owner;
     }
 
-    public double DetermineDamage()
+    public double DetermineDamage(double baseDamage)
     {
-        // base weapon and skill
-        double baseDamage = Owner.ActiveWeapon.Damage;
-
         double skillBonus = 0;
         if (Owner is Player player)
         {
@@ -27,14 +24,11 @@ public class CombatManager
         }
 
         // modifiers
-        double strengthModifier = (AbilityCalculator.CalculateStrength(Owner.Body) / 2) + .5; // str determines up to 50%
-        // A smaller health modifier up to 30%
-        double healthModifier = 0.7 + (0.3 * (Owner.Body.Health / Owner.Body.MaxHealth));
-        // todo factor in any effects like adrenaline, etc.
-        // This could be expanded based on your EffectRegistry
+        double strengthModifier = (Owner.Strength / 2) + .5; // str determines up to 50%
+        double vitalityModifier = 0.7 + (0.3 * Owner.Vitality);
         double effectsModifier = 1.0;
         double randomModifier = Utils.RandDouble(.5, 1.5);
-        double totalModifier = strengthModifier * healthModifier * effectsModifier * randomModifier;
+        double totalModifier = strengthModifier * vitalityModifier * effectsModifier * randomModifier;
 
         double damage = (baseDamage + skillBonus) * totalModifier;
         return damage >= 0 ? damage : 0;
@@ -42,17 +36,14 @@ public class CombatManager
 
     public double DetermineDodgeChance(Actor target)
     {
-
         double dodgeLevel = 0;
         if (target is Player player)
             dodgeLevel = player.Skills.Reflexes.Level;
 
         double baseDodge = dodgeLevel / 100;
-        double speedDiff = AbilityCalculator.CalculateSpeed(target.Body) - AbilityCalculator.CalculateSpeed(Owner.Body);
+        double speedDiff = target.Speed - Owner.Speed;
         double chance = baseDodge + speedDiff;
-        // Output.WriteLine("Debug: Dodge Chance = ", chance);
-        chance = Math.Clamp(chance, 0, .95);
-        return chance;
+        return Math.Clamp(chance, 0, .95);
     }
 
     public bool DetermineDodge(Actor target)
@@ -60,7 +51,7 @@ public class CombatManager
         double dodgeChance = DetermineDodgeChance(target);
         if (Utils.DetermineSuccess(dodgeChance))
         {
-            Output.WriteLine($"{Owner} dodged the attack!");
+            GameDisplay.AddNarrative($"{Owner} dodged the attack!");
             return true;
         }
         return false;
@@ -68,11 +59,10 @@ public class CombatManager
 
     public bool DetermineHit()
     {
-        // Output.WriteLine("Debug: hit Chance: ", Owner.ActiveWeapon.Accuracy);
-        double hitChance = Math.Clamp(Owner.ActiveWeapon.Accuracy, .01, .95);
-        if (!Utils.DetermineSuccess(hitChance))
+        // Flat 90% hit rate for melee
+        if (!Utils.DetermineSuccess(MELEE_HIT_RATE))
         {
-            Output.WriteLine($"{Owner} missed!");
+            GameDisplay.AddNarrative($"{Owner} missed!");
             return false;
         }
         return true;
@@ -83,26 +73,32 @@ public class CombatManager
         double blockLevel = 0;
         if (target is Player player)
             blockLevel = player.Skills.Defense.Level;
+
         double skillBonus = blockLevel / 100;
-        double attributeAvg = AbilityCalculator.CalculateStrength(target.Body); // todo 
-        double blockAtbAvg = target.ActiveWeapon.BlockChance + attributeAvg / 2;
-        double blockChance = blockAtbAvg + skillBonus;
+        double blockChance = target.BlockChance + (target.Strength / 2) + skillBonus;
+
         if (Utils.DetermineSuccess(blockChance))
         {
-            Output.WriteLine($"{target} blocked the attack!");
+            GameDisplay.AddNarrative($"{target} blocked the attack!");
             return true;
         }
         return false;
     }
 
-    public void Attack(Actor target, string? targetedPart = null)
+    public void Attack(Actor target, Tool? weapon = null, string? targetedPart = null)
     {
+        // Get attack stats from weapon if provided, otherwise from attacker's properties
+        double baseDamage = weapon?.Damage ?? Owner.AttackDamage;
+        string attackName = weapon?.Name ?? Owner.AttackName;
+        DamageType damageType = weapon != null
+            ? GetDamageType(weapon.WeaponClass)
+            : Owner.AttackType;
+
         bool isDodged = DetermineDodge(target);
         if (isDodged)
         {
-            // Use our narrator for rich descriptions
             string description = CombatNarrator.DescribeAttack(Owner, target, null, false, true, false);
-            Output.WriteLine(description);
+            GameDisplay.AddNarrative(description);
             return;
         }
 
@@ -110,67 +106,69 @@ public class CombatManager
         if (!isHit)
         {
             string description = CombatNarrator.DescribeAttack(Owner, target, null, false, false, false);
-            Output.WriteLine(description);
+            GameDisplay.AddNarrative(description);
             return;
         }
 
-        // Check for block
         bool isBlocked = DetermineBlock(target);
         if (isBlocked)
         {
             string description = CombatNarrator.DescribeAttack(Owner, target, null, true, false, true);
-            Output.WriteLine(description);
+            GameDisplay.AddNarrative(description);
             return;
         }
 
-        double damage = DetermineDamage();
-
-        DamageType type = Owner.ActiveWeapon.Class switch
-        {
-            WeaponClass.Blade or WeaponClass.Claw => DamageType.Sharp,
-            WeaponClass.Pierce => DamageType.Pierce,
-            _ => DamageType.Blunt
-        };
+        double damage = DetermineDamage(baseDamage);
 
         DamageInfo damageInfo = new(
             amount: damage,
             source: Owner.Name,
-            type: type,
+            type: damageType,
             targetPartName: targetedPart
         );
 
         DamageResult damageResult = DamageProcessor.DamageBody(damageInfo, target.Body);
 
         string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damageResult, true, false, false);
-        Output.WriteLine(attackDescription);
+        GameDisplay.AddNarrative(attackDescription);
 
-        // Add weapon-specific effect descriptions
+        // Add damage effect descriptions
         if (damageResult.TotalDamageDealt > 0)
         {
-            AddWeaponEffectDescription(Owner.ActiveWeapon.Class, damageResult.TotalDamageDealt);
+            AddDamageEffectDescription(damageType, damageResult.TotalDamageDealt);
         }
 
         if (target is Player player)
         {
             player.Skills.Fighting.GainExperience(1);
         }
-        
+
         Thread.Sleep(1000);
     }
 
-    private static void AddWeaponEffectDescription(WeaponClass weaponClass, double damage)
+    private static DamageType GetDamageType(WeaponClass? weaponClass)
     {
-        if (weaponClass == WeaponClass.Blade && damage > 10)
+        return weaponClass switch
         {
-            Output.WriteDanger("Blood sprays from the wound!");
+            WeaponClass.Blade or WeaponClass.Claw => DamageType.Sharp,
+            WeaponClass.Pierce => DamageType.Pierce,
+            _ => DamageType.Blunt
+        };
+    }
+
+    private static void AddDamageEffectDescription(DamageType damageType, double damage)
+    {
+        if (damageType == DamageType.Sharp && damage > 10)
+        {
+            GameDisplay.AddDanger("Blood sprays from the wound!");
         }
-        else if (weaponClass == WeaponClass.Blunt && damage > 12)
+        else if (damageType == DamageType.Blunt && damage > 12)
         {
-            Output.WriteDanger("You hear a sickening crack!");
+            GameDisplay.AddDanger("You hear a sickening crack!");
         }
-        else if (weaponClass == WeaponClass.Pierce && damage > 15)
+        else if (damageType == DamageType.Pierce && damage > 15)
         {
-            Output.WriteDanger("The attack pierces deep into the flesh!");
+            GameDisplay.AddDanger("The attack pierces deep into the flesh!");
         }
     }
 

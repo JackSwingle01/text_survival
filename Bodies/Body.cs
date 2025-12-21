@@ -1,112 +1,60 @@
-
-using text_survival.Effects;
-using text_survival.IO;
+// Body.cs
 using text_survival.Items;
 using text_survival.Survival;
 
 namespace text_survival.Bodies;
 
-/// <summary>
-/// External context that the body needs to update
-/// </summary>
 public class SurvivalContext
 {
     public double LocationTemperature;
     public double ClothingInsulation;
     public double ActivityLevel;
-    public bool SuppressMessages; // Suppress status messages (e.g., during sleep)
+    public double FireProximityBonus; // Direct radiant heat from fire proximity (0-2 scale multiplied by fire heat)
 }
 
 public class Body
 {
-    // Root part and core properties
     public readonly bool IsPlayer = false;
     public readonly List<BodyRegion> Parts;
-    public double Health => CalculateOverallHealth();
-
-    private double CalculateOverallHealth()
-    {
-        // simple avg for now
-        double health = Parts.Average(p => p.Condition);
-        health = Parts.SelectMany(p => p.Organs.Select(o => o.Condition)).ToList().Append(health).Min();
-        return health;
-    }
-
-
-    public double MaxHealth => 1;
-    public bool IsDestroyed => Health <= 0;
-
-    public bool IsTired => Energy < SurvivalProcessor.MAX_ENERGY_MINUTES; // Can sleep if not fully rested
-
-    public readonly EffectRegistry EffectRegistry;
+    public readonly string OwnerName;
+    public Blood Blood { get; } = new();
 
     private readonly double _baseWeight;
 
-    public Body(string ownerName, BodyCreationInfo stats, EffectRegistry effectRegistry)
+    public bool IsTired => Energy < SurvivalProcessor.MAX_ENERGY_MINUTES;
+
+    public double BodyFatKG { get; private set; }
+    public double MuscleKG { get; private set; }
+    public double BodyFatPercentage => BodyFatKG / WeightKG;
+    public double MusclePercentage => MuscleKG / WeightKG;
+    public double WeightKG => _baseWeight + BodyFatKG + MuscleKG;
+    public double BodyTemperature { get; private set; }
+
+    public double CalorieStore { get; private set; } = 1500;
+    public double Energy { get; private set; } = 800;
+    public double Hydration { get; private set; } = 3000;
+
+    public Body(string ownerName, BodyCreationInfo stats)
     {
         OwnerName = ownerName;
         IsPlayer = stats.IsPlayer;
-        EffectRegistry = effectRegistry;
         Parts = BodyPartFactory.CreateBody(stats.type);
 
-        // Initialize physical composition
-        BodyFat = stats.overallWeight * stats.fatPercent;
-        Muscle = stats.overallWeight * stats.musclePercent;
-        _baseWeight = stats.overallWeight - BodyFat - Muscle;
+        BodyFatKG = stats.overallWeight * stats.fatPercent;
+        MuscleKG = stats.overallWeight * stats.musclePercent;
+        _baseWeight = stats.overallWeight - BodyFatKG - MuscleKG;
 
         BodyTemperature = 98.6;
     }
 
-    public double BodyFat;
-    public double Muscle;
 
-    public readonly string OwnerName;
-    public double BodyFatPercentage => BodyFat / Weight;
-    public double MusclePercentage => Muscle / Weight;
-    public double Weight => _baseWeight + BodyFat + Muscle;
-    public double BodyTemperature { get; set; }
-
-    private double CalorieStore = 1500; // 75% of MAX_CALORIES (2000), up from 50% for better early-game survival
-    private double Energy = 800;
-    private double Hydration = 3000;
-
-    // Body composition limits
-    private const double MIN_FAT = 0.03;      // 3% essential fat (survival minimum)
-    private const double MIN_MUSCLE = 0.15;   // 15% minimum muscle (critical weakness)
-
-    // Calorie conversion rates (realistic)
-    private const double CALORIES_PER_LB_FAT = 3500;     // Well-established
-    private const double CALORIES_PER_LB_MUSCLE = 600;   // Protein catabolism
-    private const double LB_TO_KG = 0.454;
-
-    // Regeneration thresholds
-    private const double REGEN_MIN_CALORIES_PERCENT = 0.10;     // Need >10% calories to heal
-    private const double REGEN_MIN_HYDRATION_PERCENT = 0.10;    // Need >10% hydration to heal
-    private const double REGEN_MAX_ENERGY_PERCENT = 0.50;       // Need <50% exhaustion to heal (rested)
-    private const double BASE_HEALING_PER_HOUR = 0.1;           // 10% organ recovery per hour (10 hours to full heal)
-
-    // Track time at critical levels for progressive damage
-    private int _minutesStarving = 0;      // Time at 0% calories
-    private int _minutesDehydrated = 0;    // Time at 0% hydration
-    private int _minutesExhausted = 0;     // Time at 0% energy
-    private int _minutesHypothermic = 0;   // Time at severe hypothermia (<89.6°F)
-
-    /// <summary>
-    /// Damage application rules: 
-    /// 1. Body.Damage() is the only way to apply damage 
-    /// 2. Body handles all targeting resolution (string -> IBodyPart)
-    /// 3. Body handles damage distribution and penetration logic
-    /// 4. Effects should create Damage info and pass it here 
-    /// </summary>
-    public void Damage(DamageInfo damageInfo)
+    public DamageResult Damage(DamageInfo damageInfo)
     {
-        DamageProcessor.DamageBody(damageInfo, this);
+        return DamageProcessor.DamageBody(damageInfo, this);
     }
-
 
     public void Heal(HealingInfo healingInfo)
     {
-        // Distribute healing across damaged parts
         if (healingInfo.TargetPart != null)
         {
             var targetPart = Parts.FirstOrDefault(p => p.Name == healingInfo.TargetPart);
@@ -117,7 +65,6 @@ public class Body
             }
         }
 
-        // Heal most damaged parts first
         var damagedParts = Parts
             .Where(p => p.Condition < 1.0)
             .OrderBy(p => p.Condition)
@@ -133,7 +80,6 @@ public class Body
     {
         double healingAmount = healingInfo.Amount * healingInfo.Quality;
 
-        // Heal materials first, then organs
         var materials = new[] { part.Skin, part.Muscle, part.Bone }.Where(m => m != null);
         foreach (var material in materials)
         {
@@ -145,7 +91,6 @@ public class Body
             }
         }
 
-        // Heal organs
         foreach (var organ in part.Organs.Where(o => o.Condition < 1.0))
         {
             if (healingAmount > 0)
@@ -157,51 +102,102 @@ public class Body
         }
     }
 
-    public void Update(TimeSpan timePassed, SurvivalContext context)
+    /// <summary>
+    /// Applies all mutations from a SurvivalProcessorResult.
+    /// Returns the messages for the caller to handle.
+    /// </summary>
+    public void ApplyResult(SurvivalProcessorResult result)
     {
-        var data = BundleSurvivalData();
-        data.environmentalTemp = context.LocationTemperature;
-        data.ColdResistance = context.ClothingInsulation;
-        data.activityLevel = context.ActivityLevel;
+        // Stats
+        CalorieStore = Math.Max(0, CalorieStore + result.StatsDelta.CalorieDelta);
+        Hydration = Math.Max(0, Hydration + result.StatsDelta.HydrationDelta);
+        Energy = Math.Clamp(Energy + result.StatsDelta.EnergyDelta, 0, SurvivalProcessor.MAX_ENERGY_MINUTES);
+        BodyTemperature += result.StatsDelta.TemperatureDelta;
 
-        var result = SurvivalProcessor.Process(data, (int)timePassed.TotalMinutes, EffectRegistry.GetAll());
-        UpdateBodyBasedOnResult(result, context.SuppressMessages);
-    }
+        // Body composition
+        BodyFatKG = Math.Max(0, BodyFatKG - result.FatToConsume);
+        MuscleKG = Math.Max(0, MuscleKG - result.MuscleToConsume);
 
-
-    private void UpdateBodyBasedOnResult(SurvivalProcessorResult result, bool suppressMessages = false)
-    {
-        var resultData = result.Data;
-        BodyTemperature = resultData.Temperature;
-        CalorieStore = resultData.Calories;
-        Hydration = resultData.Hydration;
-        Energy = resultData.Energy;
-
-        result.Effects.ForEach(EffectRegistry.AddEffect);
-
-        // Process survival consequences (starvation, dehydration, exhaustion)
-        int minutesElapsed = 1; // Body.Update always called with 1 minute intervals
-        ProcessSurvivalConsequences(result, minutesElapsed, suppressMessages);
-
-        // Only print messages if not suppressed
-        if (!suppressMessages)
+        // Blood regeneration
+        if (result.BloodHealing > 0)
         {
-            foreach (string message in result.Messages)
-            {
-                string formattedMessage = message.Replace("{target}", OwnerName);
-                Output.WriteLine(formattedMessage);
-            }
+            Blood.Condition = Math.Min(1.0, Blood.Condition + result.BloodHealing);
+        }
+
+        // Damage
+        foreach (var damage in result.DamageEvents)
+        {
+            Damage(damage);
+        }
+
+        // Healing
+        foreach (var healing in result.HealingEvents)
+        {
+            Heal(healing);
         }
     }
 
-    // helper for baseline male human stats
-    public static BodyCreationInfo BaselineHumanStats => new BodyCreationInfo
+    public void Consume(FoodItem food)
+    {
+        var digestion = GetDigestionCapacity();
+        double absorptionRate = 0.5 + (0.5 * digestion);  // 50-100% absorption
+
+        CalorieStore += food.Calories * absorptionRate;
+        Hydration += food.WaterContent;  // Water absorption unaffected
+
+        if (food.HealthEffect != null) Heal(food.HealthEffect);
+        if (food.DamageEffect != null) Damage(food.DamageEffect);
+    }
+
+    /// <summary>
+    /// Add calories directly (from eating simple foods like berries, meat).
+    /// Calories per kg: Cooked meat ~2500, Raw meat ~1500, Berries ~500
+    /// </summary>
+    public void AddCalories(double calories)
+    {
+        var digestion = GetDigestionCapacity();
+        double absorptionRate = 0.5 + (0.5 * digestion);
+        CalorieStore = Math.Min(SurvivalProcessor.MAX_CALORIES, CalorieStore + calories * absorptionRate);
+    }
+
+    /// <summary>
+    /// Add hydration directly (from drinking water). 1L = 1000ml hydration.
+    /// </summary>
+    public void AddHydration(double ml)
+    {
+        Hydration = Math.Min(SurvivalProcessor.MAX_HYDRATION, Hydration + ml);
+    }
+
+    private double GetDigestionCapacity()
+    {
+        var capacities = CapacityCalculator.GetCapacities(this, new CapacityModifierContainer());
+        return capacities.Digestion;
+    }
+
+    public bool Rest(int minutes)
+    {
+        var result = SurvivalProcessor.Sleep(this, minutes);
+        ApplyResult(result);
+
+        HealingInfo healing = new()
+        {
+            Amount = minutes / 10.0,
+            Type = "natural",
+            Quality = Energy <= 0 ? 1 : 0.7,
+        };
+        Heal(healing);
+
+        return Energy <= 0;
+    }
+
+    public static BodyCreationInfo BaselineHumanStats => new()
     {
         type = BodyTypes.Human,
-        overallWeight = 75, // KG ~165 lbs
-        fatPercent = .15, // pretty lean
-        musclePercent = .30 // low end of athletic
+        overallWeight = 75,
+        fatPercent = 0.15,
+        musclePercent = 0.30
     };
+
     public static BodyCreationInfo BaselinePlayerStats
     {
         get
@@ -211,350 +207,6 @@ public class Body
             return stats;
         }
     }
-    public bool Rest(int minutes)
-    {
-        var data = BundleSurvivalData();
-        data.activityLevel = .5; // half metabolism
-        int minutesSlept = 0;
-        var result = SurvivalProcessor.Sleep(data, minutes);
-        UpdateBodyBasedOnResult(result);
 
-        // just heal once at the end
-        HealingInfo healing = new HealingInfo()
-        {
-            Amount = minutesSlept / 10,
-            Type = "natural",
-            Quality = Energy <= 0 ? 1 : .7, // healing quality is better after a full night's sleep
-        };
-        Heal(healing);
-
-        // Note: Calling action is responsible for updating World.Update(minutes)
-        // to avoid double time updates
-
-        return Energy <= 0;
-    }
-    public void Consume(FoodItem food)
-    {
-        CalorieStore += food.Calories;
-        Hydration += food.WaterContent;
-
-        if (food.HealthEffect != null)
-        {
-            Heal(food.HealthEffect);
-        }
-        if (food.DamageEffect != null)
-        {
-            Damage(food.DamageEffect);
-        }
-    }
-
-    public SurvivalData BundleSurvivalData() => new SurvivalData()
-    {
-        Temperature = BodyTemperature,
-        Calories = CalorieStore,
-        Hydration = Hydration,
-        Energy = Energy,
-        BodyStats = GetBodyStats(),
-        IsPlayer = IsPlayer,
-    };
-
-    public BodyStats GetBodyStats() => new BodyStats
-    {
-        BodyWeight = Weight,
-        MuscleWeight = Muscle,
-        FatWeight = BodyFat,
-        HealthPercent = Health,
-    };
-
-    #region Survival Consequences System
-
-    /// <summary>
-    /// Consume body fat to meet calorie deficit. Called when Calories = 0.
-    /// </summary>
-    /// <param name="calorieDeficit">How many calories below 0 (negative calories)</param>
-    /// <param name="messages">List to add messages to</param>
-    /// <returns>Remaining calorie deficit after consuming available fat</returns>
-    private double ConsumeFat(double calorieDeficit, List<string> messages)
-    {
-        if (BodyFat <= MIN_FAT * Weight)
-        {
-            return calorieDeficit; // No fat left to burn
-        }
-
-        // Calculate how much fat we can burn (don't go below minimum)
-        double fatAvailable = BodyFat - (MIN_FAT * Weight);
-        double caloriesFromFat = fatAvailable * (CALORIES_PER_LB_FAT / LB_TO_KG); // Convert kg to lb, then to calories
-
-        if (caloriesFromFat >= calorieDeficit)
-        {
-            // Enough fat to cover deficit
-            double fatToBurn = calorieDeficit / CALORIES_PER_LB_FAT * LB_TO_KG;
-            BodyFat -= fatToBurn;
-
-            // Message based on severity
-            double fatPercent = BodyFatPercentage;
-            if (IsPlayer && messages != null)
-            {
-                if (fatPercent < 0.08)
-                    messages.Add("Your body is consuming the last of your fat reserves... You're becoming dangerously thin.");
-                else if (fatPercent < 0.12)
-                    messages.Add("Your body is burning fat reserves. You're noticeably thinner.");
-            }
-
-            return 0; // Deficit covered
-        }
-        else
-        {
-            // Burn all available fat, still have deficit
-            BodyFat = MIN_FAT * Weight;
-            if (IsPlayer && messages != null)
-            {
-                messages.Add("Your body has exhausted all available fat reserves!");
-            }
-            return calorieDeficit - caloriesFromFat;
-        }
-    }
-
-    /// <summary>
-    /// Catabolize muscle tissue when fat reserves depleted. Reduces strength/speed.
-    /// </summary>
-    /// <param name="calorieDeficit">Remaining calorie deficit after fat consumption</param>
-    /// <param name="messages">List to add messages to</param>
-    /// <returns>Remaining deficit after consuming available muscle</returns>
-    private double ConsumeMuscle(double calorieDeficit, List<string> messages)
-    {
-        if (Muscle <= MIN_MUSCLE * Weight)
-        {
-            return calorieDeficit; // At critical weakness
-        }
-
-        // Muscle catabolism is less efficient than fat burning
-        double muscleAvailable = Muscle - (MIN_MUSCLE * Weight);
-        double caloriesFromMuscle = muscleAvailable * (CALORIES_PER_LB_MUSCLE / LB_TO_KG);
-
-        if (caloriesFromMuscle >= calorieDeficit)
-        {
-            double muscleToBurn = calorieDeficit / CALORIES_PER_LB_MUSCLE * LB_TO_KG;
-            Muscle -= muscleToBurn;
-
-            // Critical warnings - muscle loss is serious
-            double musclePercent = MusclePercentage;
-            if (IsPlayer && messages != null)
-            {
-                if (musclePercent < 0.18)
-                    messages.Add("Your body is cannibalizing muscle tissue! You feel extremely weak.");
-                else if (musclePercent < 0.25)
-                    messages.Add("Your muscles are wasting away. You're losing strength rapidly.");
-            }
-
-            return 0;
-        }
-        else
-        {
-            Muscle = MIN_MUSCLE * Weight;
-            if (IsPlayer && messages != null)
-            {
-                messages.Add("Your body has consumed almost all muscle tissue. Organ damage imminent!");
-            }
-            return calorieDeficit - caloriesFromMuscle;
-        }
-    }
-
-    /// <summary>
-    /// Apply organ damage from extreme starvation. Occurs when fat and muscle depleted.
-    /// </summary>
-    /// <param name="minutesElapsed">Minutes at critical starvation</param>
-    private void ApplyStarvationOrganDamage(int minutesElapsed)
-    {
-        // Progressive damage over ~5-7 days (7200-10080 minutes)
-        // Target: 0.1 HP per hour = death in ~10 hours of extreme starvation
-        double damagePerMinute = 0.1 / 60.0;
-        double totalDamage = damagePerMinute * minutesElapsed;
-
-        // Target random vital organs
-        var vitalOrgans = new[] { "Heart", "Liver", "Brain", "Lungs" };
-        string targetOrgan = vitalOrgans[Random.Shared.Next(vitalOrgans.Length)];
-
-        Damage(new DamageInfo
-        {
-            Amount = totalDamage,
-            Type = DamageType.Internal, // Internal damage bypasses armor
-            TargetPartName = targetOrgan,
-            Source = "Starvation"
-        });
-    }
-
-    /// <summary>
-    /// Process all survival stat consequences. Called from UpdateBodyBasedOnResult.
-    /// </summary>
-    /// <param name="result">Result from SurvivalProcessor containing updated stats</param>
-    /// <param name="minutesElapsed">Minutes that passed this update</param>
-    /// <param name="suppressMessages">Suppress status messages (e.g., during sleep)</param>
-    private void ProcessSurvivalConsequences(SurvivalProcessorResult result, int minutesElapsed, bool suppressMessages = false)
-    {
-        var data = result.Data;
-
-        // ===== STARVATION PROGRESSION =====
-        if (data.Calories <= 0)
-        {
-            _minutesStarving += minutesElapsed;
-
-            // Calculate how many calories we needed but didn't have
-            double currentMetabolism = SurvivalProcessor.GetCurrentMetabolism(data);
-            double calorieDeficit = (currentMetabolism / 24.0 / 60.0) * minutesElapsed;
-
-            // Stage 1: Consume fat reserves
-            double remainingDeficit = ConsumeFat(calorieDeficit, result.Messages);
-
-            // Stage 2: Catabolize muscle (only if fat depleted)
-            if (remainingDeficit > 0)
-            {
-                remainingDeficit = ConsumeMuscle(remainingDeficit, result.Messages);
-            }
-
-            // Stage 3: Organ damage (only if muscle at minimum)
-            if (remainingDeficit > 0 && _minutesStarving > 60480) // 6 weeks
-            {
-                ApplyStarvationOrganDamage(minutesElapsed);
-
-                if (!suppressMessages && IsPlayer && _minutesStarving % 60 == 0 && result.Messages != null) // Every hour
-                {
-                    result.Messages.Add($"You are starving to death... ({(int)(_minutesStarving / 1440)} days without food)");
-                }
-            }
-        }
-        else
-        {
-            _minutesStarving = 0; // Reset timer when fed
-        }
-
-        // ===== DEHYDRATION PROGRESSION =====
-        if (data.Hydration <= 0)
-        {
-            _minutesDehydrated += minutesElapsed;
-
-            // Dehydration kills faster than starvation
-            // Target: ~24 hours (1440 minutes) to death
-            if (_minutesDehydrated > 60) // After 1 hour, start damage
-            {
-                double damagePerMinute = 0.2 / 60.0; // 0.2 HP per hour = death in ~5 hours of severe dehydration
-                double totalDamage = damagePerMinute * minutesElapsed;
-
-                // Dehydration affects kidneys, brain, heart
-                var affectedOrgans = new[] { "Brain", "Heart", "Liver" };
-                string target = affectedOrgans[Random.Shared.Next(affectedOrgans.Length)];
-
-                Damage(new DamageInfo
-                {
-                    Amount = totalDamage,
-                    Type = DamageType.Internal,
-                    TargetPartName = target,
-                    Source = "Dehydration"
-                });
-
-                if (!suppressMessages && IsPlayer && _minutesDehydrated % 60 == 0 && result.Messages != null) // Every hour
-                {
-                    result.Messages.Add($"Your organs are failing from dehydration... ({_minutesDehydrated / 60} hours without water)");
-                }
-            }
-        }
-        else
-        {
-            _minutesDehydrated = 0;
-        }
-
-        // ===== EXHAUSTION PROGRESSION =====
-        if (data.Energy <= 0)
-        {
-            _minutesExhausted += minutesElapsed;
-
-            // Exhaustion doesn't directly kill, but creates vulnerability
-            // Track for potential future features (hallucinations, forced sleep, etc.)
-            if (!suppressMessages && IsPlayer && _minutesExhausted > 480 && _minutesExhausted % 120 == 0 && result.Messages != null) // Every 2 hours after 8 hours
-            {
-                result.Messages.Add("You're so exhausted you can barely function...");
-            }
-        }
-        else
-        {
-            _minutesExhausted = 0;
-        }
-
-        // ===== SEVERE HYPOTHERMIA PROGRESSION =====
-        // Severe hypothermia (<89.6°F body temperature) causes organ damage
-        const double SEVERE_HYPOTHERMIA_THRESHOLD = 89.6; // Must match SurvivalProcessor constant
-
-        if (data.Temperature < SEVERE_HYPOTHERMIA_THRESHOLD)
-        {
-            _minutesHypothermic += minutesElapsed;
-
-            // Hypothermia kills through organ failure (heart, brain)
-            // Timeline: ~2-4 hours at severe hypothermia = death (realistic)
-            if (_minutesHypothermic > 30) // After 30 minutes at severe hypothermia, start organ damage
-            {
-                // Damage scales with severity: 40°F is much worse than 85°F
-                double severityFactor = Math.Min(1.0, (SEVERE_HYPOTHERMIA_THRESHOLD - data.Temperature) / 50.0);
-
-                // Base: 0.15 HP/hr at threshold (89.6°F) → 0.3 HP/hr at 40°F
-                // Death in ~3-7 hours depending on severity
-                double damagePerHour = 0.15 + (0.15 * severityFactor);
-                double damagePerMinute = damagePerHour / 60.0;
-                double totalDamage = damagePerMinute * minutesElapsed;
-
-                // Cold primarily affects core organs (heart stops, brain damage)
-                var coreOrgans = new[] { "Heart", "Brain", "Lungs" };
-                string target = coreOrgans[Random.Shared.Next(coreOrgans.Length)];
-
-                Damage(new DamageInfo
-                {
-                    Amount = totalDamage,
-                    Type = DamageType.Internal,
-                    TargetPartName = target,
-                    Source = "Hypothermia"
-                });
-
-                if (!suppressMessages && IsPlayer && _minutesHypothermic % 30 == 0 && result.Messages != null) // Every 30 minutes
-                {
-                    double hours = _minutesHypothermic / 60.0;
-                    result.Messages.Add($"Your core body temperature is dangerously low... Your organs are failing... ({hours:F1} hours at {data.Temperature:F1}°F)");
-                }
-            }
-        }
-        else
-        {
-            _minutesHypothermic = 0; // Reset timer when warmed up
-        }
-
-        // ===== NATURAL ORGAN REGENERATION =====
-        // Only heal when ALL systems above critical levels
-        bool wellFed = data.Calories > SurvivalProcessor.MAX_CALORIES * REGEN_MIN_CALORIES_PERCENT;
-        bool hydrated = data.Hydration > SurvivalProcessor.MAX_HYDRATION * REGEN_MIN_HYDRATION_PERCENT;
-        bool rested = data.Energy < SurvivalProcessor.MAX_ENERGY_MINUTES * REGEN_MAX_ENERGY_PERCENT;
-
-        if (wellFed && hydrated && rested)
-        {
-            // Calculate healing based on nutrition quality
-            double nutritionQuality = Math.Min(1.0, data.Calories / SurvivalProcessor.MAX_CALORIES);
-            double healingThisUpdate = (BASE_HEALING_PER_HOUR / 60.0) * minutesElapsed * nutritionQuality;
-
-            // Use existing healing system
-            HealingInfo healing = new HealingInfo
-            {
-                Amount = healingThisUpdate,
-                Type = "natural regeneration",
-                Quality = nutritionQuality
-            };
-
-            Heal(healing);
-
-            // Occasional feedback (don't spam)
-            if (IsPlayer && Health < 1.0 && minutesElapsed % 60 == 0 && Random.Shared.NextDouble() < 0.2 && result.Messages != null)
-            {
-                result.Messages.Add("Your body is slowly healing...");
-            }
-        }
-    }
-
-    #endregion
-
+    public double BaseColdResistance { get; } = 0;
 }

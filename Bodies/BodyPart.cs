@@ -1,8 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Runtime.CompilerServices;
-using text_survival.IO;
-
-namespace text_survival.Bodies;
+﻿namespace text_survival.Bodies;
 
 
 public static class BodyRegionNames
@@ -81,7 +77,7 @@ public class BodyRegion(string name, double coverage)
     //     }
 
     //     // Output description line
-    //     Output.WriteLine($"- {Name} is {damageDescription} ({healthPercent}%)");
+    //     GameDisplay.AddNarrative($"- {Name} is {damageDescription} ({healthPercent}%)");
     // }
     public override string ToString() => Name;
 }

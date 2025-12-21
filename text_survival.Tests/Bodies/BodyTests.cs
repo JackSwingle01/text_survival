@@ -11,7 +11,7 @@ public class BodyTests
         var body = TestFixtures.CreateBaselineHumanBody();
 
         // Act
-        double weight = body.Weight;
+        double weight = body.WeightKG;
 
         // Assert
         // Weight = _baseWeight + BodyFat + Muscle
@@ -48,36 +48,4 @@ public class BodyTests
         Assert.Equal(TestConstants.BaselineHuman.MusclePercent, musclePercent, precision: 2);
     }
 
-    [Fact]
-    public void Health_AverageCondition_CalculatesFromParts()
-    {
-        // Arrange
-        var body = TestFixtures.CreateBaselineHumanBody();
-
-        // Act
-        double health = body.Health;
-
-        // Assert
-        // Healthy body should have health close to 1.0
-        Assert.True(health > 0.9 && health <= 1.0,
-            $"Healthy body should have health near 1.0. Actual: {health}");
-    }
-
-    [Fact]
-    public void Health_DamagedOrgan_ClampedByWorstOrgan()
-    {
-        // Arrange
-        var body = TestFixtures.CreateBaselineHumanBody();
-        var chest = body.Parts.First(p => p.Name == BodyRegionNames.Chest);
-        var heart = chest.Organs.First(o => o.Name == OrganNames.Heart);
-        heart.Condition = 0.3; // Severely damaged heart
-
-        // Act
-        double health = body.Health;
-
-        // Assert
-        // Health is clamped by worst organ condition
-        Assert.True(health <= 0.3,
-            $"Overall health should be clamped by worst organ. Actual: {health}");
-    }
 }

@@ -1,6 +1,5 @@
-﻿
-
-using text_survival.IO;
+﻿using text_survival.IO;
+using text_survival.UI;
 
 namespace text_survival.Skills
 {
@@ -24,14 +23,14 @@ namespace text_survival.Skills
         public void LevelUp()
         {
             Level++;
-            Output.WriteLine("You leveled up ", this, " to level ", Level, "!");
+            GameDisplay.AddNarrative($"You leveled up {this} to level {Level}!");
         }
 
         public override string ToString() => Name;
 
         public void Describe()
         {
-            Output.Write(this, ": ", Level, " (", Xp, "/", LevelUpThreshold, ")");
+            GameDisplay.AddNarrative($"{this}: {Level} ({Xp}/{LevelUpThreshold})");
         }
 
     }

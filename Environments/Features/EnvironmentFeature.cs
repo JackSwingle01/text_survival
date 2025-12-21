@@ -1,5 +1,3 @@
-using text_survival.Environments;
-
 namespace text_survival.Environments.Features;
 
 public class EnvironmentFeature : LocationFeature
@@ -13,19 +11,19 @@ public class EnvironmentFeature : LocationFeature
         RiverBank,      // Water nearby, but exposure
         HighGround      // More wind but better visibility
     }
-    private LocationType Type;
+    public LocationType Type { get; private set; }
     public double TemperatureModifier { get; } = 0; // degrees F adjustment
     public double NaturalOverheadCoverage { get; } = 0;
     public double NaturalWindProtection { get; } = 0;
 
-    public EnvironmentFeature(Location location, double tempModifier, double overheadCoverage, double windProtection) : base("shelter", location)
+    public EnvironmentFeature(double tempModifier, double overheadCoverage, double windProtection) : base("shelter")
     {
         TemperatureModifier = tempModifier;
         NaturalOverheadCoverage = overheadCoverage;
         NaturalWindProtection = windProtection;
     }
-    public EnvironmentFeature(Location location, LocationType type)
-        : base("locationType", location)
+    public EnvironmentFeature(LocationType type)
+        : base("locationType")
     {
         Type = type;
 
@@ -84,5 +82,17 @@ public class EnvironmentFeature : LocationFeature
             _ => "An undefined location type."
         };
     }
+
+    // Get short name for use in shelter-first descriptions
+    public string GetShortName() => Type switch
+    {
+        LocationType.Forest => "a dense forest",
+        LocationType.Cave => "a cave",
+        LocationType.Cliff => "a cliff face",
+        LocationType.RiverBank => "the riverbank",
+        LocationType.HighGround => "the high ground",
+        LocationType.OpenPlain => "the open plain",
+        _ => "the area"
+    };
 
 }

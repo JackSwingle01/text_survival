@@ -151,14 +151,14 @@ public class DamageProcessorTests
         // Arrange
         var body = TestFixtures.CreateBaselineHumanBody();
         var noDamage = TestFixtures.CreateDamageInfo(amount: 0.0, damageType: DamageType.Blunt);
-        var initialHealth = body.Health;
 
         // Act
         var result = DamageProcessor.DamageBody(noDamage, body);
 
         // Assert
         Assert.Equal(0, result.TotalDamageDealt);
-        Assert.Equal(initialHealth, body.Health);
+        // All parts should still be at full condition
+        Assert.True(body.Parts.All(p => p.Condition >= 1.0));
     }
 
     [Fact]

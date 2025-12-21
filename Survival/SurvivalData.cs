@@ -6,10 +6,7 @@ namespace text_survival.Survival;
 public class SurvivalData
 {
 	// Primary stats
-	public double Calories;
-	public double Hydration;
-	public double Energy;
-	public double Temperature;
+
 	public double ColdResistance;
 
 	// body stats

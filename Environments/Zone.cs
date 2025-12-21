@@ -1,109 +1,72 @@
-﻿
 namespace text_survival.Environments
 {
-    public enum ZoneType
-    {
-        Forest,
-        CaveSystem,
-        Tundra,
-        RiverValley,
-        Plains,
-        Unknown
-    }
-
     public class Zone
     {
         public string Name { get; }
         public string Description { get; }
-        public bool Visited = false;
-        private double BaseTemperature { get; }
-        public int Elevation { get; }
-        public virtual List<Location> Locations { get; } = [];
-        private LocationTable LocationTable;
+        public LocationGraph Graph { get; } = new();
         public ZoneWeather Weather;
-        public ZoneType Type { get; set; } = ZoneType.Unknown;
 
+        // Pool of locations not yet connected to the graph
+        private List<Location> _unrevealedLocations = [];
 
-        public Zone(string name, string description, LocationTable locationTable, double baseTemp = 20, int elevation = 0)
+        public Zone(string name, string description, double baseTemp = 20)
         {
             Name = name;
             Description = description;
-            BaseTemperature = baseTemp;
-            Elevation = elevation;
-            LocationTable = locationTable;
-            Weather = new(this);
-            if (!LocationTable.IsEmpty())
+            Weather = new(baseTemp);
+        }
+
+        public void Update(int minutes, DateTime time)
+        {
+            Weather.Update(time);
+            foreach (var location in Graph.All)
             {
-                // Generate 3 locations with coordinate assignments
-                for (int i = 0; i < 3; i++)
-                {
-                    var location = LocationTable.GenerateRandom(this);
-
-                    // Assign coordinates for map display
-                    if (i == 0)
-                    {
-                        // First location is at zone entry point (0, 0)
-                        location.CoordinateX = 0;
-                        location.CoordinateY = 0;
-                    }
-                    else
-                    {
-                        // Subsequent locations get random positions
-                        // ensuring minimum distance from existing locations
-                        bool validPosition = false;
-                        int attempts = 0;
-                        while (!validPosition && attempts < 20)
-                        {
-                            location.CoordinateX = Utils.RandInt(-300, 300);
-                            location.CoordinateY = Utils.RandInt(-300, 300);
-
-                            // Check distance from all existing locations
-                            validPosition = true;
-                            foreach (var existingLoc in Locations)
-                            {
-                                double distance = Math.Sqrt(
-                                    Math.Pow(location.CoordinateX - existingLoc.CoordinateX, 2) +
-                                    Math.Pow(location.CoordinateY - existingLoc.CoordinateY, 2)
-                                );
-
-                                if (distance < 150) // Minimum separation
-                                {
-                                    validPosition = false;
-                                    break;
-                                }
-                            }
-                            attempts++;
-                        }
-
-                        // If we couldn't find a valid position after 20 attempts, use the last random position
-                    }
-
-                    Locations.Add(location);
-                }
+                location.Update(minutes);
             }
-
         }
 
-        public void Update()
+        /// <summary>
+        /// Add a location to the unrevealed pool (not yet connected to graph)
+        /// </summary>
+        public void AddUnrevealedLocation(Location location)
         {
-            Locations.ForEach(x => x.Update());
+            _unrevealedLocations.Add(location);
         }
 
-        /// <summary>Returns emoji symbol for this zone type for map display</summary>
-        public string GetSymbol()
+        /// <summary>
+        /// Check if there are any unrevealed locations remaining
+        /// </summary>
+        public bool HasUnrevealedLocations()
         {
-            return Type switch
-            {
-                ZoneType.Forest => "🌲",
-                ZoneType.CaveSystem => "⛰",
-                ZoneType.Tundra => "❄",
-                ZoneType.RiverValley => "〰",
-                ZoneType.Plains => "🌾",
-                _ => "?"
-            };
+            return _unrevealedLocations.Count > 0;
         }
 
-        public override string ToString() => Name;
+        /// <summary>
+        /// Reveal a random location from the pool and connect it to the specified location
+        /// </summary>
+        public Location? RevealRandomLocation(Location connectFrom)
+        {
+            if (_unrevealedLocations.Count == 0)
+                return null;
 
+            // Pick a random unrevealed location
+            var random = new Random();
+            int index = random.Next(_unrevealedLocations.Count);
+            var newLocation = _unrevealedLocations[index];
+            _unrevealedLocations.RemoveAt(index);
+
+            // Connect it to the graph
+            connectFrom.AddBidirectionalConnection(newLocation);
+            Graph.Add(newLocation);
+            newLocation.Explore();
+
+            return newLocation;
+        }
+
+        /// <summary>
+        /// Get count of unrevealed locations (for UI hints)
+        /// </summary>
+        public int UnrevealedCount => _unrevealedLocations.Count;
     }
 }

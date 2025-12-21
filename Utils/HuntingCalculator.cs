@@ -1,5 +1,5 @@
-using text_survival.Actors;
-using text_survival.Actors.NPCs;
+using text_survival.Actors.Animals;
+using text_survival.Actors.Player;
 
 namespace text_survival;
 
@@ -88,6 +88,35 @@ public static class HuntingCalculator
         return detectionRoll >= alertThreshold && detectionRoll < detectionChance;
     }
 
+    /// <summary>
+    /// Calculates detection chance with animal traits and activity factored in.
+    /// More nervous animals are harder to approach. Grazing animals are easier.
+    /// </summary>
+    /// <param name="distance">Current distance from animal in meters</param>
+    /// <param name="animal">The target animal (provides state, nervousness, activity)</param>
+    /// <param name="huntingSkill">Player's Hunting skill level</param>
+    /// <param name="failedAttempts">Number of previous failed stealth checks</param>
+    /// <returns>Detection chance (0.0 - 1.0)</returns>
+    public static double CalculateDetectionChanceWithTraits(
+        double distance,
+        Animal animal,
+        int huntingSkill,
+        int failedAttempts = 0)
+    {
+        // Get base detection using existing formula
+        double baseChance = CalculateDetectionChance(distance, animal.State, huntingSkill, failedAttempts);
+
+        // Apply nervousness modifier: nervous (0.9) = 1.4x harder, calm (0.1) = 0.6x easier
+        // Formula: 0.5 + nervousness maps [0,1] to [0.5, 1.5]
+        double nervousnessModifier = 0.5 + animal.Nervousness;
+        baseChance *= nervousnessModifier;
+
+        // Apply activity modifier from animal
+        baseChance *= animal.GetActivityDetectionModifier();
+
+        return Math.Clamp(baseChance, 0.05, 0.95);
+    }
+
     #endregion
 
     #region Ranged Combat (Phase 3)
@@ -149,6 +178,85 @@ public static class HuntingCalculator
             "torso" => 1.0,     // Standard damage
             _ => 1.0
         };
+    }
+
+    #endregion
+
+    #region Thrown Weapons
+
+    /// <summary>
+    /// Calculates accuracy for thrown weapons (spears, stones).
+    /// Simple formula: closer is better, no optimal range band.
+    /// </summary>
+    /// <param name="distance">Distance to target in meters</param>
+    /// <param name="maxRange">Maximum effective range of weapon</param>
+    /// <param name="baseAccuracy">Base accuracy of weapon (0.65 for stone, 0.70-0.75 for spears)</param>
+    /// <param name="targetIsSmall">True if targeting small game (applies 50% penalty for spears)</param>
+    /// <returns>Hit chance (0.0 - 1.0)</returns>
+    public static double CalculateThrownAccuracy(
+        double distance,
+        double maxRange,
+        double baseAccuracy,
+        bool targetIsSmall)
+    {
+        // Beyond max range = 0%
+        if (distance > maxRange) return 0;
+
+        // Closer is better (linear falloff from max range)
+        double accuracy = baseAccuracy * (1.0 - distance / maxRange);
+
+        // Small target penalty (spears only — stones pass false)
+        if (targetIsSmall) accuracy *= 0.5;
+
+        return Math.Clamp(accuracy, 0.05, 0.95);
+    }
+
+    #endregion
+
+    #region Pursuit Resolution
+
+    /// <summary>
+    /// Calculates whether a player can escape a pursuing predator.
+    /// Uses physics-based calculation: can player maintain enough distance until predator gives up?
+    /// </summary>
+    /// <param name="player">The fleeing player</param>
+    /// <param name="predator">The pursuing animal</param>
+    /// <param name="headStartMeters">Current distance (head start) in meters</param>
+    /// <returns>Tuple of (escaped, narrative description)</returns>
+    public static (bool escaped, string narrative) CalculatePursuitOutcome(
+        Player player,
+        Animal predator,
+        double headStartMeters)
+    {
+        // Player speed (uses body capacity for injuries)
+        double playerBaseSpeed = 6.0; // m/s jogging
+        double movementCapacity = player.GetCapacities().Moving;
+        double playerSpeed = playerBaseSpeed * movementCapacity;
+
+        // Predator speed from animal data
+        double predatorSpeed = predator.SpeedMps;
+
+        // Can player outrun?
+        if (playerSpeed >= predatorSpeed)
+        {
+            return (true, $"You're faster than the {predator.Name}. You escape easily.");
+        }
+
+        // Pursuit calculation
+        double speedDiff = predatorSpeed - playerSpeed;
+        double catchTime = headStartMeters / speedDiff;
+
+        // Predator commitment from animal data
+        double commitment = predator.PursuitCommitmentSeconds;
+
+        if (catchTime > commitment)
+        {
+            return (true, $"The {predator.Name} chases but gives up after {commitment:F0} seconds. You escape.");
+        }
+        else
+        {
+            return (false, $"The {predator.Name} is faster. It catches you in {catchTime:F0} seconds!");
+        }
     }
 
     #endregion

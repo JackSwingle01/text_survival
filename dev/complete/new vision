@@ -1,0 +1,501 @@
+## Camp-Centric Survival
+
+### The Core Concept
+
+You have a camp. Everything else is an expedition.
+
+Your camp is where your fire is. It's where your shelter is. It's where your stuff is. When you forage, hunt, or explore, you leave camp, do the thing, and return. You don't "move" to the forest and then decide what to do there. You decide "I'm going to forage in the forest" and that's a single commitment with a round trip baked in.
+
+The only way your camp changes is when you deliberately move it. That's a major action — you're abandoning infrastructure, carrying what you can, and establishing somewhere new.
+
+---
+
+### Locations
+
+Locations are not a navigation graph. They're a list of known places you can expedition to.
+
+Each location has:
+- A name and character (Frozen Creek, Dense Birches, Rocky Overlook)
+- Travel time from camp (one-way)
+- Features (what you can do there)
+- Terrain properties (exposure, shelter potential)
+
+You discover locations through exploration, events, or time spent in the area. You start knowing one or two. The rest reveal themselves.
+
+Locations don't connect to each other. They connect to your camp. "How far is it?" always means "from here, where my fire is."
+
+---
+
+### Features
+
+Features are what make locations useful:
+
+**ForageFeature** — Ambient scavenging. You search the area and find random things based on probability and depletion. A forest has sticks, bark, maybe berries. A creek bed has stones, reeds, ice. Yields diminish as you exhaust an area. Respawns slowly.
+
+**HarvestableFeature** — Visible specific resources. A berry bush with 12 servings. A dead tree you can process for firewood. A frozen pond you can chip ice from. Quantity-based, not probability-based. You can see what's there before you commit.
+
+**EnvironmentFeature** — Terrain properties. A cave has natural wind protection and temperature moderation. A ridge is exposed but offers visibility. These affect what happens to you while you're there.
+
+**ShelterFeature** — Built protection. Your lean-to, your snow wall, your debris hut. Provides insulation, wind coverage, overhead protection. This is infrastructure — it takes time to build and stays when you leave.
+
+**HeatSourceFeature** — Fire. The anchor. Only exists at your camp (or a camp you find). Has fuel, burns down, produces heat. Can bank to embers, relight, die completely.
+
+---
+
+### Actions
+
+Actions are commitments, not menus.
+
+When you choose to forage in the Dense Birches, you're committing to:
+- Travel time there (10 minutes)
+- Work time (20 minutes, give or take)
+- Travel time back (10 minutes)
+- Exposure during all of this
+- Risk of events during all of this
+
+The game calculates this for you and warns you if your fire won't last. "Fire has 35 minutes. This expedition takes approximately 40. Your fire may die before you return. Risk it?"
+
+The action doesn't happen instantly. Time passes in chunks. Each chunk:
+- Survival stats tick (you get colder, hungrier, more tired)
+- Fire burns down (even though you're not there)
+- Events can trigger (wolf sighting, weather turning, you slip and fall)
+- You can sometimes abort early
+
+---
+
+### The Main Loop
+
+```
+YOUR CAMP — Frozen Valley
+Fire: 1h 40m remaining
+Shelter: Crude lean-to (wind -40%)
+Temperature: 28°F (feels like 22°F)
+
+You: Cold but stable. Hungry. Alert.
+
+ACTIONS
+› Forage (Nearby Birches / Frozen Creek / Deep Forest)
+› Hunt (Ridge Overlook / River Bend)  
+› Explore (Search for new locations)
+› Tend fire
+› Craft
+› Rest
+› Eat/Drink
+› Move camp
+```
+
+Selecting "Forage" expands to location choices with context:
+
+```
+WHERE DO YOU WANT TO FORAGE?
+
+› Nearby Birches (10 min round trip)
+    Sparse — you've picked this over
+    Safe margin: 1h 30m remaining after
+    
+› Frozen Creek (30 min round trip)  
+    Moderate — stones, reeds, maybe fish
+    Tight margin: 1h 10m remaining after
+    
+› Deep Forest (50 min round trip)
+    Abundant — unexplored
+    ⚠ RISKY: Fire may die (35 min short)
+    
+› Back
+```
+
+You see the tradeoffs. Nearby is safe but depleted. Far is rich but you might not make it back. That's the decision.
+
+---
+
+### Time and Variance
+
+Actions don't take fixed time. They take estimated time with variance.
+
+"Forage in Deep Forest: approximately 25 minutes (could be 15-40)"
+
+You don't know exactly how long you'll be. Maybe you find what you need fast. Maybe you struggle. This uncertainty makes the fire margin meaningful — a "safe" expedition can go wrong, a "risky" one might work out.
+
+Experienced players learn to feel the odds. They know when 10 minutes of margin is actually fine and when 30 minutes is cutting it close.
+
+---
+
+### Events
+
+Things happen during expeditions.
+
+You're foraging in the Deep Forest. Fifteen minutes in:
+
+```
+Movement in the treeline. A wolf, watching you. Maybe 60 meters out.
+
+› Freeze and wait (5 min)
+› Back away toward camp
+› Make noise, try to scare it off
+› Drop meat as distraction [you have: rabbit carcass]
+```
+
+Events create decisions, not just announcements. Context matters — the same wolf sighting is different when you're healthy versus injured, when you have meat versus when you don't, when camp is close versus far.
+
+Events can escalate. The wolf you failed to scare off starts approaching. Now your options are worse.
+
+Events can be opportunities. You spot a deer while foraging. Do you abandon your forage to start a hunt? You find a frozen corpse — search it or leave it?
+
+---
+
+### The Fire Tether
+
+Fire defines your world.
+
+Every decision runs through: "Can I do this and get back before my fire dies?" The fire burns whether you're there or not. Time away is heat lost and fuel consumed.
+
+This creates a natural radius. Early game, you can barely leave camp. Your fire is small, your fuel is scarce, your skills are weak. You forage nearby, you stay close, you survive minute to minute.
+
+As you progress:
+- Better fire management extends burn time
+- Ember carrying lets you relight away from camp
+- Fire-starting skills reduce dependence on existing fire
+- Knowledge of locations lets you plan efficient routes
+
+The expert player sees a 40-minute fire and thinks "I can do a deep forage, let it die, and restart with the good fuel I bring back." They're playing a different game than the novice who never lets the fire drop below an hour.
+
+---
+
+### Moving Camp
+
+Moving camp is the big commitment.
+
+Your fire is here. Your shelter is here. Your storage is here. Moving means:
+- Letting your fire die (or carrying embers if you can)
+- Abandoning your shelter (unless it's portable)
+- Carrying only what fits in your pack
+- Traveling to a new location
+- Starting over with fire, shelter, everything
+
+You move camp because:
+- This area is exhausted (depleted all forage, no game)
+- Danger is too high (predators, weather exposure)
+- Better opportunity elsewhere (found a cave, spotted game trails)
+- Seasonal pressure (need to follow migration, reach better biome)
+
+Moving camp is how you progress geographically. The local location list is your "neighborhood." Moving camp changes your neighborhood entirely.
+
+---
+
+### Discovery
+
+You don't see all locations on day one.
+
+You start knowing your immediate surroundings — wherever you woke up, whatever's obviously visible. The rest surfaces through:
+
+- **Time spent**: While foraging, "you notice a frozen streambed to the north"
+- **Exploration**: Dedicated action that costs time but yields information
+- **Vantage points**: Some locations reveal others (the ridge lets you see the valley)
+- **Events**: Following tracks, hearing sounds, seeing smoke
+
+Unknown locations appear as hints before they're confirmed:
+
+```
+KNOWN LOCATIONS
+› Nearby Birches
+› Frozen Creek
+› ??? (smoke spotted east — investigate?)
+```
+
+Going to investigate resolves the mystery. Could be a camp, a corpse, a threat.
+
+---
+
+### Depletion and Pressure
+
+Areas run out.
+
+The Nearby Birches had abundant sticks on day one. By day three, they're sparse. By day five, you're wasting time going there. The game is pushing you outward.
+
+This is intentional. Staying in one place forever shouldn't be viable. You exhaust your surroundings, and either:
+- Range further (more risk, more time, better yields)
+- Move camp (reset your radius in a new area)
+- Die slowly (the consequence of refusing to adapt)
+
+The expert player reads depletion rates and knows when to move before they're desperate. The novice clings to a spent area until they're starving.
+
+---
+
+### Progression Arc
+
+**Early game**: Crisis survival. Fire is everything. You forage constantly to keep it alive. Every expedition is terrifying. Events are deadly. You don't travel far.
+
+**Mid game**: Stable base. You have a shelter, a decent fire, some food stored. You can take calculated risks. You're exploring, finding new locations, maybe tracking game. Events are manageable.
+
+**Late game**: Infrastructure and mastery. You have multiple camps or the ability to travel light. You understand the systems deeply enough to break the "rules" — letting fires die on purpose, traveling through dangerous weather, taking risks that would kill a novice. The game hasn't gotten easier, you've gotten better.
+
+---
+
+### What This Changes From Current Code
+
+**Zone → Less prominent or removed.** The macro geography might exist for migration later, but daily gameplay is camp + locations.
+
+**Location graph → Location list.** No edges between locations. They're all destinations from camp with travel times.
+
+**ForageFeature stays on locations**, but foraging is framed as an expedition: select location, commit to round trip, return with results.
+
+**Movement actions → Expedition actions.** You don't "go to" a location and then decide what to do. You decide what to do (forage, hunt, explore) and pick where.
+
+**Fire margin → Automatic on all expeditions.** The system calculates round-trip time plus work time and warns you. Not a per-action flag.
+
+**Action execution → Tick-based with events.** Time passes in chunks during actions. Things can happen. You can sometimes abort.
+
+---
+
+### Summary
+
+You live at your camp. Everywhere else is somewhere you go and come back from. The fire is the tether. Time is the currency. Every expedition is a bet: can I do this and return before everything falls apart?
+
+### Action Types
+
+**Camp Actions** — Happen at camp, no travel. Tend fire, craft, rest, eat. Time passes, fire burns, but you're there. No margin check needed.
+
+**Expeditions** — Leave camp, do something, return. Forage, hunt, explore. These have three phases: travel out, work, travel back. Fire margin check before committing.
+
+**Move Camp** — Special case. One-way travel with everything that implies. No return. Establishes new camp.
+
+---
+
+### Data Flow: Expedition
+
+```
+1. Player selects action type (Forage)
+         ↓
+2. Player selects location (Deep Forest)
+         ↓
+3. System calculates expedition shape:
+   - Travel out: 25 min
+   - Work time: 20 min (±10 variance)
+   - Travel back: 25 min
+   - Total estimate: 70 min (range: 60-80)
+         ↓
+4. System checks fire margin:
+   - Fire remaining: 85 min
+   - Margin after: 5-25 min
+   - Verdict: Tight but possible
+         ↓
+5. Player sees summary and confirms:
+   "Deep Forest — ~70 min round trip
+    Fire will have ~15 min remaining
+    Proceed?"
+         ↓
+6. Expedition begins
+         ↓
+7. Phase: TRAVEL OUT
+   - Loop in chunks (5-10 min each)
+   - Each chunk: tick survival, tick world (fire burns)
+   - Event check each chunk (lower probability)
+   - Player not shown granular updates, just interrupts
+         ↓
+8. Phase: WORK
+   - Roll actual duration (20 min ± 10)
+   - Loop in chunks
+   - Each chunk: tick survival, tick world
+   - Event check each chunk (higher probability)
+   - Events may offer abort: "Storm coming. Head back now?"
+         ↓
+9. Phase: TRAVEL BACK
+   - Same as travel out
+   - Events can still happen
+   - Tension if fire margin is thin
+         ↓
+10. Arrival
+    - Results presented (what you found/caught)
+    - Fire status shown
+    - Consequences resolved (if fire died, if injured, etc.)
+         ↓
+11. Back to camp menu
+```
+
+---
+
+### Data Flow: Camp Action
+
+```
+1. Player selects action (Tend Fire)
+         ↓
+2. No location selection needed
+         ↓
+3. Action executes
+   - May tick time in chunks
+   - Events possible but rare (camp is relatively safe)
+         ↓
+4. Back to camp menu
+```
+
+---
+
+### The Expedition Object
+
+An expedition bundles:
+
+```
+Expedition {
+    destination: Location
+    activity: ActivityType (forage, hunt, explore)
+    
+    travelTimeOut: int (calculated from location distance)
+    workTimeBase: int
+    workTimeVariance: int
+    travelTimeBack: int (same as out, usually)
+    
+    exposureFactor: float (how much cold during work)
+    detectionRisk: float (event probability during work)
+    
+    phases: [TravelOut, Work, TravelBack]
+    currentPhase: Phase
+    elapsedInPhase: int
+}
+```
+
+---
+
+### Execution Loop
+
+```
+Execute(expedition):
+    
+    if not ConfirmFireMargin(expedition):
+        return  // Player backed out
+    
+    for each phase in [TravelOut, Work, TravelBack]:
+        
+        duration = CalculatePhaseDuration(phase)
+        elapsed = 0
+        
+        while elapsed < duration:
+            
+            chunk = min(CHUNK_SIZE, duration - elapsed)
+            
+            // World ticks (survival, fire, weather)
+            TickWorld(chunk)
+            
+            // Event check
+            event = CheckForEvent(phase, expedition)
+            if event:
+                response = PresentEvent(event)
+                response.Execute()
+                
+                if response.abortsExpedition:
+                    // Early return - calculate partial results
+                    return ResolveEarlyReturn(expedition, phase, elapsed)
+            
+            // Player death check
+            if player.IsDead:
+                return
+            
+            elapsed += chunk
+        
+        // Phase complete
+        OnPhaseComplete(phase)
+    
+    // Expedition complete
+    return ResolveExpedition(expedition)
+```
+
+---
+
+### Fire Margin Check
+
+```
+CheckFireMargin(expedition):
+    
+    fireRemaining = camp.fire.MinutesRemaining
+    expeditionTime = expedition.TotalEstimatedTime
+    
+    margin = fireRemaining - expeditionTime
+    
+    if margin > 30:
+        // Comfortable, no warning
+        return true
+    
+    if margin > 0:
+        // Tight
+        Warn("Fire will have ~{margin} min when you return")
+        return Confirm()
+    
+    if margin > -15:
+        // Risky
+        Warn("Fire may die before you return")
+        return Confirm()
+    
+    // Very risky
+    Warn("Fire will likely die. You'll return to cold camp.")
+    return Confirm()
+```
+
+---
+
+### Event Integration
+
+Events belong to phases and contexts:
+
+```
+TravelOut/TravelBack:
+    - Weather events (storm approaching)
+    - Navigation events (get lost, find shortcut)
+    - Wildlife sighting (distant, not engaged)
+    - Injury events (slip, fall)
+
+Work (Forage):
+    - Discovery events (find cache, corpse, new location)
+    - Wildlife encounters (closer, more likely)
+    - Tool breaks
+    - Bonus finds
+
+Work (Hunt):
+    - Prey behavior (spooks, moves, charges)
+    - Other predators
+    - Shot outcomes
+
+Work (Explore):
+    - Discovery events (primary purpose)
+    - Danger events (stumble into predator den)
+```
+
+---
+
+### What ActionBuilder Becomes
+
+Less about chaining menus, more about declaring expedition shape:
+
+```
+DefineExpedition("Forage")
+    .AtLocation(location)
+    .TravelTime(location.DistanceFromCamp)
+    .WorkTime(base: 20, variance: 10)
+    .Exposure(0.7)
+    .DetectionRisk(0.1)
+    .OnWork(ctx => ForageAt(location))
+    .OnComplete(ctx => ShowResults())
+```
+
+Camp actions stay simpler:
+
+```
+DefineCampAction("Tend Fire")
+    .TakesMinutes(5)
+    .Do(ctx => TendFire())
+```
+
+---
+
+### Key Shifts
+
+| Before | After |
+|--------|-------|
+| Action → World.Update(N) → Next menu | Action → Loop chunks → Event checks → Resolve |
+| Fixed time | Base time ± variance |
+| Movement is separate action | Travel is part of expedition |
+| Fire check is opt-in | Fire check is automatic for expeditions |
+| Events don't exist | Events interrupt during execution |
+| You "are at" locations | You "expedition to" locations |
+
+---
+
+The builder pattern mostly survives. What changes is execution — it's no longer atomic.

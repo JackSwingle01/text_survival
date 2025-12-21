@@ -1,10 +1,7 @@
 using text_survival;
-using text_survival.Core;
-using text_survival.Environments;
 
 public class ZoneWeather
 {
-
     // todo: improve sunrise and sunset logic,
     // todo: add more continuity and state to more granular changes
     public double BaseTemperature { get; private set; } // In Celsius
@@ -12,6 +9,11 @@ public class ZoneWeather
     public double Precipitation { get; private set; } // 0-1 intensity
     public double WindSpeed { get; private set; }    // 0-1 intensity
     public double CloudCover { get; private set; }   // 0-1 coverage
+    public int Elevation { get; }
+
+    // Weather transition tracking for events
+    public WeatherCondition? PreviousCondition { get; private set; }
+    public bool WeatherJustChanged { get; private set; }
 
     // Season tracking
     public enum Season { Winter, Spring, Summer, Fall }
@@ -29,17 +31,16 @@ public class ZoneWeather
         Stormy      // Thunderstorms (rare, mostly summer)
     }
 
-    // Add to ZoneWeather class
     public double SunlightIntensity
     {
         get
         {
             // No sun at night
-            if (!IsDaytime())
+            if (!IsDaytime(Time))
                 return 0;
 
             // Base sun intensity from time of day
-            double timeOfDayFactor = GetSunIntensityByTime();
+            double timeOfDayFactor = GetSunIntensityByTime(Time);
 
             // Reduction factors from weather conditions
             double cloudReduction = CloudCover * 0.9; // Clouds block up to 90% of sunlight
@@ -60,46 +61,14 @@ public class ZoneWeather
         }
     }
 
-    private bool IsDaytime()
-    {
-        // todo: flesh this out and combine it with the temperature cycle 
-        int hour = World.Time.Hour;
-
-        // Seasonal variation in daylight hours
-        int sunriseHour, sunsetHour;
-
-        switch (CurrentSeason)
-        {
-            case Season.Winter:
-                sunriseHour = 8;  // Late sunrise
-                sunsetHour = 16;  // Early sunset
-                break;
-            case Season.Spring:
-            case Season.Fall:
-                sunriseHour = 6;  // Normal sunrise
-                sunsetHour = 18;  // Normal sunset
-                break;
-            case Season.Summer:
-                sunriseHour = 4;  // Early sunrise
-                sunsetHour = 20;  // Late sunset
-                break;
-            default:
-                sunriseHour = 6;
-                sunsetHour = 18;
-                break;
-        }
-
-        return hour >= sunriseHour && hour < sunsetHour;
-    }
-
-    private double GetSunIntensityByTime()
+    private double GetSunIntensityByTime(DateTime time)
     {
         // Get sun intensity purely based on time of day (0-1)
-        int hour = World.Time.Hour;
-        int minute = World.Time.Minute;
+        int hour = time.Hour;
+        int minute = time.Minute;
 
         // No sunlight before sunrise or after sunset
-        if (!IsDaytime())
+        if (!IsDaytime(time))
             return 0;
 
         // Convert to minutes since sunrise (0-720)
@@ -117,15 +86,12 @@ public class ZoneWeather
     private TimeSpan _weatherDuration;
     private TimeSpan _timeSinceChange = TimeSpan.Zero;
 
-    // Zone this weather belongs to
-    private Zone _zone;
+    private DateTime Time { get; set; }
 
-    public ZoneWeather(Zone zone)
+    public ZoneWeather(double baseTemp)
     {
-        _zone = zone;
-
         // Initialize with fall weather
-        BaseTemperature = 0; // 0°C is about 32°F - freezing point
+        BaseTemperature = baseTemp;
         CurrentCondition = WeatherCondition.Clear;
         Precipitation = 0;
         WindSpeed = 0.3; // Moderate wind - 30% of maximum
@@ -134,8 +100,12 @@ public class ZoneWeather
         _weatherDuration = TimeSpan.FromHours(6);
     }
 
-    public void Update(TimeSpan elapsed)
+    public void Update(DateTime newTime)
     {
+        // Reset transition flag after one update cycle
+        WeatherJustChanged = false;
+
+        TimeSpan elapsed = newTime - Time;
         _timeSinceChange += elapsed;
 
         // Time to change weather?
@@ -144,10 +114,15 @@ public class ZoneWeather
             GenerateNewWeather();
             _timeSinceChange = TimeSpan.Zero;
         }
+        Time = newTime;
     }
 
     private void GenerateNewWeather()
     {
+        // Track transition for event system
+        PreviousCondition = CurrentCondition;
+        WeatherJustChanged = true;
+
         // Generate new weather conditions based on season and zone
         // Determine base temperature range for season
         double minTemp, maxTemp;
@@ -193,10 +168,10 @@ public class ZoneWeather
         }
 
         // Apply zone-specific modifications
-        if (_zone.Elevation > 0)
+        if (Elevation > 0)
         {
             // Higher elevation = colder (-0.6°C per 100m elevation)
-            double elevationEffect = _zone.Elevation * -0.006; // -0.6% per 100m
+            double elevationEffect = Elevation * -0.006; // -0.6% per 100m
             minTemp += elevationEffect;
             maxTemp += elevationEffect;
         }
@@ -327,7 +302,7 @@ public class ZoneWeather
         int minutesInDay = 24 * 60;
         int coldestTime = 4 * 60; // 4 AM
 
-        int currentMinute = World.Time.Hour * 60 + World.Time.Minute;
+        int currentMinute = Time.Hour * 60 + Time.Minute;
         double minSinceColdest = currentMinute - coldestTime;
         double percentOfDay = minSinceColdest / minutesInDay; // scale so .5 is warmest and 0/1 is coldest
         double radians = 2 * Math.PI * percentOfDay; // scale for Cos
@@ -425,6 +400,99 @@ public class ZoneWeather
     {
         CurrentSeason = season;
         GenerateNewWeather(); // Update weather for new season
+    }
+
+    // Short-form labels for UI panels
+    public string GetWindLabel()
+    {
+        if (WindSpeed < 0.2) return "Calm";
+        if (WindSpeed < 0.4) return "Breezy";
+        if (WindSpeed < 0.6) return "Windy";
+        if (WindSpeed < 0.8) return "Strong";
+        return "Fierce";
+    }
+
+    public string GetPrecipitationLabel()
+    {
+        if (Precipitation < 0.1) return "None";
+        if (Precipitation < 0.3) return "Light";
+        if (Precipitation < 0.6) return "Moderate";
+        return "Heavy";
+    }
+
+    public string GetConditionLabel()
+    {
+        return CurrentCondition switch
+        {
+            WeatherCondition.Clear => "Clear",
+            WeatherCondition.Cloudy => "Cloudy",
+            WeatherCondition.Misty => "Misty",
+            WeatherCondition.LightSnow => "Light Snow",
+            WeatherCondition.Rainy => "Rain",
+            WeatherCondition.Blizzard => "Blizzard",
+            WeatherCondition.Stormy => "Storm",
+            _ => "Unknown"
+        };
+    }
+
+    // Sunrise/sunset times based on season
+    public int GetSunriseHour()
+    {
+        return CurrentSeason switch
+        {
+            Season.Winter => 8,
+            Season.Summer => 4,
+            _ => 6 // Spring/Fall
+        };
+    }
+
+    public int GetSunsetHour()
+    {
+        return CurrentSeason switch
+        {
+            Season.Winter => 16,
+            Season.Summer => 20,
+            _ => 18 // Spring/Fall
+        };
+    }
+
+    public double GetHoursUntilSunset(DateTime time)
+    {
+        int hour = time.Hour;
+        int minute = time.Minute;
+        int sunsetHour = GetSunsetHour();
+
+        if (hour >= sunsetHour)
+            return 0; // Already past sunset
+
+        double currentTimeInHours = hour + (minute / 60.0);
+        return sunsetHour - currentTimeInHours;
+    }
+
+    public double GetHoursUntilSunrise(DateTime time)
+    {
+        int hour = time.Hour;
+        int minute = time.Minute;
+        int sunriseHour = GetSunriseHour();
+
+        double currentTimeInHours = hour + (minute / 60.0);
+
+        if (hour < sunriseHour)
+        {
+            // Before sunrise today
+            return sunriseHour - currentTimeInHours;
+        }
+        else
+        {
+            // After sunrise, calculate until next day's sunrise
+            return (24 - currentTimeInHours) + sunriseHour;
+        }
+    }
+
+    public bool IsDaytime(DateTime time)
+    {
+        int hour = time.Hour;
+        return hour >= GetSunriseHour() && hour < GetSunsetHour();
     }
 }
 

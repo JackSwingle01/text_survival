@@ -1,5 +1,4 @@
-using text_survival.Actors;
-using text_survival.Actors.NPCs;
+using text_survival.Actors.Animals;
 using text_survival.Core;
 
 namespace text_survival.Environments;
@@ -41,12 +40,12 @@ public class BloodTrail
     /// </summary>
     public bool IsTracked { get; set; }
 
-    public BloodTrail(Animal sourceAnimal, Location originLocation, double woundSeverity)
+    public BloodTrail(Animal sourceAnimal, Location originLocation, double woundSeverity, DateTime currentTime)
     {
         SourceAnimal = sourceAnimal;
         OriginLocation = originLocation;
         WoundSeverity = woundSeverity;
-        CreatedTime = World.GameTime;
+        CreatedTime = currentTime;
         IsTracked = false;
     }
 
@@ -54,9 +53,9 @@ public class BloodTrail
     /// Gets freshness of the trail (1.0 = fresh, 0.0 = completely faded).
     /// Trails fade over 8 hours.
     /// </summary>
-    public double GetFreshness()
+    public double GetFreshness(DateTime currentTime)
     {
-        TimeSpan elapsed = World.GameTime - CreatedTime;
+        TimeSpan elapsed = currentTime - CreatedTime;
         double hoursElapsed = elapsed.TotalHours;
 
         // Trail fades completely after 8 hours
@@ -70,9 +69,9 @@ public class BloodTrail
     /// Calculates tracking difficulty based on freshness, wound severity, and skill.
     /// Returns success chance (0.0 to 1.0).
     /// </summary>
-    public double GetTrackingSuccessChance(int huntingSkill)
+    public double GetTrackingSuccessChance(int huntingSkill, DateTime currentTime)
     {
-        double freshness = GetFreshness();
+        double freshness = GetFreshness(currentTime);
 
         // Base chance from freshness and severity
         // Fresh, severe wounds = easy to track (90%)
@@ -90,9 +89,9 @@ public class BloodTrail
     /// <summary>
     /// Gets description of trail condition for player.
     /// </summary>
-    public string GetTrailDescription()
+    public string GetTrailDescription(DateTime currentTime)
     {
-        double freshness = GetFreshness();
+        double freshness = GetFreshness(currentTime);
 
         if (freshness > 0.8)
             return $"Fresh blood trail from {SourceAnimal.Name} (very recent)";

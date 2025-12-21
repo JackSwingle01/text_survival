@@ -1,6 +1,4 @@
-using text_survival.Actors;
-using text_survival.Environments;
-using text_survival.Environments.Factories;
+using text_survival.Bodies;
 using text_survival.Environments.Features;
 using text_survival.Items;
 
@@ -25,9 +23,7 @@ public static class TestFixtures
             IsPlayer = false
         };
 
-        // Create a temporary null owner - tests don't need the full actor
-        var effectRegistry = new EffectRegistry(null!);
-        return new Body(ownerName, creationInfo, effectRegistry);
+        return new Body(ownerName, creationInfo);
     }
 
     /// <summary>
@@ -49,91 +45,35 @@ public static class TestFixtures
             IsPlayer = isPlayer
         };
 
-        var effectRegistry = new EffectRegistry(null!);
-        return new Body(ownerName, creationInfo, effectRegistry);
+        return new Body(ownerName, creationInfo);
     }
 
     /// <summary>
-    /// Creates baseline survival data for testing
+    /// Creates a baseline survival context for testing
     /// </summary>
-    public static SurvivalData CreateBaselineSurvivalData()
+    public static SurvivalContext CreateBaselineSurvivalContext()
     {
-        return new SurvivalData
+        return new SurvivalContext
         {
-            Calories = TestConstants.Survival.MaxCalories / 2, // Half full
-            Hydration = TestConstants.Survival.MaxHydration / 2, // Half full
-            Energy = TestConstants.Survival.MaxEnergyMinutes / 2, // Half rested
-            Temperature = TestConstants.Temperature.NormalBodyTemp,
-            ColdResistance = 0.5,
-            BodyStats = CreateBaselineBodyStats(),
-            equipmentInsulation = 0.0,
-            environmentalTemp = TestConstants.Temperature.RoomTemp,
-            activityLevel = 1.0,
-            IsPlayer = false
+            LocationTemperature = TestConstants.Temperature.RoomTemp,
+            ClothingInsulation = 0.0,
+            ActivityLevel = 1.0
         };
     }
 
     /// <summary>
-    /// Creates custom survival data with specified parameters
+    /// Creates a custom survival context with specified parameters
     /// </summary>
-    public static SurvivalData CreateCustomSurvivalData(
-        double? calories = null,
-        double? hydration = null,
-        double? energy = null,
-        double? temperature = null,
-        double? coldResistance = null,
-        BodyStats? bodyStats = null,
-        double? equipmentInsulation = null,
-        double? environmentalTemp = null,
-        double? activityLevel = null,
-        bool isPlayer = false)
+    public static SurvivalContext CreateCustomSurvivalContext(
+        double? locationTemperature = null,
+        double? clothingInsulation = null,
+        double? activityLevel = null)
     {
-        var baseline = CreateBaselineSurvivalData();
-
-        return new SurvivalData
+        return new SurvivalContext
         {
-            Calories = calories ?? baseline.Calories,
-            Hydration = hydration ?? baseline.Hydration,
-            Energy = energy ?? baseline.Energy,
-            Temperature = temperature ?? baseline.Temperature,
-            ColdResistance = coldResistance ?? baseline.ColdResistance,
-            BodyStats = bodyStats ?? baseline.BodyStats,
-            equipmentInsulation = equipmentInsulation ?? baseline.equipmentInsulation,
-            environmentalTemp = environmentalTemp ?? baseline.environmentalTemp,
-            activityLevel = activityLevel ?? baseline.activityLevel,
-            IsPlayer = isPlayer
-        };
-    }
-
-    /// <summary>
-    /// Creates baseline body stats
-    /// </summary>
-    public static BodyStats CreateBaselineBodyStats()
-    {
-        return new BodyStats
-        {
-            BodyWeight = TestConstants.BaselineHuman.Weight,
-            MuscleWeight = TestConstants.BaselineHuman.MuscleWeight,
-            FatWeight = TestConstants.BaselineHuman.FatWeight,
-            HealthPercent = 1.0
-        };
-    }
-
-    /// <summary>
-    /// Creates custom body stats
-    /// </summary>
-    public static BodyStats CreateCustomBodyStats(
-        double bodyWeight,
-        double muscleWeight,
-        double fatWeight,
-        double healthPercent = 1.0)
-    {
-        return new BodyStats
-        {
-            BodyWeight = bodyWeight,
-            MuscleWeight = muscleWeight,
-            FatWeight = fatWeight,
-            HealthPercent = healthPercent
+            LocationTemperature = locationTemperature ?? TestConstants.Temperature.RoomTemp,
+            ClothingInsulation = clothingInsulation ?? 0.0,
+            ActivityLevel = activityLevel ?? 1.0
         };
     }
 
@@ -172,43 +112,29 @@ public static class TestFixtures
     }
 
     /// <summary>
-    /// Creates a test fire with specified fuel mixture
+    /// Creates a test fire with specified fuel mixture.
+    /// Fuel is added and ignited so the fire is actively burning.
     /// </summary>
     public static HeatSourceFeature CreateTestFire(
         double initialFuelKg = 0,
         FuelType? fuelType = null,
-        double maxCapacity = 12.0,
-        bool isActive = false)
+        double maxCapacity = 12.0)
     {
-        // Use factory to create zone with locations
-        var zone = ZoneFactory.MakeForestZone("TestZone", "A test zone", baseTemp: 0); // 0°C = 32°F
-        var location = zone.Locations[0]; // Get first generated location
-
-        var fire = new HeatSourceFeature(location, maxCapacity);
+        var fire = new HeatSourceFeature(maxCapacity);
 
         // Add fuel if specified
         if (initialFuelKg > 0 && fuelType.HasValue)
         {
-            // Create a test fuel item
-            var fuelItem = new Item($"Test {fuelType.Value}", initialFuelKg)
-            {
-                FuelMassKg = initialFuelKg,
-                CraftingProperties = new List<ItemProperty> { GetFuelProperty(fuelType.Value) }
-            };
-
-            fire.AddFuel(fuelItem, initialFuelKg);
-
-            if (isActive)
-            {
-                fire.SetActive(true);
-            }
+            fire.AddFuel(initialFuelKg, fuelType.Value);
+            // Ignite the fuel so the fire is actively burning
+            fire.IgniteAll();
         }
 
         return fire;
     }
 
     /// <summary>
-    /// Helper to convert FuelType enum to ItemProperty
+    /// Helper to convert FuelType enum to ItemProperty (legacy, may not be needed)
     /// </summary>
     private static ItemProperty GetFuelProperty(FuelType fuelType)
     {
