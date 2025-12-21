@@ -28,7 +28,7 @@ public class GameContext(Player player, Camp camp)
                          GetTimeOfDay() == TimeOfDay.Evening,
             EventCondition.Traveling => Expedition != null,
             EventCondition.Resting => false, // TODO: implement when rest system exists
-            EventCondition.Working => Expedition?.State == Expeditions.ExpeditionState.Working,
+            EventCondition.Working => Expedition?.State == ExpeditionState.Working,
             EventCondition.HasFood => Inventory.HasFood,
             EventCondition.HasMeat => Inventory.CookedMeat.Count > 0 || Inventory.RawMeat.Count > 0,
             EventCondition.HasFirewood => Inventory.HasFuel,
@@ -53,6 +53,19 @@ public class GameContext(Player player, Camp camp)
             EventCondition.IsMisty => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Misty,
             EventCondition.ExtremelyCold => Zone.Weather.BaseTemperature < -25,
             EventCondition.WeatherWorsening => Zone.Weather.WeatherJustChanged && IsWeatherWorsening(Zone.Weather),
+
+            // Resource availability
+            EventCondition.HasFuel => Inventory.HasFuel,
+            EventCondition.HasTinder => Inventory.Tinder.Count > 0,
+
+            EventCondition.HasFuelPlenty => Inventory.FuelWeightKg >= 3,
+            EventCondition.HasFoodPlenty => Inventory.FoodWeightKg >= 1.0,
+
+            EventCondition.LowOnFuel => Inventory.FuelWeightKg <= 1.0,
+            EventCondition.LowOnFood => Inventory.FoodWeightKg <= 0.5,
+            EventCondition.NoFuel => Inventory.FuelWeightKg <= 0.0,
+            EventCondition.NoFood => Inventory.FoodWeightKg <= 0.0,
+
 
             _ => false,
         };
@@ -190,4 +203,18 @@ public enum EventCondition
 
     // Weather transitions
     WeatherWorsening,
+
+    // Resource availability - basic
+    HasFuel,
+    HasTinder,
+
+    // Resource availability - thresholds
+    HasFuelPlenty,      // 3+ pieces
+    HasFoodPlenty,      // 3+ servings
+
+    // Resource scarcity (for weight modifiers - events more likely when desperate)
+    LowOnFuel,          // 1 or less
+    LowOnFood,
+    NoFuel,
+    NoFood,
 }

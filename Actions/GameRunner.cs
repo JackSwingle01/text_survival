@@ -1,9 +1,7 @@
-using text_survival.Actors.Player;
 using text_survival.Actors.Animals;
 using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.Combat;
-using text_survival.Crafting;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
@@ -70,7 +68,7 @@ public partial class GameRunner(GameContext ctx)
 
         // Work around camp - foraging, exploring without leaving
         if (HasCampWork())
-            choice.AddOption(GetCampWorkLabel(), WorkAroundCamp);
+            choice.AddOption("Work near camp", WorkAroundCamp);
 
         // Leave camp - travel to other locations (only show if destinations exist)
         if (ctx.Camp.Location.Connections.Count > 0)
@@ -100,13 +98,6 @@ public partial class GameRunner(GameContext ctx)
     private bool HasCampWork() =>
         WorkRunner.HasWorkOptions(ctx, ctx.Camp.Location);
 
-    private string GetCampWorkLabel()
-    {
-        var labels = WorkRunner.GetWorkLabels(ctx, ctx.Camp.Location);
-        return labels.Count > 0
-            ? $"Work near camp ({string.Join(", ", labels)})"
-            : "Work near camp";
-    }
 
     private void WorkAroundCamp()
     {
@@ -358,12 +349,17 @@ public partial class GameRunner(GameContext ctx)
             return;
         }
 
-        var (selectedTool, finalChance) = toolMap[choice];
+        var (selectedTool, _) = toolMap[choice];
 
         while (true)
         {
             GameDisplay.AddNarrative($"You work with the {selectedTool.Name}...");
-            GameDisplay.UpdateAndRenderProgress(ctx, "Starting fire...", 15);
+            GameDisplay.UpdateAndRenderProgress(ctx, "Starting fire...", 10);
+
+            double baseChance = GetFireToolBaseChance(selectedTool);
+            var skill = ctx.player.Skills.GetSkill("Firecraft");
+            double finalChance = baseChance + (skill.Level * 0.1);
+            finalChance = Math.Clamp(finalChance, 0.05, 0.95);
 
             bool success = Utils.DetermineSuccess(finalChance);
 
@@ -405,7 +401,7 @@ public partial class GameRunner(GameContext ctx)
                 // Check if retry is possible
                 if (inv.Tinder.Count > 0 && inv.Sticks.Count > 0)
                 {
-                    GameDisplay.Render(ctx, addSeparator: false, statusText: "Thinking.");
+                    GameDisplay.Render(ctx, statusText: "Thinking.");
                     if (Input.Confirm($"Try again with {selectedTool.Name}?"))
                         continue;
                 }

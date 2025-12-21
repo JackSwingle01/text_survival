@@ -17,6 +17,9 @@ public class NarrativeLog
 
     public void Add(string text, LogLevel level = LogLevel.Normal)
     {
+        // ignore duplicates
+        if (_entries.Count > 0 && _entries[^1].Text.Trim() == text.Trim())
+            return;
         _entries.Add((text, level));
     }
 

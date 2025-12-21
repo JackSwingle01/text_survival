@@ -44,8 +44,15 @@ public class GameEvent(string name, string description)
     public double BaseWeight = 1.0;  // Selection weight (not trigger chance)
     public readonly Dictionary<EventCondition, double> WeightModifiers = [];
 
-    public Choice<EventChoice> Choices = new("What do you do?");
-    public void AddChoice(EventChoice c) => Choices.AddOption(c.Label, c);
+    private List<EventChoice> _choices = [];
+    public EventChoice GetChoice(GameContext ctx)
+    {
+        // filter to only ones that meet conditions todo
+        var choices = new Choice<EventChoice>("What do you do?");
+        _choices.Where(x => x.RequiredConditions.All(ctx.Check)).ToList().ForEach(x => choices.AddOption(x.Label, x));
+        return choices.GetPlayerChoice();
+    }
+    public void AddChoice(EventChoice c) => _choices.Add(c);
 }
 
 

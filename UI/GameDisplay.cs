@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using text_survival.Actions;
@@ -146,10 +147,10 @@ public static class GameDisplay
 
         var lines = new List<IRenderable>
         {
-            new Markup($"Health {CreateColoredBar(healthPercent, 12, GetCapacityColor(healthPercent))} [white]{GetHealthStatus(healthPercent)}[/]"),
-            new Markup($"Food   {CreateColoredBar(caloriesPercent, 12, GetFoodColor(caloriesPercent))} [white]{GetCaloriesStatus(caloriesPercent)}[/]"),
-            new Markup($"Water  {CreateColoredBar(hydrationPercent, 12, GetWaterColor(hydrationPercent))} [white]{GetHydrationStatus(hydrationPercent)}[/]"),
-            new Markup($"Energy {CreateColoredBar(energyPercent, 12, GetEnergyColor(energyPercent))} [white]{GetEnergyStatus(energyPercent)}[/]")
+            new Markup($"Health {CreateColoredBar(healthPercent, 10, GetCapacityColor(healthPercent))} [grey]({healthPercent}%)[/] [white]{GetHealthStatus(healthPercent)}[/]"),
+            new Markup($"Food   {CreateColoredBar(caloriesPercent, 10, GetFoodColor(caloriesPercent))} [grey]({caloriesPercent}%)[/] [white]{GetCaloriesStatus(caloriesPercent)}[/]"),
+            new Markup($"Water  {CreateColoredBar(hydrationPercent, 10, GetWaterColor(hydrationPercent))} [grey]({hydrationPercent}%)[/] [white]{GetHydrationStatus(hydrationPercent)}[/]"),
+            new Markup($"Energy {CreateColoredBar(energyPercent, 10, GetEnergyColor(energyPercent))} [grey]({energyPercent}%)[/] [white]{GetEnergyStatus(energyPercent)}[/]")
         };
 
         return new Panel(new Rows(lines))
@@ -213,7 +214,7 @@ public static class GameDisplay
         {
             new Markup($"[yellow bold]Day {dayNumber}[/] — [white]{clockTime}[/] [grey]({timeOfDay})[/]"),
             new Markup(daylightLine),
-            new Markup($"[{conditionColor}]{condition}[/]"),
+            new Markup($"[grey]Cond:[/] [{conditionColor}]{condition}[/]"),
             new Markup($"[grey]Wind:[/] {windLabel}  [grey]Precip:[/] {precipLabel}")
         };
 
@@ -272,9 +273,18 @@ public static class GameDisplay
         // Add features to display
         if (features.Count > 0)
         {
-            lines.Add(new Markup(string.Join("  ", features.Take(2))));
             if (features.Count > 2)
-                lines.Add(new Markup(string.Join("  ", features.Skip(2).Take(2))));
+            {
+                lines.Add(new Markup(string.Join(" | ", features.Take(2))));
+                lines.Add(new Markup(string.Join(" | ", features.Skip(2).Take(2))));
+            }
+            else
+            {
+                if (features.Count > 0)
+                    lines.Add(new Markup(features[0]));
+                if (features.Count > 1)
+                    lines.Add(new Markup(features[1]));
+            }
         }
 
         // Pad to 4 lines
@@ -306,11 +316,11 @@ public static class GameDisplay
         if (fireHeat > 0.5)
         {
             double baseTemp = locationTemp - fireHeat;
-            ambientLine = $"Air   [grey]{baseTemp:F0}°F[/] + [yellow]Fire {fireHeat:F0}°F[/] = [white]{locationTemp:F0}°F felt[/]";
+            ambientLine = $"[grey]Air:[/]   [blue]{baseTemp:F0}°F[/] + [yellow]Fire {fireHeat:F0}°F[/] = [white]{locationTemp:F0}°F felt[/]";
         }
         else
         {
-            ambientLine = $"Air   [grey]{locationTemp:F0}°F[/]";
+            ambientLine = $"[grey]Air:[/]   [blue]{locationTemp:F0}°F[/]";
         }
 
         // Line 3: Trend (uses actual calculated delta from survival processor)
@@ -321,10 +331,10 @@ public static class GameDisplay
 
         var lines = new List<IRenderable>
         {
-            new Markup($"Body  {CreateTemperatureBar(bodyTemp)} [white]{bodyTemp:F1}°F[/] [{GetTempColor(bodyTemp)}]{GetTemperatureStatus(bodyTemp)}[/]"),
+            new Markup($"[grey]Range:[/] {CreateTemperatureBar(bodyTemp)}"),
+            new Markup($"[grey]Body:[/]  [white]{bodyTemp:F1}°F[/] [{GetTempColor(bodyTemp)}]{GetTemperatureStatus(bodyTemp)}[/]"),
             new Markup(ambientLine),
-            new Markup($"Trend [{trendColor}]{arrow} {trendDesc}[/]"),
-            new Text("") // Padding
+            new Markup($"[grey]Trend:[/] [{trendColor}]{arrow} {trendDesc}[/]"),
         };
 
         return new Panel(new Rows(lines))
@@ -341,11 +351,16 @@ public static class GameDisplay
         var inventory = ctx.Inventory;
 
         int weightPercent = (int)(inventory.CurrentWeightKg / inventory.MaxWeightKg * 100);
+        int insulation = (int)(inventory.TotalInsulation * 100);
+        double fuel = inventory.FuelWeightKg;
+        string burnTime = inventory.TotalFuelBurnTimeHours >= 1.0 ? $"{(int)inventory.TotalFuelBurnTimeHours}hrs" : $"{(int)inventory.TotalFuelBurnTimeMinutes}min";
 
         var lines = new List<IRenderable>
         {
-            new Markup($"Weight {CreateColoredBar(weightPercent, 5, GetCapacityColor(weightPercent))} [white]{weightPercent}%[/]"),
-            
+            new Markup($"Carry: {CreateColoredBar(weightPercent, 6, GetCapacityColor(100-weightPercent))} [grey]{weightPercent}%[/]"),
+            new Markup($"[grey]Weight: {inventory.CurrentWeightKg:F1}/{inventory.MaxWeightKg:F0}kg[/]"),
+            new Markup($"[grey]Insulation:[/] [blue]{insulation}%[/]"),
+            new Markup($"[grey]Fuel:[/] [yellow]{fuel:F1}kg[/] [grey]({burnTime})[/]"),
         };
 
         return new Panel(new Rows(lines))
@@ -644,7 +659,7 @@ public static class GameDisplay
         _ => "red"
     };
 
-    private static string CreateTemperatureBar(double bodyTemp, int width = 12)
+    private static string CreateTemperatureBar(double bodyTemp, int width = 10)
     {
         // Range: 87°F (death) to 102°F (severe hyperthermia)
         const double minTemp = 87.0;

@@ -12,7 +12,7 @@ public static class GameEventRegistry
     public record TickResult(int MinutesElapsed, GameEvent? TriggeredEvent);
 
     // Single knob to control overall event frequency
-    private const double EventsPerHour = 1.5;
+    private const double EventsPerHour = 1.0;
     private static readonly double BaseChancePerMinute = RateToChancePerMinute(EventsPerHour);
 
     private static double RateToChancePerMinute(double eventsPerHour)
@@ -68,7 +68,10 @@ public static class GameEventRegistry
     public static GameEvent? GetEventOnTick(GameContext ctx)
     {
         // Stage 1: Base roll - does ANY event trigger?
-        if (!Utils.DetermineSuccess(BaseChancePerMinute))
+        // Events are half as likely at camp
+        double multiplier = ctx.IsAtCamp ? 0.5 : 1.0;
+        double chance = BaseChancePerMinute * multiplier;
+        if (!Utils.DetermineSuccess(chance))
             return null;
 
         // Stage 2: Build eligible pool with weights
@@ -106,18 +109,17 @@ public static class GameEventRegistry
     /// </summary>
     public static void HandleEvent(GameContext ctx, GameEvent evt)
     {
-        GameDisplay.AddNarrative($"EVENT: {evt.Name}");
-        GameDisplay.AddNarrative(evt.Description + "\n");
+        GameDisplay.Render(ctx, statusText: "Event!");
+        GameDisplay.AddNarrative($"{evt.Name}", LogLevel.Warning);
+        GameDisplay.AddNarrative(evt.Description);
         GameDisplay.Render(ctx, statusText: "Thinking.");
 
-        var choice = evt.Choices.GetPlayerChoice();
+        var choice = evt.GetChoice(ctx);
         GameDisplay.AddNarrative(choice.Description + "\n");
         // Input.WaitForKey();
 
-        // Brief visual transition (no time update)
-        GameDisplay.UpdateAndRenderProgress(ctx, "...", 10, updateTime: false);
-
         var outcome = choice.DetermineResult();
+
         HandleOutcome(ctx, outcome);
         GameDisplay.Render(ctx);
         Input.WaitForKey();
@@ -128,14 +130,14 @@ public static class GameEventRegistry
     /// </summary>
     public static void HandleOutcome(GameContext ctx, EventResult outcome)
     {
-        GameDisplay.AddNarrative("OUTCOME:");
-        GameDisplay.AddNarrative(outcome.Message);
 
         if (outcome.TimeAddedMinutes != 0)
         {
             GameDisplay.AddNarrative($"(+{outcome.TimeAddedMinutes} minutes)");
-            ctx.Update(outcome.TimeAddedMinutes);
+            GameDisplay.UpdateAndRenderProgress(ctx, "Acting", outcome.TimeAddedMinutes, updateTime: false);
         }
+
+        GameDisplay.AddNarrative(outcome.Message);
 
         if (outcome.NewEffect is not null)
         {
@@ -658,7 +660,7 @@ public static class GameEventRegistry
     private static GameEvent MinorAccident(GameContext ctx)
     {
         var evt = new GameEvent("Minor Accident",
-            "In a moment of inattention, you've hurt yourself.");
+            "You hurt yourself.");
         evt.BaseWeight = 0.8;  // Punishing, slightly less common
 
         evt.WeightModifiers.Add(EventCondition.Injured, 1.4);
