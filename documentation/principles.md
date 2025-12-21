@@ -18,18 +18,17 @@ A console-based Ice Age survival game where fire is the anchor. Every expedition
 
 ### What's Core
 
-- **Fire as tether** — every decision runs through "can I make it back?"
-- **Expeditions, not navigation** — commit to round trips with time variance and event risk
+- **Fire as tether** — every decision runs through "can I make it back?" Fire status is always visible so players can judge their margin.
+- **Camp vs expedition** — camp is safe, everything else is an expedition with time cost and risk. Flexible travel between locations, but you're always away from camp.
 - **Depletion creates pressure** — areas exhaust, pushing outward or forcing camp moves
-- **Knowledge is progression** — no character stats that grow, player learns the systems
+- **Knowledge is progression** — player learns the systems across permadeath runs. Within a session, camp/gear improvements provide progression; across sessions, player skill is the only thing that carries over.
 - **Contextual events** — interrupts that create decisions based on player state, not random encounters
 
 ### What to Avoid
 
-- **Character progression systems** — conflicts with knowledge-is-progression philosophy
+- **Meta-progression systems** — no unlocks or persistent upgrades between runs
 - **Recipe lists** — show needs, not craftable items
 - **Random encounters** — events should be contextual, tied to what the player is doing and carrying
-- **Navigation then decision** — "go to forest, then decide what to do" breaks the expedition commitment model
 - **Simulation without decision** — complexity should create player choices, not just fidelity
 
 ---

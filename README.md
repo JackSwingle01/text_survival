@@ -20,7 +20,7 @@ A camp-centric survival experience where fire is the anchor. Every expedition is
 
 ## Core Systems
 
-**Expeditions** — You have a camp. Everything else is an expedition. When you forage, hunt, or explore, you commit to a round trip: travel out, work phase (with time variance), travel back. Fire margin is calculated before you commit.
+**Expeditions** — You have a camp. Everything else is an expedition. Leave camp, travel between locations, work (forage, hunt, explore), and return before your fire dies. The UI always shows fire status so you can judge your margin.
 
 **Survival Simulation** — Rate-based calculation per minute: energy, hydration, calories, temperature. Thresholds trigger effects. Temperature drops below 95°F, you start shivering. The simulation creates pressure, not busywork.
 
@@ -43,19 +43,19 @@ Requires .NET 9.0.
 
 ```
 text_survival/
-├── Core/           # Game loop, world state
-├── Actions/        # Expeditions, camp actions
-├── Actors/         # Player, NPCs, animals
+├── Core/           # Program.cs, Config.cs
+├── Actions/        # GameRunner, ExpeditionRunner, WorkRunner, events
+├── Actors/         # Player, Camp, Animals
 ├── Bodies/         # Body parts, damage, capacities
-├── Survival/       # Survival stat processing
-├── Effects/        # Buffs, debuffs, conditions
-├── Environments/   # Zones, locations, features
-├── Items/          # Tools, fuel, food, materials
-├── Crafting/       # Crafting system
-├── IO/             # Input/output abstraction
-└── UI/             # Display rendering
+├── Survival/       # SurvivalProcessor (stateless)
+├── Effects/        # EffectRegistry, conditions
+├── Environments/   # Zones, locations, features, weather
+├── Items/          # Tools, fuel, food, inventory
+├── Crafting/       # Need-based crafting
+├── IO/             # Output.cs, Input.cs
+└── UI/             # GameDisplay rendering
 ```
 
 ## Status
 
-Core expedition loop is functional. Fire burns, survival stats tick, foraging works. In development: events during expeditions, hunting, threat encounters, location discovery.
+Core systems functional: camp-centric loop, fire management, flexible expeditions, hunting with stalking/ranged attacks, foraging with depletion, survival stats, body/damage, contextual events, need-based crafting. Current focus: balance tuning and content expansion.
