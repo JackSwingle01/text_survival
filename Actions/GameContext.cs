@@ -236,17 +236,20 @@ public class GameContext(Player player, Camp camp)
             return elapsed;
 
         if (evt is not null)
-        {        
+        {
             GameEventRegistry.HandleEvent(this, evt);
         }
 
-        if (PendingEncounter is not null)
+        // Spawn predator encounter if event outcome requested it
+        if (PendingEncounter != null)
         {
-            var encounter = PendingEncounter;
+            var predator = EncounterRunner.CreateAnimalFromConfig(PendingEncounter);
             PendingEncounter = null;
-            // GameEventRegistry.HandleEncounter(this, encounter); // todo
+            if (predator != null)
+            {
+                EncounterRunner.HandlePredatorEncounter(predator, this);
+            }
         }
-
         return elapsed;
     }
 

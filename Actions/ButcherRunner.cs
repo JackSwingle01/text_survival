@@ -1,19 +1,25 @@
+using text_survival.Actions;
 using text_survival.Actors.Animals;
 using text_survival.Items;
+using text_survival.UI;
 
-namespace text_survival.Actions;
-
-/// <summary>
-/// Converts killed animals into usable resources (meat, bone, hide, sinew).
-/// </summary>
-public static class ButcheringProcessor
+public static class ButcherRunner
 {
+    public static FoundResources ButcherAnimal(Animal animal, GameContext ctx)
+    {
+        if (ctx.Inventory.HasCuttingTool)
+            return Butcher(animal);
+
+        GameDisplay.AddWarning("Without a cutting tool, you tear what meat you can by hand...");
+        return ButcherWithoutKnife(animal);
+    }
+
     /// <summary>
     /// Butcher a killed animal into meat and other resources.
     /// </summary>
     /// <param name="animal">The dead animal to butcher</param>
     /// <returns>FoundResources containing meat, bone, hide, and sinew yields</returns>
-    public static FoundResources Butcher(Animal animal)
+    private static FoundResources Butcher(Animal animal)
     {
         var result = new FoundResources();
         double bodyWeight = animal.Body.WeightKG;
@@ -37,7 +43,7 @@ public static class ButcheringProcessor
     /// <summary>
     /// Butcher without a knife - reduced yield, no hide/sinew (can't process properly).
     /// </summary>
-    public static FoundResources ButcherWithoutKnife(Animal animal)
+    private static FoundResources ButcherWithoutKnife(Animal animal)
     {
         var result = new FoundResources();
         double bodyWeight = animal.Body.WeightKG;

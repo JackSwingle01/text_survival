@@ -148,21 +148,7 @@ public class CraftingRunner(GameContext ctx)
             int chunk = Math.Min(5, totalTime - elapsed);
             GameDisplay.Render(_ctx, statusText: "Crafting.", progress: elapsed, progressTotal: totalTime);
 
-            var result = _ctx.Update(chunk, ActivityType.Crafting);
-            elapsed += result.MinutesElapsed;
-
-            if (result.TriggeredEvent != null)
-            {
-                GameEventRegistry.HandleEvent(_ctx, result.TriggeredEvent);
-
-                if (_ctx.PendingEncounter != null)
-                {
-                    // TODO: Handle camp encounter
-                    _ctx.PendingEncounter = null;
-                }
-
-                // Continue crafting after event (events don't cancel craft, just interrupt briefly)
-            }
+            elapsed += _ctx.Update(chunk, ActivityType.Crafting);
 
             Thread.Sleep(100);
         }
