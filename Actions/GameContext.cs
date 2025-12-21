@@ -1,4 +1,5 @@
 using text_survival.Actors.Player;
+using text_survival.Actions.Tensions;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Actions.Expeditions;
@@ -7,6 +8,32 @@ using text_survival.Items;
 using text_survival.UI;
 
 namespace text_survival.Actions;
+
+/// <summary>
+/// Activity types for event frequency and survival context.
+/// Each activity carries default config for event rate, activity level, and fire proximity.
+/// </summary>
+public enum ActivityType
+{
+    // No events
+    Idle,           // Menu, thinking - no events
+    Fighting,       // Combat - no events
+    Encounter,      // Predator standoff - no events
+
+    // Camp activities (near fire, moderate events)
+    Sleeping,       // Rare events, low activity
+    Resting,        // Occasional events, waiting by fire
+    TendingFire,    // Moderate events
+    Eating,         // Moderate events
+    Cooking,        // Moderate events
+    Crafting,       // Moderate events
+
+    // Expedition activities (away from fire, full events)
+    Traveling,      // Full events, moving between locations
+    Foraging,       // Full events, searching for resources
+    Hunting,        // Full events, tracking game
+    Exploring,      // Full events, scouting new areas (away from fire)
+}
 
 public class GameContext(Player player, Camp camp)
 {
@@ -19,6 +46,39 @@ public class GameContext(Player player, Camp camp)
     public Inventory Inventory { get; } = Inventory.CreatePlayerInventory(15.0);
     public Expedition? Expedition;
     public Zone Zone => CurrentLocation.Parent;
+
+    // Tension system for tracking building threats/opportunities
+    public TensionRegistry Tensions { get; } = new();
+
+    // Activity-based config (eventMultiplier, activityLevel, fireProximity, statusText)
+    private static readonly Dictionary<ActivityType, (double Event, double Activity, double Fire, string Status)> ActivityConfig = new()
+    {
+        // No events
+        [ActivityType.Idle] = (0.0, 1.0, 0.0, "Thinking."),
+        [ActivityType.Fighting] = (0.0, 2.0, 0.0, "Fighting."),
+        [ActivityType.Encounter] = (0.0, 1.5, 0.0, "Alert."),
+
+        // Camp activities (near fire, moderate events)
+        [ActivityType.Sleeping] = (0.1, 0.5, 2.0, "Sleeping."),
+        [ActivityType.Resting] = (0.3, 1.0, 2.0, "Resting."),
+        [ActivityType.TendingFire] = (0.5, 1.0, 2.0, "Tending fire."),
+        [ActivityType.Eating] = (0.5, 1.0, 2.0, "Eating."),
+        [ActivityType.Cooking] = (0.5, 1.0, 2.0, "Cooking."),
+        [ActivityType.Crafting] = (0.5, 1.0, 0.5, "Crafting."),
+
+        // Expedition activities (away from fire, full events)
+        [ActivityType.Traveling] = (1.0, 1.5, 0.0, "Traveling."),
+        [ActivityType.Foraging] = (1.0, 1.5, 0.0, "Foraging."),
+        [ActivityType.Hunting] = (1.0, 1.5, 0.0, "Hunting."),
+        [ActivityType.Exploring] = (1.0, 1.5, 0.0, "Exploring."),
+    };
+
+    /// <summary>Current activity for event condition checks.</summary>
+    public ActivityType CurrentActivity { get; private set; } = ActivityType.Idle;
+
+    /// <summary>Encounter spawned by an event, to be handled by the caller.</summary>
+    public EncounterConfig? PendingEncounter { get; set; }
+
     public bool Check(EventCondition condition)
     {
         return condition switch
@@ -66,7 +126,47 @@ public class GameContext(Player player, Camp camp)
             EventCondition.NoFuel => Inventory.FuelWeightKg <= 0.0,
             EventCondition.NoFood => Inventory.FoodWeightKg <= 0.0,
 
+            // Tension conditions
+            EventCondition.Stalked => Tensions.HasTension("Stalked"),
+            EventCondition.StalkedHigh => Tensions.HasTensionAbove("Stalked", 0.5),
+            EventCondition.StalkedCritical => Tensions.HasTensionAbove("Stalked", 0.7),
+            EventCondition.SmokeSpotted => Tensions.HasTension("SmokeSpotted"),
+            EventCondition.Infested => Tensions.HasTension("Infested"),
+            EventCondition.WoundUntreated => Tensions.HasTension("WoundUntreated"),
+            EventCondition.WoundUntreatedHigh => Tensions.HasTensionAbove("WoundUntreated", 0.6),
+            EventCondition.ShelterWeakened => Tensions.HasTension("ShelterWeakened"),
+            EventCondition.FoodScentStrong => Tensions.HasTension("FoodScentStrong"),
+            EventCondition.Hunted => Tensions.HasTension("Hunted"),
 
+            // Camp/expedition state
+            EventCondition.AtCamp => IsAtCamp,
+            EventCondition.OnExpedition => Expedition != null,
+            EventCondition.NearFire => CurrentLocation.GetFeature<HeatSourceFeature>()?.IsActive ?? false,
+            EventCondition.HasShelter => CurrentLocation.HasFeature<ShelterFeature>(),
+
+            // Time of day
+            EventCondition.Night => GetTimeOfDay() == TimeOfDay.Night,
+
+            // Additional resource conditions
+            EventCondition.HasWater => Inventory.HasWater,
+            EventCondition.HasPlantFiber => Inventory.PlantFiber.Count > 0,
+
+            // Body state conditions
+            EventCondition.LowCalories => player.Body.CalorieStore < 500,
+            EventCondition.LowHydration => player.Body.Hydration < 1500,
+            EventCondition.LowTemperature => player.Body.BodyTemperature < 96.0,
+            EventCondition.Impaired => AbilityCalculator.IsConsciousnessImpaired(
+                player.GetCapacities().Consciousness),
+
+            // Activity conditions (for event filtering)
+            EventCondition.IsSleeping => CurrentActivity == ActivityType.Sleeping,
+            EventCondition.Awake => CurrentActivity != ActivityType.Sleeping,
+            EventCondition.IsResting => CurrentActivity == ActivityType.Resting,
+            EventCondition.IsCampWork => CurrentActivity is ActivityType.TendingFire
+                or ActivityType.Eating or ActivityType.Cooking or ActivityType.Crafting,
+            EventCondition.IsExpedition => CurrentActivity is ActivityType.Traveling
+                or ActivityType.Foraging or ActivityType.Hunting or ActivityType.Exploring,
+            EventCondition.Eating => CurrentActivity == ActivityType.Eating,
             _ => false,
         };
     }
@@ -100,38 +200,68 @@ public class GameContext(Player player, Camp camp)
         ClothingInsulation = Inventory.TotalInsulation,
     };
 
-    public void Update(int minutes)
+    /// <summary>
+    /// Main update with activity type - uses ActivityConfig defaults.
+    /// Checks for events each minute based on activity event multiplier.
+    /// Returns elapsed time.
+    /// </summary>
+    public int Update(int targetMinutes, ActivityType activity, bool render = false)
     {
-        player.Update(minutes, GetSurvivalContext());
-        CurrentLocation.Parent.Update(minutes, GameTime);
-        GameTime = GameTime.AddMinutes(minutes); // Keep GameTime in sync
+        CurrentActivity = activity;
+        var config = ActivityConfig[activity];
 
-        var logs = player?.GetFlushLogs();
-        if (logs is not null && logs.Count != 0)
-            GameDisplay.AddNarrative(logs);
+        int elapsed = 0;
+        GameEvent? evt = null;
+
+        while (elapsed < targetMinutes && player.IsAlive)
+        {
+            elapsed++;
+
+            // Check for event (only if activity allows events)
+            if (config.Event > 0)
+            {
+                evt = GameEventRegistry.GetEventOnTick(this, config.Event);
+                break;
+            }
+
+            // Update survival/zone/tensions
+            UpdateInternal(1, config.Activity, GetEffectiveFireProximity(config.Fire));
+
+            // Optional render with status from config
+            if (render && !string.IsNullOrEmpty(config.Status))
+                GameDisplay.Render(this, statusText: config.Status);
+        }
+
+        if (!player.IsAlive)
+            return elapsed;
+
+        if (evt is not null)
+        {        
+            GameEventRegistry.HandleEvent(this, evt);
+        }
+
+        if (PendingEncounter is not null)
+        {
+            var encounter = PendingEncounter;
+            PendingEncounter = null;
+            // GameEventRegistry.HandleEncounter(this, encounter); // todo
+        }
+
+        return elapsed;
     }
 
-    public void Update(int minutes, double activityLevel)
-    {
-        var context = GetSurvivalContext();
-        context.ActivityLevel = activityLevel;
-        player.Update(minutes, context);
-        CurrentLocation.Parent.Update(minutes, GameTime);
-        GameTime = GameTime.AddMinutes(minutes);
-
-        var logs = player?.GetFlushLogs();
-        if (logs is not null && logs.Count != 0)
-            GameDisplay.AddNarrative(logs);
-    }
-
-    public void Update(int minutes, double activityLevel, double fireProximityMultiplier)
+    /// <summary>
+    /// Internal update - survival stats, zone, tensions without event checking.
+    /// </summary>
+    private void UpdateInternal(int minutes, double activityLevel, double fireProximityMultiplier)
     {
         var context = GetSurvivalContext();
         context.ActivityLevel = activityLevel;
 
         // Calculate fire proximity bonus if there's an active fire
+        // Skip if hyperthermic - player would back away from fire
         var fire = CurrentLocation.GetFeature<HeatSourceFeature>();
-        if (fire != null && fire.IsActive)
+        if (fire != null && fire.IsActive && !player.EffectRegistry.HasEffect("Hyperthermia"))
         {
             double fireHeat = fire.GetEffectiveHeatOutput(CurrentLocation.GetTemperature());
             context.FireProximityBonus = fireHeat * fireProximityMultiplier;
@@ -139,11 +269,22 @@ public class GameContext(Player player, Camp camp)
 
         player.Update(minutes, context);
         CurrentLocation.Parent.Update(minutes, GameTime);
+        Tensions.Update(minutes, IsAtCamp);
         GameTime = GameTime.AddMinutes(minutes);
 
         var logs = player?.GetFlushLogs();
         if (logs is not null && logs.Count != 0)
             GameDisplay.AddNarrative(logs);
+    }
+
+    /// <summary>
+    /// Fire proximity is 0 if no active fire, otherwise config value.
+    /// </summary>
+    private double GetEffectiveFireProximity(double configValue)
+    {
+        var fire = CurrentLocation.GetFeature<HeatSourceFeature>();
+        if (fire == null || !fire.IsActive) return 0;
+        return configValue;
     }
 
     public enum TimeOfDay
@@ -217,4 +358,43 @@ public enum EventCondition
     LowOnFood,
     NoFuel,
     NoFood,
+
+    // Tension conditions
+    Stalked,            // Being stalked by a predator
+    StalkedHigh,        // Stalked with severity > 0.5
+    StalkedCritical,    // Stalked with severity > 0.7
+    SmokeSpotted,       // Someone spotted the player's smoke
+    Infested,           // Vermin have infested the camp
+    WoundUntreated,     // An untreated wound risks infection
+    WoundUntreatedHigh, // Untreated wound with severity > 0.6 (infection spreading)
+    ShelterWeakened,    // Shelter has been damaged
+    FoodScentStrong,    // Strong food scent attracting predators
+    Hunted,             // Actively being hunted by a predator
+
+    // Camp/expedition state
+    AtCamp,             // Player is at camp (not on expedition)
+    OnExpedition,       // Player is on an expedition
+    NearFire,           // Current location has active fire
+    HasShelter,         // Current location has shelter feature
+
+    // Time of day
+    Night,              // Nighttime (before dawn or after dusk)
+
+    // Additional resource conditions
+    HasWater,           // Has any water
+    HasPlantFiber,      // Has plant fiber for crafting/traps
+
+    // Body state conditions
+    LowCalories,        // Player calories below threshold
+    LowHydration,       // Player hydration below threshold
+    LowTemperature,     // Player core temperature is low
+    Impaired,           // Player consciousness is impaired (< 0.5)
+
+    // Activity conditions (for event filtering based on what player is doing)
+    IsSleeping,         // Player is sleeping
+    Awake,              // Player is NOT sleeping (inverse of IsSleeping)
+    IsResting,          // Player is resting by fire
+    IsCampWork,         // Player is doing camp work (tending fire, eating, cooking, crafting)
+    IsExpedition,       // Player is on expedition (traveling, foraging, hunting, exploring)
+    Eating,
 }

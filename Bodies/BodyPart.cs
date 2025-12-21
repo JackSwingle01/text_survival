@@ -36,7 +36,8 @@ public class BodyRegion(string name, double coverage)
             // weakest link
             overallCondition = Math.Min(overallCondition, tissue.Condition);
         }
-        //todo: determine if organs should contribute 
+        // Organs are excluded intentionally - they're displayed separately in the UI.
+        // Condition represents tissue damage (wounds), while organ health affects Vitality.
         return overallCondition;
     }
 

@@ -91,6 +91,36 @@ public class Location
     public T? GetFeature<T>() where T : LocationFeature => Features.OfType<T>().FirstOrDefault();
     public bool HasFeature<T>() where T : LocationFeature => GetFeature<T>() is not null;
 
+    /// <summary>
+    /// Remove a feature by type. Returns true if removed.
+    /// </summary>
+    public bool RemoveFeature<T>() where T : LocationFeature
+    {
+        var feature = GetFeature<T>();
+        if (feature != null)
+        {
+            Features.Remove(feature);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Remove a specific feature instance.
+    /// </summary>
+    public bool RemoveFeature(LocationFeature feature)
+    {
+        return Features.Remove(feature);
+    }
+
+    /// <summary>
+    /// Add a feature to this location.
+    /// </summary>
+    public void AddFeature(LocationFeature feature)
+    {
+        Features.Add(feature);
+    }
+
     public List<Location> GetUnexploredConnections()
         => Connections.Where(l => !l.Explored).ToList();
 

@@ -1,5 +1,8 @@
 # Effects and Injuries System
 
+*Created: 2024-11*
+*Last Updated: 2025-12-20*
+
 How damage, healing, and status effects work together.
 
 ---

@@ -380,6 +380,32 @@ public class Inventory
     }
 
     /// <summary>
+    /// Get a tool by type. Checks equipped weapon first, then tools list.
+    /// </summary>
+    public Tool? GetTool(ToolType type)
+    {
+        if (Weapon != null && Weapon.Type == type)
+            return Weapon;
+        return Tools.FirstOrDefault(t => t.Type == type);
+    }
+
+    /// <summary>
+    /// Get equipped equipment by slot.
+    /// </summary>
+    public Equipment? GetEquipment(EquipSlot slot)
+    {
+        return slot switch
+        {
+            EquipSlot.Head => Head,
+            EquipSlot.Chest => Chest,
+            EquipSlot.Legs => Legs,
+            EquipSlot.Feet => Feet,
+            EquipSlot.Hands => Hands,
+            _ => null
+        };
+    }
+
+    /// <summary>
     /// Create a player inventory with default carry capacity.
     /// </summary>
     public static Inventory CreatePlayerInventory(double maxWeightKg = 15.0) =>

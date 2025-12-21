@@ -1,3 +1,5 @@
+using text_survival.Actions;
+
 namespace text_survival.Environments
 {
     public class Zone
@@ -68,5 +70,14 @@ namespace text_survival.Environments
         /// Get count of unrevealed locations (for UI hints)
         /// </summary>
         public int UnrevealedCount => _unrevealedLocations.Count;
+
+        /// <summary>
+        /// Create a new location from a template and connect it to the graph.
+        /// Used for event-driven location discovery.
+        /// </summary>
+        public Location AddDiscoveredLocation(LocationTemplate template, Location connectFrom)
+        {
+            return Factories.LocationTemplateFactory.Create(template, this, connectFrom);
+        }
     }
 }

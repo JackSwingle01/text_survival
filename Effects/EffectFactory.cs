@@ -25,13 +25,13 @@ public static class EffectFactory
         EffectKind = "Hyperthermia",
         Source = "temperature",
         Severity = severity,
-        HourlySeverityChange = -0.01,
-        RequiresTreatment = true,
+        HourlySeverityChange = -0.5,
         CapacityModifiers = Capacities(
             (CapacityNames.Consciousness, -0.5),
             (CapacityNames.Moving, -0.3),
             (CapacityNames.BloodPumping, -0.2)),
-        ApplicationMessage = "You are overheating!"
+        ApplicationMessage = "You are overheating!",
+        RemovalMessage = "You have cooled down, the overheating has passed."
     };
 
     public static Effect Sweating(double severity) => new()
@@ -127,12 +127,72 @@ public static class EffectFactory
 
     public static Effect Fear(double severity) => new()
     {
-        EffectKind = "Shaken",
+        EffectKind = "Fear",
         Source = "fear",
         Severity = severity,
         HourlySeverityChange = -0.1,  // Fades relatively quickly
         CapacityModifiers = Capacities((CapacityNames.Manipulation, -0.15)),
-        ApplicationMessage = "Your hands are shaking."
+        ApplicationMessage = "Fear grips you."
+    };
+
+    /// <summary>
+    /// Shaken - milder psychological effect from unsettling events.
+    /// Less severe than Fear, fades faster.
+    /// </summary>
+    public static Effect Shaken(double severity) => new()
+    {
+        EffectKind = "Shaken",
+        Source = "fear",
+        Severity = severity,
+        HourlySeverityChange = -0.2,  // Fades faster than Fear
+        CapacityModifiers = Capacities((CapacityNames.Manipulation, -0.1)),
+        ApplicationMessage = "Your hands are trembling."
+    };
+
+    /// <summary>
+    /// Exhausted - from prolonged exertion or stress.
+    /// Reduces movement and manipulation capacity.
+    /// </summary>
+    public static Effect Exhausted(double severity, int durationMinutes = 60) => new()
+    {
+        EffectKind = "Exhausted",
+        Source = "exertion",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        CapacityModifiers = Capacities(
+            (CapacityNames.Moving, -0.2),
+            (CapacityNames.Manipulation, -0.1)),
+        ApplicationMessage = "You're exhausted."
+    };
+
+    /// <summary>
+    /// Nauseous - from bad food, dehydration, or stress.
+    /// Affects digestion and consciousness.
+    /// </summary>
+    public static Effect Nauseous(double severity, int durationMinutes = 60) => new()
+    {
+        EffectKind = "Nauseous",
+        Source = "sickness",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        CapacityModifiers = Capacities(
+            (CapacityNames.Digestion, -0.3),
+            (CapacityNames.Consciousness, -0.1)),
+        ApplicationMessage = "You feel sick to your stomach."
+    };
+
+    /// <summary>
+    /// Coughing - from smoke inhalation or illness.
+    /// Affects breathing capacity.
+    /// </summary>
+    public static Effect Coughing(double severity, int durationMinutes = 60) => new()
+    {
+        EffectKind = "Coughing",
+        Source = "smoke",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        CapacityModifiers = Capacities((CapacityNames.Breathing, -0.25)),
+        ApplicationMessage = "You can't stop coughing."
     };
 
     // AnimalAttack (Mauled) removed - this is now body part damage.
@@ -154,6 +214,209 @@ public static class EffectFactory
         TargetBodyPart = "Blood",
         ApplicationMessage = "You're bleeding.",
         RemovalMessage = "The bleeding has stopped."
+    };
+
+    /// <summary>
+    /// Pain - triggered automatically by physical damage.
+    /// Reduces Manipulation and Consciousness. Fades naturally.
+    /// </summary>
+    public static Effect Pain(double severity) => new()
+    {
+        EffectKind = "Pain",
+        Source = "injury",
+        Severity = severity,
+        HourlySeverityChange = -0.15,  // Fades in ~5-6 hours
+        RequiresTreatment = false,     // Pain fades naturally
+        CapacityModifiers = Capacities(
+            (CapacityNames.Manipulation, -0.25),
+            (CapacityNames.Consciousness, -0.15)),
+        ApplicationMessage = "You're in pain.",
+        RemovalMessage = "The pain has subsided.",
+        ThresholdMessages = [
+            new Effect.ThresholdMessage(0.5, "The pain is intense, making it hard to focus.", true),
+            new Effect.ThresholdMessage(0.75, "Agonizing pain threatens to overwhelm you.", true),
+        ]
+    };
+
+    /// <summary>
+    /// Sore - minor muscle pain from exertion.
+    /// Mild movement penalty, fades relatively quickly.
+    /// </summary>
+    public static Effect Sore(double severity, int durationMinutes = 120) => new()
+    {
+        EffectKind = "Sore",
+        Source = "exertion",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        CapacityModifiers = Capacities((CapacityNames.Moving, -0.1)),
+        ApplicationMessage = "Your muscles ache."
+    };
+
+    /// <summary>
+    /// Paranoid - heightened psychological stress.
+    /// More severe and longer-lasting than Fear.
+    /// </summary>
+    public static Effect Paranoid(double severity) => new()
+    {
+        EffectKind = "Paranoid",
+        Source = "fear",
+        Severity = severity,
+        HourlySeverityChange = -0.05,  // Fades slower than Fear
+        CapacityModifiers = Capacities(
+            (CapacityNames.Manipulation, -0.2),
+            (CapacityNames.Consciousness, -0.1)),
+        ApplicationMessage = "You can't shake the feeling you're being watched."
+    };
+
+    // === POSITIVE EFFECTS (BUFFS) ===
+
+    /// <summary>
+    /// Warmed - positive temperature effect from fire or shelter.
+    /// Helps maintain body temperature.
+    /// </summary>
+    public static Effect Warmed(double severity, int durationMinutes = 30) => new()
+    {
+        EffectKind = "Warmed",
+        Source = "comfort",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        StatsDelta = new() { TemperatureDelta = 2.0 / 60.0 },  // +2 degrees per hour
+        ApplicationMessage = "You feel warm and comfortable."
+    };
+
+    /// <summary>
+    /// Rested - positive effect from adequate sleep.
+    /// Reduces fatigue penalties.
+    /// </summary>
+    public static Effect Rested(double severity, int durationMinutes = 120) => new()
+    {
+        EffectKind = "Rested",
+        Source = "comfort",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        CapacityModifiers = Capacities(
+            (CapacityNames.Moving, 0.1),
+            (CapacityNames.Manipulation, 0.05)),
+        ApplicationMessage = "You feel well-rested."
+    };
+
+    /// <summary>
+    /// Focused - mental clarity from successful actions.
+    /// Improves manipulation and consciousness.
+    /// </summary>
+    public static Effect Focused(double severity, int durationMinutes = 60) => new()
+    {
+        EffectKind = "Focused",
+        Source = "morale",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        CapacityModifiers = Capacities(
+            (CapacityNames.Manipulation, 0.15),
+            (CapacityNames.Consciousness, 0.1)),
+        ApplicationMessage = "Your mind is sharp and focused."
+    };
+
+    /// <summary>
+    /// Hardened - toughened from surviving hardship.
+    /// Minor bonus to all physical capacities.
+    /// </summary>
+    public static Effect Hardened(double severity, int durationMinutes = 180) => new()
+    {
+        EffectKind = "Hardened",
+        Source = "experience",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        CapacityModifiers = Capacities(
+            (CapacityNames.Moving, 0.05),
+            (CapacityNames.Manipulation, 0.05),
+            (CapacityNames.Breathing, 0.05)),
+        ApplicationMessage = "You feel toughened by your experiences."
+    };
+
+    /// <summary>
+    /// Burn - tissue damage from heat.
+    /// Causes pain and manipulation penalty. Heals slowly.
+    /// </summary>
+    public static Effect Burn(double severity, int durationMinutes = 180) => new()
+    {
+        EffectKind = "Burn",
+        Source = "heat",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        RequiresTreatment = severity > 0.3,  // Severe burns need treatment
+        CapacityModifiers = Capacities(
+            (CapacityNames.Manipulation, -0.2)),
+        ApplicationMessage = "You've been burned.",
+        RemovalMessage = "The burn has healed."
+    };
+
+    /// <summary>
+    /// Stiff - joint and muscle stiffness from cold, strain, or old injuries.
+    /// Reduces movement speed. Common in prolonged cold exposure.
+    /// </summary>
+    public static Effect Stiff(double severity, int durationMinutes = 360) => new()
+    {
+        EffectKind = "Stiff",
+        Source = "strain",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        CapacityModifiers = Capacities((CapacityNames.Moving, -0.25)),
+        ApplicationMessage = "Your joints ache and your muscles are stiff.",
+        RemovalMessage = "The stiffness has faded."
+    };
+
+    /// <summary>
+    /// Fever - systemic infection response.
+    /// Severe penalties to consciousness, movement, and manipulation.
+    /// Requires treatment; can be fatal if untreated.
+    /// </summary>
+    public static Effect Fever(double severity) => new()
+    {
+        EffectKind = "Fever",
+        Source = "infection",
+        Severity = severity,
+        HourlySeverityChange = 0.02,  // Slowly worsens without treatment
+        RequiresTreatment = true,
+        CapacityModifiers = Capacities(
+            (CapacityNames.Consciousness, -0.4),
+            (CapacityNames.Moving, -0.3),
+            (CapacityNames.Manipulation, -0.25)),
+        ApplicationMessage = "You're burning up with fever.",
+        RemovalMessage = "The fever has broken.",
+        ThresholdMessages = [
+            new Effect.ThresholdMessage(0.5, "The fever is getting worse. You feel delirious.", true),
+            new Effect.ThresholdMessage(0.8, "Critical fever. Your body is failing.", true),
+        ]
+    };
+
+    /// <summary>
+    /// Clumsy - reduced fine motor control from cold, shaking, or other impairment.
+    /// Affects manipulation capacity.
+    /// </summary>
+    public static Effect Clumsy(double severity, int durationMinutes = 60) => new()
+    {
+        EffectKind = "Clumsy",
+        Source = "impairment",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        CapacityModifiers = Capacities((CapacityNames.Manipulation, -0.3)),
+        ApplicationMessage = "Your hands are clumsy and uncoordinated."
+    };
+
+    /// <summary>
+    /// Wet - soaked clothing and skin multiplies cold effects.
+    /// Makes you more vulnerable to hypothermia and cold damage.
+    /// Severity determines the multiplier: (1 + severity) applied to cold effects.
+    /// </summary>
+    public static Effect Wet(double severity, int durationMinutes = 60) => new()
+    {
+        EffectKind = "Wet",
+        Source = "environmental",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        StatsDelta = new() { TemperatureDelta = -1.0 / 60.0 },  // Mild direct cooling
+        ApplicationMessage = "You're soaked through. The cold cuts deeper.",
+        RemovalMessage = "You've dried off."
     };
 
     private static CapacityModifierContainer Capacities(params (string name, double value)[] modifiers)

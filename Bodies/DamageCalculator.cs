@@ -13,7 +13,7 @@ public class DamageResult
     public bool OrganHit { get; set; }
     public string? OrganHitName { get; set; }
     public bool WasPenetrating { get; set; } // Did damage go through layers
-    public Effect? TriggeredEffect { get; set; }  // e.g., Bleeding from sharp damage
+    public List<Effect> TriggeredEffects { get; set; } = [];  // e.g., Bleeding, Pain from damage
 }
 
 
@@ -89,7 +89,18 @@ public static class DamageProcessor
             && result.TissuesDamaged.Any(t => t.TissueName == "Skin" && t.DamageTaken > 0.05))
         {
             double bleedSeverity = Math.Clamp(result.TotalDamageDealt * 0.05, 0.1, 0.6);
-            result.TriggeredEffect = EffectFactory.Bleeding(bleedSeverity);
+            result.TriggeredEffects.Add(EffectFactory.Bleeding(bleedSeverity));
+        }
+
+        // Check for pain trigger - any external damage type
+        if ((damageInfo.Type == DamageType.Blunt ||
+             damageInfo.Type == DamageType.Sharp ||
+             damageInfo.Type == DamageType.Pierce ||
+             damageInfo.Type == DamageType.Burn)
+            && result.TotalDamageDealt > 0.01)
+        {
+            double painSeverity = Math.Clamp(result.TotalDamageDealt * 0.08, 0.1, 0.8);
+            result.TriggeredEffects.Add(EffectFactory.Pain(painSeverity));
         }
 
         return result;

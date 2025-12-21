@@ -1,5 +1,8 @@
 # Text Survival — Design Overview
 
+*Created: 2024-11*
+*Last Updated: 2025-12-20*
+
 A console-based survival game set in an Ice Age world. The text-only format enables deep, interconnected survival systems without graphical overhead.
 
 ---
@@ -188,6 +191,7 @@ Events trigger during expedition phases based on:
 - Player activity (hunting attracts predators)
 - Player state (injured, carrying food, bleeding)
 - Time and weather
+- Active tensions (stalked, hunted, etc.)
 
 Events aren't random encounters — they're contextual interrupts that create decisions. The same wolf sighting plays differently when healthy vs injured, when camp is close vs far, when carrying meat vs not.
 
@@ -203,14 +207,74 @@ Events fall into categories based on triggers and context:
 - **Environmental events** — terrain hazards, accidents during travel or work
 - **Opportunity events** — discoveries, useful finds
 - **Animal territory events** — tracks, carcasses, predator awareness (require AnimalTerritoryFeature)
+- **Tension arc events** — events that require or modify active tensions (Stalker arc, etc.)
 
-Events can:
+### Event Outcomes
+
+Events can produce outcomes that:
 - Add time to expeditions
 - Apply effects (injuries, cold, etc.)
 - Grant rewards via RewardPools
 - Consume resources as costs
+- Create, escalate, or resolve tensions
+- Spawn predator encounters with configured boldness/distance
+- Damage tools or clothing
+- Grant positive buff effects
 
-The event pool continues to expand through playtesting.
+See [event-system.md](event-system.md) for developer documentation on creating events.
+
+---
+
+## Tension System
+
+Tensions represent unresolved narrative threads that persist across events. They modify event weights and can escalate or resolve based on player actions.
+
+### How Tensions Work
+
+Tensions track building threats or opportunities:
+- **Stalked** — a predator is following the player
+- **SmokeSpotted** — someone spotted the player's fire smoke
+- **Infested** — vermin in camp storage
+- **WoundUntreated** — injury needs treatment
+- **ShelterWeakened** — shelter is damaged
+- **FoodScentStrong** — cooking/butchering attracted attention
+- **Hunted** — active predator pursuit (escalated Stalked)
+
+Each tension has:
+- **Type** — identifier ("Stalked", "Infested", etc.)
+- **Severity** — 0-1 scale affecting event weights and resolution drama
+- **Decay rate** — how fast the tension fades per hour
+- **Camp behavior** — whether it decays when at camp
+
+### Tension Lifecycle
+
+1. **Creation** — event outcomes create tensions with initial severity
+2. **Escalation** — subsequent events can increase severity
+3. **Resolution** — tensions resolve through player action, event outcomes, or decay
+4. **Intersection** — multiple active tensions compound pressure (Stalked + WoundUntreated + LowFuel = desperate decisions)
+
+### Decay Behavior
+
+| Tension | Decay/Hour | At Camp | Notes |
+|---------|------------|---------|-------|
+| Stalked | 0.05 | Yes | Predator loses the scent |
+| SmokeSpotted | 0.03 | No | Smoke source is still there |
+| Infested | 0.0 | No | Must be resolved by action |
+| WoundUntreated | 0.0 | No | Escalates via effects (infection) |
+| ShelterWeakened | 0.0 | No | Structural, requires repair |
+| FoodScentStrong | 0.10 | Yes | Dissipates quickly |
+| Hunted | 0.02 | Yes | Predator has committed |
+
+### Example: Stalker Arc
+
+Tensions enable narrative arcs that build across multiple events:
+
+1. **Something Watching** — player senses presence, creates Stalked tension (0.3)
+2. **Stalker Circling** — requires Stalked, can escalate (+0.2) or reduce (-0.1)
+3. **Predator Revealed** — requires Stalked > 0.5, shows the animal clearly
+4. **Ambush** — requires Stalked > 0.7, forces immediate encounter
+
+The arc creates mounting pressure. Players can choose to confront early, try to lose the stalker, or let it escalate until forced confrontation.
 
 ---
 
@@ -319,12 +383,17 @@ Features live on locations. Hybrid pattern — data objects with behavior (Forag
 - Location discovery via exploration work type
 - Survival stats (energy, hydration, calories, temperature)
 - Body system with parts, capacities, and damage
-- Effects system with severity and modifiers
+- Effects system with severity and modifiers (including positive buffs)
 - Weather system affecting events and temperature
-- Event system with contextual triggers and weight modifiers
+- Event system with contextual triggers, weight modifiers, and tension integration
+- Tension system for narrative arcs (Stalker, Infested, etc.)
+- Event-driven encounter spawning (events can trigger predator encounters)
+- Event-driven equipment damage (tools and clothing)
 - Need-based crafting (fire-starting, cutting tools, hunting weapons)
 - Dual inventory (player carry + camp storage)
 - Butchering animals for meat, hide, bone, sinew
+- Feature mutation (shelters can be damaged/repaired, foraging depleted/restored)
+- Location discovery through events (template-based)
 
 ## What's Next
 

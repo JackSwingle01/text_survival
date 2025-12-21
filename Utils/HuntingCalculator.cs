@@ -96,12 +96,14 @@ public static class HuntingCalculator
     /// <param name="animal">The target animal (provides state, nervousness, activity)</param>
     /// <param name="huntingSkill">Player's Hunting skill level</param>
     /// <param name="failedAttempts">Number of previous failed stealth checks</param>
+    /// <param name="impairedMultiplier">Multiplier for consciousness impairment (1.0 = normal, 1.3 = impaired)</param>
     /// <returns>Detection chance (0.0 - 1.0)</returns>
     public static double CalculateDetectionChanceWithTraits(
         double distance,
         Animal animal,
         int huntingSkill,
-        int failedAttempts = 0)
+        int failedAttempts = 0,
+        double impairedMultiplier = 1.0)
     {
         // Get base detection using existing formula
         double baseChance = CalculateDetectionChance(distance, animal.State, huntingSkill, failedAttempts);
@@ -113,6 +115,9 @@ public static class HuntingCalculator
 
         // Apply activity modifier from animal
         baseChance *= animal.GetActivityDetectionModifier();
+
+        // Apply consciousness impairment multiplier (clumsy, making noise)
+        baseChance *= impairedMultiplier;
 
         return Math.Clamp(baseChance, 0.05, 0.95);
     }

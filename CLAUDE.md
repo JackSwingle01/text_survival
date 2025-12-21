@@ -76,10 +76,13 @@ text_survival/
 
 ## What's Dropped (Don't Implement)
 
-- Character skills/stats that improve over time
 - Magic/shamanism systems
 - Meta-progression/unlocks
 - Complex nutrition (protein/fat/carb tracking)
 - ActionBuilder fluent pattern (replaced by explicit Runners)
+
+## What's Vestigial (Exists but Deprioritized)
+
+- Character skills — exist in code, used for fire-starting and combat, but not a design focus. Player knowledge is the intended progression, not character stats.
 
 See @./documentation/overview.md for full context on what's current vs. dropped.

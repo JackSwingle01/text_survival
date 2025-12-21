@@ -79,13 +79,13 @@ public static class GameDisplay
     /// <summary>
     /// Render a progress loop with status panel updates. Updates game time by default.
     /// </summary>
-    public static void UpdateAndRenderProgress(GameContext ctx, string statusText, int minutes, bool updateTime = true, double fireProximityMultiplier = 0)
+    public static void UpdateAndRenderProgress(GameContext ctx, string statusText, int minutes, ActivityType activity = ActivityType.Idle, bool updateTime = true)
     {
         for (int i = 0; i < minutes; i++)
         {
             Render(ctx, addSeparator: false, statusText: statusText, progress: i, progressTotal: minutes);
             if (updateTime)
-                ctx.Update(1, 1.0, fireProximityMultiplier);
+                ctx.Update(1, activity);
             Thread.Sleep(100);
         }
     }
@@ -409,6 +409,11 @@ public static class GameDisplay
     {
         var body = ctx.player.Body;
         var damagedParts = body.Parts.Where(p => p.Condition < 0.95).ToList();
+        var damagedOrgans = body.Parts
+            .SelectMany(p => p.Organs)
+            .Where(o => o.Condition < 0.95)
+            .OrderBy(o => o.Condition)
+            .ToList();
         var lines = new List<IRenderable>();
 
         // Blood status
@@ -432,7 +437,18 @@ public static class GameDisplay
             lines.Add(new Markup($"[{bloodColor}]{bloodStatus} ({bloodPercent}%)[/]"));
         }
 
-        if (damagedParts.Count == 0 && body.Blood.Condition >= 0.95)
+        // Organ damage (internal failure)
+        foreach (var organ in damagedOrgans.Take(2))
+        {
+            string color = GetInjuryColor(organ.Condition);
+            int percent = (int)(organ.Condition * 100);
+            lines.Add(new Markup($"[{color}]{Markup.Escape(organ.Name)} ({percent}%)[/]"));
+        }
+        if (damagedOrgans.Count > 2)
+            lines.Add(new Markup($"[grey]+{damagedOrgans.Count - 2} more organs...[/]"));
+
+        // Tissue damage (external wounds)
+        if (damagedParts.Count == 0 && body.Blood.Condition >= 0.95 && damagedOrgans.Count == 0)
         {
             lines.Add(new Markup("[grey]None[/]"));
         }

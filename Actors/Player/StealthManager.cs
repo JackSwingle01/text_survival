@@ -1,4 +1,5 @@
 using text_survival.Actors.Animals;
+using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.UI;
 
@@ -95,11 +96,14 @@ public class StealthManager
 
         // Check for detection (uses traits + activity)
         int huntingSkill = _player.Skills.GetSkill("Hunting").Level;
+        double impairedMultiplier = AbilityCalculator.IsConsciousnessImpaired(
+            _player.GetCapacities().Consciousness) ? 1.3 : 1.0;
         double detectionChance = HuntingCalculator.CalculateDetectionChanceWithTraits(
             newDistance,
             animal,
             huntingSkill,
-            animal.FailedStealthChecks
+            animal.FailedStealthChecks,
+            impairedMultiplier
         );
 
         double detectionRoll = Utils.RandDouble(0, 1);
@@ -155,11 +159,14 @@ public class StealthManager
         // Show detection chance for next approach (uses traits + activity)
         int huntingSkill = _player.Skills.GetSkill("Hunting").Level;
         double nextApproachDistance = animal.DistanceFromPlayer - 25; // Average approach
+        double impairedMultiplier = AbilityCalculator.IsConsciousnessImpaired(
+            _player.GetCapacities().Consciousness) ? 1.3 : 1.0;
         double detectionChance = HuntingCalculator.CalculateDetectionChanceWithTraits(
             nextApproachDistance,
             animal,
             huntingSkill,
-            animal.FailedStealthChecks
+            animal.FailedStealthChecks,
+            impairedMultiplier
         );
 
         GameDisplay.AddNarrative($"\nNext approach detection risk: {detectionChance * 100:F0}%");

@@ -1,4 +1,6 @@
-﻿namespace text_survival
+﻿using text_survival.UI;
+
+namespace text_survival
 {
     public static class Utils
     {
@@ -70,7 +72,10 @@
         {
             cumulativeWeight += pair.Value;
             if (roll <= cumulativeWeight)
-                return pair.Key;
+                {
+                    GameDisplay.AddNarrative($"Debug: Odds: {pair.Value / totalWeight * 100}%");
+                    return pair.Key;
+                }
         }
         
         // This should never happen if weights are positive

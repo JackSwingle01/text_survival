@@ -1,5 +1,8 @@
 # Text Survival — Development Principles
 
+*Created: 2024-11*
+*Last Updated: 2025-12-20*
+
 ## Project Philosophy
 
 A console-based Ice Age survival game where fire is the anchor. Every expedition is a commitment — leave camp, do the work, return before your fire dies. Player knowledge is the only progression; the game doesn't get easier, you get better.

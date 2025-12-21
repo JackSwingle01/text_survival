@@ -84,6 +84,9 @@ public static class AbilityCalculator
         return (capacities.Sight + capacities.Hearing) / 2;
     }
 
+    // Consciousness impairment check - used for mental fog effects
+    public static bool IsConsciousnessImpaired(double consciousness) => consciousness < 0.5;
+
     // Doesn't use capacities, just body composition
     public static double CalculateColdResistance(Body body)
     {

@@ -1,3 +1,4 @@
+using text_survival.Bodies;
 using text_survival.Crafting;
 using text_survival.IO;
 using text_survival.UI;
@@ -129,10 +130,45 @@ public class CraftingRunner(GameContext ctx)
     private bool DoCraft(CraftOption option)
     {
         GameDisplay.AddNarrative($"You begin working on a {option.Name}...");
-        GameDisplay.Render(_ctx, statusText: "Working.");
 
-        // Time passes
-        _ctx.Update(option.CraftingTimeMinutes);
+        // Consciousness impairment slows crafting
+        var consciousness = _ctx.player.GetCapacities().Consciousness;
+        int totalTime = option.CraftingTimeMinutes;
+        if (AbilityCalculator.IsConsciousnessImpaired(consciousness))
+        {
+            totalTime = (int)(totalTime * 1.25);
+            GameDisplay.AddWarning("Your foggy mind slows the work.");
+        }
+        int elapsed = 0;
+        bool interrupted = false;
+
+        // Craft with event checking
+        while (elapsed < totalTime && !interrupted && _ctx.player.IsAlive)
+        {
+            int chunk = Math.Min(5, totalTime - elapsed);
+            GameDisplay.Render(_ctx, statusText: "Crafting.", progress: elapsed, progressTotal: totalTime);
+
+            var result = _ctx.Update(chunk, ActivityType.Crafting);
+            elapsed += result.MinutesElapsed;
+
+            if (result.TriggeredEvent != null)
+            {
+                GameEventRegistry.HandleEvent(_ctx, result.TriggeredEvent);
+
+                if (_ctx.PendingEncounter != null)
+                {
+                    // TODO: Handle camp encounter
+                    _ctx.PendingEncounter = null;
+                }
+
+                // Continue crafting after event (events don't cancel craft, just interrupt briefly)
+            }
+
+            Thread.Sleep(100);
+        }
+
+        if (!_ctx.player.IsAlive)
+            return false;
 
         // Create the tool
         var tool = option.Craft(_ctx.Inventory);

@@ -239,7 +239,7 @@ public class ExpeditionRunner(GameContext ctx)
                 break;
 
             int searchTime = 15;
-            GameDisplay.UpdateAndRenderProgress(_ctx, "Searching for game...", searchTime);
+            GameDisplay.UpdateAndRenderProgress(_ctx, "Searching for game...", searchTime, ActivityType.Hunting);
             expedition.AddTime(searchTime);
 
             if (PlayerDied) break;
@@ -265,7 +265,7 @@ public class ExpeditionRunner(GameContext ctx)
             int huntMinutes = RunSingleHunt(found, expedition.CurrentLocation, expedition);
             if (huntMinutes > 0)
             {
-                GameDisplay.UpdateAndRenderProgress(_ctx, "Stalking...", huntMinutes);
+                GameDisplay.UpdateAndRenderProgress(_ctx, "Stalking...", huntMinutes, ActivityType.Hunting);
             }
             expedition.AddTime(huntMinutes);
 
@@ -496,7 +496,7 @@ public class ExpeditionRunner(GameContext ctx)
             {
                 // Spear recovery: spend time searching
                 GameDisplay.AddNarrative("You spend a few minutes searching for your spear...");
-                _ctx.Update(3);
+                _ctx.Update(3, ActivityType.Hunting);
                 expedition.AddTime(3);
             }
 
@@ -641,7 +641,7 @@ public class ExpeditionRunner(GameContext ctx)
                 return RunPredatorCombat(predator, expedition);
             }
 
-            _ctx.Update(1); // 1 minute per turn
+            _ctx.Update(1, ActivityType.Encounter); // 1 minute per turn, no events during encounter
             expedition?.AddTime(1); // Only if expedition context exists
             Input.WaitForKey();
         }
@@ -664,7 +664,7 @@ public class ExpeditionRunner(GameContext ctx)
 
             // Player attacks with equipped weapon
             _ctx.player.Attack(predator, _ctx.Inventory.Weapon);
-            _ctx.Update(1);
+            _ctx.Update(1, ActivityType.Fighting); // No events during combat
             expedition?.AddTime(1);
 
             if (!predator.IsAlive) break;
@@ -692,8 +692,25 @@ public class ExpeditionRunner(GameContext ctx)
             GameDisplay.AddNarrative($"You collect {loot.TotalWeightKg:F1}kg of resources.");
             foreach (var desc in loot.Descriptions)
                 expedition?.CollectionLog.Add(desc);
-            _ctx.Update(10);
+
+            // Butchering can be interrupted by events
+            var result = _ctx.Update(10, ActivityType.Hunting);
             expedition?.AddTime(10);
+
+            if (result.TriggeredEvent != null)
+            {
+                GameEventRegistry.HandleEvent(_ctx, result.TriggeredEvent);
+                if (_ctx.PendingEncounter != null)
+                {
+                    // Another predator attracted by the butchering
+                    var newPredator = CreateAnimalFromConfig(_ctx.PendingEncounter);
+                    _ctx.PendingEncounter = null;
+                    if (newPredator != null)
+                    {
+                        HandlePredatorEncounter(newPredator, expedition);
+                    }
+                }
+            }
         }
 
         Input.WaitForKey();
@@ -710,43 +727,44 @@ public class ExpeditionRunner(GameContext ctx)
     private bool RunTravelWithProgress(Expedition expedition, Location destination, int totalTime)
     {
         int elapsed = 0;
-        GameEvent? triggeredEvent = null;
         bool died = false;
         string statusText = $"Traveling to {destination.Name}...";
 
         while (elapsed < totalTime && !died)
         {
-            while (elapsed < totalTime && triggeredEvent == null && !died)
+            GameDisplay.Render(_ctx,
+                addSeparator: false,
+                statusText: statusText,
+                progress: elapsed,
+                progressTotal: totalTime);
+
+            // Use the new activity-based Update with event checking
+            var result = _ctx.Update(1, ActivityType.Traveling);
+            elapsed += result.MinutesElapsed;
+
+            if (PlayerDied)
             {
-                GameDisplay.Render(_ctx,
-                    addSeparator: false,
-                    statusText: statusText,
-                    progress: elapsed,
-                    progressTotal: totalTime);
+                died = true;
+                break;
+            }
 
-                var tickResult = GameEventRegistry.RunTicks(_ctx, 1);
-                _ctx.Update(tickResult.MinutesElapsed);
-                elapsed += tickResult.MinutesElapsed;
+            if (result.TriggeredEvent != null)
+            {
+                GameEventRegistry.HandleEvent(_ctx, result.TriggeredEvent);
 
-                if (PlayerDied)
+                // Spawn predator encounter if event outcome requested it
+                if (_ctx.PendingEncounter != null)
                 {
-                    died = true;
-                    break;
+                    var predator = CreateAnimalFromConfig(_ctx.PendingEncounter);
+                    _ctx.PendingEncounter = null;
+                    if (predator != null)
+                    {
+                        HandlePredatorEncounter(predator, expedition);
+                    }
                 }
-
-                if (tickResult.TriggeredEvent != null)
-                    triggeredEvent = tickResult.TriggeredEvent;
-
-                Thread.Sleep(100);
             }
 
-            if (died) break;
-
-            if (triggeredEvent != null)
-            {
-                GameEventRegistry.HandleEvent(_ctx, triggeredEvent);
-                triggeredEvent = null;
-            }
+            Thread.Sleep(100);
         }
 
         return died;
@@ -772,5 +790,28 @@ public class ExpeditionRunner(GameContext ctx)
         }
 
         Input.WaitForKey();
+    }
+
+    /// <summary>
+    /// Creates an animal from an EncounterConfig, setting up initial distance and boldness.
+    /// </summary>
+    private static Animal? CreateAnimalFromConfig(EncounterConfig config)
+    {
+        var animal = config.AnimalType.ToLower() switch
+        {
+            "wolf" => AnimalFactory.MakeWolf(),
+            "bear" => AnimalFactory.MakeBear(),
+            "cave bear" => AnimalFactory.MakeCaveBear(),
+            "fox" => AnimalFactory.MakeFox(),
+            _ => null
+        };
+
+        if (animal != null)
+        {
+            animal.DistanceFromPlayer = config.InitialDistance;
+            animal.EncounterBoldness = config.InitialBoldness;
+        }
+
+        return animal;
     }
 }

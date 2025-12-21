@@ -8,23 +8,85 @@ namespace text_survival.Actions;
 /// Resource types that can be consumed by event outcomes.
 /// Maps to high-level inventory categories.
 /// </summary>
-public enum ResourceType { Fuel, Tinder, Food }
+public enum ResourceType { Fuel, Tinder, Food, Water, PlantFiber }
 
 /// <summary>
 /// Represents resources consumed by an event outcome.
 /// </summary>
 public record ResourceCost(ResourceType Type, int Amount);
 
-public class EventResult(string message, double weight = 1)
+public class EventResult(string message, double weight = 1, int minutes = 0)
 {
     public string Message = message;
     public double Weight = weight;
-    public int TimeAddedMinutes;
+    public int TimeAddedMinutes = minutes;
     public bool AbortsExpedition;
-    public Effect? NewEffect;
+    public List<Effect> Effects = [];
     public DamageInfo? NewDamage;
     public RewardPool RewardPool = RewardPool.None;
     public ResourceCost? Cost;  // Resources consumed by this outcome
+
+    // Tension fields
+    public TensionCreation? CreatesTension;
+    public string? ResolvesTension;
+    public (string type, double amount)? EscalateTension;
+
+    // Chaining fields
+    public Func<GameContext, GameEvent>? ChainEvent;
+    public EncounterConfig? SpawnEncounter;
+
+    // Equipment targeting
+    public ToolDamage? DamageTool;
+    public ToolType? BreakTool;
+    public ClothingDamage? DamageClothing;
+
+    // Feature modification
+    public FeatureCreation? AddFeature;
+    public FeatureModification? ModifyFeature;
+    public Type? RemoveFeature;  // Remove feature of this type from location
+
+    // === Fluent builder methods ===
+
+    public EventResult Aborts() { AbortsExpedition = true; return this; }
+    public EventResult Rewards(RewardPool pool) { RewardPool = pool; return this; }
+    public EventResult Costs(ResourceType type, int amount) { Cost = new ResourceCost(type, amount); return this; }
+
+    public EventResult WithEffects(params Effect[] effects) { Effects.AddRange(effects); return this; }
+    public EventResult Damage(int amount, DamageType type, string source)
+    {
+        NewDamage = new DamageInfo(amount, type, source);
+        return this;
+    }
+
+    // Tension operations
+    public EventResult CreateTension(string type, double severity, Environments.Location? location = null,
+        string? animalType = null, string? description = null)
+    {
+        CreatesTension = new TensionCreation(type, severity, location, animalType, description);
+        return this;
+    }
+    public EventResult ResolveTension(string type) { ResolvesTension = type; return this; }
+    public EventResult Escalate(string type, double amount) { EscalateTension = (type, amount); return this; }
+
+    // Encounter spawning
+    public EventResult Encounter(string animal, int distance, double boldness)
+    {
+        SpawnEncounter = new EncounterConfig(animal, distance, boldness);
+        return this;
+    }
+
+    // Feature operations
+    public EventResult AddsFeature(Type featureType, (double, double, double) qualityRange)
+    {
+        AddFeature = new FeatureCreation(featureType, qualityRange);
+        return this;
+    }
+    public EventResult ModifiesFeature(Type featureType, double? depleteAmount = null)
+    {
+        ModifyFeature = new FeatureModification(featureType, depleteAmount);
+        return this;
+    }
+    public EventResult RemovesFeature(Type featureType) { RemoveFeature = featureType; return this; }
 }
 public class EventChoice(string label, string description, List<EventResult> results, List<EventCondition>? conditions = null)
 {
@@ -53,6 +115,36 @@ public class GameEvent(string name, string description)
         return choices.GetPlayerChoice();
     }
     public void AddChoice(EventChoice c) => _choices.Add(c);
+
+    // === Fluent builder methods ===
+
+    public GameEvent Weight(double weight)
+    {
+        BaseWeight = weight;
+        return this;
+    }
+
+    public GameEvent Requires(params EventCondition[] conditions)
+    {
+        RequiredConditions.AddRange(conditions);
+        return this;
+    }
+
+    public GameEvent MoreLikelyIf(EventCondition condition, double multiplier)
+    {
+        WeightModifiers[condition] = multiplier;
+        return this;
+    }
+
+    public GameEvent Choice(string label, string description, List<EventResult> results,
+        List<EventCondition>? requires = null)
+    {
+        _choices.Add(new EventChoice(label, description, results, requires));
+        return this;
+    }
+
+    // Static helper for cleaner EventResult creation
+    public static EventResult Result(string message, double weight = 1, int time = 0) => new(message, weight, time);
 }
 
 

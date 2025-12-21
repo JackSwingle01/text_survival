@@ -234,4 +234,40 @@ public class AnimalTerritoryFeature : LocationFeature
             _ => false
         };
     }
+
+    // Static factory methods for common territory configurations
+
+    /// <summary>
+    /// Create a mixed territory with prey and predators.
+    /// </summary>
+    public static AnimalTerritoryFeature CreateMixedTerritory(double gameDensity = 0.8)
+    {
+        return new AnimalTerritoryFeature(gameDensity)
+            .AddDeer(1.0)
+            .AddRabbit(1.5)
+            .AddPtarmigan(1.0)
+            .AddWolf(0.3);
+    }
+
+    /// <summary>
+    /// Create a small game territory (no large predators).
+    /// </summary>
+    public static AnimalTerritoryFeature CreateSmallGameTerritory(double gameDensity = 1.0)
+    {
+        return new AnimalTerritoryFeature(gameDensity)
+            .AddRabbit(1.5)
+            .AddPtarmigan(1.2)
+            .AddFox(0.4);
+    }
+
+    /// <summary>
+    /// Create a predator-heavy territory.
+    /// </summary>
+    public static AnimalTerritoryFeature CreatePredatorTerritory(double gameDensity = 0.6)
+    {
+        return new AnimalTerritoryFeature(gameDensity)
+            .AddDeer(0.5)
+            .AddWolf(1.0)
+            .AddBear(0.4);
+    }
 }
