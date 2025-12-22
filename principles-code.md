@@ -78,6 +78,18 @@ Function signatures and names signal behavior. No surprises, no magic side effec
 
 Type hints + clear naming + explicit contracts > comments explaining confusing code. If it needs extensive comments, consider refactoring.
 
+## Style Guidelines:
+
+To prevent bugs, use explicit naming conventions for numeric values including the units, e.g. `timeMinutes`.
+For abstract values and multipliers use the following convention:
+
+| Suffix | Range | Baseline | Op | Example |
+|---|---|---|---|---|
+|**Delta**|-inf...inf|0|+|`CaloriesDelta`|
+|**Factor**|0...inf|1|*|`WindFactor`|
+|**Pct**|0...1|1|*|`CapacityPct`|
+|**Level**|0...1|0|1-x|`InsulationLevel`|
+
 ---
 
 ## The Test

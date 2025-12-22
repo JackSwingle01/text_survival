@@ -106,9 +106,6 @@ namespace text_survival.Core
             // Starting equipment - basic fur wraps (Ice Age appropriate)
             // (Equipment is equipped directly to player inventory below)
 
-            // Add environment feature
-            startingArea.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
-
             HeatSourceFeature campfire = new HeatSourceFeature();
             campfire.AddFuel(2, FuelType.Kindling); // Unlit - player must start it
             startingArea.Features.Add(campfire);

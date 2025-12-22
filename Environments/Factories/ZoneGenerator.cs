@@ -58,7 +58,7 @@ public class ZoneGenerator
     {
         var start = new Location("Forest Camp", zone)
         {
-            Exposure = 0.4,
+            WindCoverFactor = 0.4,
             Terrain = TerrainType.Clear,
             BaseTraversalMinutes = 5
         };

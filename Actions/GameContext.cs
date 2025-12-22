@@ -45,7 +45,7 @@ public class GameContext(Player player, Camp camp)
     // Player's carried inventory (aggregate-based)
     public Inventory Inventory { get; } = Inventory.CreatePlayerInventory(15.0);
     public Expedition? Expedition;
-    public Zone Zone => CurrentLocation.Parent;
+    public Zone Zone => CurrentLocation.ParentZone;
 
     // Tension system for tracking building threats/opportunities
     public TensionRegistry Tensions { get; } = new();
@@ -305,7 +305,7 @@ public class GameContext(Player player, Camp camp)
         }
 
         player.Update(minutes, context);
-        CurrentLocation.Parent.Update(minutes, GameTime);
+        CurrentLocation.ParentZone.Update(minutes, GameTime);
         Tensions.Update(minutes, IsAtCamp);
 
         // DeadlyCold auto-resolves when player reaches fire

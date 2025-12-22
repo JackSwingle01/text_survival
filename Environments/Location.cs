@@ -1,70 +1,54 @@
 ﻿using text_survival.Environments.Features;
-using text_survival.Items;
-using text_survival.Bodies;
+using text_survival.UI;
 
 
 namespace text_survival.Environments;
 
-public class Location
+public class Location(string name, string tags, Zone parent, int traversalMinutes, double terrainHazardLevel = 0, double windFactor = 1, double overheadCoverLevel = 0, double visibilityFactor = 1)
 {
 
-    // Identity
-    public string Name { get; }
-    public string Description
-    {
-        get
-        {
-            var env = GetFeature<EnvironmentFeature>();
-            var shelter = GetFeature<ShelterFeature>();
-            var fire = GetFeature<HeatSourceFeature>();
-            bool hasFire = fire != null && (fire.IsActive || fire.HasEmbers);
+    // Identity //
+    public string Name { get; } = name;
 
-            // Shelter-first: "Beneath an overhang in a dense forest, with a crackling fire."
-            if (shelter != null)
-            {
-                string shelterClause = GetShelterClause(shelter);
-                // Capitalize first letter
-                shelterClause = char.ToUpper(shelterClause[0]) + shelterClause[1..];
+    /// <summary>
+    /// Short hints for the player. "[forest] [river] [wolves]"
+    /// </summary>
+    public string Tags { get; } = tags;
+    
 
-                string envName = env?.GetShortName() ?? "the area";
-                string fireClause = hasFire ? $", {GetFireClause(fire!)}" : "";
-                return $"{shelterClause} in {envName}{fireClause}.";
-            }
-
-            // No shelter: use full environment description
-            string baseDesc = env?.GetDescription() ?? GetTerrainDescription();
-            if (!hasFire)
-                return baseDesc;
-
-            // Add fire clause
-            string core = baseDesc.TrimEnd('.');
-            return $"{core}, {GetFireClause(fire!)}.";
-        }
-    }
-    public Zone Parent { get; }
-
-    // Graph - just references, no wrapper
+    public Zone ParentZone { get; } = parent;
     public List<Location> Connections { get; } = [];
 
-    // Environment
-    public TerrainType Terrain { get; set; } = TerrainType.Clear;
-    public double Exposure { get; set; } = 0.5;
+    // Environment //
+    public double WindFactor { get; } = windFactor;
+    public double TemperatureDeltaF { get; } = 0;
+    public double OverheadCoverLevel { get; } = overheadCoverLevel;
 
-    // Traversal - 0 for sites, >0 for paths
-    public int BaseTraversalMinutes { get; set; } = 0;
+    /// <summary>
+    /// How far you can see/be seen.
+    /// 0-2: 0 = deep narrow cave, .5 = thick forest, 1 = open plain, 2 = high overlook
+    /// </summary>
+    public double VisibilityFactor { get; set; } = visibilityFactor;
 
-    // Discovery
+    /// <summary>
+    /// The traversal time can be thought of as the radius - the time in or out.
+    /// </summary>
+    public int BaseTraversalMinutes { get; set; } = traversalMinutes;
+
+    /// <summary>
+    /// Injury risk and traversal time modifier
+    /// 0-1, 0 = grass, .5 = thick undergrowth, 1 = icy boulder field
+    /// </summary>
+    public double TerrainHazardLevel { get; set; } = terrainHazardLevel;
+
+    /// <summary>
+    /// Require fire or torch to work
+    /// </summary>
+    public bool IsDark { get; set; } = false;
+
+    // Discovery //
     public bool Explored { get; private set; } = false;
-    public int DistanceFromStart { get; set; } = -1;  // Graph distance in hops, -1 = not calculated
-
-    // Features, items, etc. (unchanged)
     public List<LocationFeature> Features { get; } = [];
-    public List<Item> Items { get; } = [];
-
-
-    // Derived
-    public bool IsPath => BaseTraversalMinutes > 0;
-    public bool IsSite => BaseTraversalMinutes == 0;
 
     public void AddConnection(Location other)
     {
@@ -79,14 +63,6 @@ public class Location
     }
     public List<BloodTrail> BloodTrails = []; // MVP Hunting System - Phase 4
 
-
-    #region Initialization
-
-    public Location(string name, Zone parent)
-    {
-        Name = name;
-        Parent = parent;
-    }
 
     public T? GetFeature<T>() where T : LocationFeature => Features.OfType<T>().FirstOrDefault();
     public bool HasFeature<T>() where T : LocationFeature => GetFeature<T>() is not null;
@@ -121,45 +97,30 @@ public class Location
         Features.Add(feature);
     }
 
-    public List<Location> GetUnexploredConnections()
-        => Connections.Where(l => !l.Explored).ToList();
-
-
-
-    #endregion Initialization
-
     public double GetTemperature()
     {
         // Get zone's weather temperature (in Fahrenheit)
-        double zoneTemp = Parent.Weather.TemperatureInFahrenheit;
+        double zoneTemp = ParentZone.Weather.TemperatureInFahrenheit;
 
         // Start with this base temperature
         double locationTemp = zoneTemp;
 
         // ------ STEP 1: Apply inherent location modifiers ------
-        double overheadCoverage = 0;
-        double windProtection = 0;
-        var locationType = GetFeature<EnvironmentFeature>();
-        if (locationType != null)
-        {
-            locationTemp += locationType.TemperatureModifier;
-            overheadCoverage = locationType.NaturalOverheadCoverage;
-            windProtection = locationType.NaturalWindProtection;
-        }
+        locationTemp += TemperatureDeltaF;
 
         // ------ STEP 2: Apply weather exposure effects ------
         // Wind chill when windy
         double effectiveWindSpeed = 0;
-        if (Parent.Weather.WindSpeed > 0.1) // Only significant wind
+        if (ParentZone.Weather.WindSpeed > 0.1) // Only significant wind
         {
-            effectiveWindSpeed = Parent.Weather.WindSpeed * (1 - windProtection);
+            effectiveWindSpeed = ParentZone.Weather.WindSpeed * WindFactor;
             double windSpeedMph = effectiveWindSpeed * 30; // Scale 0-1 to approx mph
             locationTemp = CalculateWindChillNWS(locationTemp, windSpeedMph);
         }
 
         // Sun warming effects during daytime with clear skies
-        double sunIntensity = Parent.Weather.SunlightIntensity;
-        double sunExposure = 1 - overheadCoverage;
+        double sunIntensity = ParentZone.Weather.SunlightIntensity;
+        double sunExposure = 1 - OverheadCoverLevel;
         // Sun can add up to 10°F on a cold day
         double sunWarming = sunIntensity * sunExposure * 10;
 
@@ -168,8 +129,8 @@ public class Location
         locationTemp += temperatureAdjustment;
 
         // Precipitation effects
-        double precipitation = Parent.Weather.Precipitation;
-        precipitation *= 1 - overheadCoverage;
+        double precipitation = ParentZone.Weather.Precipitation;
+        precipitation *= (1 - OverheadCoverLevel);
         // todo, determine if this effects temp directly or if we use this elsewhere
         double precipitationCooling = precipitation * 5; //  simple up to 5°F cooling for now
         locationTemp -= precipitationCooling;
@@ -220,12 +181,6 @@ public class Location
 
     public void Update(int minutes)
     {
-        SurvivalContext context = new()
-        {
-            ActivityLevel = 1,
-            LocationTemperature = GetTemperature(),
-        };
-
         // Update location features (fires consume fuel, etc.)
         foreach (var feature in Features)
         {
@@ -236,47 +191,17 @@ public class Location
 
     public void Explore()
     {
+        GameDisplay.AddNarrative(Name + " - " + Tags); // todo first discovery detailed description
         Explored = true;
     }
 
     public string GetUnexploredHint(Actors.Player.Player player)
     {
-        // Check EnvironmentFeature first for location type
-        var env = GetFeature<EnvironmentFeature>();
-        string terrain;
-
-        if (env != null)
-        {
-            terrain = env.Type switch
-            {
-                EnvironmentFeature.LocationType.Forest => "Wooded area",
-                EnvironmentFeature.LocationType.Cave => "Dark opening",
-                EnvironmentFeature.LocationType.RiverBank => "Water nearby",
-                EnvironmentFeature.LocationType.Cliff => "Cliff face",
-                EnvironmentFeature.LocationType.HighGround => "High ground",
-                EnvironmentFeature.LocationType.OpenPlain => "Open ground",
-                _ => "Unknown terrain"
-            };
-        }
-        else
-        {
-            // Fallback to TerrainType
-            terrain = Terrain switch
-            {
-                TerrainType.Snow => "Snowy area",
-                TerrainType.Rough => "Rocky terrain",
-                TerrainType.Steep => "Steep climb",
-                TerrainType.Water => "Water crossing",
-                TerrainType.Hazardous => "Dangerous ground",
-                _ => "Open ground"
-            };
-        }
-
         int minutes = TravelProcessor.GetTraversalMinutes(this, player);
         int rounded = ((minutes + 7) / 15) * 15;  // Round to nearest 15
         rounded = Math.Max(15, rounded);  // Minimum 15 min
-
-        return $"{terrain} (~{rounded} min)";
+        // todo 
+        return $"??? (~{rounded} min)";
     }
 
     public string GetGatherSummary()
@@ -303,16 +228,6 @@ public class Location
     }
 
     #region Description Helpers
-
-    private string GetTerrainDescription() => Terrain switch
-    {
-        TerrainType.Rough => "Rough terrain with uneven ground.",
-        TerrainType.Snow => "Snow-covered ground.",
-        TerrainType.Steep => "Steep terrain requiring careful footing.",
-        TerrainType.Water => "Waterlogged ground.",
-        TerrainType.Hazardous => "Dangerous terrain.",
-        _ => "An unremarkable area."
-    };
 
     private string GetShelterClause(ShelterFeature s)
     {
@@ -342,13 +257,4 @@ public class Location
     }
 
     #endregion
-}
-public enum TerrainType
-{
-    Clear,      // Easy travel
-    Rough,      // Slower
-    Snow,       // Weather dependent
-    Steep,      // Directional difficulty
-    Water,       // Requires crossing/swimming
-    Hazardous
 }

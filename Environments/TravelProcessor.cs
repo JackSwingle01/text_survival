@@ -10,12 +10,12 @@ public static class TravelProcessor
     {
         if (location.BaseTraversalMinutes == 0) return 0;
 
-        double multiplier = GetTerrainMultiplier(location.Terrain);
+        double multiplier = location.TerrainHazardLevel;
 
         // Weather from location's zone
-        var weather = location.Parent.Weather;
+        var weather = location.ParentZone.Weather;
         if (weather.WindSpeed > 0.5)
-            multiplier *= 1 + (weather.WindSpeed * 0.3 * location.Exposure);
+            multiplier *= 1 + (weather.WindSpeed * 0.3 * location.WindFactor);
         if (weather.Precipitation > 0.5)
             multiplier *= 1 + (weather.Precipitation * 0.2);
 
@@ -33,7 +33,7 @@ public static class TravelProcessor
         else if (speed > 1.0)
             multiplier *= 1 / speed;  // Faster = shorter time
 
-        int baseTime = (int)Math.Ceiling(location.BaseTraversalMinutes * multiplier);
+        int baseTime = (int)Math.Ceiling(location.BaseTraversalMinutes * (1 + multiplier));
 
         var capacities = player.GetCapacities();
 
@@ -113,40 +113,4 @@ public static class TravelProcessor
         return BuildRoundTripPath(outboundPath);
     }
 
-    public static double GetTerrainMultiplier(TerrainType terrain) => terrain switch
-    {
-        TerrainType.Clear => 1.0,
-        TerrainType.Rough => 1.4,
-        TerrainType.Snow => 1.6,
-        TerrainType.Steep => 1.8,
-        TerrainType.Water => 2.0,
-        TerrainType.Hazardous => 1.5,
-        _ => 1.0
-    };
-
-    public static List<Location> GetReachableSites(Location from)
-    {
-        var sites = new List<Location>();
-        var visited = new HashSet<Location>();
-        var queue = new Queue<Location>();
-
-        foreach (var connection in from.Connections.Where(c => c.Explored))
-            queue.Enqueue(connection);
-
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (visited.Contains(current)) continue;
-            visited.Add(current);
-
-            if (current.IsSite && current != from)
-                sites.Add(current);
-            else
-            {
-                foreach (var next in current.Connections.Where(c => c.Explored && !visited.Contains(c)))
-                    queue.Enqueue(next);
-            }
-        }
-        return sites;
-    }
 }
