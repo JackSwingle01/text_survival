@@ -142,7 +142,15 @@ public class TensionRegistry
             // Only decay if: tension decays at camp, OR player is not at camp
             if (tension.DecaysAtCamp || !atCamp)
             {
-                double decay = tension.DecayPerHour * (minutes / 60.0);
+                double decayRate = tension.DecayPerHour;
+
+                // FeverRising decays 3x faster at camp (rest accelerates recovery)
+                if (tension.Type == "FeverRising" && atCamp)
+                {
+                    decayRate *= 3.0;
+                }
+
+                double decay = decayRate * (minutes / 60.0);
                 tension.Severity = Math.Max(0, tension.Severity - decay);
 
                 if (tension.Severity <= 0)

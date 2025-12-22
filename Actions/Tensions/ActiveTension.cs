@@ -157,6 +157,75 @@ public class ActiveTension
     );
 
     /// <summary>
+    /// Player wounded prey that escaped. Trail decays as blood dries/snow covers.
+    /// </summary>
+    public static ActiveTension WoundedPrey(double severity, string? animalType = null, Location? location = null) => new(
+        type: "WoundedPrey",
+        severity: severity,
+        decayPerHour: 0.08,
+        decaysAtCamp: true,  // Trail goes cold if you return to camp
+        relevantLocation: location,
+        animalType: animalType
+    );
+
+    /// <summary>
+    /// A pack of predators is nearby. Fire deters them; decay at camp reflects safety.
+    /// </summary>
+    public static ActiveTension PackNearby(double severity, string? animalType = null) => new(
+        type: "PackNearby",
+        severity: severity,
+        decayPerHour: 0.03,
+        decaysAtCamp: true,
+        animalType: animalType
+    );
+
+    /// <summary>
+    /// A shelter location is claimed by wildlife. No decay - structural situation.
+    /// </summary>
+    public static ActiveTension ClaimedTerritory(double severity, string? animalType = null, Location? location = null) => new(
+        type: "ClaimedTerritory",
+        severity: severity,
+        decayPerHour: 0.0,
+        decaysAtCamp: false,
+        relevantLocation: location,
+        animalType: animalType
+    );
+
+    /// <summary>
+    /// A herd is passing through. High decay - they're migrating, window closes fast.
+    /// </summary>
+    public static ActiveTension HerdNearby(double severity, string? animalType = null, string? direction = null) => new(
+        type: "HerdNearby",
+        severity: severity,
+        decayPerHour: 0.15,
+        decaysAtCamp: true,
+        animalType: animalType,
+        direction: direction
+    );
+
+    /// <summary>
+    /// Deadly cold exposure. No natural decay - resolves when reaching fire or shelter.
+    /// </summary>
+    public static ActiveTension DeadlyCold(double severity) => new(
+        type: "DeadlyCold",
+        severity: severity,
+        decayPerHour: 0.0,
+        decaysAtCamp: false  // Resolves via event, not decay
+    );
+
+    /// <summary>
+    /// Fever/sickness rising. Slow decay, faster at camp with rest.
+    /// Note: Camp decay handled by special logic in TensionRegistry.Update()
+    /// </summary>
+    public static ActiveTension FeverRising(double severity, string? description = null) => new(
+        type: "FeverRising",
+        severity: severity,
+        decayPerHour: 0.01,
+        decaysAtCamp: true,  // Decays 3x faster at camp (0.03 effective)
+        description: description
+    );
+
+    /// <summary>
     /// Generic factory for custom tension types.
     /// </summary>
     public static ActiveTension Custom(

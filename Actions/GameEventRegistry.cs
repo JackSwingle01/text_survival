@@ -70,6 +70,21 @@ public static partial class GameEventRegistry
         StalkerCircling,
         PredatorRevealed,
         Ambush,
+        // Blood Trail Arc
+        BloodInSnow,
+        TheDyingAnimal,
+        ScavengersConverge,
+
+        // Herd events (GameEventRegistry.Herd.cs)
+        DistantThunder,
+        EdgeOfHerd,
+        Stampede,
+        TheFollowers,
+
+        // Cold Snap Arc (GameEventRegistry.ColdSnap.cs)
+        TheWindShifts,
+        GoingNumb,
+        FrostbiteSettingIn,
         // Body Events
         TheShakes,
         GutWrench,
@@ -104,7 +119,26 @@ public static partial class GameEventRegistry
         FumblingHands,
 
         // Perception impairment events (GameEventRegistry.Perception.cs)
-        DulledSenses
+        DulledSenses,
+
+        // Den arc events (GameEventRegistry.Den.cs)
+        TheFind,
+        AssessingTheClaim,
+        TheConfrontation,
+        ClaimingTheDen,
+
+        // Pack arc events (GameEventRegistry.Pack.cs)
+        PackSigns,
+        EyesInTreeline,
+        Circling,
+        ThePackCommits,
+
+        // Fever arc events (GameEventRegistry.Fever.cs)
+        SomethingWrong,
+        FeverTakesHold,
+        TheFireIllusion,
+        FootstepsOutside,
+        FeverCrisisPoint
     ];
 
     /// <summary>
@@ -261,6 +295,12 @@ public static partial class GameEventRegistry
                 "Hunted" => ActiveTension.Hunted(tc.Severity, tc.AnimalType),
                 "MarkedDiscovery" => ActiveTension.MarkedDiscovery(tc.Severity, tc.RelevantLocation, tc.Description),
                 "Disturbed" => ActiveTension.Disturbed(tc.Severity, tc.RelevantLocation, tc.Description),
+                "WoundedPrey" => ActiveTension.WoundedPrey(tc.Severity, tc.AnimalType, tc.RelevantLocation),
+                "PackNearby" => ActiveTension.PackNearby(tc.Severity, tc.AnimalType),
+                "ClaimedTerritory" => ActiveTension.ClaimedTerritory(tc.Severity, tc.AnimalType, tc.RelevantLocation),
+                "HerdNearby" => ActiveTension.HerdNearby(tc.Severity, tc.AnimalType, tc.Direction),
+                "DeadlyCold" => ActiveTension.DeadlyCold(tc.Severity),
+                "FeverRising" => ActiveTension.FeverRising(tc.Severity, tc.Description),
                 _ => ActiveTension.Custom(tc.Type, tc.Severity, 0.05, true, tc.RelevantLocation, tc.AnimalType, tc.Direction, tc.Description)
             };
             ctx.Tensions.AddTension(tension);

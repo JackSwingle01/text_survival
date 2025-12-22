@@ -484,9 +484,41 @@ public class ExpeditionRunner(GameContext ctx)
         }
         else
         {
-            // Miss
+            // Miss - but check for glancing hit (wound)
+            // Close misses (within 15% of hit threshold) can become wounds
+            double roll = Utils.RandDouble(0, 1);
+            bool isGlancingHit = roll < hitChance + (hitChance * 0.3) && isSpear; // Only spears can wound
+
             string weaponName = isSpear ? weapon!.Name : "stone";
-            GameDisplay.AddNarrative($"Your {weaponName} misses! The {target.Name} bolts.");
+
+            if (isGlancingHit)
+            {
+                // Glancing hit - animal wounded but escapes
+                // Wound severity determines tracking success (arterial = high, muscle = low)
+                double woundSeverity = Utils.RandDouble(0.3, 0.8);
+                string woundDesc = woundSeverity > 0.6
+                    ? "Bright red arterial spray, pumping with each heartbeat"
+                    : "Dark blood, muscle wound — the animal barely slowed";
+
+                GameDisplay.AddNarrative($"Your {weaponName} grazes the {target.Name}!");
+                GameDisplay.AddNarrative(woundDesc);
+                GameDisplay.AddNarrative($"The {target.Name} bolts, leaving blood on the snow.");
+
+                // Create WoundedPrey tension - entry point to Blood Trail arc
+                var tension = Tensions.ActiveTension.WoundedPrey(
+                    woundSeverity,
+                    target.Name,
+                    expedition.CurrentLocation
+                );
+                _ctx.Tensions.AddTension(tension);
+
+                GameDisplay.AddNarrative("You could follow the blood trail...");
+            }
+            else
+            {
+                // Clean miss
+                GameDisplay.AddNarrative($"Your {weaponName} misses! The {target.Name} bolts.");
+            }
 
             if (isSpear)
             {

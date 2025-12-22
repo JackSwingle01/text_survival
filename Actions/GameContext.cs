@@ -141,6 +141,28 @@ public class GameContext(Player player, Camp camp)
             EventCondition.DisturbedHigh => Tensions.HasTensionAbove("Disturbed", 0.5),
             EventCondition.DisturbedCritical => Tensions.HasTensionAbove("Disturbed", 0.7),
 
+            // New tension arc conditions
+            EventCondition.WoundedPrey => Tensions.HasTension("WoundedPrey"),
+            EventCondition.WoundedPreyHigh => Tensions.HasTensionAbove("WoundedPrey", 0.5),
+            EventCondition.WoundedPreyCritical => Tensions.HasTensionAbove("WoundedPrey", 0.7),
+
+            EventCondition.PackNearby => Tensions.HasTension("PackNearby"),
+            EventCondition.PackNearbyHigh => Tensions.HasTensionAbove("PackNearby", 0.4),
+            EventCondition.PackNearbyCritical => Tensions.HasTensionAbove("PackNearby", 0.7),
+
+            EventCondition.ClaimedTerritory => Tensions.HasTension("ClaimedTerritory"),
+            EventCondition.ClaimedTerritoryHigh => Tensions.HasTensionAbove("ClaimedTerritory", 0.5),
+
+            EventCondition.HerdNearby => Tensions.HasTension("HerdNearby"),
+            EventCondition.HerdNearbyUrgent => Tensions.HasTensionAbove("HerdNearby", 0.6),
+
+            EventCondition.DeadlyCold => Tensions.HasTension("DeadlyCold"),
+            EventCondition.DeadlyColdCritical => Tensions.HasTensionAbove("DeadlyCold", 0.6),
+
+            EventCondition.FeverRising => Tensions.HasTension("FeverRising"),
+            EventCondition.FeverHigh => Tensions.HasTensionAbove("FeverRising", 0.4),
+            EventCondition.FeverCritical => Tensions.HasTensionAbove("FeverRising", 0.7),
+
             // Camp/expedition state
             EventCondition.AtCamp => IsAtCamp,
             EventCondition.OnExpedition => Expedition != null,
@@ -285,6 +307,14 @@ public class GameContext(Player player, Camp camp)
         player.Update(minutes, context);
         CurrentLocation.Parent.Update(minutes, GameTime);
         Tensions.Update(minutes, IsAtCamp);
+
+        // DeadlyCold auto-resolves when player reaches fire
+        if (Tensions.HasTension("DeadlyCold") && Check(EventCondition.NearFire))
+        {
+            Tensions.ResolveTension("DeadlyCold");
+            GameDisplay.AddNarrative("The fire's warmth washes over you. You're going to be okay.");
+        }
+
         GameTime = GameTime.AddMinutes(minutes);
 
         var logs = player?.GetFlushLogs();
@@ -388,6 +418,33 @@ public enum EventCondition
     Disturbed,          // Player witnessed disturbing content (death, remains)
     DisturbedHigh,      // Disturbed with severity > 0.5
     DisturbedCritical,  // Disturbed with severity > 0.7
+
+    // WoundedPrey arc
+    WoundedPrey,           // Any WoundedPrey tension exists
+    WoundedPreyHigh,       // WoundedPrey severity > 0.5
+    WoundedPreyCritical,   // WoundedPrey severity > 0.7
+
+    // Pack arc
+    PackNearby,            // Any PackNearby tension exists
+    PackNearbyHigh,        // PackNearby severity > 0.4
+    PackNearbyCritical,    // PackNearby severity > 0.7
+
+    // Den arc
+    ClaimedTerritory,      // Any ClaimedTerritory tension exists
+    ClaimedTerritoryHigh,  // ClaimedTerritory severity > 0.5
+
+    // Herd arc
+    HerdNearby,            // Any HerdNearby tension exists
+    HerdNearbyUrgent,      // HerdNearby severity > 0.6 (window closing)
+
+    // Cold Snap arc
+    DeadlyCold,            // Any DeadlyCold tension exists
+    DeadlyColdCritical,    // DeadlyCold severity > 0.6
+
+    // Fever arc
+    FeverRising,           // Any FeverRising tension exists
+    FeverHigh,             // FeverRising severity > 0.4
+    FeverCritical,         // FeverRising severity > 0.7
 
     // Camp/expedition state
     AtCamp,             // Player is at camp (not on expedition)

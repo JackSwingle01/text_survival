@@ -60,9 +60,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     // Tension operations
     public EventResult CreateTension(string type, double severity, Environments.Location? location = null,
-        string? animalType = null, string? description = null)
+        string? animalType = null, string? direction = null, string? description = null)
     {
-        CreatesTension = new TensionCreation(type, severity, location, animalType, description);
+        CreatesTension = new TensionCreation(type, severity, location, animalType, direction, description);
         return this;
     }
     public EventResult ResolveTension(string type) { ResolvesTension = type; return this; }

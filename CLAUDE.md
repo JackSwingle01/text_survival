@@ -1,6 +1,6 @@
 ## Primary References
 
-**Always consult these documentation files first:**
+**Always consult these documentation files at the start of a conversation:**
 
 - @principles.md
 - @principles-code.md
