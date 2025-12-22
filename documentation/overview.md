@@ -1,430 +1,285 @@
-# Text Survival — Design Overview
+# Text Survival — Systems Overview
 
-*Created: 2024-11*
-*Last Updated: 2025-12-20*
-
-A console-based survival game set in an Ice Age world. The text-only format enables deep, interconnected survival systems without graphical overhead.
+*A console-based survival game set in an Ice Age world. This document describes the core systems and how they interact.*
 
 ---
 
-## Core Philosophy
+## Fire
 
-### Fire as Tether
+Physics-based simulation. Fire is infrastructure — a good fire with quality fuel extends your expedition radius. A dying fire while you're away means returning to cold camp.
 
-Every decision runs through one question: can I do this and get back before my fire dies?
+- Fuel types with different burn rates and heat output
+- Fire phases: Igniting → Building → Roaring → Steady → Dying → Embers
+- Ember preservation for relight without fire-starting tools
+- Heat contribution to location temperature based on fuel mass and fire maturity
 
-The fire burns whether you're there or not. This single constraint makes everything matter — temperature, calories, time, distance. Systems don't run in parallel; they pressure each other through the bottleneck of fire.
-
-Early game, you can barely leave camp. Your fire is small, your fuel is scarce. You forage nearby, stay close, survive minute to minute. As you learn the systems, your effective radius expands — not because numbers went up, but because you understand when risks are worth taking.
-
-### Intersecting Pressures Create Decisions
-
-A wolf isn't dangerous because it's a wolf. It's dangerous because you're bleeding, limping, low on fuel, and far from camp. Single systems create problems. Intersecting systems create meaningful choices.
-
-The interesting decisions are time/risk tradeoffs:
-- Do I search longer or take what I have?
-- Do I go back to camp or push further?
-- Can I make it back before the fire dies?
-
-### Knowledge is Progression
-
-No meta-progression, no unlocks, no character stats that grow. The player gets better, not the character. An experienced player survives because they understand the systems — when 10 minutes of margin is actually fine, when "abundant" doesn't mean safe, when to let a fire die on purpose.
-
-### The Game Decides Low-Stakes, The Player Decides High-Stakes
-
-The interface reads game state and surfaces what matters. "Tend fire" appears prominently when fuel is low. "Treat wound" surfaces when you're bleeding. The player chooses from 2-4 meaningful options, not exhaustive menus.
+Fire interacts with: survival simulation (temperature), expeditions (time pressure), locations (heat source feature).
 
 ---
 
-## Camp and Expeditions
+## Expeditions
 
-### The Core Model
+Flexible travel structure:
 
-You have a camp. Everything else is an expedition.
+- Leave camp — choose a destination, travel there
+- Work or travel — at each location, choose to work (forage, hunt, explore, harvest) or travel to another connected location
+- Return — backtrack through travel history to camp
 
-Your camp is where your fire is. Camp is where you're safe — you can tend fire, craft, rest, eat, and manage inventory. When you leave camp, you're on an expedition with time cost and risk.
+Fire status always visible. Travel times calculated from location graph. The UI shows what you need to judge your margin.
 
-### Expedition Structure
-
-Expeditions are flexible:
-- **Leave camp** — choose a destination, travel there
-- **Work or travel** — at each location, choose to work (forage, hunt, explore) or travel to another connected location
-- **Return** — backtrack through your travel history to camp
-
-The UI always shows fire status at the top of the screen. Fire margin is implicit — you see your fire remaining, you see travel times, and you develop intuition for how much you can push.
-
-### Camp Actions vs Expeditions
-
-**Camp actions** happen at camp with no travel — tend fire, craft, rest, eat, cook/melt snow, manage inventory. Time passes and fire burns, but you're present.
-
-**Expeditions** leave camp. You can travel freely between locations, working as you go. The expedition ends when you return to camp.
-
-**Work near camp** — forage and scout without leaving camp. Lets you gather nearby resources and discover new locations without expedition risk.
+Expeditions interact with: fire (time pressure), locations (destinations and features), events (triggers during travel and work), survival simulation (stats drain during travel).
 
 ---
 
 ## Locations
 
-Locations are expedition destinations with travel times from camp. Each has:
+Locations are places in the world with travel times from camp. Each has:
+
 - Name and character (Frozen Creek, Dense Birches, Rocky Overlook)
-- Travel time from camp
+- Travel time from connected locations
 - Features (what you can do there)
 - Terrain properties (exposure, shelter potential)
 
-Locations connect to each other as a graph with distances. Camp is your anchor point; travel times to other locations are calculated from there.
+Locations connect as a graph. Camp is the anchor point.
 
-### Location Discovery
+Discovery states:
+- Unexplored — can travel there but don't know what's there (shown as hints like "rocky area to the north")
+- Explored — full features revealed after visiting
 
-Locations aren't all visible from the start. They reveal through exploration:
-- **Unexplored** — you can travel there but don't know what's there (shown as hints like "rocky area to the north")
-- **Explored** — full features revealed after visiting or scouting
+Depletion: Areas run out. Nearby grove is plentiful on day one, sparse by day three, picked over by day five. Pushes the player outward or forces camp relocation.
 
-Discovery happens dynamically through the exploration work type, which has a chance to generate new connected locations based on the zone's terrain.
-
-### Depletion
-
-Areas run out. The nearby grove is plentiful on day one, sparse by day three, picked over by day five. The game pushes you outward — range further (more risk, more time) or move camp (reset your radius).
+Locations interact with: expeditions (travel destinations), features (what's available), events (location-based triggers), exploration (discovery of new locations).
 
 ---
 
 ## Features
 
-Features are what make locations useful:
+Features are what make locations useful. They live on locations and define available activities.
 
-**ForageFeature** — Ambient scavenging. Search the area, find things based on location abundance and time invested. Yields diminish as you exhaust an area.
+ForageFeature — Ambient scavenging. Search the area, find things based on abundance and time invested. Yields diminish as you exhaust an area.
 
-**HarvestableFeature** — Visible specific resources. A berry bush with 12 servings. A dead tree you can process. Quantity-based, not probability-based.
+HarvestableFeature — Visible specific resources. A berry bush with 12 servings. A dead tree you can process. Quantity-based, not probability-based.
 
-**EnvironmentFeature** — Terrain properties. A cave has wind protection. A ridge is exposed but offers visibility.
+EnvironmentFeature — Terrain properties. A cave has wind protection. A ridge is exposed but offers visibility.
 
-**ShelterFeature** — Built protection. Lean-to, snow wall, debris hut. Takes time to build, stays when you leave.
+ShelterFeature — Built protection. Lean-to, snow wall, debris hut. Takes time to build, stays when you leave.
 
-**HeatSourceFeature** — Fire. The anchor. Has fuel, burns down, produces heat. Can bank to embers, relight, die completely.
+HeatSourceFeature — Fire. Has fuel, burns down, produces heat. Can bank to embers, relight, die completely.
 
-**AnimalTerritoryFeature** — Defines what game can be found at a location. Animals spawn dynamically when searching, not pre-placed. Game density depletes with successful hunts and respawns over time. Also provides helpers for the event system (random animal names, predator identification).
+AnimalTerritoryFeature — What game can be found here. Animals spawn dynamically when searching, not pre-placed. Game density depletes with successful hunts and respawns over time.
+
+Features interact with: locations (features live on locations), expeditions (work types use features), events (features can trigger events and be modified by event outcomes), crafting (features provide materials).
 
 ---
 
 ## Survival Simulation
 
 Rate-based calculation per minute:
-- **Energy** — depletes with time and exertion
-- **Hydration** — constant drain, faster with heat/exertion  
-- **Calories** — BMR-based with activity multipliers
-- **Temperature** — heat transfer toward environment, modified by clothing, shelter, fire
 
-Thresholds trigger effects. Temperature drops below 95°F, you start shivering. Below 89.6°F, frostbite risk. The survival processor returns stat changes, triggered effects, and messages — it doesn't own state, just calculates.
+- Energy — depletes with time and exertion
+- Hydration — constant drain, faster with heat/exertion
+- Calories — BMR-based with activity multipliers
+- Temperature — heat transfer toward environment, modified by clothing, shelter, fire
+
+Thresholds trigger effects. Temperature drops below 95°F, you start shivering. Below 89.6°F, frostbite risk.
+
+The survival processor returns stat changes, triggered effects, and messages — it doesn't own state, just calculates.
+
+Survival simulation interacts with: body system (stats live on body), effects (thresholds trigger effects), fire (heat contribution), locations (environmental exposure), expeditions (activity multipliers).
 
 ---
 
 ## Body System
 
 Hierarchical body parts for humans (Torso → Heart, Arm → Hand → Fingers). Each part contributes to capacities:
-- **Moving** — legs, feet, knees
-- **Manipulation** — hands, fingers, arms
-- **Breathing** — lungs, chest
-- **Consciousness** — head, brain
+
+- Moving — legs, feet, knees
+- Manipulation — hands, fingers, arms
+- Breathing — lungs, chest
+- Consciousness — head, brain
 - Plus: BloodPumping, Sight, Hearing, Digestion
 
 Injuries attach to body parts with severity (0-1). Capacity calculation is generic — sum injuries, check which capacities they affect, apply modifiers. No special cases per body part.
 
 Body composition (fat, muscle mass in kg) affects temperature resistance, speed, strength. Calories convert to fat at 7700 kcal per kg.
 
+Body system interacts with: survival simulation (stats live here), effects (injuries trigger effects), damage (structural harm to parts), abilities (capacities determine what player can do).
+
 ---
 
-## Effects vs Body Damage
+## Effects
 
-Two distinct systems handle harm:
+Effects are ongoing processes that tick over time. Distinct from body damage.
 
-**Body Damage = Structural**
+Body Damage = Structural
 - Entry point: `Body.Damage(DamageInfo)`
 - Tracks tissue condition (skin, muscle, bone, organs) at 0-1
 - Affects capacities based on which parts are damaged
 - Heals automatically when well-fed, hydrated, rested
 
-**Effects = Processes**
+Effects = Processes
 - Entry point: `EffectRegistry.AddEffect(effect)`
-- Ongoing conditions that tick over time (bleeding, hypothermia, fear)
+- Ongoing conditions that tick over time
 - Have severity (0-1), decay rates, capacity/stat modifiers
 - Resolve through natural decay or treatment
 
-**The distinction:** A wolf bite causes BOTH body damage (structural injury to leg) AND a bleeding effect (ongoing blood loss). Stopping bleeding doesn't heal the leg. Healing the leg doesn't stop bleeding.
+A wolf bite causes BOTH body damage (structural injury to leg) AND a bleeding effect (ongoing blood loss). Stopping bleeding doesn't heal the leg. Healing the leg doesn't stop bleeding.
 
-**Available effects:** Cold, Hypothermia, Hyperthermia, Shivering, Sweating, Frostbite, Bleeding, Sprained Ankle, Fear/Shaken
+Available effects: Cold, Hypothermia, Hyperthermia, Shivering, Sweating, Frostbite, Bleeding, Sprained Ankle, Fear/Shaken. Also positive buffs from event outcomes.
 
-**Auto-triggered:** Sharp/pierce damage that breaks skin automatically triggers Bleeding effect proportional to damage dealt.
-
-See [effects-and-injuries.md](effects-and-injuries.md) for full details.
-
----
-
-## Fire System
-
-Physics-based simulation:
-- Fuel types with different burn rates and heat output
-- Fire phases: Igniting → Building → Roaring → Steady → Dying → Embers
-- Ember preservation for relight without fire-starting tools
-- Heat contribution to location temperature based on fuel mass and fire maturity
-
-Fire is infrastructure. Building a good fire with quality fuel extends your expedition radius. Letting it die while you're away means returning to cold camp — survivable if you planned for it, dangerous if you didn't.
-
----
-
-## Predator Encounters
-
-Predator encounters emerge during hunting when prey turns aggressive or when stalking fails. The system uses boldness-based AI:
-
-- **Boldness (0-1)** — calculated from context: player injured, carrying meat, low vitality
-- **Distance tracking** — predator closes or backs off based on player actions
-- **Player options** — stand ground (reduces boldness), back away (increases boldness but gains distance), run (speed check), fight, drop meat (escape)
-
-The encounter isn't scripted. It emerges from: player carrying meat + injury slowing movement + predator's boldness calculation. Each turn gives the player a chance to respond, and boldness determines whether the predator commits to attack or retreats.
-
-Combat is simple turn-based when it occurs: attack with equipped weapon, predator attacks back. Victory allows butchering the carcass.
+Effects interact with: body system (damage vs process distinction), survival simulation (thresholds trigger effects), events (outcomes apply effects), abilities (effects modify capacities).
 
 ---
 
 ## Events
 
-Events trigger during expedition phases based on:
-- Location (wolf territory, animal territory)
-- Player activity (hunting attracts predators)
+Events trigger during expeditions based on context:
+
+- Location (wolf territory, terrain type)
+- Player activity (hunting, foraging, traveling)
 - Player state (injured, carrying food, bleeding)
 - Time and weather
-- Active tensions (stalked, hunted, etc.)
+- Active tensions
 
-Events aren't random encounters — they're contextual interrupts that create decisions. The same wolf sighting plays differently when healthy vs injured, when camp is close vs far, when carrying meat vs not.
+Events aren't random encounters — they're contextual interrupts that create decisions.
 
-### Architecture
+Architecture: Events use a factory pattern. Each event type is a function that takes `GameContext` and returns a `GameEvent`. Events bake location-specific context into descriptions at trigger time.
 
-Events use a factory pattern — each event type is a function that takes `GameContext` and returns a `GameEvent`. This allows events to bake location-specific context into their descriptions at trigger time (e.g., "Fresh deer tracks" instead of generic "animal tracks").
-
-### Event Categories
-
-Events fall into categories based on triggers and context:
-
-- **Weather events** — triggered by weather conditions (storms, cold snaps, fog)
-- **Environmental events** — terrain hazards, accidents during travel or work
-- **Opportunity events** — discoveries, useful finds
-- **Animal territory events** — tracks, carcasses, predator awareness (require AnimalTerritoryFeature)
-- **Tension arc events** — events that require or modify active tensions (Stalker arc, etc.)
-
-### Event Outcomes
-
-Events can produce outcomes that:
+Outcomes can:
 - Add time to expeditions
-- Apply effects (injuries, cold, etc.)
+- Apply effects or injuries
 - Grant rewards via RewardPools
 - Consume resources as costs
 - Create, escalate, or resolve tensions
-- Spawn predator encounters with configured boldness/distance
+- Spawn predator encounters
 - Damage tools or clothing
-- Grant positive buff effects
+- Discover new locations
 
-See [event-system.md](event-system.md) for developer documentation on creating events.
+Events interact with: tensions (create/escalate/resolve), locations (triggers and discovery), effects (outcomes apply them), predator encounters (can spawn them), inventory (costs and rewards).
 
 ---
 
-## Tension System
+## Tensions
 
-Tensions represent unresolved narrative threads that persist across events. They modify event weights and can escalate or resolve based on player actions.
+Tensions represent unresolved narrative threads that persist across events.
 
-### How Tensions Work
-
-Tensions track building threats or opportunities:
-- **Stalked** — a predator is following the player
-- **SmokeSpotted** — someone spotted the player's fire smoke
-- **Infested** — vermin in camp storage
-- **WoundUntreated** — injury needs treatment
-- **ShelterWeakened** — shelter is damaged
-- **FoodScentStrong** — cooking/butchering attracted attention
-- **Hunted** — active predator pursuit (escalated Stalked)
+Examples:
+- Stalked — a predator is following the player
+- Infested — vermin in camp storage
+- WoundUntreated — injury needs treatment
+- FoodScentStrong — cooking/butchering attracted attention
+- Hunted — active predator pursuit (escalated Stalked)
 
 Each tension has:
-- **Type** — identifier ("Stalked", "Infested", etc.)
-- **Severity** — 0-1 scale affecting event weights and resolution drama
-- **Decay rate** — how fast the tension fades per hour
-- **Camp behavior** — whether it decays when at camp
+- Type — identifier
+- Severity — 0-1 scale affecting event weights
+- Decay rate — how fast it fades per hour
+- Camp behavior — whether it decays at camp
 
-### Tension Lifecycle
+Lifecycle: Events create tensions → subsequent events can escalate → tensions resolve through player action, event outcomes, or natural decay → multiple active tensions compound pressure.
 
-1. **Creation** — event outcomes create tensions with initial severity
-2. **Escalation** — subsequent events can increase severity
-3. **Resolution** — tensions resolve through player action, event outcomes, or decay
-4. **Intersection** — multiple active tensions compound pressure (Stalked + WoundUntreated + LowFuel = desperate decisions)
+Tensions interact with: events (tensions modify event weights, events modify tensions), expeditions (some tensions decay differently at camp vs field).
 
-### Decay Behavior
+---
 
-| Tension | Decay/Hour | At Camp | Notes |
-|---------|------------|---------|-------|
-| Stalked | 0.05 | Yes | Predator loses the scent |
-| SmokeSpotted | 0.03 | No | Smoke source is still there |
-| Infested | 0.0 | No | Must be resolved by action |
-| WoundUntreated | 0.0 | No | Escalates via effects (infection) |
-| ShelterWeakened | 0.0 | No | Structural, requires repair |
-| FoodScentStrong | 0.10 | Yes | Dissipates quickly |
-| Hunted | 0.02 | Yes | Predator has committed |
+## Predator Encounters
 
-### Example: Stalker Arc
+Emerge during hunting or from event outcomes. Uses boldness-based AI:
 
-Tensions enable narrative arcs that build across multiple events:
+- Boldness (0-1) — calculated from context: player injured, carrying meat, low vitality
+- Distance tracking — predator closes or backs off based on player actions
+- Player options: stand ground, back away, run, fight, drop meat
 
-1. **Something Watching** — player senses presence, creates Stalked tension (0.3)
-2. **Stalker Circling** — requires Stalked, can escalate (+0.2) or reduce (-0.1)
-3. **Predator Revealed** — requires Stalked > 0.5, shows the animal clearly
-4. **Ambush** — requires Stalked > 0.7, forces immediate encounter
+The encounter emerges from intersecting state: player carrying meat + injury slowing movement + predator's boldness calculation. Each turn gives the player a chance to respond.
 
-The arc creates mounting pressure. Players can choose to confront early, try to lose the stalker, or let it escalate until forced confrontation.
+Combat is simple turn-based when it occurs: attack with equipped weapon, predator attacks back.
+
+Predator encounters interact with: events (can spawn encounters), body system (injuries affect options), inventory (carrying meat affects boldness, weapons affect combat), effects (fear, injuries from attacks).
 
 ---
 
 ## Items and Inventory
 
-The inventory uses a hybrid approach:
+Hybrid approach:
 
-**Aggregate resources** — stored as lists of weights for common items:
-- Fuel: Sticks, Logs, Tinder (each a `List<double>` of individual weights)
-- Food: Raw meat, Cooked meat, Berries (same pattern)
+Aggregate resources — stored as lists of weights:
+- Fuel: Sticks, Logs, Tinder
+- Food: Raw meat, Cooked meat, Berries
 - Materials: Stone, Bone, Hide, PlantFiber, Sinew
 - Water (in liters)
 
-**Discrete items** — tracked individually where identity matters:
+Discrete items — tracked individually:
 - Tools (with type and durability)
 - Equipment (clothing with insulation values)
 
-**Dual inventory system:**
+Dual inventory:
 - Player inventory — weight-limited (15kg), carried during expeditions
 - Camp storage — unlimited capacity, accessible only at camp
-- Transfer items between them via the inventory menu
+
+Inventory interacts with: crafting (materials consumed, items produced), expeditions (carry weight affects travel), survival simulation (food/water consumption), events (costs and rewards), predator encounters (meat attracts, weapons enable combat).
 
 ---
 
 ## Crafting
 
-Need-based crafting system. Player expresses a need, sees what's craftable from available materials.
+Need-based system. Player expresses a need, sees what's craftable from available materials.
 
-**Need Categories** (MVP):
+Need Categories:
 - Fire-starting supplies (Hand Drill, Bow Drill)
 - Cutting tools (Sharp Rock, Stone Knife, Bone Knife)
 - Hunting weapons (Wooden Spear, Heavy Spear, Stone-Tipped Spear)
 
-**Crafting Materials** (aggregate resources in Inventory):
-- Stone — from foraging (riverbanks, rocky areas)
-- Bone — from butchering animals (~15% body weight)
-- Hide — from butchering animals (~10% body weight)
-- PlantFiber — from foraging (forests, grasslands)
-- Sinew — from butchering animals (~5% body weight)
+Materials come from foraging (stone, plant fiber) and butchering (bone, hide, sinew).
 
-**Binary Tools**: Tools either work or they're broken. No quality tiers. Different materials affect durability (uses before breaking), not effectiveness.
+Binary tools: Tools either work or they're broken. No quality tiers. Different materials affect durability, not effectiveness.
 
-**Flow**: Camp menu → "Work on a project" → Select need category → See craftable options → Craft. Time passes, materials consumed, tool added to inventory.
-
-**Future Categories** (not yet implemented):
-- Shelter improvements (LocationFeatures)
-- Clothing/warmth (Equipment from hides)
-- Containers/carrying (capacity bonuses)
+Crafting interacts with: inventory (materials consumed, items produced), features (butchering provides materials), locations (foraging provides materials).
 
 ---
 
 ## Architecture
 
-### Hierarchy
-
-**Runners** — Control flow, player decisions, display UI
-- GameRunner: main camp loop, handles camp actions (fire, eating, cooking, inventory, sleep)
-- ExpeditionRunner: leaving camp, traveling, working at locations, returning
-- WorkRunner: work activities (forage, hunt, explore, harvest)
+Runners — Control flow, player decisions, display UI
+- GameRunner: main camp loop
+- ExpeditionRunner: leaving camp, traveling, working, returning
+- WorkRunner: forage, hunt, explore, harvest activities
 - CraftingRunner: need-based crafting UI
 
-**GameContext** — Central hub holding game state
+GameContext — Central hub holding game state
 - Player, Camp, Inventory, Expedition (when active), Zone
-- Condition checking for events (`Check(EventCondition)`)
+- Condition checking for events
 - Update methods that tick time forward
 
-**Processors** — Stateless domain logic, returns results
-- SurvivalProcessor: calculates stat changes per tick, returns delta + effects + messages
-- ButcheringProcessor: calculates meat/hide/bone yields from animals
-- TravelProcessor: calculates travel times between locations
+Processors — Stateless domain logic, returns results
+- SurvivalProcessor: calculates stat changes per tick
+- ButcheringProcessor: calculates yields from animals
+- TravelProcessor: calculates travel times
 
-**Data Objects** — Hold state, minimal behavior
-- Body: physical form, survival stats, owned by Actor
-- Expedition: travel history, elapsed time, collection logs
-- Location: place in the world with features
-- Camp: wrapper around location with fire/shelter accessors and storage
+Data Objects — Hold state, minimal behavior
+- Body, Expedition, Location, Camp, Features
 
-### Update Flow
-
+Update Flow:
 ```
 Action executes
     → GameContext.Update(N minutes)
-        → Player.Update() with SurvivalContext
-            → EffectRegistry.Update() (severity changes, expiration)
-            → SurvivalProcessor calculates delta, effects, messages
-            → Body applies delta, Player applies effects
+        → Player.Update()
+            → EffectRegistry.Update()
+            → SurvivalProcessor calculates
+            → Body applies changes
         → Zone.Update()
-            → Location.Update() for each location
-                → Fire burns down
-                → Features update (respawn timers, etc.)
+            → Locations update (fire burns, features tick)
 ```
 
-### Features
-
-Features live on locations. Hybrid pattern — data objects with behavior (ForageFeature.Forage() returns items, AnimalTerritoryFeature.SearchForGame() spawns animals).
-
 ---
 
-## What's Working
+## Design Direction
 
-- Camp-centric game loop with contextual menu options
-- Fire management (starting, tending, fuel types, phases, embers)
-- Flexible expeditions (travel between locations, work, return)
-- Hunting with stalking, ranged attacks (spear/stones), predator encounters
-- Foraging with depletion and respawn
-- Location discovery via exploration work type
-- Survival stats (energy, hydration, calories, temperature)
-- Body system with parts, capacities, and damage
-- Effects system with severity and modifiers (including positive buffs)
-- Weather system affecting events and temperature
-- Event system with contextual triggers, weight modifiers, and tension integration
-- Tension system for narrative arcs (Stalker, Infested, etc.)
-- Event-driven encounter spawning (events can trigger predator encounters)
-- Event-driven equipment damage (tools and clothing)
-- Need-based crafting (fire-starting, cutting tools, hunting weapons)
-- Dual inventory (player carry + camp storage)
-- Butchering animals for meat, hide, bone, sinew
-- Feature mutation (shelters can be damaged/repaired, foraging depleted/restored)
-- Location discovery through events (template-based)
+Not yet implemented, but shaping future development:
 
-## What's Next
+The mountain crossing — Win condition. Requires serious preparation (warmth, supplies, condition). Multi-day expedition.
 
-Current focus is balance tuning and content expansion:
+Megafauna hunts — Trophy hunts that provide materials for gear required for the crossing.
 
-1. **More events** — expand variety based on playtesting
-2. **Threat encounters** — polish predator boldness system, add more encounter types
-3. **More crafting categories** — shelter improvements, clothing, containers
-4. **Balance** — survival rates, resource yields, travel times
+Exploration areas — Distant, dangerous locations with unique rewards.
 
-## Explicitly Dropped
-
-- **Magic/shamanism** — removed, not coming back
-- **Meta-progression/unlocks** — the player learns, not the game
-- **Complex nutrition** — calories suffice, protein/fat/carb tracking is unnecessary complexity
-
-## Deferred (Not Core)
-
-- NPC/tribal content
-- Seasonal progression
-- Migration patterns
-- Mental health/morale systems
-
----
-
-## Design Tests
-
-The redesign works if:
-- An experienced player can reach a meaningful decision in under 5 minutes
-- Two experienced players would reasonably choose differently in the same situation
-- Fire margin creates genuine tension without being tedious
-- Depletion naturally pushes players to range further or move camp
-- Events feel like interrupts that matter, not random annoyances
-- Stories emerge from systems interacting, not from authored sequences
+Camp investment — Persistent improvements that make a camp worth defending.
