@@ -239,7 +239,7 @@ public class ExpeditionRunner(GameContext ctx)
                 break;
 
             int searchTime = 15;
-            GameDisplay.UpdateAndRenderProgress(_ctx, "Searching for game...", searchTime);
+            GameDisplay.UpdateAndRenderProgress(_ctx, "Searching for game...", searchTime, ActivityType.Hunting);
             expedition.AddTime(searchTime);
 
             if (PlayerDied) break;
@@ -265,7 +265,7 @@ public class ExpeditionRunner(GameContext ctx)
             int huntMinutes = RunSingleHunt(found, expedition.CurrentLocation, expedition);
             if (huntMinutes > 0)
             {
-                GameDisplay.UpdateAndRenderProgress(_ctx, "Stalking...", huntMinutes);
+                GameDisplay.UpdateAndRenderProgress(_ctx, "Stalking...", huntMinutes, ActivityType.Hunting);
             }
             expedition.AddTime(huntMinutes);
 
@@ -355,7 +355,7 @@ public class ExpeditionRunner(GameContext ctx)
                     else if (target.IsEngaged)
                     {
                         // Prey turned aggressive — handle as predator encounter
-                        var outcome = HandlePredatorEncounter(target, expedition);
+                        var outcome = EncounterRunner.HandlePredatorEncounter(target, _ctx);
 
                         // Caller handles StealthManager cleanup based on outcome
                         switch (outcome)
@@ -417,15 +417,6 @@ public class ExpeditionRunner(GameContext ctx)
         return minutesSpent;
     }
 
-    private FoundResources ButcherAnimal(Animal animal)
-    {
-        if (_ctx.Inventory.HasCuttingTool)
-            return ButcheringProcessor.Butcher(animal);
-
-        GameDisplay.AddWarning("Without a cutting tool, you tear what meat you can by hand...");
-        return ButcheringProcessor.ButcherWithoutKnife(animal);
-    }
-
     private void PerformKill(Animal target, Expedition expedition)
     {
         GameDisplay.AddNarrative($"You strike! The {target.Name} falls.");
@@ -433,7 +424,7 @@ public class ExpeditionRunner(GameContext ctx)
         target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, "stealth kill", "Heart"));
         _ctx.player.stealthManager.StopHunting();
 
-        var loot = ButcherAnimal(target);
+        var loot = ButcherRunner.ButcherAnimal(target, _ctx);
         _ctx.Inventory.Add(loot);
 
         _ctx.player.Skills.GetSkill("Hunting").GainExperience(5);
@@ -451,13 +442,18 @@ public class ExpeditionRunner(GameContext ctx)
     {
         var weapon = _ctx.Inventory.Weapon;
 
+        // Calculate manipulation penalty for thrown accuracy
+        var manipulation = _ctx.player.GetCapacities().Manipulation;
+        double manipPenalty = Bodies.AbilityCalculator.IsManipulationImpaired(manipulation) ? 0.15 : 0.0;
+
         // Calculate hit chance
         bool applySmallPenalty = isSpear && target.Size == AnimalSize.Small;
         double hitChance = HuntingCalculator.CalculateThrownAccuracy(
             target.DistanceFromPlayer,
             isSpear ? GetSpearRange(weapon!) : 12,
             isSpear ? GetSpearBaseAccuracy(weapon!) : 0.65,
-            applySmallPenalty
+            applySmallPenalty,
+            manipPenalty
         );
 
         // Consume stone immediately (it's thrown either way)
@@ -476,7 +472,7 @@ public class ExpeditionRunner(GameContext ctx)
             target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, "thrown weapon", "Heart"));
 
             // Butcher
-            var loot = ButcherAnimal(target);
+            var loot = ButcherRunner.ButcherAnimal(target, _ctx);
             _ctx.Inventory.Add(loot);
 
             GameDisplay.AddNarrative($"You butcher the {target.Name} and collect {loot.TotalWeightKg:F1}kg of meat.");
@@ -488,15 +484,47 @@ public class ExpeditionRunner(GameContext ctx)
         }
         else
         {
-            // Miss
+            // Miss - but check for glancing hit (wound)
+            // Close misses (within 15% of hit threshold) can become wounds
+            double roll = Utils.RandDouble(0, 1);
+            bool isGlancingHit = roll < hitChance + (hitChance * 0.3) && isSpear; // Only spears can wound
+
             string weaponName = isSpear ? weapon!.Name : "stone";
-            GameDisplay.AddNarrative($"Your {weaponName} misses! The {target.Name} bolts.");
+
+            if (isGlancingHit)
+            {
+                // Glancing hit - animal wounded but escapes
+                // Wound severity determines tracking success (arterial = high, muscle = low)
+                double woundSeverity = Utils.RandDouble(0.3, 0.8);
+                string woundDesc = woundSeverity > 0.6
+                    ? "Bright red arterial spray, pumping with each heartbeat"
+                    : "Dark blood, muscle wound — the animal barely slowed";
+
+                GameDisplay.AddNarrative($"Your {weaponName} grazes the {target.Name}!");
+                GameDisplay.AddNarrative(woundDesc);
+                GameDisplay.AddNarrative($"The {target.Name} bolts, leaving blood on the snow.");
+
+                // Create WoundedPrey tension - entry point to Blood Trail arc
+                var tension = Tensions.ActiveTension.WoundedPrey(
+                    woundSeverity,
+                    target.Name,
+                    expedition.CurrentLocation
+                );
+                _ctx.Tensions.AddTension(tension);
+
+                GameDisplay.AddNarrative("You could follow the blood trail...");
+            }
+            else
+            {
+                // Clean miss
+                GameDisplay.AddNarrative($"Your {weaponName} misses! The {target.Name} bolts.");
+            }
 
             if (isSpear)
             {
                 // Spear recovery: spend time searching
                 GameDisplay.AddNarrative("You spend a few minutes searching for your spear...");
-                _ctx.Update(3);
+                _ctx.Update(3, ActivityType.Hunting);
                 expedition.AddTime(3);
             }
 
@@ -520,188 +548,35 @@ public class ExpeditionRunner(GameContext ctx)
 
     private double CalculateSpearHitChance(Tool spear, Animal target)
     {
+        var manipulation = _ctx.player.GetCapacities().Manipulation;
+        double manipPenalty = Bodies.AbilityCalculator.IsManipulationImpaired(manipulation) ? 0.15 : 0.0;
+
         bool applySmallPenalty = target.Size == AnimalSize.Small;
         return HuntingCalculator.CalculateThrownAccuracy(
             target.DistanceFromPlayer,
             GetSpearRange(spear),
             GetSpearBaseAccuracy(spear),
-            applySmallPenalty
+            applySmallPenalty,
+            manipPenalty
         );
     }
 
     private double CalculateStoneHitChance(Animal target)
     {
+        var manipulation = _ctx.player.GetCapacities().Manipulation;
+        double manipPenalty = Bodies.AbilityCalculator.IsManipulationImpaired(manipulation) ? 0.15 : 0.0;
+
         // Stones don't get small target penalty (they're designed for small game)
         return HuntingCalculator.CalculateThrownAccuracy(
             target.DistanceFromPlayer,
             12,
             0.65,
-            targetIsSmall: false
+            targetIsSmall: false,
+            manipPenalty
         );
     }
 
     #endregion
-
-    #region Predator Encounter
-
-    /// <summary>
-    /// Handles a predator encounter. Returns outcome for caller to handle cleanup.
-    /// Does NOT call StealthManager - caller is responsible for that.
-    /// Expedition is nullable for reuse from events/travel.
-    /// </summary>
-    private EncounterOutcome HandlePredatorEncounter(Animal predator, Expedition? expedition = null)
-    {
-        // Initialize boldness from observable context
-        predator.EncounterBoldness = predator.CalculateBoldness(_ctx.player, _ctx.Inventory);
-
-        while (predator.IsAlive && _ctx.player.IsAlive)
-        {
-            // Display current state
-            string boldnessDesc = predator.EncounterBoldness >= 0.7 ? "aggressive"
-                : predator.EncounterBoldness > 0.3 ? "wary" : "hesitant";
-
-            GameDisplay.AddNarrative($"\nThe {predator.Name} is {predator.DistanceFromPlayer:F0}m away, looking {boldnessDesc}.");
-
-            // Show observable factors
-            bool hasMeat = _ctx.Inventory.HasMeat;
-            if (hasMeat)
-                GameDisplay.AddNarrative("It's eyeing the meat you're carrying.");
-            if (_ctx.player.Vitality < 0.7)
-                GameDisplay.AddNarrative("It seems to sense your weakness.");
-
-            GameDisplay.Render(_ctx, statusText: "Alert.");
-
-            // Player options
-            var choice = new Choice<string>("What do you do?");
-            choice.AddOption("Stand your ground", "stand");
-            choice.AddOption("Back away slowly", "back");
-            choice.AddOption("Run", "run");
-            if (predator.DistanceFromPlayer <= 20)
-                choice.AddOption("Fight", "fight");
-            if (hasMeat)
-                choice.AddOption("Drop the meat", "drop_meat");
-
-            string action = choice.GetPlayerChoice();
-
-            switch (action)
-            {
-                case "stand":
-                    GameDisplay.AddNarrative("You hold your position, facing the predator.");
-                    predator.DistanceFromPlayer -= 10; // Predator closes
-                    predator.EncounterBoldness -= 0.10; // But loses confidence
-
-                    if (predator.EncounterBoldness < 0.3)
-                    {
-                        GameDisplay.AddNarrative($"The {predator.Name} hesitates... then slinks away.");
-                        return EncounterOutcome.PredatorRetreated;
-                    }
-                    GameDisplay.AddNarrative($"The {predator.Name} moves closer, but seems less certain.");
-                    break;
-
-                case "back":
-                    GameDisplay.AddNarrative("You slowly back away, keeping eyes on the predator.");
-                    predator.DistanceFromPlayer += 5; // You gain distance
-                    predator.EncounterBoldness += 0.05; // But it gets bolder
-                    GameDisplay.AddNarrative($"Distance: {predator.DistanceFromPlayer:F0}m");
-                    break;
-
-                case "run":
-                    var (escaped, narrative) = HuntingCalculator.CalculatePursuitOutcome(
-                        _ctx.player, predator, predator.DistanceFromPlayer);
-                    GameDisplay.AddNarrative(narrative);
-                    if (escaped)
-                    {
-                        return EncounterOutcome.PlayerEscaped;
-                    }
-                    // Caught — forced combat
-                    predator.DistanceFromPlayer = 5;
-                    return RunPredatorCombat(predator, expedition);
-
-                case "fight":
-                    return RunPredatorCombat(predator, expedition);
-
-                case "drop_meat":
-                    double meatDropped = _ctx.Inventory.DropAllMeat();
-                    GameDisplay.AddNarrative($"You drop {meatDropped:F1}kg of meat and back away.");
-                    GameDisplay.AddNarrative($"The {predator.Name} goes for the meat. You slip away.");
-                    return EncounterOutcome.PlayerEscaped;
-            }
-
-            // Boldness ceiling: very bold predator closes regardless of player action
-            if (predator.EncounterBoldness >= 0.7)
-            {
-                GameDisplay.AddNarrative($"The {predator.Name} grows impatient and closes in.");
-                predator.DistanceFromPlayer -= 10;
-            }
-
-            // Check if predator reaches attack range
-            if (predator.DistanceFromPlayer <= 5)
-            {
-                GameDisplay.AddNarrative($"The {predator.Name} charges!");
-                return RunPredatorCombat(predator, expedition);
-            }
-
-            _ctx.Update(1); // 1 minute per turn
-            expedition?.AddTime(1); // Only if expedition context exists
-            Input.WaitForKey();
-        }
-
-        return _ctx.player.IsAlive ? EncounterOutcome.PredatorRetreated : EncounterOutcome.PlayerDied;
-    }
-
-    private EncounterOutcome RunPredatorCombat(Animal predator, Expedition? expedition = null)
-    {
-        GameDisplay.AddNarrative($"Combat with {predator.Name}!");
-
-        while (predator.IsAlive && _ctx.player.IsAlive)
-        {
-            GameDisplay.AddNarrative($"\nYou: {_ctx.player.Vitality:P0} | {predator.Name}: {predator.Vitality:P0}");
-            GameDisplay.Render(_ctx, statusText: "Fighting.");
-
-            var choice = new Choice<string>("Your move:");
-            choice.AddOption("Attack", "attack");
-            choice.GetPlayerChoice();
-
-            // Player attacks with equipped weapon
-            _ctx.player.Attack(predator, _ctx.Inventory.Weapon);
-            _ctx.Update(1);
-            expedition?.AddTime(1);
-
-            if (!predator.IsAlive) break;
-
-            // Predator attacks
-            predator.Attack(_ctx.player);
-        }
-
-        if (!_ctx.player.IsAlive)
-        {
-            return EncounterOutcome.PlayerDied;
-        }
-
-        // Victory
-        GameDisplay.AddNarrative($"The {predator.Name} falls!");
-
-        var butcherChoice = new Choice<bool>("Butcher the carcass?");
-        butcherChoice.AddOption("Yes", true);
-        butcherChoice.AddOption("No", false);
-
-        if (butcherChoice.GetPlayerChoice())
-        {
-            var loot = ButcherAnimal(predator);
-            _ctx.Inventory.Add(loot);
-            GameDisplay.AddNarrative($"You collect {loot.TotalWeightKg:F1}kg of resources.");
-            foreach (var desc in loot.Descriptions)
-                expedition?.CollectionLog.Add(desc);
-            _ctx.Update(10);
-            expedition?.AddTime(10);
-        }
-
-        Input.WaitForKey();
-        return EncounterOutcome.CombatVictory;
-    }
-
-    #endregion
-
     // --- Progress Bar Helpers ---
 
     /// <summary>
@@ -710,43 +585,27 @@ public class ExpeditionRunner(GameContext ctx)
     private bool RunTravelWithProgress(Expedition expedition, Location destination, int totalTime)
     {
         int elapsed = 0;
-        GameEvent? triggeredEvent = null;
         bool died = false;
         string statusText = $"Traveling to {destination.Name}...";
 
         while (elapsed < totalTime && !died)
         {
-            while (elapsed < totalTime && triggeredEvent == null && !died)
+            GameDisplay.Render(_ctx,
+                addSeparator: false,
+                statusText: statusText,
+                progress: elapsed,
+                progressTotal: totalTime);
+
+            // Use the new activity-based Update with event checking
+            elapsed += _ctx.Update(1, ActivityType.Traveling);
+
+            if (PlayerDied)
             {
-                GameDisplay.Render(_ctx,
-                    addSeparator: false,
-                    statusText: statusText,
-                    progress: elapsed,
-                    progressTotal: totalTime);
-
-                var tickResult = GameEventRegistry.RunTicks(_ctx, 1);
-                _ctx.Update(tickResult.MinutesElapsed);
-                elapsed += tickResult.MinutesElapsed;
-
-                if (PlayerDied)
-                {
-                    died = true;
-                    break;
-                }
-
-                if (tickResult.TriggeredEvent != null)
-                    triggeredEvent = tickResult.TriggeredEvent;
-
-                Thread.Sleep(100);
+                died = true;
+                break;
             }
 
-            if (died) break;
-
-            if (triggeredEvent != null)
-            {
-                GameEventRegistry.HandleEvent(_ctx, triggeredEvent);
-                triggeredEvent = null;
-            }
+            Thread.Sleep(100);
         }
 
         return died;
@@ -773,4 +632,6 @@ public class ExpeditionRunner(GameContext ctx)
 
         Input.WaitForKey();
     }
+
+
 }

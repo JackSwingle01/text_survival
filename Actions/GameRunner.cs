@@ -7,6 +7,7 @@ using text_survival.IO;
 using text_survival.Items;
 using text_survival.Actions.Expeditions;
 using text_survival.UI;
+using text_survival.Survival;
 
 namespace text_survival.Actions;
 
@@ -56,6 +57,20 @@ public partial class GameRunner(GameContext ctx)
     private void RunCampMenu()
     {
         var choice = new Choice<Action>();
+        var capacities = ctx.player.GetCapacities();
+        var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
+        var isLimping = AbilityCalculator.IsMovingImpaired(capacities.Moving);
+        var isClumsy = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
+        var isFoggy = AbilityCalculator.IsPerceptionImpaired(
+            AbilityCalculator.CalculatePerception(ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers()));
+        var isWinded = AbilityCalculator.IsBreathingImpaired(capacities.Breathing);
+
+        // Sleep emphasized when impaired
+        if (isImpaired || ctx.player.Body.IsTired)
+        {
+            string sleepLabel = isImpaired ? "Sleep (you need rest)" : "Sleep";
+            choice.AddOption(sleepLabel, Sleep);
+        }
 
         if (CanRestByFire())
             choice.AddOption("Wait", Wait);
@@ -68,11 +83,40 @@ public partial class GameRunner(GameContext ctx)
 
         // Work around camp - foraging, exploring without leaving
         if (HasCampWork())
-            choice.AddOption("Work near camp", WorkAroundCamp);
+        {
+            string workLabel = "Work near camp";
+            if (isFoggy && isWinded)
+                workLabel = "Work near camp (foggy, winded)";
+            else if (isFoggy)
+                workLabel = "Work near camp (your senses are dulled)";
+            else if (isWinded)
+                workLabel = "Work near camp (you're short of breath)";
+            choice.AddOption(workLabel, WorkAroundCamp);
+        }
 
         // Leave camp - travel to other locations (only show if destinations exist)
         if (ctx.Camp.Location.Connections.Count > 0)
-            choice.AddOption("Leave camp", LeaveCamp);
+        {
+            // Build descriptors for travel-affecting impairments
+            var travelImpairments = new List<string>();
+            if (isImpaired) travelImpairments.Add("impaired");
+            if (isLimping) travelImpairments.Add("limping");
+            if (isWinded) travelImpairments.Add("winded");
+
+            string leaveLabel = travelImpairments.Count switch
+            {
+                0 => "Leave camp",
+                1 => travelImpairments[0] switch
+                {
+                    "impaired" => "Leave camp (you're not thinking clearly)",
+                    "limping" => "Leave camp (your movement is limited)",
+                    "winded" => "Leave camp (you're short of breath)",
+                    _ => "Leave camp"
+                },
+                _ => $"Leave camp ({string.Join(", ", travelImpairments)})"
+            };
+            choice.AddOption(leaveLabel, LeaveCamp);
+        }
 
         // Eat/Drink - consume food and water
         if (ctx.Inventory.HasFood || ctx.Inventory.HasWater)
@@ -84,13 +128,13 @@ public partial class GameRunner(GameContext ctx)
 
         // Crafting - make tools from available materials
         if (ctx.Inventory.HasCraftingMaterials)
-            choice.AddOption("Crafting", RunCrafting);
+        {
+            string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
+            choice.AddOption(craftLabel, RunCrafting);
+        }
 
         if (HasItems() || ctx.Camp.Storage.CurrentWeightKg > 0)
             choice.AddOption("Inventory", RunInventoryMenu);
-
-        if (ctx.player.Body.IsTired)
-            choice.AddOption("Sleep", Sleep);
 
         choice.GetPlayerChoice().Invoke();
     }
@@ -278,7 +322,7 @@ public partial class GameRunner(GameContext ctx)
             if (hadEmbers && fire.IsActive)
                 GameDisplay.AddNarrative("The embers ignite the fuel! The fire springs back to life.");
 
-            ctx.Update(1);
+            ctx.Update(1, ActivityType.TendingFire);
         }
     }
 
@@ -351,14 +395,33 @@ public partial class GameRunner(GameContext ctx)
 
         var (selectedTool, _) = toolMap[choice];
 
+        // Check impairments once before the loop
+        var capacities = ctx.player.GetCapacities();
+        var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
+        var isClumsy = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
+
+        if (isImpaired)
+            GameDisplay.AddWarning("Your foggy mind makes this harder.");
+        if (isClumsy)
+            GameDisplay.AddWarning("Your unsteady hands make this harder.");
+
         while (true)
         {
             GameDisplay.AddNarrative($"You work with the {selectedTool.Name}...");
-            GameDisplay.UpdateAndRenderProgress(ctx, "Starting fire...", 10);
+            GameDisplay.UpdateAndRenderProgress(ctx, "Starting fire...", 10, ActivityType.TendingFire);
 
             double baseChance = GetFireToolBaseChance(selectedTool);
             var skill = ctx.player.Skills.GetSkill("Firecraft");
             double finalChance = baseChance + (skill.Level * 0.1);
+
+            // Consciousness impairment penalty (-20%)
+            if (isImpaired)
+                finalChance -= 0.2;
+
+            // Manipulation impairment penalty (-25%)
+            if (isClumsy)
+                finalChance -= 0.25;
+
             finalChance = Math.Clamp(finalChance, 0.05, 0.95);
 
             bool success = Utils.DetermineSuccess(finalChance);
@@ -431,20 +494,27 @@ public partial class GameRunner(GameContext ctx)
             return;
         }
 
-        int minutes = hours * 60;
-        ctx.player.Body.Rest(minutes);
-        ctx.Update(minutes, 0.5, 2.0); // Lower activity while sleeping, get fire warmth
+        int totalMinutes = hours * 60;
+        int slept = 0;
+
+        while (slept < totalMinutes && ctx.player.IsAlive)
+        {
+            // Sleep in 60-minute chunks, checking for events
+            int chunkMinutes = Math.Min(60, totalMinutes - slept);
+            ctx.player.Body.Rest(chunkMinutes);
+
+            int minutes = ctx.Update(chunkMinutes, ActivityType.Sleeping, render: true);
+            slept += minutes;
+        }
+
+        if (slept > 0)
+            GameDisplay.AddNarrative($"You slept for {slept / 60} hours.");
     }
 
     private void Wait()
     {
-        // GameDisplay.AddNarrative("You wait, watching your fire...");
-        ctx.Update(1, 1.0, 2.0);
+        var result = ctx.Update(1, ActivityType.Resting, render: true);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // INVENTORY
-    // ═══════════════════════════════════════════════════════════════════════════
 
     private bool HasItems()
     {
@@ -509,7 +579,6 @@ public partial class GameRunner(GameContext ctx)
 
         while (true)
         {
-            GameDisplay.ClearNarrative();
             var items = playerInv.GetTransferableItems(campStorage);
 
             if (items.Count == 0)
@@ -544,7 +613,6 @@ public partial class GameRunner(GameContext ctx)
 
         while (true)
         {
-            GameDisplay.ClearNarrative();
             var items = campStorage.GetTransferableItems(playerInv);
 
             if (items.Count == 0)
@@ -590,8 +658,6 @@ public partial class GameRunner(GameContext ctx)
 
         while (true)
         {
-            GameDisplay.ClearNarrative();
-
             int caloriesPercent = (int)(body.CalorieStore / Survival.SurvivalProcessor.MAX_CALORIES * 100);
             int hydrationPercent = (int)(body.Hydration / Survival.SurvivalProcessor.MAX_HYDRATION * 100);
             GameDisplay.AddNarrative($"Food: {caloriesPercent}% | Water: {hydrationPercent}%");
@@ -642,16 +708,36 @@ public partial class GameRunner(GameContext ctx)
                 };
             }
 
-            if (inv.HasWater && inv.WaterLiters >= 0.25)
+            if (inv.HasWater)
             {
-                string opt = $"Drink water (0.25L)";
-                options.Add(opt);
-                consumeActions[opt] = () =>
+                // Drink up to 1L, but don't waste water over hydration max
+                double hydrationRoom = (SurvivalProcessor.MAX_HYDRATION - body.Hydration) / 1000.0; // convert to liters
+                double toDrink = Math.Min(1.0, Math.Min(inv.WaterLiters, hydrationRoom));
+                toDrink = Math.Round(toDrink, 2); // clean up floating point
+
+                if (toDrink >= 0.01)
                 {
-                    inv.WaterLiters -= 0.25;
-                    body.AddHydration(250);
-                    GameDisplay.AddSuccess("You drink some water. (+250 hydration)");
-                };
+                    string opt = $"Drink water ({toDrink:F2}L)";
+                    options.Add(opt);
+                    consumeActions[opt] = () =>
+                    {
+                        inv.WaterLiters -= toDrink;
+                        body.AddHydration(toDrink * 1000);
+
+                        // Drinking water helps cool down when overheating (scales with amount)
+                        var hyperthermia = ctx.player.EffectRegistry.GetEffectsByKind("Hyperthermia").FirstOrDefault();
+                        if (hyperthermia != null)
+                        {
+                            double cooldown = 0.15 * (toDrink / 0.25); // 0.15 per 0.25L
+                            hyperthermia.Severity = Math.Max(0, hyperthermia.Severity - cooldown);
+                            GameDisplay.AddSuccess("You drink some water. The cool water helps you cool down.");
+                        }
+                        else
+                        {
+                            GameDisplay.AddSuccess("You drink some water.");
+                        }
+                    };
+                }
             }
 
             options.Add("Done");
@@ -660,7 +746,6 @@ public partial class GameRunner(GameContext ctx)
             {
                 GameDisplay.AddNarrative("You have nothing to eat or drink.");
                 GameDisplay.Render(ctx);
-                Input.WaitForKey();
                 break;
             }
 
@@ -670,9 +755,7 @@ public partial class GameRunner(GameContext ctx)
                 break;
 
             consumeActions[choice]();
-            ctx.Update(5, 1.0, 2.0); // Eating takes a few minutes, get fire warmth
-            GameDisplay.Render(ctx, statusText: "Eating.");
-            Input.WaitForKey();
+            ctx.Update(5, ActivityType.Eating, render: true);
         }
     }
 
@@ -682,7 +765,6 @@ public partial class GameRunner(GameContext ctx)
 
         while (true)
         {
-            GameDisplay.ClearNarrative();
             GameDisplay.AddNarrative($"Water: {inv.WaterLiters:F1}L | Raw meat: {inv.RawMeatCount}");
             GameDisplay.Render(ctx, statusText: "Cooking.");
 
@@ -697,7 +779,7 @@ public partial class GameRunner(GameContext ctx)
                 options.Add(opt);
                 actions[opt] = () =>
                 {
-                    GameDisplay.UpdateAndRenderProgress(ctx, "Cooking meat...", 15, fireProximityMultiplier: 2.0);
+                    GameDisplay.UpdateAndRenderProgress(ctx, "Cooking meat...", 15, ActivityType.Cooking);
                     inv.RawMeat.RemoveAt(0);
                     inv.CookedMeat.Add(w);
                     GameDisplay.AddSuccess($"Cooked {w:F1}kg of meat.");
@@ -709,7 +791,7 @@ public partial class GameRunner(GameContext ctx)
             options.Add(snowOpt);
             actions[snowOpt] = () =>
             {
-                GameDisplay.UpdateAndRenderProgress(ctx, "Melting snow...", 10, fireProximityMultiplier: 2.0);
+                GameDisplay.UpdateAndRenderProgress(ctx, "Melting snow...", 10, ActivityType.Cooking);
                 inv.WaterLiters += 0.5;
                 GameDisplay.AddSuccess("Melted snow into 0.5L of water.");
             };
@@ -873,7 +955,6 @@ public partial class GameRunner(GameContext ctx)
         if (!ctx.player.IsAlive)
         {
             GameDisplay.AddDanger("Your vision fades to black as you collapse... You have died!");
-            Environment.Exit(0);
         }
         else if (!enemy.IsAlive)
         {

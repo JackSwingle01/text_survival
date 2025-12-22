@@ -1,19 +1,40 @@
+using text_survival.Actions;
 using text_survival.Actors.Animals;
+using text_survival.Bodies;
 using text_survival.Items;
+using text_survival.UI;
 
-namespace text_survival.Actions;
-
-/// <summary>
-/// Converts killed animals into usable resources (meat, bone, hide, sinew).
-/// </summary>
-public static class ButcheringProcessor
+public static class ButcherRunner
 {
+    public static FoundResources ButcherAnimal(Animal animal, GameContext ctx)
+    {
+        FoundResources result;
+
+        if (ctx.Inventory.HasCuttingTool)
+            result = Butcher(animal);
+        else
+        {
+            GameDisplay.AddWarning("Without a cutting tool, you tear what meat you can by hand...");
+            result = ButcherWithoutKnife(animal);
+        }
+
+        // Manipulation impairment reduces yield (-20%)
+        var manipulation = ctx.player.GetCapacities().Manipulation;
+        if (AbilityCalculator.IsManipulationImpaired(manipulation))
+        {
+            GameDisplay.AddWarning("Your unsteady hands waste some of the meat.");
+            result.ApplyYieldMultiplier(0.8);
+        }
+
+        return result;
+    }
+
     /// <summary>
     /// Butcher a killed animal into meat and other resources.
     /// </summary>
     /// <param name="animal">The dead animal to butcher</param>
     /// <returns>FoundResources containing meat, bone, hide, and sinew yields</returns>
-    public static FoundResources Butcher(Animal animal)
+    private static FoundResources Butcher(Animal animal)
     {
         var result = new FoundResources();
         double bodyWeight = animal.Body.WeightKG;
@@ -37,7 +58,7 @@ public static class ButcheringProcessor
     /// <summary>
     /// Butcher without a knife - reduced yield, no hide/sinew (can't process properly).
     /// </summary>
-    public static FoundResources ButcherWithoutKnife(Animal animal)
+    private static FoundResources ButcherWithoutKnife(Animal animal)
     {
         var result = new FoundResources();
         double bodyWeight = animal.Body.WeightKG;

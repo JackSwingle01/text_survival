@@ -86,10 +86,9 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
         if (!found.IsEmpty)
         {
             numberOfHoursForaged += hours;
+            hoursSinceLastForage = 0;
+            hasForagedBefore = true;
         }
-
-        hoursSinceLastForage = 0;
-        hasForagedBefore = true;
 
         return found;
     }
@@ -194,5 +193,23 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
             >= 0.3 => "sparse",
             _ => "picked over"
         };
+    }
+
+    /// <summary>
+    /// Deplete resources by simulating additional hours of foraging.
+    /// Used by events that damage or consume location resources.
+    /// </summary>
+    public void Deplete(double hours)
+    {
+        numberOfHoursForaged += hours;
+        hasForagedBefore = true;
+    }
+
+    /// <summary>
+    /// Restore resources by simulating time passing without foraging.
+    /// </summary>
+    public void Restore(double hours)
+    {
+        hoursSinceLastForage += hours;
     }
 }

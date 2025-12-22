@@ -1,4 +1,5 @@
 using text_survival.Actors.Player;
+using text_survival.Bodies;
 using text_survival.Items;
 
 namespace text_survival.Environments;
@@ -32,7 +33,28 @@ public static class TravelProcessor
         else if (speed > 1.0)
             multiplier *= 1 / speed;  // Faster = shorter time
 
-        return (int)Math.Ceiling(location.BaseTraversalMinutes * multiplier);
+        int baseTime = (int)Math.Ceiling(location.BaseTraversalMinutes * multiplier);
+
+        var capacities = player.GetCapacities();
+
+        // Breathing impairment adds +10% time for all journeys
+        // Labored breathing slows pace
+        if (AbilityCalculator.IsBreathingImpaired(capacities.Breathing))
+        {
+            baseTime = (int)(baseTime * 1.10);
+        }
+
+        // BloodPumping impairment adds +20% time for long journeys (> 30 min)
+        // Weak circulation makes sustained exertion harder
+        if (baseTime > 30)
+        {
+            if (AbilityCalculator.IsBloodPumpingImpaired(capacities.BloodPumping))
+            {
+                baseTime = (int)(baseTime * 1.20);
+            }
+        }
+
+        return baseTime;
     }
 
     public static int GetPathMinutes(List<Location> path, Player player, Inventory? inventory = null)

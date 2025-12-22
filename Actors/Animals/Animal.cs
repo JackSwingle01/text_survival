@@ -280,6 +280,7 @@ namespace text_survival.Actors.Animals
         {
             // Size: most animals near average, with some outliers
             SizeModifier = Math.Clamp(GenerateNormalish(1.0, 0.15), 0.7, 1.3);
+            Body.ApplySizeModifier(SizeModifier);
 
             // Condition: slightly favors healthy
             Condition = Math.Clamp(GenerateNormalish(0.75, 0.15), 0.3, 1.0);
@@ -490,4 +491,6 @@ namespace text_survival.Actors.Animals
 
         public override string ToString() => Name;
     }
+
+    
 }

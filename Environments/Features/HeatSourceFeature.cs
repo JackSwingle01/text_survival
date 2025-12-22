@@ -414,6 +414,28 @@ public class HeatSourceFeature : LocationFeature
     }
 
     /// <summary>
+    /// Extinguish the fire completely, clearing all fuel and embers.
+    /// Can be called from event outcomes (rain, flooding, etc.)
+    /// </summary>
+    public void Extinguish()
+    {
+        // Clear burning fuel
+        BurningMassKg = 0;
+        _burningMixture.Clear();
+
+        // Clear unburned fuel
+        UnburnedMassKg = 0;
+        _unburnedMixture.Clear();
+
+        // Clear embers
+        HasEmbers = false;
+        EmberTimeRemaining = 0;
+        _emberDuration = 0;
+        _emberStartTemperature = 0;
+        _lastBurningTemperature = 0;
+    }
+
+    /// <summary>
     /// Get current fire phase for UI display
     /// </summary>
     public string GetFirePhase()

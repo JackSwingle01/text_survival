@@ -52,6 +52,9 @@ public static class SurvivalProcessor
 		result.Combine(ProcessRegeneration(body, projectedCalories, projectedHydration, minutesElapsed));
 		result.Combine(ProcessWarningMessages(body, projectedCalories, projectedHydration));
 
+		double projectedEnergy = body.Energy + result.StatsDelta.EnergyDelta;
+		result.Combine(ProcessSurvivalEffects(projectedCalories, projectedHydration, projectedEnergy));
+
 		return result;
 	}
 
@@ -334,6 +337,45 @@ public static class SurvivalProcessor
 			messages.Add("You're getting tired.");
 
 		return new SurvivalProcessorResult { Messages = messages };
+	}
+
+	private const double SURVIVAL_EFFECT_THRESHOLD = 0.30;
+
+	/// <summary>
+	/// Generates Hungry, Thirsty, Tired effects when stats drop below 30%.
+	/// Severity scales from 0 at 30% to 1 at 0%.
+	/// </summary>
+	private static SurvivalProcessorResult ProcessSurvivalEffects(
+		double projectedCalories, double projectedHydration, double projectedEnergy)
+	{
+		var effects = new List<Effect>();
+
+		double caloriePercent = Math.Clamp(projectedCalories / MAX_CALORIES, 0, 1);
+		double hydrationPercent = Math.Clamp(projectedHydration / MAX_HYDRATION, 0, 1);
+		double energyPercent = Math.Clamp(projectedEnergy / MAX_ENERGY_MINUTES, 0, 1);
+
+		// Hungry effect - below 30% calories
+		if (caloriePercent < SURVIVAL_EFFECT_THRESHOLD)
+		{
+			double severity = (SURVIVAL_EFFECT_THRESHOLD - caloriePercent) / SURVIVAL_EFFECT_THRESHOLD;
+			effects.Add(EffectFactory.Hungry(severity));
+		}
+
+		// Thirsty effect - below 30% hydration
+		if (hydrationPercent < SURVIVAL_EFFECT_THRESHOLD)
+		{
+			double severity = (SURVIVAL_EFFECT_THRESHOLD - hydrationPercent) / SURVIVAL_EFFECT_THRESHOLD;
+			effects.Add(EffectFactory.Thirsty(severity));
+		}
+
+		// Tired effect - below 30% energy
+		if (energyPercent < SURVIVAL_EFFECT_THRESHOLD)
+		{
+			double severity = (SURVIVAL_EFFECT_THRESHOLD - energyPercent) / SURVIVAL_EFFECT_THRESHOLD;
+			effects.Add(EffectFactory.Tired(severity));
+		}
+
+		return new SurvivalProcessorResult { Effects = effects };
 	}
 
 	public static double GetCurrentMetabolism(Body body, double activityLevel)

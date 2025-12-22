@@ -12,7 +12,7 @@ public enum DamageType
     Poison,
     Bleed,
     Internal, // Internal damage from starvation/dehydration (bypasses armor)
-
+    Burn,     // Heat/fire damage to skin and tissue
 }
 public class DamageInfo
 {

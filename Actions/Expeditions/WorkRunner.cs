@@ -1,3 +1,4 @@
+using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
@@ -31,12 +32,38 @@ public class WorkRunner(GameContext ctx)
         workTimeChoice.AddOption("Thorough search - 60 min", 60);
         int workTime = workTimeChoice.GetPlayerChoice();
 
+        // Movement impairment slows foraging (+20%)
+        var capacities = _ctx.player.GetCapacities();
+        if (AbilityCalculator.IsMovingImpaired(capacities.Moving))
+        {
+            workTime = (int)(workTime * 1.20);
+            GameDisplay.AddWarning("Your limited movement slows the work.");
+        }
+
+        // Breathing impairment slows foraging (+15%)
+        if (AbilityCalculator.IsBreathingImpaired(capacities.Breathing))
+        {
+            workTime = (int)(workTime * 1.15);
+            GameDisplay.AddWarning("Your labored breathing slows the work.");
+        }
+
         GameDisplay.AddNarrative("You search the area for resources...");
 
-        bool died = RunWorkWithProgress(location, workTime, "Foraging");
-        if (died) return WorkResult.Died(workTime);
+        bool died = RunWorkWithProgress(location, workTime, ActivityType.Foraging);
+        if (died)
+            return WorkResult.Died(workTime);
 
         var found = feature.Forage(workTime / 60.0);
+
+        // Perception impairment reduces forage yield (-15%)
+        var perception = AbilityCalculator.CalculatePerception(
+            _ctx.player.Body, _ctx.player.EffectRegistry.GetCapacityModifiers());
+        if (AbilityCalculator.IsPerceptionImpaired(perception))
+        {
+            found.ApplyForageMultiplier(0.85);
+            GameDisplay.AddWarning("Your foggy senses cause you to miss some resources.");
+        }
+
         _ctx.Inventory.Add(found);
 
         var collected = new List<string>();
@@ -72,8 +99,8 @@ public class WorkRunner(GameContext ctx)
 
     public WorkResult DoHarvest(Location location)
     {
-        var harvestables = location.Features
-            .OfType<HarvestableFeature>()
+        var harvestables = location
+            .Features.OfType<HarvestableFeature>()
             .Where(h => h.IsDiscovered && h.HasAvailableResources())
             .ToList();
 
@@ -106,8 +133,9 @@ public class WorkRunner(GameContext ctx)
         workTimeChoice.AddOption("Thorough work - 60 min", 60);
         int workTime = workTimeChoice.GetPlayerChoice();
 
-        bool died = RunWorkWithProgress(location, workTime, "Harvesting");
-        if (died) return WorkResult.Died(workTime);
+        bool died = RunWorkWithProgress(location, workTime, ActivityType.Foraging);
+        if (died)
+            return WorkResult.Died(workTime);
 
         var found = target.Harvest(workTime);
         _ctx.Inventory.Add(found);
@@ -148,25 +176,36 @@ public class WorkRunner(GameContext ctx)
         double successChance = CalculateExploreChance(location);
 
         GameDisplay.Render(_ctx, statusText: "Planning.");
-        var timeChoice = new Choice<int>($"How thoroughly should you scout? ({successChance:P0} chance to find something)");
+        var timeChoice = new Choice<int>(
+            $"How thoroughly should you scout? ({successChance:P0} chance to find something)"
+        );
         timeChoice.AddOption("Quick scout - 15 min", 15);
         timeChoice.AddOption("Standard scout - 30 min (+10%)", 30);
         timeChoice.AddOption("Thorough scout - 60 min (+20%)", 60);
         int exploreTime = timeChoice.GetPlayerChoice();
 
+        // Breathing impairment slows exploration (+15%)
+        var breathing = _ctx.player.GetCapacities().Breathing;
+        if (AbilityCalculator.IsBreathingImpaired(breathing))
+        {
+            exploreTime = (int)(exploreTime * 1.15);
+            GameDisplay.AddWarning("Your labored breathing slows the scouting.");
+        }
+
         double timeBonus = exploreTime switch
         {
             30 => 0.10,
             60 => 0.20,
-            _ => 0.0
+            _ => 0.0,
         };
         double finalChance = Math.Min(0.95, successChance + timeBonus);
 
         GameDisplay.AddNarrative("You scout the area, looking for new paths...");
 
         // Scouting takes you away from fire - use 0.0 proximity regardless of location
-        bool died = RunWorkWithProgress(location, exploreTime, "Exploring", fireProximityOverride: 0.0);
-        if (died) return WorkResult.Died(exploreTime);
+        bool died = RunWorkWithProgress(location, exploreTime, ActivityType.Exploring);
+        if (died)
+            return WorkResult.Died(exploreTime);
 
         Location? discovered = null;
 
@@ -203,48 +242,32 @@ public class WorkRunner(GameContext ctx)
     /// Runs work with progress bar and event checks.
     /// Returns true if player died during work.
     /// </summary>
-    private bool RunWorkWithProgress(Location location, int workMinutes, string workType, double? fireProximityOverride = null)
+    private bool RunWorkWithProgress(Location location, int workMinutes, ActivityType activity)
     {
         int elapsed = 0;
-        GameEvent? triggeredEvent = null;
         bool died = false;
-
-        double fireProximity = fireProximityOverride ?? GetFireProximity(location);
-        string statusText = $"{workType} at {location.Name}...";
 
         while (elapsed < workMinutes && !died)
         {
-            while (elapsed < workMinutes && triggeredEvent == null && !died)
+            GameDisplay.Render(
+                _ctx,
+                addSeparator: false,
+                statusText: location.Name,
+                progress: elapsed,
+                progressTotal: workMinutes
+            );
+
+            // Use the new activity-based Update with event checking
+            int min = _ctx.Update(1, activity);
+            elapsed += min;
+
+            if (PlayerDied)
             {
-                GameDisplay.Render(_ctx,
-                    addSeparator: false,
-                    statusText: statusText,
-                    progress: elapsed,
-                    progressTotal: workMinutes);
-
-                var tickResult = GameEventRegistry.RunTicks(_ctx, 1);
-                _ctx.Update(tickResult.MinutesElapsed, 1.5, fireProximity);
-                elapsed += tickResult.MinutesElapsed;
-
-                if (PlayerDied)
-                {
-                    died = true;
-                    break;
-                }
-
-                if (tickResult.TriggeredEvent != null)
-                    triggeredEvent = tickResult.TriggeredEvent;
-
-                Thread.Sleep(100);
+                died = true;
+                break;
             }
 
-            if (died) break;
-
-            if (triggeredEvent != null)
-            {
-                GameEventRegistry.HandleEvent(_ctx, triggeredEvent);
-                triggeredEvent = null;
-            }
+            Thread.Sleep(100);
         }
 
         return died;
@@ -260,8 +283,8 @@ public class WorkRunner(GameContext ctx)
         if (location.HasFeature<ForageFeature>())
             return true;
 
-        var harvestables = location.Features
-            .OfType<HarvestableFeature>()
+        var harvestables = location
+            .Features.OfType<HarvestableFeature>()
             .Where(h => h.IsDiscovered && h.HasAvailableResources());
         if (harvestables.Any())
             return true;
@@ -278,7 +301,11 @@ public class WorkRunner(GameContext ctx)
     /// <summary>
     /// Get work options menu for a location. Returns null if no options available.
     /// </summary>
-    public static Choice<string>? GetWorkOptions(GameContext ctx, Location location, bool includeHunt = false)
+    public static Choice<string>? GetWorkOptions(
+        GameContext ctx,
+        Location location,
+        bool includeHunt = false
+    )
     {
         var choice = new Choice<string>("What work do you want to do?");
         bool hasOptions = false;
@@ -290,8 +317,8 @@ public class WorkRunner(GameContext ctx)
             hasOptions = true;
         }
 
-        var harvestables = location.Features
-            .OfType<HarvestableFeature>()
+        var harvestables = location
+            .Features.OfType<HarvestableFeature>()
             .Where(h => h.IsDiscovered && h.HasAvailableResources());
         if (harvestables.Any())
         {
@@ -335,20 +362,6 @@ public class WorkRunner(GameContext ctx)
     // === HELPERS ===
 
     /// <summary>
-    /// Get fire proximity based on whether location has an active fire or embers.
-    /// </summary>
-    private static double GetFireProximity(Location location)
-    {
-        var fire = location.GetFeature<HeatSourceFeature>();
-        return fire switch
-        {
-            { IsActive: true } => 0.5,
-            { HasEmbers: true } => 0.25,
-            _ => 0.0
-        };
-    }
-
-    /// <summary>
     /// Calculate chance to discover a new location.
     /// Decreases exponentially with existing connections.
     /// </summary>
@@ -364,34 +377,38 @@ public class WorkRunner(GameContext ctx)
     {
         string[] messages = quality switch
         {
-            "abundant" => [
+            "abundant" =>
+            [
                 "Fresh snow. Everything's buried.",
                 "What you spot is rotten through.",
                 "Frozen solid to the ground. Can't pry it loose.",
                 "A sound nearby. You wait it out, lose your momentum.",
-                "Ice crust over everything. Takes too long to break through."
+                "Ice crust over everything. Takes too long to break through.",
             ],
-            "decent" => [
+            "decent" =>
+            [
                 "Hollow log, empty inside. Wasted time.",
                 "Wind-scoured ground. Bare rock in every crevice.",
                 "Drifts deeper than they looked. Hard to search properly.",
                 "What you find crumbles apart in your hands.",
-                "Steep terrain. You cover less ground than planned."
+                "Steep terrain. You cover less ground than planned.",
             ],
-            "sparse" => [
+            "sparse" =>
+            [
                 "Slim pickings. Most of it's already gone.",
                 "Traces of what was here. Nearly spent.",
                 "Hardly anything left. You'd need luck.",
                 "Almost picked clean. Time to look elsewhere.",
-                "Scraps and remnants. This place won't last."
+                "Scraps and remnants. This place won't last.",
             ],
-            _ => [
+            _ =>
+            [
                 "Stripped bare.",
                 "It's gone. All of it.",
                 "You're wasting time here.",
                 "Barren.",
-                "Move on."
-            ]
+                "Move on.",
+            ],
         };
 
         return messages[Random.Shared.Next(messages.Length)];
@@ -408,7 +425,9 @@ public class WorkRunner(GameContext ctx)
             return;
 
         GameDisplay.ClearNarrative();
-        GameDisplay.AddWarning($"You're carrying too much! ({inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0} kg)");
+        GameDisplay.AddWarning(
+            $"You're carrying too much! ({inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0} kg)"
+        );
         GameDisplay.AddNarrative("You must drop some items.");
         GameDisplay.Render(_ctx, statusText: "Overburdened.");
         Input.WaitForKey();
@@ -425,7 +444,9 @@ public class WorkRunner(GameContext ctx)
             var options = items.Select(i => $"{i.Description}").ToList();
 
             GameDisplay.ClearNarrative();
-            GameDisplay.AddWarning($"Over capacity by {-inv.RemainingCapacityKg:F1} kg. Drop something.");
+            GameDisplay.AddWarning(
+                $"Over capacity by {-inv.RemainingCapacityKg:F1} kg. Drop something."
+            );
             GameDisplay.Render(_ctx, statusText: "Overburdened.");
 
             string selected = Input.Select("Drop which item?", options);

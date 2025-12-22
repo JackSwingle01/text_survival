@@ -1,3 +1,4 @@
+using text_survival.Bodies;
 using text_survival.Crafting;
 using text_survival.IO;
 using text_survival.UI;
@@ -129,10 +130,40 @@ public class CraftingRunner(GameContext ctx)
     private bool DoCraft(CraftOption option)
     {
         GameDisplay.AddNarrative($"You begin working on a {option.Name}...");
-        GameDisplay.Render(_ctx, statusText: "Working.");
 
-        // Time passes
-        _ctx.Update(option.CraftingTimeMinutes);
+        var capacities = _ctx.player.GetCapacities();
+        int totalTime = option.CraftingTimeMinutes;
+
+        // Consciousness impairment slows crafting (+25%)
+        if (AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness))
+        {
+            totalTime = (int)(totalTime * 1.25);
+            GameDisplay.AddWarning("Your foggy mind slows the work.");
+        }
+
+        // Manipulation impairment slows crafting (+30%)
+        if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
+        {
+            totalTime = (int)(totalTime * 1.30);
+            GameDisplay.AddWarning("Your unsteady hands slow the work.");
+        }
+
+        int elapsed = 0;
+        bool interrupted = false;
+
+        // Craft with event checking
+        while (elapsed < totalTime && !interrupted && _ctx.player.IsAlive)
+        {
+            int chunk = Math.Min(5, totalTime - elapsed);
+            GameDisplay.Render(_ctx, statusText: "Crafting.", progress: elapsed, progressTotal: totalTime);
+
+            elapsed += _ctx.Update(chunk, ActivityType.Crafting);
+
+            Thread.Sleep(100);
+        }
+
+        if (!_ctx.player.IsAlive)
+            return false;
 
         // Create the tool
         var tool = option.Craft(_ctx.Inventory);

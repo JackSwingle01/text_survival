@@ -91,6 +91,36 @@ public class Location
     public T? GetFeature<T>() where T : LocationFeature => Features.OfType<T>().FirstOrDefault();
     public bool HasFeature<T>() where T : LocationFeature => GetFeature<T>() is not null;
 
+    /// <summary>
+    /// Remove a feature by type. Returns true if removed.
+    /// </summary>
+    public bool RemoveFeature<T>() where T : LocationFeature
+    {
+        var feature = GetFeature<T>();
+        if (feature != null)
+        {
+            Features.Remove(feature);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Remove a specific feature instance.
+    /// </summary>
+    public bool RemoveFeature(LocationFeature feature)
+    {
+        return Features.Remove(feature);
+    }
+
+    /// <summary>
+    /// Add a feature to this location.
+    /// </summary>
+    public void AddFeature(LocationFeature feature)
+    {
+        Features.Add(feature);
+    }
+
     public List<Location> GetUnexploredConnections()
         => Connections.Where(l => !l.Explored).ToList();
 
@@ -140,9 +170,9 @@ public class Location
         // Precipitation effects
         double precipitation = Parent.Weather.Precipitation;
         precipitation *= 1 - overheadCoverage;
-        // todo, determine if this effects temp directly or if we use this elsewhere 
+        // todo, determine if this effects temp directly or if we use this elsewhere
         double precipitationCooling = precipitation * 5; //  simple up to 5°F cooling for now
-        locationTemp -= precipitationCooling * (1 - overheadCoverage);
+        locationTemp -= precipitationCooling;
 
         // ------ STEP 3: Apply shelter effects if present ------
         double insulation = 0;

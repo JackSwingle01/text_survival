@@ -1,5 +1,8 @@
 # Fire Management System
 
+*Created: 2024-11*
+*Last Updated: 2025-12-20*
+
 ## Overview
 
 The fire management system provides realistic fire behavior with three distinct states: **Active** (burning), **Embers** (dying), and **Cold** (extinguished). This system balances survival realism with playable UX, rewarding proactive fire management while avoiding tedious micromanagement.
@@ -417,93 +420,109 @@ This gives players immediate feedback on fire effectiveness.
 
 ## Code Examples
 
-### Complete Fire-Making Action
+Fire management is handled in `GameRunner` with condition checks and action methods.
+
+### Fire Availability Checks
 
 ```csharp
-var startFire = CreateAction("Start Fire")
-    .When(ctx =>
-    {
-        // Only available if cold fires exist
-        var coldFires = ctx.Location.Features
-            .OfType<HeatSourceFeature>()
-            .Where(f => !f.IsActive && !f.HasEmbers && f.FuelRemaining > 0)
-            .ToList();
-        return coldFires.Any();
-    })
-    .Do(ctx =>
-    {
-        // Show fire-making recipes
-        var recipes = ctx.CraftingManager.GetAvailableRecipes()
-            .Where(r => r.ResultType == RecipeResultType.LocationFeature)
-            .Where(r => r.Name.Contains("Fire") || r.Name.Contains("Drill"))
-            .ToList();
+// In GameRunner - check if "Tend fire" should show
+private bool HasActiveFire()
+{
+    var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+    if (fire == null) return false;
+    return (fire.IsActive || fire.HasEmbers) && ctx.Inventory.HasFuel;
+}
 
-        // Player selects recipe and attempts fire-making
-        // ... recipe selection logic ...
+// Check if "Start fire" should show
+private bool CanStartFire()
+{
+    var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+    bool noFire = fire == null;
+    bool coldFire = fire != null && !fire.IsActive && !fire.HasEmbers;
 
-        // Attempt craft (consumes materials, performs skill check)
-        var result = ctx.CraftingManager.AttemptCraft(selectedRecipe, ctx.Player);
+    if (!noFire && !coldFire) return false;
 
-        if (result.Success)
-        {
-            // Light the fire
-            coldFire.SetActive(true);
-            Output.WriteLine("Success! Smoke rises from the tinder. You have fire!");
-        }
-        else
-        {
-            Output.WriteLine("Failure. The tinder smolders but doesn't catch.");
-            Output.WriteLine("You earned 1 XP for practice.");
-        }
-
-        World.Update(recipe.CraftingTimeMinutes);
-    })
-    .ThenReturn();
+    bool hasTool = ctx.Inventory.Tools.Any(t =>
+        t.Type == ToolType.FireStriker ||
+        t.Type == ToolType.HandDrill ||
+        t.Type == ToolType.BowDrill);
+    return hasTool && ctx.Inventory.CanStartFire;
+}
 ```
 
-### Complete Add Fuel Action
+### Tend Fire Action
 
 ```csharp
-var addFuel = CreateAction("Add Fuel to Fire")
-    .When(ctx => ctx.Location.Features.OfType<HeatSourceFeature>().Any())
-    .Do(ctx =>
+private void TendFire()
+{
+    var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>()!;
+    var inv = ctx.Inventory;
+
+    // Build fuel options
+    var choice = new Choice<string>("Add fuel:");
+
+    if (inv.Logs.Count > 0 && fire.CanAddFuel(FuelType.Softwood))
+        choice.AddOption($"Add log ({inv.Logs.Count})", "log");
+
+    if (inv.Sticks.Count > 0 && fire.CanAddFuel(FuelType.Kindling))
+        choice.AddOption($"Add stick ({inv.Sticks.Count})", "stick");
+
+    choice.AddOption("Done", "done");
+
+    string selected = choice.GetPlayerChoice();
+    if (selected == "done") return;
+
+    // Add the fuel
+    double weight = selected == "log" ? inv.TakeSmallestLog() : inv.TakeSmallestStick();
+    var fuelType = selected == "log" ? FuelType.Softwood : FuelType.Kindling;
+    fire.AddFuel(weight, fuelType);
+
+    GameDisplay.AddNarrative($"You add a {selected} to the fire.");
+    ctx.Update(1);  // 1 minute passes
+}
+```
+
+### Start Fire Action
+
+```csharp
+private void StartFire()
+{
+    var fireTools = ctx.Inventory.Tools.Where(t =>
+        t.Type == ToolType.HandDrill ||
+        t.Type == ToolType.BowDrill ||
+        t.Type == ToolType.FireStriker).ToList();
+
+    // Show tool options with success chances
+    foreach (var tool in fireTools)
     {
-        var fires = ctx.Location.Features.OfType<HeatSourceFeature>().ToList();
+        double baseChance = GetFireToolBaseChance(tool);
+        var skill = ctx.player.Skills.GetSkill("Firecraft");
+        double successChance = Math.Clamp(baseChance + skill.Level * 0.1, 0.05, 0.95);
+        // Display: "Hand Drill - 30% success chance"
+    }
 
-        // Display all fires with status
-        Output.WriteLine("Which fire do you want to fuel?");
-        for (int i = 0; i < fires.Count; i++)
-        {
-            var fire = fires[i];
-            string status = GetFireStatus(fire);
-            double warmth = fire.GetEffectiveHeatOutput();
+    // Attempt fire
+    bool success = Utils.DetermineSuccess(successChance);
+    inv.TakeTinder();  // Always consume tinder
 
-            string display = $"{i + 1}. Campfire {status}";
-            if (warmth > 0)
-                display += $" - warming you by +{warmth:F1}°F";
+    if (success)
+    {
+        inv.TakeSmallestStick();  // Consume kindling
+        var newFire = new HeatSourceFeature();
+        newFire.AddFuel(tinderUsed, FuelType.Tinder);
+        newFire.AddFuel(kindlingUsed, FuelType.Kindling);
+        newFire.IgniteFuel(FuelType.Tinder, tinderUsed);
+        ctx.CurrentLocation.Features.Add(newFire);
 
-            Output.WriteLine(display);
-        }
-
-        int choice = Input.ReadChoice(fires.Count);
-        var selectedFire = fires[choice];
-
-        // ... fuel selection logic (sticks vs firewood) ...
-
-        // Add fuel
-        double fuelHours = /* calculate from fuel items */;
-        bool hadEmbers = selectedFire.HasEmbers;
-        selectedFire.AddFuel(fuelHours);
-
-        // Display result
-        Output.WriteLine($"You added {fuelItem.Name} to the fire.");
-
-        if (hadEmbers && selectedFire.IsActive)
-        {
-            Output.WriteLine("The embers flare to life as you add fuel.");
-        }
-    })
-    .ThenReturn();
+        GameDisplay.AddSuccess("Success! You start a fire!");
+        skill.GainExperience(3);
+    }
+    else
+    {
+        GameDisplay.AddWarning("You failed to start the fire.");
+        skill.GainExperience(1);
+    }
+}
 ```
 
 ---
@@ -676,9 +695,8 @@ Potential improvements not currently implemented:
 
 ---
 
-## See Also
-
-- [survival-processing.md](survival-processing.md) - Temperature calculation and survival mechanics
-- [crafting-system.md](crafting-system.md) - Fire as crafting requirement
-- [action-system.md](action-system.md) - Fire management action patterns
-- [complete-examples.md](complete-examples.md) - End-to-end fire-making examples
+**Related Files:**
+- [crafting-system.md](crafting-system.md) — Fire-starting tools (Hand Drill, Bow Drill)
+- [action-system.md](action-system.md) — Runner pattern for fire actions
+- [skill-check-system.md](skill-check-system.md) — Firecraft skill (vestigial)
+- [overview.md](overview.md) — System overview

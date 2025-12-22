@@ -1,4 +1,7 @@
-# Body and Damage System - Complete Guide
+# Body and Damage System
+
+*Created: 2024-11*
+*Last Updated: 2025-12-20*
 
 Body hierarchy (Region → Tissue → Organ), capacity system, body composition (fat/muscle), damage processing, and healing mechanics.
 
@@ -581,8 +584,5 @@ var speed = 5.0 * (1 - Math.Max(0, (body.TotalWeight - 70) * 0.01));
 ---
 
 **Related Files:**
-- [SKILL.md](../SKILL.md) - Main guidelines
-- [survival-processing.md](survival-processing.md) - Survival mechanics
-- [effect-system.md](effect-system.md) - Effects and injuries
-
-**Last Updated**: 2025-11-01
+- [effects-and-injuries.md](effects-and-injuries.md) — Effects and injuries
+- [composition-architecture.md](composition-architecture.md) — Actor structure

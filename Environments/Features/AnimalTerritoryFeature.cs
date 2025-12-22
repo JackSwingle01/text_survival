@@ -17,6 +17,7 @@ public class AnimalTerritoryFeature : LocationFeature
     private readonly List<AnimalSpawnEntry> _possibleAnimals = [];
     private readonly double _baseGameDensity;
     private double _gameDensity;
+    private double _initialDepletedDensity;
     private double _hoursSinceLastHunt;
     private bool _hasBeenHunted;
     private readonly double _respawnRateHours = 72.0; // Full respawn takes 72 hours
@@ -32,11 +33,9 @@ public class AnimalTerritoryFeature : LocationFeature
         if (_hasBeenHunted && _gameDensity < _baseGameDensity)
         {
             _hoursSinceLastHunt += minutes / 60.0;
-
-            // Gradually restore density
-            double depletedAmount = _baseGameDensity - _gameDensity;
-            double respawnProgress = (_hoursSinceLastHunt / _respawnRateHours) * depletedAmount;
-            _gameDensity = Math.Min(_baseGameDensity, _gameDensity + respawnProgress);
+            double depletedAmount = _baseGameDensity - _initialDepletedDensity;
+            double respawnProgress = Math.Min(1.0, _hoursSinceLastHunt / _respawnRateHours);
+            _gameDensity = _initialDepletedDensity + (depletedAmount * respawnProgress);
         }
     }
 
@@ -70,6 +69,7 @@ public class AnimalTerritoryFeature : LocationFeature
     public void RecordSuccessfulHunt()
     {
         _gameDensity *= 0.7; // 30% depletion per kill
+        _initialDepletedDensity = _gameDensity;
         _hoursSinceLastHunt = 0;
         _hasBeenHunted = true;
     }
@@ -233,5 +233,41 @@ public class AnimalTerritoryFeature : LocationFeature
             "wolf" or "bear" or "cave bear" => true,
             _ => false
         };
+    }
+
+    // Static factory methods for common territory configurations
+
+    /// <summary>
+    /// Create a mixed territory with prey and predators.
+    /// </summary>
+    public static AnimalTerritoryFeature CreateMixedTerritory(double gameDensity = 0.8)
+    {
+        return new AnimalTerritoryFeature(gameDensity)
+            .AddDeer(1.0)
+            .AddRabbit(1.5)
+            .AddPtarmigan(1.0)
+            .AddWolf(0.3);
+    }
+
+    /// <summary>
+    /// Create a small game territory (no large predators).
+    /// </summary>
+    public static AnimalTerritoryFeature CreateSmallGameTerritory(double gameDensity = 1.0)
+    {
+        return new AnimalTerritoryFeature(gameDensity)
+            .AddRabbit(1.5)
+            .AddPtarmigan(1.2)
+            .AddFox(0.4);
+    }
+
+    /// <summary>
+    /// Create a predator-heavy territory.
+    /// </summary>
+    public static AnimalTerritoryFeature CreatePredatorTerritory(double gameDensity = 0.6)
+    {
+        return new AnimalTerritoryFeature(gameDensity)
+            .AddDeer(0.5)
+            .AddWolf(1.0)
+            .AddBear(0.4);
     }
 }

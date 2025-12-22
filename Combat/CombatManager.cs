@@ -129,6 +129,12 @@ public class CombatManager
 
         DamageResult damageResult = DamageProcessor.DamageBody(damageInfo, target.Body);
 
+        // Apply triggered effects (bleeding, pain, etc.)
+        foreach (var effect in damageResult.TriggeredEffects)
+        {
+            target.EffectRegistry.AddEffect(effect);
+        }
+
         string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damageResult, true, false, false);
         GameDisplay.AddNarrative(attackDescription);
 
@@ -138,7 +144,7 @@ public class CombatManager
             AddDamageEffectDescription(damageType, damageResult.TotalDamageDealt);
         }
 
-        if (target is Player player)
+        if (Owner is Player player)
         {
             player.Skills.Fighting.GainExperience(1);
         }
