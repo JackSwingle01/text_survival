@@ -949,3 +949,56 @@ body.night .inventory-modal {
     justify-content: center;
     margin-top: 1rem;
 }
+
+/* ========== MOBILE RESPONSIVENESS ========== */
+@media (max-width: 950px) {
+    .main-content {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .left-panel {
+        order: -1; /* Move to the top */
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        padding-right: 0;
+        padding-top: 20px;
+        padding-bottom: 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+
+    .narrative-panel {
+        order: 0;
+    }
+
+    .side-panel {
+        order: 1; /* Move to the bottom */
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        padding-left: 0;
+        padding-top: 20px;
+    }
+
+    .header {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .header-right {
+        text-align: center;
+    }
+
+    .fire-widget {
+        margin: 10px auto;
+    }
+
+    .location-name {
+        font-size: 1.5rem;
+    }
+
+    .temp-badge-value {
+        font-size: 1.4rem;
+    }
+}
