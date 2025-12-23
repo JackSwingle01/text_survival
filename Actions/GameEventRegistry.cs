@@ -137,7 +137,15 @@ public static partial class GameEventRegistry
         FeverTakesHold,
         TheFireIllusion,
         FootstepsOutside,
-        FeverCrisisPoint
+        FeverCrisisPoint,
+
+        // Trapping events (GameEventRegistry.Trapping.cs)
+        SnareTampered,
+        PredatorAtTrapLine,
+        GoodCatch,
+        TrapLinePlundered,
+        TrappingAccident,
+        BaitedTrapAttention
     ];
 
     /// <summary>
@@ -323,6 +331,7 @@ public static partial class GameEventRegistry
                 "HerdNearby" => ActiveTension.HerdNearby(tc.Severity, tc.AnimalType, tc.Direction),
                 "DeadlyCold" => ActiveTension.DeadlyCold(tc.Severity),
                 "FeverRising" => ActiveTension.FeverRising(tc.Severity, tc.Description),
+                "TrapLineActive" => ActiveTension.TrapLineActive(tc.Severity, tc.RelevantLocation),
                 _ => ActiveTension.Custom(tc.Type, tc.Severity, 0.05, true, tc.RelevantLocation, tc.AnimalType, tc.Direction, tc.Description)
             };
             ctx.Tensions.AddTension(tension);

@@ -65,7 +65,7 @@ public record GameStateDto
     {
         var body = ctx.player.Body;
         var location = ctx.CurrentLocation;
-        var weather = location.Parent.Weather;
+        var weather = location.ParentZone.Weather;
         var fire = location.GetFeature<HeatSourceFeature>();
         var inventory = ctx.Inventory;
 
@@ -126,7 +126,7 @@ public record GameStateDto
 
             // Location
             LocationName = location.Name,
-            LocationDescription = location.Description,
+            LocationDescription = location.Tags,
             Features = ExtractFeatures(location),
 
             // Fire

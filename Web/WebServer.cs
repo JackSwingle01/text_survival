@@ -103,7 +103,6 @@ public static class WebServer
         zone.Weather.Update(gameStartTime);
 
         Location startingArea = zone.Graph.All.First(s => s.Name == "Forest Camp");
-        startingArea.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
 
         HeatSourceFeature campfire = new HeatSourceFeature();
         campfire.AddFuel(2, FuelType.Kindling);

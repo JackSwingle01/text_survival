@@ -15,6 +15,7 @@ public class NeedCraftingSystem
         InitializeFireStartingOptions();
         InitializeCuttingToolOptions();
         InitializeHuntingWeaponOptions();
+        InitializeTrappingOptions();
     }
 
     /// <summary>
@@ -208,6 +209,44 @@ public class NeedCraftingSystem
                 BlockChance = 0.12,
                 WeaponClass = WeaponClass.Pierce
             }
+        });
+    }
+
+    #endregion
+
+    #region Trapping Options
+
+    private void InitializeTrappingOptions()
+    {
+        // Simple Snare: 2 sticks + 2 plant fiber
+        _options.Add(new CraftOption
+        {
+            Name = "Simple Snare",
+            Description = "A basic loop trap for catching small game. Set it on an animal trail and wait.",
+            Category = NeedCategory.Trapping,
+            CraftingTimeMinutes = 10,
+            Durability = 5,
+            Requirements = [
+                new MaterialRequirement("Sticks", 2),
+                new MaterialRequirement("PlantFiber", 2)
+            ],
+            ToolFactory = durability => new Tool("Simple Snare", ToolType.Snare, 0.2) { Durability = durability }
+        });
+
+        // Reinforced Snare: 2 sticks + 1 sinew + 1 plant fiber
+        _options.Add(new CraftOption
+        {
+            Name = "Reinforced Snare",
+            Description = "A stronger snare using sinew cordage. Lasts longer and holds larger prey.",
+            Category = NeedCategory.Trapping,
+            CraftingTimeMinutes = 15,
+            Durability = 10,
+            Requirements = [
+                new MaterialRequirement("Sticks", 2),
+                new MaterialRequirement("Sinew", 1),
+                new MaterialRequirement("PlantFiber", 1)
+            ],
+            ToolFactory = durability => new Tool("Reinforced Snare", ToolType.Snare, 0.25) { Durability = durability }
         });
     }
 

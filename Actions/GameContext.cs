@@ -201,8 +201,49 @@ public class GameContext(Player player, Camp camp)
             EventCondition.Eating => CurrentActivity == ActivityType.Eating,
             EventCondition.FieldWork => (CurrentActivity is ActivityType.Traveling or ActivityType.Foraging or ActivityType.Hunting or ActivityType.Exploring),
             EventCondition.Working => Check(EventCondition.IsCampWork) || Check(EventCondition.FieldWork),
+
+            // Trapping conditions
+            EventCondition.HasActiveSnares => HasActiveSnares(),
+            EventCondition.SnareHasCatch => HasSnareCatch(),
+            EventCondition.SnareBaited => HasBaitedSnares(),
+            EventCondition.TrapLineActive => Tensions.HasTension("TrapLineActive"),
             _ => false,
         };
+    }
+
+    // === TRAPPING HELPERS ===
+
+    private bool HasActiveSnares()
+    {
+        foreach (var location in Zone.Graph.All)
+        {
+            var snareLine = location.GetFeature<SnareLineFeature>();
+            if (snareLine != null && snareLine.SnareCount > 0)
+                return true;
+        }
+        return false;
+    }
+
+    private bool HasSnareCatch()
+    {
+        foreach (var location in Zone.Graph.All)
+        {
+            var snareLine = location.GetFeature<SnareLineFeature>();
+            if (snareLine != null && snareLine.HasCatchWaiting)
+                return true;
+        }
+        return false;
+    }
+
+    private bool HasBaitedSnares()
+    {
+        foreach (var location in Zone.Graph.All)
+        {
+            var snareLine = location.GetFeature<SnareLineFeature>();
+            if (snareLine != null && snareLine.HasBaitedSnares)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -474,4 +515,10 @@ public enum EventCondition
     IsExpedition,       // Player is on expedition (traveling, foraging, hunting, exploring)
     Eating,
     FieldWork,
+
+    // Trapping conditions
+    HasActiveSnares,    // Any location has active snares set by player
+    SnareHasCatch,      // Any snare has a catch ready
+    SnareBaited,        // Any snare is baited
+    TrapLineActive,     // TrapLineActive tension exists
 }

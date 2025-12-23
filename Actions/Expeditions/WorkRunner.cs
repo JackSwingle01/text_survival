@@ -220,8 +220,8 @@ public class WorkRunner(GameContext ctx)
             if (newLocation != null)
             {
                 GameDisplay.AddSuccess(_ctx, $"You discovered a new area: {newLocation.Name}!");
-                if (!string.IsNullOrEmpty(newLocation.Description))
-                    GameDisplay.AddNarrative(_ctx, newLocation.Description);
+                if (!string.IsNullOrEmpty(newLocation.Tags))
+                    GameDisplay.AddNarrative(_ctx, newLocation.Tags);
                 discovered = newLocation;
             }
             else
@@ -277,6 +277,214 @@ public class WorkRunner(GameContext ctx)
         return died;
     }
 
+    // === TRAPPING ===
+
+    /// <summary>
+    /// Set a snare at this location. Requires AnimalTerritoryFeature.
+    /// </summary>
+    public WorkResult DoSetTrap(Location location)
+    {
+        // Validate location has animal territory
+        var territory = location.GetFeature<AnimalTerritoryFeature>();
+        if (territory == null)
+        {
+            GameDisplay.AddNarrative(_ctx, "No game trails here. Snares need animal territory.");
+            return WorkResult.Empty(0);
+        }
+
+        // Get available snares from inventory
+        var snares = _ctx.Inventory.Tools.Where(t => t.Type == ToolType.Snare && t.Works).ToList();
+        if (snares.Count == 0)
+        {
+            GameDisplay.AddNarrative(_ctx, "You don't have any snares to set.");
+            return WorkResult.Empty(0);
+        }
+
+        // Select which snare to use
+        Tool selectedSnare;
+        if (snares.Count == 1)
+        {
+            selectedSnare = snares[0];
+        }
+        else
+        {
+            GameDisplay.Render(_ctx, statusText: "Planning.");
+            var snareChoice = new Choice<Tool>("Which snare do you want to set?");
+            foreach (var snare in snares)
+            {
+                string durability = snare.Durability > 0 ? $"{snare.Durability} uses" : "unlimited";
+                snareChoice.AddOption($"{snare.Name} ({durability})", snare);
+            }
+            selectedSnare = snareChoice.GetPlayerChoice(_ctx);
+        }
+
+        // Ask about bait
+        GameDisplay.Render(_ctx, statusText: "Planning.");
+        var baitChoice = new Choice<BaitType>("Do you want to bait the snare?");
+        baitChoice.AddOption("No bait", BaitType.None);
+
+        if (_ctx.Inventory.RawMeat.Count > 0 || _ctx.Inventory.CookedMeat.Count > 0)
+            baitChoice.AddOption("Use meat (strong attraction, decays faster)", BaitType.Meat);
+        if (_ctx.Inventory.Berries.Count > 0)
+            baitChoice.AddOption("Use berries (moderate attraction)", BaitType.Berries);
+
+        BaitType bait = baitChoice.GetPlayerChoice(_ctx);
+
+        // Consume bait
+        if (bait == BaitType.Meat)
+        {
+            if (_ctx.Inventory.RawMeat.Count > 0)
+                _ctx.Inventory.RawMeat.RemoveAt(0);
+            else
+                _ctx.Inventory.CookedMeat.RemoveAt(0);
+        }
+        else if (bait == BaitType.Berries)
+        {
+            _ctx.Inventory.Berries.RemoveAt(0);
+        }
+
+        // Setting time
+        int workTime = 10;
+
+        // Manipulation impairment increases time and injury risk
+        var capacities = _ctx.player.GetCapacities();
+        double injuryChance = 0.05; // Base 5% injury chance
+
+        if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
+        {
+            workTime = (int)(workTime * 1.25);
+            injuryChance += 0.10 * (1.0 - capacities.Manipulation);
+            GameDisplay.AddWarning(_ctx, "Your clumsy hands make setting the snare difficult.");
+        }
+
+        GameDisplay.AddNarrative(_ctx, "You find a promising game trail and set the snare...");
+
+        bool died = RunWorkWithProgress(location, workTime, ActivityType.Foraging);
+        if (died)
+            return WorkResult.Died(workTime);
+
+        // Check for trap injury
+        if (Utils.DetermineSuccess(injuryChance))
+        {
+            GameDisplay.AddWarning(_ctx, "The snare mechanism snaps unexpectedly!");
+            _ctx.player.Body.Damage(new Bodies.DamageInfo(3, Bodies.DamageType.Sharp, "snare mechanism"));
+            GameDisplay.AddNarrative(_ctx, "You cut your fingers on the trap mechanism.");
+        }
+
+        // Get or create SnareLineFeature at this location
+        var snareLine = location.GetFeature<SnareLineFeature>();
+        if (snareLine == null)
+        {
+            snareLine = new SnareLineFeature(territory);
+            location.AddFeature(snareLine);
+        }
+
+        // Place the snare
+        bool reinforced = selectedSnare.Name.Contains("Reinforced");
+        if (bait != BaitType.None)
+            snareLine.PlaceSnareWithBait(selectedSnare.Durability, bait, reinforced);
+        else
+            snareLine.PlaceSnare(selectedSnare.Durability, reinforced);
+
+        // Remove snare from inventory
+        _ctx.Inventory.Tools.Remove(selectedSnare);
+
+        string baitMsg = bait != BaitType.None ? $" baited with {bait.ToString().ToLower()}" : "";
+        GameDisplay.AddSuccess(_ctx, $"Snare set{baitMsg}. Check back later.");
+
+        GameDisplay.Render(_ctx, statusText: "Done.");
+        Input.WaitForKey(_ctx);
+
+        return new WorkResult([$"Set {selectedSnare.Name}"], null, workTime, false);
+    }
+
+    /// <summary>
+    /// Check all snares at this location.
+    /// </summary>
+    public WorkResult DoCheckTraps(Location location)
+    {
+        var snareLine = location.GetFeature<SnareLineFeature>();
+        if (snareLine == null || snareLine.SnareCount == 0)
+        {
+            GameDisplay.AddNarrative(_ctx, "No snares set here.");
+            return WorkResult.Empty(0);
+        }
+
+        int workTime = 5 + (snareLine.SnareCount * 3); // Base time + per-snare check time
+
+        // Manipulation impairment increases time and injury risk
+        var capacities = _ctx.player.GetCapacities();
+        double injuryChance = 0.03; // Lower base since just checking
+
+        if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
+        {
+            workTime = (int)(workTime * 1.20);
+            injuryChance += 0.08 * (1.0 - capacities.Manipulation);
+        }
+
+        GameDisplay.AddNarrative(_ctx, "You check your snare line...");
+
+        bool died = RunWorkWithProgress(location, workTime, ActivityType.Foraging);
+        if (died)
+            return WorkResult.Died(workTime);
+
+        // Check for injury while handling traps
+        if (Utils.DetermineSuccess(injuryChance))
+        {
+            GameDisplay.AddWarning(_ctx, "A snare catches your hand!");
+            _ctx.player.Body.Damage(new Bodies.DamageInfo(2, Bodies.DamageType.Sharp, "snare"));
+        }
+
+        // Collect results
+        var results = snareLine.CheckAllSnares();
+        var collected = new List<string>();
+
+        foreach (var result in results)
+        {
+            if (result.WasDestroyed)
+            {
+                GameDisplay.AddWarning(_ctx, "One snare was destroyed - torn apart by something large.");
+            }
+            else if (result.WasStolen)
+            {
+                GameDisplay.AddNarrative(_ctx, $"Something got here first. Only scraps of {result.AnimalType} remain.");
+                // Add partial remains (bones)
+                _ctx.Inventory.Bone.Add(0.1);
+                collected.Add($"Scraps ({result.AnimalType})");
+            }
+            else if (result.AnimalType != null)
+            {
+                GameDisplay.AddSuccess(_ctx, $"Catch! A {result.AnimalType} ({result.WeightKg:F1}kg).");
+                // Add raw meat based on weight
+                _ctx.Inventory.RawMeat.Add(result.WeightKg * 0.5); // ~50% edible
+                _ctx.Inventory.Bone.Add(result.WeightKg * 0.1);
+                if (result.WeightKg > 3)
+                    _ctx.Inventory.Hide.Add(result.WeightKg * 0.15);
+                collected.Add($"{result.AnimalType} ({result.WeightKg:F1}kg)");
+            }
+        }
+
+        if (collected.Count == 0)
+        {
+            GameDisplay.AddNarrative(_ctx, "Nothing caught yet. The snares are still set.");
+        }
+
+        // Report remaining snares
+        int remaining = snareLine.SnareCount;
+        if (remaining > 0)
+            GameDisplay.AddNarrative(_ctx, $"{remaining} snare(s) still active.");
+        else
+            GameDisplay.AddNarrative(_ctx, "No snares remain at this location.");
+
+        GameDisplay.Render(_ctx, statusText: "Done.");
+        Input.WaitForKey(_ctx);
+
+        // Check weight limit
+        ForceDropIfOverweight();
+
+        return new WorkResult(collected, null, workTime, false);
+    }
+
     // === WORK OPTIONS (used by GameRunner and ExpeditionRunner) ===
 
     /// <summary>
@@ -296,10 +504,32 @@ public class WorkRunner(GameContext ctx)
         if (includeHunt && location.HasFeature<AnimalTerritoryFeature>())
             return true;
 
+        // Trapping options
+        if (CanSetTrap(ctx, location) || CanCheckTraps(location))
+            return true;
+
         if (ctx.Zone.HasUnrevealedLocations())
             return true;
 
         return false;
+    }
+
+    /// <summary>
+    /// Check if player can set a trap at this location.
+    /// </summary>
+    private static bool CanSetTrap(GameContext ctx, Location location)
+    {
+        return location.HasFeature<AnimalTerritoryFeature>() &&
+               ctx.Inventory.Tools.Any(t => t.Type == ToolType.Snare && t.Works);
+    }
+
+    /// <summary>
+    /// Check if there are traps to check at this location.
+    /// </summary>
+    private static bool CanCheckTraps(Location location)
+    {
+        var snareLine = location.GetFeature<SnareLineFeature>();
+        return snareLine != null && snareLine.SnareCount > 0;
     }
 
     /// <summary>
@@ -334,6 +564,21 @@ public class WorkRunner(GameContext ctx)
         {
             var territory = location.GetFeature<AnimalTerritoryFeature>()!;
             choice.AddOption($"Hunt ({territory.GetQualityDescription()})", "hunt");
+            hasOptions = true;
+        }
+
+        // Trapping options
+        if (CanSetTrap(ctx, location))
+        {
+            var snareCount = ctx.Inventory.Tools.Count(t => t.Type == ToolType.Snare && t.Works);
+            choice.AddOption($"Set snare ({snareCount} available)", "set_trap");
+            hasOptions = true;
+        }
+
+        if (CanCheckTraps(location))
+        {
+            var snareLine = location.GetFeature<SnareLineFeature>()!;
+            choice.AddOption($"Check traps ({snareLine.GetDescription()})", "check_traps");
             hasOptions = true;
         }
 

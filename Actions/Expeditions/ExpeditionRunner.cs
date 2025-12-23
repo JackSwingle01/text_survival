@@ -139,8 +139,8 @@ public class ExpeditionRunner(GameContext ctx)
         destination.Explore();
 
         GameDisplay.AddNarrative(_ctx, $"You arrive at {expedition.CurrentLocation.Name}.");
-        if (!string.IsNullOrEmpty(expedition.CurrentLocation.Description))
-            GameDisplay.AddNarrative(_ctx, expedition.CurrentLocation.Description);
+        if (!string.IsNullOrEmpty(expedition.CurrentLocation.Tags))
+            GameDisplay.AddNarrative(_ctx, expedition.CurrentLocation.Tags);
 
         return true;
     }
@@ -190,6 +190,12 @@ public class ExpeditionRunner(GameContext ctx)
                 break;
             case "explore":
                 result = work.DoExplore(expedition.CurrentLocation);
+                break;
+            case "set_trap":
+                result = work.DoSetTrap(expedition.CurrentLocation);
+                break;
+            case "check_traps":
+                result = work.DoCheckTraps(expedition.CurrentLocation);
                 break;
             case "cancel":
                 break;

@@ -226,6 +226,17 @@ public class ActiveTension
     );
 
     /// <summary>
+    /// Player has active snares set. Decays slowly, doesn't decay at camp.
+    /// </summary>
+    public static ActiveTension TrapLineActive(double severity, Location? location = null) => new(
+        type: "TrapLineActive",
+        severity: severity,
+        decayPerHour: 0.02,
+        decaysAtCamp: false,  // Traps stay set whether you're at camp or not
+        relevantLocation: location
+    );
+
+    /// <summary>
     /// Generic factory for custom tension types.
     /// </summary>
     public static ActiveTension Custom(

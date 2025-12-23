@@ -42,7 +42,6 @@ public class ZoneGenerator
             start.AddBidirectionalConnection(location);
             zone.Graph.Add(location);
             location.Explore();
-            location.DistanceFromStart = 1;
         }
 
         // Put the rest in the unrevealed pool
@@ -56,12 +55,15 @@ public class ZoneGenerator
 
     private Location CreateStartingLocation(Zone zone)
     {
-        var start = new Location("Forest Camp", zone)
-        {
-            WindCoverFactor = 0.4,
-            Terrain = TerrainType.Clear,
-            BaseTraversalMinutes = 5
-        };
+        var start = new Location(
+            name: "Forest Camp",
+            tags: "[Shaded] [Shelter]",
+            parent: zone,
+            traversalMinutes: 5,
+            terrainHazardLevel: 0,
+            windFactor: 0.4,
+            overheadCoverLevel: 0.3,
+            visibilityFactor: 0.8);
 
         // Starting location - matches Forest for abundant fuel
         var forageFeature = new ForageFeature(2.0)
@@ -72,8 +74,6 @@ public class ZoneGenerator
             .AddPlantFiber(0.5, 0.05, 0.15);
         start.Features.Add(forageFeature);
 
-        start.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
-
         // Natural shelter from dense forest provides protection at camp
         start.Features.Add(new ShelterFeature(
             name: "Overhang",
@@ -83,7 +83,6 @@ public class ZoneGenerator
         ));
 
         start.Explore();
-        start.DistanceFromStart = 0;
         return start;
     }
 

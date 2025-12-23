@@ -18,11 +18,15 @@ public class LocationGraph
         int traversalMinutes,
         double exposure = 0.5)
     {
-        var path = new Location(name, parent)
-        {
-            BaseTraversalMinutes = traversalMinutes,
-            WindCoverFactor = exposure,
-        };
+        var path = new Location(
+            name: name,
+            tags: "",
+            parent: parent,
+            traversalMinutes: traversalMinutes,
+            terrainHazardLevel: 0,
+            windFactor: exposure,
+            overheadCoverLevel: 0,
+            visibilityFactor: 1);
         
         a.AddBidirectionalConnection(path);
         path.AddBidirectionalConnection(b);

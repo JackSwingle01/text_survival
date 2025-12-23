@@ -869,7 +869,7 @@ public static class GameDisplay
 
     private static string GetShortDescription(Environments.Location location)
     {
-        return location.Description;
+        return location.Tags;
     }
 
     #endregion
