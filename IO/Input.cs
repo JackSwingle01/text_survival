@@ -1,11 +1,70 @@
 using Spectre.Console;
+using text_survival.Actions;
 using text_survival.Core;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.IO
 {
     public static class Input
     {
+        #region Context-aware overloads (route to WebIO when SessionId present)
+
+        /// <summary>
+        /// Selection with game context - routes to web UI if session active.
+        /// </summary>
+        public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices) where T : notnull
+        {
+            if (ctx.SessionId != null)
+                return WebIO.Select(ctx, prompt, choices, c => c.ToString()!);
+            return Select(prompt, choices);
+        }
+
+        /// <summary>
+        /// Selection with display converter and game context.
+        /// </summary>
+        public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices, Func<T, string> display) where T : notnull
+        {
+            if (ctx.SessionId != null)
+                return WebIO.Select(ctx, prompt, choices, display);
+            return Select(prompt, choices, display);
+        }
+
+        /// <summary>
+        /// Confirmation with game context.
+        /// </summary>
+        public static bool Confirm(GameContext ctx, string prompt, bool defaultValue = true)
+        {
+            if (ctx.SessionId != null)
+                return WebIO.Confirm(ctx, prompt);
+            return Confirm(prompt, defaultValue);
+        }
+
+        /// <summary>
+        /// Wait for key with game context.
+        /// </summary>
+        public static void WaitForKey(GameContext ctx, string message = "Continue")
+        {
+            if (ctx.SessionId != null)
+            {
+                WebIO.WaitForKey(ctx, message);
+                return;
+            }
+            WaitForKey(message);
+        }
+
+        /// <summary>
+        /// Read integer with range and game context - routes to web UI if session active.
+        /// </summary>
+        public static int ReadInt(GameContext ctx, string prompt, int min, int max)
+        {
+            if (ctx.SessionId != null)
+                return WebIO.ReadInt(ctx, prompt, min, max);
+            return ReadInt(min, max, prompt);
+        }
+
+        #endregion
+
         public static string Read()
         {
             string? input = "";

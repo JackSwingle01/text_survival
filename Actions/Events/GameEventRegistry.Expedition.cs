@@ -14,8 +14,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Treacherous Footing",
             "The ground ahead looks unstable — ice beneath the snow, or loose rocks hidden by debris.", 1.0)
             .Requires(EventCondition.Traveling)
-            .MoreLikelyIf(EventCondition.Injured, 1.5)
-            .MoreLikelyIf(EventCondition.Slow, 1.3)
+            .WithConditionFactor(EventCondition.Injured, 1.5)
+            .WithConditionFactor(EventCondition.Slow, 1.3)
             .Choice("Test Carefully",
                 "You probe ahead with each step, testing your weight before committing.",
                 [
@@ -43,7 +43,7 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Something Catches Your Eye",
             "Movement in your peripheral vision — or was it just a shape that doesn't belong? Something about the landscape ahead seems worth a closer look.", 1.5)
-            .Requires(EventCondition.Working)
+            .Requires(EventCondition.Working, EventCondition.IsExpedition)
             .Choice("Investigate",
                 "You set aside your current task and move closer to examine what you saw.",
                 [
@@ -73,8 +73,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Minor Accident",
             "Your foot catches on something hidden. A sharp pain as you stumble.", 0.8)
             .Requires(EventCondition.IsExpedition)
-            .MoreLikelyIf(EventCondition.Injured, 1.4)
-            .MoreLikelyIf(EventCondition.Slow, 1.3)
+            .WithConditionFactor(EventCondition.Injured, 1.4)
+            .WithConditionFactor(EventCondition.Slow, 1.3)
             .Choice("Stop and Assess",
                 "You take a moment to examine the injury and tend to it properly.",
                 [
@@ -142,7 +142,7 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Old Campsite",
             "Signs of a previous camp. Fire ring, flattened snow. Someone survived here. For a while.", 0.6)
-            .Requires(EventCondition.Working)
+            .Requires(EventCondition.Working, EventCondition.IsExpedition)
             .Choice("Search Thoroughly",
                 "Take your time. Check everything.",
                 [
@@ -193,7 +193,7 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Water Source",
             "You hear it before you see it — running water, or the promising crack of ice over a stream.", 0.7)
-            .Requires(EventCondition.Working)
+            .Requires(EventCondition.Working, EventCondition.Outside, EventCondition.IsExpedition)
             .Choice("Investigate Thoroughly",
                 "Check the source carefully.",
                 [
@@ -230,7 +230,7 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Unexpected Yield",
             "As you work, you notice something useful you almost missed.", 0.8)
-            .Requires(EventCondition.Working)
+            .Requires(EventCondition.Working, EventCondition.IsExpedition)
             .Choice("Take It",
                 "A lucky find.",
                 [
@@ -314,7 +314,7 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Natural Shelter Spotted",
             "A defensible overhang. A dense thicket. A hollow in the hillside. Natural shelter, if improved.", 0.5)
-            .Requires(EventCondition.Working)
+            .Requires(EventCondition.Working, EventCondition.Outside, EventCondition.IsExpedition, EventCondition.NoShelter)
             .Choice("Improve It Now",
                 "Spend time making this usable shelter.",
                 [
@@ -359,8 +359,8 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Debris",
             "Debris washed up or blown in — wood, branches, maybe more.", 0.6)
-            .Requires(EventCondition.Working)
-            .MoreLikelyIf(EventCondition.IsStormy, 1.5)
+            .Requires(EventCondition.Working, EventCondition.Outside, EventCondition.IsExpedition, EventCondition.IsRaining)
+            .WithConditionFactor(EventCondition.IsStormy, 1.5)
             .Choice("Haul It In",
                 "Gather what you can carry.",
                 [
@@ -400,8 +400,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Intrusive Thought",
             $"Your hands stop. Your mind fills with {source}. You can't look away from what isn't there.", 1.2)
             .Requires(EventCondition.Working, EventCondition.Disturbed)
-            .MoreLikelyIf(EventCondition.DisturbedHigh, 2.0)
-            .MoreLikelyIf(EventCondition.DisturbedCritical, 3.0)
+            .WithConditionFactor(EventCondition.DisturbedHigh, 2.0)
+            .WithConditionFactor(EventCondition.DisturbedCritical, 3.0)
             .Choice("Push Through",
                 "Force yourself back to the present. Focus on your hands, the cold, anything real.",
                 [
@@ -440,7 +440,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Lost Time",
             "You blink. The shadows have moved. How long were you standing there, staring at nothing?", 0.6)
             .Requires(EventCondition.Working, EventCondition.DisturbedHigh)
-            .MoreLikelyIf(EventCondition.DisturbedCritical, 2.5)
+            .WithConditionFactor(EventCondition.DisturbedCritical, 2.5)
             .Choice("Take Stock",
                 "Check yourself. Check your surroundings. What happened?",
                 [

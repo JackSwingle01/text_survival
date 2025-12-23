@@ -21,7 +21,7 @@ public class WorkRunner(GameContext ctx)
         var feature = location.GetFeature<ForageFeature>();
         if (feature == null)
         {
-            GameDisplay.AddNarrative("There's nothing to forage here.");
+            GameDisplay.AddNarrative(_ctx, "There's nothing to forage here.");
             return WorkResult.Empty(0);
         }
 
@@ -30,24 +30,24 @@ public class WorkRunner(GameContext ctx)
         workTimeChoice.AddOption("Quick gather - 15 min", 15);
         workTimeChoice.AddOption("Standard search - 30 min", 30);
         workTimeChoice.AddOption("Thorough search - 60 min", 60);
-        int workTime = workTimeChoice.GetPlayerChoice();
+        int workTime = workTimeChoice.GetPlayerChoice(_ctx);
 
         // Movement impairment slows foraging (+20%)
         var capacities = _ctx.player.GetCapacities();
         if (AbilityCalculator.IsMovingImpaired(capacities.Moving))
         {
             workTime = (int)(workTime * 1.20);
-            GameDisplay.AddWarning("Your limited movement slows the work.");
+            GameDisplay.AddWarning(_ctx, "Your limited movement slows the work.");
         }
 
         // Breathing impairment slows foraging (+15%)
         if (AbilityCalculator.IsBreathingImpaired(capacities.Breathing))
         {
             workTime = (int)(workTime * 1.15);
-            GameDisplay.AddWarning("Your labored breathing slows the work.");
+            GameDisplay.AddWarning(_ctx, "Your labored breathing slows the work.");
         }
 
-        GameDisplay.AddNarrative("You search the area for resources...");
+        GameDisplay.AddNarrative(_ctx, "You search the area for resources...");
 
         bool died = RunWorkWithProgress(location, workTime, ActivityType.Foraging);
         if (died)
@@ -61,7 +61,7 @@ public class WorkRunner(GameContext ctx)
         if (AbilityCalculator.IsPerceptionImpaired(perception))
         {
             found.ApplyForageMultiplier(0.85);
-            GameDisplay.AddWarning("Your foggy senses cause you to miss some resources.");
+            GameDisplay.AddWarning(_ctx, "Your foggy senses cause you to miss some resources.");
         }
 
         _ctx.Inventory.Add(found);
@@ -71,25 +71,25 @@ public class WorkRunner(GameContext ctx)
 
         if (found.IsEmpty)
         {
-            GameDisplay.AddNarrative("You find nothing.");
-            GameDisplay.AddNarrative(GetForageFailureMessage(quality));
+            GameDisplay.AddNarrative(_ctx, "You find nothing.");
+            GameDisplay.AddNarrative(_ctx, GetForageFailureMessage(quality));
         }
         else
         {
-            GameDisplay.AddNarrative("You found:");
+            GameDisplay.AddNarrative(_ctx, "You found:");
             var grouped = found.Descriptions.GroupBy(d => d).Select(g => (g.Key, g.Count()));
             foreach (var (desc, count) in grouped)
             {
                 string line = count > 1 ? $"{desc} ({count})" : desc;
-                GameDisplay.AddNarrative($"  - {line}");
+                GameDisplay.AddNarrative(_ctx, $"  - {line}");
             }
             collected.AddRange(found.Descriptions);
             if (quality == "sparse" || quality == "picked over")
-                GameDisplay.AddNarrative("Resources here are getting scarce.");
+                GameDisplay.AddNarrative(_ctx, "Resources here are getting scarce.");
         }
 
         GameDisplay.Render(_ctx, statusText: "Thinking.");
-        Input.WaitForKey();
+        Input.WaitForKey(_ctx);
 
         // Check weight limit and force drop if needed
         ForceDropIfOverweight();
@@ -106,7 +106,7 @@ public class WorkRunner(GameContext ctx)
 
         if (harvestables.Count == 0)
         {
-            GameDisplay.AddNarrative("There's nothing to harvest here.");
+            GameDisplay.AddNarrative(_ctx, "There's nothing to harvest here.");
             return WorkResult.Empty(0);
         }
 
@@ -123,7 +123,7 @@ public class WorkRunner(GameContext ctx)
             {
                 harvestChoice.AddOption($"{h.DisplayName} - {h.GetStatusDescription()}", h);
             }
-            target = harvestChoice.GetPlayerChoice();
+            target = harvestChoice.GetPlayerChoice(_ctx);
         }
 
         GameDisplay.Render(_ctx, statusText: "Planning.");
@@ -131,7 +131,7 @@ public class WorkRunner(GameContext ctx)
         workTimeChoice.AddOption("Quick work - 15 min", 15);
         workTimeChoice.AddOption("Standard work - 30 min", 30);
         workTimeChoice.AddOption("Thorough work - 60 min", 60);
-        int workTime = workTimeChoice.GetPlayerChoice();
+        int workTime = workTimeChoice.GetPlayerChoice(_ctx);
 
         bool died = RunWorkWithProgress(location, workTime, ActivityType.Foraging);
         if (died)
@@ -144,20 +144,20 @@ public class WorkRunner(GameContext ctx)
 
         if (found.IsEmpty)
         {
-            GameDisplay.AddNarrative("You didn't get anything.");
+            GameDisplay.AddNarrative(_ctx, "You didn't get anything.");
         }
         else
         {
             foreach (var desc in found.Descriptions)
             {
-                GameDisplay.AddNarrative($"You harvested {desc}");
+                GameDisplay.AddNarrative(_ctx, $"You harvested {desc}");
                 collected.Add(desc);
             }
         }
 
-        GameDisplay.AddNarrative($"{target.DisplayName}: {target.GetStatusDescription()}");
+        GameDisplay.AddNarrative(_ctx, $"{target.DisplayName}: {target.GetStatusDescription()}");
         GameDisplay.Render(_ctx, statusText: "Thinking.");
-        Input.WaitForKey();
+        Input.WaitForKey(_ctx);
 
         // Check weight limit and force drop if needed
         ForceDropIfOverweight();
@@ -169,7 +169,7 @@ public class WorkRunner(GameContext ctx)
     {
         if (!_ctx.Zone.HasUnrevealedLocations())
         {
-            GameDisplay.AddNarrative("You've explored everything reachable from here.");
+            GameDisplay.AddNarrative(_ctx, "You've explored everything reachable from here.");
             return WorkResult.Empty(0);
         }
 
@@ -182,14 +182,18 @@ public class WorkRunner(GameContext ctx)
         timeChoice.AddOption("Quick scout - 15 min", 15);
         timeChoice.AddOption("Standard scout - 30 min (+10%)", 30);
         timeChoice.AddOption("Thorough scout - 60 min (+20%)", 60);
-        int exploreTime = timeChoice.GetPlayerChoice();
+        timeChoice.AddOption("Cancel", 0);
+        int exploreTime = timeChoice.GetPlayerChoice(_ctx);
+
+        if (exploreTime == 0)
+            return WorkResult.Empty(0);
 
         // Breathing impairment slows exploration (+15%)
         var breathing = _ctx.player.GetCapacities().Breathing;
         if (AbilityCalculator.IsBreathingImpaired(breathing))
         {
             exploreTime = (int)(exploreTime * 1.15);
-            GameDisplay.AddWarning("Your labored breathing slows the scouting.");
+            GameDisplay.AddWarning(_ctx, "Your labored breathing slows the scouting.");
         }
 
         double timeBonus = exploreTime switch
@@ -200,7 +204,7 @@ public class WorkRunner(GameContext ctx)
         };
         double finalChance = Math.Min(0.95, successChance + timeBonus);
 
-        GameDisplay.AddNarrative("You scout the area, looking for new paths...");
+        GameDisplay.AddNarrative(_ctx, "You scout the area, looking for new paths...");
 
         // Scouting takes you away from fire - use 0.0 proximity regardless of location
         bool died = RunWorkWithProgress(location, exploreTime, ActivityType.Exploring);
@@ -215,23 +219,23 @@ public class WorkRunner(GameContext ctx)
 
             if (newLocation != null)
             {
-                GameDisplay.AddSuccess($"You discovered a new area: {newLocation.Name}!");
+                GameDisplay.AddSuccess(_ctx, $"You discovered a new area: {newLocation.Name}!");
                 if (!string.IsNullOrEmpty(newLocation.Description))
-                    GameDisplay.AddNarrative(newLocation.Description);
+                    GameDisplay.AddNarrative(_ctx, newLocation.Description);
                 discovered = newLocation;
             }
             else
             {
-                GameDisplay.AddNarrative("You scouted the area but found no new paths.");
+                GameDisplay.AddNarrative(_ctx, "You scouted the area but found no new paths.");
             }
         }
         else
         {
-            GameDisplay.AddNarrative("You searched the area but couldn't find any new paths.");
+            GameDisplay.AddNarrative(_ctx, "You searched the area but couldn't find any new paths.");
         }
 
         GameDisplay.Render(_ctx, statusText: "Thinking.");
-        Input.WaitForKey();
+        Input.WaitForKey(_ctx);
 
         return new WorkResult([], discovered, exploreTime, false);
     }
@@ -424,13 +428,13 @@ public class WorkRunner(GameContext ctx)
         if (inv.RemainingCapacityKg >= 0)
             return;
 
-        GameDisplay.ClearNarrative();
-        GameDisplay.AddWarning(
+        GameDisplay.ClearNarrative(_ctx);
+        GameDisplay.AddWarning(_ctx,
             $"You're carrying too much! ({inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0} kg)"
         );
-        GameDisplay.AddNarrative("You must drop some items.");
+        GameDisplay.AddNarrative(_ctx, "You must drop some items.");
         GameDisplay.Render(_ctx, statusText: "Overburdened.");
-        Input.WaitForKey();
+        Input.WaitForKey(_ctx);
 
         // Create a dummy "drop target" that just discards items
         var dropTarget = new Items.Inventory { MaxWeightKg = -1 };
@@ -443,21 +447,21 @@ public class WorkRunner(GameContext ctx)
 
             var options = items.Select(i => $"{i.Description}").ToList();
 
-            GameDisplay.ClearNarrative();
-            GameDisplay.AddWarning(
+            GameDisplay.ClearNarrative(_ctx);
+            GameDisplay.AddWarning(_ctx,
                 $"Over capacity by {-inv.RemainingCapacityKg:F1} kg. Drop something."
             );
             GameDisplay.Render(_ctx, statusText: "Overburdened.");
 
-            string selected = Input.Select("Drop which item?", options);
+            string selected = Input.Select(_ctx, "Drop which item?", options);
             int idx = options.IndexOf(selected);
 
             items[idx].TransferTo();
-            GameDisplay.AddNarrative($"Dropped {items[idx].Description}");
+            GameDisplay.AddNarrative(_ctx, $"Dropped {items[idx].Description}");
         }
 
-        GameDisplay.AddNarrative("You adjust your load and continue.");
+        GameDisplay.AddNarrative(_ctx, "You adjust your load and continue.");
         GameDisplay.Render(_ctx, statusText: "Relieved.");
-        Input.WaitForKey();
+        Input.WaitForKey(_ctx);
     }
 }

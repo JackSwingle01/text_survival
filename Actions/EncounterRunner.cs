@@ -33,14 +33,14 @@ public static class EncounterRunner
             string boldnessDesc = predator.EncounterBoldness >= 0.7 ? "aggressive"
                 : predator.EncounterBoldness > 0.3 ? "wary" : "hesitant";
 
-            GameDisplay.AddNarrative($"\nThe {predator.Name} is {predator.DistanceFromPlayer:F0}m away, looking {boldnessDesc}.");
+            GameDisplay.AddNarrative(ctx, $"\nThe {predator.Name} is {predator.DistanceFromPlayer:F0}m away, looking {boldnessDesc}.");
 
             // Show observable factors
             bool hasMeat = ctx.Inventory.HasMeat;
             if (hasMeat)
-                GameDisplay.AddNarrative("It's eyeing the meat you're carrying.");
+                GameDisplay.AddNarrative(ctx, "It's eyeing the meat you're carrying.");
             if (ctx.player.Vitality < 0.7)
-                GameDisplay.AddNarrative("It seems to sense your weakness.");
+                GameDisplay.AddNarrative(ctx, "It seems to sense your weakness.");
 
             GameDisplay.Render(ctx, statusText: "Alert.");
 
@@ -54,34 +54,34 @@ public static class EncounterRunner
             if (hasMeat)
                 choice.AddOption("Drop the meat", "drop_meat");
 
-            string action = choice.GetPlayerChoice();
+            string action = choice.GetPlayerChoice(ctx);
 
             switch (action)
             {
                 case "stand":
-                    GameDisplay.AddNarrative("You hold your position, facing the predator.");
+                    GameDisplay.AddNarrative(ctx, "You hold your position, facing the predator.");
                     predator.DistanceFromPlayer -= 10; // Predator closes
                     predator.EncounterBoldness -= 0.10; // But loses confidence
 
                     if (predator.EncounterBoldness < 0.3)
                     {
-                        GameDisplay.AddNarrative($"The {predator.Name} hesitates... then slinks away.");
+                        GameDisplay.AddNarrative(ctx, $"The {predator.Name} hesitates... then slinks away.");
                         return EncounterOutcome.PredatorRetreated;
                     }
-                    GameDisplay.AddNarrative($"The {predator.Name} moves closer, but seems less certain.");
+                    GameDisplay.AddNarrative(ctx, $"The {predator.Name} moves closer, but seems less certain.");
                     break;
 
                 case "back":
-                    GameDisplay.AddNarrative("You slowly back away, keeping eyes on the predator.");
+                    GameDisplay.AddNarrative(ctx, "You slowly back away, keeping eyes on the predator.");
                     predator.DistanceFromPlayer += 5; // You gain distance
                     predator.EncounterBoldness += 0.05; // But it gets bolder
-                    GameDisplay.AddNarrative($"Distance: {predator.DistanceFromPlayer:F0}m");
+                    GameDisplay.AddNarrative(ctx, $"Distance: {predator.DistanceFromPlayer:F0}m");
                     break;
 
                 case "run":
                     var (escaped, narrative) = HuntingCalculator.CalculatePursuitOutcome(
                         ctx.player, predator, predator.DistanceFromPlayer);
-                    GameDisplay.AddNarrative(narrative);
+                    GameDisplay.AddNarrative(ctx, narrative);
                     if (escaped)
                     {
                         return EncounterOutcome.PlayerEscaped;
@@ -95,27 +95,27 @@ public static class EncounterRunner
 
                 case "drop_meat":
                     double meatDropped = ctx.Inventory.DropAllMeat();
-                    GameDisplay.AddNarrative($"You drop {meatDropped:F1}kg of meat and back away.");
-                    GameDisplay.AddNarrative($"The {predator.Name} goes for the meat. You slip away.");
+                    GameDisplay.AddNarrative(ctx, $"You drop {meatDropped:F1}kg of meat and back away.");
+                    GameDisplay.AddNarrative(ctx, $"The {predator.Name} goes for the meat. You slip away.");
                     return EncounterOutcome.PlayerEscaped;
             }
 
             // Boldness ceiling: very bold predator closes regardless of player action
             if (predator.EncounterBoldness >= 0.7)
             {
-                GameDisplay.AddNarrative($"The {predator.Name} grows impatient and closes in.");
+                GameDisplay.AddNarrative(ctx, $"The {predator.Name} grows impatient and closes in.");
                 predator.DistanceFromPlayer -= 10;
             }
 
             // Check if predator reaches attack range
             if (predator.DistanceFromPlayer <= 5)
             {
-                GameDisplay.AddNarrative($"The {predator.Name} charges!");
+                GameDisplay.AddNarrative(ctx, $"The {predator.Name} charges!");
                 return RunPredatorCombat(predator, ctx);
             }
 
             ctx.Update(1, ActivityType.Encounter); // 1 minute per turn, no events during encounter
-            Input.WaitForKey();
+            Input.WaitForKey(ctx);
         }
 
         return ctx.player.IsAlive ? EncounterOutcome.PredatorRetreated : EncounterOutcome.PlayerDied;
@@ -123,25 +123,25 @@ public static class EncounterRunner
 
     private static EncounterOutcome RunPredatorCombat(Animal predator, GameContext ctx)
     {
-        GameDisplay.AddNarrative($"Combat with {predator.Name}!");
+        GameDisplay.AddNarrative(ctx, $"Combat with {predator.Name}!");
 
         while (predator.IsAlive && ctx.player.IsAlive)
         {
-            GameDisplay.AddNarrative($"\nYou: {ctx.player.Vitality:P0} | {predator.Name}: {predator.Vitality:P0}");
+            GameDisplay.AddNarrative(ctx, $"\nYou: {ctx.player.Vitality:P0} | {predator.Name}: {predator.Vitality:P0}");
             GameDisplay.Render(ctx, statusText: "Fighting.");
 
             var choice = new Choice<string>("Your move:");
             choice.AddOption("Attack", "attack");
-            choice.GetPlayerChoice();
+            choice.GetPlayerChoice(ctx);
 
             // Player attacks with equipped weapon
-            ctx.player.Attack(predator, ctx.Inventory.Weapon);
+            ctx.player.Attack(predator, ctx.Inventory.Weapon, null, ctx);
             ctx.Update(1, ActivityType.Fighting); // No events during combat
 
             if (!predator.IsAlive) break;
 
             // Predator attacks
-            predator.Attack(ctx.player);
+            predator.Attack(ctx.player, null, null, ctx);
         }
 
         if (!ctx.player.IsAlive)
@@ -150,23 +150,23 @@ public static class EncounterRunner
         }
 
         // Victory
-        GameDisplay.AddNarrative($"The {predator.Name} falls!");
+        GameDisplay.AddNarrative(ctx, $"The {predator.Name} falls!");
 
         var butcherChoice = new Choice<bool>("Butcher the carcass?");
         butcherChoice.AddOption("Yes", true);
         butcherChoice.AddOption("No", false);
 
-        if (butcherChoice.GetPlayerChoice())
+        if (butcherChoice.GetPlayerChoice(ctx))
         {
             var loot = ButcherRunner.ButcherAnimal(predator, ctx);
             ctx.Inventory.Add(loot);
-            GameDisplay.AddNarrative($"You collect {loot.TotalWeightKg:F1}kg of resources.");
+            GameDisplay.AddNarrative(ctx, $"You collect {loot.TotalWeightKg:F1}kg of resources.");
 
             // Butchering can be interrupted by events
             var result = ctx.Update(10, ActivityType.Hunting);
         }
 
-        Input.WaitForKey();
+        Input.WaitForKey(ctx);
         return EncounterOutcome.CombatVictory;
     }
 

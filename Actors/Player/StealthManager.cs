@@ -1,3 +1,4 @@
+using text_survival.Actions;
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
@@ -33,24 +34,24 @@ public class StealthManager
     /// <summary>
     /// Begin hunting a specific animal. Sets it as the target.
     /// </summary>
-    public void StartHunting(Animal animal)
+    public void StartHunting(Animal animal, GameContext ctx)
     {
         TargetAnimal = animal;
-        GameDisplay.AddNarrative($"You begin stalking the {animal.Name}...");
-        GameDisplay.AddNarrative($"Distance: {animal.DistanceFromPlayer:F0}m");
-        GameDisplay.AddNarrative($"Animal state: {animal.State}");
+        GameDisplay.AddNarrative(ctx, $"You begin stalking the {animal.Name}...");
+        GameDisplay.AddNarrative(ctx, $"Distance: {animal.DistanceFromPlayer:F0}m");
+        GameDisplay.AddNarrative(ctx, $"Animal state: {animal.State}");
     }
 
     /// <summary>
     /// Stop hunting the current target (animal fled, killed, or player cancels).
     /// </summary>
-    public void StopHunting(string reason = "")
+    public void StopHunting(GameContext? ctx = null, string reason = "")
     {
         if (TargetAnimal != null)
         {
-            if (!string.IsNullOrEmpty(reason))
+            if (!string.IsNullOrEmpty(reason) && ctx != null)
             {
-                GameDisplay.AddNarrative(reason);
+                GameDisplay.AddNarrative(ctx, reason);
             }
             TargetAnimal = null;
         }
@@ -59,14 +60,14 @@ public class StealthManager
     /// <summary>
     /// Check if target animal is still valid (alive, in location).
     /// </summary>
-    public bool IsTargetValid()
+    public bool IsTargetValid(GameContext? ctx = null)
     {
         if (TargetAnimal == null)
             return false;
 
         if (!TargetAnimal.IsAlive)
         {
-            StopHunting($"The {TargetAnimal.Name} is dead.");
+            StopHunting(ctx, $"The {TargetAnimal.Name} is dead.");
             return false;
         }
 
@@ -81,9 +82,9 @@ public class StealthManager
     /// Attempt to approach the target animal, reducing distance and checking for detection.
     /// </summary>
     /// <returns>True if approach successful (not detected), false if detected</returns>
-    public bool AttemptApproach(Location location)
+    public bool AttemptApproach(Location location, GameContext ctx)
     {
-        if (!IsTargetValid())
+        if (!IsTargetValid(ctx))
             return false;
 
         Animal animal = TargetAnimal!;
@@ -92,7 +93,7 @@ public class StealthManager
         double approachDistance = HuntingCalculator.CalculateApproachDistance();
         double newDistance = Math.Max(0, animal.DistanceFromPlayer - approachDistance);
 
-        GameDisplay.AddNarrative($"You carefully move {approachDistance:F0}m closer...");
+        GameDisplay.AddNarrative(ctx, $"You carefully move {approachDistance:F0}m closer...");
 
         // Check for detection (uses traits + activity)
         int huntingSkill = _player.Skills.GetSkill("Hunting").Level;
@@ -118,29 +119,29 @@ public class StealthManager
         animal.DistanceFromPlayer = newDistance;
         if (animal.CheckActivityChange(7, out var newActivity) && newActivity.HasValue)
         {
-            GameDisplay.AddNarrative($"The {animal.Name} shifts—now {animal.GetActivityDescription()}.");
+            GameDisplay.AddNarrative(ctx, $"The {animal.Name} shifts—now {animal.GetActivityDescription()}.");
         }
 
         // Handle detection results
         if (detected)
         {
             animal.BecomeDetected();
-            GameDisplay.AddNarrative($"The {animal.Name} spots you!");
-            HandleAnimalDetection(animal, location);
+            GameDisplay.AddNarrative(ctx, $"The {animal.Name} spots you!");
+            HandleAnimalDetection(animal, location, ctx);
             return false;
         }
         else if (becameAlert)
         {
             animal.BecomeAlert();
             animal.FailedStealthChecks++;
-            GameDisplay.AddNarrative($"The {animal.Name} becomes alert - it senses something nearby.");
-            GameDisplay.AddNarrative($"New distance: {animal.DistanceFromPlayer:F0}m | State: {animal.State}");
+            GameDisplay.AddNarrative(ctx, $"The {animal.Name} becomes alert - it senses something nearby.");
+            GameDisplay.AddNarrative(ctx, $"New distance: {animal.DistanceFromPlayer:F0}m | State: {animal.State}");
             return true;
         }
         else
         {
-            GameDisplay.AddNarrative($"You remain undetected.");
-            GameDisplay.AddNarrative($"New distance: {animal.DistanceFromPlayer:F0}m | State: {animal.State}");
+            GameDisplay.AddNarrative(ctx, $"You remain undetected.");
+            GameDisplay.AddNarrative(ctx, $"New distance: {animal.DistanceFromPlayer:F0}m | State: {animal.State}");
             return true;
         }
     }
@@ -148,17 +149,17 @@ public class StealthManager
     /// <summary>
     /// Assess the target animal - view its status without approaching.
     /// </summary>
-    public void AssessTarget()
+    public void AssessTarget(GameContext ctx)
     {
-        if (!IsTargetValid())
+        if (!IsTargetValid(ctx))
             return;
 
         Animal animal = TargetAnimal!;
 
-        GameDisplay.AddNarrative($"\n=== {animal.GetTraitDescription()} ===");
-        GameDisplay.AddNarrative($"Distance: {animal.DistanceFromPlayer:F0}m");
-        GameDisplay.AddNarrative($"Activity: {animal.GetActivityDescription()}");
-        GameDisplay.AddNarrative($"Vitality: {animal.Vitality * 100:F0}%");
+        GameDisplay.AddNarrative(ctx, $"\n=== {animal.GetTraitDescription()} ===");
+        GameDisplay.AddNarrative(ctx, $"Distance: {animal.DistanceFromPlayer:F0}m");
+        GameDisplay.AddNarrative(ctx, $"Activity: {animal.GetActivityDescription()}");
+        GameDisplay.AddNarrative(ctx, $"Vitality: {animal.Vitality * 100:F0}%");
 
         // Show detection chance for next approach (uses traits + activity)
         int huntingSkill = _player.Skills.GetSkill("Hunting").Level;
@@ -177,17 +178,17 @@ public class StealthManager
             impairedMultiplier
         );
 
-        GameDisplay.AddNarrative($"\nNext approach detection risk: {detectionChance * 100:F0}%");
+        GameDisplay.AddNarrative(ctx, $"\nNext approach detection risk: {detectionChance * 100:F0}%");
 
         // Hint about activity affecting detection
         if (animal.CurrentActivity == AnimalActivity.Grazing)
-            GameDisplay.AddNarrative("It's distracted—a good time to approach.");
+            GameDisplay.AddNarrative(ctx, "It's distracted—a good time to approach.");
         else if (animal.CurrentActivity == AnimalActivity.Alert)
-            GameDisplay.AddNarrative("It's very alert—approaching now is risky.");
+            GameDisplay.AddNarrative(ctx, "It's very alert—approaching now is risky.");
 
         if (animal.State == AnimalState.Alert)
         {
-            GameDisplay.AddNarrative("! Animal is alert - detection chance increased!");
+            GameDisplay.AddNarrative(ctx, "! Animal is alert - detection chance increased!");
         }
     }
 
@@ -199,22 +200,22 @@ public class StealthManager
     /// Handle what happens when animal detects the player.
     /// Animal response depends on behavior type.
     /// </summary>
-    private void HandleAnimalDetection(Animal animal, Location location)
+    private void HandleAnimalDetection(Animal animal, Location location, GameContext ctx)
     {
         // Check if animal should flee
         if (animal.ShouldFlee(_player))
         {
-            GameDisplay.AddNarrative($"The {animal.Name} flees!");
-            StopHunting($"The {animal.Name} escaped.");
+            GameDisplay.AddNarrative(ctx, $"The {animal.Name} flees!");
+            StopHunting(ctx, $"The {animal.Name} escaped.");
         }
         else
         {
             // Predator or cornered animal - attacks!
-            GameDisplay.AddNarrative($"The {animal.Name} attacks!");
+            GameDisplay.AddNarrative(ctx, $"The {animal.Name} attacks!");
             _player.IsEngaged = true;
             animal.IsEngaged = true;
             // Combat will be handled by existing combat system
-            StopHunting($"Combat initiated with {animal.Name}!");
+            StopHunting(ctx, $"Combat initiated with {animal.Name}!");
         }
     }
 

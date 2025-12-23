@@ -12,7 +12,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Vermin Raid",
             "Scratching from your supply cache. Something small has found your food stores.", 1.0)
             .Requires(EventCondition.AtCamp, EventCondition.HasFood, EventCondition.Awake)
-            .MoreLikelyIf(EventCondition.Night, 1.5)
+            .WithConditionFactor(EventCondition.Night, 1.5)
             .Choice("Set a Trap",
                 "Use plant fiber to rig a simple snare.",
                 [
@@ -71,9 +71,9 @@ public static partial class GameEventRegistry
         return new GameEvent("Shelter Groans",
             "A crack from above. Your shelter is taking strain. Snow load or wind — something's giving.", 0.2)
             .Requires(EventCondition.AtCamp, EventCondition.HasShelter)
-            .MoreLikelyIf(EventCondition.HighWind, 2.0)
-            .MoreLikelyIf(EventCondition.IsSnowing, 1.5)
-            .MoreLikelyIf(EventCondition.ShelterWeakened, 2.5)
+            .WithConditionFactor(EventCondition.HighWind, 2.0)
+            .WithConditionFactor(EventCondition.IsSnowing, 1.5)
+            .WithConditionFactor(EventCondition.ShelterWeakened, 2.5)
             .Choice("Brace It Now",
                 "Hold it together with your body. Buy time.",
                 [
@@ -121,9 +121,9 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Choking Smoke",
             "The wind shifts. Thick smoke floods back into your space. You can't breathe.", 0.8)
-            .Requires(EventCondition.AtCamp, EventCondition.FireBurning, EventCondition.Awake)
-            .MoreLikelyIf(EventCondition.HighWind, 2.0)
-            .MoreLikelyIf(EventCondition.HasShelter, 1.5)
+            .Requires(EventCondition.AtCamp, EventCondition.FireBurning, EventCondition.IsCampWork)
+            .WithConditionFactor(EventCondition.HighWind, 2.0)
+            .WithConditionFactor(EventCondition.HasShelter, 1.5)
             .Choice("Douse the Fire",
                 "Put it out immediately. You'll deal with the cold.",
                 [
@@ -158,8 +158,8 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Embers Scatter",
             "A gust catches the dying fire. Embers scatter across your camp.", 0.6)
-            .Requires(EventCondition.AtCamp, EventCondition.FireBurning, EventCondition.Awake)
-            .MoreLikelyIf(EventCondition.HighWind, 2.5)
+            .Requires(EventCondition.AtCamp, EventCondition.FireBurning, EventCondition.IsCampWork)
+            .WithConditionFactor(EventCondition.HighWind, 2.5)
             .Choice("Stomp Them Out",
                 "Quick! Before something catches fire.",
                 [
@@ -197,8 +197,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Rustle at Camp Edge",
             $"Rustling at the camp perimeter. Something drawn by the scent of your food.", 0.8)
             .Requires(EventCondition.AtCamp, EventCondition.HasFood, EventCondition.Awake)
-            .MoreLikelyIf(EventCondition.Night, 2.0)
-            .MoreLikelyIf(EventCondition.HasMeat, 1.5)
+            .WithConditionFactor(EventCondition.Night, 2.0)
+            .WithConditionFactor(EventCondition.HasMeat, 1.5)
             .Choice("Investigate",
                 "Go see what's out there.",
                 [
@@ -282,8 +282,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Nightmare",
             $"You jolt awake, heart pounding. Images of {source} linger behind your eyes. The fire has burned lower than you'd like.", 1.5)
             .Requires(EventCondition.AtCamp, EventCondition.Disturbed, EventCondition.IsSleeping)
-            .MoreLikelyIf(EventCondition.DisturbedHigh, 2.0)
-            .MoreLikelyIf(EventCondition.Night, 1.5)
+            .WithConditionFactor(EventCondition.DisturbedHigh, 2.0)
+            .WithConditionFactor(EventCondition.Night, 1.5)
             .Choice("Try to Sleep Again",
                 "Close your eyes. Push it down.",
                 [
@@ -327,8 +327,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Night Terrors",
             "You're convinced something is out there. In the dark. Watching. Waiting. Every sound is a footstep, every rustle is breathing.", 0.8)
             .Requires(EventCondition.AtCamp, EventCondition.Disturbed, EventCondition.Night, EventCondition.Awake)
-            .MoreLikelyIf(EventCondition.DisturbedHigh, 2.5)
-            .MoreLikelyIf(EventCondition.Stalked, 3.0)
+            .WithConditionFactor(EventCondition.DisturbedHigh, 2.5)
+            .WithConditionFactor(EventCondition.Stalked, 3.0)
             .Choice("Build Up the Fire",
                 "Light drives back the dark. And whatever's in it.",
                 [
@@ -378,7 +378,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Processing",
             $"Sitting by the fire, your thoughts keep returning to {source}. Maybe it's time to let yourself think about it.", 0.6)
             .Requires(EventCondition.AtCamp, EventCondition.Disturbed, EventCondition.NearFire, EventCondition.Awake)
-            .MoreLikelyIf(EventCondition.DisturbedHigh, 1.5)
+            .WithConditionFactor(EventCondition.DisturbedHigh, 1.5)
             .Choice("Sit With It",
                 "Don't push it away. Let it come.",
                 [

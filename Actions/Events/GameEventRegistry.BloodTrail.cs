@@ -26,8 +26,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Blood in the Snow",
             $"The trail continues. {trailDescription} You're getting further from camp...", 1.5)
             .Requires(EventCondition.WoundedPrey)
-            .MoreLikelyIf(EventCondition.LowOnFood, 2.0)
-            .MoreLikelyIf(EventCondition.Injured, 0.5)  // Less likely to push when hurt
+            .WithConditionFactor(EventCondition.LowOnFood, 2.0)
+            .WithConditionFactor(EventCondition.Injured, 0.5)  // Less likely to push when hurt
             .Choice("Press On",
                 "The blood is fresh. It can't be far now.",
                 [

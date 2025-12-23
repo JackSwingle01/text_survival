@@ -1,3 +1,5 @@
+using text_survival.Actions;
+
 namespace text_survival.Items;
 
 /// <summary>
@@ -351,7 +353,7 @@ public class Inventory
     /// If no matching weapon is equipped, checks Tools and auto-equips.
     /// Prompts player if multiple matching weapons are available.
     /// </summary>
-    public Tool? GetOrEquipWeapon(ToolType? type = null)
+    public Tool? GetOrEquipWeapon(GameContext ctx, ToolType? type = null)
     {
         // Already have matching weapon equipped?
         if (Weapon != null && (type == null || Weapon.Type == type))
@@ -374,7 +376,7 @@ public class Inventory
             var choice = new Actions.Choice<Tool>("Which weapon?");
             foreach (var w in available)
                 choice.AddOption($"{w.Name} ({w.Damage:F0} dmg)", w);
-            toEquip = choice.GetPlayerChoice();
+            toEquip = choice.GetPlayerChoice(ctx);
         }
 
         Tools.Remove(toEquip);

@@ -149,7 +149,7 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Cold Rain Soaking",
             "The rain is seeping through everything. You're getting dangerously wet in freezing conditions.", 1.0)
-            .Requires(EventCondition.IsRaining, EventCondition.Outside, EventCondition.IsExpedition)
+            .Requires(EventCondition.IsRaining, EventCondition.Outside, EventCondition.IsExpedition, EventCondition.LowTemperature)
             .Choice("Strip and Wring",
                 "Find what cover you can, strip off wet layers, wring them out. Brief exposure, but drier clothes.",
                 [

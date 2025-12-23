@@ -21,7 +21,7 @@ public class Body
 
     private double _baseWeight;
 
-    public bool IsTired => Energy < SurvivalProcessor.MAX_ENERGY_MINUTES;
+    public bool IsTired => Energy < SurvivalProcessor.MAX_ENERGY_MINUTES / 2;
 
     public double BodyFatKG { get; private set; }
     public double MuscleKG { get; private set; }
@@ -177,6 +177,22 @@ public class Body
     public void AddHydration(double ml)
     {
         Hydration = Math.Min(SurvivalProcessor.MAX_HYDRATION, Hydration + ml);
+    }
+
+    /// <summary>
+    /// Drain calories directly (from vomiting, etc).
+    /// </summary>
+    public void DrainCalories(double calories)
+    {
+        CalorieStore = Math.Max(0, CalorieStore - calories);
+    }
+
+    /// <summary>
+    /// Drain hydration directly (from vomiting, blood loss, etc).
+    /// </summary>
+    public void DrainHydration(double ml)
+    {
+        Hydration = Math.Max(0, Hydration - ml);
     }
 
     private double GetDigestionCapacity()

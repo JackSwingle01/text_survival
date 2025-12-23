@@ -22,8 +22,8 @@ public static partial class GameEventRegistry
             $"Multiple tracks, recent. Coordinated movement patterns. This isn't a lone hunter — it's a pack of {predator.ToLower()}s.", 0.8)
             .Requires(EventCondition.InAnimalTerritory, EventCondition.HasPredators)
             .Requires(EventCondition.OnExpedition)
-            .MoreLikelyIf(EventCondition.HasMeat, 2.0)
-            .MoreLikelyIf(EventCondition.Injured, 1.5)
+            .WithConditionFactor(EventCondition.HasMeat, 2.0)
+            .WithConditionFactor(EventCondition.Injured, 1.5)
             .Choice("Move Carefully, Watch Flanks",
                 "Slow down. Stay alert. Don't let them get behind you.",
                 [
@@ -63,10 +63,10 @@ public static partial class GameEventRegistry
 
         return new GameEvent("Eyes in the Treeline",
             $"Glimpses of movement. The {predator.ToLower()}s are paralleling you. Not attacking yet — testing, probing.", 1.5)
-            .Requires(EventCondition.PackNearby)
-            .MoreLikelyIf(EventCondition.Injured, 3.0)
-            .MoreLikelyIf(EventCondition.Slow, 2.0)
-            .MoreLikelyIf(EventCondition.HasMeat, 2.0)
+            .Requires(EventCondition.PackNearby, EventCondition.IsExpedition)
+            .WithConditionFactor(EventCondition.Injured, 3.0)
+            .WithConditionFactor(EventCondition.Slow, 2.0)
+            .WithConditionFactor(EventCondition.HasMeat, 2.0)
             .Choice("Keep Moving Steadily",
                 "Don't run. Don't stop. Steady pace. Show no weakness.",
                 [
@@ -137,7 +137,7 @@ public static partial class GameEventRegistry
 
         return new GameEvent("Circling",
             $"The {predator.ToLower()}s are closing the circle. Cutting off escape routes. You need defensible ground — NOW.", 2.0)
-            .Requires(EventCondition.PackNearbyHigh)
+            .Requires(EventCondition.PackNearbyHigh, EventCondition.IsExpedition)
             .Choice("Find Defensible Ground",
                 "High ground. Choke point. Anything that limits their angles.",
                 [
@@ -198,7 +198,7 @@ public static partial class GameEventRegistry
 
         return new GameEvent("The Pack Commits",
             $"They've decided. This is happening. The {predator.ToLower()}s move as one.", 3.0)
-            .Requires(EventCondition.PackNearbyCritical)
+            .Requires(EventCondition.PackNearbyCritical, EventCondition.IsExpedition)
             .Choice("Stand and Fight",
                 "Face them. Take as many as you can.",
                 [

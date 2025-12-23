@@ -6,11 +6,79 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Core
 {
     public class Program
     {
+        static async Task Main(string[] args)
+        {
+            // Check for web mode
+            if (args.Contains("--web"))
+            {
+                int port = 5000;
+                var portArg = args.FirstOrDefault(a => a.StartsWith("--port="));
+                if (portArg != null && int.TryParse(portArg.Split('=')[1], out int parsedPort))
+                    port = parsedPort;
+
+                await WebServer.Run(port);
+                return;
+            }
+
+            // Console mode
+            RunConsoleGame();
+        }
+
+        static void RunConsoleGame()
+        {
+            if (Output.TestMode)
+            {
+                TestModeIO.Initialize();
+            }
+
+            Zone zone = ZoneFactory.MakeForestZone();
+
+            // Initialize weather for game start time (9:00 AM, Jan 1)
+            var gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
+            zone.Weather.Update(gameStartTime);
+
+            Location startingArea = zone.Graph.All.First(s => s.Name == "Forest Camp");
+
+            // Starting equipment - basic fur wraps (Ice Age appropriate)
+            // (Equipment is equipped directly to player inventory below)
+            
+            HeatSourceFeature campfire = new HeatSourceFeature();
+            campfire.AddFuel(2, FuelType.Kindling); // Unlit - player must start it
+            startingArea.Features.Add(campfire);
+
+            Player player = new Player();
+            Camp camp = new Camp(startingArea);
+            GameContext context = new GameContext(player, camp);
+
+            // Equip starting clothing
+            context.Inventory.Equip(Equipment.WornFurChestWrap());
+            context.Inventory.Equip(Equipment.FurLegWraps());
+            context.Inventory.Equip(Equipment.FurBoots());
+
+            // Add starting supplies to player's aggregate inventory
+            context.Inventory.Tools.Add(Tool.HandDrill());  // Fire-starting tool
+            context.Inventory.Sticks.Add(0.3);  // A stick for kindling
+            context.Inventory.Sticks.Add(0.25);
+            context.Inventory.Sticks.Add(0.35);
+            context.Inventory.Tinder.Add(0.05); // Some tinder
+            context.Inventory.Tinder.Add(0.04);
+
+            GameDisplay.AddDanger("You wake up in the forest, shivering. You don't remember how you got here.");
+            GameDisplay.AddDanger("Snow drifts down through the pines. The cold is already seeping into your bones.");
+            GameDisplay.AddDanger("There's a fire pit nearby with some kindling. You need to get it lit - fast.");
+            GameDisplay.AddDanger("You need to gather fuel, find food and water, and survive.");
+
+            GameRunner runner = new GameRunner(context);
+            runner.Run();
+            DisplayDeathScreen(context);
+        }
+
         static void DisplayDeathScreen(GameContext ctx)
         {
             Player player = ctx.player;
@@ -86,55 +154,6 @@ namespace text_survival.Core
 
             // Default
             return "Multiple organ failure";
-        }
-
-        static void Main()
-        {
-            if (Output.TestMode)
-            {
-                TestModeIO.Initialize();
-            }
-
-            Zone zone = ZoneFactory.MakeForestZone();
-
-            // Initialize weather for game start time (9:00 AM, Jan 1)
-            var gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
-            zone.Weather.Update(gameStartTime);
-
-            Location startingArea = zone.Graph.All.First(s => s.Name == "Forest Camp");
-
-            // Starting equipment - basic fur wraps (Ice Age appropriate)
-            // (Equipment is equipped directly to player inventory below)
-
-            HeatSourceFeature campfire = new HeatSourceFeature();
-            campfire.AddFuel(2, FuelType.Kindling); // Unlit - player must start it
-            startingArea.Features.Add(campfire);
-
-            Player player = new Player();
-            Camp camp = new Camp(startingArea);
-            GameContext context = new GameContext(player, camp);
-
-            // Equip starting clothing
-            context.Inventory.Equip(Equipment.WornFurChestWrap());
-            context.Inventory.Equip(Equipment.FurLegWraps());
-            context.Inventory.Equip(Equipment.FurBoots());
-
-            // Add starting supplies to player's aggregate inventory
-            context.Inventory.Tools.Add(Tool.HandDrill());  // Fire-starting tool
-            context.Inventory.Sticks.Add(0.3);  // A stick for kindling
-            context.Inventory.Sticks.Add(0.25);
-            context.Inventory.Sticks.Add(0.35);
-            context.Inventory.Tinder.Add(0.05); // Some tinder
-            context.Inventory.Tinder.Add(0.04);
-
-            GameDisplay.AddDanger("You wake up in the forest, shivering. You don't remember how you got here.");
-            GameDisplay.AddDanger("Snow drifts down through the pines. The cold is already seeping into your bones.");
-            GameDisplay.AddDanger("There's a fire pit nearby with some kindling. You need to get it lit — fast.");
-            GameDisplay.AddDanger("You need to gather fuel, find food and water, and survive.");
-
-            GameRunner runner = new GameRunner(context);
-            runner.Run();
-            DisplayDeathScreen(context);
         }
     }
 }

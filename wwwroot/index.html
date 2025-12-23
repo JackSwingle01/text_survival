@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Survival</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="night">
+
+    <div class="game-container">
+        <main class="main-content">
+            <aside class="left-panel">
+                <div class="status-section time-section">
+                    <div class="status-title"><span class="material-symbols-outlined">schedule</span>Time</div>
+                    <div class="day-number" id="dayNumber">Day 1</div>
+                    <div class="time-detail" id="timeDetail">9:00 AM — Morning</div>
+                    <div class="time-detail time-warning" id="timeWarning">8.5 hrs til dusk</div>
+                </div>
+
+                <div class="status-section weather-section">
+                    <div class="status-title"><span class="material-symbols-outlined">cloud</span>Weather</div>
+                    <div class="weather-cond" id="weatherCond">Clear</div>
+                    <div class="weather-detail">Wind: <span id="windLabel">Calm</span></div>
+                    <div class="weather-detail">Precip: <span id="precipLabel">None</span></div>
+                </div>
+
+                <div class="status-section fire-section">
+                    <div class="status-title"><span class="material-symbols-outlined">local_fire_department</span>Fire</div>
+                    <div class="fire-phase cold" id="firePhase"><span class="material-symbols-outlined fire-icon">local_fire_department</span><span class="fire-phase-text">No fire pit</span></div>
+                    <div class="fire-time" id="fireTime"></div>
+                    <div class="fire-fuel" id="fireFuel"></div>
+                    <div class="fire-heat" id="fireHeat"></div>
+                </div>
+            </aside>
+
+            <div class="narrative-panel">
+                <div class="location-display">
+                    <div class="temp-badge" id="tempBadge">
+                        <span class="material-symbols-outlined">thermometer</span>
+                        <span class="temp-badge-value" id="tempBadgeValue">--°F</span>
+                    </div>
+                    <div class="location-name" id="locationName">Loading...</div>
+                    <div class="location-desc" id="locationDesc"></div>
+                    <div class="location-features" id="locationFeatures"></div>
+                </div>
+
+                <div class="narrative-log" id="narrativeLog"></div>
+
+                <div class="status-bar" id="statusBar">
+                    <div class="status-content">
+                        <span class="material-symbols-outlined status-icon" id="statusIcon" style="display: none;">hourglass_empty</span>
+                        <span class="status-text" id="statusText">Connecting...</span>
+                        <div class="segment-bar progress" id="progressSegmentBar" style="display: none;"></div>
+                        <span class="progress-percent" id="progressPercent" style="display: none;">0%</span>
+                    </div>
+                </div>
+
+                <div class="actions-area" id="actionsArea"></div>
+            </div>
+
+            <aside class="side-panel">
+                <div class="status-section">
+                    <div class="status-title"><span class="material-symbols-outlined">thermostat</span>Temperature</div>
+                    <div class="segment-bar temp" id="tempSegmentBar"></div>
+                    <div class="temp-row">
+                        <span class="temp-label">Body</span>
+                        <span><span class="temp-value" id="bodyTempDisplay">98.6°F</span> <span class="temp-status normal" id="tempStatus">Normal</span></span>
+                    </div>
+                    <div class="temp-breakdown" id="tempBreakdown">
+                        Air: <span id="airTempDisplay">32°F</span><span class="fire-contrib" id="fireContrib"></span>
+                    </div>
+                    <div class="temp-trend stable" id="tempTrend">→ Stable</div>
+                </div>
+
+                <div class="status-section">
+                    <div class="status-title"><span class="material-symbols-outlined">favorite</span>Survival</div>
+
+                    <div class="survival-stat">
+                        <div class="stat-status" id="healthStatus">Healthy</div>
+                        <div class="stat-bar-row">
+                            <span class="material-symbols-outlined">monitor_heart</span>
+                            <div class="segment-bar health" id="healthSegmentBar"></div>
+                            <span class="stat-value" id="healthPct">100%</span>
+                        </div>
+                    </div>
+
+                    <div class="survival-stat">
+                        <div class="stat-status" id="foodStatus">Well Fed</div>
+                        <div class="stat-bar-row">
+                            <span class="material-symbols-outlined">restaurant</span>
+                            <div class="segment-bar food" id="foodSegmentBar"></div>
+                            <span class="stat-value" id="foodPct">100%</span>
+                        </div>
+                    </div>
+
+                    <div class="survival-stat">
+                        <div class="stat-status" id="waterStatus">Hydrated</div>
+                        <div class="stat-bar-row">
+                            <span class="material-symbols-outlined">water_drop</span>
+                            <div class="segment-bar water" id="waterSegmentBar"></div>
+                            <span class="stat-value" id="waterPct">100%</span>
+                        </div>
+                    </div>
+
+                    <div class="survival-stat">
+                        <div class="stat-status" id="energyStatus">Energized</div>
+                        <div class="stat-bar-row">
+                            <span class="material-symbols-outlined">bolt</span>
+                            <div class="segment-bar energy" id="energySegmentBar"></div>
+                            <span class="stat-value" id="energyPct">100%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-section">
+                    <div class="status-title"><span class="material-symbols-outlined">backpack</span>Gear</div>
+                    <div class="gear-row">
+                        <span class="gear-label">Carry</span>
+                        <span class="gear-value" id="carryDisplay">0 / 15 kg</span>
+                    </div>
+                    <div class="gear-row">
+                        <span class="gear-label">Insulation</span>
+                        <span class="gear-value insulation" id="insulationPct">0%</span>
+                    </div>
+                    <div class="gear-row">
+                        <span class="gear-label">Fuel</span>
+                        <span class="gear-value fuel" id="fuelReserve">0kg</span>
+                    </div>
+                </div>
+
+                <div class="status-section">
+                    <div class="status-title"><span class="material-symbols-outlined">error</span>Effects</div>
+                    <div class="effects-list" id="effectsList">
+                        <div class="effect-item stable">None</div>
+                    </div>
+                </div>
+
+                <div class="status-section">
+                    <div class="status-title"><span class="material-symbols-outlined">healing</span>Injuries</div>
+                    <div class="injuries-list" id="injuriesList">
+                        <div class="injury-item minor">None</div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <div class="connection-overlay" id="connectionOverlay">
+        <div class="connection-message" id="connectionMessage">Connecting...</div>
+    </div>
+
+    <div class="inventory-overlay hidden" id="inventoryOverlay">
+        <div class="inventory-modal">
+            <div class="inventory-header">
+                <h2 id="inventoryTitle">INVENTORY</h2>
+                <span class="inventory-weight" id="inventoryWeight">0 / 15 kg</span>
+            </div>
+            <div class="inventory-grid">
+                <div class="inventory-section" id="invGear">
+                    <h3>Gear</h3>
+                    <div class="inv-content"></div>
+                </div>
+                <div class="inventory-section" id="invFuel">
+                    <h3>Fuel</h3>
+                    <div class="inv-content"></div>
+                </div>
+                <div class="inventory-section" id="invFood">
+                    <h3>Food & Water</h3>
+                    <div class="inv-content"></div>
+                </div>
+                <div class="inventory-section" id="invMaterials">
+                    <h3>Materials</h3>
+                    <div class="inv-content"></div>
+                </div>
+            </div>
+            <div class="inventory-actions" id="inventoryActions"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

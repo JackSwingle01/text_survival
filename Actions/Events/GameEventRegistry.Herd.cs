@@ -18,7 +18,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Distant Thunder",
             "The ground trembles. A sound like thunder, but rhythmic. A herd is moving through — hundreds of animals.", 0.5)
             .Requires(EventCondition.OnExpedition)
-            .MoreLikelyIf(EventCondition.LowOnFood, 2.0)
+            .WithConditionFactor(EventCondition.LowOnFood, 2.0)
             .Choice("Track Them",
                 "Follow the sound. Find the herd.",
                 [
@@ -205,7 +205,7 @@ public static partial class GameEventRegistry
             "The herd has moved on. Their shadows haven't. Wolves that were following the herd are now following YOU.", 2.0)
             .Requires(EventCondition.FoodScentStrong)
             .Requires(EventCondition.OnExpedition)
-            .MoreLikelyIf(EventCondition.HasMeat, 3.0)
+            .WithConditionFactor(EventCondition.HasMeat, 3.0)
             .Choice("Move Quickly, Stay Alert",
                 "Get the meat back to camp. Stay vigilant.",
                 [
