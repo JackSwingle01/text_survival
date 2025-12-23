@@ -126,7 +126,7 @@ public static class WebServer
         }
         else
         {
-            GameDisplay.AddNarrative(ctx, "Game loaded.");
+            // GameDisplay.AddNarrative(ctx, "Game loaded.");
         }
 
         // Run the game

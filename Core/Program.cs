@@ -52,7 +52,7 @@ namespace text_survival.Core
             }
             else
             {
-                GameDisplay.AddNarrative("Game loaded.");
+                // GameDisplay.AddNarrative("Game loaded.");
             }
 
             GameRunner runner = new GameRunner(context);
