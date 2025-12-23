@@ -16,7 +16,13 @@ public record GameSaveData
     public ZoneSaveData Zone { get; init; } = new();
     public string CampLocationName { get; init; } = "";
     public List<TensionSaveData> Tensions { get; init; } = [];
+    public List<LogEntrySaveData> NarrativeLog { get; init; } = [];
 }
+
+/// <summary>
+/// Narrative log entry.
+/// </summary>
+public record LogEntrySaveData(string Text, string Level);
 
 /// <summary>
 /// Player state including body and effects.

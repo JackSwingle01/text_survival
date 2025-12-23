@@ -6,6 +6,7 @@ using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
+using text_survival.UI;
 
 namespace text_survival.Persistence;
 
@@ -30,7 +31,10 @@ public static class SaveDataConverter
             CampStorage = ToSaveData(ctx.Camp.Storage),
             Zone = ToSaveData(ctx.CurrentLocation.ParentZone),
             CampLocationName = ctx.Camp.Location.Name,
-            Tensions = ctx.Tensions.All.Select(ToSaveData).ToList()
+            Tensions = ctx.Tensions.All.Select(ToSaveData).ToList(),
+            NarrativeLog = ctx.Log.GetVisible()
+                .Select(e => new LogEntrySaveData(e.Text, e.Level.ToString()))
+                .ToList()
         };
     }
 
@@ -316,6 +320,14 @@ public static class SaveDataConverter
         {
             var tension = RestoreTension(tensionData, ctx.CurrentLocation.ParentZone);
             ctx.Tensions.AddRestoredTension(tension);
+        }
+
+        // Restore narrative log
+        ctx.Log.Clear();
+        foreach (var logEntry in saveData.NarrativeLog)
+        {
+            var level = Enum.Parse<LogLevel>(logEntry.Level);
+            ctx.Log.Add(logEntry.Text, level);
         }
     }
 
