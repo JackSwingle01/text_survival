@@ -91,19 +91,14 @@ public class GameContext(Player player, Camp camp)
         {
             EventCondition.IsDaytime => GetTimeOfDay() == TimeOfDay.Morning ||
                          GetTimeOfDay() == TimeOfDay.Afternoon ||
-                         GetTimeOfDay() == TimeOfDay.Evening,
+                         GetTimeOfDay() == TimeOfDay.Evening || GetTimeOfDay() == TimeOfDay.Noon,
             EventCondition.Traveling => CurrentActivity == ActivityType.Traveling,
-            EventCondition.Resting => false, // TODO: implement when rest system exists
-            EventCondition.Working => Expedition?.State == ExpeditionState.Working,
             EventCondition.HasFood => Inventory.HasFood,
             EventCondition.HasMeat => Inventory.CookedMeat.Count > 0 || Inventory.RawMeat.Count > 0,
-            EventCondition.HasFirewood => Inventory.HasFuel,
-            EventCondition.HasStones => false, // TODO: implement if stones become a resource
             EventCondition.Injured => player.Body.Parts.Any(p => p.Condition < 1.0),
-            EventCondition.Bleeding => player.EffectRegistry.GetAll().Any(e => e.EffectKind.Equals("Bleeding", StringComparison.OrdinalIgnoreCase)),
-            EventCondition.Slow => Bodies.CapacityCalculator.GetCapacities(player.Body, player.GetEffectModifiers()).Moving < 0.7,
+            EventCondition.Slow => CapacityCalculator.GetCapacities(player.Body, player.GetEffectModifiers()).Moving < 0.7,
             EventCondition.FireBurning => Camp.HasActiveFire,
-            EventCondition.Inside => CurrentLocation.HasFeature<ShelterFeature>(),
+            EventCondition.Inside => CurrentLocation.HasFeature<ShelterFeature>() && !Check(EventCondition.FieldWork),
             EventCondition.Outside => !Check(EventCondition.Inside),
             EventCondition.InAnimalTerritory => CurrentLocation.HasFeature<AnimalTerritoryFeature>(),
             EventCondition.HasPredators => CurrentLocation.GetFeature<AnimalTerritoryFeature>()?.HasPredators() ?? false,
@@ -112,7 +107,7 @@ public class GameContext(Player player, Camp camp)
             EventCondition.IsSnowing => Zone.Weather.CurrentCondition is ZoneWeather.WeatherCondition.LightSnow
                                      or ZoneWeather.WeatherCondition.Blizzard,
             EventCondition.IsBlizzard => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Blizzard,
-            EventCondition.IsRaining => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Rainy,
+            EventCondition.IsRaining => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Rainy || Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Stormy,
             EventCondition.IsStormy => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Stormy,
             EventCondition.HighWind => Zone.Weather.WindSpeed > 0.6,
             EventCondition.IsClear => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Clear,
@@ -174,6 +169,7 @@ public class GameContext(Player player, Camp camp)
             EventCondition.OnExpedition => Expedition != null,
             EventCondition.NearFire => CurrentLocation.GetFeature<HeatSourceFeature>()?.IsActive ?? false,
             EventCondition.HasShelter => CurrentLocation.HasFeature<ShelterFeature>(),
+            EventCondition.NoShelter => !CurrentLocation.HasFeature<ShelterFeature>(),
 
             // Time of day
             EventCondition.Night => GetTimeOfDay() == TimeOfDay.Night,
@@ -184,7 +180,7 @@ public class GameContext(Player player, Camp camp)
 
             // Body state conditions
             EventCondition.LowCalories => player.Body.CalorieStore < 500,
-            EventCondition.LowHydration => player.Body.Hydration < 1500,
+            EventCondition.LowHydration => player.Body.Hydration < 1000,
             EventCondition.LowTemperature => player.Body.BodyTemperature < 96.0,
             EventCondition.Impaired => AbilityCalculator.IsConsciousnessImpaired(
                 player.GetCapacities().Consciousness),
@@ -200,12 +196,11 @@ public class GameContext(Player player, Camp camp)
             // Activity conditions (for event filtering)
             EventCondition.IsSleeping => CurrentActivity == ActivityType.Sleeping,
             EventCondition.Awake => CurrentActivity != ActivityType.Sleeping,
-            EventCondition.IsResting => CurrentActivity == ActivityType.Resting,
-            EventCondition.IsCampWork => CurrentActivity is ActivityType.TendingFire
-                or ActivityType.Eating or ActivityType.Cooking or ActivityType.Crafting,
-            EventCondition.IsExpedition => CurrentActivity is ActivityType.Traveling
-                or ActivityType.Foraging or ActivityType.Hunting or ActivityType.Exploring,
+            EventCondition.IsCampWork => CurrentActivity is ActivityType.TendingFire or ActivityType.Eating or ActivityType.Cooking or ActivityType.Crafting,
+            EventCondition.IsExpedition =>  !IsAtCamp,
             EventCondition.Eating => CurrentActivity == ActivityType.Eating,
+            EventCondition.FieldWork => (CurrentActivity is ActivityType.Traveling or ActivityType.Foraging or ActivityType.Hunting or ActivityType.Exploring),
+            EventCondition.Working => Check(EventCondition.IsCampWork) || Check(EventCondition.FieldWork),
             _ => false,
         };
     }
@@ -343,8 +338,8 @@ public class GameContext(Player player, Camp camp)
         Night,
         Dawn,
         Morning,
-        Afternoon,
         Noon,
+        Afternoon,
         Evening,
         Dusk
     }
@@ -368,14 +363,10 @@ public enum EventCondition
 {
     IsDaytime,
     Traveling,
-    Resting,
     Working,
     HasFood,
     HasMeat,
-    HasFirewood,
-    HasStones,
     Injured,
-    Bleeding,
     Slow,
     FireBurning,
     Outside,
@@ -457,6 +448,7 @@ public enum EventCondition
     OnExpedition,       // Player is on an expedition
     NearFire,           // Current location has active fire
     HasShelter,         // Current location has shelter feature
+    NoShelter,          // Current location has NO shelter feature
 
     // Time of day
     Night,              // Nighttime (before dawn or after dusk)
@@ -478,8 +470,8 @@ public enum EventCondition
     // Activity conditions (for event filtering based on what player is doing)
     IsSleeping,         // Player is sleeping
     Awake,              // Player is NOT sleeping (inverse of IsSleeping)
-    IsResting,          // Player is resting by fire
     IsCampWork,         // Player is doing camp work (tending fire, eating, cooking, crafting)
     IsExpedition,       // Player is on expedition (traveling, foraging, hunting, exploring)
     Eating,
+    FieldWork,
 }

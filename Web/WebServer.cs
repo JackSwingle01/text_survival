@@ -63,8 +63,8 @@ public static class WebServer
 
             try
             {
-                // Start receive loop in background
-                var receiveTask = Task.Run(() => ReceiveLoop(session, socket));
+                // Start receive loop in background (uses session's cancellation token)
+                var receiveTask = session.ReceiveLoopAsync();
 
                 // Run game on current thread (blocking)
                 await Task.Run(() => RunGame(sessionId));
@@ -89,51 +89,9 @@ public static class WebServer
         Console.WriteLine($"[WebServer] Starting on http://localhost:{port}");
         Console.WriteLine("[WebServer] Press Ctrl+C to stop");
 
+        app.Lifetime.ApplicationStopping.Register(() => SessionRegistry.CancelAll());
+
         await app.RunAsync();
-    }
-
-    private static async Task ReceiveLoop(WebGameSession session, WebSocket socket)
-    {
-        var buffer = new byte[4096];
-
-        try
-        {
-            while (socket.State == WebSocketState.Open)
-            {
-                var result = await socket.ReceiveAsync(buffer, CancellationToken.None);
-
-                if (result.MessageType == WebSocketMessageType.Close)
-                {
-                    session.NotifyDisconnect();
-                    break;
-                }
-
-                if (result.MessageType == WebSocketMessageType.Text)
-                {
-                    var json = System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    try
-                    {
-                        var response = JsonSerializer.Deserialize<PlayerResponse>(json, new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
-
-                        if (response != null)
-                        {
-                            session.EnqueueResponse(response);
-                        }
-                    }
-                    catch (JsonException)
-                    {
-                        // Ignore malformed JSON
-                    }
-                }
-            }
-        }
-        catch (WebSocketException)
-        {
-            session.NotifyDisconnect();
-        }
     }
 
     private static void RunGame(string sessionId)

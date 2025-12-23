@@ -43,7 +43,7 @@ namespace text_survival.IO
         /// <summary>
         /// Wait for key with game context.
         /// </summary>
-        public static void WaitForKey(GameContext ctx, string message = "Press any key to continue...")
+        public static void WaitForKey(GameContext ctx, string message = "Continue")
         {
             if (ctx.SessionId != null)
             {
@@ -51,6 +51,16 @@ namespace text_survival.IO
                 return;
             }
             WaitForKey(message);
+        }
+
+        /// <summary>
+        /// Read integer with range and game context - routes to web UI if session active.
+        /// </summary>
+        public static int ReadInt(GameContext ctx, string prompt, int min, int max)
+        {
+            if (ctx.SessionId != null)
+                return WebIO.ReadInt(ctx, prompt, min, max);
+            return ReadInt(min, max, prompt);
         }
 
         #endregion

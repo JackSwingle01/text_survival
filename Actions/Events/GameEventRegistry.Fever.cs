@@ -23,9 +23,10 @@ public static partial class GameEventRegistry
 
         return new GameEvent("Something Wrong",
             $"Chills that won't stop. Head pounding. {cause}", 0.8)
-            .MoreLikelyIf(EventCondition.WoundUntreated, 3.0)
-            .MoreLikelyIf(EventCondition.WoundUntreatedHigh, 4.0)
-            .MoreLikelyIf(EventCondition.LowTemperature, 2.0)
+            .Requires(EventCondition.Awake, EventCondition.LowTemperature)
+            .WithConditionFactor(EventCondition.WoundUntreated, 3.0)
+            .WithConditionFactor(EventCondition.WoundUntreatedHigh, 4.0)
+            .WithConditionFactor(EventCondition.LowTemperature, 2.0)
             .Choice("Rest by Fire",
                 "Stop. Warm up. Let your body fight.",
                 [
@@ -70,7 +71,7 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Fever Takes Hold",
             "Sweating despite the cold. Shivering despite the heat. World starting to blur at the edges.", 1.5)
-            .Requires(EventCondition.FeverRising)
+            .Requires(EventCondition.FeverRising, EventCondition.Awake)
             .Choice("Rest and Stay Warm",
                 "Full rest. Fire. Water. Let your body fight.",
                 [
@@ -247,7 +248,7 @@ public static partial class GameEventRegistry
 
         return new GameEvent("Crisis Point",
             "The fever peaks. Your body at war with itself. This is the turning point.", 2.5)
-            .Requires(EventCondition.FeverCritical)
+            .Requires(EventCondition.FeverCritical, EventCondition.Awake)
             .Choice("Fight Through",
                 hasGoodCare ? "Fire, shelter, water. Everything you need. Now fight." : "It's bad. But you have to try.",
                 hasGoodCare

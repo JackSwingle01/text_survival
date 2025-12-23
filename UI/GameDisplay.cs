@@ -141,7 +141,7 @@ public static class GameDisplay
     /// <summary>
     /// Render a progress loop with status panel updates. Updates game time by default.
     /// </summary>
-    public static void UpdateAndRenderProgress(GameContext ctx, string statusText, int minutes, ActivityType activity = ActivityType.Idle, bool updateTime = true)
+    public static void UpdateAndRenderProgress(GameContext ctx, string statusText, int minutes, ActivityType activity, bool updateTime = true)
     {
         for (int i = 0; i < minutes; i++)
         {

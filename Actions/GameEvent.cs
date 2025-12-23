@@ -45,6 +45,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public FeatureModification? ModifyFeature;
     public Type? RemoveFeature;  // Remove feature of this type from location
 
+    // Direct stat drains (for vomiting, etc)
+    public (double calories, double hydration)? StatDrain;
+
     // === Fluent builder methods ===
 
     public EventResult Aborts() { AbortsExpedition = true; return this; }
@@ -75,6 +78,13 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         return this;
     }
 
+    // Event chaining - immediately triggers a follow-up event
+    public EventResult Chain(Func<GameContext, GameEvent> eventFactory)
+    {
+        ChainEvent = eventFactory;
+        return this;
+    }
+
     // Feature operations
     public EventResult AddsFeature(Type featureType, (double, double, double) qualityRange)
     {
@@ -87,6 +97,13 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         return this;
     }
     public EventResult RemovesFeature(Type featureType) { RemoveFeature = featureType; return this; }
+
+    // Stat drains
+    public EventResult DrainsStats(double calories = 0, double hydration = 0)
+    {
+        StatDrain = (calories, hydration);
+        return this;
+    }
 }
 public class EventChoice(string label, string description, List<EventResult> results, List<EventCondition>? conditions = null)
 {
@@ -104,7 +121,7 @@ public class GameEvent(string name, string description, double weight)
     public readonly List<EventCondition> RequiredConditions = [];
 
     public double BaseWeight = weight;  // Selection weight (not trigger chance)
-    public readonly Dictionary<EventCondition, double> WeightModifiers = [];
+    public readonly Dictionary<EventCondition, double> WeightFactors = [];
 
     private List<EventChoice> _choices = [];
     public EventChoice GetChoice(GameContext ctx)
@@ -124,9 +141,9 @@ public class GameEvent(string name, string description, double weight)
         return this;
     }
 
-    public GameEvent MoreLikelyIf(EventCondition condition, double multiplier)
+    public GameEvent WithConditionFactor(EventCondition condition, double multiplier)
     {
-        WeightModifiers[condition] = multiplier;
+        WeightFactors[condition] = multiplier;
         return this;
     }
 

@@ -1,5 +1,4 @@
 using text_survival.Actions.Tensions;
-using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
@@ -16,7 +15,7 @@ public static partial class GameEventRegistry
     public record TickResult(int MinutesElapsed, GameEvent? TriggeredEvent);
 
     // Single knob to control overall event frequency
-    private const double EventsPerHour = 1.0;
+    private const double EventsPerHour = .5;
     private static readonly double BaseChancePerMinute = RateToChancePerMinute(EventsPerHour);
 
     private static double RateToChancePerMinute(double eventsPerHour)
@@ -125,7 +124,7 @@ public static partial class GameEventRegistry
         TheFind,
         AssessingTheClaim,
         TheConfrontation,
-        ClaimingTheDen,
+        // ClaimingTheDen is chained from successful eviction outcomes, not random
 
         // Pack arc events (GameEventRegistry.Pack.cs)
         PackSigns,
@@ -170,7 +169,7 @@ public static partial class GameEventRegistry
         if (!Utils.DetermineSuccess(chance))
             return null;
 
-        GameDisplay.AddNarrative(ctx, $"Debug: chance {chance:F3}/min, {(chance * 60):F3}/hr");
+        // GameDisplay.AddNarrative(ctx, $"Debug: chance {chance:F3}/min, {(chance * 60):F3}/hr");
         // Stage 2: Build eligible pool with weights
         var eligible = new Dictionary<GameEvent, double>();
 
@@ -184,7 +183,7 @@ public static partial class GameEventRegistry
 
             // Calculate weight with modifiers
             double weight = evt.BaseWeight;
-            foreach (var (condition, modifier) in evt.WeightModifiers)
+            foreach (var (condition, modifier) in evt.WeightFactors)
             {
                 if (ctx.Check(condition))
                     weight *= modifier;
@@ -233,6 +232,13 @@ public static partial class GameEventRegistry
         // Store encounter for caller to handle
         if (outcome.SpawnEncounter != null)
             ctx.PendingEncounter = outcome.SpawnEncounter;
+
+        // Chain to follow-up event if specified
+        if (outcome.ChainEvent != null)
+        {
+            var chainedEvent = outcome.ChainEvent(ctx);
+            HandleEvent(ctx, chainedEvent);
+        }
     }
 
     /// <summary>
@@ -243,7 +249,7 @@ public static partial class GameEventRegistry
         if (outcome.TimeAddedMinutes != 0)
         {
             GameDisplay.AddNarrative(ctx, $"(+{outcome.TimeAddedMinutes} minutes)");
-            GameDisplay.UpdateAndRenderProgress(ctx, "Acting", outcome.TimeAddedMinutes, updateTime: false);
+            GameDisplay.UpdateAndRenderProgress(ctx, "Acting", outcome.TimeAddedMinutes, ctx.CurrentActivity);
         }
 
         GameDisplay.AddNarrative(ctx, outcome.Message);
@@ -278,6 +284,22 @@ public static partial class GameEventRegistry
         if (outcome.Cost is not null)
         {
             DeductResources(ctx.Inventory, outcome.Cost);
+        }
+
+        // Direct stat drains (vomiting, etc)
+        if (outcome.StatDrain is not null)
+        {
+            var (calories, hydration) = outcome.StatDrain.Value;
+            if (calories > 0)
+            {
+                ctx.player.Body.DrainCalories(calories);
+                GameDisplay.AddNarrative(ctx, $"Lost {calories:F0} calories.");
+            }
+            if (hydration > 0)
+            {
+                ctx.player.Body.DrainHydration(hydration);
+                GameDisplay.AddNarrative(ctx, $"Lost {hydration:F0}ml hydration.");
+            }
         }
 
         // Tension processing

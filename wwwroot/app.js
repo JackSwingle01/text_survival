@@ -58,12 +58,12 @@ class GameClient {
 
         // Handle inventory overlay
         if (frame.inventory) {
-            this.showInventory(frame.inventory);
+            this.showInventory(frame.inventory, frame.input);
+            // Input is rendered inside the overlay, not in the action area
         } else {
             this.hideInventory();
+            this.renderInput(frame.input, frame.statusText, frame.progress);
         }
-
-        this.renderInput(frame.input, frame.statusText, frame.progress);
     }
 
     renderState(state) {
@@ -72,8 +72,8 @@ class GameClient {
         document.documentElement.style.setProperty('--vitality', state.vitality);
 
         // Time mode
-        document.body.classList.remove('night', 'twilight', 'day');
-        document.body.classList.add(state.isDaytime ? 'day' : 'night');
+        // document.body.classList.remove('night', 'twilight', 'day');
+        // document.body.classList.add(state.isDaytime ? 'day' : 'night');
 
         // Time panel
         document.getElementById('dayNumber').textContent = `Day ${state.dayNumber}`;
@@ -113,8 +113,6 @@ class GameClient {
         document.getElementById('insulationPct').textContent = `${state.insulationPercent}%`;
         document.getElementById('fuelReserve').textContent =
             `${state.fuelKg.toFixed(1)}kg (${state.fuelBurnTime})`;
-        document.getElementById('weightDisplay').textContent =
-            `${state.carryWeightKg.toFixed(1)} / ${state.maxWeightKg.toFixed(0)} kg`;
 
         // Narrative log
         this.renderLog(state.log);
@@ -143,52 +141,89 @@ class GameClient {
 
     renderFire(fire) {
         const phaseEl = document.getElementById('firePhase');
+        const phaseText = phaseEl.querySelector('.fire-phase-text');
         const timeEl = document.getElementById('fireTime');
-        const fuelEl = document.getElementById('fuelStatus');
-        const heatEl = document.getElementById('fireHeatOutput');
+        const fuelEl = document.getElementById('fireFuel');
+        const heatEl = document.getElementById('fireHeat');
 
-        if (!fire || fire.phase === 'Cold') {
-            phaseEl.textContent = fire ? 'Fire: Cold' : 'No fire pit';
+        if (!fire) {
+            phaseText.textContent = 'No fire pit';
             phaseEl.className = 'fire-phase cold';
             timeEl.textContent = '';
-            timeEl.className = 'fire-time';
-            fuelEl.textContent = fire ? `${fire.totalKg.toFixed(1)}kg fuel` : '';
+            fuelEl.textContent = '';
             heatEl.textContent = '';
             return;
         }
 
-        phaseEl.textContent = `Fire: ${fire.phase}`;
-        phaseEl.className = 'fire-phase ' + fire.phase.toLowerCase();
-
-        timeEl.textContent = `${fire.minutesRemaining} min remaining`;
-        timeEl.className = 'fire-time';
-        if (fire.minutesRemaining >= 30) timeEl.classList.add('ok');
-        else if (fire.minutesRemaining >= 15) timeEl.classList.add('warning');
-        else timeEl.classList.add('critical');
-
-        if (fire.unlitKg > 0.1) {
-            fuelEl.textContent = `${fire.burningKg.toFixed(1)}kg (+${fire.unlitKg.toFixed(1)}kg unlit)`;
-        } else {
-            fuelEl.textContent = `${fire.totalKg.toFixed(1)}kg`;
+        if (fire.phase === 'Cold') {
+            phaseText.textContent = 'Cold';
+            phaseEl.className = 'fire-phase cold';
+            timeEl.textContent = '';
+            // Show fuel if any is loaded
+            if (fire.totalKg > 0) {
+                const litPercent = fire.totalKg > 0 ? Math.round(fire.burningKg / fire.totalKg * 100) : 0;
+                fuelEl.textContent = `${fire.totalKg.toFixed(1)}kg fuel (${litPercent}% lit)`;
+            } else {
+                fuelEl.textContent = 'No fuel';
+            }
+            heatEl.textContent = '';
+            return;
         }
 
-        heatEl.textContent = fire.heatOutput > 0 ? `+${fire.heatOutput.toFixed(0)}°F` : '';
+        // Active fire
+        phaseText.textContent = fire.phase;
+        phaseEl.className = 'fire-phase ' + fire.phase.toLowerCase();
+
+        // Time remaining with burn rate
+        timeEl.textContent = `${fire.minutesRemaining} min (${fire.burnRateKgPerHour.toFixed(1)} kg/hr)`;
+
+        // Fuel breakdown: burning vs unlit, or total/max
+        this.clearElement(fuelEl);
+        if (fire.unlitKg > 0.1) {
+            const burningSpan = document.createElement('span');
+            burningSpan.className = 'fire-burning';
+            burningSpan.textContent = `${fire.burningKg.toFixed(1)}kg burning`;
+            const unlitSpan = document.createElement('span');
+            unlitSpan.className = 'fire-unlit';
+            unlitSpan.textContent = ` (+${fire.unlitKg.toFixed(1)}kg unlit)`;
+            fuelEl.appendChild(burningSpan);
+            fuelEl.appendChild(unlitSpan);
+        } else {
+            fuelEl.textContent = `${fire.totalKg.toFixed(1)}/${fire.maxCapacityKg.toFixed(0)} kg fuel`;
+        }
+
+        // Heat output
+        if (fire.heatOutput > 0) {
+            heatEl.textContent = `+${fire.heatOutput.toFixed(0)}°F heat`;
+        } else {
+            heatEl.textContent = '';
+        }
     }
 
     renderTemperature(state) {
         const bodyTemp = state.bodyTemp;
+        const feelsLike = state.airTemp + (state.fireHeat || 0);
 
-        // Temperature bar (87-102 range)
+        // Temperature badge (feels like temp - prominent display)
+        const tempBadge = document.getElementById('tempBadge');
+        const tempBadgeValue = document.getElementById('tempBadgeValue');
+        tempBadgeValue.textContent = `${feelsLike.toFixed(0)}°F`;
+
+        // Set badge color class based on feels like temp
+        tempBadge.className = 'temp-badge';
+        if (feelsLike < 20) tempBadge.classList.add('danger');
+        else if (feelsLike < 40) tempBadge.classList.add('cold');
+        else if (feelsLike < 60) tempBadge.classList.add('cool');
+        else if (feelsLike < 80) tempBadge.classList.add('normal');
+        else tempBadge.classList.add('hot');
+
+        // Temperature segmented bar (87-102 range)
         const tempPct = Math.max(0, Math.min(100, (bodyTemp - 87) / (102 - 87) * 100));
-        const tempBar = document.getElementById('tempBarFill');
-        tempBar.style.width = tempPct + '%';
-
-        tempBar.className = 'temp-bar-fill';
-        if (bodyTemp < 95) tempBar.classList.add('hypothermia');
-        else if (bodyTemp < 97) tempBar.classList.add('cool');
-        else if (bodyTemp < 99) tempBar.classList.add('normal');
-        else if (bodyTemp < 100) tempBar.classList.add('hot');
-        else tempBar.classList.add('hyperthermia');
+        let tempState = 'normal';
+        if (bodyTemp < 95) tempState = 'cold';
+        else if (bodyTemp < 97) tempState = 'cool';
+        else if (bodyTemp > 100) tempState = 'hot';
+        this.renderSegmentBar('tempSegmentBar', tempPct, tempState);
 
         document.getElementById('bodyTempDisplay').textContent = `${bodyTemp.toFixed(1)}°F`;
 
@@ -221,31 +256,49 @@ class GameClient {
         }
     }
 
-    renderSurvival(state) {
-        this.updateStatBar('health', state.healthPercent, this.getHealthStatus);
-        this.updateStatBar('food', state.foodPercent, this.getFoodStatus);
-        this.updateStatBar('water', state.waterPercent, this.getWaterStatus);
-        this.updateStatBar('energy', state.energyPercent, this.getEnergyStatus);
+    renderSegmentBar(containerId, percent, state = 'normal') {
+        const container = document.getElementById(containerId);
+        this.clearElement(container);
+
+        const filledSegments = Math.round(percent / 10);
+        const isCritical = percent < 20;
+        const isLow = percent < 40 && percent >= 20;
+
+        for (let i = 0; i < 10; i++) {
+            const segment = document.createElement('div');
+            segment.className = 'segment';
+            if (i < filledSegments) {
+                segment.classList.add('filled');
+                if (isCritical) segment.classList.add('critical');
+                else if (isLow) segment.classList.add('low');
+            }
+            container.appendChild(segment);
+        }
     }
 
-    updateStatBar(stat, percent, statusFn) {
-        const bar = document.getElementById(stat + 'Bar');
+    renderSurvival(state) {
+        this.updateStatSegments('health', state.healthPercent, this.getHealthStatus);
+        this.updateStatSegments('food', state.foodPercent, this.getFoodStatus);
+        this.updateStatSegments('water', state.waterPercent, this.getWaterStatus);
+        this.updateStatSegments('energy', state.energyPercent, this.getEnergyStatus);
+    }
+
+    updateStatSegments(stat, percent, statusFn) {
         const pctEl = document.getElementById(stat + 'Pct');
         const statusEl = document.getElementById(stat + 'Status');
 
-        bar.style.width = percent + '%';
         pctEl.textContent = percent + '%';
         statusEl.textContent = statusFn(percent);
 
         pctEl.className = 'stat-value';
-        bar.className = 'stat-bar-fill ' + stat;
         if (percent < 20) {
             pctEl.classList.add('critical');
-            bar.classList.add('critical');
         } else if (percent < 40) {
             pctEl.classList.add('low');
-            bar.classList.add('low');
         }
+
+        // Render segmented bar
+        this.renderSegmentBar(stat + 'SegmentBar', percent);
     }
 
     getHealthStatus(pct) {
@@ -283,15 +336,15 @@ class GameClient {
 
     renderEffects(effects) {
         const container = document.getElementById('effectsList');
+        const section = container.parentElement;
         this.clearElement(container);
 
         if (!effects || effects.length === 0) {
-            const div = document.createElement('div');
-            div.className = 'effect-item stable';
-            div.textContent = 'None';
-            container.appendChild(div);
+            section.style.display = 'none';
             return;
         }
+
+        section.style.display = '';
 
         effects.forEach(e => {
             const div = document.createElement('div');
@@ -319,12 +372,20 @@ class GameClient {
 
     renderInjuries(injuries, bloodPercent) {
         const container = document.getElementById('injuriesList');
+        const section = container.parentElement;
         this.clearElement(container);
 
-        let hasItems = false;
+        const hasBloodLoss = bloodPercent && bloodPercent < 95;
+        const hasInjuries = injuries && injuries.length > 0;
 
-        if (bloodPercent && bloodPercent < 95) {
-            hasItems = true;
+        if (!hasBloodLoss && !hasInjuries) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = '';
+
+        if (hasBloodLoss) {
             const div = document.createElement('div');
             div.className = `injury-item ${this.getInjurySeverityClass(bloodPercent)}`;
             div.textContent = 'Blood loss ';
@@ -335,8 +396,7 @@ class GameClient {
             container.appendChild(div);
         }
 
-        if (injuries && injuries.length > 0) {
-            hasItems = true;
+        if (hasInjuries) {
             injuries.forEach(i => {
                 const div = document.createElement('div');
                 div.className = `injury-item ${this.getInjurySeverityClass(i.conditionPercent)}`;
@@ -348,13 +408,6 @@ class GameClient {
                 div.appendChild(pctSpan);
                 container.appendChild(div);
             });
-        }
-
-        if (!hasItems) {
-            const div = document.createElement('div');
-            div.className = 'injury-item minor';
-            div.textContent = 'None';
-            container.appendChild(div);
         }
     }
 
@@ -381,28 +434,51 @@ class GameClient {
         container.scrollTop = container.scrollHeight;
     }
 
+    renderProgressSegments(percent, complete = false) {
+        const container = document.getElementById('progressSegmentBar');
+        this.clearElement(container);
+
+        const filledSegments = Math.round(percent / 10);
+        for (let i = 0; i < 10; i++) {
+            const segment = document.createElement('div');
+            segment.className = 'segment';
+            if (i < filledSegments) {
+                segment.classList.add('filled');
+            }
+            container.appendChild(segment);
+        }
+
+        if (complete) {
+            container.classList.add('complete');
+        } else {
+            container.classList.remove('complete');
+        }
+    }
+
     renderInput(input, statusText, progress) {
         const actionsArea = document.getElementById('actionsArea');
         const statusTextEl = document.getElementById('statusText');
-        const progressContainer = document.getElementById('progressBarContainer');
-        const progressFill = document.getElementById('progressFill');
+        const statusIcon = document.getElementById('statusIcon');
+        const progressContainer = document.getElementById('progressSegmentBar');
         const progressPercent = document.getElementById('progressPercent');
 
         // Update progress/status display
         if (progress && progress.total > 0) {
             const pct = Math.round(progress.current / progress.total * 100);
             statusTextEl.textContent = statusText || 'Working...';
+            statusIcon.style.display = '';
             progressContainer.style.display = '';
-            progressFill.style.width = pct + '%';
-            progressFill.className = 'progress-fill' + (pct >= 100 ? ' complete' : '');
+            this.renderProgressSegments(pct, pct >= 100);
             progressPercent.style.display = '';
             progressPercent.textContent = pct + '%';
         } else if (statusText) {
             statusTextEl.textContent = statusText;
+            statusIcon.style.display = 'none';
             progressContainer.style.display = 'none';
             progressPercent.style.display = 'none';
         } else {
             statusTextEl.textContent = '—';
+            statusIcon.style.display = 'none';
             progressContainer.style.display = 'none';
             progressPercent.style.display = 'none';
         }
@@ -455,14 +531,9 @@ class GameClient {
             actionsArea.appendChild(listDiv);
 
         } else if (input.type === 'anykey') {
-            const promptDiv = document.createElement('div');
-            promptDiv.className = 'action-prompt';
-            promptDiv.textContent = input.prompt;
-            actionsArea.appendChild(promptDiv);
-
             const btn = document.createElement('button');
             btn.className = 'action-btn primary';
-            btn.textContent = 'Continue';
+            btn.textContent = input.prompt || 'Continue';
             btn.onclick = () => this.respond(null);
             actionsArea.appendChild(btn);
         }
@@ -480,7 +551,7 @@ class GameClient {
         }
     }
 
-    showInventory(inv) {
+    showInventory(inv, input) {
         const overlay = document.getElementById('inventoryOverlay');
         overlay.classList.remove('hidden');
 
@@ -556,6 +627,28 @@ class GameClient {
 
         if (matContent.children.length === 0) {
             this.addNoneItem(matContent);
+        }
+
+        // Render action buttons inside the overlay
+        const actionsContainer = document.getElementById('inventoryActions');
+        this.clearElement(actionsContainer);
+
+        if (input && input.type === 'select' && input.choices) {
+            // Render selection buttons inside overlay
+            input.choices.forEach((choice, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'action-btn' + (choice === 'Back' ? '' : ' primary');
+                btn.textContent = choice;
+                btn.onclick = () => this.respond(i);
+                actionsContainer.appendChild(btn);
+            });
+        } else {
+            // Close button only (for read-only view or anykey)
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'action-btn';
+            closeBtn.textContent = 'Close';
+            closeBtn.onclick = () => this.respond(null);
+            actionsContainer.appendChild(closeBtn);
         }
     }
 

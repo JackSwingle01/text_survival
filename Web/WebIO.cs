@@ -10,10 +10,27 @@ namespace text_survival.Web;
 public static class WebIO
 {
     private static readonly TimeSpan ResponseTimeout = TimeSpan.FromMinutes(5);
+    private static readonly Dictionary<string, InventoryDto> _currentInventory = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
         ?? throw new InvalidOperationException($"No session found for ID: {ctx.SessionId}");
+
+    private static InventoryDto? GetInventory(string? sessionId)
+    {
+        if (sessionId != null && _currentInventory.TryGetValue(sessionId, out var dto))
+            return dto;
+        return null;
+    }
+
+    /// <summary>
+    /// Clear the current inventory display for a session.
+    /// </summary>
+    public static void ClearInventory(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentInventory.Remove(ctx.SessionId);
+    }
 
     /// <summary>
     /// Present a selection menu and wait for player choice.
@@ -29,7 +46,9 @@ public static class WebIO
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             new InputRequestDto("select", prompt, list.Select(display).ToList()),
-            null
+            null,
+            null,
+            GetInventory(ctx.SessionId)
         );
 
         session.Send(frame);
@@ -49,7 +68,9 @@ public static class WebIO
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             new InputRequestDto("confirm", prompt, null),
-            null
+            null,
+            null,
+            GetInventory(ctx.SessionId)
         );
 
         session.Send(frame);
@@ -62,18 +83,45 @@ public static class WebIO
     /// <summary>
     /// Wait for any key press (continue button in web UI).
     /// </summary>
-    public static void WaitForKey(GameContext ctx, string message = "Press any key to continue...")
+    public static void WaitForKey(GameContext ctx, string message = "Continue")
     {
         var session = GetSession(ctx);
 
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             new InputRequestDto("anykey", message, null),
-            null
+            null,
+            null,
+            GetInventory(ctx.SessionId)
         );
 
         session.Send(frame);
         session.WaitForResponse(ResponseTimeout);
+    }
+
+    /// <summary>
+    /// Present a numeric selection and wait for player choice.
+    /// Shows as buttons with the available numbers.
+    /// </summary>
+    public static int ReadInt(GameContext ctx, string prompt, int min, int max)
+    {
+        var session = GetSession(ctx);
+
+        var choices = Enumerable.Range(min, max - min + 1).Select(n => n.ToString()).ToList();
+
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            new InputRequestDto("select", prompt, choices),
+            null,
+            null,
+            GetInventory(ctx.SessionId)
+        );
+
+        session.Send(frame);
+        var response = session.WaitForResponse(ResponseTimeout);
+
+        int index = Math.Clamp(response.ChoiceIndex ?? 0, 0, choices.Count - 1);
+        return min + index;
     }
 
     /// <summary>
@@ -111,21 +159,11 @@ public static class WebIO
     }
 
     /// <summary>
-    /// Render inventory screen overlay.
+    /// Set the inventory to display. Will be included in subsequent input frames.
     /// </summary>
     public static void RenderInventory(GameContext ctx, Items.Inventory inventory, string title)
     {
-        var session = SessionRegistry.Get(ctx.SessionId);
-        if (session == null) return;
-
-        var frame = new WebFrame(
-            GameStateDto.FromContext(ctx),
-            null,
-            null,
-            null,
-            InventoryDto.FromInventory(inventory, title)
-        );
-
-        session.Send(frame);
+        if (ctx.SessionId == null) return;
+        _currentInventory[ctx.SessionId] = InventoryDto.FromInventory(inventory, title);
     }
 }

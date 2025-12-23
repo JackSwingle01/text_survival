@@ -27,4 +27,12 @@ public static class SessionRegistry
     }
 
     public static int ActiveSessionCount => _sessions.Count;
+
+    public static void CancelAll()
+    {
+        foreach (var session in _sessions.Values)
+        {
+            session.Cancel();
+        }
+    }
 }

@@ -486,13 +486,7 @@ public partial class GameRunner(GameContext ctx)
 
     private void Sleep()
     {
-        int hours = Input.ReadInt("How many hours would you like to sleep?");
-
-        if (hours < 1 || hours > 24)
-        {
-            GameDisplay.AddWarning(ctx, "You can only sleep for 1-24 hours at a time.");
-            return;
-        }
+        int hours = Input.ReadInt(ctx, "How many hours would you like to sleep?", 1, 12);
 
         int totalMinutes = hours * 60;
         int slept = 0;
@@ -531,6 +525,8 @@ public partial class GameRunner(GameContext ctx)
             // Not at camp - just show read-only inventory view
             GameDisplay.RenderInventoryScreen(ctx);
             Input.WaitForKey("Press any key to return...");
+            if (ctx.SessionId != null)
+                Web.WebIO.ClearInventory(ctx);
             return;
         }
 
@@ -570,6 +566,9 @@ public partial class GameRunner(GameContext ctx)
             else if (selected == "Retrieve items")
                 RetrieveItems();
         }
+
+        if (ctx.SessionId != null)
+            Web.WebIO.ClearInventory(ctx);
     }
 
     private void StoreItems()

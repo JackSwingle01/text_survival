@@ -68,7 +68,7 @@ namespace text_survival
             cumulativeWeight += pair.Value;
             if (roll <= cumulativeWeight)
                 {
-                    GameDisplay.AddNarrative($"Debug: Odds: {pair.Value / totalWeight * 100:F2}%");
+                    // GameDisplay.AddNarrative($"Debug: Odds: {pair.Value / totalWeight * 100:F2}%");
                     return pair.Key;
                 }
         }

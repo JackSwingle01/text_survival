@@ -182,7 +182,11 @@ public class WorkRunner(GameContext ctx)
         timeChoice.AddOption("Quick scout - 15 min", 15);
         timeChoice.AddOption("Standard scout - 30 min (+10%)", 30);
         timeChoice.AddOption("Thorough scout - 60 min (+20%)", 60);
+        timeChoice.AddOption("Cancel", 0);
         int exploreTime = timeChoice.GetPlayerChoice(_ctx);
+
+        if (exploreTime == 0)
+            return WorkResult.Empty(0);
 
         // Breathing impairment slows exploration (+15%)
         var breathing = _ctx.player.GetCapacities().Breathing;
