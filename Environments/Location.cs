@@ -46,6 +46,11 @@ public class Location(string name, string tags, Zone parent, int traversalMinute
     /// </summary>
     public bool IsDark { get; set; } = false;
 
+    /// <summary>
+    /// First-visit discovery text (flavor text shown once).
+    /// </summary>
+    public string? DiscoveryText { get; set; }
+
     // Discovery //
     public bool Explored { get; private set; } = false;
     public List<LocationFeature> Features { get; } = [];
@@ -97,7 +102,12 @@ public class Location(string name, string tags, Zone parent, int traversalMinute
         Features.Add(feature);
     }
 
-    public double GetTemperature()
+    /// <summary>
+    /// Get the effective temperature at this location.
+    /// </summary>
+    /// <param name="isStationary">If true, apply structural shelter effects (resting, crafting).
+    /// If false, only apply environmental shelter (foraging, hunting, traveling).</param>
+    public double GetTemperature(bool isStationary = true)
     {
         // Get zone's weather temperature (in Fahrenheit)
         double zoneTemp = ParentZone.Weather.TemperatureInFahrenheit;
@@ -136,9 +146,11 @@ public class Location(string name, string tags, Zone parent, int traversalMinute
         locationTemp -= precipitationCooling;
 
         // ------ STEP 3: Apply shelter effects if present ------
+        // Structural shelter only applies when stationary (resting, crafting, etc.)
+        // When moving (foraging, hunting, traveling), you're not benefiting from the shelter
         double insulation = 0;
         var shelter = GetFeature<ShelterFeature>();
-        if (shelter != null)
+        if (shelter != null && isStationary)
         {
             // Start with minimum temperature a shelter can maintain (in °F)
             double minShelterTemp = 40; // About 4.4°C, what a good shelter can maintain from body heat
@@ -152,6 +164,7 @@ public class Location(string name, string tags, Zone parent, int traversalMinute
         }
 
         // If there's a heat source, add its effect (including embers)
+        // Heat sources benefit you regardless of activity - you're still in the area
         var heatSource = GetFeature<HeatSourceFeature>();
         if (heatSource != null)
         {

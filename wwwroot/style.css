@@ -256,6 +256,7 @@ body.day .day-number { color: #1a1410; }
 .left-panel {
     border-right: 1px solid var(--border-color);
     padding-right: 20px;
+    padding-top: 80px;
     font-size: 0.9em;
 }
 
@@ -355,8 +356,23 @@ body.day .day-number { color: #1a1410; }
 .location-desc {
     font-size: 0.9em;
     color: var(--text-dim);
-    font-style: italic;
     margin-bottom: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* Location tag pills */
+.location-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: rgba(128, 128, 128, 0.15);
+    border: 1px solid rgba(128, 128, 128, 0.3);
+    color: var(--text-dim);
 }
 
 .location-features {
@@ -492,6 +508,7 @@ body.day .action-btn:hover {
 .side-panel {
     border-left: 1px solid var(--border-color);
     padding-left: 20px;
+    padding-top: 80px;
     font-size: 0.9em;
 }
 
@@ -759,6 +776,34 @@ body.day .action-btn:hover {
 
 .injury-pct { color: var(--text-dim); font-size: 0.9em; }
 
+/* ========== TOOLTIPS ========== */
+.effect-tooltip {
+    display: none;
+    position: absolute;
+    left: 0;
+    top: 100%;
+    z-index: 100;
+    min-width: 140px;
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    white-space: nowrap;
+    pointer-events: none;
+    background: #1a1a1e;
+    border: 1px solid #3a3a42;
+    color: #c0c0c0;
+}
+
+.effect-item.has-tooltip,
+.injury-item.has-tooltip {
+    position: relative;
+    cursor: help;
+}
+
+.effect-item.has-tooltip:hover .effect-tooltip,
+.injury-item.has-tooltip:hover .effect-tooltip {
+    display: block;
+}
 
 /* ========== CONNECTION OVERLAY ========== */
 .connection-overlay {

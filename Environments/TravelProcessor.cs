@@ -6,6 +6,60 @@ namespace text_survival.Environments;
 
 public static class TravelProcessor
 {
+    /// <summary>
+    /// Threshold above which terrain is considered hazardous enough to offer speed choice.
+    /// </summary>
+    public const double HazardousTerrainThreshold = 0.3;
+
+    /// <summary>
+    /// Time multiplier for careful travel (slower but safe).
+    /// </summary>
+    public const double CarefulTravelMultiplier = 1.5;
+
+    /// <summary>
+    /// Maximum injury risk cap.
+    /// </summary>
+    public const double MaxInjuryRisk = 0.5;
+
+    /// <summary>
+    /// Calculate injury risk for quick travel through hazardous terrain.
+    /// Returns 0-0.5 probability of injury.
+    /// </summary>
+    public static double GetInjuryRisk(Location location, Player player, ZoneWeather weather)
+    {
+        double baseRisk = location.TerrainHazardLevel;
+        if (baseRisk < HazardousTerrainThreshold) return 0;
+
+        // Weather modifiers
+        double weatherMod = 0;
+        if (weather.Precipitation > 0.3 || weather.CurrentCondition == ZoneWeather.WeatherCondition.LightSnow)
+            weatherMod = 0.15;
+        if (weather.CurrentCondition == ZoneWeather.WeatherCondition.Blizzard ||
+            weather.CurrentCondition == ZoneWeather.WeatherCondition.Stormy)
+            weatherMod = 0.25;
+
+        // Player capacity modifier - impaired movement increases risk
+        var capacities = player.GetCapacities();
+        double capacityMod = (1 - capacities.Moving) * 0.3;
+
+        return Math.Min(MaxInjuryRisk, baseRisk + weatherMod + capacityMod);
+    }
+
+    /// <summary>
+    /// Get travel time for careful (safe) traversal.
+    /// </summary>
+    public static int GetCarefulTraversalMinutes(Location location, Player player, Inventory? inventory = null)
+    {
+        int normalTime = GetTraversalMinutes(location, player, inventory);
+        return (int)Math.Ceiling(normalTime * CarefulTravelMultiplier);
+    }
+
+    /// <summary>
+    /// Check if terrain is hazardous enough to warrant speed choice.
+    /// </summary>
+    public static bool IsHazardousTerrain(Location location) =>
+        location.TerrainHazardLevel >= HazardousTerrainThreshold;
+
     public static int GetTraversalMinutes(Location location, Player player, Inventory? inventory = null)
     {
         if (location.BaseTraversalMinutes == 0) return 0;

@@ -6,7 +6,7 @@ Implement new location properties (1-5), authored location infrastructure, and r
 
 ---
 
-## Phase 1: Add New Location Properties
+## Phase 1: Add New Location Properties - DONE
 
 **File: [Location.cs](Environments/Location.cs)**
 
@@ -18,6 +18,8 @@ public bool IsDark { get; set; } = false;        // Requires light to work
 public string? DiscoveryText { get; set; }       // First-visit flavor text
 public List<string> Tags { get; set; } = [];     // Authored character tags
 ```
+
+Note this has been completed, but we decided to change the exact properties slightly - see location.cs.
 
 ---
 

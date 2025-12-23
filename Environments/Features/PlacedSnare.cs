@@ -42,7 +42,7 @@ public class PlacedSnare
     private const double MaxTimeBonus = 1.0;
     private const double HoursToMaxBonus = 6.0;
     private const double BaitDecayPerHour = 0.10;
-    private const double ScavengerChancePerHour = 0.15;
+    private const double ScavengerChancePerHour = 0.08;
     private const int ScavengerThresholdMinutes = 180; // 3 hours
 
     public PlacedSnare(int durability, bool reinforced = false)
@@ -249,4 +249,36 @@ public class PlacedSnare
             _ => $"Set ({MinutesSet / 60.0:F1}h)"
         };
     }
+
+    #region Save/Load Support
+
+    /// <summary>
+    /// Restore snare state from save data.
+    /// </summary>
+    internal void RestoreState(
+        SnareState state,
+        int minutesSet,
+        BaitType bait,
+        double baitFreshness,
+        string? caughtAnimalType,
+        double caughtAnimalWeight,
+        int minutesSinceCatch,
+        int durability)
+    {
+        State = state;
+        MinutesSet = minutesSet;
+        Bait = bait;
+        BaitFreshness = baitFreshness;
+        CaughtAnimalType = caughtAnimalType;
+        CaughtAnimalWeightKg = caughtAnimalWeight;
+        MinutesSinceCatch = minutesSinceCatch;
+        DurabilityRemaining = durability;
+    }
+
+    /// <summary>
+    /// Create a snare with restored state (for save/load).
+    /// </summary>
+    internal static PlacedSnare CreateRestored(int durability, bool reinforced) => new(durability, reinforced);
+
+    #endregion
 }

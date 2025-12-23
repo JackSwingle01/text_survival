@@ -6,6 +6,7 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Actions.Expeditions;
+using text_survival.Persistence;
 using text_survival.UI;
 using text_survival.Survival;
 
@@ -56,6 +57,9 @@ public partial class GameRunner(GameContext ctx)
 
     private void RunCampMenu()
     {
+        // Auto-save when at camp menu
+        SaveManager.Save(ctx);
+
         var choice = new Choice<Action>();
         var capacities = ctx.player.GetCapacities();
         var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);

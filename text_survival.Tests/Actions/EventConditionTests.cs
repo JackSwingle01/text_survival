@@ -14,7 +14,7 @@ public class EventConditionTests
     {
         var player = new Player();
         var zone = new Zone("Test Zone", "A test zone");
-        var location = new Location("Test Location", zone);
+        var location = new Location("Test Location", "[test]", zone, 5);
         zone.Graph.Add(location);
         var camp = new Camp(location);
 
@@ -39,7 +39,7 @@ public class EventConditionTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        var awayLocation = new Location("Away Location", ctx.Zone);
+        var awayLocation = new Location("Away Location", "[test]", ctx.Zone, 5);
         ctx.Zone.Graph.Add(awayLocation);
         ctx.Expedition = new Expedition(ctx.CurrentLocation, ctx.player);
         ctx.Expedition.MoveTo(awayLocation, 10); // Travel away from camp

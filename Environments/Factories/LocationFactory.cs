@@ -285,6 +285,431 @@ public static class LocationFactory
         return location;
     }
 
+    /// <summary>
+    /// Hot spring - thermal pull. Warmth bonus draws players here for shelter.
+    /// </summary>
+    public static Location MakeHotSpring(Zone parent)
+    {
+        List<string> springNames = ["Hot Spring", "Thermal Pool", "Steaming Pool", "Warm Springs"];
+        List<string> springAdjectives = [
+            "Misty", "Steaming", "Bubbling", "Hidden", "Sulfurous",
+            "Ancient", "Sacred", "Warm", "Sheltered"
+        ];
+
+        string adjective = Utils.GetRandomFromList(springAdjectives);
+        string name = Utils.GetRandomFromList(springNames);
+        name = (adjective + " " + name).Trim();
+
+        var location = new Location(name,
+                                    tags: "[Warm] [Water]",
+                                    parent: parent,
+                                    traversalMinutes: 20,
+                                    terrainHazardLevel: 0.3,
+                                    windFactor: 0.4,
+                                    overheadCoverLevel: 0.1,
+                                    visibilityFactor: 0.8)
+        {
+            DiscoveryText = "Steam rises from a pool of warm water. The air here is noticeably warmer."
+        };
+
+        // Hot springs provide significant warmth bonus (+20F)
+        // Note: TemperatureDeltaF is readonly, so we set via primary constructor
+        // For now, use shelter feature to represent the warmth
+
+        // Very limited forage - mostly just mineral deposits
+        var forageFeature = new ForageFeature(0.3)
+            .AddStone(0.4, 0.1, 0.3);
+        location.Features.Add(forageFeature);
+
+        // Water harvestable - warm water is always available
+        var spring = new HarvestableFeature("hot_spring", "Thermal Pool")
+        {
+            Description = "Warm water bubbles up from deep below. Safe to drink once cooled.",
+            MinutesToHarvest = 2
+        };
+        spring.AddResource(HarvestResourceType.Water, maxQuantity: 50, weightPerUnit: 1.0,
+            respawnHoursPerUnit: 0.1, displayName: "warm water");
+        location.Features.Add(spring);
+
+        // Animals come here to drink
+        var animalTerritory = new AnimalTerritoryFeature(0.6)
+            .AddDeer(0.8)
+            .AddRabbit(0.4);
+        location.Features.Add(animalTerritory);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Frozen creek - water source but hazardous and slippery.
+    /// </summary>
+    public static Location MakeFrozenCreek(Zone parent)
+    {
+        List<string> creekNames = ["Creek", "Stream", "Brook", "Run", "Channel"];
+        List<string> creekAdjectives = [
+            "Frozen", "Ice-locked", "Silent", "Narrow", "Winding",
+            "Treacherous", "Slick", "Glassy"
+        ];
+
+        string adjective = Utils.GetRandomFromList(creekAdjectives);
+        string name = Utils.GetRandomFromList(creekNames);
+        name = (adjective + " " + name).Trim();
+
+        var location = new Location(name,
+                                    tags: "[Ice] [Water] [Slippery]",
+                                    parent: parent,
+                                    traversalMinutes: 12,
+                                    terrainHazardLevel: 0.5,
+                                    windFactor: 0.9,
+                                    overheadCoverLevel: 0.0,
+                                    visibilityFactor: 1.0)
+        {
+            DiscoveryText = "The creek is frozen solid. Dark shapes move beneath the ice."
+        };
+
+        // Limited forage - some driftwood frozen in ice
+        var forageFeature = new ForageFeature(0.6)
+            .AddSticks(1.5, 0.15, 0.4)
+            .AddStone(0.3, 0.2, 0.4);
+        location.Features.Add(forageFeature);
+
+        // Ice can be harvested for water
+        var iceSource = new HarvestableFeature("ice", "Creek Ice")
+        {
+            Description = "Thick ice covers the creek. Can be broken and melted for water.",
+            MinutesToHarvest = 5
+        };
+        iceSource.AddResource(HarvestResourceType.Water, maxQuantity: 20, weightPerUnit: 1.0,
+            respawnHoursPerUnit: 48.0, displayName: "ice chunks");
+        location.Features.Add(iceSource);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Deadwood grove - excellent fuel source but dangerous footing from tangled logs.
+    /// </summary>
+    public static Location MakeDeadwoodGrove(Zone parent)
+    {
+        List<string> groveNames = ["Grove", "Stand", "Tangle", "Deadfall", "Blowdown"];
+        List<string> groveAdjectives = [
+            "Deadwood", "Tangled", "Storm-felled", "Rotting", "Bone-dry",
+            "Jumbled", "Chaotic", "Treacherous"
+        ];
+
+        string adjective = Utils.GetRandomFromList(groveAdjectives);
+        string name = Utils.GetRandomFromList(groveNames);
+        name = (adjective + " " + name).Trim();
+
+        var location = new Location(name,
+                                    tags: "[Fuel] [Treacherous]",
+                                    parent: parent,
+                                    traversalMinutes: 15,
+                                    terrainHazardLevel: 0.7,
+                                    windFactor: 0.5,
+                                    overheadCoverLevel: 0.2,
+                                    visibilityFactor: 0.4)
+        {
+            DiscoveryText = "A tangle of fallen trees, bleached and dry. Fuel everywhere - but one wrong step could snap an ankle."
+        };
+
+        // Exceptional fuel resources - the pull
+        var forageFeature = new ForageFeature(3.0)
+            .AddLogs(3.0, 1.5, 4.0)
+            .AddSticks(4.0, 0.2, 0.7)
+            .AddTinder(3.0, 0.02, 0.1);
+        location.Features.Add(forageFeature);
+
+        // Large harvestable deadfall
+        var deadfall = new HarvestableFeature("massive_deadfall", "Massive Fallen Pine")
+        {
+            Description = "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
+            MinutesToHarvest = 20
+        };
+        deadfall.AddResource(HarvestResourceType.Log, maxQuantity: 8, weightPerUnit: 2.5,
+            respawnHoursPerUnit: 0, displayName: "dry logs");
+        deadfall.AddResource(HarvestResourceType.Stick, maxQuantity: 15, weightPerUnit: 0.3,
+            respawnHoursPerUnit: 0, displayName: "branches");
+        deadfall.AddResource(HarvestResourceType.Tinder, maxQuantity: 5, weightPerUnit: 0.05,
+            respawnHoursPerUnit: 0, displayName: "bark strips");
+        location.Features.Add(deadfall);
+
+        // Small game hides in the deadfall
+        var animalTerritory = new AnimalTerritoryFeature(0.7)
+            .AddRabbit(1.2)
+            .AddFox(0.4);
+        location.Features.Add(animalTerritory);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Rocky overlook - high visibility for scouting, exposed, good stone.
+    /// </summary>
+    public static Location MakeOverlook(Zone parent)
+    {
+        List<string> overlookNames = ["Overlook", "Viewpoint", "Lookout", "Vantage", "Summit"];
+        List<string> overlookAdjectives = [
+            "Rocky", "Wind-scoured", "High", "Exposed", "Commanding",
+            "Stark", "Barren", "Open"
+        ];
+
+        string adjective = Utils.GetRandomFromList(overlookAdjectives);
+        string name = Utils.GetRandomFromList(overlookNames);
+        name = (adjective + " " + name).Trim();
+
+        var location = new Location(name,
+                                    tags: "[Scout] [Exposed] [Stone]",
+                                    parent: parent,
+                                    traversalMinutes: 18,
+                                    terrainHazardLevel: 0.4,
+                                    windFactor: 1.6,
+                                    overheadCoverLevel: 0.0,
+                                    visibilityFactor: 1.8)
+        {
+            DiscoveryText = "The view stretches for miles. You can see smoke from distant fires, animal trails below."
+        };
+
+        // Excellent stone, very limited vegetation
+        var forageFeature = new ForageFeature(0.4)
+            .AddStone(1.5, 0.3, 0.8)
+            .AddTinder(0.1, 0.01, 0.03);
+        location.Features.Add(forageFeature);
+
+        // Birds nest on high places
+        var animalTerritory = new AnimalTerritoryFeature(0.4)
+            .AddPtarmigan(1.0);
+        location.Features.Add(animalTerritory);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Marsh - treacherous but resource-rich. Waterfowl, medicinal plants, cattails.
+    /// </summary>
+    public static Location MakeMarsh(Zone parent)
+    {
+        List<string> marshNames = ["Marsh", "Bog", "Wetland", "Fen", "Mire"];
+        List<string> marshAdjectives = [
+            "Frozen", "Murky", "Reedy", "Treacherous", "Foggy",
+            "Ice-crusted", "Silent", "Misty"
+        ];
+
+        string adjective = Utils.GetRandomFromList(marshAdjectives);
+        string name = Utils.GetRandomFromList(marshNames);
+        name = (adjective + " " + name).Trim();
+
+        var location = new Location(name,
+                                    tags: "[Water] [Treacherous] [Plants]",
+                                    parent: parent,
+                                    traversalMinutes: 20,
+                                    terrainHazardLevel: 0.6,
+                                    windFactor: 0.7,
+                                    overheadCoverLevel: 0.0,
+                                    visibilityFactor: 0.6)
+        {
+            DiscoveryText = "The ground gives way to frozen marsh. Cattails poke through the ice. Rich foraging if you're careful."
+        };
+
+        // Rich in plant resources
+        var forageFeature = new ForageFeature(1.8)
+            .AddPlantFiber(2.0, 0.08, 0.2)
+            .AddBerries(0.4, 0.05, 0.15)
+            .AddSticks(0.5, 0.1, 0.3);
+        location.Features.Add(forageFeature);
+
+        // Cattails are excellent harvestable
+        var cattails = new HarvestableFeature("cattails", "Cattail Stand")
+        {
+            Description = "Dense cattails at the marsh edge. Edible roots, fluffy seed heads for tinder.",
+            MinutesToHarvest = 10
+        };
+        cattails.AddResource(HarvestResourceType.PlantFiber, maxQuantity: 10, weightPerUnit: 0.1,
+            respawnHoursPerUnit: 168.0, displayName: "cattail fiber");
+        cattails.AddResource(HarvestResourceType.Tinder, maxQuantity: 6, weightPerUnit: 0.03,
+            respawnHoursPerUnit: 168.0, displayName: "cattail fluff");
+        location.Features.Add(cattails);
+
+        // Water source
+        var water = new HarvestableFeature("marsh_water", "Open Water")
+        {
+            Description = "Dark water between ice sheets. Needs to be boiled.",
+            MinutesToHarvest = 3
+        };
+        water.AddResource(HarvestResourceType.Water, maxQuantity: 30, weightPerUnit: 1.0,
+            respawnHoursPerUnit: 6.0, displayName: "marsh water");
+        location.Features.Add(water);
+
+        // Waterfowl
+        var animalTerritory = new AnimalTerritoryFeature(0.9)
+            .AddPtarmigan(1.5)
+            .AddRabbit(0.5);
+        location.Features.Add(animalTerritory);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Ice crevasse - natural cache site. Dangerous to reach but preserves food.
+    /// </summary>
+    public static Location MakeIceCrevasse(Zone parent)
+    {
+        List<string> crevasseNames = ["Crevasse", "Ice Cleft", "Glacier Crack", "Ice Fissure"];
+        List<string> crevasseAdjectives = [
+            "Deep", "Blue", "Narrow", "Ancient", "Hidden",
+            "Treacherous", "Dark"
+        ];
+
+        string adjective = Utils.GetRandomFromList(crevasseAdjectives);
+        string name = Utils.GetRandomFromList(crevasseNames);
+        name = (adjective + " " + name).Trim();
+
+        var location = new Location(name,
+                                    tags: "[Ice] [Cache] [Dangerous]",
+                                    parent: parent,
+                                    traversalMinutes: 25,
+                                    terrainHazardLevel: 0.8,
+                                    windFactor: 0.2,
+                                    overheadCoverLevel: 0.8,
+                                    visibilityFactor: 0.2)
+        {
+            DiscoveryText = "A deep crack in ancient ice. Freezing cold, but perfect for storing meat.",
+            IsDark = true
+        };
+
+        // Very limited forage
+        var forageFeature = new ForageFeature(0.1)
+            .AddStone(0.2, 0.1, 0.3);
+        location.Features.Add(forageFeature);
+
+        // Natural cache - food preserving
+        location.Features.Add(CacheFeature.CreateIceCache());
+
+        return location;
+    }
+
+    /// <summary>
+    /// Abandoned camp - salvage site with one-time loot.
+    /// </summary>
+    public static Location MakeAbandonedCamp(Zone parent)
+    {
+        var location = new Location("Old Campsite",
+                                    tags: "[Salvage] [Shelter]",
+                                    parent: parent,
+                                    traversalMinutes: 15,
+                                    terrainHazardLevel: 0.2,
+                                    windFactor: 0.5,
+                                    overheadCoverLevel: 0.3,
+                                    visibilityFactor: 0.7)
+        {
+            DiscoveryText = "Signs of an old camp. The fire pit is cold, shelter collapsed. Someone was here before you."
+        };
+
+        // Minimal forage - area picked over
+        var forageFeature = new ForageFeature(0.4)
+            .AddSticks(0.5, 0.1, 0.3)
+            .AddTinder(0.3, 0.01, 0.04);
+        location.Features.Add(forageFeature);
+
+        // Salvage site with one-time loot
+        location.Features.Add(SalvageFeature.CreateAbandonedCamp());
+
+        // Collapsed shelter still provides some protection
+        location.Features.Add(new ShelterFeature("Collapsed Lean-to", 0.2, 0.4, 0.3));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Wolf den - dangerous but rewarding hunting grounds.
+    /// </summary>
+    public static Location MakeWolfDen(Zone parent)
+    {
+        List<string> denNames = ["Den", "Lair", "Hollow", "Haunt"];
+        List<string> denAdjectives = [
+            "Wolf", "Predator", "Wild", "Dangerous", "Bone-strewn"
+        ];
+
+        string adjective = Utils.GetRandomFromList(denAdjectives);
+        string name = Utils.GetRandomFromList(denNames);
+        name = (adjective + " " + name).Trim();
+
+        var location = new Location(name,
+                                    tags: "[Wolves] [Dangerous] [Bones]",
+                                    parent: parent,
+                                    traversalMinutes: 18,
+                                    terrainHazardLevel: 0.3,
+                                    windFactor: 0.4,
+                                    overheadCoverLevel: 0.6,
+                                    visibilityFactor: 0.5)
+        {
+            DiscoveryText = "Wolf tracks everywhere. Bones scattered around a rocky hollow. The smell of predator is strong."
+        };
+
+        // Bones from wolf kills
+        var forageFeature = new ForageFeature(0.6)
+            .AddBone(1.5, 0.1, 0.4)
+            .AddSticks(0.3, 0.1, 0.3);
+        location.Features.Add(forageFeature);
+
+        // Wolf territory - dangerous but rewarding
+        var animalTerritory = new AnimalTerritoryFeature(1.5)
+            .AddWolf(2.0)
+            .AddRabbit(0.3);
+        location.Features.Add(animalTerritory);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Sheltered valley - protected from wind, good for extended stays.
+    /// </summary>
+    public static Location MakeShelteredValley(Zone parent)
+    {
+        List<string> valleyNames = ["Valley", "Hollow", "Dell", "Basin", "Glen"];
+        List<string> valleyAdjectives = [
+            "Sheltered", "Hidden", "Protected", "Quiet", "Secluded",
+            "Wind-shadowed", "Peaceful"
+        ];
+
+        string adjective = Utils.GetRandomFromList(valleyAdjectives);
+        string name = Utils.GetRandomFromList(valleyNames);
+        name = (adjective + " " + name).Trim();
+
+        var location = new Location(name,
+                                    tags: "[Sheltered] [Camp-worthy]",
+                                    parent: parent,
+                                    traversalMinutes: 22,
+                                    terrainHazardLevel: 0.15,
+                                    windFactor: 0.2,
+                                    overheadCoverLevel: 0.4,
+                                    visibilityFactor: 0.5)
+        {
+            DiscoveryText = "A natural hollow, shielded from the worst winds. This would make a good camp."
+        };
+
+        // Good forage - sheltered areas support more life
+        var forageFeature = new ForageFeature(1.6)
+            .AddSticks(2.5, 0.2, 0.5)
+            .AddLogs(1.2, 1.2, 2.8)
+            .AddTinder(1.5, 0.02, 0.07)
+            .AddBerries(0.4, 0.05, 0.15)
+            .AddPlantFiber(0.6, 0.05, 0.12);
+        location.Features.Add(forageFeature);
+
+        // Good game - animals shelter here too
+        var animalTerritory = new AnimalTerritoryFeature(1.3)
+            .AddDeer(1.0)
+            .AddRabbit(1.0)
+            .AddFox(0.3);
+        location.Features.Add(animalTerritory);
+
+        // Natural rock cache
+        location.Features.Add(CacheFeature.CreateRockCache());
+
+        return location;
+    }
+
     #endregion
 
 

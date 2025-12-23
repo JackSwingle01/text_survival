@@ -494,6 +494,29 @@ public class ZoneWeather
         int hour = time.Hour;
         return hour >= GetSunriseHour() && hour < GetSunsetHour();
     }
+
+    #region Save/Load Support
+
+    /// <summary>
+    /// Restore weather state from save data.
+    /// </summary>
+    internal void RestoreState(
+        double baseTemp,
+        WeatherCondition condition,
+        double precipitation,
+        double windSpeed,
+        double cloudCover,
+        Season season)
+    {
+        BaseTemperature = baseTemp;
+        CurrentCondition = condition;
+        Precipitation = precipitation;
+        WindSpeed = windSpeed;
+        CloudCover = cloudCover;
+        CurrentSeason = season;
+    }
+
+    #endregion
 }
 
 

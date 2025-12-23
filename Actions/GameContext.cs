@@ -85,6 +85,12 @@ public class GameContext(Player player, Camp camp)
     /// <summary>Encounter spawned by an event, to be handled by the caller.</summary>
     public EncounterConfig? PendingEncounter { get; set; }
 
+    /// <summary>Flag to prevent events from triggering during event handling.</summary>
+    public bool IsHandlingEvent { get; set; } = false;
+
+    /// <summary>Set to true when an event was triggered during the last Update call.</summary>
+    public bool EventOccurredLastUpdate { get; private set; } = false;
+
     public bool Check(EventCondition condition)
     {
         return condition switch
@@ -102,6 +108,14 @@ public class GameContext(Player player, Camp camp)
             EventCondition.Outside => !Check(EventCondition.Inside),
             EventCondition.InAnimalTerritory => CurrentLocation.HasFeature<AnimalTerritoryFeature>(),
             EventCondition.HasPredators => CurrentLocation.GetFeature<AnimalTerritoryFeature>()?.HasPredators() ?? false,
+
+            // Location visibility and darkness
+            EventCondition.HighVisibility => CurrentLocation.VisibilityFactor > 0.7,
+            EventCondition.LowVisibility => CurrentLocation.VisibilityFactor < 0.3,
+            EventCondition.InDarkness => CurrentLocation.IsDark && !Check(EventCondition.HasLightSource),
+            EventCondition.HasLightSource => CurrentLocation.GetFeature<HeatSourceFeature>()?.IsActive ?? false,
+            EventCondition.NearWater => CurrentLocation.HasFeature<WaterFeature>(),
+            EventCondition.HazardousTerrain => CurrentLocation.TerrainHazardLevel >= 0.5,
 
             // Weather conditions
             EventCondition.IsSnowing => Zone.Weather.CurrentCondition is ZoneWeather.WeatherCondition.LightSnow
@@ -268,11 +282,42 @@ public class GameContext(Player player, Camp camp)
         };
     }
     public DateTime GameTime { get; set; } = new DateTime(2025, 1, 1, 9, 0, 0); // Full date/time for resource respawn tracking
-    public SurvivalContext GetSurvivalContext() => new SurvivalContext
+
+    /// <summary>
+    /// Get survival context for a given activity.
+    /// </summary>
+    /// <param name="isStationary">If true, structural shelter applies (resting, crafting).
+    /// If false, only environmental shelter applies (foraging, hunting, traveling).</param>
+    public SurvivalContext GetSurvivalContext(bool isStationary = true) => new SurvivalContext
     {
         ActivityLevel = 1.5,
-        LocationTemperature = CurrentLocation.GetTemperature(),
+        LocationTemperature = CurrentLocation.GetTemperature(isStationary),
         ClothingInsulation = Inventory.TotalInsulation,
+    };
+
+    /// <summary>
+    /// Determine if current activity is stationary (benefits from structural shelter).
+    /// </summary>
+    private static bool IsActivityStationary(ActivityType activity) => activity switch
+    {
+        // Stationary activities - shelter applies
+        ActivityType.Idle => true,
+        ActivityType.Fighting => true,
+        ActivityType.Encounter => true,
+        ActivityType.Sleeping => true,
+        ActivityType.Resting => true,
+        ActivityType.TendingFire => true,
+        ActivityType.Eating => true,
+        ActivityType.Cooking => true,
+        ActivityType.Crafting => true,
+
+        // Moving activities - no structural shelter
+        ActivityType.Traveling => false,
+        ActivityType.Foraging => false,
+        ActivityType.Hunting => false,
+        ActivityType.Exploring => false,
+
+        _ => true // Default to stationary
     };
 
     /// <summary>
@@ -282,6 +327,7 @@ public class GameContext(Player player, Camp camp)
     /// </summary>
     public int Update(int targetMinutes, ActivityType activity, bool render = false)
     {
+        EventOccurredLastUpdate = false;
         CurrentActivity = activity;
         var config = ActivityConfig[activity];
 
@@ -295,8 +341,8 @@ public class GameContext(Player player, Camp camp)
             // Update survival/zone/tensions (always runs)
             UpdateInternal(1, config.Activity, GetEffectiveFireProximity(config.Fire));
 
-            // Check for event (only if activity allows events)
-            if (config.Event > 0)
+            // Check for event (only if activity allows events AND not already handling an event)
+            if (config.Event > 0 && !IsHandlingEvent)
             {
                 evt = GameEventRegistry.GetEventOnTick(this, config.Event);
                 if (evt != null)
@@ -313,6 +359,7 @@ public class GameContext(Player player, Camp camp)
 
         if (evt is not null)
         {
+            EventOccurredLastUpdate = true;
             GameEventRegistry.HandleEvent(this, evt);
         }
 
@@ -334,7 +381,8 @@ public class GameContext(Player player, Camp camp)
     /// </summary>
     private void UpdateInternal(int minutes, double activityLevel, double fireProximityMultiplier)
     {
-        var context = GetSurvivalContext();
+        bool isStationary = IsActivityStationary(CurrentActivity);
+        var context = GetSurvivalContext(isStationary);
         context.ActivityLevel = activityLevel;
 
         // Calculate fire proximity bonus if there's an active fire
@@ -342,7 +390,7 @@ public class GameContext(Player player, Camp camp)
         var fire = CurrentLocation.GetFeature<HeatSourceFeature>();
         if (fire != null && fire.IsActive && !player.EffectRegistry.HasEffect("Hyperthermia"))
         {
-            double fireHeat = fire.GetEffectiveHeatOutput(CurrentLocation.GetTemperature());
+            double fireHeat = fire.GetEffectiveHeatOutput(CurrentLocation.GetTemperature(isStationary));
             context.FireProximityBonus = fireHeat * fireProximityMultiplier;
         }
 
@@ -521,4 +569,12 @@ public enum EventCondition
     SnareHasCatch,      // Any snare has a catch ready
     SnareBaited,        // Any snare is baited
     TrapLineActive,     // TrapLineActive tension exists
+
+    // Location properties
+    HighVisibility,     // Location visibility > 0.7 (exposed, can see far)
+    LowVisibility,      // Location visibility < 0.3 (hidden, restricted sightlines)
+    InDarkness,         // Location is dark AND no active light source
+    HasLightSource,     // Active fire/torch at current location
+    NearWater,          // Location has a water feature
+    HazardousTerrain,   // Location terrain hazard >= 0.5
 }

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using text_survival.Actions;
 using text_survival.Bodies;
 using text_survival.Effects;
@@ -23,7 +24,7 @@ public record GameStateDto
 
     // Location
     public string LocationName { get; init; } = "";
-    public string LocationDescription { get; init; } = "";
+    public List<string> LocationTags { get; init; } = [];
     public List<FeatureDto> Features { get; init; } = [];
 
     // Fire
@@ -126,7 +127,7 @@ public record GameStateDto
 
             // Location
             LocationName = location.Name,
-            LocationDescription = location.Tags,
+            LocationTags = ParseTags(location.Tags),
             Features = ExtractFeatures(location),
 
             // Fire
@@ -245,13 +246,47 @@ public record GameStateDto
     {
         return registry.GetAll()
             .Take(6)
-            .Select(e => new EffectDto(
-                Name: e.EffectKind,
-                SeverityPercent: Math.Max(1, (int)Math.Ceiling(e.Severity * 100)),
-                Trend: e.HourlySeverityChange > 0 ? "worsening"
-                     : e.HourlySeverityChange < 0 ? "improving"
-                     : "stable"
-            ))
+            .Select(e =>
+            {
+                // Extract capacity impacts (non-zero modifiers only)
+                var capacityImpacts = new Dictionary<string, int>();
+                foreach (var capName in CapacityNames.All)
+                {
+                    var mod = e.CapacityModifiers.GetCapacityModifier(capName);
+                    if (Math.Abs(mod) > 0.001)
+                    {
+                        // Apply severity and convert to percent
+                        capacityImpacts[capName] = (int)(mod * e.Severity * 100);
+                    }
+                }
+
+                // Extract stats impact (per-minute -> per-hour)
+                EffectStatsDto? statsImpact = null;
+                var sd = e.StatsDelta;
+                if (sd.TemperatureDelta != 0 || sd.CalorieDelta != 0 ||
+                    sd.HydrationDelta != 0 || sd.EnergyDelta != 0 || e.Damage != null)
+                {
+                    statsImpact = new EffectStatsDto(
+                        TemperaturePerHour: sd.TemperatureDelta != 0 ? sd.TemperatureDelta * 60 * e.Severity : null,
+                        CaloriesPerHour: sd.CalorieDelta != 0 ? sd.CalorieDelta * 60 * e.Severity : null,
+                        HydrationPerHour: sd.HydrationDelta != 0 ? sd.HydrationDelta * 60 * e.Severity : null,
+                        EnergyPerHour: sd.EnergyDelta != 0 ? sd.EnergyDelta * 60 * e.Severity : null,
+                        DamagePerHour: e.Damage?.PerHour * e.Severity,
+                        DamageType: e.Damage?.Type.ToString()
+                    );
+                }
+
+                return new EffectDto(
+                    Name: e.EffectKind,
+                    SeverityPercent: Math.Max(1, (int)Math.Ceiling(e.Severity * 100)),
+                    Trend: e.HourlySeverityChange > 0 ? "worsening"
+                         : e.HourlySeverityChange < 0 ? "improving"
+                         : "stable",
+                    CapacityImpacts: capacityImpacts,
+                    StatsImpact: statsImpact,
+                    RequiresTreatment: e.RequiresTreatment
+                );
+            })
             .ToList();
     }
 
@@ -268,14 +303,20 @@ public record GameStateDto
 
         foreach (var organ in damagedOrgans)
         {
+            // Get capacities this organ contributes to
+            var affectedCapacities = CapacityNames.All
+                .Where(c => organ._baseCapacities.GetCapacity(c) > 0)
+                .ToList();
+
             injuries.Add(new InjuryDto(
                 PartName: organ.Name,
                 ConditionPercent: (int)(organ.Condition * 100),
-                IsOrgan: true
+                IsOrgan: true,
+                AffectedCapacities: affectedCapacities
             ));
         }
 
-        // Tissue damage
+        // Tissue damage (body regions affect Moving and Manipulation via muscle)
         var damagedParts = body.Parts
             .Where(p => p.Condition < 0.95)
             .OrderBy(p => p.Condition)
@@ -286,7 +327,8 @@ public record GameStateDto
             injuries.Add(new InjuryDto(
                 PartName: part.Name,
                 ConditionPercent: (int)(part.Condition * 100),
-                IsOrgan: false
+                IsOrgan: false,
+                AffectedCapacities: [CapacityNames.Moving, CapacityNames.Manipulation]
             ));
         }
 
@@ -301,6 +343,13 @@ public record GameStateDto
         >= 95 => "Cool",
         _ => "Cold"
     };
+
+    private static List<string> ParseTags(string? tagString)
+    {
+        if (string.IsNullOrEmpty(tagString)) return [];
+        var matches = Regex.Matches(tagString, @"\[([^\]]+)\]");
+        return matches.Select(m => m.Groups[1].Value).ToList();
+    }
 }
 
 public record FeatureDto(string Type, string Label, string? Detail);
@@ -316,8 +365,29 @@ public record FireDto(
     double BurnRateKgPerHour
 );
 
-public record EffectDto(string Name, int SeverityPercent, string Trend);
+public record EffectDto(
+    string Name,
+    int SeverityPercent,
+    string Trend,
+    Dictionary<string, int> CapacityImpacts,
+    EffectStatsDto? StatsImpact,
+    bool RequiresTreatment
+);
 
-public record InjuryDto(string PartName, int ConditionPercent, bool IsOrgan);
+public record EffectStatsDto(
+    double? TemperaturePerHour,
+    double? CaloriesPerHour,
+    double? HydrationPerHour,
+    double? EnergyPerHour,
+    double? DamagePerHour,
+    string? DamageType
+);
+
+public record InjuryDto(
+    string PartName,
+    int ConditionPercent,
+    bool IsOrgan,
+    List<string> AffectedCapacities
+);
 
 public record LogEntryDto(string Text, string Level);

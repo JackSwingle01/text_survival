@@ -176,6 +176,26 @@ public class SnareLineFeature : LocationFeature
             return $"{usable} snares ({stolen} plundered)";
         return $"{usable} snares set";
     }
+
+    #region Save/Load Support
+
+    /// <summary>
+    /// Add a pre-created snare to the line (for save/load).
+    /// </summary>
+    internal void AddRestoredSnare(PlacedSnare snare)
+    {
+        _snares.Add(snare);
+    }
+
+    /// <summary>
+    /// Clear all snares (for save/load restoration).
+    /// </summary>
+    internal void ClearSnares()
+    {
+        _snares.Clear();
+    }
+
+    #endregion
 }
 
 /// <summary>
