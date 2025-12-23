@@ -1,5 +1,4 @@
 using System.Net.WebSockets;
-using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -7,11 +6,8 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using text_survival.Actions;
 using text_survival.Actors.Player;
-using text_survival.Environments;
-using text_survival.Environments.Factories;
-using text_survival.Environments.Features;
 using text_survival.IO;
-using text_survival.Items;
+using text_survival.Persistence;
 using text_survival.UI;
 using text_survival.Web.Dto;
 
@@ -54,12 +50,29 @@ public static class WebServer
                 return;
             }
 
+            // Read or create session ID from cookie
+            string sessionId;
+            if (context.Request.Cookies.TryGetValue("session_id", out var existingId)
+                && !string.IsNullOrEmpty(existingId))
+            {
+                sessionId = existingId;
+                Console.WriteLine($"[WebServer] Resuming session: {sessionId}");
+            }
+            else
+            {
+                sessionId = Guid.NewGuid().ToString();
+                context.Response.Cookies.Append("session_id", sessionId, new CookieOptions
+                {
+                    HttpOnly = true,
+                    SameSite = SameSiteMode.Strict,
+                    MaxAge = TimeSpan.FromDays(30)
+                });
+                Console.WriteLine($"[WebServer] New session: {sessionId}");
+            }
+
             var socket = await context.WebSockets.AcceptWebSocketAsync();
-            var sessionId = Guid.NewGuid().ToString();
             var session = new WebGameSession(socket);
             SessionRegistry.Register(sessionId, session);
-
-            Console.WriteLine($"[WebServer] New session: {sessionId}");
 
             try
             {
@@ -96,47 +109,32 @@ public static class WebServer
 
     private static void RunGame(string sessionId)
     {
-        // Initialize game state (same as Program.Main)
-        Zone zone = ZoneFactory.MakeForestZone();
+        // Check if we have a saved game for this session
+        bool isNewGame = !SaveManager.HasSaveFile(sessionId);
 
-        var gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
-        zone.Weather.Update(gameStartTime);
+        // Load existing game or create new one
+        GameContext ctx = GameInitializer.LoadOrCreateNew(sessionId);
+        ctx.SessionId = sessionId;
 
-        Location startingArea = zone.Graph.All.First(s => s.Name == "Forest Camp");
-
-        HeatSourceFeature campfire = new HeatSourceFeature();
-        campfire.AddFuel(2, FuelType.Kindling);
-        startingArea.Features.Add(campfire);
-
-        Player player = new Player();
-        Camp camp = new Camp(startingArea);
-        GameContext ctx = new GameContext(player, camp)
+        // Show appropriate intro message
+        if (isNewGame)
         {
-            SessionId = sessionId
-        };
-
-        // Equip starting clothing
-        ctx.Inventory.Equip(Equipment.WornFurChestWrap());
-        ctx.Inventory.Equip(Equipment.FurLegWraps());
-        ctx.Inventory.Equip(Equipment.FurBoots());
-
-        // Add starting supplies
-        ctx.Inventory.Tools.Add(Tool.HandDrill());
-        ctx.Inventory.Sticks.Add(0.3);
-        ctx.Inventory.Sticks.Add(0.25);
-        ctx.Inventory.Sticks.Add(0.35);
-        ctx.Inventory.Tinder.Add(0.05);
-        ctx.Inventory.Tinder.Add(0.04);
-
-        // Opening narrative
-        GameDisplay.AddDanger(ctx, "You wake up in the forest, shivering. You don't remember how you got here.");
-        GameDisplay.AddDanger(ctx, "Snow drifts down through the pines. The cold is already seeping into your bones.");
-        GameDisplay.AddDanger(ctx, "There's a fire pit nearby with some kindling. You need to get it lit - fast.");
-        GameDisplay.AddDanger(ctx, "You need to gather fuel, find food and water, and survive.");
+            GameDisplay.AddDanger(ctx, "You wake up in the forest, shivering. You don't remember how you got here.");
+            GameDisplay.AddDanger(ctx, "Snow drifts down through the pines. The cold is already seeping into your bones.");
+            GameDisplay.AddDanger(ctx, "There's a fire pit nearby with some kindling. You need to get it lit - fast.");
+            GameDisplay.AddDanger(ctx, "You need to gather fuel, find food and water, and survive.");
+        }
+        else
+        {
+            GameDisplay.AddNarrative(ctx, "Game loaded.");
+        }
 
         // Run the game
         GameRunner runner = new GameRunner(ctx);
         runner.Run();
+
+        // Delete save on death
+        SaveManager.DeleteSave(sessionId);
 
         // Show death screen
         DisplayDeathScreen(ctx);

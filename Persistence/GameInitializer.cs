@@ -53,9 +53,9 @@ public static class GameInitializer
     /// <summary>
     /// Load game from save file. Returns null if no save exists or load fails.
     /// </summary>
-    public static GameContext? LoadGame()
+    public static GameContext? LoadGame(string? sessionId = null)
     {
-        var saveData = SaveManager.Load();
+        var saveData = SaveManager.Load(sessionId);
         if (saveData == null)
             return null;
 
@@ -71,11 +71,11 @@ public static class GameInitializer
     /// <summary>
     /// Try to load a saved game, falling back to a new game if none exists.
     /// </summary>
-    public static GameContext LoadOrCreateNew()
+    public static GameContext LoadOrCreateNew(string? sessionId = null)
     {
-        if (SaveManager.HasSaveFile())
+        if (SaveManager.HasSaveFile(sessionId))
         {
-            var loaded = LoadGame();
+            var loaded = LoadGame(sessionId);
             if (loaded != null)
                 return loaded;
         }

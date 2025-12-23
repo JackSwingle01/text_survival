@@ -5,6 +5,7 @@ namespace text_survival.Persistence;
 
 /// <summary>
 /// Handles save file I/O operations.
+/// Supports session-specific saves for web mode via sessionId parameter.
 /// </summary>
 public static class SaveManager
 {
@@ -15,28 +16,37 @@ public static class SaveManager
     };
 
     /// <summary>
-    /// Get the save file path (cross-platform).
+    /// Get the save directory path (cross-platform).
     /// </summary>
-    private static string GetSavePath()
+    private static string GetSaveDirectory()
     {
         string dir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "TextSurvival"
         );
         Directory.CreateDirectory(dir);
-        return Path.Combine(dir, "save.json");
+        return dir;
     }
 
     /// <summary>
-    /// Check if a save file exists.
+    /// Get the save file path. Uses session-specific filename if sessionId provided.
     /// </summary>
-    public static bool HasSaveFile()
+    private static string GetSavePath(string? sessionId = null)
     {
-        return File.Exists(GetSavePath());
+        string filename = string.IsNullOrEmpty(sessionId) ? "save.json" : $"save_{sessionId}.json";
+        return Path.Combine(GetSaveDirectory(), filename);
     }
 
     /// <summary>
-    /// Save the game context to disk.
+    /// Check if a save file exists for the given session (or default).
+    /// </summary>
+    public static bool HasSaveFile(string? sessionId = null)
+    {
+        return File.Exists(GetSavePath(sessionId));
+    }
+
+    /// <summary>
+    /// Save the game context to disk. Uses ctx.SessionId for web sessions.
     /// </summary>
     public static void Save(GameContext ctx)
     {
@@ -44,7 +54,7 @@ public static class SaveManager
         {
             var saveData = SaveDataConverter.ToSaveData(ctx);
             string json = JsonSerializer.Serialize(saveData, Options);
-            File.WriteAllText(GetSavePath(), json);
+            File.WriteAllText(GetSavePath(ctx.SessionId), json);
         }
         catch (Exception ex)
         {
@@ -53,11 +63,11 @@ public static class SaveManager
     }
 
     /// <summary>
-    /// Load save data from disk.
+    /// Load save data from disk for the given session (or default).
     /// </summary>
-    public static GameSaveData? Load()
+    public static GameSaveData? Load(string? sessionId = null)
     {
-        string path = GetSavePath();
+        string path = GetSavePath(sessionId);
         if (!File.Exists(path))
             return null;
 
@@ -74,11 +84,11 @@ public static class SaveManager
     }
 
     /// <summary>
-    /// Delete the save file.
+    /// Delete the save file for the given session (or default).
     /// </summary>
-    public static void DeleteSave()
+    public static void DeleteSave(string? sessionId = null)
     {
-        string path = GetSavePath();
+        string path = GetSavePath(sessionId);
         if (File.Exists(path))
         {
             File.Delete(path);
@@ -88,8 +98,8 @@ public static class SaveManager
     /// <summary>
     /// Get the save file location for display.
     /// </summary>
-    public static string GetSaveLocation()
+    public static string GetSaveLocation(string? sessionId = null)
     {
-        return GetSavePath();
+        return GetSavePath(sessionId);
     }
 }
