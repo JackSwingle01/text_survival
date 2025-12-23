@@ -22,7 +22,7 @@ public class ExpeditionRunner(GameContext ctx)
         var expedition = new Expedition(_ctx.CurrentLocation, _ctx.player);
         _ctx.Expedition = expedition;
 
-        GameDisplay.AddNarrative("Where do you want to go?");
+        GameDisplay.AddNarrative(_ctx, "Where do you want to go?");
         GameDisplay.Render(_ctx, statusText: "Planning.");
 
         // First, pick a destination from camp
@@ -57,7 +57,7 @@ public class ExpeditionRunner(GameContext ctx)
 
             if (stayOut)
             {
-                string action = actionChoice.GetPlayerChoice();
+                string action = actionChoice.GetPlayerChoice(_ctx);
 
                 if (action == "work")
                 {
@@ -81,7 +81,7 @@ public class ExpeditionRunner(GameContext ctx)
         if (PlayerDied) return;
 
         // Back at camp
-        GameDisplay.AddNarrative("You made it back to camp.");
+        GameDisplay.AddNarrative(_ctx, "You made it back to camp.");
         DisplayExpeditionSummary(expedition);
         GameDisplay.Render(_ctx, statusText: "Arrived.");
     }
@@ -95,7 +95,7 @@ public class ExpeditionRunner(GameContext ctx)
         var connections = expedition.CurrentLocation.Connections;
         if (connections.Count == 0)
         {
-            GameDisplay.AddNarrative("There's nowhere to go from here.");
+            GameDisplay.AddNarrative(_ctx, "There's nowhere to go from here.");
             return false;
         }
 
@@ -125,7 +125,7 @@ public class ExpeditionRunner(GameContext ctx)
 
         choice.AddOption("Cancel", null);
 
-        var destination = choice.GetPlayerChoice();
+        var destination = choice.GetPlayerChoice(_ctx);
         if (destination == null) return false;
 
         // Travel with progress bar
@@ -138,16 +138,16 @@ public class ExpeditionRunner(GameContext ctx)
         expedition.MoveTo(destination, travelTime);
         destination.Explore();
 
-        GameDisplay.AddNarrative($"You arrive at {expedition.CurrentLocation.Name}.");
+        GameDisplay.AddNarrative(_ctx, $"You arrive at {expedition.CurrentLocation.Name}.");
         if (!string.IsNullOrEmpty(expedition.CurrentLocation.Description))
-            GameDisplay.AddNarrative(expedition.CurrentLocation.Description);
+            GameDisplay.AddNarrative(_ctx, expedition.CurrentLocation.Description);
 
         return true;
     }
 
     private void ReturnToCamp(Expedition expedition)
     {
-        GameDisplay.AddNarrative("You head back toward camp...");
+        GameDisplay.AddNarrative(_ctx, "You head back toward camp...");
 
         // Walk back through travel history
         while (!expedition.IsAtCamp && !PlayerDied)
@@ -171,7 +171,7 @@ public class ExpeditionRunner(GameContext ctx)
         var workChoice = GetWorkOptions(expedition.CurrentLocation);
         if (workChoice == null) return;
 
-        string workType = workChoice.GetPlayerChoice();
+        string workType = workChoice.GetPlayerChoice(_ctx);
         expedition.State = ExpeditionState.Working;
 
         var work = new WorkRunner(_ctx);
@@ -220,21 +220,21 @@ public class ExpeditionRunner(GameContext ctx)
         var feature = expedition.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
         if (feature == null)
         {
-            GameDisplay.AddNarrative("There's no game to be found here.");
+            GameDisplay.AddNarrative(_ctx, "There's no game to be found here.");
             return;
         }
 
         while (!PlayerDied)
         {
-            GameDisplay.AddNarrative($"\nYou scan the area for signs of game...");
-            GameDisplay.AddNarrative($"Game density: {feature.GetQualityDescription()}");
+            GameDisplay.AddNarrative(_ctx, $"\nYou scan the area for signs of game...");
+            GameDisplay.AddNarrative(_ctx, $"Game density: {feature.GetQualityDescription()}");
             GameDisplay.Render(_ctx, statusText: "Scanning.");
 
             var choice = new Choice<string>("What do you do?");
             choice.AddOption("Search for game (~15 min)", "search");
             choice.AddOption("Done hunting", "done");
 
-            string action = choice.GetPlayerChoice();
+            string action = choice.GetPlayerChoice(_ctx);
             if (action == "done")
                 break;
 
@@ -247,19 +247,19 @@ public class ExpeditionRunner(GameContext ctx)
             Animal? found = feature.SearchForGame(searchTime);
             if (found == null)
             {
-                GameDisplay.AddNarrative("You find no game. The area seems quiet.");
+                GameDisplay.AddNarrative(_ctx, "You find no game. The area seems quiet.");
                 continue;
             }
 
-            GameDisplay.AddNarrative($"You spot {found.GetTraitDescription()}.");
-            GameDisplay.AddNarrative($"It's {found.GetActivityDescription()}.");
+            GameDisplay.AddNarrative(_ctx, $"You spot {found.GetTraitDescription()}.");
+            GameDisplay.AddNarrative(_ctx, $"It's {found.GetActivityDescription()}.");
             GameDisplay.Render(_ctx, statusText: "Watching.");
 
             var huntChoice = new Choice<bool>("Do you want to stalk it?");
             huntChoice.AddOption($"Stalk the {found.Name}", true);
             huntChoice.AddOption("Let it go", false);
 
-            if (!huntChoice.GetPlayerChoice())
+            if (!huntChoice.GetPlayerChoice(_ctx))
                 continue;
 
             int huntMinutes = RunSingleHunt(found, expedition.CurrentLocation, expedition);
@@ -280,22 +280,22 @@ public class ExpeditionRunner(GameContext ctx)
 
     private int RunSingleHunt(Animal target, Location location, Expedition expedition)
     {
-        _ctx.player.stealthManager.StartHunting(target);
+        _ctx.player.stealthManager.StartHunting(target, _ctx);
         int minutesSpent = 0;
 
         // Auto-equip spear if available
-        var spear = _ctx.Inventory.GetOrEquipWeapon(ToolType.Spear);
+        var spear = _ctx.Inventory.GetOrEquipWeapon(_ctx, ToolType.Spear);
         bool hasSpear = spear != null;
         bool hasStones = _ctx.Inventory.StoneCount > 0;
 
         if (!hasSpear && !hasStones)
         {
-            GameDisplay.AddWarning("You don't have a ranged weapon so you need to get very close. This will be difficult.");
+            GameDisplay.AddWarning(_ctx, "You don't have a ranged weapon so you need to get very close. This will be difficult.");
         }
 
-        while (_ctx.player.stealthManager.IsHunting && _ctx.player.stealthManager.IsTargetValid())
+        while (_ctx.player.stealthManager.IsHunting && _ctx.player.stealthManager.IsTargetValid(_ctx))
         {
-            GameDisplay.AddNarrative($"\nDistance: {target.DistanceFromPlayer:F0}m | {target.GetActivityDescription()}");
+            GameDisplay.AddNarrative(_ctx, $"\nDistance: {target.DistanceFromPlayer:F0}m | {target.GetActivityDescription()}");
             GameDisplay.Render(_ctx, statusText: "Stalking.");
 
             var choice = new Choice<string>("What do you do?");
@@ -325,12 +325,12 @@ public class ExpeditionRunner(GameContext ctx)
 
             choice.AddOption("Give up this hunt", "stop");
 
-            string action = choice.GetPlayerChoice();
+            string action = choice.GetPlayerChoice(_ctx);
 
             switch (action)
             {
                 case "approach":
-                    bool success = _ctx.player.stealthManager.AttemptApproach(location);
+                    bool success = _ctx.player.stealthManager.AttemptApproach(location, _ctx);
                     minutesSpent += 7;
 
                     if (success)
@@ -339,14 +339,14 @@ public class ExpeditionRunner(GameContext ctx)
 
                         if (target.DistanceFromPlayer <= 5 && target.State != AnimalState.Detected)
                         {
-                            GameDisplay.AddNarrative("You're close enough to strike!");
+                            GameDisplay.AddNarrative(_ctx, "You're close enough to strike!");
                             GameDisplay.Render(_ctx, statusText: "Poised.");
 
                             var attackChoice = new Choice<bool>("Attack?");
                             attackChoice.AddOption("Strike now!", true);
                             attackChoice.AddOption("Back off", false);
 
-                            if (attackChoice.GetPlayerChoice())
+                            if (attackChoice.GetPlayerChoice(_ctx))
                             {
                                 PerformKill(target, expedition);
                             }
@@ -361,13 +361,13 @@ public class ExpeditionRunner(GameContext ctx)
                         switch (outcome)
                         {
                             case EncounterOutcome.PredatorRetreated:
-                                _ctx.player.stealthManager.StopHunting($"The {target.Name} retreated.");
+                                _ctx.player.stealthManager.StopHunting(_ctx, $"The {target.Name} retreated.");
                                 break;
                             case EncounterOutcome.PlayerEscaped:
-                                _ctx.player.stealthManager.StopHunting("You escaped.");
+                                _ctx.player.stealthManager.StopHunting(_ctx, "You escaped.");
                                 break;
                             case EncounterOutcome.CombatVictory:
-                                _ctx.player.stealthManager.StopHunting($"You killed the {target.Name}.");
+                                _ctx.player.stealthManager.StopHunting(_ctx, $"You killed the {target.Name}.");
                                 break;
                             case EncounterOutcome.PlayerDied:
                                 // No cleanup needed
@@ -378,23 +378,23 @@ public class ExpeditionRunner(GameContext ctx)
                     break;
 
                 case "assess":
-                    _ctx.player.stealthManager.AssessTarget();
+                    _ctx.player.stealthManager.AssessTarget(_ctx);
                     minutesSpent += 2;
-                    Input.WaitForKey();
+                    Input.WaitForKey(_ctx);
                     break;
 
                 case "wait":
                     int waitTime = Utils.RandInt(5, 10);
-                    GameDisplay.AddNarrative($"You wait and watch for {waitTime} minutes...");
+                    GameDisplay.AddNarrative(_ctx, $"You wait and watch for {waitTime} minutes...");
                     minutesSpent += waitTime;
 
                     if (target.CheckActivityChange(waitTime, out var newActivity) && newActivity.HasValue)
                     {
-                        GameDisplay.AddNarrative($"The {target.Name} shifts—now {target.GetActivityDescription()}.");
+                        GameDisplay.AddNarrative(_ctx, $"The {target.Name} shifts—now {target.GetActivityDescription()}.");
                     }
                     else
                     {
-                        GameDisplay.AddNarrative($"The {target.Name} continues {target.GetActivityDescription()}.");
+                        GameDisplay.AddNarrative(_ctx, $"The {target.Name} continues {target.GetActivityDescription()}.");
                     }
                     break;
 
@@ -409,7 +409,7 @@ public class ExpeditionRunner(GameContext ctx)
                     break;
 
                 case "stop":
-                    _ctx.player.stealthManager.StopHunting("You abandon the hunt.");
+                    _ctx.player.stealthManager.StopHunting(_ctx, "You abandon the hunt.");
                     break;
             }
         }
@@ -419,21 +419,21 @@ public class ExpeditionRunner(GameContext ctx)
 
     private void PerformKill(Animal target, Expedition expedition)
     {
-        GameDisplay.AddNarrative($"You strike! The {target.Name} falls.");
+        GameDisplay.AddNarrative(_ctx, $"You strike! The {target.Name} falls.");
 
         target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, "stealth kill", "Heart"));
-        _ctx.player.stealthManager.StopHunting();
+        _ctx.player.stealthManager.StopHunting(_ctx);
 
         var loot = ButcherRunner.ButcherAnimal(target, _ctx);
         _ctx.Inventory.Add(loot);
 
         _ctx.player.Skills.GetSkill("Hunting").GainExperience(5);
-        GameDisplay.AddNarrative($"You butcher the {target.Name} and collect {loot.TotalWeightKg:F1}kg of meat.");
+        GameDisplay.AddNarrative(_ctx, $"You butcher the {target.Name} and collect {loot.TotalWeightKg:F1}kg of meat.");
 
         foreach (var desc in loot.Descriptions)
             expedition.CollectionLog.Add(desc);
 
-        Input.WaitForKey();
+        Input.WaitForKey(_ctx);
     }
 
     #region Ranged Hunting Helpers
@@ -468,19 +468,19 @@ public class ExpeditionRunner(GameContext ctx)
         {
             // Kill
             string weaponName = isSpear ? weapon!.Name : "stone";
-            GameDisplay.AddNarrative($"Your {weaponName} strikes true! The {target.Name} falls.");
+            GameDisplay.AddNarrative(_ctx, $"Your {weaponName} strikes true! The {target.Name} falls.");
             target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, "thrown weapon", "Heart"));
 
             // Butcher
             var loot = ButcherRunner.ButcherAnimal(target, _ctx);
             _ctx.Inventory.Add(loot);
 
-            GameDisplay.AddNarrative($"You butcher the {target.Name} and collect {loot.TotalWeightKg:F1}kg of meat.");
+            GameDisplay.AddNarrative(_ctx, $"You butcher the {target.Name} and collect {loot.TotalWeightKg:F1}kg of meat.");
             foreach (var desc in loot.Descriptions)
                 expedition.CollectionLog.Add(desc);
 
-            _ctx.player.stealthManager.StopHunting("Hunt successful.");
-            Input.WaitForKey();
+            _ctx.player.stealthManager.StopHunting(_ctx, "Hunt successful.");
+            Input.WaitForKey(_ctx);
         }
         else
         {
@@ -500,9 +500,9 @@ public class ExpeditionRunner(GameContext ctx)
                     ? "Bright red arterial spray, pumping with each heartbeat"
                     : "Dark blood, muscle wound — the animal barely slowed";
 
-                GameDisplay.AddNarrative($"Your {weaponName} grazes the {target.Name}!");
-                GameDisplay.AddNarrative(woundDesc);
-                GameDisplay.AddNarrative($"The {target.Name} bolts, leaving blood on the snow.");
+                GameDisplay.AddNarrative(_ctx, $"Your {weaponName} grazes the {target.Name}!");
+                GameDisplay.AddNarrative(_ctx, woundDesc);
+                GameDisplay.AddNarrative(_ctx, $"The {target.Name} bolts, leaving blood on the snow.");
 
                 // Create WoundedPrey tension - entry point to Blood Trail arc
                 var tension = Tensions.ActiveTension.WoundedPrey(
@@ -512,25 +512,25 @@ public class ExpeditionRunner(GameContext ctx)
                 );
                 _ctx.Tensions.AddTension(tension);
 
-                GameDisplay.AddNarrative("You could follow the blood trail...");
+                GameDisplay.AddNarrative(_ctx, "You could follow the blood trail...");
             }
             else
             {
                 // Clean miss
-                GameDisplay.AddNarrative($"Your {weaponName} misses! The {target.Name} bolts.");
+                GameDisplay.AddNarrative(_ctx, $"Your {weaponName} misses! The {target.Name} bolts.");
             }
 
             if (isSpear)
             {
                 // Spear recovery: spend time searching
-                GameDisplay.AddNarrative("You spend a few minutes searching for your spear...");
+                GameDisplay.AddNarrative(_ctx, "You spend a few minutes searching for your spear...");
                 _ctx.Update(3, ActivityType.Hunting);
                 expedition.AddTime(3);
             }
 
             // Animal flees
-            _ctx.player.stealthManager.StopHunting($"The {target.Name} escaped.");
-            Input.WaitForKey();
+            _ctx.player.stealthManager.StopHunting(_ctx, $"The {target.Name} escaped.");
+            Input.WaitForKey(_ctx);
         }
     }
 
@@ -615,22 +615,22 @@ public class ExpeditionRunner(GameContext ctx)
     {
         if (expedition.CollectionLog.Count > 0)
         {
-            GameDisplay.AddNarrative("\n--- Expedition Summary ---");
-            GameDisplay.AddNarrative($"Time away: {expedition.MinutesElapsedTotal} minutes");
-            GameDisplay.AddNarrative("Collected:");
+            GameDisplay.AddNarrative(_ctx, "\n--- Expedition Summary ---");
+            GameDisplay.AddNarrative(_ctx, $"Time away: {expedition.MinutesElapsedTotal} minutes");
+            GameDisplay.AddNarrative(_ctx, "Collected:");
             foreach (var item in expedition.CollectionLog)
             {
-                GameDisplay.AddNarrative($"  - {item}");
+                GameDisplay.AddNarrative(_ctx, $"  - {item}");
             }
         }
 
         var logs = expedition.FlushLogs();
         foreach (var log in logs)
         {
-            GameDisplay.AddNarrative(log);
+            GameDisplay.AddNarrative(_ctx, log);
         }
 
-        Input.WaitForKey();
+        Input.WaitForKey(_ctx);
     }
 
 

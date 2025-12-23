@@ -112,7 +112,7 @@ public class GameEvent(string name, string description, double weight)
         // filter to only ones that meet conditions todo
         var choices = new Choice<EventChoice>("What do you do?");
         _choices.Where(x => x.RequiredConditions.All(ctx.Check)).ToList().ForEach(x => choices.AddOption(x.Label, x));
-        return choices.GetPlayerChoice();
+        return choices.GetPlayerChoice(ctx);
     }
     public void AddChoice(EventChoice c) => _choices.Add(c);
 

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Survival</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="night">
+
+    <div class="game-container">
+        <header class="header">
+            <div class="time-display">
+                <div class="day-number" id="dayNumber">Day 1</div>
+                <div class="time-detail" id="timeDetail">9:00 AM — Morning</div>
+                <div class="time-detail time-warning" id="timeWarning">8.5 hrs til dusk</div>
+                <div class="weather-line">
+                    <span class="weather-cond" id="weatherCond">Clear</span> ·
+                    Wind: <span id="windLabel">Calm</span> ·
+                    Precip: <span id="precipLabel">None</span>
+                </div>
+            </div>
+
+            <div class="fire-widget">
+                <div class="fire-phase cold" id="firePhase">No fire pit</div>
+                <div class="fire-time" id="fireTime"></div>
+                <div class="fire-detail"><span id="fuelStatus"></span> <span class="fire-heat" id="fireHeatOutput"></span></div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="narrative-panel">
+                <div class="location-display">
+                    <div class="location-name" id="locationName">Loading...</div>
+                    <div class="location-desc" id="locationDesc"></div>
+                    <div class="location-features" id="locationFeatures"></div>
+                </div>
+
+                <div class="narrative-log" id="narrativeLog"></div>
+
+                <div class="status-bar" id="statusBar">
+                    <div class="status-content">
+                        <span class="status-text" id="statusText">Connecting...</span>
+                        <div class="progress-bar" id="progressBarContainer" style="display: none;">
+                            <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+                        </div>
+                        <span class="progress-percent" id="progressPercent" style="display: none;">0%</span>
+                    </div>
+                </div>
+
+                <div class="actions-area" id="actionsArea"></div>
+            </div>
+
+            <aside class="side-panel">
+                <div class="status-section">
+                    <div class="status-title">Temperature</div>
+                    <div class="temp-bar-container">
+                        <div class="temp-bar">
+                            <div class="temp-bar-fill normal" id="tempBarFill" style="width: 72%;"></div>
+                        </div>
+                    </div>
+                    <div class="temp-row">
+                        <span class="temp-label">Body</span>
+                        <span><span class="temp-value" id="bodyTempDisplay">98.6°F</span> <span class="temp-status normal" id="tempStatus">Normal</span></span>
+                    </div>
+                    <div class="temp-breakdown" id="tempBreakdown">
+                        Air: <span id="airTempDisplay">32°F</span><span class="fire-contrib" id="fireContrib"></span>
+                    </div>
+                    <div class="temp-trend stable" id="tempTrend">→ Stable</div>
+                </div>
+
+                <div class="status-section">
+                    <div class="status-title">Survival</div>
+
+                    <div class="survival-stat">
+                        <div class="stat-row">
+                            <span class="stat-name">Health</span>
+                            <span><span class="stat-value" id="healthPct">100%</span><span class="stat-status" id="healthStatus">Healthy</span></span>
+                        </div>
+                        <div class="stat-bar">
+                            <div class="stat-bar-fill health" id="healthBar" style="width: 100%"></div>
+                        </div>
+                    </div>
+
+                    <div class="survival-stat">
+                        <div class="stat-row">
+                            <span class="stat-name">Food</span>
+                            <span><span class="stat-value" id="foodPct">100%</span><span class="stat-status" id="foodStatus">Well Fed</span></span>
+                        </div>
+                        <div class="stat-bar">
+                            <div class="stat-bar-fill food" id="foodBar" style="width: 100%"></div>
+                        </div>
+                    </div>
+
+                    <div class="survival-stat">
+                        <div class="stat-row">
+                            <span class="stat-name">Water</span>
+                            <span><span class="stat-value" id="waterPct">100%</span><span class="stat-status" id="waterStatus">Hydrated</span></span>
+                        </div>
+                        <div class="stat-bar">
+                            <div class="stat-bar-fill water" id="waterBar" style="width: 100%"></div>
+                        </div>
+                    </div>
+
+                    <div class="survival-stat">
+                        <div class="stat-row">
+                            <span class="stat-name">Energy</span>
+                            <span><span class="stat-value" id="energyPct">100%</span><span class="stat-status" id="energyStatus">Energized</span></span>
+                        </div>
+                        <div class="stat-bar">
+                            <div class="stat-bar-fill energy" id="energyBar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-section">
+                    <div class="status-title">Gear</div>
+                    <div class="gear-row">
+                        <span class="gear-label">Carry</span>
+                        <span class="gear-value" id="carryDisplay">0 / 15 kg</span>
+                    </div>
+                    <div class="gear-row">
+                        <span class="gear-label">Insulation</span>
+                        <span class="gear-value insulation" id="insulationPct">0%</span>
+                    </div>
+                    <div class="gear-row">
+                        <span class="gear-label">Fuel</span>
+                        <span class="gear-value fuel" id="fuelReserve">0kg</span>
+                    </div>
+                </div>
+
+                <div class="status-section">
+                    <div class="status-title">Effects</div>
+                    <div class="effects-list" id="effectsList">
+                        <div class="effect-item stable">None</div>
+                    </div>
+                </div>
+
+                <div class="status-section">
+                    <div class="status-title">Injuries</div>
+                    <div class="injuries-list" id="injuriesList">
+                        <div class="injury-item minor">None</div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <footer class="footer">
+            <div class="inventory-peek" id="inventoryPeek"></div>
+            <div class="weight-display" id="weightDisplay">0 / 15 kg</div>
+        </footer>
+    </div>
+
+    <div class="connection-overlay" id="connectionOverlay">
+        <div class="connection-message" id="connectionMessage">Connecting...</div>
+    </div>
+
+    <div class="inventory-overlay hidden" id="inventoryOverlay">
+        <div class="inventory-modal">
+            <div class="inventory-header">
+                <h2 id="inventoryTitle">INVENTORY</h2>
+                <span class="inventory-weight" id="inventoryWeight">0 / 15 kg</span>
+            </div>
+            <div class="inventory-grid">
+                <div class="inventory-section" id="invGear">
+                    <h3>Gear</h3>
+                    <div class="inv-content"></div>
+                </div>
+                <div class="inventory-section" id="invFuel">
+                    <h3>Fuel</h3>
+                    <div class="inv-content"></div>
+                </div>
+                <div class="inventory-section" id="invFood">
+                    <h3>Food & Water</h3>
+                    <div class="inv-content"></div>
+                </div>
+                <div class="inventory-section" id="invMaterials">
+                    <h3>Materials</h3>
+                    <div class="inv-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

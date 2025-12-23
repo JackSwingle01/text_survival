@@ -14,6 +14,57 @@ public static class GameDisplay
 {
     private static readonly NarrativeLog _log = new();
 
+    #region Context-aware overloads (route to WebIO when SessionId present)
+
+    /// <summary>
+    /// Add narrative with context - routes to instance log for web sessions.
+    /// </summary>
+    public static void AddNarrative(GameContext ctx, string text, LogLevel level = LogLevel.Normal)
+    {
+        if (ctx.SessionId != null)
+            ctx.Log.Add(text, level);
+        else
+            _log.Add(text, level);
+    }
+
+    /// <summary>
+    /// Add multiple narrative entries with context.
+    /// </summary>
+    public static void AddNarrative(GameContext ctx, IEnumerable<string> texts, LogLevel level = LogLevel.Normal)
+    {
+        if (ctx.SessionId != null)
+            ctx.Log.AddRange(texts, level);
+        else
+        {
+            foreach (var text in texts)
+                _log.Add(text, level);
+        }
+    }
+
+    public static void AddSuccess(GameContext ctx, string text) => AddNarrative(ctx, text, LogLevel.Success);
+    public static void AddWarning(GameContext ctx, string text) => AddNarrative(ctx, text, LogLevel.Warning);
+    public static void AddDanger(GameContext ctx, string text) => AddNarrative(ctx, text, LogLevel.Danger);
+
+    public static void AddSeparator(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            ctx.Log.AddSeparator();
+        else
+            _log.AddSeparator();
+    }
+
+    public static void ClearNarrative(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            ctx.Log.Clear();
+        else
+            _log.Clear();
+    }
+
+    #endregion
+
+    #region Static overloads (console-only, for backwards compatibility)
+
     public static void AddNarrative(string text, LogLevel level = LogLevel.Normal)
     {
         _log.Add(text, level);
@@ -28,9 +79,11 @@ public static class GameDisplay
     public static void AddSuccess(string text) => AddNarrative(text, LogLevel.Success);
     public static void AddWarning(string text) => AddNarrative(text, LogLevel.Warning);
     public static void AddDanger(string text) => AddNarrative(text, LogLevel.Danger);
-    public static void AddSeparator() => AddNarrative("", LogLevel.Normal);
+    public static void AddSeparator() => _log.AddSeparator();
 
     public static void ClearNarrative() => _log.Clear();
+
+    #endregion
 
     /// <summary>
     /// Render the game display with optional status text.
@@ -43,6 +96,15 @@ public static class GameDisplay
         int? progress = null,
         int? progressTotal = null)
     {
+        // Route to web UI when session is active
+        if (ctx.SessionId != null)
+        {
+            if (addSeparator)
+                ctx.Log.AddSeparator();
+            Web.WebIO.Render(ctx, statusText, progress, progressTotal);
+            return;
+        }
+
         if (Output.TestMode)
         {
             RenderTestMode(ctx);
@@ -819,6 +881,13 @@ public static class GameDisplay
     {
         var inv = inventory ?? ctx.Inventory;
         var headerTitle = title ?? "INVENTORY";
+
+        // Route to web UI when session is active
+        if (ctx.SessionId != null)
+        {
+            Web.WebIO.RenderInventory(ctx, inv, headerTitle);
+            return;
+        }
 
         if (Output.TestMode)
         {

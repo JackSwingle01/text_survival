@@ -22,9 +22,9 @@ public class CraftingRunner(GameContext ctx)
 
         if (needs.Count == 0)
         {
-            GameDisplay.AddNarrative("You don't have materials to make anything useful.");
+            GameDisplay.AddNarrative(_ctx, "You don't have materials to make anything useful.");
             GameDisplay.Render(_ctx, statusText: "Thinking.");
-            Input.WaitForKey();
+            Input.WaitForKey(_ctx);
             return;
         }
 
@@ -36,7 +36,7 @@ public class CraftingRunner(GameContext ctx)
         choice.AddOption("Never mind", null);
 
         GameDisplay.Render(_ctx, statusText: "Thinking.");
-        var selectedNeed = choice.GetPlayerChoice();
+        var selectedNeed = choice.GetPlayerChoice(_ctx);
 
         if (selectedNeed == null)
             return;
@@ -50,27 +50,27 @@ public class CraftingRunner(GameContext ctx)
     /// </summary>
     public bool PromptForNeed(NeedCategory need, string context)
     {
-        GameDisplay.AddNarrative($"You {context}.");
+        GameDisplay.AddNarrative(_ctx, $"You {context}.");
 
         var options = _crafting.GetOptionsForNeed(need, _ctx.Inventory);
         var craftable = options.Where(o => o.CanCraft(_ctx.Inventory)).ToList();
 
         if (craftable.Count == 0)
         {
-            GameDisplay.AddNarrative($"You need {GetNeedDescription(need)}, but don't have materials to make one.");
+            GameDisplay.AddNarrative(_ctx, $"You need {GetNeedDescription(need)}, but don't have materials to make one.");
             GameDisplay.Render(_ctx, statusText: "Thinking.");
-            Input.WaitForKey();
+            Input.WaitForKey(_ctx);
             return false;
         }
 
-        GameDisplay.AddNarrative($"You could make {GetNeedDescription(need)}. Craft one now?");
+        GameDisplay.AddNarrative(_ctx, $"You could make {GetNeedDescription(need)}. Craft one now?");
         GameDisplay.Render(_ctx, statusText: "Thinking.");
 
         var confirm = new Choice<bool>("Craft now?");
         confirm.AddOption("Yes", true);
         confirm.AddOption("No", false);
 
-        if (!confirm.GetPlayerChoice())
+        if (!confirm.GetPlayerChoice(_ctx))
             return false;
 
         return ShowOptionsForNeed(need);
@@ -82,7 +82,7 @@ public class CraftingRunner(GameContext ctx)
 
         if (options.Count == 0)
         {
-            GameDisplay.AddNarrative("You don't have any materials for this.");
+            GameDisplay.AddNarrative(_ctx, "You don't have any materials for this.");
             return false;
         }
 
@@ -92,19 +92,19 @@ public class CraftingRunner(GameContext ctx)
 
         if (uncraftable.Any())
         {
-            GameDisplay.AddNarrative("Not enough materials for:");
+            GameDisplay.AddNarrative(_ctx, "Not enough materials for:");
             foreach (var opt in uncraftable)
             {
                 var (_, missing) = opt.CheckRequirements(_ctx.Inventory);
-                GameDisplay.AddNarrative($"  {opt.Name} - need: {string.Join(", ", missing)}");
+                GameDisplay.AddNarrative(_ctx, $"  {opt.Name} - need: {string.Join(", ", missing)}");
             }
         }
 
         if (craftable.Count == 0)
         {
-            GameDisplay.AddNarrative("You can't make anything right now.");
+            GameDisplay.AddNarrative(_ctx, "You can't make anything right now.");
             GameDisplay.Render(_ctx, statusText: "Thinking.");
-            Input.WaitForKey();
+            Input.WaitForKey(_ctx);
             return false;
         }
 
@@ -119,7 +119,7 @@ public class CraftingRunner(GameContext ctx)
         choice.AddOption("Cancel", null);
 
         GameDisplay.Render(_ctx, statusText: "Planning.");
-        var selected = choice.GetPlayerChoice();
+        var selected = choice.GetPlayerChoice(_ctx);
 
         if (selected == null)
             return false;
@@ -129,7 +129,7 @@ public class CraftingRunner(GameContext ctx)
 
     private bool DoCraft(CraftOption option)
     {
-        GameDisplay.AddNarrative($"You begin working on a {option.Name}...");
+        GameDisplay.AddNarrative(_ctx, $"You begin working on a {option.Name}...");
 
         var capacities = _ctx.player.GetCapacities();
         int totalTime = option.CraftingTimeMinutes;
@@ -138,14 +138,14 @@ public class CraftingRunner(GameContext ctx)
         if (AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness))
         {
             totalTime = (int)(totalTime * 1.25);
-            GameDisplay.AddWarning("Your foggy mind slows the work.");
+            GameDisplay.AddWarning(_ctx, "Your foggy mind slows the work.");
         }
 
         // Manipulation impairment slows crafting (+30%)
         if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
         {
             totalTime = (int)(totalTime * 1.30);
-            GameDisplay.AddWarning("Your unsteady hands slow the work.");
+            GameDisplay.AddWarning(_ctx, "Your unsteady hands slow the work.");
         }
 
         int elapsed = 0;
@@ -175,27 +175,27 @@ public class CraftingRunner(GameContext ctx)
             if (previous != null)
             {
                 _ctx.Inventory.Tools.Add(previous);
-                GameDisplay.AddSuccess($"You crafted a {tool.Name}!");
-                GameDisplay.AddNarrative($"You swap your {previous.Name} for the {tool.Name}.");
+                GameDisplay.AddSuccess(_ctx, $"You crafted a {tool.Name}!");
+                GameDisplay.AddNarrative(_ctx, $"You swap your {previous.Name} for the {tool.Name}.");
             }
             else
             {
-                GameDisplay.AddSuccess($"You crafted a {tool.Name}!");
-                GameDisplay.AddNarrative($"You equip the {tool.Name}.");
+                GameDisplay.AddSuccess(_ctx, $"You crafted a {tool.Name}!");
+                GameDisplay.AddNarrative(_ctx, $"You equip the {tool.Name}.");
             }
         }
         else
         {
             _ctx.Inventory.Tools.Add(tool);
-            GameDisplay.AddSuccess($"You crafted a {tool.Name}!");
+            GameDisplay.AddSuccess(_ctx, $"You crafted a {tool.Name}!");
         }
         if (option.Durability > 0)
         {
-            GameDisplay.AddNarrative($"It should last for about {option.Durability} uses.");
+            GameDisplay.AddNarrative(_ctx, $"It should last for about {option.Durability} uses.");
         }
 
         GameDisplay.Render(_ctx, statusText: "Satisfied.");
-        Input.WaitForKey();
+        Input.WaitForKey(_ctx);
 
         return true;
     }

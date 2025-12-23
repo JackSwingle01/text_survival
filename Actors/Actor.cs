@@ -1,3 +1,4 @@
+using text_survival.Actions;
 using text_survival.Bodies;
 using text_survival.Combat;
 using text_survival.Effects;
@@ -16,8 +17,8 @@ public abstract class Actor
     public abstract string AttackName { get; }
     public abstract DamageType AttackType { get; }
 
-    public virtual void Attack(Actor target, Tool? weapon = null, string? bodyPart = null)
-        => combatManager.Attack(target, weapon, bodyPart);
+    public virtual void Attack(Actor target, Tool? weapon = null, string? bodyPart = null, GameContext? ctx = null)
+        => combatManager.Attack(target, weapon, bodyPart, ctx);
 
     public bool IsEngaged { get; set; }
     public bool IsAlive => Vitality > 0;

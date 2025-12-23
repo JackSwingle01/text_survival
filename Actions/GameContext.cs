@@ -42,6 +42,12 @@ public class GameContext(Player player, Camp camp)
     public Camp Camp = camp;
     public bool IsAtCamp => CurrentLocation == Camp.Location;
 
+    // Web session support - null means console mode
+    public string? SessionId { get; set; }
+
+    // Instance log for web mode (console mode uses static log in GameDisplay)
+    public NarrativeLog Log { get; } = new();
+
     // Player's carried inventory (aggregate-based)
     public Inventory Inventory { get; } = Inventory.CreatePlayerInventory(15.0);
     public Expedition? Expedition;
@@ -312,14 +318,14 @@ public class GameContext(Player player, Camp camp)
         if (Tensions.HasTension("DeadlyCold") && Check(EventCondition.NearFire))
         {
             Tensions.ResolveTension("DeadlyCold");
-            GameDisplay.AddNarrative("The fire's warmth washes over you. You're going to be okay.");
+            GameDisplay.AddNarrative(this, "The fire's warmth washes over you. You're going to be okay.");
         }
 
         GameTime = GameTime.AddMinutes(minutes);
 
         var logs = player?.GetFlushLogs();
         if (logs is not null && logs.Count != 0)
-            GameDisplay.AddNarrative(logs);
+            GameDisplay.AddNarrative(this, logs);
     }
 
     /// <summary>

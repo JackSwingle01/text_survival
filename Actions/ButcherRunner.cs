@@ -14,7 +14,7 @@ public static class ButcherRunner
             result = Butcher(animal);
         else
         {
-            GameDisplay.AddWarning("Without a cutting tool, you tear what meat you can by hand...");
+            GameDisplay.AddWarning(ctx, "Without a cutting tool, you tear what meat you can by hand...");
             result = ButcherWithoutKnife(animal);
         }
 
@@ -22,7 +22,7 @@ public static class ButcherRunner
         var manipulation = ctx.player.GetCapacities().Manipulation;
         if (AbilityCalculator.IsManipulationImpaired(manipulation))
         {
-            GameDisplay.AddWarning("Your unsteady hands waste some of the meat.");
+            GameDisplay.AddWarning(ctx, "Your unsteady hands waste some of the meat.");
             result.ApplyYieldMultiplier(0.8);
         }
 
