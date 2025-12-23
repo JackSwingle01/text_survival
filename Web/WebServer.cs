@@ -18,7 +18,7 @@ public static class WebServer
     public static async Task Run(int port = 5000)
     {
         var builder = WebApplication.CreateBuilder();
-        builder.WebHost.UseUrls($"http://localhost:{port}");
+        builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
         // Suppress ASP.NET Core startup logging
         builder.Logging.ClearProviders();
