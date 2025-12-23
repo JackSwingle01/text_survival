@@ -19,13 +19,13 @@ public class Choice<T>(string? prompt = null)
     {
         options[label] = item;
     }
-    public T GetPlayerChoice()
+    public T GetPlayerChoice(GameContext ctx)
     {
         if (options.Count == 0)
         {
             throw new InvalidOperationException("No Choices Available");
         }
-        string choice = Input.Select(Prompt ?? "Choose:", options.Keys);
+        string choice = Input.Select(ctx, Prompt ?? "Choose:", options.Keys);
         return options[choice];
     }
 }
@@ -44,10 +44,10 @@ public partial class GameRunner(GameContext ctx)
         }
 
         // Player died from survival conditions - show death message
-        GameDisplay.AddDanger("Your vision fades to black as you collapse...");
-        GameDisplay.AddDanger("You have died.");
+        GameDisplay.AddDanger(ctx, "Your vision fades to black as you collapse...");
+        GameDisplay.AddDanger(ctx, "You have died.");
         GameDisplay.Render(ctx, addSeparator: false);
-        Input.WaitForKey();
+        Input.WaitForKey(ctx);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -64,13 +64,6 @@ public partial class GameRunner(GameContext ctx)
         var isFoggy = AbilityCalculator.IsPerceptionImpaired(
             AbilityCalculator.CalculatePerception(ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers()));
         var isWinded = AbilityCalculator.IsBreathingImpaired(capacities.Breathing);
-
-        // Sleep emphasized when impaired
-        if (isImpaired || ctx.player.Body.IsTired)
-        {
-            string sleepLabel = isImpaired ? "Sleep (you need rest)" : "Sleep";
-            choice.AddOption(sleepLabel, Sleep);
-        }
 
         if (CanRestByFire())
             choice.AddOption("Wait", Wait);
@@ -136,7 +129,14 @@ public partial class GameRunner(GameContext ctx)
         if (HasItems() || ctx.Camp.Storage.CurrentWeightKg > 0)
             choice.AddOption("Inventory", RunInventoryMenu);
 
-        choice.GetPlayerChoice().Invoke();
+        // Sleep emphasized when impaired
+        if (isImpaired || ctx.player.Body.IsTired)
+        {
+            string sleepLabel = isImpaired ? "Sleep (you need rest)" : "Sleep";
+            choice.AddOption(sleepLabel, Sleep);
+        }
+
+        choice.GetPlayerChoice(ctx).Invoke();
     }
 
     private bool HasCampWork() =>
@@ -161,7 +161,7 @@ public partial class GameRunner(GameContext ctx)
 
         choice.AddOption("Cancel", "cancel");
 
-        string action = choice.GetPlayerChoice();
+        string action = choice.GetPlayerChoice(ctx);
 
         switch (action)
         {
@@ -213,9 +213,9 @@ public partial class GameRunner(GameContext ctx)
         int minutes = (int)(fire.HoursRemaining * 60);
 
         if (minutes <= 5)
-            GameDisplay.AddDanger($"Your fire will die in {minutes} minutes!");
+            GameDisplay.AddDanger(ctx, $"Your fire will die in {minutes} minutes!");
         else if (minutes <= 15)
-            GameDisplay.AddWarning($"Fire burning low - {minutes} minutes remaining.");
+            GameDisplay.AddWarning(ctx, $"Fire burning low - {minutes} minutes remaining.");
     }
 
     private bool CanStartFire()
@@ -288,16 +288,16 @@ public partial class GameRunner(GameContext ctx)
                 // Check if we have fuel but fire is too cold
                 bool hasFuelButTooCold = (inv.Logs.Count > 0 || inv.Sticks.Count > 0) && inv.Tinder.Count == 0;
                 if (hasFuelButTooCold)
-                    GameDisplay.AddWarning("The fire is too cold. You need tinder to build it up first.");
+                    GameDisplay.AddWarning(ctx, "The fire is too cold. You need tinder to build it up first.");
                 else
-                    GameDisplay.AddNarrative("You have no fuel to add.");
+                    GameDisplay.AddNarrative(ctx, "You have no fuel to add.");
                 return;
             }
 
             fuelChoices.Add("Done");
 
             GameDisplay.Render(ctx, addSeparator: false, statusText: "Tending fire.");
-            string choice = Input.Select("Add fuel:", fuelChoices);
+            string choice = Input.Select(ctx, "Add fuel:", fuelChoices);
 
             if (choice == "Done")
                 return;
@@ -307,7 +307,7 @@ public partial class GameRunner(GameContext ctx)
             // Handle disabled option (fire too small for logs)
             if (name == "disabled")
             {
-                GameDisplay.AddWarning("The fire needs to be bigger before you can add logs. Add more kindling first.");
+                GameDisplay.AddWarning(ctx, "The fire needs to be bigger before you can add logs. Add more kindling first.");
                 continue;
             }
 
@@ -317,10 +317,10 @@ public partial class GameRunner(GameContext ctx)
             double mass = takeFunc();
             fire.AddFuel(mass, fuelType);
 
-            GameDisplay.AddNarrative($"You add a {name} ({mass:F2}kg) to the fire.");
+            GameDisplay.AddNarrative(ctx, $"You add a {name} ({mass:F2}kg) to the fire.");
 
             if (hadEmbers && fire.IsActive)
-                GameDisplay.AddNarrative("The embers ignite the fuel! The fire springs back to life.");
+                GameDisplay.AddNarrative(ctx, "The embers ignite the fuel! The fire springs back to life.");
 
             ctx.Update(1, ActivityType.TendingFire);
         }
@@ -333,9 +333,9 @@ public partial class GameRunner(GameContext ctx)
         bool relightingFire = existingFire != null;
 
         if (relightingFire)
-            GameDisplay.AddNarrative("You prepare to relight the fire.");
+            GameDisplay.AddNarrative(ctx, "You prepare to relight the fire.");
         else
-            GameDisplay.AddNarrative("You prepare to start a fire.");
+            GameDisplay.AddNarrative(ctx, "You prepare to start a fire.");
 
         // Get fire-making tools from aggregate inventory
         var fireTools = inv.Tools.Where(t =>
@@ -345,7 +345,7 @@ public partial class GameRunner(GameContext ctx)
 
         if (fireTools.Count == 0)
         {
-            GameDisplay.AddWarning("You don't have any fire-making tools!");
+            GameDisplay.AddWarning(ctx, "You don't have any fire-making tools!");
             return;
         }
 
@@ -354,17 +354,17 @@ public partial class GameRunner(GameContext ctx)
 
         if (!hasTinder)
         {
-            GameDisplay.AddWarning("You don't have any tinder to start a fire!");
+            GameDisplay.AddWarning(ctx, "You don't have any tinder to start a fire!");
             return;
         }
 
         if (!hasKindling)
         {
-            GameDisplay.AddWarning("You don't have any kindling to start a fire!");
+            GameDisplay.AddWarning(ctx, "You don't have any kindling to start a fire!");
             return;
         }
 
-        GameDisplay.AddNarrative($"Materials: {inv.Tinder.Count} tinder, {inv.Sticks.Count} kindling");
+        GameDisplay.AddNarrative(ctx, $"Materials: {inv.Tinder.Count} tinder, {inv.Sticks.Count} kindling");
 
         // Build tool options with success chances
         var toolChoices = new List<string>();
@@ -385,11 +385,11 @@ public partial class GameRunner(GameContext ctx)
         toolChoices.Add("Cancel");
 
         GameDisplay.Render(ctx, addSeparator: false, statusText: "Preparing.");
-        string choice = Input.Select("Choose fire-making tool:", toolChoices);
+        string choice = Input.Select(ctx, "Choose fire-making tool:", toolChoices);
 
         if (choice == "Cancel")
         {
-            GameDisplay.AddNarrative("You decide not to start a fire right now.");
+            GameDisplay.AddNarrative(ctx, "You decide not to start a fire right now.");
             return;
         }
 
@@ -401,13 +401,13 @@ public partial class GameRunner(GameContext ctx)
         var isClumsy = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
 
         if (isImpaired)
-            GameDisplay.AddWarning("Your foggy mind makes this harder.");
+            GameDisplay.AddWarning(ctx, "Your foggy mind makes this harder.");
         if (isClumsy)
-            GameDisplay.AddWarning("Your unsteady hands make this harder.");
+            GameDisplay.AddWarning(ctx, "Your unsteady hands make this harder.");
 
         while (true)
         {
-            GameDisplay.AddNarrative($"You work with the {selectedTool.Name}...");
+            GameDisplay.AddNarrative(ctx, $"You work with the {selectedTool.Name}...");
             GameDisplay.UpdateAndRenderProgress(ctx, "Starting fire...", 10, ActivityType.TendingFire);
 
             double baseChance = GetFireToolBaseChance(selectedTool);
@@ -438,14 +438,14 @@ public partial class GameRunner(GameContext ctx)
 
                 if (relightingFire)
                 {
-                    GameDisplay.AddSuccess($"Success! You relight the fire! ({finalChance:P0} chance)");
+                    GameDisplay.AddSuccess(ctx, $"Success! You relight the fire! ({finalChance:P0} chance)");
                     existingFire!.AddFuel(tinderUsed, FuelType.Tinder);
                     existingFire.AddFuel(kindlingUsed, FuelType.Kindling);
                     existingFire.IgniteFuel(FuelType.Tinder, tinderUsed);
                 }
                 else
                 {
-                    GameDisplay.AddSuccess($"Success! You start a fire! ({finalChance:P0} chance)");
+                    GameDisplay.AddSuccess(ctx, $"Success! You start a fire! ({finalChance:P0} chance)");
                     var newFire = new HeatSourceFeature();
                     newFire.AddFuel(tinderUsed, FuelType.Tinder);
                     newFire.AddFuel(kindlingUsed, FuelType.Kindling);
@@ -458,14 +458,14 @@ public partial class GameRunner(GameContext ctx)
             }
             else
             {
-                GameDisplay.AddWarning($"You failed to start the fire. The tinder was wasted. ({finalChance:P0} chance)");
+                GameDisplay.AddWarning(ctx, $"You failed to start the fire. The tinder was wasted. ({finalChance:P0} chance)");
                 ctx.player.Skills.GetSkill("Firecraft").GainExperience(1);
 
                 // Check if retry is possible
                 if (inv.Tinder.Count > 0 && inv.Sticks.Count > 0)
                 {
                     GameDisplay.Render(ctx, statusText: "Thinking.");
-                    if (Input.Confirm($"Try again with {selectedTool.Name}?"))
+                    if (Input.Confirm(ctx, $"Try again with {selectedTool.Name}?"))
                         continue;
                 }
                 break;
@@ -486,13 +486,7 @@ public partial class GameRunner(GameContext ctx)
 
     private void Sleep()
     {
-        int hours = Input.ReadInt("How many hours would you like to sleep?");
-
-        if (hours < 1 || hours > 24)
-        {
-            GameDisplay.AddWarning("You can only sleep for 1-24 hours at a time.");
-            return;
-        }
+        int hours = Input.ReadInt(ctx, "How many hours would you like to sleep?", 1, 12);
 
         int totalMinutes = hours * 60;
         int slept = 0;
@@ -508,7 +502,7 @@ public partial class GameRunner(GameContext ctx)
         }
 
         if (slept > 0)
-            GameDisplay.AddNarrative($"You slept for {slept / 60} hours.");
+            GameDisplay.AddNarrative(ctx, $"You slept for {slept / 60} hours.");
     }
 
     private void Wait()
@@ -531,6 +525,8 @@ public partial class GameRunner(GameContext ctx)
             // Not at camp - just show read-only inventory view
             GameDisplay.RenderInventoryScreen(ctx);
             Input.WaitForKey("Press any key to return...");
+            if (ctx.SessionId != null)
+                Web.WebIO.ClearInventory(ctx);
             return;
         }
 
@@ -557,7 +553,7 @@ public partial class GameRunner(GameContext ctx)
             options.Add("Retrieve items");
             options.Add("Back");
 
-            string selected = Input.Select("Choose:", options);
+            string selected = Input.Select(ctx, "Choose:", options);
 
             if (selected == "Back")
                 break;
@@ -570,6 +566,9 @@ public partial class GameRunner(GameContext ctx)
             else if (selected == "Retrieve items")
                 RetrieveItems();
         }
+
+        if (ctx.SessionId != null)
+            Web.WebIO.ClearInventory(ctx);
     }
 
     private void StoreItems()
@@ -583,26 +582,26 @@ public partial class GameRunner(GameContext ctx)
 
             if (items.Count == 0)
             {
-                GameDisplay.AddNarrative("Nothing to store.");
+                GameDisplay.AddNarrative(ctx, "Nothing to store.");
                 GameDisplay.Render(ctx, statusText: "Organizing.");
-                Input.WaitForKey();
+                Input.WaitForKey(ctx);
                 break;
             }
 
-            GameDisplay.AddNarrative($"Carrying: {playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg");
+            GameDisplay.AddNarrative(ctx, $"Carrying: {playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg");
             GameDisplay.Render(ctx, statusText: "Organizing.");
 
             var options = items.Select(i => i.Description).ToList();
             options.Add("Done");
 
-            string selected = Input.Select("Store which item?", options);
+            string selected = Input.Select(ctx, "Store which item?", options);
 
             if (selected == "Done")
                 break;
 
             int idx = options.IndexOf(selected);
             items[idx].TransferTo();
-            GameDisplay.AddNarrative($"Stored {items[idx].Description}");
+            GameDisplay.AddNarrative(ctx, $"Stored {items[idx].Description}");
         }
     }
 
@@ -617,19 +616,19 @@ public partial class GameRunner(GameContext ctx)
 
             if (items.Count == 0)
             {
-                GameDisplay.AddNarrative("Camp storage is empty.");
+                GameDisplay.AddNarrative(ctx, "Camp storage is empty.");
                 GameDisplay.Render(ctx, statusText: "Organizing.");
-                Input.WaitForKey();
+                Input.WaitForKey(ctx);
                 break;
             }
 
-            GameDisplay.AddNarrative($"Carrying: {playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg");
+            GameDisplay.AddNarrative(ctx, $"Carrying: {playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg");
             GameDisplay.Render(ctx, statusText: "Organizing.");
 
             var options = items.Select(i => i.Description).ToList();
             options.Add("Done");
 
-            string selected = Input.Select("Retrieve which item?", options);
+            string selected = Input.Select(ctx, "Retrieve which item?", options);
 
             if (selected == "Done")
                 break;
@@ -640,14 +639,14 @@ public partial class GameRunner(GameContext ctx)
             // Check weight limit
             if (!playerInv.CanCarry(itemWeight))
             {
-                GameDisplay.AddWarning($"You can't carry that much! ({playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg)");
+                GameDisplay.AddWarning(ctx, $"You can't carry that much! ({playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg)");
                 GameDisplay.Render(ctx, statusText: "Organizing.");
-                Input.WaitForKey();
+                Input.WaitForKey(ctx);
                 continue;
             }
 
             items[idx].TransferTo();
-            GameDisplay.AddNarrative($"Retrieved {items[idx].Description}");
+            GameDisplay.AddNarrative(ctx, $"Retrieved {items[idx].Description}");
         }
     }
 
@@ -660,7 +659,7 @@ public partial class GameRunner(GameContext ctx)
         {
             int caloriesPercent = (int)(body.CalorieStore / Survival.SurvivalProcessor.MAX_CALORIES * 100);
             int hydrationPercent = (int)(body.Hydration / Survival.SurvivalProcessor.MAX_HYDRATION * 100);
-            GameDisplay.AddNarrative($"Food: {caloriesPercent}% | Water: {hydrationPercent}%");
+            GameDisplay.AddNarrative(ctx, $"Food: {caloriesPercent}% | Water: {hydrationPercent}%");
             GameDisplay.Render(ctx, statusText: "Eating.");
 
             var options = new List<string>();
@@ -676,7 +675,7 @@ public partial class GameRunner(GameContext ctx)
                 {
                     inv.CookedMeat.RemoveAt(0);
                     body.AddCalories(w * 2500);
-                    GameDisplay.AddSuccess($"You eat the cooked meat. (+{(int)(w * 2500)} cal)");
+                    GameDisplay.AddSuccess(ctx, $"You eat the cooked meat. (+{(int)(w * 2500)} cal)");
                 };
             }
 
@@ -689,7 +688,7 @@ public partial class GameRunner(GameContext ctx)
                 {
                     inv.RawMeat.RemoveAt(0);
                     body.AddCalories(w * 1500);
-                    GameDisplay.AddWarning($"You eat the raw meat. (+{(int)(w * 1500)} cal)");
+                    GameDisplay.AddWarning(ctx, $"You eat the raw meat. (+{(int)(w * 1500)} cal)");
                     // TODO: Add chance of food poisoning
                 };
             }
@@ -704,7 +703,7 @@ public partial class GameRunner(GameContext ctx)
                     inv.Berries.RemoveAt(0);
                     body.AddCalories(w * 500);
                     body.AddHydration(w * 200); // Berries have some water content
-                    GameDisplay.AddSuccess($"You eat the berries. (+{(int)(w * 500)} cal)");
+                    GameDisplay.AddSuccess(ctx, $"You eat the berries. (+{(int)(w * 500)} cal)");
                 };
             }
 
@@ -730,11 +729,11 @@ public partial class GameRunner(GameContext ctx)
                         {
                             double cooldown = 0.15 * (toDrink / 0.25); // 0.15 per 0.25L
                             hyperthermia.Severity = Math.Max(0, hyperthermia.Severity - cooldown);
-                            GameDisplay.AddSuccess("You drink some water. The cool water helps you cool down.");
+                            GameDisplay.AddSuccess(ctx, "You drink some water. The cool water helps you cool down.");
                         }
                         else
                         {
-                            GameDisplay.AddSuccess("You drink some water.");
+                            GameDisplay.AddSuccess(ctx, "You drink some water.");
                         }
                     };
                 }
@@ -744,12 +743,12 @@ public partial class GameRunner(GameContext ctx)
 
             if (options.Count == 1)
             {
-                GameDisplay.AddNarrative("You have nothing to eat or drink.");
+                GameDisplay.AddNarrative(ctx, "You have nothing to eat or drink.");
                 GameDisplay.Render(ctx);
                 break;
             }
 
-            string choice = Input.Select("What would you like to consume?", options);
+            string choice = Input.Select(ctx, "What would you like to consume?", options);
 
             if (choice == "Done")
                 break;
@@ -765,7 +764,7 @@ public partial class GameRunner(GameContext ctx)
 
         while (true)
         {
-            GameDisplay.AddNarrative($"Water: {inv.WaterLiters:F1}L | Raw meat: {inv.RawMeatCount}");
+            GameDisplay.AddNarrative(ctx, $"Water: {inv.WaterLiters:F1}L | Raw meat: {inv.RawMeatCount}");
             GameDisplay.Render(ctx, statusText: "Cooking.");
 
             var options = new List<string>();
@@ -782,7 +781,7 @@ public partial class GameRunner(GameContext ctx)
                     GameDisplay.UpdateAndRenderProgress(ctx, "Cooking meat...", 15, ActivityType.Cooking);
                     inv.RawMeat.RemoveAt(0);
                     inv.CookedMeat.Add(w);
-                    GameDisplay.AddSuccess($"Cooked {w:F1}kg of meat.");
+                    GameDisplay.AddSuccess(ctx, $"Cooked {w:F1}kg of meat.");
                 };
             }
 
@@ -793,19 +792,19 @@ public partial class GameRunner(GameContext ctx)
             {
                 GameDisplay.UpdateAndRenderProgress(ctx, "Melting snow...", 10, ActivityType.Cooking);
                 inv.WaterLiters += 0.5;
-                GameDisplay.AddSuccess("Melted snow into 0.5L of water.");
+                GameDisplay.AddSuccess(ctx, "Melted snow into 0.5L of water.");
             };
 
             options.Add("Done");
 
-            string choice = Input.Select("What would you like to do?", options);
+            string choice = Input.Select(ctx, "What would you like to do?", options);
 
             if (choice == "Done")
                 break;
 
             actions[choice]();
             GameDisplay.Render(ctx, statusText: "Cooking.");
-            Input.WaitForKey();
+            Input.WaitForKey(ctx);
         }
     }
 
@@ -817,9 +816,9 @@ public partial class GameRunner(GameContext ctx)
     {
         if (!enemy.IsAlive) return;
 
-        GameDisplay.AddNarrative("!");
+        GameDisplay.AddNarrative(ctx, "!");
         Thread.Sleep(500);
-        GameDisplay.AddNarrative(CombatNarrator.DescribeCombatStart(ctx.player, enemy));
+        GameDisplay.AddNarrative(ctx, CombatNarrator.DescribeCombatStart(ctx.player, enemy));
 
         ctx.player.IsEngaged = true;
         enemy.IsEngaged = true;
@@ -828,13 +827,13 @@ public partial class GameRunner(GameContext ctx)
 
         if (enemyFirstStrike)
         {
-            GameDisplay.AddNarrative($"The {enemy.Name} moves with surprising speed!");
+            GameDisplay.AddNarrative(ctx, $"The {enemy.Name} moves with surprising speed!");
             Thread.Sleep(500);
             EnemyCombatTurn(enemy);
         }
         else
         {
-            GameDisplay.AddNarrative("You're quick to react, giving you the initiative!");
+            GameDisplay.AddNarrative(ctx, "You're quick to react, giving you the initiative!");
             Thread.Sleep(500);
             PlayerCombatTurn(enemy);
         }
@@ -848,7 +847,7 @@ public partial class GameRunner(GameContext ctx)
             return;
         }
 
-        GameDisplay.AddNarrative("─────────────────────────────────────");
+        GameDisplay.AddNarrative(ctx, "─────────────────────────────────────");
         DisplayCombatStatus(enemy);
 
         var choice = new Choice<Action>();
@@ -860,7 +859,7 @@ public partial class GameRunner(GameContext ctx)
         if (ctx.player.Speed > 0.25)
             choice.AddOption("Flee", () => AttemptFlee(enemy));
 
-        choice.GetPlayerChoice().Invoke();
+        choice.GetPlayerChoice(ctx).Invoke();
     }
 
     private void EnemyCombatTurn(Animal enemy)
@@ -872,7 +871,7 @@ public partial class GameRunner(GameContext ctx)
         }
 
         Thread.Sleep(500);
-        enemy.Attack(ctx.player);
+        enemy.Attack(ctx.player, null, null, ctx);
 
         if (!ctx.player.IsAlive || !enemy.IsAlive)
             EndCombat(enemy);
@@ -882,7 +881,7 @@ public partial class GameRunner(GameContext ctx)
 
     private void AttackEnemy(Animal enemy)
     {
-        ctx.player.Attack(enemy, ctx.Inventory.Weapon);
+        ctx.player.Attack(enemy, ctx.Inventory.Weapon, null, ctx);
 
         if (!enemy.IsAlive)
             EndCombat(enemy);
@@ -897,7 +896,7 @@ public partial class GameRunner(GameContext ctx)
 
         if (targetPart != null)
         {
-            ctx.player.Attack(enemy, ctx.Inventory.Weapon, targetPart.Name);
+            ctx.player.Attack(enemy, ctx.Inventory.Weapon, targetPart.Name, ctx);
 
             if (!enemy.IsAlive)
                 EndCombat(enemy);
@@ -914,11 +913,11 @@ public partial class GameRunner(GameContext ctx)
     {
         if (depth <= 0)
         {
-            GameDisplay.AddWarning("You don't have enough skill to target an attack");
+            GameDisplay.AddWarning(ctx, "You don't have enough skill to target an attack");
             return null;
         }
 
-        GameDisplay.AddNarrative($"Where do you want to target your attack on the {enemy.Name}?");
+        GameDisplay.AddNarrative(ctx, $"Where do you want to target your attack on the {enemy.Name}?");
 
         List<BodyRegion> allParts = [];
         foreach (var part in enemy.Body.Parts)
@@ -934,14 +933,14 @@ public partial class GameRunner(GameContext ctx)
     {
         if (CombatUtils.SpeedCheck(ctx.player, enemy))
         {
-            GameDisplay.AddNarrative("You got away!");
+            GameDisplay.AddNarrative(ctx, "You got away!");
             enemy.IsEngaged = false;
             ctx.player.IsEngaged = false;
             ctx.player.Skills.Reflexes.GainExperience(2);
         }
         else
         {
-            GameDisplay.AddNarrative($"You weren't fast enough to get away from {enemy.Name}!");
+            GameDisplay.AddNarrative(ctx, $"You weren't fast enough to get away from {enemy.Name}!");
             ctx.player.Skills.Reflexes.GainExperience(1);
             EnemyCombatTurn(enemy);
         }
@@ -954,7 +953,7 @@ public partial class GameRunner(GameContext ctx)
 
         if (!ctx.player.IsAlive)
         {
-            GameDisplay.AddDanger("Your vision fades to black as you collapse... You have died!");
+            GameDisplay.AddDanger(ctx, "Your vision fades to black as you collapse... You have died!");
         }
         else if (!enemy.IsAlive)
         {
@@ -963,10 +962,10 @@ public partial class GameRunner(GameContext ctx)
                 $"You stand victorious over the fallen {enemy.Name}!",
                 $"With a final blow, you bring down the {enemy.Name}!"
             ];
-            GameDisplay.AddNarrative(victoryMessages[Utils.RandInt(0, victoryMessages.Length - 1)]);
+            GameDisplay.AddNarrative(ctx, victoryMessages[Utils.RandInt(0, victoryMessages.Length - 1)]);
 
             int xpGain = CalculateExperienceGain(enemy);
-            GameDisplay.AddNarrative($"You've gained {xpGain} fighting experience!");
+            GameDisplay.AddNarrative(ctx, $"You've gained {xpGain} fighting experience!");
             ctx.player.Skills.Fighting.GainExperience(xpGain);
         }
     }
@@ -990,13 +989,13 @@ public partial class GameRunner(GameContext ctx)
         AddHealthMessage(enemyStatus, enemyVitality);
     }
 
-    private static void AddHealthMessage(string message, double healthPercentage)
+    private void AddHealthMessage(string message, double healthPercentage)
     {
         if (healthPercentage < 0.2)
-            GameDisplay.AddDanger(message);
+            GameDisplay.AddDanger(ctx, message);
         else if (healthPercentage < 0.5)
-            GameDisplay.AddWarning(message);
+            GameDisplay.AddWarning(ctx, message);
         else
-            GameDisplay.AddSuccess(message);
+            GameDisplay.AddSuccess(ctx, message);
     }
 }

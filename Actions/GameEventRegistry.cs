@@ -1,5 +1,4 @@
 using text_survival.Actions.Tensions;
-using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
@@ -16,7 +15,7 @@ public static partial class GameEventRegistry
     public record TickResult(int MinutesElapsed, GameEvent? TriggeredEvent);
 
     // Single knob to control overall event frequency
-    private const double EventsPerHour = 1.0;
+    private const double EventsPerHour = .5;
     private static readonly double BaseChancePerMinute = RateToChancePerMinute(EventsPerHour);
 
     private static double RateToChancePerMinute(double eventsPerHour)
@@ -125,7 +124,7 @@ public static partial class GameEventRegistry
         TheFind,
         AssessingTheClaim,
         TheConfrontation,
-        ClaimingTheDen,
+        // ClaimingTheDen is chained from successful eviction outcomes, not random
 
         // Pack arc events (GameEventRegistry.Pack.cs)
         PackSigns,
@@ -170,7 +169,7 @@ public static partial class GameEventRegistry
         if (!Utils.DetermineSuccess(chance))
             return null;
 
-        GameDisplay.AddNarrative($"Debug: chance {chance:F3}/min, {(chance * 60):F3}/hr");
+        // GameDisplay.AddNarrative(ctx, $"Debug: chance {chance:F3}/min, {(chance * 60):F3}/hr");
         // Stage 2: Build eligible pool with weights
         var eligible = new Dictionary<GameEvent, double>();
 
@@ -184,7 +183,7 @@ public static partial class GameEventRegistry
 
             // Calculate weight with modifiers
             double weight = evt.BaseWeight;
-            foreach (var (condition, modifier) in evt.WeightModifiers)
+            foreach (var (condition, modifier) in evt.WeightFactors)
             {
                 if (ctx.Check(condition))
                     weight *= modifier;
@@ -213,26 +212,33 @@ public static partial class GameEventRegistry
 
         if (ctx.CurrentActivity == ActivityType.Sleeping)
         {
-            GameDisplay.AddNarrative("You wake suddenly!");
+            GameDisplay.AddNarrative(ctx, "You wake suddenly!");
         }
         
         GameDisplay.Render(ctx, statusText: "Event!");
-        GameDisplay.AddNarrative($"{evt.Name}", LogLevel.Warning);
-        GameDisplay.AddNarrative(evt.Description);
+        GameDisplay.AddNarrative(ctx, $"{evt.Name}", LogLevel.Warning);
+        GameDisplay.AddNarrative(ctx, evt.Description);
         GameDisplay.Render(ctx, statusText: "Thinking.");
 
         var choice = evt.GetChoice(ctx);
-        GameDisplay.AddNarrative(choice.Description + "\n");
+        GameDisplay.AddNarrative(ctx, choice.Description + "\n");
 
         var outcome = choice.DetermineResult();
 
         HandleOutcome(ctx, outcome);
         GameDisplay.Render(ctx);
-        Input.WaitForKey();
+        Input.WaitForKey(ctx);
 
         // Store encounter for caller to handle
         if (outcome.SpawnEncounter != null)
             ctx.PendingEncounter = outcome.SpawnEncounter;
+
+        // Chain to follow-up event if specified
+        if (outcome.ChainEvent != null)
+        {
+            var chainedEvent = outcome.ChainEvent(ctx);
+            HandleEvent(ctx, chainedEvent);
+        }
     }
 
     /// <summary>
@@ -242,11 +248,11 @@ public static partial class GameEventRegistry
     {
         if (outcome.TimeAddedMinutes != 0)
         {
-            GameDisplay.AddNarrative($"(+{outcome.TimeAddedMinutes} minutes)");
-            GameDisplay.UpdateAndRenderProgress(ctx, "Acting", outcome.TimeAddedMinutes, updateTime: false);
+            GameDisplay.AddNarrative(ctx, $"(+{outcome.TimeAddedMinutes} minutes)");
+            GameDisplay.UpdateAndRenderProgress(ctx, "Acting", outcome.TimeAddedMinutes, ctx.CurrentActivity);
         }
 
-        GameDisplay.AddNarrative(outcome.Message);
+        GameDisplay.AddNarrative(ctx, outcome.Message);
 
         foreach (var effect in outcome.Effects)
         {
@@ -270,7 +276,7 @@ public static partial class GameEventRegistry
                 ctx.Inventory.Add(resources);
                 foreach (var desc in resources.Descriptions)
                 {
-                    GameDisplay.AddNarrative($"You found {desc}");
+                    GameDisplay.AddNarrative(ctx, $"You found {desc}");
                 }
             }
         }
@@ -278,6 +284,22 @@ public static partial class GameEventRegistry
         if (outcome.Cost is not null)
         {
             DeductResources(ctx.Inventory, outcome.Cost);
+        }
+
+        // Direct stat drains (vomiting, etc)
+        if (outcome.StatDrain is not null)
+        {
+            var (calories, hydration) = outcome.StatDrain.Value;
+            if (calories > 0)
+            {
+                ctx.player.Body.DrainCalories(calories);
+                GameDisplay.AddNarrative(ctx, $"Lost {calories:F0} calories.");
+            }
+            if (hydration > 0)
+            {
+                ctx.player.Body.DrainHydration(hydration);
+                GameDisplay.AddNarrative(ctx, $"Lost {hydration:F0}ml hydration.");
+            }
         }
 
         // Tension processing
@@ -325,9 +347,9 @@ public static partial class GameEventRegistry
             {
                 tool.Durability = Math.Max(0, tool.Durability - outcome.DamageTool.UsesLost);
                 if (tool.IsBroken)
-                    GameDisplay.AddNarrative($"Your {tool.Name} breaks!");
+                    GameDisplay.AddNarrative(ctx, $"Your {tool.Name} breaks!");
                 else
-                    GameDisplay.AddNarrative($"Your {tool.Name} is damaged.");
+                    GameDisplay.AddNarrative(ctx, $"Your {tool.Name} is damaged.");
             }
         }
 
@@ -338,7 +360,7 @@ public static partial class GameEventRegistry
             if (tool != null)
             {
                 tool.Durability = 0;
-                GameDisplay.AddNarrative($"Your {tool.Name} breaks!");
+                GameDisplay.AddNarrative(ctx, $"Your {tool.Name} breaks!");
             }
         }
 
@@ -349,7 +371,7 @@ public static partial class GameEventRegistry
             if (equipment != null)
             {
                 equipment.Insulation = Math.Max(0, equipment.Insulation - outcome.DamageClothing.InsulationLoss);
-                GameDisplay.AddNarrative($"Your {equipment.Name} is damaged.");
+                GameDisplay.AddNarrative(ctx, $"Your {equipment.Name} is damaged.");
             }
         }
 
@@ -360,7 +382,7 @@ public static partial class GameEventRegistry
             if (feature != null)
             {
                 ctx.CurrentLocation.AddFeature(feature);
-                GameDisplay.AddNarrative($"Added {feature.Name} to this location.");
+                GameDisplay.AddNarrative(ctx, $"Added {feature.Name} to this location.");
             }
         }
 
@@ -392,7 +414,7 @@ public static partial class GameEventRegistry
                 if (feature != null)
                 {
                     ctx.CurrentLocation.RemoveFeature(feature);
-                    GameDisplay.AddNarrative($"{feature.Name} has been destroyed.");
+                    GameDisplay.AddNarrative(ctx, $"{feature.Name} has been destroyed.");
                 }
             }
             else if (outcome.RemoveFeature == typeof(HeatSourceFeature))
@@ -401,7 +423,7 @@ public static partial class GameEventRegistry
                 if (feature != null)
                 {
                     ctx.CurrentLocation.RemoveFeature(feature);
-                    GameDisplay.AddNarrative($"{feature.Name} has been destroyed.");
+                    GameDisplay.AddNarrative(ctx, $"{feature.Name} has been destroyed.");
                 }
             }
         }

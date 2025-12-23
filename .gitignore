@@ -419,3 +419,4 @@ output.txt
 tmp/
 # Test mode I/O directory
 .test_game_io/
+.DS_Store

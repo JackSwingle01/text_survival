@@ -437,6 +437,7 @@ public static class EffectFactory
         Severity = severity,
         HourlySeverityChange = 0.02,  // Slowly worsens without treatment
         RequiresTreatment = true,
+        StatsDelta = new() { HydrationDelta = -500.0 / 60.0 },  // 500ml/hour from fever sweating
         CapacityModifiers = Capacities(
             (CapacityNames.Consciousness, -0.4),
             (CapacityNames.Moving, -0.3),
