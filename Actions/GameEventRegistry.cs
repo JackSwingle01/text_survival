@@ -137,7 +137,15 @@ public static partial class GameEventRegistry
         FeverTakesHold,
         TheFireIllusion,
         FootstepsOutside,
-        FeverCrisisPoint
+        FeverCrisisPoint,
+
+        // Trapping events (GameEventRegistry.Trapping.cs)
+        SnareTampered,
+        PredatorAtTrapLine,
+        GoodCatch,
+        TrapLinePlundered,
+        TrappingAccident,
+        BaitedTrapAttention
     ];
 
     /// <summary>
@@ -210,35 +218,52 @@ public static partial class GameEventRegistry
         if (excluded.Contains(ctx.CurrentActivity))
             return;
 
-        if (ctx.CurrentActivity == ActivityType.Sleeping)
+        // Prevent nested events from triggering during this event's outcome processing
+        ctx.IsHandlingEvent = true;
+        try
         {
-            GameDisplay.AddNarrative(ctx, "You wake suddenly!");
+            if (ctx.CurrentActivity == ActivityType.Sleeping)
+            {
+                GameDisplay.AddNarrative(ctx, "You wake suddenly!");
+            }
+
+            GameDisplay.Render(ctx, statusText: "Event!");
+            GameDisplay.AddNarrative(ctx, $"{evt.Name}", LogLevel.Warning);
+            GameDisplay.AddNarrative(ctx, evt.Description);
+            GameDisplay.Render(ctx, statusText: "Thinking.");
+
+            var choice = evt.GetChoice(ctx);
+            GameDisplay.AddNarrative(ctx, choice.Description + "\n");
+
+            var outcome = choice.DetermineResult();
+
+            HandleOutcome(ctx, outcome);
+            GameDisplay.Render(ctx);
+            Input.WaitForKey(ctx);
+
+            // Store encounter for caller to handle
+            if (outcome.SpawnEncounter != null)
+                ctx.PendingEncounter = outcome.SpawnEncounter;
+
+            // Chain to follow-up event if specified
+            if (outcome.ChainEvent != null)
+            {
+                var chainedEvent = outcome.ChainEvent(ctx);
+                HandleEvent(ctx, chainedEvent);
+            }
         }
-        
-        GameDisplay.Render(ctx, statusText: "Event!");
-        GameDisplay.AddNarrative(ctx, $"{evt.Name}", LogLevel.Warning);
-        GameDisplay.AddNarrative(ctx, evt.Description);
-        GameDisplay.Render(ctx, statusText: "Thinking.");
-
-        var choice = evt.GetChoice(ctx);
-        GameDisplay.AddNarrative(ctx, choice.Description + "\n");
-
-        var outcome = choice.DetermineResult();
-
-        HandleOutcome(ctx, outcome);
-        GameDisplay.Render(ctx);
-        Input.WaitForKey(ctx);
-
-        // Store encounter for caller to handle
-        if (outcome.SpawnEncounter != null)
-            ctx.PendingEncounter = outcome.SpawnEncounter;
-
-        // Chain to follow-up event if specified
-        if (outcome.ChainEvent != null)
+        finally
         {
-            var chainedEvent = outcome.ChainEvent(ctx);
-            HandleEvent(ctx, chainedEvent);
+            ctx.IsHandlingEvent = false;
         }
+    }
+
+    /// <summary>Helper class to track outcome gains and losses for summary display.</summary>
+    private class OutcomeSummary
+    {
+        public List<string> Gains { get; } = [];
+        public List<string> Losses { get; } = [];
+        public bool HasContent => Gains.Count > 0 || Losses.Count > 0;
     }
 
     /// <summary>
@@ -246,6 +271,8 @@ public static partial class GameEventRegistry
     /// </summary>
     public static void HandleOutcome(GameContext ctx, EventResult outcome)
     {
+        var summary = new OutcomeSummary();
+
         if (outcome.TimeAddedMinutes != 0)
         {
             GameDisplay.AddNarrative(ctx, $"(+{outcome.TimeAddedMinutes} minutes)");
@@ -257,14 +284,20 @@ public static partial class GameEventRegistry
         foreach (var effect in outcome.Effects)
         {
             ctx.player.EffectRegistry.AddEffect(effect);
+            GameDisplay.AddDanger(ctx, $"  - {effect.EffectKind}");
+            summary.Losses.Add(effect.EffectKind);
         }
 
         if (outcome.NewDamage is not null)
         {
             var dmgResult = ctx.player.Body.Damage(outcome.NewDamage);
+            GameDisplay.AddDanger(ctx, $"  - Injured ({outcome.NewDamage.Source})");
+            summary.Losses.Add($"Injury: {outcome.NewDamage.Source}");
             foreach (var effect in dmgResult.TriggeredEffects)
             {
                 ctx.player.EffectRegistry.AddEffect(effect);
+                GameDisplay.AddDanger(ctx, $"  - {effect.EffectKind}");
+                summary.Losses.Add(effect.EffectKind);
             }
         }
 
@@ -276,7 +309,8 @@ public static partial class GameEventRegistry
                 ctx.Inventory.Add(resources);
                 foreach (var desc in resources.Descriptions)
                 {
-                    GameDisplay.AddNarrative(ctx, $"You found {desc}");
+                    GameDisplay.AddSuccess(ctx, $"  + {desc}");
+                    summary.Gains.Add(desc);
                 }
             }
         }
@@ -293,12 +327,14 @@ public static partial class GameEventRegistry
             if (calories > 0)
             {
                 ctx.player.Body.DrainCalories(calories);
-                GameDisplay.AddNarrative(ctx, $"Lost {calories:F0} calories.");
+                GameDisplay.AddDanger(ctx, $"  - Lost {calories:F0} calories");
+                summary.Losses.Add($"{calories:F0} calories");
             }
             if (hydration > 0)
             {
                 ctx.player.Body.DrainHydration(hydration);
-                GameDisplay.AddNarrative(ctx, $"Lost {hydration:F0}ml hydration.");
+                GameDisplay.AddDanger(ctx, $"  - Lost {hydration:F0}ml hydration");
+                summary.Losses.Add($"{hydration:F0}ml hydration");
             }
         }
 
@@ -323,6 +359,7 @@ public static partial class GameEventRegistry
                 "HerdNearby" => ActiveTension.HerdNearby(tc.Severity, tc.AnimalType, tc.Direction),
                 "DeadlyCold" => ActiveTension.DeadlyCold(tc.Severity),
                 "FeverRising" => ActiveTension.FeverRising(tc.Severity, tc.Description),
+                "TrapLineActive" => ActiveTension.TrapLineActive(tc.Severity, tc.RelevantLocation),
                 _ => ActiveTension.Custom(tc.Type, tc.Severity, 0.05, true, tc.RelevantLocation, tc.AnimalType, tc.Direction, tc.Description)
             };
             ctx.Tensions.AddTension(tension);
@@ -347,9 +384,15 @@ public static partial class GameEventRegistry
             {
                 tool.Durability = Math.Max(0, tool.Durability - outcome.DamageTool.UsesLost);
                 if (tool.IsBroken)
-                    GameDisplay.AddNarrative(ctx, $"Your {tool.Name} breaks!");
+                {
+                    GameDisplay.AddDanger(ctx, $"  - {tool.Name} breaks!");
+                    summary.Losses.Add($"{tool.Name} destroyed");
+                }
                 else
-                    GameDisplay.AddNarrative(ctx, $"Your {tool.Name} is damaged.");
+                {
+                    GameDisplay.AddWarning(ctx, $"  - {tool.Name} damaged");
+                    summary.Losses.Add($"{tool.Name} damaged");
+                }
             }
         }
 
@@ -360,7 +403,8 @@ public static partial class GameEventRegistry
             if (tool != null)
             {
                 tool.Durability = 0;
-                GameDisplay.AddNarrative(ctx, $"Your {tool.Name} breaks!");
+                GameDisplay.AddDanger(ctx, $"  - {tool.Name} breaks!");
+                summary.Losses.Add($"{tool.Name} destroyed");
             }
         }
 
@@ -371,7 +415,8 @@ public static partial class GameEventRegistry
             if (equipment != null)
             {
                 equipment.Insulation = Math.Max(0, equipment.Insulation - outcome.DamageClothing.InsulationLoss);
-                GameDisplay.AddNarrative(ctx, $"Your {equipment.Name} is damaged.");
+                GameDisplay.AddWarning(ctx, $"  - {equipment.Name} damaged");
+                summary.Losses.Add($"{equipment.Name} damaged");
             }
         }
 
@@ -414,7 +459,8 @@ public static partial class GameEventRegistry
                 if (feature != null)
                 {
                     ctx.CurrentLocation.RemoveFeature(feature);
-                    GameDisplay.AddNarrative(ctx, $"{feature.Name} has been destroyed.");
+                    GameDisplay.AddDanger(ctx, $"  - {feature.Name} destroyed");
+                    summary.Losses.Add($"{feature.Name} destroyed");
                 }
             }
             else if (outcome.RemoveFeature == typeof(HeatSourceFeature))
@@ -423,9 +469,21 @@ public static partial class GameEventRegistry
                 if (feature != null)
                 {
                     ctx.CurrentLocation.RemoveFeature(feature);
-                    GameDisplay.AddNarrative(ctx, $"{feature.Name} has been destroyed.");
+                    GameDisplay.AddDanger(ctx, $"  - {feature.Name} destroyed");
+                    summary.Losses.Add($"{feature.Name} destroyed");
                 }
             }
+        }
+
+        // Display outcome summary
+        if (summary.HasContent)
+        {
+            GameDisplay.AddNarrative(ctx, "");
+            GameDisplay.AddNarrative(ctx, "--- Outcome ---", LogLevel.System);
+            foreach (var gain in summary.Gains)
+                GameDisplay.AddSuccess(ctx, $"  + {gain}");
+            foreach (var loss in summary.Losses)
+                GameDisplay.AddDanger(ctx, $"  - {loss}");
         }
 
         // SpawnEncounter will be processed by the caller (ExpeditionRunner)

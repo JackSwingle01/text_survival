@@ -453,4 +453,60 @@ public class HeatSourceFeature : LocationFeature
     }
 
     #endregion
+
+    #region Save/Load Support
+
+    /// <summary>
+    /// Restore fire state from save data.
+    /// </summary>
+    internal void Restore(
+        bool hasEmbers,
+        double unburnedMass,
+        double burningMass,
+        double maxCapacity,
+        double emberTime,
+        double emberDuration,
+        double emberStartTemp,
+        double lastBurningTemp,
+        Dictionary<FuelType, double> unburnedMix,
+        Dictionary<FuelType, double> burningMix)
+    {
+        HasEmbers = hasEmbers;
+        UnburnedMassKg = unburnedMass;
+        BurningMassKg = burningMass;
+        MaxFuelCapacityKg = maxCapacity;
+        EmberTimeRemaining = emberTime;
+        _emberDuration = emberDuration;
+        _emberStartTemperature = emberStartTemp;
+        _lastBurningTemperature = lastBurningTemp;
+        _unburnedMixture = new Dictionary<FuelType, double>(unburnedMix);
+        _burningMixture = new Dictionary<FuelType, double>(burningMix);
+    }
+
+    /// <summary>
+    /// Get current ember duration for save.
+    /// </summary>
+    internal double GetEmberDuration() => _emberDuration;
+
+    /// <summary>
+    /// Get ember start temperature for save.
+    /// </summary>
+    internal double GetEmberStartTemperature() => _emberStartTemperature;
+
+    /// <summary>
+    /// Get last burning temperature for save.
+    /// </summary>
+    internal double GetLastBurningTemperature() => _lastBurningTemperature;
+
+    /// <summary>
+    /// Get unburned mixture for save.
+    /// </summary>
+    internal IReadOnlyDictionary<FuelType, double> GetUnburnedMixture() => _unburnedMixture;
+
+    /// <summary>
+    /// Get burning mixture for save.
+    /// </summary>
+    internal IReadOnlyDictionary<FuelType, double> GetBurningMixture() => _burningMixture;
+
+    #endregion
 }

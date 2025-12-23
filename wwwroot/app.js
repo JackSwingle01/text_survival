@@ -91,7 +91,7 @@ class GameClient {
 
         // Location
         document.getElementById('locationName').textContent = state.locationName;
-        document.getElementById('locationDesc').textContent = state.locationDescription;
+        this.renderLocationTags(state.locationTags);
         this.renderFeatures(state.features);
 
         // Fire
@@ -116,6 +116,20 @@ class GameClient {
 
         // Narrative log
         this.renderLog(state.log);
+    }
+
+    renderLocationTags(tags) {
+        const container = document.getElementById('locationDesc');
+        this.clearElement(container);
+
+        if (!tags || tags.length === 0) return;
+
+        tags.forEach(tag => {
+            const pill = document.createElement('span');
+            pill.className = 'location-tag';
+            pill.textContent = tag;
+            container.appendChild(pill);
+        });
     }
 
     renderFeatures(features) {
@@ -366,8 +380,67 @@ class GameClient {
             }
             div.appendChild(rightSpan);
 
+            // Add tooltip
+            const tooltip = this.createEffectTooltip(e);
+            if (tooltip) {
+                div.appendChild(tooltip);
+                div.classList.add('has-tooltip');
+            }
+
             container.appendChild(div);
         });
+    }
+
+    createEffectTooltip(effect) {
+        const lines = [];
+
+        // Capacity impacts
+        if (effect.capacityImpacts) {
+            for (const [cap, impact] of Object.entries(effect.capacityImpacts)) {
+                const sign = impact > 0 ? '+' : '';
+                lines.push(`${cap}: ${sign}${impact}%`);
+            }
+        }
+
+        // Stat impacts
+        if (effect.statsImpact) {
+            const s = effect.statsImpact;
+            if (s.temperaturePerHour) {
+                const sign = s.temperaturePerHour > 0 ? '+' : '';
+                lines.push(`Temp: ${sign}${s.temperaturePerHour.toFixed(1)}\u00B0F/hr`);
+            }
+            if (s.hydrationPerHour) {
+                const sign = s.hydrationPerHour > 0 ? '+' : '';
+                lines.push(`Hydration: ${sign}${s.hydrationPerHour.toFixed(0)}ml/hr`);
+            }
+            if (s.caloriesPerHour) {
+                const sign = s.caloriesPerHour > 0 ? '+' : '';
+                lines.push(`Calories: ${sign}${s.caloriesPerHour.toFixed(0)}/hr`);
+            }
+            if (s.energyPerHour) {
+                const sign = s.energyPerHour > 0 ? '+' : '';
+                lines.push(`Energy: ${sign}${s.energyPerHour.toFixed(0)}/hr`);
+            }
+            if (s.damagePerHour) {
+                lines.push(`${s.damageType || 'Damage'}: ${s.damagePerHour.toFixed(1)}/hr`);
+            }
+        }
+
+        // Treatment status
+        if (effect.requiresTreatment) {
+            lines.push('Requires treatment');
+        }
+
+        if (lines.length === 0) return null;
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'effect-tooltip';
+        // Use safe DOM methods instead of innerHTML
+        lines.forEach((line, i) => {
+            if (i > 0) tooltip.appendChild(document.createElement('br'));
+            tooltip.appendChild(document.createTextNode(line));
+        });
+        return tooltip;
     }
 
     renderInjuries(injuries, bloodPercent) {
@@ -387,12 +460,19 @@ class GameClient {
 
         if (hasBloodLoss) {
             const div = document.createElement('div');
-            div.className = `injury-item ${this.getInjurySeverityClass(bloodPercent)}`;
+            div.className = `injury-item ${this.getInjurySeverityClass(bloodPercent)} has-tooltip`;
             div.textContent = 'Blood loss ';
             const pctSpan = document.createElement('span');
             pctSpan.className = 'injury-pct';
             pctSpan.textContent = `(${bloodPercent}%)`;
             div.appendChild(pctSpan);
+
+            // Blood loss tooltip
+            const tooltip = document.createElement('div');
+            tooltip.className = 'effect-tooltip';
+            tooltip.textContent = 'Affects: Consciousness, Moving, Manipulation';
+            div.appendChild(tooltip);
+
             container.appendChild(div);
         }
 
@@ -406,6 +486,16 @@ class GameClient {
                 pctSpan.className = 'injury-pct';
                 pctSpan.textContent = `(${i.conditionPercent}%)`;
                 div.appendChild(pctSpan);
+
+                // Add tooltip for affected capacities
+                if (i.affectedCapacities && i.affectedCapacities.length > 0) {
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'effect-tooltip';
+                    tooltip.textContent = `Affects: ${i.affectedCapacities.join(', ')}`;
+                    div.appendChild(tooltip);
+                    div.classList.add('has-tooltip');
+                }
+
                 container.appendChild(div);
             });
         }

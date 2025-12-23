@@ -44,4 +44,18 @@ public class ShelterFeature : LocationFeature
     /// Check if the shelter is still functional (any protection remaining).
     /// </summary>
     public bool IsDestroyed => Quality <= 0.05;
+
+    #region Save/Load Support
+
+    /// <summary>
+    /// Restore shelter state from save data.
+    /// </summary>
+    internal void RestoreState(double tempInsulation, double overheadCoverage, double windCoverage)
+    {
+        TemperatureInsulation = tempInsulation;
+        OverheadCoverage = overheadCoverage;
+        WindCoverage = windCoverage;
+    }
+
+    #endregion
 }

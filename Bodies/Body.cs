@@ -236,4 +236,19 @@ public class Body
     }
 
     public double BaseColdResistance { get; } = 0;
+
+    /// <summary>
+    /// Restore body state from save data. Used by save/load system.
+    /// </summary>
+    internal void Restore(double calories, double energy, double hydration,
+        double temperature, double fatKg, double muscleKg, double bloodCondition)
+    {
+        CalorieStore = calories;
+        Energy = energy;
+        Hydration = hydration;
+        BodyTemperature = temperature;
+        BodyFatKG = fatKg;
+        MuscleKG = muscleKg;
+        Blood.Condition = bloodCondition;
+    }
 }

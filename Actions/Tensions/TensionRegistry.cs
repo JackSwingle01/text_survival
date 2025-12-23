@@ -185,4 +185,16 @@ public class TensionRegistry
     {
         _tensions.Clear();
     }
+
+    #region Save/Load Support
+
+    /// <summary>
+    /// Add a tension directly without merge logic (for save/load).
+    /// </summary>
+    internal void AddRestoredTension(ActiveTension tension)
+    {
+        _tensions.Add(tension);
+    }
+
+    #endregion
 }

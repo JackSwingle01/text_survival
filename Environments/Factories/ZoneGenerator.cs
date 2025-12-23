@@ -10,12 +10,26 @@ public class ZoneGenerator
     // Location type weights for forest zone
     private static readonly List<(Func<Zone, Location> Factory, double Weight, int MinTraversal, int MaxTraversal)> ForestLocationWeights =
     [
-        (LocationFactory.MakeForest, 55.0, 8, 15),
-        (LocationFactory.MakeClearing, 20.0, 5, 10),
-        (LocationFactory.MakeHillside, 10.0, 12, 20),
-        (LocationFactory.MakeRiverbank, 8.0, 10, 15),
-        (LocationFactory.MakeCave, 5.0, 15, 25),
-        (LocationFactory.MakePlain, 2.0, 10, 18)
+        // Common locations
+        (LocationFactory.MakeForest, 40.0, 8, 15),
+        (LocationFactory.MakeClearing, 15.0, 5, 10),
+        (LocationFactory.MakeHillside, 8.0, 12, 20),
+        (LocationFactory.MakeRiverbank, 7.0, 10, 15),
+        (LocationFactory.MakePlain, 5.0, 10, 18),
+
+        // Moderate rarity
+        (LocationFactory.MakeFrozenCreek, 5.0, 10, 16),
+        (LocationFactory.MakeDeadwoodGrove, 4.0, 12, 18),
+        (LocationFactory.MakeMarsh, 4.0, 15, 22),
+        (LocationFactory.MakeShelteredValley, 3.0, 18, 25),
+        (LocationFactory.MakeOverlook, 3.0, 15, 20),
+
+        // Rare locations
+        (LocationFactory.MakeCave, 2.0, 15, 25),
+        (LocationFactory.MakeHotSpring, 1.5, 18, 28),
+        (LocationFactory.MakeWolfDen, 1.5, 15, 22),
+        (LocationFactory.MakeIceCrevasse, 0.5, 22, 30),
+        (LocationFactory.MakeAbandonedCamp, 0.5, 12, 20)
     ];
 
     public Zone GenerateForestZone(string name, string description, double baseTemp = 25)
@@ -42,7 +56,6 @@ public class ZoneGenerator
             start.AddBidirectionalConnection(location);
             zone.Graph.Add(location);
             location.Explore();
-            location.DistanceFromStart = 1;
         }
 
         // Put the rest in the unrevealed pool
@@ -56,12 +69,15 @@ public class ZoneGenerator
 
     private Location CreateStartingLocation(Zone zone)
     {
-        var start = new Location("Forest Camp", zone)
-        {
-            Exposure = 0.4,
-            Terrain = TerrainType.Clear,
-            BaseTraversalMinutes = 5
-        };
+        var start = new Location(
+            name: "Forest Camp",
+            tags: "[Shaded] [Shelter]",
+            parent: zone,
+            traversalMinutes: 5,
+            terrainHazardLevel: 0,
+            windFactor: 0.4,
+            overheadCoverLevel: 0.3,
+            visibilityFactor: 0.8);
 
         // Starting location - matches Forest for abundant fuel
         var forageFeature = new ForageFeature(2.0)
@@ -72,8 +88,6 @@ public class ZoneGenerator
             .AddPlantFiber(0.5, 0.05, 0.15);
         start.Features.Add(forageFeature);
 
-        start.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
-
         // Natural shelter from dense forest provides protection at camp
         start.Features.Add(new ShelterFeature(
             name: "Overhang",
@@ -83,7 +97,6 @@ public class ZoneGenerator
         ));
 
         start.Explore();
-        start.DistanceFromStart = 0;
         return start;
     }
 

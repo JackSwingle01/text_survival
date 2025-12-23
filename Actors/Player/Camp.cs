@@ -23,4 +23,12 @@ public class Camp(Location startingLocation)
         Location = newLocation;
         newLocation.Explore();
     }
+
+    /// <summary>
+    /// Set camp location directly without triggering exploration (for save/load).
+    /// </summary>
+    internal void SetLocation(Location location)
+    {
+        Location = location;
+    }
 }

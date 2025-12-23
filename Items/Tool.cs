@@ -125,7 +125,8 @@ public enum ToolType
     Scraper,
     Needle,
     Cordage,
-    Unarmed
+    Unarmed,
+    Snare
 }
 
 /// <summary>

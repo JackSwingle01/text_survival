@@ -235,6 +235,58 @@ public class AnimalTerritoryFeature : LocationFeature
         };
     }
 
+    #region Save/Load Support
+
+    /// <summary>
+    /// Restore territory state from save data.
+    /// </summary>
+    internal void RestoreState(
+        double gameDensity,
+        double initialDepletedDensity,
+        double hoursSinceLastHunt,
+        bool hasBeenHunted,
+        List<AnimalSpawnEntry> animals)
+    {
+        _gameDensity = gameDensity;
+        _initialDepletedDensity = initialDepletedDensity;
+        _hoursSinceLastHunt = hoursSinceLastHunt;
+        _hasBeenHunted = hasBeenHunted;
+        _possibleAnimals.Clear();
+        _possibleAnimals.AddRange(animals);
+    }
+
+    /// <summary>
+    /// Get base game density for save.
+    /// </summary>
+    internal double GetBaseGameDensity() => _baseGameDensity;
+
+    /// <summary>
+    /// Get current game density for save.
+    /// </summary>
+    internal double GetGameDensity() => _gameDensity;
+
+    /// <summary>
+    /// Get initial depleted density for save.
+    /// </summary>
+    internal double GetInitialDepletedDensity() => _initialDepletedDensity;
+
+    /// <summary>
+    /// Get hours since last hunt for save.
+    /// </summary>
+    internal double GetHoursSinceLastHunt() => _hoursSinceLastHunt;
+
+    /// <summary>
+    /// Get has been hunted flag for save.
+    /// </summary>
+    internal bool GetHasBeenHunted() => _hasBeenHunted;
+
+    /// <summary>
+    /// Get possible animals for save.
+    /// </summary>
+    internal IReadOnlyList<AnimalSpawnEntry> GetPossibleAnimals() => _possibleAnimals.AsReadOnly();
+
+    #endregion
+
     // Static factory methods for common territory configurations
 
     /// <summary>

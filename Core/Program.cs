@@ -5,6 +5,7 @@ using text_survival.Environments.Factories;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
+using text_survival.Persistence;
 using text_survival.UI;
 using text_survival.Web;
 
@@ -37,48 +38,28 @@ namespace text_survival.Core
                 TestModeIO.Initialize();
             }
 
-            Zone zone = ZoneFactory.MakeForestZone();
+            // Auto-load if save exists, otherwise create new game
+            bool isNewGame = !SaveManager.HasSaveFile();
+            GameContext context = GameInitializer.LoadOrCreateNew();
 
-            // Initialize weather for game start time (9:00 AM, Jan 1)
-            var gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
-            zone.Weather.Update(gameStartTime);
-
-            Location startingArea = zone.Graph.All.First(s => s.Name == "Forest Camp");
-
-            // Starting equipment - basic fur wraps (Ice Age appropriate)
-            // (Equipment is equipped directly to player inventory below)
-
-            // Add environment feature
-            startingArea.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
-
-            HeatSourceFeature campfire = new HeatSourceFeature();
-            campfire.AddFuel(2, FuelType.Kindling); // Unlit - player must start it
-            startingArea.Features.Add(campfire);
-
-            Player player = new Player();
-            Camp camp = new Camp(startingArea);
-            GameContext context = new GameContext(player, camp);
-
-            // Equip starting clothing
-            context.Inventory.Equip(Equipment.WornFurChestWrap());
-            context.Inventory.Equip(Equipment.FurLegWraps());
-            context.Inventory.Equip(Equipment.FurBoots());
-
-            // Add starting supplies to player's aggregate inventory
-            context.Inventory.Tools.Add(Tool.HandDrill());  // Fire-starting tool
-            context.Inventory.Sticks.Add(0.3);  // A stick for kindling
-            context.Inventory.Sticks.Add(0.25);
-            context.Inventory.Sticks.Add(0.35);
-            context.Inventory.Tinder.Add(0.05); // Some tinder
-            context.Inventory.Tinder.Add(0.04);
-
-            GameDisplay.AddDanger("You wake up in the forest, shivering. You don't remember how you got here.");
-            GameDisplay.AddDanger("Snow drifts down through the pines. The cold is already seeping into your bones.");
-            GameDisplay.AddDanger("There's a fire pit nearby with some kindling. You need to get it lit - fast.");
-            GameDisplay.AddDanger("You need to gather fuel, find food and water, and survive.");
+            // Only show intro text for new games
+            if (isNewGame)
+            {
+                GameDisplay.AddDanger("You wake up in the forest, shivering. You don't remember how you got here.");
+                GameDisplay.AddDanger("Snow drifts down through the pines. The cold is already seeping into your bones.");
+                GameDisplay.AddDanger("There's a fire pit nearby with some kindling. You need to get it lit - fast.");
+                GameDisplay.AddDanger("You need to gather fuel, find food and water, and survive.");
+            }
+            else
+            {
+                GameDisplay.AddNarrative("Game loaded.");
+            }
 
             GameRunner runner = new GameRunner(context);
             runner.Run();
+
+            // Delete save on death
+            SaveManager.DeleteSave();
             DisplayDeathScreen(context);
         }
 

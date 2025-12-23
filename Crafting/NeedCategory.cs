@@ -19,7 +19,12 @@ public enum NeedCategory
     /// <summary>
     /// Hunting weapons (spear, bow, arrows).
     /// </summary>
-    HuntingWeapon
+    HuntingWeapon,
+
+    /// <summary>
+    /// Trapping equipment (snares for passive hunting).
+    /// </summary>
+    Trapping
 
     // Future categories:
     // Shelter,

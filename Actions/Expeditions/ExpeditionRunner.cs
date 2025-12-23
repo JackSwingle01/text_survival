@@ -1,5 +1,6 @@
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
+using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
@@ -108,7 +109,9 @@ public class ExpeditionRunner(GameContext ctx)
             if (con.Explored)
             {
                 int minutes = TravelProcessor.GetTraversalMinutes(con, _ctx.player, _ctx.Inventory);
-                lbl = $"{con.Name} (~{minutes} min)";
+                // Show name with tags for explored locations
+                string tags = !string.IsNullOrEmpty(con.Tags) ? $" {con.Tags}" : "";
+                lbl = $"{con.Name}{tags} (~{minutes} min)";
             }
             else
             {
@@ -128,26 +131,134 @@ public class ExpeditionRunner(GameContext ctx)
         var destination = choice.GetPlayerChoice(_ctx);
         if (destination == null) return false;
 
+        // Check for hazardous terrain - offer speed choice
+        int travelTime;
+        bool quickTravel = false;
+        double injuryRisk = 0;
+
+        if (TravelProcessor.IsHazardousTerrain(destination))
+        {
+            int quickTime = TravelProcessor.GetTraversalMinutes(destination, _ctx.player, _ctx.Inventory);
+            int carefulTime = TravelProcessor.GetCarefulTraversalMinutes(destination, _ctx.player, _ctx.Inventory);
+            injuryRisk = TravelProcessor.GetInjuryRisk(destination, _ctx.player, _ctx.Zone.Weather);
+
+            GameDisplay.AddNarrative(_ctx, "The terrain ahead looks treacherous.");
+
+            var speedChoice = new Choice<bool>("How do you proceed?");
+            speedChoice.AddOption($"Careful (~{carefulTime} min) - Safe passage", false);
+            speedChoice.AddOption($"Quick (~{quickTime} min) - {injuryRisk:P0} injury risk", true);
+
+            quickTravel = speedChoice.GetPlayerChoice(_ctx);
+            travelTime = quickTravel ? quickTime : carefulTime;
+        }
+        else
+        {
+            travelTime = TravelProcessor.GetTraversalMinutes(destination, _ctx.player, _ctx.Inventory);
+        }
+
         // Travel with progress bar
-        int travelTime = TravelProcessor.GetTraversalMinutes(destination, _ctx.player, _ctx.Inventory);
         expedition.State = ExpeditionState.Traveling;
 
         bool died = RunTravelWithProgress(expedition, destination, travelTime);
         if (died) return false;
 
+        // Check for injury if quick travel through hazardous terrain
+        if (quickTravel && injuryRisk > 0)
+        {
+            if (Utils.RandDouble(0, 1) < injuryRisk)
+            {
+                ApplyTravelInjury(destination);
+            }
+        }
+
+        bool firstVisit = !destination.Explored;
         expedition.MoveTo(destination, travelTime);
         destination.Explore();
 
         GameDisplay.AddNarrative(_ctx, $"You arrive at {expedition.CurrentLocation.Name}.");
-        if (!string.IsNullOrEmpty(expedition.CurrentLocation.Description))
-            GameDisplay.AddNarrative(_ctx, expedition.CurrentLocation.Description);
+        if (!string.IsNullOrEmpty(expedition.CurrentLocation.Tags))
+            GameDisplay.AddNarrative(_ctx, expedition.CurrentLocation.Tags);
+
+        // Show discovery text on first visit
+        if (firstVisit && !string.IsNullOrEmpty(expedition.CurrentLocation.DiscoveryText))
+        {
+            GameDisplay.AddNarrative(_ctx, expedition.CurrentLocation.DiscoveryText);
+        }
 
         return true;
+    }
+
+    /// <summary>
+    /// Apply injury from quick travel through hazardous terrain.
+    /// Severity scales with terrain hazard level.
+    /// </summary>
+    private void ApplyTravelInjury(Location location)
+    {
+        double hazard = location.TerrainHazardLevel;
+
+        // Determine injury type based on hazard level
+        if (hazard >= 0.7)
+        {
+            // Severe terrain - high chance of bad injury
+            double severity = Utils.RandDouble(0.5, 0.8);
+            _ctx.player.EffectRegistry.AddEffect(EffectFactory.SprainedAnkle(severity));
+            GameDisplay.AddNarrative(_ctx, "You lose your footing on the treacherous ground and twist your ankle badly.");
+        }
+        else if (hazard >= 0.5)
+        {
+            // Moderate terrain - mix of injuries
+            if (Utils.RandDouble(0, 1) < 0.6)
+            {
+                double severity = Utils.RandDouble(0.3, 0.6);
+                _ctx.player.EffectRegistry.AddEffect(EffectFactory.SprainedAnkle(severity));
+                GameDisplay.AddNarrative(_ctx, "You stumble and twist your ankle.");
+            }
+            else
+            {
+                // Minor cuts and bruises via body damage
+                _ctx.player.Body.Damage(new DamageInfo(15, DamageType.Blunt, "fall", "Leg"));
+                GameDisplay.AddNarrative(_ctx, "You slip and bruise yourself on the rocks.");
+            }
+        }
+        else
+        {
+            // Lower hazard - mostly minor injuries
+            if (Utils.RandDouble(0, 1) < 0.3)
+            {
+                double severity = Utils.RandDouble(0.2, 0.4);
+                _ctx.player.EffectRegistry.AddEffect(EffectFactory.SprainedAnkle(severity));
+                GameDisplay.AddNarrative(_ctx, "You misstep and tweak your ankle.");
+            }
+            else
+            {
+                _ctx.player.Body.Damage(new DamageInfo(10, DamageType.Blunt, "stumble", "Leg"));
+                GameDisplay.AddNarrative(_ctx, "You stumble but catch yourself, scraping your leg.");
+            }
+        }
+
+        Input.WaitForKey(_ctx);
     }
 
     private void ReturnToCamp(Expedition expedition)
     {
         GameDisplay.AddNarrative(_ctx, "You head back toward camp...");
+
+        // Check if any return segments have hazardous terrain
+        bool hasHazardousReturn = expedition.TravelHistory
+            .Skip(1) // Skip current location
+            .Any(TravelProcessor.IsHazardousTerrain);
+
+        bool quickReturn = false;
+        if (hasHazardousReturn)
+        {
+            GameDisplay.AddNarrative(_ctx, "Some of the terrain on the way back is treacherous.");
+
+            var speedChoice = new Choice<bool>("How do you proceed?");
+            speedChoice.AddOption("Careful - Take your time on difficult sections", false);
+            speedChoice.AddOption("Quick - Push through, risk injury", true);
+
+            quickReturn = speedChoice.GetPlayerChoice(_ctx);
+        }
 
         // Walk back through travel history
         while (!expedition.IsAtCamp && !PlayerDied)
@@ -156,11 +267,33 @@ public class ExpeditionRunner(GameContext ctx)
             var nextLocation = expedition.TravelHistory.ElementAtOrDefault(1);
             if (nextLocation == null) break;
 
-            int travelTime = TravelProcessor.GetTraversalMinutes(nextLocation, _ctx.player, _ctx.Inventory);
+            bool isHazardous = TravelProcessor.IsHazardousTerrain(nextLocation);
+            int travelTime;
+
+            if (isHazardous && !quickReturn)
+            {
+                // Careful travel through hazardous terrain
+                travelTime = TravelProcessor.GetCarefulTraversalMinutes(nextLocation, _ctx.player, _ctx.Inventory);
+            }
+            else
+            {
+                travelTime = TravelProcessor.GetTraversalMinutes(nextLocation, _ctx.player, _ctx.Inventory);
+            }
+
             expedition.State = ExpeditionState.Traveling;
 
             bool died = RunTravelWithProgress(expedition, nextLocation, travelTime);
             if (died) break;
+
+            // Check for injury on quick return through hazardous terrain
+            if (isHazardous && quickReturn)
+            {
+                double injuryRisk = TravelProcessor.GetInjuryRisk(nextLocation, _ctx.player, _ctx.Zone.Weather);
+                if (injuryRisk > 0 && Utils.RandDouble(0, 1) < injuryRisk)
+                {
+                    ApplyTravelInjury(nextLocation);
+                }
+            }
 
             expedition.MoveTo(nextLocation, travelTime);
         }
@@ -190,6 +323,12 @@ public class ExpeditionRunner(GameContext ctx)
                 break;
             case "explore":
                 result = work.DoExplore(expedition.CurrentLocation);
+                break;
+            case "set_trap":
+                result = work.DoSetTrap(expedition.CurrentLocation);
+                break;
+            case "check_traps":
+                result = work.DoCheckTraps(expedition.CurrentLocation);
                 break;
             case "cancel":
                 break;

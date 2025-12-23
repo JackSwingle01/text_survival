@@ -11,7 +11,8 @@ public enum ForageResourceType
     RawMeat,  // Small game found while foraging
     Water,
     Stone,        // For crafting tools
-    PlantFiber    // For bindings/cordage
+    PlantFiber,   // For bindings/cordage
+    Bone          // For tools and crafting
 }
 
 public record ForageResource(ForageResourceType Type, double Abundance, double MinWeight, double MaxWeight);
@@ -126,6 +127,9 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
             case ForageResourceType.PlantFiber:
                 found.AddPlantFiber(weight);
                 break;
+            case ForageResourceType.Bone:
+                found.AddBone(weight);
+                break;
         }
     }
 
@@ -161,6 +165,9 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
     public ForageFeature AddPlantFiber(double abundance = 0.4, double minKg = 0.05, double maxKg = 0.15) =>
         AddResource(ForageResourceType.PlantFiber, abundance, minKg, maxKg);
 
+    public ForageFeature AddBone(double abundance = 0.2, double minKg = 0.1, double maxKg = 0.4) =>
+        AddResource(ForageResourceType.Bone, abundance, minKg, maxKg);
+
     /// <summary>
     /// Get summary of what can be found here for display.
     /// </summary>
@@ -176,6 +183,7 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
             ForageResourceType.Water => "water",
             ForageResourceType.Stone => "stone",
             ForageResourceType.PlantFiber => "plant fiber",
+            ForageResourceType.Bone => "bones",
             _ => "resources"
         }).Distinct().ToList();
     }
@@ -212,4 +220,45 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
     {
         hoursSinceLastForage += hours;
     }
+
+    #region Save/Load Support
+
+    /// <summary>
+    /// Restore forage state from save data.
+    /// </summary>
+    internal void RestoreState(double hoursForaged, double hoursSinceForage, bool hasForaged, List<ForageResource> resourceList)
+    {
+        numberOfHoursForaged = hoursForaged;
+        hoursSinceLastForage = hoursSinceForage;
+        hasForagedBefore = hasForaged;
+        resources.Clear();
+        resources.AddRange(resourceList);
+    }
+
+    /// <summary>
+    /// Get base resource density for save.
+    /// </summary>
+    internal double GetBaseResourceDensity() => baseResourceDensity;
+
+    /// <summary>
+    /// Get hours foraged for save.
+    /// </summary>
+    internal double GetNumberOfHoursForaged() => numberOfHoursForaged;
+
+    /// <summary>
+    /// Get hours since last forage for save.
+    /// </summary>
+    internal double GetHoursSinceLastForage() => hoursSinceLastForage;
+
+    /// <summary>
+    /// Get has foraged before flag for save.
+    /// </summary>
+    internal bool GetHasForagedBefore() => hasForagedBefore;
+
+    /// <summary>
+    /// Get resources list for save.
+    /// </summary>
+    internal IReadOnlyList<ForageResource> GetResources() => resources.AsReadOnly();
+
+    #endregion
 }

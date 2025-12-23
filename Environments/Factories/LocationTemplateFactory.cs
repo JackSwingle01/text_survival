@@ -18,11 +18,15 @@ public static class LocationTemplateFactory
         // Generate name from pattern
         string name = GenerateName(template.NamePattern);
 
-        var location = new Location(name, zone)
-        {
-            BaseTraversalMinutes = template.TravelTime,
-            Terrain = TerrainType.Clear
-        };
+        var location = new Location(
+            name: name,
+            tags: "",
+            parent: zone,
+            traversalMinutes: template.TravelTime,
+            terrainHazardLevel: 0,
+            windFactor: 1.0,
+            overheadCoverLevel: 0,
+            visibilityFactor: 1.0);
 
         // Add features based on name pattern hints
         AddFeaturesFromPattern(location, template.NamePattern);
@@ -51,37 +55,31 @@ public static class LocationTemplateFactory
     {
         string lower = pattern.ToLower();
 
-        // Environment type based on keywords
+        // Add features based on keywords
         if (lower.Contains("cave") || lower.Contains("hollow") || lower.Contains("shelter"))
         {
-            location.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Cave));
             location.Features.Add(new ForageFeature(0.3).AddSticks().AddTinder());
         }
         else if (lower.Contains("stream") || lower.Contains("creek") || lower.Contains("pond") || lower.Contains("water"))
         {
-            location.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.RiverBank));
             location.Features.Add(new ForageFeature(0.6).AddSticks().AddTinder().AddPlantFiber());
             location.Features.Add(new WaterFeature("water_source", "Water Source"));
         }
         else if (lower.Contains("forest") || lower.Contains("grove") || lower.Contains("woods") || lower.Contains("birch"))
         {
-            location.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Forest));
             location.Features.Add(new ForageFeature(0.8).AddLogs().AddSticks().AddTinder().AddBerries());
         }
         else if (lower.Contains("ridge") || lower.Contains("overlook") || lower.Contains("high"))
         {
-            location.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.HighGround));
             location.Features.Add(new ForageFeature(0.4).AddSticks().AddStone());
         }
         else if (lower.Contains("cliff") || lower.Contains("rock"))
         {
-            location.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.Cliff));
             location.Features.Add(new ForageFeature(0.5).AddSticks().AddStone());
         }
         else
         {
             // Default: open plain with basic foraging
-            location.Features.Add(new EnvironmentFeature(EnvironmentFeature.LocationType.OpenPlain));
             location.Features.Add(new ForageFeature(0.5).AddSticks().AddTinder());
         }
 

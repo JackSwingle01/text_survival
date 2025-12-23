@@ -154,4 +154,25 @@ public class EffectRegistry(Actor owner)
 
     private readonly Actor _owner = owner;
     private List<Effect> _effects = [];
+
+    #region Save/Load Support
+
+    /// <summary>
+    /// Add an effect directly without triggering messages (for save/load).
+    /// </summary>
+    internal void AddRestoredEffect(Effect effect)
+    {
+        _effects.Add(effect);
+        effect.IsActive = true;
+    }
+
+    /// <summary>
+    /// Clear all effects (for save/load restoration).
+    /// </summary>
+    internal void ClearEffects()
+    {
+        _effects.Clear();
+    }
+
+    #endregion
 }

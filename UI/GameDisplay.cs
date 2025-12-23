@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using text_survival.Actions;
@@ -226,7 +225,7 @@ public static class GameDisplay
 
     private static IRenderable BuildTimeWeatherPanel(GameContext ctx)
     {
-        var weather = ctx.CurrentLocation.Parent.Weather;
+        var weather = ctx.CurrentLocation.ParentZone.Weather;
         var startDate = new DateTime(2025, 1, 1);
         int dayNumber = (ctx.GameTime - startDate).Days + 1;
         string clockTime = ctx.GameTime.ToString("h:mm tt");
@@ -369,7 +368,7 @@ public static class GameDisplay
         var fire = location.GetFeature<HeatSourceFeature>();
 
         double bodyTemp = body.BodyTemperature;
-        double zoneTemp = location.Parent.Weather.TemperatureInFahrenheit;
+        double zoneTemp = location.ParentZone.Weather.TemperatureInFahrenheit;
         double locationTemp = location.GetTemperature(); // Includes all modifiers + fire
         double fireHeat = fire?.GetEffectiveHeatOutput(zoneTemp) ?? 0;
 
@@ -870,7 +869,7 @@ public static class GameDisplay
 
     private static string GetShortDescription(Environments.Location location)
     {
-        return location.Description;
+        return location.Tags;
     }
 
     #endregion
@@ -1093,7 +1092,7 @@ public static class GameDisplay
 
         // Temperature detail
         var fire = location.GetFeature<HeatSourceFeature>();
-        double zoneTemp = location.Parent.Weather.TemperatureInFahrenheit;
+        double zoneTemp = location.ParentZone.Weather.TemperatureInFahrenheit;
         double locationTemp = location.GetTemperature();
         double fireHeat = fire?.GetEffectiveHeatOutput(zoneTemp) ?? 0;
         TestModeIO.WriteOutput($"[Temp: Body {body.BodyTemperature:F1}°F, Air {locationTemp:F0}°F, Fire +{fireHeat:F0}°F]\n");

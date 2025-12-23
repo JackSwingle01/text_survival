@@ -15,7 +15,7 @@ public class HandleOutcomeTests
         // Create a minimal GameContext for testing
         var player = new Player();
         var zone = new Zone("Test Zone", "A test zone");
-        var location = new Location("Test Location", zone);
+        var location = new Location("Test Location", "[test]", zone, 5);
         zone.Graph.Add(location);
         var camp = new Camp(location);
 

@@ -8,7 +8,8 @@ public enum HarvestResourceType
     Stick,
     Tinder,
     Berries,
-    Water
+    Water,
+    PlantFiber
 }
 
 /// <summary>
@@ -148,6 +149,9 @@ public class HarvestableFeature : LocationFeature
                 break;
             case HarvestResourceType.Water:
                 found.AddWater(resource.WeightPerUnit, description);
+                break;
+            case HarvestResourceType.PlantFiber:
+                found.AddPlantFiber(resource.WeightPerUnit, description);
                 break;
         }
     }
