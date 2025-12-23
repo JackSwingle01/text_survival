@@ -1,0 +1,9 @@
+bin/
+obj/
+.git/
+.gitignore
+*.md
+.vs/
+.vscode/
+*.user
+text_survival.Tests/
