@@ -172,46 +172,21 @@ public record InventorySaveData
     public Stack<double> RawFat { get; init; } = new();
     public Stack<double> Tallow { get; init; } = new();
 
-    // Discrete items
-    public List<ToolSaveData> Tools { get; init; } = [];
-    public List<ToolSaveData> Special { get; init; } = [];
+    // Discrete items - using actual classes instead of SaveData DTOs
+    public List<Tool> Tools { get; init; } = [];
+    public List<Item> Special { get; init; } = [];
 
-    // Equipment slots
-    public EquipmentSaveData? Head { get; init; }
-    public EquipmentSaveData? Chest { get; init; }
-    public EquipmentSaveData? Legs { get; init; }
-    public EquipmentSaveData? Feet { get; init; }
-    public EquipmentSaveData? Hands { get; init; }
-    public ToolSaveData? Weapon { get; init; }
+    // Equipment slots - using actual Equipment class
+    public Equipment? Head { get; init; }
+    public Equipment? Chest { get; init; }
+    public Equipment? Legs { get; init; }
+    public Equipment? Feet { get; init; }
+    public Equipment? Hands { get; init; }
+    public Tool? Weapon { get; init; }
 
     // Active torch state
-    public ToolSaveData? ActiveTorch { get; init; }
+    public Tool? ActiveTorch { get; init; }
     public double TorchBurnTimeRemainingMinutes { get; init; }
-}
-
-/// <summary>
-/// Tool state.
-/// </summary>
-public record ToolSaveData
-{
-    public string Name { get; init; } = "";
-    public string Type { get; init; } = "";
-    public double Weight { get; init; }
-    public int Durability { get; init; }
-    public double? Damage { get; init; }
-    public double? BlockChance { get; init; }
-    public string? WeaponClass { get; init; }
-}
-
-/// <summary>
-/// Equipment (armor/clothing) state.
-/// </summary>
-public record EquipmentSaveData
-{
-    public string Name { get; init; } = "";
-    public string Slot { get; init; } = "";
-    public double Weight { get; init; }
-    public double Insulation { get; init; }
 }
 
 /// <summary>

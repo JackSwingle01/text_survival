@@ -26,25 +26,7 @@ public static class SaveDataConverter
 
     private static void ConfigureMapsterMappings()
     {
-        // Simple types that auto-map with enum conversions
-        TypeAdapterConfig<Tool, ToolSaveData>.NewConfig()
-            .Map(dest => dest.Type, src => src.Type.ToString())
-            .Map(dest => dest.WeaponClass, src => src.WeaponClass != null ? src.WeaponClass.ToString() : null);
-
-        TypeAdapterConfig<ToolSaveData, Tool>.NewConfig()
-            .MapWith(src => new Tool(src.Name, Enum.Parse<ToolType>(src.Type), src.Weight)
-            {
-                Durability = src.Durability,
-                Damage = src.Damage,
-                BlockChance = src.BlockChance,
-                WeaponClass = src.WeaponClass != null ? Enum.Parse<WeaponClass>(src.WeaponClass) : null
-            });
-
-        TypeAdapterConfig<Equipment, EquipmentSaveData>.NewConfig()
-            .Map(dest => dest.Slot, src => src.Slot.ToString());
-
-        TypeAdapterConfig<EquipmentSaveData, Equipment>.NewConfig()
-            .MapWith(src => new Equipment(src.Name, Enum.Parse<EquipSlot>(src.Slot), src.Weight, src.Insulation));
+        // Tool and Equipment now serialize directly - no adapters needed!
 
         TypeAdapterConfig<ZoneWeather, WeatherSaveData>.NewConfig()
             .Map(dest => dest.CurrentCondition, src => src.CurrentCondition.ToString())
@@ -83,7 +65,7 @@ public static class SaveDataConverter
 
         // Expedition - save travel history and state
         TypeAdapterConfig<Expedition, ExpeditionSaveData>.NewConfig()
-            .Map(dest => dest.TravelHistoryLocationNames, src => src.TravelHistory.Select(loc => loc.Name).ToList())
+            .Map(dest => dest.TravelHistoryLocationNames, src => src.TravelHistory.Reverse().Select(loc => loc.Name).ToList())  // Reverse because Stack enumerates top-to-bottom
             .Map(dest => dest.State, src => src.State.ToString())
             .Map(dest => dest.MinutesElapsedTotal, src => src.MinutesElapsedTotal)
             .Map(dest => dest.CollectionLog, src => src.CollectionLog.ToList());
@@ -92,29 +74,8 @@ public static class SaveDataConverter
         TypeAdapterConfig<EncounterConfig, EncounterConfigSaveData>.NewConfig()
             .Map(dest => dest.Modifiers, src => src.Modifiers ?? new List<string>());
 
-        // Inventory - Stack<double> properties auto-map now
-        TypeAdapterConfig<Inventory, InventorySaveData>.NewConfig()
-            .Map(dest => dest.Tools, src => src.Tools.Select(t => t.Adapt<ToolSaveData>()).ToList())
-            .Map(dest => dest.Special, src => src.Special.Select(i => new ToolSaveData
-            {
-                Name = i.Name,
-                Weight = i.Weight,
-                Type = "Item"
-            }).ToList());
-
-        // Inventory reverse - InventorySaveData to Inventory
-        // Stack<double> properties and Equipment auto-map now
-        TypeAdapterConfig<InventorySaveData, Inventory>.NewConfig()
-            .Ignore(dest => dest.Tools)    // Handled in AfterMapping
-            .Ignore(dest => dest.Special)  // Handled in AfterMapping
-            .AfterMapping((src, dest) =>
-            {
-                // Restore Tools
-                dest.Tools = src.Tools.Select(t => t.Adapt<Tool>()).ToList();
-
-                // Restore Special items
-                dest.Special = src.Special.Select(i => new Item(i.Name, i.Weight)).ToList();
-            });
+        // Inventory - Everything auto-maps now! Tools, Equipment, and Stacks all match types.
+        // No configuration needed - Mapster handles it all automatically.
 
         // Effect - bidirectional with conditional nested objects
         TypeAdapterConfig<Effect, EffectSaveData>.NewConfig()
@@ -254,10 +215,6 @@ public static class SaveDataConverter
     private static EffectSaveData ToSaveData(Effect effect) => effect.Adapt<EffectSaveData>();
 
     private static InventorySaveData ToSaveData(Inventory inv) => inv.Adapt<InventorySaveData>();
-
-    private static ToolSaveData ToSaveData(Tool tool) => tool.Adapt<ToolSaveData>();
-
-    private static EquipmentSaveData ToSaveData(Equipment equip) => equip.Adapt<EquipmentSaveData>();
 
     private static ZoneSaveData ToSaveData(Zone zone) => zone.Adapt<ZoneSaveData>();
 
