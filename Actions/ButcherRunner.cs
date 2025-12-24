@@ -6,9 +6,9 @@ using text_survival.UI;
 
 public static class ButcherRunner
 {
-    public static FoundResources ButcherAnimal(Animal animal, GameContext ctx)
+    public static Inventory ButcherAnimal(Animal animal, GameContext ctx)
     {
-        FoundResources result;
+        Inventory result;
 
         if (ctx.Inventory.HasCuttingTool)
             result = Butcher(animal);
@@ -33,10 +33,10 @@ public static class ButcherRunner
     /// Butcher a killed animal into meat and other resources.
     /// </summary>
     /// <param name="animal">The dead animal to butcher</param>
-    /// <returns>FoundResources containing meat, bone, hide, and sinew yields</returns>
-    private static FoundResources Butcher(Animal animal)
+    /// <returns>Inventory containing meat, bone, hide, and sinew yields</returns>
+    private static Inventory Butcher(Animal animal)
     {
-        var result = new FoundResources();
+        var result = new Inventory();
         double bodyWeight = animal.Body.WeightKG;
         string animalName = animal.Name.ToLower();
 
@@ -58,9 +58,9 @@ public static class ButcherRunner
     /// <summary>
     /// Butcher without a knife - reduced yield, no hide/sinew (can't process properly).
     /// </summary>
-    private static FoundResources ButcherWithoutKnife(Animal animal)
+    private static Inventory ButcherWithoutKnife(Animal animal)
     {
-        var result = new FoundResources();
+        var result = new Inventory();
         double bodyWeight = animal.Body.WeightKG;
         string animalName = animal.Name.ToLower();
 
@@ -75,24 +75,24 @@ public static class ButcherRunner
         return result;
     }
 
-    private static void AddMeat(FoundResources result, double totalKg, string animalName)
+    private static void AddMeat(Inventory result, double totalKg, string animalName)
     {
         // Split into portions (roughly 0.5-1.5kg each)
         while (totalKg > 0.3)
         {
             double portionSize = Math.Min(totalKg, 0.5 + Random.Shared.NextDouble());
-            result.AddRawMeat(portionSize, $"{animalName} meat");
+            result.RawMeat.Push(portionSize);
             totalKg -= portionSize;
         }
 
         // Add any remaining scraps
         if (totalKg > 0.1)
         {
-            result.AddRawMeat(totalKg, $"scraps of {animalName} meat");
+            result.RawMeat.Push(totalKg);
         }
     }
 
-    private static void AddBones(FoundResources result, double totalKg, string animalName)
+    private static void AddBones(Inventory result, double totalKg, string animalName)
     {
         // Split into 2-4 bones depending on total weight
         int boneCount = totalKg switch
@@ -106,23 +106,23 @@ public static class ButcherRunner
         double perBone = totalKg / boneCount;
         for (int i = 0; i < boneCount; i++)
         {
-            result.AddBone(perBone, $"{animalName} bone");
+            result.Bone.Push(perBone);
         }
     }
 
-    private static void AddHide(FoundResources result, double totalKg, string animalName)
+    private static void AddHide(Inventory result, double totalKg, string animalName)
     {
         if (totalKg > 0.1)
         {
-            result.AddHide(totalKg, $"{animalName} hide");
+            result.Hide.Push(totalKg);
         }
     }
 
-    private static void AddSinew(FoundResources result, double totalKg, string animalName)
+    private static void AddSinew(Inventory result, double totalKg, string animalName)
     {
         if (totalKg > 0.05)
         {
-            result.AddSinew(totalKg, $"{animalName} sinew");
+            result.Sinew.Push(totalKg);
         }
     }
 }

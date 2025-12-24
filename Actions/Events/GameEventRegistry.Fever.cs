@@ -31,7 +31,7 @@ public static partial class GameEventRegistry
                 "Stop. Warm up. Let your body fight.",
                 [
                     new EventResult("You rest. Body temperature stabilizes. Crisis averted.", weight: 0.55, minutes: 60)
-                        .WithEffects(EffectFactory.Rested(0.2, 60)),
+                        .WithEffects(EffectFactory.Rested(0.5, 60)),
                     new EventResult("Rest helps but something's still wrong.", weight: 0.30, minutes: 45)
                         .CreateTension("FeverRising", 0.2),
                     new EventResult("The rest reveals how sick you are. Fever rising.", weight: 0.15, minutes: 40)

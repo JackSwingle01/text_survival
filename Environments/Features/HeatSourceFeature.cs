@@ -45,9 +45,9 @@ public class HeatSourceFeature : LocationFeature
         BurningMassKg > 0 ? GetWeightedBurnRate() * GetFireSizeBurnMultiplier() : 0;
 
     // Ember tracking
-    private double _emberDuration;
-    private double _emberStartTemperature;
-    private double _lastBurningTemperature; // Captured before consumption for ember transition
+    internal double EmberDuration { get; private set; }
+    internal double EmberStartTemperature { get; private set; }
+    internal double LastBurningTemperature { get; private set; } // Captured before consumption for ember transition
     public double EmberTimeRemaining { get; private set; }
 
     // Catching mechanic constants
@@ -61,8 +61,8 @@ public class HeatSourceFeature : LocationFeature
         BurningMassKg = 0;
         MaxFuelCapacityKg = maxCapacityKg;
         EmberTimeRemaining = 0;
-        _emberDuration = 0;
-        _emberStartTemperature = 0;
+        EmberDuration = 0;
+        EmberStartTemperature = 0;
     }
 
     #region Temperature Calculations
@@ -102,11 +102,11 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     private double GetEmberTemperature()
     {
-        if (_emberDuration <= 0) return Math.Max(200, _emberStartTemperature * 0.3);
+        if (EmberDuration <= 0) return Math.Max(200, EmberStartTemperature * 0.3);
 
-        double progress = EmberTimeRemaining / _emberDuration;
+        double progress = EmberTimeRemaining / EmberDuration;
         // Square root decay: embers cool slowly at first, then faster
-        return _emberStartTemperature * Math.Pow(progress, 0.5);
+        return EmberStartTemperature * Math.Pow(progress, 0.5);
     }
 
     /// <summary>
@@ -218,7 +218,7 @@ public class HeatSourceFeature : LocationFeature
             TransferToBurning(fuelType, actualMassAdded);
             HasEmbers = false;
             EmberTimeRemaining = 0;
-            _emberDuration = 0;
+            EmberDuration = 0;
         }
 
         return true;
@@ -326,8 +326,8 @@ public class HeatSourceFeature : LocationFeature
             if (EmberTimeRemaining <= 0)
             {
                 HasEmbers = false;
-                _emberDuration = 0;
-                _emberStartTemperature = 0;
+                EmberDuration = 0;
+                EmberStartTemperature = 0;
             }
         }
     }
@@ -372,7 +372,7 @@ public class HeatSourceFeature : LocationFeature
         if (BurningMassKg <= 0) return;
 
         // Capture temperature BEFORE consumption for ember transition
-        _lastBurningTemperature = GetActiveFireTemperature();
+        LastBurningTemperature = GetActiveFireTemperature();
 
         double burnRate = GetWeightedBurnRate() * GetFireSizeBurnMultiplier();
         double consumed = burnRate * (minutesElapsed / 60.0);
@@ -400,14 +400,14 @@ public class HeatSourceFeature : LocationFeature
     private void TransitionToEmbers()
     {
         // Use temperature captured before consumption (mixture is now empty)
-        _emberStartTemperature = _lastBurningTemperature;
+        EmberStartTemperature = LastBurningTemperature;
 
         HasEmbers = true;
 
         // Embers last based on how much fuel burned (rough estimate)
         // More fuel burned = more embers = longer duration
-        _emberDuration = Math.Max(0.25, _emberStartTemperature / 600.0 * 0.5); // 0.25 to 0.5 hours
-        EmberTimeRemaining = _emberDuration;
+        EmberDuration = Math.Max(0.25, EmberStartTemperature / 600.0 * 0.5); // 0.25 to 0.5 hours
+        EmberTimeRemaining = EmberDuration;
 
         BurningMassKg = 0;
         _burningMixture.Clear();
@@ -430,9 +430,9 @@ public class HeatSourceFeature : LocationFeature
         // Clear embers
         HasEmbers = false;
         EmberTimeRemaining = 0;
-        _emberDuration = 0;
-        _emberStartTemperature = 0;
-        _lastBurningTemperature = 0;
+        EmberDuration = 0;
+        EmberStartTemperature = 0;
+        LastBurningTemperature = 0;
     }
 
     /// <summary>
@@ -476,37 +476,16 @@ public class HeatSourceFeature : LocationFeature
         BurningMassKg = burningMass;
         MaxFuelCapacityKg = maxCapacity;
         EmberTimeRemaining = emberTime;
-        _emberDuration = emberDuration;
-        _emberStartTemperature = emberStartTemp;
-        _lastBurningTemperature = lastBurningTemp;
+        EmberDuration = emberDuration;
+        EmberStartTemperature = emberStartTemp;
+        LastBurningTemperature = lastBurningTemp;
         _unburnedMixture = new Dictionary<FuelType, double>(unburnedMix);
         _burningMixture = new Dictionary<FuelType, double>(burningMix);
     }
 
-    /// <summary>
-    /// Get current ember duration for save.
-    /// </summary>
-    internal double GetEmberDuration() => _emberDuration;
-
-    /// <summary>
-    /// Get ember start temperature for save.
-    /// </summary>
-    internal double GetEmberStartTemperature() => _emberStartTemperature;
-
-    /// <summary>
-    /// Get last burning temperature for save.
-    /// </summary>
-    internal double GetLastBurningTemperature() => _lastBurningTemperature;
-
-    /// <summary>
-    /// Get unburned mixture for save.
-    /// </summary>
-    internal IReadOnlyDictionary<FuelType, double> GetUnburnedMixture() => _unburnedMixture;
-
-    /// <summary>
-    /// Get burning mixture for save.
-    /// </summary>
-    internal IReadOnlyDictionary<FuelType, double> GetBurningMixture() => _burningMixture;
+    // Dictionaries need backing fields for mutation
+    internal IReadOnlyDictionary<FuelType, double> UnburnedMixture => _unburnedMixture;
+    internal IReadOnlyDictionary<FuelType, double> BurningMixture => _burningMixture;
 
     #endregion
 }

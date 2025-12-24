@@ -27,7 +27,7 @@ public static class TravelProcessor
     /// </summary>
     public static double GetInjuryRisk(Location location, Player player, ZoneWeather weather)
     {
-        double baseRisk = location.TerrainHazardLevel;
+        double baseRisk = location.GetEffectiveTerrainHazard();
         if (baseRisk < HazardousTerrainThreshold) return 0;
 
         // Weather modifiers
@@ -58,13 +58,13 @@ public static class TravelProcessor
     /// Check if terrain is hazardous enough to warrant speed choice.
     /// </summary>
     public static bool IsHazardousTerrain(Location location) =>
-        location.TerrainHazardLevel >= HazardousTerrainThreshold;
+        location.GetEffectiveTerrainHazard() >= HazardousTerrainThreshold;
 
     public static int GetTraversalMinutes(Location location, Player player, Inventory? inventory = null)
     {
         if (location.BaseTraversalMinutes == 0) return 0;
 
-        double multiplier = location.TerrainHazardLevel;
+        double multiplier = location.GetEffectiveTerrainHazard();
 
         // Weather from location's zone
         var weather = location.ParentZone.Weather;

@@ -134,7 +134,7 @@ public class EffectRegistry(Actor owner)
         foreach (Effect e in GetAll())
         {
             if (e.Damage is null) continue;
-            var damage = new DamageInfo(e.Damage.PerHour / 60 * e.Severity, e.Damage.Type, e.Source, e.TargetBodyPart);
+            var damage = new DamageInfo(e.Damage.PerHour / 60 * e.Severity, e.Damage.Type, targetPartName: e.TargetBodyPart);
             damages.Add(damage);
         }
         return damages;

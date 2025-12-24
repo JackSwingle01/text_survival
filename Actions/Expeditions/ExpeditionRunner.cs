@@ -131,7 +131,15 @@ public class ExpeditionRunner(GameContext ctx)
         var destination = choice.GetPlayerChoice(_ctx);
         if (destination == null) return false;
 
-        // Check for hazardous terrain - offer speed choice
+        return TravelToLocation(expedition, destination);
+    }
+
+    /// <summary>
+    /// Travels to the specified destination, handling hazardous terrain and progress.
+    /// Returns true if travel succeeded, false if player died.
+    /// </summary>
+    private bool TravelToLocation(Expedition expedition, Location destination)
+    {
         int travelTime;
         bool quickTravel = false;
         double injuryRisk = 0;
@@ -318,6 +326,12 @@ public class ExpeditionRunner(GameContext ctx)
             case "harvest":
                 result = work.DoHarvest(expedition.CurrentLocation);
                 break;
+            case "salvage":
+                result = work.DoSalvage(expedition.CurrentLocation);
+                break;
+            case "cache":
+                result = work.DoCache(expedition.CurrentLocation);
+                break;
             case "hunt":
                 DoHuntWork(expedition);
                 break;
@@ -340,7 +354,19 @@ public class ExpeditionRunner(GameContext ctx)
             expedition.CollectionLog.AddRange(result.CollectedItems);
             expedition.AddTime(result.MinutesElapsed);
             if (result.DiscoveredLocation != null)
+            {
                 expedition.AddLog($"Discovered: {result.DiscoveredLocation.Name}");
+
+                // Prompt to travel to discovered location
+                var goChoice = new Choice<bool>("Go there?");
+                goChoice.AddOption("Go there", true);
+                goChoice.AddOption("Stay", false);
+
+                if (goChoice.GetPlayerChoice(_ctx))
+                {
+                    TravelToLocation(expedition, result.DiscoveredLocation);
+                }
+            }
         }
 
         expedition.State = ExpeditionState.Traveling;
@@ -425,7 +451,7 @@ public class ExpeditionRunner(GameContext ctx)
         // Auto-equip spear if available
         var spear = _ctx.Inventory.GetOrEquipWeapon(_ctx, ToolType.Spear);
         bool hasSpear = spear != null;
-        bool hasStones = _ctx.Inventory.StoneCount > 0;
+        bool hasStones = _ctx.Inventory.Stone.Count > 0;
 
         if (!hasSpear && !hasStones)
         {
@@ -444,7 +470,7 @@ public class ExpeditionRunner(GameContext ctx)
 
             // Check throw options (spear already equipped at hunt start if available)
             hasSpear = _ctx.Inventory.Weapon?.Type == ToolType.Spear;
-            hasStones = _ctx.Inventory.StoneCount > 0;
+            hasStones = _ctx.Inventory.Stone.Count > 0;
 
             if (hasSpear)
             {
@@ -459,7 +485,7 @@ public class ExpeditionRunner(GameContext ctx)
             if (hasStones && target.Size == AnimalSize.Small && target.DistanceFromPlayer <= 15)
             {
                 double hitChance = CalculateStoneHitChance(target);
-                choice.AddOption($"Throw stone ({hitChance:P0} hit) [{_ctx.Inventory.StoneCount} left]", "throw_stone");
+                choice.AddOption($"Throw stone ({hitChance:P0} hit) [{_ctx.Inventory.Stone.Count} left]", "throw_stone");
             }
 
             choice.AddOption("Give up this hunt", "stop");
@@ -564,13 +590,12 @@ public class ExpeditionRunner(GameContext ctx)
         _ctx.player.stealthManager.StopHunting(_ctx);
 
         var loot = ButcherRunner.ButcherAnimal(target, _ctx);
-        _ctx.Inventory.Add(loot);
+        _ctx.Inventory.Combine(loot);
 
         _ctx.player.Skills.GetSkill("Hunting").GainExperience(5);
-        GameDisplay.AddNarrative(_ctx, $"You butcher the {target.Name} and collect {loot.TotalWeightKg:F1}kg of meat.");
+        GameDisplay.AddNarrative(_ctx, $"You butcher the {target.Name} and collect {loot.CurrentWeightKg:F1}kg of meat.");
 
-        foreach (var desc in loot.Descriptions)
-            expedition.CollectionLog.Add(desc);
+        expedition.CollectionLog.Add(loot.GetDescription());
 
         Input.WaitForKey(_ctx);
     }
@@ -598,7 +623,7 @@ public class ExpeditionRunner(GameContext ctx)
         // Consume stone immediately (it's thrown either way)
         if (!isSpear)
         {
-            _ctx.Inventory.TakeStone();
+            _ctx.Inventory.Stone.Pop();
         }
 
         bool hit = Utils.RandDouble(0, 1) < hitChance;
@@ -612,11 +637,10 @@ public class ExpeditionRunner(GameContext ctx)
 
             // Butcher
             var loot = ButcherRunner.ButcherAnimal(target, _ctx);
-            _ctx.Inventory.Add(loot);
+            _ctx.Inventory.Combine(loot);
 
-            GameDisplay.AddNarrative(_ctx, $"You butcher the {target.Name} and collect {loot.TotalWeightKg:F1}kg of meat.");
-            foreach (var desc in loot.Descriptions)
-                expedition.CollectionLog.Add(desc);
+            GameDisplay.AddNarrative(_ctx, $"You butcher the {target.Name} and collect {loot.CurrentWeightKg:F1}kg of meat.");
+            expedition.CollectionLog.Add(loot.GetDescription());
 
             _ctx.player.stealthManager.StopHunting(_ctx, "Hunt successful.");
             Input.WaitForKey(_ctx);

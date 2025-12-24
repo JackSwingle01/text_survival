@@ -2,16 +2,6 @@ using text_survival.Items;
 
 namespace text_survival.Environments.Features;
 
-public enum HarvestResourceType
-{
-    Log,
-    Stick,
-    Tinder,
-    Berries,
-    Water,
-    PlantFiber
-}
-
 /// <summary>
 /// Represents a discoverable resource node that can be harvested.
 /// Unlike ForageFeature (RNG-based searching), HarvestableFeature is a visible,
@@ -65,25 +55,50 @@ public class HarvestableFeature : LocationFeature
     /// <summary>
     /// Add a harvestable resource to this feature.
     /// </summary>
-    /// <param name="type">Type of resource</param>
+    /// <param name="displayName">Name for display (e.g., "berries", "dry wood")</param>
+    /// <param name="addToInventory">Action to add the resource to inventory</param>
     /// <param name="maxQuantity">Maximum available quantity</param>
     /// <param name="weightPerUnit">Weight in kg per unit harvested</param>
     /// <param name="respawnHoursPerUnit">Hours required to respawn one unit</param>
-    /// <param name="displayName">Name for display (e.g., "berries", "dry wood")</param>
-    public HarvestableFeature AddResource(HarvestResourceType type, int maxQuantity, double weightPerUnit,
-        double respawnHoursPerUnit, string displayName)
+    public HarvestableFeature AddResource(string displayName, Action<Inventory, double, string> addToInventory,
+        int maxQuantity, double weightPerUnit, double respawnHoursPerUnit)
     {
         _resources.Add(new HarvestableResource
         {
-            Type = type,
+            DisplayName = displayName,
+            AddToInventory = addToInventory,
             MaxQuantity = maxQuantity,
             CurrentQuantity = maxQuantity,
             WeightPerUnit = weightPerUnit,
-            RespawnHoursPerUnit = respawnHoursPerUnit,
-            DisplayName = displayName
+            RespawnHoursPerUnit = respawnHoursPerUnit
         });
         return this;
     }
+
+    // Convenience methods for common resource types (description param ignored - descriptions derived from contents)
+    public HarvestableFeature AddLogs(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
+        AddResource(displayName, (inv, w, _) => inv.Logs.Push(w), maxQuantity, weightPerUnit, respawnHoursPerUnit);
+
+    public HarvestableFeature AddSticks(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
+        AddResource(displayName, (inv, w, _) => inv.Sticks.Push(w), maxQuantity, weightPerUnit, respawnHoursPerUnit);
+
+    public HarvestableFeature AddTinder(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
+        AddResource(displayName, (inv, w, _) => inv.Tinder.Push(w), maxQuantity, weightPerUnit, respawnHoursPerUnit);
+
+    public HarvestableFeature AddBerries(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
+        AddResource(displayName, (inv, w, _) => inv.Berries.Push(w), maxQuantity, weightPerUnit, respawnHoursPerUnit);
+
+    public HarvestableFeature AddWater(string displayName, int maxQuantity, double litersPerUnit, double respawnHoursPerUnit) =>
+        AddResource(displayName, (inv, w, _) => inv.WaterLiters += w, maxQuantity, litersPerUnit, respawnHoursPerUnit);
+
+    public HarvestableFeature AddPlantFiber(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
+        AddResource(displayName, (inv, w, _) => inv.PlantFiber.Push(w), maxQuantity, weightPerUnit, respawnHoursPerUnit);
+
+    public HarvestableFeature AddBone(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
+        AddResource(displayName, (inv, w, _) => inv.Bone.Push(w), maxQuantity, weightPerUnit, respawnHoursPerUnit);
+
+    public HarvestableFeature AddStone(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
+        AddResource(displayName, (inv, w, _) => inv.Stone.Push(w), maxQuantity, weightPerUnit, respawnHoursPerUnit);
 
     /// <summary>
     /// Check if any resources are currently available to harvest
@@ -98,10 +113,10 @@ public class HarvestableFeature : LocationFeature
     /// Each completed cycle drops one of each non-depleted resource.
     /// </summary>
     /// <param name="minutes">Minutes of work to perform</param>
-    /// <returns>FoundResources with harvested items</returns>
-    public FoundResources Harvest(int minutes)
+    /// <returns>Inventory with harvested items</returns>
+    public Inventory Harvest(int minutes)
     {
-        var found = new FoundResources();
+        var found = new Inventory();
 
         _minutesWorked += minutes;
 
@@ -113,7 +128,8 @@ public class HarvestableFeature : LocationFeature
             {
                 if (resource.CurrentQuantity > 0)
                 {
-                    AddResourceToFound(found, resource);
+                    string description = $"some {resource.DisplayName}";
+                    resource.AddToInventory(found, resource.WeightPerUnit, description);
                     resource.CurrentQuantity--;
                     resource.RespawnProgressHours = 0;
                 }
@@ -127,33 +143,6 @@ public class HarvestableFeature : LocationFeature
         }
 
         return found;
-    }
-
-    private static void AddResourceToFound(FoundResources found, HarvestableResource resource)
-    {
-        string description = $"some {resource.DisplayName}";
-
-        switch (resource.Type)
-        {
-            case HarvestResourceType.Log:
-                found.AddLog(resource.WeightPerUnit, description);
-                break;
-            case HarvestResourceType.Stick:
-                found.AddStick(resource.WeightPerUnit, description);
-                break;
-            case HarvestResourceType.Tinder:
-                found.AddTinder(resource.WeightPerUnit, description);
-                break;
-            case HarvestResourceType.Berries:
-                found.AddBerries(resource.WeightPerUnit, description);
-                break;
-            case HarvestResourceType.Water:
-                found.AddWater(resource.WeightPerUnit, description);
-                break;
-            case HarvestResourceType.PlantFiber:
-                found.AddPlantFiber(resource.WeightPerUnit, description);
-                break;
-        }
     }
 
     /// <summary>
@@ -202,8 +191,8 @@ public class HarvestableFeature : LocationFeature
 
     private class HarvestableResource
     {
-        public HarvestResourceType Type { get; set; }
         public string DisplayName { get; set; } = "";
+        public Action<Inventory, double, string> AddToInventory { get; set; } = null!;
         public int MaxQuantity { get; set; }
         public int CurrentQuantity { get; set; }
         public double WeightPerUnit { get; set; }

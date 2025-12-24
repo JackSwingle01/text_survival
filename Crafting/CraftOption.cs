@@ -97,37 +97,11 @@ public class CraftOption
         return string.Join(", ", parts);
     }
 
-    private static int GetMaterialCount(Inventory inv, string material) => material switch
-    {
-        "Sticks" => inv.StickCount,
-        "Logs" => inv.LogCount,
-        "Stone" => inv.StoneCount,
-        "Bone" => inv.BoneCount,
-        "Hide" => inv.HideCount,
-        "PlantFiber" => inv.PlantFiberCount,
-        "Sinew" => inv.SinewCount,
-        "Tinder" => inv.TinderCount,
-        _ => 0
-    };
+    private static int GetMaterialCount(Inventory inv, string material) =>
+        inv.GetCount(material);
 
-    private static void ConsumeMaterial(Inventory inv, string material, int count)
-    {
-        for (int i = 0; i < count; i++)
-        {
-            _ = material switch
-            {
-                "Sticks" => inv.TakeSmallestStick(),
-                "Logs" => inv.TakeSmallestLog(),
-                "Stone" => inv.TakeStone(),
-                "Bone" => inv.TakeBone(),
-                "Hide" => inv.TakeHide(),
-                "PlantFiber" => inv.TakePlantFiber(),
-                "Sinew" => inv.TakeSinew(),
-                "Tinder" => inv.TakeTinder(),
-                _ => 0
-            };
-        }
-    }
+    private static void ConsumeMaterial(Inventory inv, string material, int count) =>
+        inv.Take(material, count);
 }
 
 /// <summary>

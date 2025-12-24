@@ -271,7 +271,7 @@ public static partial class GameEventRegistry
                     new EventResult("The wind destroys your shelter. Wasted effort.", 0.20, 20)
                         .WithEffects(EffectFactory.Cold(-10, 30)),
                     new EventResult("Your shelter works too well. You fall asleep and wake up later.", 0.10, 60)
-                        .WithEffects(EffectFactory.Cold(-5, 25), EffectFactory.Rested(0.2, 60))
+                        .WithEffects(EffectFactory.Cold(-5, 25), EffectFactory.Rested(0.5, 60))
                 ]);
     }
 

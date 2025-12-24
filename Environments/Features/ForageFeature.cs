@@ -2,50 +2,46 @@ using text_survival.Items;
 
 namespace text_survival.Environments.Features;
 
-public enum ForageResourceType
-{
-    Log,
-    Stick,
-    Tinder,
-    Berries,
-    RawMeat,  // Small game found while foraging
-    Water,
-    Stone,        // For crafting tools
-    PlantFiber,   // For bindings/cordage
-    Bone          // For tools and crafting
-}
-
-public record ForageResource(ForageResourceType Type, double Abundance, double MinWeight, double MaxWeight);
+/// <summary>
+/// Configuration for a forageable resource. Uses delegates for type-safe resource addition.
+/// </summary>
+public record ForageResource(
+    string Name,
+    Action<Inventory, double> AddToInventory,
+    double Abundance,
+    double MinWeight,
+    double MaxWeight);
 
 public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage")
 {
-    private readonly double baseResourceDensity = resourceDensity;
-    private double numberOfHoursForaged = 0;
-    private double hoursSinceLastForage = 0;
-    private bool hasForagedBefore = false;
     private readonly double respawnRateHours = 48.0; // Full respawn takes 48 hours
     private readonly List<ForageResource> resources = [];
     private static readonly Random rng = new();
 
+    internal double BaseResourceDensity { get; private set; } = resourceDensity;
+    internal double NumberOfHoursForaged { get; private set; } = 0;
+    internal double HoursSinceLastForage { get; private set; } = 0;
+    internal bool HasForagedBefore { get; private set; } = false;
+
     public override void Update(int minutes)
     {
-        if (hasForagedBefore)
+        if (HasForagedBefore)
         {
-            hoursSinceLastForage += minutes / 60.0;
+            HoursSinceLastForage += minutes / 60.0;
         }
     }
 
     private double ResourceDensity()
     {
         // Calculate base depleted density
-        double depletedDensity = baseResourceDensity / (numberOfHoursForaged + 1);
+        double depletedDensity = BaseResourceDensity / (NumberOfHoursForaged + 1);
 
         // Calculate respawn recovery if time has passed
-        if (hasForagedBefore && numberOfHoursForaged > 0)
+        if (HasForagedBefore && NumberOfHoursForaged > 0)
         {
-            double amountDepleted = baseResourceDensity - depletedDensity;
-            double respawnProgress = (hoursSinceLastForage / respawnRateHours) * amountDepleted;
-            double effectiveDensity = Math.Min(baseResourceDensity, depletedDensity + respawnProgress);
+            double amountDepleted = BaseResourceDensity - depletedDensity;
+            double respawnProgress = (HoursSinceLastForage / respawnRateHours) * amountDepleted;
+            double effectiveDensity = Math.Min(BaseResourceDensity, depletedDensity + respawnProgress);
             return effectiveDensity;
         }
 
@@ -53,11 +49,11 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
     }
 
     /// <summary>
-    /// Forage for resources. Returns FoundResources with varying weights.
+    /// Forage for resources. Returns Inventory with found items.
     /// </summary>
-    public FoundResources Forage(double hours)
+    public Inventory Forage(double hours)
     {
-        var found = new FoundResources();
+        var found = new Inventory();
 
         foreach (var resource in resources)
         {
@@ -72,23 +68,23 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
             for (int i = 0; i < guaranteedFinds; i++)
             {
                 double weight = RandomWeight(resource.MinWeight, resource.MaxWeight);
-                AddResourceToFound(found, resource.Type, weight);
+                resource.AddToInventory(found, weight);
             }
 
             // Roll for fractional remainder
             if (remainder > 0 && Utils.DetermineSuccess(remainder))
             {
                 double weight = RandomWeight(resource.MinWeight, resource.MaxWeight);
-                AddResourceToFound(found, resource.Type, weight);
+                resource.AddToInventory(found, weight);
             }
         }
 
         // Only deplete if resources were found
         if (!found.IsEmpty)
         {
-            numberOfHoursForaged += hours;
-            hoursSinceLastForage = 0;
-            hasForagedBefore = true;
+            NumberOfHoursForaged += hours;
+            HoursSinceLastForage = 0;
+            HasForagedBefore = true;
         }
 
         return found;
@@ -99,93 +95,116 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
         return min + rng.NextDouble() * (max - min);
     }
 
-    private static void AddResourceToFound(FoundResources found, ForageResourceType type, double weight)
-    {
-        switch (type)
-        {
-            case ForageResourceType.Log:
-                found.AddLog(weight);
-                break;
-            case ForageResourceType.Stick:
-                found.AddStick(weight);
-                break;
-            case ForageResourceType.Tinder:
-                found.AddTinder(weight);
-                break;
-            case ForageResourceType.Berries:
-                found.AddBerries(weight);
-                break;
-            case ForageResourceType.RawMeat:
-                found.AddRawMeat(weight);
-                break;
-            case ForageResourceType.Water:
-                found.AddWater(weight);
-                break;
-            case ForageResourceType.Stone:
-                found.AddStone(weight);
-                break;
-            case ForageResourceType.PlantFiber:
-                found.AddPlantFiber(weight);
-                break;
-            case ForageResourceType.Bone:
-                found.AddBone(weight);
-                break;
-        }
-    }
-
     /// <summary>
     /// Add a resource type that can be found when foraging.
     /// </summary>
-    /// <param name="type">Type of resource</param>
-    /// <param name="abundance">Chance to find per hour at full density (0.5 = 50% chance)</param>
-    /// <param name="minWeight">Minimum weight when found</param>
-    /// <param name="maxWeight">Maximum weight when found</param>
-    public ForageFeature AddResource(ForageResourceType type, double abundance, double minWeight, double maxWeight)
+    public ForageFeature AddResource(string name, Action<Inventory, double> addToInventory, double abundance, double minWeight, double maxWeight)
     {
-        resources.Add(new ForageResource(type, abundance, minWeight, maxWeight));
+        resources.Add(new ForageResource(name, addToInventory, abundance, minWeight, maxWeight));
         return this;
     }
 
     // Convenience methods for common configurations
     public ForageFeature AddLogs(double abundance = 0.3, double minKg = 1.0, double maxKg = 3.0) =>
-        AddResource(ForageResourceType.Log, abundance, minKg, maxKg);
+        AddResource("firewood", (inv, w) => inv.Logs.Push(w), abundance, minKg, maxKg);
 
     public ForageFeature AddSticks(double abundance = 0.6, double minKg = 0.1, double maxKg = 0.5) =>
-        AddResource(ForageResourceType.Stick, abundance, minKg, maxKg);
+        AddResource("kindling", (inv, w) => inv.Sticks.Push(w), abundance, minKg, maxKg);
 
     public ForageFeature AddTinder(double abundance = 0.4, double minKg = 0.02, double maxKg = 0.08) =>
-        AddResource(ForageResourceType.Tinder, abundance, minKg, maxKg);
+        AddResource("tinder", (inv, w) => inv.Tinder.Push(w), abundance, minKg, maxKg);
 
     public ForageFeature AddBerries(double abundance = 0.2, double minKg = 0.05, double maxKg = 0.2) =>
-        AddResource(ForageResourceType.Berries, abundance, minKg, maxKg);
+        AddResource("berries", (inv, w) => inv.Berries.Push(w), abundance, minKg, maxKg);
 
     public ForageFeature AddStone(double abundance = 0.3, double minKg = 0.2, double maxKg = 0.5) =>
-        AddResource(ForageResourceType.Stone, abundance, minKg, maxKg);
+        AddResource("stone", (inv, w) => inv.Stone.Push(w), abundance, minKg, maxKg);
 
     public ForageFeature AddPlantFiber(double abundance = 0.4, double minKg = 0.05, double maxKg = 0.15) =>
-        AddResource(ForageResourceType.PlantFiber, abundance, minKg, maxKg);
+        AddResource("plant fiber", (inv, w) => inv.PlantFiber.Push(w), abundance, minKg, maxKg);
 
     public ForageFeature AddBone(double abundance = 0.2, double minKg = 0.1, double maxKg = 0.4) =>
-        AddResource(ForageResourceType.Bone, abundance, minKg, maxKg);
+        AddResource("bones", (inv, w) => inv.Bone.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddSmallGame(double abundance = 0.1, double minKg = 0.2, double maxKg = 0.5) =>
+        AddResource("small game", (inv, w) => inv.RawMeat.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddWater(double abundance = 0.5, double minLiters = 0.2, double maxLiters = 0.5) =>
+        AddResource("water", (inv, w) => inv.WaterLiters += w, abundance, minLiters, maxLiters);
+
+    // Stone type convenience methods
+    public ForageFeature AddShale(double abundance = 0.2, double minKg = 0.2, double maxKg = 0.5) =>
+        AddResource("shale", (inv, w) => inv.Shale.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddFlint(double abundance = 0.1, double minKg = 0.1, double maxKg = 0.3) =>
+        AddResource("flint", (inv, w) => inv.Flint.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddPyrite(double abundance = 0.05, double minKg = 0.02, double maxKg = 0.1) =>
+        AddResource("pyrite", (inv, w) => inv.Pyrite += w, abundance, minKg, maxKg);
+
+    // Wood type convenience methods
+    public ForageFeature AddPine(double abundance = 0.3, double minKg = 1.0, double maxKg = 3.0) =>
+        AddResource("pine", (inv, w) => inv.Pine.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddBirch(double abundance = 0.3, double minKg = 1.0, double maxKg = 3.0) =>
+        AddResource("birch", (inv, w) => inv.Birch.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddOak(double abundance = 0.2, double minKg = 1.5, double maxKg = 4.0) =>
+        AddResource("oak", (inv, w) => inv.Oak.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddBirchBark(double abundance = 0.3, double minKg = 0.05, double maxKg = 0.15) =>
+        AddResource("birch bark", (inv, w) => inv.BirchBark.Push(w), abundance, minKg, maxKg);
+
+    // Fungi convenience methods (year-round on trees)
+    public ForageFeature AddBirchPolypore(double abundance = 0.1, double minKg = 0.05, double maxKg = 0.15) =>
+        AddResource("birch polypore", (inv, w) => inv.BirchPolypore.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddChaga(double abundance = 0.08, double minKg = 0.05, double maxKg = 0.2) =>
+        AddResource("chaga", (inv, w) => inv.Chaga.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddAmadou(double abundance = 0.1, double minKg = 0.02, double maxKg = 0.08) =>
+        AddResource("amadou", (inv, w) => inv.Amadou.Push(w), abundance, minKg, maxKg);
+
+    // Persistent plant convenience methods (winter-available)
+    public ForageFeature AddRoseHips(double abundance = 0.2, double minKg = 0.02, double maxKg = 0.1) =>
+        AddResource("rose hips", (inv, w) => inv.RoseHips.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddJuniperBerries(double abundance = 0.15, double minKg = 0.02, double maxKg = 0.08) =>
+        AddResource("juniper berries", (inv, w) => inv.JuniperBerries.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddWillowBark(double abundance = 0.15, double minKg = 0.02, double maxKg = 0.1) =>
+        AddResource("willow bark", (inv, w) => inv.WillowBark.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddPineNeedles(double abundance = 0.3, double minKg = 0.02, double maxKg = 0.1) =>
+        AddResource("pine needles", (inv, w) => inv.PineNeedles.Push(w), abundance, minKg, maxKg);
+
+    // Tree product convenience methods
+    public ForageFeature AddPineResin(double abundance = 0.1, double minKg = 0.02, double maxKg = 0.1) =>
+        AddResource("pine resin", (inv, w) => inv.PineResin.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddUsnea(double abundance = 0.15, double minKg = 0.02, double maxKg = 0.08) =>
+        AddResource("usnea", (inv, w) => inv.Usnea.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddSphagnum(double abundance = 0.2, double minKg = 0.1, double maxKg = 0.3) =>
+        AddResource("sphagnum", (inv, w) => inv.Sphagnum.Push(w), abundance, minKg, maxKg);
+
+    // Food expansion convenience methods
+    public ForageFeature AddNuts(double abundance = 0.2, double minKg = 0.05, double maxKg = 0.15) =>
+        AddResource("nuts", (inv, w) => inv.Nuts.Push(w), abundance, minKg, maxKg);
+
+    public ForageFeature AddRoots(double abundance = 0.15, double minKg = 0.1, double maxKg = 0.3) =>
+        AddResource("roots", (inv, w) => inv.Roots.Push(w), abundance, minKg, maxKg);
+
+    // Raw material convenience methods (usually from processing, but can be foraged)
+    public ForageFeature AddRawFiber(double abundance = 0.3, double minKg = 0.05, double maxKg = 0.15) =>
+        AddResource("raw fiber", (inv, w) => inv.RawFiber.Push(w), abundance, minKg, maxKg);
 
     /// <summary>
     /// Get summary of what can be found here for display.
     /// </summary>
     public List<string> GetAvailableResourceTypes()
     {
-        return resources.Select(r => r.Type switch
-        {
-            ForageResourceType.Log => "firewood",
-            ForageResourceType.Stick => "kindling",
-            ForageResourceType.Tinder => "tinder",
-            ForageResourceType.Berries => "berries",
-            ForageResourceType.RawMeat => "small game",
-            ForageResourceType.Water => "water",
-            ForageResourceType.Stone => "stone",
-            ForageResourceType.PlantFiber => "plant fiber",
-            ForageResourceType.Bone => "bones",
-            _ => "resources"
-        }).Distinct().ToList();
+        return resources.Select(r => r.Name).Distinct().ToList();
     }
 
     /// <summary>
@@ -209,8 +228,8 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
     /// </summary>
     public void Deplete(double hours)
     {
-        numberOfHoursForaged += hours;
-        hasForagedBefore = true;
+        NumberOfHoursForaged += hours;
+        HasForagedBefore = true;
     }
 
     /// <summary>
@@ -218,7 +237,7 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
     /// </summary>
     public void Restore(double hours)
     {
-        hoursSinceLastForage += hours;
+        HoursSinceLastForage += hours;
     }
 
     #region Save/Load Support
@@ -228,37 +247,15 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
     /// </summary>
     internal void RestoreState(double hoursForaged, double hoursSinceForage, bool hasForaged, List<ForageResource> resourceList)
     {
-        numberOfHoursForaged = hoursForaged;
-        hoursSinceLastForage = hoursSinceForage;
-        hasForagedBefore = hasForaged;
+        NumberOfHoursForaged = hoursForaged;
+        HoursSinceLastForage = hoursSinceForage;
+        HasForagedBefore = hasForaged;
         resources.Clear();
         resources.AddRange(resourceList);
     }
 
-    /// <summary>
-    /// Get base resource density for save.
-    /// </summary>
-    internal double GetBaseResourceDensity() => baseResourceDensity;
-
-    /// <summary>
-    /// Get hours foraged for save.
-    /// </summary>
-    internal double GetNumberOfHoursForaged() => numberOfHoursForaged;
-
-    /// <summary>
-    /// Get hours since last forage for save.
-    /// </summary>
-    internal double GetHoursSinceLastForage() => hoursSinceLastForage;
-
-    /// <summary>
-    /// Get has foraged before flag for save.
-    /// </summary>
-    internal bool GetHasForagedBefore() => hasForagedBefore;
-
-    /// <summary>
-    /// Get resources list for save.
-    /// </summary>
-    internal IReadOnlyList<ForageResource> GetResources() => resources.AsReadOnly();
+    // Collection needs backing field for mutation
+    internal IReadOnlyList<ForageResource> Resources => resources.AsReadOnly();
 
     #endregion
 }

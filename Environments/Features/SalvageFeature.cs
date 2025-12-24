@@ -47,7 +47,7 @@ public class SalvageFeature : LocationFeature
     /// <summary>
     /// Aggregate resources available for salvage.
     /// </summary>
-    public FoundResources Resources { get; set; } = new();
+    public Inventory Resources { get; set; } = new();
 
     /// <summary>
     /// Minutes required to salvage the site.
@@ -120,10 +120,10 @@ public class SalvageFeature : LocationFeature
         };
 
         // Random loot for abandoned camp
-        salvage.Resources.AddStick(0.3, "salvaged stake");
-        salvage.Resources.AddStick(0.3, "salvaged stake");
-        salvage.Resources.AddTinder(0.05, "old tinder");
-        salvage.Resources.AddPlantFiber(0.1, "frayed cordage");
+        salvage.Resources.Sticks.Push(0.3);
+        salvage.Resources.Sticks.Push(0.3);
+        salvage.Resources.Tinder.Push(0.05);
+        salvage.Resources.PlantFiber.Push(0.1);
 
         // Chance-based tool (50%)
         if (Utils.RandDouble(0, 1) < 0.5)
@@ -151,7 +151,7 @@ public class SalvageFeature : LocationFeature
         salvage.Equipment.Add(new Equipment("Worn Coat", EquipSlot.Chest, 2.0, 0.15));
 
         // Their supplies
-        salvage.Resources.AddBone(0.2, "bone fragment");
+        salvage.Resources.Bone.Push(0.2);
 
         // Random additional items
         if (Utils.RandDouble(0, 1) < 0.4)
@@ -161,7 +161,7 @@ public class SalvageFeature : LocationFeature
         }
         if (Utils.RandDouble(0, 1) < 0.3)
         {
-            salvage.Resources.AddHide(0.5, "scrap hide");
+            salvage.Resources.Hide.Push(0.5);
         }
 
         return salvage;
@@ -180,14 +180,14 @@ public class SalvageFeature : LocationFeature
         };
 
         // Cached supplies - intentionally good stuff
-        salvage.Resources.AddLog(2.0, "dry log");
-        salvage.Resources.AddTinder(0.05, "birch bark");
-        salvage.Resources.AddTinder(0.05, "birch bark");
+        salvage.Resources.Logs.Push(2.0);
+        salvage.Resources.Tinder.Push(0.05);
+        salvage.Resources.Tinder.Push(0.05);
 
         // Random food (might be spoiled after all this time)
         if (Utils.RandDouble(0, 1) < 0.6)
         {
-            salvage.Resources.AddBerries(0.2, "dried berries");
+            salvage.Resources.Berries.Push(0.2);
         }
 
         // Rare tool find
@@ -208,7 +208,7 @@ public class SalvageLoot
 {
     public List<Tool> Tools { get; set; } = [];
     public List<Equipment> Equipment { get; set; } = [];
-    public FoundResources Resources { get; set; } = new();
+    public Inventory Resources { get; set; } = new();
     public string? NarrativeHook { get; set; }
 
     public bool IsEmpty => Tools.Count == 0 && Equipment.Count == 0 && Resources.IsEmpty;

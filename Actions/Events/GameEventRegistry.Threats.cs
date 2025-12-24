@@ -58,6 +58,7 @@ public static partial class GameEventRegistry
             "Tracks",
             $"Fresh {animal.ToLower()} tracks cross your path. They're recent.", 1.2)
             .Requires(EventCondition.IsExpedition, EventCondition.InAnimalTerritory)
+            .WithConditionFactor(EventCondition.HighVisibility, 1.5) // Easier to see tracks in open terrain
             .Choice("Follow Them",
                 "The trail is clear. You could track this animal.",
                 [
@@ -92,6 +93,7 @@ public static partial class GameEventRegistry
             .Requires(EventCondition.Working, EventCondition.HasPredators)
             .WithConditionFactor(EventCondition.HasMeat, 3.0)
             .WithConditionFactor(EventCondition.Injured, 2.0)
+            .WithConditionFactor(EventCondition.LowVisibility, 1.5) // Harder to spot stalker in dense cover
             .Choice("Make Noise",
                 "Stand tall, make yourself big, shout. Assert dominance.",
                 [
@@ -163,6 +165,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Stalker Circling",
             $"You catch movement in your peripheral vision. Again. The {predator.ToLower()} is pacing you, staying just out of clear sight. Testing.", 1.5)
             .Requires(EventCondition.Stalked, EventCondition.IsExpedition)
+            .WithConditionFactor(EventCondition.InDarkness, 1.3) // Darkness makes circling predator scarier
             .Choice("Confront It Now",
                 "Turn and face it. Better to fight on your terms.",
                 [
@@ -283,7 +286,7 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Warmed(0.3, 30)),
                     new EventResult("Takes longer but works.", weight: 0.25, minutes: 35),
                     new EventResult("You doze off by the fire. Time lost, but you feel better.", weight: 0.05, minutes: 60)
-                        .WithEffects(EffectFactory.Rested(0.2, 60))
+                        .WithEffects(EffectFactory.Rested(0.5, 60))
                 ],
                 [EventCondition.NearFire])
             .Choice("Push Through",
@@ -503,7 +506,7 @@ public static partial class GameEventRegistry
                 "Don't force it. Let clarity come naturally.",
                 [
                     new EventResult("You feel centered. Calm.", weight: 1.0, minutes: 15)
-                        .WithEffects(EffectFactory.Rested(0.2, 90))
+                        .WithEffects(EffectFactory.Rested(0.5, 90))
                 ]);
     }
 
@@ -678,9 +681,9 @@ public static partial class GameEventRegistry
                 "Rest for an hour. Let your body recover.",
                 [
                     new EventResult("The rest helps. Pain subsides.", weight: 0.70, minutes: 60)
-                        .WithEffects(EffectFactory.Rested(0.2, 120)),
+                        .WithEffects(EffectFactory.Rested(0.5, 120)),
                     new EventResult("Takes longer than expected, but eventually loosens up.", weight: 0.30, minutes: 90)
-                        .WithEffects(EffectFactory.Rested(0.1, 60))
+                        .WithEffects(EffectFactory.Rested(0.3, 60))
                 ])
             .Choice("Work Through It",
                 "Ignore the pain. Keep going.",

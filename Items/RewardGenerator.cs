@@ -22,7 +22,7 @@ public enum RewardPool
 
 public static class RewardGenerator
 {
-    public static FoundResources Generate(RewardPool pool)
+    public static Inventory Generate(RewardPool pool)
     {
         return pool switch
         {
@@ -39,22 +39,22 @@ public static class RewardGenerator
             RewardPool.BoneHarvest => GenerateBoneHarvest(),
             RewardPool.SmallGame => GenerateSmallGame(),
             RewardPool.HideScrap => GenerateHideScrap(),
-            _ => new FoundResources()
+            _ => new Inventory()
         };
     }
 
-    private static FoundResources GenerateBasicSupplies()
+    private static Inventory GenerateBasicSupplies()
     {
-        var resources = new FoundResources();
+        var resources = new Inventory();
 
         // Roll 1-2 items
         int itemCount = Random.Shared.Next(1, 3);
         var options = new List<Action>
         {
-            () => resources.AddStick(RandomWeight(0.2, 0.5), "a sturdy branch"),
-            () => resources.AddTinder(RandomWeight(0.1, 0.3), "some dry bark"),
-            () => resources.AddBerries(RandomWeight(0.1, 0.25), null),
-            () => resources.AddLog(RandomWeight(0.8, 1.5), "a small log")
+            () => resources.Sticks.Push(RandomWeight(0.2, 0.5)),
+            () => resources.Tinder.Push(RandomWeight(0.1, 0.3)),
+            () => resources.Berries.Push(RandomWeight(0.1, 0.25)),
+            () => resources.Logs.Push(RandomWeight(0.8, 1.5))
         };
 
         // Shuffle and pick
@@ -67,84 +67,82 @@ public static class RewardGenerator
         return resources;
     }
 
-    private static FoundResources GenerateAbandonedCamp()
+    private static Inventory GenerateAbandonedCamp()
     {
-        var resources = new FoundResources();
+        var resources = new Inventory();
 
         // Random tool left behind
-        var tools = new (Func<Tool> create, string desc)[]
+        var tools = new Func<Tool>[]
         {
-            (() => Tool.Knife("Bone Knife"), "an abandoned bone knife"),
-            (() => Tool.Axe("Stone Axe"), "a worn stone axe"),
-            (() => Tool.Spear("Wooden Spear"), "a forgotten spear")
+            () => Tool.Knife("Bone Knife"),
+            () => Tool.Axe("Stone Axe"),
+            () => Tool.Spear("Wooden Spear")
         };
 
-        var (create, desc) = tools[Random.Shared.Next(tools.Length)];
-        resources.AddTool(create(), desc);
+        resources.Tools.Add(tools[Random.Shared.Next(tools.Length)]());
 
         // Plus some tinder or a stick
         if (Random.Shared.Next(2) == 0)
-            resources.AddTinder(RandomWeight(0.2, 0.4), "a leftover tinder bundle");
+            resources.Tinder.Push(RandomWeight(0.2, 0.4));
         else
-            resources.AddStick(RandomWeight(0.2, 0.4), "some kindling");
+            resources.Sticks.Push(RandomWeight(0.2, 0.4));
 
         return resources;
     }
 
-    private static FoundResources GenerateHiddenCache()
+    private static Inventory GenerateHiddenCache()
     {
-        var resources = new FoundResources();
+        var resources = new Inventory();
 
         // Valuable tool - fire striker is most valuable
         if (Random.Shared.Next(3) == 0)
         {
-            resources.AddTool(Tool.FireStriker("Flint and Steel"), "flint and steel");
+            resources.Tools.Add(Tool.FireStriker("Flint and Steel"));
         }
         else
         {
-            var tools = new (Func<Tool> create, string desc)[]
+            var tools = new Func<Tool>[]
             {
-                (() => Tool.Knife("Flint Knife"), "a sharp flint knife"),
-                (() => Tool.Axe("Flint Axe"), "a quality flint axe")
+                () => Tool.Knife("Flint Knife"),
+                () => Tool.Axe("Flint Axe")
             };
-            var (create, desc) = tools[Random.Shared.Next(tools.Length)];
-            resources.AddTool(create(), desc);
+            resources.Tools.Add(tools[Random.Shared.Next(tools.Length)]());
         }
 
         // Plus good fuel
-        resources.AddLog(RandomWeight(1.5, 2.5), "a seasoned hardwood log");
+        resources.Logs.Push(RandomWeight(1.5, 2.5));
 
         return resources;
     }
 
-    private static FoundResources GenerateBasicMeat()
+    private static Inventory GenerateBasicMeat()
     {
-        var resources = new FoundResources();
+        var resources = new Inventory();
         // Quick scavenge - small amount of meat
-        resources.AddRawMeat(RandomWeight(0.3, 0.6), "some scavenged meat");
+        resources.RawMeat.Push(RandomWeight(0.3, 0.6));
         return resources;
     }
 
-    private static FoundResources GenerateLargeMeat()
+    private static Inventory GenerateLargeMeat()
     {
-        var resources = new FoundResources();
+        var resources = new Inventory();
         // Thorough butchering - significant haul
         int cuts = Random.Shared.Next(2, 4); // 2-3 portions
         for (int i = 0; i < cuts; i++)
         {
-            resources.AddRawMeat(RandomWeight(0.4, 0.8), null);
+            resources.RawMeat.Push(RandomWeight(0.4, 0.8));
         }
         return resources;
     }
 
-    private static FoundResources GenerateGameTrailDiscovery()
+    private static Inventory GenerateGameTrailDiscovery()
     {
-        var resources = new FoundResources();
+        var resources = new Inventory();
         // Minor supplies as placeholder - info reward in future
         if (Random.Shared.Next(2) == 0)
-            resources.AddStick(RandomWeight(0.2, 0.4), "a walking stick");
+            resources.Sticks.Push(RandomWeight(0.2, 0.4));
         else
-            resources.AddTinder(RandomWeight(0.1, 0.2), "some dried grass");
+            resources.Tinder.Push(RandomWeight(0.1, 0.2));
         return resources;
     }
 
@@ -155,17 +153,17 @@ public static class RewardGenerator
 
     // Extended pool generators
 
-    private static FoundResources GenerateCraftingMaterials()
+    private static Inventory GenerateCraftingMaterials()
     {
-        var resources = new FoundResources();
+        var resources = new Inventory();
 
         // Roll 1-2 crafting material types
         int itemCount = Random.Shared.Next(1, 3);
         var options = new List<Action>
         {
-            () => resources.AddStone(RandomWeight(0.2, 0.4), "a good stone"),
-            () => resources.AddBone(RandomWeight(0.2, 0.5), "some animal bones"),
-            () => resources.AddPlantFiber(RandomWeight(0.1, 0.3), "some plant fibers")
+            () => resources.Stone.Push(RandomWeight(0.2, 0.4)),
+            () => resources.Bone.Push(RandomWeight(0.2, 0.5)),
+            () => resources.PlantFiber.Push(RandomWeight(0.1, 0.3))
         };
 
         var shuffled = options.OrderBy(_ => Random.Shared.Next()).Take(itemCount);
@@ -177,64 +175,62 @@ public static class RewardGenerator
         return resources;
     }
 
-    private static FoundResources GenerateScrapTool()
+    private static Inventory GenerateScrapTool()
     {
-        var resources = new FoundResources();
+        var resources = new Inventory();
 
         // A damaged tool with limited durability
-        var tools = new (Func<Tool> create, string desc)[]
+        var tools = new Func<Tool>[]
         {
-            (() => { var t = Tool.Knife("Worn Knife"); t.Durability = Random.Shared.Next(3, 8); return t; }, "a worn knife"),
-            (() => { var t = Tool.Axe("Damaged Axe"); t.Durability = Random.Shared.Next(2, 6); return t; }, "a damaged axe"),
-            (() => { var t = Tool.Spear("Cracked Spear"); t.Durability = Random.Shared.Next(3, 8); return t; }, "a cracked spear")
+            () => { var t = Tool.Knife("Worn Knife"); t.Durability = Random.Shared.Next(3, 8); return t; },
+            () => { var t = Tool.Axe("Damaged Axe"); t.Durability = Random.Shared.Next(2, 6); return t; },
+            () => { var t = Tool.Spear("Cracked Spear"); t.Durability = Random.Shared.Next(3, 8); return t; }
         };
 
-        var (create, desc) = tools[Random.Shared.Next(tools.Length)];
-        resources.AddTool(create(), desc);
+        resources.Tools.Add(tools[Random.Shared.Next(tools.Length)]());
 
         return resources;
     }
 
-    private static FoundResources GenerateWaterSource()
+    private static Inventory GenerateWaterSource()
     {
-        var resources = new FoundResources();
-        double amount = RandomWeight(0.5, 1.5);
-        resources.AddWater(amount, $"{amount:F1}L of fresh water");
+        var resources = new Inventory();
+        resources.WaterLiters += RandomWeight(0.5, 1.5);
         return resources;
     }
 
-    private static FoundResources GenerateTinderBundle()
+    private static Inventory GenerateTinderBundle()
     {
-        var resources = new FoundResources();
-        resources.AddTinder(RandomWeight(0.2, 0.5), "a good tinder bundle");
+        var resources = new Inventory();
+        resources.Tinder.Push(RandomWeight(0.2, 0.5));
         return resources;
     }
 
-    private static FoundResources GenerateBoneHarvest()
+    private static Inventory GenerateBoneHarvest()
     {
-        var resources = new FoundResources();
+        var resources = new Inventory();
         int boneCount = Random.Shared.Next(1, 4); // 1-3 bones
         for (int i = 0; i < boneCount; i++)
         {
-            resources.AddBone(RandomWeight(0.2, 0.5), null);
+            resources.Bone.Push(RandomWeight(0.2, 0.5));
         }
         return resources;
     }
 
-    private static FoundResources GenerateSmallGame()
+    private static Inventory GenerateSmallGame()
     {
-        var resources = new FoundResources();
+        var resources = new Inventory();
         // Small animal - modest meat, maybe some bone
-        resources.AddRawMeat(RandomWeight(0.2, 0.4), "some small game meat");
+        resources.RawMeat.Push(RandomWeight(0.2, 0.4));
         if (Random.Shared.Next(2) == 0)
-            resources.AddBone(RandomWeight(0.1, 0.2), "some small bones");
+            resources.Bone.Push(RandomWeight(0.1, 0.2));
         return resources;
     }
 
-    private static FoundResources GenerateHideScrap()
+    private static Inventory GenerateHideScrap()
     {
-        var resources = new FoundResources();
-        resources.AddHide(RandomWeight(0.3, 0.6), "a piece of hide");
+        var resources = new Inventory();
+        resources.Hide.Push(RandomWeight(0.3, 0.6));
         return resources;
     }
 }

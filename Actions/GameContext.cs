@@ -115,7 +115,12 @@ public class GameContext(Player player, Camp camp)
             EventCondition.InDarkness => CurrentLocation.IsDark && !Check(EventCondition.HasLightSource),
             EventCondition.HasLightSource => CurrentLocation.GetFeature<HeatSourceFeature>()?.IsActive ?? false,
             EventCondition.NearWater => CurrentLocation.HasFeature<WaterFeature>(),
-            EventCondition.HazardousTerrain => CurrentLocation.TerrainHazardLevel >= 0.5,
+            EventCondition.HazardousTerrain => CurrentLocation.GetEffectiveTerrainHazard() >= 0.5,
+
+            // Water/Ice conditions
+            EventCondition.FrozenWater => CurrentLocation.GetFeature<WaterFeature>()?.IsFrozen ?? false,
+            EventCondition.OnThinIce => CurrentLocation.GetFeature<WaterFeature>()?.HasThinIce ?? false,
+            EventCondition.HasIceHole => CurrentLocation.GetFeature<WaterFeature>()?.HasIceHole ?? false,
 
             // Weather conditions
             EventCondition.IsSnowing => Zone.Weather.CurrentCondition is ZoneWeather.WeatherCondition.LightSnow
@@ -577,4 +582,9 @@ public enum EventCondition
     HasLightSource,     // Active fire/torch at current location
     NearWater,          // Location has a water feature
     HazardousTerrain,   // Location terrain hazard >= 0.5
+
+    // Water/Ice conditions
+    FrozenWater,        // Water feature is frozen
+    OnThinIce,          // Frozen water with ice thickness < 0.4 (dangerous)
+    HasIceHole,         // An ice hole has been cut in frozen water
 }

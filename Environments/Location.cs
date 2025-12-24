@@ -36,10 +36,28 @@ public class Location(string name, string tags, Zone parent, int traversalMinute
     public int BaseTraversalMinutes { get; set; } = traversalMinutes;
 
     /// <summary>
-    /// Injury risk and traversal time modifier
-    /// 0-1, 0 = grass, .5 = thick undergrowth, 1 = icy boulder field
+    /// Base injury risk and traversal time modifier.
+    /// 0-1, 0 = grass, .5 = thick undergrowth, 1 = icy boulder field.
+    /// Use GetEffectiveTerrainHazard() for total including feature contributions.
     /// </summary>
     public double TerrainHazardLevel { get; set; } = terrainHazardLevel;
+
+    /// <summary>
+    /// Gets the effective terrain hazard including contributions from features like frozen water.
+    /// </summary>
+    public double GetEffectiveTerrainHazard()
+    {
+        double hazard = TerrainHazardLevel;
+
+        // Frozen water adds to terrain hazard (slippery ice)
+        var water = GetFeature<WaterFeature>();
+        if (water != null)
+        {
+            hazard += water.GetTerrainHazardContribution();
+        }
+
+        return Math.Min(1.0, hazard);
+    }
 
     /// <summary>
     /// Require fire or torch to work

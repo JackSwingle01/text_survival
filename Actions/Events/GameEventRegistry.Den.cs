@@ -223,7 +223,7 @@ public static partial class GameEventRegistry
                 "It's cold. The shelter works. Worry about cleaning later.",
                 [
                     new EventResult("You settle in. Warm and dry. The smell fades.", weight: 0.70)
-                        .WithEffects(EffectFactory.Rested(0.2, 30)),
+                        .WithEffects(EffectFactory.Rested(0.5, 30)),
                     new EventResult("Something in the old bedding. You're feeling ill.", weight: 0.20, minutes: 15)
                         .CreateTension("FeverRising", 0.2, description: "infected from den bedding"),
                     new EventResult("Parasites in the old fur. Itching, discomfort.", weight: 0.10)

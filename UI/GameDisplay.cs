@@ -959,12 +959,12 @@ public static class GameDisplay
             new Text("")
         };
 
-        if (inv.LogCount > 0)
-            fuelLines.Add(new Markup($"[white]{inv.LogCount} logs[/] [grey]({inv.Logs.Sum():F1}kg)[/]"));
-        if (inv.StickCount > 0)
-            fuelLines.Add(new Markup($"[white]{inv.StickCount} sticks[/] [grey]({inv.Sticks.Sum():F1}kg)[/]"));
-        if (inv.TinderCount > 0)
-            fuelLines.Add(new Markup($"[white]{inv.TinderCount} tinder[/] [grey]({inv.Tinder.Sum():F2}kg)[/]"));
+        if (inv.Logs.Count > 0)
+            fuelLines.Add(new Markup($"[white]{inv.Logs.Count} logs[/] [grey]({inv.Logs.Sum():F1}kg)[/]"));
+        if (inv.Sticks.Count > 0)
+            fuelLines.Add(new Markup($"[white]{inv.Sticks.Count} sticks[/] [grey]({inv.Sticks.Sum():F1}kg)[/]"));
+        if (inv.Tinder.Count > 0)
+            fuelLines.Add(new Markup($"[white]{inv.Tinder.Count} tinder[/] [grey]({inv.Tinder.Sum():F2}kg)[/]"));
         if (!inv.HasFuel)
             fuelLines.Add(new Markup("[grey]None[/]"));
         else
@@ -981,12 +981,12 @@ public static class GameDisplay
         foodLines.Add(new Markup("[white bold]Food:[/]"));
         if (inv.HasFood)
         {
-            if (inv.CookedMeatCount > 0)
-                foodLines.Add(new Markup($"  [white]{inv.CookedMeatCount} cooked meat[/] [grey]({inv.CookedMeat.Sum():F1}kg)[/]"));
-            if (inv.RawMeatCount > 0)
-                foodLines.Add(new Markup($"  [yellow]{inv.RawMeatCount} raw meat[/] [grey]({inv.RawMeat.Sum():F1}kg)[/]"));
-            if (inv.BerryCount > 0)
-                foodLines.Add(new Markup($"  [white]{inv.BerryCount} berries[/] [grey]({inv.Berries.Sum():F2}kg)[/]"));
+            if (inv.CookedMeat.Count > 0)
+                foodLines.Add(new Markup($"  [white]{inv.CookedMeat.Count} cooked meat[/] [grey]({inv.CookedMeat.Sum():F1}kg)[/]"));
+            if (inv.RawMeat.Count > 0)
+                foodLines.Add(new Markup($"  [yellow]{inv.RawMeat.Count} raw meat[/] [grey]({inv.RawMeat.Sum():F1}kg)[/]"));
+            if (inv.Berries.Count > 0)
+                foodLines.Add(new Markup($"  [white]{inv.Berries.Count} berries[/] [grey]({inv.Berries.Sum():F2}kg)[/]"));
         }
         else
         {
@@ -1007,16 +1007,16 @@ public static class GameDisplay
             new Text("")
         };
 
-        if (inv.StoneCount > 0)
-            matLines.Add(new Markup($"[white]{inv.StoneCount} stone[/] [grey]({inv.Stone.Sum():F1}kg)[/]"));
-        if (inv.BoneCount > 0)
-            matLines.Add(new Markup($"[white]{inv.BoneCount} bone[/] [grey]({inv.Bone.Sum():F1}kg)[/]"));
-        if (inv.HideCount > 0)
-            matLines.Add(new Markup($"[white]{inv.HideCount} hide[/] [grey]({inv.Hide.Sum():F1}kg)[/]"));
-        if (inv.PlantFiberCount > 0)
-            matLines.Add(new Markup($"[white]{inv.PlantFiberCount} plant fiber[/] [grey]({inv.PlantFiber.Sum():F2}kg)[/]"));
-        if (inv.SinewCount > 0)
-            matLines.Add(new Markup($"[white]{inv.SinewCount} sinew[/] [grey]({inv.Sinew.Sum():F2}kg)[/]"));
+        if (inv.Stone.Count > 0)
+            matLines.Add(new Markup($"[white]{inv.Stone.Count} stone[/] [grey]({inv.Stone.Sum():F1}kg)[/]"));
+        if (inv.Bone.Count > 0)
+            matLines.Add(new Markup($"[white]{inv.Bone.Count} bone[/] [grey]({inv.Bone.Sum():F1}kg)[/]"));
+        if (inv.Hide.Count > 0)
+            matLines.Add(new Markup($"[white]{inv.Hide.Count} hide[/] [grey]({inv.Hide.Sum():F1}kg)[/]"));
+        if (inv.PlantFiber.Count > 0)
+            matLines.Add(new Markup($"[white]{inv.PlantFiber.Count} plant fiber[/] [grey]({inv.PlantFiber.Sum():F2}kg)[/]"));
+        if (inv.Sinew.Count > 0)
+            matLines.Add(new Markup($"[white]{inv.Sinew.Count} sinew[/] [grey]({inv.Sinew.Sum():F2}kg)[/]"));
         if (!inv.HasCraftingMaterials)
             matLines.Add(new Markup("[grey]None[/]"));
 
@@ -1068,9 +1068,9 @@ public static class GameDisplay
         if (inv.Weapon != null)
             TestModeIO.WriteOutput($"  Weapon: {inv.Weapon.Name}\n");
 
-        if (inv.LogCount > 0) TestModeIO.WriteOutput($"  Logs: {inv.LogCount}\n");
-        if (inv.StickCount > 0) TestModeIO.WriteOutput($"  Sticks: {inv.StickCount}\n");
-        if (inv.TinderCount > 0) TestModeIO.WriteOutput($"  Tinder: {inv.TinderCount}\n");
+        if (inv.Logs.Count > 0) TestModeIO.WriteOutput($"  Logs: {inv.Logs.Count}\n");
+        if (inv.Sticks.Count > 0) TestModeIO.WriteOutput($"  Sticks: {inv.Sticks.Count}\n");
+        if (inv.Tinder.Count > 0) TestModeIO.WriteOutput($"  Tinder: {inv.Tinder.Count}\n");
         if (inv.HasFood) TestModeIO.WriteOutput($"  Food: {inv.FoodWeightKg:F1}kg\n");
         if (inv.HasWater) TestModeIO.WriteOutput($"  Water: {inv.WaterLiters:F1}L\n");
     }

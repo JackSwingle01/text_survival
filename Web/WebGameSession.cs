@@ -95,7 +95,7 @@ public class WebGameSession
         }
         catch (OperationCanceledException)
         {
-            return new PlayerResponse(0);
+            throw;  // Propagate cancellation to stop the game loop
         }
     }
 

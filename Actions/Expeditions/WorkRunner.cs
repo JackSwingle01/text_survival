@@ -85,7 +85,7 @@ public class WorkRunner(GameContext ctx)
             GameDisplay.AddWarning(_ctx, "Your foggy senses cause you to miss some resources.");
         }
 
-        _ctx.Inventory.Add(found);
+        _ctx.Inventory.Combine(found);
 
         var collected = new List<string>();
         string quality = feature.GetQualityDescription();
@@ -97,14 +97,8 @@ public class WorkRunner(GameContext ctx)
         }
         else
         {
-            GameDisplay.AddNarrative(_ctx, "You found:");
-            var grouped = found.Descriptions.GroupBy(d => d).Select(g => (g.Key, g.Count()));
-            foreach (var (desc, count) in grouped)
-            {
-                string line = count > 1 ? $"{desc} ({count})" : desc;
-                GameDisplay.AddNarrative(_ctx, $"  - {line}");
-            }
-            collected.AddRange(found.Descriptions);
+            GameDisplay.AddNarrative(_ctx, $"You found: {found.GetDescription()}");
+            collected.Add(found.GetDescription());
             if (quality == "sparse" || quality == "picked over")
                 GameDisplay.AddNarrative(_ctx, "Resources here are getting scarce.");
         }
@@ -162,7 +156,7 @@ public class WorkRunner(GameContext ctx)
             return WorkResult.Died(actualWorkTime);
 
         var found = target.Harvest(actualWorkTime);
-        _ctx.Inventory.Add(found);
+        _ctx.Inventory.Combine(found);
 
         var collected = new List<string>();
 
@@ -172,15 +166,101 @@ public class WorkRunner(GameContext ctx)
         }
         else
         {
-            foreach (var desc in found.Descriptions)
-            {
-                GameDisplay.AddNarrative(_ctx, $"You harvested {desc}");
-                collected.Add(desc);
-            }
+            var desc = found.GetDescription();
+            GameDisplay.AddNarrative(_ctx, $"You harvested {desc}");
+            collected.Add(desc);
         }
 
         GameDisplay.AddNarrative(_ctx, $"{target.DisplayName}: {target.GetStatusDescription()}");
         GameDisplay.Render(_ctx, statusText: "Thinking.");
+        Input.WaitForKey(_ctx);
+
+        // Check weight limit and force drop if needed
+        ForceDropIfOverweight();
+
+        return new WorkResult(collected, null, actualWorkTime, false);
+    }
+
+    public WorkResult DoSalvage(Location location)
+    {
+        if (CheckDarknessBlocking(location))
+            return WorkResult.Empty(0);
+
+        var salvage = location.GetFeature<SalvageFeature>();
+        if (salvage == null || !salvage.HasLoot)
+        {
+            GameDisplay.AddNarrative(_ctx, "There's nothing to salvage here.");
+            return WorkResult.Empty(0);
+        }
+
+        // Show narrative hook if present
+        if (!string.IsNullOrEmpty(salvage.NarrativeHook))
+        {
+            GameDisplay.AddNarrative(_ctx, salvage.NarrativeHook);
+        }
+
+        GameDisplay.AddNarrative(_ctx, $"You begin searching through the {salvage.DisplayName.ToLower()}...");
+
+        int workTime = salvage.MinutesToSalvage;
+
+        // Movement impairment slows salvaging
+        var capacities = _ctx.player.GetCapacities();
+        if (AbilityCalculator.IsMovingImpaired(capacities.Moving))
+        {
+            workTime = (int)(workTime * 1.20);
+            GameDisplay.AddWarning(_ctx, "Your limited movement slows the work.");
+        }
+
+        var (died, actualWorkTime) = RunWorkWithContinuePrompt(location, workTime, ActivityType.Foraging, "salvaging");
+        if (died)
+            return WorkResult.Died(actualWorkTime);
+
+        // Get loot
+        var loot = salvage.Salvage();
+
+        if (loot.IsEmpty)
+        {
+            GameDisplay.AddNarrative(_ctx, "You find nothing useful.");
+            return new WorkResult([], null, actualWorkTime, false);
+        }
+
+        var collected = new List<string>();
+
+        // Add tools to inventory
+        foreach (var tool in loot.Tools)
+        {
+            _ctx.Inventory.Tools.Add(tool);
+            string desc = $"{tool.Name}";
+            GameDisplay.AddNarrative(_ctx, $"You found: {desc}");
+            collected.Add(desc);
+        }
+
+        // Add equipment to inventory (auto-equip if possible)
+        foreach (var equip in loot.Equipment)
+        {
+            var replaced = _ctx.Inventory.Equip(equip);
+            string desc = $"{equip.Name}";
+            if (replaced != null)
+            {
+                GameDisplay.AddNarrative(_ctx, $"You found: {desc} (equipped, replaced {replaced.Name})");
+            }
+            else
+            {
+                GameDisplay.AddNarrative(_ctx, $"You found: {desc} (equipped)");
+            }
+            collected.Add(desc);
+        }
+
+        // Add resources to inventory
+        if (!loot.Resources.IsEmpty)
+        {
+            _ctx.Inventory.Combine(loot.Resources);
+            var desc = loot.Resources.GetDescription();
+            GameDisplay.AddNarrative(_ctx, $"You salvaged {desc}");
+            collected.Add(desc);
+        }
+
+        GameDisplay.Render(_ctx, statusText: "Done.");
         Input.WaitForKey(_ctx);
 
         // Check weight limit and force drop if needed
@@ -399,13 +479,13 @@ public class WorkRunner(GameContext ctx)
         if (bait == BaitType.Meat)
         {
             if (_ctx.Inventory.RawMeat.Count > 0)
-                _ctx.Inventory.RawMeat.RemoveAt(0);
+                _ctx.Inventory.RawMeat.Pop();
             else
-                _ctx.Inventory.CookedMeat.RemoveAt(0);
+                _ctx.Inventory.CookedMeat.Pop();
         }
         else if (bait == BaitType.Berries)
         {
-            _ctx.Inventory.Berries.RemoveAt(0);
+            _ctx.Inventory.Berries.Pop();
         }
 
         // Setting time
@@ -517,17 +597,17 @@ public class WorkRunner(GameContext ctx)
             {
                 GameDisplay.AddNarrative(_ctx, $"Something got here first. Only scraps of {result.AnimalType} remain.");
                 // Add partial remains (bones)
-                _ctx.Inventory.Bone.Add(0.1);
+                _ctx.Inventory.Bone.Push(0.1);
                 collected.Add($"Scraps ({result.AnimalType})");
             }
             else if (result.AnimalType != null)
             {
                 GameDisplay.AddSuccess(_ctx, $"Catch! A {result.AnimalType} ({result.WeightKg:F1}kg).");
                 // Add raw meat based on weight
-                _ctx.Inventory.RawMeat.Add(result.WeightKg * 0.5); // ~50% edible
-                _ctx.Inventory.Bone.Add(result.WeightKg * 0.1);
+                _ctx.Inventory.RawMeat.Push(result.WeightKg * 0.5); // ~50% edible
+                _ctx.Inventory.Bone.Push(result.WeightKg * 0.1);
                 if (result.WeightKg > 3)
-                    _ctx.Inventory.Hide.Add(result.WeightKg * 0.15);
+                    _ctx.Inventory.Hide.Push(result.WeightKg * 0.15);
                 collected.Add($"{result.AnimalType} ({result.WeightKg:F1}kg)");
             }
         }
@@ -553,6 +633,24 @@ public class WorkRunner(GameContext ctx)
         return new WorkResult(collected, null, actualWorkTime, false);
     }
 
+    /// <summary>
+    /// Access a cache at the location to store/retrieve items.
+    /// </summary>
+    public WorkResult DoCache(Location location)
+    {
+        var cache = location.GetFeature<CacheFeature>();
+        if (cache == null)
+        {
+            GameDisplay.AddNarrative(_ctx, "There's no cache here.");
+            return WorkResult.Empty(0);
+        }
+
+        string name = cache.Name.ToUpper();
+        InventoryTransferHelper.RunTransferMenu(_ctx, cache.Storage, name);
+
+        return WorkResult.Empty(0); // No time cost for cache management
+    }
+
     // === WORK OPTIONS (used by GameRunner and ExpeditionRunner) ===
 
     /// <summary>
@@ -567,6 +665,16 @@ public class WorkRunner(GameContext ctx)
             .Features.OfType<HarvestableFeature>()
             .Where(h => h.IsDiscovered && h.HasAvailableResources());
         if (harvestables.Any())
+            return true;
+
+        // Salvage sites
+        var salvage = location.GetFeature<SalvageFeature>();
+        if (salvage != null && salvage.HasLoot)
+            return true;
+
+        // Caches
+        var cache = location.GetFeature<CacheFeature>();
+        if (cache != null)
             return true;
 
         if (includeHunt && location.HasFeature<AnimalTerritoryFeature>())
@@ -625,6 +733,23 @@ public class WorkRunner(GameContext ctx)
         if (harvestables.Any())
         {
             choice.AddOption("Harvest resources", "harvest");
+            hasOptions = true;
+        }
+
+        // Salvage sites
+        var salvage = location.GetFeature<SalvageFeature>();
+        if (salvage != null && salvage.HasLoot)
+        {
+            choice.AddOption($"Salvage {salvage.DisplayName} ({salvage.GetLootHint()})", "salvage");
+            hasOptions = true;
+        }
+
+        // Caches
+        var cache = location.GetFeature<CacheFeature>();
+        if (cache != null)
+        {
+            string status = cache.HasItems ? $"{cache.Storage.CurrentWeightKg:F1}kg stored" : "empty";
+            choice.AddOption($"Access {cache.Name} ({status})", "cache");
             hasOptions = true;
         }
 

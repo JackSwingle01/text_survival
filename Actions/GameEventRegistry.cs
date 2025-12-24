@@ -24,6 +24,25 @@ public static partial class GameEventRegistry
         return 1 - Math.Exp(-ratePerMinute);
     }
 
+    // Event cooldown tracking - persisted via save/load
+    private static Dictionary<string, DateTime> EventTriggerTimes { get; } = new();
+
+    public static void ClearTriggerTimes() => EventTriggerTimes.Clear();
+    public static Dictionary<string, DateTime> GetTriggerTimes() => new(EventTriggerTimes);
+    public static void LoadTriggerTimes(Dictionary<string, DateTime> times)
+    {
+        EventTriggerTimes.Clear();
+        foreach (var (name, time) in times)
+            EventTriggerTimes[name] = time;
+    }
+
+    private static bool IsOnCooldown(string eventName, int cooldownHours, DateTime gameTime)
+    {
+        if (!EventTriggerTimes.TryGetValue(eventName, out var lastTrigger))
+            return false;
+        return (gameTime - lastTrigger).TotalHours < cooldownHours;
+    }
+
     /// <summary>
     /// Event factories that create fresh events with context baked in.
     /// </summary>
@@ -49,6 +68,15 @@ public static partial class GameEventRegistry
         ExposedPosition,
         NaturalShelterSpotted,
         Debris,
+        // Location condition events
+        DarkPassage,
+        WaterCrossing,
+        ExposedOnRidge,
+        AmbushOpportunity,
+
+        // Water/Ice events (GameEventRegistry.Water.cs)
+        FallThroughIce,
+        GetFootWet,
 
         // Camp infrastructure events (GameEventRegistry.Camp.cs)
         VerminRaid,
@@ -189,6 +217,10 @@ public static partial class GameEventRegistry
             if (!evt.RequiredConditions.All(ctx.Check))
                 continue;
 
+            // Filter: skip if on cooldown
+            if (IsOnCooldown(evt.Name, evt.CooldownHours, ctx.GameTime))
+                continue;
+
             // Calculate weight with modifiers
             double weight = evt.BaseWeight;
             foreach (var (condition, modifier) in evt.WeightFactors)
@@ -217,6 +249,9 @@ public static partial class GameEventRegistry
         List<ActivityType> excluded = [ActivityType.Sleeping, ActivityType.Fighting, ActivityType.Encounter];
         if (excluded.Contains(ctx.CurrentActivity))
             return;
+
+        // Record trigger time for cooldown
+        EventTriggerTimes[evt.Name] = ctx.GameTime;
 
         // Prevent nested events from triggering during this event's outcome processing
         ctx.IsHandlingEvent = true;
@@ -306,12 +341,10 @@ public static partial class GameEventRegistry
             var resources = RewardGenerator.Generate(outcome.RewardPool);
             if (!resources.IsEmpty)
             {
-                ctx.Inventory.Add(resources);
-                foreach (var desc in resources.Descriptions)
-                {
-                    GameDisplay.AddSuccess(ctx, $"  + {desc}");
-                    summary.Gains.Add(desc);
-                }
+                ctx.Inventory.Combine(resources);
+                var desc = resources.GetDescription();
+                GameDisplay.AddSuccess(ctx, $"  + {desc}");
+                summary.Gains.Add(desc);
             }
         }
 
@@ -479,7 +512,6 @@ public static partial class GameEventRegistry
         if (summary.HasContent)
         {
             GameDisplay.AddNarrative(ctx, "");
-            GameDisplay.AddNarrative(ctx, "--- Outcome ---", LogLevel.System);
             foreach (var gain in summary.Gains)
                 GameDisplay.AddSuccess(ctx, $"  + {gain}");
             foreach (var loss in summary.Losses)
@@ -520,23 +552,23 @@ public static partial class GameEventRegistry
                 case ResourceType.Fuel:
                     // Prefer sticks over logs (less wasteful)
                     if (inv.Sticks.Count > 0)
-                        inv.TakeSmallestStick();
+                        inv.Sticks.Pop();
                     else if (inv.Logs.Count > 0)
-                        inv.TakeSmallestLog();
+                        inv.Logs.Pop();
                     break;
 
                 case ResourceType.Tinder:
-                    inv.TakeTinder();
+                    inv.Tinder.Pop();
                     break;
 
                 case ResourceType.Food:
                     // Prefer berries, then cooked, then raw
                     if (inv.Berries.Count > 0)
-                        inv.Berries.RemoveAt(0);
+                        inv.Berries.Pop();
                     else if (inv.CookedMeat.Count > 0)
-                        inv.CookedMeat.RemoveAt(0);
+                        inv.CookedMeat.Pop();
                     else if (inv.RawMeat.Count > 0)
-                        inv.RawMeat.RemoveAt(0);
+                        inv.RawMeat.Pop();
                     break;
 
                 case ResourceType.Water:
@@ -545,7 +577,7 @@ public static partial class GameEventRegistry
                     break;
 
                 case ResourceType.PlantFiber:
-                    inv.TakePlantFiber();
+                    inv.PlantFiber.Pop();
                     break;
             }
         }

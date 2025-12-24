@@ -34,7 +34,8 @@ public static class SaveDataConverter
             Tensions = ctx.Tensions.All.Select(ToSaveData).ToList(),
             NarrativeLog = ctx.Log.GetVisible()
                 .Select(e => new LogEntrySaveData(e.Text, e.Level.ToString()))
-                .ToList()
+                .ToList(),
+            EventTriggerTimes = GameEventRegistry.GetTriggerTimes()
         };
     }
 
@@ -83,7 +84,6 @@ public static class SaveDataConverter
             Severity = effect.Severity,
             HourlySeverityChange = effect.HourlySeverityChange,
             TargetBodyPart = effect.TargetBodyPart,
-            Source = effect.Source,
             RequiresTreatment = effect.RequiresTreatment
         };
     }
@@ -93,18 +93,18 @@ public static class SaveDataConverter
         return new InventorySaveData
         {
             MaxWeightKg = inv.MaxWeightKg,
-            Logs = new List<double>(inv.Logs),
-            Sticks = new List<double>(inv.Sticks),
-            Tinder = new List<double>(inv.Tinder),
-            CookedMeat = new List<double>(inv.CookedMeat),
-            RawMeat = new List<double>(inv.RawMeat),
-            Berries = new List<double>(inv.Berries),
+            Logs = inv.Logs.ToList(),
+            Sticks = inv.Sticks.ToList(),
+            Tinder = inv.Tinder.ToList(),
+            CookedMeat = inv.CookedMeat.ToList(),
+            RawMeat = inv.RawMeat.ToList(),
+            Berries = inv.Berries.ToList(),
             WaterLiters = inv.WaterLiters,
-            Stone = new List<double>(inv.Stone),
-            Bone = new List<double>(inv.Bone),
-            Hide = new List<double>(inv.Hide),
-            PlantFiber = new List<double>(inv.PlantFiber),
-            Sinew = new List<double>(inv.Sinew),
+            Stone = inv.Stone.ToList(),
+            Bone = inv.Bone.ToList(),
+            Hide = inv.Hide.ToList(),
+            PlantFiber = inv.PlantFiber.ToList(),
+            Sinew = inv.Sinew.ToList(),
             Tools = inv.Tools.Select(ToSaveData).ToList(),
             Head = inv.Head != null ? ToSaveData(inv.Head) : null,
             Chest = inv.Chest != null ? ToSaveData(inv.Chest) : null,
@@ -201,34 +201,34 @@ public static class SaveDataConverter
                     BurningMassKg = fire.BurningMassKg,
                     MaxFuelCapacityKg = fire.MaxFuelCapacityKg,
                     EmberTimeRemaining = fire.EmberTimeRemaining,
-                    EmberDuration = fire.GetEmberDuration(),
-                    EmberStartTemperature = fire.GetEmberStartTemperature(),
-                    LastBurningTemperature = fire.GetLastBurningTemperature(),
-                    UnburnedMixture = fire.GetUnburnedMixture().ToDictionary(kv => kv.Key.ToString(), kv => kv.Value),
-                    BurningMixture = fire.GetBurningMixture().ToDictionary(kv => kv.Key.ToString(), kv => kv.Value)
+                    EmberDuration = fire.EmberDuration,
+                    EmberStartTemperature = fire.EmberStartTemperature,
+                    LastBurningTemperature = fire.LastBurningTemperature,
+                    UnburnedMixture = fire.UnburnedMixture.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value),
+                    BurningMixture = fire.BurningMixture.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value)
                 };
 
             case ForageFeature forage:
                 return data with
                 {
-                    BaseResourceDensity = forage.GetBaseResourceDensity(),
-                    NumberOfHoursForaged = forage.GetNumberOfHoursForaged(),
-                    HoursSinceLastForage = forage.GetHoursSinceLastForage(),
-                    HasForagedBefore = forage.GetHasForagedBefore(),
-                    ForageResources = forage.GetResources().Select(r => new ForageResourceSaveData(
-                        r.Type.ToString(), r.Abundance, r.MinWeight, r.MaxWeight
+                    BaseResourceDensity = forage.BaseResourceDensity,
+                    NumberOfHoursForaged = forage.NumberOfHoursForaged,
+                    HoursSinceLastForage = forage.HoursSinceLastForage,
+                    HasForagedBefore = forage.HasForagedBefore,
+                    ForageResources = forage.Resources.Select(r => new ForageResourceSaveData(
+                        r.Name, r.Abundance, r.MinWeight, r.MaxWeight
                     )).ToList()
                 };
 
             case AnimalTerritoryFeature territory:
                 return data with
                 {
-                    BaseGameDensity = territory.GetBaseGameDensity(),
-                    GameDensity = territory.GetGameDensity(),
-                    InitialDepletedDensity = territory.GetInitialDepletedDensity(),
-                    HoursSinceLastHunt = territory.GetHoursSinceLastHunt(),
-                    HasBeenHunted = territory.GetHasBeenHunted(),
-                    PossibleAnimals = territory.GetPossibleAnimals().Select(a =>
+                    BaseGameDensity = territory.BaseGameDensity,
+                    GameDensity = territory.GameDensity,
+                    InitialDepletedDensity = territory.InitialDepletedDensity,
+                    HoursSinceLastHunt = territory.HoursSinceLastHunt,
+                    HasBeenHunted = territory.HasBeenHunted,
+                    PossibleAnimals = territory.PossibleAnimals.Select(a =>
                         new AnimalSpawnSaveData(a.AnimalType, a.SpawnWeight)
                     ).ToList()
                 };
@@ -329,6 +329,9 @@ public static class SaveDataConverter
             var level = Enum.Parse<LogLevel>(logEntry.Level);
             ctx.Log.Add(logEntry.Text, level);
         }
+
+        // Restore event cooldown tracking
+        GameEventRegistry.LoadTriggerTimes(saveData.EventTriggerTimes);
     }
 
     private static void RestorePlayer(Player player, PlayerSaveData data)
@@ -391,7 +394,6 @@ public static class SaveDataConverter
             Severity = data.Severity,
             HourlySeverityChange = data.HourlySeverityChange,
             TargetBodyPart = data.TargetBodyPart,
-            Source = data.Source ?? "",
             RequiresTreatment = data.RequiresTreatment,
             IsActive = true
         };
@@ -414,18 +416,18 @@ public static class SaveDataConverter
         inv.Tools.Clear();
 
         // Restore resources
-        inv.Logs.AddRange(data.Logs);
-        inv.Sticks.AddRange(data.Sticks);
-        inv.Tinder.AddRange(data.Tinder);
-        inv.CookedMeat.AddRange(data.CookedMeat);
-        inv.RawMeat.AddRange(data.RawMeat);
-        inv.Berries.AddRange(data.Berries);
+        foreach (var item in data.Logs) inv.Logs.Push(item);
+        foreach (var item in data.Sticks) inv.Sticks.Push(item);
+        foreach (var item in data.Tinder) inv.Tinder.Push(item);
+        foreach (var item in data.CookedMeat) inv.CookedMeat.Push(item);
+        foreach (var item in data.RawMeat) inv.RawMeat.Push(item);
+        foreach (var item in data.Berries) inv.Berries.Push(item);
         inv.WaterLiters = data.WaterLiters;
-        inv.Stone.AddRange(data.Stone);
-        inv.Bone.AddRange(data.Bone);
-        inv.Hide.AddRange(data.Hide);
-        inv.PlantFiber.AddRange(data.PlantFiber);
-        inv.Sinew.AddRange(data.Sinew);
+        foreach (var item in data.Stone) inv.Stone.Push(item);
+        foreach (var item in data.Bone) inv.Bone.Push(item);
+        foreach (var item in data.Hide) inv.Hide.Push(item);
+        foreach (var item in data.PlantFiber) inv.PlantFiber.Push(item);
+        foreach (var item in data.Sinew) inv.Sinew.Push(item);
 
         // Restore tools
         foreach (var toolData in data.Tools)
@@ -529,7 +531,8 @@ public static class SaveDataConverter
                     {
                         var resources = featureData.ForageResources?
                             .Select(r => new ForageResource(
-                                Enum.Parse<ForageResourceType>(r.Type),
+                                r.Type,
+                                GetForageAddCallback(r.Type),
                                 r.Abundance,
                                 r.MinWeight,
                                 r.MaxWeight
@@ -635,6 +638,62 @@ public static class SaveDataConverter
             data.Direction,
             data.Description
         );
+    }
+
+    /// <summary>
+    /// Get the appropriate inventory add callback for a forage resource name.
+    /// </summary>
+    private static Action<Items.Inventory, double> GetForageAddCallback(string name)
+    {
+        return name.ToLower() switch
+        {
+            // Original resources
+            "firewood" => (inv, w) => inv.Logs.Push(w),
+            "kindling" => (inv, w) => inv.Sticks.Push(w),
+            "tinder" => (inv, w) => inv.Tinder.Push(w),
+            "berries" => (inv, w) => inv.Berries.Push(w),
+            "stone" => (inv, w) => inv.Stone.Push(w),
+            "plant fiber" => (inv, w) => inv.PlantFiber.Push(w),
+            "bones" => (inv, w) => inv.Bone.Push(w),
+            "small game" => (inv, w) => inv.RawMeat.Push(w),
+            "water" => (inv, w) => inv.WaterLiters += w,
+
+            // Stone types
+            "shale" => (inv, w) => inv.Shale.Push(w),
+            "flint" => (inv, w) => inv.Flint.Push(w),
+            "pyrite" => (inv, w) => inv.Pyrite += w,
+
+            // Wood types
+            "pine" => (inv, w) => inv.Pine.Push(w),
+            "birch" => (inv, w) => inv.Birch.Push(w),
+            "oak" => (inv, w) => inv.Oak.Push(w),
+            "birch bark" => (inv, w) => inv.BirchBark.Push(w),
+
+            // Fungi (year-round on trees)
+            "birch polypore" => (inv, w) => inv.BirchPolypore.Push(w),
+            "chaga" => (inv, w) => inv.Chaga.Push(w),
+            "amadou" => (inv, w) => inv.Amadou.Push(w),
+
+            // Persistent plants (winter-available)
+            "rose hips" => (inv, w) => inv.RoseHips.Push(w),
+            "juniper berries" => (inv, w) => inv.JuniperBerries.Push(w),
+            "willow bark" => (inv, w) => inv.WillowBark.Push(w),
+            "pine needles" => (inv, w) => inv.PineNeedles.Push(w),
+
+            // Tree products
+            "pine resin" => (inv, w) => inv.PineResin.Push(w),
+            "usnea" => (inv, w) => inv.Usnea.Push(w),
+            "sphagnum" => (inv, w) => inv.Sphagnum.Push(w),
+
+            // Food expansion
+            "nuts" => (inv, w) => inv.Nuts.Push(w),
+            "roots" => (inv, w) => inv.Roots.Push(w),
+
+            // Raw materials
+            "raw fiber" => (inv, w) => inv.RawFiber.Push(w),
+
+            _ => (inv, w) => { } // Unknown resource - ignore
+        };
     }
 
     #endregion

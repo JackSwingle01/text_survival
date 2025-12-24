@@ -77,6 +77,36 @@ public class NeedCraftingSystem
             Requirements = [new MaterialRequirement("Sticks", 3), new MaterialRequirement("PlantFiber", 1)],
             ToolFactory = durability => new Tool("Bow Drill", ToolType.BowDrill, 0.4) { Durability = durability }
         });
+
+        // Strike-a-Light: 1 flint + 1 pyrite + 1 amadou (best fire starter)
+        _options.Add(new CraftOption
+        {
+            Name = "Strike-a-Light",
+            Description = "A fire striker made from flint and pyrite with amadou tinder. Sparks easily and reliably.",
+            Category = NeedCategory.FireStarting,
+            CraftingTimeMinutes = 20,
+            Durability = 25,
+            Requirements = [
+                new MaterialRequirement("Flint", 1),
+                new MaterialRequirement("Amadou", 1)
+            ],
+            ToolFactory = durability => new Tool("Strike-a-Light", ToolType.FireStriker, 0.2) { Durability = durability }
+        });
+
+        // Birch bark tinder bundle: improved tinder using amadou and birch bark
+        _options.Add(new CraftOption
+        {
+            Name = "Tinder Bundle",
+            Description = "A prepared bundle of birch bark and amadou. Catches sparks and holds an ember.",
+            Category = NeedCategory.FireStarting,
+            CraftingTimeMinutes = 5,
+            Durability = 3,
+            Requirements = [
+                new MaterialRequirement("BirchBark", 1),
+                new MaterialRequirement("Amadou", 1)
+            ],
+            ToolFactory = durability => new Tool("Tinder Bundle", ToolType.FireStriker, 0.05) { Durability = durability }
+        });
     }
 
     #endregion
@@ -142,6 +172,50 @@ public class NeedCraftingSystem
                 Durability = durability,
                 Damage = 5,
                 BlockChance = 0.02,
+                WeaponClass = WeaponClass.Blade
+            }
+        });
+
+        // Shale Knife: 1 shale + 1 stick + 1 plant fiber (easy to make, fragile)
+        _options.Add(new CraftOption
+        {
+            Name = "Shale Knife",
+            Description = "A knife made from shale. Easy to knap but fragile.",
+            Category = NeedCategory.CuttingTool,
+            CraftingTimeMinutes = 10,
+            Durability = 4,
+            Requirements = [
+                new MaterialRequirement("Shale", 1),
+                new MaterialRequirement("Sticks", 1),
+                new MaterialRequirement("PlantFiber", 1)
+            ],
+            ToolFactory = durability => new Tool("Shale Knife", ToolType.Knife, 0.3)
+            {
+                Durability = durability,
+                Damage = 5,
+                BlockChance = 0.02,
+                WeaponClass = WeaponClass.Blade
+            }
+        });
+
+        // Flint Knife: 1 flint + 1 stick + 1 plant fiber (durable, better edge)
+        _options.Add(new CraftOption
+        {
+            Name = "Flint Knife",
+            Description = "A knife made from flint. Holds a razor-sharp edge and lasts longer.",
+            Category = NeedCategory.CuttingTool,
+            CraftingTimeMinutes = 25,
+            Durability = 15,
+            Requirements = [
+                new MaterialRequirement("Flint", 1),
+                new MaterialRequirement("Sticks", 1),
+                new MaterialRequirement("PlantFiber", 1)
+            ],
+            ToolFactory = durability => new Tool("Flint Knife", ToolType.Knife, 0.3)
+            {
+                Durability = durability,
+                Damage = 8,
+                BlockChance = 0.03,
                 WeaponClass = WeaponClass.Blade
             }
         });

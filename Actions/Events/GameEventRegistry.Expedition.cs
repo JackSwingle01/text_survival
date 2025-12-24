@@ -13,7 +13,7 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Treacherous Footing",
             "The ground ahead looks unstable — ice beneath the snow, or loose rocks hidden by debris.", 1.0)
-            .Requires(EventCondition.Traveling)
+            .Requires(EventCondition.Traveling, EventCondition.HazardousTerrain) // Only triggers on hazardous terrain
             .WithConditionFactor(EventCondition.Injured, 1.5)
             .WithConditionFactor(EventCondition.Slow, 1.3)
             .Choice("Test Carefully",
@@ -44,6 +44,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Something Catches Your Eye",
             "Movement in your peripheral vision — or was it just a shape that doesn't belong? Something about the landscape ahead seems worth a closer look.", 1.5)
             .Requires(EventCondition.Working, EventCondition.IsExpedition)
+            .WithConditionFactor(EventCondition.HighVisibility, 2.0) // Spot things easier in open terrain
             .Choice("Investigate",
                 "You set aside your current task and move closer to examine what you saw.",
                 [
@@ -75,6 +76,7 @@ public static partial class GameEventRegistry
             .Requires(EventCondition.IsExpedition)
             .WithConditionFactor(EventCondition.Injured, 1.4)
             .WithConditionFactor(EventCondition.Slow, 1.3)
+            .WithConditionFactor(EventCondition.HazardousTerrain, 1.5) // More accidents on bad terrain
             .Choice("Stop and Assess",
                 "You take a moment to examine the injury and tend to it properly.",
                 [
@@ -255,6 +257,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Exposed Position",
             "You've wandered into an exposed area. Wind cuts through you. No cover nearby.", 0.9)
             .Requires(EventCondition.IsExpedition, EventCondition.Outside, EventCondition.HighWind)
+            .WithConditionFactor(EventCondition.HighVisibility, 1.3) // Worse when fully exposed
             .Choice("Move Fast",
                 "Push through quickly. Minimize exposure time.",
                 [
@@ -346,7 +349,7 @@ public static partial class GameEventRegistry
                     new EventResult("Brief respite from the elements. Helpful.", 0.70, 10)
                         .WithEffects(EffectFactory.Warmed(0.2, 30)),
                     new EventResult("More protection than expected. You rest briefly.", 0.30, 15)
-                        .WithEffects(EffectFactory.Rested(0.15, 45))
+                        .WithEffects(EffectFactory.Rested(0.4, 45))
                 ])
             .Choice("Ignore",
                 "Not worth the time. Keep moving.",
@@ -511,6 +514,179 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Hardened(0.1, 90)),
                     new EventResult("You can't stay. You leave quickly.", 0.10, 3)
                         .WithEffects(EffectFactory.Fear(0.2))
+                ]);
+    }
+
+    // === LOCATION CONDITION EVENTS ===
+
+    private static GameEvent DarkPassage(GameContext ctx)
+    {
+        return new GameEvent("Dark Passage",
+            "The path ahead disappears into darkness. Without light, every step is a gamble.", 0.9)
+            .Requires(EventCondition.InDarkness, EventCondition.Traveling)
+            .Choice("Proceed Carefully",
+                "Feel your way forward. Slow, deliberate steps.",
+                [
+                    new EventResult("You inch forward, testing each foothold. Slow but safe.", 0.60, 20),
+                    new EventResult("Your foot finds empty air. You catch yourself just in time.", 0.25, 25)
+                        .WithEffects(EffectFactory.Fear(0.2)),
+                    new EventResult("You stumble on something unseen. Minor injury.", 0.10, 18)
+                        .Damage(3, DamageType.Blunt, "stumble in darkness"),
+                    new EventResult("Your hand brushes something useful in the dark.", 0.05, 22)
+                        .Rewards(RewardPool.BasicSupplies)
+                ])
+            .Choice("Wait for Light",
+                "Don't risk it. Wait until conditions improve.",
+                [
+                    new EventResult("You wait. Time passes, but you're unharmed.", 0.70, 45),
+                    new EventResult("The wait stretches. Cold seeps in.", 0.20, 60)
+                        .WithEffects(EffectFactory.Cold(-8, 30)),
+                    new EventResult("Something stirs in the darkness nearby. You freeze.", 0.10, 50)
+                        .CreateTension("Stalked", 0.25)
+                ])
+            .Choice("Rush Through",
+                "Move fast. Minimize time in the dark.",
+                [
+                    new EventResult("You make it through. Heart pounding, but intact.", 0.40, 8),
+                    new EventResult("You trip but keep moving. Scraped but through.", 0.30, 10)
+                        .Damage(4, DamageType.Blunt, "fall in darkness"),
+                    new EventResult("Bad fall. Something twisted.", 0.20, 12)
+                        .WithEffects(EffectFactory.SprainedAnkle(0.4)),
+                    new EventResult("You run straight into something solid. Stars explode.", 0.10, 15)
+                        .Damage(8, DamageType.Blunt, "collision")
+                        .WithEffects(EffectFactory.Shaken(0.3))
+                ]);
+    }
+
+    private static GameEvent WaterCrossing(GameContext ctx)
+    {
+        return new GameEvent("Water Crossing",
+            "Water blocks your path. Moving water, or still water with thin ice at the edges.", 0.8)
+            .Requires(EventCondition.NearWater, EventCondition.Traveling)
+            .Choice("Wade Across",
+                "Straight through. Get wet, get it over with.",
+                [
+                    new EventResult("Cold but quick. You're through.", 0.50, 8)
+                        .WithEffects(EffectFactory.Wet(0.5, 45), EffectFactory.Cold(-10, 30)),
+                    new EventResult("Deeper than expected. Soaked to the waist.", 0.30, 12)
+                        .WithEffects(EffectFactory.Wet(0.8, 90), EffectFactory.Cold(-15, 45)),
+                    new EventResult("Current stronger than it looked. You fight to stay upright.", 0.15, 15)
+                        .WithEffects(EffectFactory.Wet(0.9, 120), EffectFactory.Cold(-18, 60), EffectFactory.Exhausted(0.2, 30)),
+                    new EventResult("You slip. Water closes over your head for a terrifying moment.", 0.05, 18)
+                        .Damage(5, DamageType.Blunt, "underwater impact")
+                        .WithEffects(EffectFactory.Wet(1.0, 150), EffectFactory.Cold(-25, 90), EffectFactory.Fear(0.3))
+                ])
+            .Choice("Find Another Route",
+                "Look for a better crossing point.",
+                [
+                    new EventResult("You find a narrow point. Easy crossing.", 0.40, 20),
+                    new EventResult("Long detour but you stay dry.", 0.35, 30),
+                    new EventResult("No good options. You end up crossing anyway.", 0.20, 25)
+                        .WithEffects(EffectFactory.Wet(0.5, 45), EffectFactory.Cold(-10, 30)),
+                    new EventResult("The detour reveals something interesting.", 0.05, 25)
+                        .Rewards(RewardPool.BasicSupplies)
+                ])
+            .Choice("Drink First",
+                "You're here. Might as well hydrate.",
+                [
+                    new EventResult("Fresh and cold. You drink your fill before crossing.", 0.80, 10)
+                        .Rewards(RewardPool.WaterSource),
+                    new EventResult("Water tastes off. You drink anyway, then cross.", 0.15, 12)
+                        .Rewards(RewardPool.WaterSource)
+                        .WithEffects(EffectFactory.Nauseous(0.15, 45)),
+                    new EventResult("Ice breaks. You're in the water.", 0.05, 15)
+                        .Damage(4, DamageType.Blunt, "ice break")
+                        .WithEffects(EffectFactory.Wet(0.9, 120), EffectFactory.Cold(-20, 75))
+                ]);
+    }
+
+    private static GameEvent ExposedOnRidge(GameContext ctx)
+    {
+        return new GameEvent("Exposed on the Ridge",
+            "The terrain opens up. You can see for miles — which means anything for miles can see you.", 1.0)
+            .Requires(EventCondition.HighVisibility, EventCondition.HazardousTerrain)
+            .WithConditionFactor(EventCondition.HighWind, 1.5)
+            .Choice("Move Fast",
+                "Minimize your exposure time. Speed across.",
+                [
+                    new EventResult("You hustle across. Wind buffets you, but you make it.", 0.45, 10)
+                        .WithEffects(EffectFactory.Cold(-8, 20)),
+                    new EventResult("The footing is treacherous. You stumble but keep moving.", 0.30, 15)
+                        .Damage(3, DamageType.Blunt, "rough terrain")
+                        .WithEffects(EffectFactory.Cold(-10, 25)),
+                    new EventResult("Wind nearly takes you. You drop and crawl.", 0.15, 20)
+                        .WithEffects(EffectFactory.Cold(-15, 40), EffectFactory.Exhausted(0.2, 45)),
+                    new EventResult("Something saw you. Movement on the horizon.", 0.10, 12)
+                        .CreateTension("Stalked", 0.3)
+                ])
+            .Choice("Low Crawl",
+                "Stay low, stay hidden. Use what cover exists.",
+                [
+                    new EventResult("Slow but safe. You cross without being spotted.", 0.55, 25)
+                        .WithEffects(EffectFactory.Sore(0.2, 60)),
+                    new EventResult("Rocks tear at your clothing. Cold seeps in.", 0.30, 30)
+                        .WithEffects(EffectFactory.Cold(-12, 35)),
+                    new EventResult("Your hand finds a sharp edge. Blood makes the rocks slick.", 0.10, 28)
+                        .Damage(4, DamageType.Sharp, "sharp rock")
+                        .CreateTension("WoundUntreated", 0.15, description: "hand"),
+                    new EventResult("You spot something from this vantage point.", 0.05, 25)
+                        .Rewards(RewardPool.CraftingMaterials)
+                ])
+            .Choice("Turn Back",
+                "Not worth the risk. Find another way.",
+                [
+                    new EventResult("You retreat. Safer, but time lost.", 0.70, 15),
+                    new EventResult("The way back is harder than you remembered.", 0.25, 25)
+                        .WithEffects(EffectFactory.Sore(0.15, 45)),
+                    new EventResult("As you turn, you spot tracks. Something uses this ridge.", 0.05, 10)
+                        .CreateTension("Stalked", 0.2)
+                ]);
+    }
+
+    private static GameEvent AmbushOpportunity(GameContext ctx)
+    {
+        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
+        var animal = territory?.GetRandomAnimalName() ?? "animal";
+
+        return new GameEvent("Ambush Opportunity",
+            $"Dense cover conceals you. Fresh {animal.ToLower()} sign everywhere. Perfect hunting ground — or perfect place for something to hunt YOU.", 0.8)
+            .Requires(EventCondition.LowVisibility, EventCondition.InAnimalTerritory, EventCondition.Working)
+            .Choice("Set Up an Ambush",
+                "Use this cover to your advantage. Wait for prey.",
+                [
+                    new EventResult($"A {animal.ToLower()} wanders into your kill zone. Clean shot.", 0.35, 45)
+                        .Rewards(RewardPool.BasicMeat),
+                    new EventResult("Nothing comes. Wasted time, but you're well-positioned now.", 0.30, 40),
+                    new EventResult("Something comes — too big. You let it pass.", 0.20, 50)
+                        .WithEffects(EffectFactory.Fear(0.15))
+                        .CreateTension("Stalked", 0.2),
+                    new EventResult("Something was hunting YOU. It pounces.", 0.10, 30)
+                        .Encounter(territory?.GetRandomPredatorName() ?? "Wolf", 10, 0.7)
+                        .Aborts(),
+                    new EventResult("Perfect shot. Quality kill.", 0.05, 55)
+                        .Rewards(RewardPool.LargeMeat)
+                ])
+            .Choice("Forage the Area",
+                "Good cover means good foraging. Work quickly.",
+                [
+                    new EventResult("Dense vegetation hides useful materials.", 0.50, 25)
+                        .Rewards(RewardPool.BasicSupplies),
+                    new EventResult("You find some things, but something's watching.", 0.25, 20)
+                        .Rewards(RewardPool.CraftingMaterials)
+                        .CreateTension("Stalked", 0.2),
+                    new EventResult("The undergrowth scratches and tears. Minor wounds.", 0.15, 22)
+                        .Rewards(RewardPool.BasicSupplies)
+                        .Damage(2, DamageType.Sharp, "thorns"),
+                    new EventResult("You disturb a nest. Something angry emerges.", 0.10, 15)
+                        .Encounter(territory?.GetRandomAnimalName() ?? "Fox", 15, 0.4)
+                ])
+            .Choice("Move Through Quickly",
+                "Don't linger. This place favors predators.",
+                [
+                    new EventResult("You slip through the cover. Unseen, unharmed.", 0.60, 10),
+                    new EventResult("Something follows your movement. You feel eyes on you.", 0.25, 12)
+                        .CreateTension("Stalked", 0.25),
+                    new EventResult("You startle something. It bolts — away from you, thankfully.", 0.15, 8)
                 ]);
     }
 }

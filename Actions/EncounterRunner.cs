@@ -159,8 +159,8 @@ public static class EncounterRunner
         if (butcherChoice.GetPlayerChoice(ctx))
         {
             var loot = ButcherRunner.ButcherAnimal(predator, ctx);
-            ctx.Inventory.Add(loot);
-            GameDisplay.AddNarrative(ctx, $"You collect {loot.TotalWeightKg:F1}kg of resources.");
+            ctx.Inventory.Combine(loot);
+            GameDisplay.AddNarrative(ctx, $"You collect {loot.CurrentWeightKg:F1}kg of resources.");
 
             // Butchering can be interrupted by events
             var result = ctx.Update(10, ActivityType.Hunting);

@@ -17,6 +17,9 @@ public static class GameInitializer
     /// </summary>
     public static GameContext CreateNewGame()
     {
+        // Clear event cooldowns for fresh game
+        GameEventRegistry.ClearTriggerTimes();
+
         Zone zone = ZoneFactory.MakeForestZone();
 
         // Initialize weather for game start time (9:00 AM, Jan 1)
@@ -30,6 +33,9 @@ public static class GameInitializer
         campfire.AddFuel(2, FuelType.Kindling);
         startingArea.Features.Add(campfire);
 
+        // Add camp storage cache
+        startingArea.Features.Add(CacheFeature.CreateCampCache());
+
         Player player = new Player();
         Camp camp = new Camp(startingArea);
         GameContext context = new GameContext(player, camp);
@@ -41,11 +47,11 @@ public static class GameInitializer
 
         // Add starting supplies
         context.Inventory.Tools.Add(Tool.HandDrill());
-        context.Inventory.Sticks.Add(0.3);
-        context.Inventory.Sticks.Add(0.25);
-        context.Inventory.Sticks.Add(0.35);
-        context.Inventory.Tinder.Add(0.05);
-        context.Inventory.Tinder.Add(0.04);
+        context.Inventory.Sticks.Push(0.3);
+        context.Inventory.Sticks.Push(0.25);
+        context.Inventory.Sticks.Push(0.35);
+        context.Inventory.Tinder.Push(0.05);
+        context.Inventory.Tinder.Push(0.04);
 
         return context;
     }

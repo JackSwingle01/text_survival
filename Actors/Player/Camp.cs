@@ -10,8 +10,9 @@ public class Camp(Location startingLocation)
     public HeatSourceFeature? Fire => Location.GetFeature<HeatSourceFeature>();
     public ShelterFeature? Shelter => Location.GetFeature<ShelterFeature>();
 
-    // Camp storage (aggregate-based, unlimited capacity)
-    public Inventory Storage { get; } = Inventory.CreateCampStorage();
+    // Camp storage backed by CacheFeature on location
+    public CacheFeature? Cache => Location.GetFeature<CacheFeature>();
+    public Inventory Storage => Cache?.Storage ?? throw new InvalidOperationException("Camp has no cache");
 
     public double FireMinutesRemaining =>
         HasActiveFire ? Fire!.HoursRemaining * 60 : 0;

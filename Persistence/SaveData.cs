@@ -17,6 +17,7 @@ public record GameSaveData
     public string CampLocationName { get; init; } = "";
     public List<TensionSaveData> Tensions { get; init; } = [];
     public List<LogEntrySaveData> NarrativeLog { get; init; } = [];
+    public Dictionary<string, DateTime> EventTriggerTimes { get; init; } = new();
 }
 
 /// <summary>

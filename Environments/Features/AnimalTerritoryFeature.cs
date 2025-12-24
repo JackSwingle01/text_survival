@@ -15,27 +15,28 @@ public record AnimalSpawnEntry(string AnimalType, double SpawnWeight);
 public class AnimalTerritoryFeature : LocationFeature
 {
     private readonly List<AnimalSpawnEntry> _possibleAnimals = [];
-    private readonly double _baseGameDensity;
-    private double _gameDensity;
-    private double _initialDepletedDensity;
-    private double _hoursSinceLastHunt;
-    private bool _hasBeenHunted;
     private readonly double _respawnRateHours = 72.0; // Full respawn takes 72 hours
+
+    internal double BaseGameDensity { get; private set; }
+    internal double GameDensity { get; private set; }
+    internal double InitialDepletedDensity { get; private set; }
+    internal double HoursSinceLastHunt { get; private set; }
+    internal bool HasBeenHunted { get; private set; }
 
     public AnimalTerritoryFeature(double gameDensity = 1.0) : base("animal_territory")
     {
-        _baseGameDensity = gameDensity;
-        _gameDensity = gameDensity;
+        BaseGameDensity = gameDensity;
+        GameDensity = gameDensity;
     }
 
     public override void Update(int minutes)
     {
-        if (_hasBeenHunted && _gameDensity < _baseGameDensity)
+        if (HasBeenHunted && GameDensity < BaseGameDensity)
         {
-            _hoursSinceLastHunt += minutes / 60.0;
-            double depletedAmount = _baseGameDensity - _initialDepletedDensity;
-            double respawnProgress = Math.Min(1.0, _hoursSinceLastHunt / _respawnRateHours);
-            _gameDensity = _initialDepletedDensity + (depletedAmount * respawnProgress);
+            HoursSinceLastHunt += minutes / 60.0;
+            double depletedAmount = BaseGameDensity - InitialDepletedDensity;
+            double respawnProgress = Math.Min(1.0, HoursSinceLastHunt / _respawnRateHours);
+            GameDensity = InitialDepletedDensity + (depletedAmount * respawnProgress);
         }
     }
 
@@ -50,7 +51,7 @@ public class AnimalTerritoryFeature : LocationFeature
 
         // Base chance scales with time spent and current density
         // 15 minutes of searching at full density = ~50% chance
-        double baseChance = (minutesSearching / 30.0) * _gameDensity;
+        double baseChance = (minutesSearching / 30.0) * GameDensity;
         double searchChance = Math.Min(0.9, baseChance); // Cap at 90%
 
         if (!Utils.DetermineSuccess(searchChance))
@@ -68,10 +69,10 @@ public class AnimalTerritoryFeature : LocationFeature
     /// </summary>
     public void RecordSuccessfulHunt()
     {
-        _gameDensity *= 0.7; // 30% depletion per kill
-        _initialDepletedDensity = _gameDensity;
-        _hoursSinceLastHunt = 0;
-        _hasBeenHunted = true;
+        GameDensity *= 0.7; // 30% depletion per kill
+        InitialDepletedDensity = GameDensity;
+        HoursSinceLastHunt = 0;
+        HasBeenHunted = true;
     }
 
     private AnimalSpawnEntry? SelectRandomAnimal()
@@ -149,7 +150,7 @@ public class AnimalTerritoryFeature : LocationFeature
             _ => "tiny creature signs"
         };
 
-        string density = _gameDensity switch
+        string density = GameDensity switch
         {
             >= 0.8 => "abundant",
             >= 0.5 => "moderate",
@@ -165,7 +166,7 @@ public class AnimalTerritoryFeature : LocationFeature
     /// </summary>
     public string GetQualityDescription()
     {
-        return _gameDensity switch
+        return GameDensity switch
         {
             >= 0.8 => "plentiful",
             >= 0.5 => "decent",
@@ -247,43 +248,16 @@ public class AnimalTerritoryFeature : LocationFeature
         bool hasBeenHunted,
         List<AnimalSpawnEntry> animals)
     {
-        _gameDensity = gameDensity;
-        _initialDepletedDensity = initialDepletedDensity;
-        _hoursSinceLastHunt = hoursSinceLastHunt;
-        _hasBeenHunted = hasBeenHunted;
+        GameDensity = gameDensity;
+        InitialDepletedDensity = initialDepletedDensity;
+        HoursSinceLastHunt = hoursSinceLastHunt;
+        HasBeenHunted = hasBeenHunted;
         _possibleAnimals.Clear();
         _possibleAnimals.AddRange(animals);
     }
 
-    /// <summary>
-    /// Get base game density for save.
-    /// </summary>
-    internal double GetBaseGameDensity() => _baseGameDensity;
-
-    /// <summary>
-    /// Get current game density for save.
-    /// </summary>
-    internal double GetGameDensity() => _gameDensity;
-
-    /// <summary>
-    /// Get initial depleted density for save.
-    /// </summary>
-    internal double GetInitialDepletedDensity() => _initialDepletedDensity;
-
-    /// <summary>
-    /// Get hours since last hunt for save.
-    /// </summary>
-    internal double GetHoursSinceLastHunt() => _hoursSinceLastHunt;
-
-    /// <summary>
-    /// Get has been hunted flag for save.
-    /// </summary>
-    internal bool GetHasBeenHunted() => _hasBeenHunted;
-
-    /// <summary>
-    /// Get possible animals for save.
-    /// </summary>
-    internal IReadOnlyList<AnimalSpawnEntry> GetPossibleAnimals() => _possibleAnimals.AsReadOnly();
+    // Collection needs backing field for mutation
+    internal IReadOnlyList<AnimalSpawnEntry> PossibleAnimals => _possibleAnimals.AsReadOnly();
 
     #endregion
 

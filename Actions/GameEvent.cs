@@ -122,6 +122,7 @@ public class GameEvent(string name, string description, double weight)
 
     public double BaseWeight = weight;  // Selection weight (not trigger chance)
     public readonly Dictionary<EventCondition, double> WeightFactors = [];
+    public int CooldownHours = 24;  // Default: 1 day before event can trigger again
 
     private List<EventChoice> _choices = [];
     public EventChoice GetChoice(GameContext ctx)
@@ -144,6 +145,12 @@ public class GameEvent(string name, string description, double weight)
     public GameEvent WithConditionFactor(EventCondition condition, double multiplier)
     {
         WeightFactors[condition] = multiplier;
+        return this;
+    }
+
+    public GameEvent WithCooldown(int hours)
+    {
+        CooldownHours = hours;
         return this;
     }
 

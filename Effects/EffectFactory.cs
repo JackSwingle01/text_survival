@@ -15,7 +15,6 @@ public static class EffectFactory
     public static Effect Cold(double degreesPerHour, int durationMinutes) => new()
     {
         EffectKind = "Cold",
-        Source = "environment",
         HourlySeverityChange = -60.0 / durationMinutes,
         StatsDelta = new() { TemperatureDelta = degreesPerHour / 60.0 }
     };
@@ -23,7 +22,6 @@ public static class EffectFactory
     public static Effect Hyperthermia(double severity) => new()
     {
         EffectKind = "Hyperthermia",
-        Source = "temperature",
         Severity = severity,
         HourlySeverityChange = -0.5,
         CapacityModifiers = Capacities(
@@ -37,7 +35,6 @@ public static class EffectFactory
     public static Effect Sweating(double severity) => new()
     {
         EffectKind = "Sweating",
-        Source = "temperature",
         Severity = severity,
         StatsDelta = new() { HydrationDelta = -1000.0 / 60.0 }
     };
@@ -45,7 +42,6 @@ public static class EffectFactory
     public static Effect Shivering(double intensity) => new()
     {
         EffectKind = "Shivering",
-        Source = "temperature",
         Severity = intensity,
         HourlySeverityChange = -2,
         StatsDelta = new() { TemperatureDelta = 3.0 / 60.0 },
@@ -55,7 +51,6 @@ public static class EffectFactory
     public static Effect Hypothermia(double severity) => new()
     {
         EffectKind = "Hypothermia",
-        Source = "temperature",
         Severity = severity,
         HourlySeverityChange = -0.5,
         CapacityModifiers = Capacities(
@@ -74,7 +69,6 @@ public static class EffectFactory
     public static Effect Frostbite(string bodyPart, double severity) => new()
     {
         EffectKind = "Frostbite",
-        Source = "temperature",
         TargetBodyPart = bodyPart,
         Severity = severity,
         HourlySeverityChange = -0.02,
@@ -94,7 +88,6 @@ public static class EffectFactory
     public static Effect Frostbite(double severity) => new()
     {
         EffectKind = "Frostbite",
-        Source = "temperature",
         Severity = severity,
         HourlySeverityChange = -0.02,
         RequiresTreatment = true,
@@ -113,7 +106,6 @@ public static class EffectFactory
     public static Effect SprainedAnkle(double severity) => new()
     {
         EffectKind = "Sprained Ankle",
-        Source = "injury",
         Severity = severity,
         HourlySeverityChange = -0.01,
         RequiresTreatment = true,
@@ -128,7 +120,6 @@ public static class EffectFactory
     public static Effect Fear(double severity) => new()
     {
         EffectKind = "Fear",
-        Source = "fear",
         Severity = severity,
         HourlySeverityChange = -0.1,  // Fades relatively quickly
         CapacityModifiers = Capacities((CapacityNames.Manipulation, -0.15)),
@@ -142,7 +133,6 @@ public static class EffectFactory
     public static Effect Shaken(double severity) => new()
     {
         EffectKind = "Shaken",
-        Source = "fear",
         Severity = severity,
         HourlySeverityChange = -0.2,  // Fades faster than Fear
         CapacityModifiers = Capacities((CapacityNames.Manipulation, -0.1)),
@@ -156,7 +146,6 @@ public static class EffectFactory
     public static Effect Exhausted(double severity, int durationMinutes = 60) => new()
     {
         EffectKind = "Exhausted",
-        Source = "exertion",
         Severity = severity,
         HourlySeverityChange = -60.0 / durationMinutes,
         CapacityModifiers = Capacities(
@@ -172,7 +161,6 @@ public static class EffectFactory
     public static Effect Nauseous(double severity, int durationMinutes = 60) => new()
     {
         EffectKind = "Nauseous",
-        Source = "sickness",
         Severity = severity,
         HourlySeverityChange = -60.0 / durationMinutes,
         CapacityModifiers = Capacities(
@@ -188,7 +176,6 @@ public static class EffectFactory
     public static Effect Coughing(double severity, int durationMinutes = 60) => new()
     {
         EffectKind = "Coughing",
-        Source = "smoke",
         Severity = severity,
         HourlySeverityChange = -60.0 / durationMinutes,
         CapacityModifiers = Capacities((CapacityNames.Breathing, -0.25)),
@@ -206,7 +193,6 @@ public static class EffectFactory
     public static Effect Bleeding(double severity) => new()
     {
         EffectKind = "Bleeding",
-        Source = "wound",
         Severity = severity,
         HourlySeverityChange = -0.1,  // Decays slowly; minor wounds stabilize before death
         RequiresTreatment = true,     // Stops at 0.05 floor until treated
@@ -223,7 +209,6 @@ public static class EffectFactory
     public static Effect Pain(double severity) => new()
     {
         EffectKind = "Pain",
-        Source = "injury",
         Severity = severity,
         HourlySeverityChange = -0.15,  // Fades in ~5-6 hours
         RequiresTreatment = false,     // Pain fades naturally
@@ -249,7 +234,6 @@ public static class EffectFactory
     public static Effect Hungry(double severity) => new()
     {
         EffectKind = "Hungry",
-        Source = "survival",
         Severity = severity,
         HourlySeverityChange = -1.0,  // Decays quickly when not refreshed
         CapacityModifiers = Capacities(
@@ -267,7 +251,6 @@ public static class EffectFactory
     public static Effect Thirsty(double severity) => new()
     {
         EffectKind = "Thirsty",
-        Source = "survival",
         Severity = severity,
         HourlySeverityChange = -1.0,
         CapacityModifiers = Capacities(
@@ -285,7 +268,6 @@ public static class EffectFactory
     public static Effect Tired(double severity) => new()
     {
         EffectKind = "Tired",
-        Source = "survival",
         Severity = severity,
         HourlySeverityChange = -1.0,
         CapacityModifiers = Capacities(
@@ -305,7 +287,6 @@ public static class EffectFactory
     public static Effect Sore(double severity, int durationMinutes = 120) => new()
     {
         EffectKind = "Sore",
-        Source = "exertion",
         Severity = severity,
         HourlySeverityChange = -60.0 / durationMinutes,
         CapacityModifiers = Capacities((CapacityNames.Moving, -0.1)),
@@ -319,7 +300,6 @@ public static class EffectFactory
     public static Effect Paranoid(double severity) => new()
     {
         EffectKind = "Paranoid",
-        Source = "fear",
         Severity = severity,
         HourlySeverityChange = -0.05,  // Fades slower than Fear
         CapacityModifiers = Capacities(
@@ -337,7 +317,6 @@ public static class EffectFactory
     public static Effect Warmed(double severity, int durationMinutes = 30) => new()
     {
         EffectKind = "Warmed",
-        Source = "comfort",
         Severity = severity,
         HourlySeverityChange = -60.0 / durationMinutes,
         StatsDelta = new() { TemperatureDelta = 2.0 / 60.0 },  // +2 degrees per hour
@@ -351,12 +330,11 @@ public static class EffectFactory
     public static Effect Rested(double severity, int durationMinutes = 120) => new()
     {
         EffectKind = "Rested",
-        Source = "comfort",
         Severity = severity,
         HourlySeverityChange = -60.0 / durationMinutes,
         CapacityModifiers = Capacities(
-            (CapacityNames.Moving, 0.1),
-            (CapacityNames.Manipulation, 0.05)),
+            (CapacityNames.Moving, 0.2),
+            (CapacityNames.Manipulation, 0.1)),
         ApplicationMessage = "You feel well-rested."
     };
 
@@ -367,7 +345,6 @@ public static class EffectFactory
     public static Effect Focused(double severity, int durationMinutes = 60) => new()
     {
         EffectKind = "Focused",
-        Source = "morale",
         Severity = severity,
         HourlySeverityChange = -60.0 / durationMinutes,
         CapacityModifiers = Capacities(
@@ -380,10 +357,9 @@ public static class EffectFactory
     /// Hardened - toughened from surviving hardship.
     /// Minor bonus to all physical capacities.
     /// </summary>
-    public static Effect Hardened(double severity, int durationMinutes = 180) => new()
+    public static Effect Hardened(double severity, int durationMinutes = 360) => new()
     {
         EffectKind = "Hardened",
-        Source = "experience",
         Severity = severity,
         HourlySeverityChange = -60.0 / durationMinutes,
         CapacityModifiers = Capacities(
@@ -400,7 +376,6 @@ public static class EffectFactory
     public static Effect Burn(double severity, int durationMinutes = 180) => new()
     {
         EffectKind = "Burn",
-        Source = "heat",
         Severity = severity,
         HourlySeverityChange = -60.0 / durationMinutes,
         RequiresTreatment = severity > 0.3,  // Severe burns need treatment
@@ -417,7 +392,6 @@ public static class EffectFactory
     public static Effect Stiff(double severity, int durationMinutes = 360) => new()
     {
         EffectKind = "Stiff",
-        Source = "strain",
         Severity = severity,
         HourlySeverityChange = -60.0 / durationMinutes,
         CapacityModifiers = Capacities((CapacityNames.Moving, -0.25)),
@@ -433,7 +407,6 @@ public static class EffectFactory
     public static Effect Fever(double severity) => new()
     {
         EffectKind = "Fever",
-        Source = "infection",
         Severity = severity,
         HourlySeverityChange = 0.02,  // Slowly worsens without treatment
         RequiresTreatment = true,
@@ -457,7 +430,6 @@ public static class EffectFactory
     public static Effect Clumsy(double severity, int durationMinutes = 60) => new()
     {
         EffectKind = "Clumsy",
-        Source = "impairment",
         Severity = severity,
         HourlySeverityChange = -60.0 / durationMinutes,
         CapacityModifiers = Capacities((CapacityNames.Manipulation, -0.3)),
@@ -472,7 +444,6 @@ public static class EffectFactory
     public static Effect Dazed(double severity) => new()
     {
         EffectKind = "Dazed",
-        Source = "concussion",
         Severity = severity,
         HourlySeverityChange = -0.15,  // ~6-7 hours to clear
         CapacityModifiers = Capacities(
@@ -494,7 +465,6 @@ public static class EffectFactory
     public static Effect Wet(double severity, int durationMinutes = 60) => new()
     {
         EffectKind = "Wet",
-        Source = "environmental",
         Severity = severity,
         HourlySeverityChange = -60.0 / durationMinutes,
         StatsDelta = new() { TemperatureDelta = -1.0 / 60.0 },  // Mild direct cooling

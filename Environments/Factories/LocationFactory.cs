@@ -28,13 +28,21 @@ public static class LocationFactory
                                     overheadCoverLevel: .3, // 0-1
                                     visibilityFactor: .7); // 0-2
 
-        // Forage feature - forest is rich in fuel
+        // Forage feature - forest is rich in fuel and medicinals
         var forageFeature = new ForageFeature(2.0)
             .AddLogs(1.5, 1.5, 3.5)        // good logs
             .AddSticks(3.0, 0.2, 0.6)      // plenty of sticks
             .AddTinder(2.0, 0.02, 0.08)    // bark, dry leaves
             .AddBerries(0.3, 0.05, 0.15)   // occasional berries
-            .AddPlantFiber(0.5, 0.05, 0.15); // bark strips, roots for cordage
+            .AddPlantFiber(0.5, 0.05, 0.15) // bark strips, roots for cordage
+            // Fungi on birch/dead trees
+            .AddBirchPolypore(0.15)        // wound treatment
+            .AddChaga(0.1)                 // anti-inflammatory
+            .AddAmadou(0.12)               // fire-starting, wound dressing
+            // Conifer products
+            .AddPineNeedles(0.25)          // vitamin C tea
+            .AddPineResin(0.1)             // wound sealing
+            .AddUsnea(0.15);               // old man's beard lichen
         location.Features.Add(forageFeature);
 
         // Animal territory - forests have good game
@@ -51,8 +59,7 @@ public static class LocationFactory
             {
                 Description = "A frost-hardy shrub with clusters of dark berries."
             };
-            berryBush.AddResource(HarvestResourceType.Berries, maxQuantity: 5, weightPerUnit: 0.1,
-                respawnHoursPerUnit: 168.0, displayName: "berries");
+            berryBush.AddBerries("berries", maxQuantity: 5, weightPerUnit: 0.1, respawnHoursPerUnit: 168.0);
             location.Features.Add(berryBush);
         }
 
@@ -63,12 +70,9 @@ public static class LocationFactory
                 Description = "A wind-felled tree with dry, harvestable wood.",
                 MinutesToHarvest = 10
             };
-            deadfall.AddResource(HarvestResourceType.Log, maxQuantity: 4, weightPerUnit: 2.5,
-                respawnHoursPerUnit: 720.0, displayName: "firewood");  // logs don't really respawn
-            deadfall.AddResource(HarvestResourceType.Stick, maxQuantity: 8, weightPerUnit: 0.3,
-                respawnHoursPerUnit: 168.0, displayName: "branches");
-            deadfall.AddResource(HarvestResourceType.Tinder, maxQuantity: 3, weightPerUnit: 0.05,
-                respawnHoursPerUnit: 168.0, displayName: "bark strips");
+            deadfall.AddLogs("firewood", maxQuantity: 4, weightPerUnit: 2.5, respawnHoursPerUnit: 720.0);  // logs don't really respawn
+            deadfall.AddSticks("branches", maxQuantity: 8, weightPerUnit: 0.3, respawnHoursPerUnit: 168.0);
+            deadfall.AddTinder("bark strips", maxQuantity: 3, weightPerUnit: 0.05, respawnHoursPerUnit: 168.0);
             location.Features.Add(deadfall);
         }
 
@@ -79,8 +83,7 @@ public static class LocationFactory
                 Description = "A shallow puddle fed by melting snow.",
                 MinutesToHarvest = 2
             };
-            puddle.AddResource(HarvestResourceType.Water, maxQuantity: 3, weightPerUnit: 0.5,
-                respawnHoursPerUnit: 12.0, displayName: "water");
+            puddle.AddWater("water", maxQuantity: 3, litersPerUnit: 0.5, respawnHoursPerUnit: 12.0);
             location.Features.Add(puddle);
         }
 
@@ -155,9 +158,14 @@ public static class LocationFactory
             Description = "A swift-flowing river fed by glacial meltwater. Cold but clear.",
             MinutesToHarvest = 1
         };
-        river.AddResource(HarvestResourceType.Water, maxQuantity: 100, weightPerUnit: 1.0,
-            respawnHoursPerUnit: 0.1, displayName: "water");  // effectively unlimited
+        river.AddWater("water", maxQuantity: 100, litersPerUnit: 1.0, respawnHoursPerUnit: 0.1);  // effectively unlimited
         location.Features.Add(river);
+
+        // Water feature for ice hazard - flowing water has moderate/thin ice
+        var waterFeature = new WaterFeature("river_water", "River")
+            .WithDescription("Fast-flowing sections stay open, but ice forms at the edges.")
+            .WithIceThickness(0.5);  // Moderate ice - contributes +0.15 hazard
+        location.Features.Add(waterFeature);
 
         return location;
     }
@@ -206,8 +214,7 @@ public static class LocationFactory
                 Description = "A shallow depression with fresh meltwater. Frozen at edges.",
                 MinutesToHarvest = 2
             };
-            puddle.AddResource(HarvestResourceType.Water, maxQuantity: 2, weightPerUnit: 0.5,
-                respawnHoursPerUnit: 24.0, displayName: "water");
+            puddle.AddWater("water", maxQuantity: 2, litersPerUnit: 0.5, respawnHoursPerUnit: 24.0);
             location.Features.Add(puddle);
         }
 
@@ -327,8 +334,7 @@ public static class LocationFactory
             Description = "Warm water bubbles up from deep below. Safe to drink once cooled.",
             MinutesToHarvest = 2
         };
-        spring.AddResource(HarvestResourceType.Water, maxQuantity: 50, weightPerUnit: 1.0,
-            respawnHoursPerUnit: 0.1, displayName: "warm water");
+        spring.AddWater("warm water", maxQuantity: 50, litersPerUnit: 1.0, respawnHoursPerUnit: 0.1);
         location.Features.Add(spring);
 
         // Animals come here to drink
@@ -359,7 +365,7 @@ public static class LocationFactory
                                     tags: "[Ice] [Water] [Slippery]",
                                     parent: parent,
                                     traversalMinutes: 12,
-                                    terrainHazardLevel: 0.5,
+                                    terrainHazardLevel: 0.35,  // Reduced - WaterFeature adds ice hazard
                                     windFactor: 0.9,
                                     overheadCoverLevel: 0.0,
                                     visibilityFactor: 1.0)
@@ -379,9 +385,14 @@ public static class LocationFactory
             Description = "Thick ice covers the creek. Can be broken and melted for water.",
             MinutesToHarvest = 5
         };
-        iceSource.AddResource(HarvestResourceType.Water, maxQuantity: 20, weightPerUnit: 1.0,
-            respawnHoursPerUnit: 48.0, displayName: "ice chunks");
+        iceSource.AddWater("ice chunks", maxQuantity: 20, litersPerUnit: 1.0, respawnHoursPerUnit: 48.0);
         location.Features.Add(iceSource);
+
+        // Water feature for ice hazard - creek is solidly frozen
+        var waterFeature = new WaterFeature("creek_water", "Frozen Creek")
+            .WithDescription("The creek is frozen solid. Safe to cross if you're careful.")
+            .AsSolidIce();  // 0.7 thickness - contributes +0.15 hazard, total ~0.50
+        location.Features.Add(waterFeature);
 
         return location;
     }
@@ -426,12 +437,9 @@ public static class LocationFactory
             Description = "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
             MinutesToHarvest = 20
         };
-        deadfall.AddResource(HarvestResourceType.Log, maxQuantity: 8, weightPerUnit: 2.5,
-            respawnHoursPerUnit: 0, displayName: "dry logs");
-        deadfall.AddResource(HarvestResourceType.Stick, maxQuantity: 15, weightPerUnit: 0.3,
-            respawnHoursPerUnit: 0, displayName: "branches");
-        deadfall.AddResource(HarvestResourceType.Tinder, maxQuantity: 5, weightPerUnit: 0.05,
-            respawnHoursPerUnit: 0, displayName: "bark strips");
+        deadfall.AddLogs("dry logs", maxQuantity: 8, weightPerUnit: 2.5, respawnHoursPerUnit: 0);
+        deadfall.AddSticks("branches", maxQuantity: 15, weightPerUnit: 0.3, respawnHoursPerUnit: 0);
+        deadfall.AddTinder("bark strips", maxQuantity: 5, weightPerUnit: 0.05, respawnHoursPerUnit: 0);
         location.Features.Add(deadfall);
 
         // Small game hides in the deadfall
@@ -503,7 +511,7 @@ public static class LocationFactory
                                     tags: "[Water] [Treacherous] [Plants]",
                                     parent: parent,
                                     traversalMinutes: 20,
-                                    terrainHazardLevel: 0.6,
+                                    terrainHazardLevel: 0.4,  // Reduced - WaterFeature adds thin ice hazard
                                     windFactor: 0.7,
                                     overheadCoverLevel: 0.0,
                                     visibilityFactor: 0.6)
@@ -524,10 +532,8 @@ public static class LocationFactory
             Description = "Dense cattails at the marsh edge. Edible roots, fluffy seed heads for tinder.",
             MinutesToHarvest = 10
         };
-        cattails.AddResource(HarvestResourceType.PlantFiber, maxQuantity: 10, weightPerUnit: 0.1,
-            respawnHoursPerUnit: 168.0, displayName: "cattail fiber");
-        cattails.AddResource(HarvestResourceType.Tinder, maxQuantity: 6, weightPerUnit: 0.03,
-            respawnHoursPerUnit: 168.0, displayName: "cattail fluff");
+        cattails.AddPlantFiber("cattail fiber", maxQuantity: 10, weightPerUnit: 0.1, respawnHoursPerUnit: 168.0);
+        cattails.AddTinder("cattail fluff", maxQuantity: 6, weightPerUnit: 0.03, respawnHoursPerUnit: 168.0);
         location.Features.Add(cattails);
 
         // Water source
@@ -536,9 +542,14 @@ public static class LocationFactory
             Description = "Dark water between ice sheets. Needs to be boiled.",
             MinutesToHarvest = 3
         };
-        water.AddResource(HarvestResourceType.Water, maxQuantity: 30, weightPerUnit: 1.0,
-            respawnHoursPerUnit: 6.0, displayName: "marsh water");
+        water.AddWater("marsh water", maxQuantity: 30, litersPerUnit: 1.0, respawnHoursPerUnit: 6.0);
         location.Features.Add(water);
+
+        // Water feature for ice hazard - marsh has THIN ice (very dangerous!)
+        var waterFeature = new WaterFeature("marsh_ice", "Marsh Ice")
+            .WithDescription("Thin ice between tussocks. One wrong step and you're through.")
+            .AsThinIce();  // 0.3 thickness - contributes +0.35 hazard, total ~0.75
+        location.Features.Add(waterFeature);
 
         // Waterfowl
         var animalTerritory = new AnimalTerritoryFeature(0.9)

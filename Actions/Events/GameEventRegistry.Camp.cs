@@ -295,7 +295,7 @@ public static partial class GameEventRegistry
                     new EventResult("Sleep won't come. You lie awake until dawn.", 0.15, 120)
                         .WithEffects(EffectFactory.Exhausted(0.5, 240)),
                     new EventResult("Somehow, you find rest. The dream fades.", 0.05, 0)
-                        .WithEffects(EffectFactory.Rested(0.1, 60))
+                        .WithEffects(EffectFactory.Rested(0.4, 60))
                         .Escalate("Disturbed", -0.1)
                 ])
             .Choice("Stay Awake",
@@ -387,7 +387,7 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Exhausted(0.2, 60)),
                     new EventResult("You think about it until the fire burns low. Somehow, that helps.", 0.30, 60)
                         .Escalate("Disturbed", -0.35)
-                        .WithEffects(EffectFactory.Rested(0.1, 30)),
+                        .WithEffects(EffectFactory.Rested(0.4, 30)),
                     new EventResult("Too much. You have to stop. But you made progress.", 0.15, 30)
                         .Escalate("Disturbed", -0.1)
                         .WithEffects(EffectFactory.Shaken(0.2)),

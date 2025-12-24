@@ -120,7 +120,7 @@ public partial class GameRunner(GameContext ctx)
             choice.AddOption("Eat/Drink", EatDrink);
 
         // Cook/Melt - requires active fire
-        if (HasActiveFire() && (ctx.Inventory.RawMeatCount > 0 || true)) // Snow always available (Ice Age)
+        if (HasActiveFire() && (ctx.Inventory.RawMeat.Count > 0 || true)) // Snow always available (Ice Age)
             choice.AddOption("Cook/Melt", CookMelt);
 
         // Crafting - make tools from available materials
@@ -262,7 +262,7 @@ public partial class GameRunner(GameContext ctx)
                 {
                     string label = $"Add log ({inv.Logs.Count} @ {inv.Logs.Sum():F1}kg)";
                     fuelChoices.Add(label);
-                    fuelMap[label] = ("log", FuelType.Softwood, inv.TakeSmallestLog);
+                    fuelMap[label] = ("log", FuelType.Softwood, () => inv.Logs.Pop());
                 }
                 else
                 {
@@ -277,14 +277,14 @@ public partial class GameRunner(GameContext ctx)
             {
                 string label = $"Add stick ({inv.Sticks.Count} @ {inv.Sticks.Sum():F1}kg)";
                 fuelChoices.Add(label);
-                fuelMap[label] = ("stick", FuelType.Kindling, inv.TakeSmallestStick);
+                fuelMap[label] = ("stick", FuelType.Kindling, () => inv.Sticks.Pop());
             }
 
             if (inv.Tinder.Count > 0 && fire.CanAddFuel(FuelType.Tinder))
             {
                 string label = $"Add tinder ({inv.Tinder.Count} @ {inv.Tinder.Sum():F2}kg)";
                 fuelChoices.Add(label);
-                fuelMap[label] = ("tinder", FuelType.Tinder, inv.TakeTinder);
+                fuelMap[label] = ("tinder", FuelType.Tinder, () => inv.Tinder.Pop());
             }
 
             if (fuelChoices.Count == 0)
@@ -431,12 +431,12 @@ public partial class GameRunner(GameContext ctx)
             bool success = Utils.DetermineSuccess(finalChance);
 
             // Always consume tinder on attempt
-            double tinderUsed = inv.TakeTinder();
+            double tinderUsed = inv.Tinder.Pop();
 
             if (success)
             {
                 // Also consume a stick for kindling
-                double kindlingUsed = inv.TakeSmallestStick();
+                double kindlingUsed = inv.Sticks.Pop();
 
                 var playerSkill = ctx.player.Skills.GetSkill("Firecraft");
 
@@ -534,124 +534,8 @@ public partial class GameRunner(GameContext ctx)
             return;
         }
 
-        // At camp - show menu with view toggle and transfer options
-        bool viewingStorage = false;
-
-        while (true)
-        {
-            // Show current view
-            if (viewingStorage)
-                GameDisplay.RenderInventoryScreen(ctx, ctx.Camp.Storage, "CAMP STORAGE");
-            else
-                GameDisplay.RenderInventoryScreen(ctx);
-
-            // Build menu options
-            var options = new List<string>();
-
-            if (viewingStorage)
-                options.Add("View carried items");
-            else
-                options.Add("View camp storage");
-
-            options.Add("Store items");
-            options.Add("Retrieve items");
-            options.Add("Back");
-
-            string selected = Input.Select(ctx, "Choose:", options);
-
-            if (selected == "Back")
-                break;
-            else if (selected == "View camp storage")
-                viewingStorage = true;
-            else if (selected == "View carried items")
-                viewingStorage = false;
-            else if (selected == "Store items")
-                StoreItems();
-            else if (selected == "Retrieve items")
-                RetrieveItems();
-        }
-
-        if (ctx.SessionId != null)
-            Web.WebIO.ClearInventory(ctx);
-    }
-
-    private void StoreItems()
-    {
-        var playerInv = ctx.Inventory;
-        var campStorage = ctx.Camp.Storage;
-
-        while (true)
-        {
-            var items = playerInv.GetTransferableItems(campStorage);
-
-            if (items.Count == 0)
-            {
-                GameDisplay.AddNarrative(ctx, "Nothing to store.");
-                GameDisplay.Render(ctx, statusText: "Organizing.");
-                Input.WaitForKey(ctx);
-                break;
-            }
-
-            GameDisplay.AddNarrative(ctx, $"Carrying: {playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg");
-            GameDisplay.Render(ctx, statusText: "Organizing.");
-
-            var options = items.Select(i => i.Description).ToList();
-            options.Add("Done");
-
-            string selected = Input.Select(ctx, "Store which item?", options);
-
-            if (selected == "Done")
-                break;
-
-            int idx = options.IndexOf(selected);
-            items[idx].TransferTo();
-            GameDisplay.AddNarrative(ctx, $"Stored {items[idx].Description}");
-        }
-    }
-
-    private void RetrieveItems()
-    {
-        var playerInv = ctx.Inventory;
-        var campStorage = ctx.Camp.Storage;
-
-        while (true)
-        {
-            var items = campStorage.GetTransferableItems(playerInv);
-
-            if (items.Count == 0)
-            {
-                GameDisplay.AddNarrative(ctx, "Camp storage is empty.");
-                GameDisplay.Render(ctx, statusText: "Organizing.");
-                Input.WaitForKey(ctx);
-                break;
-            }
-
-            GameDisplay.AddNarrative(ctx, $"Carrying: {playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg");
-            GameDisplay.Render(ctx, statusText: "Organizing.");
-
-            var options = items.Select(i => i.Description).ToList();
-            options.Add("Done");
-
-            string selected = Input.Select(ctx, "Retrieve which item?", options);
-
-            if (selected == "Done")
-                break;
-
-            int idx = options.IndexOf(selected);
-            double itemWeight = items[idx].Weight;
-
-            // Check weight limit
-            if (!playerInv.CanCarry(itemWeight))
-            {
-                GameDisplay.AddWarning(ctx, $"You can't carry that much! ({playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg)");
-                GameDisplay.Render(ctx, statusText: "Organizing.");
-                Input.WaitForKey(ctx);
-                continue;
-            }
-
-            items[idx].TransferTo();
-            GameDisplay.AddNarrative(ctx, $"Retrieved {items[idx].Description}");
-        }
+        // At camp - use shared transfer helper
+        InventoryTransferHelper.RunTransferMenu(ctx, ctx.Camp.Storage, "CAMP STORAGE");
     }
 
     private void EatDrink()
@@ -670,44 +554,44 @@ public partial class GameRunner(GameContext ctx)
             var consumeActions = new Dictionary<string, Action>();
 
             // Add food options
-            if (inv.CookedMeatCount > 0)
+            if (inv.CookedMeat.Count > 0)
             {
-                double w = inv.CookedMeat[0];
+                double w = inv.CookedMeat.Peek();
                 string opt = $"Cooked meat ({w:F1}kg) - ~{(int)(w * 2500)} cal";
                 options.Add(opt);
                 consumeActions[opt] = () =>
                 {
-                    inv.CookedMeat.RemoveAt(0);
-                    body.AddCalories(w * 2500);
-                    GameDisplay.AddSuccess(ctx, $"You eat the cooked meat. (+{(int)(w * 2500)} cal)");
+                    double eaten = inv.CookedMeat.Pop();
+                    body.AddCalories(eaten * 2500);
+                    GameDisplay.AddSuccess(ctx, $"You eat the cooked meat. (+{(int)(eaten * 2500)} cal)");
                 };
             }
 
-            if (inv.RawMeatCount > 0)
+            if (inv.RawMeat.Count > 0)
             {
-                double w = inv.RawMeat[0];
+                double w = inv.RawMeat.Peek();
                 string opt = $"Raw meat ({w:F1}kg) - ~{(int)(w * 1500)} cal [risk of illness]";
                 options.Add(opt);
                 consumeActions[opt] = () =>
                 {
-                    inv.RawMeat.RemoveAt(0);
-                    body.AddCalories(w * 1500);
-                    GameDisplay.AddWarning(ctx, $"You eat the raw meat. (+{(int)(w * 1500)} cal)");
+                    double eaten = inv.RawMeat.Pop();
+                    body.AddCalories(eaten * 1500);
+                    GameDisplay.AddWarning(ctx, $"You eat the raw meat. (+{(int)(eaten * 1500)} cal)");
                     // TODO: Add chance of food poisoning
                 };
             }
 
-            if (inv.BerryCount > 0)
+            if (inv.Berries.Count > 0)
             {
-                double w = inv.Berries[0];
+                double w = inv.Berries.Peek();
                 string opt = $"Berries ({w:F2}kg) - ~{(int)(w * 500)} cal";
                 options.Add(opt);
                 consumeActions[opt] = () =>
                 {
-                    inv.Berries.RemoveAt(0);
-                    body.AddCalories(w * 500);
-                    body.AddHydration(w * 200); // Berries have some water content
-                    GameDisplay.AddSuccess(ctx, $"You eat the berries. (+{(int)(w * 500)} cal)");
+                    double eaten = inv.Berries.Pop();
+                    body.AddCalories(eaten * 500);
+                    body.AddHydration(eaten * 200); // Berries have some water content
+                    GameDisplay.AddSuccess(ctx, $"You eat the berries. (+{(int)(eaten * 500)} cal)");
                 };
             }
 
@@ -768,24 +652,24 @@ public partial class GameRunner(GameContext ctx)
 
         while (true)
         {
-            GameDisplay.AddNarrative(ctx, $"Water: {inv.WaterLiters:F1}L | Raw meat: {inv.RawMeatCount}");
+            GameDisplay.AddNarrative(ctx, $"Water: {inv.WaterLiters:F1}L | Raw meat: {inv.RawMeat.Count}");
             GameDisplay.Render(ctx, statusText: "Cooking.");
 
             var options = new List<string>();
             var actions = new Dictionary<string, Action>();
 
             // Cook raw meat
-            if (inv.RawMeatCount > 0)
+            if (inv.RawMeat.Count > 0)
             {
-                double w = inv.RawMeat[0];
+                double w = inv.RawMeat.Peek();
                 string opt = $"Cook raw meat ({w:F1}kg) - 15 min";
                 options.Add(opt);
                 actions[opt] = () =>
                 {
                     GameDisplay.UpdateAndRenderProgress(ctx, "Cooking meat...", 15, ActivityType.Cooking);
-                    inv.RawMeat.RemoveAt(0);
-                    inv.CookedMeat.Add(w);
-                    GameDisplay.AddSuccess(ctx, $"Cooked {w:F1}kg of meat.");
+                    double cooked = inv.RawMeat.Pop();
+                    inv.CookedMeat.Push(cooked);
+                    GameDisplay.AddSuccess(ctx, $"Cooked {cooked:F1}kg of meat.");
                 };
             }
 
