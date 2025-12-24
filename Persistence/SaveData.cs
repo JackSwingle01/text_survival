@@ -110,27 +110,71 @@ public record InventorySaveData
     public double MaxWeightKg { get; init; }
 
     // Fuel
-    public List<double> Logs { get; init; } = [];
-    public List<double> Sticks { get; init; } = [];
-    public List<double> Tinder { get; init; } = [];
+    public Stack<double> Logs { get; init; } = new();
+    public Stack<double> Sticks { get; init; } = new();
+    public Stack<double> Tinder { get; init; } = new();
 
     // Food
-    public List<double> CookedMeat { get; init; } = [];
-    public List<double> RawMeat { get; init; } = [];
-    public List<double> Berries { get; init; } = [];
+    public Stack<double> CookedMeat { get; init; } = new();
+    public Stack<double> RawMeat { get; init; } = new();
+    public Stack<double> Berries { get; init; } = new();
 
     // Water
     public double WaterLiters { get; init; }
 
     // Crafting materials
-    public List<double> Stone { get; init; } = [];
-    public List<double> Bone { get; init; } = [];
-    public List<double> Hide { get; init; } = [];
-    public List<double> PlantFiber { get; init; } = [];
-    public List<double> Sinew { get; init; } = [];
+    public Stack<double> Stone { get; init; } = new();
+    public Stack<double> Bone { get; init; } = new();
+    public Stack<double> Hide { get; init; } = new();
+    public Stack<double> PlantFiber { get; init; } = new();
+    public Stack<double> Sinew { get; init; } = new();
+
+    // Stone types
+    public Stack<double> Shale { get; init; } = new();
+    public Stack<double> Flint { get; init; } = new();
+    public double Pyrite { get; init; }
+
+    // Wood types
+    public Stack<double> Pine { get; init; } = new();
+    public Stack<double> Birch { get; init; } = new();
+    public Stack<double> Oak { get; init; } = new();
+    public Stack<double> BirchBark { get; init; } = new();
+
+    // Fungi
+    public Stack<double> BirchPolypore { get; init; } = new();
+    public Stack<double> Chaga { get; init; } = new();
+    public Stack<double> Amadou { get; init; } = new();
+
+    // Persistent plants
+    public Stack<double> RoseHips { get; init; } = new();
+    public Stack<double> JuniperBerries { get; init; } = new();
+    public Stack<double> WillowBark { get; init; } = new();
+    public Stack<double> PineNeedles { get; init; } = new();
+
+    // Tree products
+    public Stack<double> PineResin { get; init; } = new();
+    public Stack<double> Usnea { get; init; } = new();
+    public Stack<double> Sphagnum { get; init; } = new();
+
+    // Produced
+    public double Charcoal { get; init; }
+
+    // Food expansion
+    public Stack<double> Nuts { get; init; } = new();
+    public Stack<double> Roots { get; init; } = new();
+    public Stack<double> DriedMeat { get; init; } = new();
+    public Stack<double> DriedBerries { get; init; } = new();
+
+    // Processing states
+    public Stack<double> ScrapedHide { get; init; } = new();
+    public Stack<double> CuredHide { get; init; } = new();
+    public Stack<double> RawFiber { get; init; } = new();
+    public Stack<double> RawFat { get; init; } = new();
+    public Stack<double> Tallow { get; init; } = new();
 
     // Discrete items
     public List<ToolSaveData> Tools { get; init; } = [];
+    public List<ToolSaveData> Special { get; init; } = [];
 
     // Equipment slots
     public EquipmentSaveData? Head { get; init; }
@@ -200,10 +244,11 @@ public record WeatherSaveData
 /// </summary>
 public record LocationSaveData
 {
+    public Guid Id { get; init; }
     public string Name { get; init; } = "";
     public string Tags { get; init; } = "";
     public bool Explored { get; init; }
-    public List<string> ConnectionNames { get; init; } = [];
+    public List<Guid> ConnectionIds { get; init; } = [];
 
     // Terrain properties
     public int BaseTraversalMinutes { get; init; }
@@ -212,6 +257,8 @@ public record LocationSaveData
     public double OverheadCoverLevel { get; init; }
     public double VisibilityFactor { get; init; }
     public bool IsDark { get; init; }
+
+    public string? DiscoveryText { get; init; }
 
     // Features
     public List<FeatureSaveData> Features { get; init; } = [];
@@ -259,7 +306,24 @@ public record FeatureSaveData
 
     // SnareLineFeature
     public List<SnareSaveData>? Snares { get; init; }
+
+    // CacheFeature
+    public string? CacheType { get; init; }
+    public double? CacheCapacityKg { get; init; }
+    public bool? CacheProtectsFromPredators { get; init; }
+    public bool? CacheProtectsFromWeather { get; init; }
+    public bool? CachePreservesFood { get; init; }
+    public InventorySaveData? CacheStorage { get; init; }
+
+    // CuringRackFeature
+    public int? CuringRackCapacity { get; init; }
+    public List<CuringItemSaveData>? CuringItems { get; init; }
 }
+
+/// <summary>
+/// Item curing on a rack.
+/// </summary>
+public record CuringItemSaveData(string Type, double WeightKg, int MinutesCured, int MinutesRequired);
 
 /// <summary>
 /// Forage resource definition.

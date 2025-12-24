@@ -31,8 +31,20 @@ public static class SaveDataConverter
             .Map(dest => dest.Type, src => src.Type.ToString())
             .Map(dest => dest.WeaponClass, src => src.WeaponClass != null ? src.WeaponClass.ToString() : null);
 
+        TypeAdapterConfig<ToolSaveData, Tool>.NewConfig()
+            .MapWith(src => new Tool(src.Name, Enum.Parse<ToolType>(src.Type), src.Weight)
+            {
+                Durability = src.Durability,
+                Damage = src.Damage,
+                BlockChance = src.BlockChance,
+                WeaponClass = src.WeaponClass != null ? Enum.Parse<WeaponClass>(src.WeaponClass) : null
+            });
+
         TypeAdapterConfig<Equipment, EquipmentSaveData>.NewConfig()
             .Map(dest => dest.Slot, src => src.Slot.ToString());
+
+        TypeAdapterConfig<EquipmentSaveData, Equipment>.NewConfig()
+            .MapWith(src => new Equipment(src.Name, Enum.Parse<EquipSlot>(src.Slot), src.Weight, src.Insulation));
 
         TypeAdapterConfig<ZoneWeather, WeatherSaveData>.NewConfig()
             .Map(dest => dest.CurrentCondition, src => src.CurrentCondition.ToString())
@@ -40,14 +52,15 @@ public static class SaveDataConverter
 
         // Location - map Connections to ConnectionNames
         TypeAdapterConfig<Location, LocationSaveData>.NewConfig()
-            .Map(dest => dest.ConnectionNames, src => src.Connections.Select(c => c.Name).ToList())
+            .Map(dest => dest.ConnectionIds, src => src.Connections.Select(c => c.Id).ToList())
             .Map(dest => dest.Features, src => src.Features.Select(f => f.Adapt<FeatureSaveData>()).ToList())
-            .Map(dest => dest.Explored, src => src.Explored);
+            .Map(dest => dest.Explored, src => src.Explored)
+            .Map(dest => dest.DiscoveryText, src => src.DiscoveryText);
 
         // Zone - map Graph.All to Locations
         TypeAdapterConfig<Zone, ZoneSaveData>.NewConfig()
             .Map(dest => dest.Locations, src => src.Graph.All.Select(l => l.Adapt<LocationSaveData>()).ToList())
-            .Map(dest => dest.UnrevealedLocations, src => new List<LocationSaveData>())
+            .Map(dest => dest.UnrevealedLocations, src => src.UnrevealedLocations.Select(l => l.Adapt<LocationSaveData>()).ToList())
             .Map(dest => dest.Weather, src => src.Weather.Adapt<WeatherSaveData>());
 
         // Player - simple mapping
@@ -78,6 +91,133 @@ public static class SaveDataConverter
         // EncounterConfig - simple mapping with null-safe modifiers
         TypeAdapterConfig<EncounterConfig, EncounterConfigSaveData>.NewConfig()
             .Map(dest => dest.Modifiers, src => src.Modifiers ?? new List<string>());
+
+        // Inventory - Stack<double> properties auto-map now
+        TypeAdapterConfig<Inventory, InventorySaveData>.NewConfig()
+            .Map(dest => dest.Tools, src => src.Tools.Select(t => t.Adapt<ToolSaveData>()).ToList())
+            .Map(dest => dest.Special, src => src.Special.Select(i => new ToolSaveData
+            {
+                Name = i.Name,
+                Weight = i.Weight,
+                Type = "Item"
+            }).ToList());
+
+        // Inventory reverse - InventorySaveData to Inventory
+        // Stack<double> properties and Equipment auto-map now
+        TypeAdapterConfig<InventorySaveData, Inventory>.NewConfig()
+            .Ignore(dest => dest.Tools)    // Handled in AfterMapping
+            .Ignore(dest => dest.Special)  // Handled in AfterMapping
+            .AfterMapping((src, dest) =>
+            {
+                // Restore Tools
+                dest.Tools = src.Tools.Select(t => t.Adapt<Tool>()).ToList();
+
+                // Restore Special items
+                dest.Special = src.Special.Select(i => new Item(i.Name, i.Weight)).ToList();
+            });
+
+        // Effect - bidirectional with conditional nested objects
+        TypeAdapterConfig<Effect, EffectSaveData>.NewConfig()
+            .Map(dest => dest.CapacityModifiers, src => src.CapacityModifiers.ToDictionary())
+            .Map(dest => dest.StatsDelta, src =>
+                src.StatsDelta.TemperatureDelta != 0 || src.StatsDelta.CalorieDelta != 0 ||
+                src.StatsDelta.HydrationDelta != 0 || src.StatsDelta.EnergyDelta != 0
+                    ? new StatsDeltaSaveData(
+                        src.StatsDelta.TemperatureDelta,
+                        src.StatsDelta.CalorieDelta,
+                        src.StatsDelta.HydrationDelta,
+                        src.StatsDelta.EnergyDelta)
+                    : null)
+            .Map(dest => dest.Damage, src =>
+                src.Damage != null
+                    ? new DamageOverTimeSaveData(src.Damage.PerHour, src.Damage.Type.ToString())
+                    : null);
+
+        TypeAdapterConfig<EffectSaveData, Effect>.NewConfig()
+            .MapWith(src => new Effect
+            {
+                // Identity
+                EffectKind = src.EffectKind,
+                TargetBodyPart = src.TargetBodyPart,
+
+                // State
+                Severity = src.Severity,
+                HourlySeverityChange = src.HourlySeverityChange,
+                RequiresTreatment = src.RequiresTreatment,
+                CanHaveMultiple = src.CanHaveMultiple,
+                IsActive = true,
+
+                // Effects
+                CapacityModifiers = CapacityModifierContainer.FromDictionary(src.CapacityModifiers),
+                StatsDelta = src.StatsDelta != null
+                    ? new SurvivalStatsDelta
+                    {
+                        TemperatureDelta = src.StatsDelta.TemperatureDelta,
+                        CalorieDelta = src.StatsDelta.CalorieDelta,
+                        HydrationDelta = src.StatsDelta.HydrationDelta,
+                        EnergyDelta = src.StatsDelta.EnergyDelta
+                    }
+                    : new SurvivalStatsDelta(),
+                Damage = src.Damage != null
+                    ? new Effect.DamageOverTime(src.Damage.PerHour, Enum.Parse<DamageType>(src.Damage.DamageType))
+                    : null,
+
+                // Messages
+                ApplicationMessage = src.ApplicationMessage,
+                RemovalMessage = src.RemovalMessage
+            });
+
+        // Body - bidirectional with hierarchical flattening
+        TypeAdapterConfig<Body, BodySaveData>.NewConfig()
+            .Map(dest => dest.Parts, src => src.Parts.Select(p => new BodyPartSaveData(
+                p.Name,
+                p.Skin.Condition,
+                p.Muscle.Condition,
+                p.Bone.Condition
+            )).ToList())
+            .Map(dest => dest.Organs, src => src.Parts
+                .SelectMany(p => p.Organs)
+                .Select(o => new OrganSaveData(o.Name, o.Condition))
+                .ToList());
+
+        TypeAdapterConfig<BodySaveData, Body>.NewConfig()
+            .AfterMapping((src, dest) =>
+            {
+                // Restore simple properties via Body.Restore()
+                dest.Restore(
+                    src.CalorieStore,
+                    src.Energy,
+                    src.Hydration,
+                    src.BodyTemperature,
+                    src.BodyFatKG,
+                    src.MuscleKG,
+                    src.BloodCondition
+                );
+
+                // Restore body part conditions by name
+                foreach (var partData in src.Parts)
+                {
+                    var part = dest.Parts.FirstOrDefault(p => p.Name == partData.Name);
+                    if (part != null)
+                    {
+                        part.Skin.Condition = partData.SkinCondition;
+                        part.Muscle.Condition = partData.MuscleCondition;
+                        part.Bone.Condition = partData.BoneCondition;
+                    }
+                }
+
+                // Restore organ conditions by name
+                foreach (var organData in src.Organs)
+                {
+                    var organ = dest.Parts
+                        .SelectMany(p => p.Organs)
+                        .FirstOrDefault(o => o.Name == organData.Name);
+                    if (organ != null)
+                    {
+                        organ.Condition = organData.Condition;
+                    }
+                }
+            });
     }
 
     #region To Save Data
@@ -109,95 +249,11 @@ public static class SaveDataConverter
 
     private static PlayerSaveData ToSaveData(Player player) => player.Adapt<PlayerSaveData>();
 
-    private static BodySaveData ToSaveData(Body body)
-    {
-        var parts = body.Parts.Select(p => new BodyPartSaveData(
-            p.Name,
-            p.Skin.Condition,
-            p.Muscle.Condition,
-            p.Bone.Condition
-        )).ToList();
+    private static BodySaveData ToSaveData(Body body) => body.Adapt<BodySaveData>();
 
-        var organs = body.Parts
-            .SelectMany(p => p.Organs)
-            .Select(o => new OrganSaveData(o.Name, o.Condition))
-            .ToList();
+    private static EffectSaveData ToSaveData(Effect effect) => effect.Adapt<EffectSaveData>();
 
-        return new BodySaveData
-        {
-            CalorieStore = body.CalorieStore,
-            Energy = body.Energy,
-            Hydration = body.Hydration,
-            BodyTemperature = body.BodyTemperature,
-            BodyFatKG = body.BodyFatKG,
-            MuscleKG = body.MuscleKG,
-            BloodCondition = body.Blood.Condition,
-            Parts = parts,
-            Organs = organs
-        };
-    }
-
-    private static EffectSaveData ToSaveData(Effect effect)
-    {
-        var sd = effect.StatsDelta;
-        bool hasStatsDelta = sd.TemperatureDelta != 0 || sd.CalorieDelta != 0 ||
-                             sd.HydrationDelta != 0 || sd.EnergyDelta != 0;
-
-        return new EffectSaveData
-        {
-            // Identity
-            EffectKind = effect.EffectKind,
-            TargetBodyPart = effect.TargetBodyPart,
-
-            // State
-            Severity = effect.Severity,
-            HourlySeverityChange = effect.HourlySeverityChange,
-            RequiresTreatment = effect.RequiresTreatment,
-            CanHaveMultiple = effect.CanHaveMultiple,
-
-            // Effects
-            CapacityModifiers = effect.CapacityModifiers.ToDictionary(),
-            StatsDelta = hasStatsDelta
-                ? new StatsDeltaSaveData(sd.TemperatureDelta, sd.CalorieDelta, sd.HydrationDelta, sd.EnergyDelta)
-                : null,
-            Damage = effect.Damage != null
-                ? new DamageOverTimeSaveData(effect.Damage.PerHour, effect.Damage.Type.ToString())
-                : null,
-
-            // Messages
-            ApplicationMessage = effect.ApplicationMessage,
-            RemovalMessage = effect.RemovalMessage
-        };
-    }
-
-    private static InventorySaveData ToSaveData(Inventory inv)
-    {
-        return new InventorySaveData
-        {
-            MaxWeightKg = inv.MaxWeightKg,
-            Logs = inv.Logs.ToList(),
-            Sticks = inv.Sticks.ToList(),
-            Tinder = inv.Tinder.ToList(),
-            CookedMeat = inv.CookedMeat.ToList(),
-            RawMeat = inv.RawMeat.ToList(),
-            Berries = inv.Berries.ToList(),
-            WaterLiters = inv.WaterLiters,
-            Stone = inv.Stone.ToList(),
-            Bone = inv.Bone.ToList(),
-            Hide = inv.Hide.ToList(),
-            PlantFiber = inv.PlantFiber.ToList(),
-            Sinew = inv.Sinew.ToList(),
-            Tools = inv.Tools.Select(ToSaveData).ToList(),
-            Head = inv.Head != null ? ToSaveData(inv.Head) : null,
-            Chest = inv.Chest != null ? ToSaveData(inv.Chest) : null,
-            Legs = inv.Legs != null ? ToSaveData(inv.Legs) : null,
-            Feet = inv.Feet != null ? ToSaveData(inv.Feet) : null,
-            Hands = inv.Hands != null ? ToSaveData(inv.Hands) : null,
-            Weapon = inv.Weapon != null ? ToSaveData(inv.Weapon) : null,
-            ActiveTorch = inv.ActiveTorch != null ? ToSaveData(inv.ActiveTorch) : null,
-            TorchBurnTimeRemainingMinutes = inv.TorchBurnTimeRemainingMinutes
-        };
-    }
+    private static InventorySaveData ToSaveData(Inventory inv) => inv.Adapt<InventorySaveData>();
 
     private static ToolSaveData ToSaveData(Tool tool) => tool.Adapt<ToolSaveData>();
 
@@ -271,6 +327,29 @@ public static class SaveDataConverter
                 return data with
                 {
                     Snares = snareLine.GetSnares().Select(ToSaveData).ToList()
+                };
+
+            case CacheFeature cache:
+                return data with
+                {
+                    CacheType = cache.Type.ToString(),
+                    CacheCapacityKg = cache.CapacityKg,
+                    CacheProtectsFromPredators = cache.ProtectsFromPredators,
+                    CacheProtectsFromWeather = cache.ProtectsFromWeather,
+                    CachePreservesFood = cache.PreservesFood,
+                    CacheStorage = ToSaveData(cache.Storage)
+                };
+
+            case CuringRackFeature rack:
+                return data with
+                {
+                    CuringRackCapacity = rack.Capacity,
+                    CuringItems = rack.GetItemsForSave().Select(i => new CuringItemSaveData(
+                        i.Type.ToString(),
+                        i.WeightKg,
+                        i.MinutesCured,
+                        i.MinutesRequired
+                    )).ToList()
                 };
 
             default:
@@ -400,154 +479,14 @@ public static class SaveDataConverter
 
     private static void RestoreBody(Body body, BodySaveData data)
     {
-        // Restore vital stats and composition
-        body.Restore(
-            data.CalorieStore,
-            data.Energy,
-            data.Hydration,
-            data.BodyTemperature,
-            data.BodyFatKG,
-            data.MuscleKG,
-            data.BloodCondition
-        );
-
-        // Restore body part conditions by name
-        foreach (var partData in data.Parts)
-        {
-            var part = body.Parts.FirstOrDefault(p => p.Name == partData.Name);
-            if (part != null)
-            {
-                part.Skin.Condition = partData.SkinCondition;
-                part.Muscle.Condition = partData.MuscleCondition;
-                part.Bone.Condition = partData.BoneCondition;
-            }
-        }
-
-        // Restore organ conditions by name
-        foreach (var organData in data.Organs)
-        {
-            var organ = body.Parts
-                .SelectMany(p => p.Organs)
-                .FirstOrDefault(o => o.Name == organData.Name);
-            if (organ != null)
-            {
-                organ.Condition = organData.Condition;
-            }
-        }
+        data.Adapt(body);
     }
 
-    private static Effect RestoreEffect(EffectSaveData data)
-    {
-        // Restore stats delta if present
-        SurvivalStatsDelta? statsDelta = null;
-        if (data.StatsDelta != null)
-        {
-            statsDelta = new SurvivalStatsDelta
-            {
-                TemperatureDelta = data.StatsDelta.TemperatureDelta,
-                CalorieDelta = data.StatsDelta.CalorieDelta,
-                HydrationDelta = data.StatsDelta.HydrationDelta,
-                EnergyDelta = data.StatsDelta.EnergyDelta
-            };
-        }
-
-        // Restore damage over time if present
-        Effect.DamageOverTime? damage = null;
-        if (data.Damage != null && Enum.TryParse<DamageType>(data.Damage.DamageType, out var damageType))
-        {
-            damage = new Effect.DamageOverTime(data.Damage.PerHour, damageType);
-        }
-
-        return new Effect
-        {
-            // Identity
-            EffectKind = data.EffectKind,
-            TargetBodyPart = data.TargetBodyPart,
-
-            // State
-            Severity = data.Severity,
-            HourlySeverityChange = data.HourlySeverityChange,
-            RequiresTreatment = data.RequiresTreatment,
-            CanHaveMultiple = data.CanHaveMultiple,
-            IsActive = true,
-
-            // Effects
-            CapacityModifiers = CapacityModifierContainer.FromDictionary(data.CapacityModifiers),
-            StatsDelta = statsDelta ?? new SurvivalStatsDelta(),
-            Damage = damage,
-
-            // Messages
-            ApplicationMessage = data.ApplicationMessage,
-            RemovalMessage = data.RemovalMessage
-        };
-    }
+    private static Effect RestoreEffect(EffectSaveData data) => data.Adapt<Effect>();
 
     private static void RestoreInventory(Inventory inv, InventorySaveData data)
     {
-        // Clear existing
-        inv.Logs.Clear();
-        inv.Sticks.Clear();
-        inv.Tinder.Clear();
-        inv.CookedMeat.Clear();
-        inv.RawMeat.Clear();
-        inv.Berries.Clear();
-        inv.Stone.Clear();
-        inv.Bone.Clear();
-        inv.Hide.Clear();
-        inv.PlantFiber.Clear();
-        inv.Sinew.Clear();
-        inv.Tools.Clear();
-
-        // Restore resources
-        foreach (var item in data.Logs) inv.Logs.Push(item);
-        foreach (var item in data.Sticks) inv.Sticks.Push(item);
-        foreach (var item in data.Tinder) inv.Tinder.Push(item);
-        foreach (var item in data.CookedMeat) inv.CookedMeat.Push(item);
-        foreach (var item in data.RawMeat) inv.RawMeat.Push(item);
-        foreach (var item in data.Berries) inv.Berries.Push(item);
-        inv.WaterLiters = data.WaterLiters;
-        foreach (var item in data.Stone) inv.Stone.Push(item);
-        foreach (var item in data.Bone) inv.Bone.Push(item);
-        foreach (var item in data.Hide) inv.Hide.Push(item);
-        foreach (var item in data.PlantFiber) inv.PlantFiber.Push(item);
-        foreach (var item in data.Sinew) inv.Sinew.Push(item);
-
-        // Restore tools
-        foreach (var toolData in data.Tools)
-        {
-            inv.Tools.Add(RestoreTool(toolData));
-        }
-
-        // Restore equipment
-        inv.Head = data.Head != null ? RestoreEquipment(data.Head) : null;
-        inv.Chest = data.Chest != null ? RestoreEquipment(data.Chest) : null;
-        inv.Legs = data.Legs != null ? RestoreEquipment(data.Legs) : null;
-        inv.Feet = data.Feet != null ? RestoreEquipment(data.Feet) : null;
-        inv.Hands = data.Hands != null ? RestoreEquipment(data.Hands) : null;
-        inv.Weapon = data.Weapon != null ? RestoreTool(data.Weapon) : null;
-
-        // Restore active torch state
-        inv.ActiveTorch = data.ActiveTorch != null ? RestoreTool(data.ActiveTorch) : null;
-        inv.TorchBurnTimeRemainingMinutes = data.TorchBurnTimeRemainingMinutes;
-    }
-
-    private static Tool RestoreTool(ToolSaveData data)
-    {
-        var type = Enum.Parse<ToolType>(data.Type);
-        var tool = new Tool(data.Name, type, data.Weight)
-        {
-            Durability = data.Durability,
-            Damage = data.Damage,
-            BlockChance = data.BlockChance,
-            WeaponClass = data.WeaponClass != null ? Enum.Parse<WeaponClass>(data.WeaponClass) : null
-        };
-        return tool;
-    }
-
-    private static Equipment RestoreEquipment(EquipmentSaveData data)
-    {
-        var slot = Enum.Parse<EquipSlot>(data.Slot);
-        return new Equipment(data.Name, slot, data.Weight, data.Insulation);
+        data.Adapt(inv);
     }
 
     private static void RestoreZone(Zone zone, ZoneSaveData data)
@@ -564,23 +503,72 @@ public static class SaveDataConverter
             season
         );
 
-        // Build location name map for connection restoration
-        var locationMap = zone.Graph.All.ToDictionary(l => l.Name);
+        // Clear existing graph/locations (should be empty if loaded correctly, but safe to clear)
+        // Note: Graph.Clear() isn't available, but we can assume we're populating a fresh zone.
+        // If we are reusing a zone, we should ensure it's empty first.
+        
+        // Dictionary to hold all restored locations for connection linking
+        var restoredLocations = new Dictionary<Guid, Location>();
 
-        // Restore location states
-        foreach (var locData in data.Locations)
+        // Helper to create and populate a location
+        Location CreateAndRegister(LocationSaveData locData)
         {
-            if (!locationMap.TryGetValue(locData.Name, out var location))
-                continue;
-
-            // Restore explored state
-            if (locData.Explored && !location.Explored)
+            var loc = new Location(
+                locData.Name,
+                locData.Tags,
+                zone,
+                locData.BaseTraversalMinutes,
+                locData.TerrainHazardLevel,
+                locData.WindFactor,
+                locData.OverheadCoverLevel,
+                locData.VisibilityFactor
+            )
             {
-                location.Explore();
+                Id = locData.Id,
+                IsDark = locData.IsDark,
+                DiscoveryText = locData.DiscoveryText
+            };
+
+            if (locData.Explored)
+            {
+                loc.Explore();
             }
 
-            // Restore features
-            RestoreLocationFeatures(location, locData.Features);
+            RestoreLocationFeatures(loc, locData.Features);
+            restoredLocations[loc.Id] = loc;
+            return loc;
+        }
+
+        // 1. Reconstruct Revealed Locations
+        foreach (var locData in data.Locations)
+        {
+            var loc = CreateAndRegister(locData);
+            zone.Graph.Add(loc);
+        }
+
+        // 2. Reconstruct Unrevealed Locations
+        foreach (var locData in data.UnrevealedLocations)
+        {
+            var loc = CreateAndRegister(locData);
+            zone.AddUnrevealedLocation(loc);
+        }
+
+        // 3. Re-establish Connections
+        // We iterate through the save data again to link the instances we just created
+        var allLocData = data.Locations.Concat(data.UnrevealedLocations);
+        
+        foreach (var locData in allLocData)
+        {
+            if (!restoredLocations.TryGetValue(locData.Id, out var sourceLoc)) continue;
+
+            foreach (var connId in locData.ConnectionIds)
+            {
+                // We only need to link if target exists
+                if (restoredLocations.TryGetValue(connId, out var targetLoc))
+                {
+                    sourceLoc.AddConnection(targetLoc);
+                }
+            }
         }
     }
 
@@ -592,70 +580,85 @@ public static class SaveDataConverter
             {
                 case "HeatSourceFeature":
                     var fire = location.GetFeature<HeatSourceFeature>();
-                    if (fire != null)
+                    if (fire == null)
                     {
-                        var unburnedMix = ParseFuelMixture(featureData.UnburnedMixture);
-                        var burningMix = ParseFuelMixture(featureData.BurningMixture);
-
-                        fire.Restore(
-                            featureData.HasEmbers ?? false,
-                            featureData.UnburnedMassKg ?? 0,
-                            featureData.BurningMassKg ?? 0,
-                            featureData.MaxFuelCapacityKg ?? 10,
-                            featureData.EmberTimeRemaining ?? 0,
-                            featureData.EmberDuration ?? 0,
-                            featureData.EmberStartTemperature ?? 0,
-                            featureData.LastBurningTemperature ?? 0,
-                            unburnedMix,
-                            burningMix
-                        );
+                        fire = new HeatSourceFeature(featureData.MaxFuelCapacityKg ?? 10.0);
+                        location.AddFeature(fire);
                     }
+
+                    var unburnedMix = ParseFuelMixture(featureData.UnburnedMixture);
+                    var burningMix = ParseFuelMixture(featureData.BurningMixture);
+
+                    fire.Restore(
+                        featureData.HasEmbers ?? false,
+                        featureData.UnburnedMassKg ?? 0,
+                        featureData.BurningMassKg ?? 0,
+                        featureData.MaxFuelCapacityKg ?? 10,
+                        featureData.EmberTimeRemaining ?? 0,
+                        featureData.EmberDuration ?? 0,
+                        featureData.EmberStartTemperature ?? 0,
+                        featureData.LastBurningTemperature ?? 0,
+                        unburnedMix,
+                        burningMix
+                    );
                     break;
 
                 case "ForageFeature":
                     var forage = location.GetFeature<ForageFeature>();
-                    if (forage != null)
+                    if (forage == null)
                     {
-                        var resources = featureData.ForageResources?
-                            .Select(r => new ForageResource(
-                                r.Type,
-                                GetForageAddCallback(r.Type),
-                                r.Abundance,
-                                r.MinWeight,
-                                r.MaxWeight
-                            ))
-                            .ToList() ?? [];
-
-                        forage.RestoreState(
-                            featureData.NumberOfHoursForaged ?? 0,
-                            featureData.HoursSinceLastForage ?? 0,
-                            featureData.HasForagedBefore ?? false,
-                            resources
-                        );
+                        forage = new ForageFeature();
+                        location.AddFeature(forage);
                     }
+
+                    var resources = featureData.ForageResources?
+                        .Select(r => new ForageResource(
+                            r.Type,
+                            GetForageAddCallback(r.Type),
+                            r.Abundance,
+                            r.MinWeight,
+                            r.MaxWeight
+                        ))
+                        .ToList() ?? [];
+
+                    forage.RestoreState(
+                        featureData.NumberOfHoursForaged ?? 0,
+                        featureData.HoursSinceLastForage ?? 0,
+                        featureData.HasForagedBefore ?? false,
+                        resources
+                    );
                     break;
 
                 case "AnimalTerritoryFeature":
                     var territory = location.GetFeature<AnimalTerritoryFeature>();
-                    if (territory != null)
+                    if (territory == null)
                     {
-                        var animals = featureData.PossibleAnimals?
-                            .Select(a => new AnimalSpawnEntry(a.AnimalType, a.SpawnWeight))
-                            .ToList() ?? [];
-
-                        territory.RestoreState(
-                            featureData.GameDensity ?? 1.0,
-                            featureData.InitialDepletedDensity ?? 1.0,
-                            featureData.HoursSinceLastHunt ?? 0,
-                            featureData.HasBeenHunted ?? false,
-                            animals
-                        );
+                        territory = new AnimalTerritoryFeature();
+                        location.AddFeature(territory);
                     }
+
+                    var animals = featureData.PossibleAnimals?
+                        .Select(a => new AnimalSpawnEntry(a.AnimalType, a.SpawnWeight))
+                        .ToList() ?? [];
+
+                    territory.RestoreState(
+                        featureData.GameDensity ?? 1.0,
+                        featureData.InitialDepletedDensity ?? 1.0,
+                        featureData.HoursSinceLastHunt ?? 0,
+                        featureData.HasBeenHunted ?? false,
+                        animals
+                    );
                     break;
 
                 case "ShelterFeature":
                     var shelter = location.GetFeature<ShelterFeature>();
-                    shelter?.RestoreState(
+                    if (shelter == null)
+                    {
+                        shelter = new ShelterFeature(featureData.Name, 0, 0, 0);
+                        location.AddFeature(shelter);
+                    }
+                    
+                    shelter.RestoreState(
                         featureData.TemperatureInsulation ?? 0,
                         featureData.OverheadCoverage ?? 0,
                         featureData.WindCoverage ?? 0
@@ -664,7 +667,17 @@ public static class SaveDataConverter
 
                 case "SnareLineFeature":
                     var snareLine = location.GetFeature<SnareLineFeature>();
-                    if (snareLine != null && featureData.Snares != null)
+                    if (snareLine == null)
+                    {
+                        // SnareLineFeature requires an AnimalTerritoryFeature
+                        var snareTerritory = location.GetFeature<AnimalTerritoryFeature>() ?? new AnimalTerritoryFeature();
+                        if (location.GetFeature<AnimalTerritoryFeature>() == null)
+                            location.AddFeature(snareTerritory);
+                        snareLine = new SnareLineFeature(snareTerritory);
+                        location.AddFeature(snareLine);
+                    }
+
+                    if (featureData.Snares != null)
                     {
                         snareLine.ClearSnares();
                         foreach (var snareData in featureData.Snares)
@@ -685,6 +698,47 @@ public static class SaveDataConverter
                             );
                             snareLine.AddRestoredSnare(snare);
                         }
+                    }
+                    break;
+
+                case "CacheFeature":
+                    var cache = location.GetFeature<CacheFeature>();
+                    if (cache == null && featureData.CacheType != null)
+                    {
+                         cache = new CacheFeature(
+                             featureData.Name,
+                             Enum.Parse<CacheType>(featureData.CacheType),
+                             featureData.CacheCapacityKg ?? -1,
+                             featureData.CacheProtectsFromPredators ?? false,
+                             featureData.CacheProtectsFromWeather ?? false,
+                             featureData.CachePreservesFood ?? false
+                         );
+                         location.AddFeature(cache);
+                    }
+                    
+                    if (cache != null && featureData.CacheStorage != null)
+                    {
+                        RestoreInventory(cache.Storage, featureData.CacheStorage);
+                    }
+                    break;
+
+                case "CuringRackFeature":
+                    var rack = location.GetFeature<CuringRackFeature>();
+                    if (rack == null)
+                    {
+                        rack = new CuringRackFeature { Capacity = featureData.CuringRackCapacity ?? 4 };
+                        location.AddFeature(rack);
+                    }
+
+                    if (featureData.CuringItems != null)
+                    {
+                        var items = featureData.CuringItems.Select(i => (
+                            Enum.Parse<CurableItemType>(i.Type),
+                            i.WeightKg,
+                            i.MinutesCured,
+                            i.MinutesRequired
+                        ));
+                        rack.RestoreState(items);
                     }
                     break;
             }

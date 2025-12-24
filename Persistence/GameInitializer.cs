@@ -65,10 +65,20 @@ public static class GameInitializer
         if (saveData == null)
             return null;
 
-        // Create a fresh game context with the zone structure
-        var ctx = CreateNewGame();
+        // Create a blank zone container - SaveDataConverter will populate it
+        var zone = new Zone(saveData.Zone.Name, saveData.Zone.Description);
+        
+        // We need a dummy camp location to initialize the Context, 
+        // but it will be overwritten/corrected by RestoreFromSaveData
+        var dummyLoc = new Location("Loading...", "", zone, 0); 
+        // Note: Do not add dummyLoc to zone.Graph - it's temporary
 
-        // Restore state from save data
+        Player player = new Player();
+        Camp camp = new Camp(dummyLoc);
+        
+        var ctx = new GameContext(player, camp);
+
+        // Restore state from save data (this will replace the dummy location/zone content)
         SaveDataConverter.RestoreFromSaveData(ctx, saveData);
 
         return ctx;
