@@ -123,6 +123,15 @@ public partial class GameRunner(GameContext ctx)
         if (HasActiveFire() && (ctx.Inventory.RawMeat.Count > 0 || true)) // Snow always available (Ice Age)
             choice.AddOption("Cook/Melt", CookMelt);
 
+        // Torch management
+        if (CanLightTorch())
+            choice.AddOption("Light torch", LightTorch);
+        if (ctx.Inventory.HasLitTorch)
+        {
+            int mins = (int)ctx.Inventory.TorchBurnTimeRemainingMinutes;
+            choice.AddOption($"Extinguish torch ({mins} min remaining)", ExtinguishTorch);
+        }
+
         // Crafting - make tools from available materials
         if (ctx.Inventory.HasCraftingMaterials)
         {
@@ -132,6 +141,22 @@ public partial class GameRunner(GameContext ctx)
 
         if (HasItems() || ctx.Camp.Storage.CurrentWeightKg > 0)
             choice.AddOption("Inventory", RunInventoryMenu);
+
+        // Curing rack - if player has one at camp
+        if (ctx.Camp.CuringRack != null)
+        {
+            var rack = ctx.Camp.CuringRack;
+            string rackLabel = rack.HasReadyItems
+                ? "Curing rack (items ready!)"
+                : rack.ItemCount > 0
+                    ? $"Curing rack ({rack.ItemCount} items curing)"
+                    : "Curing rack (empty)";
+            choice.AddOption(rackLabel, UseCuringRack);
+        }
+
+        // Direct treatments - when player has treatable conditions and materials
+        if (CanApplyDirectTreatment())
+            choice.AddOption("Treat wounds", ApplyDirectTreatment);
 
         // Sleep emphasized when impaired
         if (isImpaired || ctx.player.Body.IsTired)
@@ -256,6 +281,13 @@ public partial class GameRunner(GameContext ctx)
             var fuelChoices = new List<string>();
             var fuelMap = new Dictionary<string, (string name, FuelType type, Func<double> takeFunc)>();
 
+            // Typed wood fuels - each with distinct burn characteristics
+            // Pine: fast/hot for cooking, Birch: moderate general use, Oak: slow overnight burns
+            AddWoodFuelOption(fuelChoices, fuelMap, fire, inv.Pine, "pine", FuelType.PineWood, () => inv.Pine.Pop(), "burns fast");
+            AddWoodFuelOption(fuelChoices, fuelMap, fire, inv.Birch, "birch", FuelType.BirchWood, () => inv.Birch.Pop(), "steady burn");
+            AddWoodFuelOption(fuelChoices, fuelMap, fire, inv.Oak, "oak", FuelType.OakWood, () => inv.Oak.Pop(), "long burn");
+
+            // Generic logs fallback (for legacy inventory)
             if (inv.Logs.Count > 0)
             {
                 if (fire.CanAddFuel(FuelType.Softwood))
@@ -266,7 +298,6 @@ public partial class GameRunner(GameContext ctx)
                 }
                 else
                 {
-                    // Show greyed-out option explaining why logs can't be added yet
                     string disabledLabel = "[dim]Add log (fire too small)[/]";
                     fuelChoices.Add(disabledLabel);
                     fuelMap[disabledLabel] = ("disabled", FuelType.Softwood, () => 0);
@@ -280,6 +311,14 @@ public partial class GameRunner(GameContext ctx)
                 fuelMap[label] = ("stick", FuelType.Kindling, () => inv.Sticks.Pop());
             }
 
+            // Birch bark as excellent tinder
+            if (inv.BirchBark.Count > 0 && fire.CanAddFuel(FuelType.BirchBark))
+            {
+                string label = $"Add birch bark ({inv.BirchBark.Count} @ {inv.BirchBark.Sum():F2}kg) - great tinder";
+                fuelChoices.Add(label);
+                fuelMap[label] = ("birch bark", FuelType.BirchBark, () => inv.BirchBark.Pop());
+            }
+
             if (inv.Tinder.Count > 0 && fire.CanAddFuel(FuelType.Tinder))
             {
                 string label = $"Add tinder ({inv.Tinder.Count} @ {inv.Tinder.Sum():F2}kg)";
@@ -287,7 +326,22 @@ public partial class GameRunner(GameContext ctx)
                 fuelMap[label] = ("tinder", FuelType.Tinder, () => inv.Tinder.Pop());
             }
 
-            if (fuelChoices.Count == 0)
+            // Show charcoal collection option if available
+            bool hasCharcoal = fire.HasCharcoal;
+            if (hasCharcoal)
+            {
+                string charcoalLabel = $"Collect charcoal ({fire.CharcoalAvailableKg:F2}kg)";
+                fuelChoices.Add(charcoalLabel);
+                fuelMap[charcoalLabel] = ("charcoal", FuelType.Tinder, () =>
+                {
+                    double collected = fire.CollectCharcoal();
+                    inv.Charcoal += collected;
+                    GameDisplay.AddSuccess(ctx, $"You collect {collected:F2}kg of charcoal from the fire pit.");
+                    return collected;
+                });
+            }
+
+            if (fuelChoices.Count == 0 && !hasCharcoal)
             {
                 // Check if we have fuel but fire is too cold
                 bool hasFuelButTooCold = (inv.Logs.Count > 0 || inv.Sticks.Count > 0) && inv.Tinder.Count == 0;
@@ -315,6 +369,14 @@ public partial class GameRunner(GameContext ctx)
                 continue;
             }
 
+            // Handle charcoal collection (already handled in takeFunc)
+            if (name == "charcoal")
+            {
+                takeFunc(); // Collects charcoal and shows message
+                ctx.Update(1, ActivityType.TendingFire);
+                continue;
+            }
+
             bool hadEmbers = fire.HasEmbers;
 
             // Take fuel from inventory and add to fire
@@ -327,6 +389,37 @@ public partial class GameRunner(GameContext ctx)
                 GameDisplay.AddNarrative(ctx, "The embers ignite the fuel! The fire springs back to life.");
 
             ctx.Update(1, ActivityType.TendingFire);
+        }
+    }
+
+    /// <summary>
+    /// Helper to add a typed wood fuel option to the TendFire menu.
+    /// Shows disabled option with reason if fire is too cold.
+    /// </summary>
+    private static void AddWoodFuelOption(
+        List<string> choices,
+        Dictionary<string, (string name, FuelType type, Func<double> takeFunc)> map,
+        HeatSourceFeature fire,
+        Stack<double> woodStack,
+        string woodName,
+        FuelType fuelType,
+        Func<double> takeFunc,
+        string burnDescription)
+    {
+        if (woodStack.Count == 0) return;
+
+        if (fire.CanAddFuel(fuelType))
+        {
+            string label = $"Add {woodName} ({woodStack.Count} @ {woodStack.Sum():F1}kg) - {burnDescription}";
+            choices.Add(label);
+            map[label] = (woodName, fuelType, takeFunc);
+        }
+        else
+        {
+            // Show greyed-out option explaining why it can't be added yet
+            string disabledLabel = $"[dim]Add {woodName} (fire too small)[/]";
+            choices.Add(disabledLabel);
+            map[disabledLabel] = ("disabled", fuelType, () => 0);
         }
     }
 
@@ -353,8 +446,10 @@ public partial class GameRunner(GameContext ctx)
             return;
         }
 
-        bool hasTinder = inv.Tinder.Count > 0;
+        bool hasTinder = inv.Tinder.Count > 0 || inv.BirchBark.Count > 0 || inv.Amadou.Count > 0;
         bool hasKindling = inv.Sticks.Count > 0;
+        bool hasBirchBark = inv.BirchBark.Count > 0;
+        bool hasAmadou = inv.Amadou.Count > 0;
 
         if (!hasTinder)
         {
@@ -368,7 +463,12 @@ public partial class GameRunner(GameContext ctx)
             return;
         }
 
-        GameDisplay.AddNarrative(ctx, $"Materials: {inv.Tinder.Count} tinder, {inv.Sticks.Count} kindling");
+        // Show materials with special tinder types highlighted
+        var tinderParts = new List<string>();
+        if (inv.Tinder.Count > 0) tinderParts.Add($"{inv.Tinder.Count} tinder");
+        if (hasBirchBark) tinderParts.Add($"{inv.BirchBark.Count} birch bark");
+        if (hasAmadou) tinderParts.Add($"{inv.Amadou.Count} amadou");
+        GameDisplay.AddNarrative(ctx, $"Materials: {string.Join(", ", tinderParts)}, {inv.Sticks.Count} kindling");
 
         // Build tool options with success chances
         var toolChoices = new List<string>();
@@ -426,12 +526,36 @@ public partial class GameRunner(GameContext ctx)
             if (isClumsy)
                 finalChance -= 0.25;
 
+            // Select best available tinder and get its ignition bonus
+            // Priority: Amadou (best) > BirchBark (great) > Regular Tinder
+            double tinderUsed;
+            FuelType tinderType;
+            string tinderName;
+            if (inv.Amadou.Count > 0)
+            {
+                tinderUsed = inv.Amadou.Pop();
+                tinderType = FuelType.Tinder; // Amadou burns like tinder
+                tinderName = "amadou";
+                finalChance += 0.20; // Amadou is the best fire-starting material
+            }
+            else if (inv.BirchBark.Count > 0)
+            {
+                tinderUsed = inv.BirchBark.Pop();
+                tinderType = FuelType.BirchBark;
+                tinderName = "birch bark";
+                finalChance += FuelDatabase.Get(FuelType.BirchBark).IgnitionBonus;
+            }
+            else
+            {
+                tinderUsed = inv.Tinder.Pop();
+                tinderType = FuelType.Tinder;
+                tinderName = "tinder";
+                finalChance += FuelDatabase.Get(FuelType.Tinder).IgnitionBonus;
+            }
+
             finalChance = Math.Clamp(finalChance, 0.05, 0.95);
 
             bool success = Utils.DetermineSuccess(finalChance);
-
-            // Always consume tinder on attempt
-            double tinderUsed = inv.Tinder.Pop();
 
             if (success)
             {
@@ -443,17 +567,17 @@ public partial class GameRunner(GameContext ctx)
                 if (relightingFire)
                 {
                     GameDisplay.AddSuccess(ctx, $"Success! You relight the fire! ({finalChance:P0} chance)");
-                    existingFire!.AddFuel(tinderUsed, FuelType.Tinder);
+                    existingFire!.AddFuel(tinderUsed, tinderType);
                     existingFire.AddFuel(kindlingUsed, FuelType.Kindling);
-                    existingFire.IgniteFuel(FuelType.Tinder, tinderUsed);
+                    existingFire.IgniteFuel(tinderType, tinderUsed);
                 }
                 else
                 {
                     GameDisplay.AddSuccess(ctx, $"Success! You start a fire! ({finalChance:P0} chance)");
                     var newFire = new HeatSourceFeature();
-                    newFire.AddFuel(tinderUsed, FuelType.Tinder);
+                    newFire.AddFuel(tinderUsed, tinderType);
                     newFire.AddFuel(kindlingUsed, FuelType.Kindling);
-                    newFire.IgniteFuel(FuelType.Tinder, tinderUsed);
+                    newFire.IgniteFuel(tinderType, tinderUsed);
                     ctx.CurrentLocation.Features.Add(newFire);
                 }
 
@@ -462,11 +586,12 @@ public partial class GameRunner(GameContext ctx)
             }
             else
             {
-                GameDisplay.AddWarning(ctx, $"You failed to start the fire. The tinder was wasted. ({finalChance:P0} chance)");
+                GameDisplay.AddWarning(ctx, $"You failed to start the fire. The {tinderName} was wasted. ({finalChance:P0} chance)");
                 ctx.player.Skills.GetSkill("Firecraft").GainExperience(1);
 
-                // Check if retry is possible
-                if (inv.Tinder.Count > 0 && inv.Sticks.Count > 0)
+                // Check if retry is possible with any tinder type
+                bool canRetry = (inv.Tinder.Count > 0 || inv.BirchBark.Count > 0 || inv.Amadou.Count > 0) && inv.Sticks.Count > 0;
+                if (canRetry)
                 {
                     GameDisplay.Render(ctx, statusText: "Thinking.");
                     if (Input.Confirm(ctx, $"Try again with {selectedTool.Name}?"))
@@ -486,6 +611,153 @@ public partial class GameRunner(GameContext ctx)
             "Fire Striker" or "Flint and Steel" => 0.90,
             _ => 0.50  // Default for generic fire strikers
         };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TORCH MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Check if player can light a torch.
+    /// Requires: unlit torch AND (active fire OR lit torch OR tinder+firestarter)
+    /// </summary>
+    private bool CanLightTorch()
+    {
+        if (!ctx.Inventory.HasUnlitTorch) return false;
+
+        // Can light from active fire (free)
+        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+        if (fire?.IsActive == true) return true;
+
+        // Can light from another lit torch (free)
+        if (ctx.Inventory.HasLitTorch) return true;
+
+        // Can light with tinder + firestarter (consumes tinder)
+        bool hasTinder = ctx.Inventory.HasTinder;
+        bool hasFirestarter = ctx.Inventory.Tools.Any(t =>
+            t.Type is ToolType.FireStriker or ToolType.HandDrill or ToolType.BowDrill);
+        return hasTinder && hasFirestarter;
+    }
+
+    /// <summary>
+    /// Light a torch from available flame source.
+    /// From fire/torch: FREE. From tinder+firestarter: consumes tinder.
+    /// </summary>
+    private void LightTorch()
+    {
+        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+        bool hasActiveFire = fire?.IsActive == true;
+        bool hasLitTorch = ctx.Inventory.HasLitTorch;
+
+        // Determine lighting method
+        if (hasActiveFire)
+        {
+            // Free lighting from fire
+            ctx.Inventory.LightTorch();
+            GameDisplay.AddSuccess(ctx, "You light a torch from the fire. It burns steadily.");
+            ctx.Update(1, ActivityType.Idle);
+        }
+        else if (hasLitTorch)
+        {
+            // Free lighting from existing torch
+            ctx.Inventory.LightTorch();
+            GameDisplay.AddSuccess(ctx, "You light a fresh torch from your dying flame.");
+            ctx.Update(1, ActivityType.Idle);
+        }
+        else
+        {
+            // Need to use firestarter + tinder (same mechanics as fire starting but simpler)
+            LightTorchWithFirestarter();
+        }
+    }
+
+    /// <summary>
+    /// Light a torch using firestarter and tinder (similar to fire starting but simpler).
+    /// </summary>
+    private void LightTorchWithFirestarter()
+    {
+        var inv = ctx.Inventory;
+
+        // Get fire-making tools
+        var fireTools = inv.Tools.Where(t =>
+            t.Type is ToolType.FireStriker or ToolType.HandDrill or ToolType.BowDrill).ToList();
+
+        if (fireTools.Count == 0)
+        {
+            GameDisplay.AddWarning(ctx, "You don't have a fire-making tool!");
+            return;
+        }
+
+        // Build tool options
+        var toolChoices = new List<string>();
+        var toolMap = new Dictionary<string, (Tool tool, double chance)>();
+
+        foreach (var tool in fireTools)
+        {
+            double baseChance = GetFireToolBaseChance(tool);
+            var skill = ctx.player.Skills.GetSkill("Firecraft");
+            double successChance = baseChance + (skill.Level * 0.1);
+            successChance = Math.Clamp(successChance, 0.05, 0.95);
+
+            string label = $"{tool.Name} - {successChance:P0} success";
+            toolChoices.Add(label);
+            toolMap[label] = (tool, successChance);
+        }
+        toolChoices.Add("Cancel");
+
+        GameDisplay.Render(ctx, statusText: "Preparing.");
+        string choice = Input.Select(ctx, "Light torch with:", toolChoices);
+
+        if (choice == "Cancel")
+        {
+            GameDisplay.AddNarrative(ctx, "You decide not to light the torch.");
+            return;
+        }
+
+        var (selectedTool, _) = toolMap[choice];
+
+        // Consume tinder
+        inv.Take("Tinder");
+
+        double finalChance = GetFireToolBaseChance(selectedTool);
+        var playerSkill = ctx.player.Skills.GetSkill("Firecraft");
+        finalChance += playerSkill.Level * 0.1;
+        finalChance = Math.Clamp(finalChance, 0.05, 0.95);
+
+        GameDisplay.AddNarrative(ctx, $"You work with the {selectedTool.Name}...");
+        ctx.Update(2, ActivityType.TendingFire);
+
+        if (Utils.DetermineSuccess(finalChance))
+        {
+            inv.LightTorch();
+            GameDisplay.AddSuccess(ctx, $"Success! The torch catches fire. ({finalChance:P0} chance)");
+            playerSkill.GainExperience(1);
+        }
+        else
+        {
+            GameDisplay.AddWarning(ctx, $"The tinder fizzles out. The torch didn't light. ({finalChance:P0} chance)");
+            playerSkill.GainExperience(1);
+
+            // Offer retry if materials available
+            if (inv.HasTinder)
+            {
+                GameDisplay.Render(ctx, statusText: "Thinking.");
+                if (Input.Confirm(ctx, "Try again?"))
+                    LightTorchWithFirestarter();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extinguish an active torch. The torch is consumed (cannot be relit).
+    /// </summary>
+    private void ExtinguishTorch()
+    {
+        if (ctx.Inventory.ActiveTorch == null) return;
+
+        GameDisplay.AddNarrative(ctx, "You snuff out the torch. It crumbles to ash.");
+        ctx.Inventory.ActiveTorch = null;
+        ctx.Inventory.TorchBurnTimeRemainingMinutes = 0;
     }
 
     private void Sleep()
@@ -511,7 +783,7 @@ public partial class GameRunner(GameContext ctx)
 
     private void Wait()
     {
-        var result = ctx.Update(1, ActivityType.Resting, render: true);
+        GameDisplay.UpdateAndRenderProgress(ctx, "Resting", 5, ActivityType.Resting);
     }
 
     private bool HasItems()
@@ -652,7 +924,6 @@ public partial class GameRunner(GameContext ctx)
 
         while (true)
         {
-            GameDisplay.AddNarrative(ctx, $"Water: {inv.WaterLiters:F1}L | Raw meat: {inv.RawMeat.Count}");
             GameDisplay.Render(ctx, statusText: "Cooking.");
 
             var options = new List<string>();
@@ -693,6 +964,103 @@ public partial class GameRunner(GameContext ctx)
             actions[choice]();
             GameDisplay.Render(ctx, statusText: "Cooking.");
             Input.WaitForKey(ctx);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CURING RACK
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    private void UseCuringRack()
+    {
+        var rack = ctx.Camp.CuringRack!;
+        var inv = ctx.Inventory;
+
+        while (true)
+        {
+            GameDisplay.AddNarrative(ctx, rack.GetDescription());
+            GameDisplay.Render(ctx, statusText: "Checking rack.");
+
+            var options = new List<string>();
+            var actions = new Dictionary<string, Action>();
+
+            // Collect finished items
+            if (rack.HasReadyItems)
+            {
+                string collectOpt = "Collect finished items";
+                options.Add(collectOpt);
+                actions[collectOpt] = () =>
+                {
+                    int collected = rack.CollectFinished(inv);
+                    GameDisplay.AddSuccess(ctx, $"You collected {collected} item(s) from the rack.");
+                };
+            }
+
+            // Add items to rack (if space available)
+            if (rack.HasSpace)
+            {
+                // Scraped hide -> Cured hide
+                if (inv.ScrapedHide.Count > 0)
+                {
+                    double w = inv.ScrapedHide.Peek();
+                    string opt = $"Hang scraped hide ({w:F1}kg) - 2 days to cure";
+                    options.Add(opt);
+                    actions[opt] = () =>
+                    {
+                        double weight = inv.ScrapedHide.Pop();
+                        rack.AddItem(CurableItemType.ScrapedHide, weight);
+                        GameDisplay.AddSuccess(ctx, "You hang the hide on the rack to cure.");
+                    };
+                }
+
+                // Raw meat -> Dried meat
+                if (inv.RawMeat.Count > 0)
+                {
+                    double w = inv.RawMeat.Peek();
+                    string opt = $"Hang raw meat ({w:F1}kg) - 1 day to dry";
+                    options.Add(opt);
+                    actions[opt] = () =>
+                    {
+                        double weight = inv.RawMeat.Pop();
+                        rack.AddItem(CurableItemType.RawMeat, weight);
+                        GameDisplay.AddSuccess(ctx, "You hang the meat on the rack to dry.");
+                    };
+                }
+
+                // Berries -> Dried berries
+                if (inv.Berries.Count > 0)
+                {
+                    double w = inv.Berries.Peek();
+                    string opt = $"Spread berries ({w:F2}kg) - 12 hours to dry";
+                    options.Add(opt);
+                    actions[opt] = () =>
+                    {
+                        double weight = inv.Berries.Pop();
+                        rack.AddItem(CurableItemType.Berries, weight);
+                        GameDisplay.AddSuccess(ctx, "You spread the berries on the rack to dry.");
+                    };
+                }
+            }
+            else if (!rack.HasReadyItems)
+            {
+                GameDisplay.AddNarrative(ctx, "The rack is full.");
+            }
+
+            options.Add("Done");
+
+            if (options.Count == 1)
+            {
+                // Nothing to do
+                break;
+            }
+
+            string choice = Input.Select(ctx, "Curing rack:", options);
+
+            if (choice == "Done")
+                break;
+
+            actions[choice]();
+            ctx.Update(2, ActivityType.Crafting); // Brief time to add/collect
         }
     }
 
@@ -885,5 +1253,146 @@ public partial class GameRunner(GameContext ctx)
             GameDisplay.AddWarning(ctx, message);
         else
             GameDisplay.AddSuccess(ctx, message);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DIRECT TREATMENTS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Direct treatments: apply resources directly to wounds/conditions.
+    /// Different from crafted treatments (teas/poultices) which go through crafting.
+    /// </summary>
+    private static readonly List<(string Resource, string EffectKind, string Description, double EffectReduction)> DirectTreatments =
+    [
+        ("Amadou", "Bleeding", "Press amadou into wound to stop bleeding", 0.5),
+        ("Sphagnum", "Bleeding", "Pack sphagnum moss as absorbent dressing", 0.4),
+        ("PineResin", "Bleeding", "Seal wound with pine resin", 0.3),
+        ("Usnea", "Fever", "Apply usnea as antimicrobial dressing", 0.25),
+        ("BirchPolypore", "Fever", "Use birch polypore for infection", 0.2),
+    ];
+
+    private bool CanApplyDirectTreatment()
+    {
+        var effects = ctx.player.EffectRegistry.GetAll();
+        var inv = ctx.Inventory;
+
+        foreach (var (resource, effectKind, _, _) in DirectTreatments)
+        {
+            // Check if player has this effect
+            if (!effects.Any(e => e.EffectKind.Equals(effectKind, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            // Check if player has the resource
+            if (inv.GetCount(resource) > 0)
+                return true;
+        }
+        return false;
+    }
+
+    private void ApplyDirectTreatment()
+    {
+        var effects = ctx.player.EffectRegistry.GetAll();
+        var inv = ctx.Inventory;
+
+        // Build list of available treatments
+        var available = new List<(string Resource, string EffectKind, string Description, double EffectReduction)>();
+
+        foreach (var treatment in DirectTreatments)
+        {
+            // Check if player has this effect
+            if (!effects.Any(e => e.EffectKind.Equals(treatment.EffectKind, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            // Check if player has the resource
+            if (inv.GetCount(treatment.Resource) > 0)
+                available.Add(treatment);
+        }
+
+        if (available.Count == 0)
+        {
+            GameDisplay.AddNarrative(ctx, "You don't have the right materials to treat your wounds.");
+            GameDisplay.Render(ctx, statusText: "Thinking.");
+            Input.WaitForKey(ctx);
+            return;
+        }
+
+        // Show current conditions
+        var treatable = effects.Where(e => DirectTreatments.Any(t =>
+            t.EffectKind.Equals(e.EffectKind, StringComparison.OrdinalIgnoreCase))).ToList();
+
+        GameDisplay.AddNarrative(ctx, "Current conditions:");
+        foreach (var effect in treatable)
+        {
+            string severity = effect.Severity switch
+            {
+                < 0.33 => "mild",
+                < 0.66 => "moderate",
+                _ => "severe"
+            };
+            GameDisplay.AddNarrative(ctx, $"  {effect.EffectKind} ({severity})");
+        }
+
+        // Build choice menu
+        var choice = new Choice<(string, string, string, double)?>("Apply treatment:");
+
+        foreach (var t in available)
+        {
+            string label = $"{t.Description} ({inv.GetCount(t.Resource)} available)";
+            choice.AddOption(label, t);
+        }
+        choice.AddOption("Cancel", null);
+
+        GameDisplay.Render(ctx, statusText: "Deciding.");
+        var selected = choice.GetPlayerChoice(ctx);
+
+        if (selected == null)
+            return;
+
+        var (resource, effectKind, description, reduction) = selected.Value;
+
+        // Consume resource
+        inv.Take(resource);
+
+        // Find and reduce the effect
+        var targetEffect = effects.FirstOrDefault(e =>
+            e.EffectKind.Equals(effectKind, StringComparison.OrdinalIgnoreCase));
+
+        if (targetEffect != null)
+        {
+            double oldSeverity = targetEffect.Severity;
+            targetEffect.Severity = Math.Max(0, targetEffect.Severity - reduction);
+
+            // Time cost for treatment
+            ctx.Update(5, ActivityType.TendingFire); // Using TendingFire as closest match
+
+            // Messages based on treatment effectiveness
+            string resourceName = resource switch
+            {
+                "Amadou" => "amadou",
+                "Sphagnum" => "sphagnum moss",
+                "PineResin" => "pine resin",
+                "Usnea" => "usnea lichen",
+                "BirchPolypore" => "birch polypore",
+                _ => resource.ToLower()
+            };
+
+            if (targetEffect.Severity <= 0)
+            {
+                ctx.player.EffectRegistry.RemoveEffect(targetEffect);
+                GameDisplay.AddSuccess(ctx, $"You apply the {resourceName}. The {effectKind.ToLower()} has stopped.");
+            }
+            else if (targetEffect.Severity < oldSeverity * 0.5)
+            {
+                GameDisplay.AddSuccess(ctx, $"You apply the {resourceName}. The {effectKind.ToLower()} is much better.");
+            }
+            else
+            {
+                GameDisplay.AddNarrative(ctx, $"You apply the {resourceName}. The {effectKind.ToLower()} is slightly better.");
+            }
+        }
+
+        GameDisplay.Render(ctx, statusText: "Treating.");
+        Input.WaitForKey(ctx);
     }
 }

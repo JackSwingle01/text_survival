@@ -86,6 +86,44 @@ public class Inventory
     public Equipment? Hands { get; set; }
     public Tool? Weapon { get; set; }
 
+    // Active torch tracking
+    public Tool? ActiveTorch { get; set; }
+    public double TorchBurnTimeRemainingMinutes { get; set; }
+
+    /// <summary>Check if player has a lit torch burning.</summary>
+    public bool HasLitTorch => ActiveTorch != null && TorchBurnTimeRemainingMinutes > 0;
+
+    /// <summary>Check if player has an unlit torch in inventory.</summary>
+    public bool HasUnlitTorch => Tools.Any(t => t.Type == ToolType.Torch && t.Works);
+
+    /// <summary>Check if player has tinder for fire-starting.</summary>
+    public bool HasTinder => Tinder.Count > 0;
+
+    /// <summary>
+    /// Get torch heat bonus in °F (5°F when fresh, 3°F when nearly spent).
+    /// </summary>
+    public double GetTorchHeatBonusF()
+    {
+        if (!HasLitTorch) return 0;
+        double burnPct = TorchBurnTimeRemainingMinutes / 60.0;
+        return 3.0 + (2.0 * burnPct);  // 5°F fresh, 3°F nearly spent
+    }
+
+    /// <summary>
+    /// Light a torch from inventory. Sets it as active with 60 min burn time.
+    /// Returns true if successful.
+    /// </summary>
+    public bool LightTorch()
+    {
+        var torch = Tools.FirstOrDefault(t => t.Type == ToolType.Torch && t.Works);
+        if (torch == null) return false;
+
+        Tools.Remove(torch);
+        ActiveTorch = torch;
+        TorchBurnTimeRemainingMinutes = 60;
+        return true;
+    }
+
     // Weight calculations
     public double FuelWeightKg => Logs.Sum() + Sticks.Sum() + Tinder.Sum();
     public double FoodWeightKg => CookedMeat.Sum() + RawMeat.Sum() + Berries.Sum() +
@@ -108,7 +146,8 @@ public class Inventory
 
     public double CurrentWeightKg =>
         FuelWeightKg + FoodWeightKg + WaterWeightKg + CraftingMaterialsWeightKg +
-        WoodWeightKg + MedicinalWeightKg + ToolsWeightKg + SpecialWeightKg + EquipmentWeightKg;
+        WoodWeightKg + MedicinalWeightKg + ToolsWeightKg + SpecialWeightKg + EquipmentWeightKg +
+        (ActiveTorch?.Weight ?? 0);
 
     /// <summary>
     /// Total insulation from all worn equipment (0-1 scale per slot, summed).
@@ -214,6 +253,7 @@ public class Inventory
         // Stone types
         "Shale" => Shale.Count,
         "Flint" => Flint.Count,
+        "Pyrite" => (int)(Pyrite / 0.05),  // 0.05kg per "unit" for crafting
 
         // Wood types
         "Pine" => Pine.Count,
@@ -271,6 +311,7 @@ public class Inventory
         // Stone types
         "Shale" => Shale.TryPop(out var sh) ? sh : 0,
         "Flint" => Flint.TryPop(out var fl) ? fl : 0,
+        "Pyrite" => TakePyrite(),
 
         // Wood types
         "Pine" => Pine.TryPop(out var pi) ? pi : 0,
@@ -424,6 +465,7 @@ public class Inventory
         MultiplyStack(Bone, multiplier);
         MultiplyStack(Hide, multiplier);
         MultiplyStack(Sinew, multiplier);
+        MultiplyStack(RawFat, multiplier);
     }
 
     /// <summary>
@@ -446,6 +488,20 @@ public class Inventory
         stack.Clear();
         foreach (var item in items)
             stack.Push(item * multiplier);
+    }
+
+    /// <summary>
+    /// Take one "unit" of pyrite (0.05kg) for crafting.
+    /// </summary>
+    private double TakePyrite()
+    {
+        const double unitKg = 0.05;
+        if (Pyrite >= unitKg)
+        {
+            Pyrite -= unitKg;
+            return unitKg;
+        }
+        return 0;
     }
 
     /// <summary>

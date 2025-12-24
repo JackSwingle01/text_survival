@@ -80,6 +80,9 @@ public class CraftingRunner(GameContext ctx)
     {
         var options = _crafting.GetOptionsForNeed(need, _ctx.Inventory);
 
+        // Filter out features that already exist at camp (can only build one)
+        options = options.Where(o => !IsFeatureAlreadyBuilt(o)).ToList();
+
         if (options.Count == 0)
         {
             GameDisplay.AddNarrative(_ctx, "You don't have any materials for this.");
@@ -165,33 +168,75 @@ public class CraftingRunner(GameContext ctx)
         if (!_ctx.player.IsAlive)
             return false;
 
-        // Create the tool
-        var tool = option.Craft(_ctx.Inventory);
-
-        // Auto-equip weapons, otherwise add to tools
-        if (tool.IsWeapon)
+        // Handle different recipe outputs
+        if (option.ProducesFeature)
         {
-            var previous = _ctx.Inventory.EquipWeapon(tool);
+            // Feature recipe (e.g., curing rack) - adds to camp location
+            var feature = option.CraftFeature(_ctx.Inventory);
+            if (feature == null)
+                return false;
+
+            _ctx.Camp.Location.AddFeature(feature);
+            GameDisplay.AddSuccess(_ctx, $"You built a {option.Name}!");
+            GameDisplay.AddNarrative(_ctx, "It's now available at your camp.");
+        }
+        else if (option.ProducesEquipment)
+        {
+            // Equipment recipe
+            var equipment = option.CraftEquipment(_ctx.Inventory);
+            if (equipment == null)
+                return false;
+
+            var previous = _ctx.Inventory.Equip(equipment);
+            GameDisplay.AddSuccess(_ctx, $"You crafted {equipment.Name}!");
             if (previous != null)
             {
-                _ctx.Inventory.Tools.Add(previous);
-                GameDisplay.AddSuccess(_ctx, $"You crafted a {tool.Name}!");
-                GameDisplay.AddNarrative(_ctx, $"You swap your {previous.Name} for the {tool.Name}.");
+                GameDisplay.AddNarrative(_ctx, $"You replace your {previous.Name}.");
+                // Note: previous item is lost - could add to camp storage in future
             }
             else
             {
-                GameDisplay.AddSuccess(_ctx, $"You crafted a {tool.Name}!");
-                GameDisplay.AddNarrative(_ctx, $"You equip the {tool.Name}.");
+                GameDisplay.AddNarrative(_ctx, $"You put on the {equipment.Name}.");
             }
         }
         else
         {
-            _ctx.Inventory.Tools.Add(tool);
-            GameDisplay.AddSuccess(_ctx, $"You crafted a {tool.Name}!");
-        }
-        if (option.Durability > 0)
-        {
-            GameDisplay.AddNarrative(_ctx, $"It should last for about {option.Durability} uses.");
+            // Create the tool (or process materials)
+            var tool = option.Craft(_ctx.Inventory);
+
+            if (tool == null)
+            {
+                // Processing recipe - materials were added to inventory
+                GameDisplay.AddSuccess(_ctx, $"You produced {option.GetOutputDescription()}!");
+            }
+            else
+            {
+                // Auto-equip weapons, otherwise add to tools
+                if (tool.IsWeapon)
+                {
+                    var previous = _ctx.Inventory.EquipWeapon(tool);
+                    if (previous != null)
+                    {
+                        _ctx.Inventory.Tools.Add(previous);
+                        GameDisplay.AddSuccess(_ctx, $"You crafted a {tool.Name}!");
+                        GameDisplay.AddNarrative(_ctx, $"You swap your {previous.Name} for the {tool.Name}.");
+                    }
+                    else
+                    {
+                        GameDisplay.AddSuccess(_ctx, $"You crafted a {tool.Name}!");
+                        GameDisplay.AddNarrative(_ctx, $"You equip the {tool.Name}.");
+                    }
+                }
+                else
+                {
+                    _ctx.Inventory.Tools.Add(tool);
+                    GameDisplay.AddSuccess(_ctx, $"You crafted a {tool.Name}!");
+                }
+                if (option.Durability > 0)
+                {
+                    GameDisplay.AddNarrative(_ctx, $"It should last for about {option.Durability} uses.");
+                }
+            }
         }
 
         GameDisplay.Render(_ctx, statusText: "Satisfied.");
@@ -205,6 +250,11 @@ public class CraftingRunner(GameContext ctx)
         NeedCategory.FireStarting => "Fire-starting supplies",
         NeedCategory.CuttingTool => "A cutting tool",
         NeedCategory.HuntingWeapon => "A hunting weapon",
+        NeedCategory.Trapping => "Trapping equipment",
+        NeedCategory.Processing => "Process materials",
+        NeedCategory.Treatment => "Medical treatments",
+        NeedCategory.Equipment => "Clothing and gear",
+        NeedCategory.Lighting => "Light sources",
         _ => need.ToString()
     };
 
@@ -213,6 +263,29 @@ public class CraftingRunner(GameContext ctx)
         NeedCategory.FireStarting => "something to start a fire with",
         NeedCategory.CuttingTool => "a cutting tool",
         NeedCategory.HuntingWeapon => "a hunting weapon",
+        NeedCategory.Trapping => "trapping equipment",
+        NeedCategory.Processing => "processing raw materials",
+        NeedCategory.Treatment => "medical treatments",
+        NeedCategory.Equipment => "clothing and gear",
+        NeedCategory.Lighting => "a light source",
         _ => need.ToString().ToLower()
     };
+
+    /// <summary>
+    /// Check if a feature-producing recipe has already been built at camp.
+    /// Used to prevent building duplicate camp structures.
+    /// </summary>
+    private bool IsFeatureAlreadyBuilt(CraftOption option)
+    {
+        if (!option.ProducesFeature)
+            return false;
+
+        // Check specific feature types
+        if (option.Name == "Curing Rack")
+            return _ctx.Camp.CuringRack != null;
+
+        // Add other feature checks here as needed
+
+        return false;
+    }
 }

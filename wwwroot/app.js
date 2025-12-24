@@ -67,6 +67,15 @@ class GameClient {
     }
 
     renderState(state) {
+        // Debug: log raw capacity values
+        if (state.debugCapacities || state.debugEffectModifiers) {
+            console.log('=== VITALITY DEBUG ===');
+            console.log('Final Vitality:', state.vitality);
+            console.log('Effect Modifiers:', state.debugEffectModifiers);
+            console.log('Final Capacities:', state.debugCapacities);
+            console.log('======================');
+        }
+
         // CSS variables
         document.documentElement.style.setProperty('--warmth', state.warmth);
         document.documentElement.style.setProperty('--vitality', state.vitality);
@@ -115,8 +124,96 @@ class GameClient {
         document.getElementById('fuelReserve').textContent =
             `${state.fuelKg.toFixed(1)}kg (${state.fuelBurnTime})`;
 
+        // Gear summary (from inventory)
+        if (state.gearSummary) {
+            this.renderGearSummary(state.gearSummary);
+        }
+
         // Narrative log
         this.renderLog(state.log);
+    }
+
+    renderGearSummary(summary) {
+        // Weapon display
+        const weaponEl = document.getElementById('gearWeapon');
+        if (summary.weaponName) {
+            weaponEl.style.display = '';
+            document.getElementById('weaponName').textContent = summary.weaponName;
+            document.getElementById('weaponStat').textContent =
+                `${summary.weaponDamage?.toFixed(0) || 0} dmg`;
+        } else {
+            weaponEl.style.display = 'none';
+        }
+
+        // Tool pills
+        const pillsContainer = document.getElementById('toolPills');
+        this.clearElement(pillsContainer);
+
+        if (summary.cuttingToolCount > 0) {
+            this.addToolPill(pillsContainer, 'cutting',
+                summary.cuttingToolCount > 1
+                    ? `${summary.cuttingToolCount} blades`
+                    : 'Blade');
+        }
+        if (summary.fireStarterCount > 0) {
+            this.addToolPill(pillsContainer, 'fire',
+                summary.fireStarterCount > 1
+                    ? `${summary.fireStarterCount} fire tools`
+                    : 'Fire tool');
+        }
+        if (summary.otherToolCount > 0) {
+            this.addToolPill(pillsContainer, 'other',
+                summary.otherToolCount > 1
+                    ? `${summary.otherToolCount} tools`
+                    : 'Tool');
+        }
+
+        // Food/Water combined summary
+        const foodWaterSummary = document.getElementById('foodWaterSummary');
+        if (summary.foodPortions === 0 && summary.waterPortions === 0) {
+            foodWaterSummary.textContent = 'None';
+            foodWaterSummary.className = 'gear-value food-empty';
+        } else {
+            let parts = [];
+            if (summary.foodPortions > 0) {
+                let foodText = `${summary.foodPortions} food`;
+                if (summary.hasPreservedFood) foodText += ' +dried';
+                parts.push(foodText);
+            }
+            if (summary.waterPortions > 0) {
+                parts.push(`${summary.waterPortions} water`);
+            }
+            foodWaterSummary.textContent = parts.join(' • ');
+            foodWaterSummary.className = 'gear-value';
+        }
+
+        // Medicinals summary
+        const medicinalEl = document.getElementById('gearMedicinals');
+        if (summary.medicinalCount > 0) {
+            medicinalEl.style.display = '';
+            document.getElementById('medicinalsSummary').textContent =
+                `${summary.medicinalCount} item${summary.medicinalCount > 1 ? 's' : ''}`;
+        } else {
+            medicinalEl.style.display = 'none';
+        }
+
+        // Materials summary
+        const materialsEl = document.getElementById('gearMaterials');
+        if (summary.craftingMaterialCount > 0) {
+            materialsEl.style.display = '';
+            document.getElementById('materialsCount').textContent = summary.craftingMaterialCount.toString();
+            const rareIndicator = document.getElementById('rareIndicator');
+            rareIndicator.style.display = summary.hasRareMaterials ? '' : 'none';
+        } else {
+            materialsEl.style.display = 'none';
+        }
+    }
+
+    addToolPill(container, type, text) {
+        const pill = document.createElement('span');
+        pill.className = `tool-pill ${type}`;
+        pill.textContent = text;
+        container.appendChild(pill);
     }
 
     updateDeepOceanBackground(clockTime) {
@@ -689,82 +786,19 @@ class GameClient {
         document.getElementById('inventoryWeight').textContent =
             `${inv.currentWeightKg.toFixed(1)} / ${inv.maxWeightKg.toFixed(0)} kg`;
 
-        // Gear section
-        const gearContent = document.querySelector('#invGear .inv-content');
-        this.clearElement(gearContent);
+        // Render each section
+        this.renderInvGear(inv);
+        this.renderInvFuel(inv);
+        this.renderInvFood(inv);
+        this.renderInvWater(inv);
+        this.renderInvMaterials(inv);
+        this.renderInvMedicinals(inv);
 
-        if (inv.weapon) {
-            this.addInvItem(gearContent, `Weapon: ${inv.weapon}`, `${inv.weaponDamage?.toFixed(0) || 0} dmg`);
-        }
-
-        if (inv.armor && inv.armor.length > 0) {
-            inv.armor.forEach(a => {
-                this.addInvItem(gearContent, `${a.slot}: ${a.name}`, `+${(a.insulation * 100).toFixed(0)}%`);
-            });
-        }
-
-        if (inv.tools && inv.tools.length > 0) {
-            inv.tools.forEach(t => {
-                const dmg = t.damage ? ` (${t.damage.toFixed(0)} dmg)` : '';
-                this.addInvItem(gearContent, t.name + dmg, '');
-            });
-        }
-
-        if (inv.totalInsulation > 0) {
-            this.addInvItem(gearContent, 'Total Insulation', `+${(inv.totalInsulation * 100).toFixed(0)}%`);
-        }
-
-        if (gearContent.children.length === 0) {
-            this.addNoneItem(gearContent);
-        }
-
-        // Fuel section
-        const fuelContent = document.querySelector('#invFuel .inv-content');
-        this.clearElement(fuelContent);
-
-        if (inv.logCount > 0) this.addInvItem(fuelContent, `${inv.logCount} logs`, `${inv.logsKg.toFixed(1)}kg`);
-        if (inv.stickCount > 0) this.addInvItem(fuelContent, `${inv.stickCount} sticks`, `${inv.sticksKg.toFixed(1)}kg`);
-        if (inv.tinderCount > 0) this.addInvItem(fuelContent, `${inv.tinderCount} tinder`, `${inv.tinderKg.toFixed(2)}kg`);
-
-        if (fuelContent.children.length > 0) {
-            this.addInvItem(fuelContent, 'Burn time', `~${inv.fuelBurnTimeHours.toFixed(1)} hrs`);
-        } else {
-            this.addNoneItem(fuelContent);
-        }
-
-        // Food section
-        const foodContent = document.querySelector('#invFood .inv-content');
-        this.clearElement(foodContent);
-
-        if (inv.cookedMeatCount > 0) this.addInvItem(foodContent, `${inv.cookedMeatCount} cooked meat`, `${inv.cookedMeatKg.toFixed(1)}kg`);
-        if (inv.rawMeatCount > 0) this.addInvItem(foodContent, `${inv.rawMeatCount} raw meat`, `${inv.rawMeatKg.toFixed(1)}kg`);
-        if (inv.berryCount > 0) this.addInvItem(foodContent, `${inv.berryCount} berries`, `${inv.berriesKg.toFixed(2)}kg`);
-        if (inv.waterLiters > 0) this.addInvItem(foodContent, 'Water', `${inv.waterLiters.toFixed(1)}L`);
-
-        if (foodContent.children.length === 0) {
-            this.addNoneItem(foodContent);
-        }
-
-        // Materials section
-        const matContent = document.querySelector('#invMaterials .inv-content');
-        this.clearElement(matContent);
-
-        if (inv.stoneCount > 0) this.addInvItem(matContent, `${inv.stoneCount} stone`, `${inv.stoneKg.toFixed(1)}kg`);
-        if (inv.boneCount > 0) this.addInvItem(matContent, `${inv.boneCount} bone`, `${inv.boneKg.toFixed(1)}kg`);
-        if (inv.hideCount > 0) this.addInvItem(matContent, `${inv.hideCount} hide`, `${inv.hideKg.toFixed(1)}kg`);
-        if (inv.plantFiberCount > 0) this.addInvItem(matContent, `${inv.plantFiberCount} plant fiber`, `${inv.plantFiberKg.toFixed(2)}kg`);
-        if (inv.sinewCount > 0) this.addInvItem(matContent, `${inv.sinewCount} sinew`, `${inv.sinewKg.toFixed(2)}kg`);
-
-        if (matContent.children.length === 0) {
-            this.addNoneItem(matContent);
-        }
-
-        // Render action buttons inside the overlay
+        // Render action buttons
         const actionsContainer = document.getElementById('inventoryActions');
         this.clearElement(actionsContainer);
 
         if (input && input.type === 'select' && input.choices) {
-            // Render selection buttons inside overlay
             input.choices.forEach((choice, i) => {
                 const btn = document.createElement('button');
                 btn.className = 'action-btn';
@@ -773,7 +807,6 @@ class GameClient {
                 actionsContainer.appendChild(btn);
             });
         } else {
-            // Close button only (for read-only view or anykey)
             const closeBtn = document.createElement('button');
             closeBtn.className = 'action-btn';
             closeBtn.textContent = 'Close';
@@ -782,13 +815,276 @@ class GameClient {
         }
     }
 
+    createSlotElement(label, item, stat, statClass = '') {
+        const slot = document.createElement('div');
+        slot.className = 'inv-slot';
+
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'slot-label';
+        labelSpan.textContent = label;
+        slot.appendChild(labelSpan);
+
+        if (item) {
+            const itemSpan = document.createElement('span');
+            itemSpan.className = 'slot-item';
+            itemSpan.textContent = item;
+            slot.appendChild(itemSpan);
+
+            if (stat) {
+                const statSpan = document.createElement('span');
+                statSpan.className = 'slot-stat' + (statClass ? ' ' + statClass : '');
+                statSpan.textContent = stat;
+                slot.appendChild(statSpan);
+            }
+        } else {
+            const emptySpan = document.createElement('span');
+            emptySpan.className = 'slot-empty';
+            emptySpan.textContent = '-';
+            slot.appendChild(emptySpan);
+        }
+
+        return slot;
+    }
+
+    renderInvGear(inv) {
+        const content = document.querySelector('#invGear .inv-content');
+        this.clearElement(content);
+
+        // Weapon slot (always show)
+        const weaponSlot = this.createSlotElement(
+            'Weapon',
+            inv.weapon,
+            inv.weapon ? `${inv.weaponDamage?.toFixed(0) || 0} dmg` : null
+        );
+        weaponSlot.classList.add('weapon');
+        content.appendChild(weaponSlot);
+
+        // Armor slots (always show all 5)
+        const armorSlots = ['Head', 'Chest', 'Hands', 'Legs', 'Feet'];
+        armorSlots.forEach(slotName => {
+            const equipped = inv.armor?.find(a => a.slot === slotName);
+            const slot = this.createSlotElement(
+                slotName,
+                equipped?.name,
+                equipped ? `+${(equipped.insulation * 100).toFixed(0)}%` : null,
+                'insulation'
+            );
+            slot.classList.add('armor');
+            content.appendChild(slot);
+        });
+
+        // Tools list
+        if (inv.tools && inv.tools.length > 0) {
+            const toolsDiv = document.createElement('div');
+            toolsDiv.className = 'inv-tools';
+
+            inv.tools.forEach(t => {
+                const toolEl = document.createElement('div');
+                toolEl.className = 'inv-tool';
+
+                let nameText = t.name;
+                if (t.damage) {
+                    nameText += ` (${t.damage.toFixed(0)} dmg)`;
+                }
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'tool-name';
+                nameSpan.textContent = nameText;
+                toolEl.appendChild(nameSpan);
+
+                // Show durability warning if provided
+                if (inv.toolWarnings) {
+                    const warning = inv.toolWarnings.find(w => w.name === t.name);
+                    if (warning) {
+                        const warnSpan = document.createElement('span');
+                        warnSpan.className = 'tool-warning';
+                        warnSpan.textContent = `${warning.durabilityRemaining} uses left`;
+                        toolEl.appendChild(warnSpan);
+                        toolEl.classList.add('durability-low');
+                    }
+                }
+
+                toolsDiv.appendChild(toolEl);
+            });
+
+            content.appendChild(toolsDiv);
+        }
+
+        // Total insulation summary
+        if (inv.totalInsulation > 0) {
+            const totalDiv = document.createElement('div');
+            totalDiv.className = 'inv-total';
+
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = 'Total Insulation';
+            totalDiv.appendChild(labelSpan);
+
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'total-value';
+            valueSpan.textContent = `+${(inv.totalInsulation * 100).toFixed(0)}%`;
+            totalDiv.appendChild(valueSpan);
+
+            content.appendChild(totalDiv);
+        }
+    }
+
+    renderInvFuel(inv) {
+        const content = document.querySelector('#invFuel .inv-content');
+        this.clearElement(content);
+
+        // Generic fuel
+        if (inv.logCount > 0)
+            this.addInvItem(content, `${inv.logCount} logs`, `${inv.logsKg.toFixed(1)}kg`);
+        if (inv.stickCount > 0)
+            this.addInvItem(content, `${inv.stickCount} sticks`, `${inv.sticksKg.toFixed(1)}kg`);
+        if (inv.tinderCount > 0)
+            this.addInvItem(content, `${inv.tinderCount} tinder`, `${inv.tinderKg.toFixed(2)}kg`);
+
+        // Wood types
+        if (inv.pineCount > 0)
+            this.addInvItem(content, `${inv.pineCount} pine`, `${inv.pineKg.toFixed(1)}kg`, 'wood-pine');
+        if (inv.birchCount > 0)
+            this.addInvItem(content, `${inv.birchCount} birch`, `${inv.birchKg.toFixed(1)}kg`, 'wood-birch');
+        if (inv.oakCount > 0)
+            this.addInvItem(content, `${inv.oakCount} oak`, `${inv.oakKg.toFixed(1)}kg`, 'wood-oak');
+        if (inv.birchBarkCount > 0)
+            this.addInvItem(content, `${inv.birchBarkCount} birch bark`, `${inv.birchBarkKg.toFixed(2)}kg`, 'tinder');
+
+        // Burn time summary
+        if (content.children.length > 0) {
+            this.addInvItem(content, 'Burn time', `~${inv.fuelBurnTimeHours.toFixed(1)} hrs`, 'summary');
+        } else {
+            this.addNoneItem(content);
+        }
+    }
+
+    renderInvFood(inv) {
+        const content = document.querySelector('#invFood .inv-content');
+        this.clearElement(content);
+
+        // Cooked (best)
+        if (inv.cookedMeatCount > 0)
+            this.addInvItem(content, `${inv.cookedMeatCount} cooked meat`, `${inv.cookedMeatKg.toFixed(1)}kg`, 'food-cooked');
+
+        // Preserved
+        if (inv.driedMeatCount > 0)
+            this.addInvItem(content, `${inv.driedMeatCount} dried meat`, `${inv.driedMeatKg.toFixed(1)}kg`, 'food-preserved');
+        if (inv.driedBerriesCount > 0)
+            this.addInvItem(content, `${inv.driedBerriesCount} dried berries`, `${inv.driedBerriesKg.toFixed(2)}kg`, 'food-preserved');
+
+        // Raw
+        if (inv.rawMeatCount > 0)
+            this.addInvItem(content, `${inv.rawMeatCount} raw meat`, `${inv.rawMeatKg.toFixed(1)}kg`, 'food-raw');
+
+        // Foraged
+        if (inv.berryCount > 0)
+            this.addInvItem(content, `${inv.berryCount} berries`, `${inv.berriesKg.toFixed(2)}kg`, 'food-foraged');
+        if (inv.nutsCount > 0)
+            this.addInvItem(content, `${inv.nutsCount} nuts`, `${inv.nutsKg.toFixed(2)}kg`, 'food-foraged');
+        if (inv.rootsCount > 0)
+            this.addInvItem(content, `${inv.rootsCount} roots`, `${inv.rootsKg.toFixed(2)}kg`, 'food-raw');
+
+        if (content.children.length === 0) {
+            this.addNoneItem(content);
+        }
+    }
+
+    renderInvWater(inv) {
+        const content = document.querySelector('#invWater .inv-content');
+        this.clearElement(content);
+
+        if (inv.waterLiters > 0) {
+            this.addInvItem(content, 'Clean water', `${inv.waterLiters.toFixed(1)}L`);
+        } else {
+            this.addNoneItem(content);
+        }
+    }
+
+    renderInvMaterials(inv) {
+        const content = document.querySelector('#invMaterials .inv-content');
+        this.clearElement(content);
+
+        // Stone types (highlight rare)
+        if (inv.stoneCount > 0)
+            this.addInvItem(content, `${inv.stoneCount} stone`, `${inv.stoneKg.toFixed(1)}kg`);
+        if (inv.shaleCount > 0)
+            this.addInvItem(content, `${inv.shaleCount} shale`, `${inv.shaleKg.toFixed(1)}kg`, 'material-stone');
+        if (inv.flintCount > 0)
+            this.addInvItem(content, `${inv.flintCount} flint`, `${inv.flintKg.toFixed(1)}kg`, 'material-rare');
+        if (inv.pyriteKg > 0)
+            this.addInvItem(content, 'Pyrite', `${inv.pyriteKg.toFixed(2)}kg`, 'material-precious');
+
+        // Organics
+        if (inv.boneCount > 0)
+            this.addInvItem(content, `${inv.boneCount} bone`, `${inv.boneKg.toFixed(1)}kg`);
+        if (inv.hideCount > 0)
+            this.addInvItem(content, `${inv.hideCount} hide`, `${inv.hideKg.toFixed(1)}kg`);
+        if (inv.plantFiberCount > 0)
+            this.addInvItem(content, `${inv.plantFiberCount} plant fiber`, `${inv.plantFiberKg.toFixed(2)}kg`);
+        if (inv.sinewCount > 0)
+            this.addInvItem(content, `${inv.sinewCount} sinew`, `${inv.sinewKg.toFixed(2)}kg`);
+
+        // Processed
+        if (inv.scrapedHideCount > 0)
+            this.addInvItem(content, `${inv.scrapedHideCount} scraped hide`, '', 'material-processed');
+        if (inv.curedHideCount > 0)
+            this.addInvItem(content, `${inv.curedHideCount} cured hide`, '', 'material-processed');
+        if (inv.rawFiberCount > 0)
+            this.addInvItem(content, `${inv.rawFiberCount} raw fiber`, '');
+        if (inv.rawFatCount > 0)
+            this.addInvItem(content, `${inv.rawFatCount} raw fat`, '');
+        if (inv.tallowCount > 0)
+            this.addInvItem(content, `${inv.tallowCount} tallow`, '', 'material-processed');
+        if (inv.charcoalKg > 0)
+            this.addInvItem(content, 'Charcoal', `${inv.charcoalKg.toFixed(2)}kg`);
+
+        if (content.children.length === 0) {
+            this.addNoneItem(content);
+        }
+    }
+
+    renderInvMedicinals(inv) {
+        const content = document.querySelector('#invMedicinals .inv-content');
+        this.clearElement(content);
+
+        // Fungi
+        if (inv.birchPolyporeCount > 0)
+            this.addInvItem(content, `${inv.birchPolyporeCount} birch polypore`, '', 'medicinal-wound');
+        if (inv.chagaCount > 0)
+            this.addInvItem(content, `${inv.chagaCount} chaga`, '', 'medicinal-health');
+        if (inv.amadouCount > 0)
+            this.addInvItem(content, `${inv.amadouCount} amadou`, '', 'medicinal-versatile');
+
+        // Plants
+        if (inv.roseHipsCount > 0)
+            this.addInvItem(content, `${inv.roseHipsCount} rose hips`, '', 'medicinal-vitamin');
+        if (inv.juniperBerriesCount > 0)
+            this.addInvItem(content, `${inv.juniperBerriesCount} juniper berries`, '', 'medicinal-antiseptic');
+        if (inv.willowBarkCount > 0)
+            this.addInvItem(content, `${inv.willowBarkCount} willow bark`, '', 'medicinal-pain');
+        if (inv.pineNeedlesCount > 0)
+            this.addInvItem(content, `${inv.pineNeedlesCount} pine needles`, '', 'medicinal-vitamin');
+
+        // Tree products
+        if (inv.pineResinCount > 0)
+            this.addInvItem(content, `${inv.pineResinCount} pine resin`, '', 'medicinal-wound');
+        if (inv.usneaCount > 0)
+            this.addInvItem(content, `${inv.usneaCount} usnea`, '', 'medicinal-antiseptic');
+        if (inv.sphagnumCount > 0)
+            this.addInvItem(content, `${inv.sphagnumCount} sphagnum moss`, '', 'medicinal-wound');
+
+        if (content.children.length === 0) {
+            this.addNoneItem(content);
+        }
+    }
+
     hideInventory() {
         document.getElementById('inventoryOverlay').classList.add('hidden');
     }
 
-    addInvItem(container, label, value) {
+    addInvItem(container, label, value, styleClass = '') {
         const div = document.createElement('div');
-        div.className = 'inv-item';
+        div.className = 'inv-item' + (styleClass ? ' ' + styleClass : '');
         const labelSpan = document.createElement('span');
         labelSpan.textContent = label;
         const valueSpan = document.createElement('span');

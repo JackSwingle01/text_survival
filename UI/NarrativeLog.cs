@@ -35,7 +35,7 @@ public class NarrativeLog
     public void AddRange(IEnumerable<string> texts, LogLevel level = LogLevel.Normal)
     {
         foreach (var text in texts)
-            _entries.Add((text, level));
+            Add(text, level);
     }
 
     public IReadOnlyList<(string Text, LogLevel Level)> GetVisible() =>

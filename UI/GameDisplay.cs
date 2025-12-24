@@ -607,6 +607,15 @@ public static class GameDisplay
             lines.Add(new Markup($"[yellow]+{fire.GetEffectiveHeatOutput(ctx.CurrentLocation.GetTemperature()):F0}°F heat[/]"));
         }
 
+        // Show torch status if active
+        if (ctx.Inventory.HasLitTorch)
+        {
+            int torchMins = (int)ctx.Inventory.TorchBurnTimeRemainingMinutes;
+            string torchColor = torchMins <= 5 ? "red" : torchMins <= 15 ? "yellow" : "orange3";
+            double torchHeat = ctx.Inventory.GetTorchHeatBonusF();
+            lines.Add(new Markup($"[{torchColor}]Torch: {torchMins} min[/] [grey](+{torchHeat:F0}°F)[/]"));
+        }
+
         return new Panel(new Rows(lines))
         {
             Header = new PanelHeader(" FIRE ", Justify.Left),
@@ -1101,6 +1110,13 @@ public static class GameDisplay
         {
             int minutes = (int)(fire.HoursRemaining * 60);
             TestModeIO.WriteOutput($"[Fire: {fire.GetFirePhase()} - {minutes} min]\n");
+        }
+
+        // Show torch status if active
+        if (ctx.Inventory.HasLitTorch)
+        {
+            int torchMins = (int)ctx.Inventory.TorchBurnTimeRemainingMinutes;
+            TestModeIO.WriteOutput($"[Torch: {torchMins} min remaining]\n");
         }
 
         // Add blood status to test mode

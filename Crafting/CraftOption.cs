@@ -22,8 +22,27 @@ public class CraftOption
 
     /// <summary>
     /// Factory function to create the resulting tool.
+    /// Null if this recipe produces materials or equipment instead.
     /// </summary>
-    public required Func<int, Tool> ToolFactory { get; init; }
+    public Func<int, Tool>? ToolFactory { get; init; }
+
+    /// <summary>
+    /// Factory function to create equipment (clothing/armor).
+    /// Null if this recipe produces tools or materials instead.
+    /// </summary>
+    public Func<Equipment>? EquipmentFactory { get; init; }
+
+    /// <summary>
+    /// Factory function to create a camp feature (e.g., CuringRack).
+    /// Null if this recipe produces something else.
+    /// </summary>
+    public Func<Environments.Features.LocationFeature>? FeatureFactory { get; init; }
+
+    /// <summary>
+    /// For processing recipes: materials to add to inventory instead of creating a tool.
+    /// List of (MaterialName, Count) to add.
+    /// </summary>
+    public List<MaterialOutput>? MaterialOutputs { get; init; }
 
     /// <summary>
     /// Check if player has all required materials.
@@ -59,9 +78,25 @@ public class CraftOption
     }
 
     /// <summary>
-    /// Consume materials and create the tool.
+    /// Whether this recipe produces materials instead of an item.
     /// </summary>
-    public Tool Craft(Inventory inventory)
+    public bool ProducesMaterials => MaterialOutputs != null && MaterialOutputs.Count > 0;
+
+    /// <summary>
+    /// Whether this recipe produces equipment (clothing/armor).
+    /// </summary>
+    public bool ProducesEquipment => EquipmentFactory != null;
+
+    /// <summary>
+    /// Whether this recipe produces a camp feature.
+    /// </summary>
+    public bool ProducesFeature => FeatureFactory != null;
+
+    /// <summary>
+    /// Consume materials and create the tool.
+    /// Returns null if this recipe produces materials or equipment instead.
+    /// </summary>
+    public Tool? Craft(Inventory inventory)
     {
         // Consume materials
         foreach (var req in Requirements)
@@ -69,8 +104,96 @@ public class CraftOption
             ConsumeMaterial(inventory, req.Material, req.Count);
         }
 
+        // If this produces materials instead of an item, add them to inventory
+        if (ProducesMaterials)
+        {
+            foreach (var output in MaterialOutputs!)
+            {
+                AddMaterialToInventory(inventory, output);
+            }
+            return null;
+        }
+
+        // If this produces equipment, use CraftEquipment instead
+        if (ProducesEquipment)
+        {
+            return null;
+        }
+
+        // If this produces a feature, use CraftFeature instead
+        if (ProducesFeature)
+        {
+            return null;
+        }
+
         // Create and return the tool
-        return ToolFactory(Durability);
+        return ToolFactory!(Durability);
+    }
+
+    /// <summary>
+    /// Consume materials and create equipment.
+    /// Returns null if this recipe doesn't produce equipment.
+    /// </summary>
+    public Equipment? CraftEquipment(Inventory inventory)
+    {
+        if (!ProducesEquipment)
+            return null;
+
+        // Consume materials
+        foreach (var req in Requirements)
+        {
+            ConsumeMaterial(inventory, req.Material, req.Count);
+        }
+
+        return EquipmentFactory!();
+    }
+
+    /// <summary>
+    /// Consume materials and create a camp feature.
+    /// Returns null if this recipe doesn't produce a feature.
+    /// </summary>
+    public Environments.Features.LocationFeature? CraftFeature(Inventory inventory)
+    {
+        if (!ProducesFeature)
+            return null;
+
+        // Consume materials
+        foreach (var req in Requirements)
+        {
+            ConsumeMaterial(inventory, req.Material, req.Count);
+        }
+
+        return FeatureFactory!();
+    }
+
+    /// <summary>
+    /// Add output materials to inventory based on type.
+    /// </summary>
+    private static void AddMaterialToInventory(Inventory inv, MaterialOutput output)
+    {
+        for (int i = 0; i < output.Count; i++)
+        {
+            switch (output.Material)
+            {
+                case "ScrapedHide":
+                    inv.ScrapedHide.Push(output.WeightPerUnit);
+                    break;
+                case "CuredHide":
+                    inv.CuredHide.Push(output.WeightPerUnit);
+                    break;
+                case "Tallow":
+                    inv.Tallow.Push(output.WeightPerUnit);
+                    break;
+                case "PlantFiber":
+                    inv.PlantFiber.Push(output.WeightPerUnit);
+                    break;
+                case "Charcoal":
+                    inv.Charcoal += output.WeightPerUnit;
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown material output: {output.Material}");
+            }
+        }
     }
 
     /// <summary>
@@ -97,6 +220,28 @@ public class CraftOption
         return string.Join(", ", parts);
     }
 
+    /// <summary>
+    /// Get a description of what this recipe produces (for processing recipes).
+    /// </summary>
+    public string GetOutputDescription()
+    {
+        if (MaterialOutputs == null || MaterialOutputs.Count == 0)
+            return Name;
+
+        var parts = MaterialOutputs.Select(o => $"{o.Count} {FormatMaterialName(o.Material)}");
+        return string.Join(", ", parts);
+    }
+
+    private static string FormatMaterialName(string material) => material switch
+    {
+        "ScrapedHide" => "scraped hide",
+        "CuredHide" => "cured hide",
+        "Tallow" => "tallow",
+        "PlantFiber" => "plant fiber",
+        "Charcoal" => "charcoal",
+        _ => material.ToLower()
+    };
+
     private static int GetMaterialCount(Inventory inv, string material) =>
         inv.GetCount(material);
 
@@ -108,3 +253,8 @@ public class CraftOption
 /// A single material requirement for crafting.
 /// </summary>
 public record MaterialRequirement(string Material, int Count);
+
+/// <summary>
+/// Output material from a processing recipe.
+/// </summary>
+public record MaterialOutput(string Material, int Count, double WeightPerUnit = 0.1);

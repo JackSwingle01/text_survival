@@ -9,6 +9,7 @@ public class Camp(Location startingLocation)
     public Location Location { get; private set; } = startingLocation;
     public HeatSourceFeature? Fire => Location.GetFeature<HeatSourceFeature>();
     public ShelterFeature? Shelter => Location.GetFeature<ShelterFeature>();
+    public CuringRackFeature? CuringRack => Location.GetFeature<CuringRackFeature>();
 
     // Camp storage backed by CacheFeature on location
     public CacheFeature? Cache => Location.GetFeature<CacheFeature>();

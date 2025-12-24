@@ -76,7 +76,8 @@ public static class RewardGenerator
         {
             () => Tool.Knife("Bone Knife"),
             () => Tool.Axe("Stone Axe"),
-            () => Tool.Spear("Wooden Spear")
+            () => Tool.Spear("Wooden Spear"),
+            () => Tool.Torch("Simple Torch")
         };
 
         resources.Tools.Add(tools[Random.Shared.Next(tools.Length)]());

@@ -54,6 +54,7 @@ public record GameStateDto
     public int InsulationPercent { get; init; }
     public double FuelKg { get; init; }
     public string FuelBurnTime { get; init; } = "";
+    public GearSummaryDto? GearSummary { get; init; }
 
     // Narrative log
     public List<LogEntryDto> Log { get; init; } = [];
@@ -61,6 +62,10 @@ public record GameStateDto
     // CSS variable hints (0-1 range)
     public double Warmth { get; init; }
     public double Vitality { get; init; }
+
+    // Debug: raw capacity values
+    public Dictionary<string, double> DebugCapacities { get; init; } = [];
+    public Dictionary<string, double> DebugEffectModifiers { get; init; } = [];
 
     public static GameStateDto FromContext(GameContext ctx)
     {
@@ -159,13 +164,28 @@ public record GameStateDto
             FuelBurnTime = inventory.TotalFuelBurnTimeHours >= 1.0
                 ? $"{(int)inventory.TotalFuelBurnTimeHours}hrs"
                 : $"{(int)inventory.TotalFuelBurnTimeMinutes}min",
+            GearSummary = ComputeGearSummary(inventory),
 
             // Narrative
             Log = logEntries,
 
             // CSS hints
             Warmth = warmth,
-            Vitality = ctx.player.Vitality
+            Vitality = ctx.player.Vitality,
+
+            // Debug: capture raw values
+            DebugCapacities = new Dictionary<string, double>
+            {
+                ["Consciousness"] = ctx.player.GetCapacities().Consciousness,
+                ["Breathing"] = ctx.player.GetCapacities().Breathing,
+                ["BloodPumping"] = ctx.player.GetCapacities().BloodPumping,
+            },
+            DebugEffectModifiers = new Dictionary<string, double>
+            {
+                ["Consciousness"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.Consciousness),
+                ["Breathing"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.Breathing),
+                ["BloodPumping"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.BloodPumping),
+            }
         };
     }
 
@@ -343,6 +363,57 @@ public record GameStateDto
         >= 95 => "Cool",
         _ => "Cold"
     };
+
+    private static GearSummaryDto ComputeGearSummary(Items.Inventory inv)
+    {
+        // Count tools by category
+        var allTools = inv.Tools.ToList();
+        if (inv.Weapon != null) allTools.Add(inv.Weapon);
+
+        int cuttingCount = allTools.Count(t => t.Type == Items.ToolType.Knife || t.Type == Items.ToolType.Axe);
+        int fireCount = allTools.Count(t => t.Type == Items.ToolType.FireStriker ||
+                                            t.Type == Items.ToolType.HandDrill ||
+                                            t.Type == Items.ToolType.BowDrill);
+        int otherCount = allTools.Count - cuttingCount - fireCount;
+
+        // Food portions (count)
+        int foodPortions = inv.CookedMeat.Count + inv.RawMeat.Count + inv.Berries.Count +
+                          inv.Nuts.Count + inv.Roots.Count + inv.DriedMeat.Count + inv.DriedBerries.Count;
+
+        // Water portions (~0.25L each)
+        int waterPortions = (int)(inv.WaterLiters / 0.25);
+
+        // Has preserved food
+        bool hasPreserved = inv.DriedMeat.Count > 0 || inv.DriedBerries.Count > 0;
+
+        // Total crafting materials
+        int craftingCount = inv.Stone.Count + inv.Bone.Count + inv.Hide.Count +
+                           inv.PlantFiber.Count + inv.Sinew.Count +
+                           inv.Shale.Count + inv.Flint.Count + (inv.Pyrite > 0 ? 1 : 0) +
+                           inv.ScrapedHide.Count + inv.CuredHide.Count;
+
+        // Total medicinals
+        int medicinalCount = inv.BirchPolypore.Count + inv.Chaga.Count + inv.Amadou.Count +
+                            inv.RoseHips.Count + inv.JuniperBerries.Count + inv.WillowBark.Count +
+                            inv.PineNeedles.Count + inv.PineResin.Count + inv.Usnea.Count + inv.Sphagnum.Count;
+
+        // Has rare materials (flint or pyrite)
+        bool hasRare = inv.Flint.Count > 0 || inv.Pyrite > 0;
+
+        return new GearSummaryDto(
+            WeaponName: inv.Weapon?.Name,
+            WeaponDamage: inv.Weapon?.Damage,
+            CuttingToolCount: cuttingCount,
+            FireStarterCount: fireCount,
+            OtherToolCount: otherCount,
+            FoodPortions: foodPortions,
+            WaterPortions: waterPortions,
+            HasPreservedFood: hasPreserved,
+            CraftingMaterialCount: craftingCount,
+            MedicinalCount: medicinalCount,
+            HasRareMaterials: hasRare
+        );
+    }
 
     private static List<string> ParseTags(string? tagString)
     {

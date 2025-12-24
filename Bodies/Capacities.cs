@@ -147,20 +147,30 @@ public class CapacityContainer
 
 public class CapacityModifierContainer
 {
-    public double GetCapacityModifier(string capacityName) => Math.Clamp(capacities.GetValueOrDefault(capacityName), -1, 1); // Fixed parameter order
+    public double GetCapacityModifier(string capacityName) => Math.Clamp(capacities.GetValueOrDefault(capacityName), -1, 1);
     public void SetCapacityModifier(string capacityName, double value) => capacities[capacityName] = Math.Clamp(value, -1, 1);
 
-    private Dictionary<string, double> capacities = new()
+    private Dictionary<string, double> capacities;
+
+    public CapacityModifierContainer()
     {
-        {CapacityNames.Moving, 0 },
-        {CapacityNames.Manipulation, 0},
-        {CapacityNames.Breathing, 0},
-        {CapacityNames.BloodPumping, 0},
-        {CapacityNames.Consciousness, 0},
-        {CapacityNames.Sight, 0},
-        {CapacityNames.Hearing, 0},
-        {CapacityNames.Digestion, 0},
-    };
+        capacities = new()
+        {
+            {CapacityNames.Moving, 0 },
+            {CapacityNames.Manipulation, 0},
+            {CapacityNames.Breathing, 0},
+            {CapacityNames.BloodPumping, 0},
+            {CapacityNames.Consciousness, 0},
+            {CapacityNames.Sight, 0},
+            {CapacityNames.Hearing, 0},
+            {CapacityNames.Digestion, 0},
+        };
+    }
+
+    private CapacityModifierContainer(Dictionary<string, double> modifiers)
+    {
+        capacities = modifiers;
+    }
 
     public static CapacityModifierContainer operator +(CapacityModifierContainer a, CapacityModifierContainer b)
     {
@@ -169,7 +179,7 @@ public class CapacityModifierContainer
                 key => key,
                 key => a.capacities.GetValueOrDefault(key) + b.capacities.GetValueOrDefault(key)
             );
-        return new CapacityModifierContainer { capacities = newModifiers };
+        return new CapacityModifierContainer(newModifiers);
     }
 
     /// <summary>
@@ -181,6 +191,31 @@ public class CapacityModifierContainer
             kvp => kvp.Key,
             kvp => kvp.Value * multiplier
         );
-        return new CapacityModifierContainer { capacities = newModifiers };
+        return new CapacityModifierContainer(newModifiers);
+    }
+
+    /// <summary>
+    /// Export modifiers as dictionary (for serialization).
+    /// Only includes non-zero values.
+    /// </summary>
+    public Dictionary<string, double> ToDictionary()
+    {
+        return capacities
+            .Where(kvp => Math.Abs(kvp.Value) > 0.0001)
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+    }
+
+    /// <summary>
+    /// Create from dictionary (for deserialization).
+    /// </summary>
+    public static CapacityModifierContainer FromDictionary(Dictionary<string, double>? dict)
+    {
+        if (dict == null || dict.Count == 0)
+            return new CapacityModifierContainer();
+
+        var container = new CapacityModifierContainer();
+        foreach (var kvp in dict)
+            container.SetCapacityModifier(kvp.Key, kvp.Value);
+        return container;
     }
 }

@@ -34,6 +34,23 @@
                     <div class="fire-fuel" id="fireFuel"></div>
                     <div class="fire-heat" id="fireHeat"></div>
                 </div>
+
+                <div class="status-section">
+                    <div class="status-title"><span class="material-symbols-outlined">thermostat</span>Temperature</div>
+                    <div class="segment-bar temp" id="tempSegmentBar"></div>
+                    <div class="temp-row">
+                        <span class="temp-label">Body</span>
+                        <span><span class="temp-value" id="bodyTempDisplay">98.6°F</span> <span class="temp-status normal" id="tempStatus">Normal</span></span>
+                    </div>
+                    <div class="temp-row">
+                        <span class="temp-label">Insulation</span>
+                        <span class="temp-value insulation" id="insulationPct">0%</span>
+                    </div>
+                    <div class="temp-breakdown" id="tempBreakdown">
+                        Air: <span id="airTempDisplay">32°F</span><span class="fire-contrib" id="fireContrib"></span>
+                    </div>
+                    <div class="temp-trend stable" id="tempTrend">→ Stable</div>
+                </div>
             </aside>
 
             <div class="narrative-panel">
@@ -62,19 +79,6 @@
             </div>
 
             <aside class="side-panel">
-                <div class="status-section">
-                    <div class="status-title"><span class="material-symbols-outlined">thermostat</span>Temperature</div>
-                    <div class="segment-bar temp" id="tempSegmentBar"></div>
-                    <div class="temp-row">
-                        <span class="temp-label">Body</span>
-                        <span><span class="temp-value" id="bodyTempDisplay">98.6°F</span> <span class="temp-status normal" id="tempStatus">Normal</span></span>
-                    </div>
-                    <div class="temp-breakdown" id="tempBreakdown">
-                        Air: <span id="airTempDisplay">32°F</span><span class="fire-contrib" id="fireContrib"></span>
-                    </div>
-                    <div class="temp-trend stable" id="tempTrend">→ Stable</div>
-                </div>
-
                 <div class="status-section">
                     <div class="status-title"><span class="material-symbols-outlined">favorite</span>Survival</div>
 
@@ -116,23 +120,6 @@
                 </div>
 
                 <div class="status-section">
-                    <div class="status-title"><span class="material-symbols-outlined">backpack</span>Gear</div>
-                    <div class="gear-row">
-                        <span class="gear-label">Carry</span>
-                        <span class="gear-value" id="carryDisplay">0 / 15 kg</span>
-                    </div>
-                    <div class="segment-bar carry" id="carrySegmentBar"></div>
-                    <div class="gear-row">
-                        <span class="gear-label">Insulation</span>
-                        <span class="gear-value insulation" id="insulationPct">0%</span>
-                    </div>
-                    <div class="gear-row">
-                        <span class="gear-label">Fuel</span>
-                        <span class="gear-value fuel" id="fuelReserve">0kg</span>
-                    </div>
-                </div>
-
-                <div class="status-section">
                     <div class="status-title"><span class="material-symbols-outlined">error</span>Effects</div>
                     <div class="effects-list" id="effectsList">
                         <div class="effect-item stable">None</div>
@@ -143,6 +130,55 @@
                     <div class="status-title"><span class="material-symbols-outlined">healing</span>Injuries</div>
                     <div class="injuries-list" id="injuriesList">
                         <div class="injury-item minor">None</div>
+                    </div>
+                </div>
+
+                <div class="status-section gear-section">
+                    <div class="status-title"><span class="material-symbols-outlined">backpack</span>Gear</div>
+
+                    <!-- Carry capacity -->
+                    <div class="gear-row">
+                        <span class="gear-label">Carry</span>
+                        <span class="gear-value" id="carryDisplay">0 / 15 kg</span>
+                    </div>
+                    <div class="segment-bar carry" id="carrySegmentBar"></div>
+
+                    <!-- Weapon (if equipped) -->
+                    <div class="gear-weapon" id="gearWeapon" style="display: none;">
+                        <span class="material-symbols-outlined">swords</span>
+                        <span class="weapon-name" id="weaponName"></span>
+                        <span class="weapon-stat" id="weaponStat"></span>
+                    </div>
+
+                    <!-- Tools summary -->
+                    <div class="gear-tools" id="gearTools">
+                        <div class="tool-pills" id="toolPills"></div>
+                    </div>
+
+                    <!-- Fuel -->
+                    <div class="gear-row">
+                        <span class="gear-label"><span class="material-symbols-outlined">local_fire_department</span>Fuel</span>
+                        <span class="gear-value fuel" id="fuelReserve">0kg</span>
+                    </div>
+
+                    <!-- Food/Water combined -->
+                    <div class="gear-row provisions">
+                        <span class="gear-label"><span class="material-symbols-outlined">restaurant</span>Food</span>
+                        <span class="gear-value" id="foodWaterSummary">No food</span>
+                    </div>
+
+                    <!-- Medicinals summary -->
+                    <div class="gear-row medicinals" id="gearMedicinals" style="display: none;">
+                        <span class="gear-label"><span class="material-symbols-outlined">healing</span>Medicinals</span>
+                        <span class="gear-value" id="medicinalsSummary">None</span>
+                    </div>
+
+                    <!-- Materials summary -->
+                    <div class="gear-row materials" id="gearMaterials" style="display: none;">
+                        <span class="gear-label"><span class="material-symbols-outlined">category</span>Materials</span>
+                        <span class="gear-value" id="materialsSummary">
+                            <span id="materialsCount">None</span><span class="rare-indicator" id="rareIndicator" style="display: none;">*</span>
+                        </span>
                     </div>
                 </div>
             </aside>
@@ -161,19 +197,31 @@
             </div>
             <div class="inventory-grid">
                 <div class="inventory-section" id="invGear">
-                    <h3>Gear</h3>
+                    <h3><span class="material-symbols-outlined">swords</span>Gear</h3>
                     <div class="inv-content"></div>
                 </div>
                 <div class="inventory-section" id="invFuel">
-                    <h3>Fuel</h3>
+                    <h3><span class="material-symbols-outlined">local_fire_department</span>Fuel</h3>
                     <div class="inv-content"></div>
                 </div>
                 <div class="inventory-section" id="invFood">
-                    <h3>Food & Water</h3>
+                    <h3><span class="material-symbols-outlined">restaurant</span>Food</h3>
+                    <div class="inv-content"></div>
+                </div>
+                <div class="inventory-section" id="invWater">
+                    <h3><span class="material-symbols-outlined">water_drop</span>Water</h3>
                     <div class="inv-content"></div>
                 </div>
                 <div class="inventory-section" id="invMaterials">
-                    <h3>Materials</h3>
+                    <h3><span class="material-symbols-outlined">category</span>Materials</h3>
+                    <div class="inv-content"></div>
+                </div>
+                <div class="inventory-section" id="invMedicinals">
+                    <h3><span class="material-symbols-outlined">healing</span>Medicinals</h3>
+                    <div class="inv-content"></div>
+                </div>
+                <div class="inventory-section special-section" id="invSpecial" style="display: none;">
+                    <h3><span class="material-symbols-outlined">star</span>Special</h3>
                     <div class="inv-content"></div>
                 </div>
             </div>

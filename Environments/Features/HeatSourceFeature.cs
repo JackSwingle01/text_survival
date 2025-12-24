@@ -50,8 +50,14 @@ public class HeatSourceFeature : LocationFeature
     internal double LastBurningTemperature { get; private set; } // Captured before consumption for ember transition
     public double EmberTimeRemaining { get; private set; }
 
+    // Charcoal production tracking
+    private double _totalFuelBurnedKg;
+    public double CharcoalAvailableKg { get; private set; }
+    public bool HasCharcoal => CharcoalAvailableKg > 0.01;
+
     // Catching mechanic constants
     private const double BaseCatchRate = 0.05; // kg/min baseline
+    private const double CharcoalYieldPercent = 0.15; // 15% of burned fuel becomes charcoal
 
     public HeatSourceFeature(double maxCapacityKg = 12.0)
         : base("Campfire")
@@ -63,6 +69,8 @@ public class HeatSourceFeature : LocationFeature
         EmberTimeRemaining = 0;
         EmberDuration = 0;
         EmberStartTemperature = 0;
+        _totalFuelBurnedKg = 0;
+        CharcoalAvailableKg = 0;
     }
 
     #region Temperature Calculations
@@ -325,6 +333,9 @@ public class HeatSourceFeature : LocationFeature
 
             if (EmberTimeRemaining <= 0)
             {
+                // Embers died out - produce charcoal from burned fuel
+                ProduceCharcoal();
+
                 HasEmbers = false;
                 EmberDuration = 0;
                 EmberStartTemperature = 0;
@@ -392,6 +403,9 @@ public class HeatSourceFeature : LocationFeature
         }
 
         BurningMassKg = Math.Max(0, BurningMassKg - consumed);
+
+        // Track total fuel burned for charcoal production
+        _totalFuelBurnedKg += consumed;
     }
 
     /// <summary>
@@ -411,6 +425,30 @@ public class HeatSourceFeature : LocationFeature
 
         BurningMassKg = 0;
         _burningMixture.Clear();
+    }
+
+    /// <summary>
+    /// Produce charcoal from burned fuel when fire/embers die out.
+    /// </summary>
+    private void ProduceCharcoal()
+    {
+        if (_totalFuelBurnedKg > 0.1)
+        {
+            // ~15% of burned fuel becomes charcoal
+            CharcoalAvailableKg += _totalFuelBurnedKg * CharcoalYieldPercent;
+            _totalFuelBurnedKg = 0; // Reset for next fire
+        }
+    }
+
+    /// <summary>
+    /// Collect available charcoal from the fire pit.
+    /// Returns the amount collected (in kg).
+    /// </summary>
+    public double CollectCharcoal()
+    {
+        double collected = CharcoalAvailableKg;
+        CharcoalAvailableKg = 0;
+        return collected;
     }
 
     /// <summary>

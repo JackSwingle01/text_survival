@@ -230,4 +230,28 @@ public class AbilityCalculatorTests
         Assert.True(coldResistance >= 0.15 && coldResistance <= 0.25,
             $"High fat should provide excellent insulation with diminishing returns. Actual: {coldResistance}");
     }
+
+    [Fact]
+    public void CalculateVitality_WithConsciousnessEffects_ReturnsReducedVitality()
+    {
+        // Arrange - baseline body with effects that reduce Consciousness
+        var body = TestFixtures.CreateBaselineHumanBody();
+
+        // Simulating the user's scenario: Hypothermia 98%, Tired 65%, Fever 22%
+        // Hypothermia: -0.5 Consciousness * 0.98 = -0.49
+        // Tired: -0.45 Consciousness * 0.65 = -0.2925
+        // Fever: -0.4 Consciousness * 0.22 = -0.088
+        // Total: -0.87
+
+        var effectModifiers = new CapacityModifierContainer();
+        effectModifiers.SetCapacityModifier(CapacityNames.Consciousness, -0.87);
+
+        // Act
+        double vitality = AbilityCalculator.CalculateVitality(body, effectModifiers);
+
+        // Assert - Vitality should be reduced (min of Breathing, BloodPumping, Consciousness)
+        // Consciousness = 1.0 - 0.87 = 0.13, so Vitality should be ~0.13
+        Assert.True(vitality < 0.20,
+            $"Vitality with -87% Consciousness modifier should be less than 20%. Actual: {vitality:P0}");
+    }
 }

@@ -113,7 +113,7 @@ public class GameContext(Player player, Camp camp)
             EventCondition.HighVisibility => CurrentLocation.VisibilityFactor > 0.7,
             EventCondition.LowVisibility => CurrentLocation.VisibilityFactor < 0.3,
             EventCondition.InDarkness => CurrentLocation.IsDark && !Check(EventCondition.HasLightSource),
-            EventCondition.HasLightSource => CurrentLocation.GetFeature<HeatSourceFeature>()?.IsActive ?? false,
+            EventCondition.HasLightSource => (CurrentLocation.GetFeature<HeatSourceFeature>()?.IsActive ?? false) || Inventory.HasLitTorch,
             EventCondition.NearWater => CurrentLocation.HasFeature<WaterFeature>(),
             EventCondition.HazardousTerrain => CurrentLocation.GetEffectiveTerrainHazard() >= 0.5,
 
@@ -397,6 +397,48 @@ public class GameContext(Player player, Camp camp)
         {
             double fireHeat = fire.GetEffectiveHeatOutput(CurrentLocation.GetTemperature(isStationary));
             context.FireProximityBonus = fireHeat * fireProximityMultiplier;
+        }
+
+        // Torch provides warmth during expeditions (when away from fire)
+        if (Inventory.HasLitTorch)
+        {
+            context.FireProximityBonus += Inventory.GetTorchHeatBonusF();
+        }
+
+        // Tick torch burn time
+        if (Inventory.ActiveTorch != null)
+        {
+            double previousTime = Inventory.TorchBurnTimeRemainingMinutes;
+            Inventory.TorchBurnTimeRemainingMinutes -= minutes;
+
+            // Torch chaining prompt at 5 minutes (only if not near fire and have another torch)
+            if (previousTime > 5 && Inventory.TorchBurnTimeRemainingMinutes <= 5 &&
+                Inventory.TorchBurnTimeRemainingMinutes > 0 && Inventory.HasUnlitTorch)
+            {
+                bool nearFire = fire?.IsActive == true;
+                if (!nearFire)
+                {
+                    int torchCount = Inventory.Tools.Count(t => t.Type == ToolType.Torch && t.Works);
+                    var chainChoice = new Choice<bool>("Your torch is burning low. Light another?");
+                    chainChoice.AddOption($"Yes, light new torch ({torchCount} remaining)", true);
+                    chainChoice.AddOption("No, let it burn out", false);
+
+                    GameDisplay.Render(this, statusText: "Torch dying.");
+                    if (chainChoice.GetPlayerChoice(this))
+                    {
+                        Inventory.LightTorch();
+                        GameDisplay.AddNarrative(this, "You light a fresh torch from the dying flame.");
+                    }
+                }
+            }
+
+            // Torch burns out
+            if (Inventory.TorchBurnTimeRemainingMinutes <= 0)
+            {
+                GameDisplay.AddWarning(this, "Your torch sputters and dies.");
+                Inventory.ActiveTorch = null;
+                Inventory.TorchBurnTimeRemainingMinutes = 0;
+            }
         }
 
         player.Update(minutes, context);

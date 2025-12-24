@@ -52,6 +52,9 @@ public static class ButcherRunner
         // Sinew: ~5% of body weight (tendons for cordage)
         AddSinew(result, bodyWeight * 0.05, animalName);
 
+        // Fat: ~8% of body weight (for rendering into tallow)
+        AddFat(result, bodyWeight * 0.08, animalName);
+
         return result;
     }
 
@@ -123,6 +126,25 @@ public static class ButcherRunner
         if (totalKg > 0.05)
         {
             result.Sinew.Push(totalKg);
+        }
+    }
+
+    private static void AddFat(Inventory result, double totalKg, string animalName)
+    {
+        // Fat comes in chunks - split into 2-3 pieces
+        if (totalKg < 0.1) return;
+
+        int chunks = totalKg switch
+        {
+            < 0.3 => 1,
+            < 0.6 => 2,
+            _ => 3
+        };
+
+        double perChunk = totalKg / chunks;
+        for (int i = 0; i < chunks; i++)
+        {
+            result.RawFat.Push(perChunk);
         }
     }
 }

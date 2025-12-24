@@ -18,18 +18,28 @@ public class WorkRunner(GameContext ctx)
 
     /// <summary>
     /// Check if location is too dark to work. Returns true if work is blocked.
+    /// Darkness can come from: inherent location darkness OR nighttime.
     /// </summary>
     private bool CheckDarknessBlocking(Location location)
     {
-        if (!location.IsDark)
+        // Check inherent location darkness OR nighttime
+        bool isNight = _ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;
+        bool isDark = location.IsDark || isNight;
+
+        if (!isDark)
             return false;
 
-        // Check for active light source
+        // Active fire provides light
         var heatSource = location.GetFeature<HeatSourceFeature>();
         if (heatSource != null && heatSource.IsActive)
             return false;
 
-        GameDisplay.AddWarning(_ctx, "It's too dark to work here. You need a light source.");
+        // Active torch provides light
+        if (_ctx.Inventory.HasLitTorch)
+            return false;
+
+        string reason = isNight ? "It's too dark to work at night." : "It's too dark to work here.";
+        GameDisplay.AddWarning(_ctx, $"{reason} You need a light source.");
         GameDisplay.Render(_ctx, statusText: "Darkness.");
         Input.WaitForKey(_ctx);
         return true;

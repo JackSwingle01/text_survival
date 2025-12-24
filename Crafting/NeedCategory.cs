@@ -24,10 +24,25 @@ public enum NeedCategory
     /// <summary>
     /// Trapping equipment (snares for passive hunting).
     /// </summary>
-    Trapping
+    Trapping,
 
-    // Future categories:
-    // Shelter,
-    // Clothing,
-    // Container
+    /// <summary>
+    /// Material processing (scraping hides, rendering fat, processing fiber).
+    /// </summary>
+    Processing,
+
+    /// <summary>
+    /// Medical treatments (teas, poultices, remedies).
+    /// </summary>
+    Treatment,
+
+    /// <summary>
+    /// Clothing and equipment (hide clothing, insulation gear).
+    /// </summary>
+    Equipment,
+
+    /// <summary>
+    /// Light sources (torches for dark areas and night work).
+    /// </summary>
+    Lighting
 }

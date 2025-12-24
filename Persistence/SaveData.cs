@@ -70,13 +70,34 @@ public record OrganSaveData(string Name, double Condition);
 /// </summary>
 public record EffectSaveData
 {
+    // Identity
     public string EffectKind { get; init; } = "";
+    public string? TargetBodyPart { get; init; }
+
+    // State
     public double Severity { get; init; }
     public double HourlySeverityChange { get; init; }
-    public string? TargetBodyPart { get; init; }
-    public string? Source { get; init; }
     public bool RequiresTreatment { get; init; }
+    public bool CanHaveMultiple { get; init; }
+
+    // Effects on stats/capacities
+    public Dictionary<string, double> CapacityModifiers { get; init; } = [];
+    public StatsDeltaSaveData? StatsDelta { get; init; }
+    public DamageOverTimeSaveData? Damage { get; init; }
+
+    // Messages
+    public string? ApplicationMessage { get; init; }
+    public string? RemovalMessage { get; init; }
 }
+
+public record StatsDeltaSaveData(
+    double TemperatureDelta,
+    double CalorieDelta,
+    double HydrationDelta,
+    double EnergyDelta
+);
+
+public record DamageOverTimeSaveData(double PerHour, string DamageType);
 
 /// <summary>
 /// Inventory state for both player and camp storage.
@@ -115,6 +136,10 @@ public record InventorySaveData
     public EquipmentSaveData? Feet { get; init; }
     public EquipmentSaveData? Hands { get; init; }
     public ToolSaveData? Weapon { get; init; }
+
+    // Active torch state
+    public ToolSaveData? ActiveTorch { get; init; }
+    public double TorchBurnTimeRemainingMinutes { get; init; }
 }
 
 /// <summary>

@@ -713,7 +713,10 @@ public static class LocationFactory
             .AddLogs(1.2, 1.2, 2.8)
             .AddTinder(1.5, 0.02, 0.07)
             .AddBerries(0.4, 0.05, 0.15)
-            .AddPlantFiber(0.6, 0.05, 0.12);
+            .AddPlantFiber(0.6, 0.05, 0.12)
+            .AddNuts(0.25)                // hardwood trees in sheltered areas
+            .AddRoots(0.2)                // edible roots
+            .AddRoseHips(0.2);            // shrubs at edges
         location.Features.Add(forageFeature);
 
         // Good game - animals shelter here too

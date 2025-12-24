@@ -110,6 +110,10 @@ public class Tool
             BlockChance = 0.08,
             WeaponClass = Items.WeaponClass.Blunt
         };
+
+    /// <summary>Torch - portable light source, burns for ~1 hour, provides modest warmth</summary>
+    public static Tool Torch(string name = "Torch") =>
+        new(name, ToolType.Torch, 0.5) { Durability = 1 };
 }
 
 public enum ToolType
@@ -126,7 +130,9 @@ public enum ToolType
     Needle,
     Cordage,
     Unarmed,
-    Snare
+    Snare,
+    Treatment,  // Consumable medical treatment (teas, poultices, salves)
+    Torch       // Portable light source
 }
 
 /// <summary>

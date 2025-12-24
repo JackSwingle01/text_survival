@@ -558,7 +558,7 @@ body::before {
 
 .temp-value {
     font-family: 'Oswald', sans-serif;
-    font-size: 1.1rem;
+    font-size: 0.9rem;
     font-weight: 700;
 }
 .temp-status { font-size: 0.85em; }
@@ -1046,4 +1046,299 @@ body::before {
     .temp-badge-value {
         font-size: 1.4rem;
     }
+}
+
+/* ========== SIDE PANEL GEAR ENHANCEMENTS ========== */
+
+/* Weapon display in side panel */
+.gear-weapon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gear-weapon .material-symbols-outlined {
+    font-size: 1rem;
+    color: #aa8866;
+}
+
+.weapon-name {
+    flex: 1;
+    font-size: 0.9em;
+}
+
+.weapon-stat {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.85rem;
+    color: #aa8866;
+}
+
+/* Tool pills */
+.gear-tools {
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+
+.tool-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.tool-pill {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-dim);
+    border-radius: 3px;
+}
+
+.tool-pill.cutting {
+    border-color: rgba(170, 136, 102, 0.3);
+}
+
+.tool-pill.fire {
+    border-color: rgba(230, 140, 60, 0.5);
+    background: rgba(230, 140, 60, 0.15);
+    color: #e68c3c;
+    font-weight: 500;
+}
+
+.tool-pill.other {
+    border-color: rgba(120, 140, 160, 0.3);
+}
+
+/* Icons in gear rows */
+.gear-row .material-symbols-outlined {
+    font-size: 0.85rem;
+    margin-right: 4px;
+    vertical-align: middle;
+    color: var(--text-faint);
+}
+
+.gear-label {
+    display: flex;
+    align-items: center;
+}
+
+.gear-value.food-empty {
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+/* Rare materials indicator */
+.rare-indicator {
+    color: #d4af37;
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+/* ========== INVENTORY MODAL ENHANCEMENTS ========== */
+
+/* Add dividing lines between sections */
+.inventory-section {
+    padding: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* Section icons in headers */
+.inventory-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.inventory-section h3 .material-symbols-outlined {
+    font-size: 1rem;
+    color: var(--text-faint);
+}
+
+/* Equipment slots */
+.inv-slot {
+    display: flex;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.inv-slot .slot-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-faint);
+    width: 60px;
+}
+
+.inv-slot .slot-item {
+    flex: 1;
+}
+
+.inv-slot .slot-empty {
+    flex: 1;
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+.inv-slot .slot-stat {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.85rem;
+}
+
+.inv-slot .slot-stat.insulation {
+    color: #6aa;
+}
+
+.inv-slot.weapon {
+    border-bottom: 1px solid rgba(170, 136, 102, 0.2);
+    margin-bottom: 8px;
+    padding-bottom: 10px;
+}
+
+/* Tools list */
+.inv-tools {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.inv-tool {
+    display: flex;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.inv-tool .tool-name {
+    flex: 1;
+}
+
+.inv-tool .tool-warning {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.75rem;
+    color: #a86;
+    margin-left: 8px;
+}
+
+.inv-tool.durability-low {
+    color: #a86;
+}
+
+/* Inventory total row */
+.inv-total {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.9em;
+}
+
+.inv-total .total-value {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    color: #6aa;
+}
+
+/* Item type styling - materials */
+.inv-item.material-rare {
+    color: #d4af37;
+}
+
+.inv-item.material-precious {
+    color: #ffd700;
+    font-weight: 500;
+}
+
+.inv-item.material-processed {
+    color: #9a9a7a;
+}
+
+.inv-item.material-stone {
+    color: #8a9a9a;
+}
+
+/* Item type styling - food */
+.inv-item.food-cooked {
+    color: #aa9966;
+}
+
+.inv-item.food-preserved {
+    color: #8a9a6a;
+}
+
+.inv-item.food-raw {
+    color: #aa6666;
+}
+
+.inv-item.food-foraged {
+    color: #6a8a6a;
+}
+
+/* Item type styling - wood */
+.inv-item.wood-oak {
+    color: #8a7a5a;
+}
+
+.inv-item.wood-birch {
+    color: #aaa;
+}
+
+.inv-item.wood-pine {
+    color: #7a9a7a;
+}
+
+.inv-item.tinder {
+    color: var(--fire-color);
+}
+
+/* Medicinal type styling */
+.inv-item.medicinal-wound {
+    color: #aa6a6a;
+}
+
+.inv-item.medicinal-health {
+    color: #6a9a6a;
+}
+
+.inv-item.medicinal-pain {
+    color: #9a8aaa;
+}
+
+.inv-item.medicinal-vitamin {
+    color: #aa9a6a;
+}
+
+.inv-item.medicinal-antiseptic {
+    color: #6a9a9a;
+}
+
+.inv-item.medicinal-versatile {
+    color: #9a9a6a;
+}
+
+/* Special items */
+.inventory-section.special-section {
+    border-color: rgba(200, 160, 80, 0.2);
+}
+
+.inv-item.item-special {
+    color: #d4af37;
+}
+
+/* Summary row styling */
+.inv-item.summary {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-dim);
 }

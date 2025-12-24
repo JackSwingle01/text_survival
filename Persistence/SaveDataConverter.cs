@@ -78,13 +78,34 @@ public static class SaveDataConverter
 
     private static EffectSaveData ToSaveData(Effect effect)
     {
+        var sd = effect.StatsDelta;
+        bool hasStatsDelta = sd.TemperatureDelta != 0 || sd.CalorieDelta != 0 ||
+                             sd.HydrationDelta != 0 || sd.EnergyDelta != 0;
+
         return new EffectSaveData
         {
+            // Identity
             EffectKind = effect.EffectKind,
+            TargetBodyPart = effect.TargetBodyPart,
+
+            // State
             Severity = effect.Severity,
             HourlySeverityChange = effect.HourlySeverityChange,
-            TargetBodyPart = effect.TargetBodyPart,
-            RequiresTreatment = effect.RequiresTreatment
+            RequiresTreatment = effect.RequiresTreatment,
+            CanHaveMultiple = effect.CanHaveMultiple,
+
+            // Effects
+            CapacityModifiers = effect.CapacityModifiers.ToDictionary(),
+            StatsDelta = hasStatsDelta
+                ? new StatsDeltaSaveData(sd.TemperatureDelta, sd.CalorieDelta, sd.HydrationDelta, sd.EnergyDelta)
+                : null,
+            Damage = effect.Damage != null
+                ? new DamageOverTimeSaveData(effect.Damage.PerHour, effect.Damage.Type.ToString())
+                : null,
+
+            // Messages
+            ApplicationMessage = effect.ApplicationMessage,
+            RemovalMessage = effect.RemovalMessage
         };
     }
 
@@ -111,7 +132,9 @@ public static class SaveDataConverter
             Legs = inv.Legs != null ? ToSaveData(inv.Legs) : null,
             Feet = inv.Feet != null ? ToSaveData(inv.Feet) : null,
             Hands = inv.Hands != null ? ToSaveData(inv.Hands) : null,
-            Weapon = inv.Weapon != null ? ToSaveData(inv.Weapon) : null
+            Weapon = inv.Weapon != null ? ToSaveData(inv.Weapon) : null,
+            ActiveTorch = inv.ActiveTorch != null ? ToSaveData(inv.ActiveTorch) : null,
+            TorchBurnTimeRemainingMinutes = inv.TorchBurnTimeRemainingMinutes
         };
     }
 
@@ -388,14 +411,47 @@ public static class SaveDataConverter
 
     private static Effect RestoreEffect(EffectSaveData data)
     {
+        // Restore stats delta if present
+        SurvivalStatsDelta? statsDelta = null;
+        if (data.StatsDelta != null)
+        {
+            statsDelta = new SurvivalStatsDelta
+            {
+                TemperatureDelta = data.StatsDelta.TemperatureDelta,
+                CalorieDelta = data.StatsDelta.CalorieDelta,
+                HydrationDelta = data.StatsDelta.HydrationDelta,
+                EnergyDelta = data.StatsDelta.EnergyDelta
+            };
+        }
+
+        // Restore damage over time if present
+        Effect.DamageOverTime? damage = null;
+        if (data.Damage != null && Enum.TryParse<DamageType>(data.Damage.DamageType, out var damageType))
+        {
+            damage = new Effect.DamageOverTime(data.Damage.PerHour, damageType);
+        }
+
         return new Effect
         {
+            // Identity
             EffectKind = data.EffectKind,
+            TargetBodyPart = data.TargetBodyPart,
+
+            // State
             Severity = data.Severity,
             HourlySeverityChange = data.HourlySeverityChange,
-            TargetBodyPart = data.TargetBodyPart,
             RequiresTreatment = data.RequiresTreatment,
-            IsActive = true
+            CanHaveMultiple = data.CanHaveMultiple,
+            IsActive = true,
+
+            // Effects
+            CapacityModifiers = CapacityModifierContainer.FromDictionary(data.CapacityModifiers),
+            StatsDelta = statsDelta ?? new SurvivalStatsDelta(),
+            Damage = damage,
+
+            // Messages
+            ApplicationMessage = data.ApplicationMessage,
+            RemovalMessage = data.RemovalMessage
         };
     }
 
@@ -442,6 +498,10 @@ public static class SaveDataConverter
         inv.Feet = data.Feet != null ? RestoreEquipment(data.Feet) : null;
         inv.Hands = data.Hands != null ? RestoreEquipment(data.Hands) : null;
         inv.Weapon = data.Weapon != null ? RestoreTool(data.Weapon) : null;
+
+        // Restore active torch state
+        inv.ActiveTorch = data.ActiveTorch != null ? RestoreTool(data.ActiveTorch) : null;
+        inv.TorchBurnTimeRemainingMinutes = data.TorchBurnTimeRemainingMinutes;
     }
 
     private static Tool RestoreTool(ToolSaveData data)
