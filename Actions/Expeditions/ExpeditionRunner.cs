@@ -21,9 +21,10 @@ public class ExpeditionRunner(GameContext ctx)
     /// </summary>
     public void Run()
     {
-        if (_ctx.Expedition == null)
+        var expedition = _ctx.Expedition;
+        if (expedition == null)
         {
-            var expedition = new Expedition(_ctx.CurrentLocation, _ctx.player);
+            expedition = new Expedition(_ctx.CurrentLocation, _ctx.player);
             _ctx.Expedition = expedition;
 
             GameDisplay.AddNarrative(_ctx, "Where do you want to go?");
@@ -754,7 +755,7 @@ public class ExpeditionRunner(GameContext ctx)
     {
         int elapsed = 0;
         bool died = false;
-        string statusText = $"Traveling to {destination.Name}...";
+        string statusText = $"Traveling...";
 
         while (elapsed < totalTime && !died)
         {
