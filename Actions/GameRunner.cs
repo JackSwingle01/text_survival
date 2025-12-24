@@ -9,6 +9,7 @@ using text_survival.Actions.Expeditions;
 using text_survival.Persistence;
 using text_survival.UI;
 using text_survival.Survival;
+using System.Net;
 
 namespace text_survival.Actions;
 
@@ -39,6 +40,12 @@ public partial class GameRunner(GameContext ctx)
     {
         while (ctx.player.IsAlive)
         {
+            if (ctx.Expedition is not null)
+            {
+                // if resuming a save mid expedition - finish it before continuing 
+                var expeditionRunner = new ExpeditionRunner(ctx);
+                expeditionRunner.Run();
+            }
             GameDisplay.Render(ctx, statusText: "Resting.");
             CheckFireWarning();
             RunCampMenu();
@@ -338,7 +345,8 @@ public partial class GameRunner(GameContext ctx)
                     inv.Charcoal += collected;
                     GameDisplay.AddSuccess(ctx, $"You collect {collected:F2}kg of charcoal from the fire pit.");
                     return collected;
-                });
+                }
+                );
             }
 
             if (fuelChoices.Count == 0 && !hasCharcoal)

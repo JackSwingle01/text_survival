@@ -5,6 +5,7 @@ using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
+using text_survival.Persistence;
 using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions;
@@ -20,25 +21,29 @@ public class ExpeditionRunner(GameContext ctx)
     /// </summary>
     public void Run()
     {
-        var expedition = new Expedition(_ctx.CurrentLocation, _ctx.player);
-        _ctx.Expedition = expedition;
-
-        GameDisplay.AddNarrative(_ctx, "Where do you want to go?");
-        GameDisplay.Render(_ctx, statusText: "Planning.");
-
-        // First, pick a destination from camp
-        bool wentSomewhere = DoTravel(expedition);
-        if (!wentSomewhere)
+        if (_ctx.Expedition == null)
         {
-            // Player cancelled travel, didn't actually leave
-            _ctx.Expedition = null;
-            return;
-        }
+            var expedition = new Expedition(_ctx.CurrentLocation, _ctx.player);
+            _ctx.Expedition = expedition;
 
+            GameDisplay.AddNarrative(_ctx, "Where do you want to go?");
+            GameDisplay.Render(_ctx, statusText: "Planning.");
+
+            // First, pick a destination from camp
+            bool wentSomewhere = DoTravel(expedition);
+            if (!wentSomewhere)
+            {
+                // Player cancelled travel, didn't actually leave
+                _ctx.Expedition = null;
+                return;
+            }
+        }
+        
         // Now we're away from camp - main loop
         bool stayOut = true;
         while (stayOut && !PlayerDied)
         {
+            SaveManager.Save(_ctx);
             GameDisplay.Render(_ctx, statusText: "Surveying.");
 
             var actionChoice = new Choice<string>("What do you do?");

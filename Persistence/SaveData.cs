@@ -15,6 +15,9 @@ public record GameSaveData
     public InventorySaveData CampStorage { get; init; } = new();
     public ZoneSaveData Zone { get; init; } = new();
     public string CampLocationName { get; init; } = "";
+    public ExpeditionSaveData? Expedition { get; init; }  // null = at camp
+    public string CurrentActivity { get; init; } = "Idle";
+    public EncounterConfigSaveData? PendingEncounter { get; init; }
     public List<TensionSaveData> Tensions { get; init; } = [];
     public List<LogEntrySaveData> NarrativeLog { get; init; } = [];
     public Dictionary<string, DateTime> EventTriggerTimes { get; init; } = new();
@@ -298,4 +301,26 @@ public record TensionSaveData
     public string? AnimalType { get; init; }
     public string? Direction { get; init; }
     public string? Description { get; init; }
+}
+
+/// <summary>
+/// Expedition state - null if player is at camp.
+/// </summary>
+public record ExpeditionSaveData
+{
+    public List<string> TravelHistoryLocationNames { get; init; } = [];
+    public string State { get; init; } = "";  // "Traveling" or "Working"
+    public int MinutesElapsedTotal { get; init; }
+    public List<string> CollectionLog { get; init; } = [];
+}
+
+/// <summary>
+/// Pending predator encounter configuration.
+/// </summary>
+public record EncounterConfigSaveData
+{
+    public string AnimalType { get; init; } = "";
+    public double InitialDistance { get; init; }
+    public double InitialBoldness { get; init; }
+    public List<string> Modifiers { get; init; } = [];
 }

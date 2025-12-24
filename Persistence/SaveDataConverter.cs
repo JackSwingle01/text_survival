@@ -1,4 +1,6 @@
+using System.Reflection;
 using text_survival.Actions;
+using text_survival.Actions.Expeditions;
 using text_survival.Actions.Tensions;
 using text_survival.Actors.Player;
 using text_survival.Bodies;
@@ -7,6 +9,7 @@ using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
+using Mapster;
 
 namespace text_survival.Persistence;
 
@@ -15,6 +18,68 @@ namespace text_survival.Persistence;
 /// </summary>
 public static class SaveDataConverter
 {
+    static SaveDataConverter()
+    {
+        // Configure Mapster type mappings
+        ConfigureMapsterMappings();
+    }
+
+    private static void ConfigureMapsterMappings()
+    {
+        // Simple types that auto-map with enum conversions
+        TypeAdapterConfig<Tool, ToolSaveData>.NewConfig()
+            .Map(dest => dest.Type, src => src.Type.ToString())
+            .Map(dest => dest.WeaponClass, src => src.WeaponClass != null ? src.WeaponClass.ToString() : null);
+
+        TypeAdapterConfig<Equipment, EquipmentSaveData>.NewConfig()
+            .Map(dest => dest.Slot, src => src.Slot.ToString());
+
+        TypeAdapterConfig<ZoneWeather, WeatherSaveData>.NewConfig()
+            .Map(dest => dest.CurrentCondition, src => src.CurrentCondition.ToString())
+            .Map(dest => dest.CurrentSeason, src => src.CurrentSeason.ToString());
+
+        // Location - map Connections to ConnectionNames
+        TypeAdapterConfig<Location, LocationSaveData>.NewConfig()
+            .Map(dest => dest.ConnectionNames, src => src.Connections.Select(c => c.Name).ToList())
+            .Map(dest => dest.Features, src => src.Features.Select(f => f.Adapt<FeatureSaveData>()).ToList())
+            .Map(dest => dest.Explored, src => src.Explored);
+
+        // Zone - map Graph.All to Locations
+        TypeAdapterConfig<Zone, ZoneSaveData>.NewConfig()
+            .Map(dest => dest.Locations, src => src.Graph.All.Select(l => l.Adapt<LocationSaveData>()).ToList())
+            .Map(dest => dest.UnrevealedLocations, src => new List<LocationSaveData>())
+            .Map(dest => dest.Weather, src => src.Weather.Adapt<WeatherSaveData>());
+
+        // Player - simple mapping
+        TypeAdapterConfig<Player, PlayerSaveData>.NewConfig()
+            .Map(dest => dest.Body, src => src.Body.Adapt<BodySaveData>())
+            .Map(dest => dest.Effects, src => src.EffectRegistry.GetAll().Select(e => e.Adapt<EffectSaveData>()).ToList());
+
+        // PlacedSnare - simple with enum
+        TypeAdapterConfig<PlacedSnare, SnareSaveData>.NewConfig()
+            .Map(dest => dest.State, src => src.State.ToString())
+            .Map(dest => dest.Bait, src => src.Bait.ToString());
+
+        // ActiveTension - map location refs to names
+        TypeAdapterConfig<ActiveTension, TensionSaveData>.NewConfig()
+            .Map(dest => dest.Type, src => src.Type.ToString())
+            .Map(dest => dest.RelevantLocationName, src => src.RelevantLocation != null ? src.RelevantLocation.Name : null)
+            .Map(dest => dest.SourceLocationName, src => src.SourceLocation != null ? src.SourceLocation.Name : null)
+            .Map(dest => dest.AnimalType, src => src.AnimalType != null ? src.AnimalType.ToString() : null)
+            .Map(dest => dest.Direction, src => src.Direction != null ? src.Direction.ToString() : null);
+
+        // Expedition - save travel history and state
+        TypeAdapterConfig<Expedition, ExpeditionSaveData>.NewConfig()
+            .Map(dest => dest.TravelHistoryLocationNames, src => src.TravelHistory.Select(loc => loc.Name).ToList())
+            .Map(dest => dest.State, src => src.State.ToString())
+            .Map(dest => dest.MinutesElapsedTotal, src => src.MinutesElapsedTotal)
+            .Map(dest => dest.CollectionLog, src => src.CollectionLog.ToList());
+
+        // EncounterConfig - simple mapping with null-safe modifiers
+        TypeAdapterConfig<EncounterConfig, EncounterConfigSaveData>.NewConfig()
+            .Map(dest => dest.Modifiers, src => src.Modifiers ?? new List<string>());
+    }
+
     #region To Save Data
 
     /// <summary>
@@ -31,6 +96,9 @@ public static class SaveDataConverter
             CampStorage = ToSaveData(ctx.Camp.Storage),
             Zone = ToSaveData(ctx.CurrentLocation.ParentZone),
             CampLocationName = ctx.Camp.Location.Name,
+            Expedition = ctx.Expedition?.Adapt<ExpeditionSaveData>(),
+            CurrentActivity = ctx.CurrentActivity.ToString(),
+            PendingEncounter = ctx.PendingEncounter?.Adapt<EncounterConfigSaveData>(),
             Tensions = ctx.Tensions.All.Select(ToSaveData).ToList(),
             NarrativeLog = ctx.Log.GetVisible()
                 .Select(e => new LogEntrySaveData(e.Text, e.Level.ToString()))
@@ -39,14 +107,7 @@ public static class SaveDataConverter
         };
     }
 
-    private static PlayerSaveData ToSaveData(Player player)
-    {
-        return new PlayerSaveData
-        {
-            Body = ToSaveData(player.Body),
-            Effects = player.EffectRegistry.GetAll().Select(ToSaveData).ToList()
-        };
-    }
+    private static PlayerSaveData ToSaveData(Player player) => player.Adapt<PlayerSaveData>();
 
     private static BodySaveData ToSaveData(Body body)
     {
@@ -138,73 +199,15 @@ public static class SaveDataConverter
         };
     }
 
-    private static ToolSaveData ToSaveData(Tool tool)
-    {
-        return new ToolSaveData
-        {
-            Name = tool.Name,
-            Type = tool.Type.ToString(),
-            Weight = tool.Weight,
-            Durability = tool.Durability,
-            Damage = tool.Damage,
-            BlockChance = tool.BlockChance,
-            WeaponClass = tool.WeaponClass?.ToString()
-        };
-    }
+    private static ToolSaveData ToSaveData(Tool tool) => tool.Adapt<ToolSaveData>();
 
-    private static EquipmentSaveData ToSaveData(Equipment equip)
-    {
-        return new EquipmentSaveData
-        {
-            Name = equip.Name,
-            Slot = equip.Slot.ToString(),
-            Weight = equip.Weight,
-            Insulation = equip.Insulation
-        };
-    }
+    private static EquipmentSaveData ToSaveData(Equipment equip) => equip.Adapt<EquipmentSaveData>();
 
-    private static ZoneSaveData ToSaveData(Zone zone)
-    {
-        return new ZoneSaveData
-        {
-            Name = zone.Name,
-            Description = zone.Description,
-            Weather = ToSaveData(zone.Weather),
-            Locations = zone.Graph.All.Select(ToSaveData).ToList(),
-            UnrevealedLocations = [] // TODO: Handle unrevealed locations if needed
-        };
-    }
+    private static ZoneSaveData ToSaveData(Zone zone) => zone.Adapt<ZoneSaveData>();
 
-    private static WeatherSaveData ToSaveData(ZoneWeather weather)
-    {
-        return new WeatherSaveData
-        {
-            BaseTemperature = weather.BaseTemperature,
-            CurrentCondition = weather.CurrentCondition.ToString(),
-            Precipitation = weather.Precipitation,
-            WindSpeed = weather.WindSpeed,
-            CloudCover = weather.CloudCover,
-            CurrentSeason = weather.CurrentSeason.ToString()
-        };
-    }
+    private static WeatherSaveData ToSaveData(ZoneWeather weather) => weather.Adapt<WeatherSaveData>();
 
-    private static LocationSaveData ToSaveData(Location loc)
-    {
-        return new LocationSaveData
-        {
-            Name = loc.Name,
-            Tags = loc.Tags,
-            Explored = loc.Explored,
-            ConnectionNames = loc.Connections.Select(c => c.Name).ToList(),
-            BaseTraversalMinutes = loc.BaseTraversalMinutes,
-            TerrainHazardLevel = loc.TerrainHazardLevel,
-            WindFactor = loc.WindFactor,
-            OverheadCoverLevel = loc.OverheadCoverLevel,
-            VisibilityFactor = loc.VisibilityFactor,
-            IsDark = loc.IsDark,
-            Features = loc.Features.Select(ToSaveData).ToList()
-        };
-    }
+    private static LocationSaveData ToSaveData(Location loc) => loc.Adapt<LocationSaveData>();
 
     private static FeatureSaveData ToSaveData(LocationFeature feature)
     {
@@ -275,37 +278,9 @@ public static class SaveDataConverter
         }
     }
 
-    private static SnareSaveData ToSaveData(PlacedSnare snare)
-    {
-        return new SnareSaveData
-        {
-            State = snare.State.ToString(),
-            MinutesSet = snare.MinutesSet,
-            Bait = snare.Bait.ToString(),
-            BaitFreshness = snare.BaitFreshness,
-            CaughtAnimalType = snare.CaughtAnimalType,
-            CaughtAnimalWeightKg = snare.CaughtAnimalWeightKg,
-            MinutesSinceCatch = snare.MinutesSinceCatch,
-            DurabilityRemaining = snare.DurabilityRemaining,
-            IsReinforced = snare.IsReinforced
-        };
-    }
+    private static SnareSaveData ToSaveData(PlacedSnare snare) => snare.Adapt<SnareSaveData>();
 
-    private static TensionSaveData ToSaveData(ActiveTension tension)
-    {
-        return new TensionSaveData
-        {
-            Type = tension.Type,
-            Severity = tension.Severity,
-            DecayPerHour = tension.DecayPerHour,
-            DecaysAtCamp = tension.DecaysAtCamp,
-            RelevantLocationName = tension.RelevantLocation?.Name,
-            SourceLocationName = tension.SourceLocation?.Name,
-            AnimalType = tension.AnimalType,
-            Direction = tension.Direction,
-            Description = tension.Description
-        };
-    }
+    private static TensionSaveData ToSaveData(ActiveTension tension) => tension.Adapt<TensionSaveData>();
 
     #endregion
 
@@ -351,6 +326,58 @@ public static class SaveDataConverter
         {
             var level = Enum.Parse<LogLevel>(logEntry.Level);
             ctx.Log.Add(logEntry.Text, level);
+        }
+
+        // Restore expedition if player was away from camp
+        if (saveData.Expedition != null && saveData.Expedition.TravelHistoryLocationNames.Count > 0)
+        {
+            // Get start location (first in history - the camp)
+            var startLocationName = saveData.Expedition.TravelHistoryLocationNames[0];
+            var startLocation = ctx.CurrentLocation.ParentZone.Graph.All
+                .FirstOrDefault(l => l.Name == startLocationName) ?? ctx.Camp.Location;
+
+            // Create expedition with start location
+            ctx.Expedition = new Expedition(startLocation, ctx.player);
+
+            // Restore the rest of the travel history by pushing locations
+            for (int i = 1; i < saveData.Expedition.TravelHistoryLocationNames.Count; i++)
+            {
+                var locationName = saveData.Expedition.TravelHistoryLocationNames[i];
+                var location = ctx.CurrentLocation.ParentZone.Graph.All
+                    .FirstOrDefault(l => l.Name == locationName);
+                if (location != null)
+                {
+                    ctx.Expedition.TravelHistory.Push(location);
+                }
+            }
+
+            // Restore state
+            ctx.Expedition.State = Enum.Parse<ExpeditionState>(saveData.Expedition.State);
+
+            // Restore collection log
+            ctx.Expedition.CollectionLog.AddRange(saveData.Expedition.CollectionLog);
+
+            // Note: MinutesElapsedTotal has a private setter, so it will start from 0
+            // This is acceptable as elapsed time resets between sessions
+        }
+
+        // Restore current activity
+        if (Enum.TryParse<ActivityType>(saveData.CurrentActivity, out var activity))
+        {
+            // Use reflection to set private setter
+            var activityProp = typeof(GameContext).GetProperty("CurrentActivity");
+            activityProp?.SetValue(ctx, activity);
+        }
+
+        // Restore pending encounter
+        if (saveData.PendingEncounter != null)
+        {
+            ctx.PendingEncounter = new EncounterConfig(
+                saveData.PendingEncounter.AnimalType,
+                saveData.PendingEncounter.InitialDistance,
+                saveData.PendingEncounter.InitialBoldness,
+                saveData.PendingEncounter.Modifiers.Count > 0 ? saveData.PendingEncounter.Modifiers : null
+            );
         }
 
         // Restore event cooldown tracking

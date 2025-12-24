@@ -159,7 +159,11 @@ public class WorkRunner(GameContext ctx)
         workTimeChoice.AddOption("Quick work - 15 min", 15);
         workTimeChoice.AddOption("Standard work - 30 min", 30);
         workTimeChoice.AddOption("Thorough work - 60 min", 60);
+        workTimeChoice.AddOption("Cancel", 0);
         int workTime = workTimeChoice.GetPlayerChoice(_ctx);
+
+        if (workTime == 0)
+            return WorkResult.Empty(0);
 
         var (died, actualWorkTime) = RunWorkWithContinuePrompt(location, workTime, ActivityType.Foraging, "harvesting");
         if (died)
