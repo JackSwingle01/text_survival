@@ -173,7 +173,29 @@ public static partial class GameEventRegistry
         GoodCatch,
         TrapLinePlundered,
         TrappingAccident,
-        BaitedTrapAttention
+        BaitedTrapAttention,
+
+        // Location-specific events - Tier 1 (GameEventRegistry.Locations.cs)
+        DiscoverFireOrigin,
+        SpottedInOpen,
+        LogShifts,
+        DeadfallDen,
+        PreviousUse,
+        SmokeBuildsUp,
+        SpotMovement,
+        MutualVisibility,
+        WeatherTurns,
+
+        // Location-specific events - Tier 2 (GameEventRegistry.Locations.cs)
+        TheSilence,
+        NeedAnAxe,
+        SharpEdges,
+        FreshTracks,
+        EscapeIntoThicket,
+        CaughtInBrush,
+        TwistedAnkle,
+        SeeForMiles,
+        RidgeWindChill
     ];
 
     /// <summary>
@@ -219,6 +241,14 @@ public static partial class GameEventRegistry
 
             // Filter: skip if on cooldown
             if (IsOnCooldown(evt.Name, evt.CooldownHours, ctx.GameTime))
+                continue;
+
+            // Filter: skip if location name doesn't match
+            if (evt.RequiredLocationName != null && ctx.CurrentLocation?.Name != evt.RequiredLocationName)
+                continue;
+
+            // Filter: skip if location tag requirement not met
+            if (evt.RequiredLocationTag != null && !(ctx.CurrentLocation?.Tags?.Contains(evt.RequiredLocationTag) ?? false))
                 continue;
 
             // Calculate weight with modifiers

@@ -11,6 +11,7 @@ namespace text_survival.Environments
 
         // Pool of locations not yet connected to the graph
         private List<Location> _unrevealedLocations = [];
+        public IReadOnlyList<Location> UnrevealedLocations => _unrevealedLocations.AsReadOnly();
 
         public Zone(string name, string description, double baseTemp = 20)
         {

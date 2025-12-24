@@ -1,4 +1,5 @@
 using text_survival.Environments.Features;
+using text_survival.Items;
 
 namespace text_survival.Environments.Factories;
 
@@ -728,6 +729,338 @@ public static class LocationFactory
 
         // Natural rock cache
         location.Features.Add(CacheFeature.CreateRockCache());
+
+        return location;
+    }
+
+    /// <summary>
+    /// Burnt stand - fire-damaged forest. Abundant dry fuel, charcoal, exposed sightlines.
+    /// </summary>
+    public static Location MakeBurntStand(Zone parent)
+    {
+        var location = new Location(
+            name: "Burnt Stand",
+            tags: "[Fuel] [Exposed] [Charcoal]",
+            parent: parent,
+            traversalMinutes: 10,
+            terrainHazardLevel: 0.20,
+            windFactor: 0.9,        // No canopy protection
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.1)  // Open sightlines
+        {
+            DiscoveryText = "Fire came through here. Blackened trunks stand like pillars. Ash pads your footsteps."
+        };
+
+        // Rich in dry fuel and charcoal - the pull
+        var forageFeature = new ForageFeature(2.0)
+            .AddCharcoal(0.8, 0.05, 0.2)    // Abundant charcoal
+            .AddTinder(3.0, 0.02, 0.08)     // Dry debris everywhere
+            .AddSticks(2.5, 0.2, 0.5)       // Dry branches
+            .AddLogs(1.5, 1.0, 2.5);        // Standing dead wood
+        location.Features.Add(forageFeature);
+
+        // Very sparse game - little cover
+        var animalTerritory = new AnimalTerritoryFeature(0.3)
+            .AddRabbit(1.0);
+        location.Features.Add(animalTerritory);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Rock overhang - natural partial shelter with fire-efficient stone backing.
+    /// </summary>
+    public static Location MakeRockOverhang(Zone parent)
+    {
+        var location = new Location(
+            name: "Rock Overhang",
+            tags: "[Shelter] [Stone]",
+            parent: parent,
+            traversalMinutes: 12,
+            terrainHazardLevel: 0.20,
+            windFactor: 0.4,        // Partial wind block
+            overheadCoverLevel: 0.7,
+            visibilityFactor: 0.7)
+        {
+            DiscoveryText = "A stone lip juts from a cliff face. The ground beneath is dry. Wind passes over but the space below is calm."
+        };
+
+        // Sparse forage - mostly stone
+        var forageFeature = new ForageFeature(0.3)
+            .AddStone(0.5, 0.2, 0.5)
+            .AddTinder(0.2, 0.01, 0.04);
+        location.Features.Add(forageFeature);
+
+        // Partial shelter - not as good as a cave but immediate protection
+        location.Features.Add(new ShelterFeature("Overhang", 0.3, 0.7, 0.5));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Granite outcrop - exposed stone with tool materials and commanding view.
+    /// </summary>
+    public static Location MakeGraniteOutcrop(Zone parent)
+    {
+        var location = new Location(
+            name: "Granite Outcrop",
+            tags: "[Stone] [Exposed] [Vantage]",
+            parent: parent,
+            traversalMinutes: 14,
+            terrainHazardLevel: 0.35,
+            windFactor: 1.0,        // Completely exposed
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.5)  // Excellent sightlines
+        {
+            DiscoveryText = "Bare stone breaks through the landscape. Wind-scoured and exposed, the view is commanding. Stone flakes litter the base."
+        };
+
+        // Good stone for tools - the pull
+        var forageFeature = new ForageFeature(0.8)
+            .AddStone(2.0, 0.25, 0.6)
+            .AddFlint(0.3, 0.1, 0.3);
+        location.Features.Add(forageFeature);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Meltwater pool - remote glacial water source. Pure but exposed and cold.
+    /// </summary>
+    public static Location MakeMeltwaterPool(Zone parent)
+    {
+        var location = new Location(
+            name: "Meltwater Pool",
+            tags: "[Water] [Exposed] [Remote]",
+            parent: parent,
+            traversalMinutes: 22,   // Remote, high location
+            terrainHazardLevel: 0.25,
+            windFactor: 1.0,        // Completely exposed
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.3)
+        {
+            DiscoveryText = "A depression where glacial meltwater collects. Crystal clear and painfully cold. Ice rings the edges."
+        };
+
+        // Sparse alpine forage
+        var forageFeature = new ForageFeature(0.3)
+            .AddStone(0.3, 0.1, 0.3);
+        location.Features.Add(forageFeature);
+
+        // Water source with thin ice at edges
+        var waterFeature = new WaterFeature("meltwater", "Meltwater Pool")
+            .WithDescription("Glacial meltwater. Pure but frigid.")
+            .WithIceThickness(0.2);  // Thin ice at edges
+        location.Features.Add(waterFeature);
+
+        // Harvestable water
+        var pool = new HarvestableFeature("meltwater_pool", "Glacial Pool")
+        {
+            Description = "Crystal-clear meltwater. Pure but painfully cold.",
+            MinutesToHarvest = 3
+        };
+        pool.AddWater("meltwater", maxQuantity: 20, litersPerUnit: 1.0, respawnHoursPerUnit: 24.0);
+        location.Features.Add(pool);
+
+        return location;
+    }
+
+    // === TIER 2 LOCATIONS ===
+
+    /// <summary>
+    /// Ancient grove - old growth forest with premium hardwood. Requires axe to harvest.
+    /// </summary>
+    public static Location MakeAncientGrove(Zone parent)
+    {
+        var location = new Location(
+            name: "Ancient Grove",
+            tags: "[Forest] [Fuel] [Quiet]",
+            parent: parent,
+            traversalMinutes: 18,
+            terrainHazardLevel: 0.10,
+            windFactor: 0.3,        // Dense canopy blocks wind
+            overheadCoverLevel: 0.9,
+            visibilityFactor: 0.4)  // Dark under canopy
+        {
+            DiscoveryText = "Old growth. Massive trunks, cathedral spacing, deep silence. The canopy blocks snow and light alike."
+        };
+
+        // Sparse forage - healthy forest means little deadfall
+        var forageFeature = new ForageFeature(0.4)
+            .AddTinder(0.3, 0.01, 0.04)
+            .AddBirchPolypore(0.15, 0.05, 0.15)
+            .AddChaga(0.1, 0.05, 0.2);
+        location.Features.Add(forageFeature);
+
+        // Premium hardwood - requires axe
+        var hardwood = new HarvestableFeature("ancient_hardwood", "Ancient Hardwood")
+        {
+            Description = "Massive oak and ash. Dense, long-burning wood — if you can cut it.",
+            MinutesToHarvest = 20
+        };
+        hardwood.AddLogs("hardwood logs", maxQuantity: 8, weightPerUnit: 4.0, respawnHoursPerUnit: 168.0);
+        hardwood.RequiresTool(ToolType.Axe, ToolTier.Basic);
+        location.Features.Add(hardwood);
+
+        // Light game - deer pass through
+        var animalTerritory = new AnimalTerritoryFeature(0.5)
+            .AddDeer(1.0)
+            .AddRabbit(0.5);
+        location.Features.Add(animalTerritory);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Flint seam - premium tool stone embedded in limestone.
+    /// </summary>
+    public static Location MakeFlintSeam(Zone parent)
+    {
+        var location = new Location(
+            name: "Flint Seam",
+            tags: "[Stone] [Exposed] [Remote]",
+            parent: parent,
+            traversalMinutes: 20,
+            terrainHazardLevel: 0.30,
+            windFactor: 0.9,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.2)
+        {
+            DiscoveryText = "Dark stripe cutting across exposed rock. Nodules of flint embedded in limestone. Sharp flakes litter the ground."
+        };
+
+        // Rich in premium flint
+        var forageFeature = new ForageFeature(1.5)
+            .AddFlint(1.5, 0.15, 0.4)  // High quality, abundant flint
+            .AddStone(0.5, 0.2, 0.4);
+        location.Features.Add(forageFeature);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Game trail - worn path where animals move. Peak activity at dawn and dusk.
+    /// </summary>
+    public static Location MakeGameTrail(Zone parent)
+    {
+        var location = new Location(
+            name: "Game Trail",
+            tags: "[Forest] [Hunting] [Trail]",
+            parent: parent,
+            traversalMinutes: 8,     // Well-worn path, easy travel
+            terrainHazardLevel: 0.05,
+            windFactor: 0.6,
+            overheadCoverLevel: 0.5,
+            visibilityFactor: 0.8)
+        {
+            DiscoveryText = "A worn path through the brush. Hoofprints overlap in the mud. They pass through here regularly."
+        };
+
+        // Light forage
+        var forageFeature = new ForageFeature(0.6)
+            .AddSticks(0.5, 0.1, 0.3)
+            .AddPlantFiber(0.4, 0.05, 0.15);
+        location.Features.Add(forageFeature);
+
+        // Peak hunting at dawn (5-8) and dusk (17-20)
+        var animalTerritory = new AnimalTerritoryFeature(0.6)
+            .AddDeer(1.5)
+            .AddRabbit(1.0)
+            .AddFox(0.3)
+            .WithPeakHours(5, 8, 2.5);  // Dawn peak
+        location.Features.Add(animalTerritory);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Dense thicket - young growth so thick predators can't follow. Escape terrain.
+    /// </summary>
+    public static Location MakeDenseThicket(Zone parent)
+    {
+        var location = new Location(
+            name: "Dense Thicket",
+            tags: "[Forest] [Difficult] [Safe]",
+            parent: parent,
+            traversalMinutes: 20,    // Very slow movement
+            terrainHazardLevel: 0.25,
+            windFactor: 0.2,         // Excellent wind block
+            overheadCoverLevel: 0.7,
+            visibilityFactor: 0.3)   // Can't see far
+        {
+            DiscoveryText = "Young growth so thick you can barely push through. Branches grab at you. Small animals scatter.",
+            IsEscapeTerrain = true   // Large predators can't follow
+        };
+
+        // Good small game and fiber
+        var forageFeature = new ForageFeature(1.2)
+            .AddPlantFiber(1.5, 0.1, 0.25)
+            .AddSticks(1.0, 0.15, 0.4)
+            .AddBerries(0.8, 0.05, 0.15);
+        location.Features.Add(forageFeature);
+
+        // Excellent small game - safe from large predators
+        var animalTerritory = new AnimalTerritoryFeature(1.2)
+            .AddRabbit(2.0)
+            .AddPtarmigan(1.5);
+        location.Features.Add(animalTerritory);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Boulder field - jumbled rocks provide escape routes from predators.
+    /// </summary>
+    public static Location MakeBoulderField(Zone parent)
+    {
+        var location = new Location(
+            name: "Boulder Field",
+            tags: "[Stone] [Difficult] [Safe]",
+            parent: parent,
+            traversalMinutes: 18,
+            terrainHazardLevel: 0.45,  // High injury risk
+            windFactor: 0.7,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 0.9)
+        {
+            DiscoveryText = "Massive boulders tumbled across the slope. Gaps and crevices between them. Hard going, but wolves can't follow into the gaps.",
+            IsEscapeTerrain = true,
+            ClimbRiskFactor = 0.3
+        };
+
+        // Good stone
+        var forageFeature = new ForageFeature(0.8)
+            .AddStone(1.5, 0.3, 0.7)
+            .AddFlint(0.2, 0.1, 0.25);
+        location.Features.Add(forageFeature);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Rocky ridge - spine of stone above treeline with commanding views.
+    /// </summary>
+    public static Location MakeRockyRidge(Zone parent)
+    {
+        var location = new Location(
+            name: "Rocky Ridge",
+            tags: "[Stone] [Exposed] [Vantage]",
+            parent: parent,
+            traversalMinutes: 22,
+            terrainHazardLevel: 0.35,
+            windFactor: 1.2,         // Wind accelerates over ridge
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 2.0)   // Maximum visibility
+        {
+            DiscoveryText = "Spine of broken stone above the treeline. Wind never stops. You can see for miles — both valley sides visible.",
+            IsVantagePoint = true,
+            ClimbRiskFactor = 0.4
+        };
+
+        // Sparse stone, nothing else grows here
+        var forageFeature = new ForageFeature(0.3)
+            .AddStone(0.8, 0.2, 0.5);
+        location.Features.Add(forageFeature);
 
         return location;
     }

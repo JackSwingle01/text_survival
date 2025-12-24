@@ -29,7 +29,21 @@ public class ZoneGenerator
         (LocationFactory.MakeHotSpring, 1.5, 18, 28),
         (LocationFactory.MakeWolfDen, 1.5, 15, 22),
         (LocationFactory.MakeIceCrevasse, 0.5, 22, 30),
-        (LocationFactory.MakeAbandonedCamp, 0.5, 12, 20)
+        (LocationFactory.MakeAbandonedCamp, 0.5, 12, 20),
+
+        // Tier 1 locations
+        (LocationFactory.MakeBurntStand, 4.0, 8, 14),
+        (LocationFactory.MakeRockOverhang, 3.0, 10, 16),
+        (LocationFactory.MakeGraniteOutcrop, 3.0, 12, 18),
+        (LocationFactory.MakeMeltwaterPool, 2.0, 18, 25),
+
+        // Tier 2 locations
+        (LocationFactory.MakeAncientGrove, 2.0, 16, 24),
+        (LocationFactory.MakeFlintSeam, 1.5, 18, 26),
+        (LocationFactory.MakeGameTrail, 4.0, 6, 12),
+        (LocationFactory.MakeDenseThicket, 3.0, 12, 18),
+        (LocationFactory.MakeBoulderField, 2.5, 14, 22),
+        (LocationFactory.MakeRockyRidge, 1.5, 20, 28)
     ];
 
     public Zone GenerateForestZone(string name, string description, double baseTemp = 25)

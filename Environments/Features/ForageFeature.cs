@@ -199,6 +199,10 @@ public class ForageFeature(double resourceDensity = 1) : LocationFeature("forage
     public ForageFeature AddRawFiber(double abundance = 0.3, double minKg = 0.05, double maxKg = 0.15) =>
         AddResource("raw fiber", (inv, w) => inv.RawFiber.Push(w), abundance, minKg, maxKg);
 
+    // Fire remnant convenience methods
+    public ForageFeature AddCharcoal(double abundance = 0.2, double minKg = 0.05, double maxKg = 0.15) =>
+        AddResource("charcoal", (inv, w) => inv.Charcoal += w, abundance, minKg, maxKg);
+
     /// <summary>
     /// Get summary of what can be found here for display.
     /// </summary>

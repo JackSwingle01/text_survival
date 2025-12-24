@@ -3,6 +3,17 @@ using text_survival.Items;
 namespace text_survival.Environments.Features;
 
 /// <summary>
+/// Tool tier levels for tool-gated harvesting.
+/// </summary>
+public enum ToolTier
+{
+    None = 0,       // No tool needed
+    Improvised = 1, // Sharp rock, basic tools
+    Basic = 2,      // Stone knife, hand axe
+    Quality = 3     // Hafted axe, quality knife
+}
+
+/// <summary>
 /// Represents a discoverable resource node that can be harvested.
 /// Unlike ForageFeature (RNG-based searching), HarvestableFeature is a visible,
 /// quantity-based resource that respawns over time.
@@ -19,6 +30,17 @@ public class HarvestableFeature : LocationFeature
     /// Each cycle yields one unit of each non-depleted resource.
     /// </summary>
     public int MinutesToHarvest { get; set; } = 5;
+
+    // Tool requirements for gated harvesting
+    /// <summary>
+    /// The type of tool required to harvest (null = no tool needed).
+    /// </summary>
+    public ToolType? RequiredToolType { get; set; }
+
+    /// <summary>
+    /// Minimum tool tier required (Quality > Basic > Improvised > None).
+    /// </summary>
+    public ToolTier RequiredToolTier { get; set; } = ToolTier.None;
 
     private int _minutesWorked = 0;
     private readonly List<HarvestableResource> _resources = [];
@@ -99,6 +121,56 @@ public class HarvestableFeature : LocationFeature
 
     public HarvestableFeature AddStone(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
         AddResource(displayName, (inv, w, _) => inv.Stone.Push(w), maxQuantity, weightPerUnit, respawnHoursPerUnit);
+
+    // Builder methods for tool requirements
+    /// <summary>
+    /// Require a specific tool type to harvest this resource.
+    /// </summary>
+    public HarvestableFeature RequiresTool(ToolType toolType, ToolTier tier = ToolTier.Basic)
+    {
+        RequiredToolType = toolType;
+        RequiredToolTier = tier;
+        return this;
+    }
+
+    /// <summary>
+    /// Check if a tool meets the harvesting requirements.
+    /// </summary>
+    public bool MeetsToolRequirement(Tool? tool)
+    {
+        if (RequiredToolType == null && RequiredToolTier == ToolTier.None)
+            return true; // No requirement
+
+        if (tool == null)
+            return false;
+
+        if (RequiredToolType != null && tool.Type != RequiredToolType.Value)
+            return false;
+
+        // For now, assume any non-broken tool meets tier requirements
+        // TODO: Add tool quality/tier system when implementing full Tier 2
+        return !tool.IsBroken;
+    }
+
+    /// <summary>
+    /// Get a description of what tool is needed.
+    /// </summary>
+    public string GetToolRequirementDescription()
+    {
+        if (RequiredToolType == null && RequiredToolTier == ToolTier.None)
+            return "";
+
+        string tierDesc = RequiredToolTier switch
+        {
+            ToolTier.Quality => "quality ",
+            ToolTier.Basic => "",
+            ToolTier.Improvised => "improvised ",
+            _ => ""
+        };
+
+        string toolDesc = RequiredToolType?.ToString().ToLower() ?? "tool";
+        return $"Requires {tierDesc}{toolDesc}";
+    }
 
     /// <summary>
     /// Check if any resources are currently available to harvest

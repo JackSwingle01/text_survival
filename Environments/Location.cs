@@ -8,6 +8,7 @@ public class Location(string name, string tags, Zone parent, int traversalMinute
 {
 
     // Identity //
+    public Guid Id { get; init; } = Guid.NewGuid();
     public string Name { get; } = name;
 
     /// <summary>
@@ -68,6 +69,26 @@ public class Location(string name, string tags, Zone parent, int traversalMinute
     /// First-visit discovery text (flavor text shown once).
     /// </summary>
     public string? DiscoveryText { get; set; }
+
+    // Tactical Properties //
+
+    /// <summary>
+    /// Terrain large predators can't easily follow into (thick brush, narrow passages).
+    /// Provides escape options during encounters.
+    /// </summary>
+    public bool IsEscapeTerrain { get; set; } = false;
+
+    /// <summary>
+    /// High vantage point offering excellent scouting visibility.
+    /// Can reveal nearby locations and spot distant movement.
+    /// </summary>
+    public bool IsVantagePoint { get; set; } = false;
+
+    /// <summary>
+    /// Risk of falling or climbing injury at this location (0-1).
+    /// 0 = flat ground, 0.3 = moderate scrambling, 0.7 = technical climbing.
+    /// </summary>
+    public double ClimbRiskFactor { get; set; } = 0;
 
     // Discovery //
     public bool Explored { get; private set; } = false;

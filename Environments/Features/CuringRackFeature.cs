@@ -173,6 +173,32 @@ public class CuringRackFeature : LocationFeature
         public double ProgressPct => Math.Min(1.0, (double)MinutesCured / MinutesRequired);
         public double HoursRemaining => Math.Max(0, (MinutesRequired - MinutesCured) / 60.0);
     }
+
+    /// <summary>
+    /// Get internal state for saving.
+    /// </summary>
+    public IEnumerable<(CurableItemType Type, double WeightKg, int MinutesCured, int MinutesRequired)> GetItemsForSave()
+    {
+        return _items.Select(i => (i.Type, i.WeightKg, i.MinutesCured, i.MinutesRequired));
+    }
+
+    /// <summary>
+    /// Restore internal state from save.
+    /// </summary>
+    public void RestoreState(IEnumerable<(CurableItemType Type, double WeightKg, int MinutesCured, int MinutesRequired)> items)
+    {
+        _items.Clear();
+        foreach (var (type, weight, cured, req) in items)
+        {
+            _items.Add(new CuringItem
+            {
+                Type = type,
+                WeightKg = weight,
+                MinutesCured = cured,
+                MinutesRequired = req
+            });
+        }
+    }
 }
 
 /// <summary>

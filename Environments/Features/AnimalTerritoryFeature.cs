@@ -23,6 +23,10 @@ public class AnimalTerritoryFeature : LocationFeature
     internal double HoursSinceLastHunt { get; private set; }
     internal bool HasBeenHunted { get; private set; }
 
+    // Peak hours configuration (time-gated spawns)
+    internal (int Start, int End)? PeakHours { get; private set; }
+    internal double PeakMultiplier { get; private set; } = 1.0;
+
     public AnimalTerritoryFeature(double gameDensity = 1.0) : base("animal_territory")
     {
         BaseGameDensity = gameDensity;
@@ -128,6 +132,44 @@ public class AnimalTerritoryFeature : LocationFeature
     public AnimalTerritoryFeature AddFox(double weight = 0.5) => AddAnimal("fox", weight);
     public AnimalTerritoryFeature AddWolf(double weight = 0.3) => AddAnimal("wolf", weight);
     public AnimalTerritoryFeature AddBear(double weight = 0.2) => AddAnimal("bear", weight);
+
+    /// <summary>
+    /// Set peak activity hours when game is more likely to be found.
+    /// Outside peak hours, base density applies. During peak hours, density is multiplied.
+    /// </summary>
+    /// <param name="startHour">Start of peak activity (0-23)</param>
+    /// <param name="endHour">End of peak activity (0-23)</param>
+    /// <param name="multiplier">Density multiplier during peak hours (e.g., 2.0 = double chance)</param>
+    public AnimalTerritoryFeature WithPeakHours(int startHour, int endHour, double multiplier = 2.0)
+    {
+        PeakHours = (startHour, endHour);
+        PeakMultiplier = multiplier;
+        return this;
+    }
+
+    /// <summary>
+    /// Check if current hour is within peak activity period.
+    /// </summary>
+    public bool IsPeakTime(int currentHour)
+    {
+        if (PeakHours == null) return false;
+        var (start, end) = PeakHours.Value;
+        if (start <= end)
+            return currentHour >= start && currentHour < end;
+        else // Wraps around midnight
+            return currentHour >= start || currentHour < end;
+    }
+
+    /// <summary>
+    /// Get the effective game density considering peak hours.
+    /// </summary>
+    public double GetEffectiveDensity(int currentHour)
+    {
+        double density = GameDensity;
+        if (IsPeakTime(currentHour))
+            density *= PeakMultiplier;
+        return Math.Min(1.5, density); // Cap at 150%
+    }
 
     /// <summary>
     /// Get a description of what game might be found here.

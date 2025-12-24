@@ -124,6 +124,10 @@ public class GameEvent(string name, string description, double weight)
     public readonly Dictionary<EventCondition, double> WeightFactors = [];
     public int CooldownHours = 24;  // Default: 1 day before event can trigger again
 
+    // Location-specific filtering
+    public string? RequiredLocationName;  // Exact match on location name
+    public string? RequiredLocationTag;   // Location tags must contain this
+
     private List<EventChoice> _choices = [];
     public EventChoice GetChoice(GameContext ctx)
     {
@@ -151,6 +155,18 @@ public class GameEvent(string name, string description, double weight)
     public GameEvent WithCooldown(int hours)
     {
         CooldownHours = hours;
+        return this;
+    }
+
+    public GameEvent WithLocationNameRequirement(string locationName)
+    {
+        RequiredLocationName = locationName;
+        return this;
+    }
+
+    public GameEvent WithLocationTagRequirement(string tag)
+    {
+        RequiredLocationTag = tag;
         return this;
     }
 
