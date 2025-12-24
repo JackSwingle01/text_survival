@@ -145,11 +145,13 @@ public static class LocationFactory
                                     overheadCoverLevel: 0.1,
                                     visibilityFactor: 1.2);
 
-        // Riverbeds have driftwood, limited other resources, but good stone
+        // Riverbeds have driftwood, willows along banks
         var forageFeature = new ForageFeature(1.2)
             .AddSticks(2.0, 0.2, 0.5)     // driftwood
             .AddLogs(1.0, 1.0, 2.0)       // occasional larger driftwood
-            .AddStone(0.6, 0.2, 0.5);     // river-smoothed stones, good for knapping
+            .AddStone(0.6, 0.2, 0.5)      // river-smoothed stones, good for knapping
+            .AddWillowBark(0.25)          // willows grow along water - pain relief
+            .AddSphagnum(0.15);           // peat moss in boggy spots
         location.Features.Add(forageFeature);
 
         // Water source harvestable - always present at rivers
@@ -243,11 +245,12 @@ public static class LocationFactory
                                     overheadCoverLevel: 0.0,
                                     visibilityFactor: 1.3);
 
-        // Hills have sparse vegetation but exposed stone
+        // Hills have sparse vegetation but exposed stone and hardy shrubs
         var forageFeature = new ForageFeature(0.4)
             .AddTinder(0.3, 0.02, 0.05)   // limited dry material
             .AddSticks(0.15, 0.1, 0.25)   // scrub brush
-            .AddStone(0.5, 0.25, 0.6);    // exposed rock for tools
+            .AddStone(0.5, 0.25, 0.6)     // exposed rock for tools
+            .AddJuniperBerries(0.2);      // hardy juniper shrubs on rocky slopes
         location.Features.Add(forageFeature);
 
         return location;
@@ -274,13 +277,15 @@ public static class LocationFactory
                                     overheadCoverLevel: 0.2,
                                     visibilityFactor: 1.1);
 
-        // Clearings have moderate resources
+        // Clearings have moderate resources + forest edge plants
         var forageFeature = new ForageFeature(1.3)
             .AddSticks(2.5, 0.15, 0.4)
             .AddLogs(1.0, 1.0, 2.5)
             .AddTinder(1.8, 0.02, 0.06)
             .AddBerries(0.25, 0.05, 0.12)
-            .AddPlantFiber(0.4, 0.05, 0.1); // undergrowth for cordage
+            .AddPlantFiber(0.4, 0.05, 0.1)  // undergrowth for cordage
+            .AddRoseHips(0.25)              // vitamin C, persist into winter
+            .AddRoots(0.2);                 // edible roots in forest floor
         location.Features.Add(forageFeature);
 
         // Animal territory - clearings attract deer for grazing
@@ -424,11 +429,13 @@ public static class LocationFactory
             DiscoveryText = "A tangle of fallen trees, bleached and dry. Fuel everywhere - but one wrong step could snap an ankle."
         };
 
-        // Exceptional fuel resources - the pull
+        // Exceptional fuel resources - the pull. Dead trees have fungi
         var forageFeature = new ForageFeature(3.0)
             .AddLogs(3.0, 1.5, 4.0)
             .AddSticks(4.0, 0.2, 0.7)
-            .AddTinder(3.0, 0.02, 0.1);
+            .AddTinder(3.0, 0.02, 0.1)
+            .AddAmadou(0.25)              // tinder fungus on dead trees
+            .AddBirchPolypore(0.2);       // bracket fungus on dead birch
         location.Features.Add(forageFeature);
 
         // Large harvestable deadfall
@@ -519,11 +526,12 @@ public static class LocationFactory
             DiscoveryText = "The ground gives way to frozen marsh. Cattails poke through the ice. Rich foraging if you're careful."
         };
 
-        // Rich in plant resources
+        // Rich in plant resources - sphagnum thrives here
         var forageFeature = new ForageFeature(1.8)
             .AddPlantFiber(2.0, 0.08, 0.2)
             .AddBerries(0.4, 0.05, 0.15)
-            .AddSticks(0.5, 0.1, 0.3);
+            .AddSticks(0.5, 0.1, 0.3)
+            .AddSphagnum(0.4);            // peat moss - absorbent, antiseptic
         location.Features.Add(forageFeature);
 
         // Cattails are excellent harvestable
