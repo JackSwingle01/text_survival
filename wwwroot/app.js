@@ -320,11 +320,19 @@ class GameClient {
             phaseEl.className = 'fire-phase cold';
             timeEl.textContent = '';
             // Show fuel if any is loaded
+            this.clearElement(fuelEl);
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined';
+            icon.textContent = 'local_fire_department';
+            fuelEl.appendChild(icon);
+
             if (fire.totalKg > 0) {
                 const litPercent = fire.totalKg > 0 ? Math.round(fire.burningKg / fire.totalKg * 100) : 0;
-                fuelEl.textContent = `${fire.totalKg.toFixed(1)}kg fuel (${litPercent}% lit)`;
+                const text = document.createTextNode(`${fire.totalKg.toFixed(1)}kg fuel (${litPercent}% lit)`);
+                fuelEl.appendChild(text);
             } else {
-                fuelEl.textContent = 'No fuel';
+                const text = document.createTextNode('No fuel');
+                fuelEl.appendChild(text);
             }
             heatEl.textContent = '';
             return;
@@ -339,6 +347,11 @@ class GameClient {
 
         // Fuel breakdown: burning vs unlit, or total/max
         this.clearElement(fuelEl);
+        const fuelIcon = document.createElement('span');
+        fuelIcon.className = 'material-symbols-outlined';
+        fuelIcon.textContent = 'local_fire_department';
+        fuelEl.appendChild(fuelIcon);
+
         if (fire.unlitKg > 0.1) {
             const burningSpan = document.createElement('span');
             burningSpan.className = 'fire-burning';
@@ -349,7 +362,8 @@ class GameClient {
             fuelEl.appendChild(burningSpan);
             fuelEl.appendChild(unlitSpan);
         } else {
-            fuelEl.textContent = `${fire.totalKg.toFixed(1)}/${fire.maxCapacityKg.toFixed(0)} kg fuel`;
+            const fuelText = document.createTextNode(`${fire.totalKg.toFixed(1)}/${fire.maxCapacityKg.toFixed(0)} kg fuel`);
+            fuelEl.appendChild(fuelText);
         }
 
         // Heat output

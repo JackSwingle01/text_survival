@@ -108,8 +108,22 @@ body::before {
 
 .day-number { color: #ffffff; }
 
+.day-number .material-symbols-outlined {
+    font-size: 0.9rem;
+    margin-right: 6px;
+    vertical-align: middle;
+    color: var(--text-faint);
+}
+
 .time-detail {
     font-size: 0.9em;
+}
+
+.time-detail .material-symbols-outlined {
+    font-size: 0.75rem;
+    margin-right: 4px;
+    vertical-align: middle;
+    color: var(--text-faint);
 }
 
 .time-warning { color: #9a8a40; }
@@ -127,9 +141,23 @@ body::before {
 .weather-cond.snow { color: #8cf; }
 .weather-cond.blizzard { color: #f66; }
 
+.weather-cond .material-symbols-outlined {
+    font-size: 0.9rem;
+    margin-right: 6px;
+    vertical-align: middle;
+    color: var(--text-faint);
+}
+
 .weather-detail {
     font-size: 0.85em;
     color: var(--text-dim);
+}
+
+.weather-detail .material-symbols-outlined {
+    font-size: 0.7rem;
+    margin-right: 4px;
+    vertical-align: middle;
+    color: var(--text-faint);
 }
 
 /* ========== FIRE WIDGET (centerpiece) ========== */
@@ -205,6 +233,13 @@ body::before {
     font-size: 0.85em;
     color: var(--text-dim);
     margin-top: 2px;
+}
+
+.fire-fuel .material-symbols-outlined {
+    font-size: 0.7rem;
+    margin-right: 4px;
+    vertical-align: middle;
+    color: var(--text-faint);
 }
 
 .fire-heat { color: #ffcc44; }
@@ -556,6 +591,13 @@ body::before {
     color: var(--text-dim);
 }
 
+.temp-label .material-symbols-outlined {
+    font-size: 0.7rem;
+    margin-right: 4px;
+    vertical-align: middle;
+    color: var(--text-faint);
+}
+
 .temp-value {
     font-family: 'Oswald', sans-serif;
     font-size: 0.9rem;
@@ -572,6 +614,13 @@ body::before {
     font-size: 0.8em;
     color: var(--text-dim);
     margin-top: 2px;
+}
+
+.temp-breakdown .material-symbols-outlined {
+    font-size: 0.7rem;
+    margin-right: 4px;
+    vertical-align: middle;
+    color: var(--text-faint);
 }
 
 .temp-breakdown .fire-contrib { color: var(--fire-color); }
