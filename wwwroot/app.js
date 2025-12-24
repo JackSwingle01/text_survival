@@ -71,9 +71,8 @@ class GameClient {
         document.documentElement.style.setProperty('--warmth', state.warmth);
         document.documentElement.style.setProperty('--vitality', state.vitality);
 
-        // Time mode
-        // document.body.classList.remove('night', 'twilight', 'day');
-        // document.body.classList.add(state.isDaytime ? 'day' : 'night');
+        // Deep Ocean time-based background interpolation
+        this.updateDeepOceanBackground(state.clockTime);
 
         // Time panel
         document.getElementById('dayNumber').textContent = `Day ${state.dayNumber}`;
@@ -110,12 +109,62 @@ class GameClient {
         // Inventory summary
         document.getElementById('carryDisplay').textContent =
             `${state.carryWeightKg.toFixed(1)} / ${state.maxWeightKg.toFixed(0)} kg`;
+        const carryPct = Math.min(100, (state.carryWeightKg / state.maxWeightKg) * 100);
+        this.renderSegmentBar('carrySegmentBar', carryPct);
         document.getElementById('insulationPct').textContent = `${state.insulationPercent}%`;
         document.getElementById('fuelReserve').textContent =
             `${state.fuelKg.toFixed(1)}kg (${state.fuelBurnTime})`;
 
         // Narrative log
         this.renderLog(state.log);
+    }
+
+    updateDeepOceanBackground(clockTime) {
+        // Parse clock time (format: "h:mm tt" e.g. "9:00 AM")
+        const minutesSinceMidnight = this.parseClockTime(clockTime);
+
+        // Calculate time factor t (0 = midnight, 1 = noon)
+        let t;
+        if (minutesSinceMidnight <= 720) {
+            // 12:00 AM → 12:00 PM (ascending toward noon)
+            t = minutesSinceMidnight / 720;
+        } else {
+            // 12:00 PM → 12:00 AM (descending from noon)
+            t = (1440 - minutesSinceMidnight) / 720;
+        }
+
+        // Deep Ocean anchor values
+        const midnight = { h: 215, s: 30, l: 5 };
+        const noon = { h: 212, s: 25, l: 26 };
+
+        // Linear interpolation
+        const h = midnight.h + (noon.h - midnight.h) * t;
+        const s = midnight.s + (noon.s - midnight.s) * t;
+        const l = midnight.l + (noon.l - midnight.l) * t;
+
+        // Update CSS custom properties
+        document.documentElement.style.setProperty('--bg-h', h.toFixed(1));
+        document.documentElement.style.setProperty('--bg-s', s.toFixed(1) + '%');
+        document.documentElement.style.setProperty('--bg-l', l.toFixed(1) + '%');
+    }
+
+    parseClockTime(clockTime) {
+        // Parse "h:mm tt" format (e.g., "9:00 AM", "12:30 PM")
+        const match = clockTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (!match) return 0;
+
+        let hours = parseInt(match[1]);
+        const minutes = parseInt(match[2]);
+        const meridiem = match[3].toUpperCase();
+
+        // Convert to 24-hour format
+        if (meridiem === 'AM') {
+            if (hours === 12) hours = 0; // 12 AM = 00:00
+        } else {
+            if (hours !== 12) hours += 12; // PM times except 12 PM
+        }
+
+        return hours * 60 + minutes;
     }
 
     renderLocationTags(tags) {
@@ -274,20 +323,11 @@ class GameClient {
         const container = document.getElementById(containerId);
         this.clearElement(container);
 
-        const filledSegments = Math.round(percent / 10);
-        const isCritical = percent < 20;
-        const isLow = percent < 40 && percent >= 20;
-
-        for (let i = 0; i < 10; i++) {
-            const segment = document.createElement('div');
-            segment.className = 'segment';
-            if (i < filledSegments) {
-                segment.classList.add('filled');
-                if (isCritical) segment.classList.add('critical');
-                else if (isLow) segment.classList.add('low');
-            }
-            container.appendChild(segment);
-        }
+        // All bars now use the simple fill style
+        const fill = document.createElement('div');
+        fill.className = 'bar-fill';
+        fill.style.width = percent + '%';
+        container.appendChild(fill);
     }
 
     renderSurvival(state) {
@@ -526,23 +566,23 @@ class GameClient {
 
     renderProgressSegments(percent, complete = false) {
         const container = document.getElementById('progressSegmentBar');
+        if (!container.classList.contains('progress')) {
+            container.classList.add('progress');
+        }
         this.clearElement(container);
 
-        const filledSegments = Math.round(percent / 10);
-        for (let i = 0; i < 10; i++) {
-            const segment = document.createElement('div');
-            segment.className = 'segment';
-            if (i < filledSegments) {
-                segment.classList.add('filled');
-            }
-            container.appendChild(segment);
-        }
+        // Create single fill div instead of segments
+        const fill = document.createElement('div');
+        fill.className = 'progress-fill';
+        fill.style.width = percent + '%';
 
         if (complete) {
             container.classList.add('complete');
         } else {
             container.classList.remove('complete');
         }
+
+        container.appendChild(fill);
     }
 
     renderInput(input, statusText, progress) {
@@ -589,7 +629,7 @@ class GameClient {
 
             input.choices.forEach((choice, i) => {
                 const btn = document.createElement('button');
-                btn.className = 'action-btn' + (i === 0 ? ' primary' : '');
+                btn.className = 'action-btn';
                 btn.textContent = choice;
                 btn.onclick = () => this.respond(i);
                 listDiv.appendChild(btn);
@@ -607,7 +647,7 @@ class GameClient {
             listDiv.className = 'action-list';
 
             const yesBtn = document.createElement('button');
-            yesBtn.className = 'action-btn primary';
+            yesBtn.className = 'action-btn';
             yesBtn.textContent = 'Yes';
             yesBtn.onclick = () => this.respond(0);
             listDiv.appendChild(yesBtn);
@@ -622,7 +662,7 @@ class GameClient {
 
         } else if (input.type === 'anykey') {
             const btn = document.createElement('button');
-            btn.className = 'action-btn primary';
+            btn.className = 'action-btn';
             btn.textContent = input.prompt || 'Continue';
             btn.onclick = () => this.respond(null);
             actionsArea.appendChild(btn);
@@ -727,7 +767,7 @@ class GameClient {
             // Render selection buttons inside overlay
             input.choices.forEach((choice, i) => {
                 const btn = document.createElement('button');
-                btn.className = 'action-btn' + (choice === 'Back' ? '' : ' primary');
+                btn.className = 'action-btn';
                 btn.textContent = choice;
                 btn.onclick = () => this.respond(i);
                 actionsContainer.appendChild(btn);

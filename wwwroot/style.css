@@ -7,79 +7,47 @@
 :root {
     --warmth: 0.5;
     --vitality: 1;
+
+    /* Deep Ocean anchor values */
+    --bg-midnight-h: 215;
+    --bg-midnight-s: 30%;
+    --bg-midnight-l: 5%;
+
+    --bg-noon-h: 212;
+    --bg-noon-s: 25%;
+    --bg-noon-l: 26%;
+
+    /* Current interpolated value (set via JS) */
+    --bg-h: 215;
+    --bg-s: 30%;
+    --bg-l: 5%;
 }
 
 body {
-    font-family: 'Lora', Georgia, 'Times New Roman', serif;
+    font-family: 'JetBrains Mono', system-ui, sans-serif;
     font-size: 18px;
     font-weight: normal;
     line-height: 1.5;
     min-height: 100vh;
-    transition: background-color 0.4s, color 0.4s;
+    transition: background-color 0.5s ease, color 0.4s;
+
+    /* Deep Ocean interpolated background */
+    background-color: hsl(var(--bg-h), var(--bg-s), var(--bg-l));
+    color: #ffffff;
 }
 
-/* ========== NIGHT MODE ========== */
-body.night {
-    background-color: #0a0a0c;
-    color: #e0e0e0;
-}
-
-body.night .game-container {
-    --border-color: #1e1e22;
-    --text-dim: #909090;
-    --text-faint: #585858;
-    --accent-color: color-mix(in srgb, #4a7090, #d08040 calc(var(--warmth) * 100%));
+.game-container {
+    --border-color: rgba(255, 255, 255, 0.15);
+    --text-dim: rgba(255, 255, 255, 0.7);
+    --text-faint: rgba(255, 255, 255, 0.5);
+    --accent-color: color-mix(in srgb, hsl(212, 60%, 55%), #d08040 calc(var(--warmth) * 100%));
     --fire-color: color-mix(in srgb, #405060, #e08830 calc(var(--warmth) * 100%));
 }
 
-body.night {
+body {
     background-image: linear-gradient(
         to bottom,
-        color-mix(in srgb, transparent, rgba(30, 50, 90, calc((1 - var(--warmth)) * 0.5)) 100%),
-        transparent 70%
-    );
-}
-
-/* ========== TWILIGHT MODE ========== */
-body.twilight {
-    background-color: #2a2535;
-    color: #e8e4e0;
-}
-
-body.twilight .game-container {
-    --border-color: #3a3545;
-    --text-dim: #a09a94;
-    --text-faint: #686058;
-    --accent-color: color-mix(in srgb, #6a6a9a, #d08050 calc(var(--warmth) * 100%));
-    --fire-color: color-mix(in srgb, #505068, #e08840 calc(var(--warmth) * 100%));
-}
-
-body.twilight {
-    background-image: linear-gradient(
-        to bottom,
-        color-mix(in srgb, transparent, rgba(50, 40, 80, calc((1 - var(--warmth)) * 0.4)) 100%),
-        color-mix(in srgb, transparent, rgba(90, 50, 30, calc(var(--warmth) * 0.35)) 100%)
-    );
-}
-
-/* ========== DAY MODE ========== */
-body.day {
-    background-color: #f0ece8;
-    color: #1a1410;
-}
-
-body.day .game-container {
-    --border-color: #807870;
-    --text-dim: #1a1410;
-    --text-faint: #302820;
-    --accent-color: color-mix(in srgb, #1a4060, #703010 calc(var(--warmth) * 100%));
-    --fire-color: color-mix(in srgb, #304858, #904000 calc(var(--warmth) * 100%));
-}
-
-body.day {
-    background-image: linear-gradient(
-        to bottom,
-        color-mix(in srgb, transparent, rgba(180, 210, 240, calc((1 - var(--warmth)) * 0.4)) 100%),
+        color-mix(in srgb, transparent, hsla(var(--bg-h), var(--bg-s), calc(var(--bg-l) + 5%), 0.3) 100%),
         transparent 70%
     );
 }
@@ -138,9 +106,7 @@ body::before {
     margin-bottom: 2px;
 }
 
-body.night .day-number { color: #e0e0e0; }
-body.twilight .day-number { color: #e8e4e0; }
-body.day .day-number { color: #1a1410; }
+.day-number { color: #ffffff; }
 
 .time-detail {
     font-size: 0.9em;
@@ -170,40 +136,41 @@ body.day .day-number { color: #1a1410; }
 .fire-widget {
     text-align: center;
     padding: 12px 20px;
-    background: linear-gradient(135deg, rgba(180, 120, 60, 0.10), rgba(160, 100, 40, 0.05));
+    background: #1d2734;
     border: 1px solid rgba(180, 120, 60, 0.20);
+    border-radius: 6px;
     min-width: 180px;
 }
 
 /* When fire is cold, mute the widget */
 .fire-widget:has(.fire-phase.cold) {
-    background: rgba(128, 128, 128, 0.05);
+    background: #1d2734;
     border-color: rgba(128, 128, 128, 0.12);
 }
 
 /* When fire is active, enhance the glow */
 .fire-widget:has(.fire-phase.roaring) {
-    background: linear-gradient(135deg, rgba(230, 100, 40, 0.15), rgba(200, 80, 30, 0.08));
+    background: #1d2734;
     border-color: rgba(230, 100, 40, 0.35);
     box-shadow: 0 0 30px rgba(230, 100, 40, 0.15), 0 0 60px rgba(230, 100, 40, 0.05);
 }
 
 .fire-widget:has(.fire-phase.building),
 .fire-widget:has(.fire-phase.steady) {
-    background: linear-gradient(135deg, rgba(200, 130, 50, 0.12), rgba(180, 110, 40, 0.06));
+    background: #1d2734;
     border-color: rgba(200, 130, 50, 0.25);
     box-shadow: 0 0 20px rgba(200, 130, 50, 0.12);
 }
 
 .fire-widget:has(.fire-phase.igniting) {
-    background: linear-gradient(135deg, rgba(180, 140, 60, 0.10), rgba(160, 120, 50, 0.05));
+    background: #1d2734;
     border-color: rgba(180, 140, 60, 0.20);
     box-shadow: 0 0 15px rgba(180, 140, 60, 0.08);
 }
 
 .fire-widget:has(.fire-phase.dying),
 .fire-widget:has(.fire-phase.embers) {
-    background: linear-gradient(135deg, rgba(160, 120, 80, 0.10), rgba(140, 100, 60, 0.05));
+    background: #1d2734;
     border-color: rgba(160, 120, 80, 0.18);
 }
 
@@ -254,7 +221,6 @@ body.day .day-number { color: #1a1410; }
 
 /* ========== LEFT PANEL ========== */
 .left-panel {
-    border-right: 1px solid var(--border-color);
     padding-right: 20px;
     padding-top: 80px;
     font-size: 0.9em;
@@ -262,40 +228,43 @@ body.day .day-number { color: #1a1410; }
 
 /* Time section styling */
 .time-section {
-    background: linear-gradient(135deg, rgba(100, 130, 180, 0.08), rgba(80, 110, 160, 0.04));
-    border-color: rgba(100, 140, 200, 0.15);
+    background: #1d2734;
+    border: 1px solid rgba(100, 140, 200, 0.15);
+    border-radius: 6px;
 }
 
 /* Fire section styling */
 .fire-section {
-    background: linear-gradient(135deg, rgba(180, 120, 60, 0.08), rgba(160, 100, 40, 0.04));
-    border-color: rgba(180, 120, 60, 0.15);
+    background: #1d2734;
+    border: 1px solid rgba(180, 120, 60, 0.15);
+    border-radius: 6px;
 }
 
 /* When fire is cold, mute the section */
 .fire-section:has(.fire-phase.cold) {
-    background: rgba(128, 128, 128, 0.05);
+    background: #1d2734;
     border-color: rgba(128, 128, 128, 0.12);
 }
 
 /* When fire is active, enhance the glow */
 .fire-section:has(.fire-phase.roaring) {
-    background: linear-gradient(135deg, rgba(230, 100, 40, 0.12), rgba(200, 80, 30, 0.06));
+    background: #1d2734;
     border-color: rgba(230, 100, 40, 0.25);
     box-shadow: 0 0 20px rgba(230, 100, 40, 0.10);
 }
 
 .fire-section:has(.fire-phase.building),
 .fire-section:has(.fire-phase.steady) {
-    background: linear-gradient(135deg, rgba(200, 130, 50, 0.10), rgba(180, 110, 40, 0.05));
+    background: #1d2734;
     border-color: rgba(200, 130, 50, 0.20);
     box-shadow: 0 0 15px rgba(200, 130, 50, 0.08);
 }
 
 /* Weather section styling */
 .weather-section {
-    background: linear-gradient(135deg, rgba(120, 140, 160, 0.08), rgba(100, 120, 140, 0.04));
-    border-color: rgba(120, 150, 180, 0.12);
+    background: #1d2734;
+    border: 1px solid rgba(120, 150, 180, 0.12);
+    border-radius: 6px;
 }
 
 /* ========== NARRATIVE ========== */
@@ -306,16 +275,18 @@ body.day .day-number { color: #1a1410; }
 
 .location-display {
     margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-color);
+    padding: 12px;
+    background: #1d2734;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
     position: relative;
 }
 
 /* Temperature badge - prominent display */
 .temp-badge {
     position: absolute;
-    top: 0;
-    right: 0;
+    top: 12px;
+    right: 12px;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -394,7 +365,12 @@ body.day .day-number { color: #1a1410; }
     max-height: 450px;
     overflow-y: auto;
     margin-bottom: 15px;
-    line-height: 1.4;
+    padding: 12px;
+    background: #1d2734;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    line-height: 1.3;
 }
 
 .log-entry {
@@ -413,8 +389,9 @@ body.day .day-number { color: #1a1410; }
     padding: 10px 12px;
     margin-bottom: 10px;
     font-size: 0.9em;
-    background: rgba(128, 128, 128, 0.04);
+    background: #1d2734;
     border: 1px solid var(--border-color);
+    border-radius: 6px;
     flex-shrink: 0;
 }
 
@@ -459,6 +436,8 @@ body.day .day-number { color: #1a1410; }
 .action-prompt {
     color: var(--text-dim);
     margin-bottom: 10px;
+    padding-left: 12px;
+    border-left: 3px solid rgba(100, 151, 177, 0.4);
     font-size: 0.95em;
 }
 
@@ -469,8 +448,9 @@ body.day .day-number { color: #1a1410; }
 }
 
 .action-btn {
-    background: transparent;
-    border: 1px solid rgba(128, 128, 128, 0.3);
+    background: #1d2734;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-radius: 0;
     color: inherit;
     padding: 1rem 1.25rem;
     font-family: 'Oswald', sans-serif;
@@ -483,16 +463,10 @@ body.day .day-number { color: #1a1410; }
 }
 
 .action-btn:hover {
-    background: var(--text-dim);
-    color: #0a0a0c;
-    border-color: var(--text-dim);
+    background: rgba(255, 255, 255, 0.9);
+    color: hsl(var(--bg-h), var(--bg-s), var(--bg-l));
+    border-color: rgba(255, 255, 255, 0.9);
     transform: translateX(8px);
-}
-
-body.day .action-btn:hover {
-    background: #1a1410;
-    color: #f0ece8;
-    border-color: #1a1410;
 }
 
 .action-btn.primary {
@@ -506,7 +480,6 @@ body.day .action-btn:hover {
 
 /* ========== SIDE PANEL ========== */
 .side-panel {
-    border-left: 1px solid var(--border-color);
     padding-left: 20px;
     padding-top: 80px;
     font-size: 0.9em;
@@ -515,37 +488,33 @@ body.day .action-btn:hover {
 .status-section {
     margin-bottom: 20px;
     padding: 12px;
-    background: rgba(128, 128, 128, 0.04);
-    border: 1px solid transparent;
+    background: #1d2734;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
 }
 
 /* Temperature section - cool tint */
 .status-section:nth-child(1) {
-    background: linear-gradient(135deg, rgba(80, 120, 160, 0.08), rgba(60, 100, 140, 0.04));
     border-color: rgba(80, 140, 180, 0.15);
 }
 
 /* Survival section - earthy/vital tint */
 .status-section:nth-child(2) {
-    background: linear-gradient(135deg, rgba(100, 140, 90, 0.08), rgba(80, 120, 70, 0.04));
     border-color: rgba(100, 140, 90, 0.15);
 }
 
 /* Gear section - neutral stone */
 .status-section:nth-child(3) {
-    background: linear-gradient(135deg, rgba(120, 115, 100, 0.08), rgba(100, 95, 80, 0.04));
     border-color: rgba(120, 115, 100, 0.12);
 }
 
 /* Effects section - amber/caution */
 .status-section:nth-child(4) {
-    background: linear-gradient(135deg, rgba(160, 140, 80, 0.06), rgba(140, 120, 60, 0.03));
     border-color: rgba(160, 140, 80, 0.12);
 }
 
 /* Injuries section - danger tint */
 .status-section:nth-child(5) {
-    background: linear-gradient(135deg, rgba(160, 90, 90, 0.06), rgba(140, 70, 70, 0.03));
     border-color: rgba(160, 90, 90, 0.12);
 }
 
@@ -646,10 +615,10 @@ body.day .action-btn:hover {
 }
 
 /* Stat icon colors */
-.survival-stat:nth-child(1) .stat-bar-row .material-symbols-outlined { color: #a66; }
-.survival-stat:nth-child(2) .stat-bar-row .material-symbols-outlined { color: #5a7a5a; }
-.survival-stat:nth-child(3) .stat-bar-row .material-symbols-outlined { color: #5a7a9a; }
-.survival-stat:nth-child(4) .stat-bar-row .material-symbols-outlined { color: #7a6a8a; }
+.survival-stat:nth-of-type(1) .stat-bar-row .material-symbols-outlined { color: #a66; }
+.survival-stat:nth-of-type(2) .stat-bar-row .material-symbols-outlined { color: #5a7a5a; }
+.survival-stat:nth-of-type(3) .stat-bar-row .material-symbols-outlined { color: #5a7a9a; }
+.survival-stat:nth-of-type(4) .stat-bar-row .material-symbols-outlined { color: #9a8aaa; }
 
 .stat-bar-row .segment-bar {
     flex: 1;
@@ -668,54 +637,132 @@ body.day .action-btn:hover {
 .stat-value.low { color: #9a8a40; }
 .stat-value.critical { color: #a05050; }
 
-/* Segmented stat bars */
-.segment-bar {
+/* ========== NOTCHED PROGRESS BAR ========== */
+.segment-bar.progress {
     display: flex;
-    gap: 3px;
+    align-items: center;
+    height: 24px;
+    background: transparent;
+    gap: 0;
+    margin-top: 0;
+    position: relative;
+}
+
+/* The thin background track */
+.segment-bar.progress::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 0;
+}
+
+/* Container for the fill */
+.segment-bar.progress .progress-fill {
+    position: relative;
+    height: 4px;
+    background: #9a7a40;
+    width: 0%;
+    transition: width 0.3s ease-out;
+    z-index: 1;
+}
+
+/* The vertical notch at the end */
+.segment-bar.progress .progress-fill::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: -5px;
+    height: 14px;
+    width: 3px;
+    background: inherit;
+}
+
+.segment-bar.progress.complete .progress-fill {
+    background: #5a8a5a;
+}
+
+/* ========== SURVIVAL STAT BARS (Essential Style) ========== */
+
+/* Base container for all stat bars */
+.segment-bar.health,
+.segment-bar.food,
+.segment-bar.water,
+.segment-bar.energy,
+.segment-bar.temp {
+    height: 8px;
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+    background: rgba(255, 255, 255, 0.05);
     margin-top: 6px;
 }
 
-.segment {
-    flex: 1;
-    height: 6px;
-    background: rgba(128, 128, 128, 0.2);
+/* Base fill style */
+.segment-bar.health .bar-fill,
+.segment-bar.food .bar-fill,
+.segment-bar.water .bar-fill,
+.segment-bar.energy .bar-fill,
+.segment-bar.temp .bar-fill {
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease-out;
 }
 
-.segment.filled {
-    background: var(--text-dim);
+/* Individual stat colors */
+.segment-bar.health .bar-fill {
+    background-color: #a66;
 }
 
-/* Stat-specific segment colors */
-.segment-bar.health .segment.filled { background: #a66; }
-.segment-bar.food .segment.filled { background: #5a7a5a; }
-.segment-bar.water .segment.filled { background: #5a7a9a; }
-.segment-bar.energy .segment.filled { background: #7a6a8a; }
-
-/* Critical state - pulsing animation */
-.segment.filled.critical {
-    background: #8a4a4a;
-    animation: pulse-segment 1s infinite;
+.segment-bar.food .bar-fill {
+    background-color: #5a7a5a;
 }
 
-@keyframes pulse-segment {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+.segment-bar.water .bar-fill {
+    background-color: #5a7a9a;
 }
 
-/* Low state */
-.segment.filled.low {
-    background: #8a7a40;
+.segment-bar.energy .bar-fill {
+    background-color: #9a8aaa;
 }
 
-/* Temperature segment bar colors */
-.segment-bar.temp .segment.filled { background: #6a6; }
-.segment-bar.temp.cold .segment.filled { background: #68a; }
-.segment-bar.temp.cool .segment.filled { background: #6aa; }
-.segment-bar.temp.hot .segment.filled { background: #a55; }
+.segment-bar.temp .bar-fill {
+    background-color: #6aa;
+}
 
-/* Progress bar segment colors */
-.segment-bar.progress .segment.filled { background: #9a7a40; }
-.segment-bar.progress.complete .segment.filled { background: #5a8a5a; }
+/* Temperature state variants */
+.segment-bar.temp.cold .bar-fill {
+    background-color: #68a;
+}
+
+.segment-bar.temp.cool .bar-fill {
+    background-color: #6aa;
+}
+
+.segment-bar.temp.hot .bar-fill {
+    background-color: #a55;
+}
+
+/* Carry weight bar */
+.segment-bar.carry {
+    height: 8px;
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+    background: rgba(255, 255, 255, 0.05);
+    margin-top: 6px;
+}
+
+.segment-bar.carry .bar-fill {
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease-out;
+    background-color: #9a7a40;
+}
 
 /* Gear */
 .gear-row {
@@ -872,12 +919,10 @@ body.day .action-btn:hover {
     overflow-y: auto;
 }
 
-body.day .inventory-modal {
-    background: #e8e4e0;
-}
-
-body.night .inventory-modal {
-    background: #1a1a1e;
+.inventory-modal {
+    background: hsl(var(--bg-h), var(--bg-s), calc(var(--bg-l) + 3%));
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
 }
 
 .inventory-header {
