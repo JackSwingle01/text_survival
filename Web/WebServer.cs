@@ -109,12 +109,68 @@ public static class WebServer
 
     private static void RunGame(string sessionId)
     {
-        // Check if we have a saved game for this session
-        bool isNewGame = !SaveManager.HasSaveFile(sessionId);
+        GameContext ctx;
+        bool isNewGame;
 
-        // Load existing game or create new one
-        GameContext ctx = GameInitializer.LoadOrCreateNew(sessionId);
-        ctx.SessionId = sessionId;
+        // Try to load existing save
+        if (SaveManager.HasSaveFile(sessionId))
+        {
+            var (loadedCtx, error) = SaveManager.Load(sessionId);
+
+            if (error != null)
+            {
+                // Save load failed - prompt user
+                var tempCtx = GameContext.CreateNewGame();
+                tempCtx.SessionId = sessionId;
+
+                GameDisplay.AddDanger(tempCtx, "═══════════════════════════════════════════════════════════");
+                GameDisplay.AddDanger(tempCtx, "                  SAVE LOAD FAILED                          ");
+                GameDisplay.AddDanger(tempCtx, "═══════════════════════════════════════════════════════════");
+                GameDisplay.AddNarrative(tempCtx, "");
+                GameDisplay.AddWarning(tempCtx, "Your save file is corrupted or incompatible with this version.");
+                GameDisplay.AddNarrative(tempCtx, $"Error: {error}");
+                GameDisplay.AddNarrative(tempCtx, "");
+                GameDisplay.Render(tempCtx);
+
+                bool startNew = Input.Confirm(tempCtx, "Would you like to start a new game?", defaultValue: true);
+
+                if (!startNew)
+                {
+                    GameDisplay.AddNarrative(tempCtx, "");
+                    GameDisplay.AddNarrative(tempCtx, "Game cancelled. Refresh the page to try again.");
+                    GameDisplay.Render(tempCtx);
+                    Input.WaitForKey(tempCtx, "Press any key to close...");
+                    return;
+                }
+
+                // Delete corrupted save and start fresh
+                SaveManager.DeleteSave(sessionId);
+                ctx = GameContext.CreateNewGame();
+                ctx.SessionId = sessionId;
+                isNewGame = true;
+            }
+            else if (loadedCtx != null)
+            {
+                // Load succeeded
+                ctx = loadedCtx;
+                ctx.SessionId = sessionId;
+                isNewGame = false;
+            }
+            else
+            {
+                // No save found (shouldn't happen since we checked HasSaveFile, but handle anyway)
+                ctx = GameContext.CreateNewGame();
+                ctx.SessionId = sessionId;
+                isNewGame = true;
+            }
+        }
+        else
+        {
+            // No save file exists
+            ctx = GameContext.CreateNewGame();
+            ctx.SessionId = sessionId;
+            isNewGame = true;
+        }
 
         // Show appropriate intro message
         if (isNewGame)
