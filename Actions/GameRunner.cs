@@ -128,7 +128,7 @@ public partial class GameRunner(GameContext ctx)
 
         while (true)
         {
-            // Auto-save when at camp menu (discard result - auto-save is best-effort)
+            // Auto-save when at camp menu
             _ = SaveManager.Save(ctx);
             CheckFireWarning();
 
@@ -212,6 +212,9 @@ public partial class GameRunner(GameContext ctx)
     {
         while (true)
         {
+            // Auto-save when at work menu
+            _ = SaveManager.Save(ctx);
+
             TravelRunner traveler = new(ctx);
             var workChoice = GetWorkOptions(ctx.CurrentLocation);
             if (workChoice == null) return;

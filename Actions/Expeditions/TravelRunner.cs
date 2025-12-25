@@ -5,6 +5,7 @@ using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
+using text_survival.Persistence;
 using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions;
@@ -23,6 +24,9 @@ public class TravelRunner(GameContext ctx)
     {
         while (true)
         {
+            // Auto-save when at travel menu
+            _ = SaveManager.Save(_ctx);
+
             var connections = _ctx.CurrentLocation.GetConnections(_ctx);
             if (connections.Count == 0)
             {
