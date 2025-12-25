@@ -38,7 +38,7 @@ public static partial class GameEventRegistry
                     new EventResult("You're deep in unfamiliar territory now. The trail continues.", weight: 0.15, minutes: 30)
                         .Escalate("WoundedPrey", 0.15),
                     new EventResult("Something else found the trail first.", weight: 0.10, minutes: 15)
-                        .CreateTension("Stalked", 0.3)
+                        .BecomeStalked(0.3)
                         .ResolveTension("WoundedPrey")
                 ])
             .Choice("Set Snare on Trail",
@@ -87,15 +87,15 @@ public static partial class GameEventRegistry
                 [
                     new EventResult($"A clean kill. You work fast, aware of the {scavengerType.ToLower()} watching.", weight: 0.60, minutes: 15)
                         .ResolveTension("WoundedPrey")
-                        .Rewards(RewardPool.LargeMeat)
+                        .FindsLargeMeat()
                         .CreateTension("FoodScentStrong", 0.4),
                     new EventResult($"The {scavengerType.ToLower()} moves closer as you work. Hurrying now.", weight: 0.25, minutes: 12)
                         .ResolveTension("WoundedPrey")
-                        .Rewards(RewardPool.BasicMeat)
-                        .CreateTension("Stalked", 0.3, animalType: scavengerType),
+                        .FindsMeat()
+                        .BecomeStalked(0.3, scavengerType),
                     new EventResult($"Too slow. The {scavengerType.ToLower()} commits.", weight: 0.15, minutes: 10)
                         .ResolveTension("WoundedPrey")
-                        .Rewards(RewardPool.BasicMeat)
+                        .FindsMeat()
                         .Encounter(scavengerType, 20, 0.5)
                 ])
             .Choice("Wait for It to Die",
@@ -103,10 +103,10 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("It finally stops breathing. The scavengers held back.", weight: 0.40, minutes: 25)
                         .ResolveTension("WoundedPrey")
-                        .Rewards(RewardPool.LargeMeat),
+                        .FindsLargeMeat(),
                     new EventResult($"The {scavengerType.ToLower()} doesn't wait. It claims the kill.", weight: 0.35, minutes: 20)
                         .ResolveTension("WoundedPrey")
-                        .CreateTension("Stalked", 0.2, animalType: scavengerType),
+                        .BecomeStalked(0.2, scavengerType),
                     new EventResult("Takes too long. Other scavengers arrive. You retreat.", weight: 0.25, minutes: 30)
                         .ResolveTension("WoundedPrey")
                 ])
@@ -118,16 +118,16 @@ public static partial class GameEventRegistry
                     ? [
                         new EventResult("The ravens scatter. You claim your kill in peace.", weight: 0.80, minutes: 18)
                             .ResolveTension("WoundedPrey")
-                            .Rewards(RewardPool.LargeMeat),
+                            .FindsLargeMeat(),
                         new EventResult("They circle back quickly. You work fast.", weight: 0.20, minutes: 15)
                             .ResolveTension("WoundedPrey")
-                            .Rewards(RewardPool.BasicMeat)
+                            .FindsMeat()
                     ]
                     : [
                         new EventResult($"The {scavengerType.ToLower()} backs off. For now.", weight: 0.50, minutes: 20)
                             .ResolveTension("WoundedPrey")
-                            .Rewards(RewardPool.LargeMeat)
-                            .CreateTension("Stalked", 0.2, animalType: scavengerType),
+                            .FindsLargeMeat()
+                            .BecomeStalked(0.2, scavengerType),
                         new EventResult("It doesn't back down. This is a confrontation.", weight: 0.30, minutes: 10)
                             .ResolveTension("WoundedPrey")
                             .Encounter(scavengerType, 25, 0.6),
@@ -165,7 +165,7 @@ public static partial class GameEventRegistry
                         .ResolveTension("WoundedPrey"),
                     new EventResult("One follows. It's not letting you go that easily.", weight: 0.30, minutes: 8)
                         .ResolveTension("WoundedPrey")
-                        .CreateTension("Stalked", 0.4, animalType: predator)
+                        .BecomeStalked(0.4, predator)
                 ])
             .Choice("Create Distraction",
                 "Throw something to draw them away. Make a break for the carcass.",
@@ -173,14 +173,14 @@ public static partial class GameEventRegistry
                     new EventResult("You throw your meat. They take the bait. You grab what you can.", weight: 0.50, minutes: 12)
                         .ResolveTension("WoundedPrey")
                         .Costs(ResourceType.Food, 2)
-                        .Rewards(RewardPool.BasicMeat),
+                        .FindsMeat(),
                     new EventResult("They grab your offering AND circle back.", weight: 0.30, minutes: 10)
                         .ResolveTension("WoundedPrey")
                         .Costs(ResourceType.Food, 2),
                     new EventResult("It works perfectly. Full access to the kill.", weight: 0.20, minutes: 15)
                         .ResolveTension("WoundedPrey")
                         .Costs(ResourceType.Food, 1)
-                        .Rewards(RewardPool.LargeMeat)
+                        .FindsLargeMeat()
                 ],
                 [EventCondition.HasMeat]);
     }

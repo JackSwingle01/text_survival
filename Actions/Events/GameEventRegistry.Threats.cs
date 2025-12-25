@@ -21,24 +21,23 @@ public static partial class GameEventRegistry
             .Choice("Scavenge Quickly", "Grab what you can and get out before whatever killed this returns.",
                 [
                     new EventResult("You cut away some meat and leave.", weight: 0.7f, minutes:8)
-                        .Rewards(RewardPool.BasicMeat),
+                        .FindsMeat(),
                     new EventResult("A low growl. You grab what you can and run.", weight: 0.3, minutes:5)
-                        .Rewards(RewardPool.BasicMeat)
-                        .WithEffects([EffectFactory.Fear(0.3)])
+                        .FindsMeat()
+                        .Frightening()
                 ])
             .Choice("Butcher Thoroughly",
                 "Take your time. Get everything you can from this.",
                 [
                     new EventResult("You work quickly but thoroughly. A good haul.", weight: 0.5f, minutes:25)
-                        .Rewards(RewardPool.LargeMeat),
+                        .FindsLargeMeat(),
                     new EventResult("You're nearly done when something crashes through the brush. You flee.", weight: 0.35f, minutes:20)
-                        .Rewards(RewardPool.LargeMeat)
-                        .WithEffects([EffectFactory.Fear(0.3)])
+                        .FindsLargeMeat()
+                        .Frightening()
                         .Aborts(),
                     new EventResult("It comes back. You barely escape with your life, taking some meat with you.", weight: 0.15f, minutes:15)
-                        .Damage(15, DamageType.Sharp, "animal attack")
-                        .Rewards(RewardPool.BasicMeat)
-                        .WithEffects([EffectFactory.Fear(0.5)])
+                        .Mauled()
+                        .FindsMeat()
                         .Aborts()
                 ])
             .Choice("Leave It",
@@ -65,10 +64,10 @@ public static partial class GameEventRegistry
                     new EventResult("The tracks lead nowhere. You lose the trail.", weight: 0.4f, minutes: 20),
                     new EventResult("You spot the animal in the distance but can't get close.", weight: 0.35f, minutes: 25),
                     new EventResult("You find a game trail — good hunting ground.", weight: 0.15f, minutes: 30)
-                        .Rewards(RewardPool.GameTrailDiscovery),
+                        .FindsGameTrail(),
                     new EventResult("The tracks were bait. Something was following you.", weight: 0.1f, minutes: 15)
-                        .Damage(10, DamageType.Sharp, "animal attack")
-                        .CreateTension("Stalked", 0.4, animalType: animal)
+                        .AnimalAttack()
+                        .BecomeStalked(0.4, animal)
                         .Aborts()
                 ])
             .Choice("Note Direction",
@@ -99,13 +98,13 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Whatever it was slinks away. You're not worth the trouble.", weight: 0.60, minutes: 5),
                     new EventResult("It doesn't retreat. It's testing you. You back away slowly.", weight: 0.25, minutes: 10)
-                        .WithEffects(EffectFactory.Fear(0.2))
-                        .CreateTension("Stalked", 0.3, animalType: predator),
+                        .Unsettling()
+                        .BecomeStalked(0.3, predator),
                     new EventResult("Your noise provokes it. It attacks.", weight: 0.10, minutes: 5)
                         .Damage(12, DamageType.Sharp, "animal attack")
                         .Aborts(),
                     new EventResult("Nothing there. Just paranoia.", weight: 0.05, minutes: 3)
-                        .WithEffects(EffectFactory.Shaken(0.15))
+                        .Shaken()
                 ])
             .Choice("Finish and Leave",
                 "Cut your work short. Get out before it decides you're prey.",
@@ -119,13 +118,13 @@ public static partial class GameEventRegistry
                     new EventResult("Just a fox. It watches you work but keeps its distance.", weight: 0.40, minutes: 8),
                     new EventResult("You see it now — keeping its distance. It's not attacking yet.", weight: 0.35, minutes: 10)
                         .WithEffects(EffectFactory.Fear(0.15))
-                        .CreateTension("Stalked", 0.25, animalType: predator),
+                        .BecomeStalked(0.25, predator),
                     new EventResult("You make eye contact. That was a mistake.", weight: 0.15, minutes: 5)
-                        .Damage(10, DamageType.Sharp, "animal attack")
+                        .AnimalAttack()
                         .Aborts(),
                     new EventResult("Can't see it but you KNOW it's there.", weight: 0.10, minutes: 10)
-                        .WithEffects(EffectFactory.Fear(0.3))
-                        .CreateTension("Stalked", 0.4, animalType: predator)
+                        .Frightening()
+                        .BecomeStalked(0.4, predator)
                 ]);
     }
 
@@ -139,14 +138,14 @@ public static partial class GameEventRegistry
                 "Ravens often lead to carcasses or resources.",
                 [
                     new EventResult("They lead you to a small carcass.", weight: 0.35, minutes: 25)
-                        .Rewards(RewardPool.BasicMeat),
+                        .FindsMeat(),
                     new EventResult("They lead nowhere. Wasting your time.", weight: 0.25, minutes: 30),
                     new EventResult("They lead you to another predator's kill.", weight: 0.20, minutes: 25)
-                        .CreateTension("Stalked", 0.25),
+                        .BecomeStalked(0.25),
                     new EventResult("They lead you somewhere dangerous.", weight: 0.10, minutes: 20)
                         .Encounter("Wolf", 25, 0.5),
                     new EventResult("They lead you to something unexpected.", weight: 0.10, minutes: 30)
-                        .Rewards(RewardPool.HiddenCache)
+                        .FindsCache()
                 ])
             .Choice("Ignore Them",
                 "They're just birds.",
@@ -177,9 +176,9 @@ public static partial class GameEventRegistry
                 "Double back, cross water, break your trail.",
                 [
                     new EventResult("You double back, cross water, break your trail. It works.", weight: 0.35, minutes: 25)
-                        .ResolveTension("Stalked"),
+                        .ResolvesStalking(),
                     new EventResult("It stays with you. You've wasted time and energy.", weight: 0.35, minutes: 20)
-                        .Escalate("Stalked", 0.2),
+                        .EscalatesStalking(0.2),
                     new EventResult("You get turned around trying to lose it.", weight: 0.20, minutes: 35)
                         .WithEffects(EffectFactory.Cold(-8, 30), EffectFactory.Shaken(0.2)),
                     new EventResult("Your evasion leads you somewhere unexpected.", weight: 0.10, minutes: 30)
@@ -189,25 +188,25 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You maintain distance. Exhausting but stable.", weight: 0.40, minutes: 10),
                     new EventResult("It's getting bolder.", weight: 0.30, minutes: 8)
-                        .Escalate("Stalked", 0.15),
+                        .EscalatesStalking(),
                     new EventResult("It backs off. Maybe lost interest.", weight: 0.20, minutes: 5)
-                        .Escalate("Stalked", -0.1),
+                        .EscalatesStalking(-0.1),
                     new EventResult("It commits.", weight: 0.10, minutes: 5)
-                        .ResolveTension("Stalked")
+                        .ResolvesStalking()
                         .Encounter(predator, 15, 0.6)
                 ])
             .Choice("Return to Camp",
                 "Head back now. Fire deters predators.",
                 [
                     new EventResult("You make it back. Fire deters it.", weight: 0.60)
-                        .ResolveTension("Stalked")
+                        .ResolvesStalking()
                         .Aborts(),
                     new EventResult("It follows to camp perimeter but won't approach fire.", weight: 0.25)
-                        .ResolveTension("Stalked")
-                        .WithEffects(EffectFactory.Fear(0.2))
+                        .ResolvesStalking()
+                        .Unsettling()
                         .Aborts(),
                     new EventResult("It's bolder than you thought. Attacks before you reach safety.", weight: 0.15, minutes: 5)
-                        .ResolveTension("Stalked")
+                        .ResolvesStalking()
                         .Encounter(predator, 10, 0.8)
                         .Aborts()
                 ]);
@@ -225,18 +224,18 @@ public static partial class GameEventRegistry
                 "Face it. This ends now.",
                 [
                     new EventResult("You turn to face it. The confrontation is inevitable.", weight: 1.0, minutes: 5)
-                        .ResolveTension("Stalked")
+                        .ResolvesStalking()
                         .Encounter(predator, 30, stalkedTension?.Severity ?? 0.6)
                 ])
             .Choice("Calculated Retreat",
                 "Slow, deliberate backward movement. Don't run. Don't look away.",
                 [
                     new EventResult("You back away slowly. It watches but doesn't follow.", weight: 0.45, minutes: 15)
-                        .ResolveTension("Stalked"),
+                        .ResolvesStalking(),
                     new EventResult("It follows at a distance. You're not out of this yet.", weight: 0.30, minutes: 10)
-                        .Escalate("Stalked", 0.2),
+                        .EscalatesStalking(0.2),
                     new EventResult("Your retreat emboldens it. It charges.", weight: 0.25, minutes: 5)
-                        .ResolveTension("Stalked")
+                        .ResolvesStalking()
                         .Encounter(predator, 15, 0.75)
                 ]);
     }
@@ -253,7 +252,7 @@ public static partial class GameEventRegistry
                 "No time to run. It's on you.",
                 [
                     new EventResult("The predator attacks!", weight: 1.0, minutes: 3)
-                        .ResolveTension("Stalked")
+                        .ResolvesStalking()
                         .Encounter(predator, 5, 0.9)
                 ]);
     }
@@ -472,7 +471,7 @@ public static partial class GameEventRegistry
                     new EventResult("Nothing. Your mind playing tricks.", weight: 0.55, minutes: 8)
                         .WithEffects(EffectFactory.Shaken(0.2)),
                     new EventResult("Something might have been there. Hard to tell.", weight: 0.20, minutes: 10)
-                        .CreateTension("Stalked", 0.2),
+                        .BecomeStalked(0.2),
                     new EventResult("Something is there.", weight: 0.25, minutes: 5)
                         .Encounter("Wolf", 20, 0.4)
                 ])
@@ -482,7 +481,7 @@ public static partial class GameEventRegistry
                     new EventResult("You stare into the dark for hours. Sleep won't come easy.", weight: 0.70)
                         .WithEffects(EffectFactory.Paranoid(0.3)),
                     new EventResult("Eventually you relax. Nothing happened.", weight: 0.30, minutes: 30)
-                        .WithEffects(EffectFactory.Shaken(0.15))
+                        .Shaken()
                 ]);
     }
 
@@ -498,7 +497,7 @@ public static partial class GameEventRegistry
                 "Use this clarity productively.",
                 [
                     new EventResult("You notice something you'd been missing — a better approach.", weight: 0.60, minutes: 5)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .FindsSupplies(),
                     new EventResult("You see a solution to something that's been bothering you.", weight: 0.40, minutes: 5)
                         .WithEffects(EffectFactory.Focused(0.3, 120))
                 ])
@@ -755,16 +754,16 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Time lost. Work done but you're drained.", weight: 0.50, minutes: 90)
                         .WithEffects(EffectFactory.Exhausted(0.4, 120))
-                        .Rewards(RewardPool.BasicSupplies),
+                        .FindsSupplies(),
                     new EventResult("You worked while dissociated. But at what cost?", weight: 0.30, minutes: 120)
                         .WithEffects(EffectFactory.Exhausted(0.3, 90))
-                        .Rewards(RewardPool.BasicSupplies),
+                        .FindsSupplies(),
                     new EventResult("You feel... hollow. What happened while you were gone?", weight: 0.15, minutes: 100)
                         .WithEffects(EffectFactory.Shaken(0.3), EffectFactory.Exhausted(0.5, 150))
-                        .Rewards(RewardPool.BasicSupplies),
+                        .FindsSupplies(),
                     new EventResult("Something happened while you were away. You don't remember what.", weight: 0.05, minutes: 80)
                         .WithEffects(EffectFactory.Fear(0.25))
-                        .CreateTension("Stalked", 0.2)
+                        .BecomeStalked(0.2)
                 ]);
     }
 
@@ -780,11 +779,11 @@ public static partial class GameEventRegistry
                 "Follow the smell. Could be free meat.",
                 [
                     new EventResult($"Find a {animal.ToLower()} carcass. Some meat left.", weight: 0.35, minutes: 30)
-                        .Rewards(RewardPool.BasicMeat),
+                        .FindsMeat(),
                     new EventResult("Find the carcass. Something's already there.", weight: 0.25, minutes: 25)
-                        .CreateTension("Stalked", 0.3),
+                        .BecomeStalked(0.3),
                     new EventResult("Tracks lead to a hunting ground. Good location.", weight: 0.20, minutes: 35)
-                        .Rewards(RewardPool.GameTrailDiscovery),
+                        .FindsGameTrail(),
                     new EventResult("Can't find it. Wind shifted.", weight: 0.15, minutes: 30),
                     new EventResult("Find it. And what killed it.", weight: 0.05, minutes: 20)
                         .Encounter(territory?.GetRandomPredatorName() ?? "Wolf", 25, 0.6)
@@ -821,8 +820,8 @@ public static partial class GameEventRegistry
                     new EventResult("You react defensively. Nothing attacks. Was it real?", 0.40, 10)
                         .WithEffects(EffectFactory.Paranoid(0.2)),
                     new EventResult("It WAS real. Your vigilance saved you.", 0.25, 5)
-                        .Escalate("Stalked", 0.15)
-                        .WithEffects(EffectFactory.Fear(0.2)),
+                        .EscalatesStalking(0.15)
+                        .Unsettling(),
                     new EventResult("False alarm. Your nerves are fraying.", 0.25, 8)
                         .Escalate("Disturbed", 0.1),
                     new EventResult("You spin to face it. The predator is there.", 0.10, 0)
@@ -835,7 +834,7 @@ public static partial class GameEventRegistry
                     new EventResult("Your calm is justified. The mind plays tricks.", 0.25, 5)
                         .Escalate("Disturbed", -0.05),
                     new EventResult("It wasn't nothing. It was watching. Now it knows you're not alert.", 0.20, 0)
-                        .Escalate("Stalked", 0.25)
+                        .EscalatesStalking(0.25)
                         .WithEffects(EffectFactory.Fear(0.25)),
                     new EventResult("Fatal mistake. It strikes.", 0.10, 0)
                         .Encounter(stalkedTension?.AnimalType ?? "Wolf", 10, 0.75)
@@ -848,7 +847,7 @@ public static partial class GameEventRegistry
                     new EventResult("You wait. And wait. The tension is unbearable.", 0.30, 20)
                         .WithEffects(EffectFactory.Exhausted(0.2, 60)),
                     new EventResult("You see it clearly now. It's real. And it sees you.", 0.25, 10)
-                        .ResolveTension("Stalked")
+                        .ResolvesStalking()
                         .CreateTension("Hunted", 0.5, animalType: stalkedTension?.AnimalType),
                     new EventResult("Nothing. Just paranoia. Or maybe it left.", 0.10, 15)
                 ]);

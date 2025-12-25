@@ -50,11 +50,11 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Nothing. Just shadows and your imagination.", 0.4, 12),
                     new EventResult("You find some useful materials partially buried in the snow.", 0.35, 15)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .FindsSupplies(),
                     new EventResult("Signs of an old campsite. Someone was here before — they left in a hurry.", 0.15, 20)
                         .Rewards(RewardPool.AbandonedCamp),
                     new EventResult("A cache, deliberately hidden. Whoever left this isn't coming back.", 0.1, 10)
-                        .Rewards(RewardPool.HiddenCache)
+                        .FindsCache()
                 ])
             .Choice("Mark It For Later",
                 "You note the location but stay focused on your current task.",
@@ -152,21 +152,21 @@ public static partial class GameEventRegistry
                     new EventResult("Some scraps they couldn't carry.", 0.20, 25)
                         .Rewards(RewardPool.AbandonedCamp),
                     new EventResult("Signs of struggle. Blood in snow. You take what's left.", 0.15, 20)
-                        .Rewards(RewardPool.BasicSupplies)
-                        .WithEffects(EffectFactory.Fear(0.2))
+                        .FindsSupplies()
+                        .Unsettling()
                         .CreateTension("Disturbed", 0.2, description: "signs of violence"),
                     new EventResult("A cache they hid and never returned for.", 0.12, 30)
-                        .Rewards(RewardPool.HiddenCache),
+                        .FindsCache(),
                     new EventResult("You find remains. Human. You take their gear.", 0.10, 15)
                         .Rewards(RewardPool.AbandonedCamp)
-                        .WithEffects(EffectFactory.Fear(0.6))
+                        .Panicking()
                         .CreateTension("Disturbed", 0.5, ctx.CurrentLocation, description: "human remains"),
                     new EventResult("Bones, scattered by scavengers. Torn clothing.", 0.08, 18)
-                        .WithEffects(EffectFactory.Fear(0.4))
+                        .Terrifying()
                         .CreateTension("Disturbed", 0.35, ctx.CurrentLocation, description: "scattered bones"),
                     new EventResult("Something is still here. Watching. You leave fast.", 0.07, 10)
-                        .WithEffects(EffectFactory.Fear(0.3))
-                        .CreateTension("Stalked", 0.3)
+                        .Frightening()
+                        .BecomeStalked(0.3)
                         .Aborts()
                 ])
             .Choice("Scavenge Fast",
@@ -176,7 +176,7 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.TinderBundle),
                     new EventResult("Nothing obvious. At least you didn't waste much time.", 0.35, 8),
                     new EventResult("A few sticks they left stacked.", 0.20, 10)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .FindsSupplies(),
                     new EventResult("Cut yourself on hidden debris.", 0.05, 8)
                         .Damage(4, DamageType.Sharp, "debris")
                         .CreateTension("WoundUntreated", 0.2, description: "hand")
@@ -204,7 +204,7 @@ public static partial class GameEventRegistry
                     new EventResult("Water AND game trails. Animals need water too.", 0.20, 25)
                         .Rewards(RewardPool.WaterSource),
                     new EventResult("Thin ice. You break through.", 0.15, 15)
-                        .Damage(5, DamageType.Blunt, "ice break")
+                        .ModerateFall()
                         .WithEffects(EffectFactory.Cold(-15, 45), EffectFactory.Wet(0.6, 90)),
                     new EventResult("Contaminated or mineral. Not drinkable.", 0.10, 20),
                     new EventResult("Perfect source. Clear, accessible, sheltered.", 0.05, 25)
@@ -262,41 +262,41 @@ public static partial class GameEventRegistry
                 "Push through quickly. Minimize exposure time.",
                 [
                     new EventResult("Through it quickly. Cold but moving.", 0.45, 5)
-                        .WithEffects(EffectFactory.Cold(-10, 20)),
+                        .WithCold(-10, 20),
                     new EventResult("Longer than expected. Wind brutal.", 0.30, 10)
-                        .WithEffects(EffectFactory.Cold(-15, 30)),
+                        .WithCold(-15, 30),
                     new EventResult("Stumble in wind. Fall.", 0.15, 8)
                         .Damage(4, DamageType.Blunt, "fall")
-                        .WithEffects(EffectFactory.Cold(-12, 25)),
+                        .ModerateCold(),
                     new EventResult("Wind knocks you down. Disoriented.", 0.10, 15)
-                        .Damage(6, DamageType.Blunt, "fall")
-                        .WithEffects(EffectFactory.Cold(-20, 40))
+                        .ModerateFall()
+                        .SevereCold()
                 ])
             .Choice("Find Cover First",
                 "Look for any windbreak before crossing.",
                 [
                     new EventResult("Small windbreak. Helps.", 0.50, 12)
-                        .WithEffects(EffectFactory.Cold(-5, 15)),
+                        .MinorCold(),
                     new EventResult("Nothing useful. Wasted time in wind.", 0.30, 15)
-                        .WithEffects(EffectFactory.Cold(-12, 25)),
+                        .ModerateCold(),
                     new EventResult("Decent hollow. Warm up before continuing.", 0.15, 18)
-                        .WithEffects(EffectFactory.Cold(-3, 10)),
+                        .LightChill(),
                     new EventResult("'Shelter' funnels wind. Worse than open.", 0.05, 10)
-                        .WithEffects(EffectFactory.Cold(-18, 35))
+                        .DangerousCold()
                 ])
             .Choice("Emergency Fire",
                 "Stop and make a fire. Desperate but might work.",
                 [
                     new EventResult("Fire catches. Warmth floods back.", 0.45, 15)
-                        .Costs(ResourceType.Fuel, 2),
+                        .BurnsFuel(2),
                     new EventResult("Wind makes it hard. Uses more fuel.", 0.30, 20)
-                        .Costs(ResourceType.Fuel, 3)
-                        .WithEffects(EffectFactory.Cold(-5, 15)),
+                        .BurnsFuel(3)
+                        .MinorCold(),
                     new EventResult("Won't catch. Wasted fuel.", 0.15, 12)
-                        .Costs(ResourceType.Fuel, 2)
-                        .WithEffects(EffectFactory.Cold(-12, 25)),
+                        .BurnsFuel(2)
+                        .ModerateCold(),
                     new EventResult("Sparks in wind. Burn yourself.", 0.10, 10)
-                        .Costs(ResourceType.Fuel, 2)
+                        .BurnsFuel(2)
                         .Damage(3, DamageType.Burn, "ember burn")
                         .WithEffects(EffectFactory.Burn(0.2, 45))
                 ],
@@ -305,11 +305,11 @@ public static partial class GameEventRegistry
                 "Retreat the way you came.",
                 [
                     new EventResult("Backtracking costs time but avoids worst.", 0.70, 8)
-                        .WithEffects(EffectFactory.Cold(-6, 15)),
+                        .WithCold(-6, 15),
                     new EventResult("Way back harder than remembered.", 0.20, 12)
-                        .WithEffects(EffectFactory.Cold(-10, 25)),
+                        .WithCold(-10, 25),
                     new EventResult("Get turned around. Lost time, cold.", 0.10, 15)
-                        .WithEffects(EffectFactory.Cold(-15, 35))
+                        .HarshCold()
                 ]);
     }
 
@@ -322,20 +322,20 @@ public static partial class GameEventRegistry
                 "Spend time making this usable shelter.",
                 [
                     new EventResult("Solid work. This is shelter now.", 0.60, 45)
-                        .Costs(ResourceType.Fuel, 3)
+                        .BurnsFuel(3)
                         .WithEffects(EffectFactory.Focused(0.15, 60))
                         .AddsFeature(typeof(ShelterFeature), (0.4, 0.5, 0.6)),
                     new EventResult("Takes longer but done right.", 0.25, 60)
-                        .Costs(ResourceType.Fuel, 4)
+                        .BurnsFuel(4)
                         .WithEffects(EffectFactory.Exhausted(0.2, 60))
                         .AddsFeature(typeof(ShelterFeature), (0.5, 0.6, 0.7)),
                     new EventResult("Not as good as hoped. Partial shelter.", 0.10, 40)
-                        .Costs(ResourceType.Fuel, 2)
+                        .BurnsFuel(2)
                         .AddsFeature(typeof(ShelterFeature), (0.2, 0.3, 0.4)),
                     new EventResult("Collapses during construction. Wasted effort.", 0.05, 30)
-                        .Costs(ResourceType.Fuel, 3)
-                        .Damage(3, DamageType.Blunt, "collapse")
-                        .WithEffects(EffectFactory.Shaken(0.2))
+                        .BurnsFuel(3)
+                        .MinorFall()
+                        .Shaken()
                 ],
                 requires: [EventCondition.HasFuel])
             .Choice("Note for Later",
@@ -368,23 +368,23 @@ public static partial class GameEventRegistry
                 "Gather what you can carry.",
                 [
                     new EventResult("Good fuel. Worth the effort.", 0.60, 15)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .FindsSupplies(),
                     new EventResult("Mixed quality. Some usable.", 0.25, 15)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .FindsSupplies(),
                     new EventResult("Excellent find. Dry, quality wood.", 0.10, 12)
                         .Rewards(RewardPool.AbandonedCamp),
                     new EventResult("Something else caught in the debris.", 0.05, 10)
-                        .Rewards(RewardPool.HiddenCache)
+                        .FindsCache()
                 ])
             .Choice("Check for More",
                 "Investigate the source. Might be recurring.",
                 [
                     new EventResult("Find the source — debris field. Good to know.", 0.30, 30)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .FindsSupplies(),
                     new EventResult("Just this batch. Good haul though.", 0.50, 20)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .FindsSupplies(),
                     new EventResult("Nothing more. At least you got some.", 0.20, 25)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .FindsSupplies()
                 ])
             .Choice("Leave It",
                 "Not worth the effort right now.",
@@ -409,7 +409,7 @@ public static partial class GameEventRegistry
                 "Force yourself back to the present. Focus on your hands, the cold, anything real.",
                 [
                     new EventResult("You ground yourself. It passes.", 0.45, 10)
-                        .WithEffects(EffectFactory.Shaken(0.15)),
+                        .Shaken(),
                     new EventResult("Takes longer than you'd like. But you push through.", 0.30, 20)
                         .WithEffects(EffectFactory.Exhausted(0.2, 60)),
                     new EventResult("You can't shake it. Work continues, but slowly.", 0.20, 30)
@@ -448,13 +448,14 @@ public static partial class GameEventRegistry
                 "Check yourself. Check your surroundings. What happened?",
                 [
                     new EventResult("Maybe 30 minutes. Lost in thought. At least you're warm enough.", 0.50, 30)
-                        .WithEffects(EffectFactory.Shaken(0.2)),
+                        .Shaken(),
                     new EventResult("An hour, at least. You're colder than you should be.", 0.30, 60)
-                        .WithEffects(EffectFactory.Cold(-12, 40)),
+                        .WithCold(-12, 40),
                     new EventResult("The sun has moved significantly. This is concerning.", 0.15, 90)
-                        .WithEffects(EffectFactory.Cold(-18, 60), EffectFactory.Paranoid(0.25)),
+                        .DangerousCold()
+                        .WithEffects(EffectFactory.Paranoid(0.25)),
                     new EventResult("You... worked? Your pack has more resources than before.", 0.05, 45)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .FindsSupplies()
                         .WithEffects(EffectFactory.Shaken(0.3))
                         .Escalate("Disturbed", 0.15)
                 ]);
@@ -478,20 +479,20 @@ public static partial class GameEventRegistry
                         .Escalate("Disturbed", -0.4)
                         .WithEffects(EffectFactory.Exhausted(0.3, 90)),
                     new EventResult("Halfway through, you have to stop. Can't do this.", 0.05, 30)
-                        .WithEffects(EffectFactory.Fear(0.3))
+                        .Frightening()
                 ])
             .Choice("Search for Answers",
                 "Understand what happened. Knowledge might help.",
                 [
                     new EventResult("You piece together what you can. A story emerges. It ends badly.", 0.50, 30)
                         .Escalate("Disturbed", -0.25)
-                        .WithEffects(EffectFactory.Shaken(0.2)),
+                        .Shaken(),
                     new EventResult("You find something useful they left behind.", 0.30, 25)
                         .Rewards(RewardPool.AbandonedCamp)
                         .Escalate("Disturbed", -0.2),
                     new EventResult("The more you learn, the worse it gets.", 0.15, 35)
                         .Escalate("Disturbed", 0.15)
-                        .WithEffects(EffectFactory.Fear(0.4)),
+                        .Terrifying(),
                     new EventResult("You find their journal. Their last entry is... helpful somehow.", 0.05, 40)
                         .ResolveTension("Disturbed")
                         .WithEffects(EffectFactory.Hardened(0.2, 180))
@@ -505,7 +506,7 @@ public static partial class GameEventRegistry
                         .Escalate("Disturbed", -0.2)
                         .WithEffects(EffectFactory.Hardened(0.1, 90)),
                     new EventResult("You can't stay. You leave quickly.", 0.10, 3)
-                        .WithEffects(EffectFactory.Fear(0.2))
+                        .Unsettling()
                 ]);
     }
 
@@ -521,20 +522,20 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You inch forward, testing each foothold. Slow but safe.", 0.60, 20),
                     new EventResult("Your foot finds empty air. You catch yourself just in time.", 0.25, 25)
-                        .WithEffects(EffectFactory.Fear(0.2)),
+                        .Unsettling(),
                     new EventResult("You stumble on something unseen. Minor injury.", 0.10, 18)
                         .Damage(3, DamageType.Blunt, "stumble in darkness"),
                     new EventResult("Your hand brushes something useful in the dark.", 0.05, 22)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .FindsSupplies()
                 ])
             .Choice("Wait for Light",
                 "Don't risk it. Wait until conditions improve.",
                 [
                     new EventResult("You wait. Time passes, but you're unharmed.", 0.70, 45),
                     new EventResult("The wait stretches. Cold seeps in.", 0.20, 60)
-                        .WithEffects(EffectFactory.Cold(-8, 30)),
+                        .WithCold(-8, 30),
                     new EventResult("Something stirs in the darkness nearby. You freeze.", 0.10, 50)
-                        .CreateTension("Stalked", 0.25)
+                        .BecomeStalked(0.25)
                 ])
             .Choice("Rush Through",
                 "Move fast. Minimize time in the dark.",
@@ -545,7 +546,7 @@ public static partial class GameEventRegistry
                     new EventResult("Bad fall. Something twisted.", 0.20, 12)
                         .WithEffects(EffectFactory.SprainedAnkle(0.4)),
                     new EventResult("You run straight into something solid. Stars explode.", 0.10, 15)
-                        .Damage(8, DamageType.Blunt, "collision")
+                        .SeriousFall()
                         .WithEffects(EffectFactory.Shaken(0.3))
                 ]);
     }
@@ -565,8 +566,9 @@ public static partial class GameEventRegistry
                     new EventResult("Current stronger than it looked. You fight to stay upright.", 0.15, 15)
                         .WithEffects(EffectFactory.Wet(0.9, 120), EffectFactory.Cold(-18, 60), EffectFactory.Exhausted(0.2, 30)),
                     new EventResult("You slip. Water closes over your head for a terrifying moment.", 0.05, 18)
-                        .Damage(5, DamageType.Blunt, "underwater impact")
-                        .WithEffects(EffectFactory.Wet(1.0, 150), EffectFactory.Cold(-25, 90), EffectFactory.Fear(0.3))
+                        .ModerateFall()
+                        .WithEffects(EffectFactory.Wet(1.0, 150), EffectFactory.Cold(-25, 90))
+                        .Frightening()
                 ])
             .Choice("Find Another Route",
                 "Look for a better crossing point.",
@@ -576,7 +578,7 @@ public static partial class GameEventRegistry
                     new EventResult("No good options. You end up crossing anyway.", 0.20, 25)
                         .WithEffects(EffectFactory.Wet(0.5, 45), EffectFactory.Cold(-10, 30)),
                     new EventResult("The detour reveals something interesting.", 0.05, 25)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .FindsSupplies()
                 ])
             .Choice("Drink First",
                 "You're here. Might as well hydrate.",
@@ -588,7 +590,8 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Nauseous(0.15, 45)),
                     new EventResult("Ice breaks. You're in the water.", 0.05, 15)
                         .Damage(4, DamageType.Blunt, "ice break")
-                        .WithEffects(EffectFactory.Wet(0.9, 120), EffectFactory.Cold(-20, 75))
+                        .WithEffects(EffectFactory.Wet(0.9, 120))
+                        .SevereCold()
                 ]);
     }
 
@@ -602,14 +605,15 @@ public static partial class GameEventRegistry
                 "Minimize your exposure time. Speed across.",
                 [
                     new EventResult("You hustle across. Wind buffets you, but you make it.", 0.45, 10)
-                        .WithEffects(EffectFactory.Cold(-8, 20)),
+                        .WithCold(-8, 20),
                     new EventResult("The footing is treacherous. You stumble but keep moving.", 0.30, 15)
-                        .Damage(3, DamageType.Blunt, "rough terrain")
-                        .WithEffects(EffectFactory.Cold(-10, 25)),
+                        .MinorFall()
+                        .WithCold(-10, 25),
                     new EventResult("Wind nearly takes you. You drop and crawl.", 0.15, 20)
-                        .WithEffects(EffectFactory.Cold(-15, 40), EffectFactory.Exhausted(0.2, 45)),
+                        .HarshCold()
+                        .WithEffects(EffectFactory.Exhausted(0.2, 45)),
                     new EventResult("Something saw you. Movement on the horizon.", 0.10, 12)
-                        .CreateTension("Stalked", 0.3)
+                        .BecomeStalked(0.3)
                 ])
             .Choice("Low Crawl",
                 "Stay low, stay hidden. Use what cover exists.",
@@ -617,7 +621,7 @@ public static partial class GameEventRegistry
                     new EventResult("Slow but safe. You cross without being spotted.", 0.55, 25)
                         .WithEffects(EffectFactory.Sore(0.2, 60)),
                     new EventResult("Rocks tear at your clothing. Cold seeps in.", 0.30, 30)
-                        .WithEffects(EffectFactory.Cold(-12, 35)),
+                        .ModerateCold(),
                     new EventResult("Your hand finds a sharp edge. Blood makes the rocks slick.", 0.10, 28)
                         .Damage(4, DamageType.Sharp, "sharp rock")
                         .CreateTension("WoundUntreated", 0.15, description: "hand"),
@@ -631,7 +635,7 @@ public static partial class GameEventRegistry
                     new EventResult("The way back is harder than you remembered.", 0.25, 25)
                         .WithEffects(EffectFactory.Sore(0.15, 45)),
                     new EventResult("As you turn, you spot tracks. Something uses this ridge.", 0.05, 10)
-                        .CreateTension("Stalked", 0.2)
+                        .BecomeStalked(0.2)
                 ]);
     }
 
@@ -647,27 +651,27 @@ public static partial class GameEventRegistry
                 "Use this cover to your advantage. Wait for prey.",
                 [
                     new EventResult($"A {animal.ToLower()} wanders into your kill zone. Clean shot.", 0.35, 45)
-                        .Rewards(RewardPool.BasicMeat),
+                        .FindsMeat(),
                     new EventResult("Nothing comes. Wasted time, but you're well-positioned now.", 0.30, 40),
                     new EventResult("Something comes — too big. You let it pass.", 0.20, 50)
-                        .WithEffects(EffectFactory.Fear(0.15))
-                        .CreateTension("Stalked", 0.2),
+                        .Unsettling()
+                        .BecomeStalked(0.2),
                     new EventResult("Something was hunting YOU. It pounces.", 0.10, 30)
                         .Encounter(territory?.GetRandomPredatorName() ?? "Wolf", 10, 0.7)
                         .Aborts(),
                     new EventResult("Perfect shot. Quality kill.", 0.05, 55)
-                        .Rewards(RewardPool.LargeMeat)
+                        .FindsLargeMeat()
                 ])
             .Choice("Forage the Area",
                 "Good cover means good foraging. Work quickly.",
                 [
                     new EventResult("Dense vegetation hides useful materials.", 0.50, 25)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .FindsSupplies(),
                     new EventResult("You find some things, but something's watching.", 0.25, 20)
                         .Rewards(RewardPool.CraftingMaterials)
-                        .CreateTension("Stalked", 0.2),
+                        .BecomeStalked(0.2),
                     new EventResult("The undergrowth scratches and tears. Minor wounds.", 0.15, 22)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .FindsSupplies()
                         .Damage(2, DamageType.Sharp, "thorns"),
                     new EventResult("You disturb a nest. Something angry emerges.", 0.10, 15)
                         .Encounter(territory?.GetRandomAnimalName() ?? "Fox", 15, 0.4)
@@ -677,7 +681,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You slip through the cover. Unseen, unharmed.", 0.60, 10),
                     new EventResult("Something follows your movement. You feel eyes on you.", 0.25, 12)
-                        .CreateTension("Stalked", 0.25),
+                        .BecomeStalked(0.25),
                     new EventResult("You startle something. It bolts — away from you, thankfully.", 0.15, 8)
                 ]);
     }

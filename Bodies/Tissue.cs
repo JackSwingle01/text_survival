@@ -1,5 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace text_survival.Bodies;
 
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(Tissue), "tissue")]
+[JsonDerivedType(typeof(Muscle), "muscle")]
+[JsonDerivedType(typeof(Bone), "bone")]
 public class Tissue
 {
     public string Name { get; init; } = "Unknown";

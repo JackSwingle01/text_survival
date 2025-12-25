@@ -27,39 +27,42 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You run. The cold bites deep. Camp feels impossibly far.", weight: 0.60, minutes: 5)
                         .CreateTension("DeadlyCold", 0.4)
-                        .WithEffects(EffectFactory.Cold(-10, 30)),
+                        .WithCold(-10, 30),
                     new EventResult("You run hard. Body heat from exertion helps, for now.", weight: 0.30, minutes: 5)
                         .CreateTension("DeadlyCold", 0.3)
-                        .WithEffects(EffectFactory.Cold(-5, 20)),
+                        .WithCold(-5, 20),
                     new EventResult("You stumble in your haste. Time lost.", weight: 0.10, minutes: 8)
                         .CreateTension("DeadlyCold", 0.5)
-                        .WithEffects(EffectFactory.Cold(-12, 35))
-                        .Damage(3, DamageType.Blunt, "fall")
+                        .WithCold(-12, 35)
+                        .MinorFall()
                 ])
             .Choice("Find Terrain Shelter",
                 "Look for a windbreak. Rocks, dense trees, anything.",
                 [
                     new EventResult("You find a rock overhang. Wind blocked, but still dangerously cold.", weight: 0.50, minutes: 15)
                         .CreateTension("DeadlyCold", 0.25)
-                        .WithEffects(EffectFactory.Cold(-5, 45)),
+                        .WithCold(-5, 45),
                     new EventResult("Dense trees break the wind. You hunker down.", weight: 0.30, minutes: 20)
                         .CreateTension("DeadlyCold", 0.2)
-                        .WithEffects(EffectFactory.Cold(-3, 30)),
+                        .WithCold(-3, 30),
                     new EventResult("Nothing. Open ground. You're exposed.", weight: 0.20, minutes: 15)
                         .CreateTension("DeadlyCold", 0.5)
-                        .WithEffects(EffectFactory.Cold(-15, 45))
+                        .HarshCold()
                 ])
             .Choice("Build Emergency Shelter",
                 "Dig in. Snow walls, debris pile, anything to stop the wind.",
                 [
                     new EventResult("Hands numb, you pile snow into a windbreak. It helps.", weight: 0.60, minutes: 30)
                         .CreateTension("DeadlyCold", 0.15)
-                        .WithEffects(EffectFactory.Cold(-5, 60), EffectFactory.Frostbite(0.2)),
+                        .WithCold(-5, 60)
+                        .WithEffects(EffectFactory.Frostbite(0.2)),
                     new EventResult("Crude shelter complete. You're out of the wind.", weight: 0.25, minutes: 35)
-                        .WithEffects(EffectFactory.Cold(-3, 30), EffectFactory.Exhausted(0.3, 60)),
+                        .WithCold(-3, 30)
+                        .WithEffects(EffectFactory.Exhausted(0.3, 60)),
                     new EventResult("Too cold to work. Your fingers won't cooperate.", weight: 0.15, minutes: 20)
                         .CreateTension("DeadlyCold", 0.45)
-                        .WithEffects(EffectFactory.Frostbite(0.3), EffectFactory.Cold(-12, 45))
+                        .ModerateCold()
+                        .WithEffects(EffectFactory.Frostbite(0.3))
                 ],
                 [EventCondition.HasFuel]);
     }
@@ -102,17 +105,16 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Numb fingers fumble. Sparks catch. Fire blooms.", weight: 0.40, minutes: 15)
                         .ResolveTension("DeadlyCold")
-                        .Costs(ResourceType.Tinder, 1)
-                        .Costs(ResourceType.Fuel, 2)
+                        .StartsFire()
                         .WithEffects(EffectFactory.Warmed(0.5, 60)),
                     new EventResult("Wind snuffs the first attempt. Second catches.", weight: 0.30, minutes: 20)
                         .ResolveTension("DeadlyCold")
                         .Costs(ResourceType.Tinder, 2)
-                        .Costs(ResourceType.Fuel, 2)
+                        .BurnsFuel()
                         .WithEffects(EffectFactory.Frostbite(0.2), EffectFactory.Warmed(0.4, 45)),
                     new EventResult("Can't get it started. Tinder's damp. Fingers too numb.", weight: 0.30, minutes: 15)
                         .Escalate("DeadlyCold", 0.2)
-                        .Costs(ResourceType.Tinder, 1)
+                        .WastesTinder()
                         .WithEffects(EffectFactory.Frostbite(0.3))
                 ],
                 [EventCondition.HasTinder, EventCondition.HasFuel])
@@ -142,15 +144,13 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You stop caring about your fingers. Faster now. Core temperature stabilizing.", weight: 0.60, minutes: 10)
                         .Escalate("DeadlyCold", -0.2)
-                        .Damage(8, DamageType.Internal, "severe frostbite to fingers")
-                        .WithEffects(EffectFactory.Frostbite(0.6)),
+                        .WithFrostbite(8, 0.6),
                     new EventResult("The sacrifice buys you time. Your hands may never fully recover.", weight: 0.30, minutes: 8)
                         .Escalate("DeadlyCold", -0.25)
-                        .Damage(12, DamageType.Internal, "permanent frostbite damage")
-                        .WithEffects(EffectFactory.Frostbite(0.8)),
+                        .WithFrostbite(12, 0.8),
                     new EventResult("Too late. The cold has you.", weight: 0.10, minutes: 10)
-                        .Damage(15, DamageType.Internal, "severe frostbite")
-                        .WithEffects(EffectFactory.Frostbite(0.7), EffectFactory.Hypothermia(0.5))
+                        .WithFrostbite(15, 0.7)
+                        .WithEffects(EffectFactory.Hypothermia(0.5))
                 ])
             .Choice("Emergency Bivouac",
                 "Dig into the snow. Wait for conditions to break.",
@@ -162,8 +162,8 @@ public static partial class GameEventRegistry
                         .ResolveTension("DeadlyCold")
                         .WithEffects(EffectFactory.Frostbite(0.2), EffectFactory.Exhausted(0.5, 120)),
                     new EventResult("Not deep enough. Cold seeping in. This might be the end.", weight: 0.20, minutes: 90)
-                        .Damage(10, DamageType.Internal, "severe hypothermia")
-                        .WithEffects(EffectFactory.Hypothermia(0.6), EffectFactory.Frostbite(0.5))
+                        .WithFrostbite(10, 0.5)
+                        .WithEffects(EffectFactory.Hypothermia(0.6))
                 ])
             .Choice("Final Push",
                 "Everything you have. Sprint for camp. Succeed or collapse.",
@@ -177,11 +177,11 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Exhausted(0.8, 180), EffectFactory.Frostbite(0.4))
                         .Aborts(),
                     new EventResult("You collapse in the snow. So close. So cold.", weight: 0.20, minutes: 20)
-                        .Damage(15, DamageType.Internal, "severe hypothermia")
-                        .WithEffects(EffectFactory.Hypothermia(0.7), EffectFactory.Frostbite(0.5)),
+                        .WithFrostbite(15, 0.5)
+                        .WithEffects(EffectFactory.Hypothermia(0.7)),
                     new EventResult("You fall. The snow is surprisingly warm. That's bad. Very bad.", weight: 0.10, minutes: 15)
-                        .Damage(20, DamageType.Internal, "critical hypothermia")
-                        .WithEffects(EffectFactory.Hypothermia(0.9), EffectFactory.Frostbite(0.6))
+                        .WithFrostbite(20, 0.6)
+                        .WithEffects(EffectFactory.Hypothermia(0.9))
                 ]);
     }
 }

@@ -31,6 +31,7 @@ public class GameContext(Player player, Location camp, Weather weather)
     // Zone and location tracking (moved from Zone to break circular reference)
     public Weather Weather { get; init; } = weather;
     public List<Location> Locations { get; set; } = new();
+    [System.Text.Json.Serialization.JsonInclude]
     private List<Location> _unrevealedLocations { get; set; } = new();
     public IReadOnlyList<Location> UnrevealedLocations => _unrevealedLocations.AsReadOnly();
 

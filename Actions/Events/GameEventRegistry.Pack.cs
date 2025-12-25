@@ -72,57 +72,57 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("They match your pace. Watching. Waiting.", weight: 0.40, minutes: 10),
                     new EventResult("One peels off. Then another. Losing interest?", weight: 0.25, minutes: 8)
-                        .Escalate("PackNearby", -0.1),
+                        .EscalatesPack(-0.1),
                     new EventResult("They're getting closer.", weight: 0.25, minutes: 8)
-                        .Escalate("PackNearby", 0.15),
+                        .EscalatesPack(0.15),
                     new EventResult("Still there. Neither closing nor leaving.", weight: 0.10, minutes: 12)
                 ])
             .Choice("Make Yourself Large, Shout",
                 "Posturing. Show them you're not prey.",
                 [
                     new EventResult("They hesitate. Some back off. Posturing works.", weight: 0.40, minutes: 8)
-                        .Escalate("PackNearby", -0.15),
+                        .EscalatesPack(-0.15),
                     new EventResult("No reaction. They've seen this before.", weight: 0.35, minutes: 10),
                     new EventResult("Your aggression provokes them. They're committed now.", weight: 0.25, minutes: 5)
-                        .Escalate("PackNearby", 0.25)
-                        .WithEffects(EffectFactory.Fear(0.2))
+                        .EscalatesPack(0.25)
+                        .Unsettling()
                 ])
             .Choice("Light a Torch",
                 "Fire. The ultimate deterrent.",
                 [
                     new EventResult("Flame catches. The pack retreats to the shadows.", weight: 0.70, minutes: 10)
                         .Costs(ResourceType.Tinder, 1)
-                        .Escalate("PackNearby", -0.3),
+                        .EscalatesPack(-0.3),
                     new EventResult("Torch lit. They keep their distance but don't leave.", weight: 0.20, minutes: 10)
                         .Costs(ResourceType.Tinder, 1)
-                        .Escalate("PackNearby", -0.15),
+                        .EscalatesPack(-0.15),
                     new EventResult("Won't light. Tinder's damp. They see you struggling.", weight: 0.10, minutes: 8)
                         .Costs(ResourceType.Tinder, 1)
-                        .Escalate("PackNearby", 0.2)
+                        .EscalatesPack(0.2)
                 ],
                 [EventCondition.HasTinder, EventCondition.HasFuel])
             .Choice("Run for Camp",
                 "Sprint. Hope you're faster than they are.",
                 [
                     new EventResult("You run. They give chase. But camp is close.", weight: 0.35, minutes: 8)
-                        .Escalate("PackNearby", 0.3)
+                        .EscalatesPack(0.3)
                         .Aborts(),
                     new EventResult("Chase instinct triggered. They're closing fast.", weight: 0.40, minutes: 5)
-                        .Escalate("PackNearby", 0.4)
-                        .WithEffects(EffectFactory.Fear(0.3)),
+                        .EscalatesPack(0.4)
+                        .Frightening(),
                     new EventResult("Too slow. They cut you off.", weight: 0.25, minutes: 5)
-                        .Escalate("PackNearby", 0.5)
-                        .WithEffects(EffectFactory.Fear(0.4))
+                        .EscalatesPack(0.5)
+                        .Terrifying()
                 ])
             .Choice("Back Away Slowly",
                 "Maintain eye contact. Don't turn your back. Slow retreat.",
                 [
                     new EventResult("Slow and steady. They watch but don't follow.", weight: 0.45, minutes: 15)
-                        .Escalate("PackNearby", -0.1),
+                        .EscalatesPack(-0.1),
                     new EventResult("One circles. They're testing your flanks.", weight: 0.35, minutes: 12)
-                        .Escalate("PackNearby", 0.1),
+                        .EscalatesPack(0.1),
                     new EventResult("Your caution is working. Distance growing.", weight: 0.20, minutes: 20)
-                        .Escalate("PackNearby", -0.2)
+                        .EscalatesPack(-0.2)
                 ]);
     }
 
@@ -142,44 +142,43 @@ public static partial class GameEventRegistry
                 "High ground. Choke point. Anything that limits their angles.",
                 [
                     new EventResult("Rocky outcrop. Back to stone. They can only come from one direction.", weight: 0.50, minutes: 15)
-                        .Escalate("PackNearby", -0.1),
+                        .EscalatesPack(-0.1),
                     new EventResult("Dense thicket. Hard to move but harder for them to coordinate.", weight: 0.30, minutes: 12),
                     new EventResult("Nothing. Open ground. You're exposed.", weight: 0.20, minutes: 10)
-                        .Escalate("PackNearby", 0.2)
-                        .WithEffects(EffectFactory.Fear(0.3))
+                        .EscalatesPack(0.2)
+                        .Frightening()
                 ])
             .Choice("Back Against Tree or Cliff",
                 "Limit attack angles. Nothing behind you.",
                 [
                     new EventResult("Solid tree at your back. They can only come from the front.", weight: 0.60, minutes: 8)
-                        .Escalate("PackNearby", -0.05),
+                        .EscalatesPack(-0.05),
                     new EventResult("Cliff face. Safe from behind, but nowhere to run.", weight: 0.30, minutes: 10),
                     new EventResult("You're cornered. But so are they, in a way.", weight: 0.10, minutes: 8)
-                        .Escalate("PackNearby", 0.1)
+                        .EscalatesPack(0.1)
                 ])
             .Choice("Start Fire Here",
                 "Right here. Right now. Fire is your only real defense.",
                 [
                     new EventResult("Fire catches. Flames push them back. A circle of safety.", weight: 0.45, minutes: 15)
                         .Costs(ResourceType.Tinder, 1)
-                        .Costs(ResourceType.Fuel, 3)
-                        .Escalate("PackNearby", -0.4),
+                        .BurnsFuel(3)
+                        .EscalatesPack(-0.4),
                     new EventResult("Small fire. Not enough. But it's something.", weight: 0.30, minutes: 12)
                         .Costs(ResourceType.Tinder, 1)
-                        .Costs(ResourceType.Fuel, 2)
-                        .Escalate("PackNearby", -0.2),
+                        .BurnsFuel(2)
+                        .EscalatesPack(-0.2),
                     new EventResult("Won't catch. Hands shaking. They're getting closer.", weight: 0.25, minutes: 10)
                         .Costs(ResourceType.Tinder, 1)
-                        .Escalate("PackNearby", 0.25)
-                        .WithEffects(EffectFactory.Fear(0.35))
+                        .EscalatesPack(0.25)
+                        .Terrifying()
                 ],
                 [EventCondition.HasTinder, EventCondition.HasFuel])
             .Choice("Make Break for Camp",
                 "All-out sprint. Succeed or fail.",
                 [
                     new EventResult("You run. Legs pumping. Camp in sight!", weight: 0.35, minutes: 10)
-                        .ResolveTension("PackNearby")
-                        .Aborts(),
+                        .EscapeToCamp(),
                     new EventResult("Almost made it. They catch you at the perimeter.", weight: 0.35, minutes: 8)
                         .Encounter(predator, 10, 0.7),
                     new EventResult("Too slow. They drag you down.", weight: 0.30, minutes: 5)
@@ -203,20 +202,20 @@ public static partial class GameEventRegistry
                 "Face them. Take as many as you can.",
                 [
                     new EventResult($"The first {predator.ToLower()} lunges. The fight is on.", weight: 1.0, minutes: 5)
-                        .ResolveTension("PackNearby")
+                        .ResolvesPack()
                         .Encounter(predator, 5, 0.85)
                 ])
             .Choice("Feed the Fire",
                 "Everything on the flames. Make it roar.",
                 [
                     new EventResult("Fire blazes high. They stop, blinded. The pack retreats.", weight: 0.50, minutes: 5)
-                        .Costs(ResourceType.Fuel, 4)
-                        .ResolveTension("PackNearby"),
+                        .BurnsFuel(4)
+                        .ResolvesPack(),
                     new EventResult("Fire grows but they circle. Waiting for it to die.", weight: 0.35, minutes: 10)
-                        .Costs(ResourceType.Fuel, 3)
-                        .Escalate("PackNearby", -0.3),
+                        .BurnsFuel(3)
+                        .EscalatesPack(-0.3),
                     new EventResult("Not enough fuel. Fire sputters. They see weakness.", weight: 0.15, minutes: 5)
-                        .Costs(ResourceType.Fuel, 2)
+                        .BurnsFuel(2)
                         .Encounter(predator, 10, 0.75)
                 ],
                 [EventCondition.NearFire, EventCondition.HasFuel])
@@ -224,11 +223,11 @@ public static partial class GameEventRegistry
                 "Give them what they want. Food. Not you.",
                 [
                     new EventResult("You throw everything and run. They take the bait.", weight: 0.65, minutes: 5)
-                        .ResolveTension("PackNearby")
+                        .ResolvesPack()
                         .Costs(ResourceType.Food, 5),
                     new EventResult("Most go for the meat. One still chases.", weight: 0.25, minutes: 5)
                         .Costs(ResourceType.Food, 5)
-                        .CreateTension("Stalked", 0.3, animalType: predator),
+                        .BecomeStalked(0.3, predator),
                     new EventResult("They take the food AND you.", weight: 0.10, minutes: 3)
                         .Costs(ResourceType.Food, 3)
                         .Encounter(predator, 8, 0.8)

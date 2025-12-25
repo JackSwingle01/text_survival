@@ -25,7 +25,7 @@ public static partial class GameEventRegistry
                     new EventResult("Rabbit tracks. It triggered the snare but escaped. The mechanism needs resetting.", 0.35, 10),
                     new EventResult("Fox tracks circling, sniffing. It was curious but didn't take the bait.", 0.25, 8),
                     new EventResult("Larger prints. Something bigger was interested. This could attract predators.", 0.20, 10)
-                        .CreateTension("Stalked", 0.2),
+                        .BecomeStalked(0.2),
                     new EventResult("The snare is gone. Dragged off by something strong. You follow the drag marks and find usable parts.", 0.15, 20)
                         .Rewards(RewardPool.CraftingMaterials),
                     new EventResult("Human bootprints. Someone else knows about your trap line.", 0.05, 15)
@@ -44,7 +44,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You back away carefully. The snare can wait.", 0.80, 0),
                     new EventResult("Smart instinct. You hear movement in the brush as you retreat.", 0.20, 0)
-                        .CreateTension("Stalked", 0.25)
+                        .BecomeStalked(0.25)
                 ]);
     }
 
@@ -66,12 +66,12 @@ public static partial class GameEventRegistry
                 "Make noise. Assert dominance. This is YOUR trap line.",
                 [
                     new EventResult($"You shout and wave your arms. The {predator.ToLower()} backs off, watching.", 0.40, 5)
-                        .ResolveTension("Stalked")
-                        .WithEffects(EffectFactory.Fear(0.1)),
+                        .ResolvesStalking()
+                        .Shaken(),
                     new EventResult($"It startles and runs. But it knows where to find food now.", 0.30, 3)
-                        .Escalate("Stalked", 0.15),
+                        .EscalatesStalking(0.15),
                     new EventResult($"It doesn't back down. Hackles raised, it holds its ground.", 0.20, 0)
-                        .WithEffects(EffectFactory.Fear(0.3))
+                        .Frightening()
                         .Encounter(predator, 20, 0.5),
                     new EventResult($"It charges.", 0.10, 0)
                         .Encounter(predator, 10, 0.7)
@@ -80,11 +80,11 @@ public static partial class GameEventRegistry
                 "Stay hidden. Let it take what it wants and leave.",
                 [
                     new EventResult($"The {predator.ToLower()} sniffs around, then wanders off. Your catches are safe.", 0.30, 20)
-                        .ResolveTension("Stalked"),
+                        .ResolvesStalking(),
                     new EventResult($"It finds your catch and drags it away. You watch helplessly.", 0.40, 15),
                     new EventResult($"It destroys a snare trying to get at something. Then leaves.", 0.20, 15),
                     new EventResult($"It catches your scent. Turns toward your hiding spot.", 0.10, 10)
-                        .WithEffects(EffectFactory.Fear(0.4))
+                        .Terrifying()
                         .Encounter(predator, 15, 0.6)
                 ])
             .Choice("Retreat",
@@ -92,8 +92,8 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You slip away unseen. The trap line can wait.", 0.70, 0),
                     new EventResult($"A branch snaps. The {predator.ToLower()} looks up, ears forward.", 0.30, 0)
-                        .Escalate("Stalked", 0.2)
-                        .WithEffects(EffectFactory.Fear(0.2))
+                        .EscalatesStalking(0.2)
+                        .Unsettling()
                 ]);
     }
 
@@ -122,7 +122,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Clear. You collect your catch without incident.", 0.75, 5),
                     new EventResult("Smart. Tracks around the snare — something was circling. Already gone.", 0.20, 8)
-                        .CreateTension("Stalked", 0.15),
+                        .BecomeStalked(0.15),
                     new EventResult("A scavenger was nearby, waiting for you to leave. It flees as you approach.", 0.05, 5)
                 ]);
     }
@@ -145,7 +145,7 @@ public static partial class GameEventRegistry
                     new EventResult("One snare destroyed, but the other still has its catch.", 0.25, 10),
                     new EventResult("Picked clean. Nothing left but tracks.", 0.20, 8),
                     new EventResult("Blood trail leads away. Something large was here recently.", 0.05, 5)
-                        .CreateTension("Stalked", 0.3)
+                        .BecomeStalked(0.3)
                 ])
             .Choice("Track the Scavenger",
                 "Follow the trail. Maybe you can recover something.",
@@ -156,7 +156,7 @@ public static partial class GameEventRegistry
                     new EventResult("You find the scavenger — a fox, still eating. Easy target.", 0.20, 25)
                         .Rewards(RewardPool.SmallGame),
                     new EventResult("You find the 'scavenger' — a wolf. It sees you too.", 0.10, 15)
-                        .WithEffects(EffectFactory.Fear(0.3))
+                        .Frightening()
                         .Encounter("wolf", 20, 0.4)
                 ],
                 requires: [EventCondition.IsDaytime])
@@ -228,9 +228,9 @@ public static partial class GameEventRegistry
                 "Maybe it'll catch something good.",
                 [
                     new EventResult("You decide the risk is worth it. For now.", 0.60, 0)
-                        .Escalate("Stalked", 0.1),
+                        .EscalatesStalking(0.1),
                     new EventResult("As you debate, you hear something moving nearby.", 0.30, 0)
-                        .CreateTension("Stalked", 0.25),
+                        .BecomeStalked(0.25),
                     new EventResult($"Too late to decide. A {predator.ToLower()} emerges from cover.", 0.10, 0)
                         .Encounter(predator, 25, 0.4)
                 ])
@@ -243,7 +243,7 @@ public static partial class GameEventRegistry
                     new EventResult($"A {predator.ToLower()} approaches. You have the advantage.", 0.15, 20)
                         .Encounter(predator, 30, 0.3),
                     new EventResult("You wait so long you start to freeze.", 0.05, 45)
-                        .WithEffects(EffectFactory.Cold(-15, 60))
+                        .HarshCold()
                 ],
                 requires: [EventCondition.HasShelter]); // Need cover for ambush
     }

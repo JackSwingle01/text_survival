@@ -176,12 +176,16 @@ public record GameStateDto
             // Debug: capture raw values
             DebugCapacities = new Dictionary<string, double>
             {
+                ["Moving"] = ctx.player.GetCapacities().Moving,
+                ["Manipulation"] = ctx.player.GetCapacities().Manipulation,
                 ["Consciousness"] = ctx.player.GetCapacities().Consciousness,
                 ["Breathing"] = ctx.player.GetCapacities().Breathing,
                 ["BloodPumping"] = ctx.player.GetCapacities().BloodPumping,
             },
             DebugEffectModifiers = new Dictionary<string, double>
             {
+                ["Moving"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.Moving),
+                ["Manipulation"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.Manipulation),
                 ["Consciousness"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.Consciousness),
                 ["Breathing"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.Breathing),
                 ["BloodPumping"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.BloodPumping),

@@ -70,25 +70,25 @@ public static partial class GameEventRegistry
                 [
                     new EventResult($"Clean kill on a weak {animal.ToLower()}. Meat for days.", weight: 0.55, minutes: 30)
                         .ResolveTension("HerdNearby")
-                        .Rewards(RewardPool.LargeMeat)
+                        .FindsLargeMeat()
                         .CreateTension("FoodScentStrong", 0.4),
                     new EventResult("Miss. The straggler rejoins the herd.", weight: 0.25, minutes: 25)
                         .Escalate("HerdNearby", -0.2),
                     new EventResult("Kill, but wolves noticed. Working fast now.", weight: 0.15, minutes: 20)
                         .ResolveTension("HerdNearby")
-                        .Rewards(RewardPool.BasicMeat)
-                        .CreateTension("Stalked", 0.3, animalType: "Wolf"),
+                        .FindsMeat()
+                        .BecomeStalked(0.3, "Wolf"),
                     new EventResult("Spooked them. Stampede!", weight: 0.05, minutes: 5)
                         .Escalate("HerdNearby", 0.3)
-                        .WithEffects(EffectFactory.Fear(0.3))
+                        .Frightening()
                 ])
             .Choice("Go for a Prime Kill",
                 "Target a healthy animal. More risk, more reward.",
                 [
                     new EventResult($"Perfect throw. The {animal.ToLower()} goes down. Huge haul.", weight: 0.30, minutes: 25)
                         .ResolveTension("HerdNearby")
-                        .Rewards(RewardPool.LargeMeat)
-                        .Rewards(RewardPool.LargeMeat)
+                        .FindsLargeMeat()
+                        .FindsLargeMeat()
                         .CreateTension("FoodScentStrong", 0.6),
                     new EventResult("Hit but not down. It bolts.", weight: 0.25, minutes: 20)
                         .ResolveTension("HerdNearby")
@@ -98,14 +98,14 @@ public static partial class GameEventRegistry
                     new EventResult("You spooked the herd. STAMPEDE!", weight: 0.20, minutes: 5)
                         .Damage(15, DamageType.Blunt, "glancing blow from stampede")
                         .ResolveTension("HerdNearby")
-                        .WithEffects(EffectFactory.Fear(0.4))
+                        .Terrifying()
                 ])
             .Choice("Wait for Predator Leftovers",
                 "Let wolves make kills. Scavenge after.",
                 [
                     new EventResult("Wolves bring one down. You wait, then claim scraps.", weight: 0.50, minutes: 45)
                         .ResolveTension("HerdNearby")
-                        .Rewards(RewardPool.BasicMeat),
+                        .FindsMeat(),
                     new EventResult("Wolves don't leave much. But something is better than nothing.", weight: 0.30, minutes: 50)
                         .ResolveTension("HerdNearby")
                         .Rewards(RewardPool.SmallGame),
@@ -152,7 +152,7 @@ public static partial class GameEventRegistry
                     new EventResult("Too slow. They're everywhere.", weight: 0.15, minutes: 5)
                         .ResolveTension("HerdNearby")
                         .Damage(20, DamageType.Blunt, "trampled by herd")
-                        .WithEffects(EffectFactory.Fear(0.5))
+                        .Panicking()
                 ])
             .Choice("Find Cover",
                 "Rock. Tree. Anything solid.",
@@ -161,7 +161,7 @@ public static partial class GameEventRegistry
                         .ResolveTension("HerdNearby"),
                     new EventResult("Tree trunk. Pressed flat. Hooves inches away.", weight: 0.30, minutes: 5)
                         .ResolveTension("HerdNearby")
-                        .WithEffects(EffectFactory.Fear(0.3)),
+                        .Frightening(),
                     new EventResult("No cover. Open ground.", weight: 0.20, minutes: 3)
                         .Damage(15, DamageType.Blunt, "trampled")
                         .ResolveTension("HerdNearby")
@@ -171,14 +171,14 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("They flow around you. Hooves everywhere but none hit.", weight: 0.35, minutes: 5)
                         .ResolveTension("HerdNearby")
-                        .WithEffects(EffectFactory.Fear(0.4)),
+                        .Terrifying(),
                     new EventResult("Mostly missed. One clips your shoulder.", weight: 0.35, minutes: 5)
                         .ResolveTension("HerdNearby")
                         .Damage(10, DamageType.Blunt, "kicked by fleeing animal"),
                     new EventResult("Bad gamble. Trampled.", weight: 0.30, minutes: 5)
                         .ResolveTension("HerdNearby")
                         .Damage(25, DamageType.Blunt, "trampled by herd")
-                        .WithEffects(EffectFactory.Fear(0.5))
+                        .Panicking()
                 ])
             .Choice("Drop Pack and Sprint",
                 "Lose everything but live.",
@@ -210,7 +210,7 @@ public static partial class GameEventRegistry
                 "Get the meat back to camp. Stay vigilant.",
                 [
                     new EventResult("A lone wolf peels off from the pack. It's following.", weight: 0.45, minutes: 10)
-                        .CreateTension("Stalked", 0.3, animalType: "Wolf"),
+                        .BecomeStalked(0.3, "Wolf"),
                     new EventResult("Three shapes detach from the herd's shadow. They're coordinating.", weight: 0.35, minutes: 10)
                         .CreateTension("PackNearby", 0.25, animalType: "Wolf"),
                     new EventResult("They don't follow. Too busy with their own kills.", weight: 0.20, minutes: 10)
@@ -221,9 +221,9 @@ public static partial class GameEventRegistry
                     new EventResult("Long way around. But you lose the followers.", weight: 0.60, minutes: 30)
                         .Escalate("FoodScentStrong", -0.2),
                     new EventResult("They're persistent. Still behind you.", weight: 0.30, minutes: 25)
-                        .CreateTension("Stalked", 0.2, animalType: "Wolf"),
+                        .BecomeStalked(0.2, "Wolf"),
                     new EventResult("Detour leads you somewhere unfamiliar.", weight: 0.10, minutes: 35)
-                        .WithEffects(EffectFactory.Shaken(0.2))
+                        .Shaken()
                 ])
             .Choice("Leave Some Meat Behind",
                 "Sacrifice a portion. Maybe they'll be satisfied.",
@@ -232,7 +232,7 @@ public static partial class GameEventRegistry
                         .Costs(ResourceType.Food, 2),
                     new EventResult("They take it AND keep following. Want more.", weight: 0.30, minutes: 10)
                         .Costs(ResourceType.Food, 2)
-                        .CreateTension("Stalked", 0.3, animalType: "Wolf")
+                        .BecomeStalked(0.3, "Wolf")
                 ],
                 [EventCondition.HasMeat]);
     }

@@ -88,7 +88,7 @@ public static partial class GameEventRegistry
                         new EventResult("Hours pass. No movement. Still occupied.", weight: 0.35, minutes: 90),
                         new EventResult("You wait too long. They return. Spotted.", weight: 0.20, minutes: 75)
                             .Escalate("ClaimedTerritory", 0.3)
-                            .CreateTension("Stalked", 0.3, animalType: animal)
+                            .BecomeStalked(0.3, animal)
                     ]
                     : [
                         new EventResult("It emerges to hunt. You slip in.", weight: 0.25, minutes: 120)
@@ -187,7 +187,7 @@ public static partial class GameEventRegistry
                     new EventResult("It bolts past you. Den yours, but it's not happy.", weight: 0.20, minutes: 8)
                         .Costs(ResourceType.Tinder, 1)
                         .ResolveTension("ClaimedTerritory")
-                        .CreateTension("Stalked", 0.4, animalType: animal)
+                        .BecomeStalked(0.4, animal)
                         .AddsFeature(typeof(ShelterFeature), (0.4, 0.6, 0.7))
                         .Chain(ClaimingTheDen)
                 ],
@@ -227,7 +227,7 @@ public static partial class GameEventRegistry
                     new EventResult("Something in the old bedding. You're feeling ill.", weight: 0.20, minutes: 15)
                         .CreateTension("FeverRising", 0.2, description: "infected from den bedding"),
                     new EventResult("Parasites in the old fur. Itching, discomfort.", weight: 0.10)
-                        .WithEffects(EffectFactory.Shaken(0.2))
+                        .Shaken()
                 ])
             .Choice("Relocate Camp Here",
                 "This is better than your current camp. Move everything.",

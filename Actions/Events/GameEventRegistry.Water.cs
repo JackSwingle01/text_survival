@@ -30,29 +30,33 @@ public static partial class GameEventRegistry
                     new EventResult("You find solid ice. Slow but safe.", 0.60, 15),
                     new EventResult("The route takes you around, but you stay dry.", 0.30, 20),
                     new EventResult("Even the careful route gives way. Your foot punches through.", 0.10, 12)
-                        .WithEffects(EffectFactory.Wet(0.4, 60), EffectFactory.Cold(-8, 30))
+                        .WithEffects(EffectFactory.Wet(0.4, 60))
+                        .WithCold(-8, 30)
                 ])
             .Choice("Go Around",
                 "Find another way. Not worth the risk.",
                 [
                     new EventResult("The detour adds time, but you stay dry and warm.", 0.70, 25),
                     new EventResult("The shore route is treacherous too. You slip on rocks.", 0.20, 20)
-                        .Damage(3, DamageType.Blunt, "fall on rocks"),
+                        .MinorFall(),
                     new EventResult("Going around reveals something interesting.", 0.10, 20)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .FindsSupplies()
                 ])
             .Choice("Cross Quickly",
                 "Light and fast. Don't give it time to crack.",
                 [
                     new EventResult("You make it across, heart pounding.", 0.40, 5),
                     new EventResult("The ice cracks but holds. You scramble to solid ground.", 0.30, 8)
-                        .WithEffects(EffectFactory.Shaken(0.2)),
+                        .Unsettling(),
                     new EventResult("Your foot breaks through. Icy water floods your boot.", 0.20, 12)
-                        .WithEffects(EffectFactory.Wet(0.6, 90), EffectFactory.Cold(-12, 45))
+                        .WithEffects(EffectFactory.Wet(0.6, 90))
+                        .ModerateCold()
                         .Damage(2, DamageType.Blunt, "ice edge"),
                     new EventResult("The ice gives way. You plunge into freezing water.", 0.10, 18)
-                        .WithEffects(EffectFactory.Wet(1.0, 150), EffectFactory.Cold(-25, 90), EffectFactory.Fear(0.4))
-                        .Damage(6, DamageType.Blunt, "submersion impact")
+                        .WithEffects(EffectFactory.Wet(1.0, 150))
+                        .WithCold(-25, 90)
+                        .Terrifying()
+                        .ModerateFall()
                 ]);
     }
 
@@ -75,16 +79,18 @@ public static partial class GameEventRegistry
                     new EventResult("A splash soaks your ankle. Cold but manageable.", 0.25, 8)
                         .WithEffects(EffectFactory.Wet(0.2, 30)),
                     new EventResult("You slip but catch yourself. Close call.", 0.05, 5)
-                        .WithEffects(EffectFactory.Shaken(0.1))
+                        .Shaken()
                 ])
             .Choice("Keep Working",
                 "A little water won't kill you. Probably.",
                 [
                     new EventResult("You stay focused and stay dry.", 0.50, 0),
                     new EventResult("Meltwater seeps into your boot. The cold creeps up your leg.", 0.35, 0)
-                        .WithEffects(EffectFactory.Wet(0.3, 45), EffectFactory.Cold(-5, 20)),
+                        .WithEffects(EffectFactory.Wet(0.3, 45))
+                        .MinorCold(),
                     new EventResult("Your foot goes right through a puddle into slush.", 0.15, 5)
-                        .WithEffects(EffectFactory.Wet(0.5, 60), EffectFactory.Cold(-10, 35))
+                        .WithEffects(EffectFactory.Wet(0.5, 60))
+                        .WithCold(-10, 35)
                 ]);
     }
 }

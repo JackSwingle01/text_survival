@@ -39,7 +39,8 @@ public class ForageStrategy : IWorkStrategy
             capacities,
             effectModifiers,
             checkMoving: true,
-            checkBreathing: true
+            checkBreathing: true,
+            effectRegistry: ctx.player.EffectRegistry
         );
 
         return ((int)(baseTime * timeFactor), warnings);

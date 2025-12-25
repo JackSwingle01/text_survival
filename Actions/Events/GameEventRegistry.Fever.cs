@@ -135,14 +135,14 @@ public static partial class GameEventRegistry
                 isReal
                     ? [
                         new EventResult("The fire WAS dying. Your instinct saved you.", weight: 1.0, minutes: 10)
-                            .Costs(ResourceType.Fuel, 2)
+                            .BurnsFuel(2)
                             .WithEffects(EffectFactory.Exhausted(0.2, 30))
                     ]
                     : [
                         new EventResult("You rush over. The fire is fine. The fever lied.", weight: 0.80, minutes: 8)
                             .WithEffects(EffectFactory.Exhausted(0.15, 20), EffectFactory.Shaken(0.15)),
                         new EventResult("You feed a healthy fire. Wasted fuel, but no harm done.", weight: 0.20, minutes: 8)
-                            .Costs(ResourceType.Fuel, 1)
+                            .BurnsFuel(1)
                     ])
             .Choice("Ignore It",
                 "It's the fever. Trust nothing.",
@@ -150,7 +150,7 @@ public static partial class GameEventRegistry
                     ? [
                         new EventResult("You ignore it. The fire dies. You were wrong.", weight: 1.0, minutes: 30)
                             .Escalate("FeverRising", 0.15)
-                            .WithEffects(EffectFactory.Cold(-10, 60))
+                            .WithCold(-10, 60)
                     ]
                     : [
                         new EventResult("You stay put. The fire burns steady. Good call.", weight: 0.80)
@@ -163,7 +163,7 @@ public static partial class GameEventRegistry
                 isReal
                     ? [
                         new EventResult("You look carefully. It IS low. You add fuel in time.", weight: 1.0, minutes: 5)
-                            .Costs(ResourceType.Fuel, 1)
+                            .BurnsFuel(1)
                     ]
                     : [
                         new EventResult("Careful observation. Fire is fine. The fever lied.", weight: 0.85, minutes: 5)
@@ -194,27 +194,27 @@ public static partial class GameEventRegistry
                 isReal
                     ? [
                         new EventResult("You were right to check. Something slinks away into darkness.", weight: 0.70, minutes: 10)
-                            .CreateTension("Stalked", 0.3)
-                            .WithEffects(EffectFactory.Fear(0.2)),
+                            .BecomeStalked(0.3)
+                            .Unsettling(),
                         new EventResult("Eyes reflect in firelight. It's real. It's watching.", weight: 0.30, minutes: 8)
-                            .CreateTension("Stalked", 0.4)
-                            .WithEffects(EffectFactory.Fear(0.3))
+                            .BecomeStalked(0.4)
+                            .Frightening()
                     ]
                     : [
                         new EventResult("You search the darkness. Nothing. Just fever and paranoia.", weight: 0.70, minutes: 15)
                             .WithEffects(EffectFactory.Exhausted(0.2, 30), EffectFactory.Paranoid(0.2)),
                         new EventResult("Empty snow. Your mind playing tricks.", weight: 0.30, minutes: 12)
-                            .WithEffects(EffectFactory.Shaken(0.2))
+                            .Shaken()
                     ])
             .Choice("Ignore It",
                 "Fever. It's just the fever.",
                 isReal
                     ? [
                         new EventResult("You stay by fire. In the morning, tracks circle the camp.", weight: 0.70)
-                            .CreateTension("Stalked", 0.35),
+                            .BecomeStalked(0.35),
                         new EventResult("You ignore it. Something tests your defenses overnight.", weight: 0.30, minutes: 60)
-                            .CreateTension("Stalked", 0.45)
-                            .WithEffects(EffectFactory.Fear(0.2))
+                            .BecomeStalked(0.45)
+                            .Unsettling()
                     ]
                     : [
                         new EventResult("You ignore it. Just paranoia. Good call.", weight: 0.80)
@@ -226,9 +226,9 @@ public static partial class GameEventRegistry
                 isReal
                     ? [
                         new EventResult("Patient observation reveals movement. It's real.", weight: 0.80, minutes: 20)
-                            .CreateTension("Stalked", 0.25),
+                            .BecomeStalked(0.25),
                         new EventResult("You see it clearly now. Wolf. Circling.", weight: 0.20, minutes: 15)
-                            .CreateTension("Stalked", 0.4, animalType: "Wolf")
+                            .BecomeStalked(0.4, "Wolf")
                     ]
                     : [
                         new EventResult("Long minutes of watching. Nothing. Fever lied.", weight: 0.70, minutes: 20)

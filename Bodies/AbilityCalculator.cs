@@ -1,3 +1,5 @@
+using text_survival.Effects;
+
 namespace text_survival.Bodies;
 
 public static class AbilityCalculator
@@ -135,7 +137,8 @@ public static class AbilityCalculator
         bool checkMoving = false,
         bool checkBreathing = false,
         bool checkPerception = false,
-        bool checkManipulation = false)
+        bool checkManipulation = false,
+        EffectRegistry? effectRegistry = null)
     {
         double timeFactor = 1.0;
         var warnings = new List<string>();
@@ -144,23 +147,67 @@ public static class AbilityCalculator
         if (checkMoving && IsMovingImpaired(capacities.Moving))
         {
             timeFactor *= 1.20;
-            warnings.Add("Your limited movement slows the work.");
+            // Debug logging to catch exact state when warning triggers
+            Console.WriteLine($"[DEBUG] Moving impaired: capacity={capacities.Moving:F3}, modifier={effectModifiers.GetCapacityModifier(CapacityNames.Moving):F3}");
+            Console.WriteLine($"[DEBUG] All capacities: Moving={capacities.Moving:F3}, Manipulation={capacities.Manipulation:F3}, Breathing={capacities.Breathing:F3}, Consciousness={capacities.Consciousness:F3}, BloodPumping={capacities.BloodPumping:F3}");
+            warnings.Add(GetMovingImpairmentCause(effectRegistry));
         }
 
         // Breathing impairment (+15% time)
         if (checkBreathing && IsBreathingImpaired(capacities.Breathing))
         {
             timeFactor *= 1.15;
-            warnings.Add("Your labored breathing slows the work.");
+            warnings.Add(GetBreathingImpairmentCause(effectRegistry));
         }
 
         // Manipulation impairment (+25% time)
         if (checkManipulation && IsManipulationImpaired(capacities.Manipulation))
         {
             timeFactor *= 1.25;
-            warnings.Add("Your clumsy hands make the work difficult.");
+            warnings.Add(GetManipulationImpairmentCause(effectRegistry));
         }
 
         return (timeFactor, warnings);
+    }
+
+    private static string GetMovingImpairmentCause(EffectRegistry? registry)
+    {
+        if (registry != null)
+        {
+            // Check for specific effects that reduce Moving, in order of severity
+            if (registry.HasEffect("Tired")) return "Your exhaustion slows the work.";
+            if (registry.HasEffect("Thirsty")) return "Dehydration slows your movements.";
+            if (registry.HasEffect("Hungry")) return "Hunger weakens your movements.";
+            if (registry.HasEffect("Hypothermia")) return "The cold stiffens your movements.";
+            if (registry.HasEffect("Frostbite")) return "Your frostbitten limbs slow the work.";
+            if (registry.HasEffect("Sprained Ankle")) return "Your injured ankle slows the work.";
+            if (registry.HasEffect("Stiff")) return "Your stiff joints slow the work.";
+            if (registry.HasEffect("Exhausted")) return "Your exhaustion slows the work.";
+            if (registry.HasEffect("Fever")) return "Your fever weakens your movements.";
+            if (registry.HasEffect("Sore")) return "Your sore muscles slow the work.";
+        }
+        return "Your limited movement slows the work.";
+    }
+
+    private static string GetBreathingImpairmentCause(EffectRegistry? registry)
+    {
+        if (registry != null)
+        {
+            if (registry.HasEffect("Coughing")) return "Your coughing makes it hard to work.";
+        }
+        return "Your labored breathing slows the work.";
+    }
+
+    private static string GetManipulationImpairmentCause(EffectRegistry? registry)
+    {
+        if (registry != null)
+        {
+            if (registry.HasEffect("Frostbite")) return "Your numb fingers fumble the work.";
+            if (registry.HasEffect("Shivering")) return "Your shivering hands slow the work.";
+            if (registry.HasEffect("Clumsy")) return "Your clumsy hands make this harder.";
+            if (registry.HasEffect("Fear")) return "Your trembling hands slow the work.";
+            if (registry.HasEffect("Shaken")) return "Your unsteady hands make this harder.";
+        }
+        return "Your clumsy hands make the work difficult.";
     }
 }

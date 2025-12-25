@@ -86,8 +86,8 @@ public static partial class GameEventRegistry
                         .ModifiesFeature(typeof(ShelterFeature), 0.2),
                     new EventResult("You brace it successfully and spot a weakness to reinforce later.", 0.10, 12),
                     new EventResult("It comes down on you.", 0.05, 5)
-                        .Damage(8, DamageType.Blunt, "debris")
-                        .WithEffects(EffectFactory.Cold(-15, 60))
+                        .DebrisDamage(8)
+                        .HarshCold()
                         .ModifiesFeature(typeof(ShelterFeature), 0.7)
                 ])
             .Choice("Reinforce with Materials",
@@ -108,11 +108,11 @@ public static partial class GameEventRegistry
                 "Get out before it collapses.",
                 [
                     new EventResult("You get out clean. Shelter collapses behind you.", 0.70, 3)
-                        .WithEffects(EffectFactory.Cold(-12, 45))
+                        .ModerateCold()
                         .RemovesFeature(typeof(ShelterFeature)),
                     new EventResult("Almost clear. Debris catches you.", 0.30, 5)
-                        .Damage(5, DamageType.Blunt, "debris")
-                        .WithEffects(EffectFactory.Cold(-12, 45))
+                        .DebrisDamage(5)
+                        .ModerateCold()
                         .RemovesFeature(typeof(ShelterFeature))
                 ]);
     }
@@ -128,7 +128,7 @@ public static partial class GameEventRegistry
                 "Put it out immediately. You'll deal with the cold.",
                 [
                     new EventResult("Fire out. Safe lungs, but now you're getting cold.", 1.0, 2)
-                        .WithEffects(EffectFactory.Cold(-10, 30))
+                        .WithCold(-10, 30)
                     // TODO: Extinguish fire - add fire state integration when HeatSourceFeature.Extinguish() is available
                 ])
             .Choice("Endure and Ventilate",
@@ -148,9 +148,9 @@ public static partial class GameEventRegistry
                 "Leave shelter, wait for wind to shift.",
                 [
                     new EventResult("You wait outside. The wind shifts eventually.", 0.60, 30)
-                        .WithEffects(EffectFactory.Cold(-8, 35)),
+                        .WithCold(-8, 35),
                     new EventResult("Takes longer than expected. Severe cold exposure.", 0.40, 50)
-                        .WithEffects(EffectFactory.Cold(-15, 50))
+                        .WithCold(-15, 50)
                 ]);
     }
 
@@ -177,14 +177,14 @@ public static partial class GameEventRegistry
                         .Costs(ResourceType.Tinder, 1),
                     new EventResult("You protect the fire successfully.", 0.40, 8),
                     new EventResult("Wind wins. Fire goes out, embers everywhere.", 0.10, 5)
-                        .WithEffects(EffectFactory.Cold(-8, 25))
+                        .WithCold(-8, 25)
                     // TODO: Change fire state to embers - add fire state integration when available
                 ])
             .Choice("Let It Burn Out",
                 "Accept the fire loss. Protect everything else.",
                 [
                     new EventResult("The embers die. You'll need to restart the fire, but camp is safe.", 1.0, 5)
-                        .WithEffects(EffectFactory.Cold(-5, 20))
+                        .MinorCold()
                     // TODO: Change fire state to extinguished - add fire state integration when available
                 ]);
     }
@@ -205,17 +205,17 @@ public static partial class GameEventRegistry
                     new EventResult("A weak rabbit. Easy catch.", 0.25, 10)
                         .Rewards(RewardPool.SmallGame),
                     new EventResult("A fox. It retreats but doesn't go far.", 0.20, 8)
-                        .CreateTension("Stalked", 0.15, animalType: "Fox"),
+                        .BecomeStalked(0.15, "Fox"),
                     new EventResult("Nothing there now. Tracks suggest a small scavenger.", 0.15, 8),
                     new EventResult($"{predator}. Close. It hasn't decided if you're prey yet.", 0.20, 5)
-                        .WithEffects(EffectFactory.Fear(0.3))
-                        .CreateTension("Stalked", 0.4, animalType: predator),
+                        .Frightening()
+                        .BecomeStalked(0.4, predator),
                     new EventResult($"{predator}. It charges.", 0.15, 0)
-                        .WithEffects(EffectFactory.Fear(0.5))
+                        .Panicking()
                         .Encounter(predator, 15, 0.6),
                     new EventResult("Blood on the snow. Something killed here recently — and it's still nearby.", 0.05, 3)
-                        .WithEffects(EffectFactory.Fear(0.4))
-                        .CreateTension("Stalked", 0.5, animalType: predator)
+                        .Terrifying()
+                        .BecomeStalked(0.5, predator)
                 ])
             .Choice("Throw a Rock",
                 "Scare it off with noise.",
@@ -232,7 +232,7 @@ public static partial class GameEventRegistry
                     new EventResult("It steals some food while you're not looking.", 0.35, 0)
                         .Costs(ResourceType.Food, 1),
                     new EventResult("Ignoring it emboldens it. It'll be back.", 0.15, 0)
-                        .CreateTension("Stalked", 0.2, animalType: "Scavenger")
+                        .BecomeStalked(0.2, "Scavenger")
                 ]);
     }
 
@@ -252,7 +252,8 @@ public static partial class GameEventRegistry
                     new EventResult("Something strange. A relic from before.", 0.10, 30)
                         .Rewards(RewardPool.CraftingMaterials),
                     new EventResult("You disturb something you shouldn't have. A chill runs through you.", 0.05, 15)
-                        .WithEffects(EffectFactory.Fear(0.4), EffectFactory.Shaken(0.3))
+                        .Terrifying()
+                        .WithEffects(EffectFactory.Shaken(0.3))
                 ])
             .Choice("Let It Emerge",
                 "Wait and see what the heat reveals.",
@@ -268,7 +269,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You pile snow back over it. Whatever it was stays buried.", 0.80, 5),
                     new EventResult("Something about it stays with you. An uneasy feeling.", 0.20, 5)
-                        .WithEffects(EffectFactory.Shaken(0.15))
+                        .Shaken()
                 ]);
     }
 
@@ -312,13 +313,14 @@ public static partial class GameEventRegistry
                 "Walk it off. Get your blood moving.",
                 [
                     new EventResult("The cold air clears your head. You feel more grounded.", 0.60, 20)
-                        .WithEffects(EffectFactory.Cold(-5, 20))
+                        .MinorCold()
                         .Escalate("Disturbed", -0.05),
                     new EventResult("The darkness feels oppressive. Every shadow hides something.", 0.30, 15)
-                        .WithEffects(EffectFactory.Cold(-8, 25), EffectFactory.Paranoid(0.2)),
+                        .WithCold(-8, 25)
+                        .WithEffects(EffectFactory.Paranoid(0.2)),
                     new EventResult("A noise in the dark. Probably nothing. Probably.", 0.10, 10)
-                        .WithEffects(EffectFactory.Cold(-5, 15))
-                        .CreateTension("Stalked", 0.15)
+                        .MinorCold()
+                        .BecomeStalked(0.15)
                 ]);
     }
 
@@ -333,28 +335,29 @@ public static partial class GameEventRegistry
                 "Light drives back the dark. And whatever's in it.",
                 [
                     new EventResult("The fire blazes. The circle of light expands. Nothing there.", 0.70, 10)
-                        .Costs(ResourceType.Fuel, 2)
+                        .BurnsFuel(2)
                         .Escalate("Disturbed", -0.05),
                     new EventResult("The flames reveal nothing. But you're not convinced.", 0.25, 10)
-                        .Costs(ResourceType.Fuel, 2)
+                        .BurnsFuel(2)
                         .WithEffects(EffectFactory.Paranoid(0.15)),
                     new EventResult("In the flickering light, you see movement. Real this time.", 0.05, 5)
-                        .Costs(ResourceType.Fuel, 2)
-                        .CreateTension("Stalked", 0.3)
+                        .BurnsFuel(2)
+                        .BecomeStalked(0.3)
                 ],
                 requires: [EventCondition.HasFuel])
             .Choice("Investigate",
                 "Know for certain. Even if it kills you.",
                 [
                     new EventResult("Nothing. Just your mind playing tricks.", 0.40, 15)
-                        .WithEffects(EffectFactory.Shaken(0.2)),
+                        .Shaken(),
                     new EventResult("You find nothing but you don't feel better.", 0.35, 20)
-                        .WithEffects(EffectFactory.Paranoid(0.25), EffectFactory.Cold(-8, 25)),
+                        .WithCold(-8, 25)
+                        .WithEffects(EffectFactory.Paranoid(0.25)),
                     new EventResult("Wait. Was that... no. Nothing. Nothing.", 0.20, 15)
-                        .WithEffects(EffectFactory.Fear(0.3))
+                        .Frightening()
                         .Escalate("Disturbed", 0.15),
                     new EventResult("Something WAS there. You see it slink away.", 0.05, 10)
-                        .CreateTension("Stalked", 0.35)
+                        .BecomeStalked(0.35)
                 ])
             .Choice("Endure It",
                 "Stay still. Don't give in to the fear.",

@@ -53,23 +53,23 @@ public static partial class GameEventRegistry
                 "Face it. Show no fear.",
                 [
                     new EventResult($"The {predator.ToLower()} watches. You watch back. A standoff in the ash.", weight: 0.60, minutes: 10)
-                        .Escalate("Stalked", 0.1),
+                        .EscalatesStalking(0.1),
                     new EventResult($"Your stance unsettles it. The {predator.ToLower()} circles wider, keeping distance.", weight: 0.40, minutes: 8)
-                        .Escalate("Stalked", -0.1)
+                        .EscalatesStalking(-0.1)
                 ])
             .Choice("Back Away Slowly",
                 "Create distance. Don't run.",
                 [
                     new EventResult("You retreat step by step. It doesn't follow. Yet.", weight: 0.70, minutes: 15),
                     new EventResult($"Your movement triggers something. The {predator.ToLower()} starts toward you.", weight: 0.30, minutes: 5)
-                        .Escalate("Stalked", 0.3)
+                        .EscalatesStalking(0.3)
                 ])
             .Choice("Use the Visibility",
                 "If you can see it, you can prepare.",
                 [
                     new EventResult($"You track its position while gathering what you need. Knowledge is power.", weight: 0.80, minutes: 12),
                     new EventResult($"Distracted by watching it, you stumble. The {predator.ToLower()} notices.", weight: 0.20, minutes: 8)
-                        .Escalate("Stalked", 0.2)
+                        .EscalatesStalking(0.2)
                 ]);
     }
 
@@ -216,7 +216,7 @@ public static partial class GameEventRegistry
                 "Use your vantage. Learn what you're dealing with.",
                 [
                     new EventResult("A wolf, circling. Now you know where it is.", weight: 0.50, minutes: 10)
-                        .CreateTension("Stalked", 0.3, animalType: "Wolf"),
+                        .BecomeStalked(0.3, "Wolf"),
                     new EventResult("A fox, hunting mice. No threat.", weight: 0.30, minutes: 8),
                     new EventResult("Deer, grazing. Opportunity, if you can get close.", weight: 0.20, minutes: 8)
                 ])
@@ -249,25 +249,25 @@ public static partial class GameEventRegistry
                 "You have the high ground. Act like it.",
                 [
                     new EventResult($"You stand tall. The {predator.ToLower()} hesitates. Prey doesn't act like this.", weight: 0.60, minutes: 5)
-                        .Escalate("Stalked", -0.2),
+                        .EscalatesStalking(-0.2),
                     new EventResult($"It's not intimidated. The {predator.ToLower()} circles, looking for a path up.", weight: 0.40, minutes: 8)
-                        .Escalate("Stalked", 0.1)
+                        .EscalatesStalking(0.1)
                 ])
             .Choice("Descend Carefully",
                 "You can't stay up here forever.",
                 [
                     new EventResult($"You descend the far side. The {predator.ToLower()} loses sight of you.", weight: 0.50, minutes: 12),
                     new EventResult($"It tracks your descent. When you reach the bottom, it's waiting.", weight: 0.50, minutes: 15)
-                        .Escalate("Stalked", 0.3)
+                        .EscalatesStalking(0.3)
                 ])
             .Choice("Throw Something",
                 "Maybe you can drive it off.",
                 [
                     new EventResult($"A rock clatters near it. The {predator.ToLower()} flinches and retreats into the trees.", weight: 0.45, minutes: 3)
-                        .Escalate("Stalked", -0.1),
+                        .EscalatesStalking(-0.1),
                     new EventResult($"Your throw falls short. The {predator.ToLower()} doesn't even react.", weight: 0.35, minutes: 3),
                     new EventResult($"The motion catches its attention. It advances.", weight: 0.20, minutes: 2)
-                        .Escalate("Stalked", 0.2)
+                        .EscalatesStalking(0.2)
                 ]);
     }
 
@@ -288,14 +288,14 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You fill half your containers and flee. Better than nothing.", weight: 0.70, minutes: 8),
                     new EventResult("The storm catches you mid-fill. Ice stings your face as you run.", weight: 0.30, minutes: 12)
-                        .WithEffects(Effects.EffectFactory.Cold(0.3, 30))
+                        .LightChill()
                 ])
             .Choice("Get Full Water Properly",
                 "You came all this way. Take the risk.",
                 [
                     new EventResult("You finish just as the first flakes hit. Worth it.", weight: 0.40, minutes: 20),
                     new EventResult("The storm hits while you're still filling. Brutal exposure.", weight: 0.60, minutes: 25)
-                        .WithEffects(Effects.EffectFactory.Cold(0.5, 60))
+                        .DangerousCold()
                 ])
             .Choice("Leave Immediately",
                 "Water isn't worth freezing.",
@@ -323,7 +323,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Just silence. Ancient, patient silence. You're alone here.", weight: 0.70, minutes: 5),
                     new EventResult("There — the faintest crack of a branch. Something is here.", weight: 0.30, minutes: 8)
-                        .CreateTension("Stalked", 0.2)
+                        .BecomeStalked(0.2)
                 ])
             .Choice("Focus on Work",
                 "Silence is just silence.",
@@ -347,7 +347,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Precious little. This forest is too healthy — everything is either standing or rotted.", weight: 0.70, minutes: 15),
                     new EventResult("A fallen branch, storm-snapped. Not much, but it's something.", weight: 0.30, minutes: 12)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .FindsSupplies()
                 ])
             .Choice("Mark It for Later",
                 "Come back with proper tools.",
@@ -402,7 +402,7 @@ public static partial class GameEventRegistry
                     new EventResult("You track them to a clearing. Deer, grazing. An opportunity.", weight: 0.50, minutes: 20),
                     new EventResult("The trail goes cold. They're faster than you.", weight: 0.35, minutes: 15),
                     new EventResult("You find them — but a wolf found them first. It looks up from its kill.", weight: 0.15, minutes: 12)
-                        .CreateTension("Stalked", 0.4, animalType: "Wolf")
+                        .BecomeStalked(0.4, "Wolf")
                 ])
             .Choice("Wait Here",
                 "They might come back.",
@@ -430,16 +430,16 @@ public static partial class GameEventRegistry
                 "Put more brush between you.",
                 [
                     new EventResult($"Branches tear at you, but the {predator.ToLower()} falls back. You're safe.", weight: 0.85, minutes: 15)
-                        .ResolveTension("Stalked"),
+                        .ResolvesStalking(),
                     new EventResult("The thicket is impassable here. You have to go around.", weight: 0.15, minutes: 20)
                 ])
             .Choice("Wait It Out",
                 "It has to give up eventually.",
                 [
                     new EventResult($"Minutes pass. The {predator.ToLower()} paces, then leaves. You're safe.", weight: 0.70, minutes: 30)
-                        .ResolveTension("Stalked"),
+                        .ResolvesStalking(),
                     new EventResult($"It's patient. The {predator.ToLower()} settles in to wait. So are you.", weight: 0.30, minutes: 45)
-                        .Escalate("Stalked", -0.1)
+                        .EscalatesStalking(-0.1)
                 ]);
     }
 
@@ -538,15 +538,15 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("A gap in the rocks breaks the wind. Temporary relief.", weight: 0.75, minutes: 10),
                     new EventResult("Exposed from all angles. No shelter here.", weight: 0.25, minutes: 5)
-                        .WithEffects(Effects.EffectFactory.Cold(0.4, 20))
+                        .WithCold(-8, 20)
                 ])
             .Choice("Push Through",
                 "Finish what you came for.",
                 [
                     new EventResult("You grit your teeth and work. Cold seeps into your bones.", weight: 0.60, minutes: 15)
-                        .WithEffects(Effects.EffectFactory.Cold(0.3, 30)),
+                        .LightChill(),
                     new EventResult("Too much. You have to retreat.", weight: 0.40, minutes: 8)
-                        .WithEffects(Effects.EffectFactory.Cold(0.5, 20))
+                        .DangerousCold()
                 ])
             .Choice("Descend Immediately",
                 "This isn't worth frostbite.",
@@ -576,7 +576,7 @@ public static partial class GameEventRegistry
                 "Food is food. Work fast.",
                 [
                     new EventResult("You uncover frozen carcasses. Partially eaten, but there's meat here.", weight: 0.50, minutes: 20)
-                        .Rewards(RewardPool.BasicMeat)
+                        .FindsMeat()
                         .CreateTension("ClaimedTerritory", 0.4, animalType: "Bear", location: ctx.CurrentLocation),
                     new EventResult("The cache is fresh. The bear hasn't been gone long.", weight: 0.30, minutes: 15)
                         .Rewards(RewardPool.SmallGame)
@@ -640,7 +640,7 @@ public static partial class GameEventRegistry
                 "One chance. Make it count.",
                 [
                     new EventResult("Your weapon finds its heart. It doesn't wake. The cave is yours.", weight: 0.30, minutes: 10)
-                        .Rewards(RewardPool.LargeMeat)
+                        .FindsLargeMeat()
                         .AddsFeature(typeof(Environments.Features.ShelterFeature), (0.6, 0.9, 0.8)),
                     new EventResult("A glancing blow. It wakes — confused, then enraged.", weight: 0.50, minutes: 5)
                         .Encounter("Bear", 5, 0.9),
@@ -713,10 +713,10 @@ public static partial class GameEventRegistry
                 "Take what's left before it's underwater.",
                 [
                     new EventResult("You grab what you can as water rises around your ankles.", weight: 0.70, minutes: 15)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .FindsSupplies()
                         .CreateTension("DamCollapsed", 1.0, location: ctx.CurrentLocation),
                     new EventResult("Too slow. The flood catches you.", weight: 0.30, minutes: 10)
-                        .WithEffects(Effects.EffectFactory.Cold(0.4, 45))
+                        .ModerateCold()
                         .CreateTension("DamCollapsed", 1.0, location: ctx.CurrentLocation)
                 ]);
     }
@@ -767,7 +767,7 @@ public static partial class GameEventRegistry
                 "See what the beavers left behind.",
                 [
                     new EventResult("A cache of winter stores — bark, roots. Not much, but something.", weight: 0.50, minutes: 20)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .FindsSupplies(),
                     new EventResult("Young beavers, abandoned when the water drained. Easy catch.", weight: 0.30, minutes: 15)
                         .Rewards(RewardPool.SmallGame),
                     new EventResult("Empty. The beavers took what they could when they fled.", weight: 0.20, minutes: 15)
@@ -800,7 +800,7 @@ public static partial class GameEventRegistry
                     new EventResult("Branch by branch, you rise above the treeline. The world spreads below.", weight: 0.55, minutes: 20)
                         .Chain(ViewFromAbove),
                     new EventResult("Ice gives way beneath your hand. You catch yourself, heart pounding.", weight: 0.25, minutes: 15)
-                        .WithEffects(Effects.EffectFactory.Shaken(0.3)),
+                        .Frightening(),
                     new EventResult("A branch snaps. You fall, catching yourself painfully on lower limbs.", weight: 0.15, minutes: 10)
                         .WithEffects(Effects.EffectFactory.Bleeding(0.2))
                         .WithEffects(Effects.EffectFactory.SprainedAnkle(0.3)),
@@ -840,7 +840,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Smoke rising to the east — a hot spring? Movement in the southern forest. A frozen lake to the north.", weight: 0.50, minutes: 10),
                     new EventResult("Wolves, a pack of them, moving through the valley below. They haven't seen you. Yet.", weight: 0.30, minutes: 8)
-                        .CreateTension("PackNearby", 0.4),
+                        .EscalatesPack(0.4),
                     new EventResult("Dark clouds building on the horizon. Storm coming.", weight: 0.20, minutes: 5)
                         .CreateTension("StormApproaching", 0.5)
                 ])
@@ -869,15 +869,15 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You head back with time to spare. The storm hits while you're safe at camp.", weight: 0.75, minutes: 10),
                     new EventResult("The storm moves faster than expected. You barely make it.", weight: 0.25, minutes: 15)
-                        .WithEffects(Effects.EffectFactory.Cold(0.2, 20))
+                        .LightChill()
                 ])
             .Choice("Keep Working",
                 "You have time. Probably.",
                 [
                     new EventResult("You finish what you came for and leave with the wind rising.", weight: 0.50, minutes: 25)
-                        .WithEffects(Effects.EffectFactory.Cold(0.3, 30)),
+                        .LightChill(),
                     new EventResult("You misjudged. The storm catches you exposed on the ridge.", weight: 0.50, minutes: 30)
-                        .WithEffects(Effects.EffectFactory.Cold(0.5, 60))
+                        .DangerousCold()
                 ]);
     }
 
@@ -896,10 +896,10 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Deer, picking through the snow. You note their path.", weight: 0.40, minutes: 10),
                     new EventResult("A lone wolf, hunting. It hasn't noticed you.", weight: 0.30, minutes: 8)
-                        .CreateTension("Stalked", 0.2, animalType: "Wolf"),
+                        .BecomeStalked(0.2, "Wolf"),
                     new EventResult("Humans? No — just the way the trees move. Tricks of the light.", weight: 0.20, minutes: 5),
                     new EventResult("A bear, foraging along the ridgeline. Headed this way.", weight: 0.10, minutes: 6)
-                        .CreateTension("Stalked", 0.3, animalType: "Bear")
+                        .BecomeStalked(0.3, "Bear")
                 ])
             .Choice("Mark the Location",
                 "Remember where the activity is.",
@@ -953,7 +953,7 @@ public static partial class GameEventRegistry
                     new EventResult("A tally. Days survived. The marks stop suddenly — day forty-two.", weight: 0.30, minutes: 15),
                     new EventResult("Directions. Scratched arrows pointing east. 'Water' in crude symbols.", weight: 0.25, minutes: 12),
                     new EventResult("A warning. Teeth drawn beneath stick figures. Wolves. Many of them.", weight: 0.25, minutes: 10)
-                        .CreateTension("PackNearby", 0.4),
+                        .EscalatesPack(0.4),
                     new EventResult("Names. Or what might be names. Whoever they were, they wanted to be remembered.", weight: 0.20, minutes: 8)
                 ])
             .Choice("Leave It Unread",
@@ -984,7 +984,7 @@ public static partial class GameEventRegistry
                     new EventResult("Nothing. Wind in the branches. Your nerves are shot.", weight: 0.35, minutes: 8)
                         .ResolveTension("PredatorTerritory"),
                     new EventResult("Eyes in the darkness, then gone. It's not ready to confront you. Yet.", weight: 0.15, minutes: 3)
-                        .CreateTension("Stalked", 0.4, animalType: "Wolf")
+                        .BecomeStalked(0.4, "Wolf")
                 ])
             .Choice("Leave Immediately",
                 "Don't become the next victim.",
@@ -993,7 +993,7 @@ public static partial class GameEventRegistry
                         .ResolveTension("PredatorTerritory"),
                     new EventResult("You hear it following as you leave. Not attacking — just watching.", weight: 0.20, minutes: 8)
                         .ResolveTension("PredatorTerritory")
-                        .CreateTension("Stalked", 0.3, animalType: "Wolf")
+                        .BecomeStalked(0.3, "Wolf")
                 ]);
     }
 
@@ -1023,7 +1023,7 @@ public static partial class GameEventRegistry
                 "The frame has good wood.",
                 [
                     new EventResult("You break down the structure. Seasoned wood, already cut to length.", weight: 1.0, minutes: 30)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .FindsSupplies()
                 ])
             .Choice("Leave It",
                 "Not worth the effort.",

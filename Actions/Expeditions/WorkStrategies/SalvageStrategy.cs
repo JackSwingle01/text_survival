@@ -38,7 +38,8 @@ public class SalvageStrategy : IWorkStrategy
         var (timeFactor, warnings) = AbilityCalculator.GetWorkImpairments(
             capacities,
             effectModifiers,
-            checkMoving: true
+            checkMoving: true,
+            effectRegistry: ctx.player.EffectRegistry
         );
 
         return ((int)(workTime * timeFactor), warnings);
@@ -60,7 +61,35 @@ public class SalvageStrategy : IWorkStrategy
 
         GameDisplay.AddNarrative(ctx, $"You begin searching through the {salvage.DisplayName.ToLower()}...");
 
-        // Get loot
+        // Check if there are personal belongings (equipment or tools)
+        bool hasPersonalItems = salvage.Equipment.Count > 0 || salvage.Tools.Count > 0;
+
+        if (hasPersonalItems)
+        {
+            // Preview what's available before taking
+            GameDisplay.AddNarrative(ctx, "");
+            GameDisplay.AddNarrative(ctx, "You find:");
+            foreach (var equip in salvage.Equipment)
+                GameDisplay.AddNarrative(ctx, $"- {equip.Name}");
+            foreach (var tool in salvage.Tools)
+                GameDisplay.AddNarrative(ctx, $"- {tool.Name}");
+            if (!salvage.Resources.IsEmpty)
+                GameDisplay.AddNarrative(ctx, $"- {salvage.Resources.GetDescription()}");
+
+            // Present moral choice
+            GameDisplay.Render(ctx, statusText: "Deciding.");
+            var choice = new Choice<bool>("Take their belongings?");
+            choice.AddOption("Yes", true);
+            choice.AddOption("No", false);
+
+            if (!choice.GetPlayerChoice(ctx))
+            {
+                GameDisplay.AddNarrative(ctx, "You leave everything as you found it.");
+                return new WorkResult([], null, actualTime, false);
+            }
+        }
+
+        // Get loot (marks site as salvaged)
         var loot = salvage.Salvage();
 
         if (loot.IsEmpty)

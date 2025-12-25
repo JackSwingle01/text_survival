@@ -45,7 +45,8 @@ public class ExploreStrategy : IWorkStrategy
         var (timeFactor, warnings) = AbilityCalculator.GetWorkImpairments(
             capacities,
             effectModifiers,
-            checkBreathing: true
+            checkBreathing: true,
+            effectRegistry: ctx.player.EffectRegistry
         );
 
         return ((int)(baseTime * timeFactor), warnings);
