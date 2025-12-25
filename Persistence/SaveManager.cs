@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
+
 using text_survival.Actions;
 
 namespace text_survival.Persistence;
@@ -9,21 +11,22 @@ namespace text_survival.Persistence;
 /// </summary>
 public static class SaveManager
 {
-    private static readonly JsonSerializerOptions Options = new()
+    public static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        IncludeFields = true,
+        Converters = { new JsonStringEnumConverter(), new StackConverterFactory() },
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
+        ReferenceHandler = ReferenceHandler.Preserve
     };
 
     /// <summary>
-    /// Get the save directory path (cross-platform).
+    /// Get the save directory path (project directory for easier access).
     /// </summary>
     private static string GetSaveDirectory()
     {
-        string dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "TextSurvival"
-        );
+        string dir = Path.Combine(Directory.GetCurrentDirectory(), "saves");
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -47,39 +50,42 @@ public static class SaveManager
 
     /// <summary>
     /// Save the game context to disk. Uses ctx.SessionId for web sessions.
+    /// Returns (success, error) tuple - caller can handle errors appropriately.
     /// </summary>
-    public static void Save(GameContext ctx)
+    public static (bool success, string? error) Save(GameContext ctx)
     {
         try
         {
-            var saveData = SaveDataConverter.ToSaveData(ctx);
-            string json = JsonSerializer.Serialize(saveData, Options);
+            string json = JsonSerializer.Serialize(ctx, Options);
             File.WriteAllText(GetSavePath(ctx.SessionId), json);
+            return (true, null);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error saving game: {ex.Message}");
+            return (false, ex.Message);
         }
     }
 
     /// <summary>
     /// Load save data from disk for the given session (or default).
+    /// Returns (context, error) tuple - context is null if load failed.
+    /// Note: With ReferenceHandler.Preserve, circular references are handled automatically.
     /// </summary>
-    public static GameSaveData? Load(string? sessionId = null)
+    public static (GameContext? ctx, string? error) Load(string? sessionId = null)
     {
         string path = GetSavePath(sessionId);
         if (!File.Exists(path))
-            return null;
+            return (null, null); // No save file is not an error
 
         try
         {
             string json = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<GameSaveData>(json, Options);
+            var ctx = JsonSerializer.Deserialize<GameContext>(json, Options);
+            return (ctx, null);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading save: {ex.Message}");
-            return null;
+            return (null, ex.Message);
         }
     }
 
@@ -101,5 +107,22 @@ public static class SaveManager
     public static string GetSaveLocation(string? sessionId = null)
     {
         return GetSavePath(sessionId);
+    }
+
+    /// <summary>
+    /// Test serialization and return result (throws on error).
+    /// </summary>
+    public static string TestSerialization()
+    {
+        var ctx = GameContext.CreateNewGame();
+
+        // This will throw if serialization fails
+        string json = JsonSerializer.Serialize(ctx, Options);
+
+        // Try deserialization too
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, Options);
+
+        return $"SUCCESS: Serialized {json.Length} characters, deserialized OK. " +
+               $"Locations: {deserialized?.Locations.Count ?? 0}";
     }
 }

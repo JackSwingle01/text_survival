@@ -2,9 +2,9 @@ namespace text_survival.Environments.Features;
 
 public class ShelterFeature : LocationFeature
 {
-    public double TemperatureInsulation { get; private set; } = 0; // ambient temp protection 0-1
-    public double OverheadCoverage { get; private set; } = 0; // rain / snow / sun protection 0-1
-    public double WindCoverage { get; private set; } = 0; // wind protection 0-1
+    public double TemperatureInsulation { get; set; } = 0; // ambient temp protection 0-1
+    public double OverheadCoverage { get; set; } = 0; // rain / snow / sun protection 0-1
+    public double WindCoverage { get; set; } = 0; // wind protection 0-1
 
     public ShelterFeature(string name, double tempInsulation, double overheadCoverage, double windCoverage) : base(name)
     {
@@ -12,6 +12,9 @@ public class ShelterFeature : LocationFeature
         OverheadCoverage = overheadCoverage;
         WindCoverage = windCoverage;
     }
+
+    [System.Text.Json.Serialization.JsonConstructor]
+    public ShelterFeature() : base() { }
 
     /// <summary>
     /// Get the overall quality of the shelter (average of all coverages).

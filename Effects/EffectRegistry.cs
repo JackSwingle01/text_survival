@@ -5,11 +5,17 @@ using text_survival.UI;
 
 namespace text_survival.Effects;
 
-public class EffectRegistry(Actor owner)
+public class EffectRegistry
 {
-    public void AddEffect(Effect effect)
+    private List<Effect> _effects = [];
+
+    public EffectRegistry()
     {
-        if (_effects.Contains(effect)) return;
+    }
+
+    public string? AddEffect(Effect effect)
+    {
+        if (_effects.Contains(effect)) return null;
 
         if (!effect.CanHaveMultiple) // if you can't have multiple then we need to check for existing
         {
@@ -23,56 +29,62 @@ public class EffectRegistry(Actor owner)
             {
                 // Take the more severe of the two - natural decay handles reduction
                 existingEffect.Severity = Math.Max(existingEffect.Severity, effect.Severity);
-                return;
+                return null;
             }
         }
         // if multiple are allowed or if no existing, then it's new -> apply it
         _effects.Add(effect);
         effect.IsActive = true;
-        _owner.AddLog(effect.ApplicationMessage);
+        return effect.ApplicationMessage;
     }
 
-    public void RemoveEffect(Effect effect)
+    public string? RemoveEffect(Effect effect)
     {
         if (_effects.Remove(effect))
         {
-            if (!effect.IsActive) return;
+            if (!effect.IsActive) return null;
             effect.IsActive = false;
-            if (!string.IsNullOrWhiteSpace(effect.RemovalMessage))
-                _owner.AddLog(effect.RemovalMessage);
+            return effect.RemovalMessage;
         }
         else
         {
             GameDisplay.AddWarning("ERROR: couldn't find effect to remove."); // shouldn't hit this, but soft error for now
+            return null;
         }
     }
-    public void Update(int minutes)
+    public List<string> Update(int minutes)
     {
+        var messages = new List<string>();
+
         foreach (Effect effect in _effects)
         {
             if (!effect.IsActive) continue;
 
-            AdvanceSeverityProgress(effect, minutes);
+            var message = AdvanceSeverityProgress(effect, minutes);
+            if (!string.IsNullOrWhiteSpace(message))
+                messages.Add(message);
         }
         // Clean up inactive effects
         _effects.RemoveAll(e => !e.IsActive || e.Severity <= 0);
+
+        return messages;
     }
 
     /// <summary>
     /// Gets called every minute if the severity change rate is not 0
     /// </summary>
-    private void AdvanceSeverityProgress(Effect effect, int minutes)
+    private string? AdvanceSeverityProgress(Effect effect, int minutes)
     {
-        if (!effect.IsActive) return;
+        if (!effect.IsActive) return null;
 
         double change = effect.HourlySeverityChange / 60 * minutes;
 
-        UpdateSeverity(effect, change);
+        return UpdateSeverity(effect, change);
     }
 
     private const double RequiresTreatmentFloor = 0.05;
 
-    private void UpdateSeverity(Effect effect, double change)
+    private string? UpdateSeverity(Effect effect, double change)
     {
         double oldSeverity = effect.Severity;
 
@@ -80,10 +92,7 @@ public class EffectRegistry(Actor owner)
         double floor = effect.RequiresTreatment ? RequiresTreatmentFloor : 0;
         effect.Severity = Math.Clamp(effect.Severity + change, floor, 1);
 
-        var message = GetThresholdMessage(effect, oldSeverity);
-        if (!string.IsNullOrWhiteSpace(message))
-            _owner.AddLog(message);
-
+        return GetThresholdMessage(effect, oldSeverity);
     }
 
     private static string? GetThresholdMessage(Effect effect, double oldSeverity)
@@ -112,13 +121,17 @@ public class EffectRegistry(Actor owner)
     public List<Effect> GetAll() => _effects.Where(e => e.IsActive).ToList();
     public List<Effect> GetEffectsByKind(string kind) => [.. _effects.Where(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase))];
     public bool HasEffect(string kind) => _effects.Any(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase));
-    public void RemoveEffectsByKind(string kind)
+    public List<string> RemoveEffectsByKind(string kind)
     {
+        var messages = new List<string>();
         var effectsToRemove = _effects.Where(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase)).ToList();
         foreach (var effect in effectsToRemove)
         {
-            RemoveEffect(effect);
+            var message = RemoveEffect(effect);
+            if (!string.IsNullOrWhiteSpace(message))
+                messages.Add(message);
         }
+        return messages;
     }
 
     public SurvivalStatsDelta GetSurvivalDelta()
@@ -151,9 +164,6 @@ public class EffectRegistry(Actor owner)
         }
         return total;
     }
-
-    private readonly Actor _owner = owner;
-    private List<Effect> _effects = [];
 
     #region Save/Load Support
 

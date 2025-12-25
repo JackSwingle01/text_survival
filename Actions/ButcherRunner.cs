@@ -23,7 +23,7 @@ public static class ButcherRunner
         if (AbilityCalculator.IsManipulationImpaired(manipulation))
         {
             GameDisplay.AddWarning(ctx, "Your unsteady hands waste some of the meat.");
-            result.ApplyYieldMultiplier(0.8);
+            result.ApplyMultiplier(0.8);
         }
 
         return result;
@@ -84,14 +84,14 @@ public static class ButcherRunner
         while (totalKg > 0.3)
         {
             double portionSize = Math.Min(totalKg, 0.5 + Random.Shared.NextDouble());
-            result.RawMeat.Push(portionSize);
+            result.Add(Resource.RawMeat, portionSize);
             totalKg -= portionSize;
         }
 
         // Add any remaining scraps
         if (totalKg > 0.1)
         {
-            result.RawMeat.Push(totalKg);
+            result.Add(Resource.RawMeat, totalKg);
         }
     }
 
@@ -109,7 +109,7 @@ public static class ButcherRunner
         double perBone = totalKg / boneCount;
         for (int i = 0; i < boneCount; i++)
         {
-            result.Bone.Push(perBone);
+            result.Add(Resource.Bone, perBone);
         }
     }
 
@@ -117,7 +117,7 @@ public static class ButcherRunner
     {
         if (totalKg > 0.1)
         {
-            result.Hide.Push(totalKg);
+            result.Add(Resource.Hide, totalKg);
         }
     }
 
@@ -125,7 +125,7 @@ public static class ButcherRunner
     {
         if (totalKg > 0.05)
         {
-            result.Sinew.Push(totalKg);
+            result.Add(Resource.Sinew, totalKg);
         }
     }
 
@@ -144,7 +144,7 @@ public static class ButcherRunner
         double perChunk = totalKg / chunks;
         for (int i = 0; i < chunks; i++)
         {
-            result.RawFat.Push(perChunk);
+            result.Add(Resource.RawFat, perChunk);
         }
     }
 }

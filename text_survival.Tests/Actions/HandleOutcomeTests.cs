@@ -14,12 +14,13 @@ public class HandleOutcomeTests
     {
         // Create a minimal GameContext for testing
         var player = new Player();
-        var zone = new Zone("Test Zone", "A test zone");
-        var location = new Location("Test Location", "[test]", zone, 5);
-        zone.Graph.Add(location);
-        var camp = new Camp(location);
+        var weather = new Weather(-10);
+        var campLocation = new Location("Test Location", "[test]", weather, 5);
 
-        return new GameContext(player, camp);
+        var ctx = new GameContext(player, campLocation, weather);
+        ctx.Locations.Add(campLocation);
+
+        return ctx;
     }
 
     [Fact]

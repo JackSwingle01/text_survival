@@ -1,0 +1,556 @@
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using text_survival.Actions;
+using text_survival.Actions.Expeditions;
+using text_survival.Environments.Features;
+using text_survival.Items;
+using text_survival.Persistence;
+
+namespace text_survival.Tests.Persistence;
+
+public class SerializationTests
+{
+    [Fact]
+    public void SerializeDeserialize_NewGame_RoundTrips()
+    {
+        // Arrange
+        var original = GameContext.CreateNewGame();
+
+        // Act - Try to serialize
+        string json = JsonSerializer.Serialize(original, GetSerializerOptions());
+
+        // Should get here without exceptions if serialization works
+        Assert.NotNull(json);
+        Assert.NotEmpty(json);
+
+        // Try to deserialize
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert
+        Assert.NotNull(deserialized);
+        Assert.Equal(original.GameTime, deserialized.GameTime);
+        Assert.Equal(original.Camp.Name, deserialized.Camp.Name);
+    }
+
+    [Fact]
+    public void Serialize_NewGame_DoesNotThrow()
+    {
+        // Arrange
+        var ctx = GameContext.CreateNewGame();
+
+        // Act & Assert - should not throw
+        var exception = Record.Exception(() =>
+        {
+            string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        });
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void SerializeDeserialize_FullGameState_PreservesAllCriticalData()
+    {
+        // Arrange - Create game with diverse state
+        var original = GameContext.CreateNewGame();
+
+        // Add inventory diversity (test Stack<double>)
+        original.Inventory.Add(Resource.Stick, 0.3);
+        original.Inventory.Add(Resource.Stick, 0.25);  // Multiple stacks
+        original.Inventory.Add(Resource.Log, 1.2);
+        original.Inventory.Add(Resource.Berries, 0.15);
+        original.Inventory.WaterLiters = 1.5;
+
+        // Add tool (test discrete items)
+        original.Inventory.Tools.Add(Tool.Knife());
+
+        // Count critical data before serialization
+        int originalLocationCount = original.Locations.Count;
+        int originalCampFeatureCount = original.Camp.Features.Count;
+        bool hadSticks = original.Inventory.Count(Resource.Stick) > 0;
+        bool hadTools = original.Inventory.Tools.Count > 0;
+
+        // Act - Serialize and deserialize
+        string json = JsonSerializer.Serialize(original, GetSerializerOptions());
+
+        // Save for manual inspection
+        File.WriteAllText(
+            Path.Combine(Path.GetTempPath(), "test_game_full.json"),
+            json
+        );
+
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert - Critical data categories preserved
+        Assert.NotNull(deserialized);
+
+        // Player exists and is valid
+        Assert.NotNull(deserialized.player);
+        Assert.NotNull(deserialized.player.Body);
+        Assert.True(deserialized.player.Body.CalorieStore > 0, "Player has calories");
+        Assert.True(deserialized.player.Body.Hydration >= 0, "Player hydration valid");
+
+        // Location graph intact
+        Assert.Equal(originalLocationCount, deserialized.Locations.Count);
+        Assert.NotNull(deserialized.Camp);
+        // Check camp exists in locations by ID (not reference equality, since JSON doesn't preserve reference identity)
+        Assert.Contains(deserialized.Locations, loc => loc.Id == deserialized.Camp.Id);
+
+        // Camp features preserved (tests polymorphism)
+        Assert.Equal(originalCampFeatureCount, deserialized.Camp.Features.Count);
+        Assert.NotNull(deserialized.Camp.GetFeature<HeatSourceFeature>());
+        Assert.NotNull(deserialized.Camp.GetFeature<CacheFeature>());
+
+        // Inventory preserved
+        Assert.Equal(hadSticks, deserialized.Inventory.Count(Resource.Stick) > 0);
+        Assert.Equal(hadTools, deserialized.Inventory.Tools.Count > 0);
+        Assert.True(deserialized.Inventory.WaterLiters > 0, "Water preserved");
+
+        // Weather exists
+        Assert.NotNull(deserialized.Weather);
+
+        // Time advanced (state changes persisted)
+        Assert.True(deserialized.GameTime > original.GameTime.AddMinutes(-1),
+            "GameTime in reasonable range");
+    }
+
+    [Fact]
+    public void SerializeDeserialize_LocationConnections_CanBeResolved()
+    {
+        // Arrange
+        var ctx = GameContext.CreateNewGame();
+
+        // Get camp connections before serialization
+        var originalConnections = ctx.Camp.GetConnections(ctx);
+        int originalConnectionCount = originalConnections.Count;
+
+        // Record first connection name (if exists)
+        string firstConnectionName = originalConnections.FirstOrDefault()?.Name;
+
+        // Act
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert - Connections can be resolved
+        var deserializedConnections = deserialized.Camp.GetConnections(deserialized);
+
+        Assert.Equal(originalConnectionCount, deserializedConnections.Count);
+
+        if (firstConnectionName != null)
+        {
+            // Verify connection resolves to actual location
+            var firstConnection = deserializedConnections.First();
+            Assert.Equal(firstConnectionName, firstConnection.Name);
+            Assert.True(deserialized.Locations.Contains(firstConnection),
+                "Connection is real location in graph");
+        }
+    }
+
+    [Fact]
+    public void SerializeDeserialize_ResourceStacks_PreserveLIFOOrder()
+    {
+        // Arrange
+        var ctx = GameContext.CreateNewGame();
+
+        // Clear any existing sticks and add in known order
+        while (ctx.Inventory.Count(Resource.Stick) > 0)
+        {
+            ctx.Inventory.Pop(Resource.Stick);
+        }
+
+        ctx.Inventory.Add(Resource.Stick, 0.1);  // Bottom
+        ctx.Inventory.Add(Resource.Stick, 0.2);  // Middle
+        ctx.Inventory.Add(Resource.Stick, 0.3);  // Top
+
+        // Act
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert - LIFO order preserved
+        Assert.Equal(3, deserialized.Inventory.Count(Resource.Stick));
+
+        // Pop in reverse order (LIFO)
+        double first = deserialized.Inventory.Pop(Resource.Stick);
+        double second = deserialized.Inventory.Pop(Resource.Stick);
+        double third = deserialized.Inventory.Pop(Resource.Stick);
+
+        // Allow small floating point tolerance
+        Assert.Equal(0.3, first, precision: 2);   // Last in, first out
+        Assert.Equal(0.2, second, precision: 2);
+        Assert.Equal(0.1, third, precision: 2);   // First in, last out
+    }
+
+    [Fact]
+    public void SerializeDeserialize_LocationFeatures_PreserveConcreteTypes()
+    {
+        // Arrange
+        var ctx = GameContext.CreateNewGame();
+
+        // Add multiple feature types to test polymorphism
+        ctx.Camp.Features.Add(new ForageFeature(1.0).AddSticks());
+        ctx.Camp.Features.Add(new AnimalTerritoryFeature());
+
+        int featureCountBefore = ctx.Camp.Features.Count;
+
+        // Act
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert - All feature types preserved (not just base LocationFeature)
+        Assert.Equal(featureCountBefore, deserialized.Camp.Features.Count);
+
+        // Verify each type can be retrieved (tests polymorphism worked)
+        Assert.NotNull(deserialized.Camp.GetFeature<HeatSourceFeature>());
+        Assert.NotNull(deserialized.Camp.GetFeature<CacheFeature>());
+        Assert.NotNull(deserialized.Camp.GetFeature<ForageFeature>());
+        Assert.NotNull(deserialized.Camp.GetFeature<AnimalTerritoryFeature>());
+
+        // Verify feature data preserved (ForageFeature resources list)
+        var forageFeature = deserialized.Camp.GetFeature<ForageFeature>();
+        var resourceTypes = forageFeature?.GetAvailableResourceTypes();
+        Assert.NotNull(resourceTypes);
+        Assert.Contains("kindling", resourceTypes);  // AddSticks() adds kindling
+    }
+
+    [Fact]
+    public void SerializeDeserialize_WithExpedition_PreservesPathAndState()
+    {
+        // Arrange
+        var ctx = GameContext.CreateNewGame();
+
+        // Start expedition to first non-camp location
+        var destination = ctx.Locations.FirstOrDefault(l => l != ctx.Camp);
+
+        // Only test if multiple locations exist
+        if (destination != null)
+        {
+            ctx.Expedition = new Expedition(ctx.Camp, ctx.player);
+            ctx.Expedition.MoveTo(destination, 30);  // Travel to destination
+
+            int travelHistoryCount = ctx.Expedition.TravelHistory.Count;
+
+            // Act
+            string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+            var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+            // Assert - Expedition preserved
+            Assert.NotNull(deserialized.Expedition);
+            Assert.Equal(travelHistoryCount, deserialized.Expedition.TravelHistory.Count);
+
+            // Travel history locations are real (not orphaned)
+            foreach (var location in deserialized.Expedition.TravelHistory)
+            {
+                Assert.True(deserialized.Locations.Contains(location),
+                    $"Expedition travel history location {location.Name} exists in location graph");
+            }
+        }
+    }
+
+    [Fact]
+    public void SerializeDeserialize_DeserializedGame_CanContinuePlaying()
+    {
+        // Arrange
+        var ctx = GameContext.CreateNewGame();
+
+        // Act - Serialize and deserialize
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert - Game can continue (functional API works)
+
+        // Can advance time
+        var updateException = Record.Exception(() => deserialized.Update(10, ActivityType.Idle));
+        Assert.Null(updateException);
+
+        // Can access inventory
+        var inventoryException = Record.Exception(() => deserialized.Inventory.Count(Resource.Stick));
+        Assert.Null(inventoryException);
+
+        // Can query locations
+        var connectionsException = Record.Exception(() => deserialized.Camp.GetConnections(deserialized));
+        Assert.Null(connectionsException);
+
+        // Can check player body properties
+        var playerException = Record.Exception(() => _ = deserialized.player.Body.CalorieStore);
+        Assert.Null(playerException);
+
+        // Can check tensions
+        var tensionsException = Record.Exception(() => deserialized.Tensions.HasTension("Stalked"));
+        Assert.Null(tensionsException);
+    }
+
+    [Fact]
+    public void Serialize_FullGame_CompletesQuickly()
+    {
+        // Arrange
+        var ctx = GameContext.CreateNewGame();
+
+        // Act
+        var sw = Stopwatch.StartNew();
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        sw.Stop();
+
+        // Assert - Reasonable performance (< 200ms for new game)
+        Assert.True(sw.ElapsedMilliseconds < 200,
+            $"Serialization took {sw.ElapsedMilliseconds}ms (expected < 200ms)");
+
+        // Verify JSON is reasonable size (not absurdly large)
+        Assert.True(json.Length < 2_000_000,
+            $"JSON is {json.Length} chars (expected < 2MB)");
+    }
+
+    [Fact]
+    public void SerializeDeserialize_ActiveExpedition_PreservesState()
+    {
+        // Arrange
+        var ctx = GameContext.CreateNewGame();
+
+        // Start an expedition if there are multiple locations
+        var destination = ctx.Locations.FirstOrDefault(l => l != ctx.Camp);
+        if (destination == null)
+        {
+            // Skip test if no destinations available
+            return;
+        }
+
+        ctx.Expedition = new Expedition(ctx.Camp, ctx.player);
+        ctx.Expedition.MoveTo(destination, 30);
+
+        int originalTravelHistoryCount = ctx.Expedition.TravelHistory.Count;
+        int originalMinutesElapsed = ctx.Expedition.MinutesElapsedTotal;
+
+        // Act
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Player reference is now preserved via ReferenceHandler.Preserve
+
+        // Assert
+        Assert.NotNull(deserialized);
+        Assert.NotNull(deserialized.Expedition);
+
+        // Travel history preserved
+        Assert.Equal(originalTravelHistoryCount, deserialized.Expedition.TravelHistory.Count);
+
+        // State preserved
+        Assert.Equal(originalMinutesElapsed, deserialized.Expedition.MinutesElapsedTotal);
+
+        // Travel history locations are real (not orphaned)
+        foreach (var location in deserialized.Expedition.TravelHistory)
+        {
+            Assert.True(deserialized.Locations.Contains(location),
+                $"Travel history location {location.Name} not in Locations list");
+        }
+
+        // Player reference restored - verify GetEstimatedReturnTime works
+        int returnTime = deserialized.Expedition.GetEstimatedReturnTime();
+        Assert.True(returnTime >= 0, $"Invalid return time: {returnTime}");
+    }
+
+    [Fact]
+    public void SerializeDeserialize_AllLocationFeatureTypes_PreserveState()
+    {
+        // Arrange - Create a location with all feature types
+        var ctx = GameContext.CreateNewGame();
+
+        // Use first non-camp location, or camp if it's the only one
+        var testLocation = ctx.Locations.FirstOrDefault(l => l != ctx.Camp) ?? ctx.Camp;
+
+        // Add all feature types with meaningful state
+        testLocation.Features.Clear();
+
+        // ShelterFeature with partial damage
+        var shelter = new ShelterFeature("lean-to", 0.8, 0.7, 0.6);
+        shelter.Damage(0.2); // Simulate some wear
+        testLocation.Features.Add(shelter);
+
+        // WaterFeature - frozen with ice hole
+        var water = new WaterFeature("frozen_creek", "Frozen Creek")
+            .AsThinIce()
+            .WithExistingHole();
+        testLocation.Features.Add(water);
+
+        // HarvestableFeature
+        var harvestable = new HarvestableFeature("berry_bush", "Berry Bush");
+        testLocation.Features.Add(harvestable);
+
+        // SalvageFeature
+        var salvage = new SalvageFeature("abandoned_camp", "Abandoned Camp");
+        testLocation.Features.Add(salvage);
+
+        // SnareLineFeature with territory
+        var territory = new AnimalTerritoryFeature(0.8).AddRabbit();
+        var snareLine = new SnareLineFeature(territory);
+        testLocation.Features.Add(snareLine);
+
+        // CuringRackFeature
+        var curingRack = new CuringRackFeature();
+        testLocation.Features.Add(curingRack);
+
+        // Act
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert - All features preserved with state
+        var deserializedLocation = deserialized.Locations.First(l => l.Id == testLocation.Id);
+        Assert.Equal(6, deserializedLocation.Features.Count);
+
+        // ShelterFeature state preserved
+        var deserializedShelter = deserializedLocation.GetFeature<ShelterFeature>();
+        Assert.NotNull(deserializedShelter);
+        Assert.True(deserializedShelter.Quality < 0.7, "Shelter damage preserved");
+
+        // WaterFeature state preserved
+        var deserializedWater = deserializedLocation.GetFeature<WaterFeature>();
+        Assert.NotNull(deserializedWater);
+        Assert.True(deserializedWater.IsFrozen, "Water is frozen");
+        Assert.True(deserializedWater.HasIceHole, "Ice hole preserved");
+        Assert.True(deserializedWater.HasThinIce, "Thin ice state preserved");
+
+        // HarvestableFeature preserved
+        var deserializedHarvestable = deserializedLocation.GetFeature<HarvestableFeature>();
+        Assert.NotNull(deserializedHarvestable);
+
+        // SalvageFeature preserved
+        var deserializedSalvage = deserializedLocation.GetFeature<SalvageFeature>();
+        Assert.NotNull(deserializedSalvage);
+
+        // SnareLineFeature preserved
+        var deserializedSnareLine = deserializedLocation.GetFeature<SnareLineFeature>();
+        Assert.NotNull(deserializedSnareLine);
+
+        // CuringRackFeature preserved
+        var deserializedCuringRack = deserializedLocation.GetFeature<CuringRackFeature>();
+        Assert.NotNull(deserializedCuringRack);
+    }
+
+    [Fact]
+    public void SerializeDeserialize_HeatSourceFeature_WithFuel()
+    {
+        // Arrange - Create fire with some fuel
+        var ctx = GameContext.CreateNewGame();
+        var fire = ctx.Camp.GetFeature<HeatSourceFeature>();
+        Assert.NotNull(fire);
+
+        // Add some fuel (using correct API signature)
+        fire.AddFuel(1.5, FuelType.Kindling);
+        fire.AddFuel(2.0, FuelType.PineWood);
+
+        double originalUnburned = fire.UnburnedMassKg;
+        bool wasActive = fire.IsActive;
+
+        // Act
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert - Fire state preserved
+        var deserializedFire = deserialized.Camp.GetFeature<HeatSourceFeature>();
+        Assert.NotNull(deserializedFire);
+        Assert.Equal(wasActive, deserializedFire.IsActive);
+        Assert.Equal(originalUnburned, deserializedFire.UnburnedMassKg, precision: 2);
+    }
+
+    [Fact]
+    public void SerializeDeserialize_BodyParts_PreserveStructure()
+    {
+        // Arrange
+        var ctx = GameContext.CreateNewGame();
+        var body = ctx.player.Body;
+
+        int originalPartCount = body.Parts.Count;
+        double originalWeight = body.WeightKG;
+
+        // Act
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert - Body structure preserved
+        Assert.Equal(originalPartCount, deserialized.player.Body.Parts.Count);
+        Assert.Equal(originalWeight, deserialized.player.Body.WeightKG, precision: 2);
+        Assert.True(deserialized.player.Body.CalorieStore > 0, "Calorie store preserved");
+    }
+
+
+    [Fact]
+    public void SerializeDeserialize_Stack_PreservesOrder()
+    {
+        // Arrange - Create a stack with known order
+        var original = new Stack<string>();
+        original.Push("bottom");
+        original.Push("middle");
+        original.Push("top");
+
+        // Verify initial state
+        Assert.Equal("top", original.Peek());
+
+        // Act - Serialize and deserialize
+        string json = JsonSerializer.Serialize(original, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<Stack<string>>(json, GetSerializerOptions());
+
+        // Assert - Order preserved
+        Assert.NotNull(deserialized);
+        Assert.Equal(3, deserialized.Count);
+        Assert.Equal("top", deserialized.Pop());
+        Assert.Equal("middle", deserialized.Pop());
+        Assert.Equal("bottom", deserialized.Pop());
+    }
+
+    [Fact]
+    public void SerializeDeserialize_Stack_MultipleRoundTrips_NoAlternation()
+    {
+        // This test catches the bug where Stack order reverses on each serialize/deserialize cycle
+        // causing alternating behavior (correct -> wrong -> correct -> wrong)
+
+        // Arrange
+        var stack = new Stack<int>();
+        stack.Push(1);  // bottom
+        stack.Push(2);
+        stack.Push(3);  // top
+
+        // Act - Multiple round-trips
+        for (int i = 0; i < 5; i++)
+        {
+            string json = JsonSerializer.Serialize(stack, GetSerializerOptions());
+            stack = JsonSerializer.Deserialize<Stack<int>>(json, GetSerializerOptions())!;
+
+            // Assert - Top element is always 3, never alternates
+            Assert.Equal(3, stack.Peek());
+            Assert.Equal(3, stack.Count);
+        }
+    }
+
+    [Fact]
+    public void SerializeDeserialize_ExpeditionTravelHistory_PreservesCurrentLocation()
+    {
+        // This test specifically catches the expedition location alternation bug
+        // where CurrentLocation would flip between camp and expedition location on each refresh
+
+        // Arrange
+        var ctx = GameContext.CreateNewGame();
+        var destination = ctx.Locations.FirstOrDefault(l => l != ctx.Camp);
+        if (destination == null) return;
+
+        ctx.Expedition = new Expedition(ctx.Camp, ctx.player);
+        ctx.Expedition.MoveTo(destination, 30);
+
+        string expectedLocationName = ctx.Expedition.CurrentLocation.Name;
+
+        // Act - Multiple round-trips (simulating multiple page refreshes)
+        for (int i = 0; i < 5; i++)
+        {
+            string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+            ctx = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions())!;
+            // Player reference is now serialized with [JsonInclude], no manual restore needed
+
+            // Assert - CurrentLocation never changes
+            Assert.NotNull(ctx.Expedition);
+            Assert.Equal(expectedLocationName, ctx.Expedition.CurrentLocation.Name);
+        }
+    }
+
+    private static JsonSerializerOptions GetSerializerOptions()
+    {
+        return SaveManager.Options;
+    }
+}

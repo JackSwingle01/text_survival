@@ -6,11 +6,16 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class SnareLineFeature : LocationFeature
 {
+    [System.Text.Json.Serialization.JsonInclude]
     private readonly List<PlacedSnare> _snares = [];
-    private readonly AnimalTerritoryFeature _territory;
+    [System.Text.Json.Serialization.JsonInclude]
+    private readonly AnimalTerritoryFeature? _territory;
 
     // Small game weight threshold (kg)
     private const double SmallGameMaxWeightKg = 10.0;
+
+    [System.Text.Json.Serialization.JsonConstructor]
+    public SnareLineFeature() : base("snare_line") { }
 
     public SnareLineFeature(AnimalTerritoryFeature territory) : base("snare_line")
     {

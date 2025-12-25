@@ -6,78 +6,36 @@ using text_survival.Actions.Expeditions;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
-
+using Microsoft.AspNetCore.Mvc.Diagnostics;
 namespace text_survival.Actions;
 
-/// <summary>
-/// Activity types for event frequency and survival context.
-/// Each activity carries default config for event rate, activity level, and fire proximity.
-/// </summary>
-public enum ActivityType
+public class GameContext(Player player, Location camp, Weather weather)
 {
-    // No events
-    Idle,           // Menu, thinking - no events
-    Fighting,       // Combat - no events
-    Encounter,      // Predator standoff - no events
-
-    // Camp activities (near fire, moderate events)
-    Sleeping,       // Rare events, low activity
-    Resting,        // Occasional events, waiting by fire
-    TendingFire,    // Moderate events
-    Eating,         // Moderate events
-    Cooking,        // Moderate events
-    Crafting,       // Moderate events
-
-    // Expedition activities (away from fire, full events)
-    Traveling,      // Full events, moving between locations
-    Foraging,       // Full events, searching for resources
-    Hunting,        // Full events, tracking game
-    Exploring,      // Full events, scouting new areas (away from fire)
-}
-
-public class GameContext(Player player, Camp camp)
-{
-    public Player player = player;
-    public Location CurrentLocation => Expedition?.CurrentLocation ?? Camp.Location;
-    public Camp Camp = camp;
-    public bool IsAtCamp => CurrentLocation == Camp.Location;
+    public Player player { get; set; } = player;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Location CurrentLocation => Expedition?.CurrentLocation ?? Camp;
+    public Location Camp { get; set; } = camp;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsAtCamp => CurrentLocation == Camp;
 
     // Web session support - null means console mode
     public string? SessionId { get; set; }
 
     // Instance log for web mode (console mode uses static log in GameDisplay)
-    public NarrativeLog Log { get; } = new();
+    public NarrativeLog Log { get; set; } = new();
 
     // Player's carried inventory (aggregate-based)
-    public Inventory Inventory { get; } = Inventory.CreatePlayerInventory(15.0);
+    public Inventory Inventory { get; set; } = Inventory.CreatePlayerInventory(15.0);
     public Expedition? Expedition;
-    public Zone Zone => CurrentLocation.ParentZone;
+
+    // Zone and location tracking (moved from Zone to break circular reference)
+    public Weather Weather { get; init; } = weather;
+    public List<Location> Locations { get; set; } = new();
+    private List<Location> _unrevealedLocations { get; set; } = new();
+    public IReadOnlyList<Location> UnrevealedLocations => _unrevealedLocations.AsReadOnly();
 
     // Tension system for tracking building threats/opportunities
-    public TensionRegistry Tensions { get; } = new();
-
-    // Activity-based config (eventMultiplier, activityLevel, fireProximity, statusText)
-    private static readonly Dictionary<ActivityType, (double Event, double Activity, double Fire, string Status)> ActivityConfig = new()
-    {
-        // No events
-        [ActivityType.Idle] = (0.0, 1.0, 0.0, "Thinking."),
-        [ActivityType.Fighting] = (0.0, 2.0, 0.0, "Fighting."),
-        [ActivityType.Encounter] = (0.0, 1.5, 0.0, "Alert."),
-
-        // Camp activities (near fire, moderate events)
-        [ActivityType.Sleeping] = (0.1, 0.5, 2.0, "Sleeping."),
-        [ActivityType.Resting] = (0.3, 1.0, 2.0, "Resting."),
-        [ActivityType.TendingFire] = (0.5, 1.0, 2.0, "Tending fire."),
-        [ActivityType.Eating] = (0.5, 1.0, 2.0, "Eating."),
-        [ActivityType.Cooking] = (0.5, 1.0, 2.0, "Cooking."),
-        [ActivityType.Crafting] = (0.5, 1.0, 0.5, "Crafting."),
-
-        // Expedition activities (away from fire, full events)
-        [ActivityType.Traveling] = (1.0, 1.5, 0.0, "Traveling."),
-        [ActivityType.Foraging] = (1.0, 1.5, 0.0, "Foraging."),
-        [ActivityType.Hunting] = (1.0, 1.5, 0.0, "Hunting."),
-        [ActivityType.Exploring] = (1.0, 1.5, 0.0, "Exploring."),
-    };
+    public TensionRegistry Tensions { get; set; } = new();
 
     /// <summary>Current activity for event condition checks.</summary>
     public ActivityType CurrentActivity { get; private set; } = ActivityType.Idle;
@@ -91,201 +49,96 @@ public class GameContext(Player player, Camp camp)
     /// <summary>Set to true when an event was triggered during the last Update call.</summary>
     public bool EventOccurredLastUpdate { get; private set; } = false;
 
-    public bool Check(EventCondition condition)
+    // Parameterless constructor for JSON deserialization
+    [System.Text.Json.Serialization.JsonConstructor]
+    public GameContext() : this(null!, null!, null!)
     {
-        return condition switch
-        {
-            EventCondition.IsDaytime => GetTimeOfDay() == TimeOfDay.Morning ||
-                         GetTimeOfDay() == TimeOfDay.Afternoon ||
-                         GetTimeOfDay() == TimeOfDay.Evening || GetTimeOfDay() == TimeOfDay.Noon,
-            EventCondition.Traveling => CurrentActivity == ActivityType.Traveling,
-            EventCondition.HasFood => Inventory.HasFood,
-            EventCondition.HasMeat => Inventory.CookedMeat.Count > 0 || Inventory.RawMeat.Count > 0,
-            EventCondition.Injured => player.Body.Parts.Any(p => p.Condition < 1.0),
-            EventCondition.Slow => CapacityCalculator.GetCapacities(player.Body, player.GetEffectModifiers()).Moving < 0.7,
-            EventCondition.FireBurning => Camp.HasActiveFire,
-            EventCondition.Inside => CurrentLocation.HasFeature<ShelterFeature>() && !Check(EventCondition.FieldWork),
-            EventCondition.Outside => !Check(EventCondition.Inside),
-            EventCondition.InAnimalTerritory => CurrentLocation.HasFeature<AnimalTerritoryFeature>(),
-            EventCondition.HasPredators => CurrentLocation.GetFeature<AnimalTerritoryFeature>()?.HasPredators() ?? false,
-
-            // Location visibility and darkness
-            EventCondition.HighVisibility => CurrentLocation.VisibilityFactor > 0.7,
-            EventCondition.LowVisibility => CurrentLocation.VisibilityFactor < 0.3,
-            EventCondition.InDarkness => CurrentLocation.IsDark && !Check(EventCondition.HasLightSource),
-            EventCondition.HasLightSource => (CurrentLocation.GetFeature<HeatSourceFeature>()?.IsActive ?? false) || Inventory.HasLitTorch,
-            EventCondition.NearWater => CurrentLocation.HasFeature<WaterFeature>(),
-            EventCondition.HazardousTerrain => CurrentLocation.GetEffectiveTerrainHazard() >= 0.5,
-
-            // Water/Ice conditions
-            EventCondition.FrozenWater => CurrentLocation.GetFeature<WaterFeature>()?.IsFrozen ?? false,
-            EventCondition.OnThinIce => CurrentLocation.GetFeature<WaterFeature>()?.HasThinIce ?? false,
-            EventCondition.HasIceHole => CurrentLocation.GetFeature<WaterFeature>()?.HasIceHole ?? false,
-
-            // Weather conditions
-            EventCondition.IsSnowing => Zone.Weather.CurrentCondition is ZoneWeather.WeatherCondition.LightSnow
-                                     or ZoneWeather.WeatherCondition.Blizzard,
-            EventCondition.IsBlizzard => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Blizzard,
-            EventCondition.IsRaining => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Rainy || Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Stormy,
-            EventCondition.IsStormy => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Stormy,
-            EventCondition.HighWind => Zone.Weather.WindSpeed > 0.6,
-            EventCondition.IsClear => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Clear,
-            EventCondition.IsMisty => Zone.Weather.CurrentCondition == ZoneWeather.WeatherCondition.Misty,
-            EventCondition.ExtremelyCold => Zone.Weather.BaseTemperature < -25,
-            EventCondition.WeatherWorsening => Zone.Weather.WeatherJustChanged && IsWeatherWorsening(Zone.Weather),
-
-            // Resource availability
-            EventCondition.HasFuel => Inventory.HasFuel,
-            EventCondition.HasTinder => Inventory.Tinder.Count > 0,
-
-            EventCondition.HasFuelPlenty => Inventory.FuelWeightKg >= 3,
-            EventCondition.HasFoodPlenty => Inventory.FoodWeightKg >= 1.0,
-
-            EventCondition.LowOnFuel => Inventory.FuelWeightKg <= 1.0,
-            EventCondition.LowOnFood => Inventory.FoodWeightKg <= 0.5,
-            EventCondition.NoFuel => Inventory.FuelWeightKg <= 0.0,
-            EventCondition.NoFood => Inventory.FoodWeightKg <= 0.0,
-
-            // Tension conditions
-            EventCondition.Stalked => Tensions.HasTension("Stalked"),
-            EventCondition.StalkedHigh => Tensions.HasTensionAbove("Stalked", 0.5),
-            EventCondition.StalkedCritical => Tensions.HasTensionAbove("Stalked", 0.7),
-            EventCondition.SmokeSpotted => Tensions.HasTension("SmokeSpotted"),
-            EventCondition.Infested => Tensions.HasTension("Infested"),
-            EventCondition.WoundUntreated => Tensions.HasTension("WoundUntreated"),
-            EventCondition.WoundUntreatedHigh => Tensions.HasTensionAbove("WoundUntreated", 0.6),
-            EventCondition.ShelterWeakened => Tensions.HasTension("ShelterWeakened"),
-            EventCondition.FoodScentStrong => Tensions.HasTension("FoodScentStrong"),
-            EventCondition.Hunted => Tensions.HasTension("Hunted"),
-            EventCondition.Disturbed => Tensions.HasTension("Disturbed"),
-            EventCondition.DisturbedHigh => Tensions.HasTensionAbove("Disturbed", 0.5),
-            EventCondition.DisturbedCritical => Tensions.HasTensionAbove("Disturbed", 0.7),
-
-            // New tension arc conditions
-            EventCondition.WoundedPrey => Tensions.HasTension("WoundedPrey"),
-            EventCondition.WoundedPreyHigh => Tensions.HasTensionAbove("WoundedPrey", 0.5),
-            EventCondition.WoundedPreyCritical => Tensions.HasTensionAbove("WoundedPrey", 0.7),
-
-            EventCondition.PackNearby => Tensions.HasTension("PackNearby"),
-            EventCondition.PackNearbyHigh => Tensions.HasTensionAbove("PackNearby", 0.4),
-            EventCondition.PackNearbyCritical => Tensions.HasTensionAbove("PackNearby", 0.7),
-
-            EventCondition.ClaimedTerritory => Tensions.HasTension("ClaimedTerritory"),
-            EventCondition.ClaimedTerritoryHigh => Tensions.HasTensionAbove("ClaimedTerritory", 0.5),
-
-            EventCondition.HerdNearby => Tensions.HasTension("HerdNearby"),
-            EventCondition.HerdNearbyUrgent => Tensions.HasTensionAbove("HerdNearby", 0.6),
-
-            EventCondition.DeadlyCold => Tensions.HasTension("DeadlyCold"),
-            EventCondition.DeadlyColdCritical => Tensions.HasTensionAbove("DeadlyCold", 0.6),
-
-            EventCondition.FeverRising => Tensions.HasTension("FeverRising"),
-            EventCondition.FeverHigh => Tensions.HasTensionAbove("FeverRising", 0.4),
-            EventCondition.FeverCritical => Tensions.HasTensionAbove("FeverRising", 0.7),
-
-            // Camp/expedition state
-            EventCondition.AtCamp => IsAtCamp,
-            EventCondition.OnExpedition => Expedition != null,
-            EventCondition.NearFire => CurrentLocation.GetFeature<HeatSourceFeature>()?.IsActive ?? false,
-            EventCondition.HasShelter => CurrentLocation.HasFeature<ShelterFeature>(),
-            EventCondition.NoShelter => !CurrentLocation.HasFeature<ShelterFeature>(),
-
-            // Time of day
-            EventCondition.Night => GetTimeOfDay() == TimeOfDay.Night,
-
-            // Additional resource conditions
-            EventCondition.HasWater => Inventory.HasWater,
-            EventCondition.HasPlantFiber => Inventory.PlantFiber.Count > 0,
-
-            // Body state conditions
-            EventCondition.LowCalories => player.Body.CalorieStore < 500,
-            EventCondition.LowHydration => player.Body.Hydration < 1000,
-            EventCondition.LowTemperature => player.Body.BodyTemperature < 96.0,
-            EventCondition.Impaired => AbilityCalculator.IsConsciousnessImpaired(
-                player.GetCapacities().Consciousness),
-            EventCondition.Limping => AbilityCalculator.IsMovingImpaired(
-                player.GetCapacities().Moving),
-            EventCondition.Clumsy => AbilityCalculator.IsManipulationImpaired(
-                player.GetCapacities().Manipulation),
-            EventCondition.Foggy => AbilityCalculator.IsPerceptionImpaired(
-                AbilityCalculator.CalculatePerception(player.Body, player.EffectRegistry.GetCapacityModifiers())),
-            EventCondition.Winded => AbilityCalculator.IsBreathingImpaired(
-                player.GetCapacities().Breathing),
-
-            // Activity conditions (for event filtering)
-            EventCondition.IsSleeping => CurrentActivity == ActivityType.Sleeping,
-            EventCondition.Awake => CurrentActivity != ActivityType.Sleeping,
-            EventCondition.IsCampWork => CurrentActivity is ActivityType.TendingFire or ActivityType.Eating or ActivityType.Cooking or ActivityType.Crafting,
-            EventCondition.IsExpedition =>  !IsAtCamp,
-            EventCondition.Eating => CurrentActivity == ActivityType.Eating,
-            EventCondition.FieldWork => (CurrentActivity is ActivityType.Traveling or ActivityType.Foraging or ActivityType.Hunting or ActivityType.Exploring),
-            EventCondition.Working => Check(EventCondition.IsCampWork) || Check(EventCondition.FieldWork),
-
-            // Trapping conditions
-            EventCondition.HasActiveSnares => HasActiveSnares(),
-            EventCondition.SnareHasCatch => HasSnareCatch(),
-            EventCondition.SnareBaited => HasBaitedSnares(),
-            EventCondition.TrapLineActive => Tensions.HasTension("TrapLineActive"),
-            _ => false,
-        };
     }
 
-    // === TRAPPING HELPERS ===
-
-    private bool HasActiveSnares()
+    public static GameContext CreateNewGame()
     {
-        foreach (var location in Zone.Graph.All)
-        {
-            var snareLine = location.GetFeature<SnareLineFeature>();
-            if (snareLine != null && snareLine.SnareCount > 0)
-                return true;
-        }
-        return false;
-    }
+        // Clear event cooldowns for fresh game
+        GameEventRegistry.ClearTriggerTimes();
+        Weather weather = new Weather(-10);
+        var (locations, unrevealed) = ZoneFactory.MakeForestZone(weather);
 
-    private bool HasSnareCatch()
-    {
-        foreach (var location in Zone.Graph.All)
-        {
-            var snareLine = location.GetFeature<SnareLineFeature>();
-            if (snareLine != null && snareLine.HasCatchWaiting)
-                return true;
-        }
-        return false;
-    }
+        // Initialize weather for game start time (9:00 AM, Jan 1)
+        var gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
+        weather.Update(gameStartTime);
 
-    private bool HasBaitedSnares()
-    {
-        foreach (var location in Zone.Graph.All)
-        {
-            var snareLine = location.GetFeature<SnareLineFeature>();
-            if (snareLine != null && snareLine.HasBaitedSnares)
-                return true;
-        }
-        return false;
+        Location startingArea = locations.First(s => s.Name == "Forest Camp");
+
+        // Add campfire (unlit - player must start it)
+        HeatSourceFeature campfire = new HeatSourceFeature();
+        campfire.AddFuel(2, FuelType.Kindling);
+        startingArea.Features.Add(campfire);
+
+        // Add camp storage cache
+        startingArea.Features.Add(CacheFeature.CreateCampCache());
+
+        var player = new Player();
+
+        GameContext ctx = new GameContext(player, startingArea, weather);
+        ctx.Locations.AddRange(locations);
+        ctx._unrevealedLocations.AddRange(unrevealed);
+
+        // Equip starting clothing
+        ctx.Inventory.Equip(Equipment.WornFurChestWrap());
+        ctx.Inventory.Equip(Equipment.FurLegWraps());
+        ctx.Inventory.Equip(Equipment.FurBoots());
+
+        // Add starting supplies
+        ctx.Inventory.Tools.Add(Tool.HandDrill());
+        ctx.Inventory.Add(Resource.Stick, 0.3);
+        ctx.Inventory.Add(Resource.Stick, 0.25);
+        ctx.Inventory.Add(Resource.Stick, 0.35);
+        ctx.Inventory.Add(Resource.Tinder, 0.05);
+        ctx.Inventory.Add(Resource.Tinder, 0.04);
+
+        return ctx;
     }
 
     /// <summary>
-    /// Determines if weather transitioned to a worse condition.
+    /// Check event condition. Delegates to ConditionChecker.
     /// </summary>
-    private static bool IsWeatherWorsening(ZoneWeather w)
-    {
-        if (w.PreviousCondition == null) return false;
+    public bool Check(EventCondition condition) => ConditionChecker.Check(this, condition);
 
-        return (w.PreviousCondition, w.CurrentCondition) switch
-        {
-            // Any non-clear is worse than clear
-            (ZoneWeather.WeatherCondition.Clear, _) when w.CurrentCondition != ZoneWeather.WeatherCondition.Clear => true,
-            // Precipitation is worse than cloudy
-            (ZoneWeather.WeatherCondition.Cloudy, ZoneWeather.WeatherCondition.LightSnow or ZoneWeather.WeatherCondition.Rainy
-                or ZoneWeather.WeatherCondition.Blizzard or ZoneWeather.WeatherCondition.Stormy) => true,
-            // Blizzard is worse than light snow
-            (ZoneWeather.WeatherCondition.LightSnow, ZoneWeather.WeatherCondition.Blizzard) => true,
-            // Storm is worse than rain
-            (ZoneWeather.WeatherCondition.Rainy, ZoneWeather.WeatherCondition.Stormy) => true,
-            _ => false
-        };
+    // === LOCATION MANAGEMENT ===
+
+    /// <summary>
+    /// Check if there are any unrevealed locations remaining
+    /// </summary>
+    public bool HasUnrevealedLocations()
+    {
+        return _unrevealedLocations.Count > 0;
     }
+
+    /// <summary>
+    /// Reveal a random location from the pool and connect it to the specified location
+    /// </summary>
+    public Location? RevealRandomLocation(Location connectFrom)
+    {
+        if (_unrevealedLocations.Count == 0)
+            return null;
+
+        // Pick a random unrevealed location
+        int index = Random.Shared.Next(_unrevealedLocations.Count);
+        var newLocation = _unrevealedLocations[index];
+        _unrevealedLocations.RemoveAt(index);
+
+        // Connect it to the graph
+        connectFrom.AddBidirectionalConnection(newLocation);
+        Locations.Add(newLocation);
+        newLocation.Explore();
+
+        return newLocation;
+    }
+
+    /// <summary>
+    /// Get count of unrevealed locations (for UI hints)
+    /// </summary>
+    public int UnrevealedCount => _unrevealedLocations.Count;
+
     public DateTime GameTime { get; set; } = new DateTime(2025, 1, 1, 9, 0, 0); // Full date/time for resource respawn tracking
 
     /// <summary>
@@ -334,7 +187,7 @@ public class GameContext(Player player, Camp camp)
     {
         EventOccurredLastUpdate = false;
         CurrentActivity = activity;
-        var config = ActivityConfig[activity];
+        var config = ActivityConfig.Get(activity);
 
         int elapsed = 0;
         GameEvent? evt = null;
@@ -344,19 +197,19 @@ public class GameContext(Player player, Camp camp)
             elapsed++;
 
             // Update survival/zone/tensions (always runs)
-            UpdateInternal(1, config.Activity, GetEffectiveFireProximity(config.Fire));
+            UpdateInternal(1, config.ActivityLevel, GetEffectiveFireProximity(config.FireProximity));
 
             // Check for event (only if activity allows events AND not already handling an event)
-            if (config.Event > 0 && !IsHandlingEvent)
+            if (config.EventMultiplier > 0 && !IsHandlingEvent)
             {
-                evt = GameEventRegistry.GetEventOnTick(this, config.Event);
+                evt = GameEventRegistry.GetEventOnTick(this, config.EventMultiplier);
                 if (evt != null)
                     break; // Only break when an event actually triggers
             }
 
             // Optional render with status from config
-            if (render && !string.IsNullOrEmpty(config.Status))
-                GameDisplay.Render(this, statusText: config.Status);
+            if (render && !string.IsNullOrEmpty(config.StatusText))
+                GameDisplay.Render(this, statusText: config.StatusText);
         }
 
         if (!player.IsAlive)
@@ -405,44 +258,18 @@ public class GameContext(Player player, Camp camp)
             context.FireProximityBonus += Inventory.GetTorchHeatBonusF();
         }
 
-        // Tick torch burn time
-        if (Inventory.ActiveTorch != null)
-        {
-            double previousTime = Inventory.TorchBurnTimeRemainingMinutes;
-            Inventory.TorchBurnTimeRemainingMinutes -= minutes;
-
-            // Torch chaining prompt at 5 minutes (only if not near fire and have another torch)
-            if (previousTime > 5 && Inventory.TorchBurnTimeRemainingMinutes <= 5 &&
-                Inventory.TorchBurnTimeRemainingMinutes > 0 && Inventory.HasUnlitTorch)
-            {
-                bool nearFire = fire?.IsActive == true;
-                if (!nearFire)
-                {
-                    int torchCount = Inventory.Tools.Count(t => t.Type == ToolType.Torch && t.Works);
-                    var chainChoice = new Choice<bool>("Your torch is burning low. Light another?");
-                    chainChoice.AddOption($"Yes, light new torch ({torchCount} remaining)", true);
-                    chainChoice.AddOption("No, let it burn out", false);
-
-                    GameDisplay.Render(this, statusText: "Torch dying.");
-                    if (chainChoice.GetPlayerChoice(this))
-                    {
-                        Inventory.LightTorch();
-                        GameDisplay.AddNarrative(this, "You light a fresh torch from the dying flame.");
-                    }
-                }
-            }
-
-            // Torch burns out
-            if (Inventory.TorchBurnTimeRemainingMinutes <= 0)
-            {
-                GameDisplay.AddWarning(this, "Your torch sputters and dies.");
-                Inventory.ActiveTorch = null;
-                Inventory.TorchBurnTimeRemainingMinutes = 0;
-            }
-        }
+        // Tick torch burn time and handle chaining logic
+        Handlers.TorchHandler.UpdateTorchBurnTime(this, minutes, fire);
 
         player.Update(minutes, context);
-        CurrentLocation.ParentZone.Update(minutes, GameTime);
+
+        // Update zone weather and all locations
+        Weather.Update(GameTime);
+        foreach (var location in Locations)
+        {
+            location.Update(minutes);
+        }
+
         Tensions.Update(minutes, IsAtCamp);
 
         // DeadlyCold auto-resolves when player reaches fire
@@ -464,8 +291,7 @@ public class GameContext(Player player, Camp camp)
     /// </summary>
     private double GetEffectiveFireProximity(double configValue)
     {
-        var fire = CurrentLocation.GetFeature<HeatSourceFeature>();
-        if (fire == null || !fire.IsActive) return 0;
+        if (!CurrentLocation.HasActiveHeatSource()) return 0;
         return configValue;
     }
 
@@ -494,6 +320,28 @@ public class GameContext(Player player, Camp camp)
             _ => TimeOfDay.Night
         };
     }
+}
+
+public enum ActivityType
+{
+    // No events
+    Idle,           // Menu, thinking - no events
+    Fighting,       // Combat - no events
+    Encounter,      // Predator standoff - no events
+
+    // Camp activities (near fire, moderate events)
+    Sleeping,       // Rare events, low activity
+    Resting,        // Occasional events, waiting by fire
+    TendingFire,    // Moderate events
+    Eating,         // Moderate events
+    Cooking,        // Moderate events
+    Crafting,       // Moderate events
+
+    // Expedition activities (away from fire, full events)
+    Traveling,      // Full events, moving between locations
+    Foraging,       // Full events, searching for resources
+    Hunting,        // Full events, tracking game
+    Exploring,      // Full events, scouting new areas (away from fire)
 }
 public enum EventCondition
 {
@@ -624,6 +472,8 @@ public enum EventCondition
     HasLightSource,     // Active fire/torch at current location
     NearWater,          // Location has a water feature
     HazardousTerrain,   // Location terrain hazard >= 0.5
+    HighOverheadCover,  // Location or shelter has overhead coverage >= 0.6 (traps smoke)
+    AtDisturbedSource,  // At the location where Disturbed tension originated
 
     // Water/Ice conditions
     FrozenWater,        // Water feature is frozen

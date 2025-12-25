@@ -14,33 +14,46 @@ public record AnimalSpawnEntry(string AnimalType, double SpawnWeight);
 /// </summary>
 public class AnimalTerritoryFeature : LocationFeature
 {
+    [System.Text.Json.Serialization.JsonInclude]
     private readonly List<AnimalSpawnEntry> _possibleAnimals = [];
     private readonly double _respawnRateHours = 72.0; // Full respawn takes 72 hours
 
-    internal double BaseGameDensity { get; private set; }
-    internal double GameDensity { get; private set; }
-    internal double InitialDepletedDensity { get; private set; }
-    internal double HoursSinceLastHunt { get; private set; }
-    internal bool HasBeenHunted { get; private set; }
+    // Explicit private fields for serialization
+    private double _baseGameDensity;
+    private double _gameDensity;
+    private double _initialDepletedDensity;
+    private double _hoursSinceLastHunt;
+    private (int Start, int End)? _peakHours;
+    private double _peakMultiplier = 1.0;
 
-    // Peak hours configuration (time-gated spawns)
-    internal (int Start, int End)? PeakHours { get; private set; }
-    internal double PeakMultiplier { get; private set; } = 1.0;
+    // Public properties backed by private fields
+    internal double BaseGameDensity => _baseGameDensity;
+    internal double GameDensity => _gameDensity;
+    internal double InitialDepletedDensity => _initialDepletedDensity;
+    internal double HoursSinceLastHunt => _hoursSinceLastHunt;
+    internal (int Start, int End)? PeakHours => _peakHours;
+    internal double PeakMultiplier => _peakMultiplier;
+
+    // Derived from GameDensity - no need to track separately
+    private bool HasBeenHunted => _gameDensity < _baseGameDensity;
 
     public AnimalTerritoryFeature(double gameDensity = 1.0) : base("animal_territory")
     {
-        BaseGameDensity = gameDensity;
-        GameDensity = gameDensity;
+        _baseGameDensity = gameDensity;
+        _gameDensity = gameDensity;
     }
+
+    [System.Text.Json.Serialization.JsonConstructor]
+    public AnimalTerritoryFeature() : base("animal_territory") { }
 
     public override void Update(int minutes)
     {
-        if (HasBeenHunted && GameDensity < BaseGameDensity)
+        if (HasBeenHunted && _gameDensity < _baseGameDensity)
         {
-            HoursSinceLastHunt += minutes / 60.0;
-            double depletedAmount = BaseGameDensity - InitialDepletedDensity;
-            double respawnProgress = Math.Min(1.0, HoursSinceLastHunt / _respawnRateHours);
-            GameDensity = InitialDepletedDensity + (depletedAmount * respawnProgress);
+            _hoursSinceLastHunt += minutes / 60.0;
+            double depletedAmount = _baseGameDensity - _initialDepletedDensity;
+            double respawnProgress = Math.Min(1.0, _hoursSinceLastHunt / _respawnRateHours);
+            _gameDensity = _initialDepletedDensity + (depletedAmount * respawnProgress);
         }
     }
 
@@ -55,7 +68,7 @@ public class AnimalTerritoryFeature : LocationFeature
 
         // Base chance scales with time spent and current density
         // 15 minutes of searching at full density = ~50% chance
-        double baseChance = (minutesSearching / 30.0) * GameDensity;
+        double baseChance = (minutesSearching / 30.0) * _gameDensity;
         double searchChance = Math.Min(0.9, baseChance); // Cap at 90%
 
         if (!Utils.DetermineSuccess(searchChance))
@@ -73,10 +86,9 @@ public class AnimalTerritoryFeature : LocationFeature
     /// </summary>
     public void RecordSuccessfulHunt()
     {
-        GameDensity *= 0.7; // 30% depletion per kill
-        InitialDepletedDensity = GameDensity;
-        HoursSinceLastHunt = 0;
-        HasBeenHunted = true;
+        _gameDensity *= 0.7; // 30% depletion per kill
+        _initialDepletedDensity = _gameDensity;
+        _hoursSinceLastHunt = 0;
     }
 
     private AnimalSpawnEntry? SelectRandomAnimal()
@@ -142,8 +154,8 @@ public class AnimalTerritoryFeature : LocationFeature
     /// <param name="multiplier">Density multiplier during peak hours (e.g., 2.0 = double chance)</param>
     public AnimalTerritoryFeature WithPeakHours(int startHour, int endHour, double multiplier = 2.0)
     {
-        PeakHours = (startHour, endHour);
-        PeakMultiplier = multiplier;
+        _peakHours = (startHour, endHour);
+        _peakMultiplier = multiplier;
         return this;
     }
 
@@ -152,8 +164,8 @@ public class AnimalTerritoryFeature : LocationFeature
     /// </summary>
     public bool IsPeakTime(int currentHour)
     {
-        if (PeakHours == null) return false;
-        var (start, end) = PeakHours.Value;
+        if (_peakHours == null) return false;
+        var (start, end) = _peakHours.Value;
         if (start <= end)
             return currentHour >= start && currentHour < end;
         else // Wraps around midnight
@@ -165,9 +177,9 @@ public class AnimalTerritoryFeature : LocationFeature
     /// </summary>
     public double GetEffectiveDensity(int currentHour)
     {
-        double density = GameDensity;
+        double density = _gameDensity;
         if (IsPeakTime(currentHour))
-            density *= PeakMultiplier;
+            density *= _peakMultiplier;
         return Math.Min(1.5, density); // Cap at 150%
     }
 
@@ -192,7 +204,7 @@ public class AnimalTerritoryFeature : LocationFeature
             _ => "tiny creature signs"
         };
 
-        string density = GameDensity switch
+        string density = _gameDensity switch
         {
             >= 0.8 => "abundant",
             >= 0.5 => "moderate",
@@ -208,7 +220,7 @@ public class AnimalTerritoryFeature : LocationFeature
     /// </summary>
     public string GetQualityDescription()
     {
-        return GameDensity switch
+        return _gameDensity switch
         {
             >= 0.8 => "plentiful",
             >= 0.5 => "decent",
@@ -278,27 +290,11 @@ public class AnimalTerritoryFeature : LocationFeature
         };
     }
 
-    #region Save/Load Support
-
-    /// <summary>
-    /// Restore territory state from save data.
-    /// </summary>
-    internal void RestoreState(
-        double gameDensity,
-        double initialDepletedDensity,
-        double hoursSinceLastHunt,
-        bool hasBeenHunted,
-        List<AnimalSpawnEntry> animals)
-    {
-        GameDensity = gameDensity;
-        InitialDepletedDensity = initialDepletedDensity;
-        HoursSinceLastHunt = hoursSinceLastHunt;
-        HasBeenHunted = hasBeenHunted;
-        _possibleAnimals.Clear();
-        _possibleAnimals.AddRange(animals);
-    }
+    #region Save/Load Support - No longer needed with field-based serialization
 
     // Collection needs backing field for mutation
+    // JsonIgnore prevents serializer from using this property instead of the private field
+    [System.Text.Json.Serialization.JsonIgnore]
     internal IReadOnlyList<AnimalSpawnEntry> PossibleAnimals => _possibleAnimals.AsReadOnly();
 
     #endregion

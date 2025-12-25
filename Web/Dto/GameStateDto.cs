@@ -71,7 +71,7 @@ public record GameStateDto
     {
         var body = ctx.player.Body;
         var location = ctx.CurrentLocation;
-        var weather = location.ParentZone.Weather;
+        var weather = location.Weather;
         var fire = location.GetFeature<HeatSourceFeature>();
         var inventory = ctx.Inventory;
 
@@ -160,10 +160,10 @@ public record GameStateDto
             CarryWeightKg = inventory.CurrentWeightKg,
             MaxWeightKg = inventory.MaxWeightKg,
             InsulationPercent = (int)(inventory.TotalInsulation * 100),
-            FuelKg = inventory.FuelWeightKg,
-            FuelBurnTime = inventory.TotalFuelBurnTimeHours >= 1.0
-                ? $"{(int)inventory.TotalFuelBurnTimeHours}hrs"
-                : $"{(int)inventory.TotalFuelBurnTimeMinutes}min",
+            FuelKg = inventory.GetWeight(ResourceCategory.Fuel),
+            FuelBurnTime = inventory.TorchBurnTimeRemainingMinutes >= 60
+                ? $"{(int)inventory.TorchBurnTimeRemainingMinutes / 60}hrs"
+                : $"{(int)inventory.TorchBurnTimeRemainingMinutes}min",
             GearSummary = ComputeGearSummary(inventory),
 
             // Narrative
@@ -364,7 +364,7 @@ public record GameStateDto
         _ => "Cold"
     };
 
-    private static GearSummaryDto ComputeGearSummary(Items.Inventory inv)
+    private static GearSummaryDto ComputeGearSummary(Inventory inv)
     {
         // Count tools by category
         var allTools = inv.Tools.ToList();
@@ -377,28 +377,19 @@ public record GameStateDto
         int otherCount = allTools.Count - cuttingCount - fireCount;
 
         // Food portions (count)
-        int foodPortions = inv.CookedMeat.Count + inv.RawMeat.Count + inv.Berries.Count +
-                          inv.Nuts.Count + inv.Roots.Count + inv.DriedMeat.Count + inv.DriedBerries.Count;
+        int foodPortions = inv.GetCount(ResourceCategory.Food);
 
         // Water portions (~0.25L each)
         int waterPortions = (int)(inv.WaterLiters / 0.25);
 
-        // Has preserved food
-        bool hasPreserved = inv.DriedMeat.Count > 0 || inv.DriedBerries.Count > 0;
-
         // Total crafting materials
-        int craftingCount = inv.Stone.Count + inv.Bone.Count + inv.Hide.Count +
-                           inv.PlantFiber.Count + inv.Sinew.Count +
-                           inv.Shale.Count + inv.Flint.Count + (inv.Pyrite > 0 ? 1 : 0) +
-                           inv.ScrapedHide.Count + inv.CuredHide.Count;
+        int craftingCount = inv.GetCount(ResourceCategory.Material);
 
         // Total medicinals
-        int medicinalCount = inv.BirchPolypore.Count + inv.Chaga.Count + inv.Amadou.Count +
-                            inv.RoseHips.Count + inv.JuniperBerries.Count + inv.WillowBark.Count +
-                            inv.PineNeedles.Count + inv.PineResin.Count + inv.Usnea.Count + inv.Sphagnum.Count;
+        int medicinalCount = inv.GetCount(ResourceCategory.Medicine);
 
         // Has rare materials (flint or pyrite)
-        bool hasRare = inv.Flint.Count > 0 || inv.Pyrite > 0;
+        bool hasRare = inv.Count(Resource.Flint) > 0 || inv.Count(Resource.Pyrite) > 0;
 
         return new GearSummaryDto(
             WeaponName: inv.Weapon?.Name,
@@ -408,7 +399,6 @@ public record GameStateDto
             OtherToolCount: otherCount,
             FoodPortions: foodPortions,
             WaterPortions: waterPortions,
-            HasPreservedFood: hasPreserved,
             CraftingMaterialCount: craftingCount,
             MedicinalCount: medicinalCount,
             HasRareMaterials: hasRare

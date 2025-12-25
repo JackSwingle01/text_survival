@@ -16,7 +16,7 @@ public static class BodyRegionNames
 public class BodyRegion(string name, double coverage)
 {
     // Core properties
-    public string Name { get; } = name;
+    public string Name { get; set; } = name;
     public double Coverage { get; set; } = coverage;
 
     // part makeup
@@ -24,6 +24,12 @@ public class BodyRegion(string name, double coverage)
     public Tissue Muscle { get; set; } = new Muscle();
     public Tissue Bone { get; set; } = new Bone();
     public List<Organ> Organs { get; set; } = [];
+
+    // Parameterless constructor for JSON deserialization
+    [System.Text.Json.Serialization.JsonConstructor]
+    public BodyRegion() : this(string.Empty, 0)
+    {
+    }
 
     public bool IsDestroyed => Condition <= 0;
     public double Condition => AggregateCondition();

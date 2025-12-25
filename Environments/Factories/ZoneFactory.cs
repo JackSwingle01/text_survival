@@ -4,13 +4,13 @@ using text_survival.Environments.Factories;
 
 public static class ZoneFactory
 {
-    public static Zone MakeForestZone()
+    public static (List<Location> revealed, List<Location> unrevealed) MakeForestZone(Weather weather)
     {
         var generator = new ZoneGenerator
         {
             TargetLocationCount = 100,
             InitialRevealedCount = 1
         };
-        return generator.GenerateForestZone("Pine Forest", "A vast expanse of evergreens.", baseTemp: -10);
+        return generator.GenerateForestZone(weather);
     }
 }

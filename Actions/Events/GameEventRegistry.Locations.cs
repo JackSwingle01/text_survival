@@ -171,14 +171,13 @@ public static partial class GameEventRegistry
     }
 
     /// <summary>
-    /// Fire management event - smoke builds up under overhang.
+    /// Fire management event - smoke builds up in enclosed spaces with overhead cover.
     /// </summary>
     private static GameEvent SmokeBuildsUp(GameContext ctx)
     {
         return new GameEvent("Smoke Building",
-            "Smoke pools under the stone lip. Your eyes sting. The air is getting thick.", 0.5)
-            .Requires(EventCondition.NearFire)
-            .WithLocationNameRequirement("Rock Overhang")
+            "Smoke pools overhead. Your eyes sting. The air is getting thick.", 0.5)
+            .Requires(EventCondition.NearFire, EventCondition.HighOverheadCover)
             .WithCooldown(2)
             .Choice("Let the Fire Die Down",
                 "Less smoke, less heat.",
@@ -553,6 +552,483 @@ public static partial class GameEventRegistry
                 "This isn't worth frostbite.",
                 [
                     new EventResult("You scramble down to the treeline. Warmer here.", weight: 1.0, minutes: 12)
+                ]);
+    }
+
+    // === TIER 3 LOCATION EVENTS ===
+
+    // === BEAR CAVE EVENTS ===
+    // Note: Primary occupied-state mechanics handled by Den arc events (TheFind, AssessingTheClaim, etc.)
+    // These events provide additional Bear Cave-specific flavor and encounters.
+
+    /// <summary>
+    /// Discovery event - find cached meat from bear kills.
+    /// Bears cache food — a desperate opportunity or a deadly trap.
+    /// </summary>
+    private static GameEvent BearCache(GameContext ctx)
+    {
+        return new GameEvent("Bear's Cache",
+            "Deep in the cave, a mound of dirt and debris. The smell of rotting meat. The bear has cached its kills here.", 0.4)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("Bear Cave")
+            .WithCooldown(24)
+            .Choice("Risk It — Take the Meat",
+                "Food is food. Work fast.",
+                [
+                    new EventResult("You uncover frozen carcasses. Partially eaten, but there's meat here.", weight: 0.50, minutes: 20)
+                        .Rewards(RewardPool.BasicMeat)
+                        .CreateTension("ClaimedTerritory", 0.4, animalType: "Bear", location: ctx.CurrentLocation),
+                    new EventResult("The cache is fresh. The bear hasn't been gone long.", weight: 0.30, minutes: 15)
+                        .Rewards(RewardPool.SmallGame)
+                        .CreateTension("ClaimedTerritory", 0.6, animalType: "Bear", location: ctx.CurrentLocation),
+                    new EventResult("A rumbling growl from the cave mouth. It's back. RUN.", weight: 0.20, minutes: 5)
+                        .Encounter("Bear", 20, 0.7)
+                ])
+            .Choice("Take Bones Only",
+                "Less valuable, but won't smell like fresh theft.",
+                [
+                    new EventResult("You grab bones from the older kills. The bear won't miss them.", weight: 0.80, minutes: 10)
+                        .Rewards(RewardPool.BoneHarvest),
+                    new EventResult("Even this disturbs the cache. You've left a sign.", weight: 0.20, minutes: 8)
+                        .Rewards(RewardPool.BoneHarvest)
+                        .CreateTension("ClaimedTerritory", 0.2, animalType: "Bear", location: ctx.CurrentLocation)
+                ])
+            .Choice("Leave It Untouched",
+                "Not worth angering whatever lives here.",
+                [
+                    new EventResult("You back away from the cache. Wisdom over hunger.", weight: 1.0, minutes: 3)
+                ]);
+    }
+
+    /// <summary>
+    /// Atmosphere event - signs of the cave's occupant.
+    /// </summary>
+    private static GameEvent BearSigns(GameContext ctx)
+    {
+        return new GameEvent("The Bear's Domain",
+            "Claw marks score the walls, head-height for something massive. The musky smell is overpowering. This cave has been occupied for years.", 0.5)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("Bear Cave")
+            .WithCooldown(12)
+            .Choice("Study the Marks",
+                "Learn about what lives here.",
+                [
+                    new EventResult("Deep gouges. Old and new, layered. A regular occupant — not just passing through.", weight: 0.60, minutes: 8),
+                    new EventResult("The claw marks are fresh. Sap still oozes from the scratched wood. It was here recently.", weight: 0.40, minutes: 5)
+                        .CreateTension("ClaimedTerritory", 0.3, animalType: "Bear", location: ctx.CurrentLocation)
+                ])
+            .Choice("Focus on Why You're Here",
+                "You know it's dangerous. Keep moving.",
+                [
+                    new EventResult("You push past the animal signs. The cave has resources if you're brave enough to take them.", weight: 1.0, minutes: 2)
+                ]);
+    }
+
+    /// <summary>
+    /// Special encounter - hibernating bear. Different from awake encounter.
+    /// High risk, high reward. Can pass by or attempt to kill sleeping bear.
+    /// </summary>
+    private static GameEvent HibernatingBear(GameContext ctx)
+    {
+        return new GameEvent("Winter Sleep",
+            "In the deepest chamber — a mountain of fur, rising and falling with slow breaths. A bear in winter torpor. Vulnerable, but not defenseless.", 1.0)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("Bear Cave")
+            .WithConditionFactor(EventCondition.ExtremelyCold, 2.0)  // More likely in deep winter
+            .WithCooldown(168) // Once per week
+            .Choice("Strike While It Sleeps",
+                "One chance. Make it count.",
+                [
+                    new EventResult("Your weapon finds its heart. It doesn't wake. The cave is yours.", weight: 0.30, minutes: 10)
+                        .Rewards(RewardPool.LargeMeat)
+                        .AddsFeature(typeof(Environments.Features.ShelterFeature), (0.6, 0.9, 0.8)),
+                    new EventResult("A glancing blow. It wakes — confused, then enraged.", weight: 0.50, minutes: 5)
+                        .Encounter("Bear", 5, 0.9),
+                    new EventResult("Your nerve fails. You can't do it.", weight: 0.20, minutes: 3)
+                ])
+            .Choice("Back Away Silently",
+                "Let sleeping bears lie. Literally.",
+                [
+                    new EventResult("You retreat inch by inch. It doesn't stir.", weight: 0.85, minutes: 10),
+                    new EventResult("A rock shifts underfoot. The bear's ears twitch. You freeze... it settles.", weight: 0.15, minutes: 15)
+                ])
+            .Choice("Use the Cave's Other Areas",
+                "Work around it. Carefully.",
+                [
+                    new EventResult("You stick to the cave mouth. Limited space, but the bear doesn't wake.", weight: 0.70, minutes: 20),
+                    new EventResult("A noise echoes. The bear shifts. Time to leave.", weight: 0.30, minutes: 8)
+                ]);
+    }
+
+    // === BEAVER DAM EVENTS ===
+
+    /// <summary>
+    /// Atmosphere event - beaver activity visible.
+    /// </summary>
+    private static GameEvent BeaverActivity(GameContext ctx)
+    {
+        return new GameEvent("Dam Builders",
+            "Splashing in the pond. A beaver surfaces, branch in its teeth, and swims toward the dam. The ecosystem is alive.", 0.4)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("Beaver Dam")
+            .WithCooldown(6)
+            .Choice("Watch Them Work",
+                "There's something peaceful about it.",
+                [
+                    new EventResult("They weave branches, pack mud, repair gaps. Industrious creatures.", weight: 0.70, minutes: 10),
+                    new EventResult("One slaps its tail — warning. They've spotted you. The pond goes silent.", weight: 0.30, minutes: 5)
+                ])
+            .Choice("Ignore Them",
+                "You have your own work to do.",
+                [
+                    new EventResult("You gather what you need. The beavers keep their distance.", weight: 1.0, minutes: 3)
+                ]);
+    }
+
+    /// <summary>
+    /// Consequence event - dam starts to fail after heavy harvest.
+    /// Triggers when beaver_dam harvestable is significantly depleted.
+    /// </summary>
+    private static GameEvent DamWeakening(GameContext ctx)
+    {
+        return new GameEvent("Weakening Structure",
+            "Water seeps through gaps in the dam. The structure groans. You've taken too much — it's failing.", 0.8)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("Beaver Dam")
+            .WithCooldown(24)
+            .Choice("Shore It Up",
+                "Pack mud into the gaps. Buy time.",
+                [
+                    new EventResult("You work frantically, packing debris into the holes. It holds — for now.", weight: 0.60, minutes: 30),
+                    new EventResult("Too much damage. Water bursts through as you watch.", weight: 0.40, minutes: 15)
+                        .CreateTension("DamCollapsed", 0.8, location: ctx.CurrentLocation)
+                ])
+            .Choice("Let It Go",
+                "You needed the fuel. Accept the consequences.",
+                [
+                    new EventResult("The dam groans and buckles. Water rushes downstream. The pond drains.", weight: 1.0, minutes: 20)
+                        .CreateTension("DamCollapsed", 1.0, location: ctx.CurrentLocation)
+                ])
+            .Choice("Salvage Quickly",
+                "Take what's left before it's underwater.",
+                [
+                    new EventResult("You grab what you can as water rises around your ankles.", weight: 0.70, minutes: 15)
+                        .Rewards(RewardPool.BasicSupplies)
+                        .CreateTension("DamCollapsed", 1.0, location: ctx.CurrentLocation),
+                    new EventResult("Too slow. The flood catches you.", weight: 0.30, minutes: 10)
+                        .WithEffects(Effects.EffectFactory.Cold(0.4, 45))
+                        .CreateTension("DamCollapsed", 1.0, location: ctx.CurrentLocation)
+                ]);
+    }
+
+    /// <summary>
+    /// Post-collapse event - the ecosystem changes.
+    /// </summary>
+    private static GameEvent DrainedPond(GameContext ctx)
+    {
+        var collapsed = ctx.Tensions.GetTension("DamCollapsed");
+        if (collapsed == null) return new GameEvent("DrainedPond", "", 0);
+
+        return new GameEvent("What's Left Behind",
+            "Where the pond was, now mud and debris. Stranded fish, exposed roots. The beavers are gone.", 0.9)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("Beaver Dam")
+            .WithCooldown(168)
+            .Choice("Scavenge the Remains",
+                "There's opportunity in destruction.",
+                [
+                    new EventResult("Fish flopping in the mud. Easy protein, for now.", weight: 0.60, minutes: 15)
+                        .Rewards(RewardPool.SmallGame),
+                    new EventResult("The mud is treacherous. You sink to your knees.", weight: 0.40, minutes: 25)
+                        .WithEffects(Effects.EffectFactory.Exhausted(0.3, 30))
+                ])
+            .Choice("Survey the Damage",
+                "Understand what you've done.",
+                [
+                    new EventResult("No more water source here. No more fuel. The ecosystem is dead.", weight: 1.0, minutes: 10)
+                        .ResolveTension("DamCollapsed")
+                ]);
+    }
+
+    /// <summary>
+    /// Opportunity event - beaver lodge accessible after collapse.
+    /// </summary>
+    private static GameEvent ExposedLodge(GameContext ctx)
+    {
+        var collapsed = ctx.Tensions.GetTension("DamCollapsed");
+        if (collapsed == null) return new GameEvent("ExposedLodge", "", 0);
+
+        return new GameEvent("The Lodge",
+            "With the water drained, the beaver lodge sits exposed — a mound of mud and sticks on dry ground.", 0.6)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("Beaver Dam")
+            .WithCooldown(24)
+            .Choice("Break Into the Lodge",
+                "See what the beavers left behind.",
+                [
+                    new EventResult("A cache of winter stores — bark, roots. Not much, but something.", weight: 0.50, minutes: 20)
+                        .Rewards(RewardPool.BasicSupplies),
+                    new EventResult("Young beavers, abandoned when the water drained. Easy catch.", weight: 0.30, minutes: 15)
+                        .Rewards(RewardPool.SmallGame),
+                    new EventResult("Empty. The beavers took what they could when they fled.", weight: 0.20, minutes: 15)
+                ])
+            .Choice("Leave It",
+                "You've done enough damage.",
+                [
+                    new EventResult("The lodge sits silent. A monument to what was.", weight: 1.0)
+                ]);
+    }
+
+    // === TIER 4 LOCATION EVENTS ===
+
+    // === THE LOOKOUT EVENTS ===
+
+    /// <summary>
+    /// Core event - climbing the lone pine for the view.
+    /// High risk, high information reward.
+    /// </summary>
+    private static GameEvent ClimbTheLookout(GameContext ctx)
+    {
+        return new GameEvent("The Climb",
+            "The branches form a natural ladder, but ice clings to the bark. The view from the top could show you the pass — and everything else.", 0.7)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("The Lookout")
+            .WithCooldown(6)
+            .Choice("Climb to the Top",
+                "Risk the ascent. See everything.",
+                [
+                    new EventResult("Branch by branch, you rise above the treeline. The world spreads below.", weight: 0.55, minutes: 20)
+                        .Chain(ViewFromAbove),
+                    new EventResult("Ice gives way beneath your hand. You catch yourself, heart pounding.", weight: 0.25, minutes: 15)
+                        .WithEffects(Effects.EffectFactory.Shaken(0.3)),
+                    new EventResult("A branch snaps. You fall, catching yourself painfully on lower limbs.", weight: 0.15, minutes: 10)
+                        .WithEffects(Effects.EffectFactory.Bleeding(0.2))
+                        .WithEffects(Effects.EffectFactory.SprainedAnkle(0.3)),
+                    new EventResult("You lose your grip. The ground rushes up.", weight: 0.05, minutes: 5)
+                        .WithEffects(Effects.EffectFactory.SprainedAnkle(0.6))
+                        .WithEffects(Effects.EffectFactory.Bleeding(0.4))
+                ])
+            .Choice("Climb Partway",
+                "Get some height without the worst risk.",
+                [
+                    new EventResult("Halfway up, you can see above most trees. Limited view, but safer.", weight: 0.80, minutes: 12),
+                    new EventResult("Even this height is treacherous. A slip costs you skin and nerve.", weight: 0.20, minutes: 8)
+                        .WithEffects(Effects.EffectFactory.Bleeding(0.1))
+                ])
+            .Choice("Stay on the Ground",
+                "The view isn't worth a broken leg.",
+                [
+                    new EventResult("You work around the base. The rise gives some vantage even without climbing.", weight: 1.0, minutes: 5)
+                ]);
+    }
+
+    /// <summary>
+    /// Chained event - what you see from the top.
+    /// </summary>
+    private static GameEvent ViewFromAbove(GameContext ctx)
+    {
+        return new GameEvent("The View",
+            "From the top of the pine, the world unfolds. The mountain pass is visible — snow-choked but there. You can see for miles in every direction.", 1.0)
+            .Choice("Study the Pass",
+                "This is what you came for.",
+                [
+                    new EventResult("The route is clear in your mind now. Snow still blocks it, but you can see where the path lies.", weight: 0.60, minutes: 15),
+                    new EventResult("Movement on the lower slopes — game migrating. Opportunity if you can reach them.", weight: 0.40, minutes: 12)
+                ])
+            .Choice("Survey the Surroundings",
+                "Map the terrain in your mind.",
+                [
+                    new EventResult("Smoke rising to the east — a hot spring? Movement in the southern forest. A frozen lake to the north.", weight: 0.50, minutes: 10),
+                    new EventResult("Wolves, a pack of them, moving through the valley below. They haven't seen you. Yet.", weight: 0.30, minutes: 8)
+                        .CreateTension("PackNearby", 0.4),
+                    new EventResult("Dark clouds building on the horizon. Storm coming.", weight: 0.20, minutes: 5)
+                        .CreateTension("StormApproaching", 0.5)
+                ])
+            .Choice("Descend Quickly",
+                "You've seen enough. Get down before conditions change.",
+                [
+                    new EventResult("You descend carefully. The knowledge gained is worth the risk taken.", weight: 0.85, minutes: 15),
+                    new EventResult("Rushing, you slip. A painful landing, but nothing broken.", weight: 0.15, minutes: 10)
+                        .WithEffects(Effects.EffectFactory.SprainedAnkle(0.2))
+                ]);
+    }
+
+    /// <summary>
+    /// Weather event - spot storm approaching from vantage point.
+    /// </summary>
+    private static GameEvent StormOnTheHorizon(GameContext ctx)
+    {
+        return new GameEvent("Storm Building",
+            "From this height you can see it — a wall of grey sweeping across the landscape. Hours away, maybe less.", 0.5)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("The Lookout")
+            .WithConditionFactor(EventCondition.WeatherWorsening, 3.0)
+            .WithCooldown(4)
+            .Choice("Time Your Return",
+                "Use the warning. Get back to camp.",
+                [
+                    new EventResult("You head back with time to spare. The storm hits while you're safe at camp.", weight: 0.75, minutes: 10),
+                    new EventResult("The storm moves faster than expected. You barely make it.", weight: 0.25, minutes: 15)
+                        .WithEffects(Effects.EffectFactory.Cold(0.2, 20))
+                ])
+            .Choice("Keep Working",
+                "You have time. Probably.",
+                [
+                    new EventResult("You finish what you came for and leave with the wind rising.", weight: 0.50, minutes: 25)
+                        .WithEffects(Effects.EffectFactory.Cold(0.3, 30)),
+                    new EventResult("You misjudged. The storm catches you exposed on the ridge.", weight: 0.50, minutes: 30)
+                        .WithEffects(Effects.EffectFactory.Cold(0.5, 60))
+                ]);
+    }
+
+    /// <summary>
+    /// Discovery event - see movement from the vantage point.
+    /// </summary>
+    private static GameEvent SpotFromHeight(GameContext ctx)
+    {
+        return new GameEvent("Movement Below",
+            "From this elevation, you catch movement — shapes moving through the terrain below.", 0.4)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("The Lookout")
+            .WithCooldown(4)
+            .Choice("Watch and Wait",
+                "Observe from safety.",
+                [
+                    new EventResult("Deer, picking through the snow. You note their path.", weight: 0.40, minutes: 10),
+                    new EventResult("A lone wolf, hunting. It hasn't noticed you.", weight: 0.30, minutes: 8)
+                        .CreateTension("Stalked", 0.2, animalType: "Wolf"),
+                    new EventResult("Humans? No — just the way the trees move. Tricks of the light.", weight: 0.20, minutes: 5),
+                    new EventResult("A bear, foraging along the ridgeline. Headed this way.", weight: 0.10, minutes: 6)
+                        .CreateTension("Stalked", 0.3, animalType: "Bear")
+                ])
+            .Choice("Mark the Location",
+                "Remember where the activity is.",
+                [
+                    new EventResult("You note landmarks. Useful for planning your next expedition.", weight: 1.0, minutes: 3)
+                ]);
+    }
+
+    // === OLD CAMPSITE EVENTS ===
+
+    /// <summary>
+    /// Investigation event - search the remains.
+    /// </summary>
+    private static GameEvent InvestigateRemnants(GameContext ctx)
+    {
+        return new GameEvent("What Happened Here",
+            "The more you look, the more questions arise. Someone survived here — for a while. Then they didn't.", 0.6)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("Old Campsite")
+            .WithCooldown(24)
+            .Choice("Search Thoroughly",
+                "Turn over every stone.",
+                [
+                    new EventResult("Under debris — a bundle wrapped in hide. Tools, preserved.", weight: 0.30, minutes: 30)
+                        .Rewards(RewardPool.ScrapTool),
+                    new EventResult("Signs of struggle. Claw marks, dried blood. They were attacked.", weight: 0.35, minutes: 20)
+                        .CreateTension("PredatorTerritory", 0.3),
+                    new EventResult("An ordered departure. Whoever was here left deliberately, taking what mattered.", weight: 0.25, minutes: 25),
+                    new EventResult("Nothing. Just the silence of abandonment.", weight: 0.10, minutes: 15)
+                ])
+            .Choice("Take What's Obvious",
+                "Don't dwell on mysteries.",
+                [
+                    new EventResult("Surface salvage only. You don't want to know what happened.", weight: 1.0, minutes: 10)
+                ]);
+    }
+
+    /// <summary>
+    /// Discovery event - find a journal or message.
+    /// </summary>
+    private static GameEvent FindTheJournal(GameContext ctx)
+    {
+        return new GameEvent("A Record",
+            "Scratched into bark, or charcoal on stone — marks. Deliberate. A message from someone who was here before.", 0.3)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("Old Campsite")
+            .WithCooldown(168)
+            .Choice("Study the Marks",
+                "What were they trying to say?",
+                [
+                    new EventResult("A tally. Days survived. The marks stop suddenly — day forty-two.", weight: 0.30, minutes: 15),
+                    new EventResult("Directions. Scratched arrows pointing east. 'Water' in crude symbols.", weight: 0.25, minutes: 12),
+                    new EventResult("A warning. Teeth drawn beneath stick figures. Wolves. Many of them.", weight: 0.25, minutes: 10)
+                        .CreateTension("PackNearby", 0.4),
+                    new EventResult("Names. Or what might be names. Whoever they were, they wanted to be remembered.", weight: 0.20, minutes: 8)
+                ])
+            .Choice("Leave It Unread",
+                "Some stories don't need telling.",
+                [
+                    new EventResult("You turn away. Their fate doesn't have to be yours.", weight: 1.0)
+                ]);
+    }
+
+    /// <summary>
+    /// Tension event - whatever happened here might still be around.
+    /// </summary>
+    private static GameEvent WhatKilledThem(GameContext ctx)
+    {
+        var territory = ctx.Tensions.GetTension("PredatorTerritory");
+        if (territory == null) return new GameEvent("WhatKilledThem", "", 0);
+
+        return new GameEvent("Still Here",
+            "A sound in the brush. The same thing that ended the last occupant might still be around.", 0.8)
+            .Requires(EventCondition.Working)
+            .WithLocationNameRequirement("Old Campsite")
+            .WithCooldown(6)
+            .Choice("Face It",
+                "Better to know what's hunting you.",
+                [
+                    new EventResult("A wolf emerges from the trees. It's been watching. It knows this place.", weight: 0.50, minutes: 5)
+                        .Encounter("Wolf", 15, 0.6),
+                    new EventResult("Nothing. Wind in the branches. Your nerves are shot.", weight: 0.35, minutes: 8)
+                        .ResolveTension("PredatorTerritory"),
+                    new EventResult("Eyes in the darkness, then gone. It's not ready to confront you. Yet.", weight: 0.15, minutes: 3)
+                        .CreateTension("Stalked", 0.4, animalType: "Wolf")
+                ])
+            .Choice("Leave Immediately",
+                "Don't become the next victim.",
+                [
+                    new EventResult("You abandon the site. Whatever it is, it's not following. For now.", weight: 0.80, minutes: 5)
+                        .ResolveTension("PredatorTerritory"),
+                    new EventResult("You hear it following as you leave. Not attacking — just watching.", weight: 0.20, minutes: 8)
+                        .ResolveTension("PredatorTerritory")
+                        .CreateTension("Stalked", 0.3, animalType: "Wolf")
+                ]);
+    }
+
+    /// <summary>
+    /// Shelter opportunity - the collapsed shelter can be rebuilt.
+    /// </summary>
+    private static GameEvent RebuildTheShelter(GameContext ctx)
+    {
+        return new GameEvent("Salvageable Shelter",
+            "The old shelter is collapsed but the frame is intact. With work, it could be functional again.", 0.4)
+            .Requires(EventCondition.Working, EventCondition.NoShelter)
+            .WithLocationNameRequirement("Old Campsite")
+            .WithCooldown(24)
+            .Choice("Repair It",
+                "Use their foundation. Build on their work.",
+                [
+                    new EventResult("Hours of labor. You shore up the frame, patch the gaps. It's crude, but it's shelter.", weight: 0.70, minutes: 90)
+                        .Costs(ResourceType.Fuel, 1)
+                        .AddsFeature(typeof(Environments.Features.ShelterFeature), (0.3, 0.5, 0.5)),
+                    new EventResult("The frame is too rotted. It collapses as you work. Time wasted.", weight: 0.20, minutes: 45)
+                        .WithEffects(Effects.EffectFactory.Exhausted(0.3, 30)),
+                    new EventResult("Structural failure. Part of the frame falls on you.", weight: 0.10, minutes: 30)
+                        .WithEffects(Effects.EffectFactory.Exhausted(0.2, 20))
+                        .WithEffects(Effects.EffectFactory.Bleeding(0.15))
+                ])
+            .Choice("Salvage for Materials",
+                "The frame has good wood.",
+                [
+                    new EventResult("You break down the structure. Seasoned wood, already cut to length.", weight: 1.0, minutes: 30)
+                        .Rewards(RewardPool.BasicSupplies)
+                ])
+            .Choice("Leave It",
+                "Not worth the effort.",
+                [
+                    new EventResult("You leave the collapsed shelter. Someone else's failure, not yours to fix.", weight: 1.0)
                 ]);
     }
 }

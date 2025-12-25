@@ -27,7 +27,9 @@ public abstract class Actor
     {
         var result = SurvivalProcessor.Process(Body, context, minutes);
 
-        EffectRegistry.Update(minutes);
+        var messages = EffectRegistry.Update(minutes);
+        messages.ForEach(AddLog);
+
         var delta = EffectRegistry.GetSurvivalDelta();
         var damages = EffectRegistry.GetDamagesPerMinute();
 
@@ -45,7 +47,7 @@ public abstract class Actor
     protected Actor(string name, BodyCreationInfo stats)
     {
         Name = name;
-        EffectRegistry = new EffectRegistry(this);
+        EffectRegistry = new EffectRegistry();
         this.combatManager = new CombatManager(this);
         Body = new Body(Name, stats);
     }

@@ -260,7 +260,7 @@ namespace text_survival.Actors.Animals
         {
             double boldness = 0.4;
 
-            bool hasMeat = inventory.RawMeat.Count > 0 || inventory.CookedMeat.Count > 0;
+            bool hasMeat = inventory.Count(Resource.RawMeat) > 0 || inventory.Count(Resource.CookedMeat) > 0;
             if (hasMeat) boldness += 0.20;
             if (player.Vitality < 0.7) boldness += 0.15;
             if (player.Body.WeightKG > this.Body.WeightKG) boldness -= 0.10;

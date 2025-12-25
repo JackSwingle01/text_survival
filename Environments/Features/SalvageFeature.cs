@@ -9,10 +9,14 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class SalvageFeature : LocationFeature
 {
+    // Explicit public fields for serialization (System.Text.Json IncludeFields requires public)
+    public string _displayName = "";
+    private bool _isSalvaged = false;
+
     /// <summary>
     /// Display name shown in UI.
     /// </summary>
-    public string DisplayName { get; }
+    public string DisplayName => _displayName;
 
     /// <summary>
     /// Flavor text shown on first discovery.
@@ -32,7 +36,7 @@ public class SalvageFeature : LocationFeature
     /// <summary>
     /// Has the site been fully salvaged?
     /// </summary>
-    public bool IsSalvaged { get; private set; } = false;
+    public bool IsSalvaged => _isSalvaged;
 
     /// <summary>
     /// Discrete items available for salvage.
@@ -54,9 +58,12 @@ public class SalvageFeature : LocationFeature
     /// </summary>
     public int MinutesToSalvage { get; set; } = 30;
 
+    [System.Text.Json.Serialization.JsonConstructor]
+    public SalvageFeature() : base("salvage") { }
+
     public SalvageFeature(string name, string displayName) : base(name)
     {
-        DisplayName = displayName;
+        _displayName = displayName;
     }
 
     /// <summary>
@@ -65,10 +72,10 @@ public class SalvageFeature : LocationFeature
     /// </summary>
     public SalvageLoot Salvage()
     {
-        if (IsSalvaged)
+        if (_isSalvaged)
             return SalvageLoot.Empty;
 
-        IsSalvaged = true;
+        _isSalvaged = true;
 
         return new SalvageLoot
         {
@@ -120,10 +127,10 @@ public class SalvageFeature : LocationFeature
         };
 
         // Random loot for abandoned camp
-        salvage.Resources.Sticks.Push(0.3);
-        salvage.Resources.Sticks.Push(0.3);
-        salvage.Resources.Tinder.Push(0.05);
-        salvage.Resources.PlantFiber.Push(0.1);
+        salvage.Resources.Add(Resource.Stick, 0.3);
+        salvage.Resources.Add(Resource.Stick, 0.3);
+        salvage.Resources.Add(Resource.Tinder, 0.05);
+        salvage.Resources.Add(Resource.PlantFiber, 0.1);
 
         // Chance-based tool (50%)
         if (Utils.RandDouble(0, 1) < 0.5)
@@ -151,7 +158,7 @@ public class SalvageFeature : LocationFeature
         salvage.Equipment.Add(new Equipment("Worn Coat", EquipSlot.Chest, 2.0, 0.15));
 
         // Their supplies
-        salvage.Resources.Bone.Push(0.2);
+        salvage.Resources.Add(Resource.Bone, 0.2);
 
         // Random additional items
         if (Utils.RandDouble(0, 1) < 0.4)
@@ -161,7 +168,7 @@ public class SalvageFeature : LocationFeature
         }
         if (Utils.RandDouble(0, 1) < 0.3)
         {
-            salvage.Resources.Hide.Push(0.5);
+            salvage.Resources.Add(Resource.Hide, 0.5);
         }
 
         return salvage;
@@ -180,14 +187,14 @@ public class SalvageFeature : LocationFeature
         };
 
         // Cached supplies - intentionally good stuff
-        salvage.Resources.Logs.Push(2.0);
-        salvage.Resources.Tinder.Push(0.05);
-        salvage.Resources.Tinder.Push(0.05);
+        salvage.Resources.Add(Resource.Log, 2.0);
+        salvage.Resources.Add(Resource.Tinder, 0.05);
+        salvage.Resources.Add(Resource.Tinder, 0.05);
 
         // Random food (might be spoiled after all this time)
         if (Utils.RandDouble(0, 1) < 0.6)
         {
-            salvage.Resources.Berries.Push(0.2);
+            salvage.Resources.Add(Resource.Berries, 0.2);
         }
 
         // Rare tool find

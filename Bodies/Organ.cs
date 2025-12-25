@@ -15,10 +15,22 @@ public static class OrganNames
 }
 
 
-public class Organ(string name, double toughness, CapacityContainer capacities, bool isExternal = false) : Tissue (name, toughness)
+public class Organ : Tissue
 {
-    public bool IsExternal { get; set; } = isExternal;
-    public CapacityContainer _baseCapacities { get; set; } = capacities;
+    public bool IsExternal { get; set; } = false;
+    public CapacityContainer _baseCapacities { get; set; } = new();
+
+    // Parameterless constructor for deserialization
+    public Organ() : base()
+    {
+    }
+
+    // Normal constructor for creation
+    public Organ(string name, double toughness, CapacityContainer capacities, bool isExternal = false) : base(name, toughness)
+    {
+        IsExternal = isExternal;
+        _baseCapacities = capacities;
+    }
     public override CapacityContainer GetBaseCapacities()
     {
         return _baseCapacities;

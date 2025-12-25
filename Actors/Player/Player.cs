@@ -26,10 +26,12 @@ public class Player : Actor
     {
         var result = SurvivalProcessor.Process(Body, context, minutes);
 
-        result.Effects.ForEach(EffectRegistry.AddEffect);
+        result.Effects.ForEach(e => AddLog(EffectRegistry.AddEffect(e)));
         result.Messages.ForEach(AddLog);
 
-        EffectRegistry.Update(minutes);
+        var messages = EffectRegistry.Update(minutes);
+        messages.ForEach(AddLog);
+
         result.StatsDelta.Combine(EffectRegistry.GetSurvivalDelta());
         result.DamageEvents.AddRange(EffectRegistry.GetDamagesPerMinute());
 

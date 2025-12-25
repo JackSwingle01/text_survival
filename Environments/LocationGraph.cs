@@ -12,7 +12,7 @@ public class LocationGraph
     
     public void CreatePath(
         string name,
-        Zone parent,
+        Weather weather,
         Location a,
         Location b,
         int traversalMinutes,
@@ -21,7 +21,7 @@ public class LocationGraph
         var path = new Location(
             name: name,
             tags: "",
-            parent: parent,
+            weather: weather,
             traversalMinutes: traversalMinutes,
             terrainHazardLevel: 0,
             windFactor: exposure,

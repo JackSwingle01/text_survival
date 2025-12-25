@@ -5,14 +5,24 @@ namespace text_survival.Environments.Features;
 public class HeatSourceFeature : LocationFeature
 {
     // Fire State
-    public bool IsActive => BurningMassKg > 0;
-    public bool HasEmbers { get; private set; }
+    private bool _hasEmbers;
+    private double _unburnedMassKg;
+    private double _burningMassKg;
+    private double _maxFuelCapacityKg;
+    private double _emberDuration;
+    private double _emberStartTemperature;
+    private double _lastBurningTemperature;
+    private double _emberTimeRemaining;
+    private double _charcoalAvailableKg;
+
+    public bool IsActive => _burningMassKg > 0;
+    public bool HasEmbers => _hasEmbers;
 
     // Two-mass fuel model: unburned + burning = total
-    public double UnburnedMassKg { get; private set; }
-    public double BurningMassKg { get; private set; }
-    public double TotalMassKg => UnburnedMassKg + BurningMassKg;
-    public double MaxFuelCapacityKg { get; private set; }
+    public double UnburnedMassKg => _unburnedMassKg;
+    public double BurningMassKg => _burningMassKg;
+    public double TotalMassKg => _unburnedMassKg + _burningMassKg;
+    public double MaxFuelCapacityKg => _maxFuelCapacityKg;
 
     private Dictionary<FuelType, double> _unburnedMixture = [];
     private Dictionary<FuelType, double> _burningMixture = [];
@@ -24,9 +34,9 @@ public class HeatSourceFeature : LocationFeature
     {
         get
         {
-            if (BurningMassKg <= 0) return 0;
+            if (_burningMassKg <= 0) return 0;
             double burnRate = EffectiveBurnRateKgPerHour;
-            return burnRate > 0 ? BurningMassKg / burnRate : 0;
+            return burnRate > 0 ? _burningMassKg / burnRate : 0;
         }
     }
 
@@ -42,18 +52,18 @@ public class HeatSourceFeature : LocationFeature
     }
 
     public double EffectiveBurnRateKgPerHour =>
-        BurningMassKg > 0 ? GetWeightedBurnRate() * GetFireSizeBurnMultiplier() : 0;
+        _burningMassKg > 0 ? GetWeightedBurnRate() * GetFireSizeBurnMultiplier() : 0;
 
     // Ember tracking
-    internal double EmberDuration { get; private set; }
-    internal double EmberStartTemperature { get; private set; }
-    internal double LastBurningTemperature { get; private set; } // Captured before consumption for ember transition
-    public double EmberTimeRemaining { get; private set; }
+    internal double EmberDuration => _emberDuration;
+    internal double EmberStartTemperature => _emberStartTemperature;
+    internal double LastBurningTemperature => _lastBurningTemperature; // Captured before consumption for ember transition
+    public double EmberTimeRemaining => _emberTimeRemaining;
 
     // Charcoal production tracking
     private double _totalFuelBurnedKg;
-    public double CharcoalAvailableKg { get; private set; }
-    public bool HasCharcoal => CharcoalAvailableKg > 0.01;
+    public double CharcoalAvailableKg => _charcoalAvailableKg;
+    public bool HasCharcoal => _charcoalAvailableKg > 0.01;
 
     // Catching mechanic constants
     private const double BaseCatchRate = 0.05; // kg/min baseline
@@ -62,16 +72,19 @@ public class HeatSourceFeature : LocationFeature
     public HeatSourceFeature(double maxCapacityKg = 12.0)
         : base("Campfire")
     {
-        HasEmbers = false;
-        UnburnedMassKg = 0;
-        BurningMassKg = 0;
-        MaxFuelCapacityKg = maxCapacityKg;
-        EmberTimeRemaining = 0;
-        EmberDuration = 0;
-        EmberStartTemperature = 0;
+        _hasEmbers = false;
+        _unburnedMassKg = 0;
+        _burningMassKg = 0;
+        _maxFuelCapacityKg = maxCapacityKg;
+        _emberTimeRemaining = 0;
+        _emberDuration = 0;
+        _emberStartTemperature = 0;
         _totalFuelBurnedKg = 0;
-        CharcoalAvailableKg = 0;
+        _charcoalAvailableKg = 0;
     }
+
+    [System.Text.Json.Serialization.JsonConstructor]
+    public HeatSourceFeature() : base("Campfire") { }
 
     #region Temperature Calculations
 
@@ -96,7 +109,7 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     private double GetActiveFireTemperature()
     {
-        if (BurningMassKg <= 0) return 0;
+        if (_burningMassKg <= 0) return 0;
 
         double peakTemp = GetWeightedPeakTemperature();
         double sizeMultiplier = GetFireSizeMultiplier();
@@ -110,11 +123,11 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     private double GetEmberTemperature()
     {
-        if (EmberDuration <= 0) return Math.Max(200, EmberStartTemperature * 0.3);
+        if (_emberDuration <= 0) return Math.Max(200, _emberStartTemperature * 0.3);
 
-        double progress = EmberTimeRemaining / EmberDuration;
+        double progress = _emberTimeRemaining / _emberDuration;
         // Square root decay: embers cool slowly at first, then faster
-        return EmberStartTemperature * Math.Pow(progress, 0.5);
+        return _emberStartTemperature * Math.Pow(progress, 0.5);
     }
 
     /// <summary>
@@ -122,7 +135,7 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     private double GetWeightedPeakTemperature()
     {
-        if (_burningMixture.Count == 0 || BurningMassKg <= 0) return 450; // Default to tinder temp
+        if (_burningMixture.Count == 0 || _burningMassKg <= 0) return 450; // Default to tinder temp
 
         double totalWeightedTemp = 0;
         double totalMass = 0;
@@ -143,10 +156,10 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     private double GetFireSizeMultiplier()
     {
-        if (BurningMassKg < 0.5) return 0.5;   // Tiny
-        if (BurningMassKg < 1.0) return 0.7;   // Small
-        if (BurningMassKg < 2.0) return 0.85;  // Medium
-        if (BurningMassKg < 4.0) return 1.0;   // Good
+        if (_burningMassKg < 0.5) return 0.5;   // Tiny
+        if (_burningMassKg < 1.0) return 0.7;   // Small
+        if (_burningMassKg < 2.0) return 0.85;  // Medium
+        if (_burningMassKg < 4.0) return 1.0;   // Good
         return 1.1;                             // Large
     }
 
@@ -155,9 +168,9 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     private double GetFireSizeBurnMultiplier()
     {
-        if (BurningMassKg < 1.5) return 0.9;   // Small - burns slower
-        if (BurningMassKg < 4.0) return 1.0;   // Sweet spot
-        if (BurningMassKg < 7.0) return 1.1;   // Large - burns faster
+        if (_burningMassKg < 1.5) return 0.9;   // Small - burns slower
+        if (_burningMassKg < 4.0) return 1.0;   // Sweet spot
+        if (_burningMassKg < 7.0) return 1.1;   // Large - burns faster
         return 1.2;                             // Huge - hungry fire
     }
 
@@ -174,7 +187,7 @@ public class HeatSourceFeature : LocationFeature
         if (tempDifferential <= 0) return 0;
 
         // Heat output scales with temperature differential and burning fire size
-        double fireSizeMultiplier = Math.Sqrt(Math.Max(BurningMassKg, 0.5));
+        double fireSizeMultiplier = Math.Sqrt(Math.Max(_burningMassKg, 0.5));
         double heatOutput = (tempDifferential / 60.0) * fireSizeMultiplier;
 
         return Math.Max(0, heatOutput);
@@ -208,10 +221,10 @@ public class HeatSourceFeature : LocationFeature
         if (!CanAddFuel(fuelType)) return false;
 
         // Add to unburned fuel (capped at max capacity)
-        double spaceAvailable = MaxFuelCapacityKg - TotalMassKg;
+        double spaceAvailable = _maxFuelCapacityKg - TotalMassKg;
         double actualMassAdded = Math.Min(massKg, spaceAvailable);
 
-        UnburnedMassKg += actualMassAdded;
+        _unburnedMassKg += actualMassAdded;
 
         // Track fuel type in unburned mixture
         if (_unburnedMixture.ContainsKey(fuelType))
@@ -220,13 +233,13 @@ public class HeatSourceFeature : LocationFeature
             _unburnedMixture[fuelType] = actualMassAdded;
 
         // Auto-relight from embers: immediately ignite added fuel
-        if (HasEmbers && GetEmberTemperature() >= FuelDatabase.Get(fuelType).MinFireTemperature)
+        if (_hasEmbers && GetEmberTemperature() >= FuelDatabase.Get(fuelType).MinFireTemperature)
         {
             // Transfer from unburned to burning (relight)
             TransferToBurning(fuelType, actualMassAdded);
-            HasEmbers = false;
-            EmberTimeRemaining = 0;
-            EmberDuration = 0;
+            _hasEmbers = false;
+            _emberTimeRemaining = 0;
+            _emberDuration = 0;
         }
 
         return true;
@@ -271,14 +284,14 @@ public class HeatSourceFeature : LocationFeature
             if (_unburnedMixture[fuelType] <= 0.001)
                 _unburnedMixture.Remove(fuelType);
         }
-        UnburnedMassKg = Math.Max(0, UnburnedMassKg - massKg);
+        _unburnedMassKg = Math.Max(0, _unburnedMassKg - massKg);
 
         // Add to burning
         if (_burningMixture.ContainsKey(fuelType))
             _burningMixture[fuelType] += massKg;
         else
             _burningMixture[fuelType] = massKg;
-        BurningMassKg += massKg;
+        _burningMassKg += massKg;
     }
 
     /// <summary>
@@ -286,7 +299,7 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     private double GetWeightedBurnRate()
     {
-        if (_burningMixture.Count == 0 || BurningMassKg <= 0) return 1.0;
+        if (_burningMixture.Count == 0 || _burningMassKg <= 0) return 1.0;
 
         double totalWeightedRate = 0;
         double totalMass = 0;
@@ -312,7 +325,7 @@ public class HeatSourceFeature : LocationFeature
     {
         double minutesElapsed = minutes;
 
-        if (BurningMassKg > 0)
+        if (_burningMassKg > 0)
         {
             // 1. Process catching: unburned fuel catches fire
             ProcessCatching(minutesElapsed);
@@ -321,24 +334,24 @@ public class HeatSourceFeature : LocationFeature
             ProcessConsumption(minutesElapsed);
 
             // 3. Check for transition to embers
-            if (BurningMassKg <= 0)
+            if (_burningMassKg <= 0)
             {
                 TransitionToEmbers();
             }
         }
-        else if (HasEmbers)
+        else if (_hasEmbers)
         {
             // Ember decay
-            EmberTimeRemaining = Math.Max(0, EmberTimeRemaining - (minutesElapsed / 60.0));
+            _emberTimeRemaining = Math.Max(0, _emberTimeRemaining - (minutesElapsed / 60.0));
 
-            if (EmberTimeRemaining <= 0)
+            if (_emberTimeRemaining <= 0)
             {
                 // Embers died out - produce charcoal from burned fuel
                 ProduceCharcoal();
 
-                HasEmbers = false;
-                EmberDuration = 0;
-                EmberStartTemperature = 0;
+                _hasEmbers = false;
+                _emberDuration = 0;
+                _emberStartTemperature = 0;
             }
         }
     }
@@ -348,11 +361,11 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     private void ProcessCatching(double minutesElapsed)
     {
-        if (UnburnedMassKg <= 0 || BurningMassKg <= 0) return;
+        if (_unburnedMassKg <= 0 || _burningMassKg <= 0) return;
 
         double currentTemp = GetCurrentFireTemperature();
         double tempMultiplier = Math.Max(0.5, currentTemp / 400.0);
-        double massMultiplier = 1.0 + (BurningMassKg * 0.15); // Exponential feedback
+        double massMultiplier = 1.0 + (_burningMassKg * 0.15); // Exponential feedback
 
         foreach (var (fuelType, unburnedMass) in _unburnedMixture.ToList())
         {
@@ -380,19 +393,19 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     private void ProcessConsumption(double minutesElapsed)
     {
-        if (BurningMassKg <= 0) return;
+        if (_burningMassKg <= 0) return;
 
         // Capture temperature BEFORE consumption for ember transition
-        LastBurningTemperature = GetActiveFireTemperature();
+        _lastBurningTemperature = GetActiveFireTemperature();
 
         double burnRate = GetWeightedBurnRate() * GetFireSizeBurnMultiplier();
         double consumed = burnRate * (minutesElapsed / 60.0);
 
         // Cap consumption at available burning mass
-        consumed = Math.Min(consumed, BurningMassKg);
+        consumed = Math.Min(consumed, _burningMassKg);
 
         // Proportionally remove from burning mixture
-        double ratio = consumed / BurningMassKg;
+        double ratio = consumed / _burningMassKg;
         foreach (var (fuelType, mass) in _burningMixture.ToList())
         {
             _burningMixture[fuelType] *= (1.0 - ratio);
@@ -402,7 +415,7 @@ public class HeatSourceFeature : LocationFeature
                 _burningMixture.Remove(fuelType);
         }
 
-        BurningMassKg = Math.Max(0, BurningMassKg - consumed);
+        _burningMassKg = Math.Max(0, _burningMassKg - consumed);
 
         // Track total fuel burned for charcoal production
         _totalFuelBurnedKg += consumed;
@@ -414,16 +427,16 @@ public class HeatSourceFeature : LocationFeature
     private void TransitionToEmbers()
     {
         // Use temperature captured before consumption (mixture is now empty)
-        EmberStartTemperature = LastBurningTemperature;
+        _emberStartTemperature = _lastBurningTemperature;
 
-        HasEmbers = true;
+        _hasEmbers = true;
 
         // Embers last based on how much fuel burned (rough estimate)
         // More fuel burned = more embers = longer duration
-        EmberDuration = Math.Max(0.25, EmberStartTemperature / 600.0 * 0.5); // 0.25 to 0.5 hours
-        EmberTimeRemaining = EmberDuration;
+        _emberDuration = Math.Max(0.25, _emberStartTemperature / 600.0 * 0.5); // 0.25 to 0.5 hours
+        _emberTimeRemaining = _emberDuration;
 
-        BurningMassKg = 0;
+        _burningMassKg = 0;
         _burningMixture.Clear();
     }
 
@@ -435,7 +448,7 @@ public class HeatSourceFeature : LocationFeature
         if (_totalFuelBurnedKg > 0.1)
         {
             // ~15% of burned fuel becomes charcoal
-            CharcoalAvailableKg += _totalFuelBurnedKg * CharcoalYieldPercent;
+            _charcoalAvailableKg += _totalFuelBurnedKg * CharcoalYieldPercent;
             _totalFuelBurnedKg = 0; // Reset for next fire
         }
     }
@@ -446,8 +459,8 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     public double CollectCharcoal()
     {
-        double collected = CharcoalAvailableKg;
-        CharcoalAvailableKg = 0;
+        double collected = _charcoalAvailableKg;
+        _charcoalAvailableKg = 0;
         return collected;
     }
 
@@ -458,19 +471,19 @@ public class HeatSourceFeature : LocationFeature
     public void Extinguish()
     {
         // Clear burning fuel
-        BurningMassKg = 0;
+        _burningMassKg = 0;
         _burningMixture.Clear();
 
         // Clear unburned fuel
-        UnburnedMassKg = 0;
+        _unburnedMassKg = 0;
         _unburnedMixture.Clear();
 
         // Clear embers
-        HasEmbers = false;
-        EmberTimeRemaining = 0;
-        EmberDuration = 0;
-        EmberStartTemperature = 0;
-        LastBurningTemperature = 0;
+        _hasEmbers = false;
+        _emberTimeRemaining = 0;
+        _emberDuration = 0;
+        _emberStartTemperature = 0;
+        _lastBurningTemperature = 0;
     }
 
     /// <summary>
@@ -478,52 +491,23 @@ public class HeatSourceFeature : LocationFeature
     /// </summary>
     public string GetFirePhase()
     {
-        if (!IsActive && !HasEmbers) return "Cold";
+        if (!IsActive && !_hasEmbers) return "Cold";
 
-        if (HasEmbers) return "Embers";
+        if (_hasEmbers) return "Embers";
 
         // Phases based on burning mass and catching state
-        if (BurningMassKg < 0.5) return "Igniting";
-        if (UnburnedMassKg > BurningMassKg * 0.5) return "Building";
-        if (BurningMassKg > 4.0) return "Roaring";
-        if (BurningMassKg > 1.5) return "Steady";
+        if (_burningMassKg < 0.5) return "Igniting";
+        if (_unburnedMassKg > _burningMassKg * 0.5) return "Building";
+        if (_burningMassKg > 4.0) return "Roaring";
+        if (_burningMassKg > 1.5) return "Steady";
         return "Dying";
     }
 
     #endregion
 
-    #region Save/Load Support
+    #region Save/Load Support - No longer needed with field-based serialization
 
-    /// <summary>
-    /// Restore fire state from save data.
-    /// </summary>
-    internal void Restore(
-        bool hasEmbers,
-        double unburnedMass,
-        double burningMass,
-        double maxCapacity,
-        double emberTime,
-        double emberDuration,
-        double emberStartTemp,
-        double lastBurningTemp,
-        Dictionary<FuelType, double> unburnedMix,
-        Dictionary<FuelType, double> burningMix)
-    {
-        HasEmbers = hasEmbers;
-        UnburnedMassKg = unburnedMass;
-        BurningMassKg = burningMass;
-        MaxFuelCapacityKg = maxCapacity;
-        EmberTimeRemaining = emberTime;
-        EmberDuration = emberDuration;
-        EmberStartTemperature = emberStartTemp;
-        LastBurningTemperature = lastBurningTemp;
-        _unburnedMixture = new Dictionary<FuelType, double>(unburnedMix);
-        _burningMixture = new Dictionary<FuelType, double>(burningMix);
-    }
-
-    // Dictionaries need backing fields for mutation
-    internal IReadOnlyDictionary<FuelType, double> UnburnedMixture => _unburnedMixture;
-    internal IReadOnlyDictionary<FuelType, double> BurningMixture => _burningMixture;
+    // Removed Restore() method - JSON deserialization now handles this automatically via private fields
 
     #endregion
 }

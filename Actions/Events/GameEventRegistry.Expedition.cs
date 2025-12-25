@@ -465,17 +465,9 @@ public static partial class GameEventRegistry
         var disturbedTension = ctx.Tensions.GetTension("Disturbed");
         var source = disturbedTension?.Description ?? "what happened here";
 
-        // Only trigger if at the source location where trauma occurred
-        if (disturbedTension?.SourceLocation == null || disturbedTension.SourceLocation != ctx.CurrentLocation)
-        {
-            // Return a dummy event that will never pass requirements
-            return new GameEvent("FacingTheSource", "", 0)
-                .Requires(EventCondition.Stalked, EventCondition.SmokeSpotted); // Impossible combination
-        }
-
         return new GameEvent("Facing the Source",
             $"You're back. Where you found {source}. Your heart pounds, but you're here.", 3.0)
-            .Requires(EventCondition.Working, EventCondition.Disturbed)
+            .Requires(EventCondition.Working, EventCondition.AtDisturbedSource)
             .Choice("Bury the Remains",
                 "Give them what peace you can. Mark the place.",
                 [

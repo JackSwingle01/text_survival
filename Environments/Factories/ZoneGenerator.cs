@@ -8,7 +8,7 @@ public class ZoneGenerator
     public int InitialRevealedCount { get; set; } = 1; // Just camp - player must scout to discover locations
 
     // Location type weights for forest zone
-    private static readonly List<(Func<Zone, Location> Factory, double Weight, int MinTraversal, int MaxTraversal)> ForestLocationWeights =
+    private static readonly List<(Func<Weather, Location> Factory, double Weight, int MinTraversal, int MaxTraversal)> ForestLocationWeights =
     [
         // Common locations
         (LocationFactory.MakeForest, 40.0, 8, 15),
@@ -43,22 +43,31 @@ public class ZoneGenerator
         (LocationFactory.MakeGameTrail, 4.0, 6, 12),
         (LocationFactory.MakeDenseThicket, 3.0, 12, 18),
         (LocationFactory.MakeBoulderField, 2.5, 14, 22),
-        (LocationFactory.MakeRockyRidge, 1.5, 20, 28)
+        (LocationFactory.MakeRockyRidge, 1.5, 20, 28),
+
+        // Tier 3 locations - state machines / special features
+        (LocationFactory.MakeBearCave, 0.5, 22, 30),   // Rare, dangerous, rewarding
+        (LocationFactory.MakeBeaverDam, 1.0, 15, 22),  // Moderate, ecosystem resource
+
+        // Tier 4 locations - vantage points and story locations
+        (LocationFactory.MakeTheLookout, 0.8, 16, 24), // Climb risk, scouting reward
+        (LocationFactory.MakeOldCampsite, 0.6, 12, 20) // Salvage site, narrative mystery
     ];
 
-    public Zone GenerateForestZone(string name, string description, double baseTemp = 25)
+    public (List<Location> revealedLocations, List<Location> unrevealedLocations) GenerateForestZone(Weather weather)
     {
-        var zone = new Zone(name, description, baseTemp);
+        var revealed = new List<Location>();
+        var unrevealed = new List<Location>();
 
         // Create starting location (camp)
-        var start = CreateStartingLocation(zone);
-        zone.Graph.Add(start);
+        var start = CreateStartingLocation(weather);
+        revealed.Add(start);
 
         // Generate all locations first (but don't connect them yet)
         var allLocations = new List<Location>();
         while (allLocations.Count < TargetLocationCount - 1) // -1 because start is already created
         {
-            var newLocation = GenerateRandomLocation(zone);
+            var newLocation = GenerateRandomLocation(weather);
             allLocations.Add(newLocation);
         }
 
@@ -68,25 +77,25 @@ public class ZoneGenerator
         {
             var location = allLocations[i];
             start.AddBidirectionalConnection(location);
-            zone.Graph.Add(location);
+            revealed.Add(location);
             location.Explore();
         }
 
         // Put the rest in the unrevealed pool
         for (int i = initialToReveal; i < allLocations.Count; i++)
         {
-            zone.AddUnrevealedLocation(allLocations[i]);
+            unrevealed.Add(allLocations[i]);
         }
 
-        return zone;
+        return (revealed, unrevealed);
     }
 
-    private Location CreateStartingLocation(Zone zone)
+    private Location CreateStartingLocation(Weather weather)
     {
         var start = new Location(
             name: "Forest Camp",
             tags: "[Shaded] [Shelter]",
-            parent: zone,
+            weather: weather,
             traversalMinutes: 5,
             terrainHazardLevel: 0,
             windFactor: 0.4,
@@ -114,7 +123,7 @@ public class ZoneGenerator
         return start;
     }
 
-    private Location GenerateRandomLocation(Zone zone)
+    private Location GenerateRandomLocation(Weather weather)
     {
         double totalWeight = ForestLocationWeights.Sum(w => w.Weight);
         double roll = Utils.RandDouble(0, totalWeight);
@@ -125,13 +134,13 @@ public class ZoneGenerator
             cumulative += weight;
             if (roll <= cumulative)
             {
-                var location = factory(zone);
+                var location = factory(weather);
                 location.BaseTraversalMinutes = Utils.RandInt(minTraversal, maxTraversal);
                 return location;
             }
         }
 
-        var fallback = LocationFactory.MakeForest(zone);
+        var fallback = LocationFactory.MakeForest(weather);
         fallback.BaseTraversalMinutes = Utils.RandInt(8, 15);
         return fallback;
     }

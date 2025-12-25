@@ -781,6 +781,11 @@ class GameClient {
     }
 
     respond(choiceIndex) {
+        // Disable all action buttons immediately to prevent double-clicks
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.disabled = true;
+        });
+
         if (this.socket.readyState === WebSocket.OPEN) {
             this.socket.send(JSON.stringify({ choiceIndex }));
         }

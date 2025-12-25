@@ -1,0 +1,1691 @@
+{
+  "$id": "1",
+  "player": {
+    "$id": "2",
+    "lastSurvivalDelta": null,
+    "lastUpdateMinutes": 1,
+    "attackDamage": 2,
+    "blockChance": 0.01,
+    "attackName": "fists",
+    "attackType": "Blunt",
+    "stealthManager": {
+      "$id": "3",
+      "targetAnimal": null,
+      "isHunting": false
+    },
+    "huntingManager": {
+      "$id": "4"
+    },
+    "skills": {
+      "$id": "5",
+      "fighting": {
+        "$id": "6",
+        "level": 0,
+        "name": "Fighting",
+        "levelUpThreshold": 0,
+        "xp": 0
+      },
+      "endurance": {
+        "$id": "7",
+        "level": 0,
+        "name": "Endurance",
+        "levelUpThreshold": 0,
+        "xp": 0
+      },
+      "reflexes": {
+        "$id": "8",
+        "level": 0,
+        "name": "Reflexes",
+        "levelUpThreshold": 0,
+        "xp": 0
+      },
+      "defense": {
+        "$id": "9",
+        "level": 0,
+        "name": "Defense",
+        "levelUpThreshold": 0,
+        "xp": 0
+      },
+      "hunting": {
+        "$id": "10",
+        "level": 0,
+        "name": "Hunting",
+        "levelUpThreshold": 0,
+        "xp": 0
+      },
+      "crafting": {
+        "$id": "11",
+        "level": 0,
+        "name": "Crafting",
+        "levelUpThreshold": 0,
+        "xp": 0
+      },
+      "foraging": {
+        "$id": "12",
+        "level": 0,
+        "name": "Foraging",
+        "levelUpThreshold": 0,
+        "xp": 0
+      },
+      "firecraft": {
+        "$id": "13",
+        "level": 0,
+        "name": "Firecraft",
+        "levelUpThreshold": 0,
+        "xp": 0
+      },
+      "mending": {
+        "$id": "14",
+        "level": 0,
+        "name": "Mending",
+        "levelUpThreshold": 0,
+        "xp": 0
+      },
+      "healing": {
+        "$id": "15",
+        "level": 0,
+        "name": "Healing",
+        "levelUpThreshold": 0,
+        "xp": 0
+      },
+      "magic": {
+        "$id": "16",
+        "level": 0,
+        "name": "Shamanism",
+        "levelUpThreshold": 0,
+        "xp": 0
+      }
+    },
+    "isEngaged": false,
+    "isAlive": true,
+    "body": {
+      "$id": "17",
+      "isPlayer": true,
+      "parts": {
+        "$id": "18",
+        "$values": [
+          {
+            "$id": "19",
+            "name": "Head",
+            "coverage": 10,
+            "skin": {
+              "$id": "20",
+              "name": "Skin",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "muscle": {
+              "$id": "21",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "bone": {
+              "$id": "22",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 20,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "organs": {
+              "$id": "23",
+              "$values": [
+                {
+                  "$id": "24",
+                  "isExternal": false,
+                  "_baseCapacities": {
+                    "$id": "25",
+                    "moving": 0,
+                    "manipulation": 0,
+                    "breathing": 0,
+                    "bloodPumping": 0,
+                    "consciousness": 1,
+                    "sight": 0,
+                    "hearing": 0,
+                    "digestion": 0,
+                    "allCapacities": {
+                      "$id": "26",
+                      "$values": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0
+                      ]
+                    }
+                  },
+                  "name": "Brain",
+                  "condition": 1,
+                  "toughness": 0.25,
+                  "bluntMultiplier": 1,
+                  "sharpMultiplier": 1,
+                  "pierceMultiplier": 1
+                },
+                {
+                  "$id": "27",
+                  "isExternal": true,
+                  "_baseCapacities": {
+                    "$id": "28",
+                    "moving": 0,
+                    "manipulation": 0,
+                    "breathing": 0,
+                    "bloodPumping": 0,
+                    "consciousness": 0,
+                    "sight": 0.5,
+                    "hearing": 0,
+                    "digestion": 0,
+                    "allCapacities": {
+                      "$id": "29",
+                      "$values": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0.5,
+                        0,
+                        0
+                      ]
+                    }
+                  },
+                  "name": "Left Eye",
+                  "condition": 1,
+                  "toughness": 0.5,
+                  "bluntMultiplier": 1,
+                  "sharpMultiplier": 1,
+                  "pierceMultiplier": 1
+                },
+                {
+                  "$id": "30",
+                  "isExternal": true,
+                  "_baseCapacities": {
+                    "$id": "31",
+                    "moving": 0,
+                    "manipulation": 0,
+                    "breathing": 0,
+                    "bloodPumping": 0,
+                    "consciousness": 0,
+                    "sight": 0.5,
+                    "hearing": 0,
+                    "digestion": 0,
+                    "allCapacities": {
+                      "$id": "32",
+                      "$values": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0.5,
+                        0,
+                        0
+                      ]
+                    }
+                  },
+                  "name": "Right Eye",
+                  "condition": 1,
+                  "toughness": 0.5,
+                  "bluntMultiplier": 1,
+                  "sharpMultiplier": 1,
+                  "pierceMultiplier": 1
+                },
+                {
+                  "$id": "33",
+                  "isExternal": true,
+                  "_baseCapacities": {
+                    "$id": "34",
+                    "moving": 0,
+                    "manipulation": 0,
+                    "breathing": 0,
+                    "bloodPumping": 0,
+                    "consciousness": 0,
+                    "sight": 0,
+                    "hearing": 0.5,
+                    "digestion": 0,
+                    "allCapacities": {
+                      "$id": "35",
+                      "$values": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0.5,
+                        0
+                      ]
+                    }
+                  },
+                  "name": "Left Ear",
+                  "condition": 1,
+                  "toughness": 1,
+                  "bluntMultiplier": 1,
+                  "sharpMultiplier": 1,
+                  "pierceMultiplier": 1
+                },
+                {
+                  "$id": "36",
+                  "isExternal": true,
+                  "_baseCapacities": {
+                    "$id": "37",
+                    "moving": 0,
+                    "manipulation": 0,
+                    "breathing": 0,
+                    "bloodPumping": 0,
+                    "consciousness": 0,
+                    "sight": 0,
+                    "hearing": 0.5,
+                    "digestion": 0,
+                    "allCapacities": {
+                      "$id": "38",
+                      "$values": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0.5,
+                        0
+                      ]
+                    }
+                  },
+                  "name": "Right Ear",
+                  "condition": 1,
+                  "toughness": 1,
+                  "bluntMultiplier": 1,
+                  "sharpMultiplier": 1,
+                  "pierceMultiplier": 1
+                }
+              ]
+            },
+            "isDestroyed": false,
+            "condition": 1
+          },
+          {
+            "$id": "39",
+            "name": "Chest",
+            "coverage": 25,
+            "skin": {
+              "$id": "40",
+              "name": "Skin",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "muscle": {
+              "$id": "41",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "bone": {
+              "$id": "42",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 12,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "organs": {
+              "$id": "43",
+              "$values": [
+                {
+                  "$id": "44",
+                  "isExternal": false,
+                  "_baseCapacities": {
+                    "$id": "45",
+                    "moving": 0,
+                    "manipulation": 0,
+                    "breathing": 0,
+                    "bloodPumping": 1,
+                    "consciousness": 0,
+                    "sight": 0,
+                    "hearing": 0,
+                    "digestion": 0,
+                    "allCapacities": {
+                      "$id": "46",
+                      "$values": [
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    }
+                  },
+                  "name": "Heart",
+                  "condition": 1,
+                  "toughness": 5,
+                  "bluntMultiplier": 1,
+                  "sharpMultiplier": 1,
+                  "pierceMultiplier": 1
+                },
+                {
+                  "$id": "47",
+                  "isExternal": false,
+                  "_baseCapacities": {
+                    "$id": "48",
+                    "moving": 0,
+                    "manipulation": 0,
+                    "breathing": 0.5,
+                    "bloodPumping": 0,
+                    "consciousness": 0,
+                    "sight": 0,
+                    "hearing": 0,
+                    "digestion": 0,
+                    "allCapacities": {
+                      "$id": "49",
+                      "$values": [
+                        0,
+                        0,
+                        0.5,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    }
+                  },
+                  "name": "Left Lung",
+                  "condition": 1,
+                  "toughness": 3,
+                  "bluntMultiplier": 1,
+                  "sharpMultiplier": 1,
+                  "pierceMultiplier": 1
+                },
+                {
+                  "$id": "50",
+                  "isExternal": false,
+                  "_baseCapacities": {
+                    "$id": "51",
+                    "moving": 0,
+                    "manipulation": 0,
+                    "breathing": 0.5,
+                    "bloodPumping": 0,
+                    "consciousness": 0,
+                    "sight": 0,
+                    "hearing": 0,
+                    "digestion": 0,
+                    "allCapacities": {
+                      "$id": "52",
+                      "$values": [
+                        0,
+                        0,
+                        0.5,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    }
+                  },
+                  "name": "Right Lung",
+                  "condition": 1,
+                  "toughness": 3,
+                  "bluntMultiplier": 1,
+                  "sharpMultiplier": 1,
+                  "pierceMultiplier": 1
+                }
+              ]
+            },
+            "isDestroyed": false,
+            "condition": 1
+          },
+          {
+            "$id": "53",
+            "name": "Abdomen",
+            "coverage": 20,
+            "skin": {
+              "$id": "54",
+              "name": "Skin",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "muscle": {
+              "$id": "55",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "bone": {
+              "$id": "56",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "organs": {
+              "$id": "57",
+              "$values": [
+                {
+                  "$id": "58",
+                  "isExternal": false,
+                  "_baseCapacities": {
+                    "$id": "59",
+                    "moving": 0,
+                    "manipulation": 0,
+                    "breathing": 0,
+                    "bloodPumping": 0,
+                    "consciousness": 0,
+                    "sight": 0,
+                    "hearing": 0,
+                    "digestion": 0.6,
+                    "allCapacities": {
+                      "$id": "60",
+                      "$values": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0.6
+                      ]
+                    }
+                  },
+                  "name": "Liver",
+                  "condition": 1,
+                  "toughness": 4,
+                  "bluntMultiplier": 1,
+                  "sharpMultiplier": 1,
+                  "pierceMultiplier": 1
+                },
+                {
+                  "$id": "61",
+                  "isExternal": false,
+                  "_baseCapacities": {
+                    "$id": "62",
+                    "moving": 0,
+                    "manipulation": 0,
+                    "breathing": 0,
+                    "bloodPumping": 0,
+                    "consciousness": 0,
+                    "sight": 0,
+                    "hearing": 0,
+                    "digestion": 0.4,
+                    "allCapacities": {
+                      "$id": "63",
+                      "$values": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0.4
+                      ]
+                    }
+                  },
+                  "name": "Stomach",
+                  "condition": 1,
+                  "toughness": 3,
+                  "bluntMultiplier": 1,
+                  "sharpMultiplier": 1,
+                  "pierceMultiplier": 1
+                },
+                {
+                  "$id": "64",
+                  "isExternal": false,
+                  "_baseCapacities": {
+                    "$id": "65",
+                    "moving": 0,
+                    "manipulation": 0,
+                    "breathing": 0,
+                    "bloodPumping": 0,
+                    "consciousness": 0,
+                    "sight": 0,
+                    "hearing": 0,
+                    "digestion": 0,
+                    "allCapacities": {
+                      "$id": "66",
+                      "$values": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    }
+                  },
+                  "name": "Left Kidney",
+                  "condition": 1,
+                  "toughness": 4,
+                  "bluntMultiplier": 1,
+                  "sharpMultiplier": 1,
+                  "pierceMultiplier": 1
+                },
+                {
+                  "$id": "67",
+                  "isExternal": false,
+                  "_baseCapacities": {
+                    "$id": "68",
+                    "moving": 0,
+                    "manipulation": 0,
+                    "breathing": 0,
+                    "bloodPumping": 0,
+                    "consciousness": 0,
+                    "sight": 0,
+                    "hearing": 0,
+                    "digestion": 0,
+                    "allCapacities": {
+                      "$id": "69",
+                      "$values": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    }
+                  },
+                  "name": "Right Kidney",
+                  "condition": 1,
+                  "toughness": 4,
+                  "bluntMultiplier": 1,
+                  "sharpMultiplier": 1,
+                  "pierceMultiplier": 1
+                }
+              ]
+            },
+            "isDestroyed": false,
+            "condition": 1
+          },
+          {
+            "$id": "70",
+            "name": "Left Arm",
+            "coverage": 10,
+            "skin": {
+              "$id": "71",
+              "name": "Skin",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "muscle": {
+              "$id": "72",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "bone": {
+              "$id": "73",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "organs": {
+              "$id": "74",
+              "$values": []
+            },
+            "isDestroyed": false,
+            "condition": 1
+          },
+          {
+            "$id": "75",
+            "name": "Right Arm",
+            "coverage": 10,
+            "skin": {
+              "$id": "76",
+              "name": "Skin",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "muscle": {
+              "$id": "77",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "bone": {
+              "$id": "78",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "organs": {
+              "$id": "79",
+              "$values": []
+            },
+            "isDestroyed": false,
+            "condition": 1
+          },
+          {
+            "$id": "80",
+            "name": "Left Leg",
+            "coverage": 12.5,
+            "skin": {
+              "$id": "81",
+              "name": "Skin",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "muscle": {
+              "$id": "82",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "bone": {
+              "$id": "83",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "organs": {
+              "$id": "84",
+              "$values": []
+            },
+            "isDestroyed": false,
+            "condition": 1
+          },
+          {
+            "$id": "85",
+            "name": "Right Leg",
+            "coverage": 12.5,
+            "skin": {
+              "$id": "86",
+              "name": "Skin",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "muscle": {
+              "$id": "87",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "bone": {
+              "$id": "88",
+              "name": "Unknown",
+              "condition": 1,
+              "toughness": 1,
+              "bluntMultiplier": 1,
+              "sharpMultiplier": 1,
+              "pierceMultiplier": 1
+            },
+            "organs": {
+              "$id": "89",
+              "$values": []
+            },
+            "isDestroyed": false,
+            "condition": 1
+          }
+        ]
+      },
+      "ownerName": "Player",
+      "blood": {
+        "$id": "90",
+        "volumeMl": 5000,
+        "volumeLostMl": 0,
+        "name": "Blood",
+        "condition": 1,
+        "toughness": 5000,
+        "bluntMultiplier": 1,
+        "sharpMultiplier": 1,
+        "pierceMultiplier": 1
+      },
+      "isTired": false,
+      "bodyFatKG": 11.25,
+      "muscleKG": 22.5,
+      "bodyFatPercentage": 0.15,
+      "musclePercentage": 0.3,
+      "weightKG": 75,
+      "bodyTemperature": 94.79222063611209,
+      "calorieStore": 1378.2182855902736,
+      "energy": 667,
+      "hydration": 2630.555555555549,
+      "baseColdResistance": 0,
+      "_baseWeight": 41.25,
+      "_bodyFatKG": 11.25,
+      "_muscleKG": 22.5,
+      "_bodyTemperature": 94.79222063611209,
+      "_calorieStore": 1378.2182855902736,
+      "_energy": 667,
+      "_hydration": 2630.555555555549
+    },
+    "effectRegistry": {
+      "$id": "91"
+    },
+    "strength": 0.39089999999999997,
+    "speed": 0,
+    "vitality": 1,
+    "perception": 1,
+    "coldResistance": 0.15,
+    "name": "Player"
+  },
+  "camp": {
+    "$id": "92",
+    "id": "6764ccc3-bbeb-487d-bfa6-7f9fc6723e84",
+    "name": "Forest Camp",
+    "tags": "[Shaded] [Shelter]",
+    "weather": {
+      "$id": "93",
+      "baseTemperature": -6.312643190936671,
+      "currentCondition": "Clear",
+      "precipitation": 0,
+      "windSpeed": 0.4287803783506102,
+      "cloudCover": 0.06923422317377419,
+      "elevation": 0,
+      "previousCondition": "Blizzard",
+      "weatherJustChanged": false,
+      "currentSeason": "Fall",
+      "sunlightIntensity": 0.9171984403763193,
+      "timeSinceWeatherChange": "00:09:00",
+      "time": "2025-01-01T11:12:00",
+      "temperatureInFahrenheit": 20.637242256313993
+    },
+    "connectionNames": {
+      "$id": "94",
+      "$values": [
+        "Dense Thicket"
+      ]
+    },
+    "windFactor": 0.4,
+    "temperatureDeltaF": 0,
+    "overheadCoverLevel": 0.3,
+    "visibilityFactor": 0.8,
+    "baseTraversalMinutes": 5,
+    "terrainHazardLevel": 0,
+    "isDark": false,
+    "discoveryText": null,
+    "isEscapeTerrain": false,
+    "isVantagePoint": false,
+    "climbRiskFactor": 0,
+    "explored": false,
+    "features": {
+      "$id": "95",
+      "$values": [
+        {
+          "$id": "96",
+          "$type": "forage",
+          "_resources": {
+            "$id": "97",
+            "$values": [
+              {
+                "$id": "98",
+                "name": "kindling",
+                "resourceType": "Stick",
+                "abundance": 3,
+                "minWeight": 0.2,
+                "maxWeight": 0.6
+              },
+              {
+                "$id": "99",
+                "name": "firewood",
+                "resourceType": "Log",
+                "abundance": 1.5,
+                "minWeight": 1.5,
+                "maxWeight": 3.5
+              },
+              {
+                "$id": "100",
+                "name": "tinder",
+                "resourceType": "Tinder",
+                "abundance": 2,
+                "minWeight": 0.02,
+                "maxWeight": 0.08
+              },
+              {
+                "$id": "101",
+                "name": "berries",
+                "resourceType": "Berries",
+                "abundance": 0.3,
+                "minWeight": 0.05,
+                "maxWeight": 0.15
+              },
+              {
+                "$id": "102",
+                "name": "plant fiber",
+                "resourceType": "PlantFiber",
+                "abundance": 0.5,
+                "minWeight": 0.05,
+                "maxWeight": 0.15
+              }
+            ]
+          },
+          "name": "forage"
+        },
+        {
+          "$id": "103",
+          "$type": "shelter",
+          "temperatureInsulation": 0.55,
+          "overheadCoverage": 0.3,
+          "windCoverage": 0.4,
+          "quality": 0.4166666666666667,
+          "isDestroyed": false,
+          "name": "Overhang"
+        },
+        {
+          "$id": "104",
+          "$type": "heatSource",
+          "isActive": false,
+          "hasEmbers": false,
+          "unburnedMassKg": 0,
+          "burningMassKg": 0,
+          "totalMassKg": 0,
+          "maxFuelCapacityKg": 0,
+          "hoursRemaining": 0,
+          "burningHoursRemaining": 0,
+          "totalHoursRemaining": 0,
+          "effectiveBurnRateKgPerHour": 0,
+          "emberTimeRemaining": 0,
+          "charcoalAvailableKg": 0,
+          "hasCharcoal": false,
+          "name": "Campfire"
+        },
+        {
+          "$id": "105",
+          "$type": "cache",
+          "storage": {
+            "$id": "106",
+            "maxWeightKg": -1,
+            "stacks": {
+              "$id": "107",
+              "Log": {
+                "$id": "1",
+                "$values": []
+              },
+              "Stick": {
+                "$id": "1",
+                "$values": []
+              },
+              "Pine": {
+                "$id": "1",
+                "$values": []
+              },
+              "Birch": {
+                "$id": "1",
+                "$values": []
+              },
+              "Oak": {
+                "$id": "1",
+                "$values": []
+              },
+              "Tinder": {
+                "$id": "1",
+                "$values": []
+              },
+              "BirchBark": {
+                "$id": "1",
+                "$values": []
+              },
+              "CookedMeat": {
+                "$id": "1",
+                "$values": []
+              },
+              "RawMeat": {
+                "$id": "1",
+                "$values": []
+              },
+              "Berries": {
+                "$id": "1",
+                "$values": []
+              },
+              "Nuts": {
+                "$id": "1",
+                "$values": []
+              },
+              "Roots": {
+                "$id": "1",
+                "$values": []
+              },
+              "DriedMeat": {
+                "$id": "1",
+                "$values": []
+              },
+              "DriedBerries": {
+                "$id": "1",
+                "$values": []
+              },
+              "Stone": {
+                "$id": "1",
+                "$values": []
+              },
+              "Bone": {
+                "$id": "1",
+                "$values": []
+              },
+              "Hide": {
+                "$id": "1",
+                "$values": []
+              },
+              "PlantFiber": {
+                "$id": "1",
+                "$values": []
+              },
+              "Sinew": {
+                "$id": "1",
+                "$values": []
+              },
+              "Shale": {
+                "$id": "1",
+                "$values": []
+              },
+              "Flint": {
+                "$id": "1",
+                "$values": []
+              },
+              "Pyrite": {
+                "$id": "1",
+                "$values": []
+              },
+              "ScrapedHide": {
+                "$id": "1",
+                "$values": []
+              },
+              "CuredHide": {
+                "$id": "1",
+                "$values": []
+              },
+              "RawFiber": {
+                "$id": "1",
+                "$values": []
+              },
+              "RawFat": {
+                "$id": "1",
+                "$values": []
+              },
+              "Tallow": {
+                "$id": "1",
+                "$values": []
+              },
+              "Charcoal": {
+                "$id": "1",
+                "$values": []
+              },
+              "BirchPolypore": {
+                "$id": "1",
+                "$values": []
+              },
+              "Chaga": {
+                "$id": "1",
+                "$values": []
+              },
+              "Amadou": {
+                "$id": "1",
+                "$values": []
+              },
+              "RoseHip": {
+                "$id": "1",
+                "$values": []
+              },
+              "JuniperBerry": {
+                "$id": "1",
+                "$values": []
+              },
+              "WillowBark": {
+                "$id": "1",
+                "$values": []
+              },
+              "PineNeedles": {
+                "$id": "1",
+                "$values": []
+              },
+              "PineResin": {
+                "$id": "1",
+                "$values": []
+              },
+              "Usnea": {
+                "$id": "1",
+                "$values": []
+              },
+              "SphagnumMoss": {
+                "$id": "1",
+                "$values": []
+              }
+            },
+            "waterLiters": 0,
+            "tools": {
+              "$id": "108",
+              "$values": []
+            },
+            "special": {
+              "$id": "109",
+              "$values": []
+            },
+            "head": null,
+            "chest": null,
+            "legs": null,
+            "feet": null,
+            "hands": null,
+            "weapon": null,
+            "activeTorch": null,
+            "torchBurnTimeRemainingMinutes": 0,
+            "hasFood": false,
+            "hasFuel": false,
+            "hasWater": false,
+            "hasMeat": false,
+            "resourceWeight": 0,
+            "toolsWeight": 0,
+            "specialWeight": 0,
+            "equipmentWeight": 0,
+            "currentWeightKg": 0,
+            "totalInsulation": 0,
+            "remainingCapacityKg": 1.7976931348623157E+308,
+            "hasLitTorch": false,
+            "hasUnlitTorch": false,
+            "isEmpty": true,
+            "canStartFire": false,
+            "hasCuttingTool": false,
+            "hasCraftingMaterials": false
+          },
+          "type": "Built",
+          "capacityKg": -1,
+          "protectsFromPredators": false,
+          "protectsFromWeather": true,
+          "preservesFood": false,
+          "hasItems": false,
+          "name": "Camp Storage"
+        }
+      ]
+    },
+    "bloodTrails": {
+      "$id": "110",
+      "$values": []
+    }
+  },
+  "sessionId": "654bdc70-24d6-4966-a84a-9cfa97b376f9",
+  "log": {
+    "$id": "111",
+    "entries": {
+      "$id": "112",
+      "$values": [
+        {
+          "item1": "You wake up in the forest, shivering. You don\u0027t remember how you got here.",
+          "item2": "Danger"
+        },
+        {
+          "item1": "Snow drifts down through the pines. The cold is already seeping into your bones.",
+          "item2": "Danger"
+        },
+        {
+          "item1": "There\u0027s a fire pit nearby with some kindling. You need to get it lit - fast.",
+          "item2": "Danger"
+        },
+        {
+          "item1": "You need to gather fuel, find food and water, and survive.",
+          "item2": "Danger"
+        },
+        {
+          "item1": "\u00B7 \u00B7 \u00B7",
+          "item2": "System"
+        },
+        {
+          "item1": "You scout the area, looking for new paths...",
+          "item2": "Normal"
+        },
+        {
+          "item1": "You discovered a new area: Dense Thicket!",
+          "item2": "Success"
+        },
+        {
+          "item1": "[Forest] [Difficult] [Safe]",
+          "item2": "Normal"
+        },
+        {
+          "item1": "\u00B7 \u00B7 \u00B7",
+          "item2": "System"
+        },
+        {
+          "item1": "Where do you want to go?",
+          "item2": "Normal"
+        },
+        {
+          "item1": "\u00B7 \u00B7 \u00B7",
+          "item2": "System"
+        },
+        {
+          "item1": "You arrive at Dense Thicket.",
+          "item2": "Normal"
+        },
+        {
+          "item1": "[Forest] [Difficult] [Safe]",
+          "item2": "Normal"
+        },
+        {
+          "item1": "\u00B7 \u00B7 \u00B7",
+          "item2": "System"
+        },
+        {
+          "item1": "Your limited movement slows the work.",
+          "item2": "Warning"
+        },
+        {
+          "item1": "You search the area for resources...",
+          "item2": "Normal"
+        },
+        {
+          "item1": "You found: 1 Stick, 1 Berries, 1 Plant fiber",
+          "item2": "Normal"
+        },
+        {
+          "item1": "\u00B7 \u00B7 \u00B7",
+          "item2": "System"
+        },
+        {
+          "item1": "Your limited movement slows the work.",
+          "item2": "Warning"
+        },
+        {
+          "item1": "You search the area for resources...",
+          "item2": "Normal"
+        },
+        {
+          "item1": "You found: 1 Berries, 1 Plant fiber",
+          "item2": "Normal"
+        },
+        {
+          "item1": "Resources here are getting scarce.",
+          "item2": "Normal"
+        },
+        {
+          "item1": "\u00B7 \u00B7 \u00B7",
+          "item2": "System"
+        },
+        {
+          "item1": "You head back toward camp...",
+          "item2": "Normal"
+        },
+        {
+          "item1": "You are getting dangerously cold...",
+          "item2": "Normal"
+        },
+        {
+          "item1": "You made it back to camp.",
+          "item2": "Normal"
+        },
+        {
+          "item1": "\n--- Expedition Summary ---",
+          "item2": "Normal"
+        },
+        {
+          "item1": "Time away: 77 minutes",
+          "item2": "Normal"
+        },
+        {
+          "item1": "Collected:",
+          "item2": "Normal"
+        },
+        {
+          "item1": "  - 1 Stick, 1 Berries, 1 Plant fiber",
+          "item2": "Normal"
+        },
+        {
+          "item1": "  - 1 Berries, 1 Plant fiber",
+          "item2": "Normal"
+        },
+        {
+          "item1": "\u00B7 \u00B7 \u00B7",
+          "item2": "System"
+        },
+        {
+          "item1": "You prepare to relight the fire.",
+          "item2": "Normal"
+        },
+        {
+          "item1": "Materials: 2 tinder, 4 kindling",
+          "item2": "Normal"
+        },
+        {
+          "item1": "Your unsteady hands make this harder.",
+          "item2": "Warning"
+        },
+        {
+          "item1": "You work with the Hand Drill...",
+          "item2": "Normal"
+        },
+        {
+          "item1": "You are getting dangerously cold...",
+          "item2": "Normal"
+        },
+        {
+          "item1": "Success! You relight the fire! (20% chance)",
+          "item2": "Success"
+        },
+        {
+          "item1": "\u00B7 \u00B7 \u00B7",
+          "item2": "System"
+        },
+        {
+          "item1": "You prepare to relight the fire.",
+          "item2": "Normal"
+        },
+        {
+          "item1": "Materials: 1 tinder, 3 kindling",
+          "item2": "Normal"
+        },
+        {
+          "item1": "Your unsteady hands make this harder.",
+          "item2": "Warning"
+        },
+        {
+          "item1": "You work with the Hand Drill...",
+          "item2": "Normal"
+        },
+        {
+          "item1": "You are getting dangerously cold...",
+          "item2": "Normal"
+        },
+        {
+          "item1": "You failed to start the fire. The tinder was wasted. (20% chance)",
+          "item2": "Warning"
+        },
+        {
+          "item1": "\u00B7 \u00B7 \u00B7",
+          "item2": "System"
+        }
+      ]
+    },
+    "totalCount": 46
+  },
+  "inventory": {
+    "$id": "113",
+    "maxWeightKg": 15,
+    "stacks": {
+      "$id": "114",
+      "Log": {
+        "$id": "1",
+        "$values": []
+      },
+      "Stick": {
+        "$id": "1",
+        "$values": [
+          0.3,
+          0.25,
+          0.35
+        ]
+      },
+      "Pine": {
+        "$id": "1",
+        "$values": []
+      },
+      "Birch": {
+        "$id": "1",
+        "$values": []
+      },
+      "Oak": {
+        "$id": "1",
+        "$values": []
+      },
+      "Tinder": {
+        "$id": "1",
+        "$values": []
+      },
+      "BirchBark": {
+        "$id": "1",
+        "$values": []
+      },
+      "CookedMeat": {
+        "$id": "1",
+        "$values": []
+      },
+      "RawMeat": {
+        "$id": "1",
+        "$values": []
+      },
+      "Berries": {
+        "$id": "1",
+        "$values": [
+          0.11439851331597019,
+          0.08193159303371435
+        ]
+      },
+      "Nuts": {
+        "$id": "1",
+        "$values": []
+      },
+      "Roots": {
+        "$id": "1",
+        "$values": []
+      },
+      "DriedMeat": {
+        "$id": "1",
+        "$values": []
+      },
+      "DriedBerries": {
+        "$id": "1",
+        "$values": []
+      },
+      "Stone": {
+        "$id": "1",
+        "$values": []
+      },
+      "Bone": {
+        "$id": "1",
+        "$values": []
+      },
+      "Hide": {
+        "$id": "1",
+        "$values": []
+      },
+      "PlantFiber": {
+        "$id": "1",
+        "$values": [
+          0.1387055484461921,
+          0.18922963723985997
+        ]
+      },
+      "Sinew": {
+        "$id": "1",
+        "$values": []
+      },
+      "Shale": {
+        "$id": "1",
+        "$values": []
+      },
+      "Flint": {
+        "$id": "1",
+        "$values": []
+      },
+      "Pyrite": {
+        "$id": "1",
+        "$values": []
+      },
+      "ScrapedHide": {
+        "$id": "1",
+        "$values": []
+      },
+      "CuredHide": {
+        "$id": "1",
+        "$values": []
+      },
+      "RawFiber": {
+        "$id": "1",
+        "$values": []
+      },
+      "RawFat": {
+        "$id": "1",
+        "$values": []
+      },
+      "Tallow": {
+        "$id": "1",
+        "$values": []
+      },
+      "Charcoal": {
+        "$id": "1",
+        "$values": []
+      },
+      "BirchPolypore": {
+        "$id": "1",
+        "$values": []
+      },
+      "Chaga": {
+        "$id": "1",
+        "$values": []
+      },
+      "Amadou": {
+        "$id": "1",
+        "$values": []
+      },
+      "RoseHip": {
+        "$id": "1",
+        "$values": []
+      },
+      "JuniperBerry": {
+        "$id": "1",
+        "$values": []
+      },
+      "WillowBark": {
+        "$id": "1",
+        "$values": []
+      },
+      "PineNeedles": {
+        "$id": "1",
+        "$values": []
+      },
+      "PineResin": {
+        "$id": "1",
+        "$values": []
+      },
+      "Usnea": {
+        "$id": "1",
+        "$values": []
+      },
+      "SphagnumMoss": {
+        "$id": "1",
+        "$values": []
+      }
+    },
+    "waterLiters": 0,
+    "tools": {
+      "$id": "115",
+      "$values": [
+        {
+          "$id": "116",
+          "name": "Hand Drill",
+          "type": "HandDrill",
+          "weight": 0.3,
+          "durability": -1,
+          "isBroken": false,
+          "works": true,
+          "damage": null,
+          "blockChance": null,
+          "weaponClass": null,
+          "isWeapon": false
+        }
+      ]
+    },
+    "special": {
+      "$id": "117",
+      "$values": []
+    },
+    "head": null,
+    "chest": {
+      "$id": "118",
+      "name": "Worn Fur Chest Wrap",
+      "slot": "Chest",
+      "weight": 1.5,
+      "insulation": 0.2
+    },
+    "legs": {
+      "$id": "119",
+      "name": "Fur Leg Wraps",
+      "slot": "Legs",
+      "weight": 1,
+      "insulation": 0.15
+    },
+    "feet": {
+      "$id": "120",
+      "name": "Fur Boots",
+      "slot": "Feet",
+      "weight": 0.6,
+      "insulation": 0.1
+    },
+    "hands": null,
+    "weapon": null,
+    "activeTorch": null,
+    "torchBurnTimeRemainingMinutes": 0,
+    "hasFood": true,
+    "hasFuel": true,
+    "hasWater": false,
+    "hasMeat": false,
+    "resourceWeight": 1.4242652920357366,
+    "toolsWeight": 0.3,
+    "specialWeight": 0,
+    "equipmentWeight": 3.1,
+    "currentWeightKg": 4.8242652920357365,
+    "totalInsulation": 0.44999999999999996,
+    "remainingCapacityKg": 10.175734707964263,
+    "hasLitTorch": false,
+    "hasUnlitTorch": false,
+    "isEmpty": false,
+    "canStartFire": false,
+    "hasCuttingTool": false,
+    "hasCraftingMaterials": true
+  },
+  "weather": {
+    "$ref": "93"
+  },
+  "locations": {
+    "$id": "121",
+    "$values": [
+      {
+        "$ref": "92"
+      },
+      {
+        "$id": "122",
+        "id": "f5fe2693-58e4-48fb-8201-33e19008a8ab",
+        "name": "Dense Thicket",
+        "tags": "[Forest] [Difficult] [Safe]",
+        "weather": {
+          "$ref": "93"
+        },
+        "connectionNames": {
+          "$id": "123",
+          "$values": [
+            "Forest Camp"
+          ]
+        },
+        "windFactor": 0.2,
+        "temperatureDeltaF": 0,
+        "overheadCoverLevel": 0.7,
+        "visibilityFactor": 0.3,
+        "baseTraversalMinutes": 16,
+        "terrainHazardLevel": 0.25,
+        "isDark": false,
+        "discoveryText": "Young growth so thick you can barely push through. Branches grab at you. Small animals scatter.",
+        "isEscapeTerrain": true,
+        "isVantagePoint": false,
+        "climbRiskFactor": 0,
+        "explored": false,
+        "features": {
+          "$id": "124",
+          "$values": [
+            {
+              "$id": "125",
+              "$type": "forage",
+              "_resources": {
+                "$id": "126",
+                "$values": [
+                  {
+                    "$id": "127",
+                    "name": "plant fiber",
+                    "resourceType": "PlantFiber",
+                    "abundance": 1.5,
+                    "minWeight": 0.1,
+                    "maxWeight": 0.25
+                  },
+                  {
+                    "$id": "128",
+                    "name": "kindling",
+                    "resourceType": "Stick",
+                    "abundance": 1,
+                    "minWeight": 0.15,
+                    "maxWeight": 0.4
+                  },
+                  {
+                    "$id": "129",
+                    "name": "berries",
+                    "resourceType": "Berries",
+                    "abundance": 0.8,
+                    "minWeight": 0.05,
+                    "maxWeight": 0.15
+                  }
+                ]
+              },
+              "name": "forage"
+            },
+            {
+              "$id": "130",
+              "$type": "animalTerritory",
+              "_possibleAnimals": {
+                "$id": "131",
+                "$values": []
+              },
+              "name": "animal_territory"
+            }
+          ]
+        },
+        "bloodTrails": {
+          "$id": "132",
+          "$values": []
+        }
+      }
+    ]
+  },
+  "unrevealedLocations": {
+    "$id": "133",
+    "$values": []
+  },
+  "tensions": {
+    "$id": "134"
+  },
+  "currentActivity": "Idle",
+  "pendingEncounter": null,
+  "isHandlingEvent": false,
+  "eventOccurredLastUpdate": false,
+  "unrevealedCount": 0,
+  "gameTime": "2025-01-01T11:13:00",
+  "expedition": null
+}

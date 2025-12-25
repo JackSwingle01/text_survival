@@ -1,5 +1,6 @@
 using text_survival.Bodies;
 using text_survival.Crafting;
+using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.UI;
 
@@ -176,7 +177,7 @@ public class CraftingRunner(GameContext ctx)
             if (feature == null)
                 return false;
 
-            _ctx.Camp.Location.AddFeature(feature);
+            _ctx.Camp.AddFeature(feature);
             GameDisplay.AddSuccess(_ctx, $"You built a {option.Name}!");
             GameDisplay.AddNarrative(_ctx, "It's now available at your camp.");
         }
@@ -282,7 +283,7 @@ public class CraftingRunner(GameContext ctx)
 
         // Check specific feature types
         if (option.Name == "Curing Rack")
-            return _ctx.Camp.CuringRack != null;
+            return _ctx.Camp.GetFeature<CuringRackFeature>() != null;
 
         // Add other feature checks here as needed
 

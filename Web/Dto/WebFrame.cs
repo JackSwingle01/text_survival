@@ -147,87 +147,84 @@ public record InventoryDto(
             TotalInsulation: inv.TotalInsulation,
 
             // Fuel - generic
-            LogCount: inv.Logs.Count,
-            LogsKg: inv.Logs.Sum(),
-            StickCount: inv.Sticks.Count,
-            SticksKg: inv.Sticks.Sum(),
-            TinderCount: inv.Tinder.Count,
-            TinderKg: inv.Tinder.Sum(),
-            FuelBurnTimeHours: inv.TotalFuelBurnTimeHours,
+            LogCount: inv.Count(Resource.Log),
+            LogsKg: inv.Weight(Resource.Log),
+            StickCount: inv.Count(Resource.Stick),
+            SticksKg: inv.Weight(Resource.Stick),
+            TinderCount: inv.Count(Resource.Tinder),
+            TinderKg: inv.Weight(Resource.Tinder),
+            FuelBurnTimeHours: inv.TorchBurnTimeRemainingMinutes / 60.0,
 
             // Fuel - wood types
-            PineCount: inv.Pine.Count,
-            PineKg: inv.Pine.Sum(),
-            BirchCount: inv.Birch.Count,
-            BirchKg: inv.Birch.Sum(),
-            OakCount: inv.Oak.Count,
-            OakKg: inv.Oak.Sum(),
-            BirchBarkCount: inv.BirchBark.Count,
-            BirchBarkKg: inv.BirchBark.Sum(),
+            PineCount: inv.Count(Resource.Pine),
+            PineKg: inv.Weight(Resource.Pine),
+            BirchCount: inv.Count(Resource.Birch),
+            BirchKg: inv.Weight(Resource.Birch),
+            OakCount: inv.Count(Resource.Oak),
+            OakKg: inv.Weight(Resource.Oak),
+            BirchBarkCount: inv.Count(Resource.BirchBark),
+            BirchBarkKg: inv.Weight(Resource.BirchBark),
 
             // Food - cooked/preserved
-            CookedMeatCount: inv.CookedMeat.Count,
-            CookedMeatKg: inv.CookedMeat.Sum(),
-            DriedMeatCount: inv.DriedMeat.Count,
-            DriedMeatKg: inv.DriedMeat.Sum(),
-            DriedBerriesCount: inv.DriedBerries.Count,
-            DriedBerriesKg: inv.DriedBerries.Sum(),
-
+            CookedMeatCount: inv.Count(Resource.CookedMeat),
+            CookedMeatKg: inv.Weight(Resource.CookedMeat),
+            DriedMeatCount: inv.Count(Resource.DriedMeat),
+            DriedMeatKg: inv.Weight(Resource.DriedMeat),
+            DriedBerriesCount: inv.Count(Resource.DriedBerries),
+            DriedBerriesKg: inv.Weight(Resource.DriedBerries),
             // Food - raw/foraged
-            RawMeatCount: inv.RawMeat.Count,
-            RawMeatKg: inv.RawMeat.Sum(),
-            BerryCount: inv.Berries.Count,
-            BerriesKg: inv.Berries.Sum(),
-            NutsCount: inv.Nuts.Count,
-            NutsKg: inv.Nuts.Sum(),
-            RootsCount: inv.Roots.Count,
-            RootsKg: inv.Roots.Sum(),
-
+            RawMeatCount: inv.Count(Resource.RawMeat),
+            RawMeatKg: inv.Weight(Resource.RawMeat),
+            BerryCount: inv.Count(Resource.Berries),
+            BerriesKg: inv.Weight(Resource.Berries),
+            NutsCount: inv.Count(Resource.Nuts),
+            NutsKg: inv.Weight(Resource.Nuts),
+            RootsCount: inv.Count(Resource.Roots),
+            RootsKg: inv.Weight(Resource.Roots),
             // Water
             WaterLiters: inv.WaterLiters,
 
             // Materials - stones
-            StoneCount: inv.Stone.Count,
-            StoneKg: inv.Stone.Sum(),
-            ShaleCount: inv.Shale.Count,
-            ShaleKg: inv.Shale.Sum(),
-            FlintCount: inv.Flint.Count,
-            FlintKg: inv.Flint.Sum(),
-            PyriteKg: inv.Pyrite,
+            StoneCount: inv.Count(Resource.Stone),
+            StoneKg: inv.Weight(Resource.Stone),
+            ShaleCount: inv.Count(Resource.Shale),
+            ShaleKg: inv.Weight(Resource.Shale),
+            FlintCount: inv.Count(Resource.Flint),
+            FlintKg: inv.Weight(Resource.Flint),
+            PyriteKg: inv.Weight(Resource.Pyrite),
 
             // Materials - organics
-            BoneCount: inv.Bone.Count,
-            BoneKg: inv.Bone.Sum(),
-            HideCount: inv.Hide.Count,
-            HideKg: inv.Hide.Sum(),
-            PlantFiberCount: inv.PlantFiber.Count,
-            PlantFiberKg: inv.PlantFiber.Sum(),
-            SinewCount: inv.Sinew.Count,
-            SinewKg: inv.Sinew.Sum(),
+            BoneCount: inv.Count(Resource.Bone),
+            BoneKg: inv.Weight(Resource.Bone),
+            HideCount: inv.Count(Resource.Hide),
+            HideKg: inv.Weight(Resource.Hide),
+            PlantFiberCount: inv.Count(Resource.PlantFiber),
+            PlantFiberKg: inv.Weight(Resource.PlantFiber),
+            SinewCount: inv.Count(Resource.Sinew),
+            SinewKg: inv.Weight(Resource.Sinew),
 
             // Materials - processed
-            ScrapedHideCount: inv.ScrapedHide.Count,
-            CuredHideCount: inv.CuredHide.Count,
-            RawFiberCount: inv.RawFiber.Count,
-            RawFatCount: inv.RawFat.Count,
-            TallowCount: inv.Tallow.Count,
-            CharcoalKg: inv.Charcoal,
-
+            ScrapedHideCount: inv.Count(Resource.ScrapedHide),
+            CuredHideCount: inv.Count(Resource.CuredHide),
+            RawFiberCount: inv.Count(Resource.RawFiber),
+            RawFatCount: inv.Count(Resource.RawFat),
+            TallowCount: inv.Count(Resource.Tallow),
+            CharcoalKg: inv.Weight(Resource.Charcoal),
             // Medicinals - fungi
-            BirchPolyporeCount: inv.BirchPolypore.Count,
-            ChagaCount: inv.Chaga.Count,
-            AmadouCount: inv.Amadou.Count,
+            BirchPolyporeCount: inv.Count(Resource.BirchPolypore),
+            ChagaCount: inv.Count(Resource.Chaga),
+            AmadouCount: inv.Count(Resource.Amadou),
 
             // Medicinals - plants
-            RoseHipsCount: inv.RoseHips.Count,
-            JuniperBerriesCount: inv.JuniperBerries.Count,
-            WillowBarkCount: inv.WillowBark.Count,
-            PineNeedlesCount: inv.PineNeedles.Count,
+            RoseHipsCount: inv.Count(Resource.RoseHip),
+            JuniperBerriesCount: inv.Count(Resource.JuniperBerry),
+            WillowBarkCount: inv.Count(Resource.WillowBark),
+            PineNeedlesCount: inv.Count(Resource.PineNeedles),
 
             // Medicinals - tree products
-            PineResinCount: inv.PineResin.Count,
-            UsneaCount: inv.Usnea.Count,
-            SphagnumCount: inv.Sphagnum.Count,
+            PineResinCount: inv.Count(Resource.PineResin),
+            UsneaCount: inv.Count(Resource.Usnea),
+            SphagnumCount: inv.Count(Resource.SphagnumMoss),
 
             // Side panel summary
             GearSummary: ComputeGearSummary(inv)
@@ -292,28 +289,19 @@ public record InventoryDto(
         int otherCount = allTools.Count - cuttingCount - fireCount;
 
         // Food portions (rough estimate - each portion ~0.15-0.3kg)
-        int foodPortions = inv.CookedMeat.Count + inv.RawMeat.Count + inv.Berries.Count +
-                          inv.Nuts.Count + inv.Roots.Count + inv.DriedMeat.Count + inv.DriedBerries.Count;
+        int foodPortions = (int)(inv.GetWeight(ResourceCategory.Food) / 0.2);
 
         // Water portions (~0.25L each)
         int waterPortions = (int)(inv.WaterLiters / 0.25);
 
-        // Has preserved food
-        bool hasPreserved = inv.DriedMeat.Count > 0 || inv.DriedBerries.Count > 0;
-
         // Total crafting materials
-        int craftingCount = inv.Stone.Count + inv.Bone.Count + inv.Hide.Count +
-                           inv.PlantFiber.Count + inv.Sinew.Count +
-                           inv.Shale.Count + inv.Flint.Count + (inv.Pyrite > 0 ? 1 : 0) +
-                           inv.ScrapedHide.Count + inv.CuredHide.Count;
+        int craftingCount = inv.GetCount(ResourceCategory.Material);
 
         // Total medicinals
-        int medicinalCount = inv.BirchPolypore.Count + inv.Chaga.Count + inv.Amadou.Count +
-                            inv.RoseHips.Count + inv.JuniperBerries.Count + inv.WillowBark.Count +
-                            inv.PineNeedles.Count + inv.PineResin.Count + inv.Usnea.Count + inv.Sphagnum.Count;
+        int medicinalCount = inv.GetCount(ResourceCategory.Medicine);
 
         // Has rare materials (flint or pyrite)
-        bool hasRare = inv.Flint.Count > 0 || inv.Pyrite > 0;
+        bool hasRare = inv.Count(Resource.Flint) > 0 || inv.Count(Resource.Pyrite) > 0;
 
         return new GearSummaryDto(
             WeaponName: inv.Weapon?.Name,
@@ -323,7 +311,6 @@ public record InventoryDto(
             OtherToolCount: otherCount,
             FoodPortions: foodPortions,
             WaterPortions: waterPortions,
-            HasPreservedFood: hasPreserved,
             CraftingMaterialCount: craftingCount,
             MedicinalCount: medicinalCount,
             HasRareMaterials: hasRare
@@ -346,7 +333,6 @@ public record GearSummaryDto(
     int OtherToolCount,
     int FoodPortions,
     int WaterPortions,
-    bool HasPreservedFood,
     int CraftingMaterialCount,
     int MedicinalCount,
     bool HasRareMaterials

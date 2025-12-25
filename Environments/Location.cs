@@ -4,44 +4,62 @@ using text_survival.UI;
 
 namespace text_survival.Environments;
 
-public class Location(string name, string tags, Zone parent, int traversalMinutes, double terrainHazardLevel = 0, double windFactor = 1, double overheadCoverLevel = 0, double visibilityFactor = 1)
+public class Location
 {
-
     // Identity //
     public Guid Id { get; init; } = Guid.NewGuid();
-    public string Name { get; } = name;
+    public string Name { get; init; } = "Unknown";
 
     /// <summary>
     /// Short hints for the player. "[forest] [river] [wolves]"
     /// </summary>
-    public string Tags { get; } = tags;
-    
+    public string Tags { get; init; } = "";
 
-    public Zone ParentZone { get; } = parent;
-    public List<Location> Connections { get; } = [];
+    public Weather Weather { get; init; } = null!;
+    public List<string> ConnectionNames { get; init; } = [];  // Store names to avoid circular refs
 
     // Environment //
-    public double WindFactor { get; } = windFactor;
-    public double TemperatureDeltaF { get; } = 0;
-    public double OverheadCoverLevel { get; } = overheadCoverLevel;
+    public double WindFactor { get; init; } = 1;
+    public double TemperatureDeltaF { get; set; } = 0;
+    public double OverheadCoverLevel { get; init; } = 0;
 
     /// <summary>
     /// How far you can see/be seen.
     /// 0-2: 0 = deep narrow cave, .5 = thick forest, 1 = open plain, 2 = high overlook
     /// </summary>
-    public double VisibilityFactor { get; set; } = visibilityFactor;
+    public double VisibilityFactor { get; set; } = 1;
 
     /// <summary>
     /// The traversal time can be thought of as the radius - the time in or out.
     /// </summary>
-    public int BaseTraversalMinutes { get; set; } = traversalMinutes;
+    public int BaseTraversalMinutes { get; set; } = 0;
 
     /// <summary>
     /// Base injury risk and traversal time modifier.
     /// 0-1, 0 = grass, .5 = thick undergrowth, 1 = icy boulder field.
     /// Use GetEffectiveTerrainHazard() for total including feature contributions.
     /// </summary>
-    public double TerrainHazardLevel { get; set; } = terrainHazardLevel;
+    public double TerrainHazardLevel { get; set; } = 0;
+
+    // Parameterless constructor for deserialization
+    public Location()
+    {
+    }
+
+    // Normal constructor for creation
+    public Location(string name, string tags, Weather weather, int traversalMinutes,
+        double terrainHazardLevel = 0, double windFactor = 1,
+        double overheadCoverLevel = 0, double visibilityFactor = 1)
+    {
+        Name = name;
+        Tags = tags;
+        Weather = weather;
+        BaseTraversalMinutes = traversalMinutes;
+        TerrainHazardLevel = terrainHazardLevel;
+        WindFactor = windFactor;
+        OverheadCoverLevel = overheadCoverLevel;
+        VisibilityFactor = visibilityFactor;
+    }
 
     /// <summary>
     /// Gets the effective terrain hazard including contributions from features like frozen water.
@@ -92,12 +110,29 @@ public class Location(string name, string tags, Zone parent, int traversalMinute
 
     // Discovery //
     public bool Explored { get; private set; } = false;
-    public List<LocationFeature> Features { get; } = [];
+    public List<LocationFeature> Features { get; set; } = [];
+
+    /// <summary>
+    /// Resolve connection names to actual Location objects from GameContext.
+    /// </summary>
+    public List<Location> GetConnections(Actions.GameContext ctx)
+    {
+        var connections = new List<Location>();
+        foreach (var name in ConnectionNames)
+        {
+            var location = ctx.Locations.FirstOrDefault(l => l.Name == name);
+            if (location != null)
+            {
+                connections.Add(location);
+            }
+        }
+        return connections;
+    }
 
     public void AddConnection(Location other)
     {
-        if (!Connections.Contains(other))
-            Connections.Add(other);
+        if (!ConnectionNames.Contains(other.Name))
+            ConnectionNames.Add(other.Name);
     }
 
     public void AddBidirectionalConnection(Location other)
@@ -110,6 +145,17 @@ public class Location(string name, string tags, Zone parent, int traversalMinute
 
     public T? GetFeature<T>() where T : LocationFeature => Features.OfType<T>().FirstOrDefault();
     public bool HasFeature<T>() where T : LocationFeature => GetFeature<T>() is not null;
+
+    /// <summary>
+    /// Check if this location has an active heat source (fire).
+    /// </summary>
+    public bool HasActiveHeatSource() => GetFeature<HeatSourceFeature>()?.IsActive ?? false;
+
+    /// <summary>
+    /// Check if this location has a light source.
+    /// Currently only active fires, but could extend for torches or other light sources later.
+    /// </summary>
+    public bool HasLight() => HasActiveHeatSource();
 
     /// <summary>
     /// Remove a feature by type. Returns true if removed.
@@ -149,7 +195,7 @@ public class Location(string name, string tags, Zone parent, int traversalMinute
     public double GetTemperature(bool isStationary = true)
     {
         // Get zone's weather temperature (in Fahrenheit)
-        double zoneTemp = ParentZone.Weather.TemperatureInFahrenheit;
+        double zoneTemp = Weather.TemperatureInFahrenheit;
 
         // Start with this base temperature
         double locationTemp = zoneTemp;
@@ -160,15 +206,15 @@ public class Location(string name, string tags, Zone parent, int traversalMinute
         // ------ STEP 2: Apply weather exposure effects ------
         // Wind chill when windy
         double effectiveWindSpeed = 0;
-        if (ParentZone.Weather.WindSpeed > 0.1) // Only significant wind
+        if (Weather.WindSpeed > 0.1) // Only significant wind
         {
-            effectiveWindSpeed = ParentZone.Weather.WindSpeed * WindFactor;
+            effectiveWindSpeed = Weather.WindSpeed * WindFactor;
             double windSpeedMph = effectiveWindSpeed * 30; // Scale 0-1 to approx mph
             locationTemp = CalculateWindChillNWS(locationTemp, windSpeedMph);
         }
 
         // Sun warming effects during daytime with clear skies
-        double sunIntensity = ParentZone.Weather.SunlightIntensity;
+        double sunIntensity = Weather.SunlightIntensity;
         double sunExposure = 1 - OverheadCoverLevel;
         // Sun can add up to 10°F on a cold day
         double sunWarming = sunIntensity * sunExposure * 10;
@@ -178,7 +224,7 @@ public class Location(string name, string tags, Zone parent, int traversalMinute
         locationTemp += temperatureAdjustment;
 
         // Precipitation effects
-        double precipitation = ParentZone.Weather.Precipitation;
+        double precipitation = Weather.Precipitation;
         precipitation *= (1 - OverheadCoverLevel);
         // todo, determine if this effects temp directly or if we use this elsewhere
         double precipitationCooling = precipitation * 5; //  simple up to 5°F cooling for now

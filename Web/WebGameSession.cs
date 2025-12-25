@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using text_survival.Web.Dto;
 
 namespace text_survival.Web;
@@ -18,10 +19,13 @@ public class WebGameSession
     private readonly object _socketLock = new();
     private readonly ManualResetEventSlim _reconnectEvent = new(true);
 
+    // Separate JSON options for web API - no ReferenceHandler needed
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false
+        WriteIndented = false,
+        Converters = { new JsonStringEnumConverter() },
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
     };
 
     public WebGameSession(WebSocket socket)
@@ -84,6 +88,10 @@ public class WebGameSession
     /// </summary>
     public PlayerResponse WaitForResponse(TimeSpan timeout)
     {
+        // Drain any stale responses that arrived before this input was requested
+        // This prevents old clicks from being consumed by new input prompts
+        while (_responses.TryTake(out _)) { }
+
         try
         {
             if (_responses.TryTake(out var response, (int)timeout.TotalMilliseconds, _cts.Token))

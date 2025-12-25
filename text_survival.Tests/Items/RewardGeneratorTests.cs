@@ -22,7 +22,7 @@ public class RewardGeneratorTests
 
         // Assert
         Assert.False(result.IsEmpty);
-        Assert.True(result.Descriptions.Count > 0);
+        Assert.False(string.IsNullOrEmpty(result.GetDescription()));
     }
 
     [Fact]
@@ -33,9 +33,9 @@ public class RewardGeneratorTests
         for (int i = 0; i < 50; i++)
         {
             var result = RewardGenerator.Generate(RewardPool.CraftingMaterials);
-            if (result.Stone.Count > 0) hasStone = true;
-            if (result.Bone.Count > 0) hasBone = true;
-            if (result.PlantFiber.Count > 0) hasPlantFiber = true;
+            if (result.Count(Resource.Stone) > 0) hasStone = true;
+            if (result.Count(Resource.Bone) > 0) hasBone = true;
+            if (result.Count(Resource.PlantFiber) > 0) hasPlantFiber = true;
         }
 
         // Assert - over 50 runs, should see at least one of each type
@@ -75,8 +75,8 @@ public class RewardGeneratorTests
         var result = RewardGenerator.Generate(RewardPool.TinderBundle);
 
         // Assert
-        Assert.Single(result.Tinder);
-        Assert.True(result.Tinder[0] >= 0.2 && result.Tinder[0] <= 0.5,
+        Assert.Equal(1, result.Count(Resource.Tinder));
+        Assert.True(result.Weight(Resource.Tinder) >= 0.2 && result.Weight(Resource.Tinder) <= 0.5,
             "Tinder weight should be between 0.2 and 0.5 kg");
     }
 
@@ -87,13 +87,10 @@ public class RewardGeneratorTests
         var result = RewardGenerator.Generate(RewardPool.BoneHarvest);
 
         // Assert
-        Assert.True(result.Bone.Count >= 1 && result.Bone.Count <= 3,
+        Assert.True(result.Count(Resource.Bone) >= 1 && result.Count(Resource.Bone) <= 3,
             "Bone harvest should return 1-3 bones");
-        foreach (var bone in result.Bone)
-        {
-            Assert.True(bone >= 0.2 && bone <= 0.5,
-                "Each bone should weigh between 0.2 and 0.5 kg");
-        }
+        Assert.True(result.Weight(Resource.Bone) >= 0.2 && result.Weight(Resource.Bone) <= 1.5,
+            "Bone weight should be between 0.2 and 1.5 kg (1-3 bones at 0.2-0.5 kg each)");
     }
 
     [Fact]
@@ -103,11 +100,11 @@ public class RewardGeneratorTests
         var result = RewardGenerator.Generate(RewardPool.SmallGame);
 
         // Assert
-        Assert.Single(result.RawMeat);
-        Assert.True(result.RawMeat[0] >= 0.2 && result.RawMeat[0] <= 0.4,
+        Assert.Equal(1, result.Count(Resource.RawMeat));
+        Assert.True(result.Weight(Resource.RawMeat) >= 0.2 && result.Weight(Resource.RawMeat) <= 0.4,
             "Small game meat should weigh between 0.2 and 0.4 kg");
         // Bone is optional (50% chance)
-        Assert.True(result.Bone.Count <= 1);
+        Assert.True(result.Count(Resource.Bone) <= 1);
     }
 
     [Fact]
@@ -117,8 +114,8 @@ public class RewardGeneratorTests
         var result = RewardGenerator.Generate(RewardPool.HideScrap);
 
         // Assert
-        Assert.Single(result.Hide);
-        Assert.True(result.Hide[0] >= 0.3 && result.Hide[0] <= 0.6,
+        Assert.Equal(1, result.Count(Resource.Hide));
+        Assert.True(result.Weight(Resource.Hide) >= 0.3 && result.Weight(Resource.Hide) <= 0.6,
             "Hide scrap should weigh between 0.3 and 0.6 kg");
     }
 
@@ -143,8 +140,8 @@ public class RewardGeneratorTests
 
         // Assert
         Assert.False(result.IsEmpty, $"RewardPool.{pool} should not return empty resources");
-        Assert.True(result.Descriptions.Count > 0,
-            $"RewardPool.{pool} should have at least one description");
+        Assert.False(string.IsNullOrEmpty(result.GetDescription()),
+            $"RewardPool.{pool} should have a description");
     }
 
     [Fact]
@@ -156,9 +153,10 @@ public class RewardGeneratorTests
         foreach (var pool in pools)
         {
             var result = RewardGenerator.Generate(pool);
-            Assert.True(result.Descriptions.Count > 0,
-                $"RewardPool.{pool} should generate descriptions");
-            Assert.All(result.Descriptions, d => Assert.False(string.IsNullOrEmpty(d)));
+            var description = result.GetDescription();
+            Assert.False(string.IsNullOrEmpty(description),
+                $"RewardPool.{pool} should generate a description");
+            Assert.NotEqual("nothing", description);
         }
     }
 }

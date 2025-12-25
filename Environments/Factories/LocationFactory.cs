@@ -7,7 +7,7 @@ public static class LocationFactory
 {
     #region Site Factories
 
-    public static Location MakeForest(Zone parent)
+    public static Location MakeForest(Weather weather)
     {
         List<string> forestNames = ["Forest", "Woodland", "Grove", "Thicket", "Pine Stand", "Birch Grove"];
         List<string> forestAdjectives = [
@@ -22,7 +22,7 @@ public static class LocationFactory
 
         var location = new Location(name, 
                                     tags: "[Shaded] [Resource-Dense]", // 1-3 player hints
-                                    parent: parent, 
+                                    weather: weather, 
                                     traversalMinutes: 10, // radius
                                     terrainHazardLevel: .2,  // 0-1
                                     windFactor: .6, // 0-2
@@ -91,7 +91,7 @@ public static class LocationFactory
         return location;
     }
 
-    public static Location MakeCave(Zone parent)
+    public static Location MakeCave(Weather weather)
     {
         List<string> caveNames = ["Cave", "Cavern", "Grotto", "Hollow", "Shelter"];
         List<string> caveAdjectives = [
@@ -106,7 +106,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Sheltered] [Dark]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 5,
                                     terrainHazardLevel: 0.1,
                                     windFactor: 0.1,
@@ -124,7 +124,7 @@ public static class LocationFactory
         return location;
     }
 
-    public static Location MakeRiverbank(Zone parent)
+    public static Location MakeRiverbank(Weather weather)
     {
         List<string> riverNames = ["River", "Stream", "Creek", "Brook", "Rapids", "Ford", "Shallows"];
         List<string> riverAdjectives = [
@@ -139,7 +139,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Water] [Open]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 8,
                                     terrainHazardLevel: 0.3,
                                     windFactor: 1.0,
@@ -173,7 +173,7 @@ public static class LocationFactory
         return location;
     }
 
-    public static Location MakePlain(Zone parent)
+    public static Location MakePlain(Weather weather)
     {
         List<string> plainNames = ["Plain", "Steppe", "Tundra", "Grassland", "Prairie", "Meadow"];
         List<string> plainAdjectives = [
@@ -188,7 +188,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Exposed] [Open]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 15,
                                     terrainHazardLevel: 0.1,
                                     windFactor: 1.4,
@@ -224,7 +224,7 @@ public static class LocationFactory
         return location;
     }
 
-    public static Location MakeHillside(Zone parent)
+    public static Location MakeHillside(Weather weather)
     {
         List<string> hillNames = ["Ridge", "Slope", "Crag", "Bluff", "Outcrop", "Hill", "Knoll"];
         List<string> hillAdjectives = [
@@ -239,7 +239,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Steep] [Rocky]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 12,
                                     terrainHazardLevel: 0.5,
                                     windFactor: 1.3,
@@ -257,7 +257,7 @@ public static class LocationFactory
         return location;
     }
 
-    public static Location MakeClearing(Zone parent)
+    public static Location MakeClearing(Weather weather)
     {
         List<string> clearingNames = ["Clearing", "Glade", "Opening", "Break", "Gap"];
         List<string> clearingAdjectives = [
@@ -271,7 +271,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Sheltered] [Clearing]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 8,
                                     terrainHazardLevel: 0.1,
                                     windFactor: 0.6,
@@ -301,7 +301,7 @@ public static class LocationFactory
     /// <summary>
     /// Hot spring - thermal pull. Warmth bonus draws players here for shelter.
     /// </summary>
-    public static Location MakeHotSpring(Zone parent)
+    public static Location MakeHotSpring(Weather weather)
     {
         List<string> springNames = ["Hot Spring", "Thermal Pool", "Steaming Pool", "Warm Springs"];
         List<string> springAdjectives = [
@@ -315,7 +315,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Warm] [Water]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 20,
                                     terrainHazardLevel: 0.3,
                                     windFactor: 0.4,
@@ -355,7 +355,7 @@ public static class LocationFactory
     /// <summary>
     /// Frozen creek - water source but hazardous and slippery.
     /// </summary>
-    public static Location MakeFrozenCreek(Zone parent)
+    public static Location MakeFrozenCreek(Weather weather)
     {
         List<string> creekNames = ["Creek", "Stream", "Brook", "Run", "Channel"];
         List<string> creekAdjectives = [
@@ -369,7 +369,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Ice] [Water] [Slippery]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 12,
                                     terrainHazardLevel: 0.35,  // Reduced - WaterFeature adds ice hazard
                                     windFactor: 0.9,
@@ -406,7 +406,7 @@ public static class LocationFactory
     /// <summary>
     /// Deadwood grove - excellent fuel source but dangerous footing from tangled logs.
     /// </summary>
-    public static Location MakeDeadwoodGrove(Zone parent)
+    public static Location MakeDeadwoodGrove(Weather weather)
     {
         List<string> groveNames = ["Grove", "Stand", "Tangle", "Deadfall", "Blowdown"];
         List<string> groveAdjectives = [
@@ -420,7 +420,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Fuel] [Treacherous]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 15,
                                     terrainHazardLevel: 0.7,
                                     windFactor: 0.5,
@@ -462,7 +462,7 @@ public static class LocationFactory
     /// <summary>
     /// Rocky overlook - high visibility for scouting, exposed, good stone.
     /// </summary>
-    public static Location MakeOverlook(Zone parent)
+    public static Location MakeOverlook(Weather weather)
     {
         List<string> overlookNames = ["Overlook", "Viewpoint", "Lookout", "Vantage", "Summit"];
         List<string> overlookAdjectives = [
@@ -476,7 +476,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Scout] [Exposed] [Stone]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 18,
                                     terrainHazardLevel: 0.4,
                                     windFactor: 1.6,
@@ -503,7 +503,7 @@ public static class LocationFactory
     /// <summary>
     /// Marsh - treacherous but resource-rich. Waterfowl, medicinal plants, cattails.
     /// </summary>
-    public static Location MakeMarsh(Zone parent)
+    public static Location MakeMarsh(Weather weather)
     {
         List<string> marshNames = ["Marsh", "Bog", "Wetland", "Fen", "Mire"];
         List<string> marshAdjectives = [
@@ -517,7 +517,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Water] [Treacherous] [Plants]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 20,
                                     terrainHazardLevel: 0.4,  // Reduced - WaterFeature adds thin ice hazard
                                     windFactor: 0.7,
@@ -572,7 +572,7 @@ public static class LocationFactory
     /// <summary>
     /// Ice crevasse - natural cache site. Dangerous to reach but preserves food.
     /// </summary>
-    public static Location MakeIceCrevasse(Zone parent)
+    public static Location MakeIceCrevasse(Weather weather)
     {
         List<string> crevasseNames = ["Crevasse", "Ice Cleft", "Glacier Crack", "Ice Fissure"];
         List<string> crevasseAdjectives = [
@@ -586,7 +586,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Ice] [Cache] [Dangerous]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 25,
                                     terrainHazardLevel: 0.8,
                                     windFactor: 0.2,
@@ -611,11 +611,11 @@ public static class LocationFactory
     /// <summary>
     /// Abandoned camp - salvage site with one-time loot.
     /// </summary>
-    public static Location MakeAbandonedCamp(Zone parent)
+    public static Location MakeAbandonedCamp(Weather weather)
     {
         var location = new Location("Old Campsite",
                                     tags: "[Salvage] [Shelter]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 15,
                                     terrainHazardLevel: 0.2,
                                     windFactor: 0.5,
@@ -643,7 +643,7 @@ public static class LocationFactory
     /// <summary>
     /// Wolf den - dangerous but rewarding hunting grounds.
     /// </summary>
-    public static Location MakeWolfDen(Zone parent)
+    public static Location MakeWolfDen(Weather weather)
     {
         List<string> denNames = ["Den", "Lair", "Hollow", "Haunt"];
         List<string> denAdjectives = [
@@ -656,7 +656,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Wolves] [Dangerous] [Bones]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 18,
                                     terrainHazardLevel: 0.3,
                                     windFactor: 0.4,
@@ -684,7 +684,7 @@ public static class LocationFactory
     /// <summary>
     /// Sheltered valley - protected from wind, good for extended stays.
     /// </summary>
-    public static Location MakeShelteredValley(Zone parent)
+    public static Location MakeShelteredValley(Weather weather)
     {
         List<string> valleyNames = ["Valley", "Hollow", "Dell", "Basin", "Glen"];
         List<string> valleyAdjectives = [
@@ -698,7 +698,7 @@ public static class LocationFactory
 
         var location = new Location(name,
                                     tags: "[Sheltered] [Camp-worthy]",
-                                    parent: parent,
+                                    weather: weather,
                                     traversalMinutes: 22,
                                     terrainHazardLevel: 0.15,
                                     windFactor: 0.2,
@@ -736,12 +736,12 @@ public static class LocationFactory
     /// <summary>
     /// Burnt stand - fire-damaged forest. Abundant dry fuel, charcoal, exposed sightlines.
     /// </summary>
-    public static Location MakeBurntStand(Zone parent)
+    public static Location MakeBurntStand(Weather weather)
     {
         var location = new Location(
             name: "Burnt Stand",
             tags: "[Fuel] [Exposed] [Charcoal]",
-            parent: parent,
+            weather: weather,
             traversalMinutes: 10,
             terrainHazardLevel: 0.20,
             windFactor: 0.9,        // No canopy protection
@@ -770,12 +770,12 @@ public static class LocationFactory
     /// <summary>
     /// Rock overhang - natural partial shelter with fire-efficient stone backing.
     /// </summary>
-    public static Location MakeRockOverhang(Zone parent)
+    public static Location MakeRockOverhang(Weather weather)
     {
         var location = new Location(
             name: "Rock Overhang",
             tags: "[Shelter] [Stone]",
-            parent: parent,
+            weather: weather,
             traversalMinutes: 12,
             terrainHazardLevel: 0.20,
             windFactor: 0.4,        // Partial wind block
@@ -800,12 +800,12 @@ public static class LocationFactory
     /// <summary>
     /// Granite outcrop - exposed stone with tool materials and commanding view.
     /// </summary>
-    public static Location MakeGraniteOutcrop(Zone parent)
+    public static Location MakeGraniteOutcrop(Weather weather)
     {
         var location = new Location(
             name: "Granite Outcrop",
             tags: "[Stone] [Exposed] [Vantage]",
-            parent: parent,
+            weather: weather,
             traversalMinutes: 14,
             terrainHazardLevel: 0.35,
             windFactor: 1.0,        // Completely exposed
@@ -827,12 +827,12 @@ public static class LocationFactory
     /// <summary>
     /// Meltwater pool - remote glacial water source. Pure but exposed and cold.
     /// </summary>
-    public static Location MakeMeltwaterPool(Zone parent)
+    public static Location MakeMeltwaterPool(Weather weather)
     {
         var location = new Location(
             name: "Meltwater Pool",
             tags: "[Water] [Exposed] [Remote]",
-            parent: parent,
+            weather: weather,
             traversalMinutes: 22,   // Remote, high location
             terrainHazardLevel: 0.25,
             windFactor: 1.0,        // Completely exposed
@@ -870,12 +870,12 @@ public static class LocationFactory
     /// <summary>
     /// Ancient grove - old growth forest with premium hardwood. Requires axe to harvest.
     /// </summary>
-    public static Location MakeAncientGrove(Zone parent)
+    public static Location MakeAncientGrove(Weather weather)
     {
         var location = new Location(
             name: "Ancient Grove",
             tags: "[Forest] [Fuel] [Quiet]",
-            parent: parent,
+            weather: weather,
             traversalMinutes: 18,
             terrainHazardLevel: 0.10,
             windFactor: 0.3,        // Dense canopy blocks wind
@@ -914,12 +914,12 @@ public static class LocationFactory
     /// <summary>
     /// Flint seam - premium tool stone embedded in limestone.
     /// </summary>
-    public static Location MakeFlintSeam(Zone parent)
+    public static Location MakeFlintSeam(Weather weather)
     {
         var location = new Location(
             name: "Flint Seam",
             tags: "[Stone] [Exposed] [Remote]",
-            parent: parent,
+            weather: weather,
             traversalMinutes: 20,
             terrainHazardLevel: 0.30,
             windFactor: 0.9,
@@ -941,12 +941,12 @@ public static class LocationFactory
     /// <summary>
     /// Game trail - worn path where animals move. Peak activity at dawn and dusk.
     /// </summary>
-    public static Location MakeGameTrail(Zone parent)
+    public static Location MakeGameTrail(Weather weather)
     {
         var location = new Location(
             name: "Game Trail",
             tags: "[Forest] [Hunting] [Trail]",
-            parent: parent,
+            weather: weather,
             traversalMinutes: 8,     // Well-worn path, easy travel
             terrainHazardLevel: 0.05,
             windFactor: 0.6,
@@ -976,12 +976,12 @@ public static class LocationFactory
     /// <summary>
     /// Dense thicket - young growth so thick predators can't follow. Escape terrain.
     /// </summary>
-    public static Location MakeDenseThicket(Zone parent)
+    public static Location MakeDenseThicket(Weather weather)
     {
         var location = new Location(
             name: "Dense Thicket",
             tags: "[Forest] [Difficult] [Safe]",
-            parent: parent,
+            weather: weather,
             traversalMinutes: 20,    // Very slow movement
             terrainHazardLevel: 0.25,
             windFactor: 0.2,         // Excellent wind block
@@ -1011,12 +1011,12 @@ public static class LocationFactory
     /// <summary>
     /// Boulder field - jumbled rocks provide escape routes from predators.
     /// </summary>
-    public static Location MakeBoulderField(Zone parent)
+    public static Location MakeBoulderField(Weather weather)
     {
         var location = new Location(
             name: "Boulder Field",
             tags: "[Stone] [Difficult] [Safe]",
-            parent: parent,
+            weather: weather,
             traversalMinutes: 18,
             terrainHazardLevel: 0.45,  // High injury risk
             windFactor: 0.7,
@@ -1040,12 +1040,12 @@ public static class LocationFactory
     /// <summary>
     /// Rocky ridge - spine of stone above treeline with commanding views.
     /// </summary>
-    public static Location MakeRockyRidge(Zone parent)
+    public static Location MakeRockyRidge(Weather weather)
     {
         var location = new Location(
             name: "Rocky Ridge",
             tags: "[Stone] [Exposed] [Vantage]",
-            parent: parent,
+            weather: weather,
             traversalMinutes: 22,
             terrainHazardLevel: 0.35,
             windFactor: 1.2,         // Wind accelerates over ridge
@@ -1065,13 +1065,247 @@ public static class LocationFactory
         return location;
     }
 
+    // === TIER 3 LOCATIONS ===
+
+    /// <summary>
+    /// Bear cave - occupied shelter. Superior protection if you can clear it.
+    /// Works with existing Den arc events (TheFind, AssessingTheClaim, etc.)
+    /// </summary>
+    public static Location MakeBearCave(Weather weather)
+    {
+        var location = new Location(
+            name: "Bear Cave",
+            tags: "[Sheltered] [Dark] [Dangerous] [Bones]",
+            weather: weather,
+            traversalMinutes: 20,
+            terrainHazardLevel: 0.15,
+            windFactor: 0.1,         // Deep cave blocks all wind
+            overheadCoverLevel: 1.0,
+            visibilityFactor: 0.2)
+        {
+            DiscoveryText = "A deep cave mouth. Dry floor, wind-sheltered depths. But there's a smell — musk and old kills. Something lives here.",
+            IsDark = true
+        };
+
+        // Bones from bear kills - the loot pull
+        var forageFeature = new ForageFeature(0.8)
+            .AddBone(2.0, 0.15, 0.5)     // Abundant bones from kills
+            .AddTinder(0.2, 0.01, 0.03);  // Dry debris
+        location.Features.Add(forageFeature);
+
+        // Bear territory - triggers Den arc events
+        // Use high-weight bear with occasional cave bear variant
+        var animalTerritory = new AnimalTerritoryFeature(0.8)
+            .AddBear(2.0)                // Primary occupant
+            .AddAnimal("cave bear", 0.3); // Rare but terrifying
+        location.Features.Add(animalTerritory);
+
+        // Note: ShelterFeature intentionally NOT added at creation
+        // It gets added by Den arc events when claimed (AddsFeature)
+
+        return location;
+    }
+
+    /// <summary>
+    /// Beaver dam - ecosystem resource. Harvestable wood and water but
+    /// destroying it has consequences (flooding, ecosystem collapse).
+    /// </summary>
+    public static Location MakeBeaverDam(Weather weather)
+    {
+        var location = new Location(
+            name: "Beaver Dam",
+            tags: "[Water] [Fuel] [Wildlife]",
+            weather: weather,
+            traversalMinutes: 15,
+            terrainHazardLevel: 0.25,
+            windFactor: 0.6,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 0.9)
+        {
+            DiscoveryText = "A beaver dam spans the stream. The pond behind it is still and deep. Gnawed stumps litter the banks."
+        };
+
+        // Abundant chewed sticks and logs - easy fuel
+        var forageFeature = new ForageFeature(2.5)
+            .AddSticks(3.0, 0.2, 0.6)    // Gnawed branches everywhere
+            .AddLogs(1.5, 0.8, 2.0)      // Beaver-felled logs
+            .AddWillowBark(0.3);          // Willows on banks
+        location.Features.Add(forageFeature);
+
+        // Beaver pond water
+        var pond = new HarvestableFeature("beaver_pond", "Beaver Pond")
+        {
+            Description = "Still water backed up behind the dam. Deep and clear.",
+            MinutesToHarvest = 2
+        };
+        pond.AddWater("pond water", maxQuantity: 50, litersPerUnit: 1.0, respawnHoursPerUnit: 0.5);
+        location.Features.Add(pond);
+
+        // The dam itself - destructive harvest with consequences
+        var dam = new HarvestableFeature("beaver_dam", "Beaver Dam")
+        {
+            Description = "Woven branches packed with mud. Easy fuel — if you don't mind the consequences.",
+            MinutesToHarvest = 15
+        };
+        dam.AddLogs("dam logs", maxQuantity: 12, weightPerUnit: 2.0, respawnHoursPerUnit: 0);  // Never respawns
+        dam.AddSticks("dam sticks", maxQuantity: 20, weightPerUnit: 0.25, respawnHoursPerUnit: 0);
+        location.Features.Add(dam);
+
+        // Small game around the pond
+        var animalTerritory = new AnimalTerritoryFeature(0.7)
+            .AddRabbit(1.0)
+            .AddPtarmigan(0.8);
+        location.Features.Add(animalTerritory);
+
+        // Water hazard - pond edge has moderate ice
+        var waterFeature = new WaterFeature("pond_water", "Beaver Pond")
+            .WithDescription("Deep water. Ice at the edges, thin in places.")
+            .WithIceThickness(0.4);
+        location.Features.Add(waterFeature);
+
+        return location;
+    }
+
+    // === TIER 4 LOCATIONS ===
+
+    /// <summary>
+    /// The Lookout - massive lone pine with climbing opportunity.
+    /// From the top, see the mountain pass (win condition).
+    /// High risk, high reward vantage point.
+    /// </summary>
+    public static Location MakeTheLookout(Weather weather)
+    {
+        var location = new Location(
+            name: "The Lookout",
+            tags: "[Vantage] [Climb] [Landmark]",
+            weather: weather,
+            traversalMinutes: 16,
+            terrainHazardLevel: 0.30,
+            windFactor: 0.8,
+            overheadCoverLevel: 0.4,
+            visibilityFactor: 1.0)   // Normal at ground, exceptional from top
+        {
+            DiscoveryText = "A massive lone pine stands on a rise. Its branches form a natural ladder. From up there, you could see everything — including the mountain pass.",
+            IsVantagePoint = true,
+            ClimbRiskFactor = 0.25   // Moderate climb risk
+        };
+
+        // Pine resources at base
+        var forageFeature = new ForageFeature(0.8)
+            .AddSticks(1.0, 0.15, 0.4)
+            .AddTinder(0.5, 0.02, 0.06)
+            .AddPineNeedles(0.3)
+            .AddPineResin(0.15);
+        location.Features.Add(forageFeature);
+
+        // Some small game shelter under the tree
+        var animalTerritory = new AnimalTerritoryFeature(0.4)
+            .AddRabbit(0.8)
+            .AddPtarmigan(0.5);
+        location.Features.Add(animalTerritory);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Old Campsite - narrative-rich salvage location.
+    /// What happened here? Story unfolds through investigation.
+    /// </summary>
+    public static Location MakeOldCampsite(Weather weather)
+    {
+        // Determine the story of this camp
+        var storyType = Utils.RandInt(0, 4);
+        var (narrativeHook, extraLoot) = storyType switch
+        {
+            0 => ("Claw marks on the collapsed shelter. Blood, long dried. They didn't leave by choice.",
+                  "predator_attack"),
+            1 => ("A trail of belongings leads away, as if they left in a hurry. Or were dragged.",
+                  "fled"),
+            2 => ("Everything is orderly. Fire properly banked. They meant to come back.",
+                  "never_returned"),
+            3 => ("Carved into a tree: a tally of days. The marks stop at thirty-seven.",
+                  "counted_days"),
+            _ => ("The shelter is intact but empty. Snow has filled it. Whoever was here, they're long gone.",
+                  "abandoned")
+        };
+
+        var location = new Location(
+            name: "Old Campsite",
+            tags: "[Salvage] [Shelter] [Story]",
+            weather: weather,
+            traversalMinutes: 12,
+            terrainHazardLevel: 0.15,
+            windFactor: 0.5,
+            overheadCoverLevel: 0.3,
+            visibilityFactor: 0.7)
+        {
+            DiscoveryText = $"A clearing where the snow is depressed. Charcoal scattered. A collapsed lean-to. Someone was here. {narrativeHook}"
+        };
+
+        // Create enhanced salvage based on story
+        var salvage = new SalvageFeature("old_camp_salvage", "Camp Remnants")
+        {
+            DiscoveryText = "Signs of habitation. Might be something useful left.",
+            NarrativeHook = narrativeHook,
+            MinutesToSalvage = 30
+        };
+
+        // Base loot
+        salvage.Resources.Add(Resource.Stick,0.4);
+        salvage.Resources.Add(Resource.Tinder,0.08);
+        salvage.Resources.Add(Resource.Charcoal,0.1);
+
+        // Story-specific loot
+        switch (extraLoot)
+        {
+            case "predator_attack":
+                salvage.Resources.Add(Resource.Bone,0.3);
+                salvage.Resources.Add(Resource.Hide,0.4);
+                if (Utils.DetermineSuccess(0.3))
+                    salvage.Tools.Add(new Tool("Bloodied Knife", ToolType.Knife, 0.2) { Durability = 4 });
+                break;
+            case "fled":
+                if (Utils.DetermineSuccess(0.5))
+                    salvage.Tools.Add(new Tool("Dropped Hand Axe", ToolType.Axe, 0.8) { Durability = 6 });
+                salvage.Resources.Add(Resource.PlantFiber,0.2);
+                break;
+            case "never_returned":
+                salvage.Resources.Add(Resource.Log,1.5);
+                salvage.Resources.Add(Resource.Log,1.5);
+                salvage.Resources.Add(Resource.Log,1.5);
+                if (Utils.DetermineSuccess(0.4))
+                    salvage.Equipment.Add(new Equipment("Cached Coat", EquipSlot.Chest, 1.8, 0.12));
+                break;
+            case "counted_days":
+                salvage.Resources.Add(Resource.Stone,0.3);
+                if (Utils.DetermineSuccess(0.3))
+                    salvage.Tools.Add(new Tool("Worn Hand Drill", ToolType.HandDrill, 0.25) { Durability = 5 });
+                break;
+            default:
+                salvage.Resources.Add(Resource.PlantFiber,0.15);
+                break;
+        }
+        location.Features.Add(salvage);
+
+        // Collapsed shelter can be repaired
+        location.Features.Add(new ShelterFeature("Collapsed Lean-to", 0.15, 0.3, 0.25));
+
+        // Sparse forage - area picked over
+        var forageFeature = new ForageFeature(0.3)
+            .AddSticks(0.3, 0.1, 0.2)
+            .AddTinder(0.2, 0.01, 0.03);
+        location.Features.Add(forageFeature);
+
+        return location;
+    }
+
     #endregion
 
 
     #region Path Factories
 
     // public static Location MakeForestPath(
-    //     Zone parent,
+    //     Weather weather,
     //     string? name = null,
     //     int traversalMinutes = 10,
     //     double exposure = 0.5)
@@ -1098,7 +1332,7 @@ public static class LocationFactory
     // }
 
     // public static Location MakeOpenPath(
-    //     Zone parent,
+    //     Weather weather,
     //     string? name = null,
     //     int traversalMinutes = 15,
     //     double exposure = 0.8)
@@ -1126,7 +1360,7 @@ public static class LocationFactory
     // }
 
     // public static Location MakeSteepPath(
-    //     Zone parent,
+    //     Weather weather,
     //     string? name = null,
     //     int traversalMinutes = 12,
     //     double exposure = 0.7)
@@ -1154,7 +1388,7 @@ public static class LocationFactory
     // }
 
     // public static Location MakeRoughPath(
-    //     Zone parent,
+    //     Weather weather,
     //     string? name = null,
     //     int traversalMinutes = 12,
     //     double exposure = 0.5)

@@ -6,13 +6,32 @@ namespace text_survival.Actions.Expeditions;
 
 public enum ExpeditionState { Traveling, Working }
 
-public class Expedition(Location startLocation, Player player)
+public class Expedition
 {
-    private readonly Player _player = player;
+    // Player reference - serialized with ReferenceHandler.Preserve handling circular refs
+    [System.Text.Json.Serialization.JsonInclude]
+    private Player _player = null!;
 
     // Travel tracking
-    public Stack<Location> TravelHistory { get; } = new Stack<Location>([startLocation]);
+    public Stack<Location> TravelHistory { get; set; } = new();
+
+    // Constructor for normal use
+    public Expedition(Location startLocation, Player player)
+    {
+        _player = player;
+        TravelHistory = new Stack<Location>([startLocation]);
+    }
+
+    // Parameterless constructor for deserialization
+    [System.Text.Json.Serialization.JsonConstructor]
+    public Expedition()
+    {
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
     public Location CurrentLocation => TravelHistory.Peek();
+
+    [System.Text.Json.Serialization.JsonIgnore]
     public bool IsAtCamp => TravelHistory.Count == 1;
 
     // State
@@ -22,8 +41,8 @@ public class Expedition(Location startLocation, Player player)
     public int MinutesElapsedTotal { get; private set; } = 0;
 
     // Logs
-    public List<string> CollectionLog { get; } = [];
-    private List<string> _eventsLog = [];
+    public List<string> CollectionLog { get; set; } = [];
+    private List<string> _eventsLog { get; set; } = [];
 
     public void MoveTo(Location location, int travelTimeMinutes)
     {
@@ -73,4 +92,5 @@ public class Expedition(Location startLocation, Player player)
             _ => "unknown"
         };
     }
+
 }

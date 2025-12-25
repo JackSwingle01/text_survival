@@ -51,10 +51,10 @@ public static class RewardGenerator
         int itemCount = Random.Shared.Next(1, 3);
         var options = new List<Action>
         {
-            () => resources.Sticks.Push(RandomWeight(0.2, 0.5)),
-            () => resources.Tinder.Push(RandomWeight(0.1, 0.3)),
-            () => resources.Berries.Push(RandomWeight(0.1, 0.25)),
-            () => resources.Logs.Push(RandomWeight(0.8, 1.5))
+            () => resources.Add(Resource.Stick, RandomWeight(0.2, 0.5)),
+            () => resources.Add(Resource.Tinder, RandomWeight(0.1, 0.3)),
+            () => resources.Add(Resource.Berries, RandomWeight(0.1, 0.25)),
+            () => resources.Add(Resource.Log, RandomWeight(0.8, 1.5))
         };
 
         // Shuffle and pick
@@ -84,9 +84,9 @@ public static class RewardGenerator
 
         // Plus some tinder or a stick
         if (Random.Shared.Next(2) == 0)
-            resources.Tinder.Push(RandomWeight(0.2, 0.4));
+            resources.Add(Resource.Tinder, RandomWeight(0.2, 0.4));
         else
-            resources.Sticks.Push(RandomWeight(0.2, 0.4));
+            resources.Add(Resource.Stick, RandomWeight(0.2, 0.4));
 
         return resources;
     }
@@ -111,7 +111,7 @@ public static class RewardGenerator
         }
 
         // Plus good fuel
-        resources.Logs.Push(RandomWeight(1.5, 2.5));
+        resources.Add(Resource.Log, RandomWeight(1.5, 2.5));
 
         return resources;
     }
@@ -120,7 +120,7 @@ public static class RewardGenerator
     {
         var resources = new Inventory();
         // Quick scavenge - small amount of meat
-        resources.RawMeat.Push(RandomWeight(0.3, 0.6));
+        resources.Add(Resource.RawMeat, RandomWeight(0.3, 0.6));
         return resources;
     }
 
@@ -131,7 +131,7 @@ public static class RewardGenerator
         int cuts = Random.Shared.Next(2, 4); // 2-3 portions
         for (int i = 0; i < cuts; i++)
         {
-            resources.RawMeat.Push(RandomWeight(0.4, 0.8));
+            resources.Add(Resource.RawMeat, RandomWeight(0.4, 0.8));
         }
         return resources;
     }
@@ -141,9 +141,9 @@ public static class RewardGenerator
         var resources = new Inventory();
         // Minor supplies as placeholder - info reward in future
         if (Random.Shared.Next(2) == 0)
-            resources.Sticks.Push(RandomWeight(0.2, 0.4));
+            resources.Add(Resource.Stick, RandomWeight(0.2, 0.4));
         else
-            resources.Tinder.Push(RandomWeight(0.1, 0.2));
+            resources.Add(Resource.Tinder, RandomWeight(0.1, 0.2));
         return resources;
     }
 
@@ -162,9 +162,9 @@ public static class RewardGenerator
         int itemCount = Random.Shared.Next(1, 3);
         var options = new List<Action>
         {
-            () => resources.Stone.Push(RandomWeight(0.2, 0.4)),
-            () => resources.Bone.Push(RandomWeight(0.2, 0.5)),
-            () => resources.PlantFiber.Push(RandomWeight(0.1, 0.3))
+            () => resources.Add(Resource.Stone, RandomWeight(0.2, 0.4)),
+            () => resources.Add(Resource.Bone, RandomWeight(0.2, 0.5)),
+            () => resources.Add(Resource.PlantFiber, RandomWeight(0.1, 0.3))
         };
 
         var shuffled = options.OrderBy(_ => Random.Shared.Next()).Take(itemCount);
@@ -203,7 +203,7 @@ public static class RewardGenerator
     private static Inventory GenerateTinderBundle()
     {
         var resources = new Inventory();
-        resources.Tinder.Push(RandomWeight(0.2, 0.5));
+        resources.Add(Resource.Tinder, RandomWeight(0.2, 0.5));
         return resources;
     }
 
@@ -213,7 +213,7 @@ public static class RewardGenerator
         int boneCount = Random.Shared.Next(1, 4); // 1-3 bones
         for (int i = 0; i < boneCount; i++)
         {
-            resources.Bone.Push(RandomWeight(0.2, 0.5));
+            resources.Add(Resource.Bone, RandomWeight(0.2, 0.5));
         }
         return resources;
     }
@@ -222,16 +222,16 @@ public static class RewardGenerator
     {
         var resources = new Inventory();
         // Small animal - modest meat, maybe some bone
-        resources.RawMeat.Push(RandomWeight(0.2, 0.4));
+        resources.Add(Resource.RawMeat, RandomWeight(0.2, 0.4));
         if (Random.Shared.Next(2) == 0)
-            resources.Bone.Push(RandomWeight(0.1, 0.2));
+            resources.Add(Resource.Bone, RandomWeight(0.1, 0.2));
         return resources;
     }
 
     private static Inventory GenerateHideScrap()
     {
         var resources = new Inventory();
-        resources.Hide.Push(RandomWeight(0.3, 0.6));
+        resources.Add(Resource.Hide, RandomWeight(0.3, 0.6));
         return resources;
     }
 }

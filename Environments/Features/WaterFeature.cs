@@ -7,13 +7,21 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class WaterFeature : LocationFeature
 {
-    public string DisplayName { get; }
+    // Explicit public fields for serialization (System.Text.Json IncludeFields requires public)
+    public string _displayName = string.Empty;
+    public bool _isFrozen = true;
+    public double _iceThicknessLevel = 0.7;
+    public bool _hasIceHole = false;
+    public double _iceHoleRefreezeProgress = 0;
+
+    // Public properties backed by fields
+    public string DisplayName => _displayName;
     public string Description { get; set; } = "";
 
     /// <summary>
     /// Whether the water is frozen. Default true (Ice Age setting).
     /// </summary>
-    public bool IsFrozen { get; private set; } = true;
+    public bool IsFrozen => _isFrozen;
 
     /// <summary>
     /// Ice thickness on 0-1 scale:
@@ -23,17 +31,17 @@ public class WaterFeature : LocationFeature
     /// 0.7 = solid ice (safe for crossing)
     /// 1.0 = glacier-thick (extremely solid)
     /// </summary>
-    public double IceThicknessLevel { get; private set; } = 0.7;
+    public double IceThicknessLevel => _iceThicknessLevel;
 
     /// <summary>
     /// Whether an ice hole has been cut for fishing/water access.
     /// </summary>
-    public bool HasIceHole { get; private set; } = false;
+    public bool HasIceHole => _hasIceHole;
 
     /// <summary>
     /// Progress toward ice hole refreezing (0-1). At 1.0, hole closes.
     /// </summary>
-    public double IceHoleRefreezeProgress { get; private set; } = 0;
+    public double IceHoleRefreezeProgress => _iceHoleRefreezeProgress;
 
     // Hazard constants
     private const double BaseIceHazard = 0.15;      // All ice is slippery
@@ -45,8 +53,11 @@ public class WaterFeature : LocationFeature
 
     public WaterFeature(string name, string displayName) : base(name)
     {
-        DisplayName = displayName;
+        _displayName = displayName;
     }
+
+    [System.Text.Json.Serialization.JsonConstructor]
+    public WaterFeature() : base("water") { }
 
     /// <summary>
     /// Calculates terrain hazard contribution from frozen water.
@@ -70,7 +81,7 @@ public class WaterFeature : LocationFeature
     /// <summary>
     /// Whether this water has thin ice that risks fall-through.
     /// </summary>
-    public bool HasThinIce => IsFrozen && IceThicknessLevel < ThinIceThreshold;
+    public bool HasThinIce => _isFrozen && _iceThicknessLevel < ThinIceThreshold;
 
     /// <summary>
     /// Cut an ice hole for fishing/water access.
@@ -80,15 +91,15 @@ public class WaterFeature : LocationFeature
     {
         if (!CanCutIceHole()) return false;
 
-        HasIceHole = true;
-        IceHoleRefreezeProgress = 0;
+        _hasIceHole = true;
+        _iceHoleRefreezeProgress = 0;
         return true;
     }
 
     /// <summary>
     /// Whether an ice hole can be cut here.
     /// </summary>
-    public bool CanCutIceHole() => IsFrozen && !HasIceHole && IceThicknessLevel < 1.0;
+    public bool CanCutIceHole() => _isFrozen && !_hasIceHole && _iceThicknessLevel < 1.0;
 
     /// <summary>
     /// Estimated minutes to cut through the ice based on thickness.
@@ -98,7 +109,7 @@ public class WaterFeature : LocationFeature
         if (!CanCutIceHole()) return 0;
 
         // Thin ice: 15 min, Solid ice: 45 min, scaling linearly
-        return (int)(15 + IceThicknessLevel * 40);
+        return (int)(15 + _iceThicknessLevel * 40);
     }
 
     /// <summary>
@@ -106,19 +117,19 @@ public class WaterFeature : LocationFeature
     /// </summary>
     public void CloseIceHole()
     {
-        HasIceHole = false;
-        IceHoleRefreezeProgress = 0;
+        _hasIceHole = false;
+        _iceHoleRefreezeProgress = 0;
     }
 
     public override void Update(int minutes)
     {
-        if (!HasIceHole || !IsFrozen) return;
+        if (!_hasIceHole || !_isFrozen) return;
 
         // Ice holes slowly refreeze
         double hours = minutes / 60.0;
-        IceHoleRefreezeProgress += RefreezeRatePerHour * hours;
+        _iceHoleRefreezeProgress += RefreezeRatePerHour * hours;
 
-        if (IceHoleRefreezeProgress >= 1.0)
+        if (_iceHoleRefreezeProgress >= 1.0)
         {
             CloseIceHole();
         }
@@ -157,37 +168,37 @@ public class WaterFeature : LocationFeature
 
     public WaterFeature WithIceThickness(double thickness)
     {
-        IceThicknessLevel = Math.Clamp(thickness, 0, 1);
+        _iceThicknessLevel = Math.Clamp(thickness, 0, 1);
         return this;
     }
 
     public WaterFeature AsOpenWater()
     {
-        IsFrozen = false;
-        IceThicknessLevel = 0;
+        _isFrozen = false;
+        _iceThicknessLevel = 0;
         return this;
     }
 
     public WaterFeature AsThinIce()
     {
-        IsFrozen = true;
-        IceThicknessLevel = 0.3;
+        _isFrozen = true;
+        _iceThicknessLevel = 0.3;
         return this;
     }
 
     public WaterFeature AsSolidIce()
     {
-        IsFrozen = true;
-        IceThicknessLevel = 0.7;
+        _isFrozen = true;
+        _iceThicknessLevel = 0.7;
         return this;
     }
 
     public WaterFeature WithExistingHole()
     {
-        if (IsFrozen)
+        if (_isFrozen)
         {
-            HasIceHole = true;
-            IceHoleRefreezeProgress = 0;
+            _hasIceHole = true;
+            _iceHoleRefreezeProgress = 0;
         }
         return this;
     }

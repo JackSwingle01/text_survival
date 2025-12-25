@@ -1,14 +1,26 @@
 namespace text_survival.Bodies;
 
-public class Tissue(string name, double toughness = 1)
+public class Tissue
 {
-    public string Name { get; } = name;
+    public string Name { get; init; } = "Unknown";
 
     /// <summary>
     /// 0-1 value
     /// </summary>
     public double Condition { get; set; } = 1.0;
-    public double Toughness { get; set; } = toughness;
+    public double Toughness { get; set; } = 1.0;
+
+    // Parameterless constructor for deserialization
+    public Tissue()
+    {
+    }
+
+    // Normal constructor for creation
+    public Tissue(string name, double toughness = 1)
+    {
+        Name = name;
+        Toughness = toughness;
+    }
 
     public virtual CapacityContainer GetBaseCapacities() => new(); // Most tissues don't provide base capacities    
     public virtual CapacityContainer GetConditionMultipliers()
@@ -69,10 +81,19 @@ public class Tissue(string name, double toughness = 1)
     }
 }
 
-class Muscle() : Tissue("Muscle", 1)
+class Muscle : Tissue
 {
-    
-     public override CapacityContainer GetBaseCapacities()
+    // Parameterless constructor for deserialization
+    public Muscle() : base()
+    {
+    }
+
+    // Normal constructor
+    public Muscle(string name) : base(name, 1)
+    {
+    }
+
+    public override CapacityContainer GetBaseCapacities()
     {
         // Muscle contributes to physical capacities
         return new CapacityContainer
@@ -99,8 +120,18 @@ class Muscle() : Tissue("Muscle", 1)
     }
 }
 
-class Bone() : Tissue("Bone", 10)
+class Bone : Tissue
 {
+    // Parameterless constructor for deserialization
+    public Bone() : base()
+    {
+    }
+
+    // Normal constructor
+    public Bone(string name) : base(name, 10)
+    {
+    }
+
     public override CapacityContainer GetConditionMultipliers()
     {
         return new CapacityContainer

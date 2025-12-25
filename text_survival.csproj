@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <PackageReference Include="Mapster" Version="7.4.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.1" />
     <PackageReference Include="Spectre.Console" Version="0.54.0" />
   </ItemGroup>
 

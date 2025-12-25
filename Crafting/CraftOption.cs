@@ -176,19 +176,19 @@ public class CraftOption
             switch (output.Material)
             {
                 case "ScrapedHide":
-                    inv.ScrapedHide.Push(output.WeightPerUnit);
+                    inv.Add(Resource.ScrapedHide, output.WeightPerUnit);
                     break;
                 case "CuredHide":
-                    inv.CuredHide.Push(output.WeightPerUnit);
+                    inv.Add(Resource.CuredHide, output.WeightPerUnit);
                     break;
                 case "Tallow":
-                    inv.Tallow.Push(output.WeightPerUnit);
+                    inv.Add(Resource.Tallow, output.WeightPerUnit);
                     break;
                 case "PlantFiber":
-                    inv.PlantFiber.Push(output.WeightPerUnit);
+                    inv.Add(Resource.PlantFiber, output.WeightPerUnit);
                     break;
                 case "Charcoal":
-                    inv.Charcoal += output.WeightPerUnit;
+                    inv.Add(Resource.Charcoal, output.WeightPerUnit);
                     break;
                 default:
                     throw new ArgumentException($"Unknown material output: {output.Material}");
@@ -242,11 +242,31 @@ public class CraftOption
         _ => material.ToLower()
     };
 
-    private static int GetMaterialCount(Inventory inv, string material) =>
-        inv.GetCount(material);
+    private static int GetMaterialCount(Inventory inv, string material)
+    {
+        // Try to parse as Resource enum first
+        if (Enum.TryParse<Resource>(material, out var resource))
+            return inv.Count(resource);
 
-    private static void ConsumeMaterial(Inventory inv, string material, int count) =>
-        inv.Take(material, count);
+        // Fall back to category check
+        if (Enum.TryParse<ResourceCategory>(material, out var category))
+            return inv.GetCount(category);
+
+        return 0;
+    }
+
+    private static void ConsumeMaterial(Inventory inv, string material, int count)
+    {
+        // Try to parse as Resource enum first
+        if (Enum.TryParse<Resource>(material, out var resource))
+        {
+            inv.Take(resource, count);
+            return;
+        }
+
+        // Material name doesn't match enum - this is an error
+        throw new ArgumentException($"Unknown material: {material}");
+    }
 }
 
 /// <summary>

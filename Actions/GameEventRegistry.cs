@@ -195,7 +195,29 @@ public static partial class GameEventRegistry
         CaughtInBrush,
         TwistedAnkle,
         SeeForMiles,
-        RidgeWindChill
+        RidgeWindChill,
+
+        // Location-specific events - Tier 3 (GameEventRegistry.Locations.cs)
+        // Bear Cave
+        BearCache,
+        BearSigns,
+        HibernatingBear,
+        // Beaver Dam
+        BeaverActivity,
+        DamWeakening,
+        DrainedPond,
+        ExposedLodge,
+
+        // Location-specific events - Tier 4 (GameEventRegistry.Locations.cs)
+        // The Lookout
+        ClimbTheLookout,
+        StormOnTheHorizon,
+        SpotFromHeight,
+        // Old Campsite
+        InvestigateRemnants,
+        FindTheJournal,
+        WhatKilledThem,
+        RebuildTheShelter
     ];
 
     /// <summary>
@@ -348,7 +370,7 @@ public static partial class GameEventRegistry
 
         foreach (var effect in outcome.Effects)
         {
-            ctx.player.EffectRegistry.AddEffect(effect);
+            ctx.player.AddLog(ctx.player.EffectRegistry.AddEffect(effect));
             GameDisplay.AddDanger(ctx, $"  - {effect.EffectKind}");
             summary.Losses.Add(effect.EffectKind);
         }
@@ -360,7 +382,7 @@ public static partial class GameEventRegistry
             summary.Losses.Add($"Injury: {outcome.NewDamage.Source}");
             foreach (var effect in dmgResult.TriggeredEffects)
             {
-                ctx.player.EffectRegistry.AddEffect(effect);
+                ctx.player.AddLog(ctx.player.EffectRegistry.AddEffect(effect));
                 GameDisplay.AddDanger(ctx, $"  - {effect.EffectKind}");
                 summary.Losses.Add(effect.EffectKind);
             }
@@ -573,7 +595,7 @@ public static partial class GameEventRegistry
     /// <summary>
     /// Deduct resources from inventory based on cost type.
     /// </summary>
-    private static void DeductResources(Items.Inventory inv, ResourceCost cost)
+    private static void DeductResources(Inventory inv, ResourceCost cost)
     {
         for (int i = 0; i < cost.Amount; i++)
         {
@@ -581,24 +603,24 @@ public static partial class GameEventRegistry
             {
                 case ResourceType.Fuel:
                     // Prefer sticks over logs (less wasteful)
-                    if (inv.Sticks.Count > 0)
-                        inv.Sticks.Pop();
-                    else if (inv.Logs.Count > 0)
-                        inv.Logs.Pop();
+                    if (inv.Count(Resource.Stick) > 0)
+                        inv.Pop(Resource.Stick);
+                    else if (inv.Count(Resource.Log) > 0)
+                        inv.Pop(Resource.Log);
                     break;
 
                 case ResourceType.Tinder:
-                    inv.Tinder.Pop();
+                    inv.Pop(Resource.Tinder);
                     break;
 
                 case ResourceType.Food:
                     // Prefer berries, then cooked, then raw
-                    if (inv.Berries.Count > 0)
-                        inv.Berries.Pop();
-                    else if (inv.CookedMeat.Count > 0)
-                        inv.CookedMeat.Pop();
-                    else if (inv.RawMeat.Count > 0)
-                        inv.RawMeat.Pop();
+                    if (inv.Count(Resource.Berries) > 0)
+                        inv.Pop(Resource.Berries);
+                    else if (inv.Count(Resource.CookedMeat) > 0)
+                        inv.Pop(Resource.CookedMeat);
+                    else if (inv.Count(Resource.RawMeat) > 0)
+                        inv.Pop(Resource.RawMeat);
                     break;
 
                 case ResourceType.Water:
@@ -607,7 +629,7 @@ public static partial class GameEventRegistry
                     break;
 
                 case ResourceType.PlantFiber:
-                    inv.PlantFiber.Pop();
+                    inv.Pop(Resource.PlantFiber);
                     break;
             }
         }

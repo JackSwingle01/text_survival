@@ -13,12 +13,13 @@ public class EventConditionTests
     private static GameContext CreateTestContext()
     {
         var player = new Player();
-        var zone = new Zone("Test Zone", "A test zone");
-        var location = new Location("Test Location", "[test]", zone, 5);
-        zone.Graph.Add(location);
-        var camp = new Camp(location);
+        var weather = new Weather(-10);
+        var location = new Location("Test Location", "[test]", weather, 5);
+        var camp = location; // Camp is now just a Location
 
-        return new GameContext(player, camp);
+        var ctx = new GameContext(player, camp, weather);
+        ctx.Locations.Add(location);
+        return ctx;
     }
 
     // Camp/Expedition State Conditions
@@ -39,8 +40,8 @@ public class EventConditionTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        var awayLocation = new Location("Away Location", "[test]", ctx.Zone, 5);
-        ctx.Zone.Graph.Add(awayLocation);
+        var awayLocation = new Location("Away Location", "[test]", ctx.Weather, 5);
+        ctx.Locations.Add(awayLocation);
         ctx.Expedition = new Expedition(ctx.CurrentLocation, ctx.player);
         ctx.Expedition.MoveTo(awayLocation, 10); // Travel away from camp
 
@@ -216,7 +217,7 @@ public class EventConditionTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        ctx.Inventory.Sticks.Add(0.5);
+        ctx.Inventory[Resource.Stick].Push(0.5);
 
         // Act & Assert
         Assert.True(ctx.Check(EventCondition.HasFuel));
@@ -238,7 +239,7 @@ public class EventConditionTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        ctx.Inventory.CookedMeat.Add(0.3);
+        ctx.Inventory[Resource.CookedMeat].Push(0.3);
 
         // Act & Assert
         Assert.True(ctx.Check(EventCondition.HasFood));
@@ -249,7 +250,7 @@ public class EventConditionTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        ctx.Inventory.RawMeat.Add(0.5);
+        ctx.Inventory[Resource.RawMeat].Push(0.5);
 
         // Act & Assert
         Assert.True(ctx.Check(EventCondition.HasMeat));
@@ -260,7 +261,7 @@ public class EventConditionTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        ctx.Inventory.CookedMeat.Add(0.5);
+        ctx.Inventory[Resource.CookedMeat].Push(0.5);
 
         // Act & Assert
         Assert.True(ctx.Check(EventCondition.HasMeat));

@@ -1,3 +1,4 @@
+using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -30,8 +31,7 @@ public class WorkRunner(GameContext ctx)
             return false;
 
         // Active fire provides light
-        var heatSource = location.GetFeature<HeatSourceFeature>();
-        if (heatSource != null && heatSource.IsActive)
+        if (location.HasActiveHeatSource())
             return false;
 
         // Active torch provides light
@@ -45,320 +45,88 @@ public class WorkRunner(GameContext ctx)
         return true;
     }
 
-    public WorkResult DoForage(Location location)
+    /// <summary>
+    /// Execute work using a strategy pattern. Handles validation, timing, impairments, and execution.
+    /// </summary>
+    private WorkResult ExecuteWork(Location location, IWorkStrategy strategy)
     {
         if (CheckDarknessBlocking(location))
             return WorkResult.Empty(0);
-        var feature = location.GetFeature<ForageFeature>();
-        if (feature == null)
+
+        // Validate location
+        string? validationError = strategy.ValidateLocation(_ctx, location);
+        if (validationError != null)
         {
-            GameDisplay.AddNarrative(_ctx, "There's nothing to forage here.");
+            GameDisplay.AddNarrative(_ctx, validationError);
             return WorkResult.Empty(0);
         }
 
-        GameDisplay.Render(_ctx, statusText: "Planning.");
-        var workTimeChoice = new Choice<int>("How long should you forage?");
-        workTimeChoice.AddOption("Quick gather - 15 min", 15);
-        workTimeChoice.AddOption("Standard search - 30 min", 30);
-        workTimeChoice.AddOption("Thorough search - 60 min", 60);
-        int workTime = workTimeChoice.GetPlayerChoice(_ctx);
-
-        // Movement impairment slows foraging (+20%)
-        var capacities = _ctx.player.GetCapacities();
-        if (AbilityCalculator.IsMovingImpaired(capacities.Moving))
+        // Get time options (may be null for fixed-time work)
+        var timeChoice = strategy.GetTimeOptions(_ctx, location);
+        int workTime = 0;
+        if (timeChoice != null)
         {
-            workTime = (int)(workTime * 1.20);
-            GameDisplay.AddWarning(_ctx, "Your limited movement slows the work.");
+            GameDisplay.Render(_ctx, statusText: "Planning.");
+            workTime = timeChoice.GetPlayerChoice(_ctx);
+
+            if (workTime == 0) // Player cancelled
+                return WorkResult.Empty(0);
         }
 
-        // Breathing impairment slows foraging (+15%)
-        if (AbilityCalculator.IsBreathingImpaired(capacities.Breathing))
+        // Apply impairments and show warnings
+        var (adjustedTime, warnings) = strategy.ApplyImpairments(_ctx, location, workTime);
+        foreach (var warning in warnings)
         {
-            workTime = (int)(workTime * 1.15);
-            GameDisplay.AddWarning(_ctx, "Your labored breathing slows the work.");
+            GameDisplay.AddWarning(_ctx, warning);
         }
 
-        GameDisplay.AddNarrative(_ctx, "You search the area for resources...");
-
-        var (died, actualWorkTime) = RunWorkWithContinuePrompt(location, workTime, ActivityType.Foraging, "foraging");
-        if (died)
-            return WorkResult.Died(actualWorkTime);
-
-        var found = feature.Forage(actualWorkTime / 60.0);
-
-        // Perception impairment reduces forage yield (-15%)
-        var perception = AbilityCalculator.CalculatePerception(
-            _ctx.player.Body, _ctx.player.EffectRegistry.GetCapacityModifiers());
-        if (AbilityCalculator.IsPerceptionImpaired(perception))
+        // Run work with time passage (if time > 0)
+        int actualTime = adjustedTime;
+        if (adjustedTime > 0)
         {
-            found.ApplyForageMultiplier(0.85);
-            GameDisplay.AddWarning(_ctx, "Your foggy senses cause you to miss some resources.");
+            var (died, elapsed) = RunWorkWithContinuePrompt(
+                location,
+                adjustedTime,
+                strategy.GetActivityType(),
+                strategy.GetActivityName()
+            );
+
+            if (died)
+                return WorkResult.Died(elapsed);
+
+            actualTime = elapsed;
         }
 
-        _ctx.Inventory.Combine(found);
+        // Execute the work
+        var result = strategy.Execute(_ctx, location, actualTime);
 
-        var collected = new List<string>();
-        string quality = feature.GetQualityDescription();
-
-        if (found.IsEmpty)
-        {
-            GameDisplay.AddNarrative(_ctx, "You find nothing.");
-            GameDisplay.AddNarrative(_ctx, GetForageFailureMessage(quality));
-        }
-        else
-        {
-            GameDisplay.AddNarrative(_ctx, $"You found: {found.GetDescription()}");
-            collected.Add(found.GetDescription());
-            if (quality == "sparse" || quality == "picked over")
-                GameDisplay.AddNarrative(_ctx, "Resources here are getting scarce.");
-        }
-
+        // Show UI and check weight
         GameDisplay.Render(_ctx, statusText: "Thinking.");
         Input.WaitForKey(_ctx);
 
-        // Check weight limit and force drop if needed
         ForceDropIfOverweight();
 
-        return new WorkResult(collected, null, actualWorkTime, false);
+        return result;
+    }
+
+    public WorkResult DoForage(Location location)
+    {
+        return ExecuteWork(location, new ForageStrategy());
     }
 
     public WorkResult DoHarvest(Location location)
     {
-        if (CheckDarknessBlocking(location))
-            return WorkResult.Empty(0);
-
-        var harvestables = location
-            .Features.OfType<HarvestableFeature>()
-            .Where(h => h.IsDiscovered && h.HasAvailableResources())
-            .ToList();
-
-        if (harvestables.Count == 0)
-        {
-            GameDisplay.AddNarrative(_ctx, "There's nothing to harvest here.");
-            return WorkResult.Empty(0);
-        }
-
-        HarvestableFeature target;
-        if (harvestables.Count == 1)
-        {
-            target = harvestables[0];
-        }
-        else
-        {
-            GameDisplay.Render(_ctx, statusText: "Planning.");
-            var harvestChoice = new Choice<HarvestableFeature>("What do you want to harvest?");
-            foreach (var h in harvestables)
-            {
-                harvestChoice.AddOption($"{h.DisplayName} - {h.GetStatusDescription()}", h);
-            }
-            target = harvestChoice.GetPlayerChoice(_ctx);
-        }
-
-        GameDisplay.Render(_ctx, statusText: "Planning.");
-        var workTimeChoice = new Choice<int>($"How long should you harvest {target.DisplayName}?");
-        workTimeChoice.AddOption("Quick work - 15 min", 15);
-        workTimeChoice.AddOption("Standard work - 30 min", 30);
-        workTimeChoice.AddOption("Thorough work - 60 min", 60);
-        workTimeChoice.AddOption("Cancel", 0);
-        int workTime = workTimeChoice.GetPlayerChoice(_ctx);
-
-        if (workTime == 0)
-            return WorkResult.Empty(0);
-
-        var (died, actualWorkTime) = RunWorkWithContinuePrompt(location, workTime, ActivityType.Foraging, "harvesting");
-        if (died)
-            return WorkResult.Died(actualWorkTime);
-
-        var found = target.Harvest(actualWorkTime);
-        _ctx.Inventory.Combine(found);
-
-        var collected = new List<string>();
-
-        if (found.IsEmpty)
-        {
-            GameDisplay.AddNarrative(_ctx, "You didn't get anything.");
-        }
-        else
-        {
-            var desc = found.GetDescription();
-            GameDisplay.AddNarrative(_ctx, $"You harvested {desc}");
-            collected.Add(desc);
-        }
-
-        GameDisplay.AddNarrative(_ctx, $"{target.DisplayName}: {target.GetStatusDescription()}");
-        GameDisplay.Render(_ctx, statusText: "Thinking.");
-        Input.WaitForKey(_ctx);
-
-        // Check weight limit and force drop if needed
-        ForceDropIfOverweight();
-
-        return new WorkResult(collected, null, actualWorkTime, false);
+        return ExecuteWork(location, new HarvestStrategy());
     }
 
     public WorkResult DoSalvage(Location location)
     {
-        if (CheckDarknessBlocking(location))
-            return WorkResult.Empty(0);
-
-        var salvage = location.GetFeature<SalvageFeature>();
-        if (salvage == null || !salvage.HasLoot)
-        {
-            GameDisplay.AddNarrative(_ctx, "There's nothing to salvage here.");
-            return WorkResult.Empty(0);
-        }
-
-        // Show narrative hook if present
-        if (!string.IsNullOrEmpty(salvage.NarrativeHook))
-        {
-            GameDisplay.AddNarrative(_ctx, salvage.NarrativeHook);
-        }
-
-        GameDisplay.AddNarrative(_ctx, $"You begin searching through the {salvage.DisplayName.ToLower()}...");
-
-        int workTime = salvage.MinutesToSalvage;
-
-        // Movement impairment slows salvaging
-        var capacities = _ctx.player.GetCapacities();
-        if (AbilityCalculator.IsMovingImpaired(capacities.Moving))
-        {
-            workTime = (int)(workTime * 1.20);
-            GameDisplay.AddWarning(_ctx, "Your limited movement slows the work.");
-        }
-
-        var (died, actualWorkTime) = RunWorkWithContinuePrompt(location, workTime, ActivityType.Foraging, "salvaging");
-        if (died)
-            return WorkResult.Died(actualWorkTime);
-
-        // Get loot
-        var loot = salvage.Salvage();
-
-        if (loot.IsEmpty)
-        {
-            GameDisplay.AddNarrative(_ctx, "You find nothing useful.");
-            return new WorkResult([], null, actualWorkTime, false);
-        }
-
-        var collected = new List<string>();
-
-        // Add tools to inventory
-        foreach (var tool in loot.Tools)
-        {
-            _ctx.Inventory.Tools.Add(tool);
-            string desc = $"{tool.Name}";
-            GameDisplay.AddNarrative(_ctx, $"You found: {desc}");
-            collected.Add(desc);
-        }
-
-        // Add equipment to inventory (auto-equip if possible)
-        foreach (var equip in loot.Equipment)
-        {
-            var replaced = _ctx.Inventory.Equip(equip);
-            string desc = $"{equip.Name}";
-            if (replaced != null)
-            {
-                GameDisplay.AddNarrative(_ctx, $"You found: {desc} (equipped, replaced {replaced.Name})");
-            }
-            else
-            {
-                GameDisplay.AddNarrative(_ctx, $"You found: {desc} (equipped)");
-            }
-            collected.Add(desc);
-        }
-
-        // Add resources to inventory
-        if (!loot.Resources.IsEmpty)
-        {
-            _ctx.Inventory.Combine(loot.Resources);
-            var desc = loot.Resources.GetDescription();
-            GameDisplay.AddNarrative(_ctx, $"You salvaged {desc}");
-            collected.Add(desc);
-        }
-
-        GameDisplay.Render(_ctx, statusText: "Done.");
-        Input.WaitForKey(_ctx);
-
-        // Check weight limit and force drop if needed
-        ForceDropIfOverweight();
-
-        return new WorkResult(collected, null, actualWorkTime, false);
+        return ExecuteWork(location, new SalvageStrategy());
     }
 
     public WorkResult DoExplore(Location location)
     {
-        if (CheckDarknessBlocking(location))
-            return WorkResult.Empty(0);
-
-        if (!_ctx.Zone.HasUnrevealedLocations())
-        {
-            GameDisplay.AddNarrative(_ctx, "You've explored everything reachable from here.");
-            return WorkResult.Empty(0);
-        }
-
-        double successChance = CalculateExploreChance(location);
-
-        GameDisplay.Render(_ctx, statusText: "Planning.");
-        var timeChoice = new Choice<int>(
-            $"How thoroughly should you scout? ({successChance:P0} chance to find something)"
-        );
-        timeChoice.AddOption("Quick scout - 15 min", 15);
-        timeChoice.AddOption("Standard scout - 30 min (+10%)", 30);
-        timeChoice.AddOption("Thorough scout - 60 min (+20%)", 60);
-        timeChoice.AddOption("Cancel", 0);
-        int exploreTime = timeChoice.GetPlayerChoice(_ctx);
-
-        if (exploreTime == 0)
-            return WorkResult.Empty(0);
-
-        // Breathing impairment slows exploration (+15%)
-        var breathing = _ctx.player.GetCapacities().Breathing;
-        if (AbilityCalculator.IsBreathingImpaired(breathing))
-        {
-            exploreTime = (int)(exploreTime * 1.15);
-            GameDisplay.AddWarning(_ctx, "Your labored breathing slows the scouting.");
-        }
-
-        double timeBonus = exploreTime switch
-        {
-            30 => 0.10,
-            60 => 0.20,
-            _ => 0.0,
-        };
-        double finalChance = Math.Min(0.95, successChance + timeBonus);
-
-        GameDisplay.AddNarrative(_ctx, "You scout the area, looking for new paths...");
-
-        // Scouting takes you away from fire - use 0.0 proximity regardless of location
-        var (died, actualExploreTime) = RunWorkWithContinuePrompt(location, exploreTime, ActivityType.Exploring, "exploring");
-        if (died)
-            return WorkResult.Died(actualExploreTime);
-
-        Location? discovered = null;
-
-        if (Utils.RandDouble(0, 1) <= finalChance)
-        {
-            var newLocation = _ctx.Zone.RevealRandomLocation(location);
-
-            if (newLocation != null)
-            {
-                GameDisplay.AddSuccess(_ctx, $"You discovered a new area: {newLocation.Name}!");
-                if (!string.IsNullOrEmpty(newLocation.Tags))
-                    GameDisplay.AddNarrative(_ctx, newLocation.Tags);
-                discovered = newLocation;
-            }
-            else
-            {
-                GameDisplay.AddNarrative(_ctx, "You scouted the area but found no new paths.");
-            }
-        }
-        else
-        {
-            GameDisplay.AddNarrative(_ctx, "You searched the area but couldn't find any new paths.");
-        }
-
-        GameDisplay.Render(_ctx, statusText: "Thinking.");
-        Input.WaitForKey(_ctx);
-
-        return new WorkResult([], discovered, actualExploreTime, false);
+        return ExecuteWork(location, new ExploreStrategy());
     }
 
     // === PROGRESS AND TIME PASSAGE ===
@@ -440,121 +208,7 @@ public class WorkRunner(GameContext ctx)
     /// </summary>
     public WorkResult DoSetTrap(Location location)
     {
-        if (CheckDarknessBlocking(location))
-            return WorkResult.Empty(0);
-
-        // Validate location has animal territory
-        var territory = location.GetFeature<AnimalTerritoryFeature>();
-        if (territory == null)
-        {
-            GameDisplay.AddNarrative(_ctx, "No game trails here. Snares need animal territory.");
-            return WorkResult.Empty(0);
-        }
-
-        // Get available snares from inventory
-        var snares = _ctx.Inventory.Tools.Where(t => t.Type == ToolType.Snare && t.Works).ToList();
-        if (snares.Count == 0)
-        {
-            GameDisplay.AddNarrative(_ctx, "You don't have any snares to set.");
-            return WorkResult.Empty(0);
-        }
-
-        // Select which snare to use
-        Tool selectedSnare;
-        if (snares.Count == 1)
-        {
-            selectedSnare = snares[0];
-        }
-        else
-        {
-            GameDisplay.Render(_ctx, statusText: "Planning.");
-            var snareChoice = new Choice<Tool>("Which snare do you want to set?");
-            foreach (var snare in snares)
-            {
-                string durability = snare.Durability > 0 ? $"{snare.Durability} uses" : "unlimited";
-                snareChoice.AddOption($"{snare.Name} ({durability})", snare);
-            }
-            selectedSnare = snareChoice.GetPlayerChoice(_ctx);
-        }
-
-        // Ask about bait
-        GameDisplay.Render(_ctx, statusText: "Planning.");
-        var baitChoice = new Choice<BaitType>("Do you want to bait the snare?");
-        baitChoice.AddOption("No bait", BaitType.None);
-
-        if (_ctx.Inventory.RawMeat.Count > 0 || _ctx.Inventory.CookedMeat.Count > 0)
-            baitChoice.AddOption("Use meat (strong attraction, decays faster)", BaitType.Meat);
-        if (_ctx.Inventory.Berries.Count > 0)
-            baitChoice.AddOption("Use berries (moderate attraction)", BaitType.Berries);
-
-        BaitType bait = baitChoice.GetPlayerChoice(_ctx);
-
-        // Consume bait
-        if (bait == BaitType.Meat)
-        {
-            if (_ctx.Inventory.RawMeat.Count > 0)
-                _ctx.Inventory.RawMeat.Pop();
-            else
-                _ctx.Inventory.CookedMeat.Pop();
-        }
-        else if (bait == BaitType.Berries)
-        {
-            _ctx.Inventory.Berries.Pop();
-        }
-
-        // Setting time
-        int workTime = 10;
-
-        // Manipulation impairment increases time and injury risk
-        var capacities = _ctx.player.GetCapacities();
-        double injuryChance = 0.05; // Base 5% injury chance
-
-        if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
-        {
-            workTime = (int)(workTime * 1.25);
-            injuryChance += 0.10 * (1.0 - capacities.Manipulation);
-            GameDisplay.AddWarning(_ctx, "Your clumsy hands make setting the snare difficult.");
-        }
-
-        GameDisplay.AddNarrative(_ctx, "You find a promising game trail and set the snare...");
-
-        var (died, actualWorkTime) = RunWorkWithContinuePrompt(location, workTime, ActivityType.Foraging, "setting trap");
-        if (died)
-            return WorkResult.Died(actualWorkTime);
-
-        // Check for trap injury
-        if (Utils.DetermineSuccess(injuryChance))
-        {
-            GameDisplay.AddWarning(_ctx, "The snare mechanism snaps unexpectedly!");
-            _ctx.player.Body.Damage(new Bodies.DamageInfo(3, Bodies.DamageType.Sharp, "snare mechanism"));
-            GameDisplay.AddNarrative(_ctx, "You cut your fingers on the trap mechanism.");
-        }
-
-        // Get or create SnareLineFeature at this location
-        var snareLine = location.GetFeature<SnareLineFeature>();
-        if (snareLine == null)
-        {
-            snareLine = new SnareLineFeature(territory);
-            location.AddFeature(snareLine);
-        }
-
-        // Place the snare
-        bool reinforced = selectedSnare.Name.Contains("Reinforced");
-        if (bait != BaitType.None)
-            snareLine.PlaceSnareWithBait(selectedSnare.Durability, bait, reinforced);
-        else
-            snareLine.PlaceSnare(selectedSnare.Durability, reinforced);
-
-        // Remove snare from inventory
-        _ctx.Inventory.Tools.Remove(selectedSnare);
-
-        string baitMsg = bait != BaitType.None ? $" baited with {bait.ToString().ToLower()}" : "";
-        GameDisplay.AddSuccess(_ctx, $"Snare set{baitMsg}. Check back later.");
-
-        GameDisplay.Render(_ctx, statusText: "Done.");
-        Input.WaitForKey(_ctx);
-
-        return new WorkResult([$"Set {selectedSnare.Name}"], null, actualWorkTime, false);
+        return ExecuteWork(location, new TrapStrategy(TrapStrategy.TrapMode.Set));
     }
 
     /// <summary>
@@ -562,89 +216,7 @@ public class WorkRunner(GameContext ctx)
     /// </summary>
     public WorkResult DoCheckTraps(Location location)
     {
-        if (CheckDarknessBlocking(location))
-            return WorkResult.Empty(0);
-
-        var snareLine = location.GetFeature<SnareLineFeature>();
-        if (snareLine == null || snareLine.SnareCount == 0)
-        {
-            GameDisplay.AddNarrative(_ctx, "No snares set here.");
-            return WorkResult.Empty(0);
-        }
-
-        int workTime = 5 + (snareLine.SnareCount * 3); // Base time + per-snare check time
-
-        // Manipulation impairment increases time and injury risk
-        var capacities = _ctx.player.GetCapacities();
-        double injuryChance = 0.03; // Lower base since just checking
-
-        if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
-        {
-            workTime = (int)(workTime * 1.20);
-            injuryChance += 0.08 * (1.0 - capacities.Manipulation);
-        }
-
-        GameDisplay.AddNarrative(_ctx, "You check your snare line...");
-
-        var (died, actualWorkTime) = RunWorkWithContinuePrompt(location, workTime, ActivityType.Foraging, "checking traps");
-        if (died)
-            return WorkResult.Died(actualWorkTime);
-
-        // Check for injury while handling traps
-        if (Utils.DetermineSuccess(injuryChance))
-        {
-            GameDisplay.AddWarning(_ctx, "A snare catches your hand!");
-            _ctx.player.Body.Damage(new Bodies.DamageInfo(2, Bodies.DamageType.Sharp, "snare"));
-        }
-
-        // Collect results
-        var results = snareLine.CheckAllSnares();
-        var collected = new List<string>();
-
-        foreach (var result in results)
-        {
-            if (result.WasDestroyed)
-            {
-                GameDisplay.AddWarning(_ctx, "One snare was destroyed - torn apart by something large.");
-            }
-            else if (result.WasStolen)
-            {
-                GameDisplay.AddNarrative(_ctx, $"Something got here first. Only scraps of {result.AnimalType} remain.");
-                // Add partial remains (bones)
-                _ctx.Inventory.Bone.Push(0.1);
-                collected.Add($"Scraps ({result.AnimalType})");
-            }
-            else if (result.AnimalType != null)
-            {
-                GameDisplay.AddSuccess(_ctx, $"Catch! A {result.AnimalType} ({result.WeightKg:F1}kg).");
-                // Add raw meat based on weight
-                _ctx.Inventory.RawMeat.Push(result.WeightKg * 0.5); // ~50% edible
-                _ctx.Inventory.Bone.Push(result.WeightKg * 0.1);
-                if (result.WeightKg > 3)
-                    _ctx.Inventory.Hide.Push(result.WeightKg * 0.15);
-                collected.Add($"{result.AnimalType} ({result.WeightKg:F1}kg)");
-            }
-        }
-
-        if (collected.Count == 0)
-        {
-            GameDisplay.AddNarrative(_ctx, "Nothing caught yet. The snares are still set.");
-        }
-
-        // Report remaining snares
-        int remaining = snareLine.SnareCount;
-        if (remaining > 0)
-            GameDisplay.AddNarrative(_ctx, $"{remaining} snare(s) still active.");
-        else
-            GameDisplay.AddNarrative(_ctx, "No snares remain at this location.");
-
-        GameDisplay.Render(_ctx, statusText: "Done.");
-        Input.WaitForKey(_ctx);
-
-        // Check weight limit
-        ForceDropIfOverweight();
-
-        return new WorkResult(collected, null, actualWorkTime, false);
+        return ExecuteWork(location, new TrapStrategy(TrapStrategy.TrapMode.Check));
     }
 
     /// <summary>
@@ -652,17 +224,7 @@ public class WorkRunner(GameContext ctx)
     /// </summary>
     public WorkResult DoCache(Location location)
     {
-        var cache = location.GetFeature<CacheFeature>();
-        if (cache == null)
-        {
-            GameDisplay.AddNarrative(_ctx, "There's no cache here.");
-            return WorkResult.Empty(0);
-        }
-
-        string name = cache.Name.ToUpper();
-        InventoryTransferHelper.RunTransferMenu(_ctx, cache.Storage, name);
-
-        return WorkResult.Empty(0); // No time cost for cache management
+        return ExecuteWork(location, new CacheStrategy());
     }
 
     // === WORK OPTIONS (used by GameRunner and ExpeditionRunner) ===
@@ -698,7 +260,7 @@ public class WorkRunner(GameContext ctx)
         if (CanSetTrap(ctx, location) || CanCheckTraps(location))
             return true;
 
-        if (ctx.Zone.HasUnrevealedLocations())
+        if (ctx.HasUnrevealedLocations())
             return true;
 
         return false;
@@ -789,7 +351,7 @@ public class WorkRunner(GameContext ctx)
             hasOptions = true;
         }
 
-        if (ctx.Zone.HasUnrevealedLocations())
+        if (ctx.HasUnrevealedLocations())
         {
             choice.AddOption("Explore the area (discover new locations)", "explore");
             hasOptions = true;
@@ -809,7 +371,7 @@ public class WorkRunner(GameContext ctx)
         if (location.HasFeature<ForageFeature>())
             labels.Add("Forage");
 
-        if (ctx.Zone.HasUnrevealedLocations())
+        if (ctx.HasUnrevealedLocations())
             labels.Add("Scout");
 
         return labels;
@@ -824,7 +386,7 @@ public class WorkRunner(GameContext ctx)
     /// </summary>
     public static double CalculateExploreChance(Location location)
     {
-        int connections = location.Connections.Count;
+        int connections = location.ConnectionNames.Count;
         double baseChance = 0.90;
         double decayFactor = 0.55;
         double chance = baseChance * Math.Pow(decayFactor, connections);
@@ -895,7 +457,7 @@ public class WorkRunner(GameContext ctx)
         Input.WaitForKey(_ctx);
 
         // Create a dummy "drop target" that just discards items
-        var dropTarget = new Items.Inventory { MaxWeightKg = -1 };
+        var dropTarget = new Inventory { MaxWeightKg = -1 };
 
         while (inv.RemainingCapacityKg < 0)
         {

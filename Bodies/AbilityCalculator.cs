@@ -108,7 +108,7 @@ public static class AbilityCalculator
     {
         // Base resistance: fur, feathers, blubber (species-dependent)
         double baseResistance = body.BaseColdResistance;
-        
+
         // Body fat provides modest insulation, diminishing returns past normal levels
         double bfPercent = body.BodyFatPercentage;
         double fatInsulation;
@@ -123,5 +123,44 @@ public static class AbilityCalculator
             fatInsulation = 0.20;  // Cap at 20% - you're not a walrus
 
         return Math.Clamp(baseResistance + fatInsulation, 0, 0.95);
+    }
+
+    /// <summary>
+    /// Calculate time factor and warnings for work impairments.
+    /// Returns (timeFactor, warnings) where timeFactor is a multiplier (1.0 = no impairment, 1.2 = 20% slower).
+    /// </summary>
+    public static (double timeFactor, List<string> warnings) GetWorkImpairments(
+        CapacityContainer capacities,
+        CapacityModifierContainer effectModifiers,
+        bool checkMoving = false,
+        bool checkBreathing = false,
+        bool checkPerception = false,
+        bool checkManipulation = false)
+    {
+        double timeFactor = 1.0;
+        var warnings = new List<string>();
+
+        // Movement impairment (+20% time)
+        if (checkMoving && IsMovingImpaired(capacities.Moving))
+        {
+            timeFactor *= 1.20;
+            warnings.Add("Your limited movement slows the work.");
+        }
+
+        // Breathing impairment (+15% time)
+        if (checkBreathing && IsBreathingImpaired(capacities.Breathing))
+        {
+            timeFactor *= 1.15;
+            warnings.Add("Your labored breathing slows the work.");
+        }
+
+        // Manipulation impairment (+25% time)
+        if (checkManipulation && IsManipulationImpaired(capacities.Manipulation))
+        {
+            timeFactor *= 1.25;
+            warnings.Add("Your clumsy hands make the work difficult.");
+        }
+
+        return (timeFactor, warnings);
     }
 }

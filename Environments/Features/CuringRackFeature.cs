@@ -119,13 +119,13 @@ public class CuringRackFeature : LocationFeature
         switch (item.Type)
         {
             case CurableItemType.ScrapedHide:
-                inventory.CuredHide.Push(item.WeightKg * 0.9); // Slight weight loss from drying
+                inventory.Add(Resource.CuredHide, item.WeightKg * 0.9); // Slight weight loss from drying
                 break;
             case CurableItemType.RawMeat:
-                inventory.DriedMeat.Push(item.WeightKg * 0.4); // Significant weight loss
+                inventory.Add(Resource.DriedMeat, item.WeightKg * 0.4); // Significant weight loss
                 break;
             case CurableItemType.Berries:
-                inventory.DriedBerries.Push(item.WeightKg * 0.3); // Most weight is water
+                inventory.Add(Resource.DriedBerries, item.WeightKg * 0.3); // Most weight is water
                 break;
         }
     }

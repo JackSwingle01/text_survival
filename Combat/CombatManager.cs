@@ -139,7 +139,7 @@ public class CombatManager
         // Apply triggered effects (bleeding, pain, etc.)
         foreach (var effect in damageResult.TriggeredEffects)
         {
-            target.EffectRegistry.AddEffect(effect);
+            target.AddLog(target.EffectRegistry.AddEffect(effect));
         }
 
         string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damageResult, true, false, false);

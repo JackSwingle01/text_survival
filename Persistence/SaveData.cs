@@ -263,7 +263,7 @@ public record FeatureSaveData
     public double? BaseResourceDensity { get; init; }
     public double? NumberOfHoursForaged { get; init; }
     public double? HoursSinceLastForage { get; init; }
-    public bool? HasForagedBefore { get; init; }
+    // HasForagedBefore removed - derived from NumberOfHoursForaged > 0
     public List<ForageResourceSaveData>? ForageResources { get; init; }
 
     // AnimalTerritoryFeature
@@ -271,7 +271,7 @@ public record FeatureSaveData
     public double? GameDensity { get; init; }
     public double? InitialDepletedDensity { get; init; }
     public double? HoursSinceLastHunt { get; init; }
-    public bool? HasBeenHunted { get; init; }
+    // HasBeenHunted removed - derived from GameDensity < BaseGameDensity
     public List<AnimalSpawnSaveData>? PossibleAnimals { get; init; }
 
     // ShelterFeature

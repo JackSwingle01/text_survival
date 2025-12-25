@@ -1,4 +1,5 @@
 using text_survival.Actors.Animals;
+using text_survival.Actions.Handlers;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments;
@@ -44,7 +45,7 @@ public class ExpeditionRunner(GameContext ctx)
         bool stayOut = true;
         while (stayOut && !PlayerDied)
         {
-            SaveManager.Save(_ctx);
+            _ = SaveManager.Save(_ctx); // Auto-save is best-effort
             GameDisplay.Render(_ctx, statusText: "Surveying.");
 
             var actionChoice = new Choice<string>("What do you do?");
@@ -99,7 +100,7 @@ public class ExpeditionRunner(GameContext ctx)
     /// </summary>
     private bool DoTravel(Expedition expedition)
     {
-        var connections = expedition.CurrentLocation.Connections;
+        var connections = expedition.CurrentLocation.GetConnections(_ctx);
         if (connections.Count == 0)
         {
             GameDisplay.AddNarrative(_ctx, "There's nowhere to go from here.");
@@ -124,7 +125,7 @@ public class ExpeditionRunner(GameContext ctx)
                 lbl = con.GetUnexploredHint(_ctx.player);
             }
 
-            if (con == _ctx.Camp.Location)
+            if (con == _ctx.Camp)
                 lbl += " - Camp";
             if (con == expedition.TravelHistory.ElementAtOrDefault(1))
                 lbl += " (backtrack)";
@@ -154,7 +155,7 @@ public class ExpeditionRunner(GameContext ctx)
         {
             int quickTime = TravelProcessor.GetTraversalMinutes(destination, _ctx.player, _ctx.Inventory);
             int carefulTime = TravelProcessor.GetCarefulTraversalMinutes(destination, _ctx.player, _ctx.Inventory);
-            injuryRisk = TravelProcessor.GetInjuryRisk(destination, _ctx.player, _ctx.Zone.Weather);
+            injuryRisk = TravelProcessor.GetInjuryRisk(destination, _ctx.player, _ctx.Weather);
 
             GameDisplay.AddNarrative(_ctx, "The terrain ahead looks treacherous.");
 
@@ -181,7 +182,7 @@ public class ExpeditionRunner(GameContext ctx)
         {
             if (Utils.RandDouble(0, 1) < injuryRisk)
             {
-                ApplyTravelInjury(destination);
+                TravelHandler.ApplyTravelInjury(_ctx, destination);
             }
         }
 
@@ -200,57 +201,6 @@ public class ExpeditionRunner(GameContext ctx)
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Apply injury from quick travel through hazardous terrain.
-    /// Severity scales with terrain hazard level.
-    /// </summary>
-    private void ApplyTravelInjury(Location location)
-    {
-        double hazard = location.TerrainHazardLevel;
-
-        // Determine injury type based on hazard level
-        if (hazard >= 0.7)
-        {
-            // Severe terrain - high chance of bad injury
-            double severity = Utils.RandDouble(0.5, 0.8);
-            _ctx.player.EffectRegistry.AddEffect(EffectFactory.SprainedAnkle(severity));
-            GameDisplay.AddNarrative(_ctx, "You lose your footing on the treacherous ground and twist your ankle badly.");
-        }
-        else if (hazard >= 0.5)
-        {
-            // Moderate terrain - mix of injuries
-            if (Utils.RandDouble(0, 1) < 0.6)
-            {
-                double severity = Utils.RandDouble(0.3, 0.6);
-                _ctx.player.EffectRegistry.AddEffect(EffectFactory.SprainedAnkle(severity));
-                GameDisplay.AddNarrative(_ctx, "You stumble and twist your ankle.");
-            }
-            else
-            {
-                // Minor cuts and bruises via body damage
-                _ctx.player.Body.Damage(new DamageInfo(15, DamageType.Blunt, "fall", "Leg"));
-                GameDisplay.AddNarrative(_ctx, "You slip and bruise yourself on the rocks.");
-            }
-        }
-        else
-        {
-            // Lower hazard - mostly minor injuries
-            if (Utils.RandDouble(0, 1) < 0.3)
-            {
-                double severity = Utils.RandDouble(0.2, 0.4);
-                _ctx.player.EffectRegistry.AddEffect(EffectFactory.SprainedAnkle(severity));
-                GameDisplay.AddNarrative(_ctx, "You misstep and tweak your ankle.");
-            }
-            else
-            {
-                _ctx.player.Body.Damage(new DamageInfo(10, DamageType.Blunt, "stumble", "Leg"));
-                GameDisplay.AddNarrative(_ctx, "You stumble but catch yourself, scraping your leg.");
-            }
-        }
-
-        Input.WaitForKey(_ctx);
     }
 
     private void ReturnToCamp(Expedition expedition)
@@ -302,10 +252,10 @@ public class ExpeditionRunner(GameContext ctx)
             // Check for injury on quick return through hazardous terrain
             if (isHazardous && quickReturn)
             {
-                double injuryRisk = TravelProcessor.GetInjuryRisk(nextLocation, _ctx.player, _ctx.Zone.Weather);
+                double injuryRisk = TravelProcessor.GetInjuryRisk(nextLocation, _ctx.player, _ctx.Weather);
                 if (injuryRisk > 0 && Utils.RandDouble(0, 1) < injuryRisk)
                 {
-                    ApplyTravelInjury(nextLocation);
+                    TravelHandler.ApplyTravelInjury(_ctx, nextLocation);
                 }
             }
 
@@ -457,7 +407,7 @@ public class ExpeditionRunner(GameContext ctx)
         // Auto-equip spear if available
         var spear = _ctx.Inventory.GetOrEquipWeapon(_ctx, ToolType.Spear);
         bool hasSpear = spear != null;
-        bool hasStones = _ctx.Inventory.Stone.Count > 0;
+        bool hasStones = _ctx.Inventory.Count(Resource.Stone) > 0;
 
         if (!hasSpear && !hasStones)
         {
@@ -476,22 +426,22 @@ public class ExpeditionRunner(GameContext ctx)
 
             // Check throw options (spear already equipped at hunt start if available)
             hasSpear = _ctx.Inventory.Weapon?.Type == ToolType.Spear;
-            hasStones = _ctx.Inventory.Stone.Count > 0;
+            hasStones = _ctx.Inventory.Count(Resource.Stone) > 0;
 
-            if (hasSpear)
+            if (hasSpear && _ctx.Inventory.Weapon != null)
             {
-                double spearRange = GetSpearRange(_ctx.Inventory.Weapon!);
+                double spearRange = HuntHandler.GetSpearRange(_ctx.Inventory.Weapon);
                 if (target.DistanceFromPlayer <= spearRange)
                 {
-                    double hitChance = CalculateSpearHitChance(_ctx.Inventory.Weapon!, target);
-                    choice.AddOption($"Throw {_ctx.Inventory.Weapon!.Name} ({hitChance:P0} hit)", "throw_spear");
+                    double hitChance = HuntHandler.CalculateSpearHitChance(_ctx.Inventory.Weapon, target, _ctx);
+                    choice.AddOption($"Throw {_ctx.Inventory.Weapon.Name} ({hitChance:P0} hit)", "throw_spear");
                 }
             }
 
             if (hasStones && target.Size == AnimalSize.Small && target.DistanceFromPlayer <= 15)
             {
-                double hitChance = CalculateStoneHitChance(target);
-                choice.AddOption($"Throw stone ({hitChance:P0} hit) [{_ctx.Inventory.Stone.Count} left]", "throw_stone");
+                double hitChance = HuntHandler.CalculateStoneHitChance(target, _ctx);
+                choice.AddOption($"Throw stone ({hitChance:P0} hit) [{_ctx.Inventory.Count(Resource.Stone)} left]", "throw_stone");
             }
 
             choice.AddOption("Give up this hunt", "stop");
@@ -612,24 +562,13 @@ public class ExpeditionRunner(GameContext ctx)
     {
         var weapon = _ctx.Inventory.Weapon;
 
-        // Calculate manipulation penalty for thrown accuracy
-        var manipulation = _ctx.player.GetCapacities().Manipulation;
-        double manipPenalty = Bodies.AbilityCalculator.IsManipulationImpaired(manipulation) ? 0.15 : 0.0;
-
-        // Calculate hit chance
-        bool applySmallPenalty = isSpear && target.Size == AnimalSize.Small;
-        double hitChance = HuntingCalculator.CalculateThrownAccuracy(
-            target.DistanceFromPlayer,
-            isSpear ? GetSpearRange(weapon!) : 12,
-            isSpear ? GetSpearBaseAccuracy(weapon!) : 0.65,
-            applySmallPenalty,
-            manipPenalty
-        );
+        // Calculate hit chance using HuntHandler
+        double hitChance = HuntHandler.CalculateThrownAccuracy(_ctx, target, isSpear, weapon);
 
         // Consume stone immediately (it's thrown either way)
         if (!isSpear)
         {
-            _ctx.Inventory.Stone.Pop();
+            _ctx.Inventory.Pop(Resource.Stone);
         }
 
         bool hit = Utils.RandDouble(0, 1) < hitChance;
@@ -637,7 +576,7 @@ public class ExpeditionRunner(GameContext ctx)
         if (hit)
         {
             // Kill
-            string weaponName = isSpear ? weapon!.Name : "stone";
+            string weaponName = isSpear && weapon != null ? weapon.Name : "stone";
             GameDisplay.AddNarrative(_ctx, $"Your {weaponName} strikes true! The {target.Name} falls.");
             target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, "thrown weapon", "Heart"));
 
@@ -658,7 +597,7 @@ public class ExpeditionRunner(GameContext ctx)
             double roll = Utils.RandDouble(0, 1);
             bool isGlancingHit = roll < hitChance + (hitChance * 0.3) && isSpear; // Only spears can wound
 
-            string weaponName = isSpear ? weapon!.Name : "stone";
+            string weaponName = isSpear && weapon != null ? weapon.Name : "stone";
 
             if (isGlancingHit)
             {
@@ -701,48 +640,6 @@ public class ExpeditionRunner(GameContext ctx)
             _ctx.player.stealthManager.StopHunting(_ctx, $"The {target.Name} escaped.");
             Input.WaitForKey(_ctx);
         }
-    }
-
-    private static double GetSpearRange(Tool spear)
-    {
-        // Stone-tipped spears have longer range
-        return spear.Name.Contains("Stone") ? 25 : 20;
-    }
-
-    private static double GetSpearBaseAccuracy(Tool spear)
-    {
-        // Stone-tipped spears are more accurate
-        return spear.Name.Contains("Stone") ? 0.75 : 0.70;
-    }
-
-    private double CalculateSpearHitChance(Tool spear, Animal target)
-    {
-        var manipulation = _ctx.player.GetCapacities().Manipulation;
-        double manipPenalty = Bodies.AbilityCalculator.IsManipulationImpaired(manipulation) ? 0.15 : 0.0;
-
-        bool applySmallPenalty = target.Size == AnimalSize.Small;
-        return HuntingCalculator.CalculateThrownAccuracy(
-            target.DistanceFromPlayer,
-            GetSpearRange(spear),
-            GetSpearBaseAccuracy(spear),
-            applySmallPenalty,
-            manipPenalty
-        );
-    }
-
-    private double CalculateStoneHitChance(Animal target)
-    {
-        var manipulation = _ctx.player.GetCapacities().Manipulation;
-        double manipPenalty = Bodies.AbilityCalculator.IsManipulationImpaired(manipulation) ? 0.15 : 0.0;
-
-        // Stones don't get small target penalty (they're designed for small game)
-        return HuntingCalculator.CalculateThrownAccuracy(
-            target.DistanceFromPlayer,
-            12,
-            0.65,
-            targetIsSmall: false,
-            manipPenalty
-        );
     }
 
     #endregion

@@ -1,23 +1,23 @@
 using text_survival;
 
-public class ZoneWeather
+public class Weather
 {
     // todo: improve sunrise and sunset logic,
     // todo: add more continuity and state to more granular changes
-    public double BaseTemperature { get; private set; } // In Celsius
-    public WeatherCondition CurrentCondition { get; private set; }
-    public double Precipitation { get; private set; } // 0-1 intensity
-    public double WindSpeed { get; private set; }    // 0-1 intensity
-    public double CloudCover { get; private set; }   // 0-1 coverage
-    public int Elevation { get; }
+    public double BaseTemperature { get; set; } // In Celsius
+    public WeatherCondition CurrentCondition { get; set; }
+    public double Precipitation { get; set; } // 0-1 intensity
+    public double WindSpeed { get; set; }    // 0-1 intensity
+    public double CloudCover { get; set; }   // 0-1 coverage
+    public int Elevation { get; init; }
 
     // Weather transition tracking for events
-    public WeatherCondition? PreviousCondition { get; private set; }
-    public bool WeatherJustChanged { get; private set; }
+    public WeatherCondition? PreviousCondition { get; set; }
+    public bool WeatherJustChanged { get; set; }
 
     // Season tracking
     public enum Season { Winter, Spring, Summer, Fall }
-    public Season CurrentSeason { get; private set; } = Season.Fall; // Start in fall
+    public Season CurrentSeason { get; set; } = Season.Fall; // Start in fall
 
     // Weather conditions for Ice Age Europe
     public enum WeatherCondition
@@ -82,13 +82,19 @@ public class ZoneWeather
         return Math.Sin(angle);
     }
 
-    // Time and update tracking
-    private TimeSpan _weatherDuration;
-    private TimeSpan _timeSinceChange = TimeSpan.Zero;
+    // Time and update tracking (public for serialization)
+    private TimeSpan _weatherDuration = TimeSpan.FromHours(6);
+    public TimeSpan TimeSinceWeatherChange { get; set; } = TimeSpan.Zero;
 
-    private DateTime Time { get; set; }
+    public DateTime Time { get; set; }
 
-    public ZoneWeather(double baseTemp)
+    // Parameterless constructor for deserialization
+    public Weather()
+    {
+    }
+
+    // Normal constructor for creation
+    public Weather(double baseTemp)
     {
         // Initialize with fall weather
         BaseTemperature = baseTemp;
@@ -106,13 +112,13 @@ public class ZoneWeather
         WeatherJustChanged = false;
 
         TimeSpan elapsed = newTime - Time;
-        _timeSinceChange += elapsed;
+        TimeSinceWeatherChange += elapsed;
 
         // Time to change weather?
-        if (_timeSinceChange >= _weatherDuration)
+        if (TimeSinceWeatherChange >= _weatherDuration)
         {
             GenerateNewWeather();
-            _timeSinceChange = TimeSpan.Zero;
+            TimeSinceWeatherChange = TimeSpan.Zero;
         }
         Time = newTime;
     }

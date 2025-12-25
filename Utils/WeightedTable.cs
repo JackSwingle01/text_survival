@@ -46,9 +46,9 @@ public class LootTable : GenericWeightedTable<Item>
 
 public class LocationTable
 {
-    protected Dictionary<Func<Zone, Location>, double> weightedFactories = [];
+    protected Dictionary<Func<Weather, Location>, double> weightedFactories = [];
 
-    public void AddFactory(Func<Zone, Location> factory, double weight = 1.0)
+    public void AddFactory(Func<Weather, Location> factory, double weight = 1.0)
     {
         if (weight <= 0f)
             throw new ArgumentException("Weight must be greater than zero", nameof(weight));
@@ -61,12 +61,12 @@ public class LocationTable
         return weightedFactories.Count == 0;
     }
 
-    public virtual Location GenerateRandom(Zone parent)
+    public virtual Location GenerateRandom(Weather weather)
     {
         if (IsEmpty())
             throw new InvalidOperationException("Cannot generate from an empty loot table");
 
-        return Utils.GetRandomWeighted(weightedFactories)(parent);
+        return Utils.GetRandomWeighted(weightedFactories)(weather);
     }
 }
 

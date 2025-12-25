@@ -11,8 +11,6 @@ public class TensionRegistry
 {
     private readonly List<ActiveTension> _tensions = [];
 
-    public IReadOnlyList<ActiveTension> All => _tensions;
-
     /// <summary>
     /// Check if a tension of the given type exists.
     /// </summary>
@@ -46,14 +44,6 @@ public class TensionRegistry
     public ActiveTension? GetTension(string type)
     {
         return _tensions.FirstOrDefault(t => t.Type.Equals(type, StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>
-    /// Get all tensions of a given type (for location-specific tensions).
-    /// </summary>
-    public IEnumerable<ActiveTension> GetTensions(string type)
-    {
-        return _tensions.Where(t => t.Type.Equals(type, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -166,35 +156,4 @@ public class TensionRegistry
         }
     }
 
-    /// <summary>
-    /// Get tension details for display or event text substitution.
-    /// Returns the animal type, direction, or description if available.
-    /// </summary>
-    public string? GetTensionDetails(string type)
-    {
-        var tension = GetTension(type);
-        if (tension == null) return null;
-
-        return tension.AnimalType ?? tension.Direction ?? tension.Description;
-    }
-
-    /// <summary>
-    /// Clear all tensions.
-    /// </summary>
-    public void Clear()
-    {
-        _tensions.Clear();
-    }
-
-    #region Save/Load Support
-
-    /// <summary>
-    /// Add a tension directly without merge logic (for save/load).
-    /// </summary>
-    internal void AddRestoredTension(ActiveTension tension)
-    {
-        _tensions.Add(tension);
-    }
-
-    #endregion
 }

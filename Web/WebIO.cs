@@ -161,7 +161,7 @@ public static class WebIO
     /// <summary>
     /// Set the inventory to display. Will be included in subsequent input frames.
     /// </summary>
-    public static void RenderInventory(GameContext ctx, Items.Inventory inventory, string title)
+    public static void RenderInventory(GameContext ctx, Inventory inventory, string title)
     {
         if (ctx.SessionId == null) return;
         _currentInventory[ctx.SessionId] = InventoryDto.FromInventory(inventory, title);

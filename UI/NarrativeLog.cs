@@ -13,7 +13,14 @@ public class NarrativeLog
 {
     public const int MAX_VISIBLE_LINES = 16;
     private const string SEPARATOR = "· · ·";
-    private readonly List<(string Text, LogLevel Level)> _entries = [];
+    private List<(string Text, LogLevel Level)> _entries = [];
+
+    // For JSON serialization
+    public List<(string Text, LogLevel Level)> Entries
+    {
+        get => _entries;
+        init => _entries = value;
+    }
 
     public void Add(string text, LogLevel level = LogLevel.Normal)
     {
