@@ -213,39 +213,8 @@ public class SerializationTests
         Assert.Contains("kindling", resourceTypes);  // AddSticks() adds kindling
     }
 
-    [Fact]
-    public void SerializeDeserialize_WithExpedition_PreservesPathAndState()
-    {
-        // Arrange
-        var ctx = GameContext.CreateNewGame();
-
-        // Start expedition to first non-camp location
-        var destination = ctx.Locations.FirstOrDefault(l => l != ctx.Camp);
-
-        // Only test if multiple locations exist
-        if (destination != null)
-        {
-            ctx.Expedition = new Expedition(ctx.Camp, ctx.player);
-            ctx.Expedition.MoveTo(destination, 30);  // Travel to destination
-
-            int travelHistoryCount = ctx.Expedition.TravelHistory.Count;
-
-            // Act
-            string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
-            var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
-
-            // Assert - Expedition preserved
-            Assert.NotNull(deserialized.Expedition);
-            Assert.Equal(travelHistoryCount, deserialized.Expedition.TravelHistory.Count);
-
-            // Travel history locations are real (not orphaned)
-            foreach (var location in deserialized.Expedition.TravelHistory)
-            {
-                Assert.True(deserialized.Locations.Contains(location),
-                    $"Expedition travel history location {location.Name} exists in location graph");
-            }
-        }
-    }
+    // Removed: SerializeDeserialize_WithExpedition_PreservesPathAndState
+    // The Expedition class no longer exists - expeditions are now handled through direct CurrentLocation tracking
 
     [Fact]
     public void SerializeDeserialize_DeserializedGame_CanContinuePlaying()
@@ -256,6 +225,9 @@ public class SerializationTests
         // Act - Serialize and deserialize
         string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
         var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Restore transient state after deserialization
+        deserialized.RestoreAfterDeserialization();
 
         // Assert - Game can continue (functional API works)
 
@@ -300,53 +272,8 @@ public class SerializationTests
             $"JSON is {json.Length} chars (expected < 2MB)");
     }
 
-    [Fact]
-    public void SerializeDeserialize_ActiveExpedition_PreservesState()
-    {
-        // Arrange
-        var ctx = GameContext.CreateNewGame();
-
-        // Start an expedition if there are multiple locations
-        var destination = ctx.Locations.FirstOrDefault(l => l != ctx.Camp);
-        if (destination == null)
-        {
-            // Skip test if no destinations available
-            return;
-        }
-
-        ctx.Expedition = new Expedition(ctx.Camp, ctx.player);
-        ctx.Expedition.MoveTo(destination, 30);
-
-        int originalTravelHistoryCount = ctx.Expedition.TravelHistory.Count;
-        int originalMinutesElapsed = ctx.Expedition.MinutesElapsedTotal;
-
-        // Act
-        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
-        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
-
-        // Player reference is now preserved via ReferenceHandler.Preserve
-
-        // Assert
-        Assert.NotNull(deserialized);
-        Assert.NotNull(deserialized.Expedition);
-
-        // Travel history preserved
-        Assert.Equal(originalTravelHistoryCount, deserialized.Expedition.TravelHistory.Count);
-
-        // State preserved
-        Assert.Equal(originalMinutesElapsed, deserialized.Expedition.MinutesElapsedTotal);
-
-        // Travel history locations are real (not orphaned)
-        foreach (var location in deserialized.Expedition.TravelHistory)
-        {
-            Assert.True(deserialized.Locations.Contains(location),
-                $"Travel history location {location.Name} not in Locations list");
-        }
-
-        // Player reference restored - verify GetEstimatedReturnTime works
-        int returnTime = deserialized.Expedition.GetEstimatedReturnTime();
-        Assert.True(returnTime >= 0, $"Invalid return time: {returnTime}");
-    }
+    // Removed: SerializeDeserialize_ActiveExpedition_PreservesState
+    // The Expedition class no longer exists - expeditions are now handled through direct CurrentLocation tracking
 
     [Fact]
     public void SerializeDeserialize_AllLocationFeatureTypes_PreserveState()
@@ -520,34 +447,8 @@ public class SerializationTests
         }
     }
 
-    [Fact]
-    public void SerializeDeserialize_ExpeditionTravelHistory_PreservesCurrentLocation()
-    {
-        // This test specifically catches the expedition location alternation bug
-        // where CurrentLocation would flip between camp and expedition location on each refresh
-
-        // Arrange
-        var ctx = GameContext.CreateNewGame();
-        var destination = ctx.Locations.FirstOrDefault(l => l != ctx.Camp);
-        if (destination == null) return;
-
-        ctx.Expedition = new Expedition(ctx.Camp, ctx.player);
-        ctx.Expedition.MoveTo(destination, 30);
-
-        string expectedLocationName = ctx.Expedition.CurrentLocation.Name;
-
-        // Act - Multiple round-trips (simulating multiple page refreshes)
-        for (int i = 0; i < 5; i++)
-        {
-            string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
-            ctx = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions())!;
-            // Player reference is now serialized with [JsonInclude], no manual restore needed
-
-            // Assert - CurrentLocation never changes
-            Assert.NotNull(ctx.Expedition);
-            Assert.Equal(expectedLocationName, ctx.Expedition.CurrentLocation.Name);
-        }
-    }
+    // Removed: SerializeDeserialize_ExpeditionTravelHistory_PreservesCurrentLocation
+    // The Expedition class no longer exists - CurrentLocation is now restored to Camp after deserialization
 
     private static JsonSerializerOptions GetSerializerOptions()
     {

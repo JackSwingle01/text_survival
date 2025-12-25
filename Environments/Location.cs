@@ -1,4 +1,6 @@
-﻿using text_survival.Environments.Features;
+﻿using text_survival.Actions;
+using text_survival.Actions.Expeditions;
+using text_survival.Environments.Features;
 using text_survival.UI;
 
 
@@ -145,6 +147,31 @@ public class Location
 
     public T? GetFeature<T>() where T : LocationFeature => Features.OfType<T>().FirstOrDefault();
     public bool HasFeature<T>() where T : LocationFeature => GetFeature<T>() is not null;
+
+    /// <summary>
+    /// Get work options from all features. Does not include Hunt or Explore.
+    /// </summary>
+    public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
+    {
+        foreach (var feature in Features.OfType<IWorkableFeature>())
+            foreach (var option in feature.GetWorkOptions(ctx))
+                yield return option;
+    }
+
+    /// <summary>
+    /// Check if this location has any work options available.
+    /// </summary>
+    public bool HasWorkOptions(GameContext ctx) => GetWorkOptions(ctx).Any();
+
+    /// <summary>
+    /// Hunt availability - separate from work options.
+    /// </summary>
+    public bool CanHunt() => GetFeature<AnimalTerritoryFeature>()?.CanHunt() ?? false;
+
+    /// <summary>
+    /// Get the hunting ground feature for hunt menu text.
+    /// </summary>
+    public AnimalTerritoryFeature? GetHuntingGround() => GetFeature<AnimalTerritoryFeature>();
 
     /// <summary>
     /// Check if this location has an active heat source (fire).

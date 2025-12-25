@@ -84,8 +84,9 @@ public class TrapStrategy : IWorkStrategy
         }
         else // Check mode
         {
+            // Use feature's CanBeChecked property
             var snareLine = location.GetFeature<SnareLineFeature>();
-            if (snareLine == null || snareLine.SnareCount == 0)
+            if (snareLine?.CanBeChecked != true)
                 return "No snares set here.";
         }
 

@@ -12,11 +12,11 @@ Work backward from player experience. What decision does this enable? What momen
 
 **Simple until forced otherwise**
 
-Write direct, obvious code. If/else chains are fine. Avoid patterns requiring multi-file tracing. Concrete code is easier to refactor than wrong abstractions. Wait for 3 examples before abstracting.
+Complexity is the enemy. Write direct, obvious code. If/else chains are fine. Avoid patterns requiring multi-file tracing. Concrete code is easier to refactor than wrong abstractions. Wait for 3 examples before abstracting. When abstracting, it should reduce or hide complexity.
 
 **Extend before creating**
 
-Can existing systems handle this, or does it genuinely need something new? The answer is usually "existing systems can handle it." Question every new abstraction.
+Can existing systems handle this, or does it genuinely need something new? The answer is usually "existing systems can handle it." Question every new abstraction. Complexity is incremental - every new concept has a cost even if it seems small.
 
 ---
 
@@ -24,7 +24,12 @@ Can existing systems handle this, or does it genuinely need something new? The a
 
 **Deep modules with simple interfaces**
 
-Create abstractions that hide complexity behind clear, stable interfaces. Once the body system is built right, you just call `Body.Damage()` — you don't need to understand the organ hierarchy.
+Create abstractions that hide complexity behind clear, stable interfaces. Once the body system is built right, you just call `Body.Damage()` — you don't need to understand the organ hierarchy. 
+
+Information hiding serves change. Implementation details hidden today are implementation details you can change tomorrow. If callers depend on how something works internally, you can't improve it without breaking them.
+
+**Pull Complexity Downward**
+It's better for a module to be internally complex than to push that complexity onto callers. A well-designed API handles edge cases, does the hard work, presents clean results.
 
 **Data objects shouldn't reference parents**
 
@@ -34,13 +39,10 @@ Features don't need to know their parent Location. If processing logic needs con
 
 If state can be calculated from other state, calculate it. Don't track a separate property you have to keep in sync. Expedition phase should derive from path index, not be a separate enum.
 
-**Simpler params beat complex return types**
+**Different layer, different abstraction**
 
-Return an int when that's all you need, not a result object. Take two parameters instead of four when the processor can get what it needs from them.
+ Pass-through methods are a red flag. If ExpeditionRunner just forwards calls to WorkRunner without transformation, one of them shouldn't exist. Each architectural layer should add semantic value.
 
-**Features are data bags, processors have logic**
-
-Features hold state. Processors calculate outcomes. Don't spread logic across both — pick one home for each responsibility.
 
 ---
 
@@ -76,7 +78,7 @@ Function signatures and names signal behavior. No surprises, no magic side effec
 
 **Self-documenting**
 
-Type hints + clear naming + explicit contracts > comments explaining confusing code. If it needs extensive comments, consider refactoring.
+Type hints + clear naming + explicit contracts > comments explaining confusing code. If it needs extensive comments, consider refactoring. Only document the WHY behind the architecture, not the how.
 
 ## Style Guidelines:
 

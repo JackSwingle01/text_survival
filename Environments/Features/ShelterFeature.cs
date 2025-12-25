@@ -48,6 +48,23 @@ public class ShelterFeature : LocationFeature
     /// </summary>
     public bool IsDestroyed => Quality <= 0.05;
 
+    /// <summary>
+    /// Check if shelter is compromised (quality below safe threshold).
+    /// Used for events about shelter needing repair.
+    /// </summary>
+    public bool IsCompromised => Quality <= 0.3;
+
+    /// <summary>
+    /// Check if shelter is weakened but still functional.
+    /// Used for warning events before shelter fails.
+    /// </summary>
+    public bool IsWeakened => Quality > 0.3 && Quality <= 0.5;
+
+    /// <summary>
+    /// Check if shelter needs repair (any damage).
+    /// </summary>
+    public bool NeedsRepair => Quality < 1.0 && !IsDestroyed;
+
     #region Save/Load Support
 
     /// <summary>

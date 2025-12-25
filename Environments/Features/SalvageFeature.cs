@@ -1,3 +1,6 @@
+using text_survival.Actions;
+using text_survival.Actions.Expeditions;
+using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
@@ -7,7 +10,7 @@ namespace text_survival.Environments.Features;
 /// Unlike HarvestableFeature, salvage sites don't regenerate.
 /// Contains a mix of discrete items and aggregate resources.
 /// </summary>
-public class SalvageFeature : LocationFeature
+public class SalvageFeature : LocationFeature, IWorkableFeature
 {
     // Explicit public fields for serialization (System.Text.Json IncludeFields requires public)
     public string _displayName = "";
@@ -91,6 +94,25 @@ public class SalvageFeature : LocationFeature
     /// </summary>
     public bool HasLoot =>
         !IsSalvaged && (Tools.Count > 0 || Equipment.Count > 0 || !Resources.IsEmpty);
+
+    /// <summary>
+    /// Check if this site can be salvaged.
+    /// Alias for HasLoot for naming consistency.
+    /// </summary>
+    public bool CanBeSalvaged => HasLoot;
+
+    /// <summary>
+    /// Get work options for this feature.
+    /// </summary>
+    public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
+    {
+        if (!CanBeSalvaged) yield break;
+        yield return new WorkOption(
+            $"Salvage {DisplayName} ({GetLootHint()})",
+            "salvage",
+            new SalvageStrategy()
+        );
+    }
 
     /// <summary>
     /// Get a description of available loot (without spoiling specifics).

@@ -1,4 +1,8 @@
+using text_survival.Actions;
+using text_survival.Actions.Expeditions;
+using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Actors.Animals;
+using text_survival.Items;
 
 namespace text_survival.Environments.Features;
 
@@ -12,7 +16,7 @@ public record AnimalSpawnEntry(string AnimalType, double SpawnWeight);
 /// Animals are not pre-placed; they're spawned dynamically when searching.
 /// Game density depletes with successful hunts and respawns over time.
 /// </summary>
-public class AnimalTerritoryFeature : LocationFeature
+public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
 {
     [System.Text.Json.Serialization.JsonInclude]
     private readonly List<AnimalSpawnEntry> _possibleAnimals = [];
@@ -124,6 +128,35 @@ public class AnimalTerritoryFeature : LocationFeature
             _ => null
         };
     }
+
+    /// <summary>
+    /// Get work options for this feature.
+    /// Only returns "Set snare" if player has snares. Hunt is a separate action type.
+    /// </summary>
+    public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
+    {
+        // Only offer "Set snare" if player has usable snares
+        var snares = ctx.Inventory.Tools.Where(t => t.Type == ToolType.Snare && t.Works).ToList();
+        if (snares.Count > 0)
+        {
+            yield return new WorkOption(
+                $"Set snare ({snares.Count} available)",
+                "set_trap",
+                new TrapStrategy(TrapStrategy.TrapMode.Set)
+            );
+        }
+    }
+
+    /// <summary>
+    /// Check if hunting is possible in this territory.
+    /// Separate from work options - hunting is an interactive action type.
+    /// </summary>
+    public bool CanHunt() => _possibleAnimals.Count > 0 && _gameDensity > 0.1;
+
+    /// <summary>
+    /// Get description for hunt menu option.
+    /// </summary>
+    public string GetHuntDescription() => $"Hunt ({GetQualityDescription()})";
 
     // Builder methods for configuration
 

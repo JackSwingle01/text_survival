@@ -19,7 +19,7 @@ public static partial class GameEventRegistry
         return new GameEvent("The Fire's Origin",
             "Near the center of the burnt stand, you find a massive split trunk. Lightning-struck. The fire started here.", 0.3)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Burnt Stand")
+            .OnlyAt("Burnt Stand")
             .WithCooldown(168) // Once per week (effectively once per playthrough for this location)
             .Choice("Examine the Strike",
                 "Study the pattern of destruction.",
@@ -47,7 +47,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Exposed",
             $"Movement at the tree line. The open terrain works both ways — you spot the {predator.ToLower()}, and it sees you.", 0.8)
             .Requires(EventCondition.Working, EventCondition.Stalked)
-            .WithLocationNameRequirement("Burnt Stand")
+            .OnlyAt("Burnt Stand")
             .WithCooldown(2)
             .Choice("Hold Your Ground",
                 "Face it. Show no fear.",
@@ -83,8 +83,7 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Shifting Logs",
             "The log beneath you groans and shifts. The whole tangle is unstable.", 0.6)
-            .Requires(EventCondition.Working)
-            .WithLocationTagRequirement("[Treacherous]")
+            .Requires(EventCondition.Working, EventCondition.HazardousTerrain)
             .WithCooldown(1)
             .Choice("Jump Clear",
                 "React fast. Get off the moving log.",
@@ -113,8 +112,7 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Something in There",
             "Under a root ball, a dark opening. Fresh tracks in the dirt. Something small lives here.", 0.3)
-            .Requires(EventCondition.Working)
-            .WithLocationTagRequirement("[Fuel]")
+            .Requires(EventCondition.Working, EventCondition.HasFuelForage)
             .WithCooldown(4)
             .Choice("Reach In Carefully",
                 "Risk a bite. Could be food.",
@@ -152,7 +150,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Someone Was Here",
             "Charcoal smudges the rock. A fire pit circle. Someone used this shelter before.", 0.4)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Rock Overhang")
+            .OnlyAt("Rock Overhang")
             .WithCooldown(168)
             .Choice("Search Thoroughly",
                 "They might have left something.",
@@ -209,7 +207,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Movement Below",
             "From the outcrop's height, you see it — movement at the tree line. Something is watching.", 0.5)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Granite Outcrop")
+            .OnlyAt("Granite Outcrop")
             .WithConditionFactor(EventCondition.Stalked, 3.0)
             .WithCooldown(2)
             .Choice("Study It",
@@ -243,7 +241,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Seen and Seeing",
             $"Exposed on the rock, you see the {predator.ToLower()} below — and it sees you. Eyes lock across the distance.", 0.9)
             .Requires(EventCondition.Stalked)
-            .WithLocationNameRequirement("Granite Outcrop")
+            .OnlyAt("Granite Outcrop")
             .WithCooldown(4)
             .Choice("Use the Advantage",
                 "You have the high ground. Act like it.",
@@ -281,7 +279,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Weather Turning",
             "Clouds mass on the horizon, moving fast. The exposed pool offers no shelter.", 0.6)
             .Requires(EventCondition.Working, EventCondition.WeatherWorsening)
-            .WithLocationNameRequirement("Meltwater Pool")
+            .OnlyAt("Meltwater Pool")
             .WithCooldown(4)
             .Choice("Fill Containers Quickly",
                 "Grab what you can and run.",
@@ -316,7 +314,7 @@ public static partial class GameEventRegistry
         return new GameEvent("The Silence",
             "Nothing moves. No birds, no wind in the branches. The quiet presses on your ears.", 0.4)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Ancient Grove")
+            .OnlyAt("Ancient Grove")
             .WithCooldown(6)
             .Choice("Listen Carefully",
                 "Something might be out there.",
@@ -340,7 +338,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Need an Axe",
             "Massive trunks everywhere. Premium fuel — dense, long-burning hardwood. But you can't cut it with what you have.", 0.6)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Ancient Grove")
+            .OnlyAt("Ancient Grove")
             .WithCooldown(24)
             .Choice("Look for Deadfall",
                 "There must be something already down.",
@@ -366,7 +364,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Sharp Edges",
             "Flint flakes everywhere — razor-sharp. A wrong step could cut deep.", 0.5)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Flint Seam")
+            .OnlyAt("Flint Seam")
             .WithCooldown(2)
             .Choice("Move Carefully",
                 "Watch every step.",
@@ -394,7 +392,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Fresh Tracks",
             "Hoofprints in the mud, still filling with water. They passed through moments ago.", 0.5)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Game Trail")
+            .OnlyAt("Game Trail")
             .WithCooldown(4)
             .Choice("Follow Them",
                 "They can't be far.",
@@ -424,7 +422,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Escape Route",
             $"The {predator.ToLower()} circles at the thicket's edge. It can't follow you in here.", 0.9)
             .Requires(EventCondition.Stalked)
-            .WithLocationNameRequirement("Dense Thicket")
+            .OnlyAt("Dense Thicket")
             .WithCooldown(4)
             .Choice("Push Deeper",
                 "Put more brush between you.",
@@ -451,7 +449,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Caught in the Brush",
             "A branch hooks your clothing. Another catches your pack. You're tangled.", 0.4)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Dense Thicket")
+            .OnlyAt("Dense Thicket")
             .WithCooldown(2)
             .Choice("Carefully Untangle",
                 "Take your time. Don't tear anything.",
@@ -478,7 +476,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Unstable Footing",
             "A rock shifts under your weight. Your ankle rolls painfully.", 0.5)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Boulder Field")
+            .OnlyAt("Boulder Field")
             .WithCooldown(3)
             .Choice("Test It Gently",
                 "See if you can walk on it.",
@@ -506,7 +504,7 @@ public static partial class GameEventRegistry
         return new GameEvent("See for Miles",
             "From the ridge top, both valleys spread below. You can see everything.", 0.6)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Rocky Ridge")
+            .OnlyAt("Rocky Ridge")
             .WithCooldown(6)
             .Choice("Survey the Landscape",
                 "Take time to study what's below.",
@@ -531,7 +529,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Ridge Wind",
             "Wind screams across the exposed stone. It cuts right through you.", 0.7)
             .Requires(EventCondition.Working, EventCondition.HighWind)
-            .WithLocationNameRequirement("Rocky Ridge")
+            .OnlyAt("Rocky Ridge")
             .WithCooldown(2)
             .Choice("Find Shelter in the Rocks",
                 "Duck behind a boulder.",
@@ -570,7 +568,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Bear's Cache",
             "Deep in the cave, a mound of dirt and debris. The smell of rotting meat. The bear has cached its kills here.", 0.4)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Bear Cave")
+            .OnlyAt("Bear Cave")
             .WithCooldown(24)
             .Choice("Risk It — Take the Meat",
                 "Food is food. Work fast.",
@@ -608,7 +606,7 @@ public static partial class GameEventRegistry
         return new GameEvent("The Bear's Domain",
             "Claw marks score the walls, head-height for something massive. The musky smell is overpowering. This cave has been occupied for years.", 0.5)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Bear Cave")
+            .OnlyAt("Bear Cave")
             .WithCooldown(12)
             .Choice("Study the Marks",
                 "Learn about what lives here.",
@@ -633,7 +631,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Winter Sleep",
             "In the deepest chamber — a mountain of fur, rising and falling with slow breaths. A bear in winter torpor. Vulnerable, but not defenseless.", 1.0)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Bear Cave")
+            .OnlyAt("Bear Cave")
             .WithConditionFactor(EventCondition.ExtremelyCold, 2.0)  // More likely in deep winter
             .WithCooldown(168) // Once per week
             .Choice("Strike While It Sleeps",
@@ -641,7 +639,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Your weapon finds its heart. It doesn't wake. The cave is yours.", weight: 0.30, minutes: 10)
                         .FindsLargeMeat()
-                        .AddsFeature(typeof(Environments.Features.ShelterFeature), (0.6, 0.9, 0.8)),
+                        .AddsShelter(temp: 0.6, overhead: 0.9, wind: 0.8),
                     new EventResult("A glancing blow. It wakes — confused, then enraged.", weight: 0.50, minutes: 5)
                         .Encounter("Bear", 5, 0.9),
                     new EventResult("Your nerve fails. You can't do it.", weight: 0.20, minutes: 3)
@@ -670,7 +668,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Dam Builders",
             "Splashing in the pond. A beaver surfaces, branch in its teeth, and swims toward the dam. The ecosystem is alive.", 0.4)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Beaver Dam")
+            .OnlyAt("Beaver Dam")
             .WithCooldown(6)
             .Choice("Watch Them Work",
                 "There's something peaceful about it.",
@@ -694,7 +692,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Weakening Structure",
             "Water seeps through gaps in the dam. The structure groans. You've taken too much — it's failing.", 0.8)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Beaver Dam")
+            .OnlyAt("Beaver Dam")
             .WithCooldown(24)
             .Choice("Shore It Up",
                 "Pack mud into the gaps. Buy time.",
@@ -732,7 +730,7 @@ public static partial class GameEventRegistry
         return new GameEvent("What's Left Behind",
             "Where the pond was, now mud and debris. Stranded fish, exposed roots. The beavers are gone.", 0.9)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Beaver Dam")
+            .OnlyAt("Beaver Dam")
             .WithCooldown(168)
             .Choice("Scavenge the Remains",
                 "There's opportunity in destruction.",
@@ -761,7 +759,7 @@ public static partial class GameEventRegistry
         return new GameEvent("The Lodge",
             "With the water drained, the beaver lodge sits exposed — a mound of mud and sticks on dry ground.", 0.6)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Beaver Dam")
+            .OnlyAt("Beaver Dam")
             .WithCooldown(24)
             .Choice("Break Into the Lodge",
                 "See what the beavers left behind.",
@@ -792,7 +790,7 @@ public static partial class GameEventRegistry
         return new GameEvent("The Climb",
             "The branches form a natural ladder, but ice clings to the bark. The view from the top could show you the pass — and everything else.", 0.7)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("The Lookout")
+            .OnlyAt("The Lookout")
             .WithCooldown(6)
             .Choice("Climb to the Top",
                 "Risk the ascent. See everything.",
@@ -861,7 +859,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Storm Building",
             "From this height you can see it — a wall of grey sweeping across the landscape. Hours away, maybe less.", 0.5)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("The Lookout")
+            .OnlyAt("The Lookout")
             .WithConditionFactor(EventCondition.WeatherWorsening, 3.0)
             .WithCooldown(4)
             .Choice("Time Your Return",
@@ -889,7 +887,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Movement Below",
             "From this elevation, you catch movement — shapes moving through the terrain below.", 0.4)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("The Lookout")
+            .OnlyAt("The Lookout")
             .WithCooldown(4)
             .Choice("Watch and Wait",
                 "Observe from safety.",
@@ -918,7 +916,7 @@ public static partial class GameEventRegistry
         return new GameEvent("What Happened Here",
             "The more you look, the more questions arise. Someone survived here — for a while. Then they didn't.", 0.6)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Old Campsite")
+            .OnlyAt("Old Campsite")
             .WithCooldown(24)
             .Choice("Search Thoroughly",
                 "Turn over every stone.",
@@ -945,7 +943,7 @@ public static partial class GameEventRegistry
         return new GameEvent("A Record",
             "Scratched into bark, or charcoal on stone — marks. Deliberate. A message from someone who was here before.", 0.3)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Old Campsite")
+            .OnlyAt("Old Campsite")
             .WithCooldown(168)
             .Choice("Study the Marks",
                 "What were they trying to say?",
@@ -974,7 +972,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Still Here",
             "A sound in the brush. The same thing that ended the last occupant might still be around.", 0.8)
             .Requires(EventCondition.Working)
-            .WithLocationNameRequirement("Old Campsite")
+            .OnlyAt("Old Campsite")
             .WithCooldown(6)
             .Choice("Face It",
                 "Better to know what's hunting you.",
@@ -1005,14 +1003,14 @@ public static partial class GameEventRegistry
         return new GameEvent("Salvageable Shelter",
             "The old shelter is collapsed but the frame is intact. With work, it could be functional again.", 0.4)
             .Requires(EventCondition.Working, EventCondition.NoShelter)
-            .WithLocationNameRequirement("Old Campsite")
+            .OnlyAt("Old Campsite")
             .WithCooldown(24)
             .Choice("Repair It",
                 "Use their foundation. Build on their work.",
                 [
                     new EventResult("Hours of labor. You shore up the frame, patch the gaps. It's crude, but it's shelter.", weight: 0.70, minutes: 90)
                         .Costs(ResourceType.Fuel, 1)
-                        .AddsFeature(typeof(Environments.Features.ShelterFeature), (0.3, 0.5, 0.5)),
+                        .AddsShelter(temp: 0.3, overhead: 0.5, wind: 0.5),
                     new EventResult("The frame is too rotted. It collapses as you work. Time wasted.", weight: 0.20, minutes: 45)
                         .WithEffects(Effects.EffectFactory.Exhausted(0.3, 30)),
                     new EventResult("Structural failure. Part of the frame falls on you.", weight: 0.10, minutes: 30)

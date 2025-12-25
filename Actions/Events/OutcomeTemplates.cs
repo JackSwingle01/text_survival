@@ -213,4 +213,14 @@ public static class OutcomeTemplates
     /// <summary>Partial shelter during storm.</summary>
     public static EventResult PartialShelter(this EventResult r)
         => r.WithEffects(EffectFactory.Cold(-8, 35));
+
+    // === FEATURE CREATION ===
+
+    /// <summary>
+    /// Add a shelter with named parameters for clarity.
+    /// temp = temperature insulation, overhead = overhead coverage, wind = wind coverage.
+    /// </summary>
+    public static EventResult AddsShelter(this EventResult r,
+        double temp, double overhead, double wind)
+        => r.AddsFeature(typeof(Environments.Features.ShelterFeature), (temp, overhead, wind));
 }

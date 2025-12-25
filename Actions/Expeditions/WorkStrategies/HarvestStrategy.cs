@@ -17,9 +17,10 @@ public class HarvestStrategy : IWorkStrategy
 
     public string? ValidateLocation(GameContext ctx, Location location)
     {
+        // Use feature's CanBeHarvested method
         var harvestables = location
             .Features.OfType<HarvestableFeature>()
-            .Where(h => h.IsDiscovered && h.HasAvailableResources())
+            .Where(h => h.CanBeHarvested())
             .ToList();
 
         if (harvestables.Count == 0)

@@ -12,6 +12,11 @@ public class TensionRegistry
     private readonly List<ActiveTension> _tensions = [];
 
     /// <summary>
+    /// Get all active tensions (read-only).
+    /// </summary>
+    public IReadOnlyList<ActiveTension> GetAllTensions() => _tensions.AsReadOnly();
+
+    /// <summary>
     /// Check if a tension of the given type exists.
     /// </summary>
     public bool HasTension(string type)

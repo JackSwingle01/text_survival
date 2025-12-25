@@ -42,8 +42,7 @@ public class EventConditionTests
         var ctx = CreateTestContext();
         var awayLocation = new Location("Away Location", "[test]", ctx.Weather, 5);
         ctx.Locations.Add(awayLocation);
-        ctx.Expedition = new Expedition(ctx.CurrentLocation, ctx.player);
-        ctx.Expedition.MoveTo(awayLocation, 10); // Travel away from camp
+        ctx.CurrentLocation = awayLocation; // Travel away from camp
 
         // Act & Assert
         Assert.False(ctx.Check(EventCondition.AtCamp));
@@ -54,7 +53,9 @@ public class EventConditionTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        ctx.Expedition = new Expedition(ctx.CurrentLocation, ctx.player);
+        var awayLocation = new Location("Away Location", "[test]", ctx.Weather, 5);
+        ctx.Locations.Add(awayLocation);
+        ctx.CurrentLocation = awayLocation; // Travel away from camp
 
         // Act & Assert
         Assert.True(ctx.Check(EventCondition.OnExpedition));

@@ -1,151 +1,78 @@
 using text_survival.Actors.Animals;
 using text_survival.Actions.Handlers;
 using text_survival.Bodies;
-using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
-using text_survival.Persistence;
 using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions;
 
-public class ExpeditionRunner(GameContext ctx)
+public class TravelRunner(GameContext ctx)
 {
     private readonly GameContext _ctx = ctx;
     private bool PlayerDied => !_ctx.player.IsAlive;
 
-    /// <summary>
-    /// Main entry point - starts a flexible expedition from camp
-    /// Player travels to other locations, works, then returns
-    /// </summary>
-    public void Run()
-    {
-        var expedition = _ctx.Expedition;
-        if (expedition == null)
-        {
-            expedition = new Expedition(_ctx.CurrentLocation, _ctx.player);
-            _ctx.Expedition = expedition;
-
-            GameDisplay.AddNarrative(_ctx, "Where do you want to go?");
-            GameDisplay.Render(_ctx, statusText: "Planning.");
-
-            // First, pick a destination from camp
-            bool wentSomewhere = DoTravel(expedition);
-            if (!wentSomewhere)
-            {
-                // Player cancelled travel, didn't actually leave
-                _ctx.Expedition = null;
-                return;
-            }
-        }
-        
-        // Now we're away from camp - main loop
-        bool stayOut = true;
-        while (stayOut && !PlayerDied)
-        {
-            _ = SaveManager.Save(_ctx); // Auto-save is best-effort
-            GameDisplay.Render(_ctx, statusText: "Surveying.");
-
-            var actionChoice = new Choice<string>("What do you do?");
-
-            // Work options (not at camp - camp work is separate)
-            if (!expedition.IsAtCamp && HasWorkOptions(expedition.CurrentLocation))
-                actionChoice.AddOption("Work here", "work");
-
-            // Travel options
-            actionChoice.AddOption("Travel to another location", "travel");
-
-            // Return to camp option
-            if (!expedition.IsAtCamp)
-                actionChoice.AddOption("Return to camp", "return");
-            else
-                stayOut = false; // Already back at camp, exit loop
-
-            if (stayOut)
-            {
-                string action = actionChoice.GetPlayerChoice(_ctx);
-
-                if (action == "work")
-                {
-                    DoWork(expedition);
-                }
-                else if (action == "travel")
-                {
-                    DoTravel(expedition);
-                }
-                else // return
-                {
-                    ReturnToCamp(expedition);
-                    stayOut = false;
-                }
-            }
-        }
-
-        // Expedition ended
-        _ctx.Expedition = null;
-
-        if (PlayerDied) return;
-
-        // Back at camp
-        GameDisplay.AddNarrative(_ctx, "You made it back to camp.");
-        DisplayExpeditionSummary(expedition);
-        GameDisplay.Render(_ctx, statusText: "Arrived.");
-    }
 
     /// <summary>
     /// Shows travel options and moves to selected destination.
-    /// Returns true if travel occurred, false if cancelled.
+    /// Loops until player chooses to stop traveling.
     /// </summary>
-    private bool DoTravel(Expedition expedition)
+    public void DoTravel()
     {
-        var connections = expedition.CurrentLocation.GetConnections(_ctx);
-        if (connections.Count == 0)
+        while (true)
         {
-            GameDisplay.AddNarrative(_ctx, "There's nowhere to go from here.");
-            return false;
-        }
-
-        // Show travel options
-        var choice = new Choice<Location?>("Where do you go?");
-
-        foreach (var con in connections)
-        {
-            string lbl;
-            if (con.Explored)
+            var connections = _ctx.CurrentLocation.GetConnections(_ctx);
+            if (connections.Count == 0)
             {
-                int minutes = TravelProcessor.GetTraversalMinutes(con, _ctx.player, _ctx.Inventory);
-                // Show name with tags for explored locations
-                string tags = !string.IsNullOrEmpty(con.Tags) ? $" {con.Tags}" : "";
-                lbl = $"{con.Name}{tags} (~{minutes} min)";
-            }
-            else
-            {
-                lbl = con.GetUnexploredHint(_ctx.player);
+                GameDisplay.AddNarrative(_ctx, "You don't know where to go from here. You need to explore first.");
+                return;
             }
 
-            if (con == _ctx.Camp)
-                lbl += " - Camp";
-            if (con == expedition.TravelHistory.ElementAtOrDefault(1))
-                lbl += " (backtrack)";
+            // Show travel options
+            var choice = new Choice<Location?>("Where do you go?");
 
-            choice.AddOption(lbl, con);
+            foreach (var con in connections)
+            {
+                string lbl;
+                if (con.Explored)
+                {
+                    int minutes = TravelProcessor.GetTraversalMinutes(con, _ctx.player, _ctx.Inventory);
+                    // Show name with tags for explored locations
+                    string tags = !string.IsNullOrEmpty(con.Tags) ? $" {con.Tags}" : "";
+                    lbl = $"{con.Name}{tags} (~{minutes} min)";
+                }
+                else
+                {
+                    lbl = con.GetUnexploredHint(_ctx.player);
+                }
+
+                if (con == _ctx.Camp)
+                    lbl += " - Camp";
+
+                // todo - add backtracking?
+                // if (con == expedition.TravelHistory.ElementAtOrDefault(1))
+                //     lbl += " (backtrack)";
+
+                choice.AddOption(lbl, con);
+            }
+
+            choice.AddOption("Done", null);
+
+            var destination = choice.GetPlayerChoice(_ctx);
+            if (destination == null) break;
+
+            bool success = TravelToLocation(destination);
+            if (!success) return; // Player died, exit entirely
         }
-
-        choice.AddOption("Cancel", null);
-
-        var destination = choice.GetPlayerChoice(_ctx);
-        if (destination == null) return false;
-
-        return TravelToLocation(expedition, destination);
     }
 
     /// <summary>
     /// Travels to the specified destination, handling hazardous terrain and progress.
     /// Returns true if travel succeeded, false if player died.
     /// </summary>
-    private bool TravelToLocation(Expedition expedition, Location destination)
+    internal bool TravelToLocation(Location destination)
     {
         int travelTime;
         bool quickTravel = false;
@@ -171,10 +98,7 @@ public class ExpeditionRunner(GameContext ctx)
             travelTime = TravelProcessor.GetTraversalMinutes(destination, _ctx.player, _ctx.Inventory);
         }
 
-        // Travel with progress bar
-        expedition.State = ExpeditionState.Traveling;
-
-        bool died = RunTravelWithProgress(expedition, destination, travelTime);
+        bool died = RunTravelWithProgress(travelTime);
         if (died) return false;
 
         // Check for injury if quick travel through hazardous terrain
@@ -187,158 +111,37 @@ public class ExpeditionRunner(GameContext ctx)
         }
 
         bool firstVisit = !destination.Explored;
-        expedition.MoveTo(destination, travelTime);
+        _ctx.CurrentLocation = destination;
         destination.Explore();
 
-        GameDisplay.AddNarrative(_ctx, $"You arrive at {expedition.CurrentLocation.Name}.");
-        if (!string.IsNullOrEmpty(expedition.CurrentLocation.Tags))
-            GameDisplay.AddNarrative(_ctx, expedition.CurrentLocation.Tags);
+        // Check for victory
+        if (_ctx.IsWinLocation(destination))
+        {
+            HandleVictory();
+            return true;
+        }
+
+        GameDisplay.AddNarrative(_ctx, $"You arrive at {destination.Name}.");
 
         // Show discovery text on first visit
-        if (firstVisit && !string.IsNullOrEmpty(expedition.CurrentLocation.DiscoveryText))
+        if (firstVisit && !string.IsNullOrEmpty(destination.DiscoveryText))
         {
-            GameDisplay.AddNarrative(_ctx, expedition.CurrentLocation.DiscoveryText);
+            GameDisplay.AddNarrative(_ctx, destination.DiscoveryText);
         }
 
         return true;
     }
 
-    private void ReturnToCamp(Expedition expedition)
-    {
-        GameDisplay.AddNarrative(_ctx, "You head back toward camp...");
 
-        // Check if any return segments have hazardous terrain
-        bool hasHazardousReturn = expedition.TravelHistory
-            .Skip(1) // Skip current location
-            .Any(TravelProcessor.IsHazardousTerrain);
 
-        bool quickReturn = false;
-        if (hasHazardousReturn)
-        {
-            GameDisplay.AddNarrative(_ctx, "Some of the terrain on the way back is treacherous.");
 
-            var speedChoice = new Choice<bool>("How do you proceed?");
-            speedChoice.AddOption("Careful - Take your time on difficult sections", false);
-            speedChoice.AddOption("Quick - Push through, risk injury", true);
 
-            quickReturn = speedChoice.GetPlayerChoice(_ctx);
-        }
-
-        // Walk back through travel history
-        while (!expedition.IsAtCamp && !PlayerDied)
-        {
-            // Next location is always the second item in the stack (backtrack)
-            var nextLocation = expedition.TravelHistory.ElementAtOrDefault(1);
-            if (nextLocation == null) break;
-
-            bool isHazardous = TravelProcessor.IsHazardousTerrain(nextLocation);
-            int travelTime;
-
-            if (isHazardous && !quickReturn)
-            {
-                // Careful travel through hazardous terrain
-                travelTime = TravelProcessor.GetCarefulTraversalMinutes(nextLocation, _ctx.player, _ctx.Inventory);
-            }
-            else
-            {
-                travelTime = TravelProcessor.GetTraversalMinutes(nextLocation, _ctx.player, _ctx.Inventory);
-            }
-
-            expedition.State = ExpeditionState.Traveling;
-
-            bool died = RunTravelWithProgress(expedition, nextLocation, travelTime);
-            if (died) break;
-
-            // Check for injury on quick return through hazardous terrain
-            if (isHazardous && quickReturn)
-            {
-                double injuryRisk = TravelProcessor.GetInjuryRisk(nextLocation, _ctx.player, _ctx.Weather);
-                if (injuryRisk > 0 && Utils.RandDouble(0, 1) < injuryRisk)
-                {
-                    TravelHandler.ApplyTravelInjury(_ctx, nextLocation);
-                }
-            }
-
-            expedition.MoveTo(nextLocation, travelTime);
-        }
-    }
-
-    private void DoWork(Expedition expedition)
-    {
-        var workChoice = GetWorkOptions(expedition.CurrentLocation);
-        if (workChoice == null) return;
-
-        string workType = workChoice.GetPlayerChoice(_ctx);
-        expedition.State = ExpeditionState.Working;
-
-        var work = new WorkRunner(_ctx);
-        WorkResult? result = null;
-
-        switch (workType)
-        {
-            case "forage":
-                result = work.DoForage(expedition.CurrentLocation);
-                break;
-            case "harvest":
-                result = work.DoHarvest(expedition.CurrentLocation);
-                break;
-            case "salvage":
-                result = work.DoSalvage(expedition.CurrentLocation);
-                break;
-            case "cache":
-                result = work.DoCache(expedition.CurrentLocation);
-                break;
-            case "hunt":
-                DoHuntWork(expedition);
-                break;
-            case "explore":
-                result = work.DoExplore(expedition.CurrentLocation);
-                break;
-            case "set_trap":
-                result = work.DoSetTrap(expedition.CurrentLocation);
-                break;
-            case "check_traps":
-                result = work.DoCheckTraps(expedition.CurrentLocation);
-                break;
-            case "cancel":
-                break;
-        }
-
-        // Log results to expedition
-        if (result != null)
-        {
-            expedition.CollectionLog.AddRange(result.CollectedItems);
-            expedition.AddTime(result.MinutesElapsed);
-            if (result.DiscoveredLocation != null)
-            {
-                expedition.AddLog($"Discovered: {result.DiscoveredLocation.Name}");
-
-                // Prompt to travel to discovered location
-                var goChoice = new Choice<bool>("Go there?");
-                goChoice.AddOption("Go there", true);
-                goChoice.AddOption("Stay", false);
-
-                if (goChoice.GetPlayerChoice(_ctx))
-                {
-                    TravelToLocation(expedition, result.DiscoveredLocation);
-                }
-            }
-        }
-
-        expedition.State = ExpeditionState.Traveling;
-    }
-
-    private bool HasWorkOptions(Location location) =>
-        WorkRunner.HasWorkOptions(_ctx, location, includeHunt: true);
-
-    private Choice<string>? GetWorkOptions(Location location) =>
-        WorkRunner.GetWorkOptions(_ctx, location, includeHunt: true);
 
     // --- Hunting (stays here - interactive, not time-passage based) ---
 
-    private void DoHuntWork(Expedition expedition)
+    public void DoHuntWork()
     {
-        var feature = expedition.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
+        var feature = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
         if (feature == null)
         {
             GameDisplay.AddNarrative(_ctx, "There's no game to be found here.");
@@ -361,7 +164,6 @@ public class ExpeditionRunner(GameContext ctx)
 
             int searchTime = 15;
             GameDisplay.UpdateAndRenderProgress(_ctx, "Searching for game...", searchTime, ActivityType.Hunting);
-            expedition.AddTime(searchTime);
 
             if (PlayerDied) break;
 
@@ -383,12 +185,11 @@ public class ExpeditionRunner(GameContext ctx)
             if (!huntChoice.GetPlayerChoice(_ctx))
                 continue;
 
-            int huntMinutes = RunSingleHunt(found, expedition.CurrentLocation, expedition);
+            int huntMinutes = RunSingleHunt(found, ctx.CurrentLocation);
             if (huntMinutes > 0)
             {
                 GameDisplay.UpdateAndRenderProgress(_ctx, "Stalking...", huntMinutes, ActivityType.Hunting);
             }
-            expedition.AddTime(huntMinutes);
 
             if (PlayerDied) break;
 
@@ -399,7 +200,7 @@ public class ExpeditionRunner(GameContext ctx)
         }
     }
 
-    private int RunSingleHunt(Animal target, Location location, Expedition expedition)
+    private int RunSingleHunt(Animal target, Location location)
     {
         _ctx.player.stealthManager.StartHunting(target, _ctx);
         int minutesSpent = 0;
@@ -469,7 +270,7 @@ public class ExpeditionRunner(GameContext ctx)
 
                             if (attackChoice.GetPlayerChoice(_ctx))
                             {
-                                PerformKill(target, expedition);
+                                PerformKill(target);
                             }
                         }
                     }
@@ -520,12 +321,12 @@ public class ExpeditionRunner(GameContext ctx)
                     break;
 
                 case "throw_spear":
-                    PerformRangedAttack(target, expedition, isSpear: true);
+                    PerformRangedAttack(target, isSpear: true);
                     minutesSpent += 2;
                     break;
 
                 case "throw_stone":
-                    PerformRangedAttack(target, expedition, isSpear: false);
+                    PerformRangedAttack(target, isSpear: false);
                     minutesSpent += 2;
                     break;
 
@@ -538,7 +339,7 @@ public class ExpeditionRunner(GameContext ctx)
         return minutesSpent;
     }
 
-    private void PerformKill(Animal target, Expedition expedition)
+    private void PerformKill(Animal target)
     {
         GameDisplay.AddNarrative(_ctx, $"You strike! The {target.Name} falls.");
 
@@ -551,14 +352,12 @@ public class ExpeditionRunner(GameContext ctx)
         _ctx.player.Skills.GetSkill("Hunting").GainExperience(5);
         GameDisplay.AddNarrative(_ctx, $"You butcher the {target.Name} and collect {loot.CurrentWeightKg:F1}kg of meat.");
 
-        expedition.CollectionLog.Add(loot.GetDescription());
-
         Input.WaitForKey(_ctx);
     }
 
     #region Ranged Hunting Helpers
 
-    private void PerformRangedAttack(Animal target, Expedition expedition, bool isSpear)
+    private void PerformRangedAttack(Animal target, bool isSpear)
     {
         var weapon = _ctx.Inventory.Weapon;
 
@@ -585,7 +384,6 @@ public class ExpeditionRunner(GameContext ctx)
             _ctx.Inventory.Combine(loot);
 
             GameDisplay.AddNarrative(_ctx, $"You butcher the {target.Name} and collect {loot.CurrentWeightKg:F1}kg of meat.");
-            expedition.CollectionLog.Add(loot.GetDescription());
 
             _ctx.player.stealthManager.StopHunting(_ctx, "Hunt successful.");
             Input.WaitForKey(_ctx);
@@ -616,7 +414,7 @@ public class ExpeditionRunner(GameContext ctx)
                 var tension = Tensions.ActiveTension.WoundedPrey(
                     woundSeverity,
                     target.Name,
-                    expedition.CurrentLocation
+                    ctx.CurrentLocation
                 );
                 _ctx.Tensions.AddTension(tension);
 
@@ -633,7 +431,6 @@ public class ExpeditionRunner(GameContext ctx)
                 // Spear recovery: spend time searching
                 GameDisplay.AddNarrative(_ctx, "You spend a few minutes searching for your spear...");
                 _ctx.Update(3, ActivityType.Hunting);
-                expedition.AddTime(3);
             }
 
             // Animal flees
@@ -648,7 +445,7 @@ public class ExpeditionRunner(GameContext ctx)
     /// <summary>
     /// Runs travel with a progress bar. Returns true if player died during travel.
     /// </summary>
-    private bool RunTravelWithProgress(Expedition expedition, Location destination, int totalTime)
+    private bool RunTravelWithProgress(int totalTime)
     {
         int elapsed = 0;
         bool died = false;
@@ -677,27 +474,24 @@ public class ExpeditionRunner(GameContext ctx)
         return died;
     }
 
-    private void DisplayExpeditionSummary(Expedition expedition)
+    private void HandleVictory()
     {
-        if (expedition.CollectionLog.Count > 0)
-        {
-            GameDisplay.AddNarrative(_ctx, "\n--- Expedition Summary ---");
-            GameDisplay.AddNarrative(_ctx, $"Time away: {expedition.MinutesElapsedTotal} minutes");
-            GameDisplay.AddNarrative(_ctx, "Collected:");
-            foreach (var item in expedition.CollectionLog)
-            {
-                GameDisplay.AddNarrative(_ctx, $"  - {item}");
-            }
-        }
+        _ctx.TriggerVictory();
 
-        var logs = expedition.FlushLogs();
-        foreach (var log in logs)
-        {
-            GameDisplay.AddNarrative(_ctx, log);
-        }
+        GameDisplay.ClearNarrative(_ctx);
+        GameDisplay.AddSuccess(_ctx, "You made it.");
+        GameDisplay.AddNarrative(_ctx, "");
+        GameDisplay.AddNarrative(_ctx, "The pass is behind you now.");
+        GameDisplay.AddNarrative(_ctx, "Below, the far valley stretches green and sheltered.");
+        GameDisplay.AddNarrative(_ctx, "Smoke rises from distant fires. Your tribe is there.");
+        GameDisplay.AddNarrative(_ctx, "");
+        GameDisplay.AddNarrative(_ctx, "You survived.");
+        GameDisplay.AddNarrative(_ctx, "");
+        GameDisplay.AddNarrative(_ctx, $"Days survived: {_ctx.DaysSurvived}");
+        GameDisplay.AddNarrative(_ctx, $"Season: {_ctx.Weather.GetSeasonLabel()}");
+        GameDisplay.Render(_ctx, statusText: "Victory!");
 
         Input.WaitForKey(_ctx);
     }
-
 
 }

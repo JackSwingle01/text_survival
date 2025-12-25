@@ -119,6 +119,9 @@ public class ZoneGenerator
             windCoverage: 0.4        // Moderate wind protection from trees
         ));
 
+        // Bedding for sleeping at camp
+        start.Features.Add(BeddingFeature.CreateCampBedding());
+
         start.Explore();
         return start;
     }
@@ -143,5 +146,29 @@ public class ZoneGenerator
         var fallback = LocationFactory.MakeForest(weather);
         fallback.BaseTraversalMinutes = Utils.RandInt(8, 15);
         return fallback;
+    }
+
+    /// <summary>
+    /// Generate the mountain pass chain - linear progression from connectTo to far side.
+    /// Returns list of pass locations in order (approach -> proper -> far side).
+    /// </summary>
+    public static List<Location> GenerateMountainPass(Weather weather, Location connectTo)
+    {
+        var approach = LocationFactory.MakePassApproach(weather);
+        var lower = LocationFactory.MakeLowerPass(weather);
+        var proper = LocationFactory.MakePassProper(weather);
+        var upperDescent = LocationFactory.MakeUpperDescent(weather);
+        var lowerDescent = LocationFactory.MakeLowerDescent(weather);
+        var farSide = LocationFactory.MakeFarSide(weather);
+
+        // Chain the pass locations
+        connectTo.AddBidirectionalConnection(approach);
+        approach.AddBidirectionalConnection(lower);
+        lower.AddBidirectionalConnection(proper);
+        proper.AddBidirectionalConnection(upperDescent);
+        upperDescent.AddBidirectionalConnection(lowerDescent);
+        lowerDescent.AddBidirectionalConnection(farSide);
+
+        return [approach, lower, proper, upperDescent, lowerDescent, farSide];
     }
 }

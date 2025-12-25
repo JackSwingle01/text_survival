@@ -12,6 +12,7 @@ namespace text_survival.Environments.Features;
 [JsonDerivedType(typeof(WaterFeature), "water")]
 [JsonDerivedType(typeof(SalvageFeature), "salvage")]
 [JsonDerivedType(typeof(CuringRackFeature), "curingRack")]
+[JsonDerivedType(typeof(BeddingFeature), "bedding")]
 public abstract class LocationFeature
 {
     public string Name { get; set; } = string.Empty;

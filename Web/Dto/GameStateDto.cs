@@ -22,6 +22,10 @@ public record GameStateDto
     public string Wind { get; init; } = "";
     public string Precipitation { get; init; } = "";
 
+    // Season
+    public string Season { get; init; } = "";
+    public double SeasonIntensity { get; init; }
+
     // Location
     public string LocationName { get; init; } = "";
     public List<string> LocationTags { get; init; } = [];
@@ -58,6 +62,9 @@ public record GameStateDto
 
     // Narrative log
     public List<LogEntryDto> Log { get; init; } = [];
+
+    // Active tensions (atmospheric display)
+    public List<TensionDto> Tensions { get; init; } = [];
 
     // CSS variable hints (0-1 range)
     public double Warmth { get; init; }
@@ -130,6 +137,10 @@ public record GameStateDto
             Wind = weather.GetWindLabel(),
             Precipitation = weather.GetPrecipitationLabel(),
 
+            // Season
+            Season = weather.GetSeasonLabel(),
+            SeasonIntensity = weather.SeasonalIntensity,
+
             // Location
             LocationName = location.Name,
             LocationTags = ParseTags(location.Tags),
@@ -168,6 +179,9 @@ public record GameStateDto
 
             // Narrative
             Log = logEntries,
+
+            // Tensions (atmospheric)
+            Tensions = ExtractTensions(ctx.Tensions),
 
             // CSS hints
             Warmth = warmth,
@@ -415,6 +429,45 @@ public record GameStateDto
         var matches = Regex.Matches(tagString, @"\[([^\]]+)\]");
         return matches.Select(m => m.Groups[1].Value).ToList();
     }
+
+    private static List<TensionDto> ExtractTensions(Actions.Tensions.TensionRegistry registry)
+    {
+        return registry.GetAllTensions()
+            .Select(t => new TensionDto(
+                Message: GetTensionMessage(t),
+                Category: GetTensionCategory(t.Type)
+            ))
+            .ToList();
+    }
+
+    private static string GetTensionMessage(Actions.Tensions.ActiveTension t) => t.Type switch
+    {
+        "Stalked" => t.AnimalType != null
+            ? $"A {t.AnimalType.ToLower()} is following you"
+            : "Something is following you",
+        "Hunted" => "You are being hunted",
+        "PackNearby" => "A pack is nearby",
+        "WoundedPrey" => "A blood trail leads away",
+        "DeadlyCold" => "The cold is killing you",
+        "FeverRising" => "Fever burns in your blood",
+        "Disturbed" => "Dark thoughts linger",
+        "FoodScentStrong" => "The scent of meat carries",
+        "WoundUntreated" => "Your wound needs attention",
+        "HerdNearby" => t.AnimalType != null
+            ? $"A herd of {t.AnimalType.ToLower()} passes nearby"
+            : "A herd passes nearby",
+        "ClaimedTerritory" => "Something has claimed this place",
+        "TrapLineActive" => "Snares are set",
+        _ => t.Description ?? t.Type
+    };
+
+    private static string GetTensionCategory(string type) => type switch
+    {
+        "Stalked" or "Hunted" or "PackNearby" or "DeadlyCold" => "threat",
+        "WoundedPrey" or "HerdNearby" or "TrapLineActive" => "opportunity",
+        "FeverRising" or "WoundUntreated" or "Disturbed" => "condition",
+        _ => "neutral"
+    };
 }
 
 public record FeatureDto(string Type, string Label, string? Detail);
@@ -456,3 +509,5 @@ public record InjuryDto(
 );
 
 public record LogEntryDto(string Text, string Level);
+
+public record TensionDto(string Message, string Category);

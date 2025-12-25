@@ -503,6 +503,36 @@ public class HeatSourceFeature : LocationFeature
         return "Dying";
     }
 
+    /// <summary>
+    /// Check if fire is cold (no activity, no embers).
+    /// </summary>
+    public bool IsCold => !IsActive && !_hasEmbers;
+
+    /// <summary>
+    /// Check if fire is just igniting (small initial flames).
+    /// </summary>
+    public bool IsIgniting => IsActive && _burningMassKg < 0.5;
+
+    /// <summary>
+    /// Check if fire is building (actively catching fuel).
+    /// </summary>
+    public bool IsBuilding => IsActive && _unburnedMassKg > _burningMassKg * 0.5;
+
+    /// <summary>
+    /// Check if fire is roaring (large active fire).
+    /// </summary>
+    public bool IsRoaring => IsActive && _burningMassKg > 4.0;
+
+    /// <summary>
+    /// Check if fire is in steady state (good burning fire).
+    /// </summary>
+    public bool IsSteady => IsActive && _burningMassKg > 1.5 && _burningMassKg <= 4.0;
+
+    /// <summary>
+    /// Check if fire is dying (needs fuel soon).
+    /// </summary>
+    public bool IsDying => IsActive && _burningMassKg <= 1.5 && _unburnedMassKg <= _burningMassKg * 0.5;
+
     #endregion
 
     #region Save/Load Support - No longer needed with field-based serialization

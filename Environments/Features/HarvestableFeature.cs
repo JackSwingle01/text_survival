@@ -1,3 +1,6 @@
+using text_survival.Actions;
+using text_survival.Actions.Expeditions;
+using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
@@ -19,7 +22,7 @@ public enum ToolTier
 /// quantity-based resource that respawns over time.
 /// Examples: berry bushes, deadfall pile, water source, willow stand
 /// </summary>
-public class HarvestableFeature : LocationFeature
+public class HarvestableFeature : LocationFeature, IWorkableFeature
 {
     [System.Text.Json.Serialization.JsonInclude]
     private string _displayName = "";
@@ -188,6 +191,46 @@ public class HarvestableFeature : LocationFeature
     public bool HasAvailableResources()
     {
         return _resources.Any(r => r.CurrentQuantity > 0);
+    }
+
+    /// <summary>
+    /// Check if this feature can be harvested right now.
+    /// Combines discovery state and resource availability.
+    /// </summary>
+    public bool CanBeHarvested() => IsDiscovered && HasAvailableResources();
+
+    /// <summary>
+    /// Check if all resources are depleted.
+    /// </summary>
+    public bool IsDepleted() => _resources.Count > 0 && _resources.All(r => r.CurrentQuantity == 0);
+
+    /// <summary>
+    /// Check if resources are nearly depleted (less than 25% remaining).
+    /// </summary>
+    public bool IsNearlyDepleted()
+    {
+        if (_resources.Count == 0) return false;
+        int current = _resources.Sum(r => r.CurrentQuantity);
+        int max = _resources.Sum(r => r.MaxQuantity);
+        return max > 0 && current < max * 0.25;
+    }
+
+    /// <summary>
+    /// Get work options for this feature.
+    /// </summary>
+    public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
+    {
+        if (!CanBeHarvested()) yield break;
+
+        string toolHint = RequiredToolType != null
+            ? $" ({GetToolRequirementDescription()})"
+            : "";
+
+        yield return new WorkOption(
+            $"Harvest {DisplayName}{toolHint}",
+            "harvest",
+            new HarvestStrategy()
+        );
     }
 
     /// <summary>

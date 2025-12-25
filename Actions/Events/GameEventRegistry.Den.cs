@@ -39,7 +39,7 @@ public static partial class GameEventRegistry
                     new EventResult($"Fresh tracks, still steaming scat. The {predator.ToLower()} is close.", weight: 0.20, minutes: 10)
                         .CreateTension("ClaimedTerritory", 0.5, animalType: predator, location: ctx.CurrentLocation),
                     new EventResult("Empty. Abandoned. Yours for the taking.", weight: 0.10, minutes: 20)
-                        .AddsFeature(typeof(ShelterFeature), (0.4, 0.6, 0.7))
+                        .AddsShelter(temp: 0.4, overhead: 0.6, wind: 0.7)
                         .Chain(ClaimingTheDen)
                 ])
             .Choice("Mark It and Leave",
@@ -83,7 +83,7 @@ public static partial class GameEventRegistry
                     ? [
                         new EventResult("The den is empty. The pack is hunting. Quick, claim it.", weight: 0.45, minutes: 60)
                             .ResolveTension("ClaimedTerritory")
-                            .AddsFeature(typeof(ShelterFeature), (0.5, 0.7, 0.8))
+                            .AddsShelter(temp: 0.5, overhead: 0.7, wind: 0.8)
                             .Chain(ClaimingTheDen),
                         new EventResult("Hours pass. No movement. Still occupied.", weight: 0.35, minutes: 90),
                         new EventResult("You wait too long. They return. Spotted.", weight: 0.20, minutes: 75)
@@ -93,7 +93,7 @@ public static partial class GameEventRegistry
                     : [
                         new EventResult("It emerges to hunt. You slip in.", weight: 0.25, minutes: 120)
                             .ResolveTension("ClaimedTerritory")
-                            .AddsFeature(typeof(ShelterFeature), (0.5, 0.7, 0.8))
+                            .AddsShelter(temp: 0.5, overhead: 0.7, wind: 0.8)
                             .Chain(ClaimingTheDen),
                         new EventResult("It's not leaving. Bears are stubborn.", weight: 0.50, minutes: 90),
                         new EventResult("Hibernating. It's not going anywhere.", weight: 0.25, minutes: 60)
@@ -106,7 +106,7 @@ public static partial class GameEventRegistry
                         .Costs(ResourceType.Fuel, 3)
                         .Costs(ResourceType.Tinder, 1)
                         .ResolveTension("ClaimedTerritory")
-                        .AddsFeature(typeof(ShelterFeature), (0.4, 0.6, 0.7))
+                        .AddsShelter(temp: 0.4, overhead: 0.6, wind: 0.7)
                         .Chain(ClaimingTheDen),
                     new EventResult("It bursts out enraged. Fight for your claim.", weight: 0.30, minutes: 15)
                         .Costs(ResourceType.Fuel, 2)
@@ -124,7 +124,7 @@ public static partial class GameEventRegistry
                     ? [
                         new EventResult("The wolves scatter at the commotion. Den yours.", weight: 0.40, minutes: 25)
                             .ResolveTension("ClaimedTerritory")
-                            .AddsFeature(typeof(ShelterFeature), (0.4, 0.6, 0.7))
+                            .AddsShelter(temp: 0.4, overhead: 0.6, wind: 0.7)
                             .Chain(ClaimingTheDen),
                         new EventResult("They back off but don't leave. Stalemate.", weight: 0.40, minutes: 20),
                         new EventResult("Your noise provokes them. They attack.", weight: 0.20, minutes: 10)
@@ -136,7 +136,7 @@ public static partial class GameEventRegistry
                             .Escalate("ClaimedTerritory", 0.3),
                         new EventResult("Against odds, it leaves. Noise worked.", weight: 0.10, minutes: 20)
                             .ResolveTension("ClaimedTerritory")
-                            .AddsFeature(typeof(ShelterFeature), (0.4, 0.6, 0.7))
+                            .AddsShelter(temp: 0.4, overhead: 0.6, wind: 0.7)
                             .Chain(ClaimingTheDen)
                     ])
             .Choice("Fight for It Now",
@@ -179,7 +179,7 @@ public static partial class GameEventRegistry
                         .Costs(ResourceType.Tinder, 1)
                         .Costs(ResourceType.Fuel, 1)
                         .ResolveTension("ClaimedTerritory")
-                        .AddsFeature(typeof(ShelterFeature), (0.4, 0.6, 0.7))
+                        .AddsShelter(temp: 0.4, overhead: 0.6, wind: 0.7)
                         .Chain(ClaimingTheDen),
                     new EventResult("Cornered and desperate. It attacks through the fire.", weight: 0.45, minutes: 5)
                         .Costs(ResourceType.Tinder, 1)
@@ -188,7 +188,7 @@ public static partial class GameEventRegistry
                         .Costs(ResourceType.Tinder, 1)
                         .ResolveTension("ClaimedTerritory")
                         .BecomeStalked(0.4, animal)
-                        .AddsFeature(typeof(ShelterFeature), (0.4, 0.6, 0.7))
+                        .AddsShelter(temp: 0.4, overhead: 0.6, wind: 0.7)
                         .Chain(ClaimingTheDen)
                 ],
                 [EventCondition.HasTinder, EventCondition.HasFuel])

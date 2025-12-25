@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using text_survival.Actions;
 using text_survival.Items;
 
@@ -98,12 +99,37 @@ public class Inventory
     public List<Tool> Tools { get; set; } = new();
     public List<Item> Special { get; set; } = new();
 
-    // Equipment
-    public Equipment? Head { get; set; }
-    public Equipment? Chest { get; set; }
-    public Equipment? Legs { get; set; }
-    public Equipment? Feet { get; set; }
-    public Equipment? Hands { get; set; }
+    // Equipment - dictionary backing store
+    private Dictionary<EquipSlot, Equipment?> _equipment = new()
+    {
+        [EquipSlot.Head] = null,
+        [EquipSlot.Chest] = null,
+        [EquipSlot.Legs] = null,
+        [EquipSlot.Feet] = null,
+        [EquipSlot.Hands] = null
+    };
+
+    // Public property for JSON serialization
+    public Dictionary<EquipSlot, Equipment?> Equipment
+    {
+        get => _equipment;
+        set
+        {
+            _equipment.Clear();
+            foreach (var (slot, equipment) in value)
+            {
+                _equipment[slot] = equipment;
+            }
+        }
+    }
+
+    // Computed properties for backward compatibility (JsonIgnore to avoid duplication)
+    [JsonIgnore] public Equipment? Head { get => _equipment[EquipSlot.Head]; set => _equipment[EquipSlot.Head] = value; }
+    [JsonIgnore] public Equipment? Chest { get => _equipment[EquipSlot.Chest]; set => _equipment[EquipSlot.Chest] = value; }
+    [JsonIgnore] public Equipment? Legs { get => _equipment[EquipSlot.Legs]; set => _equipment[EquipSlot.Legs] = value; }
+    [JsonIgnore] public Equipment? Feet { get => _equipment[EquipSlot.Feet]; set => _equipment[EquipSlot.Feet] = value; }
+    [JsonIgnore] public Equipment? Hands { get => _equipment[EquipSlot.Hands]; set => _equipment[EquipSlot.Hands] = value; }
+
     public Tool? Weapon { get; set; }
 
     // Active torch
@@ -151,16 +177,14 @@ public class Inventory
     public double ToolsWeight => Tools.Sum(t => t.Weight);
     public double SpecialWeight => Special.Sum(i => i.Weight);
     public double EquipmentWeight =>
-        (Head?.Weight ?? 0) + (Chest?.Weight ?? 0) + (Legs?.Weight ?? 0) +
-        (Feet?.Weight ?? 0) + (Hands?.Weight ?? 0) + (Weapon?.Weight ?? 0);
+        _equipment.Values.Sum(e => e?.Weight ?? 0) + (Weapon?.Weight ?? 0);
 
     public double CurrentWeightKg =>
         ResourceWeight + WaterLiters + ToolsWeight + SpecialWeight + EquipmentWeight +
         (ActiveTorch?.Weight ?? 0);
 
     public double TotalInsulation =>
-        (Head?.Insulation ?? 0) + (Chest?.Insulation ?? 0) + (Legs?.Insulation ?? 0) +
-        (Feet?.Insulation ?? 0) + (Hands?.Insulation ?? 0);
+        _equipment.Values.Sum(e => e?.Insulation ?? 0);
 
     public bool CanCarry(double additionalKg) =>
         MaxWeightKg < 0 || CurrentWeightKg + additionalKg <= MaxWeightKg;
@@ -243,52 +267,18 @@ public class Inventory
 
     public bool HasCraftingMaterials => Has(ResourceCategory.Material);
 
-    // Equipment management  
-    public Equipment? Equip(Equipment equipment)
+    // Equipment management
+    public text_survival.Items.Equipment? Equip(text_survival.Items.Equipment equipment)
     {
-        Equipment? previous = equipment.Slot switch
-        {
-            EquipSlot.Head => Head,
-            EquipSlot.Chest => Chest,
-            EquipSlot.Legs => Legs,
-            EquipSlot.Feet => Feet,
-            EquipSlot.Hands => Hands,
-            _ => null
-        };
-
-        switch (equipment.Slot)
-        {
-            case EquipSlot.Head: Head = equipment; break;
-            case EquipSlot.Chest: Chest = equipment; break;
-            case EquipSlot.Legs: Legs = equipment; break;
-            case EquipSlot.Feet: Feet = equipment; break;
-            case EquipSlot.Hands: Hands = equipment; break;
-        }
-
+        var previous = _equipment[equipment.Slot];
+        _equipment[equipment.Slot] = equipment;
         return previous;
     }
 
-    public Equipment? Unequip(EquipSlot slot)
+    public text_survival.Items.Equipment? Unequip(EquipSlot slot)
     {
-        Equipment? removed = slot switch
-        {
-            EquipSlot.Head => Head,
-            EquipSlot.Chest => Chest,
-            EquipSlot.Legs => Legs,
-            EquipSlot.Feet => Feet,
-            EquipSlot.Hands => Hands,
-            _ => null
-        };
-
-        switch (slot)
-        {
-            case EquipSlot.Head: Head = null; break;
-            case EquipSlot.Chest: Chest = null; break;
-            case EquipSlot.Legs: Legs = null; break;
-            case EquipSlot.Feet: Feet = null; break;
-            case EquipSlot.Hands: Hands = null; break;
-        }
-
+        var removed = _equipment[slot];
+        _equipment[slot] = null;
         return removed;
     }
 
@@ -345,15 +335,8 @@ public class Inventory
         return Tools.FirstOrDefault(t => t.Type == type);
     }
 
-    public Equipment? GetEquipment(EquipSlot slot) => slot switch
-    {
-        EquipSlot.Head => Head,
-        EquipSlot.Chest => Chest,
-        EquipSlot.Legs => Legs,
-        EquipSlot.Feet => Feet,
-        EquipSlot.Hands => Hands,
-        _ => null
-    };
+    public text_survival.Items.Equipment? GetEquipment(EquipSlot slot) =>
+        _equipment.GetValueOrDefault(slot);
 
     // Factory methods
     public static Inventory CreatePlayerInventory(double maxWeightKg = 15.0) =>

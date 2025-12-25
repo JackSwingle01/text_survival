@@ -1,7 +1,5 @@
 using text_survival.Actors.Animals;
-using text_survival.Actors;
 using text_survival.Bodies;
-using text_survival.Combat;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
@@ -9,8 +7,7 @@ using text_survival.Actions.Expeditions;
 using text_survival.Actions.Handlers;
 using text_survival.Persistence;
 using text_survival.UI;
-using text_survival.Survival;
-using System.Net;
+using text_survival.Environments;
 
 namespace text_survival.Actions;
 
@@ -36,20 +33,21 @@ public class Choice<T>(string? prompt = null)
 public partial class GameRunner(GameContext ctx)
 {
     private readonly GameContext ctx = ctx;
+    private static readonly Action BackAction = () => { };
 
     public void Run()
     {
-        while (ctx.player.IsAlive)
+        while (ctx.player.IsAlive && !ctx.HasWon)
         {
-            if (ctx.Expedition is not null)
-            {
-                // if resuming a save mid expedition - finish it before continuing 
-                var expeditionRunner = new ExpeditionRunner(ctx);
-                expeditionRunner.Run();
-            }
             GameDisplay.Render(ctx, statusText: "Resting.");
             CheckFireWarning();
-            RunCampMenu();
+            MainMenu();
+        }
+
+        if (ctx.HasWon)
+        {
+            // Victory was already displayed in ExpeditionRunner
+            return;
         }
 
         // Player died from survival conditions - show death message
@@ -59,16 +57,9 @@ public partial class GameRunner(GameContext ctx)
         Input.WaitForKey(ctx);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // MAIN MENU
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    private void RunCampMenu()
+    private void MainMenu()
     {
-        // Auto-save when at camp menu (discard result - auto-save is best-effort)
-        _ = SaveManager.Save(ctx);
-
-        var choice = new Choice<Action>();
+        // choose camp, work, or travel
         var capacities = ctx.player.GetCapacities();
         var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
         var isLimping = AbilityCalculator.IsMovingImpaired(capacities.Moving);
@@ -77,30 +68,21 @@ public partial class GameRunner(GameContext ctx)
             AbilityCalculator.CalculatePerception(ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers()));
         var isWinded = AbilityCalculator.IsBreathingImpaired(capacities.Breathing);
 
-        if (CanRestByFire())
-            choice.AddOption("Wait", Wait);
 
-        if (HasActiveFire())
-            choice.AddOption("Tend fire", TendFire);
-
-        if (CanStartFire())
-            choice.AddOption("Start fire", StartFire);
-
-        // Work around camp - foraging, exploring without leaving
-        if (HasCampWork())
+        var choice = new Choice<Action>();
+        if (CanWork())
         {
-            string workLabel = "Work near camp";
+            string workLabel = "Work";
             if (isFoggy && isWinded)
-                workLabel = "Work near camp (foggy, winded)";
+                workLabel = "Work (foggy, winded)";
             else if (isFoggy)
-                workLabel = "Work near camp (your senses are dulled)";
+                workLabel = "Work (your senses are dulled)";
             else if (isWinded)
-                workLabel = "Work near camp (you're short of breath)";
-            choice.AddOption(workLabel, WorkAroundCamp);
+                workLabel = "Work (you're short of breath)";
+            choice.AddOption(workLabel, Work);
         }
 
-        // Leave camp - travel to other locations (only show if destinations exist)
-        if (ctx.Camp.ConnectionNames.Count > 0)
+        if (CanTravel())
         {
             // Build descriptors for travel-affecting impairments
             var travelImpairments = new List<string>();
@@ -110,107 +92,246 @@ public partial class GameRunner(GameContext ctx)
 
             string leaveLabel = travelImpairments.Count switch
             {
-                0 => "Leave camp",
+                0 => "Travel",
                 1 => travelImpairments[0] switch
                 {
-                    "impaired" => "Leave camp (you're not thinking clearly)",
-                    "limping" => "Leave camp (your movement is limited)",
-                    "winded" => "Leave camp (you're short of breath)",
-                    _ => "Leave camp"
+                    "impaired" => "Travel (you're not thinking clearly)",
+                    "limping" => "Travel (your movement is limited)",
+                    "winded" => "Travel (you're short of breath)",
+                    _ => "Travel"
                 },
-                _ => $"Leave camp ({string.Join(", ", travelImpairments)})"
+                _ => $"Travel ({string.Join(", ", travelImpairments)})"
             };
             choice.AddOption(leaveLabel, LeaveCamp);
         }
 
-        // Eat/Drink - consume food and water
-        if (ctx.Inventory.HasFood || ctx.Inventory.HasWater)
-            choice.AddOption("Eat/Drink", EatDrink);
-
-        // Cook/Melt - requires active fire
-        if (HasActiveFire() && (ctx.Inventory.Count(Resource.RawMeat) > 0 || true)) // Snow always available (Ice Age)
-            choice.AddOption("Cook/Melt", CookMelt);
-
-        // Torch management
-        if (CanLightTorch())
-            choice.AddOption("Light torch", LightTorch);
-        if (ctx.Inventory.HasLitTorch)
+        // Rest at existing bedding
+        if (CanCamp())
         {
-            int mins = (int)ctx.Inventory.TorchBurnTimeRemainingMinutes;
-            choice.AddOption($"Extinguish torch ({mins} min remaining)", ExtinguishTorch);
+            choice.AddOption("Camp", CampWork);
         }
-
-        // Crafting - make tools from available materials
-        if (ctx.Inventory.HasCraftingMaterials)
+        else
         {
-            string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
-            choice.AddOption(craftLabel, RunCrafting);
-        }
-
-        var storage = ctx.Camp.GetFeature<CacheFeature>();
-        if (storage != null && (HasItems() || storage.Storage.CurrentWeightKg > 0))
-            choice.AddOption("Inventory", RunInventoryMenu);
-
-        // Curing rack - if player has one at camp
-        var rack = ctx.Camp.GetFeature<CuringRackFeature>();
-        if (rack != null)
-        {
-            string rackLabel = rack.HasReadyItems
-                ? "Curing rack (items ready!)"
-                : rack.ItemCount > 0
-                    ? $"Curing rack ({rack.ItemCount} items curing)"
-                    : "Curing rack (empty)";
-            choice.AddOption(rackLabel, UseCuringRack);
-        }
-
-        // Direct treatments - when player has treatable conditions and materials
-        if (CanApplyDirectTreatment())
-            choice.AddOption("Treat wounds", ApplyDirectTreatment);
-
-        // Sleep emphasized when impaired
-        if (isImpaired || ctx.player.Body.IsTired)
-        {
-            string sleepLabel = isImpaired ? "Sleep (you need rest)" : "Sleep";
-            choice.AddOption(sleepLabel, Sleep);
+            choice.AddOption("Make camp", MakeCamp);
         }
 
         choice.GetPlayerChoice(ctx).Invoke();
     }
 
-    private bool HasCampWork() =>
-        WorkRunner.HasWorkOptions(ctx, ctx.Camp);
-
-
-    private void WorkAroundCamp()
+    private bool CanCamp() => ctx.CurrentLocation.HasFeature<BeddingFeature>();
+    private bool CanTravel() => ctx.CurrentLocation.ConnectionNames.Count > 0;
+    private bool CanWork() => WorkRunner.HasWorkOptions(ctx, ctx.CurrentLocation);
+    private void MakeCamp() => CampHandler.MakeCamp(ctx, ctx.CurrentLocation);
+    private void CampWork()
     {
-        var campLocation = ctx.Camp;
-        var work = new WorkRunner(ctx);
+        ctx.EstablishCamp(ctx.CurrentLocation);
 
-        var choice = new Choice<string>("What do you want to do?");
-
-        if (campLocation.HasFeature<ForageFeature>())
+        while (true)
         {
-            var forage = campLocation.GetFeature<ForageFeature>()!;
-            choice.AddOption($"Forage nearby ({forage.GetQualityDescription()})", "forage");
-        }
+            // Auto-save when at camp menu (discard result - auto-save is best-effort)
+            _ = SaveManager.Save(ctx);
+            CheckFireWarning();
 
-        if (ctx.HasUnrevealedLocations())
-            choice.AddOption("Scout the area (discover new locations)", "scout");
+            var choice = new Choice<Action>();
+            var capacities = ctx.player.GetCapacities();
+            var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
+            var isClumsy = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
 
-        choice.AddOption("Cancel", "cancel");
+            if (CanRestByFire())
+                choice.AddOption("Wait", Wait);
 
-        string action = choice.GetPlayerChoice(ctx);
+            if (HasActiveFire())
+                choice.AddOption("Tend fire", TendFire);
 
-        switch (action)
-        {
-            case "forage":
-                work.DoForage(campLocation);
+            if (CanStartFire())
+                choice.AddOption("Start fire", StartFire);
+
+            // Eat/Drink - consume food and water
+            if (ctx.Inventory.HasFood || ctx.Inventory.HasWater)
+                choice.AddOption("Eat/Drink", EatDrink);
+
+            // Cook/Melt - requires active fire
+            if (HasActiveFire() && (ctx.Inventory.Count(Resource.RawMeat) > 0 || true)) // Snow always available (Ice Age)
+                choice.AddOption("Cook/Melt", CookMelt);
+
+            // Torch management
+            if (CanLightTorch())
+                choice.AddOption("Light torch", LightTorch);
+            if (ctx.Inventory.HasLitTorch)
+            {
+                int mins = (int)ctx.Inventory.TorchBurnTimeRemainingMinutes;
+                choice.AddOption($"Extinguish torch ({mins} min remaining)", ExtinguishTorch);
+            }
+
+            // Crafting - make tools from available materials
+            if (ctx.Inventory.HasCraftingMaterials)
+            {
+                string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
+                choice.AddOption(craftLabel, RunCrafting);
+            }
+
+            var storage = ctx.Camp.GetFeature<CacheFeature>();
+            if (storage != null && (HasItems() || storage.Storage.CurrentWeightKg > 0))
+                choice.AddOption("Inventory", RunInventoryMenu);
+
+            // Curing rack - if player has one at camp
+            var rack = ctx.Camp.GetFeature<CuringRackFeature>();
+            if (rack != null)
+            {
+                string rackLabel = rack.HasReadyItems
+                    ? "Curing rack (items ready!)"
+                    : rack.ItemCount > 0
+                        ? $"Curing rack ({rack.ItemCount} items curing)"
+                        : "Curing rack (empty)";
+                choice.AddOption(rackLabel, UseCuringRack);
+            }
+
+            // Direct treatments - when player has treatable conditions and materials
+            if (CanApplyDirectTreatment())
+                choice.AddOption("Treat wounds", ApplyDirectTreatment);
+
+            // Sleep requires bedding at location
+            if (ctx.Camp.HasFeature<BeddingFeature>())
+            {
+                string sleepLabel = isImpaired ? "Sleep (you need rest)" : "Sleep";
+                choice.AddOption(sleepLabel, Sleep);
+            }
+
+            choice.AddOption("Done", BackAction);
+
+            var action = choice.GetPlayerChoice(ctx);
+            if (action == BackAction)
                 break;
-            case "scout":
-                work.DoExplore(campLocation);
-                break;
+
+            action.Invoke();
         }
     }
+
+
+    private void Work()
+    {
+        while (true)
+        {
+            TravelRunner traveler = new(ctx);
+            var workChoice = GetWorkOptions(ctx.CurrentLocation);
+            if (workChoice == null) return;
+
+            string workId = workChoice.GetPlayerChoice(ctx);
+            if (workId == "cancel") break;
+
+            var work = new WorkRunner(ctx);
+            WorkResult? result = null;
+
+            // Handle special action types separately
+            if (workId == "hunt")
+            {
+                traveler.DoHuntWork();
+            }
+            else if (workId == "explore")
+            {
+                result = work.DoExplore(ctx.CurrentLocation);
+            }
+            else
+            {
+                // All other work is feature-based - use ExecuteById
+                result = work.ExecuteById(ctx.CurrentLocation, workId);
+            }
+
+            if (result != null)
+            {
+                if (result.DiscoveredLocation != null)
+                {
+                    GameDisplay.AddNarrative(ctx, $"Discovered: {result.DiscoveredLocation.Name}");
+                    if (WorkRunner.PromptTravelToDiscovery(ctx, result.DiscoveredLocation))
+                    {
+                        traveler.TravelToLocation(result.DiscoveredLocation);
+                    }
+                }
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// Build work options menu including feature work, hunt, and explore.
+    /// </summary>
+    private Choice<string>? GetWorkOptions(Location location)
+    {
+        var choice = new Choice<string>("What work do you want to do?");
+        bool hasOptions = false;
+
+        // Feature-based work options
+        var workOptions = location.GetWorkOptions(ctx).ToList();
+        foreach (var opt in workOptions)
+        {
+            choice.AddOption(opt.Label, opt.Id);
+            hasOptions = true;
+        }
+
+        // Hunt - separate action type
+        if (location.CanHunt())
+        {
+            var territory = location.GetHuntingGround()!;
+            choice.AddOption(territory.GetHuntDescription(), "hunt");
+            hasOptions = true;
+        }
+
+        // Explore - zone-level action
+        if (ctx.HasUnrevealedLocations())
+        {
+            choice.AddOption("Explore the area (discover new locations)", "explore");
+            hasOptions = true;
+        }
+
+        if (!hasOptions) return null;
+
+        choice.AddOption("Done", "cancel");
+        return choice;
+    }
+
+
+
+
+
+    // private void WorkAroundCamp()
+    // {
+    //     var campLocation = ctx.Camp;
+    //     var work = new WorkRunner(ctx);
+
+    //     var choice = new Choice<string>("What do you want to do?");
+
+    //     if (campLocation.HasFeature<ForageFeature>())
+    //     {
+    //         var forage = campLocation.GetFeature<ForageFeature>()!;
+    //         choice.AddOption($"Forage nearby ({forage.GetQualityDescription()})", "forage");
+    //     }
+
+    //     if (ctx.HasUnrevealedLocations())
+    //         choice.AddOption("Scout the area (discover new locations)", "scout");
+
+    //     choice.AddOption("Cancel", "cancel");
+
+    //     string action = choice.GetPlayerChoice(ctx);
+
+    //     switch (action)
+    //     {
+    //         case "forage":
+    //             work.DoForage(campLocation);
+    //             break;
+    //         case "scout":
+    //             var result = work.DoExplore(campLocation);
+    //             if (result.DiscoveredLocation != null &&
+    //                 WorkRunner.PromptTravelToDiscovery(ctx, result.DiscoveredLocation))
+    //             {
+    //                 var expedition = new Expedition(ctx.Camp, ctx.player);
+    //                 ctx.Expedition = expedition;
+    //                 var runner = new ExpeditionRunner(ctx);
+    //                 runner.TravelToLocation(expedition, result.DiscoveredLocation);
+    //                 runner.Run();
+    //             }
+    //             break;
+    //     }
+    // }
 
     private void RunCrafting()
     {
@@ -220,8 +341,8 @@ public partial class GameRunner(GameContext ctx)
 
     private void LeaveCamp()
     {
-        var expeditionRunner = new ExpeditionRunner(ctx);
-        expeditionRunner.Run();
+        var traveler = new TravelRunner(ctx);
+        traveler.DoTravel();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

@@ -227,39 +227,23 @@ public class WorkRunner(GameContext ctx)
         return ExecuteWork(location, new CacheStrategy());
     }
 
-    // === WORK OPTIONS (used by GameRunner and ExpeditionRunner) ===
+    // === WORK OPTIONS (used by ExpeditionRunner) ===
 
     /// <summary>
     /// Check if any work is available at a location.
+    /// Does not include Hunt (separate action type) or Explore (zone-level).
     /// </summary>
-    public static bool HasWorkOptions(GameContext ctx, Location location, bool includeHunt = false)
+    public static bool HasWorkOptions(GameContext ctx, Location location)
     {
-        if (location.HasFeature<ForageFeature>())
+        // Feature-based work options
+        if (location.HasWorkOptions(ctx))
             return true;
 
-        var harvestables = location
-            .Features.OfType<HarvestableFeature>()
-            .Where(h => h.IsDiscovered && h.HasAvailableResources());
-        if (harvestables.Any())
+        // Hunt - separate action type
+        if (location.CanHunt())
             return true;
 
-        // Salvage sites
-        var salvage = location.GetFeature<SalvageFeature>();
-        if (salvage != null && salvage.HasLoot)
-            return true;
-
-        // Caches
-        var cache = location.GetFeature<CacheFeature>();
-        if (cache != null)
-            return true;
-
-        if (includeHunt && location.HasFeature<AnimalTerritoryFeature>())
-            return true;
-
-        // Trapping options
-        if (CanSetTrap(ctx, location) || CanCheckTraps(location))
-            return true;
-
+        // Explore - zone-level action
         if (ctx.HasUnrevealedLocations())
             return true;
 
@@ -267,98 +251,29 @@ public class WorkRunner(GameContext ctx)
     }
 
     /// <summary>
-    /// Check if player can set a trap at this location.
-    /// </summary>
-    private static bool CanSetTrap(GameContext ctx, Location location)
-    {
-        return location.HasFeature<AnimalTerritoryFeature>() &&
-               ctx.Inventory.Tools.Any(t => t.Type == ToolType.Snare && t.Works);
-    }
-
-    /// <summary>
-    /// Check if there are traps to check at this location.
-    /// </summary>
-    private static bool CanCheckTraps(Location location)
-    {
-        var snareLine = location.GetFeature<SnareLineFeature>();
-        return snareLine != null && snareLine.SnareCount > 0;
-    }
-
-    /// <summary>
     /// Get work options menu for a location. Returns null if no options available.
+    /// Does not include Hunt (separate action type) or Explore (zone-level).
     /// </summary>
-    public static Choice<string>? GetWorkOptions(
-        GameContext ctx,
-        Location location,
-        bool includeHunt = false
-    )
+    public static Choice<string>? GetWorkOptions(GameContext ctx, Location location)
     {
+        var options = location.GetWorkOptions(ctx).ToList();
+        if (options.Count == 0) return null;
+
         var choice = new Choice<string>("What work do you want to do?");
-        bool hasOptions = false;
-
-        if (location.HasFeature<ForageFeature>())
-        {
-            var forage = location.GetFeature<ForageFeature>()!;
-            choice.AddOption($"Forage for resources ({forage.GetQualityDescription()})", "forage");
-            hasOptions = true;
-        }
-
-        var harvestables = location
-            .Features.OfType<HarvestableFeature>()
-            .Where(h => h.IsDiscovered && h.HasAvailableResources());
-        if (harvestables.Any())
-        {
-            choice.AddOption("Harvest resources", "harvest");
-            hasOptions = true;
-        }
-
-        // Salvage sites
-        var salvage = location.GetFeature<SalvageFeature>();
-        if (salvage != null && salvage.HasLoot)
-        {
-            choice.AddOption($"Salvage {salvage.DisplayName} ({salvage.GetLootHint()})", "salvage");
-            hasOptions = true;
-        }
-
-        // Caches
-        var cache = location.GetFeature<CacheFeature>();
-        if (cache != null)
-        {
-            string status = cache.HasItems ? $"{cache.Storage.CurrentWeightKg:F1}kg stored" : "empty";
-            choice.AddOption($"Access {cache.Name} ({status})", "cache");
-            hasOptions = true;
-        }
-
-        if (includeHunt && location.HasFeature<AnimalTerritoryFeature>())
-        {
-            var territory = location.GetFeature<AnimalTerritoryFeature>()!;
-            choice.AddOption($"Hunt ({territory.GetQualityDescription()})", "hunt");
-            hasOptions = true;
-        }
-
-        // Trapping options
-        if (CanSetTrap(ctx, location))
-        {
-            var snareCount = ctx.Inventory.Tools.Count(t => t.Type == ToolType.Snare && t.Works);
-            choice.AddOption($"Set snare ({snareCount} available)", "set_trap");
-            hasOptions = true;
-        }
-
-        if (CanCheckTraps(location))
-        {
-            var snareLine = location.GetFeature<SnareLineFeature>()!;
-            choice.AddOption($"Check traps ({snareLine.GetDescription()})", "check_traps");
-            hasOptions = true;
-        }
-
-        if (ctx.HasUnrevealedLocations())
-        {
-            choice.AddOption("Explore the area (discover new locations)", "explore");
-            hasOptions = true;
-        }
-
+        foreach (var option in options)
+            choice.AddOption(option.Label, option.Id);
         choice.AddOption("Cancel", "cancel");
-        return hasOptions ? choice : null;
+        return choice;
+    }
+
+    /// <summary>
+    /// Execute work by ID. Finds the matching WorkOption and executes its strategy.
+    /// </summary>
+    public WorkResult ExecuteById(Location location, string workId)
+    {
+        var option = location.GetWorkOptions(_ctx).FirstOrDefault(o => o.Id == workId);
+        if (option == null) return WorkResult.Empty(0);
+        return ExecuteWork(location, option.Strategy);
     }
 
     /// <summary>
@@ -378,6 +293,21 @@ public class WorkRunner(GameContext ctx)
     }
 
     // === HELPERS ===
+
+    /// <summary>
+    /// Prompts player to travel to a newly discovered location.
+    /// </summary>
+    public static bool PromptTravelToDiscovery(GameContext ctx, Location discovered)
+    {
+        GameDisplay.AddNarrative(ctx, $"You've found a path to {discovered.Name}.");
+        GameDisplay.Render(ctx, statusText: "Discovery!");
+
+        var goChoice = new Choice<bool>("Go there now?");
+        goChoice.AddOption("Yes, head there", true);
+        goChoice.AddOption("No, stay here", false);
+
+        return goChoice.GetPlayerChoice(ctx);
+    }
 
     /// <summary>
     /// Calculate chance to discover a new location.

@@ -324,14 +324,14 @@ public static partial class GameEventRegistry
                     new EventResult("Solid work. This is shelter now.", 0.60, 45)
                         .BurnsFuel(3)
                         .WithEffects(EffectFactory.Focused(0.15, 60))
-                        .AddsFeature(typeof(ShelterFeature), (0.4, 0.5, 0.6)),
+                        .AddsShelter(temp: 0.4, overhead: 0.5, wind: 0.6),
                     new EventResult("Takes longer but done right.", 0.25, 60)
                         .BurnsFuel(4)
                         .WithEffects(EffectFactory.Exhausted(0.2, 60))
-                        .AddsFeature(typeof(ShelterFeature), (0.5, 0.6, 0.7)),
+                        .AddsShelter(temp: 0.5, overhead: 0.6, wind: 0.7),
                     new EventResult("Not as good as hoped. Partial shelter.", 0.10, 40)
                         .BurnsFuel(2)
-                        .AddsFeature(typeof(ShelterFeature), (0.2, 0.3, 0.4)),
+                        .AddsShelter(temp: 0.2, overhead: 0.3, wind: 0.4),
                     new EventResult("Collapses during construction. Wasted effort.", 0.05, 30)
                         .BurnsFuel(3)
                         .MinorFall()

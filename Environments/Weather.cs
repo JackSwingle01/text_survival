@@ -15,9 +15,52 @@ public class Weather
     public WeatherCondition? PreviousCondition { get; set; }
     public bool WeatherJustChanged { get; set; }
 
-    // Season tracking
+    // Season tracking - derived from game time
     public enum Season { Winter, Spring, Summer, Fall }
-    public Season CurrentSeason { get; set; } = Season.Fall; // Start in fall
+
+    /// <summary>
+    /// Returns current season derived from game time.
+    /// </summary>
+    public Season CurrentSeason => GetCurrentSeason();
+
+    private Season GetCurrentSeason()
+    {
+        int dayOfYear = Time.DayOfYear;
+        return dayOfYear switch
+        {
+            < 80 => Season.Winter,   // Jan 1 - Mar 20
+            < 172 => Season.Spring,  // Mar 21 - June 20
+            < 266 => Season.Summer,  // June 21 - Sep 22
+            < 355 => Season.Fall,    // Sep 23 - Dec 20
+            _ => Season.Winter       // Dec 21 - Dec 31
+        };
+    }
+
+    /// <summary>
+    /// Returns 0-1 representing seasonal cold intensity.
+    /// 1.0 = mid-winter (coldest), 0.0 = mid-summer (warmest).
+    /// Uses cosine wave centered on solstices.
+    /// </summary>
+    public double SeasonalIntensity
+    {
+        get
+        {
+            int dayOfYear = Time.DayOfYear;
+
+            // Midwinter solstice = Dec 21 (day 355), Midsummer = June 21 (day 172)
+            // Distance from midwinter in days (wrapping around year)
+            int midwinter = 355;
+            int daysFromMidwinter = Math.Abs(dayOfYear - midwinter);
+            if (daysFromMidwinter > 182)
+                daysFromMidwinter = 365 - daysFromMidwinter;
+
+            // Use cosine for smooth transition: 1 at midwinter, 0 at midsummer
+            double radians = (daysFromMidwinter / 182.0) * Math.PI;
+            return (Math.Cos(radians) + 1) / 2; // Normalize to 0-1
+        }
+    }
+
+    public string GetSeasonLabel() => CurrentSeason.ToString();
 
     // Weather conditions for Ice Age Europe
     public enum WeatherCondition
@@ -191,7 +234,14 @@ public class Weather
         double temperatureRange = maxTemp - minTemp;
         double randomFlux = Utils.RandDouble(0, 1);
 
-        BaseTemperature = minTemp + (temperatureRange * randomFlux * timeOfDayFactor);
+        double baseCalc = minTemp + (temperatureRange * randomFlux * timeOfDayFactor);
+
+        // Apply seasonal intensity modifier
+        // SeasonalIntensity: 1.0 = mid-winter (colder), 0.0 = mid-summer (warmer)
+        // This shifts temperature within the season's range based on where we are in the year
+        // Max effect: ±5°C shift based on seasonal intensity
+        double seasonalShift = (SeasonalIntensity - 0.5) * 10; // -5 to +5°C
+        BaseTemperature = baseCalc - seasonalShift;
 
         // Determine weather condition
         if (Utils.RandDouble(0, 1) < precipChance) // Precipitation check (0.15-0.25 chance)
@@ -401,11 +451,11 @@ public class Weather
             return "Powerful, freezing gusts threaten to knock you over.";
     }
 
-    // Set season
+    // Season is now derived from Time - this method kept for compatibility but only regenerates weather
+    [Obsolete("Season is now derived from game time. Use GenerateNewWeather() directly if needed.")]
     public void SetSeason(Season season)
     {
-        CurrentSeason = season;
-        GenerateNewWeather(); // Update weather for new season
+        GenerateNewWeather();
     }
 
     // Short-form labels for UI panels
@@ -505,6 +555,7 @@ public class Weather
 
     /// <summary>
     /// Restore weather state from save data.
+    /// Note: Season is now derived from Time, so the season parameter is ignored.
     /// </summary>
     internal void RestoreState(
         double baseTemp,
@@ -512,14 +563,14 @@ public class Weather
         double precipitation,
         double windSpeed,
         double cloudCover,
-        Season season)
+        Season season) // Kept for backward compatibility with save files
     {
         BaseTemperature = baseTemp;
         CurrentCondition = condition;
         Precipitation = precipitation;
         WindSpeed = windSpeed;
         CloudCover = cloudCover;
-        CurrentSeason = season;
+        // Season is now derived from Time, no longer stored
     }
 
     #endregion

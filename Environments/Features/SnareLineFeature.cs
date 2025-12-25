@@ -1,10 +1,14 @@
+using text_survival.Actions;
+using text_survival.Actions.Expeditions;
+using text_survival.Actions.Expeditions.WorkStrategies;
+
 namespace text_survival.Environments.Features;
 
 /// <summary>
 /// Manages placed snares at a location.
 /// Requires AnimalTerritoryFeature for valid placement.
 /// </summary>
-public class SnareLineFeature : LocationFeature
+public class SnareLineFeature : LocationFeature, IWorkableFeature
 {
     [System.Text.Json.Serialization.JsonInclude]
     private readonly List<PlacedSnare> _snares = [];
@@ -49,6 +53,37 @@ public class SnareLineFeature : LocationFeature
     /// Check if any snares have catches waiting.
     /// </summary>
     public bool HasCatchWaiting => _snares.Any(s => s.State == SnareState.CatchReady);
+
+    /// <summary>
+    /// Check if snares can be checked (any active snares exist).
+    /// </summary>
+    public bool CanBeChecked => SnareCount > 0;
+
+    /// <summary>
+    /// Check if any snares have catches ready for collection.
+    /// Alias for HasCatchWaiting for naming consistency.
+    /// </summary>
+    public bool HasCatch => HasCatchWaiting;
+
+    /// <summary>
+    /// Check if snares need attention (catches, stolen, or destroyed).
+    /// Alias for HasAnythingToCheck for naming consistency.
+    /// </summary>
+    public bool NeedsAttention => HasAnythingToCheck;
+
+    /// <summary>
+    /// Get work options for this feature.
+    /// </summary>
+    public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
+    {
+        if (!CanBeChecked) yield break;
+        string status = HasCatch ? $"{CatchCount} catches!" : $"{SnareCount} set";
+        yield return new WorkOption(
+            $"Check traps ({status})",
+            "check_traps",
+            new TrapStrategy(TrapStrategy.TrapMode.Check)
+        );
+    }
 
     /// <summary>
     /// Place a new snare at this location.

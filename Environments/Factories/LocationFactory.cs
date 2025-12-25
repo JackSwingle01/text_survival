@@ -1301,6 +1301,94 @@ public static class LocationFactory
 
     #endregion
 
+    #region Mountain Pass Factories
+
+    public static Location MakePassApproach(Weather weather) => new Location(
+        name: "Pass Approach",
+        tags: "[Mountain] [Exposed] [Rocky]",
+        weather: weather,
+        traversalMinutes: 60,
+        terrainHazardLevel: 0.6,
+        windFactor: 1.3,
+        overheadCoverLevel: 0.05,
+        visibilityFactor: 1.2)
+    {
+        DiscoveryText = "The treeline ends. Above, the pass cuts through bare rock and ice.",
+        TemperatureDeltaF = -5
+    };
+
+    public static Location MakeLowerPass(Weather weather) => new Location(
+        name: "Lower Pass",
+        tags: "[Mountain] [Exposed] [Ice]",
+        weather: weather,
+        traversalMinutes: 90,
+        terrainHazardLevel: 0.8,
+        windFactor: 1.6,
+        overheadCoverLevel: 0.0,
+        visibilityFactor: 1.3)
+    {
+        DiscoveryText = "Exposed scree and ice. The wind cuts through everything.",
+        TemperatureDeltaF = -10
+    };
+
+    public static Location MakePassProper(Weather weather) => new Location(
+        name: "The Pass Proper",
+        tags: "[Mountain] [Exposed] [Extreme]",
+        weather: weather,
+        traversalMinutes: 120,
+        terrainHazardLevel: 1.0,
+        windFactor: 2.0,
+        overheadCoverLevel: 0.0,
+        visibilityFactor: 0.3)
+    {
+        DiscoveryText = "The highest point. Snow blows horizontal. You can barely see.",
+        TemperatureDeltaF = -15
+    };
+
+    public static Location MakeUpperDescent(Weather weather) => new Location(
+        name: "Upper Descent",
+        tags: "[Mountain] [Exposed] [Rocky]",
+        weather: weather,
+        traversalMinutes: 75,
+        terrainHazardLevel: 0.7,
+        windFactor: 1.5,
+        overheadCoverLevel: 0.0,
+        visibilityFactor: 1.4)
+    {
+        DiscoveryText = "Downhill but still exposed. The far valley glimmers below.",
+        TemperatureDeltaF = -10
+    };
+
+    public static Location MakeLowerDescent(Weather weather) => new Location(
+        name: "Lower Descent",
+        tags: "[Mountain] [Forest Edge]",
+        weather: weather,
+        traversalMinutes: 50,
+        terrainHazardLevel: 0.5,
+        windFactor: 1.0,
+        overheadCoverLevel: 0.1,
+        visibilityFactor: 1.0)
+    {
+        DiscoveryText = "The worst is behind you. Trees appear below.",
+        TemperatureDeltaF = -5
+    };
+
+    public static Location MakeFarSide(Weather weather) => new Location(
+        name: "Far Side",
+        tags: "[Valley] [Sheltered] [Victory]",
+        weather: weather,
+        traversalMinutes: 30,
+        terrainHazardLevel: 0.3,
+        windFactor: 0.6,
+        overheadCoverLevel: 0.3,
+        visibilityFactor: 1.2)
+    {
+        DiscoveryText = "You made it. The valley stretches before you, green and sheltered.",
+        TemperatureDeltaF = 0
+    };
+
+    #endregion
+
 
     #region Path Factories
 

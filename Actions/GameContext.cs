@@ -6,14 +6,13 @@ using text_survival.Actions.Expeditions;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
-using Microsoft.AspNetCore.Mvc.Diagnostics;
 namespace text_survival.Actions;
 
 public class GameContext(Player player, Location camp, Weather weather)
 {
     public Player player { get; set; } = player;
     [System.Text.Json.Serialization.JsonIgnore]
-    public Location CurrentLocation => Expedition?.CurrentLocation ?? Camp;
+    public Location CurrentLocation { get; set; } = camp;
     public Location Camp { get; set; } = camp;
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsAtCamp => CurrentLocation == Camp;
@@ -26,7 +25,6 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     // Player's carried inventory (aggregate-based)
     public Inventory Inventory { get; set; } = Inventory.CreatePlayerInventory(15.0);
-    public Expedition? Expedition;
 
     // Zone and location tracking (moved from Zone to break circular reference)
     public Weather Weather { get; init; } = weather;
@@ -35,14 +33,43 @@ public class GameContext(Player player, Location camp, Weather weather)
     private List<Location> _unrevealedLocations { get; set; } = new();
     public IReadOnlyList<Location> UnrevealedLocations => _unrevealedLocations.AsReadOnly();
 
+    // Mountain pass tracking (not in standard location pool)
+    public List<Location> MountainPassLocations { get; private set; } = [];
+    public Location? WinLocation { get; private set; }
+
+    public bool HasWon { get; private set; }
+    public void TriggerVictory() => HasWon = true;
+
+    public bool IsWinLocation(Location location) => location == WinLocation;
+
+    public int DaysSurvived => (int)(GameTime - new DateTime(2025, 1, 1, 9, 0, 0)).TotalDays;
+
+    /// <summary>
+    /// Call this after zone generation to set up the pass.
+    /// </summary>
+    public void SetupMountainPass(List<Location> passLocations, Location winLocation)
+    {
+        MountainPassLocations = passLocations;
+        WinLocation = winLocation;
+    }
+
     // Tension system for tracking building threats/opportunities
     public TensionRegistry Tensions { get; set; } = new();
 
     /// <summary>Current activity for event condition checks.</summary>
     public ActivityType CurrentActivity { get; private set; } = ActivityType.Idle;
 
-    /// <summary>Encounter spawned by an event, to be handled by the caller.</summary>
-    public EncounterConfig? PendingEncounter { get; set; }
+    /// <summary>Encounter queued by an event, handled internally by Update().</summary>
+    private EncounterConfig? _pendingEncounter;
+
+    /// <summary>
+    /// Queue an encounter to be spawned on the next Update tick.
+    /// Used by event outcomes that spawn predator encounters.
+    /// </summary>
+    public void QueueEncounter(EncounterConfig config)
+    {
+        _pendingEncounter = config;
+    }
 
     /// <summary>Flag to prevent events from triggering during event handling.</summary>
     public bool IsHandlingEvent { get; set; } = false;
@@ -56,12 +83,24 @@ public class GameContext(Player player, Location camp, Weather weather)
     {
     }
 
+    /// <summary>
+    /// Call this after deserialization to restore transient state.
+    /// CurrentLocation is not serialized, so it must be restored to Camp.
+    /// </summary>
+    public void RestoreAfterDeserialization()
+    {
+        if (CurrentLocation == null)
+        {
+            CurrentLocation = Camp;
+        }
+    }
+
     public static GameContext CreateNewGame()
     {
         // Clear event cooldowns for fresh game
         GameEventRegistry.ClearTriggerTimes();
         Weather weather = new Weather(-10);
-        var (locations, unrevealed) = ZoneFactory.MakeForestZone(weather);
+        var (locations, unrevealed, passLocations) = ZoneFactory.MakeForestZone(weather);
 
         // Initialize weather for game start time (9:00 AM, Jan 1)
         var gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
@@ -83,6 +122,9 @@ public class GameContext(Player player, Location camp, Weather weather)
         ctx.Locations.AddRange(locations);
         ctx._unrevealedLocations.AddRange(unrevealed);
 
+        // Setup mountain pass - last location in chain is the win location
+        ctx.SetupMountainPass(passLocations, passLocations[^1]);
+
         // Equip starting clothing
         ctx.Inventory.Equip(Equipment.WornFurChestWrap());
         ctx.Inventory.Equip(Equipment.FurLegWraps());
@@ -103,6 +145,30 @@ public class GameContext(Player player, Location camp, Weather weather)
     /// Check event condition. Delegates to ConditionChecker.
     /// </summary>
     public bool Check(EventCondition condition) => ConditionChecker.Check(this, condition);
+
+    /// <summary>
+    /// Check if a location meets the requirements to establish camp.
+    /// Requires bedding and an active heat source.
+    /// </summary>
+    public bool CanEstablishCampAt(Location location)
+    {
+        bool hasBedding = location.HasFeature<BeddingFeature>();
+        bool hasActiveFire = location.HasActiveHeatSource();
+        return hasBedding && hasActiveFire;
+    }
+
+    /// <summary>
+    /// Establish camp at the specified location.
+    /// Creates storage cache if one doesn't exist.
+    /// Updates Camp pointer and ends active expedition.
+    /// </summary>
+    public void EstablishCamp(Location location)
+    {
+        // Update camp pointer
+        Camp = location;
+
+        GameDisplay.AddSuccess(this, $"You've established camp at {location.Name}.");
+    }
 
     // === LOCATION MANAGEMENT ===
 
@@ -223,10 +289,10 @@ public class GameContext(Player player, Location camp, Weather weather)
         }
 
         // Spawn predator encounter if event outcome requested it
-        if (PendingEncounter != null)
+        if (_pendingEncounter != null)
         {
-            var predator = EncounterRunner.CreateAnimalFromConfig(PendingEncounter);
-            PendingEncounter = null;
+            var predator = EncounterRunner.CreateAnimalFromConfig(_pendingEncounter);
+            _pendingEncounter = null;
             if (predator != null)
             {
                 EncounterRunner.HandlePredatorEncounter(predator, this);
@@ -473,6 +539,7 @@ public enum EventCondition
     HasLightSource,     // Active fire/torch at current location
     NearWater,          // Location has a water feature
     HazardousTerrain,   // Location terrain hazard >= 0.5
+    HasFuelForage,      // Location has ForageFeature with fuel resources (deadfall, etc.)
     HighOverheadCover,  // Location or shelter has overhead coverage >= 0.6 (traps smoke)
     AtDisturbedSource,  // At the location where Disturbed tension originated
 

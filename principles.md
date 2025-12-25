@@ -42,7 +42,7 @@ There shouldn't be clean good or bad choices. Players weigh every decision. Time
 
 **Player knowledge is progression**
 
-No carry-over between runs. The player gets better, not the character. You learn to read situations, learn when risks are worth taking, learn the systems. The game teaches through consequences, not menus.
+No carry-over between runs. The player gets better, not the character. You learn to read situations, learn when risks are worth taking, learn the systems. The game teaches through consequences—but only if the player can read cause and effect
 
 *Example: An experienced player knows when 10 minutes of fire margin is actually fine, when "abundant" foraging is worth staying for, when to let a fire die on purpose to preserve embers.*
 
@@ -55,6 +55,8 @@ The same event, resource, or location plays differently depending on your curren
 **Emergence from systems**
 
 Stories come from mechanics intersecting, not authored sequences. Events are written, but they respond to context — what you're carrying, your physical state, where you are, what tensions are active.
+
+The test for any new system: Is it deep/elegant, or is it shallow/inelegant? Elegance = emergent complexity /mechanical complexity. A shallow module has a complex interface relative to what it does. An inelegant mechanic has complex rules relative to the decisions it creates.
 
 *Example: You don't get a random wolf attack. You get a wolf encounter because you're in wolf territory, carrying meat, and the "Stalked" tension has been building for an hour.*
 
@@ -76,46 +78,57 @@ The text IS the game. No graphics to carry weight.
 
 **Second person, present tense** — "You find a good log." Immediate and embodied.
 
----
-
 ## Events
 
-Events are the translation layer between simulation and felt experience. The survival math runs in the background; events make it tangible.
+Events are the translation layer between simulation and felt experience. The survival math runs in the background; events make it tangible. Players don't experience mechanics—they experience the aesthetics those mechanics produce. Events bridge that gap.
+
+**Communicate dynamics, not just outcomes.** "A wolf attacks" is an outcome. "You hear movement behind you—something has been following your blood trail" is a dynamic made visible. Events should surface *why* something is happening, not just *what*. This lets players update their mental models and make better decisions next time—closing the skill atom loop of attempt → feedback → learning → refined attempt.
+
+**Elegance ratio applies here.** A good event system generates many meaningfully different situations from few rules. Events should connect to existing systems rather than creating parallel mechanics.
 
 Events should:
-- Trigger based on context (location, player state, weather, active tensions)
-- Create player choices, not just outcomes
-- Connect to existing systems rather than creating parallel mechanics
+- Trigger based on context (location, player state, weather, active tensions, etc.)
+- Create decisions with tradeoffs and no clear right answer
 - Build the world (discover locations, reveal information) not just tax the player
 
-Events should reward preparation and skill:
-- What should you have brought? (preparation pays off)
-- What can you spend to improve odds? (resource trades)
+**Skill and preparation should matter.** Good events reward players who've built accurate mental models:
+- What should you have brought? (preparation payoff)
+- What can you spend to improve odds? (resource tradeoffs)  
 - What details indicate the right choice? (reading the situation)
 
-**Tensions** create narrative arcs. A tension is an unresolved thread that persists and escalates:
+The feedback must be legible. When a player survives or dies, they should understand *why*—that's how learning happens.
 
-*Example: You spot tracks (creates "Stalked" tension) → Later, something is watching you (tension increases) → You glimpse movement in the trees (tension peaks) → Confrontation or escape (tension resolves). The world remembered. The threat developed.*
+**Tensions** create narrative arcs and shape **session-level pacing**. A tension is an unresolved narrative thread persists and escalates, producing rising interest curves that climax in resolution.
 
-The code should serve the event experience — don't limit event design to what currently exists. Effects, injuries, loot pools exist to support events.
+*You spot tracks (creates "Stalked" tension) → Later, something watches from the treeline (tension rises) → You glimpse movement following you (tension peaks) → Confrontation or escape (resolution, release).*
 
----
+Emergent stories from player choices hit harder than scripted ones. Tensions are scaffolding for emergence.
 
-## Pull: Goals Beyond Survival
+The code should serve the event experience - don't limit event design to what currently exists. Effects, injuries, loot pools exist to support events.
 
-Survival is the context, not the goal. The game needs aspiration, not just pressure.
+## Pacing
 
-**The mountain crossing** — The pass is visible. Reaching it requires preparation: warmth, supplies, condition. You could attempt it underprepared. You'll probably die, but it's a choice.
+**Interest curves operate at three scales:**
 
-**Megafauna hunts** — The mammoth coat, the bear-hide boots. Serious insulation comes from serious animals. Serious animals require serious preparation.
+*Moment-to-moment* (seconds to minutes) — Each expedition choice, each event decision, each risk calculation. The fire-tether and intersecting pressures handle this.
 
-**Exploration** — Distant locations that are genuinely hard to reach. The glacier, the cave system, the sheltered valley. Rewards for expanding your range.
+*Session-level* (30-90 minutes) — The rhythm of a play session. Tension systems create rising arcs that climax in confrontation or escape. Safe recovery at camp punctuates dangerous expedition pushes.
 
-**Camp investment** — Base building that persists within a run. Better shelter, storage, fire structures. Makes this camp worth defending.
+*Campaign-level* (across the full run) — The emotional arc of the whole experience. Day 10 should feel different from day 5, not just harder. Pull goals provide this structure.
 
-Look for opportunities to create pull — things the player wants to achieve, not just threats to avoid.
+### Pull: Goals Beyond Survival
 
----
+Survival is the context, not the goal. Pressure without aspiration creates stress, not engagement. The game needs *pull*—things the player wants to achieve, not just threats to avoid.
+
+**The mountain crossing** — The pass is visible. Reaching it requires preparation: warmth, supplies, condition. You could attempt it underprepared. You'll probably die, but it's your choice. The crossing is the final exam for everything the game taught you.
+
+**Megafauna hunts** — The mammoth coat, the bear-hide boots. Serious insulation comes from serious animals. Serious animals require serious preparation. These are skill checks that prove mastery.
+
+**Exploration** — Distant locations that are genuinely hard to reach. The glacier, the cave system, the sheltered valley. Rewards for expanding your range and reading risk accurately.
+
+**Camp investment** — Base building that persists within a run. Better shelter, storage, fire structures. Makes this camp worth defending—and leaving behind feel costly.
+
+Pull goals work because they're visible, desirable, and just out of reach.
 
 ## Design Tests
 

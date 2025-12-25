@@ -38,6 +38,7 @@ public static class ConditionChecker
             EventCondition.HasLightSource => ctx.CurrentLocation.HasActiveHeatSource() || ctx.Inventory.HasLitTorch,
             EventCondition.NearWater => ctx.CurrentLocation.HasFeature<WaterFeature>(),
             EventCondition.HazardousTerrain => ctx.CurrentLocation.GetEffectiveTerrainHazard() >= 0.5,
+            EventCondition.HasFuelForage => ctx.CurrentLocation.GetFeature<ForageFeature>()?.HasFuelResources() ?? false,
             EventCondition.HighOverheadCover =>
                 ctx.CurrentLocation.OverheadCoverLevel >= 0.6 ||
                 (ctx.CurrentLocation.GetFeature<ShelterFeature>()?.OverheadCoverage ?? 0) >= 0.6,
@@ -112,7 +113,7 @@ public static class ConditionChecker
 
             // Camp/expedition state
             EventCondition.AtCamp => ctx.IsAtCamp,
-            EventCondition.OnExpedition => ctx.Expedition != null,
+            EventCondition.OnExpedition => !ctx.IsAtCamp,
             EventCondition.NearFire => ctx.CurrentLocation.HasActiveHeatSource(),
             EventCondition.HasShelter => ctx.CurrentLocation.HasFeature<ShelterFeature>(),
             EventCondition.NoShelter => !ctx.CurrentLocation.HasFeature<ShelterFeature>(),
@@ -170,11 +171,13 @@ public static class ConditionChecker
         return false;
     }
 
+    // Use feature's CanBeChecked property
     private static bool HasActiveSnares(GameContext ctx) =>
-        AnyLocationHasSnare(ctx, s => s.SnareCount > 0);
+        AnyLocationHasSnare(ctx, s => s.CanBeChecked);
 
+    // Use feature's HasCatch property
     private static bool HasSnareCatch(GameContext ctx) =>
-        AnyLocationHasSnare(ctx, s => s.HasCatchWaiting);
+        AnyLocationHasSnare(ctx, s => s.HasCatch);
 
     private static bool HasBaitedSnares(GameContext ctx) =>
         AnyLocationHasSnare(ctx, s => s.HasBaitedSnares);

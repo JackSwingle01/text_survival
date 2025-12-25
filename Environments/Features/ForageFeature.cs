@@ -1,3 +1,6 @@
+using text_survival.Actions;
+using text_survival.Actions.Expeditions;
+using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
@@ -12,7 +15,7 @@ public record ForageResource(
     double MinWeight,
     double MaxWeight);
 
-public class ForageFeature : LocationFeature
+public class ForageFeature : LocationFeature, IWorkableFeature
 {
     private readonly double respawnRateHours = 48.0; // Full respawn takes 48 hours
     [System.Text.Json.Serialization.JsonInclude]
@@ -234,6 +237,44 @@ public class ForageFeature : LocationFeature
             >= 0.3 => "sparse",
             _ => "picked over"
         };
+    }
+
+    /// <summary>
+    /// Check if this forage area has fuel resources (logs, sticks, tinder).
+    /// Used by events that care about fuel availability.
+    /// </summary>
+    public bool HasFuelResources()
+    {
+        var fuelResources = ResourceCategories.Items[ResourceCategory.Fuel];
+        return _resources.Any(r => fuelResources.Contains(r.ResourceType));
+    }
+
+    /// <summary>
+    /// Check if this forage area is depleted (density below useful threshold).
+    /// </summary>
+    public bool IsDepleted() => ResourceDensity() < 0.1;
+
+    /// <summary>
+    /// Check if this forage area is nearly depleted.
+    /// </summary>
+    public bool IsNearlyDepleted() => ResourceDensity() < 0.3;
+
+    /// <summary>
+    /// Check if foraging can be productive here.
+    /// </summary>
+    public bool CanForage() => ResourceDensity() >= 0.1;
+
+    /// <summary>
+    /// Get work options for this feature.
+    /// </summary>
+    public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
+    {
+        if (!CanForage()) yield break;
+        yield return new WorkOption(
+            $"Forage for resources ({GetQualityDescription()})",
+            "forage",
+            new ForageStrategy()
+        );
     }
 
     /// <summary>

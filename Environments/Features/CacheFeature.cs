@@ -1,3 +1,6 @@
+using text_survival.Actions;
+using text_survival.Actions.Expeditions;
+using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
@@ -6,7 +9,7 @@ namespace text_survival.Environments.Features;
 /// A storage cache at a location - can be natural (ice crevasse, tree cache)
 /// or built (raised platform, pit cache).
 /// </summary>
-public class CacheFeature : LocationFeature
+public class CacheFeature : LocationFeature, IWorkableFeature
 {
     /// <summary>
     /// The storage inventory for this cache.
@@ -84,6 +87,30 @@ public class CacheFeature : LocationFeature
     /// Check if cache has any items stored.
     /// </summary>
     public bool HasItems => Storage.CurrentWeightKg > 0;
+
+    /// <summary>
+    /// Check if cache can be accessed. Always true if cache exists.
+    /// Future: could return false if cache is damaged, buried, etc.
+    /// </summary>
+    public bool CanBeAccessed => true;
+
+    /// <summary>
+    /// Check if cache is at capacity.
+    /// </summary>
+    public bool IsAtCapacity => CapacityKg > 0 && Storage.CurrentWeightKg >= CapacityKg;
+
+    /// <summary>
+    /// Get work options for this feature.
+    /// </summary>
+    public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
+    {
+        if (!CanBeAccessed) yield break;
+        yield return new WorkOption(
+            $"Access {Name} ({GetDescription()})",
+            "cache",
+            new CacheStrategy()
+        );
+    }
 
     /// <summary>
     /// Create a basic camp cache (unlimited storage, no special protection).

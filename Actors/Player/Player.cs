@@ -24,22 +24,35 @@ public class Player : Actor
 
     public override void Update(int minutes, SurvivalContext context)
     {
-        var result = SurvivalProcessor.Process(Body, context, minutes);
-
-        result.Effects.ForEach(e => AddLog(EffectRegistry.AddEffect(e)));
-        result.Messages.ForEach(AddLog);
-
-        var messages = EffectRegistry.Update(minutes);
+        var (result, messages) = ProcessSurvivalTick(minutes, context);
         messages.ForEach(AddLog);
 
-        result.StatsDelta.Combine(EffectRegistry.GetSurvivalDelta());
-        result.DamageEvents.AddRange(EffectRegistry.GetDamagesPerMinute());
-
-        // Store delta and duration for UI trend display
         LastSurvivalDelta = result.StatsDelta;
         LastUpdateMinutes = minutes;
 
         Body.ApplyResult(result);
+    }
+
+    private (SurvivalProcessorResult, List<string>) ProcessSurvivalTick(int minutes, SurvivalContext context)
+    {
+        var messages = new List<string>();
+
+        // 1. Calculate base survival
+        var result = SurvivalProcessor.Process(Body, context, minutes);
+
+        // 2. Add effects from survival (hypothermia, etc)
+        foreach (var effect in result.Effects)
+            if (EffectRegistry.AddEffect(effect) is string msg) messages.Add(msg);
+        messages.AddRange(result.Messages);
+
+        // 3. Tick existing effects
+        messages.AddRange(EffectRegistry.Update(minutes));
+
+        // 4. Combine effect contributions
+        result.StatsDelta.Combine(EffectRegistry.GetSurvivalDelta());
+        result.DamageEvents.AddRange(EffectRegistry.GetDamagesPerMinute());
+
+        return (result, messages);
     }
 
     public Player() : base("Player", Body.BaselinePlayerStats)
