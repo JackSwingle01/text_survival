@@ -6,7 +6,7 @@ namespace text_survival.Effects
     {
         // Identity
         public string EffectKind { get; init; } = "";
-        public string? TargetBodyPart { get; init; }
+        public BodyTarget? TargetBodyPart { get; init; }
 
         // State
         public double Severity { get; set; } = 1.0;

@@ -20,19 +20,22 @@ public class DamageInfo
     public DamageInfo(double amount,
                       DamageType type = DamageType.Blunt,
                       string? source = null,
-                      string? targetPartName = null
+                      BodyTarget target = BodyTarget.Random
                       )
     {
         Amount = amount;
         Type = type;
         Source = source;
-        TargetPartName = targetPartName;
+        Target = target;
     }
 
     public double Amount { get; set; }
     public DamageType Type { get; set; } = DamageType.Blunt;
     public string? Source { get; set; }
-    public string? TargetPartName { get; set; }
+    public BodyTarget Target { get; set; } = BodyTarget.Random;
+
+    // Internal - used only by DamageCalculator for resolution
+    internal string? TargetPartName { get; set; }
 }
 
 // Comprehensive healing information

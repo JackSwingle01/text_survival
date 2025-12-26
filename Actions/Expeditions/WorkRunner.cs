@@ -173,30 +173,11 @@ public class WorkRunner(GameContext ctx)
     /// </summary>
     private (bool died, int elapsed) RunWorkSegment(Location location, int workMinutes, ActivityType activity)
     {
-        int elapsed = 0;
+        // Use centralized progress method - handles web animation and processes all time at once
+        var (elapsed, interrupted) = GameDisplay.UpdateAndRenderProgress(_ctx, location.Name, workMinutes, activity);
 
-        while (elapsed < workMinutes)
-        {
-            GameDisplay.Render(
-                _ctx,
-                addSeparator: false,
-                statusText: location.Name,
-                progress: elapsed,
-                progressTotal: workMinutes
-            );
-
-            int min = _ctx.Update(1, activity);
-            elapsed += min;
-
-            if (PlayerDied)
-                return (true, elapsed);
-
-            // Break on event so caller can prompt for continuation
-            if (_ctx.EventOccurredLastUpdate)
-                break;
-
-            Thread.Sleep(100);
-        }
+        if (PlayerDied)
+            return (true, elapsed);
 
         return (false, elapsed);
     }
@@ -295,7 +276,7 @@ public class WorkRunner(GameContext ctx)
     /// </summary>
     public static bool PromptTravelToDiscovery(GameContext ctx, Location discovered)
     {
-        int travelMinutes = TravelProcessor.GetTraversalMinutes(discovered, ctx.player, ctx.Inventory);
+        int travelMinutes = TravelProcessor.GetTraversalMinutes(ctx.CurrentLocation, discovered, ctx.player, ctx.Inventory);
         GameDisplay.AddNarrative(ctx, $"You've found a path to {discovered.Name}.");
         GameDisplay.Render(ctx, statusText: "Discovery!");
 

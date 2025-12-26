@@ -66,7 +66,7 @@ public static class EffectFactory
         ]
     };
 
-    public static Effect Frostbite(string bodyPart, double severity) => new()
+    public static Effect Frostbite(BodyTarget bodyPart, double severity) => new()
     {
         EffectKind = "Frostbite",
         TargetBodyPart = bodyPart,
@@ -77,8 +77,8 @@ public static class EffectFactory
             (CapacityNames.Manipulation, -0.5),
             (CapacityNames.Moving, -0.5),
             (CapacityNames.BloodPumping, -0.2)),
-        ApplicationMessage = $"Your {bodyPart.ToLower()} is developing frostbite!",
-        RemovalMessage = $"The feeling is returning to your {bodyPart.ToLower()}."
+        ApplicationMessage = $"Your {bodyPart.ToString().ToLower()} is developing frostbite!",
+        RemovalMessage = $"The feeling is returning to your {bodyPart.ToString().ToLower()}."
     };
 
     /// <summary>
@@ -197,7 +197,7 @@ public static class EffectFactory
         HourlySeverityChange = -0.1,  // Decays slowly; minor wounds stabilize before death
         RequiresTreatment = true,     // Stops at 0.05 floor until treated
         Damage = new(3000, DamageType.Bleed),  // 3000 ml/hour at severity 1.0
-        TargetBodyPart = "Blood",
+        TargetBodyPart = BodyTarget.Blood,
         ApplicationMessage = "You're bleeding.",
         RemovalMessage = "The bleeding has stopped."
     };

@@ -310,12 +310,12 @@ public class Location
         Explored = true;
     }
 
-    public string GetUnexploredHint(Actors.Player.Player player)
+    public string GetUnexploredHint(Location origin, Actors.Player.Player player)
     {
-        int minutes = TravelProcessor.GetTraversalMinutes(this, player);
+        int minutes = TravelProcessor.GetTraversalMinutes(origin, this, player);
         int rounded = ((minutes + 7) / 15) * 15;  // Round to nearest 15
         rounded = Math.Max(15, rounded);  // Minimum 15 min
-        // todo 
+        // todo
         return $"??? (~{rounded} min)";
     }
 

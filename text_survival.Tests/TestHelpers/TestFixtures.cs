@@ -101,14 +101,9 @@ public static class TestFixtures
     public static DamageInfo CreateDamageInfo(
         double amount,
         DamageType damageType = DamageType.Blunt,
-        string? targetPartName = null)
+        BodyTarget target = BodyTarget.Random)
     {
-        return new DamageInfo
-        {
-            Amount = amount,
-            Type = damageType,
-            TargetPartName = targetPartName
-        };
+        return new DamageInfo(amount, damageType, source: null, target: target);
     }
 
     /// <summary>

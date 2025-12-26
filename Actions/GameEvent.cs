@@ -1,4 +1,5 @@
 using text_survival.Actions.Tensions;
+using text_survival.Actions.Variants;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -60,6 +61,40 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public EventResult Damage(int amount, DamageType type, string source)
     {
         NewDamage = new DamageInfo(amount, type, source);
+        return this;
+    }
+
+    /// <summary>
+    /// Apply damage from an InjuryVariant, ensuring text and mechanics match.
+    /// Uses the variant's target, type, amount, and any auto-triggered effects.
+    /// </summary>
+    public EventResult DamageWithVariant(InjuryVariant variant)
+    {
+        NewDamage = new DamageInfo(variant.Amount, variant.Type, variant.Source, variant.Target);
+        if (variant.Effects != null)
+            Effects.AddRange(variant.Effects);
+        return this;
+    }
+
+    /// <summary>
+    /// Apply rewards from a DiscoveryVariant, ensuring text and mechanics match.
+    /// Uses the variant's reward pool and optional time cost.
+    /// </summary>
+    public EventResult WithDiscovery(DiscoveryVariant variant)
+    {
+        RewardPool = variant.Pool;
+        if (variant.TimeMinutes > 0)
+            TimeAddedMinutes += variant.TimeMinutes;
+        return this;
+    }
+
+    /// <summary>
+    /// Apply effects from an IllnessOnsetVariant, ensuring text and mechanics match.
+    /// Uses the variant's initial effects and severity multiplier.
+    /// </summary>
+    public EventResult WithIllnessOnset(IllnessOnsetVariant variant)
+    {
+        Effects.AddRange(variant.InitialEffects);
         return this;
     }
 
@@ -134,6 +169,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         if (TimeAddedMinutes != 0)
         {
             GameDisplay.AddNarrative(ctx, $"(+{TimeAddedMinutes} minutes)");
+            // Uses current activity - event was already triggered, so any nested events are handled by the caller
             GameDisplay.UpdateAndRenderProgress(ctx, "Acting", TimeAddedMinutes, ctx.CurrentActivity);
         }
 

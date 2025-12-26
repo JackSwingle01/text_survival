@@ -48,9 +48,9 @@ public static class TravelProcessor
     /// <summary>
     /// Get travel time for careful (safe) traversal.
     /// </summary>
-    public static int GetCarefulTraversalMinutes(Location location, Player player, Inventory? inventory = null)
+    public static int GetCarefulTraversalMinutes(Location origin, Location destination, Player player, Inventory? inventory = null)
     {
-        int normalTime = GetTraversalMinutes(location, player, inventory);
+        int normalTime = GetTraversalMinutes(origin, destination, player, inventory);
         return (int)Math.Ceiling(normalTime * CarefulTravelMultiplier);
     }
 
@@ -60,7 +60,16 @@ public static class TravelProcessor
     public static bool IsHazardousTerrain(Location location) =>
         location.GetEffectiveTerrainHazard() >= HazardousTerrainThreshold;
 
-    public static int GetTraversalMinutes(Location location, Player player, Inventory? inventory = null)
+    /// <summary>
+    /// Check if a hazard value is hazardous enough to warrant speed choice.
+    /// </summary>
+    public static bool IsHazardousTerrain(double hazardValue) =>
+        hazardValue >= HazardousTerrainThreshold;
+
+    /// <summary>
+    /// Calculate traversal time for a single segment (exiting or entering a location).
+    /// </summary>
+    public static int CalculateSegmentTime(Location location, Player player, Inventory? inventory = null)
     {
         if (location.BaseTraversalMinutes == 0) return 0;
 
@@ -111,9 +120,26 @@ public static class TravelProcessor
         return baseTime;
     }
 
+    /// <summary>
+    /// Get total traversal time from origin to destination (exit origin + enter destination).
+    /// </summary>
+    public static int GetTraversalMinutes(Location origin, Location destination, Player player, Inventory? inventory = null)
+    {
+        int exitTime = CalculateSegmentTime(origin, player, inventory);
+        int entryTime = CalculateSegmentTime(destination, player, inventory);
+        return exitTime + entryTime;
+    }
+
     public static int GetPathMinutes(List<Location> path, Player player, Inventory? inventory = null)
     {
-        return path.Skip(1).Sum(loc => GetTraversalMinutes(loc, player, inventory));
+        if (path.Count <= 1) return 0;
+
+        int totalTime = 0;
+        for (int i = 1; i < path.Count; i++)
+        {
+            totalTime += GetTraversalMinutes(path[i - 1], path[i], player, inventory);
+        }
+        return totalTime;
     }
 
     public static List<Location>? FindPath(Location start, Location target, Actions.GameContext ctx)

@@ -1,3 +1,4 @@
+using text_survival.Actions.Variants;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -11,6 +12,11 @@ public static partial class GameEventRegistry
 
     private static GameEvent TreacherousFooting(GameContext ctx)
     {
+        // Pre-select variants for consistent injury targeting across outcomes
+        var terrainVariant = VariantSelector.SelectTerrainVariant(ctx);
+        var slipVariant = VariantSelector.SelectSlipVariant(ctx);
+        var sprainVariant = VariantSelector.SelectSprainVariant(ctx);
+
         return new GameEvent("Treacherous Footing",
             "The ground ahead looks unstable — ice beneath the snow, or loose rocks hidden by debris.", 1.0)
             .Requires(EventCondition.Traveling, EventCondition.HazardousTerrain) // Only triggers on hazardous terrain
@@ -20,8 +26,8 @@ public static partial class GameEventRegistry
                 "You probe ahead with each step, testing your weight before committing.",
                 [
                     new EventResult("You find a safe path through.", 0.90, 13),
-                    new EventResult("Despite your caution, the ground shifts. You stumble but catch yourself.", 0.10, 15)
-                        .Damage(3, DamageType.Blunt, "fall")
+                    new EventResult(terrainVariant.Description, 0.10, 15)
+                        .DamageWithVariant(terrainVariant)
                 ])
             .Choice("Go Around",
                 "You backtrack and find another route entirely.",
@@ -32,10 +38,10 @@ public static partial class GameEventRegistry
                 "No time for caution. You move quickly across.",
                 [
                     new EventResult("You make it through without incident.", 0.5, 0),
-                    new EventResult("Your foot breaks through. You wrench your leg free, bruised.", 0.3, 5)
-                        .Damage(4, DamageType.Blunt, "fall"),
-                    new EventResult("You slip hard. Pain shoots through your ankle.", 0.2, 10)
-                        .WithEffects(EffectFactory.SprainedAnkle(0.5))
+                    new EventResult(slipVariant.Description, 0.3, 5)
+                        .DamageWithVariant(slipVariant),
+                    new EventResult(sprainVariant.Description, 0.2, 10)
+                        .DamageWithVariant(sprainVariant)
                 ]);
     }
 
@@ -71,8 +77,11 @@ public static partial class GameEventRegistry
 
     private static GameEvent MinorAccident(GameContext ctx)
     {
-        return new GameEvent("Minor Accident",
-            "Your foot catches on something hidden. A sharp pain as you stumble.", 0.8)
+        // Select a contextual injury variant - text and targeting will match
+        var variant = VariantSelector.SelectAccidentVariant(ctx);
+        var partName = BodyTargetResolver.GetDisplayName(variant.Target);
+
+        return new GameEvent("Minor Accident", variant.Description, 0.8)
             .Requires(EventCondition.IsExpedition)
             // Vulnerable: injured, slow, impaired, or unarmed - compromised physical state leads to more accidents
             .WithSituationFactor(Situations.Vulnerable, 1.5)
@@ -81,26 +90,26 @@ public static partial class GameEventRegistry
                 "You take a moment to examine the injury and tend to it properly.",
                 [
                     new EventResult("It's minor — just a scrape. You clean it and move on.", 0.6, 5),
-                    new EventResult("A small cut. You bind it to prevent worse.", 0.3, 8)
-                        .Damage(2, DamageType.Sharp, "accident"),
+                    new EventResult($"A cut on your {partName}. You bind it to prevent worse.", 0.3, 8)
+                        .DamageWithVariant(variant),
                     new EventResult("You've twisted something. Rest helps, but it'll slow you down.", 0.1, 12)
-                        .WithEffects(EffectFactory.SprainedAnkle(0.3))
+                        .DamageWithVariant(VariantSelector.SelectSprainVariant(ctx))
                 ])
             .Choice("Push On",
                 "No time to worry about it. Keep moving.",
                 [
                     new EventResult("You ignore it. Probably fine.", 0.5, 0)
-                        .Damage(2, DamageType.Sharp, "accident"),
+                        .DamageWithVariant(variant),
                     new EventResult("You try to ignore it, but it's affecting your movement.", 0.35, 0)
-                        .Damage(3, DamageType.Sharp, "accident"),
+                        .DamageWithVariant(variant),
                     new EventResult("Ignoring it was a mistake. It's getting worse.", 0.15, 0)
-                        .WithEffects(EffectFactory.SprainedAnkle(0.4))
+                        .DamageWithVariant(VariantSelector.SelectSprainVariant(ctx))
                 ])
             .Choice("Head Back",
                 "This might be serious. Better to return to camp.",
                 [
                     new EventResult("You turn back, favoring the injury.", 1.0)
-                        .Damage(2, DamageType.Sharp, "accident")
+                        .DamageWithVariant(variant)
                         .Aborts()
                 ]);
     }
@@ -515,6 +524,11 @@ public static partial class GameEventRegistry
 
     private static GameEvent DarkPassage(GameContext ctx)
     {
+        // Pre-select darkness-specific injury variants
+        var stumbleVariant = VariantSelector.SelectStumbleVariant(ctx);
+        var fallVariant = VariantSelector.SelectSlipVariant(ctx);
+        var sprainVariant = VariantSelector.SelectSprainVariant(ctx);
+
         return new GameEvent("Dark Passage",
             "The path ahead disappears into darkness. Without light, every step is a gamble.", 0.9)
             .Requires(EventCondition.Traveling)
@@ -526,8 +540,8 @@ public static partial class GameEventRegistry
                     new EventResult("You inch forward, testing each foothold. Slow but safe.", 0.60, 20),
                     new EventResult("Your foot finds empty air. You catch yourself just in time.", 0.25, 25)
                         .Unsettling(),
-                    new EventResult("You stumble on something unseen. Minor injury.", 0.10, 18)
-                        .Damage(3, DamageType.Blunt, "stumble in darkness"),
+                    new EventResult(stumbleVariant.Description, 0.10, 18)
+                        .DamageWithVariant(stumbleVariant),
                     new EventResult("Your hand brushes something useful in the dark.", 0.05, 22)
                         .FindsSupplies()
                 ])
@@ -544,10 +558,10 @@ public static partial class GameEventRegistry
                 "Move fast. Minimize time in the dark.",
                 [
                     new EventResult("You make it through. Heart pounding, but intact.", 0.40, 8),
-                    new EventResult("You trip but keep moving. Scraped but through.", 0.30, 10)
-                        .Damage(4, DamageType.Blunt, "fall in darkness"),
-                    new EventResult("Bad fall. Something twisted.", 0.20, 12)
-                        .WithEffects(EffectFactory.SprainedAnkle(0.4)),
+                    new EventResult(fallVariant.Description, 0.30, 10)
+                        .DamageWithVariant(fallVariant),
+                    new EventResult(sprainVariant.Description, 0.20, 12)
+                        .DamageWithVariant(sprainVariant),
                     new EventResult("You run straight into something solid. Stars explode.", 0.10, 15)
                         .SeriousFall()
                         .WithEffects(EffectFactory.Shaken(0.3))
@@ -556,6 +570,9 @@ public static partial class GameEventRegistry
 
     private static GameEvent WaterCrossing(GameContext ctx)
     {
+        // Pre-select slip variant for ice/water hazards
+        var slipVariant = VariantSelector.SelectSlipVariant(ctx);
+
         return new GameEvent("Water Crossing",
             "Water blocks your path. Moving water, or still water with thin ice at the edges.", 0.8)
             .Requires(EventCondition.NearWater, EventCondition.Traveling)
@@ -569,7 +586,7 @@ public static partial class GameEventRegistry
                     new EventResult("Current stronger than it looked. You fight to stay upright.", 0.15, 15)
                         .WithEffects(EffectFactory.Wet(0.9), EffectFactory.Cold(-18, 60), EffectFactory.Exhausted(0.2, 30)),
                     new EventResult("You slip. Water closes over your head for a terrifying moment.", 0.05, 18)
-                        .ModerateFall()
+                        .DamageWithVariant(slipVariant)
                         .WithEffects(EffectFactory.Wet(1.0), EffectFactory.Cold(-25, 90))
                         .Frightening()
                 ])
@@ -592,7 +609,7 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.WaterSource)
                         .WithEffects(EffectFactory.Nauseous(0.15, 45)),
                     new EventResult("Ice breaks. You're in the water.", 0.05, 15)
-                        .Damage(4, DamageType.Blunt, "ice break")
+                        .DamageWithVariant(slipVariant)
                         .WithEffects(EffectFactory.Wet(0.9))
                         .SevereCold()
                 ]);
@@ -600,6 +617,11 @@ public static partial class GameEventRegistry
 
     private static GameEvent ExposedOnRidge(GameContext ctx)
     {
+        // Pre-select variants for ridge hazards
+        var stumbleVariant = VariantSelector.SelectTerrainVariant(ctx);
+        var sharpVariant = AccidentVariants.SharpHazards[Random.Shared.Next(AccidentVariants.SharpHazards.Length)];
+        var partName = BodyTargetResolver.GetDisplayName(sharpVariant.Target);
+
         return new GameEvent("Exposed on the Ridge",
             "The terrain opens up. You can see for miles — which means anything for miles can see you.", 1.0)
             .Requires(EventCondition.HighVisibility, EventCondition.HazardousTerrain)
@@ -609,8 +631,8 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You hustle across. Wind buffets you, but you make it.", 0.45, 10)
                         .WithCold(-8, 20),
-                    new EventResult("The footing is treacherous. You stumble but keep moving.", 0.30, 15)
-                        .MinorFall()
+                    new EventResult(stumbleVariant.Description, 0.30, 15)
+                        .DamageWithVariant(stumbleVariant)
                         .WithCold(-10, 25),
                     new EventResult("Wind nearly takes you. You drop and crawl.", 0.15, 20)
                         .HarshCold()
@@ -625,9 +647,9 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Sore(0.2, 60)),
                     new EventResult("Rocks tear at your clothing. Cold seeps in.", 0.30, 30)
                         .ModerateCold(),
-                    new EventResult("Your hand finds a sharp edge. Blood makes the rocks slick.", 0.10, 28)
-                        .Damage(4, DamageType.Sharp, "sharp rock")
-                        .CreateTension("WoundUntreated", 0.15, description: "hand"),
+                    new EventResult($"Your {partName} finds a sharp edge. Blood makes the rocks slick.", 0.10, 28)
+                        .DamageWithVariant(sharpVariant)
+                        .CreateTension("WoundUntreated", 0.15, description: partName),
                     new EventResult("You spot something from this vantage point.", 0.05, 25)
                         .Rewards(RewardPool.CraftingMaterials)
                 ])

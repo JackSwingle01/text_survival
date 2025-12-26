@@ -12,7 +12,7 @@ public class DamageProcessorTests
         var damageInfo = TestFixtures.CreateDamageInfo(
             amount: 10.0,
             damageType: DamageType.Blunt,
-            targetPartName: BodyRegionNames.Head);
+            target: BodyTarget.Head);
 
         // Act
         var result = DamageProcessor.DamageBody(damageInfo, body);
@@ -67,7 +67,7 @@ public class DamageProcessorTests
         var damageInfo = TestFixtures.CreateDamageInfo(
             amount: 50.0,
             damageType: DamageType.Pierce,
-            targetPartName: BodyRegionNames.Chest);
+            target: BodyTarget.Chest);
 
         // Act
         var result = DamageProcessor.DamageBody(damageInfo, body);
@@ -135,7 +135,7 @@ public class DamageProcessorTests
         var pierceDamage = TestFixtures.CreateDamageInfo(
             amount: 20.0,
             damageType: DamageType.Pierce,
-            targetPartName: BodyRegionNames.Chest);
+            target: BodyTarget.Chest);
 
         // Act
         var result = DamageProcessor.DamageBody(pierceDamage, body);
@@ -172,7 +172,7 @@ public class DamageProcessorTests
         var massiveDamage = TestFixtures.CreateDamageInfo(
             amount: TestConstants.Damage.Massive,
             damageType: DamageType.Blunt,
-            targetPartName: BodyRegionNames.Head);
+            target: BodyTarget.Head);
 
         // Act
         var result = DamageProcessor.DamageBody(massiveDamage, body);

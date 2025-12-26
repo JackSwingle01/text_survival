@@ -38,14 +38,14 @@ public class TravelRunner(GameContext ctx)
                 string lbl;
                 if (con.Explored)
                 {
-                    int minutes = TravelProcessor.GetTraversalMinutes(con, _ctx.player, _ctx.Inventory);
+                    int minutes = TravelProcessor.GetTraversalMinutes(_ctx.CurrentLocation, con, _ctx.player, _ctx.Inventory);
                     // Show name with tags for explored locations
                     string tags = !string.IsNullOrEmpty(con.Tags) ? $" {con.Tags}" : "";
                     lbl = $"{con.Name}{tags} (~{minutes} min)";
                 }
                 else
                 {
-                    lbl = con.GetUnexploredHint(_ctx.player);
+                    lbl = con.GetUnexploredHint(_ctx.CurrentLocation, _ctx.player);
                 }
 
                 if (con == _ctx.Camp)
@@ -74,44 +74,74 @@ public class TravelRunner(GameContext ctx)
     /// </summary>
     internal bool TravelToLocation(Location destination)
     {
-        int travelTime;
-        bool quickTravel = false;
-        double injuryRisk = 0;
+        Location origin = _ctx.CurrentLocation;
 
-        if (TravelProcessor.IsHazardousTerrain(destination))
+        // Calculate base segment times
+        int exitTime = TravelProcessor.CalculateSegmentTime(origin, _ctx.player, _ctx.Inventory);
+        int entryTime = TravelProcessor.CalculateSegmentTime(destination, _ctx.player, _ctx.Inventory);
+
+        // Check hazards for each segment
+        bool originHazardous = TravelProcessor.IsHazardousTerrain(origin);
+        bool destHazardous = TravelProcessor.IsHazardousTerrain(destination);
+
+        // SEGMENT 1: Exit origin (CurrentLocation = origin)
+        if (originHazardous)
         {
-            int quickTime = TravelProcessor.GetTraversalMinutes(destination, _ctx.player, _ctx.Inventory);
-            int carefulTime = TravelProcessor.GetCarefulTraversalMinutes(destination, _ctx.player, _ctx.Inventory);
-            injuryRisk = TravelProcessor.GetInjuryRisk(destination, _ctx.player, _ctx.Weather);
+            var (segmentTime, quickTravel) = PromptForSpeed(origin, exitTime, isExiting: true);
+            exitTime = segmentTime;
 
-            GameDisplay.AddNarrative(_ctx, "The terrain ahead looks treacherous.");
+            bool died = RunTravelWithProgress(exitTime);
+            if (died) return false;
 
-            var speedChoice = new Choice<bool>("How do you proceed?");
-            speedChoice.AddOption($"Careful (~{carefulTime} min) - Safe passage", false);
-            speedChoice.AddOption($"Quick (~{quickTime} min) - {injuryRisk:P0} injury risk", true);
-
-            quickTravel = speedChoice.GetPlayerChoice(_ctx);
-            travelTime = quickTravel ? quickTime : carefulTime;
+            // Check for injury if quick travel
+            if (quickTravel)
+            {
+                double injuryRisk = TravelProcessor.GetInjuryRisk(origin, _ctx.player, _ctx.Weather);
+                if (injuryRisk > 0 && Utils.RandDouble(0, 1) < injuryRisk)
+                {
+                    TravelHandler.ApplyTravelInjury(_ctx, origin);
+                    if (!_ctx.player.IsAlive) return false;
+                }
+            }
         }
         else
         {
-            travelTime = TravelProcessor.GetTraversalMinutes(destination, _ctx.player, _ctx.Inventory);
+            // Normal speed for non-hazardous origin
+            bool died = RunTravelWithProgress(exitTime);
+            if (died) return false;
         }
 
-        bool died = RunTravelWithProgress(travelTime);
-        if (died) return false;
+        // TRANSITION: Update CurrentLocation
+        _ctx.CurrentLocation = destination;
 
-        // Check for injury if quick travel through hazardous terrain
-        if (quickTravel && injuryRisk > 0)
+        // SEGMENT 2: Enter destination (CurrentLocation = destination)
+        if (destHazardous)
         {
-            if (Utils.RandDouble(0, 1) < injuryRisk)
+            var (segmentTime, quickTravel) = PromptForSpeed(destination, entryTime, isExiting: false);
+            entryTime = segmentTime;
+
+            bool died = RunTravelWithProgress(entryTime);
+            if (died) return false;
+
+            // Check for injury if quick travel
+            if (quickTravel)
             {
-                TravelHandler.ApplyTravelInjury(_ctx, destination);
+                double injuryRisk = TravelProcessor.GetInjuryRisk(destination, _ctx.player, _ctx.Weather);
+                if (injuryRisk > 0 && Utils.RandDouble(0, 1) < injuryRisk)
+                {
+                    TravelHandler.ApplyTravelInjury(_ctx, destination);
+                    if (!_ctx.player.IsAlive) return false;
+                }
             }
+        }
+        else
+        {
+            // Normal speed for non-hazardous destination
+            bool died = RunTravelWithProgress(entryTime);
+            if (died) return false;
         }
 
         bool firstVisit = !destination.Explored;
-        _ctx.CurrentLocation = destination;
         destination.Explore();
 
         // Check for victory
@@ -132,6 +162,49 @@ public class TravelRunner(GameContext ctx)
         return true;
     }
 
+    /// <summary>
+    /// Prompts player for speed choice on hazardous terrain.
+    /// Returns adjusted time and whether quick travel was chosen.
+    /// </summary>
+    private (int segmentTime, bool quickTravel) PromptForSpeed(Location location, int normalTime, bool isExiting)
+    {
+        int carefulTime = (int)Math.Ceiling(normalTime * TravelProcessor.CarefulTravelMultiplier);
+        double injuryRisk = TravelProcessor.GetInjuryRisk(location, _ctx.player, _ctx.Weather);
+
+        // Determine hazard type and narrative
+        string direction = isExiting ? "Exiting" : "Entering";
+        string hazardType = GetHazardDescription(location);
+
+        GameDisplay.AddNarrative(_ctx, $"{direction} {location.Name} — the {hazardType} looks treacherous.");
+
+        var speedChoice = new Choice<bool>("How do you proceed?");
+        speedChoice.AddOption($"Careful (~{carefulTime} min) - Safe passage", false);
+        speedChoice.AddOption($"Quick (~{normalTime} min) - {injuryRisk:P0} injury risk", true);
+
+        bool quickTravel = speedChoice.GetPlayerChoice(_ctx);
+        int segmentTime = quickTravel ? normalTime : carefulTime;
+
+        return (segmentTime, quickTravel);
+    }
+
+    /// <summary>
+    /// Determines the specific hazard type for a location.
+    /// </summary>
+    private static string GetHazardDescription(Location location)
+    {
+        // Check for climb risk
+        if (location.ClimbRiskFactor > 0)
+            return "climb";
+
+        // Check for ice hazard
+        var water = location.GetFeature<Environments.Features.WaterFeature>();
+        if (water != null && water.GetTerrainHazardContribution() > 0)
+            return "ice";
+
+        // Generic terrain hazard
+        return "terrain";
+    }
+
 
     // --- Progress Bar Helpers ---
 
@@ -140,31 +213,10 @@ public class TravelRunner(GameContext ctx)
     /// </summary>
     private bool RunTravelWithProgress(int totalTime)
     {
-        int elapsed = 0;
-        bool died = false;
-        string statusText = $"Traveling...";
+        // Use centralized progress method - handles web animation and processes all time at once
+        var (elapsed, interrupted) = GameDisplay.UpdateAndRenderProgress(_ctx, "Traveling...", totalTime, ActivityType.Traveling);
 
-        while (elapsed < totalTime && !died)
-        {
-            GameDisplay.Render(_ctx,
-                addSeparator: false,
-                statusText: statusText,
-                progress: elapsed,
-                progressTotal: totalTime);
-
-            // Use the new activity-based Update with event checking
-            elapsed += _ctx.Update(1, ActivityType.Traveling);
-
-            if (PlayerDied)
-            {
-                died = true;
-                break;
-            }
-
-            Thread.Sleep(100);
-        }
-
-        return died;
+        return PlayerDied;
     }
 
     private void HandleVictory()

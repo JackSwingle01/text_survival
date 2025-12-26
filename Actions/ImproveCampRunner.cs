@@ -143,21 +143,17 @@ public class ImproveCampRunner(GameContext ctx)
             GameDisplay.AddWarning(_ctx, "Your unsteady hands slow the work.");
         }
 
-        int elapsed = 0;
-
-        // Craft with event checking
-        while (elapsed < totalTime && _ctx.player.IsAlive)
-        {
-            int chunk = Math.Min(5, totalTime - elapsed);
-            GameDisplay.Render(_ctx, statusText: "Building.", progress: elapsed, progressTotal: totalTime);
-
-            elapsed += _ctx.Update(chunk, ActivityType.Crafting);
-
-            Thread.Sleep(100);
-        }
+        // Use centralized progress method - handles web animation and processes all time at once
+        var (elapsed, interrupted) = GameDisplay.UpdateAndRenderProgress(_ctx, "Building.", totalTime, ActivityType.Crafting);
 
         if (!_ctx.player.IsAlive)
             return false;
+
+        if (interrupted)
+        {
+            GameDisplay.AddWarning(_ctx, "Your work was interrupted.");
+            return false;
+        }
 
         // All camp infrastructure options produce features
         var feature = option.CraftFeature(_ctx.Inventory);

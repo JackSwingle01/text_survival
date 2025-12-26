@@ -130,9 +130,12 @@ public class CombatManager
         DamageInfo damageInfo = new(
             amount: damage,
             source: Owner.Name,
-            type: damageType,
-            targetPartName: targetedPart
+            type: damageType
         );
+
+        // Set target directly by name (internal access for combat targeting)
+        if (targetedPart != null)
+            damageInfo.TargetPartName = targetedPart;
 
         DamageResult damageResult = DamageProcessor.DamageBody(damageInfo, target.Body);
 

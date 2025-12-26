@@ -175,7 +175,8 @@ public class EffectRegistry
         foreach (Effect e in GetAll())
         {
             if (e.Damage is null) continue;
-            var damage = new DamageInfo(e.Damage.PerHour / 60 * e.Severity, e.Damage.Type, targetPartName: e.TargetBodyPart);
+            var target = e.TargetBodyPart ?? Bodies.BodyTarget.Random;
+            var damage = new DamageInfo(e.Damage.PerHour / 60 * e.Severity, e.Damage.Type, source: null, target: target);
             damages.Add(damage);
         }
         return damages;

@@ -264,7 +264,56 @@ Outcomes can:
 
 Events interact with: tensions (create/escalate/resolve), locations (triggers and discovery), effects (outcomes apply them), predator encounters (can spawn them), inventory (costs and rewards), features (can modify).
 
-**Files**: `Actions/GameEvent.cs`, `Actions/GameEventRegistry.cs`
+### Event Variants
+
+Variants ensure event text matches mechanics. Three variant types handle different event categories: injuries (body targeting), discoveries (reward pools), and illness (cause-specific symptoms).
+
+**Injury Variants** — The problem: "Your foot catches on something" shouldn't play when damage lands on the player's arm. `InjuryVariant` bundles description text with `BodyTarget`, damage type, and optional effects.
+
+```csharp
+var variant = VariantSelector.SelectAccidentVariant(ctx);
+return new GameEvent("Minor Accident", variant.Description, 0.8)
+    .Choice("Push On", ...,
+        [new EventResult("You ignore it.", 0.5, 0).DamageWithVariant(variant)])
+```
+
+Terrain accident pools:
+- **TripStumble**, **SharpHazards**, **IceSlip**, **RockyTerrain** — common terrain hazards
+- **ClimbingFall**, **FallImpact**, **Sprains**, **DarknessStumble** — serious injuries with effects
+
+Work mishap pools:
+- **DebrisCuts** — searching ash piles, collapsed structures
+- **VerminBites** — rodent/pest encounters
+- **CollapseInjuries** — shelter/structure failure (with Dazed, SprainedAnkle)
+- **EmberBurns** — fire-tending mishaps
+
+`VariantSelector` weights pools by context — ice variants weight higher near frozen water, rocky variants on hazardous terrain.
+
+**Discovery Variants** — Bundle find descriptions with `RewardPool`. Descriptions are generic to match generic pools — variety comes from *how* you find things, not what specific item appears.
+
+```csharp
+var discovery = DiscoverySelector.SelectGeneralDiscovery(ctx);
+new EventResult(discovery.Description, 0.4, 8).WithDiscovery(discovery)
+```
+
+Pools: **SupplyFinds**, **TinderFinds**, **MaterialFinds**, **BoneFinds**, **CampFinds**, **CacheFinds**, **SmallGameFinds**, **HideFinds**
+
+**Illness Variants** — Connect symptoms to underlying causes for player learning.
+
+```csharp
+var onset = IllnessSelector.SelectOnsetVariant(ctx);  // Picks based on wounds, temp, etc.
+new EventResult(onset.Description, 1.0).WithIllnessOnset(onset)
+
+var hallucination = IllnessSelector.SelectHallucinationVariant(ctx);
+bool isReal = IllnessSelector.IsHallucinationReal(hallucination, ctx);  // 10-25% chance
+```
+
+Onset pools: **WoundOnset**, **ExposureOnset**, **ContaminationOnset**, **ExhaustionOnset**
+Hallucination pools: **FireHallucinations**, **PredatorHallucinations**, **MovementHallucinations**, **IntruderHallucinations**
+
+Hallucinations weight toward real threats (fire hallucinations more likely when fire is actually low) and have reality checks — sometimes the fever dream is real.
+
+**Files**: `Actions/Events/Variants/` (InjuryVariant.cs, AccidentVariants.cs, DiscoveryVariant.cs, IllnessVariant.cs), `Actions/GameEvent.cs`
 
 ---
 

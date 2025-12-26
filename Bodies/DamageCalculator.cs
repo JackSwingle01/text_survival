@@ -21,6 +21,9 @@ public static class DamageProcessor
 {
     public static DamageResult DamageBody(DamageInfo damageInfo, Body body)
     {
+        // Resolve enum to actual part name
+        damageInfo.TargetPartName = BodyTargetResolver.ResolveTargetName(damageInfo.Target, body);
+
         var result = new DamageResult();
 
         // Handle Blood targeting for Bleed/Internal damage (blood loss bypasses body parts)

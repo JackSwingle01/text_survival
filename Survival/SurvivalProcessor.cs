@@ -179,16 +179,10 @@ public static class SurvivalProcessor
 			double damagePerMinute = 0.5 / 60.0;  // 0.5/hour = death in ~10 hours
 			double damage = damagePerMinute * minutesElapsed;
 
-			var vitalOrgans = new[] { "Heart", "Liver", "Brain", "Lungs" };
-			string target = vitalOrgans[Random.Shared.Next(vitalOrgans.Length)];
+			var vitalOrgans = new[] { BodyTarget.Heart, BodyTarget.Liver, BodyTarget.Brain, BodyTarget.Lungs };
+			BodyTarget target = vitalOrgans[Random.Shared.Next(vitalOrgans.Length)];
 
-			result.DamageEvents.Add(new DamageInfo
-			{
-				Amount = damage,
-				Type = DamageType.Internal,
-				TargetPartName = target,
-				Source = "Starvation"
-			});
+			result.DamageEvents.Add(new DamageInfo(damage, DamageType.Internal, "Starvation", target));
 		}
 
 		return result;
@@ -202,19 +196,13 @@ public static class SurvivalProcessor
 		double damagePerMinute = 1.0 / 60.0;  // 1.0/hour = death in ~5 hours
 		double damage = damagePerMinute * minutesElapsed;
 
-		var affectedOrgans = new[] { "Brain", "Heart", "Liver" };
-		string target = affectedOrgans[Random.Shared.Next(affectedOrgans.Length)];
+		var affectedOrgans = new[] { BodyTarget.Brain, BodyTarget.Heart, BodyTarget.Liver };
+		BodyTarget target = affectedOrgans[Random.Shared.Next(affectedOrgans.Length)];
 
 		return new SurvivalProcessorResult
 		{
 			DamageEvents = [
-				new DamageInfo
-				{
-					Amount = damage,
-					Type = DamageType.Internal,
-					TargetPartName = target,
-					Source = "Dehydration"
-				}
+				new DamageInfo(damage, DamageType.Internal, "Dehydration", target)
 			],
 			Messages = ["Your organs are failing from dehydration!"],
 		};
@@ -236,8 +224,8 @@ public static class SurvivalProcessor
 			: 1.0 + (14.0 * (severityFactor - 0.5));    // 1.0-8.0/hour for severe
 		double damage = (damagePerHour / 60.0) * minutesElapsed;
 
-		var coreOrgans = new[] { "Heart", "Brain", "Lungs" };
-		string target = coreOrgans[Random.Shared.Next(coreOrgans.Length)];
+		var coreOrgans = new[] { BodyTarget.Heart, BodyTarget.Brain, BodyTarget.Lungs };
+		BodyTarget target = coreOrgans[Random.Shared.Next(coreOrgans.Length)];
 
 		// Escalating message based on severity - always shown so player knows they're dying
 		string urgency = severityFactor switch
@@ -250,13 +238,7 @@ public static class SurvivalProcessor
 		return new SurvivalProcessorResult
 		{
 			DamageEvents = [
-				new DamageInfo
-				{
-					Amount = damage,
-					Type = DamageType.Internal,
-					TargetPartName = target,
-					Source = "Hypothermia"
-				}
+				new DamageInfo(damage, DamageType.Internal, "Hypothermia", target)
 			],
 			Messages = [urgency],
 		};

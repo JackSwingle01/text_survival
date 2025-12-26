@@ -40,6 +40,7 @@ public static class CampHandler
         GameDisplay.Render(ctx, statusText: "Setting camp.");
 
         // Time cost: 45 minutes normally, 22 minutes with shovel
+        // Note: ActivityType.Crafting has EventMultiplier=0, so no events can interrupt this
         GameDisplay.UpdateAndRenderProgress(ctx, "Setting up camp", setupTimeMinutes, ActivityType.Crafting);
 
         if (!ctx.player.IsAlive) return;

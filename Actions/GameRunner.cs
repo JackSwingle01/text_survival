@@ -480,6 +480,7 @@ public partial class GameRunner(GameContext ctx)
 
     private void Wait()
     {
+        // ActivityType.Resting has EventMultiplier=0, so no events can interrupt
         GameDisplay.UpdateAndRenderProgress(ctx, "Resting", 5, ActivityType.Resting);
     }
 

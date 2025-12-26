@@ -36,6 +36,7 @@ public static class CookingHandler
                 options.Add(opt);
                 actions[opt] = () =>
                 {
+                    // ActivityType.Cooking has EventMultiplier=0, so no events can interrupt
                     GameDisplay.UpdateAndRenderProgress(ctx, "Cooking meat...", CookMeatTimeMinutes, ActivityType.Cooking);
                     double cooked = inv.Pop(Resource.RawMeat);
                     inv.Add(Resource.CookedMeat, cooked);
@@ -48,6 +49,7 @@ public static class CookingHandler
             options.Add(snowOpt);
             actions[snowOpt] = () =>
             {
+                // ActivityType.Cooking has EventMultiplier=0, so no events can interrupt
                 GameDisplay.UpdateAndRenderProgress(ctx, "Melting snow...", MeltSnowTimeMinutes, ActivityType.Cooking);
                 inv.WaterLiters += MeltSnowWaterLiters;
                 GameDisplay.AddSuccess(ctx, $"Melted snow into {MeltSnowWaterLiters}L of water.");

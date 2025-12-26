@@ -240,6 +240,7 @@ public static class FireHandler
         while (true)
         {
             GameDisplay.AddNarrative(ctx, $"You work with the {selectedTool.Name}...");
+            // ActivityType.TendingFire has EventMultiplier=0, so no events can interrupt
             GameDisplay.UpdateAndRenderProgress(ctx, "Starting fire...", 10, ActivityType.TendingFire);
 
             double baseChance = GetToolBaseChance(selectedTool);
