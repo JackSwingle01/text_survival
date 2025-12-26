@@ -1,3 +1,4 @@
+using System.Linq;
 using text_survival.Environments.Features;
 
 namespace text_survival.Actions;
@@ -40,13 +41,15 @@ public static class Situations
 
     /// <summary>
     /// Player is vulnerable to threats.
-    /// Combines: injured, slow, impaired, no weapon.
+    /// Combines: injured, slow, impaired, no weapon, significant blood loss, soaked.
     /// </summary>
     public static bool Vulnerable(GameContext ctx) =>
         ctx.Check(EventCondition.Injured) ||
         ctx.Check(EventCondition.Slow) ||
         ctx.Check(EventCondition.Impaired) ||
-        !ctx.Inventory.HasWeapon;
+        !ctx.Inventory.HasWeapon ||
+        ctx.player.Body.Blood.Condition < 0.7 ||
+        GetWetness(ctx) > 0.5;
 
     /// <summary>
     /// Graduated vulnerability level (0-1).
@@ -54,12 +57,21 @@ public static class Situations
     public static double VulnerabilityLevel(GameContext ctx)
     {
         double level = 0;
-        if (ctx.Check(EventCondition.Injured)) level += 0.3;
-        if (ctx.Check(EventCondition.Slow)) level += 0.25;
-        if (ctx.Check(EventCondition.Impaired)) level += 0.25;
-        if (!ctx.Inventory.HasWeapon) level += 0.2;
-        if (ctx.Check(EventCondition.Limping)) level += 0.15;
+        if (ctx.Check(EventCondition.Injured)) level += 0.25;
+        if (ctx.Check(EventCondition.Slow)) level += 0.2;
+        if (ctx.Check(EventCondition.Impaired)) level += 0.2;
+        if (!ctx.Inventory.HasWeapon) level += 0.15;
+        if (ctx.Check(EventCondition.Limping)) level += 0.1;
         if (ctx.Check(EventCondition.Winded)) level += 0.1;
+
+        // Blood loss - scales with severity
+        double bloodCondition = ctx.player.Body.Blood.Condition;
+        if (bloodCondition < 0.5) level += 0.3;
+        else if (bloodCondition < 0.7) level += 0.15;
+
+        // Wetness impairs movement and reactions
+        level += GetWetness(ctx) * 0.2;
+
         return Math.Min(1.0, level);
     }
 
@@ -101,13 +113,14 @@ public static class Situations
 
     /// <summary>
     /// Player is exposed to elements.
-    /// Combines: no shelter + bad weather.
+    /// Combines: no shelter + bad weather, or soaked in freezing temps.
     /// </summary>
     public static bool Exposed(GameContext ctx) =>
-        ctx.Check(EventCondition.NoShelter) &&
-        (ctx.Check(EventCondition.IsSnowing) ||
-         ctx.Check(EventCondition.HighWind) ||
-         ctx.Check(EventCondition.IsRaining));
+        (ctx.Check(EventCondition.NoShelter) &&
+         (ctx.Check(EventCondition.IsSnowing) ||
+          ctx.Check(EventCondition.HighWind) ||
+          ctx.Check(EventCondition.IsRaining))) ||
+        (GetWetness(ctx) > 0.5 && ctx.Check(EventCondition.ExtremelyCold));
 
     /// <summary>
     /// Player is in harsh conditions regardless of shelter.
@@ -142,7 +155,8 @@ public static class Situations
     public static bool InCrisis(GameContext ctx) =>
         (Vulnerable(ctx) && UnderThreat(ctx)) ||
         (SupplyPressure(ctx) && Exposed(ctx)) ||
-        ctx.Check(EventCondition.DeadlyColdCritical);
+        ctx.Check(EventCondition.DeadlyColdCritical) ||
+        ctx.player.Body.Blood.Condition < 0.5;
 
     // === FAVORABLE CONDITIONS ===
 
@@ -236,8 +250,7 @@ public static class Situations
     public static bool PsychologicallyCompromised(GameContext ctx) =>
         ctx.Check(EventCondition.Disturbed) ||
         ctx.Check(EventCondition.DisturbedHigh) ||
-        ctx.Tensions.HasTension("Stalked") ||
-        ctx.Tensions.HasTensionAbove("Stalked", 0.5);
+        ctx.Tensions.HasTension("Stalked");
 
     /// <summary>
     /// Severe psychological compromise.
@@ -283,12 +296,13 @@ public static class Situations
 
     /// <summary>
     /// Temperature has crossed into fatal territory.
-    /// Combines: ExtremelyCold, IsBlizzard, LowOnFuel.
+    /// Combines: ExtremelyCold, IsBlizzard + LowOnFuel, or soaked in cold.
     /// Found in: TheWindShifts, TheFind, FrozenFingers.
     /// </summary>
     public static bool ExtremeColdCrisis(GameContext ctx) =>
         ctx.Check(EventCondition.ExtremelyCold) ||
-        (ctx.Check(EventCondition.IsBlizzard) && ctx.Check(EventCondition.LowOnFuel));
+        (ctx.Check(EventCondition.IsBlizzard) && ctx.Check(EventCondition.LowOnFuel)) ||
+        (GetWetness(ctx) > 0.7 && ctx.Check(EventCondition.LowTemperature));
 
     /// <summary>
     /// Graduated cold crisis level (0-1).
@@ -296,10 +310,16 @@ public static class Situations
     public static double ExtremeColdLevel(GameContext ctx)
     {
         double level = 0;
-        if (ctx.Check(EventCondition.ExtremelyCold)) level += 0.5;
-        if (ctx.Check(EventCondition.IsBlizzard)) level += 0.3;
-        if (ctx.Check(EventCondition.LowOnFuel)) level += 0.2;
+        if (ctx.Check(EventCondition.ExtremelyCold)) level += 0.4;
+        if (ctx.Check(EventCondition.IsBlizzard)) level += 0.25;
+
+        // Fuel - use else-if to avoid double-counting
         if (ctx.Check(EventCondition.NoFuel)) level += 0.3;
+        else if (ctx.Check(EventCondition.LowOnFuel)) level += 0.15;
+
+        // Wetness massively compounds cold danger
+        level += GetWetness(ctx) * 0.3;
+
         return Math.Min(1.0, level);
     }
 
@@ -345,4 +365,12 @@ public static class Situations
         if (ctx.Check(EventCondition.IsBlizzard)) level += 0.3;
         return Math.Min(1.0, level);
     }
+
+    // === HELPERS ===
+
+    /// <summary>
+    /// Get current wetness severity (0-1).
+    /// </summary>
+    private static double GetWetness(GameContext ctx) =>
+        ctx.player.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault()?.Severity ?? 0;
 }

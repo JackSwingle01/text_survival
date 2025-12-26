@@ -9,119 +9,46 @@ public static class LocationFactory
 
     public static Location MakeForest(Weather weather)
     {
-        List<string> forestNames = ["Forest", "Woodland", "Grove", "Thicket", "Pine Stand", "Birch Grove"];
-        List<string> forestAdjectives = [
-            "Frost-bitten", "Snow-laden", "Ice-coated", "Silent", "Frozen", "Snowy",
-            "Windswept", "Frigid", "Boreal", "Primeval", "Shadowy", "Ancient",
-            "Frosty", "Dark", "Foggy", "Overgrown", "Dense", "Old", "Misty", "Quiet"
-        ];
+        var location = new Location(
+            name: "Forest",
+            tags: "[Shaded] [Resource-Dense]",
+            weather: weather,
+            traversalMinutes: 10,
+            terrainHazardLevel: .2,
+            windFactor: .6,
+            overheadCoverLevel: .3,
+            visibilityFactor: .7);
 
-        string adjective = Utils.GetRandomFromList(forestAdjectives);
-        string name = Utils.GetRandomFromList(forestNames);
-        name = (adjective + " " + name).Trim();
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 2.0));
+        location.Features.Add(FeatureFactory.CreateMixedPreyAnimals(density: 1.2));
 
-        var location = new Location(name, 
-                                    tags: "[Shaded] [Resource-Dense]", // 1-3 player hints
-                                    weather: weather, 
-                                    traversalMinutes: 10, // radius
-                                    terrainHazardLevel: .2,  // 0-1
-                                    windFactor: .6, // 0-2
-                                    overheadCoverLevel: .3, // 0-1
-                                    visibilityFactor: .7); // 0-2
-
-        // Forage feature - forest is rich in fuel and medicinals
-        var forageFeature = new ForageFeature(2.0)
-            .AddMixedWood(1.5, 1.5, 3.5)   // mixed forest: pine, birch, oak
-            .AddSticks(3.0, 0.2, 0.6)      // plenty of sticks
-            .AddTinder(2.0, 0.02, 0.08)    // bark, dry leaves
-            .AddBerries(0.3, 0.05, 0.15)   // occasional berries
-            .AddPlantFiber(0.5, 0.05, 0.15) // bark strips, roots for cordage
-            // Fungi on birch/dead trees
-            .AddBirchPolypore(0.15)        // wound treatment
-            .AddChaga(0.1)                 // anti-inflammatory
-            .AddAmadou(0.12)               // fire-starting, wound dressing
-            // Conifer products
-            .AddPineNeedles(0.25)          // vitamin C tea
-            .AddPineResin(0.1)             // wound sealing
-            .AddUsnea(0.15);               // old man's beard lichen
-        location.Features.Add(forageFeature);
-
-        // Animal territory - forests have good game
-        var animalTerritory = new AnimalTerritoryFeature(1.2)
-            .AddDeer(1.0)
-            .AddRabbit(0.8)
-            .AddFox(0.3);
-        location.Features.Add(animalTerritory);
-
-        // Harvestables (spawn chance)
         if (Utils.DetermineSuccess(0.3))
-        {
-            var berryBush = new HarvestableFeature("berry_bush", "Wild Berry Bush")
-            {
-                Description = "A frost-hardy shrub with clusters of dark berries."
-            };
-            berryBush.AddBerries("berries", maxQuantity: 5, weightPerUnit: 0.1, respawnHoursPerUnit: 168.0);
-            location.Features.Add(berryBush);
-        }
+            location.Features.Add(FeatureFactory.CreateBerryBush());
 
         if (Utils.DetermineSuccess(0.2))
-        {
-            var deadfall = new HarvestableFeature("deadfall", "Fallen Tree")
-            {
-                Description = "A wind-felled tree with dry, harvestable wood.",
-                MinutesToHarvest = 10
-            };
-            deadfall.AddLogs("firewood", Resource.Pine, maxQuantity: 4, weightPerUnit: 2.5, respawnHoursPerUnit: 720.0);  // logs don't really respawn
-            deadfall.AddSticks("branches", maxQuantity: 8, weightPerUnit: 0.3, respawnHoursPerUnit: 168.0);
-            deadfall.AddTinder("bark strips", maxQuantity: 3, weightPerUnit: 0.05, respawnHoursPerUnit: 168.0);
-            location.Features.Add(deadfall);
-        }
+            location.Features.Add(FeatureFactory.CreateMixedDeadfall());
 
-        // Standing timber - requires axe to fell
-        location.Features.Add(new WoodedAreaFeature("Standing Timber", null, 150));  // Mixed wood, 2.5 hours per tree
+        location.Features.Add(new WoodedAreaFeature("Standing Timber", null, 150));
 
         if (Utils.DetermineSuccess(0.25))
-        {
-            var puddle = new HarvestableFeature("puddle", "Forest Puddle")
-            {
-                Description = "A shallow puddle fed by melting snow.",
-                MinutesToHarvest = 2
-            };
-            puddle.AddWater("water", maxQuantity: 3, litersPerUnit: 0.5, respawnHoursPerUnit: 12.0);
-            location.Features.Add(puddle);
-        }
+            location.Features.Add(FeatureFactory.CreateForestPuddle());
 
         return location;
     }
 
     public static Location MakeCave(Weather weather)
     {
-        List<string> caveNames = ["Cave", "Cavern", "Grotto", "Hollow", "Shelter"];
-        List<string> caveAdjectives = [
-            "Icicle-lined", "Frost-rimmed", "Bone-strewn", "Winding", "Ancient",
-            "Hidden", "Rocky", "Echoing", "Deep", "Dark", "Shadowy", "Damp",
-            "Frozen", "Narrow", "Secluded", "Cold", "Protected"
-        ];
+        var location = new Location(
+            name: "Cave",
+            tags: "[Sheltered] [Dark]",
+            weather: weather,
+            traversalMinutes: 5,
+            terrainHazardLevel: 0.1,
+            windFactor: 0.1,
+            overheadCoverLevel: 1.0,
+            visibilityFactor: 0.3);
 
-        string adjective = Utils.GetRandomFromList(caveAdjectives);
-        string name = Utils.GetRandomFromList(caveNames);
-        name = (adjective + " " + name).Trim();
-
-        var location = new Location(name,
-                                    tags: "[Sheltered] [Dark]",
-                                    weather: weather,
-                                    traversalMinutes: 5,
-                                    terrainHazardLevel: 0.1,
-                                    windFactor: 0.1,
-                                    overheadCoverLevel: 1.0,
-                                    visibilityFactor: 0.3);
-
-        // Caves have very little forage - minimal fuel, no food
-        var forageFeature = new ForageFeature(0.3)
-            .AddTinder(0.2, 0.01, 0.03);  // occasional dry debris
-        location.Features.Add(forageFeature);
-
-        // Shelter feature - caves provide natural shelter
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.3));
         location.Features.Add(new ShelterFeature("Cave", .5, 1, .9));
 
         return location;
@@ -129,48 +56,22 @@ public static class LocationFactory
 
     public static Location MakeRiverbank(Weather weather)
     {
-        List<string> riverNames = ["River", "Stream", "Creek", "Brook", "Rapids", "Ford", "Shallows"];
-        List<string> riverAdjectives = [
-            "Ice-rimmed", "Glacial", "Snowmelt", "Half-frozen", "Narrow",
-            "Icy", "Cold", "Mist-shrouded", "Foggy", "Crystalline", "Frigid",
-            "Rushing", "Flowing", "Clear", "Shallow", "Deep"
-        ];
+        var location = new Location(
+            name: "Riverbank",
+            tags: "[Water] [Open]",
+            weather: weather,
+            traversalMinutes: 8,
+            terrainHazardLevel: 0.3,
+            windFactor: 1.0,
+            overheadCoverLevel: 0.1,
+            visibilityFactor: 1.2);
 
-        string adjective = Utils.GetRandomFromList(riverAdjectives);
-        string name = Utils.GetRandomFromList(riverNames);
-        name = (adjective + " " + name).Trim();
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 1.2));
+        location.Features.Add(FeatureFactory.CreateRiver());
 
-        var location = new Location(name,
-                                    tags: "[Water] [Open]",
-                                    weather: weather,
-                                    traversalMinutes: 8,
-                                    terrainHazardLevel: 0.3,
-                                    windFactor: 1.0,
-                                    overheadCoverLevel: 0.1,
-                                    visibilityFactor: 1.2);
-
-        // Riverbeds have driftwood, willows along banks
-        var forageFeature = new ForageFeature(1.2)
-            .AddSticks(2.0, 0.2, 0.5)     // driftwood
-            .AddBirch(1.0, 1.0, 2.0)      // birch driftwood (birch grows along water)
-            .AddStone(0.6, 0.2, 0.5)      // river-smoothed stones, good for knapping
-            .AddWillowBark(0.25)          // willows grow along water - pain relief
-            .AddSphagnum(0.15);           // peat moss in boggy spots
-        location.Features.Add(forageFeature);
-
-        // Water source harvestable - always present at rivers
-        var river = new HarvestableFeature("river", "Ice-Fed River")
-        {
-            Description = "A swift-flowing river fed by glacial meltwater. Cold but clear.",
-            MinutesToHarvest = 1
-        };
-        river.AddWater("water", maxQuantity: 100, litersPerUnit: 1.0, respawnHoursPerUnit: 0.1);  // effectively unlimited
-        location.Features.Add(river);
-
-        // Water feature for ice hazard - flowing water has moderate/thin ice
         var waterFeature = new WaterFeature("river_water", "River")
             .WithDescription("Fast-flowing sections stay open, but ice forms at the edges.")
-            .WithIceThickness(0.5);  // Moderate ice - contributes +0.15 hazard
+            .WithIceThickness(0.5);
         location.Features.Add(waterFeature);
 
         return location;
@@ -178,129 +79,57 @@ public static class LocationFactory
 
     public static Location MakePlain(Weather weather)
     {
-        List<string> plainNames = ["Plain", "Steppe", "Tundra", "Grassland", "Prairie", "Meadow"];
-        List<string> plainAdjectives = [
-            "Windswept", "Frozen", "Vast", "Rolling", "Endless",
-            "Snow-covered", "Desolate", "Frosty", "Exposed",
-            "Bleak", "Stark", "Harsh", "Flat", "Open", "Windy", "Cold", "Barren", "Wild"
-        ];
+        var location = new Location(
+            name: "Plain",
+            tags: "[Exposed] [Open]",
+            weather: weather,
+            traversalMinutes: 15,
+            terrainHazardLevel: 0.1,
+            windFactor: 1.4,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.5);
 
-        string adjective = Utils.GetRandomFromList(plainAdjectives);
-        string name = Utils.GetRandomFromList(plainNames);
-        name = (adjective + " " + name).Trim();
+        location.Features.Add(FeatureFactory.CreateOpenForage(density: 0.5));
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.8));
 
-        var location = new Location(name,
-                                    tags: "[Exposed] [Open]",
-                                    weather: weather,
-                                    traversalMinutes: 15,
-                                    terrainHazardLevel: 0.1,
-                                    windFactor: 1.4,
-                                    overheadCoverLevel: 0.0,
-                                    visibilityFactor: 1.5);
-
-        // Plains are sparse - mainly dry grass for tinder
-        var forageFeature = new ForageFeature(0.5)
-            .AddTinder(0.7, 0.03, 0.1)    // dry grass is common
-            .AddSticks(0.2, 0.1, 0.3)     // occasional scrub
-            .AddBerries(0.15, 0.03, 0.1)  // sparse berries
-            .AddPlantFiber(0.6, 0.05, 0.12); // dry grass for cordage
-        location.Features.Add(forageFeature);
-
-        // Animal territory - plains have small game and birds
-        var animalTerritory = new AnimalTerritoryFeature(0.8)
-            .AddRabbit(1.0)
-            .AddPtarmigan(0.7);
-        location.Features.Add(animalTerritory);
-
-        // Occasional meltwater
         if (Utils.DetermineSuccess(0.2))
-        {
-            var puddle = new HarvestableFeature("puddle", "Meltwater Puddle")
-            {
-                Description = "A shallow depression with fresh meltwater. Frozen at edges.",
-                MinutesToHarvest = 2
-            };
-            puddle.AddWater("water", maxQuantity: 2, litersPerUnit: 0.5, respawnHoursPerUnit: 24.0);
-            location.Features.Add(puddle);
-        }
+            location.Features.Add(FeatureFactory.CreateMeltwaterPuddle());
 
         return location;
     }
 
     public static Location MakeHillside(Weather weather)
     {
-        List<string> hillNames = ["Ridge", "Slope", "Crag", "Bluff", "Outcrop", "Hill", "Knoll"];
-        List<string> hillAdjectives = [
-            "Glacier-carved", "Ice-cracked", "Snow-swept", "Wind-scoured", "Craggy",
-            "Rugged", "Snow-capped", "Icy", "Stone", "High", "Misty",
-            "Rocky", "Steep", "Windswept", "Exposed", "Barren", "Weathered"
-        ];
+        var location = new Location(
+            name: "Hillside",
+            tags: "[Steep] [Rocky]",
+            weather: weather,
+            traversalMinutes: 12,
+            terrainHazardLevel: 0.5,
+            windFactor: 1.3,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.3);
 
-        string adjective = Utils.GetRandomFromList(hillAdjectives);
-        string name = Utils.GetRandomFromList(hillNames);
-        name = (adjective + " " + name).Trim();
-
-        var location = new Location(name,
-                                    tags: "[Steep] [Rocky]",
-                                    weather: weather,
-                                    traversalMinutes: 12,
-                                    terrainHazardLevel: 0.5,
-                                    windFactor: 1.3,
-                                    overheadCoverLevel: 0.0,
-                                    visibilityFactor: 1.3);
-
-        // Hills have sparse vegetation but exposed stone and hardy shrubs
-        var forageFeature = new ForageFeature(0.4)
-            .AddTinder(0.3, 0.02, 0.05)   // limited dry material
-            .AddSticks(0.15, 0.1, 0.25)   // scrub brush
-            .AddStone(0.5, 0.25, 0.6)     // exposed rock for tools
-            .AddJuniperBerries(0.2);      // hardy juniper shrubs on rocky slopes
-        location.Features.Add(forageFeature);
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.4));
 
         return location;
     }
 
     public static Location MakeClearing(Weather weather)
     {
-        List<string> clearingNames = ["Clearing", "Glade", "Opening", "Break", "Gap"];
-        List<string> clearingAdjectives = [
-            "Sheltered", "Sunny", "Quiet", "Hidden", "Small", "Wide", "Mossy",
-            "Snow-covered", "Frost-rimmed", "Protected", "Ancient", "Wind-sheltered"
-        ];
+        var location = new Location(
+            name: "Clearing",
+            tags: "[Sheltered] [Clearing]",
+            weather: weather,
+            traversalMinutes: 8,
+            terrainHazardLevel: 0.1,
+            windFactor: 0.6,
+            overheadCoverLevel: 0.2,
+            visibilityFactor: 1.1);
 
-        string adjective = Utils.GetRandomFromList(clearingAdjectives);
-        string name = Utils.GetRandomFromList(clearingNames);
-        name = (adjective + " " + name).Trim();
-
-        var location = new Location(name,
-                                    tags: "[Sheltered] [Clearing]",
-                                    weather: weather,
-                                    traversalMinutes: 8,
-                                    terrainHazardLevel: 0.1,
-                                    windFactor: 0.6,
-                                    overheadCoverLevel: 0.2,
-                                    visibilityFactor: 1.1);
-
-        // Clearings have moderate resources + forest edge plants
-        var forageFeature = new ForageFeature(1.3)
-            .AddSticks(2.5, 0.15, 0.4)
-            .AddPine(0.5, 1.0, 2.5)        // forest edge: pine and birch
-            .AddBirch(0.5, 1.0, 2.5)
-            .AddTinder(1.8, 0.02, 0.06)
-            .AddBerries(0.25, 0.05, 0.12)
-            .AddPlantFiber(0.4, 0.05, 0.1)  // undergrowth for cordage
-            .AddRoseHips(0.25)              // vitamin C, persist into winter
-            .AddRoots(0.2);                 // edible roots in forest floor
-        location.Features.Add(forageFeature);
-
-        // Animal territory - clearings attract deer for grazing
-        var animalTerritory = new AnimalTerritoryFeature(1.0)
-            .AddDeer(1.2)
-            .AddRabbit(0.6);
-        location.Features.Add(animalTerritory);
-
-        // Forest edge timber - mix of pine and birch
-        location.Features.Add(new WoodedAreaFeature("Forest Edge", null, 120));  // Mixed wood, 2 hours per tree
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 1.3));
+        location.Features.Add(FeatureFactory.CreateMixedPreyAnimals(density: 1.0));
+        location.Features.Add(new WoodedAreaFeature("Forest Edge", null, 120));
 
         return location;
     }
@@ -310,51 +139,22 @@ public static class LocationFactory
     /// </summary>
     public static Location MakeHotSpring(Weather weather)
     {
-        List<string> springNames = ["Hot Spring", "Thermal Pool", "Steaming Pool", "Warm Springs"];
-        List<string> springAdjectives = [
-            "Misty", "Steaming", "Bubbling", "Hidden", "Sulfurous",
-            "Ancient", "Sacred", "Warm", "Sheltered"
-        ];
-
-        string adjective = Utils.GetRandomFromList(springAdjectives);
-        string name = Utils.GetRandomFromList(springNames);
-        name = (adjective + " " + name).Trim();
-
-        var location = new Location(name,
-                                    tags: "[Warm] [Water]",
-                                    weather: weather,
-                                    traversalMinutes: 20,
-                                    terrainHazardLevel: 0.3,
-                                    windFactor: 0.4,
-                                    overheadCoverLevel: 0.1,
-                                    visibilityFactor: 0.8)
+        var location = new Location(
+            name: "Hot Spring",
+            tags: "[Warm] [Water]",
+            weather: weather,
+            traversalMinutes: 20,
+            terrainHazardLevel: 0.3,
+            windFactor: 0.4,
+            overheadCoverLevel: 0.1,
+            visibilityFactor: 0.8)
         {
             DiscoveryText = "Steam rises from a pool of warm water. The air here is noticeably warmer."
         };
 
-        // Hot springs provide significant warmth bonus (+20F)
-        // Note: TemperatureDeltaF is readonly, so we set via primary constructor
-        // For now, use shelter feature to represent the warmth
-
-        // Very limited forage - mostly just mineral deposits
-        var forageFeature = new ForageFeature(0.3)
-            .AddStone(0.4, 0.1, 0.3);
-        location.Features.Add(forageFeature);
-
-        // Water harvestable - warm water is always available
-        var spring = new HarvestableFeature("hot_spring", "Thermal Pool")
-        {
-            Description = "Warm water bubbles up from deep below. Safe to drink once cooled.",
-            MinutesToHarvest = 2
-        };
-        spring.AddWater("warm water", maxQuantity: 50, litersPerUnit: 1.0, respawnHoursPerUnit: 0.1);
-        location.Features.Add(spring);
-
-        // Animals come here to drink
-        var animalTerritory = new AnimalTerritoryFeature(0.6)
-            .AddDeer(0.8)
-            .AddRabbit(0.4);
-        location.Features.Add(animalTerritory);
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.3));
+        location.Features.Add(FeatureFactory.CreateHotSpring());
+        location.Features.Add(FeatureFactory.CreateMixedPreyAnimals(density: 0.6));
 
         return location;
     }
@@ -364,47 +164,25 @@ public static class LocationFactory
     /// </summary>
     public static Location MakeFrozenCreek(Weather weather)
     {
-        List<string> creekNames = ["Creek", "Stream", "Brook", "Run", "Channel"];
-        List<string> creekAdjectives = [
-            "Frozen", "Ice-locked", "Silent", "Narrow", "Winding",
-            "Treacherous", "Slick", "Glassy"
-        ];
-
-        string adjective = Utils.GetRandomFromList(creekAdjectives);
-        string name = Utils.GetRandomFromList(creekNames);
-        name = (adjective + " " + name).Trim();
-
-        var location = new Location(name,
-                                    tags: "[Ice] [Water] [Slippery]",
-                                    weather: weather,
-                                    traversalMinutes: 12,
-                                    terrainHazardLevel: 0.35,  // Reduced - WaterFeature adds ice hazard
-                                    windFactor: 0.9,
-                                    overheadCoverLevel: 0.0,
-                                    visibilityFactor: 1.0)
+        var location = new Location(
+            name: "Frozen Creek",
+            tags: "[Ice] [Water] [Slippery]",
+            weather: weather,
+            traversalMinutes: 12,
+            terrainHazardLevel: 0.35,
+            windFactor: 0.9,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.0)
         {
             DiscoveryText = "The creek is frozen solid. Dark shapes move beneath the ice."
         };
 
-        // Limited forage - some driftwood frozen in ice
-        var forageFeature = new ForageFeature(0.6)
-            .AddSticks(1.5, 0.15, 0.4)
-            .AddStone(0.3, 0.2, 0.4);
-        location.Features.Add(forageFeature);
+        location.Features.Add(FeatureFactory.CreateFrozenCreekForage(density: 0.6));
+        location.Features.Add(FeatureFactory.CreateIceSource());
 
-        // Ice can be harvested for water
-        var iceSource = new HarvestableFeature("ice", "Creek Ice")
-        {
-            Description = "Thick ice covers the creek. Can be broken and melted for water.",
-            MinutesToHarvest = 5
-        };
-        iceSource.AddWater("ice chunks", maxQuantity: 20, litersPerUnit: 1.0, respawnHoursPerUnit: 48.0);
-        location.Features.Add(iceSource);
-
-        // Water feature for ice hazard - creek is solidly frozen
         var waterFeature = new WaterFeature("creek_water", "Frozen Creek")
             .WithDescription("The creek is frozen solid. Safe to cross if you're careful.")
-            .AsSolidIce();  // 0.7 thickness - contributes +0.15 hazard, total ~0.50
+            .AsSolidIce();
         location.Features.Add(waterFeature);
 
         return location;
@@ -415,54 +193,22 @@ public static class LocationFactory
     /// </summary>
     public static Location MakeDeadwoodGrove(Weather weather)
     {
-        List<string> groveNames = ["Grove", "Stand", "Tangle", "Deadfall", "Blowdown"];
-        List<string> groveAdjectives = [
-            "Deadwood", "Tangled", "Storm-felled", "Rotting", "Bone-dry",
-            "Jumbled", "Chaotic", "Treacherous"
-        ];
-
-        string adjective = Utils.GetRandomFromList(groveAdjectives);
-        string name = Utils.GetRandomFromList(groveNames);
-        name = (adjective + " " + name).Trim();
-
-        var location = new Location(name,
-                                    tags: "[Fuel] [Treacherous]",
-                                    weather: weather,
-                                    traversalMinutes: 15,
-                                    terrainHazardLevel: 0.7,
-                                    windFactor: 0.5,
-                                    overheadCoverLevel: 0.2,
-                                    visibilityFactor: 0.4)
+        var location = new Location(
+            name: "Deadwood Grove",
+            tags: "[Fuel] [Treacherous]",
+            weather: weather,
+            traversalMinutes: 15,
+            terrainHazardLevel: 0.7,
+            windFactor: 0.5,
+            overheadCoverLevel: 0.2,
+            visibilityFactor: 0.4)
         {
             DiscoveryText = "A tangle of fallen trees, bleached and dry. Fuel everywhere - but one wrong step could snap an ankle."
         };
 
-        // Exceptional fuel resources - the pull. Dead trees have fungi
-        var forageFeature = new ForageFeature(3.0)
-            .AddPine(2.5, 1.5, 4.0)        // mostly pine deadfall
-            .AddBirch(0.5, 1.5, 3.5)       // some birch mixed in
-            .AddSticks(4.0, 0.2, 0.7)
-            .AddTinder(3.0, 0.02, 0.1)
-            .AddAmadou(0.25)              // tinder fungus on dead trees
-            .AddBirchPolypore(0.2);       // bracket fungus on dead birch
-        location.Features.Add(forageFeature);
-
-        // Large harvestable deadfall
-        var deadfall = new HarvestableFeature("massive_deadfall", "Massive Fallen Pine")
-        {
-            Description = "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
-            MinutesToHarvest = 20
-        };
-        deadfall.AddLogs("dry pine logs", Resource.Pine, maxQuantity: 8, weightPerUnit: 2.5, respawnHoursPerUnit: 0);
-        deadfall.AddSticks("branches", maxQuantity: 15, weightPerUnit: 0.3, respawnHoursPerUnit: 0);
-        deadfall.AddTinder("bark strips", maxQuantity: 5, weightPerUnit: 0.05, respawnHoursPerUnit: 0);
-        location.Features.Add(deadfall);
-
-        // Small game hides in the deadfall
-        var animalTerritory = new AnimalTerritoryFeature(0.7)
-            .AddRabbit(1.2)
-            .AddFox(0.4);
-        location.Features.Add(animalTerritory);
+        location.Features.Add(FeatureFactory.CreateDeadwoodForage(density: 3.0));
+        location.Features.Add(FeatureFactory.CreateMassiveDeadfall());
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.7));
 
         return location;
     }
@@ -472,38 +218,21 @@ public static class LocationFactory
     /// </summary>
     public static Location MakeOverlook(Weather weather)
     {
-        List<string> overlookNames = ["Overlook", "Viewpoint", "Lookout", "Vantage", "Summit"];
-        List<string> overlookAdjectives = [
-            "Rocky", "Wind-scoured", "High", "Exposed", "Commanding",
-            "Stark", "Barren", "Open"
-        ];
-
-        string adjective = Utils.GetRandomFromList(overlookAdjectives);
-        string name = Utils.GetRandomFromList(overlookNames);
-        name = (adjective + " " + name).Trim();
-
-        var location = new Location(name,
-                                    tags: "[Scout] [Exposed] [Stone]",
-                                    weather: weather,
-                                    traversalMinutes: 18,
-                                    terrainHazardLevel: 0.4,
-                                    windFactor: 1.6,
-                                    overheadCoverLevel: 0.0,
-                                    visibilityFactor: 1.8)
+        var location = new Location(
+            name: "Overlook",
+            tags: "[Scout] [Exposed] [Stone]",
+            weather: weather,
+            traversalMinutes: 18,
+            terrainHazardLevel: 0.4,
+            windFactor: 1.6,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.8)
         {
             DiscoveryText = "The view stretches for miles. You can see smoke from distant fires, animal trails below."
         };
 
-        // Excellent stone, very limited vegetation
-        var forageFeature = new ForageFeature(0.4)
-            .AddStone(1.5, 0.3, 0.8)
-            .AddTinder(0.1, 0.01, 0.03);
-        location.Features.Add(forageFeature);
-
-        // Birds nest on high places
-        var animalTerritory = new AnimalTerritoryFeature(0.4)
-            .AddPtarmigan(1.0);
-        location.Features.Add(animalTerritory);
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.4));
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.4));
 
         return location;
     }
@@ -513,66 +242,29 @@ public static class LocationFactory
     /// </summary>
     public static Location MakeMarsh(Weather weather)
     {
-        List<string> marshNames = ["Marsh", "Bog", "Wetland", "Fen", "Mire"];
-        List<string> marshAdjectives = [
-            "Frozen", "Murky", "Reedy", "Treacherous", "Foggy",
-            "Ice-crusted", "Silent", "Misty"
-        ];
-
-        string adjective = Utils.GetRandomFromList(marshAdjectives);
-        string name = Utils.GetRandomFromList(marshNames);
-        name = (adjective + " " + name).Trim();
-
-        var location = new Location(name,
-                                    tags: "[Water] [Treacherous] [Plants]",
-                                    weather: weather,
-                                    traversalMinutes: 20,
-                                    terrainHazardLevel: 0.4,  // Reduced - WaterFeature adds thin ice hazard
-                                    windFactor: 0.7,
-                                    overheadCoverLevel: 0.0,
-                                    visibilityFactor: 0.6)
+        var location = new Location(
+            name: "Marsh",
+            tags: "[Water] [Treacherous] [Plants]",
+            weather: weather,
+            traversalMinutes: 20,
+            terrainHazardLevel: 0.4,
+            windFactor: 0.7,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 0.6)
         {
             DiscoveryText = "The ground gives way to frozen marsh. Cattails poke through the ice. Rich foraging if you're careful."
         };
 
-        // Rich in plant resources - sphagnum thrives here
-        var forageFeature = new ForageFeature(1.8)
-            .AddPlantFiber(2.0, 0.08, 0.2)
-            .AddBerries(0.4, 0.05, 0.15)
-            .AddSticks(0.5, 0.1, 0.3)
-            .AddSphagnum(0.4);            // peat moss - absorbent, antiseptic
-        location.Features.Add(forageFeature);
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 1.8));
+        location.Features.Add(FeatureFactory.CreateCattails());
+        location.Features.Add(FeatureFactory.CreateMarshWater());
 
-        // Cattails are excellent harvestable
-        var cattails = new HarvestableFeature("cattails", "Cattail Stand")
-        {
-            Description = "Dense cattails at the marsh edge. Edible roots, fluffy seed heads for tinder.",
-            MinutesToHarvest = 10
-        };
-        cattails.AddPlantFiber("cattail fiber", maxQuantity: 10, weightPerUnit: 0.1, respawnHoursPerUnit: 168.0);
-        cattails.AddTinder("cattail fluff", maxQuantity: 6, weightPerUnit: 0.03, respawnHoursPerUnit: 168.0);
-        location.Features.Add(cattails);
-
-        // Water source
-        var water = new HarvestableFeature("marsh_water", "Open Water")
-        {
-            Description = "Dark water between ice sheets. Needs to be boiled.",
-            MinutesToHarvest = 3
-        };
-        water.AddWater("marsh water", maxQuantity: 30, litersPerUnit: 1.0, respawnHoursPerUnit: 6.0);
-        location.Features.Add(water);
-
-        // Water feature for ice hazard - marsh has THIN ice (very dangerous!)
         var waterFeature = new WaterFeature("marsh_ice", "Marsh Ice")
             .WithDescription("Thin ice between tussocks. One wrong step and you're through.")
-            .AsThinIce();  // 0.3 thickness - contributes +0.35 hazard, total ~0.75
+            .AsThinIce();
         location.Features.Add(waterFeature);
 
-        // Waterfowl
-        var animalTerritory = new AnimalTerritoryFeature(0.9)
-            .AddPtarmigan(1.5)
-            .AddRabbit(0.5);
-        location.Features.Add(animalTerritory);
+        location.Features.Add(FeatureFactory.CreateWaterfowlAnimals(density: 0.9));
 
         return location;
     }
@@ -582,35 +274,21 @@ public static class LocationFactory
     /// </summary>
     public static Location MakeIceCrevasse(Weather weather)
     {
-        List<string> crevasseNames = ["Crevasse", "Ice Cleft", "Glacier Crack", "Ice Fissure"];
-        List<string> crevasseAdjectives = [
-            "Deep", "Blue", "Narrow", "Ancient", "Hidden",
-            "Treacherous", "Dark"
-        ];
-
-        string adjective = Utils.GetRandomFromList(crevasseAdjectives);
-        string name = Utils.GetRandomFromList(crevasseNames);
-        name = (adjective + " " + name).Trim();
-
-        var location = new Location(name,
-                                    tags: "[Ice] [Cache] [Dangerous]",
-                                    weather: weather,
-                                    traversalMinutes: 25,
-                                    terrainHazardLevel: 0.8,
-                                    windFactor: 0.2,
-                                    overheadCoverLevel: 0.8,
-                                    visibilityFactor: 0.2)
+        var location = new Location(
+            name: "Ice Crevasse",
+            tags: "[Ice] [Cache] [Dangerous]",
+            weather: weather,
+            traversalMinutes: 25,
+            terrainHazardLevel: 0.8,
+            windFactor: 0.2,
+            overheadCoverLevel: 0.8,
+            visibilityFactor: 0.2)
         {
             DiscoveryText = "A deep crack in ancient ice. Freezing cold, but perfect for storing meat.",
             IsDark = true
         };
 
-        // Very limited forage
-        var forageFeature = new ForageFeature(0.1)
-            .AddStone(0.2, 0.1, 0.3);
-        location.Features.Add(forageFeature);
-
-        // Natural cache - food preserving
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.1));
         location.Features.Add(CacheFeature.CreateIceCache());
 
         return location;
@@ -621,28 +299,21 @@ public static class LocationFactory
     /// </summary>
     public static Location MakeAbandonedCamp(Weather weather)
     {
-        var location = new Location("Old Campsite",
-                                    tags: "[Salvage] [Shelter]",
-                                    weather: weather,
-                                    traversalMinutes: 15,
-                                    terrainHazardLevel: 0.2,
-                                    windFactor: 0.5,
-                                    overheadCoverLevel: 0.3,
-                                    visibilityFactor: 0.7)
+        var location = new Location(
+            name: "Old Campsite",
+            tags: "[Salvage] [Shelter]",
+            weather: weather,
+            traversalMinutes: 15,
+            terrainHazardLevel: 0.2,
+            windFactor: 0.5,
+            overheadCoverLevel: 0.3,
+            visibilityFactor: 0.7)
         {
             DiscoveryText = "Signs of an old camp. The fire pit is cold, shelter collapsed. Someone was here before you."
         };
 
-        // Minimal forage - area picked over
-        var forageFeature = new ForageFeature(0.4)
-            .AddSticks(0.5, 0.1, 0.3)
-            .AddTinder(0.3, 0.01, 0.04);
-        location.Features.Add(forageFeature);
-
-        // Salvage site with one-time loot
+        location.Features.Add(FeatureFactory.CreatePickedOverForage(density: 0.4));
         location.Features.Add(SalvageFeature.CreateAbandonedCamp());
-
-        // Collapsed shelter still provides some protection
         location.Features.Add(new ShelterFeature("Collapsed Lean-to", 0.2, 0.4, 0.3));
 
         return location;
@@ -653,38 +324,21 @@ public static class LocationFactory
     /// </summary>
     public static Location MakeWolfDen(Weather weather)
     {
-        List<string> denNames = ["Den", "Lair", "Hollow", "Haunt"];
-        List<string> denAdjectives = [
-            "Wolf", "Predator", "Wild", "Dangerous", "Bone-strewn"
-        ];
-
-        string adjective = Utils.GetRandomFromList(denAdjectives);
-        string name = Utils.GetRandomFromList(denNames);
-        name = (adjective + " " + name).Trim();
-
-        var location = new Location(name,
-                                    tags: "[Wolves] [Dangerous] [Bones]",
-                                    weather: weather,
-                                    traversalMinutes: 18,
-                                    terrainHazardLevel: 0.3,
-                                    windFactor: 0.4,
-                                    overheadCoverLevel: 0.6,
-                                    visibilityFactor: 0.5)
+        var location = new Location(
+            name: "Wolf Den",
+            tags: "[Wolves] [Dangerous] [Bones]",
+            weather: weather,
+            traversalMinutes: 18,
+            terrainHazardLevel: 0.3,
+            windFactor: 0.4,
+            overheadCoverLevel: 0.6,
+            visibilityFactor: 0.5)
         {
             DiscoveryText = "Wolf tracks everywhere. Bones scattered around a rocky hollow. The smell of predator is strong."
         };
 
-        // Bones from wolf kills
-        var forageFeature = new ForageFeature(0.6)
-            .AddBone(1.5, 0.1, 0.4)
-            .AddSticks(0.3, 0.1, 0.3);
-        location.Features.Add(forageFeature);
-
-        // Wolf territory - dangerous but rewarding
-        var animalTerritory = new AnimalTerritoryFeature(1.5)
-            .AddWolf(2.0)
-            .AddRabbit(0.3);
-        location.Features.Add(animalTerritory);
+        location.Features.Add(FeatureFactory.CreatePickedOverForage(density: 0.6));
+        location.Features.Add(FeatureFactory.CreateWolfDenAnimals(density: 1.5));
 
         return location;
     }
@@ -694,53 +348,23 @@ public static class LocationFactory
     /// </summary>
     public static Location MakeShelteredValley(Weather weather)
     {
-        List<string> valleyNames = ["Valley", "Hollow", "Dell", "Basin", "Glen"];
-        List<string> valleyAdjectives = [
-            "Sheltered", "Hidden", "Protected", "Quiet", "Secluded",
-            "Wind-shadowed", "Peaceful"
-        ];
-
-        string adjective = Utils.GetRandomFromList(valleyAdjectives);
-        string name = Utils.GetRandomFromList(valleyNames);
-        name = (adjective + " " + name).Trim();
-
-        var location = new Location(name,
-                                    tags: "[Sheltered] [Camp-worthy]",
-                                    weather: weather,
-                                    traversalMinutes: 22,
-                                    terrainHazardLevel: 0.15,
-                                    windFactor: 0.2,
-                                    overheadCoverLevel: 0.4,
-                                    visibilityFactor: 0.5)
+        var location = new Location(
+            name: "Sheltered Valley",
+            tags: "[Sheltered] [Camp-worthy]",
+            weather: weather,
+            traversalMinutes: 22,
+            terrainHazardLevel: 0.15,
+            windFactor: 0.2,
+            overheadCoverLevel: 0.4,
+            visibilityFactor: 0.5)
         {
             DiscoveryText = "A natural hollow, shielded from the worst winds. This would make a good camp."
         };
 
-        // Good forage - sheltered areas support more life (hardwoods dominate)
-        var forageFeature = new ForageFeature(1.6)
-            .AddSticks(2.5, 0.2, 0.5)
-            .AddOak(0.7, 1.5, 3.0)         // hardwoods in sheltered areas
-            .AddBirch(0.5, 1.2, 2.5)
-            .AddTinder(1.5, 0.02, 0.07)
-            .AddBerries(0.4, 0.05, 0.15)
-            .AddPlantFiber(0.6, 0.05, 0.12)
-            .AddNuts(0.25)                // hardwood trees in sheltered areas
-            .AddRoots(0.2)                // edible roots
-            .AddRoseHips(0.2);            // shrubs at edges
-        location.Features.Add(forageFeature);
-
-        // Good game - animals shelter here too
-        var animalTerritory = new AnimalTerritoryFeature(1.3)
-            .AddDeer(1.0)
-            .AddRabbit(1.0)
-            .AddFox(0.3);
-        location.Features.Add(animalTerritory);
-
-        // Natural rock cache
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 1.6));
+        location.Features.Add(FeatureFactory.CreateMixedPreyAnimals(density: 1.3));
         location.Features.Add(CacheFeature.CreateRockCache());
-
-        // Hardwood standing timber - sheltered areas support oak
-        location.Features.Add(new WoodedAreaFeature("Hardwood Stand", Resource.Oak, 180));  // Oak, 3 hours per tree
+        location.Features.Add(new WoodedAreaFeature("Hardwood Stand", Resource.Oak, 180));
 
         return location;
     }
@@ -763,18 +387,8 @@ public static class LocationFactory
             DiscoveryText = "Fire came through here. Blackened trunks stand like pillars. Ash pads your footsteps."
         };
 
-        // Rich in dry fuel and charcoal - the pull
-        var forageFeature = new ForageFeature(2.0)
-            .AddCharcoal(0.8, 0.05, 0.2)    // Abundant charcoal
-            .AddTinder(3.0, 0.02, 0.08)     // Dry debris everywhere
-            .AddSticks(2.5, 0.2, 0.5)       // Dry branches
-            .AddPine(1.5, 1.0, 2.5);        // Standing dead pine
-        location.Features.Add(forageFeature);
-
-        // Very sparse game - little cover
-        var animalTerritory = new AnimalTerritoryFeature(0.3)
-            .AddRabbit(1.0);
-        location.Features.Add(animalTerritory);
+        location.Features.Add(FeatureFactory.CreateBurntStandForage(density: 2.0));
+        location.Features.Add(FeatureFactory.CreateSparseAnimals(density: 0.3));
 
         return location;
     }
@@ -797,13 +411,7 @@ public static class LocationFactory
             DiscoveryText = "A stone lip juts from a cliff face. The ground beneath is dry. Wind passes over but the space below is calm."
         };
 
-        // Sparse forage - mostly stone
-        var forageFeature = new ForageFeature(0.3)
-            .AddStone(0.5, 0.2, 0.5)
-            .AddTinder(0.2, 0.01, 0.04);
-        location.Features.Add(forageFeature);
-
-        // Partial shelter - not as good as a cave but immediate protection
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.3));
         location.Features.Add(new ShelterFeature("Overhang", 0.3, 0.7, 0.5));
 
         return location;
@@ -827,11 +435,7 @@ public static class LocationFactory
             DiscoveryText = "Bare stone breaks through the landscape. Wind-scoured and exposed, the view is commanding. Stone flakes litter the base."
         };
 
-        // Good stone for tools - the pull
-        var forageFeature = new ForageFeature(0.8)
-            .AddStone(2.0, 0.25, 0.6)
-            .AddFlint(0.3, 0.1, 0.3);
-        location.Features.Add(forageFeature);
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.8));
 
         return location;
     }
@@ -854,25 +458,14 @@ public static class LocationFactory
             DiscoveryText = "A depression where glacial meltwater collects. Crystal clear and painfully cold. Ice rings the edges."
         };
 
-        // Sparse alpine forage
-        var forageFeature = new ForageFeature(0.3)
-            .AddStone(0.3, 0.1, 0.3);
-        location.Features.Add(forageFeature);
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.3));
 
-        // Water source with thin ice at edges
         var waterFeature = new WaterFeature("meltwater", "Meltwater Pool")
             .WithDescription("Glacial meltwater. Pure but frigid.")
-            .WithIceThickness(0.2);  // Thin ice at edges
+            .WithIceThickness(0.2);
         location.Features.Add(waterFeature);
 
-        // Harvestable water
-        var pool = new HarvestableFeature("meltwater_pool", "Glacial Pool")
-        {
-            Description = "Crystal-clear meltwater. Pure but painfully cold.",
-            MinutesToHarvest = 3
-        };
-        pool.AddWater("meltwater", maxQuantity: 20, litersPerUnit: 1.0, respawnHoursPerUnit: 24.0);
-        location.Features.Add(pool);
+        location.Features.Add(FeatureFactory.CreateMeltwaterPool());
 
         return location;
     }
@@ -897,14 +490,9 @@ public static class LocationFactory
             DiscoveryText = "Old growth. Massive trunks, cathedral spacing, deep silence. The canopy blocks snow and light alike."
         };
 
-        // Sparse forage - healthy forest means little deadfall
-        var forageFeature = new ForageFeature(0.4)
-            .AddTinder(0.3, 0.01, 0.04)
-            .AddBirchPolypore(0.15, 0.05, 0.15)
-            .AddChaga(0.1, 0.05, 0.2);
-        location.Features.Add(forageFeature);
+        location.Features.Add(FeatureFactory.CreateOldGrowthForage(density: 0.4));
 
-        // Premium hardwood - requires axe
+        // Premium hardwood - requires axe (unique to this location, keep inline)
         var hardwood = new HarvestableFeature("ancient_hardwood", "Ancient Hardwood")
         {
             Description = "Massive oak and ash. Dense, long-burning wood — if you can cut it.",
@@ -914,11 +502,7 @@ public static class LocationFactory
         hardwood.RequiresTool(ToolType.Axe, ToolTier.Basic);
         location.Features.Add(hardwood);
 
-        // Light game - deer pass through
-        var animalTerritory = new AnimalTerritoryFeature(0.5)
-            .AddDeer(1.0)
-            .AddRabbit(0.5);
-        location.Features.Add(animalTerritory);
+        location.Features.Add(FeatureFactory.CreateMixedPreyAnimals(density: 0.5));
 
         return location;
     }
@@ -941,11 +525,7 @@ public static class LocationFactory
             DiscoveryText = "Dark stripe cutting across exposed rock. Nodules of flint embedded in limestone. Sharp flakes litter the ground."
         };
 
-        // Rich in premium flint
-        var forageFeature = new ForageFeature(1.5)
-            .AddFlint(1.5, 0.15, 0.4)  // High quality, abundant flint
-            .AddStone(0.5, 0.2, 0.4);
-        location.Features.Add(forageFeature);
+        location.Features.Add(FeatureFactory.CreateFlintForage(density: 1.5));
 
         return location;
     }
@@ -968,19 +548,8 @@ public static class LocationFactory
             DiscoveryText = "A worn path through the brush. Hoofprints overlap in the mud. They pass through here regularly."
         };
 
-        // Light forage
-        var forageFeature = new ForageFeature(0.6)
-            .AddSticks(0.5, 0.1, 0.3)
-            .AddPlantFiber(0.4, 0.05, 0.15);
-        location.Features.Add(forageFeature);
-
-        // Peak hunting at dawn (5-8) and dusk (17-20)
-        var animalTerritory = new AnimalTerritoryFeature(0.6)
-            .AddDeer(1.5)
-            .AddRabbit(1.0)
-            .AddFox(0.3)
-            .WithPeakHours(5, 8, 2.5);  // Dawn peak
-        location.Features.Add(animalTerritory);
+        location.Features.Add(FeatureFactory.CreateOpenForage(density: 0.6));
+        location.Features.Add(FeatureFactory.CreateGameTrailAnimals(density: 0.6));
 
         return location;
     }
@@ -1004,18 +573,8 @@ public static class LocationFactory
             IsEscapeTerrain = true   // Large predators can't follow
         };
 
-        // Good small game and fiber
-        var forageFeature = new ForageFeature(1.2)
-            .AddPlantFiber(1.5, 0.1, 0.25)
-            .AddSticks(1.0, 0.15, 0.4)
-            .AddBerries(0.8, 0.05, 0.15);
-        location.Features.Add(forageFeature);
-
-        // Excellent small game - safe from large predators
-        var animalTerritory = new AnimalTerritoryFeature(1.2)
-            .AddRabbit(2.0)
-            .AddPtarmigan(1.5);
-        location.Features.Add(animalTerritory);
+        location.Features.Add(FeatureFactory.CreateSmallGameHavenForage(density: 1.2));
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 1.2));
 
         return location;
     }
@@ -1040,11 +599,7 @@ public static class LocationFactory
             ClimbRiskFactor = 0.3
         };
 
-        // Good stone
-        var forageFeature = new ForageFeature(0.8)
-            .AddStone(1.5, 0.3, 0.7)
-            .AddFlint(0.2, 0.1, 0.25);
-        location.Features.Add(forageFeature);
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.8));
 
         return location;
     }
@@ -1069,10 +624,7 @@ public static class LocationFactory
             ClimbRiskFactor = 0.4
         };
 
-        // Sparse stone, nothing else grows here
-        var forageFeature = new ForageFeature(0.3)
-            .AddStone(0.8, 0.2, 0.5);
-        location.Features.Add(forageFeature);
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.3));
 
         return location;
     }
@@ -1099,18 +651,13 @@ public static class LocationFactory
             IsDark = true
         };
 
-        // Bones from bear kills - the loot pull
+        // Bones from bear kills - unique forage pattern, keep inline
         var forageFeature = new ForageFeature(0.8)
-            .AddBone(2.0, 0.15, 0.5)     // Abundant bones from kills
-            .AddTinder(0.2, 0.01, 0.03);  // Dry debris
+            .AddBone(2.0, 0.15, 0.5)
+            .AddTinder(0.2, 0.01, 0.03);
         location.Features.Add(forageFeature);
 
-        // Bear territory - triggers Den arc events
-        // Use high-weight bear with occasional cave bear variant
-        var animalTerritory = new AnimalTerritoryFeature(0.8)
-            .AddBear(2.0)                // Primary occupant
-            .AddAnimal("cave bear", 0.3); // Rare but terrifying
-        location.Features.Add(animalTerritory);
+        location.Features.Add(FeatureFactory.CreateBearCaveAnimals(density: 0.8));
 
         // Note: ShelterFeature intentionally NOT added at creation
         // It gets added by Den arc events when claimed (AddsFeature)
@@ -1137,39 +684,21 @@ public static class LocationFactory
             DiscoveryText = "A beaver dam spans the stream. The pond behind it is still and deep. Gnawed stumps litter the banks."
         };
 
-        // Abundant chewed sticks and logs - easy fuel
-        var forageFeature = new ForageFeature(2.5)
-            .AddSticks(3.0, 0.2, 0.6)    // Gnawed branches everywhere
-            .AddBirch(1.5, 0.8, 2.0)     // Beaver-felled birch (beavers prefer birch)
-            .AddWillowBark(0.3);          // Willows on banks
-        location.Features.Add(forageFeature);
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 2.5));
+        location.Features.Add(FeatureFactory.CreateBeaverPond());
 
-        // Beaver pond water
-        var pond = new HarvestableFeature("beaver_pond", "Beaver Pond")
-        {
-            Description = "Still water backed up behind the dam. Deep and clear.",
-            MinutesToHarvest = 2
-        };
-        pond.AddWater("pond water", maxQuantity: 50, litersPerUnit: 1.0, respawnHoursPerUnit: 0.5);
-        location.Features.Add(pond);
-
-        // The dam itself - destructive harvest with consequences
+        // The dam itself - destructive harvest with consequences (unique, keep inline)
         var dam = new HarvestableFeature("beaver_dam", "Beaver Dam")
         {
             Description = "Woven branches packed with mud. Easy fuel — if you don't mind the consequences.",
             MinutesToHarvest = 15
         };
-        dam.AddLogs("dam logs", Resource.Birch, maxQuantity: 12, weightPerUnit: 2.0, respawnHoursPerUnit: 0);  // Never respawns
+        dam.AddLogs("dam logs", Resource.Birch, maxQuantity: 12, weightPerUnit: 2.0, respawnHoursPerUnit: 0);
         dam.AddSticks("dam sticks", maxQuantity: 20, weightPerUnit: 0.25, respawnHoursPerUnit: 0);
         location.Features.Add(dam);
 
-        // Small game around the pond
-        var animalTerritory = new AnimalTerritoryFeature(0.7)
-            .AddRabbit(1.0)
-            .AddPtarmigan(0.8);
-        location.Features.Add(animalTerritory);
+        location.Features.Add(FeatureFactory.CreateWaterfowlAnimals(density: 0.7));
 
-        // Water hazard - pond edge has moderate ice
         var waterFeature = new WaterFeature("pond_water", "Beaver Pond")
             .WithDescription("Deep water. Ice at the edges, thin in places.")
             .WithIceThickness(0.4);
@@ -1202,7 +731,7 @@ public static class LocationFactory
             ClimbRiskFactor = 0.25   // Moderate climb risk
         };
 
-        // Pine resources at base
+        // Pine resources - unique mix for this location, keep inline
         var forageFeature = new ForageFeature(0.8)
             .AddSticks(1.0, 0.15, 0.4)
             .AddTinder(0.5, 0.02, 0.06)
@@ -1210,11 +739,7 @@ public static class LocationFactory
             .AddPineResin(0.15);
         location.Features.Add(forageFeature);
 
-        // Some small game shelter under the tree
-        var animalTerritory = new AnimalTerritoryFeature(0.4)
-            .AddRabbit(0.8)
-            .AddPtarmigan(0.5);
-        location.Features.Add(animalTerritory);
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.4));
 
         return location;
     }
@@ -1314,11 +839,7 @@ public static class LocationFactory
         // Collapsed shelter can be repaired
         location.Features.Add(new ShelterFeature("Collapsed Lean-to", 0.15, 0.3, 0.25));
 
-        // Sparse forage - area picked over
-        var forageFeature = new ForageFeature(0.3)
-            .AddSticks(0.3, 0.1, 0.2)
-            .AddTinder(0.2, 0.01, 0.03);
-        location.Features.Add(forageFeature);
+        location.Features.Add(FeatureFactory.CreatePickedOverForage(density: 0.3));
 
         return location;
     }
@@ -1410,124 +931,6 @@ public static class LocationFactory
         DiscoveryText = "You made it. The valley stretches before you, green and sheltered.",
         TemperatureDeltaF = 0
     };
-
-    #endregion
-
-
-    #region Path Factories
-
-    // public static Location MakeForestPath(
-    //     Weather weather,
-    //     string? name = null,
-    //     int traversalMinutes = 10,
-    //     double exposure = 0.5)
-    // {
-    //     if (name == null)
-    //     {
-    //         List<string> pathNames = ["Trail", "Path", "Track", "Way", "Route"];
-    //         List<string> pathAdjectives = [
-    //             "Winding", "Narrow", "Overgrown", "Animal", "Deer", "Mossy",
-    //             "Snow-covered", "Icy", "Muddy", "Rocky", "Faint", "Well-worn"
-    //         ];
-    //         string adjective = Utils.GetRandomFromList(pathAdjectives);
-    //         string baseName = Utils.GetRandomFromList(pathNames);
-    //         name = (adjective + " " + baseName).Trim();
-    //     }
-
-    //     var location = new Location(name, parent)
-    //     {
-    //         BaseTraversalMinutes = traversalMinutes,
-    //         WindCoverFactor = exposure,
-    //     };
-
-    //     return location;
-    // }
-
-    // public static Location MakeOpenPath(
-    //     Weather weather,
-    //     string? name = null,
-    //     int traversalMinutes = 15,
-    //     double exposure = 0.8)
-    // {
-    //     if (name == null)
-    //     {
-    //         List<string> pathNames = ["Stretch", "Expanse", "Crossing", "Run", "Passage"];
-    //         List<string> pathAdjectives = [
-    //             "Open", "Windswept", "Exposed", "Snowy", "Icy", "Frozen",
-    //             "Bleak", "Long", "Treacherous", "Featureless"
-    //         ];
-    //         string adjective = Utils.GetRandomFromList(pathAdjectives);
-    //         string baseName = Utils.GetRandomFromList(pathNames);
-    //         name = (adjective + " " + baseName).Trim();
-    //     }
-
-    //     var location = new Location(name, parent)
-    //     {
-    //         BaseTraversalMinutes = traversalMinutes,
-    //         WindCoverFactor = exposure,
-    //         Terrain = terrain,
-    //     };
-
-    //     return location;
-    // }
-
-    // public static Location MakeSteepPath(
-    //     Weather weather,
-    //     string? name = null,
-    //     int traversalMinutes = 12,
-    //     double exposure = 0.7)
-    // {
-    //     if (name == null)
-    //     {
-    //         List<string> pathNames = ["Climb", "Ascent", "Descent", "Scramble", "Slope"];
-    //         List<string> pathAdjectives = [
-    //             "Steep", "Rocky", "Treacherous", "Slippery", "Icy",
-    //             "Narrow", "Dangerous", "Loose", "Crumbling"
-    //         ];
-    //         string adjective = Utils.GetRandomFromList(pathAdjectives);
-    //         string baseName = Utils.GetRandomFromList(pathNames);
-    //         name = (adjective + " " + baseName).Trim();
-    //     }
-
-    //     var location = new Location(name, parent)
-    //     {
-    //         BaseTraversalMinutes = traversalMinutes,
-    //         WindCoverFactor = exposure,
-    //         Terrain = TerrainType.Steep,
-    //     };
-
-    //     return location;
-    // }
-
-    // public static Location MakeRoughPath(
-    //     Weather weather,
-    //     string? name = null,
-    //     int traversalMinutes = 12,
-    //     double exposure = 0.5)
-    // {
-    //     if (name == null)
-    //     {
-    //         List<string> pathNames = ["Trail", "Path", "Way", "Passage", "Route"];
-    //         List<string> pathAdjectives = [
-    //             "Overgrown", "Rough", "Tangled", "Blocked", "Difficult",
-    //             "Brush-choked", "Root-tangled", "Boulder-strewn"
-    //         ];
-    //         string adjective = Utils.GetRandomFromList(pathAdjectives);
-    //         string baseName = Utils.GetRandomFromList(pathNames);
-    //         name = (adjective + " " + baseName).Trim();
-    //     }
-
-    //     var location = new Location(name, parent)
-    //     {
-    //         BaseTraversalMinutes = traversalMinutes,
-    //         WindCoverFactor = exposure,
-    //         Terrain = TerrainType.Rough,
-    //     };
-
-    //     return location;
-    // }
-
-
 
     #endregion
 }
