@@ -312,7 +312,7 @@ public static class FireHandler
                     GameDisplay.AddSuccess(ctx, $"Success! You relight the fire! ({finalChance:P0} chance)");
                     existingFire!.AddFuel(tinderUsed, tinderType);
                     existingFire.AddFuel(kindlingUsed, FuelType.Kindling);
-                    existingFire.IgniteFuel(tinderType, tinderUsed);
+                    existingFire.IgniteAll(); // Ignite all fuel that can ignite from cold (tinder + kindling)
                 }
                 else
                 {
@@ -320,7 +320,7 @@ public static class FireHandler
                     var newFire = new HeatSourceFeature();
                     newFire.AddFuel(tinderUsed, tinderType);
                     newFire.AddFuel(kindlingUsed, FuelType.Kindling);
-                    newFire.IgniteFuel(tinderType, tinderUsed);
+                    newFire.IgniteAll(); // Ignite all fuel that can ignite from cold (tinder + kindling)
                     ctx.CurrentLocation.Features.Add(newFire);
                 }
 
