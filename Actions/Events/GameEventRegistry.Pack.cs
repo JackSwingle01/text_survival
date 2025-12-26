@@ -22,8 +22,7 @@ public static partial class GameEventRegistry
             $"Multiple tracks, recent. Coordinated movement patterns. This isn't a lone hunter — it's a pack of {predator.ToLower()}s.", 0.8)
             .Requires(EventCondition.InAnimalTerritory, EventCondition.HasPredators)
             .Requires(EventCondition.OnExpedition)
-            .WithConditionFactor(EventCondition.HasMeat, 2.0)
-            .WithConditionFactor(EventCondition.Injured, 1.5)
+            .WithSituationFactor(Situations.AttractiveToPredators, 2.0)  // Meat, bleeding, food scent
             .Choice("Move Carefully, Watch Flanks",
                 "Slow down. Stay alert. Don't let them get behind you.",
                 [
@@ -64,9 +63,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Eyes in the Treeline",
             $"Glimpses of movement. The {predator.ToLower()}s are paralleling you. Not attacking yet — testing, probing.", 1.5)
             .Requires(EventCondition.PackNearby, EventCondition.IsExpedition)
-            .WithConditionFactor(EventCondition.Injured, 3.0)
-            .WithConditionFactor(EventCondition.Slow, 2.0)
-            .WithConditionFactor(EventCondition.HasMeat, 2.0)
+            .WithSituationFactor(Situations.AttractiveToPredators, 2.5)  // Meat, bleeding, food scent
+            .WithSituationFactor(Situations.Vulnerable, 2.5)             // Injured, slow, impaired
             .Choice("Keep Moving Steadily",
                 "Don't run. Don't stop. Steady pace. Show no weakness.",
                 [

@@ -21,6 +21,7 @@ public class NeedCraftingSystem
         InitializeTreatmentOptions();
         InitializeEquipmentOptions();
         InitializeLightingOptions();
+        InitializeCarryingOptions();
     }
 
     /// <summary>
@@ -68,7 +69,15 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15,
             Durability = 5,
             Requirements = [new MaterialRequirement("Sticks", 2)],
-            ToolFactory = durability => new Tool("Hand Drill", ToolType.HandDrill, 0.2) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Hand Drill",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.HandDrill,
+                Weight = 0.2,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Bow Drill: 3 sticks + 1 plant fiber
@@ -80,7 +89,15 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 25,
             Durability = 15,
             Requirements = [new MaterialRequirement("Sticks", 3), new MaterialRequirement("PlantFiber", 1)],
-            ToolFactory = durability => new Tool("Bow Drill", ToolType.BowDrill, 0.4) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Bow Drill",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.BowDrill,
+                Weight = 0.4,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Strike-a-Light (Flint + Amadou): reliable sparks
@@ -95,7 +112,15 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Flint", 1),
                 new MaterialRequirement("Amadou", 1)
             ],
-            ToolFactory = durability => new Tool("Flint Striker", ToolType.FireStriker, 0.15) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Flint Striker",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.FireStriker,
+                Weight = 0.15,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Pyrite Strike-a-Light: Flint + Pyrite (classic combination, very reliable)
@@ -110,7 +135,15 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Flint", 1),
                 new MaterialRequirement("Pyrite", 1)
             ],
-            ToolFactory = durability => new Tool("Pyrite Strike-a-Light", ToolType.FireStriker, 0.2) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Pyrite Strike-a-Light",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.FireStriker,
+                Weight = 0.2,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Birch bark tinder bundle: improved tinder using amadou and birch bark
@@ -125,7 +158,15 @@ public class NeedCraftingSystem
                 new MaterialRequirement("BirchBark", 1),
                 new MaterialRequirement("Amadou", 1)
             ],
-            ToolFactory = durability => new Tool("Tinder Bundle", ToolType.FireStriker, 0.05) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Tinder Bundle",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.FireStriker,
+                Weight = 0.05,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
     }
 
@@ -144,9 +185,14 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 5,
             Durability = 3,
             Requirements = [new MaterialRequirement("Stone", 2)],
-            ToolFactory = durability => new Tool("Sharp Rock", ToolType.Knife, 0.4)
+            GearFactory = dur => new Gear
             {
-                Durability = durability,
+                Name = "Sharp Rock",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Knife,
+                Weight = 0.4,
+                Durability = dur,
+                MaxDurability = dur,
                 Damage = 4,
                 BlockChance = 0.01,
                 WeaponClass = WeaponClass.Blade
@@ -166,9 +212,14 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
-            ToolFactory = durability => new Tool("Stone Knife", ToolType.Knife, 0.3)
+            GearFactory = dur => new Gear
             {
-                Durability = durability,
+                Name = "Stone Knife",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Knife,
+                Weight = 0.3,
+                Durability = dur,
+                MaxDurability = dur,
                 Damage = 6,
                 BlockChance = 0.02,
                 WeaponClass = WeaponClass.Blade
@@ -187,9 +238,14 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Bone", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
-            ToolFactory = durability => new Tool("Bone Knife", ToolType.Knife, 0.25)
+            GearFactory = dur => new Gear
             {
-                Durability = durability,
+                Name = "Bone Knife",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Knife,
+                Weight = 0.25,
+                Durability = dur,
+                MaxDurability = dur,
                 Damage = 5,
                 BlockChance = 0.02,
                 WeaponClass = WeaponClass.Blade
@@ -209,9 +265,14 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
-            ToolFactory = durability => new Tool("Shale Knife", ToolType.Knife, 0.3)
+            GearFactory = dur => new Gear
             {
-                Durability = durability,
+                Name = "Shale Knife",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Knife,
+                Weight = 0.3,
+                Durability = dur,
+                MaxDurability = dur,
                 Damage = 5,
                 BlockChance = 0.02,
                 WeaponClass = WeaponClass.Blade
@@ -231,9 +292,14 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
-            ToolFactory = durability => new Tool("Flint Knife", ToolType.Knife, 0.3)
+            GearFactory = dur => new Gear
             {
-                Durability = durability,
+                Name = "Flint Knife",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Knife,
+                Weight = 0.3,
+                Durability = dur,
+                MaxDurability = dur,
                 Damage = 8,
                 BlockChance = 0.03,
                 WeaponClass = WeaponClass.Blade
@@ -256,9 +322,14 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15,
             Durability = 5,
             Requirements = [new MaterialRequirement("Sticks", 3)],
-            ToolFactory = durability => new Tool("Wooden Spear", ToolType.Spear, 1.5)
+            GearFactory = dur => new Gear
             {
-                Durability = durability,
+                Name = "Wooden Spear",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Spear,
+                Weight = 1.5,
+                Durability = dur,
+                MaxDurability = dur,
                 Damage = 7,
                 BlockChance = 0.10,
                 WeaponClass = WeaponClass.Pierce
@@ -274,9 +345,14 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 25,
             Durability = 8,
             Requirements = [new MaterialRequirement("Logs", 1)],
-            ToolFactory = durability => new Tool("Heavy Spear", ToolType.Spear, 2.5)
+            GearFactory = dur => new Gear
             {
-                Durability = durability,
+                Name = "Heavy Spear",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Spear,
+                Weight = 2.5,
+                Durability = dur,
+                MaxDurability = dur,
                 Damage = 9,
                 BlockChance = 0.12,
                 WeaponClass = WeaponClass.Pierce
@@ -296,9 +372,14 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Stone", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
-            ToolFactory = durability => new Tool("Stone-Tipped Spear", ToolType.Spear, 2.0)
+            GearFactory = dur => new Gear
             {
-                Durability = durability,
+                Name = "Stone-Tipped Spear",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Spear,
+                Weight = 2.0,
+                Durability = dur,
+                MaxDurability = dur,
                 Damage = 12,
                 BlockChance = 0.12,
                 WeaponClass = WeaponClass.Pierce
@@ -324,7 +405,15 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 2),
                 new MaterialRequirement("PlantFiber", 2)
             ],
-            ToolFactory = durability => new Tool("Simple Snare", ToolType.Snare, 0.2) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Simple Snare",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Snare,
+                Weight = 0.2,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Reinforced Snare: 2 sticks + 1 sinew + 1 plant fiber
@@ -340,7 +429,15 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sinew", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
-            ToolFactory = durability => new Tool("Reinforced Snare", ToolType.Snare, 0.25) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Reinforced Snare",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Snare,
+                Weight = 0.25,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
     }
 
@@ -386,6 +483,18 @@ public class NeedCraftingSystem
             MaterialOutputs = [new MaterialOutput("PlantFiber", 2, 0.05)] // Get 2 units of fiber per raw
         });
 
+        // Make Rope: 3 plant fiber → 1 rope
+        _options.Add(new CraftOption
+        {
+            Name = "Rope",
+            Description = "Twisted plant fiber cordage. Strong enough for carrying gear and lashing.",
+            Category = NeedCategory.Processing,
+            CraftingTimeMinutes = 15,
+            Durability = 0,
+            Requirements = [new MaterialRequirement("PlantFiber", 3)],
+            MaterialOutputs = [new MaterialOutput("Rope", 1, 0.2)]
+        });
+
         // Curing Rack: Build a rack at camp for curing hides and drying food
         _options.Add(new CraftOption
         {
@@ -415,7 +524,15 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
-            ToolFactory = durability => new Tool("Bone Shovel", ToolType.Shovel, 1.2) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Bone Shovel",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Shovel,
+                Weight = 1.2,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Stone Axe: Chopping tool for felling trees
@@ -431,9 +548,14 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
-            ToolFactory = durability => new Tool("Stone Axe", ToolType.Axe, 1.5)
+            GearFactory = dur => new Gear
             {
-                Durability = durability,
+                Name = "Stone Axe",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Axe,
+                Weight = 1.5,
+                Durability = dur,
+                MaxDurability = dur,
                 Damage = 12,
                 BlockChance = 0.05,
                 WeaponClass = WeaponClass.Blade
@@ -456,7 +578,15 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 10,
             Durability = 1, // Single use
             Requirements = [new MaterialRequirement("WillowBark", 1)],
-            ToolFactory = durability => new Tool("Willow Bark Tea", ToolType.Treatment, 0.3) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Willow Bark Tea",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Treatment,
+                Weight = 0.3,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Pine Needle Tea: Vitamin C, respiratory relief
@@ -468,7 +598,15 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 10,
             Durability = 1,
             Requirements = [new MaterialRequirement("PineNeedles", 1)],
-            ToolFactory = durability => new Tool("Pine Needle Tea", ToolType.Treatment, 0.3) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Pine Needle Tea",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Treatment,
+                Weight = 0.3,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Rose Hip Tea: Vitamin C boost, immune support
@@ -480,7 +618,15 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 10,
             Durability = 1,
             Requirements = [new MaterialRequirement("RoseHips", 2)],
-            ToolFactory = durability => new Tool("Rose Hip Tea", ToolType.Treatment, 0.3) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Rose Hip Tea",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Treatment,
+                Weight = 0.3,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Chaga Tea: Anti-inflammatory, general health
@@ -492,7 +638,15 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15,
             Durability = 1,
             Requirements = [new MaterialRequirement("Chaga", 1)],
-            ToolFactory = durability => new Tool("Chaga Tea", ToolType.Treatment, 0.3) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Chaga Tea",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Treatment,
+                Weight = 0.3,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Polypore Poultice: External infection treatment
@@ -504,7 +658,15 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 10,
             Durability = 1,
             Requirements = [new MaterialRequirement("BirchPolypore", 1)],
-            ToolFactory = durability => new Tool("Polypore Poultice", ToolType.Treatment, 0.2) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Polypore Poultice",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Treatment,
+                Weight = 0.2,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Usnea Dressing: Antimicrobial wound packing
@@ -516,7 +678,15 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 5,
             Durability = 1,
             Requirements = [new MaterialRequirement("Usnea", 1)],
-            ToolFactory = durability => new Tool("Usnea Dressing", ToolType.Treatment, 0.1) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Usnea Dressing",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Treatment,
+                Weight = 0.1,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Sphagnum Bandage: Absorbent, antiseptic dressing
@@ -528,7 +698,15 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 5,
             Durability = 1,
             Requirements = [new MaterialRequirement("Sphagnum", 2)],
-            ToolFactory = durability => new Tool("Sphagnum Bandage", ToolType.Treatment, 0.15) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Sphagnum Bandage",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Treatment,
+                Weight = 0.15,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Resin Seal: Wound sealing
@@ -540,7 +718,15 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 5,
             Durability = 1,
             Requirements = [new MaterialRequirement("PineResin", 1)],
-            ToolFactory = durability => new Tool("Resin Seal", ToolType.Treatment, 0.05) { Durability = durability }
+            GearFactory = dur => new Gear
+            {
+                Name = "Resin Seal",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Treatment,
+                Weight = 0.05,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
     }
 
@@ -557,12 +743,21 @@ public class NeedCraftingSystem
             Description = "Simple gloves sewn from cured hide. Protects hands from cold and injury.",
             Category = NeedCategory.Equipment,
             CraftingTimeMinutes = 30,
-            Durability = 0, // Equipment doesn't use durability
+            Durability = 80,
             Requirements = [
                 new MaterialRequirement("CuredHide", 1),
                 new MaterialRequirement("Sinew", 1)
             ],
-            EquipmentFactory = () => new Equipment("Hide Gloves", EquipSlot.Hands, 0.3, 0.15)
+            GearFactory = dur => new Gear
+            {
+                Name = "Hide Gloves",
+                Category = GearCategory.Equipment,
+                Slot = EquipSlot.Hands,
+                Weight = 0.3,
+                BaseInsulation = 0.15,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Hide Cap: Head protection
@@ -572,12 +767,21 @@ public class NeedCraftingSystem
             Description = "A fitted cap of cured hide. Keeps your head warm.",
             Category = NeedCategory.Equipment,
             CraftingTimeMinutes = 25,
-            Durability = 0,
+            Durability = 80,
             Requirements = [
                 new MaterialRequirement("CuredHide", 1),
                 new MaterialRequirement("Sinew", 1)
             ],
-            EquipmentFactory = () => new Equipment("Hide Cap", EquipSlot.Head, 0.25, 0.12)
+            GearFactory = dur => new Gear
+            {
+                Name = "Hide Cap",
+                Category = GearCategory.Equipment,
+                Slot = EquipSlot.Head,
+                Weight = 0.25,
+                BaseInsulation = 0.12,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Hide Wrap: Chest protection (larger piece)
@@ -587,12 +791,21 @@ public class NeedCraftingSystem
             Description = "A large wrap of cured hide worn around the torso. Essential cold protection.",
             Category = NeedCategory.Equipment,
             CraftingTimeMinutes = 45,
-            Durability = 0,
+            Durability = 80,
             Requirements = [
                 new MaterialRequirement("CuredHide", 2),
                 new MaterialRequirement("Sinew", 2)
             ],
-            EquipmentFactory = () => new Equipment("Hide Wrap", EquipSlot.Chest, 1.5, 0.25)
+            GearFactory = dur => new Gear
+            {
+                Name = "Hide Wrap",
+                Category = GearCategory.Equipment,
+                Slot = EquipSlot.Chest,
+                Weight = 1.5,
+                BaseInsulation = 0.25,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Hide Leggings: Leg protection
@@ -602,12 +815,21 @@ public class NeedCraftingSystem
             Description = "Cured hide wraps for the legs. Protects against cold and brush.",
             Category = NeedCategory.Equipment,
             CraftingTimeMinutes = 40,
-            Durability = 0,
+            Durability = 80,
             Requirements = [
                 new MaterialRequirement("CuredHide", 2),
                 new MaterialRequirement("Sinew", 1)
             ],
-            EquipmentFactory = () => new Equipment("Hide Leggings", EquipSlot.Legs, 1.0, 0.20)
+            GearFactory = dur => new Gear
+            {
+                Name = "Hide Leggings",
+                Category = GearCategory.Equipment,
+                Slot = EquipSlot.Legs,
+                Weight = 1.0,
+                BaseInsulation = 0.20,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
 
         // Hide Boots: Foot protection
@@ -617,12 +839,21 @@ public class NeedCraftingSystem
             Description = "Sturdy boots of cured hide. Protects feet from cold and rough terrain.",
             Category = NeedCategory.Equipment,
             CraftingTimeMinutes = 35,
-            Durability = 0,
+            Durability = 80,
             Requirements = [
                 new MaterialRequirement("CuredHide", 1),
                 new MaterialRequirement("Sinew", 1)
             ],
-            EquipmentFactory = () => new Equipment("Hide Boots", EquipSlot.Feet, 0.6, 0.18)
+            GearFactory = dur => new Gear
+            {
+                Name = "Hide Boots",
+                Category = GearCategory.Equipment,
+                Slot = EquipSlot.Feet,
+                Weight = 0.6,
+                BaseInsulation = 0.18,
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
     }
 
@@ -644,7 +875,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("Tinder", 2)
             ],
-            ToolFactory = durability => Tool.Torch("Simple Torch")
+            GearFactory = dur => Gear.Torch("Simple Torch")
         });
 
         // Birch Bark Torch: 1 stick + 1 birch bark (better starting material)
@@ -659,7 +890,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("BirchBark", 1)
             ],
-            ToolFactory = durability => Tool.Torch("Birch Bark Torch")
+            GearFactory = dur => Gear.Torch("Birch Bark Torch")
         });
 
         // Resin Torch: 1 stick + 1 tinder + 1 pine resin (longer burn, weatherproof)
@@ -675,7 +906,72 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Tinder", 1),
                 new MaterialRequirement("PineResin", 1)
             ],
-            ToolFactory = durability => Tool.Torch("Resin Torch")
+            GearFactory = dur => Gear.Torch("Resin Torch")
+        });
+    }
+
+    #endregion
+
+    #region Carrying Options
+
+    private void InitializeCarryingOptions()
+    {
+        // Small Pouch: PlantFiber + BirchBark -> +0.5kg
+        _options.Add(new CraftOption
+        {
+            Name = "Small Pouch",
+            Description = "A simple pouch woven from plant fiber and birch bark. Clips to your belt.",
+            Category = NeedCategory.Carrying,
+            CraftingTimeMinutes = 15,
+            Durability = 100,
+            Requirements = [
+                new MaterialRequirement("PlantFiber", 1),
+                new MaterialRequirement("BirchBark", 1)
+            ],
+            GearFactory = dur => Gear.SmallPouch(dur)
+        });
+
+        // Rope Belt: 2 Rope -> +3kg
+        _options.Add(new CraftOption
+        {
+            Name = "Rope Belt",
+            Description = "A sturdy belt of woven rope. Lets you hang tools and pouches.",
+            Category = NeedCategory.Carrying,
+            CraftingTimeMinutes = 20,
+            Durability = 100,
+            Requirements = [new MaterialRequirement("Rope", 2)],
+            GearFactory = dur => Gear.RopeBelt(dur)
+        });
+
+        // Proper Belt: Hide + Sinew -> +4kg
+        _options.Add(new CraftOption
+        {
+            Name = "Proper Belt",
+            Description = "A proper leather belt with loops and attachment points.",
+            Category = NeedCategory.Carrying,
+            CraftingTimeMinutes = 30,
+            Durability = 150,
+            Requirements = [
+                new MaterialRequirement("Hide", 1),
+                new MaterialRequirement("Sinew", 1)
+            ],
+            GearFactory = dur => Gear.ProperBelt(dur)
+        });
+
+        // Large Bag: 3 Hide + 2 Sinew + 2 Rope -> +10kg
+        _options.Add(new CraftOption
+        {
+            Name = "Large Bag",
+            Description = "A large hide bag with rope shoulder straps. Serious carrying capacity.",
+            Category = NeedCategory.Carrying,
+            CraftingTimeMinutes = 60,
+            Durability = 100,
+            Requirements = [
+                new MaterialRequirement("Hide", 3),
+                new MaterialRequirement("Sinew", 2),
+                new MaterialRequirement("Rope", 2)
+            ],
+            GearFactory = dur => Gear.LargeBag(dur)
         });
     }
 

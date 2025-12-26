@@ -153,7 +153,7 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
     /// <summary>
     /// Check if a tool meets the harvesting requirements.
     /// </summary>
-    public bool MeetsToolRequirement(Tool? tool)
+    public bool MeetsToolRequirement(Gear? tool)
     {
         if (RequiredToolType == null && RequiredToolTier == ToolTier.None)
             return true; // No requirement
@@ -161,7 +161,7 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
         if (tool == null)
             return false;
 
-        if (RequiredToolType != null && tool.Type != RequiredToolType.Value)
+        if (RequiredToolType != null && tool.ToolType != RequiredToolType.Value)
             return false;
 
         // For now, assume any non-broken tool meets tier requirements

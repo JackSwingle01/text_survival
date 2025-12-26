@@ -20,8 +20,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Thin Ice",
             "The ice groans beneath your feet. Dark water shows through cracks.", 1.2)
             .Requires(EventCondition.NearWater, EventCondition.OnThinIce)
-            .WithConditionFactor(EventCondition.Injured, 1.5)
-            .WithConditionFactor(EventCondition.Slow, 1.3)
+            // Vulnerable covers: Injured, Slow, Impaired, no weapon
+            .WithSituationFactor(Situations.Vulnerable, 1.5)
             .WithConditionFactor(EventCondition.HasMeat, 1.3)
             .WithCooldown(2)
             .Choice("Test the Ice",

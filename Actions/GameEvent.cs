@@ -39,9 +39,8 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public EncounterConfig? SpawnEncounter;
 
     // Equipment targeting
-    public ToolDamage? DamageTool;
-    public ToolType? BreakTool;
-    public ClothingDamage? DamageClothing;
+    public GearDamage? DamageGear;
+    public ToolType? BreakTool;  // Legacy - completely destroy a tool
 
     // Feature modification
     public FeatureCreation? AddFeature;
@@ -232,27 +231,39 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     private void ApplyEquipmentDamage(GameContext ctx, OutcomeSummary summary)
     {
-        // Tool damage - reduce durability
-        if (DamageTool is not null)
+        // Unified gear damage - applies to tools, equipment, and accessories
+        if (DamageGear is not null)
         {
-            var tool = ctx.Inventory.GetTool(DamageTool.Type);
-            if (tool != null && tool.Durability > 0)
+            Gear? target = DamageGear.Category switch
             {
-                tool.Durability = Math.Max(0, tool.Durability - DamageTool.UsesLost);
-                if (tool.IsBroken)
+                GearCategory.Tool when DamageGear.ToolType.HasValue =>
+                    ctx.Inventory.GetTool(DamageGear.ToolType.Value),
+                GearCategory.Equipment when DamageGear.Slot.HasValue =>
+                    ctx.Inventory.GetEquipment(DamageGear.Slot.Value),
+                _ => null
+            };
+
+            if (target != null && target.Durability > 0)
+            {
+                target.Durability = Math.Max(0, target.Durability - DamageGear.DurabilityLoss);
+
+                if (target.IsBroken)
                 {
-                    GameDisplay.AddDanger(ctx, $"  - {tool.Name} breaks!");
-                    summary.Losses.Add($"{tool.Name} destroyed");
+                    GameDisplay.AddDanger(ctx, $"  - {target.Name} breaks!");
+                    summary.Losses.Add($"{target.Name} destroyed");
                 }
                 else
                 {
-                    GameDisplay.AddWarning(ctx, $"  - {tool.Name} damaged");
-                    summary.Losses.Add($"{tool.Name} damaged");
+                    string conditionInfo = target.Category == GearCategory.Equipment
+                        ? $" (now {target.ConditionPct:P0})"
+                        : "";
+                    GameDisplay.AddWarning(ctx, $"  - {target.Name} damaged{conditionInfo}");
+                    summary.Losses.Add($"{target.Name} damaged");
                 }
             }
         }
 
-        // Tool break - completely destroy the tool
+        // Tool break - completely destroy the tool (legacy support)
         if (BreakTool is not null)
         {
             var tool = ctx.Inventory.GetTool(BreakTool.Value);
@@ -261,18 +272,6 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
                 tool.Durability = 0;
                 GameDisplay.AddDanger(ctx, $"  - {tool.Name} breaks!");
                 summary.Losses.Add($"{tool.Name} destroyed");
-            }
-        }
-
-        // Clothing damage - reduce insulation
-        if (DamageClothing is not null)
-        {
-            var equipment = ctx.Inventory.GetEquipment(DamageClothing.Slot);
-            if (equipment != null)
-            {
-                equipment.Insulation = Math.Max(0, equipment.Insulation - DamageClothing.InsulationLoss);
-                GameDisplay.AddWarning(ctx, $"  - {equipment.Name} damaged");
-                summary.Losses.Add($"{equipment.Name} damaged");
             }
         }
     }
@@ -457,6 +456,7 @@ public class GameEvent(string name, string description, double weight)
 
     public double BaseWeight = weight;  // Selection weight (not trigger chance)
     public readonly Dictionary<EventCondition, double> WeightFactors = [];
+    public readonly List<(Func<GameContext, bool> Condition, double Multiplier)> SituationFactors = [];
     public int CooldownHours = 24;  // Default: 1 day before event can trigger again
 
     // Location-specific filtering
@@ -483,6 +483,16 @@ public class GameEvent(string name, string description, double weight)
     public GameEvent WithConditionFactor(EventCondition condition, double multiplier)
     {
         WeightFactors[condition] = multiplier;
+        return this;
+    }
+
+    /// <summary>
+    /// Add a weight factor based on a Situation predicate.
+    /// Use with Situations.* methods for compound conditions.
+    /// </summary>
+    public GameEvent WithSituationFactor(Func<GameContext, bool> situation, double multiplier)
+    {
+        SituationFactors.Add((situation, multiplier));
         return this;
     }
 

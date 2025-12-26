@@ -8,8 +8,6 @@ namespace text_survival.Items;
 /// </summary>
 public static class InventoryCapacityHelper
 {
-    private const string TutorialKey = "capacity_full";
-
     /// <summary>
     /// Combines items into player inventory respecting capacity limits.
     /// Displays a message if any items were left behind.
@@ -22,13 +20,7 @@ public static class InventoryCapacityHelper
         if (!leftovers.IsEmpty)
         {
             GameDisplay.AddWarning(ctx, $"Your pack is full. You left behind: {leftovers.GetDescription()}");
-
-            if (!ctx.HasShownTutorial(TutorialKey))
-            {
-                GameDisplay.AddNarrative(ctx, "You can store extra items at camp to free up space.");
-                ctx.MarkTutorialShown(TutorialKey);
-            }
-
+            ctx.ShowTutorialOnce("You can store extra items at camp to free up space.");
             return true;
         }
 

@@ -44,5 +44,10 @@ public enum NeedCategory
     /// <summary>
     /// Light sources (torches for dark areas and night work).
     /// </summary>
-    Lighting
+    Lighting,
+
+    /// <summary>
+    /// Carrying gear (pouches, belts, bags) that increase carrying capacity.
+    /// </summary>
+    Carrying
 }

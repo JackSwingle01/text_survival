@@ -11,7 +11,9 @@ public static partial class GameEventRegistry
         return new GameEvent(
             "Fumbling Hands",
             "Your fingers won't cooperate. Simple tasks become frustrating puzzles as you drop things and fumble with every motion.", 1.0)
-            .Requires(EventCondition.Clumsy, EventCondition.IsCampWork)
+            .Requires(EventCondition.IsCampWork)
+            // CognitivelyImpaired: clumsy, foggy, or impaired - fine motor control suffers under mental/physical compromise
+            .WithSituationFactor(Situations.CognitivelyImpaired, 2.0)
             .Choice("Work Slowly",
                 "Take your time, move deliberately, don't fight it.",
                 [

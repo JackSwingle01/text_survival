@@ -146,7 +146,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
         }
 
         // Set snare option - if player has usable snares
-        var snares = ctx.Inventory.Tools.Where(t => t.Type == ToolType.Snare && t.Works).ToList();
+        var snares = ctx.Inventory.Tools.Where(t => t.ToolType == ToolType.Snare && t.Works).ToList();
         if (snares.Count > 0)
         {
             yield return new WorkOption(

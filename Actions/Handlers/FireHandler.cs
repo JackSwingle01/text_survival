@@ -164,9 +164,9 @@ public static class FireHandler
 
         // Get fire-making tools from aggregate inventory
         var fireTools = inv.Tools.Where(t =>
-            t.Type == ToolType.FireStriker ||
-            t.Type == ToolType.HandDrill ||
-            t.Type == ToolType.BowDrill).ToList();
+            t.ToolType == ToolType.FireStriker ||
+            t.ToolType == ToolType.HandDrill ||
+            t.ToolType == ToolType.BowDrill).ToList();
 
         if (fireTools.Count == 0)
         {
@@ -200,7 +200,7 @@ public static class FireHandler
 
         // Build tool options with success chances
         var toolChoices = new List<string>();
-        var toolMap = new Dictionary<string, (Tool tool, double chance)>();
+        var toolMap = new Dictionary<string, (Gear tool, double chance)>();
 
         foreach (var tool in fireTools)
         {
@@ -312,9 +312,8 @@ public static class FireHandler
                 playerSkill.GainExperience(3);
 
                 // Tutorial: Fire mechanics after first fire start (Day 1 only)
-                if (ctx.DaysSurvived == 0 && !ctx.HasShownTutorial("first_fire_started"))
+                if (ctx.DaysSurvived == 0 && ctx.TryShowTutorial("first_fire_started"))
                 {
-                    ctx.MarkTutorialShown("first_fire_started");
                     GameDisplay.AddNarrative(ctx, "");
                     GameDisplay.AddWarning(ctx, "A night fire needs to burn 10-12 hours.");
                     GameDisplay.AddWarning(ctx, "Figure a good log burns about an hour per kilogram.");
@@ -341,7 +340,7 @@ public static class FireHandler
         }
     }
 
-    public static double GetToolBaseChance(Tool tool)
+    public static double GetToolBaseChance(Gear tool)
     {
         return tool.Name switch
         {

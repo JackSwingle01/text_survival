@@ -17,7 +17,7 @@ public class TrapStrategy : IWorkStrategy
     public enum TrapMode { Set, Check }
 
     private readonly TrapMode _mode;
-    private Tool? _selectedSnare;
+    private Gear? _selectedSnare;
     private BaitType _selectedBait;
     private double _injuryChance;
 
@@ -36,7 +36,7 @@ public class TrapStrategy : IWorkStrategy
                 return "No game trails here. Snares need animal territory.";
 
             // Get available snares from inventory
-            var snares = ctx.Inventory.Tools.Where(t => t.Type == ToolType.Snare && t.Works).ToList();
+            var snares = ctx.Inventory.Tools.Where(t => t.ToolType == ToolType.Snare && t.Works).ToList();
             if (snares.Count == 0)
                 return "You don't have any snares to set.";
 
@@ -48,7 +48,7 @@ public class TrapStrategy : IWorkStrategy
             else
             {
                 GameDisplay.Render(ctx, statusText: "Planning.");
-                var snareChoice = new Choice<Tool>("Which snare do you want to set?");
+                var snareChoice = new Choice<Gear>("Which snare do you want to set?");
                 foreach (var snare in snares)
                 {
                     string durability = snare.Durability > 0 ? $"{snare.Durability} uses" : "unlimited";

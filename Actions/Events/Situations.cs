@@ -1,0 +1,348 @@
+using text_survival.Environments.Features;
+
+namespace text_survival.Actions;
+
+/// <summary>
+/// Compound predicates that encapsulate complex game state checks.
+/// Mirrors OutcomeTemplates pattern but for conditions rather than outcomes.
+///
+/// When adding new systems, update the relevant Situation here.
+/// All events using that Situation automatically respond.
+/// </summary>
+public static class Situations
+{
+    // === PREDATOR ATTRACTION ===
+
+    /// <summary>
+    /// Player state that attracts predators.
+    /// Combines: carrying meat, bleeding, food scent tension.
+    /// </summary>
+    public static bool AttractiveToPredators(GameContext ctx) =>
+        ctx.Inventory.HasMeat ||
+        ctx.player.EffectRegistry.HasEffect("Bleeding") ||
+        ctx.Tensions.HasTension("FoodScentStrong");
+
+    /// <summary>
+    /// Graduated predator attraction level (0-1).
+    /// Use for weight multipliers: higher = more likely to attract events.
+    /// </summary>
+    public static double PredatorAttractionLevel(GameContext ctx)
+    {
+        double level = 0;
+        if (ctx.Inventory.HasMeat) level += 0.3;
+        if (ctx.player.EffectRegistry.HasEffect("Bleeding")) level += 0.4;
+        if (ctx.Tensions.HasTension("FoodScentStrong")) level += 0.3;
+        if (ctx.Check(EventCondition.Injured)) level += 0.2;
+        return Math.Min(1.0, level);
+    }
+
+    // === VULNERABILITY ===
+
+    /// <summary>
+    /// Player is vulnerable to threats.
+    /// Combines: injured, slow, impaired, no weapon.
+    /// </summary>
+    public static bool Vulnerable(GameContext ctx) =>
+        ctx.Check(EventCondition.Injured) ||
+        ctx.Check(EventCondition.Slow) ||
+        ctx.Check(EventCondition.Impaired) ||
+        !ctx.Inventory.HasWeapon;
+
+    /// <summary>
+    /// Graduated vulnerability level (0-1).
+    /// </summary>
+    public static double VulnerabilityLevel(GameContext ctx)
+    {
+        double level = 0;
+        if (ctx.Check(EventCondition.Injured)) level += 0.3;
+        if (ctx.Check(EventCondition.Slow)) level += 0.25;
+        if (ctx.Check(EventCondition.Impaired)) level += 0.25;
+        if (!ctx.Inventory.HasWeapon) level += 0.2;
+        if (ctx.Check(EventCondition.Limping)) level += 0.15;
+        if (ctx.Check(EventCondition.Winded)) level += 0.1;
+        return Math.Min(1.0, level);
+    }
+
+    // === RESOURCE PRESSURE ===
+
+    /// <summary>
+    /// Location resources are depleted.
+    /// </summary>
+    public static bool ResourceScarcity(GameContext ctx) =>
+        ctx.CurrentLocation.GetFeature<ForageFeature>()?.IsDepleted() == true ||
+        ctx.CurrentLocation.GetFeature<HarvestableFeature>()?.IsDepleted() == true ||
+        ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>()?.CanHunt() == false;
+
+    /// <summary>
+    /// Player is running low on essentials.
+    /// Combines: low fuel, low food, low water.
+    /// </summary>
+    public static bool SupplyPressure(GameContext ctx) =>
+        ctx.Check(EventCondition.LowOnFuel) ||
+        ctx.Check(EventCondition.LowOnFood) ||
+        ctx.Inventory.WaterLiters < 0.5;
+
+    /// <summary>
+    /// Graduated supply pressure (0-1).
+    /// </summary>
+    public static double SupplyPressureLevel(GameContext ctx)
+    {
+        double level = 0;
+        if (ctx.Check(EventCondition.NoFuel)) level += 0.4;
+        else if (ctx.Check(EventCondition.LowOnFuel)) level += 0.2;
+        if (ctx.Check(EventCondition.NoFood)) level += 0.4;
+        else if (ctx.Check(EventCondition.LowOnFood)) level += 0.2;
+        if (ctx.Inventory.WaterLiters <= 0) level += 0.3;
+        else if (ctx.Inventory.WaterLiters < 0.5) level += 0.15;
+        return Math.Min(1.0, level);
+    }
+
+    // === EXPOSURE ===
+
+    /// <summary>
+    /// Player is exposed to elements.
+    /// Combines: no shelter + bad weather.
+    /// </summary>
+    public static bool Exposed(GameContext ctx) =>
+        ctx.Check(EventCondition.NoShelter) &&
+        (ctx.Check(EventCondition.IsSnowing) ||
+         ctx.Check(EventCondition.HighWind) ||
+         ctx.Check(EventCondition.IsRaining));
+
+    /// <summary>
+    /// Player is in harsh conditions regardless of shelter.
+    /// </summary>
+    public static bool HarshConditions(GameContext ctx) =>
+        ctx.Check(EventCondition.IsBlizzard) ||
+        ctx.Check(EventCondition.IsStormy) ||
+        ctx.Check(EventCondition.ExtremelyCold);
+
+    // === DANGER ===
+
+    /// <summary>
+    /// Active predator threat exists.
+    /// </summary>
+    public static bool UnderThreat(GameContext ctx) =>
+        ctx.Tensions.HasTension("Stalked") ||
+        ctx.Tensions.HasTension("Hunted") ||
+        ctx.Tensions.HasTension("PackNearby");
+
+    /// <summary>
+    /// High-severity predator threat.
+    /// </summary>
+    public static bool UnderSeriousThreat(GameContext ctx) =>
+        ctx.Tensions.HasTensionAbove("Stalked", 0.5) ||
+        ctx.Tensions.HasTension("Hunted") ||
+        ctx.Tensions.HasTensionAbove("PackNearby", 0.5);
+
+    /// <summary>
+    /// Compound danger - multiple pressures overlapping.
+    /// This is when things get desperate.
+    /// </summary>
+    public static bool InCrisis(GameContext ctx) =>
+        (Vulnerable(ctx) && UnderThreat(ctx)) ||
+        (SupplyPressure(ctx) && Exposed(ctx)) ||
+        ctx.Check(EventCondition.DeadlyColdCritical);
+
+    // === FAVORABLE CONDITIONS ===
+
+    /// <summary>
+    /// Conditions favor the player - good for positive events.
+    /// </summary>
+    public static bool FavorableConditions(GameContext ctx) =>
+        ctx.Check(EventCondition.IsDaytime) &&
+        ctx.Check(EventCondition.IsClear) &&
+        !UnderThreat(ctx) &&
+        !SupplyPressure(ctx);
+
+    /// <summary>
+    /// Player is well-prepared for the field.
+    /// </summary>
+    public static bool WellEquipped(GameContext ctx) =>
+        ctx.Inventory.HasWeapon &&
+        ctx.Check(EventCondition.HasFuel) &&
+        ctx.Check(EventCondition.HasFood) &&
+        !ctx.Check(EventCondition.Injured);
+
+    // === STEALTH / DETECTION ===
+
+    /// <summary>
+    /// Player is likely to be detected by wildlife.
+    /// Combines: noise, scent, visibility factors.
+    /// </summary>
+    public static bool Detectable(GameContext ctx) =>
+        AttractiveToPredators(ctx) ||
+        ctx.Check(EventCondition.HighVisibility) ||
+        ctx.CurrentActivity == ActivityType.Traveling;
+
+    /// <summary>
+    /// Good conditions for stealth/ambush.
+    /// </summary>
+    public static bool GoodForStealth(GameContext ctx) =>
+        ctx.Check(EventCondition.LowVisibility) &&
+        !AttractiveToPredators(ctx) &&
+        ctx.CurrentActivity != ActivityType.Traveling;
+
+    // === NOCTURNAL VULNERABILITY ===
+
+    /// <summary>
+    /// Night conditions remove visual control and increase psychological pressure.
+    /// Combines: Night, InDarkness, LowVisibility.
+    /// Found in: Camp, Trapping, and Threat events.
+    /// </summary>
+    public static bool NocturnalVulnerability(GameContext ctx) =>
+        ctx.Check(EventCondition.Night) &&
+        ctx.Check(EventCondition.InDarkness) &&
+        ctx.Check(EventCondition.LowVisibility);
+
+    /// <summary>
+    /// Any night vulnerability factor present.
+    /// Lighter check than full NocturnalVulnerability.
+    /// </summary>
+    public static bool InDarkness(GameContext ctx) =>
+        ctx.Check(EventCondition.Night) ||
+        ctx.Check(EventCondition.InDarkness);
+
+    // === NUTRITIONAL DEPLETION ===
+
+    /// <summary>
+    /// Nutritional deprivation compounds physical and mental breakdown.
+    /// Combines: LowCalories and LowHydration together.
+    /// Found in: MuscleCramp, VisionBlur, MomentOfClarity, FugueState, TheShakes.
+    /// </summary>
+    public static bool CriticallyDepleted(GameContext ctx) =>
+        ctx.Check(EventCondition.LowCalories) &&
+        ctx.Check(EventCondition.LowHydration);
+
+    /// <summary>
+    /// Graduated depletion level (0-1).
+    /// Accounts for severity of caloric and hydration deficits.
+    /// </summary>
+    public static double CriticallyDepletedLevel(GameContext ctx)
+    {
+        double level = 0;
+        if (ctx.Check(EventCondition.LowCalories)) level += 0.5;
+        if (ctx.Check(EventCondition.LowHydration)) level += 0.5;
+        return Math.Min(1.0, level);
+    }
+
+    // === PSYCHOLOGICAL STRESS ===
+
+    /// <summary>
+    /// Psychological stress creates escalating perception issues.
+    /// Combines: Disturbed states and Stalked tensions.
+    /// Found in: ParanoiaEvent, NightTerrors, ShadowMovement, ProcessingTrauma, Nightmare.
+    /// </summary>
+    public static bool PsychologicallyCompromised(GameContext ctx) =>
+        ctx.Check(EventCondition.Disturbed) ||
+        ctx.Check(EventCondition.DisturbedHigh) ||
+        ctx.Tensions.HasTension("Stalked") ||
+        ctx.Tensions.HasTensionAbove("Stalked", 0.5);
+
+    /// <summary>
+    /// Severe psychological compromise.
+    /// High-severity disturbed or stalked states.
+    /// </summary>
+    public static bool SeverelyCompromised(GameContext ctx) =>
+        ctx.Check(EventCondition.DisturbedHigh) ||
+        ctx.Tensions.HasTensionAbove("Stalked", 0.5);
+
+    // === COGNITIVE IMPAIRMENT ===
+
+    /// <summary>
+    /// Mental and physical coordination impaired.
+    /// Combines: Clumsy, Foggy, Impaired conditions.
+    /// Found in: TrappingAccident, FumblingHands, DulledSenses, LostYourBearings.
+    /// </summary>
+    public static bool CognitivelyImpaired(GameContext ctx) =>
+        ctx.Check(EventCondition.Clumsy) ||
+        ctx.Check(EventCondition.Foggy) ||
+        ctx.Check(EventCondition.Impaired);
+
+    // === TRAP LINE STATUS ===
+
+    /// <summary>
+    /// Active traps create scent and resources that attract danger.
+    /// Combines: SnareBaited, SnareHasCatch, TrapLineActive tension.
+    /// Found in: SnareTampered, PredatorAtTrapLine, TrapLinePlundered, BaitedTrapAttention.
+    /// </summary>
+    public static bool TrapLineActive(GameContext ctx) =>
+        ctx.Check(EventCondition.SnareBaited) ||
+        ctx.Check(EventCondition.SnareHasCatch) ||
+        ctx.Tensions.HasTension("TrapLineActive");
+
+    /// <summary>
+    /// Trap line has catch or bait that would attract predators.
+    /// Higher-value target than just having traps set.
+    /// </summary>
+    public static bool TrapLineAttractive(GameContext ctx) =>
+        ctx.Check(EventCondition.SnareHasCatch) ||
+        ctx.Check(EventCondition.SnareBaited);
+
+    // === EXTREME COLD ===
+
+    /// <summary>
+    /// Temperature has crossed into fatal territory.
+    /// Combines: ExtremelyCold, IsBlizzard, LowOnFuel.
+    /// Found in: TheWindShifts, TheFind, FrozenFingers.
+    /// </summary>
+    public static bool ExtremeColdCrisis(GameContext ctx) =>
+        ctx.Check(EventCondition.ExtremelyCold) ||
+        (ctx.Check(EventCondition.IsBlizzard) && ctx.Check(EventCondition.LowOnFuel));
+
+    /// <summary>
+    /// Graduated cold crisis level (0-1).
+    /// </summary>
+    public static double ExtremeColdLevel(GameContext ctx)
+    {
+        double level = 0;
+        if (ctx.Check(EventCondition.ExtremelyCold)) level += 0.5;
+        if (ctx.Check(EventCondition.IsBlizzard)) level += 0.3;
+        if (ctx.Check(EventCondition.LowOnFuel)) level += 0.2;
+        if (ctx.Check(EventCondition.NoFuel)) level += 0.3;
+        return Math.Min(1.0, level);
+    }
+
+    // === INFECTION RISK ===
+
+    /// <summary>
+    /// Wounds fester in cold conditions.
+    /// Combines: WoundUntreated states with LowTemperature.
+    /// Found in: SomethingWrong (Fever arc).
+    /// </summary>
+    public static bool InfectionRisk(GameContext ctx) =>
+        (ctx.Check(EventCondition.WoundUntreated) ||
+         ctx.Check(EventCondition.WoundUntreatedHigh)) &&
+        ctx.Check(EventCondition.LowTemperature);
+
+    /// <summary>
+    /// Any untreated wound present, regardless of temperature.
+    /// </summary>
+    public static bool HasUntreatedWound(GameContext ctx) =>
+        ctx.Check(EventCondition.WoundUntreated) ||
+        ctx.Check(EventCondition.WoundUntreatedHigh);
+
+    // === STRUCTURAL STRESS ===
+
+    /// <summary>
+    /// Multiple environmental factors compound shelter stability.
+    /// Combines: HighWind, IsSnowing, ShelterWeakened.
+    /// Found in: ShelterGroans.
+    /// </summary>
+    public static bool StructuralStress(GameContext ctx) =>
+        ctx.Check(EventCondition.ShelterWeakened) &&
+        (ctx.Check(EventCondition.HighWind) || ctx.Check(EventCondition.IsSnowing));
+
+    /// <summary>
+    /// Graduated structural stress level (0-1).
+    /// </summary>
+    public static double StructuralStressLevel(GameContext ctx)
+    {
+        double level = 0;
+        if (ctx.Check(EventCondition.ShelterWeakened)) level += 0.4;
+        if (ctx.Check(EventCondition.HighWind)) level += 0.3;
+        if (ctx.Check(EventCondition.IsSnowing)) level += 0.2;
+        if (ctx.Check(EventCondition.IsBlizzard)) level += 0.3;
+        return Math.Min(1.0, level);
+    }
+}

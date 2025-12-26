@@ -72,12 +72,12 @@ public static class RewardGenerator
         var resources = new Inventory();
 
         // Random tool left behind
-        var tools = new Func<Tool>[]
+        var tools = new Func<Gear>[]
         {
-            () => Tool.Knife("Bone Knife"),
-            () => Tool.Axe("Stone Axe"),
-            () => Tool.Spear("Wooden Spear"),
-            () => Tool.Torch("Simple Torch")
+            () => Gear.Knife("Bone Knife"),
+            () => Gear.Axe("Stone Axe"),
+            () => Gear.Spear("Wooden Spear"),
+            () => Gear.Torch("Simple Torch")
         };
 
         resources.Tools.Add(tools[Random.Shared.Next(tools.Length)]());
@@ -98,14 +98,14 @@ public static class RewardGenerator
         // Valuable tool - fire striker is most valuable
         if (Random.Shared.Next(3) == 0)
         {
-            resources.Tools.Add(Tool.FireStriker("Flint and Steel"));
+            resources.Tools.Add(Gear.FireStriker("Flint and Steel"));
         }
         else
         {
-            var tools = new Func<Tool>[]
+            var tools = new Func<Gear>[]
             {
-                () => Tool.Knife("Flint Knife"),
-                () => Tool.Axe("Flint Axe")
+                () => Gear.Knife("Flint Knife"),
+                () => Gear.Axe("Flint Axe")
             };
             resources.Tools.Add(tools[Random.Shared.Next(tools.Length)]());
         }
@@ -191,11 +191,11 @@ public static class RewardGenerator
         var resources = new Inventory();
 
         // A damaged tool with limited durability
-        var tools = new Func<Tool>[]
+        var tools = new Func<Gear>[]
         {
-            () => { var t = Tool.Knife("Worn Knife"); t.Durability = Random.Shared.Next(3, 8); return t; },
-            () => { var t = Tool.Axe("Damaged Axe"); t.Durability = Random.Shared.Next(2, 6); return t; },
-            () => { var t = Tool.Spear("Cracked Spear"); t.Durability = Random.Shared.Next(3, 8); return t; }
+            () => { var t = Gear.Knife("Worn Knife"); t.Durability = Random.Shared.Next(3, 8); return t; },
+            () => { var t = Gear.Axe("Damaged Axe"); t.Durability = Random.Shared.Next(2, 6); return t; },
+            () => { var t = Gear.Spear("Cracked Spear"); t.Durability = Random.Shared.Next(3, 8); return t; }
         };
 
         resources.Tools.Add(tools[Random.Shared.Next(tools.Length)]());

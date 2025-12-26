@@ -90,9 +90,9 @@ public static partial class GameEventRegistry
         return new GameEvent("Something Watching",
             $"The hair on your neck stands up. Something is watching. You catch a glimpse of movement — {predator.ToLower()}?", 0.8)
             .Requires(EventCondition.Working, EventCondition.HasPredators)
-            .WithConditionFactor(EventCondition.HasMeat, 3.0)
-            .WithConditionFactor(EventCondition.Injured, 2.0)
-            .WithConditionFactor(EventCondition.LowVisibility, 1.5) // Harder to spot stalker in dense cover
+            .WithSituationFactor(Situations.AttractiveToPredators, 3.0)  // Meat, bleeding, food scent
+            .WithSituationFactor(Situations.Vulnerable, 2.0)             // Injured, slow, no weapon
+            .WithConditionFactor(EventCondition.LowVisibility, 1.5)      // Harder to spot stalker
             .Choice("Make Noise",
                 "Stand tall, make yourself big, shout. Assert dominance.",
                 [
@@ -164,7 +164,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Stalker Circling",
             $"You catch movement in your peripheral vision. Again. The {predator.ToLower()} is pacing you, staying just out of clear sight. Testing.", 1.5)
             .Requires(EventCondition.Stalked, EventCondition.IsExpedition)
-            .WithConditionFactor(EventCondition.InDarkness, 1.3) // Darkness makes circling predator scarier
+            .WithSituationFactor(Situations.InDarkness, 1.3)  // Night, darkness
             .Choice("Confront It Now",
                 "Turn and face it. Better to fight on your terms.",
                 [
@@ -348,8 +348,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Muscle Cramp",
             "Sharp pain shoots through your leg. The muscle seizes, locks up. You can't put weight on it.", 0.5)
             .Requires(EventCondition.Awake, EventCondition.Traveling)
-            .WithConditionFactor(EventCondition.LowCalories, 1.5)
-            .WithConditionFactor(EventCondition.LowHydration, 2.0)
+            .WithSituationFactor(Situations.CriticallyDepleted, 2.5)  // LowCalories + LowHydration
             .Choice("Work It Out",
                 "Massage and stretch. Give it time.",
                 [
@@ -453,9 +452,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Paranoia",
             "You are certain — absolutely certain — you see eyes reflecting at the edge of the firelight.", 0.5)
             .Requires(EventCondition.AtCamp, EventCondition.Night, EventCondition.Awake)
-            .WithConditionFactor(EventCondition.Stalked, 2.0)
-            .WithConditionFactor(EventCondition.Disturbed, 2.5)
-            .WithConditionFactor(EventCondition.DisturbedHigh, 3.5)
+            .WithSituationFactor(Situations.PsychologicallyCompromised, 3.0)  // Disturbed, stalked
             .Choice("Throw Fuel on Fire",
                 "More light. Drive back the darkness.",
                 [
@@ -490,9 +487,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Moment of Clarity",
             "Your mind clears. For a brief moment, everything makes sense. You see your situation with perfect clarity.", 0.3)
             .Requires(EventCondition.Awake)
-            .WithConditionFactor(EventCondition.LowCalories, 1.5)
-            .WithConditionFactor(EventCondition.LowHydration, 1.5)
-            .WithConditionFactor(EventCondition.Injured, 1.5)
+            .WithSituationFactor(Situations.CriticallyDepleted, 2.0)  // LowCalories + LowHydration
+            .WithSituationFactor(Situations.Vulnerable, 1.5)  // Injured, slow, impaired, no weapon
             .Choice("Act on It",
                 "Use this clarity productively.",
                 [
@@ -630,7 +626,7 @@ public static partial class GameEventRegistry
             "Your fingers have gone white. You can't feel them properly. This is frostbite territory.", 0.8)
             .Requires(EventCondition.LowTemperature)
             .WithConditionFactor(EventCondition.Working, 1.5)
-            .WithConditionFactor(EventCondition.ExtremelyCold, 2.0)
+            .WithSituationFactor(Situations.ExtremeColdCrisis, 2.0)  // ExtremelyCold, blizzard + low fuel
             .Choice("Warm Them Now",
                 "Stop everything. Get circulation back before tissue dies.",
                 [
@@ -674,7 +670,7 @@ public static partial class GameEventRegistry
             "The damp cold settles into your joints. An old injury flares up, or your body simply protests the abuse.", 0.7)
             .Requires(EventCondition.Awake)
             .WithConditionFactor(EventCondition.LowTemperature, 1.5)
-            .WithConditionFactor(EventCondition.Injured, 2.0)
+            .WithSituationFactor(Situations.Vulnerable, 2.0)  // Injured, slow, impaired, no weapon
             .WithConditionFactor(EventCondition.Working, 1.3)
             .Choice("Stretch and Rest",
                 "Rest for an hour. Let your body recover.",
@@ -747,8 +743,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Fugue State",
             "You blink, and the sun has moved. You don't remember the last hour. You kept working, but you were somewhere else.", 0.2)
             .Requires(EventCondition.Working)
-            .WithConditionFactor(EventCondition.LowCalories, 1.5)
-            .WithConditionFactor(EventCondition.LowHydration, 1.5)
+            .WithSituationFactor(Situations.CriticallyDepleted, 2.0)  // LowCalories + LowHydration
             .Choice("Come Back to Reality",
                 "Assess the damage. What did you miss?",
                 [
@@ -812,8 +807,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Shadow Movement",
             $"Movement in your peripheral vision. Your heart hammers. Is it the {predator.ToLower()}? Or your mind again?", 2.0)
             .Requires(EventCondition.Disturbed, EventCondition.Stalked, EventCondition.IsExpedition)
-            .WithConditionFactor(EventCondition.DisturbedHigh, 1.5)
-            .WithConditionFactor(EventCondition.StalkedHigh, 1.5)
+            .WithSituationFactor(Situations.SeverelyCompromised, 1.5)  // DisturbedHigh or StalkedHigh
             .Choice("Assume It's Real",
                 "Act as if the threat is real. Better safe than dead.",
                 [

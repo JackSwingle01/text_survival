@@ -21,16 +21,10 @@ public class CraftOption
     public required List<MaterialRequirement> Requirements { get; init; }
 
     /// <summary>
-    /// Factory function to create the resulting tool.
-    /// Null if this recipe produces materials or equipment instead.
+    /// Factory function to create the resulting gear (tools, equipment, accessories).
+    /// Receives durability value from recipe. Null if this recipe produces materials or features instead.
     /// </summary>
-    public Func<int, Tool>? ToolFactory { get; init; }
-
-    /// <summary>
-    /// Factory function to create equipment (clothing/armor).
-    /// Null if this recipe produces tools or materials instead.
-    /// </summary>
-    public Func<Equipment>? EquipmentFactory { get; init; }
+    public Func<int, Gear>? GearFactory { get; init; }
 
     /// <summary>
     /// Factory function to create a camp feature (e.g., CuringRack).
@@ -83,9 +77,9 @@ public class CraftOption
     public bool ProducesMaterials => MaterialOutputs != null && MaterialOutputs.Count > 0;
 
     /// <summary>
-    /// Whether this recipe produces equipment (clothing/armor).
+    /// Whether this recipe produces gear (tools, equipment, or accessories).
     /// </summary>
-    public bool ProducesEquipment => EquipmentFactory != null;
+    public bool ProducesGear => GearFactory != null;
 
     /// <summary>
     /// Whether this recipe produces a camp feature.
@@ -93,10 +87,10 @@ public class CraftOption
     public bool ProducesFeature => FeatureFactory != null;
 
     /// <summary>
-    /// Consume materials and create the tool.
-    /// Returns null if this recipe produces materials or equipment instead.
+    /// Consume materials and create the item.
+    /// Returns null if this recipe produces materials or features instead.
     /// </summary>
-    public Tool? Craft(Inventory inventory)
+    public Gear? Craft(Inventory inventory)
     {
         // Consume materials
         foreach (var req in Requirements)
@@ -114,38 +108,14 @@ public class CraftOption
             return null;
         }
 
-        // If this produces equipment, use CraftEquipment instead
-        if (ProducesEquipment)
-        {
-            return null;
-        }
-
-        // If this produces a feature, use CraftFeature instead
+        // If this produces a feature, handle separately
         if (ProducesFeature)
         {
             return null;
         }
 
-        // Create and return the tool
-        return ToolFactory!(Durability);
-    }
-
-    /// <summary>
-    /// Consume materials and create equipment.
-    /// Returns null if this recipe doesn't produce equipment.
-    /// </summary>
-    public Equipment? CraftEquipment(Inventory inventory)
-    {
-        if (!ProducesEquipment)
-            return null;
-
-        // Consume materials
-        foreach (var req in Requirements)
-        {
-            ConsumeMaterial(inventory, req.Material, req.Count);
-        }
-
-        return EquipmentFactory!();
+        // Create and return the gear
+        return GearFactory!(Durability);
     }
 
     /// <summary>
@@ -189,6 +159,9 @@ public class CraftOption
                     break;
                 case "Charcoal":
                     inv.Add(Resource.Charcoal, output.WeightPerUnit);
+                    break;
+                case "Rope":
+                    inv.Add(Resource.Rope, output.WeightPerUnit);
                     break;
                 default:
                     throw new ArgumentException($"Unknown material output: {output.Material}");

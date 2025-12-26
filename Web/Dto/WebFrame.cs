@@ -247,7 +247,7 @@ public record InventoryDto(
         return inv.Tools.Select(t => new ToolDto(
             t.Name,
             t.IsWeapon ? t.Damage : null,
-            t.Type.ToString()
+            t.ToolType.ToString()
         )).ToList();
     }
 
@@ -284,8 +284,8 @@ public record InventoryDto(
         var allTools = inv.Tools.ToList();
         if (inv.Weapon != null) allTools.Add(inv.Weapon);
 
-        int cuttingCount = allTools.Count(t => t.Type == ToolType.Knife || t.Type == ToolType.Axe);
-        int fireCount = allTools.Count(t => t.Type == ToolType.FireStriker || t.Type == ToolType.HandDrill || t.Type == ToolType.BowDrill);
+        int cuttingCount = allTools.Count(t => t.ToolType == ToolType.Knife || t.ToolType == ToolType.Axe);
+        int fireCount = allTools.Count(t => t.ToolType == ToolType.FireStriker || t.ToolType == ToolType.HandDrill || t.ToolType == ToolType.BowDrill);
         int otherCount = allTools.Count - cuttingCount - fireCount;
 
         // Food portions (rough estimate - each portion ~0.15-0.3kg)

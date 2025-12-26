@@ -31,18 +31,20 @@ public class GenericWeightedTable<T> where T : class
     }
 }
 
-public class LootTable : GenericWeightedTable<Item>
-{
-    public void AddItem(Func<Item> itemFactory, double weight = 1)
-    {
-        AddFactory(itemFactory, weight);
-    }
-
-    public Item GenerateRandomItem()
-    {
-        return base.GenerateRandom();
-    }
-}
+// Commented out - Item class removed during item system unification
+// Loot is now handled via RewardGenerator using RewardPools
+// public class LootTable : GenericWeightedTable<Item>
+// {
+//     public void AddItem(Func<Item> itemFactory, double weight = 1)
+//     {
+//         AddFactory(itemFactory, weight);
+//     }
+//
+//     public Item GenerateRandomItem()
+//     {
+//         return base.GenerateRandom();
+//     }
+// }
 
 public class LocationTable
 {

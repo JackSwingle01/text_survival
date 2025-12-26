@@ -44,12 +44,12 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
     /// <summary>
     /// Discrete items available for salvage.
     /// </summary>
-    public List<Tool> Tools { get; set; } = [];
+    public List<Gear> Tools { get; set; } = [];
 
     /// <summary>
     /// Equipment items available for salvage.
     /// </summary>
-    public List<Equipment> Equipment { get; set; } = [];
+    public List<Gear> Equipment { get; set; } = [];
 
     /// <summary>
     /// Aggregate resources available for salvage.
@@ -157,7 +157,7 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
         // Chance-based tool (50%)
         if (Utils.RandDouble(0, 1) < 0.5)
         {
-            var knife = new Tool("Worn Knife", ToolType.Knife, 0.2) { Durability = 3 };
+            var knife = Gear.Knife("Worn Knife", 3);
             salvage.Tools.Add(knife);
         }
 
@@ -177,7 +177,17 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
         };
 
         // The traveler's gear
-        salvage.Equipment.Add(new Equipment("Worn Coat", EquipSlot.Chest, 2.0, 0.15));
+        var wornCoat = new Gear
+        {
+            Name = "Worn Coat",
+            Category = GearCategory.Equipment,
+            Slot = EquipSlot.Chest,
+            Weight = 2.0,
+            BaseInsulation = 0.15,
+            Durability = 30,
+            MaxDurability = 50
+        };
+        salvage.Equipment.Add(wornCoat);
 
         // Their supplies
         salvage.Resources.Add(Resource.Bone, 0.2);
@@ -185,7 +195,7 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
         // Random additional items
         if (Utils.RandDouble(0, 1) < 0.4)
         {
-            var knife = new Tool("Bone Knife", ToolType.Knife, 0.15) { Durability = 5 };
+            var knife = Gear.Knife("Bone Knife", 5);
             salvage.Tools.Add(knife);
         }
         if (Utils.RandDouble(0, 1) < 0.3)
@@ -222,7 +232,7 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
         // Rare tool find
         if (Utils.RandDouble(0, 1) < 0.25)
         {
-            var handDrill = new Tool("Hand Drill", ToolType.HandDrill, 0.3) { Durability = 10 };
+            var handDrill = Gear.HandDrill("Hand Drill", 10);
             salvage.Tools.Add(handDrill);
         }
 
@@ -235,8 +245,8 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
 /// </summary>
 public class SalvageLoot
 {
-    public List<Tool> Tools { get; set; } = [];
-    public List<Equipment> Equipment { get; set; } = [];
+    public List<Gear> Tools { get; set; } = [];
+    public List<Gear> Equipment { get; set; } = [];
     public Inventory Resources { get; set; } = new();
     public string? NarrativeHook { get; set; }
 

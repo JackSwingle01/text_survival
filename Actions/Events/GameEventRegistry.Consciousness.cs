@@ -11,7 +11,9 @@ public static partial class GameEventRegistry
         return new GameEvent(
             "Lost Your Bearings",
             "You stop. Which way were you heading? The trees all look the same.", 1.0)
-            .Requires(EventCondition.Impaired, EventCondition.IsExpedition)
+            .Requires(EventCondition.IsExpedition)
+            // CognitivelyImpaired: clumsy, foggy, or impaired - mental/physical coordination breakdown causes disorientation
+            .WithSituationFactor(Situations.CognitivelyImpaired, 2.0)
             .Choice("Backtrack Carefully",
                 "Retrace your steps slowly.",
                 [

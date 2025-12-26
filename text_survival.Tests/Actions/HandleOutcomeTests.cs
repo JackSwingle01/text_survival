@@ -28,13 +28,13 @@ public class HandleOutcomeTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        var knife = Tool.Knife("Test Knife");
+        var knife = Gear.Knife("Test Knife");
         knife.Durability = 10;
         ctx.Inventory.Tools.Add(knife);
 
         var outcome = new EventResult("Test")
         {
-            DamageTool = new ToolDamage(ToolType.Knife, 3)
+            DamageGear = new GearDamage(GearCategory.Tool, 3, ToolType: ToolType.Knife)
         };
 
         // Act
@@ -50,13 +50,13 @@ public class HandleOutcomeTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        var knife = Tool.Knife("Test Knife");
+        var knife = Gear.Knife("Test Knife");
         knife.Durability = 2;
         ctx.Inventory.Tools.Add(knife);
 
         var outcome = new EventResult("Test")
         {
-            DamageTool = new ToolDamage(ToolType.Knife, 5)
+            DamageGear = new GearDamage(GearCategory.Tool, 5, ToolType: ToolType.Knife)
         };
 
         // Act
@@ -72,7 +72,7 @@ public class HandleOutcomeTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        var spear = Tool.Spear("Test Spear");
+        var spear = Gear.Spear("Test Spear");
         spear.Durability = 10;
         ctx.Inventory.Tools.Add(spear);
 
@@ -90,24 +90,26 @@ public class HandleOutcomeTests
     }
 
     [Fact]
-    public void HandleOutcome_DamageClothing_ReducesInsulation()
+    public void HandleOutcome_DamageClothing_ReducesDurability()
     {
         // Arrange
         var ctx = CreateTestContext();
-        var chest = Equipment.FurChestWrap("Test Wrap");
+        var chest = Gear.FurChestWrap("Test Wrap");
+        chest.Durability = 100;
         double originalInsulation = chest.Insulation;
         ctx.Inventory.Chest = chest;
 
         var outcome = new EventResult("Test")
         {
-            DamageClothing = new ClothingDamage(EquipSlot.Chest, 0.1)
+            DamageGear = new GearDamage(GearCategory.Equipment, 10, Slot: EquipSlot.Chest)
         };
 
         // Act
         GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
-        Assert.Equal(originalInsulation - 0.1, chest.Insulation, precision: 2);
+        Assert.Equal(90, chest.Durability);
+        Assert.True(chest.Insulation < originalInsulation); // Insulation degrades with durability
     }
 
     [Fact]
@@ -115,20 +117,22 @@ public class HandleOutcomeTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        var chest = Equipment.FurChestWrap("Test Wrap");
-        chest.Insulation = 0.05;
+        var chest = Gear.FurChestWrap("Test Wrap");
+        chest.Durability = 5;
+        double originalInsulation = chest.Insulation;
         ctx.Inventory.Chest = chest;
 
         var outcome = new EventResult("Test")
         {
-            DamageClothing = new ClothingDamage(EquipSlot.Chest, 0.5)
+            DamageGear = new GearDamage(GearCategory.Equipment, 10, Slot: EquipSlot.Chest)
         };
 
         // Act
         GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
-        Assert.Equal(0.0, chest.Insulation);
+        Assert.Equal(0, chest.Durability); // Durability capped at zero
+        Assert.Equal(0.0, chest.Insulation); // Insulation = BaseInsulation * 0
     }
 
     [Fact]
@@ -244,7 +248,7 @@ public class HandleOutcomeTests
 
         var outcome = new EventResult("Test")
         {
-            DamageTool = new ToolDamage(ToolType.Knife, 3)
+            DamageGear = new GearDamage(GearCategory.Tool, 3, ToolType: ToolType.Knife)
         };
 
         // Act & Assert - should not throw
@@ -261,7 +265,7 @@ public class HandleOutcomeTests
 
         var outcome = new EventResult("Test")
         {
-            DamageClothing = new ClothingDamage(EquipSlot.Chest, 0.1)
+            DamageGear = new GearDamage(GearCategory.Equipment, 5, Slot: EquipSlot.Chest)
         };
 
         // Act & Assert - should not throw

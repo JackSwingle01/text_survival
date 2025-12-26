@@ -273,6 +273,12 @@ public static partial class GameEventRegistry
                 if (ctx.Check(condition))
                     weight *= modifier;
             }
+            // Apply Situation-based weight factors
+            foreach (var (situation, modifier) in evt.SituationFactors)
+            {
+                if (situation(ctx))
+                    weight *= modifier;
+            }
 
             eligible[evt] = weight;
         }

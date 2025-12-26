@@ -28,7 +28,7 @@ public static class TorchHandler
         // Can light with tinder + firestarter (consumes tinder)
         bool hasTinder = ctx.Inventory.Count(Resource.Tinder) > 0;
         bool hasFirestarter = ctx.Inventory.Tools.Any(t =>
-            t.Type is ToolType.FireStriker or ToolType.HandDrill or ToolType.BowDrill);
+            t.ToolType is ToolType.FireStriker or ToolType.HandDrill or ToolType.BowDrill);
         return hasTinder && hasFirestarter;
     }
 
@@ -72,7 +72,7 @@ public static class TorchHandler
 
         // Get fire-making tools
         var fireTools = inv.Tools.Where(t =>
-            t.Type is ToolType.FireStriker or ToolType.HandDrill or ToolType.BowDrill).ToList();
+            t.ToolType is ToolType.FireStriker or ToolType.HandDrill or ToolType.BowDrill).ToList();
 
         if (fireTools.Count == 0)
         {
@@ -82,7 +82,7 @@ public static class TorchHandler
 
         // Build tool options
         var toolChoices = new List<string>();
-        var toolMap = new Dictionary<string, (Tool tool, double chance)>();
+        var toolMap = new Dictionary<string, (Gear tool, double chance)>();
 
         foreach (var tool in fireTools)
         {
@@ -169,7 +169,7 @@ public static class TorchHandler
         {
             if (!ctx.CurrentLocation.HasActiveHeatSource())
             {
-                int torchCount = ctx.Inventory.Tools.Count(t => t.Type == ToolType.Torch && t.Works);
+                int torchCount = ctx.Inventory.Tools.Count(t => t.ToolType == ToolType.Torch && t.Works);
                 var chainChoice = new Choice<bool>("Your torch is burning low. Light another?");
                 chainChoice.AddOption($"Yes, light new torch ({torchCount} remaining)", true);
                 chainChoice.AddOption("No, let it burn out", false);

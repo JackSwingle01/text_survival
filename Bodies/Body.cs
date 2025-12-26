@@ -170,17 +170,19 @@ public class Body
         }
     }
 
-    public void Consume(FoodItem food)
-    {
-        var digestion = GetDigestionCapacity();
-        double absorptionRate = 0.5 + (0.5 * digestion);  // 50-100% absorption
-
-        _calorieStore += food.Calories * absorptionRate;
-        _hydration += food.WaterContent;  // Water absorption unaffected
-
-        if (food.HealthEffect != null) Heal(food.HealthEffect);
-        if (food.DamageEffect != null) Damage(food.DamageEffect);
-    }
+    // Commented out - FoodItem class removed during item system unification
+    // Food is now handled via Resources in Inventory
+    // public void Consume(FoodItem food)
+    // {
+    //     var digestion = GetDigestionCapacity();
+    //     double absorptionRate = 0.5 + (0.5 * digestion);  // 50-100% absorption
+    //
+    //     _calorieStore += food.Calories * absorptionRate;
+    //     _hydration += food.WaterContent;  // Water absorption unaffected
+    //
+    //     if (food.HealthEffect != null) Heal(food.HealthEffect);
+    //     if (food.DamageEffect != null) Damage(food.DamageEffect);
+    // }
 
     /// <summary>
     /// Add calories directly (from eating simple foods like berries, meat).

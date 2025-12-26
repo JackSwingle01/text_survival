@@ -25,7 +25,7 @@ public enum Resource
 
     // Materials
     Stone, Bone, Hide, PlantFiber, Sinew, Shale, Flint, Pyrite,
-    ScrapedHide, CuredHide, RawFiber, RawFat, Tallow, Charcoal,
+    ScrapedHide, CuredHide, RawFiber, RawFat, Tallow, Charcoal, Rope,
 
     // Medicine
     BirchPolypore, Chaga, Amadou, RoseHip, JuniperBerry,
@@ -70,7 +70,7 @@ public static class ResourceCategories
             Resource.Stone, Resource.Bone, Resource.Hide, Resource.PlantFiber,
             Resource.Sinew, Resource.Shale, Resource.Flint, Resource.Pyrite,
             Resource.ScrapedHide, Resource.CuredHide, Resource.RawFiber,
-            Resource.RawFat, Resource.Tallow, Resource.Charcoal
+            Resource.RawFat, Resource.Tallow, Resource.Charcoal, Resource.Rope
         }
     };
 }
@@ -78,7 +78,25 @@ public static class ResourceCategories
 public class Inventory
 {
     // Capacity (-1 = unlimited)
-    public double MaxWeightKg { get; set; } = -1;
+    // Base capacity before accessory bonuses
+    private double _baseMaxWeightKg = -1;
+
+    // Effective capacity including accessory bonuses
+    public double MaxWeightKg
+    {
+        get => _baseMaxWeightKg < 0 ? -1 : _baseMaxWeightKg + AccessoryCapacityBonus;
+        set => _baseMaxWeightKg = value;
+    }
+
+    // For display/serialization when needed
+    [System.Text.Json.Serialization.JsonIgnore]
+    public double BaseMaxWeightKg => _baseMaxWeightKg;
+
+    // Accessories (stackable capacity boosters)
+    public List<Gear> Accessories { get; set; } = [];
+
+    public double AccessoryCapacityBonus => Accessories.Sum(a => a.CapacityBonusKg);
+    public double AccessoriesWeight => Accessories.Sum(a => a.Weight);
 
     // Stack-based resources
     private readonly Dictionary<Resource, Stack<double>> _stacks = new();
@@ -102,11 +120,10 @@ public class Inventory
     public double WaterLiters { get; set; }
 
     // Discrete items
-    public List<Tool> Tools { get; set; } = new();
-    public List<Item> Special { get; set; } = new();
+    public List<Gear> Tools { get; set; } = new();
 
     // Equipment - dictionary backing store
-    private Dictionary<EquipSlot, Equipment?> _equipment = new()
+    private Dictionary<EquipSlot, Gear?> _equipment = new()
     {
         [EquipSlot.Head] = null,
         [EquipSlot.Chest] = null,
@@ -116,7 +133,7 @@ public class Inventory
     };
 
     // Public property for JSON serialization
-    public Dictionary<EquipSlot, Equipment?> Equipment
+    public Dictionary<EquipSlot, Gear?> Equipment
     {
         get => _equipment;
         set
@@ -130,16 +147,16 @@ public class Inventory
     }
 
     // Computed properties for backward compatibility (JsonIgnore to avoid duplication)
-    [JsonIgnore] public Equipment? Head { get => _equipment[EquipSlot.Head]; set => _equipment[EquipSlot.Head] = value; }
-    [JsonIgnore] public Equipment? Chest { get => _equipment[EquipSlot.Chest]; set => _equipment[EquipSlot.Chest] = value; }
-    [JsonIgnore] public Equipment? Legs { get => _equipment[EquipSlot.Legs]; set => _equipment[EquipSlot.Legs] = value; }
-    [JsonIgnore] public Equipment? Feet { get => _equipment[EquipSlot.Feet]; set => _equipment[EquipSlot.Feet] = value; }
-    [JsonIgnore] public Equipment? Hands { get => _equipment[EquipSlot.Hands]; set => _equipment[EquipSlot.Hands] = value; }
+    [JsonIgnore] public Gear? Head { get => _equipment[EquipSlot.Head]; set => _equipment[EquipSlot.Head] = value; }
+    [JsonIgnore] public Gear? Chest { get => _equipment[EquipSlot.Chest]; set => _equipment[EquipSlot.Chest] = value; }
+    [JsonIgnore] public Gear? Legs { get => _equipment[EquipSlot.Legs]; set => _equipment[EquipSlot.Legs] = value; }
+    [JsonIgnore] public Gear? Feet { get => _equipment[EquipSlot.Feet]; set => _equipment[EquipSlot.Feet] = value; }
+    [JsonIgnore] public Gear? Hands { get => _equipment[EquipSlot.Hands]; set => _equipment[EquipSlot.Hands] = value; }
 
-    public Tool? Weapon { get; set; }
+    public Gear? Weapon { get; set; }
 
     // Active torch
-    public Tool? ActiveTorch { get; set; }
+    public Gear? ActiveTorch { get; set; }
     public double TorchBurnTimeRemainingMinutes { get; set; }
 
     public Inventory()
@@ -202,13 +219,12 @@ public class Inventory
     // Weight calculations
     public double ResourceWeight => _stacks.Values.Sum(s => s.Sum());
     public double ToolsWeight => Tools.Sum(t => t.Weight);
-    public double SpecialWeight => Special.Sum(i => i.Weight);
     public double EquipmentWeight =>
         _equipment.Values.Sum(e => e?.Weight ?? 0) + (Weapon?.Weight ?? 0);
 
     public double CurrentWeightKg =>
-        ResourceWeight + WaterLiters + ToolsWeight + SpecialWeight + EquipmentWeight +
-        (ActiveTorch?.Weight ?? 0);
+        ResourceWeight + WaterLiters + ToolsWeight + EquipmentWeight +
+        AccessoriesWeight + (ActiveTorch?.Weight ?? 0);
 
     public double TotalInsulation =>
         _equipment.Values.Sum(e => e?.Insulation ?? 0);
@@ -221,7 +237,7 @@ public class Inventory
 
     // Torch methods
     public bool HasLitTorch => ActiveTorch != null && TorchBurnTimeRemainingMinutes > 0;
-    public bool HasUnlitTorch => Tools.Any(t => t.Type == ToolType.Torch && t.Works);
+    public bool HasUnlitTorch => Tools.Any(t => t.ToolType == ToolType.Torch && t.Works);
 
     public double GetTorchHeatBonusF()
     {
@@ -232,7 +248,7 @@ public class Inventory
 
     public bool LightTorch()
     {
-        var torch = Tools.FirstOrDefault(t => t.Type == ToolType.Torch && t.Works);
+        var torch = Tools.FirstOrDefault(t => t.ToolType == ToolType.Torch && t.Works);
         if (torch == null) return false;
         Tools.Remove(torch);
         ActiveTorch = torch;
@@ -249,7 +265,7 @@ public class Inventory
 
         WaterLiters += other.WaterLiters;
         Tools.AddRange(other.Tools);
-        Special.AddRange(other.Special);
+        Accessories.AddRange(other.Accessories);
     }
 
     /// <summary>
@@ -299,13 +315,13 @@ public class Inventory
                 leftovers.Tools.Add(tool);
         }
 
-        // Add special items if they fit
-        foreach (var item in other.Special)
+        // Add accessories if they fit
+        foreach (var accessory in other.Accessories)
         {
-            if (CanCarry(item.Weight))
-                Special.Add(item);
+            if (CanCarry(accessory.Weight))
+                Accessories.Add(accessory);
             else
-                leftovers.Special.Add(item);
+                leftovers.Accessories.Add(accessory);
         }
 
         return leftovers;
@@ -333,7 +349,7 @@ public class Inventory
         _stacks.Values.All(s => s.Count == 0) &&
         WaterLiters == 0 &&
         Tools.Count == 0 &&
-        Special.Count == 0;
+        Accessories.Count == 0;
 
     public bool CanStartFire =>
         _stacks[Resource.Tinder].Count > 0 &&
@@ -347,60 +363,64 @@ public class Inventory
         return total;
     }
 
+    public bool HasWeapon => Weapon != null;
+
     public bool HasCuttingTool =>
-        (Weapon != null && (Weapon.Type == ToolType.Knife || Weapon.Type == ToolType.Axe)) ||
-        Tools.Any(t => t.Type == ToolType.Knife || t.Type == ToolType.Axe);
+        (Weapon != null && (Weapon.ToolType == ToolType.Knife || Weapon.ToolType == ToolType.Axe)) ||
+        Tools.Any(t => t.ToolType == ToolType.Knife || t.ToolType == ToolType.Axe);
 
     public bool HasCraftingMaterials => Has(ResourceCategory.Material);
 
     // Equipment management
-    public text_survival.Items.Equipment? Equip(text_survival.Items.Equipment equipment)
+    public Gear? Equip(Gear equipment)
     {
-        var previous = _equipment[equipment.Slot];
-        _equipment[equipment.Slot] = equipment;
+        if (equipment.Slot == null)
+            throw new InvalidOperationException($"Gear '{equipment.Name}' has no slot");
+        var previous = _equipment[equipment.Slot.Value];
+        _equipment[equipment.Slot.Value] = equipment;
         return previous;
     }
 
-    public text_survival.Items.Equipment? Unequip(EquipSlot slot)
+    public Gear? Unequip(EquipSlot slot)
     {
         var removed = _equipment[slot];
         _equipment[slot] = null;
         return removed;
     }
 
-    public Tool? EquipWeapon(Tool weapon)
+    public Gear? EquipWeapon(Gear weapon)
     {
         if (!weapon.IsWeapon)
-            throw new InvalidOperationException($"Tool '{weapon.Name}' cannot be equipped as weapon");
+            throw new InvalidOperationException($"Gear '{weapon.Name}' cannot be equipped as weapon");
 
         var previous = Weapon;
         Weapon = weapon;
         return previous;
     }
 
-    public Tool? UnequipWeapon()
+    public Gear? UnequipWeapon()
     {
         var removed = Weapon;
         Weapon = null;
         return removed;
     }
 
-    public Tool? GetOrEquipWeapon(GameContext ctx, ToolType? type = null)
+    public Gear? GetOrEquipWeapon(GameContext ctx, ToolType? type = null)
     {
-        if (Weapon != null && (type == null || Weapon.Type == type))
+        if (Weapon != null && (type == null || Weapon.ToolType == type))
             return Weapon;
 
-        var available = Tools.Where(t => t.IsWeapon && (type == null || t.Type == type)).ToList();
+        var available = Tools.Where(t => t.IsWeapon && (type == null || t.ToolType == type)).ToList();
         if (available.Count == 0) return null;
 
-        Tool toEquip;
+        Gear toEquip;
         if (available.Count == 1)
         {
             toEquip = available[0];
         }
         else
         {
-            var choice = new Choice<Tool>("Which weapon?");
+            var choice = new Choice<Gear>("Which weapon?");
             foreach (var w in available)
                 choice.AddOption($"{w.Name} ({w.Damage:F0} dmg)", w);
             toEquip = choice.GetPlayerChoice(ctx);
@@ -414,14 +434,14 @@ public class Inventory
         return toEquip;
     }
 
-    public Tool? GetTool(ToolType type)
+    public Gear? GetTool(ToolType type)
     {
-        if (Weapon != null && Weapon.Type == type)
+        if (Weapon != null && Weapon.ToolType == type)
             return Weapon;
-        return Tools.FirstOrDefault(t => t.Type == type);
+        return Tools.FirstOrDefault(t => t.ToolType == type);
     }
 
-    public text_survival.Items.Equipment? GetEquipment(EquipSlot slot) =>
+    public Gear? GetEquipment(EquipSlot slot) =>
         _equipment.GetValueOrDefault(slot);
 
     // Factory methods
@@ -458,6 +478,16 @@ public class Inventory
             {
                 target.Tools.Add(tool);
                 Tools.Remove(tool);
+            }
+            ));
+        }
+
+        foreach (var accessory in Accessories.ToList())
+        {
+            items.Add(("Carrying", $"{accessory.Name} (+{accessory.CapacityBonusKg}kg) ({accessory.Weight:F1}kg)", accessory.Weight, () =>
+            {
+                target.Accessories.Add(accessory);
+                Accessories.Remove(accessory);
             }
             ));
         }
@@ -504,7 +534,7 @@ public static class InventoryExtensions
         if (inv.WaterLiters > 0) parts.Add($"{inv.WaterLiters:F1}L water");
 
         foreach (var tool in inv.Tools) parts.Add(tool.Name);
-        foreach (var item in inv.Special) parts.Add(item.Name);
+        foreach (var accessory in inv.Accessories) parts.Add(accessory.Name);
 
         return parts.Count > 0 ? string.Join(", ", parts) : "nothing";
     }

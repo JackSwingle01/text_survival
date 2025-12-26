@@ -24,8 +24,9 @@ public static partial class GameEventRegistry
         return new GameEvent("Something Wrong",
             $"Chills that won't stop. Head pounding. {cause}", 0.8)
             .Requires(EventCondition.Awake, EventCondition.LowTemperature)
-            .WithConditionFactor(EventCondition.WoundUntreated, 3.0)
-            .WithConditionFactor(EventCondition.WoundUntreatedHigh, 4.0)
+            // InfectionRisk covers: WoundUntreated/WoundUntreatedHigh + LowTemperature
+            .WithSituationFactor(Situations.InfectionRisk, 4.0)
+            // Keep individual condition for base cold effect
             .WithConditionFactor(EventCondition.LowTemperature, 2.0)
             .Choice("Rest by Fire",
                 "Stop. Warm up. Let your body fight.",

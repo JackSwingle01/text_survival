@@ -89,7 +89,7 @@ public class CombatManager
         return false;
     }
 
-    public void Attack(Actor target, Tool? weapon = null, string? targetedPart = null, GameContext? ctx = null)
+    public void Attack(Actor target, Gear? weapon = null, string? targetedPart = null, GameContext? ctx = null)
     {
         // Get attack stats from weapon if provided, otherwise from attacker's properties
         double baseDamage = weapon?.Damage ?? Owner.AttackDamage;

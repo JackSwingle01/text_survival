@@ -14,8 +14,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Treacherous Footing",
             "The ground ahead looks unstable — ice beneath the snow, or loose rocks hidden by debris.", 1.0)
             .Requires(EventCondition.Traveling, EventCondition.HazardousTerrain) // Only triggers on hazardous terrain
-            .WithConditionFactor(EventCondition.Injured, 1.5)
-            .WithConditionFactor(EventCondition.Slow, 1.3)
+            // Vulnerable: injured, slow, impaired, or unarmed - physical compromise makes hazards worse
+            .WithSituationFactor(Situations.Vulnerable, 1.5)
             .Choice("Test Carefully",
                 "You probe ahead with each step, testing your weight before committing.",
                 [
@@ -74,8 +74,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Minor Accident",
             "Your foot catches on something hidden. A sharp pain as you stumble.", 0.8)
             .Requires(EventCondition.IsExpedition)
-            .WithConditionFactor(EventCondition.Injured, 1.4)
-            .WithConditionFactor(EventCondition.Slow, 1.3)
+            // Vulnerable: injured, slow, impaired, or unarmed - compromised physical state leads to more accidents
+            .WithSituationFactor(Situations.Vulnerable, 1.5)
             .WithConditionFactor(EventCondition.HazardousTerrain, 1.5) // More accidents on bad terrain
             .Choice("Stop and Assess",
                 "You take a moment to examine the injury and tend to it properly.",
@@ -403,8 +403,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Intrusive Thought",
             $"Your hands stop. Your mind fills with {source}. You can't look away from what isn't there.", 1.2)
             .Requires(EventCondition.Working, EventCondition.Disturbed)
-            .WithConditionFactor(EventCondition.DisturbedHigh, 2.0)
-            .WithConditionFactor(EventCondition.DisturbedCritical, 3.0)
+            // PsychologicallyCompromised: disturbed states + stalked tension compound psychological pressure
+            .WithSituationFactor(Situations.PsychologicallyCompromised, 2.5)
             .Choice("Push Through",
                 "Force yourself back to the present. Focus on your hands, the cold, anything real.",
                 [
@@ -443,7 +443,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Lost Time",
             "You blink. The shadows have moved. How long were you standing there, staring at nothing?", 0.6)
             .Requires(EventCondition.Working, EventCondition.DisturbedHigh)
-            .WithConditionFactor(EventCondition.DisturbedCritical, 2.5)
+            // PsychologicallyCompromised: disturbed states + stalked tension - severe psychological compromise causes dissociation
+            .WithSituationFactor(Situations.PsychologicallyCompromised, 2.0)
             .Choice("Take Stock",
                 "Check yourself. Check your surroundings. What happened?",
                 [
@@ -516,7 +517,9 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Dark Passage",
             "The path ahead disappears into darkness. Without light, every step is a gamble.", 0.9)
-            .Requires(EventCondition.InDarkness, EventCondition.Traveling)
+            .Requires(EventCondition.Traveling)
+            // InDarkness: night or lack of light source - darkness removes visual control
+            .WithSituationFactor(Situations.InDarkness, 2.0)
             .Choice("Proceed Carefully",
                 "Feel your way forward. Slow, deliberate steps.",
                 [

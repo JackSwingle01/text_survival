@@ -93,7 +93,7 @@ public static class HuntRunner
             choice.AddOption("Assess target", "assess");
 
             // Check throw options (spear already equipped at hunt start if available)
-            hasSpear = ctx.Inventory.Weapon?.Type == ToolType.Spear;
+            hasSpear = ctx.Inventory.Weapon?.ToolType == ToolType.Spear;
             hasStones = ctx.Inventory.Count(Resource.Stone) > 0;
 
             if (hasSpear && ctx.Inventory.Weapon != null)

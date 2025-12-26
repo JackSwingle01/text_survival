@@ -1274,11 +1274,11 @@ public static class LocationFactory
                 salvage.Resources.Add(Resource.Bone,0.3);
                 salvage.Resources.Add(Resource.Hide,0.4);
                 if (Utils.DetermineSuccess(0.3))
-                    salvage.Tools.Add(new Tool("Bloodied Knife", ToolType.Knife, 0.2) { Durability = 4 });
+                    salvage.Tools.Add(Gear.Knife("Bloodied Knife", 4));
                 break;
             case "fled":
                 if (Utils.DetermineSuccess(0.5))
-                    salvage.Tools.Add(new Tool("Dropped Hand Axe", ToolType.Axe, 0.8) { Durability = 6 });
+                    salvage.Tools.Add(Gear.Axe("Dropped Hand Axe", 6));
                 salvage.Resources.Add(Resource.PlantFiber,0.2);
                 break;
             case "never_returned":
@@ -1286,12 +1286,24 @@ public static class LocationFactory
                 salvage.Resources.Add(Resource.Birch, 1.5);
                 salvage.Resources.Add(Resource.Oak, 1.5);
                 if (Utils.DetermineSuccess(0.4))
-                    salvage.Equipment.Add(new Equipment("Cached Coat", EquipSlot.Chest, 1.8, 0.12));
+                {
+                    var coat = new Gear
+                    {
+                        Name = "Cached Coat",
+                        Category = GearCategory.Equipment,
+                        Slot = EquipSlot.Chest,
+                        Weight = 1.8,
+                        BaseInsulation = 0.12,
+                        Durability = 60,
+                        MaxDurability = 80
+                    };
+                    salvage.Equipment.Add(coat);
+                }
                 break;
             case "counted_days":
                 salvage.Resources.Add(Resource.Stone,0.3);
                 if (Utils.DetermineSuccess(0.3))
-                    salvage.Tools.Add(new Tool("Worn Hand Drill", ToolType.HandDrill, 0.25) { Durability = 5 });
+                    salvage.Tools.Add(Gear.HandDrill("Worn Hand Drill", 5));
                 break;
             default:
                 salvage.Resources.Add(Resource.PlantFiber,0.15);

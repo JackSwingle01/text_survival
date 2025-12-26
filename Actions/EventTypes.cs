@@ -52,17 +52,12 @@ public record FeatureModification(
 );
 
 /// <summary>
-/// Tool damage specification - uses integer durability loss.
+/// Unified gear damage specification - applies to all gear types via durability loss.
+/// Use ToolType to target a specific tool, Slot to target equipment, or Category for general damage.
 /// </summary>
-public record ToolDamage(
-    ToolType Type,
-    int UsesLost
-);
-
-/// <summary>
-/// Clothing damage specification - directly reduces insulation.
-/// </summary>
-public record ClothingDamage(
-    EquipSlot Slot,
-    double InsulationLoss
+public record GearDamage(
+    GearCategory Category,
+    int DurabilityLoss,
+    ToolType? ToolType = null,
+    EquipSlot? Slot = null
 );

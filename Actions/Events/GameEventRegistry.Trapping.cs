@@ -17,8 +17,10 @@ public static partial class GameEventRegistry
         return new GameEvent("Snare Tampered",
             "Approaching your trap line, you notice disturbed snow around one of your snares. Something was here.", 0.8)
             .Requires(EventCondition.TrapLineActive, EventCondition.OnExpedition, EventCondition.FieldWork)
-            .WithConditionFactor(EventCondition.SnareBaited, 1.5)
-            .WithConditionFactor(EventCondition.Night, 1.3)
+            // TrapLineAttractive covers: SnareHasCatch OR SnareBaited
+            .WithSituationFactor(Situations.TrapLineAttractive, 1.5)
+            // InDarkness covers: Night, InDarkness
+            .WithSituationFactor(Situations.InDarkness, 1.3)
             .Choice("Investigate the Tracks",
                 "Study the signs to understand what happened.",
                 [
@@ -59,8 +61,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Predator at Trap Line",
             $"You approach your snares and freeze. A {predator.ToLower()} is there, sniffing around the bait.", 1.2)
             .Requires(EventCondition.TrapLineActive, EventCondition.Stalked, EventCondition.FieldWork)
-            .WithConditionFactor(EventCondition.SnareBaited, 2.0)
-            .WithConditionFactor(EventCondition.SnareHasCatch, 2.5)
+            // TrapLineAttractive covers: SnareHasCatch OR SnareBaited (higher-value target)
+            .WithSituationFactor(Situations.TrapLineAttractive, 2.5)
             .WithConditionFactor(EventCondition.StalkedHigh, 1.5)
             .Choice("Drive It Off",
                 "Make noise. Assert dominance. This is YOUR trap line.",
@@ -136,7 +138,8 @@ public static partial class GameEventRegistry
             "Your snares have been hit. The snow is churned up, feathers and fur scattered. Something got here first.", 0.7)
             .Requires(EventCondition.TrapLineActive, EventCondition.OnExpedition)
             .WithConditionFactor(EventCondition.SnareHasCatch, 0.3) // Less likely if catch still there
-            .WithConditionFactor(EventCondition.Night, 1.5)
+            // InDarkness covers: Night, InDarkness
+            .WithSituationFactor(Situations.InDarkness, 1.5)
             .Choice("Salvage What You Can",
                 "Maybe there's something left.",
                 [
@@ -176,9 +179,10 @@ public static partial class GameEventRegistry
         return new GameEvent("Trap Snaps",
             "The snare mechanism releases unexpectedly. Pain shoots through your hand.", 0.3)
             .Requires(EventCondition.TrapLineActive, EventCondition.FieldWork)
-            .WithConditionFactor(EventCondition.Clumsy, 3.0)
-            .WithConditionFactor(EventCondition.Foggy, 2.0)
-            .WithConditionFactor(EventCondition.ExtremelyCold, 1.5)
+            // CognitivelyImpaired covers: Clumsy, Foggy, Impaired
+            .WithSituationFactor(Situations.CognitivelyImpaired, 3.0)
+            // ExtremeColdCrisis covers: ExtremelyCold, IsBlizzard + LowOnFuel
+            .WithSituationFactor(Situations.ExtremeColdCrisis, 1.5)
             .Choice("Check the Damage",
                 "See how bad it is.",
                 [
@@ -215,7 +219,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Unwanted Attention",
             $"The meat bait on your snare has attracted attention. {predator.ToUpper()} tracks circle the trap.", 0.5)
             .Requires(EventCondition.TrapLineActive, EventCondition.SnareBaited, EventCondition.FieldWork)
-            .WithConditionFactor(EventCondition.Night, 1.5)
+            // InDarkness covers: Night, InDarkness
+            .WithSituationFactor(Situations.InDarkness, 1.5)
             .WithConditionFactor(EventCondition.Stalked, 2.0)
             .Choice("Remove the Bait",
                 "It's attracting the wrong things. Take it back.",

@@ -28,7 +28,7 @@ public static partial class GameEventRegistry
             $"{denDesc} But there are signs — tracks, scat, the smell of animal.", 0.6)
             .Requires(EventCondition.IsExpedition, EventCondition.NoShelter)
             .WithConditionFactor(EventCondition.ShelterWeakened, 3.0)
-            .WithConditionFactor(EventCondition.ExtremelyCold, 2.0)
+            .WithSituationFactor(Situations.ExtremeColdCrisis, 2.0)  // ExtremelyCold, IsBlizzard + LowOnFuel
             .Choice("Investigate Carefully",
                 "Check the signs. Know what you're dealing with.",
                 [

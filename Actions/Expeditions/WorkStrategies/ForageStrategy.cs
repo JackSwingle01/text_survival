@@ -69,6 +69,30 @@ public class ForageStrategy : IWorkStrategy
             GameDisplay.AddWarning(ctx, "Your foggy senses cause you to miss some resources.");
         }
 
+        // Tool bonuses - help gather more efficiently (+10% each)
+        bool hasAxeBonus = false;
+        bool hasShovelBonus = false;
+
+        var axe = ctx.Inventory.GetTool(ToolType.Axe);
+        if (axe != null && axe.Works)
+        {
+            found.ApplyMultiplier(1.10);
+            hasAxeBonus = true;
+        }
+
+        var shovel = ctx.Inventory.GetTool(ToolType.Shovel);
+        if (shovel != null && shovel.Works)
+        {
+            found.ApplyMultiplier(1.10);
+            hasShovelBonus = true;
+        }
+
+        // Tutorial: Tool bonus explanation (once per tool type)
+        if (hasAxeBonus)
+            ctx.ShowTutorialOnce("Your axe helps break branches and strip bark. (+10% yield)");
+        if (hasShovelBonus)
+            ctx.ShowTutorialOnce("Your shovel helps dig up roots and turn soil. (+10% yield)");
+
         var collected = new List<string>();
         string quality = feature.GetQualityDescription();
 

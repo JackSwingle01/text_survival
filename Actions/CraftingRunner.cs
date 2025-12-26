@@ -2,6 +2,7 @@ using text_survival.Bodies;
 using text_survival.Crafting;
 using text_survival.Environments.Features;
 using text_survival.IO;
+using text_survival.Items;
 using text_survival.UI;
 
 namespace text_survival.Actions;
@@ -181,61 +182,68 @@ public class CraftingRunner(GameContext ctx)
             GameDisplay.AddSuccess(_ctx, $"You built a {option.Name}!");
             GameDisplay.AddNarrative(_ctx, "It's now available at your camp.");
         }
-        else if (option.ProducesEquipment)
-        {
-            // Equipment recipe
-            var equipment = option.CraftEquipment(_ctx.Inventory);
-            if (equipment == null)
-                return false;
-
-            var previous = _ctx.Inventory.Equip(equipment);
-            GameDisplay.AddSuccess(_ctx, $"You crafted {equipment.Name}!");
-            if (previous != null)
-            {
-                GameDisplay.AddNarrative(_ctx, $"You replace your {previous.Name}.");
-                // Note: previous item is lost - could add to camp storage in future
-            }
-            else
-            {
-                GameDisplay.AddNarrative(_ctx, $"You put on the {equipment.Name}.");
-            }
-        }
         else
         {
-            // Create the tool (or process materials)
-            var tool = option.Craft(_ctx.Inventory);
+            // Create the gear (or process materials)
+            var gear = option.Craft(_ctx.Inventory);
 
-            if (tool == null)
+            if (gear == null)
             {
                 // Processing recipe - materials were added to inventory
                 GameDisplay.AddSuccess(_ctx, $"You produced {option.GetOutputDescription()}!");
             }
             else
             {
-                // Auto-equip weapons, otherwise add to tools
-                if (tool.IsWeapon)
+                // Handle different gear categories
+                switch (gear.Category)
                 {
-                    var previous = _ctx.Inventory.EquipWeapon(tool);
-                    if (previous != null)
-                    {
-                        _ctx.Inventory.Tools.Add(previous);
-                        GameDisplay.AddSuccess(_ctx, $"You crafted a {tool.Name}!");
-                        GameDisplay.AddNarrative(_ctx, $"You swap your {previous.Name} for the {tool.Name}.");
-                    }
-                    else
-                    {
-                        GameDisplay.AddSuccess(_ctx, $"You crafted a {tool.Name}!");
-                        GameDisplay.AddNarrative(_ctx, $"You equip the {tool.Name}.");
-                    }
-                }
-                else
-                {
-                    _ctx.Inventory.Tools.Add(tool);
-                    GameDisplay.AddSuccess(_ctx, $"You crafted a {tool.Name}!");
-                }
-                if (option.Durability > 0)
-                {
-                    GameDisplay.AddNarrative(_ctx, $"It should last for about {option.Durability} uses.");
+                    case GearCategory.Equipment:
+                        var previous = _ctx.Inventory.Equip(gear);
+                        GameDisplay.AddSuccess(_ctx, $"You crafted {gear.Name}!");
+                        if (previous != null)
+                        {
+                            GameDisplay.AddNarrative(_ctx, $"You replace your {previous.Name}.");
+                            // Note: previous item is lost - could add to camp storage in future
+                        }
+                        else
+                        {
+                            GameDisplay.AddNarrative(_ctx, $"You put on the {gear.Name}.");
+                        }
+                        break;
+
+                    case GearCategory.Accessory:
+                        _ctx.Inventory.Accessories.Add(gear);
+                        GameDisplay.AddSuccess(_ctx, $"You crafted {gear.Name}!");
+                        GameDisplay.AddNarrative(_ctx, $"You can now carry {_ctx.Inventory.MaxWeightKg:F1} kg total.");
+                        break;
+
+                    case GearCategory.Tool:
+                        // Auto-equip weapons, otherwise add to tools
+                        if (gear.IsWeapon)
+                        {
+                            var previousWeapon = _ctx.Inventory.EquipWeapon(gear);
+                            if (previousWeapon != null)
+                            {
+                                _ctx.Inventory.Tools.Add(previousWeapon);
+                                GameDisplay.AddSuccess(_ctx, $"You crafted a {gear.Name}!");
+                                GameDisplay.AddNarrative(_ctx, $"You swap your {previousWeapon.Name} for the {gear.Name}.");
+                            }
+                            else
+                            {
+                                GameDisplay.AddSuccess(_ctx, $"You crafted a {gear.Name}!");
+                                GameDisplay.AddNarrative(_ctx, $"You equip the {gear.Name}.");
+                            }
+                        }
+                        else
+                        {
+                            _ctx.Inventory.Tools.Add(gear);
+                            GameDisplay.AddSuccess(_ctx, $"You crafted a {gear.Name}!");
+                        }
+                        if (option.Durability > 0)
+                        {
+                            GameDisplay.AddNarrative(_ctx, $"It should last for about {option.Durability} uses.");
+                        }
+                        break;
                 }
             }
         }
@@ -256,6 +264,7 @@ public class CraftingRunner(GameContext ctx)
         NeedCategory.Treatment => "Medical treatments",
         NeedCategory.Equipment => "Clothing and gear",
         NeedCategory.Lighting => "Light sources",
+        NeedCategory.Carrying => "Carrying gear",
         _ => need.ToString()
     };
 
@@ -269,6 +278,7 @@ public class CraftingRunner(GameContext ctx)
         NeedCategory.Treatment => "medical treatments",
         NeedCategory.Equipment => "clothing and gear",
         NeedCategory.Lighting => "a light source",
+        NeedCategory.Carrying => "something to carry more",
         _ => need.ToString().ToLower()
     };
 

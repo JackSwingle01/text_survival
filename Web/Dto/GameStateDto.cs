@@ -388,10 +388,10 @@ public record GameStateDto
         var allTools = inv.Tools.ToList();
         if (inv.Weapon != null) allTools.Add(inv.Weapon);
 
-        int cuttingCount = allTools.Count(t => t.Type == Items.ToolType.Knife || t.Type == Items.ToolType.Axe);
-        int fireCount = allTools.Count(t => t.Type == Items.ToolType.FireStriker ||
-                                            t.Type == Items.ToolType.HandDrill ||
-                                            t.Type == Items.ToolType.BowDrill);
+        int cuttingCount = allTools.Count(t => t.ToolType == Items.ToolType.Knife || t.ToolType == Items.ToolType.Axe);
+        int fireCount = allTools.Count(t => t.ToolType == Items.ToolType.FireStriker ||
+                                            t.ToolType == Items.ToolType.HandDrill ||
+                                            t.ToolType == Items.ToolType.BowDrill);
         int otherCount = allTools.Count - cuttingCount - fireCount;
 
         // Food portions (count)

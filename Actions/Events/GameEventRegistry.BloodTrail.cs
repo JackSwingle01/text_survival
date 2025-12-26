@@ -26,8 +26,10 @@ public static partial class GameEventRegistry
         return new GameEvent("Blood in the Snow",
             $"The trail continues. {trailDescription} You're getting further from camp...", 1.5)
             .Requires(EventCondition.WoundedPrey)
-            .WithConditionFactor(EventCondition.LowOnFood, 2.0)
-            .WithConditionFactor(EventCondition.Injured, 0.5)  // Less likely to push when hurt
+            // SupplyPressure: low food, fuel, or water - desperate enough to push further
+            .WithSituationFactor(Situations.SupplyPressure, 2.0)
+            // Vulnerable: injured, slow, impaired - less likely to push when compromised
+            .WithSituationFactor(Situations.Vulnerable, 0.5)
             .Choice("Press On",
                 "The blood is fresh. It can't be far now.",
                 [

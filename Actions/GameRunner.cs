@@ -394,9 +394,9 @@ public partial class GameRunner(GameContext ctx)
 
         // Need a fire tool and materials
         bool hasTool = ctx.Inventory.Tools.Any(t =>
-            t.Type == ToolType.FireStriker ||
-            t.Type == ToolType.HandDrill ||
-            t.Type == ToolType.BowDrill);
+            t.ToolType == ToolType.FireStriker ||
+            t.ToolType == ToolType.HandDrill ||
+            t.ToolType == ToolType.BowDrill);
         return hasTool && ctx.Inventory.CanStartFire;
     }
 

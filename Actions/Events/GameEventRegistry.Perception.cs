@@ -11,7 +11,9 @@ public static partial class GameEventRegistry
         return new GameEvent(
             "Dulled Senses",
             "Everything feels distant and muffled. Your exhausted eyes struggle to focus, and sounds seem to come from far away.", 1.0)
-            .Requires(EventCondition.Foggy, EventCondition.IsExpedition)
+            .Requires(EventCondition.IsExpedition)
+            // CognitivelyImpaired: clumsy, foggy, or impaired - sensory processing degrades under mental fatigue
+            .WithSituationFactor(Situations.CognitivelyImpaired, 2.0)
             .Choice("Stay Alert",
                 "Force yourself to pay attention. It takes effort, but you can't afford to miss something.",
                 [

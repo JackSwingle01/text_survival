@@ -14,7 +14,7 @@ public static class HuntHandler
     /// Get effective throwing range for a spear.
     /// Stone-tipped spears have longer range than wooden spears.
     /// </summary>
-    public static double GetSpearRange(Tool spear)
+    public static double GetSpearRange(Gear spear)
     {
         // Stone-tipped spears have longer range
         return spear.Name.Contains("Stone") ? 25 : 20;
@@ -24,7 +24,7 @@ public static class HuntHandler
     /// Get base accuracy for a spear.
     /// Stone-tipped spears are more accurate than wooden spears.
     /// </summary>
-    public static double GetSpearBaseAccuracy(Tool spear)
+    public static double GetSpearBaseAccuracy(Gear spear)
     {
         // Stone-tipped spears are more accurate
         return spear.Name.Contains("Stone") ? 0.75 : 0.70;
@@ -34,7 +34,7 @@ public static class HuntHandler
     /// Calculate hit chance for throwing a spear at a target.
     /// Factors in distance, weapon quality, target size, and player impairments.
     /// </summary>
-    public static double CalculateSpearHitChance(Tool spear, Animal target, GameContext ctx)
+    public static double CalculateSpearHitChance(Gear spear, Animal target, GameContext ctx)
     {
         var manipulation = ctx.player.GetCapacities().Manipulation;
         double manipPenalty = AbilityCalculator.IsManipulationImpaired(manipulation) ? 0.15 : 0.0;
@@ -76,7 +76,7 @@ public static class HuntHandler
         GameContext ctx,
         Animal target,
         bool isSpear,
-        Tool? spear = null)
+        Gear? spear = null)
     {
         var manipulation = ctx.player.GetCapacities().Manipulation;
         double manipPenalty = AbilityCalculator.IsManipulationImpaired(manipulation) ? 0.15 : 0.0;

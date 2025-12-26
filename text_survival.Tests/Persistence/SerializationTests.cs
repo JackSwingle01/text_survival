@@ -63,7 +63,7 @@ public class SerializationTests
         original.Inventory.WaterLiters = 1.5;
 
         // Add tool (test discrete items)
-        original.Inventory.Tools.Add(Tool.Knife());
+        original.Inventory.Tools.Add(Gear.Knife());
 
         // Count critical data before serialization
         int originalLocationCount = original.Locations.Count;

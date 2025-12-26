@@ -77,17 +77,39 @@ public class GameContext(Player player, Location camp, Weather weather)
     /// <summary>Set to true when an event was triggered during the last Update call.</summary>
     public bool EventOccurredLastUpdate { get; private set; } = false;
 
-    // Tutorial message tracking (Day 1 only)
-    private Dictionary<string, bool> tutorialMessages = new Dictionary<string, bool>();
+    // Tutorial message tracking
+    private HashSet<string> _shownTutorials = new();
 
-    public bool HasShownTutorial(string messageKey)
+    // For JSON serialization
+    public HashSet<string> ShownTutorials
     {
-        return tutorialMessages.ContainsKey(messageKey) && tutorialMessages[messageKey];
+        get => _shownTutorials;
+        set => _shownTutorials = value;
     }
 
-    public void MarkTutorialShown(string messageKey)
+    /// <summary>
+    /// Shows a tutorial message only once per game. Uses the message itself as the key.
+    /// </summary>
+    public void ShowTutorialOnce(string message)
     {
-        tutorialMessages[messageKey] = true;
+        if (_shownTutorials.Contains(message))
+            return;
+
+        _shownTutorials.Add(message);
+        GameDisplay.AddNarrative(this, message);
+    }
+
+    /// <summary>
+    /// For complex tutorials with multiple messages or custom display.
+    /// Returns true if this is the first time (and marks as shown), false if already shown.
+    /// </summary>
+    public bool TryShowTutorial(string key)
+    {
+        if (_shownTutorials.Contains(key))
+            return false;
+
+        _shownTutorials.Add(key);
+        return true;
     }
 
     // Parameterless constructor for JSON deserialization
@@ -139,12 +161,13 @@ public class GameContext(Player player, Location camp, Weather weather)
         ctx.SetupMountainPass(passLocations, passLocations[^1]);
 
         // Equip starting clothing
-        ctx.Inventory.Equip(Equipment.WornFurChestWrap());
-        ctx.Inventory.Equip(Equipment.FurLegWraps());
-        ctx.Inventory.Equip(Equipment.FurBoots());
+        ctx.Inventory.Equip(Gear.WornFurChestWrap());
+        ctx.Inventory.Equip(Gear.FurLegWraps());
+        ctx.Inventory.Equip(Gear.WornHideBoots());
+        ctx.Inventory.Equip(Gear.HideHandwraps());
 
         // Add starting supplies
-        ctx.Inventory.Tools.Add(Tool.HandDrill());
+        ctx.Inventory.Tools.Add(Gear.HandDrill());
         ctx.Inventory.Add(Resource.Stick, 0.3);
         ctx.Inventory.Add(Resource.Stick, 0.25);
         ctx.Inventory.Add(Resource.Stick, 0.35);
@@ -359,20 +382,15 @@ public class GameContext(Player player, Location camp, Weather weather)
         }
 
         // Tutorial: afternoon fuel warning on Day 1
-        if (DaysSurvived == 0 && !HasShownTutorial("afternoon_warning"))
+        if (DaysSurvived == 0 && GetTimeOfDay() == TimeOfDay.Afternoon)
         {
-            var timeOfDay = GetTimeOfDay();
-            if (timeOfDay == TimeOfDay.Afternoon)
-            {
-                var fire = CurrentLocation.GetFeature<HeatSourceFeature>();
-                double fuelKg = fire != null ? fire.TotalMassKg : 0;
+            var fire = CurrentLocation.GetFeature<HeatSourceFeature>();
+            double fuelKg = fire != null ? fire.TotalMassKg : 0;
 
-                if (fuelKg < 6.0)  // Less than minimal overnight burn
-                {
-                    MarkTutorialShown("afternoon_warning");
-                    GameDisplay.AddWarning(this, "The sun is getting low. Your fire won't last the night.");
-                    GameDisplay.AddWarning(this, "Gather fuel while there's still light.");
-                }
+            if (fuelKg < 6.0 && TryShowTutorial("afternoon_fuel_warning"))
+            {
+                GameDisplay.AddWarning(this, "The sun is getting low. Your fire won't last the night.");
+                GameDisplay.AddWarning(this, "Gather fuel while there's still light.");
             }
         }
 

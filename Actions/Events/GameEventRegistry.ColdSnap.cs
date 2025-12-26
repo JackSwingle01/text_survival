@@ -19,9 +19,10 @@ public static partial class GameEventRegistry
             "Temperature plummeting. Wind cutting through everything. This isn't normal cold — this is killing cold.", 1.0)
             .Requires(EventCondition.OnExpedition)
             .Requires(EventCondition.ExtremelyCold)
-            .WithConditionFactor(EventCondition.IsBlizzard, 3.0)
-            .WithConditionFactor(EventCondition.Injured, 2.0)
-            .WithConditionFactor(EventCondition.LowOnFuel, 1.5)
+            // ExtremeColdCrisis: blizzard + low fuel, or extreme cold - compounds the danger
+            .WithSituationFactor(Situations.ExtremeColdCrisis, 2.5)
+            // Vulnerable: injured, slow, impaired - less able to cope with cold stress
+            .WithSituationFactor(Situations.Vulnerable, 2.0)
             .Choice("Run for Camp",
                 "Sprint back. Every second counts.",
                 [
