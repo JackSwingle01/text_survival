@@ -513,6 +513,30 @@ body::before {
     outline-offset: 2px;
 }
 
+.action-btn:active {
+    background: rgba(255, 255, 255, 0.7);
+    color: hsl(var(--bg-h), var(--bg-s), var(--bg-l));
+    transform: translateX(4px);
+}
+
+.action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Disable hover transform on touch devices to prevent tap target shift */
+@media (hover: none) {
+    .action-btn:hover {
+        transform: none;
+    }
+    .action-btn:active {
+        transform: none;
+        background: rgba(255, 255, 255, 0.7);
+        color: hsl(var(--bg-h), var(--bg-s), var(--bg-l));
+    }
+}
+
 /* ========== SIDE PANEL ========== */
 .side-panel {
     padding-left: 20px;

@@ -3,6 +3,8 @@ class GameClient {
         this.socket = null;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
+        this.awaitingResponse = false;  // Prevent button clicks during frame transitions
+        this.currentInputId = 0;        // Track which input set is active
         this.connect();
     }
 
@@ -52,6 +54,9 @@ class GameClient {
     }
 
     handleFrame(frame) {
+        // Clear response lock when new frame arrives
+        this.awaitingResponse = false;
+
         if (frame.state) {
             this.renderState(frame.state);
         }
@@ -729,6 +734,10 @@ class GameClient {
 
         if (!input) return;
 
+        // Increment input ID to track which button set is active
+        this.currentInputId++;
+        const inputId = this.currentInputId;
+
         if (input.type === 'select') {
             const promptDiv = document.createElement('div');
             promptDiv.className = 'action-prompt';
@@ -742,7 +751,7 @@ class GameClient {
                 const btn = document.createElement('button');
                 btn.className = 'action-btn';
                 btn.textContent = choice;
-                btn.onclick = () => this.respond(i);
+                btn.onclick = () => this.respond(i, inputId);
                 listDiv.appendChild(btn);
             });
 
@@ -760,13 +769,13 @@ class GameClient {
             const yesBtn = document.createElement('button');
             yesBtn.className = 'action-btn';
             yesBtn.textContent = 'Yes';
-            yesBtn.onclick = () => this.respond(0);
+            yesBtn.onclick = () => this.respond(0, inputId);
             listDiv.appendChild(yesBtn);
 
             const noBtn = document.createElement('button');
             noBtn.className = 'action-btn';
             noBtn.textContent = 'No';
-            noBtn.onclick = () => this.respond(1);
+            noBtn.onclick = () => this.respond(1, inputId);
             listDiv.appendChild(noBtn);
 
             actionsArea.appendChild(listDiv);
@@ -775,12 +784,24 @@ class GameClient {
             const btn = document.createElement('button');
             btn.className = 'action-btn';
             btn.textContent = input.prompt || 'Continue';
-            btn.onclick = () => this.respond(null);
+            btn.onclick = () => this.respond(null, inputId);
             actionsArea.appendChild(btn);
         }
     }
 
-    respond(choiceIndex) {
+    respond(choiceIndex, inputId) {
+        // Prevent duplicate responses or responses to stale buttons
+        if (this.awaitingResponse) {
+            return;
+        }
+
+        // Verify this click is for the current input set (prevents stale button clicks)
+        if (inputId !== undefined && inputId !== this.currentInputId) {
+            return;
+        }
+
+        this.awaitingResponse = true;
+
         // Disable all action buttons immediately to prevent double-clicks
         document.querySelectorAll('.action-btn').forEach(btn => {
             btn.disabled = true;
@@ -813,6 +834,10 @@ class GameClient {
         this.renderInvMaterials(inv);
         this.renderInvMedicinals(inv);
 
+        // Increment input ID for inventory buttons
+        this.currentInputId++;
+        const inputId = this.currentInputId;
+
         // Render action buttons
         const actionsContainer = document.getElementById('inventoryActions');
         this.clearElement(actionsContainer);
@@ -822,14 +847,14 @@ class GameClient {
                 const btn = document.createElement('button');
                 btn.className = 'action-btn';
                 btn.textContent = choice;
-                btn.onclick = () => this.respond(i);
+                btn.onclick = () => this.respond(i, inputId);
                 actionsContainer.appendChild(btn);
             });
         } else {
             const closeBtn = document.createElement('button');
             closeBtn.className = 'action-btn';
             closeBtn.textContent = 'Close';
-            closeBtn.onclick = () => this.respond(null);
+            closeBtn.onclick = () => this.respond(null, inputId);
             actionsContainer.appendChild(closeBtn);
         }
     }
