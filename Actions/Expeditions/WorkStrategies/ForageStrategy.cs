@@ -86,6 +86,18 @@ public class ForageStrategy : IWorkStrategy
                 GameDisplay.AddNarrative(ctx, "Resources here are getting scarce.");
         }
 
+        // Tutorial: Show fuel progress on Day 1
+        double totalFuelGathered = found.GetWeight(ResourceCategory.Fuel);
+        if (ctx.DaysSurvived == 0 && totalFuelGathered > 0)
+        {
+            double currentFuel = ctx.Inventory.GetWeight(ResourceCategory.Fuel);
+            if (currentFuel < 8.0)
+            {
+                double needed = 8.0 - currentFuel;
+                GameDisplay.AddNarrative(ctx, $"You'll want about {needed:F0}kg more for tonight.");
+            }
+        }
+
         return new WorkResult(collected, null, actualTime, false);
     }
 }

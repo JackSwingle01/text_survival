@@ -118,9 +118,9 @@ public static class TestFixtures
     public static HeatSourceFeature CreateTestFire(
         double initialFuelKg = 0,
         FuelType? fuelType = null,
-        double maxCapacity = 12.0)
+        FirePitType pitType = FirePitType.Open)
     {
-        var fire = new HeatSourceFeature(maxCapacity);
+        var fire = new HeatSourceFeature(pitType);
 
         // Add fuel if specified
         if (initialFuelKg > 0 && fuelType.HasValue)

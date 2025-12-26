@@ -77,6 +77,19 @@ public class GameContext(Player player, Location camp, Weather weather)
     /// <summary>Set to true when an event was triggered during the last Update call.</summary>
     public bool EventOccurredLastUpdate { get; private set; } = false;
 
+    // Tutorial message tracking (Day 1 only)
+    private Dictionary<string, bool> tutorialMessages = new Dictionary<string, bool>();
+
+    public bool HasShownTutorial(string messageKey)
+    {
+        return tutorialMessages.ContainsKey(messageKey) && tutorialMessages[messageKey];
+    }
+
+    public void MarkTutorialShown(string messageKey)
+    {
+        tutorialMessages[messageKey] = true;
+    }
+
     // Parameterless constructor for JSON deserialization
     [System.Text.Json.Serialization.JsonConstructor]
     public GameContext() : this(null!, null!, null!)
@@ -343,6 +356,25 @@ public class GameContext(Player player, Location camp, Weather weather)
                 EncounterRunner.HandlePredatorEncounter(predator, this);
             }
         }
+
+        // Tutorial: afternoon fuel warning on Day 1
+        if (DaysSurvived == 0 && !HasShownTutorial("afternoon_warning"))
+        {
+            var timeOfDay = GetTimeOfDay();
+            if (timeOfDay == TimeOfDay.Afternoon)
+            {
+                var fire = CurrentLocation.GetFeature<HeatSourceFeature>();
+                double fuelKg = fire != null ? fire.TotalMassKg : 0;
+
+                if (fuelKg < 6.0)  // Less than minimal overnight burn
+                {
+                    MarkTutorialShown("afternoon_warning");
+                    GameDisplay.AddWarning(this, "The sun is getting low. Your fire won't last the night.");
+                    GameDisplay.AddWarning(this, "Gather fuel while there's still light.");
+                }
+            }
+        }
+
         return elapsed;
     }
 

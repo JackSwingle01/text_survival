@@ -1,31 +1,78 @@
+using System.Text.Json.Serialization;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
 
+public enum FirePitType
+{
+    Open,   // Basic fire on ground - no protection
+    Mound,  // Shaped dirt/rock depression - some wind protection
+    Stone   // Stone-lined pit - best protection and efficiency
+}
+
 public class HeatSourceFeature : LocationFeature
 {
+    // Fire Pit Type
+    [JsonInclude] private FirePitType _pitType = FirePitType.Open;
+
     // Fire State
-    private bool _hasEmbers;
-    private double _unburnedMassKg;
-    private double _burningMassKg;
-    private double _maxFuelCapacityKg;
-    private double _emberDuration;
-    private double _emberStartTemperature;
-    private double _lastBurningTemperature;
-    private double _emberTimeRemaining;
-    private double _charcoalAvailableKg;
+    [JsonInclude] private bool _hasEmbers;
+    [JsonInclude] private double _unburnedMassKg;
+    [JsonInclude] private double _burningMassKg;
+    [JsonInclude] private double _emberDuration;
+    [JsonInclude] private double _emberStartTemperature;
+    [JsonInclude] private double _lastBurningTemperature;
+    [JsonInclude] private double _emberTimeRemaining;
+    [JsonInclude] private double _charcoalAvailableKg;
 
     public bool IsActive => _burningMassKg > 0;
     public bool HasEmbers => _hasEmbers;
+
+    // Fire Pit Properties
+    public FirePitType PitType
+    {
+        get => _pitType;
+        set => _pitType = value;
+    }
+
+    /// <summary>
+    /// Wind protection factor based on fire pit type (0-1).
+    /// Higher value = better wind protection.
+    /// </summary>
+    public double WindProtectionFactor => _pitType switch
+    {
+        FirePitType.Open => 0.0,   // No protection
+        FirePitType.Mound => 0.4,  // 40% wind reduction
+        FirePitType.Stone => 0.7,  // 70% wind reduction
+        _ => 0.0
+    };
+
+    /// <summary>
+    /// Fuel efficiency multiplier based on fire pit type.
+    /// Higher value = more efficient (burns slower for same heat).
+    /// </summary>
+    public double FuelEfficiencyFactor => _pitType switch
+    {
+        FirePitType.Open => 1.0,    // Baseline
+        FirePitType.Mound => 1.0,   // Same burn rate, just wind protected
+        FirePitType.Stone => 1.15,  // 15% better efficiency (stones radiate heat)
+        _ => 1.0
+    };
 
     // Two-mass fuel model: unburned + burning = total
     public double UnburnedMassKg => _unburnedMassKg;
     public double BurningMassKg => _burningMassKg;
     public double TotalMassKg => _unburnedMassKg + _burningMassKg;
-    public double MaxFuelCapacityKg => _maxFuelCapacityKg;
+    public double MaxFuelCapacityKg => _pitType switch
+    {
+        FirePitType.Open => 12.0,   // Baseline capacity
+        FirePitType.Mound => 15.0,  // Depression holds more fuel
+        FirePitType.Stone => 18.0,  // Stone walls contain larger fires
+        _ => 12.0
+    };
 
-    private Dictionary<FuelType, double> _unburnedMixture = [];
-    private Dictionary<FuelType, double> _burningMixture = [];
+    [JsonInclude] private Dictionary<FuelType, double> _unburnedMixture = [];
+    [JsonInclude] private Dictionary<FuelType, double> _burningMixture = [];
 
     // Time remaining calculations
     public double HoursRemaining => BurningHoursRemaining; // Backwards compatibility
@@ -69,13 +116,13 @@ public class HeatSourceFeature : LocationFeature
     private const double BaseCatchRate = 0.05; // kg/min baseline
     private const double CharcoalYieldPercent = 0.15; // 15% of burned fuel becomes charcoal
 
-    public HeatSourceFeature(double maxCapacityKg = 12.0)
+    public HeatSourceFeature(FirePitType pitType = FirePitType.Open)
         : base("Campfire")
     {
+        _pitType = pitType;
         _hasEmbers = false;
         _unburnedMassKg = 0;
         _burningMassKg = 0;
-        _maxFuelCapacityKg = maxCapacityKg;
         _emberTimeRemaining = 0;
         _emberDuration = 0;
         _emberStartTemperature = 0;
@@ -221,7 +268,7 @@ public class HeatSourceFeature : LocationFeature
         if (!CanAddFuel(fuelType)) return false;
 
         // Add to unburned fuel (capped at max capacity)
-        double spaceAvailable = _maxFuelCapacityKg - TotalMassKg;
+        double spaceAvailable = MaxFuelCapacityKg - TotalMassKg;
         double actualMassAdded = Math.Min(massKg, spaceAvailable);
 
         _unburnedMassKg += actualMassAdded;
@@ -399,6 +446,8 @@ public class HeatSourceFeature : LocationFeature
         _lastBurningTemperature = GetActiveFireTemperature();
 
         double burnRate = GetWeightedBurnRate() * GetFireSizeBurnMultiplier();
+        // Apply fuel efficiency - higher efficiency = slower consumption
+        burnRate = burnRate / FuelEfficiencyFactor;
         double consumed = burnRate * (minutesElapsed / 60.0);
 
         // Cap consumption at available burning mass

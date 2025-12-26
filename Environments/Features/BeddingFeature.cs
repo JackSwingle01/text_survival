@@ -30,6 +30,12 @@ public class BeddingFeature : LocationFeature
     /// </summary>
     public bool HasGroundInsulation { get; init; } = false;
 
+    /// <summary>
+    /// Temperature bonus added while sleeping (in °F).
+    /// Applied to effective temperature during rest/sleep.
+    /// </summary>
+    public double WarmthBonus { get; init; } = 0;
+
     public BeddingFeature() : base("Bedding") { }
 
     public BeddingFeature(string name) : base(name) { }
@@ -69,7 +75,8 @@ public class BeddingFeature : LocationFeature
         Description = "Furs and leaves arranged near the fire.",
         Quality = 1.0,
         HasWindProtection = true,
-        HasGroundInsulation = true
+        HasGroundInsulation = true,
+        WarmthBonus = 0
     };
 
     /// <summary>
@@ -80,7 +87,8 @@ public class BeddingFeature : LocationFeature
         Description = "Leaves and branches arranged for rest.",
         Quality = 0.6,
         HasWindProtection = false,
-        HasGroundInsulation = false
+        HasGroundInsulation = false,
+        WarmthBonus = 0
     };
 
     /// <summary>
@@ -91,6 +99,33 @@ public class BeddingFeature : LocationFeature
         Description = "A patch of soft leaves and moss.",
         Quality = 0.4,
         HasWindProtection = false,
-        HasGroundInsulation = false
+        HasGroundInsulation = false,
+        WarmthBonus = 0
+    };
+
+    /// <summary>
+    /// Create padded bedding with plant fiber mat and hide blanket.
+    /// Better than makeshift, not as good as sleeping bag.
+    /// </summary>
+    public static BeddingFeature CreatePaddedBedding() => new("Padded bedding")
+    {
+        Description = "Plant fiber mat with a hide blanket.",
+        Quality = 0.8,
+        HasWindProtection = false,
+        HasGroundInsulation = true,  // Mat lifts off cold ground
+        WarmthBonus = 0
+    };
+
+    /// <summary>
+    /// Create sleeping bag sewn from hides.
+    /// Best warmth and recovery for sleeping.
+    /// </summary>
+    public static BeddingFeature CreateSleepingBag() => new("Sleeping bag")
+    {
+        Description = "Hides sewn together into an enclosed sleeping bag.",
+        Quality = 1.0,
+        HasWindProtection = true,   // Enclosed bag
+        HasGroundInsulation = true,
+        WarmthBonus = 5.0  // +5°F while sleeping
     };
 }

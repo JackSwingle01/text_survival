@@ -417,9 +417,39 @@ public partial class GameRunner(GameContext ctx)
 
     private void Sleep()
     {
-        int hours = Input.ReadInt(ctx, "How many hours would you like to sleep?", 1, 12);
+        // Check fire status before allowing sleep
+        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+        bool hasFire = fire != null && (fire.IsActive || fire.HasEmbers);
+        int fireMinutes = hasFire && fire != null ? (int)(fire.HoursRemaining * 60) : 0;
 
-        int totalMinutes = hours * 60;
+        int hours = Input.ReadInt(ctx, "How many hours would you like to sleep?", 1, 12);
+        int sleepMinutes = hours * 60;
+
+        // Warning if fire won't last
+        if (hasFire && fireMinutes < sleepMinutes)
+        {
+            int shortfall = (sleepMinutes - fireMinutes) / 60;
+            GameDisplay.AddWarning(ctx, $"Your fire will die {shortfall} hour{(shortfall != 1 ? "s" : "")} before you wake.");
+            GameDisplay.AddWarning(ctx, "You'll freeze without it.");
+
+            if (!Input.Confirm(ctx, "Sleep anyway?"))
+            {
+                GameDisplay.AddNarrative(ctx, "You decide to stay awake.");
+                return;
+            }
+        }
+        else if (!hasFire)
+        {
+            GameDisplay.AddDanger(ctx, "There's no fire. You'll freeze to death in your sleep.");
+
+            if (!Input.Confirm(ctx, "Sleep without fire?"))
+            {
+                GameDisplay.AddNarrative(ctx, "You decide to stay awake.");
+                return;
+            }
+        }
+
+        int totalMinutes = sleepMinutes;
         int slept = 0;
 
         while (slept < totalMinutes && ctx.player.IsAlive)

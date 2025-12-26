@@ -48,7 +48,9 @@ namespace text_survival.Core
                 GameDisplay.AddDanger("You wake up in the forest, shivering. You don't remember how you got here.");
                 GameDisplay.AddDanger("Snow drifts down through the pines. The cold is already seeping into your bones.");
                 GameDisplay.AddDanger("There's a fire pit nearby with some kindling. You need to get it lit - fast.");
-                GameDisplay.AddDanger("You need to gather fuel, find food and water, and survive.");
+                GameDisplay.AddNarrative("");  // Blank line
+                GameDisplay.AddWarning("Night comes early in midwinter. You'll need serious wood to survive it.");
+                GameDisplay.AddWarning("The handful of sticks you have won't last an hour.");
             }
             else
             {

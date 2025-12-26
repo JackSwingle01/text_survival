@@ -77,7 +77,7 @@ public class EventConditionTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        var fire = new HeatSourceFeature(12.0);
+        var fire = new HeatSourceFeature();
         // Tinder has minFireTemperature: 0, so it can ignite from cold
         fire.AddFuel(0.5, FuelType.Tinder);
         fire.IgniteAll();

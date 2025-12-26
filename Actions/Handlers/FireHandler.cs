@@ -325,6 +325,17 @@ public static class FireHandler
                 }
 
                 playerSkill.GainExperience(3);
+
+                // Tutorial: Fire mechanics after first fire start (Day 1 only)
+                if (ctx.DaysSurvived == 0 && !ctx.HasShownTutorial("first_fire_started"))
+                {
+                    ctx.MarkTutorialShown("first_fire_started");
+                    GameDisplay.AddNarrative(ctx, "");
+                    GameDisplay.AddWarning(ctx, "A night fire needs to burn 10-12 hours.");
+                    GameDisplay.AddWarning(ctx, "Figure a good log burns about an hour per kilogram.");
+                    GameDisplay.AddWarning(ctx, "You do the math.");
+                }
+
                 break;
             }
             else

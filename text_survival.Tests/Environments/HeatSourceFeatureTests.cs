@@ -198,8 +198,8 @@ public class HeatSourceFeatureTests
     public void GetCurrentFireTemperature_LowFuel_ReducedTemp()
     {
         // Arrange
-        var fullFuelFire = TestFixtures.CreateTestFire(initialFuelKg: 6.0, fuelType: FuelType.Kindling, maxCapacity: 12.0);
-        var lowFuelFire = TestFixtures.CreateTestFire(initialFuelKg: 2.0, fuelType: FuelType.Kindling, maxCapacity: 12.0);
+        var fullFuelFire = TestFixtures.CreateTestFire(initialFuelKg: 6.0, fuelType: FuelType.Kindling);
+        var lowFuelFire = TestFixtures.CreateTestFire(initialFuelKg: 2.0, fuelType: FuelType.Kindling);
 
         fullFuelFire.Update(15);
         lowFuelFire.Update(15);
