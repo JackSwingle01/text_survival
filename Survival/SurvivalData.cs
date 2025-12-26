@@ -10,7 +10,7 @@ public class SurvivalData
 	public double ColdResistance;
 
 	// body stats
-	public BodyStats BodyStats;
+	public required BodyStats BodyStats;
 
 	// Secondary stats
 	public double equipmentInsulation;

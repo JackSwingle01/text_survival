@@ -245,7 +245,7 @@ public class WebGameSession
     /// <summary>
     /// Close the WebSocket connection gracefully.
     /// </summary>
-    public async Task CloseAsync()
+    public void CloseAsync()
     {
         Cancel();
 

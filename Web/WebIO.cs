@@ -167,6 +167,31 @@ public static class WebIO
     }
 
     /// <summary>
+    /// Render with estimated duration for client-side progress animation.
+    /// Client will animate a progress bar locally based on the duration.
+    /// </summary>
+    public static void RenderWithDuration(GameContext ctx, string statusText, int estimatedMinutes)
+    {
+        var session = SessionRegistry.Get(ctx.SessionId);
+        if (session == null) return;
+
+        // Convert game minutes to real seconds (~5 game-min per real second)
+        int estimatedSeconds = Math.Max(1, estimatedMinutes / 5);
+
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            null,
+            null, // No server-side progress - client animates locally
+            statusText,
+            GetInventory(ctx.SessionId),
+            GetCrafting(ctx.SessionId),
+            EstimatedDurationSeconds: estimatedSeconds
+        );
+
+        session.Send(frame);
+    }
+
+    /// <summary>
     /// Add narrative text to the context's log for web display.
     /// </summary>
     public static void AddNarrative(GameContext ctx, string text, UI.LogLevel level = UI.LogLevel.Normal)

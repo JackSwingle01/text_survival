@@ -127,7 +127,7 @@ public static class CombatHandler
                 allParts.Add(part);
         }
 
-        return Input.SelectOrCancel("Select target:", allParts);
+        return Input.Select(ctx, "Select target:", allParts);
     }
 
     private static void AttemptFlee(GameContext ctx, Animal enemy)

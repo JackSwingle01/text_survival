@@ -15,54 +15,13 @@ namespace text_survival.Core
     {
         static async Task Main(string[] args)
         {
-            // Check for web mode
-            if (args.Contains("--web"))
-            {
-                int port = 5000;
-                var portArg = args.FirstOrDefault(a => a.StartsWith("--port="));
-                if (portArg != null && int.TryParse(portArg.Split('=')[1], out int parsedPort))
-                    port = parsedPort;
+            int port = 5000;
+            var portArg = args.FirstOrDefault(a => a.StartsWith("--port="));
+            if (portArg != null && int.TryParse(portArg.Split('=')[1], out int parsedPort))
+                port = parsedPort;
 
-                await WebServer.Run(port);
-                return;
-            }
-
-            // Console mode
-            RunConsoleGame();
-        }
-
-        static void RunConsoleGame()
-        {
-            if (Output.TestMode)
-            {
-                TestModeIO.Initialize();
-            }
-
-            // Auto-load if save exists, otherwise create new game
-            bool isNewGame = !SaveManager.HasSaveFile();
-            GameContext context = GameInitializer.LoadOrCreateNew();
-
-            // Only show intro text for new games
-            if (isNewGame)
-            {
-                GameDisplay.AddDanger("You wake up in the forest, shivering. You don't remember how you got here.");
-                GameDisplay.AddDanger("Snow drifts down through the pines. The cold is already seeping into your bones.");
-                GameDisplay.AddDanger("There's a fire pit nearby with some kindling. You need to get it lit - fast.");
-                GameDisplay.AddNarrative("");  // Blank line
-                GameDisplay.AddWarning("Night comes early in midwinter. You'll need serious wood to survive it.");
-                GameDisplay.AddWarning("The handful of sticks you have won't last an hour.");
-            }
-            else
-            {
-                // GameDisplay.AddNarrative("Game loaded.");
-            }
-
-            GameRunner runner = new GameRunner(context);
-            runner.Run();
-
-            // Delete save on death
-            SaveManager.DeleteSave();
-            DisplayDeathScreen(context);
+            await WebServer.Run(port);
+            return;
         }
 
         static void DisplayDeathScreen(GameContext ctx)

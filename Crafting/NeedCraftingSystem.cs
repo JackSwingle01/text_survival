@@ -509,22 +509,6 @@ public class NeedCraftingSystem
             MaterialOutputs = [new MaterialOutput("Rope", 1, 0.2)]
         });
 
-        // Curing Rack: Build a rack at camp for curing hides and drying food
-        _options.Add(new CraftOption
-        {
-            Name = "Curing Rack",
-            Description = "A wooden rack for curing hides and drying meat. Essential for leather-working and food preservation.",
-            Category = NeedCategory.Processing,
-            CraftingTimeMinutes = 45,
-            Durability = 0,
-            Requirements = [
-                new MaterialRequirement("Logs", 2),
-                new MaterialRequirement("Sticks", 4),
-                new MaterialRequirement("PlantFiber", 2)
-            ],
-            FeatureFactory = () => new CuringRackFeature()
-        });
-
         // Bone Shovel: Digging tool for camp improvements
         _options.Add(new CraftOption
         {
@@ -1032,7 +1016,23 @@ public class NeedCraftingSystem
             FeatureFactory = () => BeddingFeature.CreatePaddedBedding()
         });
 
-        // 2. Mound Fire Pit (Multi-Session Project)
+        // 2. Curing Rack (Instant Improvement)
+        _options.Add(new CraftOption
+        {
+            Name = "Curing Rack",
+            Description = "A wooden rack for curing hides and drying meat. Essential for leather-working and food preservation.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 45,
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("Logs", 2),
+                new MaterialRequirement("Sticks", 4),
+                new MaterialRequirement("PlantFiber", 2)
+            ],
+            FeatureFactory = () => new CuringRackFeature()
+        });
+
+        // 3. Mound Fire Pit (Multi-Session Project)
         _options.Add(new CraftOption
         {
             Name = "Mound Fire Pit (Project)",

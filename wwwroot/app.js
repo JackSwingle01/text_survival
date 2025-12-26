@@ -1,3 +1,13 @@
+import { ConnectionOverlay } from './modules/connection.js';
+import { Utils } from './modules/utils.js';
+import { ProgressDisplay } from './modules/progress.js';
+import { NarrativeLog } from './modules/log.js';
+import { TemperatureDisplay } from './modules/temperature.js';
+import { FireDisplay } from './modules/fire.js';
+import { SurvivalDisplay } from './modules/survival.js';
+import { EffectsDisplay } from './modules/effects.js';
+import { LocationDisplay } from './modules/location.js';
+
 class GameClient {
     constructor() {
         this.socket = null;
@@ -14,7 +24,8 @@ class GameClient {
 
         this.socket.onopen = () => {
             this.reconnectAttempts = 0;
-            this.hideConnectionOverlay();
+            this.awaitingResponse = false;
+            ConnectionOverlay.hide();
         };
 
         this.socket.onmessage = (event) => {
@@ -23,12 +34,12 @@ class GameClient {
         };
 
         this.socket.onclose = () => {
-            this.showConnectionOverlay('Connection lost. Reconnecting...');
+            ConnectionOverlay.show('Connection lost. Reconnecting...');
             this.attemptReconnect();
         };
 
         this.socket.onerror = () => {
-            this.showConnectionOverlay('Connection error', true);
+            ConnectionOverlay.show('Connection error', true);
         };
     }
 
@@ -37,31 +48,16 @@ class GameClient {
             this.reconnectAttempts++;
             setTimeout(() => this.connect(), 2000);
         } else {
-            this.showConnectionOverlay('Failed to connect. Refresh to try again.', true);
+            ConnectionOverlay.show('Failed to connect. Refresh to try again.', true);
         }
-    }
-
-    showConnectionOverlay(message, isError = false) {
-        const overlay = document.getElementById('connectionOverlay');
-        const msgEl = document.getElementById('connectionMessage');
-        overlay.classList.remove('hidden');
-        msgEl.textContent = message;
-        msgEl.classList.toggle('error', isError);
-    }
-
-    hideConnectionOverlay() {
-        document.getElementById('connectionOverlay').classList.add('hidden');
-
-        // Clear any stale button states from before disconnect
-        this.awaitingResponse = false;
-        document.querySelectorAll('.action-btn').forEach(btn => {
-            btn.disabled = false;
-        });
     }
 
     handleFrame(frame) {
         // Clear response lock when new frame arrives
         this.awaitingResponse = false;
+
+        // Stop any local progress animation from previous frame
+        ProgressDisplay.stop();
 
         // Re-enable all buttons from previous frame
         document.querySelectorAll('.action-btn').forEach(btn => {
@@ -84,9 +80,15 @@ class GameClient {
         } else {
             this.hideInventory();
             this.hideCrafting();
-            this.renderInput(frame.input, frame.statusText, frame.progress);
+            // Start local progress animation if duration is provided
+            if (frame.estimatedDurationSeconds) {
+                ProgressDisplay.start(frame.estimatedDurationSeconds, frame.statusText);
+            } else {
+                this.renderInput(frame.input, frame.statusText, frame.progress);
+            }
         }
     }
+
 
     renderState(state) {
         // Debug: log raw capacity values
@@ -121,21 +123,21 @@ class GameClient {
 
         // Location
         document.getElementById('locationName').textContent = state.locationName;
-        this.renderLocationTags(state.locationTags);
-        this.renderFeatures(state.features);
+        LocationDisplay.renderTags(state.locationTags);
+        LocationDisplay.renderFeatures(state.features);
 
         // Fire
-        this.renderFire(state.fire);
+        FireDisplay.render(state.fire);
 
         // Temperature
-        this.renderTemperature(state);
+        TemperatureDisplay.render(state);
 
         // Survival stats
-        this.renderSurvival(state);
+        SurvivalDisplay.render(state);
 
         // Effects & Injuries
-        this.renderEffects(state.effects);
-        this.renderInjuries(state.injuries, state.bloodPercent);
+        EffectsDisplay.render(state.effects);
+        EffectsDisplay.renderInjuries(state.injuries, state.bloodPercent);
 
         // Inventory summary
         document.getElementById('carryDisplay').textContent =
@@ -152,7 +154,7 @@ class GameClient {
         }
 
         // Narrative log
-        this.renderLog(state.log);
+        NarrativeLog.render(state.log);
     }
 
     renderGearSummary(summary) {
@@ -169,7 +171,7 @@ class GameClient {
 
         // Tool pills
         const pillsContainer = document.getElementById('toolPills');
-        this.clearElement(pillsContainer);
+        Utils.clearElement(pillsContainer);
 
         if (summary.cuttingToolCount > 0) {
             this.addToolPill(pillsContainer, 'cutting',
@@ -286,435 +288,15 @@ class GameClient {
         return hours * 60 + minutes;
     }
 
-    renderLocationTags(tags) {
-        const container = document.getElementById('locationDesc');
-        this.clearElement(container);
-
-        if (!tags || tags.length === 0) return;
-
-        tags.forEach(tag => {
-            const pill = document.createElement('span');
-            pill.className = 'location-tag';
-            pill.textContent = tag;
-            container.appendChild(pill);
-        });
-    }
-
-    renderFeatures(features) {
-        const container = document.getElementById('locationFeatures');
-        this.clearElement(container);
-
-        if (!features || features.length === 0) return;
-
-        features.forEach(f => {
-            const span = document.createElement('span');
-            span.className = 'feature-tag';
-            span.textContent = f.label;
-            if (f.detail) {
-                span.textContent += ': ';
-                const valueSpan = document.createElement('span');
-                valueSpan.className = `feature-value ${f.type}`;
-                valueSpan.textContent = f.detail;
-                span.appendChild(valueSpan);
-            }
-            container.appendChild(span);
-        });
-    }
-
-    renderFire(fire) {
-        const phaseEl = document.getElementById('firePhase');
-        const phaseText = phaseEl.querySelector('.fire-phase-text');
-        const timeEl = document.getElementById('fireTime');
-        const fuelEl = document.getElementById('fireFuel');
-        const heatEl = document.getElementById('fireHeat');
-
-        if (!fire) {
-            phaseText.textContent = 'No fire pit';
-            phaseEl.className = 'fire-phase cold';
-            timeEl.textContent = '';
-            fuelEl.textContent = '';
-            heatEl.textContent = '';
-            return;
-        }
-
-        if (fire.phase === 'Cold') {
-            phaseText.textContent = 'Cold';
-            phaseEl.className = 'fire-phase cold';
-            timeEl.textContent = '';
-            // Show fuel if any is loaded
-            this.clearElement(fuelEl);
-            const icon = document.createElement('span');
-            icon.className = 'material-symbols-outlined';
-            icon.textContent = 'local_fire_department';
-            fuelEl.appendChild(icon);
-
-            if (fire.totalKg > 0) {
-                const litPercent = fire.totalKg > 0 ? Math.round(fire.burningKg / fire.totalKg * 100) : 0;
-                const text = document.createTextNode(`${fire.totalKg.toFixed(1)}kg fuel (${litPercent}% lit)`);
-                fuelEl.appendChild(text);
-            } else {
-                const text = document.createTextNode('No fuel');
-                fuelEl.appendChild(text);
-            }
-            heatEl.textContent = '';
-            return;
-        }
-
-        // Active fire
-        phaseText.textContent = fire.phase;
-        phaseEl.className = 'fire-phase ' + fire.phase.toLowerCase();
-
-        // Time remaining with burn rate
-        timeEl.textContent = `${fire.minutesRemaining} min (${fire.burnRateKgPerHour.toFixed(1)} kg/hr)`;
-
-        // Fuel breakdown: burning vs unlit, or total/max
-        this.clearElement(fuelEl);
-        const fuelIcon = document.createElement('span');
-        fuelIcon.className = 'material-symbols-outlined';
-        fuelIcon.textContent = 'local_fire_department';
-        fuelEl.appendChild(fuelIcon);
-
-        if (fire.unlitKg > 0.1) {
-            const burningSpan = document.createElement('span');
-            burningSpan.className = 'fire-burning';
-            burningSpan.textContent = `${fire.burningKg.toFixed(1)}kg burning`;
-            const unlitSpan = document.createElement('span');
-            unlitSpan.className = 'fire-unlit';
-            unlitSpan.textContent = ` (+${fire.unlitKg.toFixed(1)}kg unlit)`;
-            fuelEl.appendChild(burningSpan);
-            fuelEl.appendChild(unlitSpan);
-        } else {
-            const fuelText = document.createTextNode(`${fire.totalKg.toFixed(1)}/${fire.maxCapacityKg.toFixed(0)} kg fuel`);
-            fuelEl.appendChild(fuelText);
-        }
-
-        // Heat output
-        if (fire.heatOutput > 0) {
-            heatEl.textContent = `+${fire.heatOutput.toFixed(0)}°F heat`;
-        } else {
-            heatEl.textContent = '';
-        }
-    }
-
-    renderTemperature(state) {
-        const bodyTemp = state.bodyTemp;
-        const feelsLike = state.airTemp + (state.fireHeat || 0);
-
-        // Temperature badge (feels like temp - prominent display)
-        const tempBadge = document.getElementById('tempBadge');
-        const tempBadgeValue = document.getElementById('tempBadgeValue');
-        tempBadgeValue.textContent = `${feelsLike.toFixed(0)}°F`;
-
-        // Set badge color class based on feels like temp
-        tempBadge.className = 'temp-badge';
-        if (feelsLike < 20) tempBadge.classList.add('danger');
-        else if (feelsLike < 40) tempBadge.classList.add('cold');
-        else if (feelsLike < 60) tempBadge.classList.add('cool');
-        else if (feelsLike < 80) tempBadge.classList.add('normal');
-        else tempBadge.classList.add('hot');
-
-        // Temperature segmented bar (87-102 range)
-        const tempPct = Math.max(0, Math.min(100, (bodyTemp - 87) / (102 - 87) * 100));
-        let tempState = 'normal';
-        if (bodyTemp < 95) tempState = 'cold';
-        else if (bodyTemp < 97) tempState = 'cool';
-        else if (bodyTemp > 100) tempState = 'hot';
-        this.renderSegmentBar('tempSegmentBar', tempPct, tempState);
-
-        document.getElementById('bodyTempDisplay').textContent = `${bodyTemp.toFixed(1)}°F`;
-
-        const statusEl = document.getElementById('tempStatus');
-        statusEl.textContent = state.tempStatus;
-        statusEl.className = 'temp-status ' + state.tempStatus.toLowerCase();
-
-        // Air breakdown
-        document.getElementById('airTempDisplay').textContent = `${state.airTemp.toFixed(0)}°F`;
-
-        const fireContrib = document.getElementById('fireContrib');
-        if (state.fireHeat > 0) {
-            fireContrib.textContent = ` + Fire +${state.fireHeat.toFixed(0)}°F`;
-        } else {
-            fireContrib.textContent = '';
-        }
-
-        // Trend
-        const trendEl = document.getElementById('tempTrend');
-        const rate = state.trendPerHour;
-        if (Math.abs(rate) < 0.05) {
-            trendEl.textContent = '→ Stable';
-            trendEl.className = 'temp-trend stable';
-        } else if (rate < 0) {
-            trendEl.textContent = `↓ Cooling (${rate.toFixed(1)}°/hr)`;
-            trendEl.className = 'temp-trend cooling';
-        } else {
-            trendEl.textContent = `↑ Warming (+${rate.toFixed(1)}°/hr)`;
-            trendEl.className = 'temp-trend warming';
-        }
-    }
 
     renderSegmentBar(containerId, percent, state = 'normal') {
         const container = document.getElementById(containerId);
-        this.clearElement(container);
+        Utils.clearElement(container);
 
         // All bars now use the simple fill style
         const fill = document.createElement('div');
         fill.className = 'bar-fill';
         fill.style.width = percent + '%';
-        container.appendChild(fill);
-    }
-
-    renderSurvival(state) {
-        this.updateStatSegments('health', state.healthPercent, this.getHealthStatus);
-        this.updateStatSegments('food', state.foodPercent, this.getFoodStatus);
-        this.updateStatSegments('water', state.waterPercent, this.getWaterStatus);
-        this.updateStatSegments('energy', state.energyPercent, this.getEnergyStatus);
-    }
-
-    updateStatSegments(stat, percent, statusFn) {
-        const pctEl = document.getElementById(stat + 'Pct');
-        const statusEl = document.getElementById(stat + 'Status');
-
-        pctEl.textContent = percent + '%';
-        statusEl.textContent = statusFn(percent);
-
-        pctEl.className = 'stat-value';
-        if (percent < 20) {
-            pctEl.classList.add('critical');
-        } else if (percent < 40) {
-            pctEl.classList.add('low');
-        }
-
-        // Render segmented bar
-        this.renderSegmentBar(stat + 'SegmentBar', percent);
-    }
-
-    getHealthStatus(pct) {
-        if (pct >= 90) return 'Healthy';
-        if (pct >= 70) return 'Fine';
-        if (pct >= 50) return 'Hurt';
-        if (pct >= 25) return 'Wounded';
-        return 'Critical';
-    }
-
-    getFoodStatus(pct) {
-        if (pct >= 80) return 'Well Fed';
-        if (pct >= 60) return 'Satisfied';
-        if (pct >= 40) return 'Peckish';
-        if (pct >= 20) return 'Hungry';
-        return 'Starving';
-    }
-
-    getWaterStatus(pct) {
-        if (pct >= 80) return 'Hydrated';
-        if (pct >= 60) return 'Fine';
-        if (pct >= 40) return 'Thirsty';
-        if (pct >= 20) return 'Parched';
-        return 'Dehydrated';
-    }
-
-    getEnergyStatus(pct) {
-        if (pct >= 90) return 'Energized';
-        if (pct >= 80) return 'Alert';
-        if (pct >= 40) return 'Normal';
-        if (pct >= 30) return 'Tired';
-        if (pct >= 20) return 'Very Tired';
-        return 'Exhausted';
-    }
-
-    renderEffects(effects) {
-        const container = document.getElementById('effectsList');
-        const section = container.parentElement;
-        this.clearElement(container);
-
-        if (!effects || effects.length === 0) {
-            section.style.display = 'none';
-            return;
-        }
-
-        section.style.display = '';
-
-        effects.forEach(e => {
-            const div = document.createElement('div');
-            div.className = `effect-item ${e.trend}`;
-
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = e.name;
-            div.appendChild(nameSpan);
-
-            const rightSpan = document.createElement('span');
-            const sevSpan = document.createElement('span');
-            sevSpan.className = 'effect-severity';
-            sevSpan.textContent = `${e.severityPercent}%`;
-            rightSpan.appendChild(sevSpan);
-
-            const trend = e.trend === 'worsening' ? '↑' : e.trend === 'improving' ? '↓' : '';
-            if (trend) {
-                rightSpan.appendChild(document.createTextNode(trend));
-            }
-            div.appendChild(rightSpan);
-
-            // Add tooltip
-            const tooltip = this.createEffectTooltip(e);
-            if (tooltip) {
-                div.appendChild(tooltip);
-                div.classList.add('has-tooltip');
-            }
-
-            container.appendChild(div);
-        });
-    }
-
-    createEffectTooltip(effect) {
-        const lines = [];
-
-        // Capacity impacts
-        if (effect.capacityImpacts) {
-            for (const [cap, impact] of Object.entries(effect.capacityImpacts)) {
-                const sign = impact > 0 ? '+' : '';
-                lines.push(`${cap}: ${sign}${impact}%`);
-            }
-        }
-
-        // Stat impacts
-        if (effect.statsImpact) {
-            const s = effect.statsImpact;
-            if (s.temperaturePerHour) {
-                const sign = s.temperaturePerHour > 0 ? '+' : '';
-                lines.push(`Temp: ${sign}${s.temperaturePerHour.toFixed(1)}\u00B0F/hr`);
-            }
-            if (s.hydrationPerHour) {
-                const sign = s.hydrationPerHour > 0 ? '+' : '';
-                lines.push(`Hydration: ${sign}${s.hydrationPerHour.toFixed(0)}ml/hr`);
-            }
-            if (s.caloriesPerHour) {
-                const sign = s.caloriesPerHour > 0 ? '+' : '';
-                lines.push(`Calories: ${sign}${s.caloriesPerHour.toFixed(0)}/hr`);
-            }
-            if (s.energyPerHour) {
-                const sign = s.energyPerHour > 0 ? '+' : '';
-                lines.push(`Energy: ${sign}${s.energyPerHour.toFixed(0)}/hr`);
-            }
-            if (s.damagePerHour) {
-                lines.push(`${s.damageType || 'Damage'}: ${s.damagePerHour.toFixed(1)}/hr`);
-            }
-        }
-
-        // Treatment status
-        if (effect.requiresTreatment) {
-            lines.push('Requires treatment');
-        }
-
-        if (lines.length === 0) return null;
-
-        const tooltip = document.createElement('div');
-        tooltip.className = 'effect-tooltip';
-        // Use safe DOM methods instead of innerHTML
-        lines.forEach((line, i) => {
-            if (i > 0) tooltip.appendChild(document.createElement('br'));
-            tooltip.appendChild(document.createTextNode(line));
-        });
-        return tooltip;
-    }
-
-    renderInjuries(injuries, bloodPercent) {
-        const container = document.getElementById('injuriesList');
-        const section = container.parentElement;
-        this.clearElement(container);
-
-        const hasBloodLoss = bloodPercent && bloodPercent < 95;
-        const hasInjuries = injuries && injuries.length > 0;
-
-        if (!hasBloodLoss && !hasInjuries) {
-            section.style.display = 'none';
-            return;
-        }
-
-        section.style.display = '';
-
-        if (hasBloodLoss) {
-            const div = document.createElement('div');
-            div.className = `injury-item ${this.getInjurySeverityClass(bloodPercent)} has-tooltip`;
-            div.textContent = 'Blood loss ';
-            const pctSpan = document.createElement('span');
-            pctSpan.className = 'injury-pct';
-            pctSpan.textContent = `(${bloodPercent}%)`;
-            div.appendChild(pctSpan);
-
-            // Blood loss tooltip
-            const tooltip = document.createElement('div');
-            tooltip.className = 'effect-tooltip';
-            tooltip.textContent = 'Affects: Consciousness, Moving, Manipulation';
-            div.appendChild(tooltip);
-
-            container.appendChild(div);
-        }
-
-        if (hasInjuries) {
-            injuries.forEach(i => {
-                const div = document.createElement('div');
-                div.className = `injury-item ${this.getInjurySeverityClass(i.conditionPercent)}`;
-                const label = i.isOrgan ? `${i.partName} (organ) ` : `${i.partName} `;
-                div.textContent = label;
-                const pctSpan = document.createElement('span');
-                pctSpan.className = 'injury-pct';
-                pctSpan.textContent = `(${i.conditionPercent}%)`;
-                div.appendChild(pctSpan);
-
-                // Add tooltip for affected capacities
-                if (i.affectedCapacities && i.affectedCapacities.length > 0) {
-                    const tooltip = document.createElement('div');
-                    tooltip.className = 'effect-tooltip';
-                    tooltip.textContent = `Affects: ${i.affectedCapacities.join(', ')}`;
-                    div.appendChild(tooltip);
-                    div.classList.add('has-tooltip');
-                }
-
-                container.appendChild(div);
-            });
-        }
-    }
-
-    getInjurySeverityClass(percent) {
-        if (percent <= 20) return 'critical';
-        if (percent <= 50) return 'severe';
-        if (percent <= 70) return 'moderate';
-        return 'minor';
-    }
-
-    renderLog(log) {
-        const container = document.getElementById('narrativeLog');
-        this.clearElement(container);
-
-        if (!log || log.length === 0) return;
-
-        log.forEach(entry => {
-            const div = document.createElement('div');
-            div.className = `log-entry ${entry.level}`;
-            div.textContent = entry.text;
-            container.appendChild(div);
-        });
-
-        container.scrollTop = container.scrollHeight;
-    }
-
-    renderProgressSegments(percent, complete = false) {
-        const container = document.getElementById('progressSegmentBar');
-        if (!container.classList.contains('progress')) {
-            container.classList.add('progress');
-        }
-        this.clearElement(container);
-
-        // Create single fill div instead of segments
-        const fill = document.createElement('div');
-        fill.className = 'progress-fill';
-        fill.style.width = percent + '%';
-
-        if (complete) {
-            container.classList.add('complete');
-        } else {
-            container.classList.remove('complete');
-        }
-
         container.appendChild(fill);
     }
 
@@ -731,7 +313,7 @@ class GameClient {
             statusTextEl.textContent = statusText || 'Working...';
             statusIcon.style.display = '';
             progressContainer.style.display = '';
-            this.renderProgressSegments(pct, pct >= 100);
+            ProgressDisplay.renderSegments(pct, pct >= 100);
             progressPercent.style.display = '';
             progressPercent.textContent = pct + '%';
         } else if (statusText) {
@@ -747,7 +329,7 @@ class GameClient {
         }
 
         // Clear and render input UI
-        this.clearElement(actionsArea);
+        Utils.clearElement(actionsArea);
 
         if (!input) return;
 
@@ -834,12 +416,6 @@ class GameClient {
         }
     }
 
-    clearElement(el) {
-        while (el.firstChild) {
-            el.removeChild(el.firstChild);
-        }
-    }
-
     showInventory(inv, input) {
         const overlay = document.getElementById('inventoryOverlay');
         overlay.classList.remove('hidden');
@@ -862,7 +438,7 @@ class GameClient {
 
         // Render action buttons
         const actionsContainer = document.getElementById('inventoryActions');
-        this.clearElement(actionsContainer);
+        Utils.clearElement(actionsContainer);
 
         if (input && input.type === 'select' && input.choices) {
             input.choices.forEach((choice, i) => {
@@ -914,7 +490,7 @@ class GameClient {
 
     renderInvGear(inv) {
         const content = document.querySelector('#invGear .inv-content');
-        this.clearElement(content);
+        Utils.clearElement(content);
 
         // Weapon slot (always show)
         const weaponSlot = this.createSlotElement(
@@ -996,7 +572,7 @@ class GameClient {
 
     renderInvFuel(inv) {
         const content = document.querySelector('#invFuel .inv-content');
-        this.clearElement(content);
+        Utils.clearElement(content);
 
         // Generic fuel
         if (inv.logCount > 0)
@@ -1026,7 +602,7 @@ class GameClient {
 
     renderInvFood(inv) {
         const content = document.querySelector('#invFood .inv-content');
-        this.clearElement(content);
+        Utils.clearElement(content);
 
         // Cooked (best)
         if (inv.cookedMeatCount > 0)
@@ -1057,7 +633,7 @@ class GameClient {
 
     renderInvWater(inv) {
         const content = document.querySelector('#invWater .inv-content');
-        this.clearElement(content);
+        Utils.clearElement(content);
 
         if (inv.waterLiters > 0) {
             this.addInvItem(content, 'Clean water', `${inv.waterLiters.toFixed(1)}L`);
@@ -1068,7 +644,7 @@ class GameClient {
 
     renderInvMaterials(inv) {
         const content = document.querySelector('#invMaterials .inv-content');
-        this.clearElement(content);
+        Utils.clearElement(content);
 
         // Stone types (highlight rare)
         if (inv.stoneCount > 0)
@@ -1111,7 +687,7 @@ class GameClient {
 
     renderInvMedicinals(inv) {
         const content = document.querySelector('#invMedicinals .inv-content');
-        this.clearElement(content);
+        Utils.clearElement(content);
 
         // Fungi
         if (inv.birchPolyporeCount > 0)
@@ -1162,7 +738,7 @@ class GameClient {
         console.log('Crafting data:', crafting);
 
         const categoriesContainer = document.getElementById('craftingCategories');
-        this.clearElement(categoriesContainer);
+        Utils.clearElement(categoriesContainer);
 
         // Render each category
         crafting.categories.forEach(category => {

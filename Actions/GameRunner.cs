@@ -498,7 +498,7 @@ public partial class GameRunner(GameContext ctx)
         {
             // Not at camp - just show read-only inventory view
             GameDisplay.RenderInventoryScreen(ctx);
-            Input.WaitForKey("Press any key to return...");
+            Input.WaitForKey(ctx, "Press any key to return...");
             if (ctx.SessionId != null)
                 Web.WebIO.ClearInventory(ctx);
             return;
@@ -513,8 +513,6 @@ public partial class GameRunner(GameContext ctx)
     private void CookMelt() => CookingHandler.CookMelt(ctx);
 
     private void UseCuringRack() => CuringRackHandler.UseCuringRack(ctx);
-
-    private void StartCombat(Animal enemy) => CombatHandler.StartCombat(ctx, enemy);
 
     private bool CanApplyDirectTreatment() => TreatmentHandler.CanApplyDirectTreatment(ctx);
 

@@ -15,7 +15,8 @@ public record WebFrame(
     ProgressDto? Progress,
     string? StatusText = null,
     InventoryDto? Inventory = null,
-    CraftingDto? Crafting = null
+    CraftingDto? Crafting = null,
+    int? EstimatedDurationSeconds = null
 );
 
 /// <summary>
@@ -251,7 +252,7 @@ public record InventoryDto(
         return inv.Tools.Select(t => new ToolDto(
             t.Name,
             t.IsWeapon ? t.Damage : null,
-            t.ToolType.ToString()
+            t.ToolType.ToString()!
         )).ToList();
     }
 
