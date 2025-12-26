@@ -2,6 +2,7 @@ using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
+using text_survival.Items;
 using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
@@ -74,7 +75,6 @@ public class HarvestStrategy : IWorkStrategy
             return WorkResult.Empty(0);
 
         var found = _selectedTarget.Harvest(actualTime);
-        ctx.Inventory.Combine(found);
 
         var collected = new List<string>();
 
@@ -87,6 +87,7 @@ public class HarvestStrategy : IWorkStrategy
             var desc = found.GetDescription();
             GameDisplay.AddNarrative(ctx, $"You harvested {desc}");
             collected.Add(desc);
+            InventoryCapacityHelper.CombineAndReport(ctx, found);
         }
 
         GameDisplay.AddNarrative(ctx, $"{_selectedTarget.DisplayName}: {_selectedTarget.GetStatusDescription()}");

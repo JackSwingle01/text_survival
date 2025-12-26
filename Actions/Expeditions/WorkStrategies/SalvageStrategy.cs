@@ -2,6 +2,7 @@ using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
+using text_survival.Items;
 using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
@@ -128,10 +129,10 @@ public class SalvageStrategy : IWorkStrategy
         // Add resources to inventory
         if (!loot.Resources.IsEmpty)
         {
-            ctx.Inventory.Combine(loot.Resources);
             var desc = loot.Resources.GetDescription();
             GameDisplay.AddNarrative(ctx, $"You salvaged {desc}");
             collected.Add(desc);
+            InventoryCapacityHelper.CombineAndReport(ctx, loot.Resources);
         }
 
         return new WorkResult(collected, null, actualTime, false);

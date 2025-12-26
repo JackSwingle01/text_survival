@@ -60,8 +60,10 @@ public static class FireHandler
                 fuelMap[charcoalLabel] = ("charcoal", FuelType.Tinder, () =>
                 {
                     double collected = fire.CollectCharcoal();
-                    inv.Add(Resource.Charcoal, collected);
+                    var loot = new Inventory();
+                    loot.Add(Resource.Charcoal, collected);
                     GameDisplay.AddSuccess(ctx, $"You collect {collected:F2}kg of charcoal from the fire pit.");
+                    InventoryCapacityHelper.CombineAndReport(ctx, loot);
                     return collected;
                 }
                 );

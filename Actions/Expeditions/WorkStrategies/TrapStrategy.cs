@@ -196,6 +196,7 @@ public class TrapStrategy : IWorkStrategy
         var snareLine = location.GetFeature<SnareLineFeature>()!;
         var results = snareLine.CheckAllSnares();
         var collected = new List<string>();
+        var loot = new Inventory();
 
         foreach (var result in results)
         {
@@ -207,17 +208,17 @@ public class TrapStrategy : IWorkStrategy
             {
                 GameDisplay.AddNarrative(ctx, $"Something got here first. Only scraps of {result.AnimalType} remain.");
                 // Add partial remains (bones)
-                ctx.Inventory.Add(Resource.Bone, 0.1);
+                loot.Add(Resource.Bone, 0.1);
                 collected.Add($"Scraps ({result.AnimalType})");
             }
             else if (result.AnimalType != null)
             {
                 GameDisplay.AddSuccess(ctx, $"Catch! A {result.AnimalType} ({result.WeightKg:F1}kg).");
                 // Add raw meat based on weight
-                ctx.Inventory.Add(Resource.RawMeat, result.WeightKg * 0.5); // ~50% edible
-                ctx.Inventory.Add(Resource.Bone, result.WeightKg * 0.1);
+                loot.Add(Resource.RawMeat, result.WeightKg * 0.5); // ~50% edible
+                loot.Add(Resource.Bone, result.WeightKg * 0.1);
                 if (result.WeightKg > 3)
-                    ctx.Inventory.Add(Resource.Hide, result.WeightKg * 0.15);
+                    loot.Add(Resource.Hide, result.WeightKg * 0.15);
                 collected.Add($"{result.AnimalType} ({result.WeightKg:F1}kg)");
             }
         }
@@ -225,6 +226,10 @@ public class TrapStrategy : IWorkStrategy
         if (collected.Count == 0)
         {
             GameDisplay.AddNarrative(ctx, "Nothing caught yet. The snares are still set.");
+        }
+        else
+        {
+            InventoryCapacityHelper.CombineAndReport(ctx, loot);
         }
 
         // Report remaining snares

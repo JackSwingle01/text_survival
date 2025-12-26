@@ -31,8 +31,10 @@ public static class CuringRackHandler
                 options.Add(collectOpt);
                 actions[collectOpt] = () =>
                 {
-                    int collected = rack.CollectFinished(inv);
+                    var loot = new Inventory();
+                    int collected = rack.CollectFinished(loot);
                     GameDisplay.AddSuccess(ctx, $"You collected {collected} item(s) from the rack.");
+                    InventoryCapacityHelper.CombineAndReport(ctx, loot);
                 };
             }
 

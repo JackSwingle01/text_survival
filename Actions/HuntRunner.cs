@@ -213,10 +213,10 @@ public static class HuntRunner
         ctx.player.stealthManager.StopHunting(ctx);
 
         var loot = ButcherRunner.ButcherAnimal(target, ctx);
-        ctx.Inventory.Combine(loot);
 
         ctx.player.Skills.GetSkill("Hunting").GainExperience(5);
         GameDisplay.AddNarrative(ctx, $"You butcher the {target.Name} and collect {loot.CurrentWeightKg:F1}kg of meat.");
+        InventoryCapacityHelper.CombineAndReport(ctx, loot);
 
         Input.WaitForKey(ctx);
     }
@@ -245,9 +245,9 @@ public static class HuntRunner
 
             // Butcher
             var loot = ButcherRunner.ButcherAnimal(target, ctx);
-            ctx.Inventory.Combine(loot);
 
             GameDisplay.AddNarrative(ctx, $"You butcher the {target.Name} and collect {loot.CurrentWeightKg:F1}kg of meat.");
+            InventoryCapacityHelper.CombineAndReport(ctx, loot);
 
             ctx.player.stealthManager.StopHunting(ctx, "Hunt successful.");
             Input.WaitForKey(ctx);

@@ -252,6 +252,65 @@ public class Inventory
         Special.AddRange(other.Special);
     }
 
+    /// <summary>
+    /// Combine inventories while respecting capacity limits.
+    /// Returns a new Inventory containing items that didn't fit.
+    /// </summary>
+    public Inventory CombineWithCapacity(Inventory other)
+    {
+        // If unlimited capacity, just combine normally
+        if (MaxWeightKg < 0)
+        {
+            Combine(other);
+            return new Inventory();
+        }
+
+        var leftovers = new Inventory();
+
+        // Add resources one by one, checking capacity
+        foreach (var type in _stacks.Keys)
+        {
+            foreach (var weight in other._stacks[type].ToArray())
+            {
+                if (CanCarry(weight))
+                    _stacks[type].Push(weight);
+                else
+                    leftovers._stacks[type].Push(weight);
+            }
+        }
+
+        // Add water (partial liters OK)
+        if (other.WaterLiters > 0)
+        {
+            double canFit = RemainingCapacityKg;
+            double toAdd = Math.Min(other.WaterLiters, canFit);
+            WaterLiters += toAdd;
+            double leftover = other.WaterLiters - toAdd;
+            if (leftover > 0)
+                leftovers.WaterLiters = leftover;
+        }
+
+        // Add tools if they fit
+        foreach (var tool in other.Tools)
+        {
+            if (CanCarry(tool.Weight))
+                Tools.Add(tool);
+            else
+                leftovers.Tools.Add(tool);
+        }
+
+        // Add special items if they fit
+        foreach (var item in other.Special)
+        {
+            if (CanCarry(item.Weight))
+                Special.Add(item);
+            else
+                leftovers.Special.Add(item);
+        }
+
+        return leftovers;
+    }
+
     // Apply multiplier to all resources
     public void ApplyMultiplier(double multiplier)
     {

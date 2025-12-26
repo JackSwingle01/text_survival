@@ -174,10 +174,10 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
             var resources = RewardGenerator.Generate(RewardPool);
             if (!resources.IsEmpty)
             {
-                ctx.Inventory.Combine(resources);
                 var desc = resources.GetDescription();
                 GameDisplay.AddSuccess(ctx, $"  + {desc}");
                 summary.Gains.Add(desc);
+                InventoryCapacityHelper.CombineAndReport(ctx, resources);
             }
         }
     }

@@ -1,5 +1,6 @@
 using text_survival.Actors.Animals;
 using text_survival.IO;
+using text_survival.Items;
 using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions;
@@ -159,8 +160,8 @@ public static class EncounterRunner
         if (butcherChoice.GetPlayerChoice(ctx))
         {
             var loot = ButcherRunner.ButcherAnimal(predator, ctx);
-            ctx.Inventory.Combine(loot);
             GameDisplay.AddNarrative(ctx, $"You collect {loot.CurrentWeightKg:F1}kg of resources.");
+            InventoryCapacityHelper.CombineAndReport(ctx, loot);
 
             // Butchering can be interrupted by events
             var result = ctx.Update(10, ActivityType.Hunting);

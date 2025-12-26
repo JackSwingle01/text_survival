@@ -2,6 +2,7 @@ using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
+using text_survival.Items;
 using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
@@ -68,8 +69,6 @@ public class ForageStrategy : IWorkStrategy
             GameDisplay.AddWarning(ctx, "Your foggy senses cause you to miss some resources.");
         }
 
-        ctx.Inventory.Combine(found);
-
         var collected = new List<string>();
         string quality = feature.GetQualityDescription();
 
@@ -82,6 +81,7 @@ public class ForageStrategy : IWorkStrategy
         {
             GameDisplay.AddNarrative(ctx, $"You found: {found.GetDescription()}");
             collected.Add(found.GetDescription());
+            InventoryCapacityHelper.CombineAndReport(ctx, found);
             if (quality == "sparse" || quality == "picked over")
                 GameDisplay.AddNarrative(ctx, "Resources here are getting scarce.");
         }
