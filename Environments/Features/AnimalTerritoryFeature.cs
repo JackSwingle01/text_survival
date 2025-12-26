@@ -131,11 +131,21 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
 
     /// <summary>
     /// Get work options for this feature.
-    /// Only returns "Set snare" if player has snares. Hunt is a separate action type.
+    /// Returns Hunt (if game available) and Set snare (if player has snares).
     /// </summary>
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
-        // Only offer "Set snare" if player has usable snares
+        // Hunt option - search for game
+        if (CanHunt())
+        {
+            yield return new WorkOption(
+                GetHuntDescription(),
+                "hunt",
+                new HuntStrategy()
+            );
+        }
+
+        // Set snare option - if player has usable snares
         var snares = ctx.Inventory.Tools.Where(t => t.Type == ToolType.Snare && t.Works).ToList();
         if (snares.Count > 0)
         {

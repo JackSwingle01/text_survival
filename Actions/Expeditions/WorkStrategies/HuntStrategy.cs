@@ -1,0 +1,96 @@
+using text_survival.Bodies;
+using text_survival.Environments;
+using text_survival.Environments.Features;
+using text_survival.IO;
+using text_survival.UI;
+
+namespace text_survival.Actions.Expeditions.WorkStrategies;
+
+/// <summary>
+/// Strategy for the search phase of hunting.
+/// Requires AnimalTerritoryFeature. Time-based search for game.
+/// If animal found, returns WorkResult.FoundAnimal for caller to handle interactive hunt.
+/// </summary>
+public class HuntStrategy : IWorkStrategy
+{
+    public string? ValidateLocation(GameContext ctx, Location location)
+    {
+        var territory = location.GetFeature<AnimalTerritoryFeature>();
+        if (territory == null)
+            return "There's no game to be found here.";
+        if (!territory.CanHunt())
+            return "This area has been overhunted.";
+        return null;
+    }
+
+    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    {
+        var choice = new Choice<int>("How long do you want to search?");
+        choice.AddOption("Quick scan - 15 min", 15);
+        choice.AddOption("Thorough search - 30 min", 30);
+        choice.AddOption("Cancel", 0);
+        return choice;
+    }
+
+    public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
+    {
+        var capacities = ctx.player.GetCapacities();
+        var effectModifiers = ctx.player.EffectRegistry.GetCapacityModifiers();
+
+        // Hunting benefits from perception and consciousness
+        var (timeFactor, warnings) = AbilityCalculator.GetWorkImpairments(
+            capacities,
+            effectModifiers,
+            checkMoving: true,      // Need to move quietly
+            checkBreathing: false,  // Not physically demanding
+            effectRegistry: ctx.player.EffectRegistry
+        );
+
+        // Check perception impairment separately for warning
+        var perception = AbilityCalculator.CalculatePerception(
+            ctx.player.Body, effectModifiers);
+        if (AbilityCalculator.IsPerceptionImpaired(perception))
+        {
+            warnings.Add("Your dulled senses make it harder to spot game.");
+        }
+
+        return ((int)(baseTime * timeFactor), warnings);
+    }
+
+    public ActivityType GetActivityType() => ActivityType.Hunting;
+
+    public string GetActivityName() => "hunting";
+
+    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    {
+        var territory = location.GetFeature<AnimalTerritoryFeature>()!;
+
+        GameDisplay.AddNarrative(ctx, "You scan the area for signs of game...");
+
+        // Search for game
+        var found = territory.SearchForGame(actualTime);
+
+        // Perception impairment reduces effective search time by 25%
+        var perception = AbilityCalculator.CalculatePerception(
+            ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers());
+        if (AbilityCalculator.IsPerceptionImpaired(perception) && found == null)
+        {
+            // Second chance with reduced time if impaired and found nothing
+            int reducedTime = (int)(actualTime * 0.75);
+            found = territory.SearchForGame(reducedTime);
+        }
+
+        if (found == null)
+        {
+            GameDisplay.AddNarrative(ctx, "You find no game. The area seems quiet.");
+            return WorkResult.Empty(actualTime);
+        }
+
+        // Found an animal - display what we see
+        GameDisplay.AddNarrative(ctx, $"You spot {found.GetTraitDescription()}.");
+        GameDisplay.AddNarrative(ctx, $"It's {found.GetActivityDescription()}.");
+
+        // Return with FoundAnimal set - caller handles interactive hunt
+        return new WorkResult([], null, actualTime, false, found);
+    }
+}

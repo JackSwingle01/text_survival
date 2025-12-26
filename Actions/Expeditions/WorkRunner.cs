@@ -231,16 +231,12 @@ public class WorkRunner(GameContext ctx)
 
     /// <summary>
     /// Check if any work is available at a location.
-    /// Does not include Hunt (separate action type) or Explore (zone-level).
+    /// Hunt is now a feature-based work option. Explore remains zone-level.
     /// </summary>
     public static bool HasWorkOptions(GameContext ctx, Location location)
     {
-        // Feature-based work options
+        // Feature-based work options (includes Hunt from AnimalTerritoryFeature)
         if (location.HasWorkOptions(ctx))
-            return true;
-
-        // Hunt - separate action type
-        if (location.CanHunt())
             return true;
 
         // Explore - zone-level action
@@ -299,10 +295,11 @@ public class WorkRunner(GameContext ctx)
     /// </summary>
     public static bool PromptTravelToDiscovery(GameContext ctx, Location discovered)
     {
+        int travelMinutes = TravelProcessor.GetTraversalMinutes(discovered, ctx.player, ctx.Inventory);
         GameDisplay.AddNarrative(ctx, $"You've found a path to {discovered.Name}.");
         GameDisplay.Render(ctx, statusText: "Discovery!");
 
-        var goChoice = new Choice<bool>("Go there now?");
+        var goChoice = new Choice<bool>($"Go there now? (~{travelMinutes} min)");
         goChoice.AddOption("Yes, head there", true);
         goChoice.AddOption("No, stay here", false);
 

@@ -85,6 +85,11 @@ public static class WebServer
                 // Wait for receive to finish
                 await receiveTask;
             }
+            catch (OperationCanceledException)
+            {
+                // Session cancelled due to timeout/disconnect - preserve save file
+                Console.WriteLine($"[WebServer] Session {sessionId} cancelled (timeout/disconnect)");
+            }
             catch (Exception ex)
             {
                 Console.WriteLine($"[WebServer] Session {sessionId} error: {ex.Message}");
@@ -186,14 +191,23 @@ public static class WebServer
         }
 
         // Run the game
-        GameRunner runner = new GameRunner(ctx);
-        runner.Run();
+        try
+        {
+            GameRunner runner = new GameRunner(ctx);
+            runner.Run();
 
-        // Delete save on death
-        SaveManager.DeleteSave(sessionId);
+            // Delete save on death
+            SaveManager.DeleteSave(sessionId);
 
-        // Show death screen
-        DisplayDeathScreen(ctx);
+            // Show death screen
+            DisplayDeathScreen(ctx);
+        }
+        catch (OperationCanceledException)
+        {
+            // Session cancelled - save is preserved, just exit cleanly
+            Console.WriteLine($"[WebServer] Game cancelled for session {sessionId}");
+            throw; // Re-throw to outer handler
+        }
     }
 
     private static void DisplayDeathScreen(GameContext ctx)

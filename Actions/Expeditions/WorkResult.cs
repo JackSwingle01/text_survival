@@ -1,16 +1,18 @@
+using text_survival.Actors.Animals;
 using text_survival.Environments;
 
 namespace text_survival.Actions.Expeditions;
 
 /// <summary>
-/// Result of a work activity (forage, harvest, explore).
-/// WorkRunner returns this; caller handles logging and expedition tracking.
+/// Result of a work activity (forage, harvest, explore, hunt search).
+/// WorkRunner returns this; caller handles logging and continuation.
 /// </summary>
 public record WorkResult(
     List<string> CollectedItems,
     Location? DiscoveredLocation,
     int MinutesElapsed,
-    bool PlayerDied
+    bool PlayerDied,
+    Animal? FoundAnimal = null  // Set by HuntStrategy when animal found - caller runs interactive hunt
 )
 {
     public static WorkResult Empty(int minutes, bool died = false) =>

@@ -225,23 +225,20 @@ public partial class GameRunner(GameContext ctx)
             var work = new WorkRunner(ctx);
             WorkResult? result = null;
 
-            // Handle special action types separately
-            if (workId == "hunt")
-            {
-                traveler.DoHuntWork();
-            }
-            else if (workId == "explore")
+            // Explore is zone-level, everything else is feature-based
+            if (workId == "explore")
             {
                 result = work.DoExplore(ctx.CurrentLocation);
             }
             else
             {
-                // All other work is feature-based - use ExecuteById
+                // Feature-based work (includes hunt) - use ExecuteById
                 result = work.ExecuteById(ctx.CurrentLocation, workId);
             }
 
             if (result != null)
             {
+                // Handle discovered locations
                 if (result.DiscoveredLocation != null)
                 {
                     GameDisplay.AddNarrative(ctx, $"Discovered: {result.DiscoveredLocation.Name}");
@@ -250,32 +247,38 @@ public partial class GameRunner(GameContext ctx)
                         traveler.TravelToLocation(result.DiscoveredLocation);
                     }
                 }
+
+                // Handle found animal from hunt search - run interactive hunt
+                if (result.FoundAnimal != null)
+                {
+                    var (outcome, huntMinutes) = HuntRunner.Run(
+                        result.FoundAnimal, ctx.CurrentLocation, ctx);
+
+                    // Time passage during hunt
+                    if (huntMinutes > 0)
+                    {
+                        ctx.Update(huntMinutes, ActivityType.Hunting);
+                    }
+                }
             }
         }
     }
 
 
     /// <summary>
-    /// Build work options menu including feature work, hunt, and explore.
+    /// Build work options menu including feature work and explore.
+    /// Hunt is now a feature-based work option from AnimalTerritoryFeature.
     /// </summary>
     private Choice<string>? GetWorkOptions(Location location)
     {
         var choice = new Choice<string>("What work do you want to do?");
         bool hasOptions = false;
 
-        // Feature-based work options
+        // Feature-based work options (includes Hunt from AnimalTerritoryFeature)
         var workOptions = location.GetWorkOptions(ctx).ToList();
         foreach (var opt in workOptions)
         {
             choice.AddOption(opt.Label, opt.Id);
-            hasOptions = true;
-        }
-
-        // Hunt - separate action type
-        if (location.CanHunt())
-        {
-            var territory = location.GetHuntingGround()!;
-            choice.AddOption(territory.GetHuntDescription(), "hunt");
             hasOptions = true;
         }
 

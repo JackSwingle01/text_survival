@@ -18,6 +18,7 @@ public class WebGameSession
     private readonly CancellationTokenSource _cts = new();
     private readonly object _socketLock = new();
     private readonly ManualResetEventSlim _reconnectEvent = new(true);
+    private WebFrame? _lastSentFrame = null;  // Cache for reconnection
 
     // Separate JSON options for web API - no ReferenceHandler needed
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -54,8 +55,11 @@ public class WebGameSession
         var json = JsonSerializer.Serialize(frame, JsonOptions);
         var bytes = Encoding.UTF8.GetBytes(json);
 
+        // Cache frame for potential resend on reconnection
         lock (_socketLock)
         {
+            _lastSentFrame = frame;
+
             if (_socket.State != WebSocketState.Open)
             {
                 // Wait for reconnection (up to 30 seconds)
@@ -98,7 +102,19 @@ public class WebGameSession
             {
                 return response;
             }
-            // Timeout - return default selection
+
+            // Timeout occurred
+            lock (_socketLock)
+            {
+                // If disconnected, throw instead of returning default
+                // This prevents silent continuation while player is disconnected
+                if (_socket.State != WebSocketState.Open)
+                {
+                    throw new OperationCanceledException("Response timeout during disconnection");
+                }
+            }
+
+            // Connected timeout - return default selection (player chose not to respond)
             return new PlayerResponse(0);
         }
         catch (OperationCanceledException)
@@ -124,6 +140,20 @@ public class WebGameSession
         {
             _socket = newSocket;
             _reconnectEvent.Set();
+
+            // Resend last frame to sync reconnected client
+            if (_lastSentFrame != null && _socket.State == WebSocketState.Open)
+            {
+                var json = JsonSerializer.Serialize(_lastSentFrame, JsonOptions);
+                var bytes = Encoding.UTF8.GetBytes(json);
+
+                _socket.SendAsync(
+                    new ArraySegment<byte>(bytes),
+                    WebSocketMessageType.Text,
+                    true,
+                    CancellationToken.None
+                ).GetAwaiter().GetResult();
+            }
         }
     }
 

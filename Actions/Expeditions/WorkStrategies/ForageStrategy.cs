@@ -27,6 +27,7 @@ public class ForageStrategy : IWorkStrategy
         choice.AddOption("Quick gather - 15 min", 15);
         choice.AddOption("Standard search - 30 min", 30);
         choice.AddOption("Thorough search - 60 min", 60);
+        choice.AddOption("Cancel", 0);
         return choice;
     }
 

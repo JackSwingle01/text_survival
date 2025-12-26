@@ -164,16 +164,6 @@ public class Location
     public bool HasWorkOptions(GameContext ctx) => GetWorkOptions(ctx).Any();
 
     /// <summary>
-    /// Hunt availability - separate from work options.
-    /// </summary>
-    public bool CanHunt() => GetFeature<AnimalTerritoryFeature>()?.CanHunt() ?? false;
-
-    /// <summary>
-    /// Get the hunting ground feature for hunt menu text.
-    /// </summary>
-    public AnimalTerritoryFeature? GetHuntingGround() => GetFeature<AnimalTerritoryFeature>();
-
-    /// <summary>
     /// Check if this location has an active heat source (fire).
     /// </summary>
     public bool HasActiveHeatSource() => GetFeature<HeatSourceFeature>()?.IsActive ?? false;

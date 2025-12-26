@@ -51,11 +51,22 @@ class GameClient {
 
     hideConnectionOverlay() {
         document.getElementById('connectionOverlay').classList.add('hidden');
+
+        // Clear any stale button states from before disconnect
+        this.awaitingResponse = false;
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.disabled = false;
+        });
     }
 
     handleFrame(frame) {
         // Clear response lock when new frame arrives
         this.awaitingResponse = false;
+
+        // Re-enable all buttons from previous frame
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.disabled = false;
+        });
 
         if (frame.state) {
             this.renderState(frame.state);
@@ -733,6 +744,11 @@ class GameClient {
         this.clearElement(actionsArea);
 
         if (!input) return;
+
+        // Before creating new buttons, clear stale disabled state
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.disabled = false;
+        });
 
         // Increment input ID to track which button set is active
         this.currentInputId++;
