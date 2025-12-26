@@ -299,6 +299,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         ActivityType.Foraging => false,
         ActivityType.Hunting => false,
         ActivityType.Exploring => false,
+        ActivityType.Chopping => false,
 
         _ => true // Default to stationary
     };
@@ -486,6 +487,7 @@ public enum ActivityType
     Foraging,       // Full events, searching for resources
     Hunting,        // Full events, tracking game
     Exploring,      // Full events, scouting new areas (away from fire)
+    Chopping,       // Full events, felling trees (strenuous)
 }
 public enum EventCondition
 {

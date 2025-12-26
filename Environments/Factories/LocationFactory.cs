@@ -77,6 +77,9 @@ public static class LocationFactory
             location.Features.Add(deadfall);
         }
 
+        // Standing timber - requires axe to fell
+        location.Features.Add(new WoodedAreaFeature("Standing Timber", null, 150));  // Mixed wood, 2.5 hours per tree
+
         if (Utils.DetermineSuccess(0.25))
         {
             var puddle = new HarvestableFeature("puddle", "Forest Puddle")
@@ -295,6 +298,9 @@ public static class LocationFactory
             .AddDeer(1.2)
             .AddRabbit(0.6);
         location.Features.Add(animalTerritory);
+
+        // Forest edge timber - mix of pine and birch
+        location.Features.Add(new WoodedAreaFeature("Forest Edge", null, 120));  // Mixed wood, 2 hours per tree
 
         return location;
     }
@@ -732,6 +738,9 @@ public static class LocationFactory
 
         // Natural rock cache
         location.Features.Add(CacheFeature.CreateRockCache());
+
+        // Hardwood standing timber - sheltered areas support oak
+        location.Features.Add(new WoodedAreaFeature("Hardwood Stand", Resource.Oak, 180));  // Oak, 3 hours per tree
 
         return location;
     }

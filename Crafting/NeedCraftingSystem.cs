@@ -417,6 +417,28 @@ public class NeedCraftingSystem
             ],
             ToolFactory = durability => new Tool("Bone Shovel", ToolType.Shovel, 1.2) { Durability = durability }
         });
+
+        // Stone Axe: Chopping tool for felling trees
+        _options.Add(new CraftOption
+        {
+            Name = "Stone Axe",
+            Description = "A heavy stone head lashed to a wooden handle. Required for felling standing trees.",
+            Category = NeedCategory.Processing,
+            CraftingTimeMinutes = 25,
+            Durability = 12,
+            Requirements = [
+                new MaterialRequirement("Stone", 1),
+                new MaterialRequirement("Sticks", 1),
+                new MaterialRequirement("PlantFiber", 1)
+            ],
+            ToolFactory = durability => new Tool("Stone Axe", ToolType.Axe, 1.5)
+            {
+                Durability = durability,
+                Damage = 12,
+                BlockChance = 0.05,
+                WeaponClass = WeaponClass.Blade
+            }
+        });
     }
 
     #endregion
