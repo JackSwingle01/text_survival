@@ -73,6 +73,7 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15,
             Durability = 5,
             Requirements = [new MaterialRequirement("Sticks", 2)],
+            RequiredTools = [ToolType.Knife],
             GearFactory = dur => new Gear
             {
                 Name = "Hand Drill",
@@ -93,6 +94,7 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 25,
             Durability = 15,
             Requirements = [new MaterialRequirement("Sticks", 3), new MaterialRequirement("PlantFiber", 1)],
+            RequiredTools = [ToolType.Knife],
             GearFactory = dur => new Gear
             {
                 Name = "Bow Drill",
@@ -216,6 +218,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
+            RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
             {
                 Name = "Stone Knife",
@@ -230,7 +233,7 @@ public class NeedCraftingSystem
             }
         });
 
-        // Bone Knife: 1 bone + 1 plant fiber
+        // Bone Knife: 1 bone + 1 stick + 1 plant fiber
         _options.Add(new CraftOption
         {
             Name = "Bone Knife",
@@ -240,8 +243,10 @@ public class NeedCraftingSystem
             Durability = 8,
             Requirements = [
                 new MaterialRequirement("Bone", 1),
+                new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
+            RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
             {
                 Name = "Bone Knife",
@@ -269,6 +274,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
+            RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
             {
                 Name = "Shale Knife",
@@ -296,6 +302,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
+            RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
             {
                 Name = "Flint Knife",
@@ -326,6 +333,7 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15,
             Durability = 5,
             Requirements = [new MaterialRequirement("Sticks", 3)],
+            RequiredTools = [ToolType.Knife],
             GearFactory = dur => new Gear
             {
                 Name = "Wooden Spear",
@@ -349,6 +357,7 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 25,
             Durability = 8,
             Requirements = [new MaterialRequirement("Logs", 1)],
+            RequiredTools = [ToolType.Knife],
             GearFactory = dur => new Gear
             {
                 Name = "Heavy Spear",
@@ -376,6 +385,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Stone", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
+            RequiredTools = [ToolType.Knife, ToolType.KnappingStone],
             GearFactory = dur => new Gear
             {
                 Name = "Stone-Tipped Spear",
@@ -528,6 +538,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
+            RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
             {
                 Name = "Bone Shovel",
@@ -552,6 +563,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sticks", 1),
                 new MaterialRequirement("PlantFiber", 1)
             ],
+            RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
             {
                 Name = "Stone Axe",
@@ -563,6 +575,26 @@ public class NeedCraftingSystem
                 Damage = 12,
                 BlockChance = 0.05,
                 WeaponClass = WeaponClass.Blade
+            }
+        });
+
+        // Knapping Stone: Essential tool for shaping flint, shale, and bone
+        _options.Add(new CraftOption
+        {
+            Name = "Knapping Stone",
+            Description = "A hard stone used for knapping. Strike flint, shale, or bone to shape tools.",
+            Category = NeedCategory.Processing,
+            CraftingTimeMinutes = 10,
+            Durability = 30,
+            Requirements = [new MaterialRequirement("Stone", 3)],
+            GearFactory = dur => new Gear
+            {
+                Name = "Knapping Stone",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.KnappingStone,
+                Weight = 1.0,
+                Durability = dur,
+                MaxDurability = dur
             }
         });
     }
@@ -947,7 +979,7 @@ public class NeedCraftingSystem
             GearFactory = dur => Gear.RopeBelt(dur)
         });
 
-        // Proper Belt: Hide + Sinew -> +4kg
+        // Proper Belt: CuredHide + Sinew -> +4kg
         _options.Add(new CraftOption
         {
             Name = "Proper Belt",
@@ -956,13 +988,13 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 30,
             Durability = 150,
             Requirements = [
-                new MaterialRequirement("Hide", 1),
+                new MaterialRequirement("CuredHide", 1),
                 new MaterialRequirement("Sinew", 1)
             ],
             GearFactory = dur => Gear.ProperBelt(dur)
         });
 
-        // Large Bag: 3 Hide + 2 Sinew + 2 Rope -> +10kg
+        // Large Bag: 3 CuredHide + 2 Sinew + 2 Rope -> +10kg
         _options.Add(new CraftOption
         {
             Name = "Large Bag",
@@ -971,7 +1003,7 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 60,
             Durability = 100,
             Requirements = [
-                new MaterialRequirement("Hide", 3),
+                new MaterialRequirement("CuredHide", 3),
                 new MaterialRequirement("Sinew", 2),
                 new MaterialRequirement("Rope", 2)
             ],

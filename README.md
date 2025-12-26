@@ -1,6 +1,6 @@
 # Text Survival
 
-A console-based survival game set in an Ice Age world. The text-only format enables deep, interconnected survival systems without graphical overhead.
+A text-based survival game set in an Ice Age world. The text-only format enables deep, interconnected survival systems without graphical overhead.
 
 ## Vision
 

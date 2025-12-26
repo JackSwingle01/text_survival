@@ -436,6 +436,7 @@ public record RecipeDto(
     int CraftingTimeMinutes,
     string CraftingTimeDisplay,  // Formatted time display
     List<MaterialRequirementDto> Requirements,
+    List<ToolRequirementDto> ToolRequirements,
     bool CanCraft,
     string OutputType  // "Gear", "Feature", "Material"
 )
@@ -450,6 +451,17 @@ public record RecipeDto(
                 IsMet: GetMaterialCount(inventory, req.Material) >= req.Count
             )
         ).ToList();
+
+        var toolRequirements = option.RequiredTools.Select(toolType =>
+        {
+            var tool = inventory.GetTool(toolType);
+            return new ToolRequirementDto(
+                ToolName: toolType.ToString(),
+                Durability: tool?.Durability ?? 0,
+                IsAvailable: tool != null,
+                IsBroken: tool != null && tool.Durability < 1
+            );
+        }).ToList();
 
         string outputType = option.ProducesGear ? "Gear"
             : option.ProducesFeature ? "Feature"
@@ -475,6 +487,7 @@ public record RecipeDto(
             CraftingTimeMinutes: displayTime,
             CraftingTimeDisplay: timeDisplay,
             Requirements: requirements,
+            ToolRequirements: toolRequirements,
             CanCraft: option.CanCraft(inventory),
             OutputType: outputType
         );
@@ -544,6 +557,16 @@ public record MaterialRequirementDto(
     int Required,
     int Available,
     bool IsMet
+);
+
+/// <summary>
+/// Tool requirement for crafting.
+/// </summary>
+public record ToolRequirementDto(
+    string ToolName,
+    int Durability,
+    bool IsAvailable,
+    bool IsBroken
 );
 
 /// <summary>

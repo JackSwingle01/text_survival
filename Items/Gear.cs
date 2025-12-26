@@ -30,7 +30,8 @@ public enum ToolType
     Snare,
     Treatment,  // Consumable medical treatment (teas, poultices, salves)
     Torch,      // Portable light source
-    Shovel      // Digging tool - speeds up camp setup, fire pits, snow shelters
+    Shovel,     // Digging tool - speeds up camp setup, fire pits, snow shelters
+    KnappingStone  // Hammer stone for shaping flint, shale, and bone tools
 }
 
 /// <summary>

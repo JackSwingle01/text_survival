@@ -1244,6 +1244,44 @@ class GameClient {
         });
         info.appendChild(requirements);
 
+        // Tool requirements (if any)
+        if (recipe.toolRequirements && recipe.toolRequirements.length > 0) {
+            const toolReqs = document.createElement('div');
+            toolReqs.className = 'recipe-tool-requirements';
+
+            recipe.toolRequirements.forEach((tool, i) => {
+                const toolSpan = document.createElement('span');
+
+                const icon = document.createElement('span');
+                icon.className = 'material-symbols-outlined';
+
+                if (!tool.isAvailable) {
+                    toolSpan.className = 'tool-requirement missing';
+                    icon.textContent = 'close';
+                    toolSpan.appendChild(icon);
+                    toolSpan.appendChild(document.createTextNode(`${tool.toolName} (required)`));
+                } else if (tool.isBroken) {
+                    toolSpan.className = 'tool-requirement broken';
+                    icon.textContent = 'close';
+                    toolSpan.appendChild(icon);
+                    toolSpan.appendChild(document.createTextNode(`${tool.toolName} (broken)`));
+                } else {
+                    toolSpan.className = 'tool-requirement available';
+                    icon.textContent = 'check';
+                    toolSpan.appendChild(icon);
+                    toolSpan.appendChild(document.createTextNode(`${tool.toolName} (${tool.durability} uses left)`));
+                }
+
+                toolReqs.appendChild(toolSpan);
+
+                if (i < recipe.toolRequirements.length - 1) {
+                    toolReqs.appendChild(document.createTextNode(', '));
+                }
+            });
+
+            info.appendChild(toolReqs);
+        }
+
         const time = document.createElement('div');
         time.className = 'recipe-time';
         time.textContent = recipe.craftingTimeDisplay;

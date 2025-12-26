@@ -21,6 +21,11 @@ public class CraftOption
     public required List<MaterialRequirement> Requirements { get; init; }
 
     /// <summary>
+    /// Tool requirements - tools needed to craft this item (consume 1 durability per tool).
+    /// </summary>
+    public List<ToolType> RequiredTools { get; init; } = [];
+
+    /// <summary>
     /// Optional prerequisite check function. Returns error message if blocked, null if available.
     /// Used for progression requirements (e.g., Stone Pit requires Mound Pit) or environmental constraints.
     /// </summary>
@@ -45,7 +50,7 @@ public class CraftOption
     public List<MaterialOutput>? MaterialOutputs { get; init; }
 
     /// <summary>
-    /// Check if player has all required materials.
+    /// Check if player has all required materials and tools.
     /// </summary>
     public bool CanCraft(Inventory inventory)
     {
@@ -54,6 +59,15 @@ public class CraftOption
             if (GetMaterialCount(inventory, req.Material) < req.Count)
                 return false;
         }
+
+        // Check required tools
+        foreach (var toolType in RequiredTools)
+        {
+            var tool = inventory.GetTool(toolType);
+            if (tool == null || tool.Durability < 1)
+                return false;
+        }
+
         return true;
     }
 
@@ -72,6 +86,16 @@ public class CraftOption
                 int need = req.Count - have;
                 missing.Add($"{need} {req.Material.ToLower()}");
             }
+        }
+
+        // Check tool requirements
+        foreach (var toolType in RequiredTools)
+        {
+            var tool = inventory.GetTool(toolType);
+            if (tool == null)
+                missing.Add($"{toolType} (required tool)");
+            else if (tool.Durability < 1)
+                missing.Add($"{toolType} (broken - no durability left)");
         }
 
         return (missing.Count == 0, missing);
@@ -102,6 +126,13 @@ public class CraftOption
         foreach (var req in Requirements)
         {
             ConsumeMaterial(inventory, req.Material, req.Count);
+        }
+
+        // Consume tool durability (1 per required tool)
+        foreach (var toolType in RequiredTools)
+        {
+            var tool = inventory.GetTool(toolType)!;
+            tool.Use();
         }
 
         // If this produces materials instead of an item, add them to inventory
@@ -137,6 +168,13 @@ public class CraftOption
         foreach (var req in Requirements)
         {
             ConsumeMaterial(inventory, req.Material, req.Count);
+        }
+
+        // Consume tool durability (1 per required tool)
+        foreach (var toolType in RequiredTools)
+        {
+            var tool = inventory.GetTool(toolType)!;
+            tool.Use();
         }
 
         return FeatureFactory!();
@@ -181,12 +219,30 @@ public class CraftOption
     public string GetRequirementsSummary(Inventory inventory)
     {
         var parts = new List<string>();
+
+        // Material requirements
         foreach (var req in Requirements)
         {
             int have = GetMaterialCount(inventory, req.Material);
             string status = have >= req.Count ? "ok" : $"need {req.Count - have} more";
             parts.Add($"{req.Count} {req.Material.ToLower()} ({status})");
         }
+
+        // Tool requirements
+        foreach (var toolType in RequiredTools)
+        {
+            var tool = inventory.GetTool(toolType);
+            string status;
+            if (tool == null)
+                status = "missing";
+            else if (tool.Durability < 1)
+                status = "broken";
+            else
+                status = $"{tool.Durability} uses left";
+
+            parts.Add($"{toolType} ({status})");
+        }
+
         return string.Join(", ", parts);
     }
 
@@ -195,7 +251,15 @@ public class CraftOption
     /// </summary>
     public string GetRequirementsShort()
     {
-        var parts = Requirements.Select(r => $"{r.Count} {r.Material.ToLower()}");
+        var parts = Requirements.Select(r => $"{r.Count} {r.Material.ToLower()}").ToList();
+
+        // Add tool requirements
+        if (RequiredTools.Count > 0)
+        {
+            var toolParts = RequiredTools.Select(t => $"{t}");
+            parts.AddRange(toolParts);
+        }
+
         return string.Join(", ", parts);
     }
 
