@@ -11,7 +11,6 @@ namespace text_survival.Actions;
 public class GameContext(Player player, Location camp, Weather weather)
 {
     public Player player { get; set; } = player;
-    [System.Text.Json.Serialization.JsonIgnore]
     public Location CurrentLocation { get; set; } = camp;
     public Location Camp { get; set; } = camp;
     [System.Text.Json.Serialization.JsonIgnore]
