@@ -217,12 +217,53 @@ public class GameContext(Player player, Location camp, Weather weather)
     /// </summary>
     /// <param name="isStationary">If true, structural shelter applies (resting, crafting).
     /// If false, only environmental shelter applies (foraging, hunting, traveling).</param>
-    public SurvivalContext GetSurvivalContext(bool isStationary = true) => new SurvivalContext
+    public SurvivalContext GetSurvivalContext(bool isStationary = true)
     {
-        ActivityLevel = 1.5,
-        LocationTemperature = CurrentLocation.GetTemperature(isStationary),
-        ClothingInsulation = Inventory.TotalInsulation,
-    };
+        double clothingInsulation = Inventory.TotalInsulation;
+
+        // Get current wetness
+        var wetEffect = player.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault();
+        double currentWetness = wetEffect?.Severity ?? 0;
+
+        // Wetness reduces insulation effectiveness
+        if (wetEffect != null)
+        {
+            // At full wetness (severity 1.0), clothing loses 70% effectiveness
+            double insulationLossFactor = wetEffect.Severity * 0.70;
+            clothingInsulation *= (1 - insulationLossFactor);
+        }
+
+        // Calculate overhead cover (environmental + shelter if stationary)
+        double overheadCover = CurrentLocation.OverheadCoverLevel;
+        if (isStationary)
+        {
+            var shelter = CurrentLocation.GetFeature<ShelterFeature>();
+            if (shelter != null)
+                overheadCover = Math.Max(overheadCover, shelter.OverheadCoverage);
+        }
+
+        // Extract weather conditions
+        bool isRaining = Weather.CurrentCondition == Weather.WeatherCondition.Rainy ||
+                         Weather.CurrentCondition == Weather.WeatherCondition.Stormy;
+        bool isBlizzard = Weather.CurrentCondition == Weather.WeatherCondition.Blizzard;
+        bool isSnowing = Weather.CurrentCondition == Weather.WeatherCondition.LightSnow;
+
+        return new SurvivalContext
+        {
+            ActivityLevel = 1.5,
+            LocationTemperature = CurrentLocation.GetTemperature(isStationary),
+            ClothingInsulation = clothingInsulation,
+
+            // Wetness context
+            OverheadCover = overheadCover,
+            Precipitation = Weather.Precipitation,
+            WindSpeed = Weather.WindSpeed,
+            IsRaining = isRaining,
+            IsSnowing = isSnowing,
+            IsBlizzard = isBlizzard,
+            CurrentWetnessSeverity = currentWetness,
+        };
+    }
 
     /// <summary>
     /// Determine if current activity is stationary (benefits from structural shelter).

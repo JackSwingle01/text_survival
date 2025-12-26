@@ -40,6 +40,7 @@ public static class SurvivalProcessor
 	{
 		var result = ProcessBaseNeeds(body, context, minutesElapsed);
 		result.Combine(ProcessTemperature(body, context, minutesElapsed));
+		result.Combine(ProcessWetness(context, minutesElapsed));
 
 		// Project stats after delta to check consequences
 		double projectedCalories = body.CalorieStore + result.StatsDelta.CalorieDelta;
@@ -441,6 +442,72 @@ public static class SurvivalProcessor
 		if (temperature < BaseBodyTemperature) return TemperatureStage.Cool;
 		if (temperature <= HyperthermiaThreshold) return TemperatureStage.Warm;
 		return TemperatureStage.Hot;
+	}
+
+	/// <summary>
+	/// Calculate hourly drying rate based on environmental conditions.
+	/// Higher values = faster drying.
+	/// </summary>
+	private static double CalculateDryingRate(SurvivalContext context)
+	{
+		double baseRate = 0;
+
+		if (context.FireProximityBonus > 0)
+		{
+			// Near fire: 2-5/hr (dry in 12-30 min)
+			baseRate = 2.0 + (context.FireProximityBonus / 5.0);
+		}
+		else if (context.LocationTemperature > 32)
+		{
+			// Above freezing: slow natural drying
+			baseRate = Math.Max(0, (context.LocationTemperature - 32) / 20.0);
+		}
+		// else: below freezing = 0 (clothes freeze wet)
+
+		// Wind accelerates drying
+		baseRate += context.WindSpeed;
+
+		return baseRate;
+	}
+
+	/// <summary>
+	/// Process wetness accumulation and drying based on weather and context.
+	/// Returns Wet effect with updated severity.
+	/// </summary>
+	private static SurvivalProcessorResult ProcessWetness(SurvivalContext context, int minutesElapsed)
+	{
+		var result = new SurvivalProcessorResult();
+
+		// Calculate wetness accumulation per minute
+		double wetnessDelta = 0;
+		double exposureFactor = 1 - context.OverheadCover;
+
+		if (exposureFactor > 0)
+		{
+			if (context.IsRaining)
+				wetnessDelta = 0.01 * context.Precipitation * exposureFactor;
+			else if (context.IsBlizzard)
+				wetnessDelta = 0.005 * context.Precipitation * exposureFactor;
+			else if (context.IsSnowing)
+				wetnessDelta = 0.001 * context.Precipitation * exposureFactor;
+		}
+
+		// Calculate drying (reduction in wetness per minute)
+		double dryingRate = CalculateDryingRate(context);
+		double dryingDelta = (dryingRate / 60.0) * minutesElapsed; // Convert hourly rate to per-minute
+
+		// Calculate new severity (accumulation - drying)
+		double newSeverity = Math.Clamp(
+			context.CurrentWetnessSeverity + wetnessDelta * minutesElapsed - dryingDelta,
+			0, 1);
+
+		// Create/update effect if wet or getting wet
+		if (newSeverity > 0.01 || wetnessDelta > 0)
+		{
+			result.Effects.Add(EffectFactory.Wet(newSeverity));
+		}
+
+		return result;
 	}
 
 	public static SurvivalProcessorResult Sleep(Body body, int minutes)

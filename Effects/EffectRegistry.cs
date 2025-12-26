@@ -38,6 +38,34 @@ public class EffectRegistry
         return effect.ApplicationMessage;
     }
 
+    /// <summary>
+    /// Set the severity of an effect, creating it if it doesn't exist.
+    /// Unlike AddEffect which takes max severity, this directly sets the value.
+    /// Used for effects like Wetness where severity can both increase and decrease.
+    /// </summary>
+    public string? SetEffectSeverity(Effect effect)
+    {
+        var existingEffect = _effects.FirstOrDefault(e =>
+            e.EffectKind == effect.EffectKind &&
+            e.TargetBodyPart == effect.TargetBodyPart);
+
+        if (existingEffect != null)
+        {
+            double oldSeverity = existingEffect.Severity;
+            existingEffect.Severity = effect.Severity;
+
+            // Return threshold message if severity changed
+            return GetThresholdMessage(existingEffect, oldSeverity);
+        }
+        else
+        {
+            // New effect - add it
+            _effects.Add(effect);
+            effect.IsActive = true;
+            return effect.ApplicationMessage;
+        }
+    }
+
     public string? RemoveEffect(Effect effect)
     {
         if (_effects.Remove(effect))

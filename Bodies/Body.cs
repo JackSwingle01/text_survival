@@ -10,6 +10,15 @@ public class SurvivalContext
     public double ClothingInsulation;
     public double ActivityLevel;
     public double FireProximityBonus; // Direct radiant heat from fire proximity (0-2 scale multiplied by fire heat)
+
+    // Wetness system context
+    public double OverheadCover;           // 0-1 combined environmental + shelter coverage
+    public double Precipitation;           // 0-1 intensity from weather
+    public double WindSpeed;               // 0-1 intensity from weather
+    public bool IsRaining;                 // Weather condition flag
+    public bool IsSnowing;                 // Weather condition flag (light snow)
+    public bool IsBlizzard;                // Weather condition flag
+    public double CurrentWetnessSeverity;  // 0-1 current wetness from effect
 }
 
 public class Body

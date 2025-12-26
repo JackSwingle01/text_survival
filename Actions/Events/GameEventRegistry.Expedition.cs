@@ -205,7 +205,7 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.WaterSource),
                     new EventResult("Thin ice. You break through.", 0.15, 15)
                         .ModerateFall()
-                        .WithEffects(EffectFactory.Cold(-15, 45), EffectFactory.Wet(0.6, 90)),
+                        .WithEffects(EffectFactory.Cold(-15, 45), EffectFactory.Wet(0.6)),
                     new EventResult("Contaminated or mineral. Not drinkable.", 0.10, 20),
                     new EventResult("Perfect source. Clear, accessible, sheltered.", 0.05, 25)
                         .Rewards(RewardPool.WaterSource)
@@ -560,14 +560,14 @@ public static partial class GameEventRegistry
                 "Straight through. Get wet, get it over with.",
                 [
                     new EventResult("Cold but quick. You're through.", 0.50, 8)
-                        .WithEffects(EffectFactory.Wet(0.5, 45), EffectFactory.Cold(-10, 30)),
+                        .WithEffects(EffectFactory.Wet(0.5), EffectFactory.Cold(-10, 30)),
                     new EventResult("Deeper than expected. Soaked to the waist.", 0.30, 12)
-                        .WithEffects(EffectFactory.Wet(0.8, 90), EffectFactory.Cold(-15, 45)),
+                        .WithEffects(EffectFactory.Wet(0.8), EffectFactory.Cold(-15, 45)),
                     new EventResult("Current stronger than it looked. You fight to stay upright.", 0.15, 15)
-                        .WithEffects(EffectFactory.Wet(0.9, 120), EffectFactory.Cold(-18, 60), EffectFactory.Exhausted(0.2, 30)),
+                        .WithEffects(EffectFactory.Wet(0.9), EffectFactory.Cold(-18, 60), EffectFactory.Exhausted(0.2, 30)),
                     new EventResult("You slip. Water closes over your head for a terrifying moment.", 0.05, 18)
                         .ModerateFall()
-                        .WithEffects(EffectFactory.Wet(1.0, 150), EffectFactory.Cold(-25, 90))
+                        .WithEffects(EffectFactory.Wet(1.0), EffectFactory.Cold(-25, 90))
                         .Frightening()
                 ])
             .Choice("Find Another Route",
@@ -576,7 +576,7 @@ public static partial class GameEventRegistry
                     new EventResult("You find a narrow point. Easy crossing.", 0.40, 20),
                     new EventResult("Long detour but you stay dry.", 0.35, 30),
                     new EventResult("No good options. You end up crossing anyway.", 0.20, 25)
-                        .WithEffects(EffectFactory.Wet(0.5, 45), EffectFactory.Cold(-10, 30)),
+                        .WithEffects(EffectFactory.Wet(0.5), EffectFactory.Cold(-10, 30)),
                     new EventResult("The detour reveals something interesting.", 0.05, 25)
                         .FindsSupplies()
                 ])
@@ -590,7 +590,7 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Nauseous(0.15, 45)),
                     new EventResult("Ice breaks. You're in the water.", 0.05, 15)
                         .Damage(4, DamageType.Blunt, "ice break")
-                        .WithEffects(EffectFactory.Wet(0.9, 120))
+                        .WithEffects(EffectFactory.Wet(0.9))
                         .SevereCold()
                 ]);
     }

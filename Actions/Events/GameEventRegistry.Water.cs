@@ -30,7 +30,7 @@ public static partial class GameEventRegistry
                     new EventResult("You find solid ice. Slow but safe.", 0.60, 15),
                     new EventResult("The route takes you around, but you stay dry.", 0.30, 20),
                     new EventResult("Even the careful route gives way. Your foot punches through.", 0.10, 12)
-                        .WithEffects(EffectFactory.Wet(0.4, 60))
+                        .WithEffects(EffectFactory.Wet(0.4))
                         .WithCold(-8, 30)
                 ])
             .Choice("Go Around",
@@ -49,11 +49,11 @@ public static partial class GameEventRegistry
                     new EventResult("The ice cracks but holds. You scramble to solid ground.", 0.30, 8)
                         .Unsettling(),
                     new EventResult("Your foot breaks through. Icy water floods your boot.", 0.20, 12)
-                        .WithEffects(EffectFactory.Wet(0.6, 90))
+                        .WithEffects(EffectFactory.Wet(0.6))
                         .ModerateCold()
                         .Damage(2, DamageType.Blunt, "ice edge"),
                     new EventResult("The ice gives way. You plunge into freezing water.", 0.10, 18)
-                        .WithEffects(EffectFactory.Wet(1.0, 150))
+                        .WithEffects(EffectFactory.Wet(1.0))
                         .WithCold(-25, 90)
                         .Terrifying()
                         .ModerateFall()
@@ -77,7 +77,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Careful steps keep you dry.", 0.70, 10),
                     new EventResult("A splash soaks your ankle. Cold but manageable.", 0.25, 8)
-                        .WithEffects(EffectFactory.Wet(0.2, 30)),
+                        .WithEffects(EffectFactory.Wet(0.2)),
                     new EventResult("You slip but catch yourself. Close call.", 0.05, 5)
                         .Shaken()
                 ])
@@ -86,10 +86,10 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You stay focused and stay dry.", 0.50, 0),
                     new EventResult("Meltwater seeps into your boot. The cold creeps up your leg.", 0.35, 0)
-                        .WithEffects(EffectFactory.Wet(0.3, 45))
+                        .WithEffects(EffectFactory.Wet(0.3))
                         .MinorCold(),
                     new EventResult("Your foot goes right through a puddle into slush.", 0.15, 5)
-                        .WithEffects(EffectFactory.Wet(0.5, 60))
+                        .WithEffects(EffectFactory.Wet(0.5))
                         .WithCold(-10, 35)
                 ]);
     }

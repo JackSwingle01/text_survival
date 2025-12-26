@@ -458,18 +458,24 @@ public static class EffectFactory
     };
 
     /// <summary>
-    /// Wet - soaked clothing and skin multiplies cold effects.
+    /// Wet - soaked clothing and skin reduces insulation effectiveness.
     /// Makes you more vulnerable to hypothermia and cold damage.
-    /// Severity determines the multiplier: (1 + severity) applied to cold effects.
+    /// Severity determines insulation loss: 70% at full wetness.
+    /// Wetness accumulates from precipitation and dries based on fire, temperature, wind.
     /// </summary>
-    public static Effect Wet(double severity, int durationMinutes = 60) => new()
+    public static Effect Wet(double severity) => new()
     {
         EffectKind = "Wet",
         Severity = severity,
-        HourlySeverityChange = -60.0 / durationMinutes,
+        HourlySeverityChange = 0, // Drying handled by SurvivalProcessor
         StatsDelta = new() { TemperatureDelta = -1.0 / 60.0 },  // Mild direct cooling
-        ApplicationMessage = "You're soaked through. The cold cuts deeper.",
-        RemovalMessage = "You've dried off."
+        ApplicationMessage = "You're getting wet. Your clothing clings to your skin.",
+        RemovalMessage = "You've dried off.",
+        ThresholdMessages = [
+            new Effect.ThresholdMessage(0.3, "Your clothes are damp. The cold seeps in.", true),
+            new Effect.ThresholdMessage(0.6, "You're soaked through. The cold cuts deep.", true),
+            new Effect.ThresholdMessage(0.9, "You're completely drenched. Every movement feels ice-cold.", true),
+        ]
     };
 
     private static CapacityModifierContainer Capacities(params (string name, double value)[] modifiers)

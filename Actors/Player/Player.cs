@@ -42,7 +42,13 @@ public class Player : Actor
 
         // 2. Add effects from survival (hypothermia, etc)
         foreach (var effect in result.Effects)
-            if (EffectRegistry.AddEffect(effect) is string msg) messages.Add(msg);
+        {
+            // Wet effect can both increase and decrease, so use SetEffectSeverity
+            string? msg = effect.EffectKind == "Wet"
+                ? EffectRegistry.SetEffectSeverity(effect)
+                : EffectRegistry.AddEffect(effect);
+            if (msg != null) messages.Add(msg);
+        }
         messages.AddRange(result.Messages);
 
         // 3. Tick existing effects
