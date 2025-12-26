@@ -111,8 +111,12 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
     }
 
     // Convenience methods for common resource types
-    public HarvestableFeature AddLogs(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
-        AddResource(displayName, Resource.Log, maxQuantity, weightPerUnit, respawnHoursPerUnit);
+    public HarvestableFeature AddLogs(string displayName, Resource woodType, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit)
+    {
+        if (woodType != Resource.Pine && woodType != Resource.Birch && woodType != Resource.Oak)
+            throw new ArgumentException($"Wood type must be Pine, Birch, or Oak, got {woodType}");
+        return AddResource(displayName, woodType, maxQuantity, weightPerUnit, respawnHoursPerUnit);
+    }
 
     public HarvestableFeature AddSticks(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
         AddResource(displayName, Resource.Stick, maxQuantity, weightPerUnit, respawnHoursPerUnit);
@@ -124,7 +128,7 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
         AddResource(displayName, Resource.Berries, maxQuantity, weightPerUnit, respawnHoursPerUnit);
 
     public HarvestableFeature AddWater(string displayName, int maxQuantity, double litersPerUnit, double respawnHoursPerUnit) =>
-        AddResource(displayName, Resource.Log, maxQuantity, litersPerUnit, respawnHoursPerUnit, isWater: true);  // ResourceType unused for water
+        AddResource(displayName, Resource.Stick, maxQuantity, litersPerUnit, respawnHoursPerUnit, isWater: true);  // ResourceType unused for water
 
     public HarvestableFeature AddPlantFiber(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
         AddResource(displayName, Resource.PlantFiber, maxQuantity, weightPerUnit, respawnHoursPerUnit);

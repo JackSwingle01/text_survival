@@ -2,6 +2,7 @@ using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
+using text_survival.Items;
 using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
@@ -70,10 +71,23 @@ public class CraftingProjectStrategy : IWorkStrategy
     {
         var project = location.GetFeature<CraftingProjectFeature>()!;
 
-        GameDisplay.AddNarrative(ctx, $"You work on the {project.ProjectName}...");
+        // Check for shovel bonus - double progress for digging projects
+        bool hasShovel = ctx.Inventory.GetTool(ToolType.Shovel) != null;
+        double progressMultiplier = 1.0;
 
-        // Add progress
-        project.AddProgress(actualTime, location);
+        if (project.BenefitsFromShovel && hasShovel)
+        {
+            progressMultiplier = 2.0;
+            GameDisplay.AddNarrative(ctx, $"Your shovel speeds up the digging work on the {project.ProjectName}...");
+        }
+        else
+        {
+            GameDisplay.AddNarrative(ctx, $"You work on the {project.ProjectName}...");
+        }
+
+        // Add progress (with shovel bonus if applicable)
+        double effectiveProgress = actualTime * progressMultiplier;
+        project.AddProgress(effectiveProgress, location);
 
         var collected = new List<string>();
 

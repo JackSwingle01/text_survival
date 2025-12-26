@@ -118,8 +118,18 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     }
 
     // Convenience methods for common configurations
-    public ForageFeature AddLogs(double abundance = 0.3, double minKg = 1.0, double maxKg = 3.0) =>
-        AddResource("firewood", Resource.Log, abundance, minKg, maxKg);
+
+    /// <summary>
+    /// Add mixed wood types for generic forest areas.
+    /// Distributes abundance across Pine (40%), Birch (35%), Oak (25%).
+    /// </summary>
+    public ForageFeature AddMixedWood(double abundance = 0.3, double minKg = 1.0, double maxKg = 3.0)
+    {
+        AddPine(abundance * 0.4, minKg, maxKg);
+        AddBirch(abundance * 0.35, minKg, maxKg);
+        AddOak(abundance * 0.25, minKg, maxKg);
+        return this;
+    }
 
     public ForageFeature AddSticks(double abundance = 0.6, double minKg = 0.1, double maxKg = 0.5) =>
         AddResource("kindling", Resource.Stick, abundance, minKg, maxKg);

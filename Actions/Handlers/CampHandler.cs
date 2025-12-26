@@ -1,5 +1,6 @@
 using text_survival.Environments;
 using text_survival.Environments.Features;
+using text_survival.Items;
 using text_survival.UI;
 
 namespace text_survival.Actions.Handlers;
@@ -17,18 +18,29 @@ public static class CampHandler
     {
         GameDisplay.AddNarrative(ctx, "You can setup a camp here to make a fire and rest.");
 
-        var confirm = new Choice<bool>("Do you want to setup camp here? (45 min)");
+        // Check for shovel - halves camp setup time
+        bool hasShovel = ctx.Inventory.GetTool(ToolType.Shovel) != null;
+        int setupTimeMinutes = hasShovel ? 22 : 45;
+
+        var confirm = new Choice<bool>($"Do you want to setup camp here? ({setupTimeMinutes} min)");
         confirm.AddOption("Yes, establish camp here", true);
         confirm.AddOption("No, not yet", false);
 
         if (!confirm.GetPlayerChoice(ctx))
             return;
 
-        GameDisplay.AddNarrative(ctx, "You clear the area and gather materials to make a place to rest...");
+        if (hasShovel)
+        {
+            GameDisplay.AddNarrative(ctx, "Your shovel makes quick work of clearing the ground and preparing the site...");
+        }
+        else
+        {
+            GameDisplay.AddNarrative(ctx, "You clear the area and gather materials to make a place to rest...");
+        }
         GameDisplay.Render(ctx, statusText: "Setting camp.");
 
-        // Time cost: 45 minutes to set up
-        GameDisplay.UpdateAndRenderProgress(ctx, "Setting up camp", 45, ActivityType.Crafting);
+        // Time cost: 45 minutes normally, 22 minutes with shovel
+        GameDisplay.UpdateAndRenderProgress(ctx, "Setting up camp", setupTimeMinutes, ActivityType.Crafting);
 
         if (!ctx.player.IsAlive) return;
 

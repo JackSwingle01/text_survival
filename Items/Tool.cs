@@ -114,6 +114,10 @@ public class Tool
     /// <summary>Torch - portable light source, burns for ~1 hour, provides modest warmth</summary>
     public static Tool Torch(string name = "Torch") =>
         new(name, ToolType.Torch, 0.5) { Durability = 1 };
+
+    /// <summary>Shovel - digging tool that speeds up camp setup, fire pits, and snow shelters</summary>
+    public static Tool Shovel(string name = "Bone Shovel") =>
+        new(name, ToolType.Shovel, 1.2);
 }
 
 public enum ToolType
@@ -132,7 +136,8 @@ public enum ToolType
     Unarmed,
     Snare,
     Treatment,  // Consumable medical treatment (teas, poultices, salves)
-    Torch       // Portable light source
+    Torch,      // Portable light source
+    Shovel      // Digging tool - speeds up camp setup, fire pits, snow shelters
 }
 
 /// <summary>

@@ -29,23 +29,6 @@ public static class FireHandler
             AddWoodFuelOption(fuelChoices, fuelMap, fire, inv[Resource.Birch], "birch", FuelType.BirchWood, () => inv.Pop(Resource.Birch), "steady burn");
             AddWoodFuelOption(fuelChoices, fuelMap, fire, inv[Resource.Oak], "oak", FuelType.OakWood, () => inv.Pop(Resource.Oak), "long burn");
 
-            // Generic logs fallback (for legacy inventory)
-            if (inv.Count(Resource.Log) > 0)
-            {
-                if (fire.CanAddFuel(FuelType.Softwood))
-                {
-                    string label = $"Add log ({inv.Count(Resource.Log)} @ {inv.Weight(Resource.Log):F1}kg)";
-                    fuelChoices.Add(label);
-                    fuelMap[label] = ("log", FuelType.Softwood, () => inv.Pop(Resource.Log));
-                }
-                else
-                {
-                    string disabledLabel = "[dim]Add log (fire too small)[/]";
-                    fuelChoices.Add(disabledLabel);
-                    fuelMap[disabledLabel] = ("disabled", FuelType.Softwood, () => 0);
-                }
-            }
-
             if (inv.Count(Resource.Stick) > 0 && fire.CanAddFuel(FuelType.Kindling))
             {
                 string label = $"Add stick ({inv.Count(Resource.Stick)} @ {inv.Weight(Resource.Stick):F1}kg)";
@@ -87,7 +70,7 @@ public static class FireHandler
             if (fuelChoices.Count == 0 && !hasCharcoal)
             {
                 // Check if we have fuel but fire is too cold
-                bool hasFuelButTooCold = (inv.Count(Resource.Log) > 0 || inv.Count(Resource.Stick) > 0) && inv.Count(Resource.Tinder) == 0;
+                bool hasFuelButTooCold = (inv.HasLogs || inv.Count(Resource.Stick) > 0) && inv.Count(Resource.Tinder) == 0;
                 if (hasFuelButTooCold)
                     GameDisplay.AddWarning(ctx, "The fire is too cold. You need tinder to build it up first.");
                 else

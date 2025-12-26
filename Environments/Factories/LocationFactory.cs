@@ -31,7 +31,7 @@ public static class LocationFactory
 
         // Forage feature - forest is rich in fuel and medicinals
         var forageFeature = new ForageFeature(2.0)
-            .AddLogs(1.5, 1.5, 3.5)        // good logs
+            .AddMixedWood(1.5, 1.5, 3.5)   // mixed forest: pine, birch, oak
             .AddSticks(3.0, 0.2, 0.6)      // plenty of sticks
             .AddTinder(2.0, 0.02, 0.08)    // bark, dry leaves
             .AddBerries(0.3, 0.05, 0.15)   // occasional berries
@@ -71,7 +71,7 @@ public static class LocationFactory
                 Description = "A wind-felled tree with dry, harvestable wood.",
                 MinutesToHarvest = 10
             };
-            deadfall.AddLogs("firewood", maxQuantity: 4, weightPerUnit: 2.5, respawnHoursPerUnit: 720.0);  // logs don't really respawn
+            deadfall.AddLogs("firewood", Resource.Pine, maxQuantity: 4, weightPerUnit: 2.5, respawnHoursPerUnit: 720.0);  // logs don't really respawn
             deadfall.AddSticks("branches", maxQuantity: 8, weightPerUnit: 0.3, respawnHoursPerUnit: 168.0);
             deadfall.AddTinder("bark strips", maxQuantity: 3, weightPerUnit: 0.05, respawnHoursPerUnit: 168.0);
             location.Features.Add(deadfall);
@@ -149,7 +149,7 @@ public static class LocationFactory
         // Riverbeds have driftwood, willows along banks
         var forageFeature = new ForageFeature(1.2)
             .AddSticks(2.0, 0.2, 0.5)     // driftwood
-            .AddLogs(1.0, 1.0, 2.0)       // occasional larger driftwood
+            .AddBirch(1.0, 1.0, 2.0)      // birch driftwood (birch grows along water)
             .AddStone(0.6, 0.2, 0.5)      // river-smoothed stones, good for knapping
             .AddWillowBark(0.25)          // willows grow along water - pain relief
             .AddSphagnum(0.15);           // peat moss in boggy spots
@@ -281,7 +281,8 @@ public static class LocationFactory
         // Clearings have moderate resources + forest edge plants
         var forageFeature = new ForageFeature(1.3)
             .AddSticks(2.5, 0.15, 0.4)
-            .AddLogs(1.0, 1.0, 2.5)
+            .AddPine(0.5, 1.0, 2.5)        // forest edge: pine and birch
+            .AddBirch(0.5, 1.0, 2.5)
             .AddTinder(1.8, 0.02, 0.06)
             .AddBerries(0.25, 0.05, 0.12)
             .AddPlantFiber(0.4, 0.05, 0.1)  // undergrowth for cordage
@@ -432,7 +433,8 @@ public static class LocationFactory
 
         // Exceptional fuel resources - the pull. Dead trees have fungi
         var forageFeature = new ForageFeature(3.0)
-            .AddLogs(3.0, 1.5, 4.0)
+            .AddPine(2.5, 1.5, 4.0)        // mostly pine deadfall
+            .AddBirch(0.5, 1.5, 3.5)       // some birch mixed in
             .AddSticks(4.0, 0.2, 0.7)
             .AddTinder(3.0, 0.02, 0.1)
             .AddAmadou(0.25)              // tinder fungus on dead trees
@@ -445,7 +447,7 @@ public static class LocationFactory
             Description = "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
             MinutesToHarvest = 20
         };
-        deadfall.AddLogs("dry logs", maxQuantity: 8, weightPerUnit: 2.5, respawnHoursPerUnit: 0);
+        deadfall.AddLogs("dry pine logs", Resource.Pine, maxQuantity: 8, weightPerUnit: 2.5, respawnHoursPerUnit: 0);
         deadfall.AddSticks("branches", maxQuantity: 15, weightPerUnit: 0.3, respawnHoursPerUnit: 0);
         deadfall.AddTinder("bark strips", maxQuantity: 5, weightPerUnit: 0.05, respawnHoursPerUnit: 0);
         location.Features.Add(deadfall);
@@ -708,10 +710,11 @@ public static class LocationFactory
             DiscoveryText = "A natural hollow, shielded from the worst winds. This would make a good camp."
         };
 
-        // Good forage - sheltered areas support more life
+        // Good forage - sheltered areas support more life (hardwoods dominate)
         var forageFeature = new ForageFeature(1.6)
             .AddSticks(2.5, 0.2, 0.5)
-            .AddLogs(1.2, 1.2, 2.8)
+            .AddOak(0.7, 1.5, 3.0)         // hardwoods in sheltered areas
+            .AddBirch(0.5, 1.2, 2.5)
             .AddTinder(1.5, 0.02, 0.07)
             .AddBerries(0.4, 0.05, 0.15)
             .AddPlantFiber(0.6, 0.05, 0.12)
@@ -756,7 +759,7 @@ public static class LocationFactory
             .AddCharcoal(0.8, 0.05, 0.2)    // Abundant charcoal
             .AddTinder(3.0, 0.02, 0.08)     // Dry debris everywhere
             .AddSticks(2.5, 0.2, 0.5)       // Dry branches
-            .AddLogs(1.5, 1.0, 2.5);        // Standing dead wood
+            .AddPine(1.5, 1.0, 2.5);        // Standing dead pine
         location.Features.Add(forageFeature);
 
         // Very sparse game - little cover
@@ -898,7 +901,7 @@ public static class LocationFactory
             Description = "Massive oak and ash. Dense, long-burning wood — if you can cut it.",
             MinutesToHarvest = 20
         };
-        hardwood.AddLogs("hardwood logs", maxQuantity: 8, weightPerUnit: 4.0, respawnHoursPerUnit: 168.0);
+        hardwood.AddLogs("hardwood logs", Resource.Oak, maxQuantity: 8, weightPerUnit: 4.0, respawnHoursPerUnit: 168.0);
         hardwood.RequiresTool(ToolType.Axe, ToolTier.Basic);
         location.Features.Add(hardwood);
 
@@ -1128,7 +1131,7 @@ public static class LocationFactory
         // Abundant chewed sticks and logs - easy fuel
         var forageFeature = new ForageFeature(2.5)
             .AddSticks(3.0, 0.2, 0.6)    // Gnawed branches everywhere
-            .AddLogs(1.5, 0.8, 2.0)      // Beaver-felled logs
+            .AddBirch(1.5, 0.8, 2.0)     // Beaver-felled birch (beavers prefer birch)
             .AddWillowBark(0.3);          // Willows on banks
         location.Features.Add(forageFeature);
 
@@ -1147,7 +1150,7 @@ public static class LocationFactory
             Description = "Woven branches packed with mud. Easy fuel — if you don't mind the consequences.",
             MinutesToHarvest = 15
         };
-        dam.AddLogs("dam logs", maxQuantity: 12, weightPerUnit: 2.0, respawnHoursPerUnit: 0);  // Never respawns
+        dam.AddLogs("dam logs", Resource.Birch, maxQuantity: 12, weightPerUnit: 2.0, respawnHoursPerUnit: 0);  // Never respawns
         dam.AddSticks("dam sticks", maxQuantity: 20, weightPerUnit: 0.25, respawnHoursPerUnit: 0);
         location.Features.Add(dam);
 
@@ -1270,9 +1273,9 @@ public static class LocationFactory
                 salvage.Resources.Add(Resource.PlantFiber,0.2);
                 break;
             case "never_returned":
-                salvage.Resources.Add(Resource.Log,1.5);
-                salvage.Resources.Add(Resource.Log,1.5);
-                salvage.Resources.Add(Resource.Log,1.5);
+                salvage.Resources.Add(Resource.Pine, 1.5);
+                salvage.Resources.Add(Resource.Birch, 1.5);
+                salvage.Resources.Add(Resource.Oak, 1.5);
                 if (Utils.DetermineSuccess(0.4))
                     salvage.Equipment.Add(new Equipment("Cached Coat", EquipSlot.Chest, 1.8, 0.12));
                 break;

@@ -54,7 +54,7 @@ public static class RewardGenerator
             () => resources.Add(Resource.Stick, RandomWeight(0.2, 0.5)),
             () => resources.Add(Resource.Tinder, RandomWeight(0.1, 0.3)),
             () => resources.Add(Resource.Berries, RandomWeight(0.1, 0.25)),
-            () => resources.Add(Resource.Log, RandomWeight(0.8, 1.5))
+            () => resources.Add(RandomWoodType(), RandomWeight(0.8, 1.5))
         };
 
         // Shuffle and pick
@@ -111,7 +111,7 @@ public static class RewardGenerator
         }
 
         // Plus good fuel
-        resources.Add(Resource.Log, RandomWeight(1.5, 2.5));
+        resources.Add(RandomWoodType(), RandomWeight(1.5, 2.5));
 
         return resources;
     }
@@ -150,6 +150,16 @@ public static class RewardGenerator
     private static double RandomWeight(double min, double max)
     {
         return min + Random.Shared.NextDouble() * (max - min);
+    }
+
+    private static Resource RandomWoodType()
+    {
+        return Random.Shared.Next(3) switch
+        {
+            0 => Resource.Pine,
+            1 => Resource.Birch,
+            _ => Resource.Oak
+        };
     }
 
     // Extended pool generators

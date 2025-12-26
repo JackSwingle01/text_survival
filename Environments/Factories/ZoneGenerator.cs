@@ -105,7 +105,7 @@ public class ZoneGenerator
         // Starting location - matches Forest for abundant fuel
         var forageFeature = new ForageFeature(2.0)
             .AddSticks(3.0, 0.2, 0.6)
-            .AddLogs(1.5, 1.5, 3.5)
+            .AddMixedWood(1.5, 1.5, 3.5)   // mixed forest: pine, birch, oak
             .AddTinder(2.0, 0.02, 0.08)
             .AddBerries(0.3, 0.05, 0.15)
             .AddPlantFiber(0.5, 0.05, 0.15);

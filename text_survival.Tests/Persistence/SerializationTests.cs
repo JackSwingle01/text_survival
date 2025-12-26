@@ -58,7 +58,7 @@ public class SerializationTests
         // Add inventory diversity (test Stack<double>)
         original.Inventory.Add(Resource.Stick, 0.3);
         original.Inventory.Add(Resource.Stick, 0.25);  // Multiple stacks
-        original.Inventory.Add(Resource.Log, 1.2);
+        original.Inventory.Add(Resource.Pine, 1.2);
         original.Inventory.Add(Resource.Berries, 0.15);
         original.Inventory.WaterLiters = 1.5;
 

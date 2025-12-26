@@ -209,7 +209,7 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
         };
 
         // Cached supplies - intentionally good stuff
-        salvage.Resources.Add(Resource.Log, 2.0);
+        salvage.Resources.Add(Resource.Pine, 2.0);
         salvage.Resources.Add(Resource.Tinder, 0.05);
         salvage.Resources.Add(Resource.Tinder, 0.05);
 

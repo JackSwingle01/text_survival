@@ -8,13 +8,14 @@ public enum ResourceCategory
     Tinder,
     Food,
     Medicine,
-    Material
+    Material,
+    Log  // Groups typed wood: Pine, Birch, Oak
 }
 
 public enum Resource
 {
-    // Fuel
-    Log, Stick, Pine, Birch, Oak,
+    // Fuel (wood types: Pine, Birch, Oak are also logs)
+    Stick, Pine, Birch, Oak,
 
     // Tinder
     Tinder, BirchBark,
@@ -37,8 +38,13 @@ public static class ResourceCategories
     {
         [ResourceCategory.Fuel] = new()
         {
-            Resource.Log, Resource.Stick, Resource.Tinder,
+            Resource.Stick, Resource.Tinder,
             Resource.Pine, Resource.Birch, Resource.Oak, Resource.BirchBark
+        },
+
+        [ResourceCategory.Log] = new()
+        {
+            Resource.Pine, Resource.Birch, Resource.Oak
         },
 
         [ResourceCategory.Tinder] = new()
@@ -172,6 +178,27 @@ public class Inventory
     public bool HasWater => WaterLiters > 0;
     public bool HasMeat => _stacks[Resource.RawMeat].Count > 0 || _stacks[Resource.CookedMeat].Count > 0;
 
+    // Log helpers (aggregates typed wood: Pine, Birch, Oak)
+    public bool HasLogs => Has(ResourceCategory.Log);
+    public int LogCount => GetCount(ResourceCategory.Log);
+    public double LogWeight => GetWeight(ResourceCategory.Log);
+
+    /// <summary>
+    /// Pop a log, preferring the specified type if available.
+    /// </summary>
+    public double PopLog(Resource? preferred = null)
+    {
+        if (preferred.HasValue && _stacks[preferred.Value].Count > 0)
+            return Pop(preferred.Value);
+
+        foreach (var logType in ResourceCategories.Items[ResourceCategory.Log])
+        {
+            if (_stacks[logType].Count > 0)
+                return Pop(logType);
+        }
+        return 0;
+    }
+
     // Weight calculations
     public double ResourceWeight => _stacks.Values.Sum(s => s.Sum());
     public double ToolsWeight => Tools.Sum(t => t.Weight);
@@ -251,7 +278,7 @@ public class Inventory
 
     public bool CanStartFire =>
         _stacks[Resource.Tinder].Count > 0 &&
-        (_stacks[Resource.Stick].Count > 0 || _stacks[Resource.Log].Count > 0);
+        (_stacks[Resource.Stick].Count > 0 || HasLogs);
 
     public double DropAllMeat()
     {

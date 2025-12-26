@@ -36,6 +36,12 @@ public class CraftingProjectFeature : LocationFeature, IWorkableFeature
     public Dictionary<Resource, double> MaterialsInvested { get; set; } = new();
 
     /// <summary>
+    /// Whether this project benefits from having a shovel (digging-related work).
+    /// When true, progress is doubled if player has a shovel.
+    /// </summary>
+    public bool BenefitsFromShovel { get; set; } = false;
+
+    /// <summary>
     /// Progress as a percentage (0-1).
     /// </summary>
     public double ProgressPct => TimeRequiredMinutes > 0 ? TimeInvestedMinutes / TimeRequiredMinutes : 0;

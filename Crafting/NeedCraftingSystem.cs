@@ -401,6 +401,22 @@ public class NeedCraftingSystem
             ],
             FeatureFactory = () => new CuringRackFeature()
         });
+
+        // Bone Shovel: Digging tool for camp improvements
+        _options.Add(new CraftOption
+        {
+            Name = "Bone Shovel",
+            Description = "A flat bone lashed to a sturdy stick. Speeds up digging for fire pits, snow shelters, and camp setup.",
+            Category = NeedCategory.Processing,
+            CraftingTimeMinutes = 20,
+            Durability = 15,
+            Requirements = [
+                new MaterialRequirement("Bone", 2),
+                new MaterialRequirement("Sticks", 1),
+                new MaterialRequirement("PlantFiber", 1)
+            ],
+            ToolFactory = durability => new Tool("Bone Shovel", ToolType.Shovel, 1.2) { Durability = durability }
+        });
     }
 
     #endregion

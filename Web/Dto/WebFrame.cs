@@ -146,9 +146,9 @@ public record InventoryDto(
             ToolWarnings: ExtractToolWarnings(inv),
             TotalInsulation: inv.TotalInsulation,
 
-            // Fuel - generic
-            LogCount: inv.Count(Resource.Log),
-            LogsKg: inv.Weight(Resource.Log),
+            // Fuel - aggregate logs (Pine + Birch + Oak)
+            LogCount: inv.LogCount,
+            LogsKg: inv.LogWeight,
             StickCount: inv.Count(Resource.Stick),
             SticksKg: inv.Weight(Resource.Stick),
             TinderCount: inv.Count(Resource.Tinder),

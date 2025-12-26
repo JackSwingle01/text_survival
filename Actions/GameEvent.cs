@@ -402,8 +402,8 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
                     // Prefer sticks over logs (less wasteful)
                     if (inv.Count(Resource.Stick) > 0)
                         inv.Pop(Resource.Stick);
-                    else if (inv.Count(Resource.Log) > 0)
-                        inv.Pop(Resource.Log);
+                    else if (inv.HasLogs)
+                        inv.PopLog();
                     break;
 
                 case ResourceType.Tinder:
