@@ -164,10 +164,14 @@ public class GameContext(Player player, Location camp, Weather weather)
     /// </summary>
     public void EstablishCamp(Location location)
     {
+        // Only show message if actually changing camp location
+        bool isNewCamp = Camp != location;
+
         // Update camp pointer
         Camp = location;
 
-        GameDisplay.AddSuccess(this, $"You've established camp at {location.Name}.");
+        if (isNewCamp)
+            GameDisplay.AddSuccess(this, $"You've established camp at {location.Name}.");
     }
 
     // === LOCATION MANAGEMENT ===
