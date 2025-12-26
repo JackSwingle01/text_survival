@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Crafting;
 using text_survival.Web.Dto;
 
 namespace text_survival.Web;
@@ -11,6 +12,7 @@ public static class WebIO
 {
     private static readonly TimeSpan ResponseTimeout = TimeSpan.FromMinutes(5);
     private static readonly Dictionary<string, InventoryDto> _currentInventory = new();
+    private static readonly Dictionary<string, CraftingDto> _currentCrafting = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -23,6 +25,13 @@ public static class WebIO
         return null;
     }
 
+    private static CraftingDto? GetCrafting(string? sessionId)
+    {
+        if (sessionId != null && _currentCrafting.TryGetValue(sessionId, out var dto))
+            return dto;
+        return null;
+    }
+
     /// <summary>
     /// Clear the current inventory display for a session.
     /// </summary>
@@ -30,6 +39,15 @@ public static class WebIO
     {
         if (ctx.SessionId != null)
             _currentInventory.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
+    /// Clear the current crafting display for a session.
+    /// </summary>
+    public static void ClearCrafting(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentCrafting.Remove(ctx.SessionId);
     }
 
     /// <summary>
@@ -48,7 +66,8 @@ public static class WebIO
             new InputRequestDto("select", prompt, list.Select(display).ToList()),
             null,
             null,
-            GetInventory(ctx.SessionId)
+            GetInventory(ctx.SessionId),
+            GetCrafting(ctx.SessionId)
         );
 
         session.Send(frame);
@@ -70,7 +89,8 @@ public static class WebIO
             new InputRequestDto("confirm", prompt, null),
             null,
             null,
-            GetInventory(ctx.SessionId)
+            GetInventory(ctx.SessionId),
+            GetCrafting(ctx.SessionId)
         );
 
         session.Send(frame);
@@ -92,7 +112,8 @@ public static class WebIO
             new InputRequestDto("anykey", message, null),
             null,
             null,
-            GetInventory(ctx.SessionId)
+            GetInventory(ctx.SessionId),
+            GetCrafting(ctx.SessionId)
         );
 
         session.Send(frame);
@@ -114,7 +135,8 @@ public static class WebIO
             new InputRequestDto("select", prompt, choices),
             null,
             null,
-            GetInventory(ctx.SessionId)
+            GetInventory(ctx.SessionId),
+            GetCrafting(ctx.SessionId)
         );
 
         session.Send(frame);
@@ -136,7 +158,9 @@ public static class WebIO
             GameStateDto.FromContext(ctx),
             null,
             progress.HasValue ? new ProgressDto(progress.Value, total ?? progress.Value) : null,
-            statusText
+            statusText,
+            null,  // No inventory in render-only frames
+            null   // No crafting in render-only frames
         );
 
         session.Send(frame);
@@ -165,5 +189,14 @@ public static class WebIO
     {
         if (ctx.SessionId == null) return;
         _currentInventory[ctx.SessionId] = InventoryDto.FromInventory(inventory, title);
+    }
+
+    /// <summary>
+    /// Set the crafting screen to display. Will be included in subsequent input frames.
+    /// </summary>
+    public static void RenderCrafting(GameContext ctx, NeedCraftingSystem crafting, string title = "CRAFTING")
+    {
+        if (ctx.SessionId == null) return;
+        _currentCrafting[ctx.SessionId] = CraftingDto.FromContext(ctx, crafting);
     }
 }

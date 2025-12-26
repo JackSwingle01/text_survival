@@ -630,10 +630,9 @@ public static partial class GameEventRegistry
             .Choice("Warm Them Now",
                 "Stop everything. Get circulation back before tissue dies.",
                 [
-                    new EventResult("Painful but effective. Feeling returns.", weight: 0.60, minutes: 10)
-                        .WithEffects(EffectFactory.Frostbite(0.2)),
+                    new EventResult("Painful but effective. Feeling returns.", weight: 0.60, minutes: 10),
                     new EventResult("Takes longer. More pain. But they'll heal.", weight: 0.25, minutes: 20)
-                        .WithEffects(EffectFactory.Frostbite(0.3), EffectFactory.Clumsy(0.3, 60)),
+                        .WithEffects(EffectFactory.Clumsy(0.3, 60)),
                     new EventResult("Caught it in time. No lasting damage.", weight: 0.10, minutes: 8),
                     new EventResult("Too late for some tissue. Permanent damage.", weight: 0.05, minutes: 15)
                         .Damage(8, DamageType.Internal, "severe frostbite")
@@ -666,8 +665,15 @@ public static partial class GameEventRegistry
 
     private static GameEvent OldAche(GameContext ctx)
     {
+        var descriptions = new[]
+        {
+            "Your joints ache. The cold's settled deep.",
+            "Stiffness creeps through your limbs. Every joint protests.",
+            "Your body resists movement. Everything feels tight, reluctant."
+        };
+
         return new GameEvent("Old Ache",
-            "The damp cold settles into your joints. An old injury flares up, or your body simply protests the abuse.", 0.7)
+            descriptions[Random.Shared.Next(descriptions.Length)], 0.7)
             .Requires(EventCondition.Awake)
             .WithConditionFactor(EventCondition.LowTemperature, 1.5)
             .WithSituationFactor(Situations.Vulnerable, 2.0)  // Injured, slow, impaired, no weapon

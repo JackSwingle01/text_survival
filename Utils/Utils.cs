@@ -76,5 +76,17 @@ namespace text_survival
         // This should never happen if weights are positive
         return choices.Keys.Last();
     }
+
+    /// <summary>
+    /// Format fire time display: shows minutes if under 60, hours (1 decimal) if 60+
+    /// </summary>
+    public static string FormatFireTime(int minutes)
+    {
+        if (minutes <= 59)
+            return $"{minutes} minutes";
+
+        double hours = minutes / 60.0;
+        return $"{hours:F1} hours";
+    }
     }
 }

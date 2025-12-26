@@ -380,7 +380,7 @@ public partial class GameRunner(GameContext ctx)
         if (minutes <= 5)
             GameDisplay.AddDanger(ctx, $"Your fire will die in {minutes} minutes!");
         else if (minutes <= 15)
-            GameDisplay.AddWarning(ctx, $"Fire burning low - {minutes} minutes remaining.");
+            GameDisplay.AddWarning(ctx, $"Fire burning low - {Utils.FormatFireTime(minutes)} remaining.");
     }
 
     private bool CanStartFire()

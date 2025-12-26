@@ -145,7 +145,6 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         foreach (var effect in Effects)
         {
             ctx.player.AddLog(ctx.player.EffectRegistry.AddEffect(effect));
-            GameDisplay.AddDanger(ctx, $"  - {effect.EffectKind}");
             summary.Losses.Add(effect.EffectKind);
         }
     }
@@ -155,12 +154,10 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         if (NewDamage is not null)
         {
             var dmgResult = ctx.player.Body.Damage(NewDamage);
-            GameDisplay.AddDanger(ctx, $"  - Injured ({NewDamage.Source})");
             summary.Losses.Add($"Injury: {NewDamage.Source}");
             foreach (var effect in dmgResult.TriggeredEffects)
             {
                 ctx.player.AddLog(ctx.player.EffectRegistry.AddEffect(effect));
-                GameDisplay.AddDanger(ctx, $"  - {effect.EffectKind}");
                 summary.Losses.Add(effect.EffectKind);
             }
         }

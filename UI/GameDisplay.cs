@@ -588,7 +588,7 @@ public static class GameDisplay
     //         string phaseColor = GetFirePhaseColor(phase);
 
     //         lines.Add(new Markup($"[{phaseColor}]{phase}[/]"));
-    //         lines.Add(new Markup($"[{timeColor}]{minutes} min remaining[/] [grey]({fire.EffectiveBurnRateKgPerHour:F1} kg/hr)[/]"));
+    //         lines.Add(new Markup($"[{timeColor}]{Utils.FormatFireTime(minutes)} remaining[/] [grey]({fire.EffectiveBurnRateKgPerHour:F1} kg/hr)[/]"));
 
     //         // Show fuel status with unlit indicator
     //         string fuelStatus;
@@ -1060,6 +1060,23 @@ public static class GameDisplay
         // AnsiConsole.Write(mainPanel);
     }
 
+    /// <summary>
+    /// Render the crafting screen showing all categories and recipes.
+    /// </summary>
+    public static void RenderCraftingScreen(GameContext ctx, Crafting.NeedCraftingSystem crafting, string? title = null)
+    {
+        var headerTitle = title ?? "CRAFTING";
+
+        // Route to web UI when session is active
+        if (ctx.SessionId != null)
+        {
+            Web.WebIO.RenderCrafting(ctx, crafting, headerTitle);
+            return;
+        }
+
+        // Console rendering would go here (currently empty/commented like inventory)
+    }
+
     // private static void AddEquipmentLine(List<IRenderable> lines, string slot, Equipment? equipment)
     // {
     //     if (equipment != null)
@@ -1107,7 +1124,7 @@ public static class GameDisplay
     //     if (fire != null && (fire.IsActive || fire.HasEmbers))
     //     {
     //         int minutes = (int)(fire.HoursRemaining * 60);
-    //         TestModeIO.WriteOutput($"[Fire: {fire.GetFirePhase()} - {minutes} min]\n");
+    //         TestModeIO.WriteOutput($"[Fire: {fire.GetFirePhase()} - {Utils.FormatFireTime(minutes)}]\n");
     //     }
 
     //     // Show torch status if active

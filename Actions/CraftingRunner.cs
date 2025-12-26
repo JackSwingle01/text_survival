@@ -16,34 +16,56 @@ public class CraftingRunner(GameContext ctx)
     private readonly NeedCraftingSystem _crafting = new();
 
     /// <summary>
-    /// Run the crafting menu. Shows need categories, then options.
+    /// Run the crafting menu. Shows all categories and recipes on one screen.
     /// </summary>
     public void Run()
     {
-        var needs = _crafting.GetAvailableNeeds(_ctx.Inventory);
+        // Render the crafting screen
+        GameDisplay.RenderCraftingScreen(_ctx, _crafting);
 
-        if (needs.Count == 0)
+        // Get all craftable options across all categories
+        var allCraftable = new List<(NeedCategory category, CraftOption option)>();
+
+        foreach (var category in Enum.GetValues<NeedCategory>())
         {
-            GameDisplay.AddNarrative(_ctx, "You don't have materials to make anything useful.");
+            var options = _crafting.GetOptionsForNeed(category, _ctx.Inventory);
+            options = options.Where(o => !IsFeatureAlreadyBuilt(o)).ToList();
+            var craftable = options.Where(o => o.CanCraft(_ctx.Inventory));
+
+            foreach (var opt in craftable)
+                allCraftable.Add((category, opt));
+        }
+
+        if (allCraftable.Count == 0)
+        {
+            GameDisplay.AddNarrative(_ctx, "You don't have materials to make anything.");
             GameDisplay.Render(_ctx, statusText: "Thinking.");
             Input.WaitForKey(_ctx);
+            Web.WebIO.ClearCrafting(_ctx);
             return;
         }
 
-        var choice = new Choice<NeedCategory?>("What do you need?");
-        foreach (var need in needs)
+        // Let player select a recipe
+        var choice = new Choice<(NeedCategory, CraftOption)?>("Select a recipe to craft:");
+
+        foreach (var (category, option) in allCraftable)
         {
-            choice.AddOption(GetNeedLabel(need), need);
+            string categoryLabel = GetCategoryShortLabel(category);
+            string label = $"[{categoryLabel}] {option.Name} - {option.GetRequirementsShort()} - {option.CraftingTimeMinutes} min";
+            choice.AddOption(label, (category, option));
         }
-        choice.AddOption("Never mind", null);
 
-        GameDisplay.Render(_ctx, statusText: "Thinking.");
-        var selectedNeed = choice.GetPlayerChoice(_ctx);
+        choice.AddOption("Cancel", null);
 
-        if (selectedNeed == null)
+        GameDisplay.Render(_ctx, statusText: "Planning.");
+        var selected = choice.GetPlayerChoice(_ctx);
+
+        Web.WebIO.ClearCrafting(_ctx);
+
+        if (selected == null)
             return;
 
-        ShowOptionsForNeed(selectedNeed.Value);
+        DoCraft(selected.Value.Item2);
     }
 
     /// <summary>
@@ -75,7 +97,13 @@ public class CraftingRunner(GameContext ctx)
         if (!confirm.GetPlayerChoice(_ctx))
             return false;
 
-        return ShowOptionsForNeed(need);
+        // Show crafting screen for this category
+        GameDisplay.RenderCraftingScreen(_ctx, _crafting, $"CRAFT {GetNeedLabel(need).ToUpper()}");
+
+        var result = ShowOptionsForNeed(need);
+
+        Web.WebIO.ClearCrafting(_ctx);
+        return result;
     }
 
     private bool ShowOptionsForNeed(NeedCategory need)
@@ -85,25 +113,7 @@ public class CraftingRunner(GameContext ctx)
         // Filter out features that already exist at camp (can only build one)
         options = options.Where(o => !IsFeatureAlreadyBuilt(o)).ToList();
 
-        if (options.Count == 0)
-        {
-            GameDisplay.AddNarrative(_ctx, "You don't have any materials for this.");
-            return false;
-        }
-
-        // Show what's available first
         var craftable = options.Where(o => o.CanCraft(_ctx.Inventory)).ToList();
-        var uncraftable = options.Where(o => !o.CanCraft(_ctx.Inventory)).ToList();
-
-        if (uncraftable.Any())
-        {
-            GameDisplay.AddNarrative(_ctx, "Not enough materials for:");
-            foreach (var opt in uncraftable)
-            {
-                var (_, missing) = opt.CheckRequirements(_ctx.Inventory);
-                GameDisplay.AddNarrative(_ctx, $"  {opt.Name} - need: {string.Join(", ", missing)}");
-            }
-        }
 
         if (craftable.Count == 0)
         {
@@ -253,6 +263,20 @@ public class CraftingRunner(GameContext ctx)
 
         return true;
     }
+
+    private static string GetCategoryShortLabel(NeedCategory category) => category switch
+    {
+        NeedCategory.FireStarting => "Fire",
+        NeedCategory.CuttingTool => "Cutting",
+        NeedCategory.HuntingWeapon => "Weapon",
+        NeedCategory.Trapping => "Trap",
+        NeedCategory.Processing => "Process",
+        NeedCategory.Treatment => "Medical",
+        NeedCategory.Equipment => "Gear",
+        NeedCategory.Lighting => "Light",
+        NeedCategory.Carrying => "Carry",
+        _ => category.ToString()
+    };
 
     private static string GetNeedLabel(NeedCategory need) => need switch
     {

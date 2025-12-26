@@ -32,7 +32,6 @@ public static class ConsumptionHandler
         {
             int caloriesPercent = (int)(body.CalorieStore / SurvivalProcessor.MAX_CALORIES * 100);
             int hydrationPercent = (int)(body.Hydration / SurvivalProcessor.MAX_HYDRATION * 100);
-            GameDisplay.AddNarrative(ctx, $"Food: {caloriesPercent}% | Water: {hydrationPercent}%");
             GameDisplay.Render(ctx, statusText: "Eating.");
 
             var options = new List<string>();

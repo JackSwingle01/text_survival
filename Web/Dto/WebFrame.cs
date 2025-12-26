@@ -1,3 +1,6 @@
+using text_survival.Actions;
+using text_survival.Crafting;
+using text_survival.Environments.Features;
 using text_survival.Items;
 
 namespace text_survival.Web.Dto;
@@ -11,7 +14,8 @@ public record WebFrame(
     InputRequestDto? Input,
     ProgressDto? Progress,
     string? StatusText = null,
-    InventoryDto? Inventory = null
+    InventoryDto? Inventory = null,
+    CraftingDto? Crafting = null
 );
 
 /// <summary>
@@ -337,3 +341,196 @@ public record GearSummaryDto(
     int MedicinalCount,
     bool HasRareMaterials
 );
+
+/// <summary>
+/// Full crafting data for crafting screen.
+/// Organized by NeedCategory with craftable/uncraftable separation.
+/// </summary>
+public record CraftingDto(
+    string Title,
+    List<CategorySectionDto> Categories,
+    MaterialInventoryDto PlayerMaterials
+)
+{
+    public static CraftingDto FromContext(GameContext ctx, NeedCraftingSystem crafting)
+    {
+        var categories = new List<CategorySectionDto>();
+
+        foreach (var needCategory in Enum.GetValues<NeedCategory>())
+        {
+            var options = crafting.GetOptionsForNeed(needCategory, ctx.Inventory);
+
+            // Filter out already-built features
+            options = options.Where(o => !IsFeatureAlreadyBuilt(o, ctx)).ToList();
+
+            if (options.Count == 0) continue; // Skip empty categories
+
+            var craftable = options.Where(o => o.CanCraft(ctx.Inventory))
+                .Select(o => RecipeDto.FromCraftOption(o, ctx.Inventory))
+                .ToList();
+
+            var uncraftable = options.Where(o => !o.CanCraft(ctx.Inventory))
+                .Select(o => RecipeDto.FromCraftOption(o, ctx.Inventory))
+                .ToList();
+
+            categories.Add(new CategorySectionDto(
+                CategoryName: GetCategoryDisplayName(needCategory),
+                CategoryKey: needCategory.ToString(),
+                CraftableRecipes: craftable,
+                UncraftableRecipes: uncraftable
+            ));
+        }
+
+        return new CraftingDto(
+            Title: "CRAFTING",
+            Categories: categories,
+            PlayerMaterials: MaterialInventoryDto.FromInventory(ctx.Inventory)
+        );
+    }
+
+    private static bool IsFeatureAlreadyBuilt(CraftOption option, GameContext ctx)
+    {
+        if (!option.ProducesFeature) return false;
+
+        if (option.Name == "Curing Rack")
+            return ctx.Camp.GetFeature<CuringRackFeature>() != null;
+
+        return false;
+    }
+
+    private static string GetCategoryDisplayName(NeedCategory category) => category switch
+    {
+        NeedCategory.FireStarting => "Fire-Starting",
+        NeedCategory.CuttingTool => "Cutting Tools",
+        NeedCategory.HuntingWeapon => "Hunting Weapons",
+        NeedCategory.Trapping => "Trapping",
+        NeedCategory.Processing => "Processing & Tools",
+        NeedCategory.Treatment => "Medical Treatments",
+        NeedCategory.Equipment => "Clothing & Gear",
+        NeedCategory.Lighting => "Light Sources",
+        NeedCategory.Carrying => "Carrying Gear",
+        _ => category.ToString()
+    };
+}
+
+/// <summary>
+/// A category section with its recipes.
+/// </summary>
+public record CategorySectionDto(
+    string CategoryName,
+    string CategoryKey,
+    List<RecipeDto> CraftableRecipes,
+    List<RecipeDto> UncraftableRecipes
+);
+
+/// <summary>
+/// Individual recipe with all display information.
+/// </summary>
+public record RecipeDto(
+    string Name,
+    string Description,
+    int CraftingTimeMinutes,
+    List<MaterialRequirementDto> Requirements,
+    bool CanCraft,
+    string OutputType  // "Gear", "Feature", "Material"
+)
+{
+    public static RecipeDto FromCraftOption(CraftOption option, Inventory inventory)
+    {
+        var requirements = option.Requirements.Select(req =>
+            new MaterialRequirementDto(
+                MaterialName: FormatMaterialName(req.Material),
+                Required: req.Count,
+                Available: GetMaterialCount(inventory, req.Material),
+                IsMet: GetMaterialCount(inventory, req.Material) >= req.Count
+            )
+        ).ToList();
+
+        string outputType = option.ProducesGear ? "Gear"
+            : option.ProducesFeature ? "Feature"
+            : "Material";
+
+        return new RecipeDto(
+            Name: option.Name,
+            Description: option.Description,
+            CraftingTimeMinutes: option.CraftingTimeMinutes,
+            Requirements: requirements,
+            CanCraft: option.CanCraft(inventory),
+            OutputType: outputType
+        );
+    }
+
+    private static int GetMaterialCount(Inventory inv, string material)
+    {
+        if (Enum.TryParse<Resource>(material, out var resource))
+            return inv.Count(resource);
+        if (Enum.TryParse<ResourceCategory>(material, out var category))
+            return inv.GetCount(category);
+        return 0;
+    }
+
+    private static string FormatMaterialName(string material) => material switch
+    {
+        "Sticks" => "sticks",
+        "Logs" => "logs",
+        "Stone" => "stone",
+        "Bone" => "bone",
+        "Hide" => "hide",
+        "PlantFiber" => "plant fiber",
+        "Sinew" => "sinew",
+        "BirchBark" => "birch bark",
+        "Flint" => "flint",
+        "Pyrite" => "pyrite",
+        "Amadou" => "amadou",
+        "Shale" => "shale",
+        "Tinder" => "tinder",
+        "CuredHide" => "cured hide",
+        "ScrapedHide" => "scraped hide",
+        "RawFiber" => "raw fiber",
+        "RawFat" => "raw fat",
+        "Rope" => "rope",
+        "Tallow" => "tallow",
+        "WillowBark" => "willow bark",
+        "PineNeedles" => "pine needles",
+        "RoseHip" => "rose hips",
+        "Chaga" => "chaga",
+        "BirchPolypore" => "birch polypore",
+        "Usnea" => "usnea",
+        "SphagnumMoss" => "sphagnum moss",
+        "PineResin" => "pine resin",
+        _ => material.ToLower()
+    };
+}
+
+/// <summary>
+/// Material requirement with availability status.
+/// </summary>
+public record MaterialRequirementDto(
+    string MaterialName,
+    int Required,
+    int Available,
+    bool IsMet
+);
+
+/// <summary>
+/// Player's current material inventory (compact for context).
+/// </summary>
+public record MaterialInventoryDto(
+    Dictionary<string, int> Materials
+)
+{
+    public static MaterialInventoryDto FromInventory(Inventory inv)
+    {
+        var materials = new Dictionary<string, int>();
+
+        // Add all resources with non-zero counts
+        foreach (var resource in Enum.GetValues<Resource>())
+        {
+            int count = inv.Count(resource);
+            if (count > 0)
+                materials[resource.ToString()] = count;
+        }
+
+        return new MaterialInventoryDto(materials);
+    }
+}

@@ -74,10 +74,7 @@ public static class InventoryTransferHelper
                 break;
             }
 
-            GameDisplay.AddNarrative(ctx, $"Carrying: {playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg");
-            if (storage.MaxWeightKg > 0 && storage.MaxWeightKg < 500)
-                GameDisplay.AddNarrative(ctx, $"{storageName}: {storage.CurrentWeightKg:F1}/{storage.MaxWeightKg:F0} kg");
-            GameDisplay.Render(ctx, statusText: "Organizing.");
+            GameDisplay.Render(ctx, addSeparator: false, statusText: "Organizing.");
 
             var options = items.Select(i => i.Description).ToList();
             options.Add("Done");
@@ -123,8 +120,7 @@ public static class InventoryTransferHelper
                 break;
             }
 
-            GameDisplay.AddNarrative(ctx, $"Carrying: {playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg");
-            GameDisplay.Render(ctx, statusText: "Organizing.");
+            GameDisplay.Render(ctx, addSeparator: false, statusText: "Organizing.");
 
             var options = items.Select(i => i.Description).ToList();
             options.Add("Done");

@@ -130,4 +130,23 @@ public class UtilsTests
         Assert.True(commonCount > 600,
             $"Common item should appear ~80% of the time. Actual: {commonCount}/{trials}");
     }
+
+    [Theory]
+    [InlineData(0, "0 minutes")]
+    [InlineData(1, "1 minutes")]
+    [InlineData(30, "30 minutes")]
+    [InlineData(59, "59 minutes")]
+    [InlineData(60, "1.0 hours")]
+    [InlineData(90, "1.5 hours")]
+    [InlineData(120, "2.0 hours")]
+    [InlineData(125, "2.1 hours")]
+    [InlineData(180, "3.0 hours")]
+    public void FormatFireTime_FormatsCorrectly(int minutes, string expected)
+    {
+        // Act
+        string result = text_survival.Utils.FormatFireTime(minutes);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
 }
