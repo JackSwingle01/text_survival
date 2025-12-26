@@ -159,8 +159,8 @@ public static class WebIO
             null,
             progress.HasValue ? new ProgressDto(progress.Value, total ?? progress.Value) : null,
             statusText,
-            null,  // No inventory in render-only frames
-            null   // No crafting in render-only frames
+            GetInventory(ctx.SessionId),  // Preserve current inventory screen
+            GetCrafting(ctx.SessionId)     // Preserve current crafting screen
         );
 
         session.Send(frame);
@@ -198,5 +198,12 @@ public static class WebIO
     {
         if (ctx.SessionId == null) return;
         _currentCrafting[ctx.SessionId] = CraftingDto.FromContext(ctx, crafting);
+    }
+
+    public static void RenderCampImprovementScreen(GameContext ctx, NeedCraftingSystem crafting)
+    {
+        if (ctx.SessionId == null) return;
+        // Reuse CraftingDto but filter to only CampInfrastructure category
+        _currentCrafting[ctx.SessionId] = CraftingDto.FromContext(ctx, crafting, filterCategory: Crafting.NeedCategory.CampInfrastructure);
     }
 }

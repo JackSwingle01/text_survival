@@ -371,6 +371,16 @@ public class Inventory
 
     public bool HasCraftingMaterials => Has(ResourceCategory.Material);
 
+    public bool HasBuildingMaterials =>
+        Count(Resource.Stone) > 0 ||
+        GetCount(ResourceCategory.Log) > 0 ||
+        Count(Resource.Stick) > 0 ||
+        Count(Resource.PlantFiber) > 0 ||
+        Count(Resource.Hide) > 0 ||
+        Count(Resource.CuredHide) > 0 ||
+        Count(Resource.Rope) > 0 ||
+        Count(Resource.Sinew) > 0;
+
     // Equipment management
     public Gear? Equip(Gear equipment)
     {

@@ -21,6 +21,12 @@ public class CraftOption
     public required List<MaterialRequirement> Requirements { get; init; }
 
     /// <summary>
+    /// Optional prerequisite check function. Returns error message if blocked, null if available.
+    /// Used for progression requirements (e.g., Stone Pit requires Mound Pit) or environmental constraints.
+    /// </summary>
+    public Func<Actions.GameContext, string?>? Prerequisite { get; init; }
+
+    /// <summary>
     /// Factory function to create the resulting gear (tools, equipment, accessories).
     /// Receives durability value from recipe. Null if this recipe produces materials or features instead.
     /// </summary>

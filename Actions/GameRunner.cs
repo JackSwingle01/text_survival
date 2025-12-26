@@ -170,6 +170,12 @@ public partial class GameRunner(GameContext ctx)
                 choice.AddOption(craftLabel, RunCrafting);
             }
 
+            // Improve Camp - build infrastructure (fire pits, shelters, bedding)
+            if (ctx.Inventory.HasBuildingMaterials)
+            {
+                choice.AddOption("Improve Camp", ImproveCamp);
+            }
+
             var storage = ctx.Camp.GetFeature<CacheFeature>();
             if (storage != null && (HasItems() || storage.Storage.CurrentWeightKg > 0))
                 choice.AddOption("Inventory", RunInventoryMenu);
@@ -343,6 +349,12 @@ public partial class GameRunner(GameContext ctx)
     {
         var craftingRunner = new CraftingRunner(ctx);
         craftingRunner.Run();
+    }
+
+    private void ImproveCamp()
+    {
+        var improveCampRunner = new ImproveCampRunner(ctx);
+        improveCampRunner.Run();
     }
 
     private void LeaveCamp()

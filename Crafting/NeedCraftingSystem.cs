@@ -22,17 +22,21 @@ public class NeedCraftingSystem
         InitializeEquipmentOptions();
         InitializeLightingOptions();
         InitializeCarryingOptions();
+        InitializeCampInfrastructureOptions();
     }
 
     /// <summary>
     /// Get all craft options for a need category.
-    /// Returns options the player can craft OR has partial materials for.
+    /// Returns options the player can craft OR has partial materials for (unless showAll is true).
     /// </summary>
-    public List<CraftOption> GetOptionsForNeed(NeedCategory need, Inventory inventory)
+    public List<CraftOption> GetOptionsForNeed(NeedCategory need, Inventory inventory, bool showAll = false)
     {
-        return _options
-            .Where(o => o.Category == need)
-            .Where(o => o.CanCraft(inventory) || HasPartialMaterials(o, inventory))
+        var options = _options.Where(o => o.Category == need);
+
+        if (!showAll)
+            options = options.Where(o => o.CanCraft(inventory) || HasPartialMaterials(o, inventory));
+
+        return options
             .OrderByDescending(o => o.CanCraft(inventory)) // Craftable first
             .ToList();
     }
@@ -972,6 +976,193 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Rope", 2)
             ],
             GearFactory = dur => Gear.LargeBag(dur)
+        });
+    }
+
+    #endregion
+
+    #region Camp Infrastructure Options
+
+    private void InitializeCampInfrastructureOptions()
+    {
+        // 1. Padded Bedding (Instant Improvement)
+        _options.Add(new CraftOption
+        {
+            Name = "Padded Bedding",
+            Description = "A comfortable sleeping mat with plant fiber padding and a hide blanket. Better rest quality and ground insulation.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 45,
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("PlantFiber", 10),
+                new MaterialRequirement("Hide", 1)
+            ],
+            FeatureFactory = () => BeddingFeature.CreatePaddedBedding()
+        });
+
+        // 2. Mound Fire Pit (Multi-Session Project)
+        _options.Add(new CraftOption
+        {
+            Name = "Mound Fire Pit (Project)",
+            Description = "A shaped depression lined with stone. Provides wind protection and larger fuel capacity. Requires digging work (benefits from shovel).",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 15, // Setup time
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("Stone", 15),
+                new MaterialRequirement("Sticks", 5)
+            ],
+            FeatureFactory = () => new FirePitUpgradeProject(
+                "Mound Fire Pit",
+                FirePitType.Mound,
+                180 // 3 hours of work
+            )
+        });
+
+        // 3. Stone Fire Pit (Multi-Session Project with Prerequisite)
+        _options.Add(new CraftOption
+        {
+            Name = "Stone Fire Pit (Project)",
+            Description = "A stone-lined pit with excellent wind protection and fuel efficiency. Requires digging work (benefits from shovel). Requires Mound Pit first.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 15, // Setup time
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("Stone", 30),
+                new MaterialRequirement("Sticks", 10)
+            ],
+            Prerequisite = ctx => {
+                var fire = ctx.Camp.GetFeature<HeatSourceFeature>();
+                if (fire == null || fire.PitType != FirePitType.Mound)
+                    return "Requires Mound Fire Pit first";
+                return null;
+            },
+            FeatureFactory = () => new FirePitUpgradeProject(
+                "Stone Fire Pit",
+                FirePitType.Stone,
+                300 // 5 hours of work
+            )
+        });
+
+        // 4. Lean-to Shelter (Multi-Session Project)
+        _options.Add(new CraftOption
+        {
+            Name = "Lean-to Shelter (Project)",
+            Description = "A simple angled roof shelter. Good overhead protection from rain and snow. Takes several hours to build.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 15, // Setup time
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("Sticks", 15),
+                new MaterialRequirement("Logs", 10),
+                new MaterialRequirement("PlantFiber", 5)
+            ],
+            Prerequisite = ctx => {
+                if (ctx.Camp.HasFeature<ShelterFeature>())
+                    return "Camp already has a shelter";
+                return null;
+            },
+            FeatureFactory = () => new CraftingProjectFeature(
+                "Lean-to Shelter",
+                ShelterFeature.CreateLeanTo(),
+                240 // 4 hours of work
+            )
+        });
+
+        // 5. Snow Shelter (Multi-Session Project with Environmental Prerequisite)
+        _options.Add(new CraftOption
+        {
+            Name = "Snow Shelter (Project)",
+            Description = "A carved snow shelter with excellent insulation. Requires cold weather (below 32°F). Benefits from shovel. Melts in warm temperatures.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 15, // Setup time
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("Sticks", 5)
+            ],
+            Prerequisite = ctx => {
+                if (ctx.Camp.HasFeature<ShelterFeature>())
+                    return "Camp already has a shelter";
+                // Check temperature - snow shelters need cold weather (below freezing)
+                if (ctx.Weather.BaseTemperature > 0)
+                    return "Too warm to build a snow shelter (requires below freezing)";
+                return null;
+            },
+            FeatureFactory = () => new CraftingProjectFeature(
+                "Snow Shelter",
+                ShelterFeature.CreateSnowShelter(),
+                120 // 2 hours of work
+            ) { BenefitsFromShovel = true }
+        });
+
+        // 6. Hide Tent (Multi-Session Project)
+        _options.Add(new CraftOption
+        {
+            Name = "Hide Tent (Project)",
+            Description = "A durable tent made from cured hides stretched over a wooden frame. Good all-around protection. Takes several hours to construct.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 15, // Setup time
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("Sticks", 20),
+                new MaterialRequirement("CuredHide", 5),
+                new MaterialRequirement("Rope", 10)
+            ],
+            Prerequisite = ctx => {
+                if (ctx.Camp.HasFeature<ShelterFeature>())
+                    return "Camp already has a shelter";
+                return null;
+            },
+            FeatureFactory = () => new CraftingProjectFeature(
+                "Hide Tent",
+                ShelterFeature.CreateHideTent(),
+                360 // 6 hours of work
+            )
+        });
+
+        // 7. Cabin (Multi-Session Project - Major Undertaking)
+        _options.Add(new CraftOption
+        {
+            Name = "Cabin (Project)",
+            Description = "A permanent log cabin with stone foundation. Best protection from elements. Major construction project requiring many hours of work. Benefits from shovel for foundation digging.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 30, // Setup time
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("Logs", 80),
+                new MaterialRequirement("Stone", 40),
+                new MaterialRequirement("PlantFiber", 20),
+                new MaterialRequirement("Rope", 10)
+            ],
+            Prerequisite = ctx => {
+                if (ctx.Camp.HasFeature<ShelterFeature>())
+                    return "Camp already has a shelter";
+                return null;
+            },
+            FeatureFactory = () => new CraftingProjectFeature(
+                "Cabin",
+                ShelterFeature.CreateCabin(),
+                1200 // 20 hours of work - serious undertaking!
+            ) { BenefitsFromShovel = true }
+        });
+
+        // 8. Sleeping Bag (Multi-Session Project)
+        _options.Add(new CraftOption
+        {
+            Name = "Sleeping Bag (Project)",
+            Description = "Cured hides sewn together into an enclosed sleeping bag. Best bedding quality with warmth bonus. Requires several hours of stitching work.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 15, // Setup time
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("CuredHide", 4),
+                new MaterialRequirement("Sinew", 6)
+            ],
+            FeatureFactory = () => new CraftingProjectFeature(
+                "Sleeping Bag",
+                BeddingFeature.CreateSleepingBag(),
+                180 // 3 hours of stitching work
+            )
         });
     }
 

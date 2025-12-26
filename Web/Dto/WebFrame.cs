@@ -352,13 +352,17 @@ public record CraftingDto(
     MaterialInventoryDto PlayerMaterials
 )
 {
-    public static CraftingDto FromContext(GameContext ctx, NeedCraftingSystem crafting)
+    public static CraftingDto FromContext(GameContext ctx, NeedCraftingSystem crafting, NeedCategory? filterCategory = null)
     {
         var categories = new List<CategorySectionDto>();
 
-        foreach (var needCategory in Enum.GetValues<NeedCategory>())
+        var categoriesToShow = filterCategory.HasValue
+            ? new[] { filterCategory.Value }
+            : Enum.GetValues<NeedCategory>();
+
+        foreach (var needCategory in categoriesToShow)
         {
-            var options = crafting.GetOptionsForNeed(needCategory, ctx.Inventory);
+            var options = crafting.GetOptionsForNeed(needCategory, ctx.Inventory, showAll: true);
 
             // Filter out already-built features
             options = options.Where(o => !IsFeatureAlreadyBuilt(o, ctx)).ToList();
@@ -430,6 +434,7 @@ public record RecipeDto(
     string Name,
     string Description,
     int CraftingTimeMinutes,
+    string CraftingTimeDisplay,  // Formatted time display
     List<MaterialRequirementDto> Requirements,
     bool CanCraft,
     string OutputType  // "Gear", "Feature", "Material"
@@ -450,14 +455,43 @@ public record RecipeDto(
             : option.ProducesFeature ? "Feature"
             : "Material";
 
+        // For multi-session projects, show total build time instead of setup time
+        int displayTime = option.CraftingTimeMinutes;
+        if (option.ProducesFeature && option.Name.Contains("(Project)"))
+        {
+            var tempFeature = option.FeatureFactory!();
+            if (tempFeature is Environments.Features.CraftingProjectFeature project)
+            {
+                displayTime = (int)project.TimeRequiredMinutes;
+            }
+        }
+
+        // Format time display: show hours if >= 60 minutes
+        string timeDisplay = FormatCraftingTime(displayTime);
+
         return new RecipeDto(
             Name: option.Name,
             Description: option.Description,
-            CraftingTimeMinutes: option.CraftingTimeMinutes,
+            CraftingTimeMinutes: displayTime,
+            CraftingTimeDisplay: timeDisplay,
             Requirements: requirements,
             CanCraft: option.CanCraft(inventory),
             OutputType: outputType
         );
+    }
+
+    private static string FormatCraftingTime(int minutes)
+    {
+        if (minutes < 60)
+            return $"{minutes} min";
+
+        int hours = minutes / 60;
+        int remainingMinutes = minutes % 60;
+
+        if (remainingMinutes == 0)
+            return $"{hours}h";
+
+        return $"{hours}h {remainingMinutes}m";
     }
 
     private static int GetMaterialCount(Inventory inv, string material)

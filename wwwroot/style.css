@@ -1415,3 +1415,149 @@ body::before {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--text-dim);
 }
+/* ============================================
+   CRAFTING MODAL
+   ============================================ */
+
+.crafting-modal {
+    max-width: 900px;
+}
+
+.crafting-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.crafting-category {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 16px;
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    color: var(--text-bright);
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.category-header .material-symbols-outlined {
+    font-size: 24px;
+    color: var(--warning-color);
+}
+
+.recipe-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    margin: 6px 0;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    gap: 16px;
+}
+
+.recipe-row.craftable {
+    border-color: rgba(100, 200, 100, 0.3);
+    background: rgba(100, 200, 100, 0.05);
+}
+
+.recipe-row.uncraftable {
+    opacity: 0.6;
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+.recipe-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.recipe-name {
+    font-family: var(--font-display);
+    font-size: 16px;
+    color: var(--text-bright);
+    font-weight: 600;
+}
+
+.recipe-requirements {
+    font-size: 13px;
+    color: var(--text-dim);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.requirement {
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.requirement.met {
+    color: #90c090;
+    border: 1px solid rgba(100, 200, 100, 0.3);
+}
+
+.requirement.unmet {
+    color: #c09090;
+    border: 1px solid rgba(200, 100, 100, 0.3);
+}
+
+.recipe-time {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.craft-btn {
+    padding: 8px 20px;
+    background: var(--success-color);
+    color: var(--bg-dark);
+    border: none;
+    border-radius: 3px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 80px;
+}
+
+.craft-btn:hover {
+    background: #70d070;
+    transform: translateY(-1px);
+}
+
+.craft-btn:active {
+    transform: translateY(0);
+}
+
+.craft-btn:disabled {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-dim);
+    cursor: not-allowed;
+}
+
+.uncraftable-header {
+    margin: 16px 0 8px 0;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 13px;
+    color: var(--text-dim);
+    font-style: italic;
+}
+

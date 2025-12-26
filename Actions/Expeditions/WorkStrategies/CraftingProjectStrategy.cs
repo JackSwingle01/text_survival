@@ -30,19 +30,22 @@ public class CraftingProjectStrategy : IWorkStrategy
 
         var choice = new Choice<int>($"How long do you want to work on {project.ProjectName}? ({project.ProgressPct:P0} complete)");
 
-        // Offer time options up to remaining time or 2 hours, whichever is less
+        // Offer standard time options only if there's at least that much time remaining
+        if (remainingMinutes >= 15)
+            choice.AddOption("15 minutes", 15);
         if (remainingMinutes >= 30)
-            choice.AddOption("30 minutes", Math.Min(30, (int)remainingMinutes));
+            choice.AddOption("30 minutes", 30);
         if (remainingMinutes >= 60)
-            choice.AddOption("1 hour", Math.Min(60, (int)remainingMinutes));
-        if (remainingMinutes >= 90)
-            choice.AddOption("1.5 hours", Math.Min(90, (int)remainingMinutes));
+            choice.AddOption("1 hour", 60);
         if (remainingMinutes >= 120)
-            choice.AddOption("2 hours", Math.Min(120, (int)remainingMinutes));
+            choice.AddOption("2 hours", 120);
 
-        // If less than 30 minutes remain, offer to finish
-        if (remainingMinutes < 30 && remainingMinutes > 0)
-            choice.AddOption($"Finish ({(int)remainingMinutes} min)", (int)remainingMinutes);
+        // If remaining time doesn't match a standard option, show "Finish" option
+        int remaining = (int)remainingMinutes;
+        if (remaining > 0 && remaining != 15 && remaining != 30 && remaining != 60 && remaining != 120)
+        {
+            choice.AddOption($"Finish ({remaining} min)", remaining);
+        }
 
         return choice;
     }

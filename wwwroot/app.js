@@ -75,9 +75,15 @@ class GameClient {
         // Handle inventory overlay
         if (frame.inventory) {
             this.showInventory(frame.inventory, frame.input);
+            this.hideCrafting();
+            // Input is rendered inside the overlay, not in the action area
+        } else if (frame.crafting) {
+            this.showCrafting(frame.crafting, frame.input);
+            this.hideInventory();
             // Input is rendered inside the overlay, not in the action area
         } else {
             this.hideInventory();
+            this.hideCrafting();
             this.renderInput(frame.input, frame.statusText, frame.progress);
         }
     }
@@ -1140,6 +1146,136 @@ class GameClient {
 
     hideInventory() {
         document.getElementById('inventoryOverlay').classList.add('hidden');
+    }
+
+    showCrafting(crafting, input) {
+        const overlay = document.getElementById('craftingOverlay');
+        overlay.classList.remove('hidden');
+
+        document.getElementById('craftingTitle').textContent = crafting.title;
+
+        // Increment input ID FIRST
+        this.currentInputId++;
+        const inputId = this.currentInputId;
+
+        // Debug: log the crafting data
+        console.log('Crafting data:', crafting);
+
+        const categoriesContainer = document.getElementById('craftingCategories');
+        this.clearElement(categoriesContainer);
+
+        // Render each category
+        crafting.categories.forEach(category => {
+            console.log(`Category: ${category.categoryName}`);
+            console.log(`  Craftable: ${category.craftableRecipes?.length || 0}`);
+            console.log(`  Uncraftable: ${category.uncraftableRecipes?.length || 0}`);
+
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'crafting-category';
+
+            const categoryHeader = document.createElement('h3');
+            categoryHeader.className = 'category-header';
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined';
+            icon.textContent = 'construction';
+            categoryHeader.appendChild(icon);
+            categoryHeader.appendChild(document.createTextNode(category.categoryName));
+            categoryDiv.appendChild(categoryHeader);
+
+            // Craftable recipes
+            if (category.craftableRecipes && category.craftableRecipes.length > 0) {
+                category.craftableRecipes.forEach((recipe, index) => {
+                    const recipeRow = this.createRecipeRow(recipe, true, input, inputId);
+                    categoryDiv.appendChild(recipeRow);
+                });
+            }
+
+            // Uncraftable recipes
+            if (category.uncraftableRecipes && category.uncraftableRecipes.length > 0) {
+                const uncraftableHeader = document.createElement('div');
+                uncraftableHeader.className = 'uncraftable-header';
+                uncraftableHeader.textContent = 'Needs materials:';
+                categoryDiv.appendChild(uncraftableHeader);
+
+                category.uncraftableRecipes.forEach(recipe => {
+                    const recipeRow = this.createRecipeRow(recipe, false, input, inputId);
+                    categoryDiv.appendChild(recipeRow);
+                });
+            }
+
+            categoriesContainer.appendChild(categoryDiv);
+        });
+
+        // Handle close button
+        document.getElementById('craftingCloseBtn').onclick = () => {
+            if (input && input.type === 'select') {
+                // Cancel is always the last choice
+                this.respond(input.choices.length - 1, inputId);
+            } else {
+                this.respond(null, inputId);
+            }
+        };
+    }
+
+    createRecipeRow(recipe, isCraftable, input, inputId) {
+        const row = document.createElement('div');
+        row.className = `recipe-row ${isCraftable ? 'craftable' : 'uncraftable'}`;
+
+        const info = document.createElement('div');
+        info.className = 'recipe-info';
+
+        const name = document.createElement('div');
+        name.className = 'recipe-name';
+        name.textContent = recipe.name;
+        info.appendChild(name);
+
+        const requirements = document.createElement('div');
+        requirements.className = 'recipe-requirements';
+
+        recipe.requirements.forEach((req, i) => {
+            const reqSpan = document.createElement('span');
+            reqSpan.className = `requirement ${req.isMet ? 'met' : 'unmet'}`;
+            reqSpan.textContent = `${req.materialName}: ${req.available}/${req.required}`;
+            requirements.appendChild(reqSpan);
+
+            if (i < recipe.requirements.length - 1) {
+                requirements.appendChild(document.createTextNode(', '));
+            }
+        });
+        info.appendChild(requirements);
+
+        const time = document.createElement('div');
+        time.className = 'recipe-time';
+        time.textContent = recipe.craftingTimeDisplay;
+        info.appendChild(time);
+
+        row.appendChild(info);
+
+        // Add CRAFT button if craftable
+        if (isCraftable && input && input.type === 'select') {
+            const craftBtn = document.createElement('button');
+            craftBtn.className = 'craft-btn';
+            craftBtn.textContent = 'CRAFT';
+
+            // Find the matching choice index by recipe name
+            const choiceIndex = input.choices.findIndex(choice =>
+                choice.includes(recipe.name)
+            );
+
+            if (choiceIndex >= 0) {
+                craftBtn.onclick = () => this.respond(choiceIndex, inputId);
+            } else {
+                craftBtn.disabled = true;
+            }
+
+            row.appendChild(craftBtn);
+        }
+
+        return row;
+    }
+
+    hideCrafting() {
+        document.getElementById('craftingOverlay').classList.add('hidden');
     }
 
     addInvItem(container, label, value, styleClass = '') {

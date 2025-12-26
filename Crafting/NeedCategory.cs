@@ -49,5 +49,10 @@ public enum NeedCategory
     /// <summary>
     /// Carrying gear (pouches, belts, bags) that increase carrying capacity.
     /// </summary>
-    Carrying
+    Carrying,
+
+    /// <summary>
+    /// Camp infrastructure improvements (fire pits, shelters, bedding).
+    /// </summary>
+    CampInfrastructure
 }
