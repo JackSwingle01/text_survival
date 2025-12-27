@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Environments.Features;
 
@@ -17,25 +18,30 @@ public record GridStateDto(
 {
     public static GridStateDto FromContext(GameContext ctx)
     {
-        if (ctx.Grid == null || ctx.CurrentTile == null)
-            throw new InvalidOperationException("Cannot create GridStateDto without grid mode enabled");
+        if (ctx.Map == null)
+            throw new InvalidOperationException("Cannot create GridStateDto without a map");
 
+        var map = ctx.Map;
         var tiles = new List<TileDto>();
 
-        // Include all explored or visible tiles
-        foreach (var tile in ctx.Grid.AllTiles)
+        // Include all explored or visible locations
+        for (int x = 0; x < map.Width; x++)
         {
-            if (tile.IsExplored || tile.IsVisible)
+            for (int y = 0; y < map.Height; y++)
             {
-                tiles.Add(TileDto.FromTile(tile, ctx));
+                var location = map.GetLocationAt(x, y);
+                if (location != null && location.Visibility != TileVisibility.Unexplored)
+                {
+                    tiles.Add(TileDto.FromLocation(location, x, y, ctx));
+                }
             }
         }
 
         return new GridStateDto(
-            Width: ctx.Grid.Width,
-            Height: ctx.Grid.Height,
-            PlayerX: ctx.CurrentTile.X,
-            PlayerY: ctx.CurrentTile.Y,
+            Width: map.Width,
+            Height: map.Height,
+            PlayerX: map.CurrentPosition.X,
+            PlayerY: map.CurrentPosition.Y,
             Tiles: tiles
         );
     }
@@ -56,91 +62,73 @@ public record TileDto(
     bool IsHazardous,
     bool IsPassable,
     bool IsPlayerHere,
-    bool IsAdjacent  // Can move here from current position
+    bool IsAdjacent,  // Can move here from current position
+    int? TravelTimeMinutes  // Estimated travel time from current position (null if not adjacent)
 )
 {
-    public static TileDto FromTile(Tile tile, GameContext ctx)
+    public static TileDto FromLocation(Location location, int x, int y, GameContext ctx)
     {
-        bool isPlayerHere = ctx.CurrentTile == tile;
-        bool isAdjacent = ctx.CurrentTile != null &&
-                          tile.Position.IsAdjacentTo(ctx.CurrentTile.Position);
+        var map = ctx.Map!;
+        var currentPos = map.CurrentPosition;
+        var thisPos = new GridPosition(x, y);
+
+        bool isPlayerHere = currentPos.X == x && currentPos.Y == y;
+        bool isAdjacent = currentPos.IsAdjacentTo(thisPos) && location.IsPassable;
+
+        // Named locations (with features) show "???" until visited
+        string? locationName = null;
+        string? locationTags = null;
+        if (!location.IsTerrainOnly)
+        {
+            if (location.Explored)
+            {
+                locationName = location.Name;
+                locationTags = location.Tags;
+            }
+            else
+            {
+                locationName = "???";
+                locationTags = null;
+            }
+        }
+
+        // Calculate travel time for adjacent tiles
+        int? travelTime = null;
+        if (isAdjacent && !isPlayerHere)
+        {
+            travelTime = TravelProcessor.GetTraversalMinutes(
+                ctx.CurrentLocation, location, ctx.player, ctx.Inventory);
+        }
 
         return new TileDto(
-            X: tile.X,
-            Y: tile.Y,
-            Terrain: tile.Terrain.ToString(),
-            Visibility: tile.Visibility.ToString().ToLower(),
-            LocationName: tile.HasNamedLocation ? tile.NamedLocation!.Name : null,
-            LocationTags: tile.HasNamedLocation ? tile.NamedLocation!.Tags : null,
-            FeatureIcons: GetFeatureIcons(tile),
-            HasFire: tile.HasActiveHeatSource,
-            IsHazardous: GridTravelProcessor.IsHazardousTerrain(tile),
-            IsPassable: tile.IsPassable,
+            X: x,
+            Y: y,
+            Terrain: location.Terrain.ToString(),
+            Visibility: location.Visibility.ToString().ToLower(),
+            LocationName: locationName,
+            LocationTags: locationTags,
+            FeatureIcons: GetFeatureIcons(location),
+            HasFire: location.HasActiveHeatSource(),
+            IsHazardous: TravelProcessor.IsHazardousTerrain(location),
+            IsPassable: location.IsPassable,
             IsPlayerHere: isPlayerHere,
-            IsAdjacent: isAdjacent && tile.IsPassable
+            IsAdjacent: isAdjacent,
+            TravelTimeMinutes: travelTime
         );
     }
 
-    private static List<string> GetFeatureIcons(Tile tile)
+    private static List<string> GetFeatureIcons(Location location)
     {
-        var icons = new List<string>();
+        // Only show feature icons for explored locations that are visible
+        if (location.Visibility != TileVisibility.Visible) return [];
 
-        if (!tile.HasNamedLocation) return icons;
-
-        var location = tile.NamedLocation!;
-
-        // Only show feature icons if tile is visible (not just explored)
-        if (tile.Visibility != TileVisibility.Visible) return icons;
-
-        // Heat source / fire
-        if (location.HasActiveHeatSource())
-            icons.Add("fire");
-
-        // Forage
-        if (location.HasFeature<ForageFeature>())
-            icons.Add("forage");
-
-        // Harvest
-        if (location.HasFeature<HarvestableFeature>())
-            icons.Add("harvest");
-
-        // Animals
-        if (location.HasFeature<AnimalTerritoryFeature>())
-            icons.Add("animals");
-
-        // Water
-        if (location.HasFeature<WaterFeature>())
-            icons.Add("water");
-
-        // Cache
-        if (location.HasFeature<CacheFeature>())
-            icons.Add("cache");
-
-        // Shelter
-        if (location.HasFeature<ShelterFeature>())
-            icons.Add("shelter");
-
-        // Wooded area (chopping)
-        if (location.HasFeature<WoodedAreaFeature>())
-            icons.Add("wood");
-
-        // Snare line
-        if (location.HasFeature<SnareLineFeature>())
-            icons.Add("trap");
-
-        // Curing rack
-        if (location.HasFeature<CuringRackFeature>())
-            icons.Add("curing");
-
-        // Crafting project
-        if (location.HasFeature<CraftingProjectFeature>())
-            icons.Add("project");
-
-        // Salvage
-        if (location.HasFeature<SalvageFeature>())
-            icons.Add("salvage");
-
-        return icons;
+        // Get all feature icons, sorted by priority (highest first), limit to top 3
+        return location.Features
+            .Where(f => f.MapIcon != null)
+            .OrderByDescending(f => f.IconPriority)
+            .Select(f => f.MapIcon!)
+            .Take(3)
+            .ToList();
     }
 }
 

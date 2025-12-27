@@ -1,32 +1,37 @@
 /**
  * Progress Display Module
  *
- * Handles client-side progress animation for long-running operations.
- * Displays a progress bar that animates locally while waiting for server response.
+ * Pure animation module - just animates the progress bar.
+ * FrameQueue owns sequencing; this module just handles visual display.
  */
-
-import { Utils } from './utils.js';
 
 export const ProgressDisplay = {
     intervalId: null,
+    onComplete: null,
 
     /**
      * Start a local progress animation that runs for the specified duration.
-     * Client animates the progress bar locally instead of waiting for server updates.
+     * @param {number} durationSeconds - Animation duration in seconds
+     * @param {string} statusText - Status text to display
+     * @param {function} onComplete - Callback when animation completes
      */
-    start(durationSeconds, statusText) {
+    start(durationSeconds, statusText, onComplete) {
+        this.stop();  // Always clean up first
+
         const progressTextEl = document.getElementById('progressText');
         const progressIcon = document.getElementById('progressIcon');
         const progressBar = document.getElementById('progressBar');
-        const actionsArea = document.getElementById('actionButtons');
+
+        // Reset bar to 0% at start
+        progressBar.style.width = '0%';
 
         // Show progress UI
         progressTextEl.textContent = statusText || 'Working...';
         progressTextEl.classList.add('active');
         progressIcon.textContent = 'pending';
 
-        // Clear actions while progress is running
-        Utils.clearElement(actionsArea);
+        // Store completion callback
+        this.onComplete = onComplete;
 
         const startTime = Date.now();
         const durationMs = durationSeconds * 1000;
@@ -37,10 +42,18 @@ export const ProgressDisplay = {
             const pct = Math.min(100, Math.round((elapsed / durationMs) * 100));
             progressBar.style.width = pct + '%';
 
-            // Stop at 100% (server response will arrive and stop animation properly)
+            // Stop at 100% and call completion callback
             if (pct >= 100) {
                 clearInterval(this.intervalId);
                 this.intervalId = null;
+                if (this.onComplete) {
+                    // Capture and clear callback BEFORE calling - the callback may start
+                    // a new animation that sets its own onComplete, which we must not overwrite
+                    const callback = this.onComplete;
+                    this.onComplete = null;
+                    // Brief pause at 100% so user can see completion before next frame
+                    setTimeout(callback, 150);
+                }
             }
         }, 50); // Update every 50ms for smooth animation
     },
@@ -53,6 +66,9 @@ export const ProgressDisplay = {
             clearInterval(this.intervalId);
             this.intervalId = null;
         }
+
+        // Clear callback to prevent stale state
+        this.onComplete = null;
 
         // Reset progress bar
         const progressBar = document.getElementById('progressBar');

@@ -12,6 +12,9 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class SalvageFeature : LocationFeature, IWorkableFeature
 {
+    public override string? MapIcon => IsDiscovered && HasLoot ? "search" : null;
+    public override int IconPriority => 3;
+
     // Explicit public fields for serialization (System.Text.Json IncludeFields requires public)
     public string _displayName = "";
     private bool _isSalvaged = false;

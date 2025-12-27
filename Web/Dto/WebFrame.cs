@@ -7,18 +7,14 @@ namespace text_survival.Web.Dto;
 
 /// <summary>
 /// A frame sent from server to client via WebSocket.
-/// Contains current game state and optionally an input request.
+/// Uses explicit Mode + Overlay model for predictable UI state.
 /// </summary>
 public record WebFrame(
     GameStateDto State,
+    FrameMode Mode,
+    List<Overlay> Overlays,
     InputRequestDto? Input,
-    ProgressDto? Progress,
-    string? StatusText = null,
-    InventoryDto? Inventory = null,
-    CraftingDto? Crafting = null,
-    int? EstimatedDurationSeconds = null,
-    GridStateDto? Grid = null,          // Grid mode: tile map state
-    HazardPromptDto? HazardPrompt = null // Grid mode: hazard speed choice
+    string? StatusText = null
 );
 
 /// <summary>
@@ -30,10 +26,7 @@ public record InputRequestDto(
     List<string>? Choices  // null for confirm/anykey
 );
 
-/// <summary>
-/// Progress indicator for long operations.
-/// </summary>
-public record ProgressDto(int Current, int Total);
+// ProgressDto removed - replaced by ProgressMode
 
 /// <summary>
 /// Full inventory data for inventory screen.

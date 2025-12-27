@@ -16,7 +16,7 @@ export const SurvivalDisplay = {
         barEl.style.width = percent + '%';
 
         // Update value color class
-        pctEl.className = 'value';
+        pctEl.className = 'stat-value';
         if (percent >= 60) {
             pctEl.classList.add('good');
         } else if (percent >= 30) {

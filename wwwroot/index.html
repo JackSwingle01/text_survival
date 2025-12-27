@@ -39,12 +39,12 @@
                 <div class="status-title">
                     <span class="material-symbols-outlined">thermostat</span>Temperature
                 </div>
-                <div class="status-row">
-                    <span class="status-label"><span class="material-symbols-outlined">person</span>Body</span>
-                    <span class="status-value" id="bodyTempDisplay">--°F</span>
-                </div>
-                <div class="segment-bar temp">
-                    <div class="segment-fill" id="tempBar" style="width: 85%;"></div>
+                <div class="compact-stat" data-stat="body-temp">
+                    <span class="stat-icon material-symbols-outlined">person</span>
+                    <div class="segment-bar temp">
+                        <div class="segment-fill" id="tempBar" style="width: 85%;"></div>
+                    </div>
+                    <div class="stat-tooltip"><span class="stat-name">Body</span> <span class="stat-value" id="bodyTempDisplay">--°F</span></div>
                 </div>
                 <div class="status-row">
                     <span class="status-label"><span class="material-symbols-outlined">air</span>Air</span>
@@ -62,44 +62,36 @@
                     <span class="material-symbols-outlined">favorite</span>Survival
                 </div>
 
-                <div class="survival-stat">
-                    <div class="stat-header">
-                        <span class="label"><span class="material-symbols-outlined">monitor_heart</span>Health</span>
-                        <span class="value good" id="healthPct">100%</span>
-                    </div>
+                <div class="survival-stat" data-stat="health">
+                    <span class="stat-icon material-symbols-outlined">monitor_heart</span>
                     <div class="segment-bar health">
                         <div class="segment-fill" id="healthBar" style="width: 100%;"></div>
                     </div>
+                    <div class="stat-tooltip"><span class="stat-name">Health</span> <span class="stat-value" id="healthPct">100%</span></div>
                 </div>
 
-                <div class="survival-stat">
-                    <div class="stat-header">
-                        <span class="label"><span class="material-symbols-outlined">restaurant</span>Food</span>
-                        <span class="value good" id="foodPct">100%</span>
-                    </div>
+                <div class="survival-stat" data-stat="food">
+                    <span class="stat-icon material-symbols-outlined">restaurant</span>
                     <div class="segment-bar food">
                         <div class="segment-fill" id="foodBar" style="width: 100%;"></div>
                     </div>
+                    <div class="stat-tooltip"><span class="stat-name">Food</span> <span class="stat-value" id="foodPct">100%</span></div>
                 </div>
 
-                <div class="survival-stat">
-                    <div class="stat-header">
-                        <span class="label"><span class="material-symbols-outlined">water_drop</span>Water</span>
-                        <span class="value good" id="waterPct">100%</span>
-                    </div>
+                <div class="survival-stat" data-stat="water">
+                    <span class="stat-icon material-symbols-outlined">water_drop</span>
                     <div class="segment-bar water">
                         <div class="segment-fill" id="waterBar" style="width: 100%;"></div>
                     </div>
+                    <div class="stat-tooltip"><span class="stat-name">Water</span> <span class="stat-value" id="waterPct">100%</span></div>
                 </div>
 
-                <div class="survival-stat">
-                    <div class="stat-header">
-                        <span class="label"><span class="material-symbols-outlined">bolt</span>Energy</span>
-                        <span class="value" id="energyPct">100%</span>
-                    </div>
+                <div class="survival-stat" data-stat="energy">
+                    <span class="stat-icon material-symbols-outlined">bolt</span>
                     <div class="segment-bar energy">
                         <div class="segment-fill" id="energyBar" style="width: 100%;"></div>
                     </div>
+                    <div class="stat-tooltip"><span class="stat-name">Energy</span> <span class="stat-value" id="energyPct">100%</span></div>
                 </div>
             </div>
 
@@ -125,12 +117,12 @@
                 <div class="status-title">
                     <span class="material-symbols-outlined">backpack</span>Gear
                 </div>
-                <div class="gear-row">
-                    <span class="gear-label">Carry</span>
-                    <span class="gear-value" id="carryDisplay">0 / 15 kg</span>
-                </div>
-                <div class="segment-bar energy">
-                    <div class="segment-fill" id="carryBar" style="width: 0%;"></div>
+                <div class="compact-stat" data-stat="carry">
+                    <span class="stat-icon material-symbols-outlined">fitness_center</span>
+                    <div class="segment-bar carry">
+                        <div class="segment-fill" id="carryBar" style="width: 0%;"></div>
+                    </div>
+                    <div class="stat-tooltip"><span class="stat-name">Carry</span> <span class="stat-value" id="carryDisplay">0 / 15 kg</span></div>
                 </div>
                 <div class="gear-row">
                     <span class="gear-label"><span class="material-symbols-outlined">local_fire_department</span>Fuel</span>
@@ -141,11 +133,21 @@
                     <span class="gear-value" id="foodWaterSummary">No food</span>
                 </div>
                 <div class="tool-pills" id="toolPills"></div>
+                <div class="quick-actions">
+                    <button class="quick-btn" id="inventoryBtn">
+                        <span class="material-symbols-outlined">inventory_2</span>
+                        Inventory
+                    </button>
+                    <button class="quick-btn" id="craftingBtn">
+                        <span class="material-symbols-outlined">construction</span>
+                        Craft
+                    </button>
+                </div>
             </div>
         </aside>
 
         <!-- CENTER AREA -->
-        <div class="center-area">
+        <div class="center-area location-mode">
             <!-- Location Header with integrated weather -->
             <div class="location-header">
                 <div class="location-time">
@@ -179,18 +181,13 @@
                 <canvas id="gridCanvas"></canvas>
             </div>
 
-            <!-- Progress Bar -->
+            <!-- Progress Bar at bottom -->
             <div class="progress-bar-container">
                 <span class="material-symbols-outlined" id="progressIcon">hourglass_empty</span>
                 <div class="segment-bar progress">
                     <div class="segment-fill" id="progressBar" style="width: 0%;"></div>
                 </div>
                 <span class="progress-text" id="progressText">Ready</span>
-            </div>
-
-            <!-- Actions moved to center bottom -->
-            <div class="actions-area">
-                <div class="action-buttons" id="actionButtons"></div>
             </div>
         </div>
 
@@ -253,6 +250,44 @@
                 <button class="action-btn" id="craftingCloseBtn">Cancel</button>
             </div>
         </div>
+    </div>
+
+    <!-- Event Overlay -->
+    <div class="event-overlay hidden" id="eventOverlay">
+        <div class="event-modal">
+            <div class="event-header">
+                <h2 id="eventName">Event</h2>
+            </div>
+            <div class="event-progress hidden" id="eventProgress">
+                <div class="event-progress-text" id="eventProgressText">Acting...</div>
+                <div class="event-progress-bar-container">
+                    <div class="event-progress-bar" id="eventProgressBar"></div>
+                </div>
+            </div>
+            <div class="event-description" id="eventDescription"></div>
+            <div class="event-choices" id="eventChoices"></div>
+        </div>
+    </div>
+
+    <!-- Hazard Overlay -->
+    <div class="event-overlay hidden" id="hazardOverlay">
+        <div class="event-modal hazard-modal">
+            <div class="event-header">
+                <h2><span class="material-symbols-outlined">warning</span> Hazardous Terrain</h2>
+            </div>
+            <div class="event-description" id="hazardDescription"></div>
+            <div class="event-choices" id="hazardChoices"></div>
+        </div>
+    </div>
+
+    <!-- Tile Popup -->
+    <div class="tile-popup hidden" id="tilePopup">
+        <div class="tile-popup-header">
+            <span class="tile-popup-name" id="popupName">Location</span>
+            <span class="tile-popup-terrain" id="popupTerrain">Terrain</span>
+        </div>
+        <div class="tile-popup-features" id="popupFeatures"></div>
+        <div class="tile-popup-actions" id="popupActions"></div>
     </div>
 
     <script type="module" src="app.js"></script>

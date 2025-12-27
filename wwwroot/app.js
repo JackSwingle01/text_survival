@@ -1,6 +1,7 @@
 import { ConnectionOverlay } from './modules/connection.js';
 import { Utils } from './modules/utils.js';
 import { ProgressDisplay } from './modules/progress.js';
+import { FrameQueue } from './modules/frameQueue.js';
 import { NarrativeLog } from './modules/log.js';
 import { TemperatureDisplay } from './modules/temperature.js';
 import { FireDisplay } from './modules/fire.js';
@@ -18,7 +19,68 @@ class GameClient {
         this.currentInputId = 0;        // Track which input set is active
         this.gridRenderer = null;       // Canvas grid renderer
         this.gridInitialized = false;
+        this.tilePopup = null;          // Current tile popup state
+
+        // Initialize FrameQueue with render callback
+        FrameQueue.init((frame) => this.renderFrame(frame));
+
         this.connect();
+        this.initQuickActions();
+        this.initTilePopup();
+    }
+
+    /**
+     * Initialize persistent quick action buttons (inventory, crafting)
+     */
+    initQuickActions() {
+        const inventoryBtn = document.getElementById('inventoryBtn');
+        const craftingBtn = document.getElementById('craftingBtn');
+
+        if (inventoryBtn) {
+            inventoryBtn.onclick = () => this.requestAction('inventory');
+        }
+        if (craftingBtn) {
+            craftingBtn.onclick = () => this.requestAction('crafting');
+        }
+    }
+
+    /**
+     * Initialize tile popup system
+     */
+    initTilePopup() {
+        // Close popup when clicking outside
+        document.addEventListener('click', (e) => {
+            const popup = document.getElementById('tilePopup');
+            if (!popup.classList.contains('hidden') && !popup.contains(e.target)) {
+                // Check if click was on the canvas - those are handled separately
+                const canvas = document.getElementById('gridCanvas');
+                if (!canvas || !canvas.contains(e.target)) {
+                    this.hideTilePopup();
+                }
+            }
+        });
+    }
+
+    /**
+     * Update quick action button states based on available choices
+     */
+    updateQuickActionStates(choices) {
+        const inventoryBtn = document.getElementById('inventoryBtn');
+        const craftingBtn = document.getElementById('craftingBtn');
+
+        if (!choices || choices.length === 0) {
+            // No choices available - disable both
+            if (inventoryBtn) inventoryBtn.disabled = true;
+            if (craftingBtn) craftingBtn.disabled = true;
+            return;
+        }
+
+        // Check if Inventory/Crafting are in the available choices
+        const hasInventory = choices.some(c => c.includes('Inventory'));
+        const hasCrafting = choices.some(c => c.includes('Crafting'));
+
+        if (inventoryBtn) inventoryBtn.disabled = !hasInventory;
+        if (craftingBtn) craftingBtn.disabled = !hasCrafting;
     }
 
     connect() {
@@ -55,11 +117,23 @@ class GameClient {
         }
     }
 
+    /**
+     * Handle incoming frame - delegate to FrameQueue
+     */
     handleFrame(frame) {
-        // Clear response lock when new frame arrives
-        this.awaitingResponse = false;
+        console.log('[GameClient] Frame received:', {
+            mode: frame.mode?.type,
+            overlays: frame.overlays?.map(o => o.type),
+            inputType: frame.input?.type
+        });
+        FrameQueue.enqueue(frame);
+    }
 
-        // Stop any local progress animation from previous frame
+    /**
+     * Render a frame - called by FrameQueue after sequencing
+     */
+    renderFrame(frame) {
+        this.awaitingResponse = false;
         ProgressDisplay.stop();
 
         // Re-enable all buttons from previous frame
@@ -67,86 +141,565 @@ class GameClient {
             btn.disabled = false;
         });
 
+        // Render game state
         if (frame.state) {
             this.renderState(frame.state);
         }
 
-        // Always update grid if present (grid is always visible in new UI)
-        if (frame.grid) {
-            console.log('[GameClient] Frame has grid data, input type:', frame.input?.type);
-            this.updateGrid(frame);
+        // Set mode (mutually exclusive)
+        this.setMode(frame.mode);
+
+        // Render overlays (stackable) - pass input for overlay action buttons
+        this.clearOverlays();
+        const hasOverlay = (frame.overlays?.length || 0) > 0;
+        for (const overlay of frame.overlays || []) {
+            this.showOverlay(overlay, frame.input);
         }
 
-        // Handle inventory overlay
-        if (frame.inventory) {
-            this.showInventory(frame.inventory, frame.input);
-            this.hideCrafting();
-            // Input is rendered inside the overlay, not in the action area
-        } else if (frame.crafting) {
-            this.showCrafting(frame.crafting, frame.input);
-            this.hideInventory();
-            // Input is rendered inside the overlay, not in the action area
-        } else {
-            this.hideInventory();
-            this.hideCrafting();
-            // Start local progress animation if duration is provided
-            if (frame.estimatedDurationSeconds) {
-                ProgressDisplay.start(frame.estimatedDurationSeconds, frame.statusText);
-            } else {
-                this.renderInput(frame.input, frame.statusText, frame.progress);
-            }
+        // Update quick action button states
+        this.updateQuickActionStates(frame.input?.choices);
+
+        // Store input for tile popup access
+        this.currentInput = frame.input;
+
+        // Update tile popup if visible and we have new choices (no overlay active)
+        if (!hasOverlay && this.tilePopup && frame.input?.choices?.length > 0) {
+            this.updateTilePopupActions();
         }
+
+        // All actions now handled via popups:
+        // - Location mode: tile popup
+        // - Travel mode: tile popup (Go) + hazard overlay
+        // - Events: event overlay
+    }
+
+    /**
+     * Set the UI mode based on frame.mode
+     */
+    setMode(mode) {
+        if (!mode) return;
+
+        switch (mode.type) {
+            case 'location':
+                this.setUIMode('location');
+                break;
+            case 'travel':
+                this.setUIMode('travel');
+                this.updateGridFromMode(mode);
+                break;
+            case 'progress':
+                // Progress animation is handled by FrameQueue
+                break;
+        }
+    }
+
+    /**
+     * Update grid from TravelMode data
+     */
+    updateGridFromMode(mode) {
+        if (mode.grid) {
+            this.updateGrid(mode.grid);
+        }
+    }
+
+    /**
+     * Show an overlay based on its type
+     */
+    showOverlay(overlay, input) {
+        switch (overlay.type) {
+            case 'inventory':
+                this.showInventory(overlay.data, input);
+                break;
+            case 'crafting':
+                this.showCrafting(overlay.data, input);
+                break;
+            case 'event':
+                this.showEventPopup(overlay.data);
+                break;
+            case 'hazard':
+                this.showHazardPrompt(overlay.data);
+                break;
+        }
+    }
+
+    /**
+     * Clear all overlays
+     */
+    clearOverlays() {
+        this.hideInventory();
+        this.hideCrafting();
+        this.hideEventPopup();
+        this.hideHazardPrompt();
+    }
+
+    /**
+     * Show event popup overlay
+     */
+    showEventPopup(eventData) {
+        const overlay = document.getElementById('eventOverlay');
+        if (!overlay) return;
+
+        overlay.classList.remove('hidden');
+
+        const nameEl = document.getElementById('eventName');
+        const descEl = document.getElementById('eventDescription');
+        const choicesEl = document.getElementById('eventChoices');
+
+        if (nameEl) nameEl.textContent = eventData.name;
+
+        // Check if this is outcome mode (has outcome data, no choices)
+        if (eventData.outcome) {
+            this.showEventOutcome(eventData, descEl, choicesEl);
+        } else {
+            this.showEventChoices(eventData, descEl, choicesEl);
+        }
+    }
+
+    /**
+     * Show event choices (Phase 1)
+     */
+    showEventChoices(eventData, descEl, choicesEl) {
+        if (descEl) descEl.textContent = eventData.description;
+
+        // Capture input ID for this set of buttons
+        this.currentInputId++;
+        const inputId = this.currentInputId;
+
+        if (choicesEl) {
+            Utils.clearElement(choicesEl);
+            eventData.choices.forEach((choice, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'event-choice-btn';
+                btn.disabled = !choice.isAvailable;
+
+                const label = document.createElement('span');
+                label.className = 'choice-label';
+                label.textContent = choice.label;
+                btn.appendChild(label);
+
+                if (choice.description) {
+                    const desc = document.createElement('span');
+                    desc.className = 'choice-desc';
+                    desc.textContent = choice.description;
+                    btn.appendChild(desc);
+                }
+
+                btn.onclick = () => this.respond(i, inputId);
+                choicesEl.appendChild(btn);
+            });
+        }
+    }
+
+    /**
+     * Show event outcome (Phase 2)
+     */
+    showEventOutcome(eventData, descEl, choicesEl) {
+        const outcome = eventData.outcome;
+        const progressEl = document.getElementById('eventProgress');
+        const progressBar = document.getElementById('eventProgressBar');
+        const progressText = document.getElementById('eventProgressText');
+
+        // If there's time added, show progress animation first
+        if (outcome.timeAddedMinutes > 0) {
+            // Hide content during progress
+            if (descEl) descEl.classList.add('hidden');
+            if (choicesEl) choicesEl.classList.add('hidden');
+
+            // Show and animate progress bar
+            progressEl.classList.remove('hidden');
+            progressText.textContent = `Acting... (+${outcome.timeAddedMinutes} min)`;
+            progressBar.style.width = '0%';
+
+            // Convert game minutes to animation seconds (~5 game-min per real second)
+            const durationSeconds = Math.max(0.5, outcome.timeAddedMinutes / 5);
+            const durationMs = durationSeconds * 1000;
+            const startTime = Date.now();
+
+            const animateProgress = () => {
+                const elapsed = Date.now() - startTime;
+                const pct = Math.min(100, Math.round((elapsed / durationMs) * 100));
+                progressBar.style.width = pct + '%';
+
+                if (pct < 100) {
+                    requestAnimationFrame(animateProgress);
+                } else {
+                    // Animation complete - show outcome
+                    setTimeout(() => {
+                        progressEl.classList.add('hidden');
+                        this.showOutcomeContent(eventData, descEl, choicesEl);
+                    }, 150);
+                }
+            };
+
+            requestAnimationFrame(animateProgress);
+        } else {
+            // No time added - show outcome immediately
+            progressEl.classList.add('hidden');
+            this.showOutcomeContent(eventData, descEl, choicesEl);
+        }
+    }
+
+    /**
+     * Show outcome content (after progress animation if any)
+     */
+    showOutcomeContent(eventData, descEl, choicesEl) {
+        const outcome = eventData.outcome;
+
+        // Show choice context + outcome message
+        if (descEl) {
+            descEl.classList.remove('hidden');
+            Utils.clearElement(descEl);
+
+            // Choice context (what the player chose)
+            const contextEl = document.createElement('div');
+            contextEl.className = 'event-choice-context';
+            contextEl.textContent = eventData.description;
+            descEl.appendChild(contextEl);
+
+            // Outcome message
+            const messageEl = document.createElement('div');
+            messageEl.className = 'event-outcome-message';
+            messageEl.textContent = outcome.message;
+            descEl.appendChild(messageEl);
+        }
+
+        // Build outcome summary
+        if (choicesEl) {
+            choicesEl.classList.remove('hidden');
+            Utils.clearElement(choicesEl);
+
+            const summaryEl = document.createElement('div');
+            summaryEl.className = 'event-outcome-summary';
+
+            // Time added (already shown in progress, but include in summary)
+            if (outcome.timeAddedMinutes > 0) {
+                this.addOutcomeItem(summaryEl, 'schedule',
+                    `+${outcome.timeAddedMinutes} minutes`, 'time');
+            }
+
+            // Damage taken
+            if (outcome.damageTaken && outcome.damageTaken.length > 0) {
+                outcome.damageTaken.forEach(dmg => {
+                    this.addOutcomeItem(summaryEl, 'personal_injury', dmg, 'damage');
+                });
+            }
+
+            // Effects applied
+            if (outcome.effectsApplied && outcome.effectsApplied.length > 0) {
+                outcome.effectsApplied.forEach(effect => {
+                    this.addOutcomeItem(summaryEl, 'warning', effect, 'effect');
+                });
+            }
+
+            // Items gained
+            if (outcome.itemsGained && outcome.itemsGained.length > 0) {
+                outcome.itemsGained.forEach(item => {
+                    this.addOutcomeItem(summaryEl, 'add', item, 'gain');
+                });
+            }
+
+            // Items lost
+            if (outcome.itemsLost && outcome.itemsLost.length > 0) {
+                outcome.itemsLost.forEach(item => {
+                    this.addOutcomeItem(summaryEl, 'remove', item, 'loss');
+                });
+            }
+
+            // Tensions changed
+            if (outcome.tensionsChanged && outcome.tensionsChanged.length > 0) {
+                outcome.tensionsChanged.forEach(tension => {
+                    const isPositive = tension.startsWith('-');
+                    this.addOutcomeItem(summaryEl, isPositive ? 'trending_down' : 'trending_up',
+                        tension, isPositive ? 'tension-down' : 'tension-up');
+                });
+            }
+
+            // Only show summary if there's content
+            if (summaryEl.children.length > 0) {
+                choicesEl.appendChild(summaryEl);
+            }
+
+            // Continue button - uses null to signal "just continue"
+            this.currentInputId++;
+            const inputId = this.currentInputId;
+
+            const continueBtn = document.createElement('button');
+            continueBtn.className = 'event-continue-btn';
+            continueBtn.textContent = 'Continue';
+            continueBtn.onclick = () => this.respond(null, inputId);
+            choicesEl.appendChild(continueBtn);
+        }
+    }
+
+    /**
+     * Add an outcome summary item with icon
+     */
+    addOutcomeItem(container, icon, text, styleClass) {
+        const item = document.createElement('div');
+        item.className = `outcome-item ${styleClass}`;
+
+        const iconEl = document.createElement('span');
+        iconEl.className = 'material-symbols-outlined';
+        iconEl.textContent = icon;
+        item.appendChild(iconEl);
+
+        const textEl = document.createElement('span');
+        textEl.textContent = text;
+        item.appendChild(textEl);
+
+        container.appendChild(item);
+    }
+
+    /**
+     * Hide event popup overlay
+     */
+    hideEventPopup() {
+        const overlay = document.getElementById('eventOverlay');
+        if (overlay) overlay.classList.add('hidden');
+
+        // Reset progress bar state
+        const progressEl = document.getElementById('eventProgress');
+        const progressBar = document.getElementById('eventProgressBar');
+        if (progressEl) progressEl.classList.add('hidden');
+        if (progressBar) progressBar.style.width = '0%';
     }
 
     /**
      * Update grid display with new state
      */
-    updateGrid(frame) {
+    updateGrid(gridState) {
+        // Only hide popup if player actually moved to a different tile
+        if (this.tilePopup) {
+            const playerMoved = this.tilePopup.x !== gridState.playerX ||
+                               this.tilePopup.y !== gridState.playerY;
+            if (playerMoved) {
+                this.hideTilePopup();
+            }
+        }
+
         // Initialize grid renderer if needed
         if (!this.gridInitialized) {
             this.gridRenderer = getGridRenderer();
-            this.gridRenderer.init('gridCanvas', (x, y, tileData) => {
-                this.handleTileClick(x, y, tileData);
+            this.gridRenderer.init('gridCanvas', (x, y, tileData, screenPos) => {
+                this.handleTileClick(x, y, tileData, screenPos);
             });
             this.gridInitialized = true;
         }
 
-        // Store current input type for tile click handling
-        this.currentInputType = frame.input?.type;
-
         // Update grid with new state
-        this.gridRenderer.update(frame.grid);
-
-        // Handle hazard prompt if present
-        if (frame.hazardPrompt && frame.input?.type === 'hazard_choice') {
-            this.showHazardPrompt(frame.hazardPrompt);
-        }
+        this.gridRenderer.update(gridState);
     }
 
     /**
-     * Handle tile click - different behavior based on current mode
+     * Toggle UI mode between location (buttons visible) and travel (map visible)
      */
-    handleTileClick(x, y, tileData) {
+    setUIMode(mode) {
+        const centerArea = document.querySelector('.center-area');
+        centerArea.classList.remove('location-mode', 'travel-mode');
+        centerArea.classList.add(`${mode}-mode`);
+    }
+
+    /**
+     * Handle tile click - show popup with tile info and actions
+     */
+    handleTileClick(x, y, tileData, screenPos) {
         if (this.awaitingResponse) return;
 
-        // If in grid travel mode, send move request directly
-        if (this.currentInputType === 'grid') {
-            this.handleMoveRequest(x, y, tileData);
-        } else {
-            // At camp - show confirmation dialog before traveling
-            const tileName = tileData?.locationName || tileData?.terrain || 'there';
-            if (confirm(`Travel to ${tileName}?`)) {
-                this.handleTravelToRequest(x, y);
+        // Hide any existing popup first
+        this.hideTilePopup();
+
+        // Store current tile for actions
+        this.tilePopup = { x, y, tileData };
+
+        // Show the popup
+        this.showTilePopup(x, y, tileData, screenPos);
+    }
+
+    /**
+     * Show tile popup at screen position
+     */
+    showTilePopup(x, y, tileData, screenPos) {
+        const popup = document.getElementById('tilePopup');
+        const nameEl = document.getElementById('popupName');
+        const terrainEl = document.getElementById('popupTerrain');
+        const featuresEl = document.getElementById('popupFeatures');
+        const actionsEl = document.getElementById('popupActions');
+
+        // Set location info
+        nameEl.textContent = tileData.locationName || tileData.terrain;
+        terrainEl.textContent = tileData.locationName ? tileData.terrain : '';
+
+        // Build features list
+        Utils.clearElement(featuresEl);
+        if (tileData.featureIcons && tileData.featureIcons.length > 0) {
+            tileData.featureIcons.forEach(icon => {
+                const featureEl = document.createElement('div');
+                featureEl.className = 'popup-feature';
+
+                // Add special classes for certain icons
+                if (icon === 'local_fire_department' || icon === 'fireplace') {
+                    featureEl.classList.add('fire');
+                } else if (icon === 'water_drop') {
+                    featureEl.classList.add('water');
+                } else if (icon === 'catching_pokemon' || icon === 'done_all') {
+                    featureEl.classList.add('urgent');
+                }
+
+                const iconEl = document.createElement('span');
+                iconEl.className = 'material-symbols-outlined';
+                iconEl.textContent = icon;
+                featureEl.appendChild(iconEl);
+
+                const labelEl = document.createElement('span');
+                labelEl.textContent = this.getIconLabel(icon);
+                featureEl.appendChild(labelEl);
+
+                featuresEl.appendChild(featureEl);
+            });
+        }
+
+        // Build actions
+        Utils.clearElement(actionsEl);
+
+        const isPlayerHere = tileData.isPlayerHere;
+        const canTravel = tileData.isAdjacent && tileData.isPassable && !isPlayerHere;
+
+        if (canTravel) {
+            const goBtn = document.createElement('button');
+            goBtn.className = 'popup-action-btn primary';
+
+            // Show travel time if available
+            if (tileData.travelTimeMinutes) {
+                goBtn.textContent = `Go (${tileData.travelTimeMinutes} min)`;
+            } else {
+                goBtn.textContent = 'Go';
             }
+
+            goBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.hideTilePopup();
+                this.handleTravelToRequest(x, y);
+            };
+            actionsEl.appendChild(goBtn);
+        }
+
+        // Show location actions when clicking current tile
+        if (isPlayerHere && this.currentInput?.choices) {
+            this.currentInputId++;
+            const inputId = this.currentInputId;
+            const hiddenActions = ['Inventory', 'Crafting'];
+
+            this.currentInput.choices.forEach((choice, i) => {
+                // Skip inventory/crafting (handled by sidebar buttons)
+                if (hiddenActions.some(action => choice.includes(action))) return;
+
+                const btn = document.createElement('button');
+                btn.className = 'popup-action-btn';
+                btn.textContent = choice;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    // Don't hide popup - let next frame update it with new choices
+                    this.respond(i, inputId);
+                };
+                actionsEl.appendChild(btn);
+            });
+        }
+
+        // Position popup
+        popup.style.left = `${screenPos.x + 8}px`;
+        popup.style.top = `${screenPos.y}px`;
+
+        // Adjust if popup would go off-screen
+        popup.classList.remove('hidden');
+        const rect = popup.getBoundingClientRect();
+        if (rect.right > window.innerWidth - 10) {
+            popup.style.left = `${screenPos.x - rect.width - this.gridRenderer.TILE_SIZE - 16}px`;
+        }
+        if (rect.bottom > window.innerHeight - 10) {
+            popup.style.top = `${window.innerHeight - rect.height - 10}px`;
         }
     }
 
     /**
-     * Send travel_to request from map click at camp
+     * Get human-readable label for a feature icon
+     */
+    getIconLabel(icon) {
+        const labels = {
+            'local_fire_department': 'Active fire',
+            'fireplace': 'Embers (relight possible)',
+            'eco': 'Foraging area',
+            'nutrition': 'Harvestable resources',
+            'cruelty_free': 'Wildlife territory',
+            'pets': 'Predator territory',
+            'water_drop': 'Water source',
+            'park': 'Wooded area',
+            'cabin': 'Shelter',
+            'ac_unit': 'Snow shelter',
+            'bed': 'Bedding',
+            'inventory_2': 'Storage cache',
+            'circle': 'Snares set',
+            'catching_pokemon': 'Snare catch ready!',
+            'search': 'Salvage site',
+            'timelapse': 'Curing in progress',
+            'done_all': 'Curing complete!',
+            'construction': 'Construction project'
+        };
+        return labels[icon] || icon;
+    }
+
+    /**
+     * Hide tile popup
+     */
+    hideTilePopup() {
+        const popup = document.getElementById('tilePopup');
+        popup.classList.add('hidden');
+        this.tilePopup = null;
+    }
+
+    /**
+     * Update just the action buttons in an already-visible tile popup
+     */
+    updateTilePopupActions() {
+        if (!this.tilePopup) return;
+
+        const actionsEl = document.getElementById('popupActions');
+        if (!actionsEl) return;
+
+        Utils.clearElement(actionsEl);
+
+        // Only show actions if player is at this tile
+        if (!this.tilePopup.tileData?.isPlayerHere) return;
+        if (!this.currentInput?.choices) return;
+
+        this.currentInputId++;
+        const inputId = this.currentInputId;
+        const hiddenActions = ['Inventory', 'Crafting'];
+
+        this.currentInput.choices.forEach((choice, i) => {
+            if (hiddenActions.some(action => choice.includes(action))) return;
+
+            const btn = document.createElement('button');
+            btn.className = 'popup-action-btn';
+            btn.textContent = choice;
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                this.respond(i, inputId);
+            };
+            actionsEl.appendChild(btn);
+        });
+    }
+
+    /**
+     * Send travel_to request from map click
      */
     handleTravelToRequest(x, y) {
         if (this.awaitingResponse) return;
         this.awaitingResponse = true;
+
+        // Record move for footprint history
+        if (this.gridRenderer) {
+            this.gridRenderer.recordMove();
+        }
 
         if (this.socket.readyState === WebSocket.OPEN) {
             this.socket.send(JSON.stringify({
@@ -158,68 +711,65 @@ class GameClient {
     }
 
     /**
-     * Show hazard choice prompt overlay
+     * Show hazard choice prompt as overlay popup
      */
     showHazardPrompt(hazardPrompt) {
-        // Render hazard choices as action buttons
-        const actionsContainer = document.getElementById('actionButtons');
-        Utils.clearElement(actionsContainer);
+        const overlay = document.getElementById('hazardOverlay');
+        const descEl = document.getElementById('hazardDescription');
+        const choicesEl = document.getElementById('hazardChoices');
 
-        // Title
-        const title = document.createElement('div');
-        title.className = 'hazard-title';
-        title.textContent = 'Hazardous Terrain';
-        actionsContainer.appendChild(title);
+        descEl.textContent = hazardPrompt.hazardDescription;
 
-        // Description
-        const desc = document.createElement('div');
-        desc.className = 'hazard-desc';
-        desc.textContent = hazardPrompt.hazardDescription;
-        actionsContainer.appendChild(desc);
+        Utils.clearElement(choicesEl);
 
         // Quick option
         const quickBtn = document.createElement('button');
-        quickBtn.className = 'action-btn';
+        quickBtn.className = 'event-choice-btn';
+
         const quickLabel = document.createElement('span');
+        quickLabel.className = 'choice-label';
         quickLabel.textContent = 'Quick';
-        const quickTime = document.createElement('span');
-        quickTime.className = 'action-time';
-        quickTime.textContent = `${hazardPrompt.quickTimeMinutes} min • ${hazardPrompt.injuryRiskPercent.toFixed(0)}% risk`;
         quickBtn.appendChild(quickLabel);
-        quickBtn.appendChild(quickTime);
-        quickBtn.onclick = () => this.respondHazardChoice(true);
-        actionsContainer.appendChild(quickBtn);
+
+        const quickDesc = document.createElement('span');
+        quickDesc.className = 'choice-desc';
+        quickDesc.textContent = `${hazardPrompt.quickTimeMinutes} min • ${hazardPrompt.injuryRiskPercent.toFixed(0)}% injury risk`;
+        quickBtn.appendChild(quickDesc);
+
+        quickBtn.onclick = () => {
+            this.hideHazardPrompt();
+            this.respondHazardChoice(true);
+        };
+        choicesEl.appendChild(quickBtn);
 
         // Careful option
         const carefulBtn = document.createElement('button');
-        carefulBtn.className = 'action-btn';
+        carefulBtn.className = 'event-choice-btn';
+
         const carefulLabel = document.createElement('span');
+        carefulLabel.className = 'choice-label';
         carefulLabel.textContent = 'Careful';
-        const carefulTime = document.createElement('span');
-        carefulTime.className = 'action-time';
-        carefulTime.textContent = `${hazardPrompt.carefulTimeMinutes} min`;
         carefulBtn.appendChild(carefulLabel);
-        carefulBtn.appendChild(carefulTime);
-        carefulBtn.onclick = () => this.respondHazardChoice(false);
-        actionsContainer.appendChild(carefulBtn);
+
+        const carefulDesc = document.createElement('span');
+        carefulDesc.className = 'choice-desc';
+        carefulDesc.textContent = `${hazardPrompt.carefulTimeMinutes} min • Safe passage`;
+        carefulBtn.appendChild(carefulDesc);
+
+        carefulBtn.onclick = () => {
+            this.hideHazardPrompt();
+            this.respondHazardChoice(false);
+        };
+        choicesEl.appendChild(carefulBtn);
+
+        overlay.classList.remove('hidden');
     }
 
     /**
-     * Handle move request from grid click
+     * Hide hazard prompt overlay
      */
-    handleMoveRequest(x, y, tileData) {
-        console.log('[GameClient] handleMoveRequest called:', x, y, 'awaitingResponse:', this.awaitingResponse);
-        if (this.awaitingResponse) return;
-        this.awaitingResponse = true;
-
-        if (this.socket.readyState === WebSocket.OPEN) {
-            console.log('[GameClient] Sending move request to server');
-            this.socket.send(JSON.stringify({
-                type: 'move',
-                targetX: x,
-                targetY: y
-            }));
-        }
+    hideHazardPrompt() {
+        document.getElementById('hazardOverlay').classList.add('hidden');
     }
 
     /**
@@ -238,6 +788,20 @@ class GameClient {
         }
     }
 
+    /**
+     * Request a special action (inventory, crafting) via persistent buttons
+     */
+    requestAction(action) {
+        if (this.awaitingResponse) return;
+        this.awaitingResponse = true;
+
+        if (this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'action',
+                action: action
+            }));
+        }
+    }
 
     renderState(state) {
 
@@ -434,20 +998,18 @@ class GameClient {
         container.appendChild(fill);
     }
 
-    renderInput(input, statusText, progress) {
+    renderInput(input, statusText) {
+        const actionsContainer = document.getElementById('actionsArea');
         const actionsArea = document.getElementById('actionButtons');
         const progressTextEl = document.getElementById('progressText');
         const progressIcon = document.getElementById('progressIcon');
         const progressBar = document.getElementById('progressBar');
 
-        // Update progress/status display
-        if (progress && progress.total > 0) {
-            const pct = Math.round(progress.current / progress.total * 100);
-            progressTextEl.textContent = statusText || 'Working...';
-            progressTextEl.classList.add('active');
-            progressIcon.textContent = 'pending';
-            progressBar.style.width = pct + '%';
-        } else if (statusText) {
+        // Show the actions container for travel mode inputs
+        actionsContainer?.classList.remove('hidden');
+
+        // Update status display (progress handled by ProgressMode/FrameQueue)
+        if (statusText) {
             progressTextEl.textContent = statusText;
             progressTextEl.classList.remove('active');
             progressIcon.textContent = 'hourglass_empty';
@@ -481,7 +1043,19 @@ class GameClient {
                 actionsArea.appendChild(promptDiv);
             }
 
+            // Filter out Inventory/Crafting from main buttons (they're in sidebar now)
+            const hiddenActions = ['Inventory', 'Crafting'];
+
+            console.log('[renderInput] All choices:', input.choices);
+
             input.choices.forEach((choice, i) => {
+                // Skip if this is an inventory/crafting option (handled by sidebar buttons)
+                if (hiddenActions.some(action => choice.includes(action))) {
+                    console.log('[renderInput] Hiding:', choice);
+                    return;
+                }
+
+                console.log('[renderInput] Adding button:', choice);
                 const btn = document.createElement('button');
                 btn.className = 'action-btn';
                 btn.textContent = choice;

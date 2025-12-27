@@ -94,268 +94,341 @@ public class GridPositionTests
     }
 }
 
-public class TileGridTests
+public class GameMapTests
 {
-    [Fact]
-    public void Constructor_CreatesGridWithCorrectDimensions()
+    private static GameMap CreateTestMap(int width = 10, int height = 10)
     {
-        var grid = new TileGrid(10, 8);
+        var map = new GameMap(width, height);
+        var weather = new Weather();
 
-        Assert.Equal(10, grid.Width);
-        Assert.Equal(8, grid.Height);
+        // Fill with passable terrain locations
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                var terrain = TerrainType.Plain;
+                var location = LocationFactory.MakeTerrainLocation(terrain, weather);
+                map.SetLocation(x, y, location);
+            }
+        }
+
+        return map;
     }
 
     [Fact]
-    public void Indexer_ValidPosition_ReturnsTile()
+    public void Constructor_CreatesMapWithCorrectDimensions()
     {
-        var grid = new TileGrid(10, 10);
+        var map = new GameMap(10, 8);
 
-        var tile = grid[5, 5];
-
-        Assert.NotNull(tile);
-        Assert.Equal(5, tile.X);
-        Assert.Equal(5, tile.Y);
+        Assert.Equal(10, map.Width);
+        Assert.Equal(8, map.Height);
     }
 
     [Fact]
-    public void Indexer_OutOfBounds_ReturnsNull()
+    public void GetLocationAt_ValidPosition_ReturnsLocation()
     {
-        var grid = new TileGrid(10, 10);
+        var map = CreateTestMap();
 
-        Assert.Null(grid[-1, 5]);
-        Assert.Null(grid[10, 5]);
-        Assert.Null(grid[5, -1]);
-        Assert.Null(grid[5, 10]);
+        var location = map.GetLocationAt(5, 5);
+
+        Assert.NotNull(location);
+    }
+
+    [Fact]
+    public void GetLocationAt_OutOfBounds_ReturnsNull()
+    {
+        var map = CreateTestMap();
+
+        Assert.Null(map.GetLocationAt(-1, 5));
+        Assert.Null(map.GetLocationAt(10, 5));
+        Assert.Null(map.GetLocationAt(5, -1));
+        Assert.Null(map.GetLocationAt(5, 10));
     }
 
     [Fact]
     public void IsInBounds_ValidPosition_ReturnsTrue()
     {
-        var grid = new TileGrid(10, 10);
+        var map = CreateTestMap();
 
-        Assert.True(grid.IsInBounds(0, 0));
-        Assert.True(grid.IsInBounds(9, 9));
-        Assert.True(grid.IsInBounds(5, 5));
+        Assert.True(map.IsInBounds(0, 0));
+        Assert.True(map.IsInBounds(9, 9));
+        Assert.True(map.IsInBounds(5, 5));
     }
 
     [Fact]
     public void IsInBounds_InvalidPosition_ReturnsFalse()
     {
-        var grid = new TileGrid(10, 10);
+        var map = CreateTestMap();
 
-        Assert.False(grid.IsInBounds(-1, 0));
-        Assert.False(grid.IsInBounds(10, 0));
-        Assert.False(grid.IsInBounds(0, -1));
-        Assert.False(grid.IsInBounds(0, 10));
+        Assert.False(map.IsInBounds(-1, 0));
+        Assert.False(map.IsInBounds(10, 0));
+        Assert.False(map.IsInBounds(0, -1));
+        Assert.False(map.IsInBounds(0, 10));
     }
 
     [Fact]
-    public void SetTerrain_ChangesTileTerrainType()
+    public void SetLocation_StoresLocationAtPosition()
     {
-        var grid = new TileGrid(10, 10);
-
-        grid.SetTerrain(5, 5, TerrainType.Forest);
-
-        Assert.Equal(TerrainType.Forest, grid[5, 5]!.Terrain);
-    }
-
-    [Fact]
-    public void GetNeighbors_CenterTile_ReturnsFourNeighbors()
-    {
-        var grid = new TileGrid(10, 10);
-        var tile = grid[5, 5]!;
-
-        var neighbors = grid.GetNeighbors(tile).ToList();
-
-        Assert.Equal(4, neighbors.Count);
-    }
-
-    [Fact]
-    public void GetNeighbors_CornerTile_ReturnsTwoNeighbors()
-    {
-        var grid = new TileGrid(10, 10);
-        var tile = grid[0, 0]!;
-
-        var neighbors = grid.GetNeighbors(tile).ToList();
-
-        Assert.Equal(2, neighbors.Count);
-    }
-
-    [Fact]
-    public void GetNeighbors_EdgeTile_ReturnsThreeNeighbors()
-    {
-        var grid = new TileGrid(10, 10);
-        var tile = grid[5, 0]!; // Top edge, not corner
-
-        var neighbors = grid.GetNeighbors(tile).ToList();
-
-        Assert.Equal(3, neighbors.Count);
-    }
-
-    [Fact]
-    public void GetPassableNeighbors_ExcludesImpassableTerrain()
-    {
-        var grid = new TileGrid(10, 10);
-        var centerTile = grid[5, 5]!;
-
-        // Set one neighbor to impassable
-        grid.SetTerrain(5, 4, TerrainType.Mountain);
-
-        var passableNeighbors = grid.GetPassableNeighbors(centerTile).ToList();
-
-        Assert.Equal(3, passableNeighbors.Count);
-    }
-
-    [Fact]
-    public void IsAdjacent_AdjacentTiles_ReturnsTrue()
-    {
-        var grid = new TileGrid(10, 10);
-        var tile1 = grid[5, 5]!;
-        var tile2 = grid[5, 6]!;
-
-        Assert.True(grid.IsAdjacent(tile1, tile2));
-    }
-
-    [Fact]
-    public void IsAdjacent_DiagonalTiles_ReturnsFalse()
-    {
-        var grid = new TileGrid(10, 10);
-        var tile1 = grid[5, 5]!;
-        var tile2 = grid[6, 6]!;
-
-        Assert.False(grid.IsAdjacent(tile1, tile2));
-    }
-
-    [Fact]
-    public void PlaceLocation_AssignsLocationToTile()
-    {
-        var grid = new TileGrid(10, 10);
+        var map = new GameMap(10, 10);
         var weather = new Weather();
         var location = new Location("Test", "[test]", weather, 5);
 
-        grid.PlaceLocation(5, 5, location);
+        map.SetLocation(5, 5, location);
 
-        Assert.Equal(location, grid[5, 5]!.NamedLocation);
-        Assert.Equal(new GridPosition(5, 5), location.GridPosition);
+        Assert.Equal(location, map.GetLocationAt(5, 5));
     }
 
     [Fact]
-    public void AllTiles_ReturnsCorrectCount()
+    public void GetTravelOptions_CenterPosition_ReturnsFourNeighbors()
     {
-        var grid = new TileGrid(10, 8);
+        var map = CreateTestMap();
+        map.CurrentPosition = new GridPosition(5, 5);
 
-        Assert.Equal(80, grid.AllTiles.Count());
+        var options = map.GetTravelOptions();
+
+        Assert.Equal(4, options.Count);
+    }
+
+    [Fact]
+    public void GetTravelOptions_CornerPosition_ReturnsTwoNeighbors()
+    {
+        var map = CreateTestMap();
+        map.CurrentPosition = new GridPosition(0, 0);
+
+        var options = map.GetTravelOptions();
+
+        Assert.Equal(2, options.Count);
+    }
+
+    [Fact]
+    public void GetTravelOptions_ExcludesImpassableTerrain()
+    {
+        var map = CreateTestMap();
+        var weather = new Weather();
+        map.CurrentPosition = new GridPosition(5, 5);
+
+        // Set one neighbor to impassable
+        var mountainLocation = LocationFactory.MakeTerrainLocation(TerrainType.Mountain, weather);
+        map.SetLocation(5, 4, mountainLocation);
+
+        var options = map.GetTravelOptions();
+
+        Assert.Equal(3, options.Count);
+    }
+
+    [Fact]
+    public void MoveTo_UpdatesCurrentPosition()
+    {
+        var map = CreateTestMap();
+        map.CurrentPosition = new GridPosition(5, 5);
+        var destination = map.GetLocationAt(5, 6)!;
+
+        map.MoveTo(destination);
+
+        Assert.Equal(new GridPosition(5, 6), map.CurrentPosition);
+    }
+
+    [Fact]
+    public void MoveTo_MarksLocationAsExplored()
+    {
+        var map = CreateTestMap();
+        map.CurrentPosition = new GridPosition(5, 5);
+        var destination = map.GetLocationAt(5, 6)!;
+        Assert.False(destination.Explored);
+
+        map.MoveTo(destination);
+
+        Assert.True(destination.Explored);
+    }
+
+    [Fact]
+    public void CanMoveTo_AdjacentPassable_ReturnsTrue()
+    {
+        var map = CreateTestMap();
+        map.CurrentPosition = new GridPosition(5, 5);
+
+        Assert.True(map.CanMoveTo(5, 6));
+        Assert.True(map.CanMoveTo(6, 5));
+    }
+
+    [Fact]
+    public void CanMoveTo_Diagonal_ReturnsFalse()
+    {
+        var map = CreateTestMap();
+        map.CurrentPosition = new GridPosition(5, 5);
+
+        Assert.False(map.CanMoveTo(6, 6));
+    }
+
+    [Fact]
+    public void CanMoveTo_NotAdjacent_ReturnsFalse()
+    {
+        var map = CreateTestMap();
+        map.CurrentPosition = new GridPosition(5, 5);
+
+        Assert.False(map.CanMoveTo(7, 5)); // 2 tiles away
+    }
+
+    [Fact]
+    public void GetPosition_ReturnsLocationPosition()
+    {
+        var map = new GameMap(10, 10);
+        var weather = new Weather();
+        var location = new Location("Test", "[test]", weather, 5);
+        map.SetLocation(5, 5, location);
+
+        var position = map.GetPosition(location);
+
+        Assert.NotNull(position);
+        Assert.Equal(new GridPosition(5, 5), position.Value);
+    }
+
+    [Fact]
+    public void Contains_LocationOnMap_ReturnsTrue()
+    {
+        var map = new GameMap(10, 10);
+        var weather = new Weather();
+        var location = new Location("Test", "[test]", weather, 5);
+        map.SetLocation(5, 5, location);
+
+        Assert.True(map.Contains(location));
+    }
+
+    [Fact]
+    public void Contains_LocationNotOnMap_ReturnsFalse()
+    {
+        var map = new GameMap(10, 10);
+        var weather = new Weather();
+        var location = new Location("Test", "[test]", weather, 5);
+
+        Assert.False(map.Contains(location));
     }
 }
 
-public class TileTests
+public class LocationTests
 {
     [Fact]
-    public void Tile_WithoutLocation_UsesTerrainDefaults()
+    public void Location_TerrainOnly_HasNoFeatures()
     {
-        var tile = new Tile(5, 5, TerrainType.Forest);
+        var weather = new Weather();
+        var location = LocationFactory.MakeTerrainLocation(TerrainType.Forest, weather);
 
-        Assert.Equal("Forest", tile.Name);
-        Assert.Equal(TerrainType.Forest.BaseTraversalMinutes(), tile.TraversalMinutes);
-        Assert.Equal(TerrainType.Forest.BaseHazardLevel(), tile.TerrainHazardLevel);
-        Assert.Equal(TerrainType.Forest.BaseWindFactor(), tile.WindFactor);
+        Assert.True(location.IsTerrainOnly);
+        Assert.Empty(location.Features);
     }
 
     [Fact]
-    public void Tile_WithLocation_UsesLocationProperties()
+    public void Location_Named_HasProperties()
     {
         var weather = new Weather();
         var location = new Location("Test Cave", "[cave]", weather, 15,
             terrainHazardLevel: 0.3, windFactor: 0.2);
 
-        var tile = new Tile(5, 5, TerrainType.Rock) { NamedLocation = location };
-
-        Assert.Equal("Test Cave", tile.Name);
-        Assert.Equal(15, tile.TraversalMinutes);
-        Assert.Equal(0.3, tile.TerrainHazardLevel);
-        Assert.Equal(0.2, tile.WindFactor);
+        Assert.Equal("Test Cave", location.Name);
+        Assert.Equal(15, location.BaseTraversalMinutes);
+        Assert.Equal(0.3, location.TerrainHazardLevel);
+        Assert.Equal(0.2, location.WindFactor);
     }
 
     [Fact]
-    public void Tile_IsPassable_DependsOnTerrain()
+    public void Location_IsPassable_DependsOnTerrain()
     {
-        var passableTile = new Tile(5, 5, TerrainType.Forest);
-        var impassableTile = new Tile(5, 5, TerrainType.Mountain);
+        var weather = new Weather();
+        var passableLocation = LocationFactory.MakeTerrainLocation(TerrainType.Forest, weather);
+        var impassableLocation = LocationFactory.MakeTerrainLocation(TerrainType.Mountain, weather);
 
-        Assert.True(passableTile.IsPassable);
-        Assert.False(impassableTile.IsPassable);
+        Assert.True(passableLocation.IsPassable);
+        Assert.False(impassableLocation.IsPassable);
     }
 
     [Fact]
-    public void MarkExplored_ChangesVisibility()
+    public void MarkExplored_SetsExplored()
     {
-        var tile = new Tile(5, 5, TerrainType.Forest);
-        Assert.False(tile.IsExplored);
+        var weather = new Weather();
+        var location = LocationFactory.MakeTerrainLocation(TerrainType.Forest, weather);
+        Assert.False(location.Explored);
 
-        tile.MarkExplored();
+        location.MarkExplored();
 
-        Assert.True(tile.IsExplored);
+        Assert.True(location.Explored);
     }
 
     [Fact]
-    public void SetVisibility_CannotUnexplore()
+    public void Visibility_CannotGoBackToUnexplored()
     {
-        var tile = new Tile(5, 5, TerrainType.Forest);
-        tile.MarkExplored();
+        var weather = new Weather();
+        var location = LocationFactory.MakeTerrainLocation(TerrainType.Forest, weather);
+        location.Visibility = TileVisibility.Explored;
 
-        tile.SetVisibility(TileVisibility.Unexplored);
+        location.Visibility = TileVisibility.Unexplored;
 
         // Should remain explored, not go back to unexplored
-        Assert.True(tile.IsExplored);
+        Assert.Equal(TileVisibility.Explored, location.Visibility);
     }
 }
 
-public class TileVisibilityTests
+public class VisibilityTests
 {
+    private static GameMap CreateInitializedMap(int width, int height)
+    {
+        var map = new GameMap(width, height);
+        var weather = new Weather();
+        map.Weather = weather;
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                var location = LocationFactory.MakeTerrainLocation(TerrainType.Plain, weather);
+                map.SetLocation(x, y, location);
+            }
+        }
+        return map;
+    }
+
     [Fact]
     public void UpdateVisibility_MarksInRangeAsVisible()
     {
-        var grid = new TileGrid(10, 10);
-        var viewerPos = new GridPosition(5, 5);
+        var map = CreateInitializedMap(10, 10);
+        map.CurrentPosition = new GridPosition(5, 5);
 
-        grid.UpdateVisibility(viewerPos, 2);
+        map.UpdateVisibility();
 
-        Assert.True(grid[5, 5]!.IsVisible);
-        Assert.True(grid[5, 6]!.IsVisible);
-        Assert.True(grid[6, 5]!.IsVisible);
-        Assert.True(grid[5, 7]!.IsVisible); // Range 2
+        Assert.Equal(TileVisibility.Visible, map.GetLocationAt(5, 5)!.Visibility);
+        Assert.Equal(TileVisibility.Visible, map.GetLocationAt(5, 6)!.Visibility);
+        Assert.Equal(TileVisibility.Visible, map.GetLocationAt(6, 5)!.Visibility);
     }
 
     [Fact]
     public void UpdateVisibility_DowngradesPreviouslyVisibleToExplored()
     {
-        var grid = new TileGrid(10, 10);
+        var map = CreateInitializedMap(10, 10);
+        map.CurrentPosition = new GridPosition(5, 5);
 
         // First visibility update at (5, 5)
-        grid.UpdateVisibility(new GridPosition(5, 5), 1);
-        Assert.True(grid[5, 6]!.IsVisible);
+        map.UpdateVisibility();
+        Assert.Equal(TileVisibility.Visible, map.GetLocationAt(5, 6)!.Visibility);
 
-        // Move visibility to (7, 7)
-        grid.UpdateVisibility(new GridPosition(7, 7), 1);
+        // Move to (7, 7)
+        map.CurrentPosition = new GridPosition(7, 7);
+        map.UpdateVisibility();
 
         // Previous tile should now be explored but not visible
-        Assert.False(grid[5, 6]!.IsVisible);
-        Assert.True(grid[5, 6]!.IsExplored);
+        Assert.Equal(TileVisibility.Explored, map.GetLocationAt(5, 6)!.Visibility);
     }
 }
 
 public class GridWorldGeneratorTests
 {
     [Fact]
-    public void Generate_CreatesCampAtCenter()
+    public void Generate_CreatesCamp()
     {
         var generator = new GridWorldGenerator { Width = 20, Height = 20 };
         var weather = new Weather();
 
-        var (grid, campTile, camp) = generator.Generate(weather);
+        var (map, camp) = generator.Generate(weather);
 
-        Assert.NotNull(campTile);
-        Assert.Equal(camp, campTile.NamedLocation);
+        Assert.NotNull(camp);
         Assert.Equal("Forest Camp", camp.Name);
     }
 
@@ -365,25 +438,42 @@ public class GridWorldGeneratorTests
         var generator = new GridWorldGenerator { Width = 20, Height = 20 };
         var weather = new Weather();
 
-        var (grid, campTile, camp) = generator.Generate(weather);
+        var (map, camp) = generator.Generate(weather);
 
-        Assert.True(campTile.IsExplored);
         Assert.True(camp.Explored);
     }
 
     [Fact]
-    public void Generate_SurroundingTilesAreVisible()
+    public void Generate_CampIsOnMap()
     {
         var generator = new GridWorldGenerator { Width = 20, Height = 20 };
         var weather = new Weather();
 
-        var (grid, campTile, camp) = generator.Generate(weather);
+        var (map, camp) = generator.Generate(weather);
+
+        Assert.True(map.Contains(camp));
+        Assert.Equal(camp, map.CurrentLocation);
+    }
+
+    [Fact]
+    public void Generate_SurroundingLocationsAreVisible()
+    {
+        var generator = new GridWorldGenerator { Width = 20, Height = 20 };
+        var weather = new Weather();
+
+        var (map, camp) = generator.Generate(weather);
+        var campPos = map.GetPosition(camp)!.Value;
 
         // Camp and immediate surroundings should be visible
-        Assert.True(campTile.IsVisible);
-        foreach (var neighbor in grid.GetNeighbors(campTile))
+        Assert.Equal(TileVisibility.Visible, camp.Visibility);
+        foreach (var neighborPos in campPos.GetCardinalNeighbors())
         {
-            Assert.True(neighbor.IsVisible);
+            var neighbor = map.GetLocationAt(neighborPos);
+            if (neighbor != null)
+            {
+                Assert.True(neighbor.Visibility == TileVisibility.Visible,
+                    $"Neighbor at {neighborPos} should be visible");
+            }
         }
     }
 
@@ -398,9 +488,9 @@ public class GridWorldGeneratorTests
         };
         var weather = new Weather();
 
-        var (grid, campTile, camp) = generator.Generate(weather);
+        var (map, camp) = generator.Generate(weather);
 
-        var namedLocationCount = grid.NamedLocationTiles.Count();
+        var namedLocationCount = map.NamedLocations.Count();
         Assert.True(namedLocationCount > 1, $"Expected multiple named locations, got {namedLocationCount}");
     }
 
@@ -410,13 +500,14 @@ public class GridWorldGeneratorTests
         var generator = new GridWorldGenerator { Width = 20, Height = 20 };
         var weather = new Weather();
 
-        var (grid, campTile, camp) = generator.Generate(weather);
+        var (map, camp) = generator.Generate(weather);
 
         // Check top rows have mountains (except for pass)
         int mountainCount = 0;
         for (int x = 0; x < 20; x++)
         {
-            if (grid[x, 0]!.Terrain == TerrainType.Mountain)
+            var loc = map.GetLocationAt(x, 0);
+            if (loc != null && loc.Terrain == TerrainType.Mountain)
                 mountainCount++;
         }
 

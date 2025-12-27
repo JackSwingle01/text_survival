@@ -10,7 +10,13 @@ export const NarrativeLog = {
         log.forEach(entry => {
             const div = document.createElement('div');
             div.className = `log-entry ${entry.level}`;
-            div.textContent = entry.text;
+            if (entry.timestamp) {
+                const ts = document.createElement('span');
+                ts.className = 'timestamp';
+                ts.textContent = entry.timestamp;
+                div.appendChild(ts);
+            }
+            div.appendChild(document.createTextNode(entry.text));
             container.appendChild(div);
         });
 

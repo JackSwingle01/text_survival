@@ -120,7 +120,7 @@ public record GameStateDto
 
         // Get log entries from context's log
         var logEntries = ctx.Log.GetVisible()
-            .Select(e => new LogEntryDto(e.Text, e.Level.ToString().ToLowerInvariant()))
+            .Select(e => new LogEntryDto(e.Text, e.Level.ToString().ToLowerInvariant(), e.Timestamp))
             .ToList();
 
         return new GameStateDto
@@ -508,6 +508,6 @@ public record InjuryDto(
     List<string> AffectedCapacities
 );
 
-public record LogEntryDto(string Text, string Level);
+public record LogEntryDto(string Text, string Level, string Timestamp);
 
 public record TensionDto(string Message, string Category);

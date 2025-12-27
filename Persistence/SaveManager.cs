@@ -13,7 +13,7 @@ public static class SaveManager
 {
     public static readonly JsonSerializerOptions Options = new()
     {
-        WriteIndented = true,
+        WriteIndented = false,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         IncludeFields = true,
         Converters = { new JsonStringEnumConverter(), new StackConverterFactory() },
@@ -122,7 +122,14 @@ public static class SaveManager
         // Try deserialization too
         var deserialized = JsonSerializer.Deserialize<GameContext>(json, Options);
 
+        int locationCount = 0;
+        if (deserialized?.Map != null)
+        {
+            foreach (var loc in deserialized.Map.NamedLocations)
+                locationCount++;
+        }
+
         return $"SUCCESS: Serialized {json.Length} characters, deserialized OK. " +
-               $"Locations: {deserialized?.Locations.Count ?? 0}";
+               $"Locations: {locationCount}";
     }
 }

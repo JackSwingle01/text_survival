@@ -4,6 +4,7 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -79,20 +80,21 @@ public class HarvestStrategy : IWorkStrategy
         var found = _selectedTarget.Harvest(actualTime);
 
         var collected = new List<string>();
+        string resultMessage;
 
         if (found.IsEmpty)
         {
-            GameDisplay.AddNarrative(ctx, "You didn't get anything.");
+            resultMessage = "You didn't find anything usable.";
         }
         else
         {
-            var desc = found.GetDescription();
-            GameDisplay.AddNarrative(ctx, $"You harvested {desc}");
-            collected.Add(desc);
+            collected.Add(found.GetDescription());
             InventoryCapacityHelper.CombineAndReport(ctx, found);
+            resultMessage = $"{_selectedTarget.DisplayName}: {_selectedTarget.GetStatusDescription()}";
         }
 
-        GameDisplay.AddNarrative(ctx, $"{_selectedTarget.DisplayName}: {_selectedTarget.GetStatusDescription()}");
+        // Show results in popup overlay
+        WebIO.ShowWorkResult(ctx, "Harvesting", resultMessage, collected);
 
         return new WorkResult(collected, null, actualTime, false);
     }

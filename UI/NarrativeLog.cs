@@ -13,39 +13,37 @@ public class NarrativeLog
 {
     public const int MAX_VISIBLE_LINES = 16;
     private const string SEPARATOR = "· · ·";
-    private List<(string Text, LogLevel Level)> _entries = [];
+    private List<(string Text, LogLevel Level, string Timestamp)> _entries = [];
 
     // For JSON serialization
-    public List<(string Text, LogLevel Level)> Entries
+    public List<(string Text, LogLevel Level, string Timestamp)> Entries
     {
         get => _entries;
         init => _entries = value;
     }
 
-    public void Add(string text, LogLevel level = LogLevel.Normal)
+    public void Add(string text, LogLevel level = LogLevel.Normal, string timestamp = "")
     {
         // ignore duplicates
         if (_entries.Count > 0 && _entries[^1].Text.Trim() == text.Trim())
             return;
-        _entries.Add((text, level));
+        _entries.Add((text, level, timestamp));
     }
 
     public void AddSeparator()
     {
-        if (_entries.Count > 0 && !LastEntryIsSeparator())
-            _entries.Add((SEPARATOR, LogLevel.System));
+        // Disabled - no longer using separators
     }
 
-    public bool LastEntryIsSeparator() =>
-        _entries.Count > 0 && _entries[^1].Text == SEPARATOR;
+    public bool LastEntryIsSeparator() => false;
 
-    public void AddRange(IEnumerable<string> texts, LogLevel level = LogLevel.Normal)
+    public void AddRange(IEnumerable<string> texts, LogLevel level = LogLevel.Normal, string timestamp = "")
     {
         foreach (var text in texts)
-            Add(text, level);
+            Add(text, level, timestamp);
     }
 
-    public IReadOnlyList<(string Text, LogLevel Level)> GetVisible() =>
+    public IReadOnlyList<(string Text, LogLevel Level, string Timestamp)> GetVisible() =>
         _entries.TakeLast(MAX_VISIBLE_LINES).ToList();
 
     public int TotalCount => _entries.Count;

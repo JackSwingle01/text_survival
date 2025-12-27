@@ -7,7 +7,7 @@ export class CanvasGridRenderer {
         this.canvas = null;
         this.ctx = null;
         this.gridState = null;
-        this.onMoveRequest = null;
+        this.onTileClick = null;
 
         // Grid settings
         this.TILE_SIZE = 80;
@@ -19,6 +19,14 @@ export class CanvasGridRenderer {
         this.playerHistory = [];
         this.snowParticles = [];
         this.animationId = null;
+
+        // Camera transition animation
+        this.cameraOffsetX = 0;
+        this.cameraOffsetY = 0;
+        this.currentOffsetX = 0;
+        this.currentOffsetY = 0;
+        this.transitionStartTime = null;
+        this.TRANSITION_DURATION = 300;  // ms
 
         // Colors
         this.COLORS = {
@@ -32,40 +40,33 @@ export class CanvasGridRenderer {
         };
 
         this.TERRAIN_COLORS = {
-            Forest: '#1a2530',
-            Clearing: '#2a3a48',
-            Plain: '#253040',
-            Hills: '#1e2832',
-            Water: '#1a3040',
-            Marsh: '#1a3040',
-            Rock: '#2a2a30',
-            Mountain: '#151518',
-            DeepWater: '#101828',
-            unexplored: '#080a0c'
+            Forest: '#2a4038',      // Dark green - evergreen cover
+            Clearing: '#a8b8c0',    // Medium gray - snowy clearing
+            Plain: '#c8d0d8',       // Light gray - open snow
+            Hills: '#8090a0',       // Blue-gray - snow-dusted hills
+            Water: '#90b0c8',       // Light ice blue - frozen
+            Marsh: '#607068',       // Muted green-gray - frozen wetland
+            Rock: '#606068',        // Medium gray - exposed stone
+            Mountain: '#404048',    // Dark gray - high peaks
+            DeepWater: '#6090b0',   // Deeper blue - thick ice
+            unexplored: '#080a0c'   // Nearly black
         };
 
-        this.ICONS = {
-            fire: 'local_fire_department',
-            forage: 'eco',
-            harvest: 'forest',
-            animals: 'pets',
-            water: 'water_drop',
-            cache: 'inventory_2',
-            shelter: 'camping',
-            wood: 'carpenter',
-            trap: 'trap',
-            curing: 'dry_cleaning',
-            project: 'construction',
-            salvage: 'recycling'
+        // Icons with special styling (glow, color)
+        this.SPECIAL_ICONS = {
+            'local_fire_department': { color: '#e08830', glow: true },  // Fire
+            'fireplace': { color: '#a06030', glow: true },              // Embers
+            'water_drop': { color: '#60a0b0', glow: false },            // Water
+            'catching_pokemon': { color: '#e0a030', glow: true }        // Catch ready!
         };
     }
 
     /**
      * Initialize the canvas renderer
      */
-    init(canvasId, onMoveRequest) {
+    init(canvasId, onTileClick) {
         console.log('[GridRenderer] Initializing with canvas:', canvasId);
-        this.onMoveRequest = onMoveRequest;
+        this.onTileClick = onTileClick;
         this.canvas = document.getElementById(canvasId);
 
         if (!this.canvas) {
@@ -86,7 +87,7 @@ export class CanvasGridRenderer {
         // Set up event handlers
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
-        this.canvas.addEventListener('click', () => this.handleClick());
+        this.canvas.addEventListener('click', (e) => this.handleClick(e));
 
         // Start animation loop
         this.startAnimation();
@@ -113,7 +114,56 @@ export class CanvasGridRenderer {
      */
     update(gridState) {
         console.log('[GridRenderer] Received grid state:', gridState ? `${gridState.tiles?.length} tiles` : 'null');
+
+        // Detect player movement and start camera transition
+        if (this.gridState && gridState) {
+            const oldX = this.gridState.playerX;
+            const oldY = this.gridState.playerY;
+            const newX = gridState.playerX;
+            const newY = gridState.playerY;
+
+            if (oldX !== newX || oldY !== newY) {
+                // Calculate pixel displacement (camera moves opposite to player)
+                const cellSize = this.TILE_SIZE + this.GAP;
+                this.cameraOffsetX = (newX - oldX) * cellSize;
+                this.cameraOffsetY = (newY - oldY) * cellSize;
+                this.transitionStartTime = performance.now();
+            }
+        }
+
         this.gridState = gridState;
+    }
+
+    /**
+     * Easing function for smooth deceleration
+     */
+    easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+    }
+
+    /**
+     * Update camera offset animation
+     */
+    updateCameraTransition() {
+        if (this.transitionStartTime === null) {
+            this.currentOffsetX = 0;
+            this.currentOffsetY = 0;
+            return;
+        }
+
+        const elapsed = performance.now() - this.transitionStartTime;
+        const progress = Math.min(1, elapsed / this.TRANSITION_DURATION);
+        const eased = this.easeOutCubic(progress);
+
+        // Interpolate offset toward zero
+        this.currentOffsetX = this.cameraOffsetX * (1 - eased);
+        this.currentOffsetY = this.cameraOffsetY * (1 - eased);
+
+        if (progress >= 1) {
+            this.transitionStartTime = null;
+            this.currentOffsetX = 0;
+            this.currentOffsetY = 0;
+        }
     }
 
     /**
@@ -127,12 +177,12 @@ export class CanvasGridRenderer {
     }
 
     /**
-     * Convert view coordinates to screen position
+     * Convert view coordinates to screen position (with camera offset applied)
      */
     getTileScreenPos(vx, vy) {
         return {
-            px: vx * (this.TILE_SIZE + this.GAP),
-            py: vy * (this.TILE_SIZE + this.GAP)
+            px: vx * (this.TILE_SIZE + this.GAP) + this.currentOffsetX,
+            py: vy * (this.TILE_SIZE + this.GAP) + this.currentOffsetY
         };
     }
 
@@ -191,6 +241,9 @@ export class CanvasGridRenderer {
      */
     render() {
         const ctx = this.ctx;
+
+        // Update camera transition animation
+        this.updateCameraTransition();
 
         // Clear canvas
         ctx.fillStyle = this.COLORS.midnight;
@@ -356,8 +409,8 @@ export class CanvasGridRenderer {
         const ctx = this.ctx;
 
         if (['Plain', 'Clearing', 'Hills'].includes(terrain)) {
-            // Snow specks
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+            // Snow specks - darker on light backgrounds
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
             for (let i = 0; i < 5; i++) {
                 const sx = px + 8 + (i * 15) % this.TILE_SIZE;
                 const sy = py + 6 + (i * 19) % this.TILE_SIZE;
@@ -366,8 +419,8 @@ export class CanvasGridRenderer {
         }
 
         if (terrain === 'Water' || terrain === 'Marsh') {
-            // Ice cracks
-            ctx.strokeStyle = 'rgba(96, 160, 176, 0.2)';
+            // Ice cracks - darker blue on light ice
+            ctx.strokeStyle = 'rgba(60, 100, 130, 0.35)';
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(px + 15, py + 12);
@@ -377,8 +430,8 @@ export class CanvasGridRenderer {
         }
 
         if (terrain === 'Forest') {
-            // Tree silhouettes
-            ctx.fillStyle = 'rgba(10, 15, 20, 0.4)';
+            // Tree silhouettes - darker green
+            ctx.fillStyle = 'rgba(15, 30, 25, 0.5)';
             [[0.2, 0.3], [0.7, 0.4], [0.5, 0.75]].forEach(([ox, oy]) => {
                 const tx = px + this.TILE_SIZE * ox;
                 const ty = py + this.TILE_SIZE * oy;
@@ -394,8 +447,9 @@ export class CanvasGridRenderer {
 
     /**
      * Render feature icons on a tile
+     * Icons are now material symbol names sent directly from backend
      */
-    renderFeatureIcons(features, px, py, hasFire) {
+    renderFeatureIcons(icons, px, py, hasFire) {
         const iconPositions = [
             { ox: this.TILE_SIZE * 0.28, oy: this.TILE_SIZE * 0.38 },
             { ox: this.TILE_SIZE * 0.72, oy: this.TILE_SIZE * 0.38 },
@@ -403,23 +457,17 @@ export class CanvasGridRenderer {
             { ox: this.TILE_SIZE * 0.72, oy: this.TILE_SIZE * 0.73 }
         ];
 
-        features.slice(0, 4).forEach((feature, i) => {
-            const iconName = this.ICONS[feature];
+        icons.slice(0, 4).forEach((iconName, i) => {
             if (!iconName) return;
 
             const pos = iconPositions[i];
             const iconX = px + pos.ox;
             const iconY = py + pos.oy;
 
-            let color = 'rgba(255, 255, 255, 0.45)';
-            let glow = false;
-
-            if (feature === 'fire') {
-                color = this.COLORS.fireOrange;
-                glow = true;
-            } else if (feature === 'water') {
-                color = this.COLORS.techCyan;
-            }
+            // Check for special icon styling
+            const special = this.SPECIAL_ICONS[iconName];
+            const color = special?.color || 'rgba(255, 255, 255, 0.7)';
+            const glow = special?.glow || false;
 
             if (glow) {
                 this.ctx.save();
@@ -427,7 +475,7 @@ export class CanvasGridRenderer {
                 this.ctx.shadowBlur = 6;
             }
 
-            this.drawMaterialIcon(iconName, iconX, iconY, 18, color, 0.8);
+            this.drawMaterialIcon(iconName, iconX, iconY, 20, color, 0.8);
 
             if (glow) {
                 this.ctx.restore();
@@ -523,21 +571,35 @@ export class CanvasGridRenderer {
     /**
      * Handle click events
      */
-    handleClick() {
-        console.log('[GridRenderer] Click detected, currentHover:', this.currentHover);
-        if (this.currentHover && this.onMoveRequest) {
-            const tile = this.findTile(this.currentHover.x, this.currentHover.y);
-            console.log('[GridRenderer] Sending move request to:', this.currentHover.x, this.currentHover.y);
+    handleClick(e) {
+        if (!this.gridState || !this.onTileClick) return;
 
-            // Add current position to history before moving
-            if (this.gridState) {
-                this.addToHistory(this.gridState.playerX, this.gridState.playerY);
+        const rect = this.canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const vx = Math.floor(mx / (this.TILE_SIZE + this.GAP));
+        const vy = Math.floor(my / (this.TILE_SIZE + this.GAP));
+
+        if (vx >= 0 && vx < this.VIEW_SIZE && vy >= 0 && vy < this.VIEW_SIZE) {
+            const { x: worldX, y: worldY } = this.viewToWorld(vx, vy);
+            const tile = this.findTile(worldX, worldY);
+
+            if (tile && tile.visibility !== 'unexplored') {
+                // Calculate popup position (screen coordinates)
+                const tileScreenX = rect.left + vx * (this.TILE_SIZE + this.GAP) + this.TILE_SIZE;
+                const tileScreenY = rect.top + vy * (this.TILE_SIZE + this.GAP);
+
+                this.onTileClick(worldX, worldY, tile, { x: tileScreenX, y: tileScreenY });
             }
+        }
+    }
 
-            this.onMoveRequest(this.currentHover.x, this.currentHover.y, tile);
-            this.currentHover = null;
-        } else {
-            console.log('[GridRenderer] Click ignored - no valid hover or no callback');
+    /**
+     * Record a move (called when movement actually happens)
+     */
+    recordMove() {
+        if (this.gridState) {
+            this.addToHistory(this.gridState.playerX, this.gridState.playerY);
         }
     }
 

@@ -10,6 +10,9 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class SnareLineFeature : LocationFeature, IWorkableFeature
 {
+    public override string? MapIcon => SnareCount > 0 ? (HasCatch ? "catching_pokemon" : "circle") : null;
+    public override int IconPriority => HasCatch ? 8 : 2; // Catches are urgent
+
     [System.Text.Json.Serialization.JsonInclude]
     private readonly List<PlacedSnare> _snares = [];
     [System.Text.Json.Serialization.JsonInclude]

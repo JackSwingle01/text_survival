@@ -1,7 +1,6 @@
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments.Features;
-using text_survival.Environments.Grid;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Actions.Expeditions;
@@ -42,6 +41,14 @@ public partial class GameRunner(GameContext ctx)
         {
             GameDisplay.Render(ctx, statusText: "Resting.");
             CheckFireWarning();
+
+            // Handle pending travel from map click
+            if (ctx.PendingTravelTarget.HasValue)
+            {
+                new TravelRunner(ctx).DoTravel();
+                continue;
+            }
+
             MainMenu();
         }
 
@@ -67,46 +74,14 @@ public partial class GameRunner(GameContext ctx)
         var choice = new Choice<Action>();
         var capacities = ctx.player.GetCapacities();
         var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
-        var isLimping = AbilityCalculator.IsMovingImpaired(capacities.Moving);
         var isClumsy = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
-        var isFoggy = AbilityCalculator.IsPerceptionImpaired(
-            AbilityCalculator.CalculatePerception(ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers()));
-        var isWinded = AbilityCalculator.IsBreathingImpaired(capacities.Breathing);
 
-        // Work options (field activities)
-        if (CanWork())
+        // Work options (field activities) - listed directly in menu
+        var workOptions = ctx.CurrentLocation.GetWorkOptions(ctx).ToList();
+        foreach (var opt in workOptions)
         {
-            string workLabel = "Work";
-            if (isFoggy && isWinded)
-                workLabel = "Work (foggy, winded)";
-            else if (isFoggy)
-                workLabel = "Work (your senses are dulled)";
-            else if (isWinded)
-                workLabel = "Work (you're short of breath)";
-            choice.AddOption(workLabel, Work);
-        }
-
-        // Travel (no longer needed since clicking map does this, but keep for now)
-        if (CanTravel())
-        {
-            var travelImpairments = new List<string>();
-            if (isImpaired) travelImpairments.Add("impaired");
-            if (isLimping) travelImpairments.Add("limping");
-            if (isWinded) travelImpairments.Add("winded");
-
-            string leaveLabel = travelImpairments.Count switch
-            {
-                0 => "Travel",
-                1 => travelImpairments[0] switch
-                {
-                    "impaired" => "Travel (you're not thinking clearly)",
-                    "limping" => "Travel (your movement is limited)",
-                    "winded" => "Travel (you're short of breath)",
-                    _ => "Travel"
-                },
-                _ => $"Travel ({string.Join(", ", travelImpairments)})"
-            };
-            choice.AddOption(leaveLabel, LeaveCamp);
+            string workId = opt.Id; // Capture for lambda
+            choice.AddOption(opt.Label, () => ExecuteWork(workId));
         }
 
         // Camp activities (combined from CampWork menu)
@@ -174,17 +149,6 @@ public partial class GameRunner(GameContext ctx)
     }
 
     private bool CanCamp() => ctx.CurrentLocation.HasFeature<BeddingFeature>();
-    private bool CanTravel()
-    {
-        if (ctx.IsGridMode)
-        {
-            // Grid mode: can travel if there are adjacent passable tiles
-            return ctx.CurrentTile != null &&
-                   ctx.Grid!.GetPassableNeighbors(ctx.CurrentTile).Any();
-        }
-        return ctx.CurrentLocation.ConnectionNames.Count > 0;
-    }
-    private bool CanWork() => WorkRunner.HasWorkOptions(ctx, ctx.CurrentLocation);
     private void MakeCamp() => CampHandler.MakeCamp(ctx, ctx.CurrentLocation);
     private void CampWork()
     {
@@ -278,91 +242,40 @@ public partial class GameRunner(GameContext ctx)
     }
 
 
-    private void Work()
-    {
-        while (true)
-        {
-            // Auto-save when at work menu
-            _ = SaveManager.Save(ctx);
-
-            TravelRunner traveler = new(ctx);
-            var workChoice = GetWorkOptions(ctx.CurrentLocation);
-            if (workChoice == null) return;
-
-            string workId = workChoice.GetPlayerChoice(ctx);
-            if (workId == "cancel") break;
-
-            var work = new WorkRunner(ctx);
-            WorkResult? result = null;
-
-            // Explore is zone-level, everything else is feature-based
-            if (workId == "explore")
-            {
-                result = work.DoExplore(ctx.CurrentLocation);
-            }
-            else
-            {
-                // Feature-based work (includes hunt) - use ExecuteById
-                result = work.ExecuteById(ctx.CurrentLocation, workId);
-            }
-
-            if (result != null)
-            {
-                // Handle discovered locations
-                if (result.DiscoveredLocation != null)
-                {
-                    GameDisplay.AddNarrative(ctx, $"Discovered: {result.DiscoveredLocation.Name}");
-                    if (WorkRunner.PromptTravelToDiscovery(ctx, result.DiscoveredLocation))
-                    {
-                        traveler.TravelToLocation(result.DiscoveredLocation);
-                    }
-                }
-
-                // Handle found animal from hunt search - run interactive hunt
-                if (result.FoundAnimal != null)
-                {
-                    var (outcome, huntMinutes) = HuntRunner.Run(
-                        result.FoundAnimal, ctx.CurrentLocation, ctx);
-
-                    // Time passage during hunt
-                    if (huntMinutes > 0)
-                    {
-                        ctx.Update(huntMinutes, ActivityType.Hunting);
-                    }
-                }
-            }
-        }
-    }
-
-
     /// <summary>
-    /// Build work options menu including feature work and explore.
-    /// Hunt is now a feature-based work option from AnimalTerritoryFeature.
+    /// Execute a single work action by ID.
     /// </summary>
-    private Choice<string>? GetWorkOptions(Location location)
+    private void ExecuteWork(string workId)
     {
-        var choice = new Choice<string>("What work do you want to do?");
-        bool hasOptions = false;
+        TravelRunner traveler = new(ctx);
+        var work = new WorkRunner(ctx);
+        var result = work.ExecuteById(ctx.CurrentLocation, workId);
 
-        // Feature-based work options (includes Hunt from AnimalTerritoryFeature)
-        var workOptions = location.GetWorkOptions(ctx).ToList();
-        foreach (var opt in workOptions)
+        if (result != null)
         {
-            choice.AddOption(opt.Label, opt.Id);
-            hasOptions = true;
+            // Handle discovered locations
+            if (result.DiscoveredLocation != null)
+            {
+                GameDisplay.AddNarrative(ctx, $"Discovered: {result.DiscoveredLocation.Name}");
+                if (WorkRunner.PromptTravelToDiscovery(ctx, result.DiscoveredLocation))
+                {
+                    traveler.TravelToLocation(result.DiscoveredLocation);
+                }
+            }
+
+            // Handle found animal from hunt search - run interactive hunt
+            if (result.FoundAnimal != null)
+            {
+                var (outcome, huntMinutes) = HuntRunner.Run(
+                    result.FoundAnimal, ctx.CurrentLocation, ctx);
+
+                // Time passage during hunt
+                if (huntMinutes > 0)
+                {
+                    ctx.Update(huntMinutes, ActivityType.Hunting);
+                }
+            }
         }
-
-        // Explore - zone-level action
-        if (ctx.HasUnrevealedLocations())
-        {
-            choice.AddOption("Explore the area (discover new locations)", "explore");
-            hasOptions = true;
-        }
-
-        if (!hasOptions) return null;
-
-        choice.AddOption("Done", "cancel");
-        return choice;
     }
 
 
@@ -419,20 +332,6 @@ public partial class GameRunner(GameContext ctx)
     {
         var improveCampRunner = new ImproveCampRunner(ctx);
         improveCampRunner.Run();
-    }
-
-    private void LeaveCamp()
-    {
-        if (ctx.IsGridMode)
-        {
-            var gridTraveler = new GridTravelRunner(ctx);
-            gridTraveler.DoGridTravel();
-        }
-        else
-        {
-            var traveler = new TravelRunner(ctx);
-            traveler.DoTravel();
-        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

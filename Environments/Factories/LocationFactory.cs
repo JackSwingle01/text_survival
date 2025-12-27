@@ -1,10 +1,119 @@
+using text_survival.Actions;
 using text_survival.Environments.Features;
+using text_survival.Environments.Grid;
 using text_survival.Items;
 
 namespace text_survival.Environments.Factories;
 
 public static class LocationFactory
 {
+    #region Terrain Location Factory
+
+    /// <summary>
+    /// Create a terrain-only location for a grid tile.
+    /// These locations have basic features derived from terrain type.
+    /// Named locations with rich features replace these when placed on the grid.
+    /// </summary>
+    public static Location MakeTerrainLocation(TerrainType terrain, Weather weather, int? positionSeed = null)
+    {
+        var location = new Location(
+            name: GetTerrainDisplayName(terrain),
+            tags: "",
+            weather: weather,
+            traversalMinutes: terrain.BaseTraversalMinutes(),
+            terrainHazardLevel: terrain.BaseHazardLevel(),
+            windFactor: terrain.BaseWindFactor(),
+            overheadCoverLevel: terrain.BaseOverheadCover(),
+            visibilityFactor: terrain.BaseVisibility())
+        {
+            Terrain = terrain
+        };
+
+        // Add environmental details for terrain flavor (if position seed provided)
+        if (positionSeed.HasValue)
+        {
+            var details = EnvironmentalDetailFactory.GenerateForTerrain(terrain, positionSeed.Value);
+            foreach (var detail in details)
+            {
+                location.Features.Add(detail);
+            }
+        }
+
+        // Add terrain-appropriate forage with randomized density
+        if (terrain.IsPassable())
+        {
+            location.Features.Add(FeatureFactory.CreateTerrainForage(terrain));
+
+            // 10% chance for terrain-appropriate harvestable
+            if (Utils.DetermineSuccess(0.1))
+            {
+                var harvestable = GetTerrainHarvestable(terrain);
+                if (harvestable != null)
+                    location.Features.Add(harvestable);
+            }
+
+            // 10% chance for terrain-appropriate animals
+            if (Utils.DetermineSuccess(0.1))
+            {
+                var animals = GetTerrainAnimals(terrain);
+                if (animals != null)
+                    location.Features.Add(animals);
+            }
+        }
+
+        return location;
+    }
+
+    private static HarvestableFeature? GetTerrainHarvestable(TerrainType terrain) => terrain switch
+    {
+        TerrainType.Forest => Utils.FlipCoin() ? FeatureFactory.CreateBerryBush() : FeatureFactory.CreateMixedDeadfall(),
+        TerrainType.Clearing => Utils.FlipCoin() ? FeatureFactory.CreateBerryBush() : FeatureFactory.CreateForestPuddle(),
+        TerrainType.Plain => FeatureFactory.CreateMeltwaterPuddle(),
+        TerrainType.Marsh => Utils.FlipCoin() ? FeatureFactory.CreateCattails() : FeatureFactory.CreateMarshWater(),
+        TerrainType.Water => FeatureFactory.CreateIceSource(),
+        _ => null
+    };
+
+    private static AnimalTerritoryFeature? GetTerrainAnimals(TerrainType terrain)
+    {
+        var (baseDensity, factory) = terrain switch
+        {
+            TerrainType.Forest => (0.4, (Func<double, AnimalTerritoryFeature>)FeatureFactory.CreateMixedPreyAnimals),
+            TerrainType.Clearing => (0.35, (Func<double, AnimalTerritoryFeature>)FeatureFactory.CreateMixedPreyAnimals),
+            TerrainType.Plain => (0.3, (Func<double, AnimalTerritoryFeature>)FeatureFactory.CreateSmallGameAnimals),
+            TerrainType.Hills => (0.25, (Func<double, AnimalTerritoryFeature>)FeatureFactory.CreateSmallGameAnimals),
+            TerrainType.Marsh => (0.35, (Func<double, AnimalTerritoryFeature>)FeatureFactory.CreateWaterfowlAnimals),
+            TerrainType.Rock => (0.2, (Func<double, AnimalTerritoryFeature>)FeatureFactory.CreateSmallGameAnimals),
+            _ => (0.0, (Func<double, AnimalTerritoryFeature>?)null)
+        };
+
+        if (factory == null) return null;
+
+        double density = Utils.RandomNormal(baseDensity, 0.15);
+        density = Math.Clamp(density, 0.1, 0.8);
+
+        return factory(density);
+    }
+
+    /// <summary>
+    /// Get a display name for terrain types.
+    /// </summary>
+    private static string GetTerrainDisplayName(TerrainType terrain) => terrain switch
+    {
+        TerrainType.Forest => "Dense Forest",
+        TerrainType.Clearing => "Forest Clearing",
+        TerrainType.Plain => "Snowy Plain",
+        TerrainType.Hills => "Rocky Hills",
+        TerrainType.Water => "Frozen Lake",
+        TerrainType.Marsh => "Frozen Marsh",
+        TerrainType.Rock => "Rocky Ground",
+        TerrainType.Mountain => "Mountain",
+        TerrainType.DeepWater => "Deep Water",
+        _ => terrain.ToString()
+    };
+
+    #endregion
+
     #region Site Factories
 
     public static Location MakeForest(Weather weather)
@@ -149,7 +258,8 @@ public static class LocationFactory
             overheadCoverLevel: 0.1,
             visibilityFactor: 0.8)
         {
-            DiscoveryText = "Steam rises from a pool of warm water. The air here is noticeably warmer."
+            DiscoveryText = "Steam rises from a pool of warm water. The air here is noticeably warmer.",
+            FirstVisitEvent = GameEventRegistry.FirstVisitHotSpring
         };
 
         location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.3));
@@ -487,7 +597,8 @@ public static class LocationFactory
             overheadCoverLevel: 0.9,
             visibilityFactor: 0.4)  // Dark under canopy
         {
-            DiscoveryText = "Old growth. Massive trunks, cathedral spacing, deep silence. The canopy blocks snow and light alike."
+            DiscoveryText = "Old growth. Massive trunks, cathedral spacing, deep silence. The canopy blocks snow and light alike.",
+            FirstVisitEvent = GameEventRegistry.FirstVisitAncientGrove
         };
 
         location.Features.Add(FeatureFactory.CreateOldGrowthForage(density: 0.4));
@@ -621,7 +732,8 @@ public static class LocationFactory
         {
             DiscoveryText = "Spine of broken stone above the treeline. Wind never stops. You can see for miles — both valley sides visible.",
             IsVantagePoint = true,
-            ClimbRiskFactor = 0.4
+            ClimbRiskFactor = 0.4,
+            FirstVisitEvent = GameEventRegistry.FirstVisitRockyRidge
         };
 
         location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.3));
@@ -648,7 +760,8 @@ public static class LocationFactory
             visibilityFactor: 0.2)
         {
             DiscoveryText = "A deep cave mouth. Dry floor, wind-sheltered depths. But there's a smell — musk and old kills. Something lives here.",
-            IsDark = true
+            IsDark = true,
+            FirstVisitEvent = GameEventRegistry.FirstVisitBearCave
         };
 
         // Bones from bear kills - unique forage pattern, keep inline
@@ -728,7 +841,8 @@ public static class LocationFactory
         {
             DiscoveryText = "A massive lone pine stands on a rise. Its branches form a natural ladder. From up there, you could see everything — including the mountain pass.",
             IsVantagePoint = true,
-            ClimbRiskFactor = 0.25   // Moderate climb risk
+            ClimbRiskFactor = 0.25,   // Moderate climb risk
+            FirstVisitEvent = GameEventRegistry.FirstVisitLookout
         };
 
         // Pine resources - unique mix for this location, keep inline
@@ -776,7 +890,8 @@ public static class LocationFactory
             overheadCoverLevel: 0.3,
             visibilityFactor: 0.7)
         {
-            DiscoveryText = $"A clearing where the snow is depressed. Charcoal scattered. A collapsed lean-to. Someone was here. {narrativeHook}"
+            DiscoveryText = $"A clearing where the snow is depressed. Charcoal scattered. A collapsed lean-to. Someone was here. {narrativeHook}",
+            FirstVisitEvent = GameEventRegistry.FirstVisitOldCampsite
         };
 
         // Create enhanced salvage based on story

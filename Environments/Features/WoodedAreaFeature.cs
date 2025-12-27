@@ -13,6 +13,9 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class WoodedAreaFeature : LocationFeature, IWorkableFeature
 {
+    public override string? MapIcon => HasTrees ? "park" : null;
+    public override int IconPriority => 1;
+
     /// <summary>
     /// Type of wood in this area (Pine, Birch, Oak).
     /// Null means mixed forest with random wood types.

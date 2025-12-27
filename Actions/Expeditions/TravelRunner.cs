@@ -18,12 +18,27 @@ public class TravelRunner(GameContext ctx)
     /// </summary>
     public void DoTravel()
     {
+        // Check for pending travel target from map click
+        if (_ctx.PendingTravelTarget.HasValue)
+        {
+            var target = _ctx.PendingTravelTarget.Value;
+            _ctx.PendingTravelTarget = null; // Clear it
+
+            var destination = _ctx.Map?.GetLocationAt(target.X, target.Y);
+            if (destination != null && destination != _ctx.CurrentLocation)
+            {
+                TravelToLocation(destination);
+            }
+            // Return to main menu after traveling to clicked tile
+            return;
+        }
+
         while (true)
         {
             // Auto-save when at travel menu
             _ = SaveManager.Save(_ctx);
 
-            var connections = _ctx.CurrentLocation.GetConnections(_ctx);
+            var connections = _ctx.Map?.GetTravelOptions() ?? [];
             if (connections.Count == 0)
             {
                 GameDisplay.AddNarrative(_ctx, "You don't know where to go from here. You need to explore first.");
@@ -80,68 +95,66 @@ public class TravelRunner(GameContext ctx)
         int exitTime = TravelProcessor.CalculateSegmentTime(origin, _ctx.player, _ctx.Inventory);
         int entryTime = TravelProcessor.CalculateSegmentTime(destination, _ctx.player, _ctx.Inventory);
 
-        // Check hazards for each segment
-        bool originHazardous = TravelProcessor.IsHazardousTerrain(origin);
-        bool destHazardous = TravelProcessor.IsHazardousTerrain(destination);
+        // Track quick travel choices for injury checks
+        bool originQuickTravel = false;
+        bool destQuickTravel = false;
 
-        // SEGMENT 1: Exit origin (CurrentLocation = origin)
-        if (originHazardous)
+        // Handle hazard prompts upfront
+        if (TravelProcessor.IsHazardousTerrain(origin))
         {
             var (segmentTime, quickTravel) = PromptForSpeed(origin, exitTime, isExiting: true);
             exitTime = segmentTime;
-
-            bool died = RunTravelWithProgress(exitTime);
-            if (died) return false;
-
-            // Check for injury if quick travel
-            if (quickTravel)
-            {
-                double injuryRisk = TravelProcessor.GetInjuryRisk(origin, _ctx.player, _ctx.Weather);
-                if (injuryRisk > 0 && Utils.RandDouble(0, 1) < injuryRisk)
-                {
-                    TravelHandler.ApplyTravelInjury(_ctx, origin);
-                    if (!_ctx.player.IsAlive) return false;
-                }
-            }
-        }
-        else
-        {
-            // Normal speed for non-hazardous origin
-            bool died = RunTravelWithProgress(exitTime);
-            if (died) return false;
+            originQuickTravel = quickTravel;
         }
 
-        // TRANSITION: Update CurrentLocation
-        _ctx.CurrentLocation = destination;
-
-        // SEGMENT 2: Enter destination (CurrentLocation = destination)
-        if (destHazardous)
+        if (TravelProcessor.IsHazardousTerrain(destination))
         {
             var (segmentTime, quickTravel) = PromptForSpeed(destination, entryTime, isExiting: false);
             entryTime = segmentTime;
+            destQuickTravel = quickTravel;
+        }
 
-            bool died = RunTravelWithProgress(entryTime);
-            if (died) return false;
+        // Single combined progress bar
+        int totalTime = exitTime + entryTime;
+        bool died = RunTravelWithProgress(totalTime);
+        if (died) return false;
 
-            // Check for injury if quick travel
-            if (quickTravel)
+        // Move to destination
+        _ctx.Map!.MoveTo(destination);
+
+        // Apply injury checks after travel completes
+        if (originQuickTravel)
+        {
+            double injuryRisk = TravelProcessor.GetInjuryRisk(origin, _ctx.player, _ctx.Weather);
+            if (injuryRisk > 0 && Utils.RandDouble(0, 1) < injuryRisk)
             {
-                double injuryRisk = TravelProcessor.GetInjuryRisk(destination, _ctx.player, _ctx.Weather);
-                if (injuryRisk > 0 && Utils.RandDouble(0, 1) < injuryRisk)
-                {
-                    TravelHandler.ApplyTravelInjury(_ctx, destination);
-                    if (!_ctx.player.IsAlive) return false;
-                }
+                TravelHandler.ApplyTravelInjury(_ctx, origin);
+                if (!_ctx.player.IsAlive) return false;
             }
         }
-        else
+
+        if (destQuickTravel)
         {
-            // Normal speed for non-hazardous destination
-            bool died = RunTravelWithProgress(entryTime);
-            if (died) return false;
+            double injuryRisk = TravelProcessor.GetInjuryRisk(destination, _ctx.player, _ctx.Weather);
+            if (injuryRisk > 0 && Utils.RandDouble(0, 1) < injuryRisk)
+            {
+                TravelHandler.ApplyTravelInjury(_ctx, destination);
+                if (!_ctx.player.IsAlive) return false;
+            }
         }
 
         bool firstVisit = !destination.Explored;
+
+        // Trigger first-visit event if one exists
+        if (firstVisit && destination.FirstVisitEvent != null)
+        {
+            var evt = destination.FirstVisitEvent(_ctx);
+            if (evt != null)
+            {
+                GameEventRegistry.HandleEvent(_ctx, evt);
+            }
+        }
+
         destination.Explore();
 
         // Check for victory

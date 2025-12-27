@@ -10,6 +10,9 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class CraftingProjectFeature : LocationFeature, IWorkableFeature
 {
+    public override string? MapIcon => !IsComplete ? "construction" : null;
+    public override int IconPriority => 4;
+
     /// <summary>
     /// Display name of the project (e.g., "Cabin", "Sleeping Bag").
     /// </summary>

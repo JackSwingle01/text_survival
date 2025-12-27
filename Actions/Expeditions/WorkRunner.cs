@@ -5,6 +5,7 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions.Expeditions;
 
@@ -107,6 +108,9 @@ public class WorkRunner(GameContext ctx)
         // Show UI and check weight
         GameDisplay.Render(_ctx, statusText: "Thinking.");
         Input.WaitForKey(_ctx);
+
+        // Clear work result overlay so it doesn't persist
+        WebIO.ClearEvent(_ctx);
 
         ForceDropIfOverweight();
 
@@ -293,18 +297,14 @@ public class WorkRunner(GameContext ctx)
 
     /// <summary>
     /// Calculate chance to discover a new location.
-    /// Decreases exponentially with existing connections.
-    /// High visibility locations are better for scouting.
+    /// In grid mode, base chance with visibility bonus.
     /// </summary>
     public static double CalculateExploreChance(Location location)
     {
-        int connections = location.ConnectionNames.Count;
-        double baseChance = 0.90;
-        double decayFactor = 0.55;
-        double chance = baseChance * Math.Pow(decayFactor, connections);
+        double baseChance = 0.70;
 
         // High visibility improves scouting (up to +20% at visibility 2.0)
-        chance += location.VisibilityFactor * 0.10;
+        double chance = baseChance + location.VisibilityFactor * 0.10;
 
         return Math.Min(0.95, chance);
     }

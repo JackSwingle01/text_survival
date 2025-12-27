@@ -11,6 +11,9 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class CacheFeature : LocationFeature, IWorkableFeature
 {
+    public override string? MapIcon => HasItems ? "inventory_2" : null;
+    public override int IconPriority => 2;
+
     /// <summary>
     /// The storage inventory for this cache.
     /// </summary>

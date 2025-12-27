@@ -24,6 +24,9 @@ public enum ToolTier
 /// </summary>
 public class HarvestableFeature : LocationFeature, IWorkableFeature
 {
+    public override string? MapIcon => CanBeHarvested() ? "nutrition" : null;
+    public override int IconPriority => 1;
+
     [System.Text.Json.Serialization.JsonInclude]
     private string _displayName = "";
 

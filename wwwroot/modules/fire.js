@@ -1,17 +1,20 @@
 export const FireDisplay = {
     render(fire) {
         const statusEl = document.getElementById('fireStatus');
+        const section = statusEl?.closest('.status-section');
+
+        // Hide entire section if no fire pit
+        if (!fire) {
+            if (section) section.classList.add('hidden');
+            return;
+        }
+
+        // Show section
+        if (section) section.classList.remove('hidden');
+
         const phaseText = document.getElementById('firePhaseText');
         const fuelEl = document.getElementById('fireFuel');
         const heatEl = document.getElementById('fireHeat');
-
-        if (!fire) {
-            phaseText.textContent = 'No fire pit';
-            statusEl.className = 'fire-status cold';
-            fuelEl.textContent = '--';
-            heatEl.textContent = '--';
-            return;
-        }
 
         if (fire.phase === 'Cold') {
             phaseText.textContent = 'No fire';

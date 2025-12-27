@@ -1,7 +1,7 @@
 ﻿using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Environments.Features;
-using text_survival.Environments.Grid;
+using text_survival.Environments.Grid;  // For TileVisibility enum
 using text_survival.UI;
 
 
@@ -19,12 +19,40 @@ public class Location
     public string Tags { get; init; } = "";
 
     /// <summary>
-    /// Position on the tile grid. Null if not yet placed on grid.
+    /// Terrain type for this location (for grid rendering).
     /// </summary>
-    public GridPosition? GridPosition { get; set; }
+    public TerrainType Terrain { get; set; } = TerrainType.Plain;
+
+    /// <summary>
+    /// Whether this location can be entered (derived from terrain).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsPassable => Terrain.IsPassable();
+
+    /// <summary>
+    /// Visibility state for fog of war. Used when location is on grid.
+    /// Cannot go back to Unexplored once explored.
+    /// </summary>
+    private TileVisibility _visibility = TileVisibility.Unexplored;
+    public TileVisibility Visibility
+    {
+        get => _visibility;
+        set
+        {
+            // Cannot go back to Unexplored once explored or visible
+            if (_visibility != TileVisibility.Unexplored && value == TileVisibility.Unexplored)
+                return;
+            _visibility = value;
+        }
+    }
+
+    /// <summary>
+    /// Whether this is a terrain-only location (no features, just traversal).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsTerrainOnly => Features.Count == 0;
 
     public Weather Weather { get; init; } = null!;
-    public List<string> ConnectionNames { get; init; } = [];  // Store names to avoid circular refs
 
     // Environment //
     public double WindFactor { get; init; } = 1;
@@ -96,6 +124,13 @@ public class Location
     /// </summary>
     public string? DiscoveryText { get; set; }
 
+    /// <summary>
+    /// Optional event factory that triggers on first arrival.
+    /// Called before DiscoveryText is shown.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Func<GameContext, GameEvent?>? FirstVisitEvent { get; set; }
+
     // Tactical Properties //
 
     /// <summary>
@@ -122,38 +157,10 @@ public class Location
 
     /// <summary>
     /// Mark as explored without triggering narrative display.
-    /// Used by grid system when player enters a tile.
+    /// Used by map system when player enters a location.
     /// </summary>
     public void MarkExplored() => Explored = true;
 
-    /// <summary>
-    /// Resolve connection names to actual Location objects from GameContext.
-    /// </summary>
-    public List<Location> GetConnections(Actions.GameContext ctx)
-    {
-        var connections = new List<Location>();
-        foreach (var name in ConnectionNames)
-        {
-            var location = ctx.Locations.FirstOrDefault(l => l.Name == name);
-            if (location != null)
-            {
-                connections.Add(location);
-            }
-        }
-        return connections;
-    }
-
-    public void AddConnection(Location other)
-    {
-        if (!ConnectionNames.Contains(other.Name))
-            ConnectionNames.Add(other.Name);
-    }
-
-    public void AddBidirectionalConnection(Location other)
-    {
-        AddConnection(other);
-        other.AddConnection(this);
-    }
     public List<BloodTrail> BloodTrails = []; // MVP Hunting System - Phase 4
 
 

@@ -31,6 +31,17 @@ namespace text_survival
             return random.NextDouble() * (high - low) + low;
         }
 
+        /// <summary>
+        /// Generate a normally distributed random value using Box-Muller transform.
+        /// </summary>
+        public static double RandomNormal(double mean, double stdDev)
+        {
+            double u1 = 1.0 - random.NextDouble();
+            double u2 = 1.0 - random.NextDouble();
+            double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
+            return mean + stdDev * randStdNormal;
+        }
+
         public static bool FlipCoin()
         {
             return random.Next(2) == 0;

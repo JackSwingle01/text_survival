@@ -4,6 +4,7 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -105,20 +106,23 @@ public class ForageStrategy : IWorkStrategy
 
         var collected = new List<string>();
         string quality = feature.GetQualityDescription();
+        string resultMessage;
 
         if (found.IsEmpty)
         {
-            GameDisplay.AddNarrative(ctx, "You find nothing.");
-            GameDisplay.AddNarrative(ctx, WorkRunner.GetForageFailureMessage(quality));
+            resultMessage = WorkRunner.GetForageFailureMessage(quality);
         }
         else
         {
-            GameDisplay.AddNarrative(ctx, $"You found: {found.GetDescription()}");
             collected.Add(found.GetDescription());
             InventoryCapacityHelper.CombineAndReport(ctx, found);
-            if (quality == "sparse" || quality == "picked over")
-                GameDisplay.AddNarrative(ctx, "Resources here are getting scarce.");
+            resultMessage = quality is "sparse" or "picked over"
+                ? "Resources here are getting scarce."
+                : "You gather what you can find.";
         }
+
+        // Show results in popup overlay
+        WebIO.ShowWorkResult(ctx, "Foraging", resultMessage, collected);
 
         // Tutorial: Show fuel progress on Day 1
         double totalFuelGathered = found.GetWeight(ResourceCategory.Fuel);

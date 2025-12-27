@@ -1,6 +1,6 @@
 using text_survival.Actions;
 using text_survival.Crafting;
-using text_survival.Environments.Grid;
+using text_survival.Environments;
 using text_survival.Web.Dto;
 
 namespace text_survival.Web;
@@ -14,23 +14,53 @@ public static class WebIO
     private static readonly TimeSpan ResponseTimeout = TimeSpan.FromMinutes(5);
     private static readonly Dictionary<string, InventoryDto> _currentInventory = new();
     private static readonly Dictionary<string, CraftingDto> _currentCrafting = new();
+    private static readonly Dictionary<string, EventDto> _currentEvent = new();
+    private static readonly Dictionary<string, HazardPromptDto> _currentHazard = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
         ?? throw new InvalidOperationException($"No session found for ID: {ctx.SessionId}");
 
-    private static InventoryDto? GetInventory(string? sessionId)
+    /// <summary>
+    /// Get the current UI mode based on context state.
+    /// </summary>
+    private static FrameMode GetCurrentMode(
+        GameContext ctx,
+        int? estimatedDurationSeconds = null,
+        string? activityText = null)
     {
-        if (sessionId != null && _currentInventory.TryGetValue(sessionId, out var dto))
-            return dto;
-        return null;
+        // Progress mode takes priority
+        if (estimatedDurationSeconds.HasValue)
+            return new ProgressMode(activityText ?? "Working...", estimatedDurationSeconds.Value);
+
+        // Travel mode when map is present
+        if (ctx.Map != null)
+            return new TravelMode(GridStateDto.FromContext(ctx));
+
+        // Default to location mode
+        return new LocationMode();
     }
 
-    private static CraftingDto? GetCrafting(string? sessionId)
+    /// <summary>
+    /// Get all currently active overlays.
+    /// </summary>
+    private static List<Overlay> GetCurrentOverlays(string? sessionId)
     {
-        if (sessionId != null && _currentCrafting.TryGetValue(sessionId, out var dto))
-            return dto;
-        return null;
+        var overlays = new List<Overlay>();
+
+        if (sessionId != null)
+        {
+            if (_currentInventory.TryGetValue(sessionId, out var inv))
+                overlays.Add(new InventoryOverlay(inv));
+            if (_currentCrafting.TryGetValue(sessionId, out var craft))
+                overlays.Add(new CraftingOverlay(craft));
+            if (_currentEvent.TryGetValue(sessionId, out var evt))
+                overlays.Add(new EventOverlay(evt));
+            if (_currentHazard.TryGetValue(sessionId, out var hazard))
+                overlays.Add(new HazardOverlay(hazard));
+        }
+
+        return overlays;
     }
 
     /// <summary>
@@ -52,6 +82,24 @@ public static class WebIO
     }
 
     /// <summary>
+    /// Clear the current event display for a session.
+    /// </summary>
+    public static void ClearEvent(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentEvent.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
+    /// Clear the current hazard display for a session.
+    /// </summary>
+    public static void ClearHazard(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentHazard.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
     /// Present a selection menu and wait for player choice.
     /// </summary>
     public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices, Func<T, string> display)
@@ -64,17 +112,15 @@ public static class WebIO
 
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
-            new InputRequestDto("select", prompt, list.Select(display).ToList()),
-            null,
-            null,
-            GetInventory(ctx.SessionId),
-            GetCrafting(ctx.SessionId),
-            null,
-            ctx.IsGridMode ? GridStateDto.FromContext(ctx) : null
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto("select", prompt, list.Select(display).ToList())
         );
 
         session.Send(frame);
         var response = session.WaitForResponse(ResponseTimeout);
+
+        var displayList = list.Select(display).ToList();
 
         // Handle travel_to response: player clicked a map tile to start travel
         if (response.Type == "travel_to" && response.TargetX.HasValue && response.TargetY.HasValue)
@@ -82,12 +128,44 @@ public static class WebIO
             ctx.PendingTravelTarget = (response.TargetX.Value, response.TargetY.Value);
 
             // Find the "Travel" option in the list
-            var displayList = list.Select(display).ToList();
             for (int i = 0; i < displayList.Count; i++)
             {
                 if (displayList[i].Contains("Travel"))
                     return list[i];
             }
+
+            // No "Travel" option available - resend frame and wait for menu choice
+            // PendingTravelTarget is set; GameRunner will handle it on next loop
+            session.Send(frame);
+            response = session.WaitForResponse(ResponseTimeout);
+            // Fall through to process the new response normally
+        }
+
+        // Handle action response: player clicked persistent inventory/crafting button
+        if (response.Type == "action" && !string.IsNullOrEmpty(response.Action))
+        {
+            // Map action names to menu option labels
+            var targetLabel = response.Action switch
+            {
+                "inventory" => "Inventory",
+                "crafting" => "Crafting",
+                _ => null
+            };
+
+            if (targetLabel != null)
+            {
+                for (int i = 0; i < displayList.Count; i++)
+                {
+                    if (displayList[i].Contains(targetLabel))
+                        return list[i];
+                }
+            }
+
+            // Action not available in current menu - wait for another response
+            // (resend the frame and wait again)
+            session.Send(frame);
+            response = session.WaitForResponse(ResponseTimeout);
+            // Fall through to process the new response normally
         }
 
         int index = Math.Clamp(response.ChoiceIndex ?? 0, 0, list.Count - 1);
@@ -103,13 +181,9 @@ public static class WebIO
 
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
-            new InputRequestDto("confirm", prompt, null),
-            null,
-            null,
-            GetInventory(ctx.SessionId),
-            GetCrafting(ctx.SessionId),
-            null,
-            ctx.IsGridMode ? GridStateDto.FromContext(ctx) : null
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto("confirm", prompt, null)
         );
 
         session.Send(frame);
@@ -128,13 +202,28 @@ public static class WebIO
 
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
-            new InputRequestDto("anykey", message, null),
-            null,
-            null,
-            GetInventory(ctx.SessionId),
-            GetCrafting(ctx.SessionId),
-            null,
-            ctx.IsGridMode ? GridStateDto.FromContext(ctx) : null
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto("anykey", message, null)
+        );
+
+        session.Send(frame);
+        session.WaitForResponse(ResponseTimeout);
+    }
+
+    /// <summary>
+    /// Wait for user to dismiss an overlay (e.g., event outcome popup).
+    /// Sends a frame with no input request - the overlay provides its own button.
+    /// </summary>
+    public static void WaitForOverlayDismiss(GameContext ctx)
+    {
+        var session = GetSession(ctx);
+
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            null  // No input - overlay has its own Continue button
         );
 
         session.Send(frame);
@@ -153,13 +242,9 @@ public static class WebIO
 
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
-            new InputRequestDto("select", prompt, choices),
-            null,
-            null,
-            GetInventory(ctx.SessionId),
-            GetCrafting(ctx.SessionId),
-            null,
-            ctx.IsGridMode ? GridStateDto.FromContext(ctx) : null
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto("select", prompt, choices)
         );
 
         session.Send(frame);
@@ -172,20 +257,17 @@ public static class WebIO
     /// <summary>
     /// Render current game state without requesting input.
     /// </summary>
-    public static void Render(GameContext ctx, string? statusText = null, int? progress = null, int? total = null)
+    public static void Render(GameContext ctx, string? statusText = null)
     {
         var session = SessionRegistry.Get(ctx.SessionId);
         if (session == null) return; // Silently skip if no session
 
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
-            null,
-            progress.HasValue ? new ProgressDto(progress.Value, total ?? progress.Value) : null,
-            statusText,
-            GetInventory(ctx.SessionId),  // Preserve current inventory screen
-            GetCrafting(ctx.SessionId),    // Preserve current crafting screen
-            null,  // EstimatedDurationSeconds
-            ctx.IsGridMode ? GridStateDto.FromContext(ctx) : null  // Include grid when in grid mode
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            null,  // No input
+            statusText
         );
 
         session.Send(frame);
@@ -205,13 +287,10 @@ public static class WebIO
 
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
-            null,
-            null, // No server-side progress - client animates locally
-            statusText,
-            GetInventory(ctx.SessionId),
-            GetCrafting(ctx.SessionId),
-            EstimatedDurationSeconds: estimatedSeconds,
-            Grid: ctx.IsGridMode ? GridStateDto.FromContext(ctx) : null
+            GetCurrentMode(ctx, estimatedSeconds, statusText),
+            GetCurrentOverlays(ctx.SessionId),
+            null,  // No input during progress
+            statusText
         );
 
         session.Send(frame);
@@ -266,21 +345,17 @@ public static class WebIO
     /// </summary>
     public static PlayerResponse RenderGridAndWaitForInput(GameContext ctx, string? statusText = null)
     {
-        if (!ctx.IsGridMode)
-            throw new InvalidOperationException("RenderGridAndWaitForInput requires grid mode");
+        if (ctx.Map == null)
+            throw new InvalidOperationException("RenderGridAndWaitForInput requires a map");
 
         var session = GetSession(ctx);
 
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
+            new TravelMode(GridStateDto.FromContext(ctx)),
+            GetCurrentOverlays(ctx.SessionId),
             new InputRequestDto("grid", statusText ?? "Click a tile to move", null),
-            null,
-            statusText,
-            GetInventory(ctx.SessionId),
-            GetCrafting(ctx.SessionId),
-            null,
-            GridStateDto.FromContext(ctx),
-            null  // No hazard prompt
+            statusText
         );
 
         session.Send(frame);
@@ -290,37 +365,39 @@ public static class WebIO
     /// <summary>
     /// Render grid with hazard prompt (quick vs careful choice).
     /// </summary>
-    public static bool PromptHazardChoice(GameContext ctx, Tile targetTile, string hazardDescription,
-        int quickTimeMinutes, int carefulTimeMinutes, double injuryRiskPercent)
+    public static bool PromptHazardChoice(GameContext ctx, Location targetLocation, int targetX, int targetY,
+        string hazardDescription, int quickTimeMinutes, int carefulTimeMinutes, double injuryRiskPercent)
     {
-        if (!ctx.IsGridMode)
-            throw new InvalidOperationException("PromptHazardChoice requires grid mode");
+        if (ctx.Map == null)
+            throw new InvalidOperationException("PromptHazardChoice requires a map");
 
         var session = GetSession(ctx);
 
+        // Set hazard as overlay
         var hazardPrompt = new HazardPromptDto(
-            targetTile.X,
-            targetTile.Y,
+            targetX,
+            targetY,
             hazardDescription,
             quickTimeMinutes,
             carefulTimeMinutes,
             injuryRiskPercent
         );
 
+        if (ctx.SessionId != null)
+            _currentHazard[ctx.SessionId] = hazardPrompt;
+
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
-            new InputRequestDto("hazard_choice", $"Hazardous terrain: {hazardDescription}", ["Quick", "Careful"]),
-            null,
-            null,
-            GetInventory(ctx.SessionId),
-            GetCrafting(ctx.SessionId),
-            null,
-            GridStateDto.FromContext(ctx),
-            hazardPrompt
+            new TravelMode(GridStateDto.FromContext(ctx)),  // No hazard in mode
+            GetCurrentOverlays(ctx.SessionId),              // Hazard is in overlays
+            new InputRequestDto("hazard_choice", $"Hazardous terrain: {hazardDescription}", ["Quick", "Careful"])
         );
 
         session.Send(frame);
         var response = session.WaitForResponse(ResponseTimeout);
+
+        // Clear hazard overlay after response
+        ClearHazard(ctx);
 
         // QuickTravel field takes precedence, fall back to ChoiceIndex
         if (response.QuickTravel.HasValue)
@@ -335,24 +412,54 @@ public static class WebIO
     /// </summary>
     public static void RenderGrid(GameContext ctx, string? statusText = null)
     {
-        if (!ctx.IsGridMode)
-            throw new InvalidOperationException("RenderGrid requires grid mode");
+        if (ctx.Map == null)
+            throw new InvalidOperationException("RenderGrid requires a map");
 
         var session = SessionRegistry.Get(ctx.SessionId);
         if (session == null) return;
 
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
+            new TravelMode(GridStateDto.FromContext(ctx)),
+            GetCurrentOverlays(ctx.SessionId),
             null,  // No input request
-            null,
-            statusText,
-            GetInventory(ctx.SessionId),
-            GetCrafting(ctx.SessionId),
-            null,
-            GridStateDto.FromContext(ctx),
-            null
+            statusText
         );
 
         session.Send(frame);
+    }
+
+    /// <summary>
+    /// Set the event to display. Will be included as an overlay in subsequent frames.
+    /// </summary>
+    public static void RenderEvent(GameContext ctx, EventDto eventData)
+    {
+        if (ctx.SessionId == null) return;
+        _currentEvent[ctx.SessionId] = eventData;
+    }
+
+    /// <summary>
+    /// Show work results as an event overlay. Uses outcome-only mode for display.
+    /// </summary>
+    public static void ShowWorkResult(GameContext ctx, string activityName, string message, List<string> itemsGained)
+    {
+        var outcome = new EventOutcomeDto(
+            Message: message,
+            TimeAddedMinutes: 0,
+            EffectsApplied: [],
+            DamageTaken: [],
+            ItemsGained: itemsGained,
+            ItemsLost: [],
+            TensionsChanged: []
+        );
+
+        var eventData = new EventDto(
+            Name: activityName,
+            Description: "",
+            Choices: [],
+            Outcome: outcome
+        );
+
+        RenderEvent(ctx, eventData);
     }
 }

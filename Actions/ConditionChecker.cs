@@ -162,7 +162,8 @@ public static class ConditionChecker
 
     private static bool AnyLocationHasSnare(GameContext ctx, Func<SnareLineFeature, bool> predicate)
     {
-        foreach (var location in ctx.Locations)
+        if (ctx.Map == null) return false;
+        foreach (var location in ctx.Map.NamedLocations)
         {
             var snare = location.GetFeature<SnareLineFeature>();
             if (snare != null && predicate(snare))

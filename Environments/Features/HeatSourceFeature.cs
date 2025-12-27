@@ -12,6 +12,9 @@ public enum FirePitType
 
 public class HeatSourceFeature : LocationFeature
 {
+    public override string? MapIcon => IsActive ? "local_fire_department" : (HasEmbers ? "fireplace" : null);
+    public override int IconPriority => 10; // Fire is always most important
+
     // Fire Pit Type
     [JsonInclude] private FirePitType _pitType = FirePitType.Open;
 

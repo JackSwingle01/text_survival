@@ -4,6 +4,7 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -96,26 +97,24 @@ public class ChoppingStrategy : IWorkStrategy
         // Add work progress
         feature.AddProgress(actualTime);
 
+        string resultMessage;
+
         // Check if tree is ready to fell
         if (feature.IsTreeReady)
         {
             // Fell the tree and get the yield
             var yield = feature.FellTree();
 
-            GameDisplay.AddNarrative(ctx, "The tree creaks, groans, and crashes to the ground!");
-            GameDisplay.AddNarrative(ctx, $"You collected: {yield.GetDescription()}");
             collected.Add(yield.GetDescription());
-
             InventoryCapacityHelper.CombineAndReport(ctx, yield);
 
             // Report remaining trees if limited
-            if (feature.TreesAvailable != null)
-            {
-                if (feature.HasTrees)
-                    GameDisplay.AddNarrative(ctx, $"{feature.TreesAvailable} trees remain in this area.");
-                else
-                    GameDisplay.AddNarrative(ctx, "This area has been cleared of trees.");
-            }
+            if (feature.TreesAvailable != null && feature.HasTrees)
+                resultMessage = $"The tree crashes down! {feature.TreesAvailable} trees remain.";
+            else if (feature.TreesAvailable != null)
+                resultMessage = "The tree crashes down! This area is now cleared.";
+            else
+                resultMessage = "The tree crashes to the ground!";
         }
         else
         {
@@ -128,22 +127,19 @@ public class ChoppingStrategy : IWorkStrategy
                 "Almost there. The trunk is nearly through."
             ];
 
-            // Select message based on progress
             int messageIndex = Math.Min((int)(feature.ProgressPct * progressMessages.Length), progressMessages.Length - 1);
-            GameDisplay.AddNarrative(ctx, progressMessages[messageIndex]);
-            GameDisplay.AddNarrative(ctx, $"Progress: {feature.ProgressPct:P0} complete.");
+            resultMessage = $"{progressMessages[messageIndex]} ({feature.ProgressPct:P0} complete)";
             collected.Add($"Tree: {feature.ProgressPct:P0}");
         }
 
-        // Report axe status
+        // Add axe status to message if relevant
         if (!axeStillWorks)
-        {
-            GameDisplay.AddWarning(ctx, $"Your {axe.Name} has broken!");
-        }
+            resultMessage += $" Your {axe.Name} has broken!";
         else if (axe.Durability > 0 && axe.Durability <= 3)
-        {
-            GameDisplay.AddWarning(ctx, $"Your {axe.Name} is wearing out ({axe.Durability} uses left).");
-        }
+            resultMessage += $" Your {axe.Name} is wearing out.";
+
+        // Show results in popup overlay
+        WebIO.ShowWorkResult(ctx, "Chopping", resultMessage, collected);
 
         return new WorkResult(collected, null, actualTime, false);
     }

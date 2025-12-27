@@ -3,15 +3,17 @@ import { Utils } from './utils.js';
 export const EffectsDisplay = {
     render(effects) {
         const container = document.getElementById('effectsList');
-        Utils.clearElement(container);
+        const section = container?.closest('.status-section');
 
+        // Hide entire section if no effects
         if (!effects || effects.length === 0) {
-            const none = document.createElement('div');
-            none.className = 'effect-item';
-            none.textContent = 'None';
-            container.appendChild(none);
+            if (section) section.classList.add('hidden');
             return;
         }
+
+        // Show section
+        if (section) section.classList.remove('hidden');
+        Utils.clearElement(container);
 
         effects.forEach(e => {
             const div = document.createElement('div');
@@ -98,18 +100,20 @@ export const EffectsDisplay = {
 
     renderInjuries(injuries, bloodPercent) {
         const container = document.getElementById('injuriesList');
-        Utils.clearElement(container);
+        const section = container?.closest('.status-section');
 
         const hasBloodLoss = bloodPercent && bloodPercent < 95;
         const hasInjuries = injuries && injuries.length > 0;
 
+        // Hide entire section if no injuries
         if (!hasBloodLoss && !hasInjuries) {
-            const none = document.createElement('div');
-            none.className = 'injury-item';
-            none.textContent = 'None';
-            container.appendChild(none);
+            if (section) section.classList.add('hidden');
             return;
         }
+
+        // Show section
+        if (section) section.classList.remove('hidden');
+        Utils.clearElement(container);
 
         if (hasBloodLoss) {
             const div = document.createElement('div');

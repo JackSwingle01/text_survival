@@ -6,6 +6,9 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class BeddingFeature : LocationFeature
 {
+    public override string? MapIcon => "bed";
+    public override int IconPriority => 4;
+
     /// <summary>
     /// Quality affects sleep efficiency (0-1).
     /// Crude bedding = 0.5, good bedding = 1.0

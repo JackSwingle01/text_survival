@@ -1,5 +1,7 @@
 using text_survival.IO;
 using text_survival.UI;
+using text_survival.Web;
+using text_survival.Web.Dto;
 
 namespace text_survival.Actions;
 
@@ -184,7 +186,7 @@ public static partial class GameEventRegistry
         WeatherTurns,
 
         // Location-specific events - Tier 2 (GameEventRegistry.Locations.cs)
-        TheSilence,
+        // TheSilence removed - now handled by FirstVisitAncientGrove
         NeedAnAxe,
         SharpEdges,
         FreshTracks,
@@ -313,19 +315,40 @@ public static partial class GameEventRegistry
                 GameDisplay.AddNarrative(ctx, "You wake suddenly!");
             }
 
-            GameDisplay.Render(ctx, statusText: "Event!");
             GameDisplay.AddNarrative(ctx, $"{evt.Name}", LogLevel.Warning);
             GameDisplay.AddNarrative(ctx, evt.Description);
-            GameDisplay.Render(ctx, statusText: "Thinking.");
+
+            // Phase 1: Show event with choices
+            var eventDto = new EventDto(
+                evt.Name,
+                evt.Description,
+                evt.GetAvailableChoices(ctx)
+                    .Select(c => new EventChoiceDto(c.Label, c.Description, true))
+                    .ToList()
+            );
+            WebIO.RenderEvent(ctx, eventDto);
 
             var choice = evt.GetChoice(ctx);
             GameDisplay.AddNarrative(ctx, choice.Description + "\n");
 
             var outcome = choice.DetermineResult();
+            var outcomeData = HandleOutcome(ctx, outcome);
 
-            HandleOutcome(ctx, outcome);
+            // Phase 2: Show outcome in same popup
+            var outcomeDto = new EventDto(
+                evt.Name,
+                choice.Description,
+                [],
+                outcomeData
+            );
+            WebIO.RenderEvent(ctx, outcomeDto);
+
+            // Wait for user to click Continue in the popup (no extra button in actions area)
+            WebIO.WaitForOverlayDismiss(ctx);
+
+            // Clear event overlay after user acknowledges
+            WebIO.ClearEvent(ctx);
             GameDisplay.Render(ctx);
-            Input.WaitForKey(ctx);
 
             // Queue encounter for GameContext.Update() to handle
             if (outcome.SpawnEncounter != null)
@@ -346,9 +369,10 @@ public static partial class GameEventRegistry
 
     /// <summary>
     /// Apply an event outcome - delegates to EventResult.Apply().
+    /// Returns outcome data for UI display.
     /// </summary>
-    public static void HandleOutcome(GameContext ctx, EventResult outcome)
+    public static EventOutcomeDto HandleOutcome(GameContext ctx, EventResult outcome)
     {
-        outcome.Apply(ctx);
+        return outcome.Apply(ctx);
     }
 }

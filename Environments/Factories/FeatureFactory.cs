@@ -1,4 +1,5 @@
 using text_survival.Environments.Features;
+using text_survival.Environments.Grid;
 using text_survival.Items;
 
 namespace text_survival.Environments.Factories;
@@ -164,6 +165,30 @@ public static class FeatureFactory
         return new ForageFeature(density)
             .AddSticks(1.5, 0.15, 0.4)
             .AddStone(0.3, 0.2, 0.4);
+    }
+
+    /// <summary>
+    /// Create forage appropriate for a terrain type with randomized density.
+    /// Uses normal distribution: most tiles moderate, few abundant, few sparse.
+    /// </summary>
+    public static ForageFeature CreateTerrainForage(TerrainType terrain)
+    {
+        var (baseDensity, factory) = terrain switch
+        {
+            TerrainType.Forest => (0.6, (Func<double, ForageFeature>)CreateMixedForestForage),
+            TerrainType.Clearing => (0.5, (Func<double, ForageFeature>)CreateMixedForestForage),
+            TerrainType.Marsh => (0.5, (Func<double, ForageFeature>)CreateWetlandForage),
+            TerrainType.Water => (0.3, (Func<double, ForageFeature>)CreateFrozenCreekForage),
+            TerrainType.Plain => (0.25, (Func<double, ForageFeature>)CreateOpenForage),
+            TerrainType.Hills => (0.35, (Func<double, ForageFeature>)CreateRockyForage),
+            TerrainType.Rock => (0.4, (Func<double, ForageFeature>)CreateRockyForage),
+            _ => (0.3, (Func<double, ForageFeature>)CreateBarrenForage)
+        };
+
+        double density = Utils.RandomNormal(baseDensity, 0.2);
+        density = Math.Clamp(density, 0.1, 1.0);
+
+        return factory(density);
     }
 
     #endregion

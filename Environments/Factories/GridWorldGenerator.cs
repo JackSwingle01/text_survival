@@ -4,7 +4,7 @@ using text_survival.Environments.Grid;
 namespace text_survival.Environments.Factories;
 
 /// <summary>
-/// Generates a tile-based world grid with terrain and placed locations.
+/// Generates a world map with terrain and placed locations.
 /// </summary>
 public class GridWorldGenerator
 {
@@ -12,6 +12,9 @@ public class GridWorldGenerator
     public int Height { get; set; } = 32;
     public int TargetNamedLocations { get; set; } = 40;
     public int MinLocationSpacing { get; set; } = 3;  // Minimum tiles between named locations
+
+    // Terrain matrix used during generation
+    private TerrainType[,] _terrain = null!;
 
     // Location type weights (same as ZoneGenerator)
     private static readonly List<(Func<Weather, Location> Factory, double Weight)> LocationWeights =
@@ -61,37 +64,61 @@ public class GridWorldGenerator
     ];
 
     /// <summary>
-    /// Generate a complete world grid.
-    /// Returns the grid and the camp tile.
+    /// Generate a complete world map.
+    /// Returns the map and the camp location.
     /// </summary>
-    public (TileGrid Grid, Tile CampTile, Location Camp) Generate(Weather weather)
+    public (GameMap Map, Location Camp) Generate(Weather weather)
     {
-        var grid = new TileGrid(Width, Height);
+        var map = new GameMap(Width, Height);
+        map.Weather = weather;
+        _terrain = new TerrainType[Width, Height];
 
-        // Step 1: Generate base terrain
-        GenerateBaseTerrain(grid);
+        // Step 1: Generate base terrain types
+        GenerateBaseTerrain();
 
         // Step 2: Add mountain range along one edge
-        GenerateMountainRange(grid);
+        GenerateMountainRange();
 
-        // Step 3: Place camp near center
-        var (campTile, camp) = PlaceCamp(grid, weather);
+        // Step 3: Create terrain-only locations for all positions
+        InitializeTerrainLocations(map, weather);
 
-        // Step 4: Place named locations across the grid
-        PlaceNamedLocations(grid, weather, campTile.Position);
+        // Step 4: Place camp near center (replaces terrain location)
+        var (campPos, camp) = PlaceCamp(map, weather);
 
-        // Step 5: Initial visibility around camp
-        int sightRange = grid.GetSightRange(campTile);
-        grid.UpdateVisibility(campTile.Position, sightRange);
-        campTile.MarkExplored();
+        // Step 5: Place named locations across the map (replaces terrain locations)
+        PlaceNamedLocations(map, weather, campPos);
 
-        return (grid, campTile, camp);
+        // Step 6: Set initial position and visibility around camp
+        map.CurrentPosition = campPos;
+        map.UpdateVisibility();
+        camp.MarkExplored();
+
+        return (map, camp);
+    }
+
+    /// <summary>
+    /// Create terrain-only locations for all positions.
+    /// Uses position-based seeds for deterministic environmental details.
+    /// </summary>
+    private void InitializeTerrainLocations(GameMap map, Weather weather)
+    {
+        for (int x = 0; x < Width; x++)
+        {
+            for (int y = 0; y < Height; y++)
+            {
+                var terrain = _terrain[x, y];
+                // Create deterministic seed from position for environmental details
+                var positionSeed = HashCode.Combine(x, y, Width);
+                var location = LocationFactory.MakeTerrainLocation(terrain, weather, positionSeed);
+                map.SetLocation(x, y, location);
+            }
+        }
     }
 
     /// <summary>
     /// Generate base terrain using simple noise-like distribution.
     /// </summary>
-    private void GenerateBaseTerrain(TileGrid grid)
+    private void GenerateBaseTerrain()
     {
         // Use a simple pseudo-random distribution based on position
         // This creates clusters of similar terrain
@@ -103,7 +130,7 @@ public class GridWorldGenerator
             for (int y = 0; y < Height; y++)
             {
                 double value = noise[x, y];
-                TerrainType terrain = value switch
+                _terrain[x, y] = value switch
                 {
                     < 0.15 => TerrainType.Water,     // Frozen lakes/rivers
                     < 0.25 => TerrainType.Marsh,    // Marshland
@@ -113,8 +140,6 @@ public class GridWorldGenerator
                     < 0.90 => TerrainType.Hills,    // Hilly terrain
                     _ => TerrainType.Rock           // Rocky areas
                 };
-
-                grid.SetTerrain(x, y, terrain);
             }
         }
     }
@@ -175,7 +200,7 @@ public class GridWorldGenerator
     /// <summary>
     /// Add a mountain range along the north edge with a pass.
     /// </summary>
-    private void GenerateMountainRange(TileGrid grid)
+    private void GenerateMountainRange()
     {
         // Mountains along top edge (y = 0, 1, 2)
         int mountainDepth = 3;
@@ -190,12 +215,12 @@ public class GridWorldGenerator
                 bool isPass = Math.Abs(x - passCenter) <= passWidth / 2;
                 if (!isPass)
                 {
-                    grid.SetTerrain(x, y, TerrainType.Mountain);
+                    _terrain[x, y] = TerrainType.Mountain;
                 }
                 else
                 {
                     // Pass terrain - rocky and hazardous
-                    grid.SetTerrain(x, y, TerrainType.Rock);
+                    _terrain[x, y] = TerrainType.Rock;
                 }
             }
         }
@@ -204,23 +229,23 @@ public class GridWorldGenerator
     /// <summary>
     /// Place the camp near the center of the map.
     /// </summary>
-    private (Tile CampTile, Location Camp) PlaceCamp(TileGrid grid, Weather weather)
+    private (GridPosition CampPos, Location Camp) PlaceCamp(GameMap map, Weather weather)
     {
         int centerX = Width / 2;
         int centerY = Height / 2;
 
         // Find a suitable spot near center (prefer forest/clearing)
-        var campPos = FindSuitablePosition(grid, centerX, centerY, 5,
-            t => t.Terrain == TerrainType.Forest || t.Terrain == TerrainType.Clearing);
+        var campPos = FindSuitablePosition(map, centerX, centerY, 5,
+            terrain => terrain == TerrainType.Forest || terrain == TerrainType.Clearing);
 
         // Create camp location
         var camp = CreateCampLocation(weather);
+        camp.Terrain = TerrainType.Clearing;
 
-        // Place on grid - set terrain to clearing for camp
-        grid.SetTerrain(campPos.X, campPos.Y, TerrainType.Clearing);
-        grid.PlaceLocation(campPos.X, campPos.Y, camp);
+        // Place on map
+        map.SetLocation(campPos.X, campPos.Y, camp);
 
-        return (grid[campPos]!, camp);
+        return (campPos, camp);
     }
 
     /// <summary>
@@ -252,9 +277,9 @@ public class GridWorldGenerator
     }
 
     /// <summary>
-    /// Place named locations across the grid.
+    /// Place named locations across the map.
     /// </summary>
-    private void PlaceNamedLocations(TileGrid grid, Weather weather, GridPosition campPos)
+    private void PlaceNamedLocations(GameMap map, Weather weather, GridPosition campPos)
     {
         var placedPositions = new List<GridPosition> { campPos };
         int attempts = 0;
@@ -269,9 +294,9 @@ public class GridWorldGenerator
             int y = Utils.RandInt(MinLocationSpacing, Height - 1);  // Avoid mountain range
 
             var pos = new GridPosition(x, y);
-            var tile = grid[pos];
+            var location = map.GetLocationAt(pos);
 
-            if (tile == null || !tile.IsPassable || tile.HasNamedLocation)
+            if (location == null || !location.IsPassable || !location.IsTerrainOnly)
                 continue;
 
             // Check minimum spacing from other locations
@@ -280,42 +305,37 @@ public class GridWorldGenerator
                 continue;
 
             // Generate and place a location
-            var location = GenerateRandomLocation(weather);
+            var namedLocation = GenerateRandomLocation(weather);
 
             // Adjust terrain to match location type if needed
-            AdjustTerrainForLocation(grid, pos, location);
+            AdjustTerrainForLocation(namedLocation);
 
-            grid.PlaceLocation(x, y, location);
+            map.SetLocation(x, y, namedLocation);
             placedPositions.Add(pos);
         }
     }
 
     /// <summary>
-    /// Adjust tile terrain to better match the placed location.
+    /// Set the location's terrain type to match its theme.
     /// </summary>
-    private void AdjustTerrainForLocation(TileGrid grid, GridPosition pos, Location location)
+    private void AdjustTerrainForLocation(Location location)
     {
         // Match terrain to location theme based on name/tags
         string name = location.Name.ToLower();
         string tags = location.Tags.ToLower();
 
-        TerrainType terrain = grid[pos]!.Terrain;
-
         if (name.Contains("creek") || name.Contains("river") || name.Contains("pool") || name.Contains("dam"))
-            terrain = TerrainType.Water;
+            location.Terrain = TerrainType.Water;
         else if (name.Contains("marsh") || name.Contains("bog"))
-            terrain = TerrainType.Marsh;
+            location.Terrain = TerrainType.Marsh;
         else if (name.Contains("cave") || name.Contains("crevasse") || name.Contains("boulder") || name.Contains("granite") || name.Contains("flint"))
-            terrain = TerrainType.Rock;
+            location.Terrain = TerrainType.Rock;
         else if (name.Contains("hill") || name.Contains("ridge") || name.Contains("overlook") || name.Contains("lookout"))
-            terrain = TerrainType.Hills;
+            location.Terrain = TerrainType.Hills;
         else if (name.Contains("clearing") || name.Contains("plain") || name.Contains("trail"))
-            terrain = TerrainType.Clearing;
+            location.Terrain = TerrainType.Clearing;
         else if (tags.Contains("forest") || name.Contains("grove") || name.Contains("thicket") || name.Contains("forest"))
-            terrain = TerrainType.Forest;
-
-        grid.SetTerrain(pos.X, pos.Y, terrain);
-        grid.PlaceLocation(pos.X, pos.Y, location);
+            location.Terrain = TerrainType.Forest;
     }
 
     /// <summary>
@@ -340,10 +360,10 @@ public class GridWorldGenerator
     }
 
     /// <summary>
-    /// Find a suitable position near a target, with optional predicate.
+    /// Find a suitable position near a target, with optional terrain predicate.
     /// </summary>
-    private GridPosition FindSuitablePosition(TileGrid grid, int targetX, int targetY, int searchRadius,
-        Func<Tile, bool>? predicate = null)
+    private GridPosition FindSuitablePosition(GameMap map, int targetX, int targetY, int searchRadius,
+        Func<TerrainType, bool>? predicate = null)
     {
         // Spiral outward from target
         for (int radius = 0; radius <= searchRadius; radius++)
@@ -358,10 +378,13 @@ public class GridWorldGenerator
                     int x = targetX + dx;
                     int y = targetY + dy;
 
-                    var tile = grid[x, y];
-                    if (tile != null && tile.IsPassable && !tile.HasNamedLocation)
+                    if (x < 0 || x >= Width || y < 0 || y >= Height)
+                        continue;
+
+                    var terrain = _terrain[x, y];
+                    if (terrain.IsPassable())
                     {
-                        if (predicate == null || predicate(tile))
+                        if (predicate == null || predicate(terrain))
                             return new GridPosition(x, y);
                     }
                 }

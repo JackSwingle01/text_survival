@@ -13,8 +13,15 @@ namespace text_survival.Actions;
 public class GameContext(Player player, Location camp, Weather weather)
 {
     public Player player { get; set; } = player;
-    public Location CurrentLocation { get; set; } = camp;
+
+    /// <summary>
+    /// Current location. Derived from Map.CurrentLocation.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Location CurrentLocation => Map?.CurrentLocation ?? Camp;
+
     public Location Camp { get; set; } = camp;
+
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsAtCamp => CurrentLocation == Camp;
 
@@ -27,45 +34,20 @@ public class GameContext(Player player, Location camp, Weather weather)
     // Player's carried inventory (aggregate-based)
     public Inventory Inventory { get; set; } = Inventory.CreatePlayerInventory(15.0);
 
-    // Zone and location tracking (moved from Zone to break circular reference)
+    // Zone and location tracking
     public Weather Weather { get; init; } = weather;
-    public List<Location> Locations { get; set; } = new();
-    [System.Text.Json.Serialization.JsonInclude]
-    private List<Location> _unrevealedLocations { get; set; } = new();
-    public IReadOnlyList<Location> UnrevealedLocations => _unrevealedLocations.AsReadOnly();
 
-    // Grid-based world (new tile system)
     /// <summary>
-    /// The tile grid. Null if using legacy graph-based locations.
+    /// The game map. Owns all locations and spatial relationships.
     /// </summary>
-    [System.Text.Json.Serialization.JsonIgnore]
-    public TileGrid? Grid { get; set; }
+    public GameMap? Map { get; set; }
 
     /// <summary>
-    /// Current tile position (grid mode). Null if using legacy mode.
-    /// </summary>
-    public Tile? CurrentTile { get; set; }
-
-    /// <summary>
-    /// Pending travel target from map click (grid mode).
-    /// When set, GridTravelRunner will immediately move to this tile.
+    /// Pending travel target from map click.
+    /// When set, travel runner will immediately move to this location.
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public (int X, int Y)? PendingTravelTarget { get; set; }
-
-    /// <summary>
-    /// Whether the game is running in grid mode (vs legacy graph mode).
-    /// </summary>
-    [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsGridMode => Grid != null && CurrentTile != null;
-
-    /// <summary>
-    /// Check if at camp (works in both grid and legacy modes).
-    /// </summary>
-    [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsAtCampTile => IsGridMode
-        ? CurrentTile?.NamedLocation == Camp
-        : CurrentLocation == Camp;
 
     // Mountain pass tracking (not in standard location pool)
     public List<Location> MountainPassLocations { get; private set; } = [];
@@ -154,73 +136,27 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     /// <summary>
     /// Call this after deserialization to restore transient state.
-    /// CurrentLocation is not serialized, so it must be restored to Camp.
     /// </summary>
     public void RestoreAfterDeserialization()
     {
-        if (CurrentLocation == null)
+        // Map handles its own restoration via LocationData property
+        // Weather reference needs to be restored on the map
+        if (Map != null)
         {
-            CurrentLocation = Camp;
+            Map.Weather = Weather;
         }
     }
 
+    /// <summary>
+    /// Create a new game using the map-based world.
+    /// </summary>
     public static GameContext CreateNewGame()
     {
         // Clear event cooldowns for fresh game
         GameEventRegistry.ClearTriggerTimes();
         Weather weather = new Weather(-10);
-        var (locations, unrevealed, passLocations) = ZoneFactory.MakeForestZone(weather);
 
-        // Initialize weather for game start time (9:00 AM, Jan 1)
-        var gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
-        weather.Update(gameStartTime);
-
-        Location startingArea = locations.First(s => s.Name == "Forest Camp");
-
-        // Add campfire (unlit - player must start it)
-        HeatSourceFeature campfire = new HeatSourceFeature();
-        campfire.AddFuel(2, FuelType.Kindling);
-        startingArea.Features.Add(campfire);
-
-        // Add camp storage cache
-        startingArea.Features.Add(CacheFeature.CreateCampCache());
-
-        var player = new Player();
-
-        GameContext ctx = new GameContext(player, startingArea, weather);
-        ctx.Locations.AddRange(locations);
-        ctx._unrevealedLocations.AddRange(unrevealed);
-
-        // Setup mountain pass - last location in chain is the win location
-        ctx.SetupMountainPass(passLocations, passLocations[^1]);
-
-        // Equip starting clothing
-        ctx.Inventory.Equip(Gear.WornFurChestWrap());
-        ctx.Inventory.Equip(Gear.FurLegWraps());
-        ctx.Inventory.Equip(Gear.WornHideBoots());
-        ctx.Inventory.Equip(Gear.HideHandwraps());
-
-        // Add starting supplies
-        ctx.Inventory.Tools.Add(Gear.HandDrill());
-        ctx.Inventory.Add(Resource.Stick, 0.3);
-        ctx.Inventory.Add(Resource.Stick, 0.25);
-        ctx.Inventory.Add(Resource.Stick, 0.35);
-        ctx.Inventory.Add(Resource.Tinder, 0.05);
-        ctx.Inventory.Add(Resource.Tinder, 0.04);
-
-        return ctx;
-    }
-
-    /// <summary>
-    /// Create a new game using the grid-based tile world.
-    /// </summary>
-    public static GameContext CreateNewGridGame()
-    {
-        // Clear event cooldowns for fresh game
-        GameEventRegistry.ClearTriggerTimes();
-        Weather weather = new Weather(-10);
-
-        // Generate grid-based world
+        // Generate world map
         var worldGen = new GridWorldGenerator
         {
             Width = 32,
@@ -229,7 +165,7 @@ public class GameContext(Player player, Location camp, Weather weather)
             MinLocationSpacing = 3
         };
 
-        var (grid, campTile, camp) = worldGen.Generate(weather);
+        var (map, camp) = worldGen.Generate(weather);
 
         // Initialize weather for game start time (9:00 AM, Jan 1)
         var gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
@@ -246,17 +182,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         var player = new Player();
 
         GameContext ctx = new GameContext(player, camp, weather);
-
-        // Set up grid mode
-        ctx.Grid = grid;
-        ctx.CurrentTile = campTile;
-        ctx.CurrentLocation = camp;
-
-        // Add all named locations to the Locations list for compatibility
-        foreach (var tile in grid.NamedLocationTiles)
-        {
-            ctx.Locations.Add(tile.NamedLocation!);
-        }
+        ctx.Map = map;
 
         // Equip starting clothing
         ctx.Inventory.Equip(Gear.WornFurChestWrap());
@@ -311,38 +237,22 @@ public class GameContext(Player player, Location camp, Weather weather)
     // === LOCATION MANAGEMENT ===
 
     /// <summary>
-    /// Check if there are any unrevealed locations remaining
+    /// Check if there are any unexplored named locations visible.
     /// </summary>
-    public bool HasUnrevealedLocations()
-    {
-        return _unrevealedLocations.Count > 0;
-    }
+    public bool HasUnrevealedLocations() =>
+        Map?.HasUnexploredVisibleLocations ?? false;
 
     /// <summary>
-    /// Reveal a random location from the pool and connect it to the specified location
+    /// Reveal a random unexplored named location within visible range.
+    /// Returns the location if found, null otherwise.
     /// </summary>
-    public Location? RevealRandomLocation(Location connectFrom)
-    {
-        if (_unrevealedLocations.Count == 0)
-            return null;
-
-        // Pick a random unrevealed location
-        int index = Random.Shared.Next(_unrevealedLocations.Count);
-        var newLocation = _unrevealedLocations[index];
-        _unrevealedLocations.RemoveAt(index);
-
-        // Connect it to the graph
-        connectFrom.AddBidirectionalConnection(newLocation);
-        Locations.Add(newLocation);
-        newLocation.Explore();
-
-        return newLocation;
-    }
+    public Location? RevealRandomLocation(Location fromLocation) =>
+        Map?.RevealRandomLocation();
 
     /// <summary>
-    /// Get count of unrevealed locations (for UI hints)
+    /// Get count of unexplored visible named locations.
     /// </summary>
-    public int UnrevealedCount => _unrevealedLocations.Count;
+    public int UnrevealedCount => Map?.UnexploredVisibleCount ?? 0;
 
     public DateTime GameTime { get; set; } = new DateTime(2025, 1, 1, 9, 0, 0); // Full date/time for resource respawn tracking
 
@@ -524,11 +434,14 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         player.Update(minutes, context);
 
-        // Update zone weather and all locations
+        // Update zone weather and all named locations (terrain-only don't need updates)
         Weather.Update(GameTime);
-        foreach (var location in Locations)
+        if (Map != null)
         {
-            location.Update(minutes);
+            foreach (var location in Map.NamedLocations)
+            {
+                location.Update(minutes);
+            }
         }
 
         Tensions.Update(minutes, IsAtCamp);

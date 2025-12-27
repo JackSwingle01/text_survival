@@ -4,6 +4,7 @@ using text_survival.Actions.Tensions;
 using text_survival.Actors.Player;
 using text_survival.Environments;
 using text_survival.Environments.Features;
+using text_survival.Environments.Grid;
 using text_survival.Items;
 
 namespace text_survival.Tests.Actions;
@@ -14,11 +15,28 @@ public class EventConditionTests
     {
         var player = new Player();
         var weather = new Weather(-10);
-        var location = new Location("Test Location", "[test]", weather, 5);
-        var camp = location; // Camp is now just a Location
+        var camp = new Location("Test Camp", "[test]", weather, 5);
 
         var ctx = new GameContext(player, camp, weather);
-        ctx.Locations.Add(location);
+        return ctx;
+    }
+
+    private static GameContext CreateTestContextWithMap()
+    {
+        var player = new Player();
+        var weather = new Weather(-10);
+        var camp = new Location("Test Camp", "[camp]", weather, 5);
+        var awayLocation = new Location("Away Location", "[away]", weather, 5);
+
+        // Create a simple 2x2 map
+        var map = new GameMap(2, 2);
+        map.Weather = weather;
+        map.SetLocation(0, 0, camp);
+        map.SetLocation(1, 0, awayLocation);
+        map.CurrentPosition = new GridPosition(0, 0);
+
+        var ctx = new GameContext(player, camp, weather);
+        ctx.Map = map;
         return ctx;
     }
 
@@ -39,10 +57,9 @@ public class EventConditionTests
     public void Check_AtCamp_WhenOnExpedition_ReturnsFalse()
     {
         // Arrange
-        var ctx = CreateTestContext();
-        var awayLocation = new Location("Away Location", "[test]", ctx.Weather, 5);
-        ctx.Locations.Add(awayLocation);
-        ctx.CurrentLocation = awayLocation; // Travel away from camp
+        var ctx = CreateTestContextWithMap();
+        var awayLocation = ctx.Map!.GetLocationAt(1, 0)!;
+        ctx.Map!.MoveTo(awayLocation); // Travel away from camp
 
         // Act & Assert
         Assert.False(ctx.Check(EventCondition.AtCamp));
@@ -52,10 +69,9 @@ public class EventConditionTests
     public void Check_OnExpedition_WhenOnExpedition_ReturnsTrue()
     {
         // Arrange
-        var ctx = CreateTestContext();
-        var awayLocation = new Location("Away Location", "[test]", ctx.Weather, 5);
-        ctx.Locations.Add(awayLocation);
-        ctx.CurrentLocation = awayLocation; // Travel away from camp
+        var ctx = CreateTestContextWithMap();
+        var awayLocation = ctx.Map!.GetLocationAt(1, 0)!;
+        ctx.Map!.MoveTo(awayLocation); // Travel away from camp
 
         // Act & Assert
         Assert.True(ctx.Check(EventCondition.OnExpedition));

@@ -3,6 +3,7 @@ using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -84,11 +85,12 @@ public class HuntStrategy : IWorkStrategy
 
         if (found == null)
         {
-            GameDisplay.AddNarrative(ctx, "You find no game. The area seems quiet.");
+            // Show popup only when no animal found (hunt ends here)
+            WebIO.ShowWorkResult(ctx, "Hunting", "You find no game. The area seems quiet.", []);
             return WorkResult.Empty(actualTime);
         }
 
-        // Found an animal - display what we see
+        // Found an animal - no popup, hunt continues interactively
         GameDisplay.AddNarrative(ctx, $"You spot {found.GetTraitDescription()}.");
         GameDisplay.AddNarrative(ctx, $"It's {found.GetActivityDescription()}.");
 

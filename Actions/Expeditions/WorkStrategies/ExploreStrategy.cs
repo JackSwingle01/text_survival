@@ -2,6 +2,7 @@ using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.IO;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -73,6 +74,8 @@ public class ExploreStrategy : IWorkStrategy
         double finalChance = Math.Min(0.95, baseChance + timeBonus);
 
         Location? discovered = null;
+        string resultMessage;
+        var collected = new List<string>();
 
         if (Utils.RandDouble(0, 1) <= finalChance)
         {
@@ -80,20 +83,24 @@ public class ExploreStrategy : IWorkStrategy
 
             if (newLocation != null)
             {
-                GameDisplay.AddSuccess(ctx, $"You discovered a new area: {newLocation.Name}!");
+                resultMessage = $"You discovered: {newLocation.Name}";
                 if (!string.IsNullOrEmpty(newLocation.Tags))
-                    GameDisplay.AddNarrative(ctx, newLocation.Tags);
+                    resultMessage += $" - {newLocation.Tags}";
+                collected.Add(newLocation.Name);
                 discovered = newLocation;
             }
             else
             {
-                GameDisplay.AddNarrative(ctx, "You scouted the area but found no new paths.");
+                resultMessage = "You scouted the area but found no new paths.";
             }
         }
         else
         {
-            GameDisplay.AddNarrative(ctx, "You searched the area but couldn't find any new paths.");
+            resultMessage = "You searched the area but couldn't find any new paths.";
         }
+
+        // Show results in popup overlay
+        WebIO.ShowWorkResult(ctx, "Scouting", resultMessage, collected);
 
         return new WorkResult([], discovered, actualTime, false);
     }

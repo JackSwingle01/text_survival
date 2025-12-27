@@ -4,6 +4,7 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -97,7 +98,7 @@ public class SalvageStrategy : IWorkStrategy
 
         if (loot.IsEmpty)
         {
-            GameDisplay.AddNarrative(ctx, "You find nothing useful.");
+            WebIO.ShowWorkResult(ctx, "Salvaging", "You find nothing useful.", []);
             return new WorkResult([], null, actualTime, false);
         }
 
@@ -107,35 +108,25 @@ public class SalvageStrategy : IWorkStrategy
         foreach (var tool in loot.Tools)
         {
             ctx.Inventory.Tools.Add(tool);
-            string desc = $"{tool.Name}";
-            GameDisplay.AddNarrative(ctx, $"You found: {desc}");
-            collected.Add(desc);
+            collected.Add(tool.Name);
         }
 
         // Add equipment to inventory (auto-equip if possible)
         foreach (var equip in loot.Equipment)
         {
             var replaced = ctx.Inventory.Equip(equip);
-            string desc = $"{equip.Name}";
-            if (replaced != null)
-            {
-                GameDisplay.AddNarrative(ctx, $"You found: {desc} (equipped, replaced {replaced.Name})");
-            }
-            else
-            {
-                GameDisplay.AddNarrative(ctx, $"You found: {desc} (equipped)");
-            }
-            collected.Add(desc);
+            collected.Add(replaced != null ? $"{equip.Name} (replaced {replaced.Name})" : equip.Name);
         }
 
         // Add resources to inventory
         if (!loot.Resources.IsEmpty)
         {
-            var desc = loot.Resources.GetDescription();
-            GameDisplay.AddNarrative(ctx, $"You salvaged {desc}");
-            collected.Add(desc);
+            collected.Add(loot.Resources.GetDescription());
             InventoryCapacityHelper.CombineAndReport(ctx, loot.Resources);
         }
+
+        // Show results in popup overlay
+        WebIO.ShowWorkResult(ctx, "Salvaging", "You gather what you can find.", collected);
 
         return new WorkResult(collected, null, actualTime, false);
     }

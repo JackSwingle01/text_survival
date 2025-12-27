@@ -7,8 +7,9 @@ namespace text_survival.Web.Dto;
 public record PlayerResponse(
     int? ChoiceIndex,
     // Grid movement fields
-    string? Type = null,      // "select", "move", "hazard_choice"
+    string? Type = null,      // "select", "move", "hazard_choice", "action"
     int? TargetX = null,      // For "move" type
     int? TargetY = null,      // For "move" type
-    bool? QuickTravel = null  // For "hazard_choice" type (true = quick, false = careful)
+    bool? QuickTravel = null, // For "hazard_choice" type (true = quick, false = careful)
+    string? Action = null     // For "action" type: "inventory", "crafting"
 );

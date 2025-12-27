@@ -4,6 +4,7 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -148,14 +149,14 @@ public class TrapStrategy : IWorkStrategy
 
     private WorkResult ExecuteSet(GameContext ctx, Location location, int actualTime)
     {
-        GameDisplay.AddNarrative(ctx, "You find a promising game trail and set the snare...");
+        string resultMessage;
+        bool injured = false;
 
         // Check for trap injury
         if (Utils.DetermineSuccess(_injuryChance))
         {
-            GameDisplay.AddWarning(ctx, "The snare mechanism snaps unexpectedly!");
             ctx.player.Body.Damage(new Bodies.DamageInfo(3, Bodies.DamageType.Sharp));
-            GameDisplay.AddNarrative(ctx, "You cut your fingers on the trap mechanism.");
+            injured = true;
         }
 
         // Get or create SnareLineFeature at this location
@@ -178,20 +179,27 @@ public class TrapStrategy : IWorkStrategy
         ctx.Inventory.Tools.Remove(_selectedSnare);
 
         string baitMsg = _selectedBait != BaitType.None ? $" baited with {_selectedBait.ToString().ToLower()}" : "";
-        GameDisplay.AddSuccess(ctx, $"Snare set{baitMsg}. Check back later.");
+        resultMessage = $"Snare set{baitMsg}. Check back later.";
+        if (injured)
+            resultMessage = "The mechanism snapped and cut your fingers! " + resultMessage;
 
-        return new WorkResult([$"Set {_selectedSnare.Name}"], null, actualTime, false);
+        var collected = new List<string> { $"Set {_selectedSnare.Name}" };
+
+        // Show results in popup overlay
+        WebIO.ShowWorkResult(ctx, "Setting Trap", resultMessage, collected);
+
+        return new WorkResult(collected, null, actualTime, false);
     }
 
     private WorkResult ExecuteCheck(GameContext ctx, Location location, int actualTime)
     {
-        GameDisplay.AddNarrative(ctx, "You check your snare line...");
+        bool injured = false;
 
         // Check for injury while handling traps
         if (Utils.DetermineSuccess(_injuryChance))
         {
-            GameDisplay.AddWarning(ctx, "A snare catches your hand!");
             ctx.player.Body.Damage(new Bodies.DamageInfo(2, Bodies.DamageType.Sharp));
+            injured = true;
         }
 
         // Collect results
@@ -199,23 +207,22 @@ public class TrapStrategy : IWorkStrategy
         var results = snareLine.CheckAllSnares();
         var collected = new List<string>();
         var loot = new Inventory();
+        int destroyed = 0;
 
         foreach (var result in results)
         {
             if (result.WasDestroyed)
             {
-                GameDisplay.AddWarning(ctx, "One snare was destroyed - torn apart by something large.");
+                destroyed++;
             }
             else if (result.WasStolen)
             {
-                GameDisplay.AddNarrative(ctx, $"Something got here first. Only scraps of {result.AnimalType} remain.");
                 // Add partial remains (bones)
                 loot.Add(Resource.Bone, 0.1);
                 collected.Add($"Scraps ({result.AnimalType})");
             }
             else if (result.AnimalType != null)
             {
-                GameDisplay.AddSuccess(ctx, $"Catch! A {result.AnimalType} ({result.WeightKg:F1}kg).");
                 // Add raw meat based on weight
                 loot.Add(Resource.RawMeat, result.WeightKg * 0.5); // ~50% edible
                 loot.Add(Resource.Bone, result.WeightKg * 0.1);
@@ -225,21 +232,29 @@ public class TrapStrategy : IWorkStrategy
             }
         }
 
-        if (collected.Count == 0)
-        {
-            GameDisplay.AddNarrative(ctx, "Nothing caught yet. The snares are still set.");
-        }
-        else
-        {
+        if (collected.Count > 0)
             InventoryCapacityHelper.CombineAndReport(ctx, loot);
-        }
 
-        // Report remaining snares
+        // Build result message
+        string resultMessage;
         int remaining = snareLine.SnareCount;
-        if (remaining > 0)
-            GameDisplay.AddNarrative(ctx, $"{remaining} snare(s) still active.");
+
+        if (collected.Count == 0)
+            resultMessage = "Nothing caught yet.";
         else
-            GameDisplay.AddNarrative(ctx, "No snares remain at this location.");
+            resultMessage = $"Catch! {collected.Count} animal(s) found.";
+
+        if (destroyed > 0)
+            resultMessage += $" {destroyed} snare(s) destroyed.";
+        if (remaining > 0)
+            resultMessage += $" {remaining} snare(s) still active.";
+        else
+            resultMessage += " No snares remain.";
+        if (injured)
+            resultMessage = "A snare caught your hand! " + resultMessage;
+
+        // Show results in popup overlay
+        WebIO.ShowWorkResult(ctx, "Checking Traps", resultMessage, collected);
 
         return new WorkResult(collected, null, actualTime, false);
     }

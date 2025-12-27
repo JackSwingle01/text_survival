@@ -18,8 +18,6 @@ public class HandleOutcomeTests
         var campLocation = new Location("Test Location", "[test]", weather, 5);
 
         var ctx = new GameContext(player, campLocation, weather);
-        ctx.Locations.Add(campLocation);
-
         return ctx;
     }
 

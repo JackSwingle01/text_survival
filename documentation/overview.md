@@ -487,6 +487,30 @@ Action executes
 
 ---
 
+## Web UI
+
+WebSocket-based communication between C# backend and browser frontend. Backend sends `WebFrame` DTOs; frontend renders them.
+
+Mode + Overlay pattern separates UI states:
+- **Modes** (mutually exclusive) — LocationMode (at camp), TravelMode (on expedition with grid), ProgressMode (animated activity in progress)
+- **Overlays** (stackable) — InventoryOverlay, CraftingOverlay, EventOverlay. Multiple can be active simultaneously.
+
+Frame structure:
+- `State` — current game state (stats, weather, location, fire, etc.)
+- `Mode` — which primary UI to show
+- `Overlays` — which modal panels to display
+- `Input` — action buttons and their handlers
+
+FrameQueue handles rapid frame arrivals during travel. State machine: idle → processing → animating → idle. Progress animations block queue processing until complete.
+
+JSON serialization uses `[JsonPolymorphic]` attributes for type discrimination. Frontend dispatches on `mode.type` and `overlay.type` via switch statements.
+
+Web UI interacts with: all game systems (receives state updates), events (EventOverlay shows choices), inventory/crafting (overlay display).
+
+**Files**: `Web/Dto/WebFrame.cs`, `Web/Dto/FrameMode.cs`, `Web/Dto/Overlay.cs`, `Web/WebIO.cs`, `wwwroot/app.js`, `wwwroot/modules/frameQueue.js`
+
+---
+
 ## Design Direction
 
 Not yet implemented, but shaping future development:

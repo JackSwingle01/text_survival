@@ -20,10 +20,11 @@ public static class GameDisplay
     /// </summary>
     public static void AddNarrative(GameContext ctx, string text, LogLevel level = LogLevel.Normal)
     {
+        var timestamp = ctx.GameTime.ToString("h:mm");
         if (ctx.SessionId != null)
-            ctx.Log.Add(text, level);
+            ctx.Log.Add(text, level, timestamp);
         else
-            _log.Add(text, level);
+            _log.Add(text, level, timestamp);
     }
 
     /// <summary>
@@ -31,12 +32,13 @@ public static class GameDisplay
     /// </summary>
     public static void AddNarrative(GameContext ctx, IEnumerable<string> texts, LogLevel level = LogLevel.Normal)
     {
+        var timestamp = ctx.GameTime.ToString("h:mm");
         if (ctx.SessionId != null)
-            ctx.Log.AddRange(texts, level);
+            ctx.Log.AddRange(texts, level, timestamp);
         else
         {
             foreach (var text in texts)
-                _log.Add(text, level);
+                _log.Add(text, level, timestamp);
         }
     }
 
@@ -89,13 +91,11 @@ public static class GameDisplay
     public static void Render(
         GameContext ctx,
         bool addSeparator = true,
-        string? statusText = null,
-        int? progress = null,
-        int? progressTotal = null)
+        string? statusText = null)
     {
         if (addSeparator)
             ctx.Log.AddSeparator();
-        Web.WebIO.Render(ctx, statusText, progress, progressTotal);
+        Web.WebIO.Render(ctx, statusText);
         return;
     }
 

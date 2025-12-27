@@ -5,6 +5,7 @@ using text_survival.Effects;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web.Dto;
 
 namespace text_survival.Actions;
 
@@ -147,8 +148,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     /// <summary>
     /// Apply this event outcome to the game context.
     /// Processes time, effects, damage, rewards, costs, tensions, equipment, and features.
+    /// Returns outcome data for UI display.
     /// </summary>
-    public void Apply(GameContext ctx)
+    public EventOutcomeDto Apply(GameContext ctx)
     {
         var summary = new OutcomeSummary();
 
@@ -156,12 +158,22 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         ApplyEffects(ctx, summary);
         ApplyDamage(ctx, summary);
         ApplyRewards(ctx, summary);
-        ApplyCosts(ctx);
+        ApplyCosts(ctx, summary);
         ApplyStatDrains(ctx, summary);
-        ApplyTensions(ctx);
+        ApplyTensions(ctx, summary);
         ApplyEquipmentDamage(ctx, summary);
         ApplyFeatureModifications(ctx);
         DisplaySummary(ctx, summary);
+
+        return new EventOutcomeDto(
+            Message: Message,
+            TimeAddedMinutes: TimeAddedMinutes,
+            EffectsApplied: summary.EffectsApplied,
+            DamageTaken: summary.DamageTaken,
+            ItemsGained: summary.ItemsGained,
+            ItemsLost: summary.ItemsLost,
+            TensionsChanged: summary.TensionsChanged
+        );
     }
 
     private void ApplyTimeAndMessage(GameContext ctx)
@@ -169,8 +181,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         if (TimeAddedMinutes != 0)
         {
             GameDisplay.AddNarrative(ctx, $"(+{TimeAddedMinutes} minutes)");
-            // Uses current activity - event was already triggered, so any nested events are handled by the caller
-            GameDisplay.UpdateAndRenderProgress(ctx, "Acting", TimeAddedMinutes, ctx.CurrentActivity);
+            // Apply time without progress animation (time shows in outcome popup)
+            // This prevents the progress frame from blocking the event overlay
+            ctx.Update(TimeAddedMinutes, ctx.CurrentActivity);
         }
 
         GameDisplay.AddNarrative(ctx, Message);
@@ -181,7 +194,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         foreach (var effect in Effects)
         {
             ctx.player.AddLog(ctx.player.EffectRegistry.AddEffect(effect));
-            summary.Losses.Add(effect.EffectKind);
+            summary.EffectsApplied.Add(effect.EffectKind);
         }
     }
 
@@ -190,10 +203,16 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         if (NewDamage is not null)
         {
             var dmgResult = ctx.player.Body.Damage(NewDamage);
+
+            // Track damage taken
+            var targetName = BodyTargetResolver.GetDisplayName(NewDamage.Target);
+            summary.DamageTaken.Add($"{NewDamage.Amount:F0} {NewDamage.Type} to {targetName}");
+
+            // Track triggered effects (bleeding, pain, etc.)
             foreach (var effect in dmgResult.TriggeredEffects)
             {
                 ctx.player.AddLog(ctx.player.EffectRegistry.AddEffect(effect));
-                summary.Losses.Add(effect.EffectKind);
+                summary.EffectsApplied.Add(effect.EffectKind);
             }
         }
     }
@@ -207,17 +226,18 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
             {
                 var desc = resources.GetDescription();
                 GameDisplay.AddSuccess(ctx, $"  + {desc}");
-                summary.Gains.Add(desc);
+                summary.ItemsGained.Add(desc);
                 InventoryCapacityHelper.CombineAndReport(ctx, resources);
             }
         }
     }
 
-    private void ApplyCosts(GameContext ctx)
+    private void ApplyCosts(GameContext ctx, OutcomeSummary summary)
     {
         if (Cost is not null)
         {
             DeductResources(ctx.Inventory, Cost);
+            summary.ItemsLost.Add($"{Cost.Amount} {Cost.Type}");
         }
     }
 
@@ -230,34 +250,37 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
             {
                 ctx.player.Body.DrainCalories(calories);
                 GameDisplay.AddDanger(ctx, $"  - Lost {calories:F0} calories");
-                summary.Losses.Add($"{calories:F0} calories");
+                summary.ItemsLost.Add($"{calories:F0} calories");
             }
             if (hydration > 0)
             {
                 ctx.player.Body.DrainHydration(hydration);
                 GameDisplay.AddDanger(ctx, $"  - Lost {hydration:F0}ml hydration");
-                summary.Losses.Add($"{hydration:F0}ml hydration");
+                summary.ItemsLost.Add($"{hydration:F0}ml hydration");
             }
         }
     }
 
-    private void ApplyTensions(GameContext ctx)
+    private void ApplyTensions(GameContext ctx, OutcomeSummary summary)
     {
         if (CreatesTension is not null)
         {
             var tension = CreateTensionFromConfig(CreatesTension);
             ctx.Tensions.AddTension(tension);
+            summary.TensionsChanged.Add($"+{CreatesTension.Type}");
         }
 
         if (ResolvesTension is not null)
         {
             ctx.Tensions.ResolveTension(ResolvesTension);
+            summary.TensionsChanged.Add($"-{ResolvesTension}");
         }
 
         if (EscalateTension is not null)
         {
             var (type, amount) = EscalateTension.Value;
             ctx.Tensions.EscalateTension(type, amount);
+            summary.TensionsChanged.Add($"↑{type}");
         }
     }
 
@@ -282,7 +305,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
                 if (target.IsBroken)
                 {
                     GameDisplay.AddDanger(ctx, $"  - {target.Name} breaks!");
-                    summary.Losses.Add($"{target.Name} destroyed");
+                    summary.ItemsLost.Add($"{target.Name} destroyed");
                 }
                 else
                 {
@@ -290,7 +313,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
                         ? $" (now {target.ConditionPct:P0})"
                         : "";
                     GameDisplay.AddWarning(ctx, $"  - {target.Name} damaged{conditionInfo}");
-                    summary.Losses.Add($"{target.Name} damaged");
+                    summary.ItemsLost.Add($"{target.Name} damaged");
                 }
             }
         }
@@ -303,7 +326,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
             {
                 tool.Durability = 0;
                 GameDisplay.AddDanger(ctx, $"  - {tool.Name} breaks!");
-                summary.Losses.Add($"{tool.Name} destroyed");
+                summary.ItemsLost.Add($"{tool.Name} destroyed");
             }
         }
     }
@@ -368,10 +391,14 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         if (summary.HasContent)
         {
             GameDisplay.AddNarrative(ctx, "");
-            foreach (var gain in summary.Gains)
+            foreach (var gain in summary.ItemsGained)
                 GameDisplay.AddSuccess(ctx, $"  + {gain}");
-            foreach (var loss in summary.Losses)
+            foreach (var loss in summary.ItemsLost)
                 GameDisplay.AddDanger(ctx, $"  - {loss}");
+            foreach (var damage in summary.DamageTaken)
+                GameDisplay.AddDanger(ctx, $"  - {damage}");
+            foreach (var effect in summary.EffectsApplied)
+                GameDisplay.AddWarning(ctx, $"  - {effect}");
         }
     }
 
@@ -463,12 +490,16 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         }
     }
 
-    /// <summary>Helper class to track outcome gains and losses for summary display.</summary>
+    /// <summary>Helper class to track outcome data for summary display and DTO generation.</summary>
     private class OutcomeSummary
     {
-        public List<string> Gains { get; } = [];
-        public List<string> Losses { get; } = [];
-        public bool HasContent => Gains.Count > 0 || Losses.Count > 0;
+        public List<string> EffectsApplied { get; } = [];
+        public List<string> DamageTaken { get; } = [];
+        public List<string> ItemsGained { get; } = [];
+        public List<string> ItemsLost { get; } = [];
+        public List<string> TensionsChanged { get; } = [];
+
+        public bool HasContent => ItemsGained.Count + ItemsLost.Count + EffectsApplied.Count + DamageTaken.Count + TensionsChanged.Count > 0;
     }
 }
 public class EventChoice(string label, string description, List<EventResult> results, List<EventCondition>? conditions = null)
@@ -503,6 +534,12 @@ public class GameEvent(string name, string description, double weight)
         return choices.GetPlayerChoice(ctx);
     }
     public void AddChoice(EventChoice c) => _choices.Add(c);
+
+    /// <summary>
+    /// Get choices available to the player (filtered by conditions).
+    /// </summary>
+    public List<EventChoice> GetAvailableChoices(GameContext ctx)
+        => _choices.Where(c => c.RequiredConditions.All(ctx.Check)).ToList();
 
     // === Fluent builder methods ===
 

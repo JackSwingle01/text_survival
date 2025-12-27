@@ -4,6 +4,7 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -95,17 +96,21 @@ public class CraftingProjectStrategy : IWorkStrategy
         project.AddProgress(effectiveProgress, location);
 
         var collected = new List<string>();
+        string resultMessage;
 
         if (project.IsComplete)
         {
-            GameDisplay.AddNarrative(ctx, $"You complete the {project.ProjectName}!");
             collected.Add($"Completed: {project.ProjectName}");
+            resultMessage = $"You complete the {project.ProjectName}!";
         }
         else
         {
-            GameDisplay.AddNarrative(ctx, $"Progress: {project.ProgressPct:P0} complete.");
             collected.Add($"{project.ProjectName}: {project.ProgressPct:P0}");
+            resultMessage = $"Progress: {project.ProgressPct:P0} complete.";
         }
+
+        // Show results in popup overlay
+        WebIO.ShowWorkResult(ctx, "Construction", resultMessage, collected);
 
         return new WorkResult(collected, null, actualTime, false);
     }

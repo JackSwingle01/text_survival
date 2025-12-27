@@ -1,5 +1,7 @@
+using text_survival.Actions;
 using text_survival.Actors.Player;
 using text_survival.Bodies;
+using text_survival.Environments.Grid;
 using text_survival.Items;
 
 namespace text_survival.Environments;
@@ -142,9 +144,10 @@ public static class TravelProcessor
         return totalTime;
     }
 
-    public static List<Location>? FindPath(Location start, Location target, Actions.GameContext ctx)
+    public static List<Location>? FindPath(Location start, Location target, GameContext ctx)
     {
         if (start == target) return [start];
+        if (ctx.Map == null) return null;
 
         var visited = new HashSet<Location>();
         var queue = new Queue<List<Location>>();
@@ -163,7 +166,7 @@ public static class TravelProcessor
 
             visited.Add(current);
 
-            foreach (var connection in current.GetConnections(ctx))
+            foreach (var connection in ctx.Map.GetTravelOptionsFrom(current))
             {
                 if (connection.Explored &&
                     !visited.Contains(connection))
@@ -193,4 +196,86 @@ public static class TravelProcessor
         return BuildRoundTripPath(outboundPath);
     }
 
+    /// <summary>
+    /// Get a description of why terrain is hazardous.
+    /// Used for player feedback when traversing difficult terrain.
+    /// </summary>
+    public static string GetHazardDescription(Location location, Weather weather)
+    {
+        var reasons = new List<string>();
+
+        // Terrain-based hazards
+        switch (location.Terrain)
+        {
+            case TerrainType.Water:
+                reasons.Add("slippery ice");
+                break;
+            case TerrainType.Marsh:
+                reasons.Add("unstable frozen marsh");
+                break;
+            case TerrainType.Rock:
+                reasons.Add("loose rocks");
+                break;
+            case TerrainType.Hills:
+                reasons.Add("steep terrain");
+                break;
+        }
+
+        // Fallback for named locations without terrain type
+        if (reasons.Count == 0 && location.GetEffectiveTerrainHazard() >= HazardousTerrainThreshold)
+        {
+            // Check location tags/name for hints
+            string name = location.Name.ToLower();
+            if (name.Contains("ice") || name.Contains("frozen"))
+                reasons.Add("slippery ice");
+            else if (name.Contains("marsh") || name.Contains("bog"))
+                reasons.Add("unstable ground");
+            else if (name.Contains("rock") || name.Contains("boulder") || name.Contains("crevasse"))
+                reasons.Add("loose rocks");
+            else if (name.Contains("hill") || name.Contains("ridge") || name.Contains("cliff"))
+                reasons.Add("steep terrain");
+            else
+                reasons.Add("treacherous footing");
+        }
+
+        // Weather-based hazards
+        if (weather.CurrentCondition == Weather.WeatherCondition.Blizzard)
+            reasons.Add("blizzard conditions");
+        else if (weather.CurrentCondition == Weather.WeatherCondition.Stormy)
+            reasons.Add("stormy weather");
+        else if (weather.Precipitation > 0.5)
+            reasons.Add("heavy snowfall");
+
+        if (reasons.Count == 0)
+            return "hazardous terrain";
+
+        return string.Join(" and ", reasons);
+    }
+
+    /// <summary>
+    /// Validate that a move from one location to another is allowed on the map.
+    /// Returns null if valid, or an error message if invalid.
+    /// </summary>
+    public static string? ValidateGridMove(Location from, Location to, GameMap map)
+    {
+        if (to == null)
+            return "Cannot move outside the map.";
+
+        var fromPos = map.GetPosition(from);
+        var toPos = map.GetPosition(to);
+
+        if (!fromPos.HasValue || !toPos.HasValue)
+            return "Locations must be on the map.";
+
+        if (!fromPos.Value.IsAdjacentTo(toPos.Value))
+            return "Can only move to adjacent locations.";
+
+        if (!to.IsPassable)
+        {
+            string terrainName = to.Terrain.ToString().ToLower();
+            return $"Cannot traverse {terrainName} terrain.";
+        }
+
+        return null;  // Valid move
+    }
 }
