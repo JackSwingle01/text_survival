@@ -144,6 +144,12 @@ class GameClient {
             btn.disabled = false;
         });
 
+        // CRITICAL: Update currentInputId FIRST, before rendering anything
+        // Overlays and buttons need the current inputId to send valid responses
+        if (frame.input?.inputId) {
+            this.currentInputId = frame.input.inputId;
+        }
+
         // Render game state
         if (frame.state) {
             this.renderState(frame.state);
@@ -928,11 +934,18 @@ class GameClient {
         }
 
         if (this.socket.readyState === WebSocket.OPEN) {
+            // Ensure valid inputId
+            const inputId = this.currentInputId || 0;
+            if (inputId <= 0) {
+                console.warn('[handleTravelRequest] No valid inputId, ignoring');
+                this.awaitingResponse = false;
+                return;
+            }
             this.socket.send(JSON.stringify({
                 type: 'travel_to',
                 targetX: x,
                 targetY: y,
-                inputId: this.currentInputId
+                inputId: inputId
             }));
         }
     }
@@ -945,10 +958,16 @@ class GameClient {
         this.awaitingResponse = true;
 
         if (this.socket.readyState === WebSocket.OPEN) {
+            const inputId = this.currentInputId || 0;
+            if (inputId <= 0) {
+                console.warn('[handleExamineRequest] No valid inputId, ignoring');
+                this.awaitingResponse = false;
+                return;
+            }
             this.socket.send(JSON.stringify({
                 type: 'examine',
                 detailId: detailId,
-                inputId: this.currentInputId
+                inputId: inputId
             }));
         }
     }
@@ -1036,7 +1055,12 @@ class GameClient {
             input.choices.forEach(choice => {
                 const btn = document.createElement('button');
                 btn.className = 'event-choice-btn';
-                btn.textContent = choice.label;
+
+                const label = document.createElement('span');
+                label.className = 'choice-label';
+                label.textContent = choice.label;
+                btn.appendChild(label);
+
                 btn.onclick = () => {
                     this.hideConfirmPrompt();
                     this.respond(choice.id, inputId);
@@ -1064,11 +1088,17 @@ class GameClient {
         this.awaitingResponse = true;
 
         if (this.socket.readyState === WebSocket.OPEN) {
+            const inputId = this.currentInputId || 0;
+            if (inputId <= 0) {
+                console.warn('[respondHazardChoice] No valid inputId, ignoring');
+                this.awaitingResponse = false;
+                return;
+            }
             this.socket.send(JSON.stringify({
                 type: 'hazard_choice',
                 quickTravel: quickTravel,
                 choiceId: quickTravel ? 'quick' : 'careful',
-                inputId: this.currentInputId
+                inputId: inputId
             }));
         }
     }
@@ -1081,10 +1111,16 @@ class GameClient {
         this.awaitingResponse = true;
 
         if (this.socket.readyState === WebSocket.OPEN) {
+            const inputId = this.currentInputId || 0;
+            if (inputId <= 0) {
+                console.warn('[requestAction] No valid inputId, ignoring');
+                this.awaitingResponse = false;
+                return;
+            }
             this.socket.send(JSON.stringify({
                 type: 'action',
                 action: action,
-                inputId: this.currentInputId
+                inputId: inputId
             }));
         }
     }
@@ -1417,9 +1453,15 @@ class GameClient {
         this.awaitingResponse = true;
 
         if (this.socket.readyState === WebSocket.OPEN) {
+            const inputId = this.currentInputId || 0;
+            if (inputId <= 0) {
+                console.warn('[respondStopTravel] No valid inputId, ignoring');
+                this.awaitingResponse = false;
+                return;
+            }
             this.socket.send(JSON.stringify({
                 type: 'menu',
-                inputId: this.currentInputId
+                inputId: inputId
             }));
         }
     }
@@ -1435,6 +1477,16 @@ class GameClient {
             return;
         }
 
+        // Use current input ID if parameter is invalid
+        const validInputId = (inputId !== undefined && inputId > 0) ? inputId : this.currentInputId;
+
+        // Don't send if we don't have a valid input ID yet
+        if (!validInputId || validInputId <= 0) {
+            console.warn('[respond] No valid inputId available, ignoring click');
+            this.awaitingResponse = false;
+            return;
+        }
+
         this.awaitingResponse = true;
 
         // Disable all action buttons immediately to prevent double-clicks
@@ -1443,7 +1495,7 @@ class GameClient {
         });
 
         if (this.socket.readyState === WebSocket.OPEN) {
-            this.socket.send(JSON.stringify({ choiceId, inputId }));
+            this.socket.send(JSON.stringify({ choiceId, inputId: validInputId }));
         }
     }
 

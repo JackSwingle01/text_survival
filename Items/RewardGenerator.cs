@@ -8,6 +8,7 @@ public enum RewardPool
     HiddenCache,        // Valuable tool + good fuel
     BasicMeat,          // Small amount of raw meat (scavenged)
     LargeMeat,          // Significant meat haul (thorough butchering)
+    MassiveMeat,        // Megafauna kill (mammoth, cave bear - huge yield)
     GameTrailDiscovery, // Minor supplies (info reward placeholder)
 
     // Extended pools
@@ -31,6 +32,7 @@ public static class RewardGenerator
             RewardPool.HiddenCache => GenerateHiddenCache(),
             RewardPool.BasicMeat => GenerateBasicMeat(),
             RewardPool.LargeMeat => GenerateLargeMeat(),
+            RewardPool.MassiveMeat => GenerateMassiveMeat(),
             RewardPool.GameTrailDiscovery => GenerateGameTrailDiscovery(),
             RewardPool.CraftingMaterials => GenerateCraftingMaterials(),
             RewardPool.ScrapTool => GenerateScrapTool(),
@@ -132,6 +134,19 @@ public static class RewardGenerator
         for (int i = 0; i < cuts; i++)
         {
             resources.Add(Resource.RawMeat, RandomWeight(0.4, 0.8));
+        }
+        return resources;
+    }
+
+    private static Inventory GenerateMassiveMeat()
+    {
+        var resources = new Inventory();
+        // Megafauna kill - massive haul (~50kg total)
+        // Player can't carry all at once, will need multiple trips or caching
+        int cuts = Random.Shared.Next(5, 8); // 5-7 portions
+        for (int i = 0; i < cuts; i++)
+        {
+            resources.Add(Resource.RawMeat, RandomWeight(8.0, 12.0));
         }
         return resources;
     }

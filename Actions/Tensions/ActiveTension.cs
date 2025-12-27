@@ -237,6 +237,18 @@ public class ActiveTension
     );
 
     /// <summary>
+    /// Player is tracking a mammoth. Trail goes cold slowly if not actively pursuing.
+    /// Decays at camp as the mammoth herd moves on.
+    /// </summary>
+    public static ActiveTension MammothTracked(double severity, Location? location = null) => new(
+        type: "MammothTracked",
+        severity: severity,
+        decayPerHour: 0.01,  // Trail goes cold slowly
+        decaysAtCamp: true,  // Decay when not actively tracking
+        relevantLocation: location
+    );
+
+    /// <summary>
     /// Generic factory for custom tension types.
     /// </summary>
     public static ActiveTension Custom(

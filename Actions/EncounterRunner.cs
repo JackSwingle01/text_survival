@@ -182,6 +182,7 @@ public static class EncounterRunner
             "wolf" => AnimalFactory.MakeWolf(),
             "bear" => AnimalFactory.MakeBear(),
             "cave bear" => AnimalFactory.MakeCaveBear(),
+            "mammoth" => AnimalFactory.MakeWoollyMammoth(),
             "fox" => AnimalFactory.MakeFox(),
             _ => null
         };

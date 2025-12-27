@@ -26,6 +26,7 @@ public enum Resource
     // Materials
     Stone, Bone, Hide, PlantFiber, Sinew, Shale, Flint, Pyrite,
     ScrapedHide, CuredHide, RawFiber, RawFat, Tallow, Charcoal, Rope, Ivory,
+    MammothHide,  // Trophy material from mammoth hunts
 
     // Medicine
     BirchPolypore, Chaga, Amadou, RoseHip, JuniperBerry,
@@ -70,7 +71,8 @@ public static class ResourceCategories
             Resource.Stone, Resource.Bone, Resource.Hide, Resource.PlantFiber,
             Resource.Sinew, Resource.Shale, Resource.Flint, Resource.Pyrite,
             Resource.ScrapedHide, Resource.CuredHide, Resource.RawFiber,
-            Resource.RawFat, Resource.Tallow, Resource.Charcoal, Resource.Rope, Resource.Ivory
+            Resource.RawFat, Resource.Tallow, Resource.Charcoal, Resource.Rope, Resource.Ivory,
+            Resource.MammothHide
         }
     };
 }

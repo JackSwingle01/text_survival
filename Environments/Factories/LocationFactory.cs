@@ -1049,6 +1049,14 @@ public static class LocationFactory
         // Natural shelter from mammoth ribs
         location.Features.Add(new ShelterFeature("Rib Arch", 0.35, 0.4, 0.5));
 
+        // Megafauna presence - woolly mammoths still pass through this ancient graveyard
+        location.Features.Add(new MegafaunaPresenceFeature
+        {
+            MegafaunaType = "Mammoth",
+            ActivityLevel = 0.7,
+            RespawnHours = 720  // 30 days between hunts
+        });
+
         return location;
     }
 

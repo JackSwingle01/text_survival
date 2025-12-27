@@ -611,6 +611,10 @@ public enum EventCondition
     FeverHigh,             // FeverRising severity > 0.4
     FeverCritical,         // FeverRising severity > 0.7
 
+    // Mammoth hunt arc
+    MammothTracked,        // Any MammothTracked tension exists
+    MammothTrackedHigh,    // MammothTracked severity > 0.6 (ready for confrontation)
+
     // Camp/expedition state
     AtCamp,             // Player is at camp (not on expedition)
     OnExpedition,       // Player is on an expedition
@@ -624,6 +628,8 @@ public enum EventCondition
     // Additional resource conditions
     HasWater,           // Has any water
     HasPlantFiber,      // Has plant fiber for crafting/traps
+    HasSticks,          // Has sticks for building/fire
+    HasCookedMeat,      // Has cooked meat for bait/food
 
     // Body state conditions
     LowCalories,        // Player calories below threshold

@@ -147,6 +147,10 @@ public static class OutcomeTemplates
     public static EventResult FindsLargeMeat(this EventResult r)
         => r.Rewards(RewardPool.LargeMeat);
 
+    /// <summary>Massive meat find (megafauna kill).</summary>
+    public static EventResult FindsMassiveMeat(this EventResult r)
+        => r.Rewards(RewardPool.MassiveMeat);
+
     /// <summary>Hidden cache discovery.</summary>
     public static EventResult FindsCache(this EventResult r)
         => r.Rewards(RewardPool.HiddenCache);

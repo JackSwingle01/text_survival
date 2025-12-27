@@ -115,6 +115,9 @@ public static class ConditionChecker
             EventCondition.FeverHigh => ctx.Tensions.HasTensionAbove("FeverRising", 0.4),
             EventCondition.FeverCritical => ctx.Tensions.HasTensionAbove("FeverRising", 0.7),
 
+            EventCondition.MammothTracked => ctx.Tensions.HasTension("MammothTracked"),
+            EventCondition.MammothTrackedHigh => ctx.Tensions.HasTensionAbove("MammothTracked", 0.6),
+
             // Camp/expedition state
             EventCondition.AtCamp => ctx.IsAtCamp,
             EventCondition.OnExpedition => !ctx.IsAtCamp,
@@ -128,6 +131,8 @@ public static class ConditionChecker
             // Additional resource conditions
             EventCondition.HasWater => ctx.Inventory.HasWater,
             EventCondition.HasPlantFiber => ctx.Inventory.Count(Resource.PlantFiber) > 0,
+            EventCondition.HasSticks => ctx.Inventory.Count(Resource.Stick) > 0,
+            EventCondition.HasCookedMeat => ctx.Inventory.Count(Resource.CookedMeat) > 0,
 
             // Body state conditions
             EventCondition.LowCalories => ctx.player.Body.CalorieStore < 500,

@@ -875,6 +875,30 @@ public class NeedCraftingSystem
                 MaxDurability = dur
             }
         });
+
+        // Mammoth Hide Coat: Trophy equipment from megafauna hunts
+        _options.Add(new CraftOption
+        {
+            Name = "Mammoth Hide Coat",
+            Description = "A heavy coat sewn from woolly mammoth hide. Superior cold protection. Trophy gear.",
+            Category = NeedCategory.Equipment,
+            CraftingTimeMinutes = 120,
+            Durability = 30,
+            Requirements = [
+                new MaterialRequirement("MammothHide", 8),
+                new MaterialRequirement("Sinew", 3)
+            ],
+            GearFactory = dur => new Gear
+            {
+                Name = "Mammoth Hide Coat",
+                Category = GearCategory.Equipment,
+                Slot = EquipSlot.Chest,
+                Weight = 3.5,
+                BaseInsulation = 12.0,  // Aspirational high value
+                Durability = dur,
+                MaxDurability = dur
+            }
+        });
     }
 
     #endregion

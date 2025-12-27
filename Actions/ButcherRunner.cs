@@ -40,20 +40,35 @@ public static class ButcherRunner
         double bodyWeight = animal.Body.WeightKG;
         string animalName = animal.Name.ToLower();
 
-        // Meat: ~40% of body weight
-        AddMeat(result, bodyWeight * 0.4, animalName);
+        // Special handling for megafauna - massive animals yield realistic amounts
+        // Player can only butcher what they can process in the field
+        if (animalName.Contains("mammoth"))
+        {
+            // Mammoth yields: trophy amounts, not proportional to body weight
+            AddMeat(result, 50, animalName);  // 50kg meat (multiple trips or caching required)
+            AddBones(result, 8, animalName);  // 8kg bone/ivory
+            AddMammothHide(result, 15);  // 15kg mammoth hide (trophy material)
+            AddSinew(result, 4, animalName);  // 4kg sinew
+            AddFat(result, 6, animalName);  // 6kg fat
+        }
+        else
+        {
+            // Normal animals: yields proportional to body weight
+            // Meat: ~40% of body weight
+            AddMeat(result, bodyWeight * 0.4, animalName);
 
-        // Bone: ~15% of body weight (2-4 bones depending on size)
-        AddBones(result, bodyWeight * 0.15, animalName);
+            // Bone: ~15% of body weight (2-4 bones depending on size)
+            AddBones(result, bodyWeight * 0.15, animalName);
 
-        // Hide: ~10% of body weight (1 hide)
-        AddHide(result, bodyWeight * 0.10, animalName);
+            // Hide: ~10% of body weight (1 hide)
+            AddHide(result, bodyWeight * 0.10, animalName);
 
-        // Sinew: ~5% of body weight (tendons for cordage)
-        AddSinew(result, bodyWeight * 0.05, animalName);
+            // Sinew: ~5% of body weight (tendons for cordage)
+            AddSinew(result, bodyWeight * 0.05, animalName);
 
-        // Fat: ~8% of body weight (for rendering into tallow)
-        AddFat(result, bodyWeight * 0.08, animalName);
+            // Fat: ~8% of body weight (for rendering into tallow)
+            AddFat(result, bodyWeight * 0.08, animalName);
+        }
 
         return result;
     }
@@ -118,6 +133,24 @@ public static class ButcherRunner
         if (totalKg > 0.1)
         {
             result.Add(Resource.Hide, totalKg);
+        }
+    }
+
+    private static void AddMammothHide(Inventory result, double totalKg)
+    {
+        // Mammoth hide is trophy material - split into large pieces
+        // 15kg total, split into 2-3 pieces for easier handling
+        int pieces = totalKg switch
+        {
+            < 5 => 1,
+            < 10 => 2,
+            _ => 3
+        };
+
+        double perPiece = totalKg / pieces;
+        for (int i = 0; i < pieces; i++)
+        {
+            result.Add(Resource.MammothHide, perPiece);
         }
     }
 
