@@ -490,6 +490,16 @@ body {
     color: var(--text-faint);
 }
 
+.weather-front-label {
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.weather-divider {
+    color: var(--text-faint);
+    user-select: none;
+}
+
 
 /* Grid Viewport */
 .grid-viewport {

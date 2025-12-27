@@ -1123,6 +1123,7 @@ class GameClient {
         }
 
         // Weather
+        document.getElementById('weatherFront').textContent = state.weatherFront;
         const weatherEl = document.getElementById('weatherCond');
         weatherEl.textContent = state.weatherCondition;
         document.getElementById('weatherIcon').textContent = this.getWeatherIcon(state.weatherCondition);

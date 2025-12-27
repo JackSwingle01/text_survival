@@ -18,6 +18,7 @@ public record GameStateDto
     public double HoursUntilTransition { get; init; }
 
     // Weather
+    public string WeatherFront { get; init; } = "";
     public string WeatherCondition { get; init; } = "";
     public string Wind { get; init; } = "";
     public string Precipitation { get; init; } = "";
@@ -136,6 +137,7 @@ public record GameStateDto
             HoursUntilTransition = hoursUntilTransition,
 
             // Weather
+            WeatherFront = weather.GetFrontLabel(),
             WeatherCondition = weather.GetConditionLabel(),
             Wind = weather.GetWindLabel(),
             Precipitation = weather.GetPrecipitationLabel(),

@@ -1,4 +1,5 @@
 using text_survival;
+using text_survival.Environments;
 
 public class Weather
 {
@@ -14,6 +15,10 @@ public class Weather
     // Weather transition tracking for events
     public WeatherCondition? PreviousCondition { get; set; }
     public bool WeatherJustChanged { get; set; }
+
+    // Weather front system - multi-state sequences
+    public WeatherFront? CurrentFront { get; set; }
+    public WeatherFront? NextFront { get; set; }
 
     // Season tracking - derived from game time
     public enum Season { Winter, Spring, Summer, Fall }
@@ -147,6 +152,10 @@ public class Weather
         CloudCover = 0.3; // Light clouds - 30% coverage
 
         _weatherDuration = TimeSpan.FromHours(6);
+
+        // Initialize weather fronts
+        CurrentFront = FrontPatterns.Generate(Season.Fall, CurrentCondition);
+        NextFront = FrontPatterns.Generate(Season.Fall, CurrentCondition);
     }
 
     public void Update(DateTime newTime)
@@ -160,7 +169,7 @@ public class Weather
         // Time to change weather?
         if (TimeSinceWeatherChange >= _weatherDuration)
         {
-            GenerateNewWeather();
+            AdvanceFront();
             TimeSinceWeatherChange = TimeSpan.Zero;
         }
         Time = newTime;
@@ -549,6 +558,77 @@ public class Weather
     {
         int hour = time.Hour;
         return hour >= GetSunriseHour() && hour < GetSunsetHour();
+    }
+
+    /// <summary>
+    /// Advance to the next weather state within the current front,
+    /// or transition to the next front if the current one is complete.
+    /// </summary>
+    private void AdvanceFront()
+    {
+        // If no fronts exist (old save), fall back to old generation
+        if (CurrentFront == null)
+        {
+            GenerateNewWeather();
+            return;
+        }
+
+        if (CurrentFront.IsComplete)
+        {
+            // Current front is done, move to next front
+            CurrentFront = NextFront ?? FrontPatterns.Generate(CurrentSeason, CurrentCondition);
+            NextFront = FrontPatterns.Generate(CurrentSeason, CurrentCondition);
+            CurrentFront.CurrentStateIndex = 0;
+        }
+        else
+        {
+            // Advance to next state in current front
+            CurrentFront.CurrentStateIndex++;
+
+            // Handle state skipping - if next state should be skipped, advance again
+            while (CurrentFront.CurrentStateIndex < CurrentFront.States.Count &&
+                   Utils.DetermineSuccess(CurrentFront.CurrentState.SkipProbability))
+            {
+                CurrentFront.CurrentStateIndex++;
+            }
+        }
+
+        ApplyWeatherState(CurrentFront.CurrentState);
+
+        // Track transition for event system
+        PreviousCondition = CurrentCondition;
+        WeatherJustChanged = true;
+    }
+
+    /// <summary>
+    /// Apply a weather state to the current weather properties.
+    /// Rolls within the state's ranges for variability.
+    /// </summary>
+    private void ApplyWeatherState(WeatherState state)
+    {
+        // Roll within state's ranges for variability
+        BaseTemperature = Utils.RandDouble(state.TempRange.Min, state.TempRange.Max);
+        WindSpeed = Utils.RandDouble(state.WindRange.Min, state.WindRange.Max);
+        Precipitation = Utils.RandDouble(state.PrecipRange.Min, state.PrecipRange.Max);
+        CloudCover = Utils.RandDouble(state.CloudRange.Min, state.CloudRange.Max);
+        CurrentCondition = state.Condition;
+        _weatherDuration = state.Duration;
+    }
+
+    /// <summary>
+    /// Get the player-facing label for the current weather front.
+    /// </summary>
+    public string GetFrontLabel()
+    {
+        return CurrentFront?.Type switch
+        {
+            FrontType.StormSystem => "Storm Front",
+            FrontType.ClearSpell => "Clear Spell",
+            FrontType.ColdSnap => "Cold Snap",
+            FrontType.Warming => "Warming Period",
+            FrontType.UnsettledPeriod => "Unsettled Weather",
+            _ => "Stable Weather"
+        };
     }
 
     #region Save/Load Support
