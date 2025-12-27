@@ -66,9 +66,29 @@ public class Location
     public double VisibilityFactor { get; set; } = 1;
 
     /// <summary>
-    /// The traversal time can be thought of as the radius - the time in or out.
+    /// Traversal time modifier applied to base terrain time.
+    /// Procedural locations: random 0.8-1.2 (±20%)
+    /// Named locations: explicit value (1.5 for Dense Thicket, 0.7 for Game Trail, etc.)
     /// </summary>
-    public int BaseTraversalMinutes { get; set; } = 0;
+    public double TraversalModifier { get; set; } = 1.0;
+
+    /// <summary>
+    /// The traversal time calculated from terrain type + hazard level + modifier.
+    /// Derived from Terrain.BaseTraversalMinutes() + hazard bonus, scaled by TraversalModifier.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int BaseTraversalMinutes
+    {
+        get
+        {
+            // Calculate from terrain + hazard + modifier
+            int terrainBase = Terrain.BaseTraversalMinutes();
+            int hazardBonus = (int)Math.Floor(TerrainHazardLevel * 5);
+            double result = (terrainBase + hazardBonus) * TraversalModifier;
+
+            return Math.Max(1, (int)Math.Round(result));
+        }
+    }
 
     /// <summary>
     /// Base injury risk and traversal time modifier.
@@ -83,14 +103,13 @@ public class Location
     }
 
     // Normal constructor for creation
-    public Location(string name, string tags, Weather weather, int traversalMinutes,
+    public Location(string name, string tags, Weather weather,
         double terrainHazardLevel = 0, double windFactor = 1,
         double overheadCoverLevel = 0, double visibilityFactor = 1)
     {
         Name = name;
         Tags = tags;
         Weather = weather;
-        BaseTraversalMinutes = traversalMinutes;
         TerrainHazardLevel = terrainHazardLevel;
         WindFactor = windFactor;
         OverheadCoverLevel = overheadCoverLevel;

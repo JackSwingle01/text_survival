@@ -20,7 +20,6 @@ public static class LocationFactory
             name: GetTerrainDisplayName(terrain),
             tags: "",
             weather: weather,
-            traversalMinutes: terrain.BaseTraversalMinutes(),
             terrainHazardLevel: terrain.BaseHazardLevel(),
             windFactor: terrain.BaseWindFactor(),
             overheadCoverLevel: terrain.BaseOverheadCover(),
@@ -29,9 +28,13 @@ public static class LocationFactory
             Terrain = terrain
         };
 
-        // Add environmental details for terrain flavor (if position seed provided)
+        // Generate random ±20% modifier for variation (if position seed provided)
         if (positionSeed.HasValue)
         {
+            Random rng = new Random(positionSeed.Value);
+            location.TraversalModifier = 0.8 + (rng.NextDouble() * 0.4);  // Range: 0.8-1.2
+
+            // Add environmental details for terrain flavor
             var details = EnvironmentalDetailFactory.GenerateForTerrain(terrain, positionSeed.Value);
             foreach (var detail in details)
             {
@@ -122,7 +125,6 @@ public static class LocationFactory
             name: "Forest",
             tags: "[Shaded] [Resource-Dense]",
             weather: weather,
-            traversalMinutes: 10,
             terrainHazardLevel: .2,
             windFactor: .6,
             overheadCoverLevel: .3,
@@ -151,7 +153,6 @@ public static class LocationFactory
             name: "Cave",
             tags: "[Sheltered] [Dark]",
             weather: weather,
-            traversalMinutes: 5,
             terrainHazardLevel: 0.1,
             windFactor: 0.1,
             overheadCoverLevel: 1.0,
@@ -169,7 +170,6 @@ public static class LocationFactory
             name: "Riverbank",
             tags: "[Water] [Open]",
             weather: weather,
-            traversalMinutes: 8,
             terrainHazardLevel: 0.3,
             windFactor: 1.0,
             overheadCoverLevel: 0.1,
@@ -192,7 +192,6 @@ public static class LocationFactory
             name: "Plain",
             tags: "[Exposed] [Open]",
             weather: weather,
-            traversalMinutes: 15,
             terrainHazardLevel: 0.1,
             windFactor: 1.4,
             overheadCoverLevel: 0.0,
@@ -213,7 +212,6 @@ public static class LocationFactory
             name: "Hillside",
             tags: "[Steep] [Rocky]",
             weather: weather,
-            traversalMinutes: 12,
             terrainHazardLevel: 0.5,
             windFactor: 1.3,
             overheadCoverLevel: 0.0,
@@ -230,7 +228,6 @@ public static class LocationFactory
             name: "Clearing",
             tags: "[Sheltered] [Clearing]",
             weather: weather,
-            traversalMinutes: 8,
             terrainHazardLevel: 0.1,
             windFactor: 0.6,
             overheadCoverLevel: 0.2,
@@ -252,7 +249,6 @@ public static class LocationFactory
             name: "Hot Spring",
             tags: "[Warm] [Water]",
             weather: weather,
-            traversalMinutes: 20,
             terrainHazardLevel: 0.3,
             windFactor: 0.4,
             overheadCoverLevel: 0.1,
@@ -278,7 +274,6 @@ public static class LocationFactory
             name: "Frozen Creek",
             tags: "[Ice] [Water] [Slippery]",
             weather: weather,
-            traversalMinutes: 12,
             terrainHazardLevel: 0.35,
             windFactor: 0.9,
             overheadCoverLevel: 0.0,
@@ -307,7 +302,6 @@ public static class LocationFactory
             name: "Deadwood Grove",
             tags: "[Fuel] [Treacherous]",
             weather: weather,
-            traversalMinutes: 15,
             terrainHazardLevel: 0.7,
             windFactor: 0.5,
             overheadCoverLevel: 0.2,
@@ -332,7 +326,6 @@ public static class LocationFactory
             name: "Overlook",
             tags: "[Scout] [Exposed] [Stone]",
             weather: weather,
-            traversalMinutes: 18,
             terrainHazardLevel: 0.4,
             windFactor: 1.6,
             overheadCoverLevel: 0.0,
@@ -356,7 +349,6 @@ public static class LocationFactory
             name: "Marsh",
             tags: "[Water] [Treacherous] [Plants]",
             weather: weather,
-            traversalMinutes: 20,
             terrainHazardLevel: 0.4,
             windFactor: 0.7,
             overheadCoverLevel: 0.0,
@@ -388,7 +380,6 @@ public static class LocationFactory
             name: "Ice Crevasse",
             tags: "[Ice] [Cache] [Dangerous]",
             weather: weather,
-            traversalMinutes: 25,
             terrainHazardLevel: 0.8,
             windFactor: 0.2,
             overheadCoverLevel: 0.8,
@@ -413,7 +404,6 @@ public static class LocationFactory
             name: "Old Campsite",
             tags: "[Salvage] [Shelter]",
             weather: weather,
-            traversalMinutes: 15,
             terrainHazardLevel: 0.2,
             windFactor: 0.5,
             overheadCoverLevel: 0.3,
@@ -438,7 +428,6 @@ public static class LocationFactory
             name: "Wolf Den",
             tags: "[Wolves] [Dangerous] [Bones]",
             weather: weather,
-            traversalMinutes: 18,
             terrainHazardLevel: 0.3,
             windFactor: 0.4,
             overheadCoverLevel: 0.6,
@@ -462,7 +451,6 @@ public static class LocationFactory
             name: "Sheltered Valley",
             tags: "[Sheltered] [Camp-worthy]",
             weather: weather,
-            traversalMinutes: 22,
             terrainHazardLevel: 0.15,
             windFactor: 0.2,
             overheadCoverLevel: 0.4,
@@ -488,7 +476,6 @@ public static class LocationFactory
             name: "Burnt Stand",
             tags: "[Fuel] [Exposed] [Charcoal]",
             weather: weather,
-            traversalMinutes: 10,
             terrainHazardLevel: 0.20,
             windFactor: 0.9,        // No canopy protection
             overheadCoverLevel: 0.0,
@@ -512,7 +499,6 @@ public static class LocationFactory
             name: "Rock Overhang",
             tags: "[Shelter] [Stone]",
             weather: weather,
-            traversalMinutes: 12,
             terrainHazardLevel: 0.20,
             windFactor: 0.4,        // Partial wind block
             overheadCoverLevel: 0.7,
@@ -536,7 +522,6 @@ public static class LocationFactory
             name: "Granite Outcrop",
             tags: "[Stone] [Exposed] [Vantage]",
             weather: weather,
-            traversalMinutes: 14,
             terrainHazardLevel: 0.35,
             windFactor: 1.0,        // Completely exposed
             overheadCoverLevel: 0.0,
@@ -559,7 +544,6 @@ public static class LocationFactory
             name: "Meltwater Pool",
             tags: "[Water] [Exposed] [Remote]",
             weather: weather,
-            traversalMinutes: 22,   // Remote, high location
             terrainHazardLevel: 0.25,
             windFactor: 1.0,        // Completely exposed
             overheadCoverLevel: 0.0,
@@ -591,7 +575,6 @@ public static class LocationFactory
             name: "Ancient Grove",
             tags: "[Forest] [Fuel] [Quiet]",
             weather: weather,
-            traversalMinutes: 18,
             terrainHazardLevel: 0.10,
             windFactor: 0.3,        // Dense canopy blocks wind
             overheadCoverLevel: 0.9,
@@ -627,7 +610,6 @@ public static class LocationFactory
             name: "Flint Seam",
             tags: "[Stone] [Exposed] [Remote]",
             weather: weather,
-            traversalMinutes: 20,
             terrainHazardLevel: 0.30,
             windFactor: 0.9,
             overheadCoverLevel: 0.0,
@@ -650,12 +632,13 @@ public static class LocationFactory
             name: "Game Trail",
             tags: "[Forest] [Hunting] [Trail]",
             weather: weather,
-            traversalMinutes: 8,     // Well-worn path, easy travel
             terrainHazardLevel: 0.05,
             windFactor: 0.6,
             overheadCoverLevel: 0.5,
             visibilityFactor: 0.8)
         {
+            Terrain = TerrainType.Forest,
+            TraversalModifier = 0.7,  // Well-worn path, 30% faster than regular forest
             DiscoveryText = "A worn path through the brush. Hoofprints overlap in the mud. They pass through here regularly."
         };
 
@@ -674,12 +657,13 @@ public static class LocationFactory
             name: "Dense Thicket",
             tags: "[Forest] [Difficult] [Safe]",
             weather: weather,
-            traversalMinutes: 20,    // Very slow movement
             terrainHazardLevel: 0.25,
             windFactor: 0.2,         // Excellent wind block
             overheadCoverLevel: 0.7,
             visibilityFactor: 0.3)   // Can't see far
         {
+            Terrain = TerrainType.Forest,
+            TraversalModifier = 1.5,  // Very slow movement - 50% slower than regular forest
             DiscoveryText = "Young growth so thick you can barely push through. Branches grab at you. Small animals scatter.",
             IsEscapeTerrain = true   // Large predators can't follow
         };
@@ -699,12 +683,13 @@ public static class LocationFactory
             name: "Boulder Field",
             tags: "[Stone] [Difficult] [Safe]",
             weather: weather,
-            traversalMinutes: 18,
             terrainHazardLevel: 0.45,  // High injury risk
             windFactor: 0.7,
             overheadCoverLevel: 0.0,
             visibilityFactor: 0.9)
         {
+            Terrain = TerrainType.Rock,
+            TraversalModifier = 1.4,  // Difficult terrain - 40% slower than regular rock
             DiscoveryText = "Massive boulders tumbled across the slope. Gaps and crevices between them. Hard going, but wolves can't follow into the gaps.",
             IsEscapeTerrain = true,
             ClimbRiskFactor = 0.3
@@ -724,7 +709,6 @@ public static class LocationFactory
             name: "Rocky Ridge",
             tags: "[Stone] [Exposed] [Vantage]",
             weather: weather,
-            traversalMinutes: 22,
             terrainHazardLevel: 0.35,
             windFactor: 1.2,         // Wind accelerates over ridge
             overheadCoverLevel: 0.0,
@@ -753,7 +737,6 @@ public static class LocationFactory
             name: "Bear Cave",
             tags: "[Sheltered] [Dark] [Dangerous] [Bones]",
             weather: weather,
-            traversalMinutes: 20,
             terrainHazardLevel: 0.15,
             windFactor: 0.1,         // Deep cave blocks all wind
             overheadCoverLevel: 1.0,
@@ -788,7 +771,6 @@ public static class LocationFactory
             name: "Beaver Dam",
             tags: "[Water] [Fuel] [Wildlife]",
             weather: weather,
-            traversalMinutes: 15,
             terrainHazardLevel: 0.25,
             windFactor: 0.6,
             overheadCoverLevel: 0.0,
@@ -833,7 +815,6 @@ public static class LocationFactory
             name: "The Lookout",
             tags: "[Vantage] [Climb] [Landmark]",
             weather: weather,
-            traversalMinutes: 16,
             terrainHazardLevel: 0.30,
             windFactor: 0.8,
             overheadCoverLevel: 0.4,
@@ -884,7 +865,6 @@ public static class LocationFactory
             name: "Old Campsite",
             tags: "[Salvage] [Shelter] [Story]",
             weather: weather,
-            traversalMinutes: 12,
             terrainHazardLevel: 0.15,
             windFactor: 0.5,
             overheadCoverLevel: 0.3,
@@ -971,12 +951,13 @@ public static class LocationFactory
             name: "Peat Bog",
             tags: "[Marsh] [Fuel] [Treacherous]",
             weather: weather,
-            traversalMinutes: 18,
             terrainHazardLevel: 0.55,
             windFactor: 0.5,
             overheadCoverLevel: 0.1,
             visibilityFactor: 0.7)
         {
+            Terrain = TerrainType.Marsh,
+            TraversalModifier = 1.3,  // Treacherous footing - 30% slower than regular marsh
             DiscoveryText = "Dark water glints between mounds of spongy earth. The smell is old — ancient rot preserved in cold. Beneath the surface, centuries of compressed plant matter.",
             FirstVisitEvent = GameEventRegistry.FirstVisitPeatBog
         };
@@ -1011,7 +992,6 @@ public static class LocationFactory
             name: "Ice Shelf",
             tags: "[Ice] [Vantage] [Exposed]",
             weather: weather,
-            traversalMinutes: 16,
             terrainHazardLevel: 0.40,
             windFactor: 1.4,
             overheadCoverLevel: 0.0,
@@ -1044,7 +1024,6 @@ public static class LocationFactory
             name: "Bone Hollow",
             tags: "[Bones] [Sheltered] [Ancient]",
             weather: weather,
-            traversalMinutes: 22,
             terrainHazardLevel: 0.25,
             windFactor: 0.3,
             overheadCoverLevel: 0.2,
@@ -1083,7 +1062,6 @@ public static class LocationFactory
             name: "Wind Gap",
             tags: "[Mountain] [Exposed] [Shortcut]",
             weather: weather,
-            traversalMinutes: 25,
             terrainHazardLevel: 0.70,
             windFactor: 2.5,
             overheadCoverLevel: 0.0,
@@ -1109,7 +1087,6 @@ public static class LocationFactory
             name: "Snowfield Hollow",
             tags: "[Trapping] [Open] [Snow]",
             weather: weather,
-            traversalMinutes: 14,
             terrainHazardLevel: 0.15,
             windFactor: 0.9,
             overheadCoverLevel: 0.0,
@@ -1148,7 +1125,6 @@ public static class LocationFactory
             name: "Sun-Warmed Cliff",
             tags: "[Stone] [Warm] [Exposed]",
             weather: weather,
-            traversalMinutes: 15,
             terrainHazardLevel: 0.30,
             windFactor: 0.5,
             overheadCoverLevel: 0.0,
@@ -1197,7 +1173,6 @@ public static class LocationFactory
             name: "Stone Scatter",
             tags: "[Rocky] [Open]",
             weather: weather,
-            traversalMinutes: 8,
             terrainHazardLevel: 0.2,
             windFactor: 0.9,
             overheadCoverLevel: 0.0,
@@ -1242,7 +1217,6 @@ public static class LocationFactory
         name: "Pass Approach",
         tags: "[Mountain] [Exposed] [Rocky]",
         weather: weather,
-        traversalMinutes: 60,
         terrainHazardLevel: 0.6,
         windFactor: 1.3,
         overheadCoverLevel: 0.05,
@@ -1256,7 +1230,6 @@ public static class LocationFactory
         name: "Lower Pass",
         tags: "[Mountain] [Exposed] [Ice]",
         weather: weather,
-        traversalMinutes: 90,
         terrainHazardLevel: 0.8,
         windFactor: 1.6,
         overheadCoverLevel: 0.0,
@@ -1270,7 +1243,6 @@ public static class LocationFactory
         name: "The Pass Proper",
         tags: "[Mountain] [Exposed] [Extreme]",
         weather: weather,
-        traversalMinutes: 120,
         terrainHazardLevel: 1.0,
         windFactor: 2.0,
         overheadCoverLevel: 0.0,
@@ -1284,7 +1256,6 @@ public static class LocationFactory
         name: "Upper Descent",
         tags: "[Mountain] [Exposed] [Rocky]",
         weather: weather,
-        traversalMinutes: 75,
         terrainHazardLevel: 0.7,
         windFactor: 1.5,
         overheadCoverLevel: 0.0,
@@ -1298,7 +1269,6 @@ public static class LocationFactory
         name: "Lower Descent",
         tags: "[Mountain] [Forest Edge]",
         weather: weather,
-        traversalMinutes: 50,
         terrainHazardLevel: 0.5,
         windFactor: 1.0,
         overheadCoverLevel: 0.1,
@@ -1312,7 +1282,6 @@ public static class LocationFactory
         name: "Far Side",
         tags: "[Valley] [Sheltered] [Victory]",
         weather: weather,
-        traversalMinutes: 30,
         terrainHazardLevel: 0.3,
         windFactor: 0.6,
         overheadCoverLevel: 0.3,

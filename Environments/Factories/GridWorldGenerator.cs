@@ -266,11 +266,13 @@ public class GridWorldGenerator
             name: "Forest Camp",
             tags: "[Shaded] [Shelter]",
             weather: weather,
-            traversalMinutes: 5,
             terrainHazardLevel: 0,
             windFactor: 0.4,
             overheadCoverLevel: 0.3,
-            visibilityFactor: 0.8);
+            visibilityFactor: 0.8)
+        {
+            Terrain = TerrainType.Forest
+        };
 
         camp.Features.Add(FeatureFactory.CreateMixedForestForage(density: 1.5));
         camp.Features.Add(new ShelterFeature(

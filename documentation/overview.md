@@ -55,7 +55,7 @@ Work system (`WorkRunner`):
 - Impairment calculations — manipulation and consciousness affect work speed
 - Event interruption during work sessions
 
-Fire status always visible. Travel times calculated from location graph. The UI shows what you need to judge your margin.
+Fire status always visible. Travel times derived from terrain type, hazard level, and location-specific modifiers (see Grid section for scale). The UI shows what you need to judge your margin.
 
 Expeditions interact with: fire (time pressure), torches (enables dark work), locations (destinations and features), events (triggers during travel and work), survival simulation (stats drain during travel).
 
@@ -89,6 +89,8 @@ Locations interact with: expeditions (travel destinations), features (what's ava
 ## Grid
 
 The world map is a 2D grid of locations. `GameMap` owns all spatial relationships — locations don't know their positions.
+
+**Scale**: Each tile represents approximately **1 square mile** of terrain. Travel time across a tile (entering or exiting) is based on ~20 minutes per mile on flat terrain, giving a 10-minute radius for plain terrain, scaled up for difficult terrain types.
 
 Core operations:
 - `CurrentPosition` — player's (X, Y) coordinates
