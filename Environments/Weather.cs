@@ -20,6 +20,23 @@ public class Weather
     public WeatherFront? CurrentFront { get; set; }
     public WeatherFront? NextFront { get; set; }
 
+    // Wind direction system
+    public WindDirection CurrentWindDirection { get; set; } = WindDirection.Calm;
+
+    // Helper properties for other systems to query
+    public double VisibilityFactor => CurrentCondition switch
+    {
+        WeatherCondition.Whiteout => 0.1,
+        WeatherCondition.Blizzard => 0.3,
+        WeatherCondition.Misty => 0.5,
+        WeatherCondition.HeavySnow => 0.6,
+        WeatherCondition.LightSnow => 0.8,
+        _ => 1.0
+    };
+
+    public bool IsIceHazard => CurrentCondition == WeatherCondition.FreezingRain;
+    public bool IsNavigationHazard => CurrentCondition is WeatherCondition.Whiteout or WeatherCondition.Blizzard;
+
     // Season tracking - derived from game time
     public enum Season { Winter, Spring, Summer, Fall }
 
@@ -70,13 +87,24 @@ public class Weather
     // Weather conditions for Ice Age Europe
     public enum WeatherCondition
     {
-        Clear,      // Clear, cold skies
-        Cloudy,     // Overcast conditions
-        Misty,      // Low visibility with moisture
-        LightSnow,  // Light snowfall (common in Ice Age)
-        Rainy,      // Cold rain (uncommon but possible)
-        Blizzard,   // Heavy snow with wind (dangerous)
-        Stormy      // Thunderstorms (rare, mostly summer)
+        Clear,        // Clear, cold skies
+        Cloudy,       // Overcast conditions
+        Misty,        // Low visibility with moisture
+        LightSnow,    // Light snowfall (common in Ice Age)
+        HeavySnow,    // Significant accumulation
+        Rainy,        // Cold rain (uncommon but possible)
+        FreezingRain, // Ice coating hazard
+        Blizzard,     // Heavy snow with wind (dangerous)
+        Whiteout,     // Zero visibility from blowing snow
+        Stormy        // Thunderstorms (rare, mostly summer)
+    }
+
+    // Wind direction for tactical gameplay
+    public enum WindDirection
+    {
+        North, Northeast, East, Southeast,
+        South, Southwest, West, Northwest,
+        Calm  // No meaningful wind direction
     }
 
     public double SunlightIntensity
@@ -613,6 +641,12 @@ public class Weather
         CloudCover = Utils.RandDouble(state.CloudRange.Min, state.CloudRange.Max);
         CurrentCondition = state.Condition;
         _weatherDuration = state.Duration;
+
+        // Set wind direction based on wind speed
+        if (WindSpeed < 0.2)
+            CurrentWindDirection = WindDirection.Calm;
+        else
+            CurrentWindDirection = (WindDirection)Utils.Roll(8);  // 8 cardinal/intercardinal directions
     }
 
     /// <summary>
@@ -620,9 +654,15 @@ public class Weather
     /// </summary>
     public string GetFrontLabel()
     {
+        // Special handling for Prolonged Blizzard calm phase
+        if (CurrentFront?.Type == FrontType.ProlongedBlizzard && CurrentFront.CurrentStateIndex == 0)
+            return "Calm Before The Storm";
+
         return CurrentFront?.Type switch
         {
             FrontType.StormSystem => "Storm Front",
+            FrontType.ProlongedBlizzard => "Blizzard",
+            FrontType.IceStorm => "Ice Storm",
             FrontType.ClearSpell => "Clear Spell",
             FrontType.ColdSnap => "Cold Snap",
             FrontType.Warming => "Warming Period",

@@ -31,11 +31,13 @@ public class WeatherFront
 /// </summary>
 public enum FrontType
 {
-    ClearSpell,      // Multi-day good weather (40% frequency)
-    StormSystem,     // Building → peak → clearing pattern (30% frequency)
-    ColdSnap,        // Progressive temperature drop (15% frequency)
-    Warming,         // Thaw cycle (10% frequency)
-    UnsettledPeriod  // Oscillating conditions (5% frequency)
+    ClearSpell,         // Multi-day good weather (35% frequency)
+    StormSystem,        // Building → peak → clearing pattern (25% frequency)
+    ColdSnap,           // Progressive temperature drop (10% frequency)
+    Warming,            // Thaw cycle (10% frequency)
+    UnsettledPeriod,    // Oscillating conditions (5% frequency)
+    ProlongedBlizzard,  // Multi-day siege with calm warning (5% frequency)
+    IceStorm            // Freezing rain hazard (10% frequency, spring/fall only)
 }
 
 /// <summary>

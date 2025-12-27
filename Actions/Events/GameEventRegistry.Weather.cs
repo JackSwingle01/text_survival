@@ -307,4 +307,23 @@ public static partial class GameEventRegistry
                     new EventResult("Nothing special visible. At least you know your surroundings now.", 0.05, 10)
                 ]);
     }
+
+    /// <summary>
+    /// Prolonged Blizzard Warning - triggers during the calm phase before a massive blizzard
+    /// Guaranteed to fire (high weight) when ProlongedBlizzard front is active at state index 0
+    /// </summary>
+    private static GameEvent MassiveStormApproaching(GameContext ctx)
+    {
+        return new GameEvent("The Calm",
+            "The wind dies. The sky clears to an unnatural brightness. " +
+            "To the north, a band of grey-white stretches across the horizon. " +
+            "The trees have gone silent. The birds have fled.\n\n" +
+            "This is going to be bad. A storm unlike any you've seen is building. " +
+            "You have perhaps a day before it arrives in earnest.",
+            10.0)  // Very high weight to guarantee trigger
+            .Requires(EventCondition.CalmBeforeTheStorm)
+            .Choice("Continue",
+                "You make note of the warning signs.",
+                [new EventResult("You will need to prepare.", 1.0, 0)]);
+    }
 }

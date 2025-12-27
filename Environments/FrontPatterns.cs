@@ -16,15 +16,21 @@ public static class FrontPatterns
         // Weight front types by season and roll
         double roll = Utils.RandDouble(0, 1);
 
-        if (roll < 0.40)  // 40% - Clear Spell
+        if (roll < 0.35)       // 35% - Clear Spell
             return GenerateClearSpell(season);
-        else if (roll < 0.70)  // 30% - Storm System
+        else if (roll < 0.60)  // 25% - Storm System
             return GenerateStormSystem(season);
-        else if (roll < 0.85)  // 15% - Cold Snap
+        else if (roll < 0.70)  // 10% - Cold Snap
             return GenerateColdSnap(season);
-        else if (roll < 0.95)  // 10% - Warming
+        else if (roll < 0.80)  // 10% - Ice Storm (spring/fall only)
+            return season is Weather.Season.Spring or Weather.Season.Fall
+                ? GenerateIceStorm(season)
+                : GenerateColdSnap(season);  // Fallback to cold snap in winter/summer
+        else if (roll < 0.90)  // 10% - Warming
             return GenerateWarmingPeriod(season);
-        else  // 5% - Unsettled
+        else if (roll < 0.95)  // 5% - Prolonged Blizzard (RARE)
+            return GenerateProlongedBlizzard(season);
+        else                    // 5% - Unsettled
             return GenerateUnsettledPeriod(season);
     }
 
@@ -37,14 +43,14 @@ public static class FrontPatterns
         var states = new List<WeatherState>();
         var (minTemp, maxTemp, snowRatio) = GetSeasonalRanges(season);
 
-        // Building phase (4-8 hours)
+        // Building phase (4-8 hours) - HeavySnow starting
         states.Add(new WeatherState
         {
-            Condition = Weather.WeatherCondition.Cloudy,
+            Condition = Weather.WeatherCondition.HeavySnow,
             TempRange = (minTemp - 2, maxTemp),  // Slight cooling
             WindRange = (0.3, 0.6),
             CloudRange = (0.6, 0.9),
-            PrecipRange = (0, 0.1),
+            PrecipRange = (0.3, 0.5),
             Duration = GenerateTriangularDuration(4, 8),
             SkipProbability = 0.0  // Never skip building phase
         });
@@ -62,14 +68,26 @@ public static class FrontPatterns
             SkipProbability = 0.0  // Never skip peak
         });
 
-        // Trailing phase (3-8 hours) - can skip for abrupt clearing (20% chance)
+        // Whiteout aftermath (2-4 hours) - wind blowing fresh snow, can skip 20%
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.Whiteout,
+            TempRange = (minTemp - 3, maxTemp - 1),
+            WindRange = (0.6, 0.8),
+            CloudRange = (0.5, 0.7),
+            PrecipRange = (0, 0.2),
+            Duration = GenerateTriangularDuration(2, 4),
+            SkipProbability = 0.2  // 20% chance to skip
+        });
+
+        // Trailing phase (3-8 hours) - light snow, can skip for abrupt clearing (20% chance)
         states.Add(new WeatherState
         {
             Condition = Weather.WeatherCondition.LightSnow,
-            TempRange = (minTemp - 3, maxTemp - 1),
-            WindRange = (0.3, 0.5),
-            CloudRange = (0.7, 0.9),
-            PrecipRange = (0.2, 0.4),
+            TempRange = (minTemp - 2, maxTemp),
+            WindRange = (0.2, 0.4),
+            CloudRange = (0.6, 0.8),
+            PrecipRange = (0.1, 0.3),
             Duration = GenerateTriangularDuration(3, 8),
             SkipProbability = 0.2  // 20% chance to skip for variety
         });
@@ -260,12 +278,14 @@ public static class FrontPatterns
 
         for (int i = 0; i < stateCount; i++)
         {
-            // Randomly pick condition
+            // Randomly pick condition - include new weather types
             Weather.WeatherCondition condition = Utils.RandDouble(0, 1) switch
             {
-                < 0.4 => Weather.WeatherCondition.Cloudy,
-                < 0.7 => Weather.WeatherCondition.Misty,
-                < 0.9 => Weather.WeatherCondition.LightSnow,
+                < 0.3 => Weather.WeatherCondition.Cloudy,
+                < 0.5 => Weather.WeatherCondition.Misty,
+                < 0.7 => Weather.WeatherCondition.LightSnow,
+                < 0.85 => Weather.WeatherCondition.HeavySnow,
+                < 0.95 => Weather.WeatherCondition.Whiteout,
                 _ => Weather.WeatherCondition.Clear
             };
 
@@ -324,5 +344,125 @@ public static class FrontPatterns
         int minutes = (int)(hours * 60);
 
         return TimeSpan.FromMinutes(minutes);
+    }
+
+    /// <summary>
+    /// Prolonged Blizzard: Calm Before The Storm → Build → Siege → Whiteout → Clear (60-100 hours total)
+    /// Deceptively good weather followed by brutal multi-day blizzard
+    /// </summary>
+    private static WeatherFront GenerateProlongedBlizzard(Weather.Season season)
+    {
+        var states = new List<WeatherState>();
+        var (minTemp, maxTemp, _) = GetSeasonalRanges(season);
+
+        // CALM BEFORE THE STORM (20-28h) - Deceptively good weather
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.Clear,
+            TempRange = (minTemp + 2, maxTemp + 3),  // Warmer than normal
+            WindRange = (0.0, 0.2),                   // Calm
+            CloudRange = (0.0, 0.3),                  // Clear skies
+            PrecipRange = (0, 0),
+            Duration = GenerateTriangularDuration(20, 28),
+            SkipProbability = 0.0  // Never skip warning phase
+        });
+
+        // Storm builds (8-12h)
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.HeavySnow,
+            TempRange = (minTemp - 5, maxTemp - 3),
+            WindRange = (0.6, 0.8),
+            CloudRange = (0.9, 1.0),
+            PrecipRange = (0.7, 0.9),
+            Duration = GenerateTriangularDuration(8, 12)
+        });
+
+        // PEAK BLIZZARD - THE SIEGE (30-50h)
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.Blizzard,
+            TempRange = (minTemp - 10, maxTemp - 7),
+            WindRange = (0.8, 1.0),
+            CloudRange = (1.0, 1.0),
+            PrecipRange = (0.9, 1.0),
+            Duration = GenerateTriangularDuration(30, 50)
+        });
+
+        // Whiteout aftermath (8-16h)
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.Whiteout,
+            TempRange = (minTemp - 7, maxTemp - 5),
+            WindRange = (0.7, 0.9),
+            CloudRange = (0.5, 0.8),
+            PrecipRange = (0, 0.2),
+            Duration = GenerateTriangularDuration(8, 16)
+        });
+
+        // Clearing
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.Cloudy,
+            TempRange = (minTemp - 3, maxTemp - 1),
+            WindRange = (0.3, 0.5),
+            CloudRange = (0.5, 0.7),
+            PrecipRange = (0, 0),
+            Duration = GenerateTriangularDuration(6, 12)
+        });
+
+        return new WeatherFront
+        {
+            Type = FrontType.ProlongedBlizzard,
+            States = states
+        };
+    }
+
+    /// <summary>
+    /// Ice Storm: Building → Freezing Rain → Clearing Cold (22-40 hours total)
+    /// Only happens in spring/fall when temps near freezing
+    /// </summary>
+    private static WeatherFront GenerateIceStorm(Weather.Season season)
+    {
+        var states = new List<WeatherState>();
+
+        // Building (4-8h)
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.Cloudy,
+            TempRange = (-2, 2),  // Near freezing
+            WindRange = (0.2, 0.4),
+            CloudRange = (0.8, 1.0),
+            PrecipRange = (0.1, 0.3),
+            Duration = GenerateTriangularDuration(4, 8)
+        });
+
+        // Freezing rain (12-24h)
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.FreezingRain,
+            TempRange = (-1, 1),  // Right at freezing
+            WindRange = (0.2, 0.5),
+            CloudRange = (0.9, 1.0),
+            PrecipRange = (0.4, 0.7),
+            Duration = GenerateTriangularDuration(12, 24)
+        });
+
+        // Clearing cold (refreezes everything) (6-12h)
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.Clear,
+            TempRange = (-5, -2),
+            WindRange = (0.1, 0.3),
+            CloudRange = (0, 0.3),
+            PrecipRange = (0, 0),
+            Duration = GenerateTriangularDuration(6, 12)
+        });
+
+        return new WeatherFront
+        {
+            Type = FrontType.IceStorm,
+            States = states
+        };
     }
 }

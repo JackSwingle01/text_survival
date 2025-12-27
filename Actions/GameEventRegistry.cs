@@ -55,6 +55,7 @@ public static partial class GameEventRegistry
         LostInFog,
         BitterWind,
         SuddenClearing,
+        MassiveStormApproaching,  // Prolonged blizzard warning
 
         // Expedition events (GameEventRegistry.Expedition.cs)
         TreacherousFooting,

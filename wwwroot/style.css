@@ -183,6 +183,57 @@ body {
     color: var(--tech-cyan);
 }
 
+/* Fire urgency levels */
+.fire-status.fire-safe {
+    background: rgba(76, 175, 80, 0.1);
+    border-color: rgba(76, 175, 80, 0.3);
+}
+
+.fire-status.fire-safe .fire-phase-text {
+    color: #4caf50;
+}
+
+.fire-status.fire-caution {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: rgba(255, 193, 7, 0.3);
+}
+
+.fire-status.fire-caution .fire-phase-text {
+    color: #ffc107;
+}
+
+.fire-status.fire-warning {
+    background: rgba(255, 152, 0, 0.15);
+    border-color: rgba(255, 152, 0, 0.4);
+}
+
+.fire-status.fire-warning .fire-phase-text {
+    color: #ff9800;
+    font-weight: 500;
+}
+
+.fire-status.fire-critical {
+    background: rgba(244, 67, 54, 0.15);
+    border-color: rgba(244, 67, 54, 0.5);
+    animation: pulse-critical 2s ease-in-out infinite;
+}
+
+.fire-status.fire-critical .fire-phase-text {
+    color: #f44336;
+    font-weight: 600;
+}
+
+@keyframes pulse-critical {
+    0%, 100% {
+        border-color: rgba(244, 67, 54, 0.5);
+        background: rgba(244, 67, 54, 0.15);
+    }
+    50% {
+        border-color: rgba(244, 67, 54, 0.8);
+        background: rgba(244, 67, 54, 0.25);
+    }
+}
+
 /* Compact stat bars - [icon] [bar] with hover tooltip */
 .survival-stat,
 .compact-stat {
@@ -1805,4 +1856,46 @@ body {
 .event-continue-btn:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: var(--text-bright);
+}
+
+/* Temperature Crisis Panel */
+.temperature-crisis-panel {
+    background: rgba(244, 67, 54, 0.15);
+    border: 2px solid rgba(244, 67, 54, 0.6);
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.crisis-header {
+    color: #f44336;
+    font-weight: 600;
+    font-size: 0.9em;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.crisis-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 6px;
+    margin-bottom: 8px;
+    font-size: 0.85em;
+    color: var(--text-mid);
+}
+
+.crisis-guidance {
+    color: var(--text-bright);
+    font-size: 0.9em;
+    font-weight: 500;
+    padding-top: 8px;
+    border-top: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+/* Temperature Trend Arrow */
+.temp-trend-arrow {
+    margin-left: 6px;
+    font-size: 1.1em;
+    font-weight: 600;
 }

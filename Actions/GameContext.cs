@@ -553,6 +553,7 @@ public enum EventCondition
 
     // Weather transitions
     WeatherWorsening,
+    CalmBeforeTheStorm,     // Prolonged blizzard warning phase
 
     // Resource availability - basic
     HasFuel,
