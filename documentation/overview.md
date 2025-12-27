@@ -86,6 +86,29 @@ Locations interact with: expeditions (travel destinations), features (what's ava
 
 ---
 
+## Grid
+
+The world map is a 2D grid of locations. `GameMap` owns all spatial relationships — locations don't know their positions.
+
+Core operations:
+- `CurrentPosition` — player's (X, Y) coordinates
+- `CurrentLocation` — derives from `_locations[CurrentPosition.X, CurrentPosition.Y]`
+- `GetTravelOptions()` — adjacent passable locations from current position
+- `MoveTo(location)` — updates position and visibility
+
+Visibility system:
+- `TileVisibility`: Hidden → Explored → Visible
+- Sight range calculated from current location's visibility factor (0-4 tiles)
+- Moving updates which tiles are visible vs merely explored
+
+Travel uses cardinal directions (N/S/E/W). Locations connect implicitly by adjacency, not explicit edges.
+
+Grid interacts with: locations (grid contains them), travel (adjacency determines options), UI (grid rendering in TravelMode).
+
+**Files**: `Environments/Grid/GameMap.cs`, `Environments/Grid/GridPosition.cs`
+
+---
+
 ## Features
 
 Features are what make locations useful. They live on locations and define available activities.
@@ -238,7 +261,7 @@ Effects interact with: body system (damage triggers effects), survival simulatio
 
 Events trigger during expeditions based on context — location, player activity, player state, time, weather, and active tensions. Events aren't random encounters — they're contextual interrupts that create decisions.
 
-Architecture: Events use a factory pattern. Each event is a function that takes `GameContext` and returns a `GameEvent`. Events bake location-specific context into descriptions at trigger time. Two-stage triggering: base roll per minute → weighted selection from eligible events.
+Architecture: `GameEvent` is a class containing `EventChoice` objects, each with `EventResult` outcomes. `GameEventRegistry` (a partial class split across ~19 files) contains factory methods that build events with context-aware descriptions. Two-stage triggering: base roll per minute → weighted selection from eligible events.
 
 Event organization — organized into narrative arcs:
 - Weather events (storms, whiteouts, cold snaps)
@@ -392,8 +415,6 @@ Dual inventory:
 
 Accessory system enables progression: start with limited capacity → craft bags to expand → longer expeditions possible.
 
-Note: Codebase in transition from legacy Tool.cs/Equipment.cs classes to unified Gear.cs.
-
 Inventory interacts with: crafting (materials consumed, items produced), expeditions (carry weight affects travel), survival simulation (food/water consumption, insulation), events (costs and rewards), predator encounters (meat attracts, weapons enable combat).
 
 **Files**: `Items/Gear.cs`, `Items/Inventory.cs`
@@ -437,6 +458,20 @@ Runners — Control flow, player decisions, display UI
 - HuntRunner: interactive hunt sequences
 - EncounterRunner: predator encounters
 - ButcherRunner: animal butchering
+
+Handlers — Activity-specific execution logic (static classes)
+- FireHandler: fire starting, tending, fuel management
+- TorchHandler: lighting, chaining, extinguishing
+- CookingHandler: food preparation at fire
+- ConsumptionHandler: eating, drinking
+- TreatmentHandler: medical treatment application
+- CampHandler: sleep, rest, camp improvements
+- TravelHandler: movement between locations
+- HuntHandler: hunting sequences
+- CombatHandler: predator combat
+- CuringRackHandler: hide/meat preservation
+
+Handlers take `GameContext`, mutate state directly, handle player choices via `Input`. Runners orchestrate flow; handlers execute specific actions.
 
 Work Strategies — `IWorkStrategy` implementations for each work type:
 - ForageStrategy, HuntStrategy, HarvestStrategy, ExploreStrategy
