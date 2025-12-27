@@ -52,7 +52,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Something Catches Your Eye",
             "Movement in your peripheral vision — or was it just a shape that doesn't belong? Something about the landscape ahead seems worth a closer look.", 1.5)
             .Requires(EventCondition.Working, EventCondition.IsExpedition)
-            .WithConditionFactor(EventCondition.HighVisibility, 2.0) // Spot things easier in open terrain
+            .WithConditionFactor(EventCondition.HighVisibility, 2.0)       // Spot things easier in open terrain
+            .WithConditionFactor(EventCondition.JustRevealedLocation, 3.0) // Just revealed new places - scouting pays off
             .Choice("Investigate",
                 "You set aside your current task and move closer to examine what you saw.",
                 [
@@ -715,6 +716,55 @@ public static partial class GameEventRegistry
                     new EventResult("Something follows your movement. You feel eyes on you.", 0.25, 12)
                         .BecomeStalked(0.25),
                     new EventResult("You startle something. It bolts — away from you, thankfully.", 0.15, 8)
+                ]);
+    }
+
+    private static GameEvent DistantSmoke(GameContext ctx)
+    {
+        return new GameEvent("Distant Smoke",
+            "From this vantage, you can see farther. There — in the distance. Smoke. A thin column rising through still air. Too controlled to be wildfire. Another camp? Another survivor?", 0.9)
+            .Requires(EventCondition.JustRevealedLocation, EventCondition.HighVisibility)
+            .Choice("Mark the location",
+                "You memorize the direction. It's far, but reachable.",
+                [
+                    new EventResult("You mark the bearing. The smoke is real — you know where to look now.", 1.0, 5)
+                        .CreateTension("MarkedDiscovery", 0.4, description: "distant smoke column")
+                ])
+            .Choice("Keep moving",
+                "Smoke could mean anything. Best to stay focused on what's in front of you.",
+                [
+                    new EventResult("You note it and move on. If it's real, it'll still be there.", 1.0, 0)
+                ]);
+    }
+
+    private static GameEvent EdgeOfTheIce(GameContext ctx)
+    {
+        return new GameEvent("Edge of the Ice",
+            "The forest ends abruptly. Ahead — nothing but white. A frozen lake stretches out, pristine and treacherous. The ice could hold. Or it could drop you into black water.", 0.8)
+            .Requires(EventCondition.OnBoundary, EventCondition.SurroundedByWater)
+            .WithConditionFactor(EventCondition.LowTemperature, 1.5)  // Thick ice makes crossing viable
+            .Choice("Test the ice carefully",
+                "Tap ahead with a stick. Listen for cracks.",
+                [
+                    new EventResult("The ice is thick. Safe enough to cross — if you're careful.", 0.6, 10),
+                    new EventResult("Your test probe punches through. The ice is thin. One wrong step and you're in.", 0.4, 5)
+                        .CreateTension("ThinIce", 0.4, description: "dangerous frozen water ahead")
+                ])
+            .Choice("Go around",
+                "Not worth the risk. The long way is the safe way.",
+                [
+                    new EventResult("You skirt the edge. It costs time, but you keep your boots dry.", 1.0, 15)
+                ])
+            .Choice("Cross Now",
+                "The ice looks thick enough. No time to waste testing.",
+                [
+                    new EventResult("You make it across. The ice holds. Faster route paid off.", 0.5, 8),
+                    new EventResult("Halfway across, you hear cracks. You freeze. The ice holds... barely.", 0.3, 12)
+                        .WithEffects(EffectFactory.Shaken(0.3)),
+                    new EventResult("The ice gives way. You plunge into freezing water.", 0.2, 5)
+                        .Damage(8, DamageType.Blunt)  // Impact from fall
+                        .WithEffects(EffectFactory.Wet(0.8), EffectFactory.Cold(-12, 30))  // Completely soaked, severe cold
+                        .Aborts()
                 ]);
     }
 }

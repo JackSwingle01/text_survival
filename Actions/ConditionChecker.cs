@@ -1,6 +1,7 @@
 using text_survival.Actors.Player;
 using text_survival.Bodies;
 using text_survival.Environments.Features;
+using text_survival.Environments.Grid;
 
 namespace text_survival.Actions;
 
@@ -154,6 +155,24 @@ public static class ConditionChecker
             EventCondition.SnareHasCatch => HasSnareCatch(ctx),
             EventCondition.SnareBaited => HasBaitedSnares(ctx),
             EventCondition.TrapLineActive => ctx.Tensions.HasTension("TrapLineActive"),
+
+            // Spatial/grid conditions
+            EventCondition.FarFromCamp => GetDistanceFromCamp(ctx) > 8,
+            EventCondition.VeryFarFromCamp => GetDistanceFromCamp(ctx) > 15,
+            EventCondition.NearMountains => HasAdjacentTerrain(ctx, TerrainType.Mountain),
+            EventCondition.SurroundedByWater => CountAdjacentTerrain(ctx, TerrainType.Water) >= 2,
+            EventCondition.DeepInForest =>
+                ctx.CurrentLocation?.Terrain == TerrainType.Forest &&
+                CountAdjacentTerrain(ctx, TerrainType.Forest) >= 3,
+            EventCondition.OnBoundary =>
+                ctx.Map?.CurrentPosition.GetCardinalNeighbors()
+                    .Select(p => ctx.Map.GetLocationAt(p)?.Terrain)
+                    .Distinct()
+                    .Count() > 2,
+            EventCondition.Cornered => CountPassableExits(ctx) <= 2,
+            EventCondition.AtTerrainBottleneck => CountPassableExits(ctx) <= 2 && GetDistanceFromCamp(ctx) > 5,
+            EventCondition.JustRevealedLocation => ctx.Map?.RevealedNewLocations ?? false,
+
             _ => false,
         };
     }
@@ -203,5 +222,57 @@ public static class ConditionChecker
             (Weather.WeatherCondition.Rainy, Weather.WeatherCondition.Stormy) => true,
             _ => false
         };
+    }
+
+    // === SPATIAL HELPERS ===
+
+    /// <summary>
+    /// Get Manhattan distance from current position to camp.
+    /// </summary>
+    private static int GetDistanceFromCamp(GameContext ctx)
+    {
+        if (ctx.Map == null) return 0;
+        var campPos = ctx.Map.GetPosition(ctx.Camp);
+        if (!campPos.HasValue) return 0;
+        return ctx.Map.CurrentPosition.ManhattanDistance(campPos.Value);
+    }
+
+    /// <summary>
+    /// Check if any adjacent tile has the specified terrain type.
+    /// </summary>
+    private static bool HasAdjacentTerrain(GameContext ctx, TerrainType terrain)
+    {
+        if (ctx.Map == null) return false;
+        foreach (var neighbor in ctx.Map.CurrentPosition.GetCardinalNeighbors())
+        {
+            var loc = ctx.Map.GetLocationAt(neighbor);
+            if (loc?.Terrain == terrain) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Count adjacent tiles with the specified terrain type.
+    /// </summary>
+    private static int CountAdjacentTerrain(GameContext ctx, TerrainType terrain)
+    {
+        if (ctx.Map == null) return 0;
+        int count = 0;
+        foreach (var neighbor in ctx.Map.CurrentPosition.GetCardinalNeighbors())
+        {
+            var loc = ctx.Map.GetLocationAt(neighbor);
+            if (loc?.Terrain == terrain) count++;
+        }
+        return count;
+    }
+
+    /// <summary>
+    /// Count passable adjacent tiles (exits from current location).
+    /// </summary>
+    private static int CountPassableExits(GameContext ctx)
+    {
+        if (ctx.Map == null) return 4;
+        return ctx.Map.CurrentPosition.GetCardinalNeighbors()
+            .Count(pos => ctx.Map.GetLocationAt(pos)?.IsPassable ?? false);
     }
 }

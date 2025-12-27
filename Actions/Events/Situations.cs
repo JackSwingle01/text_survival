@@ -366,6 +366,53 @@ public static class Situations
         return Math.Min(1.0, level);
     }
 
+    // === SPATIAL ISOLATION ===
+
+    /// <summary>
+    /// Player is far from camp in dangerous conditions.
+    /// Distance + vulnerability creates compounding pressure.
+    /// </summary>
+    public static bool RemoteAndVulnerable(GameContext ctx) =>
+        ctx.Check(EventCondition.FarFromCamp) &&
+        (Vulnerable(ctx) || SupplyPressure(ctx));
+
+    /// <summary>
+    /// Graduated isolation level (0-1).
+    /// Combines distance, resource pressure, and threats.
+    /// </summary>
+    public static double IsolationLevel(GameContext ctx)
+    {
+        double level = 0;
+
+        // Distance component
+        if (ctx.Check(EventCondition.VeryFarFromCamp)) level += 0.4;
+        else if (ctx.Check(EventCondition.FarFromCamp)) level += 0.2;
+
+        // Resource pressure amplifies isolation
+        level += SupplyPressureLevel(ctx) * 0.3;
+
+        // Vulnerability amplifies isolation
+        level += VulnerabilityLevel(ctx) * 0.3;
+
+        return Math.Min(1.0, level);
+    }
+
+    // === TERRAIN CONTEXT ===
+
+    /// <summary>
+    /// Player is at a terrain boundary - transition zones create opportunities and threats.
+    /// Forest edge, water's edge, mountain approach.
+    /// </summary>
+    public static bool AtTerrainTransition(GameContext ctx) =>
+        ctx.Check(EventCondition.OnBoundary);
+
+    /// <summary>
+    /// Terrain limits escape options - cornered or in bottleneck.
+    /// </summary>
+    public static bool TrappedByTerrain(GameContext ctx) =>
+        ctx.Check(EventCondition.Cornered) ||
+        ctx.Check(EventCondition.AtTerrainBottleneck);
+
     // === HELPERS ===
 
     /// <summary>

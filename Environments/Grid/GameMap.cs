@@ -48,6 +48,13 @@ public class GameMap
     [System.Text.Json.Serialization.JsonIgnore]
     public Weather Weather { get; set; } = null!;
 
+    /// <summary>
+    /// Transient flag: true if the last visibility update revealed new named locations.
+    /// Used to weight discovery-related events. Reset after event check.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool RevealedNewLocations { get; internal set; }
+
     // === Core Operations ===
 
     /// <summary>
@@ -219,6 +226,9 @@ public class GameMap
     {
         int sightRange = GetSightRange(CurrentLocation);
 
+        // Reset reveal flag
+        RevealedNewLocations = false;
+
         // First, downgrade all visible locations to explored
         for (int x = 0; x < Width; x++)
         {
@@ -235,7 +245,14 @@ public class GameMap
         {
             var loc = GetLocationAt(pos);
             if (loc != null)
+            {
+                bool wasHidden = loc.Visibility == TileVisibility.Unexplored;
                 loc.Visibility = TileVisibility.Visible;
+
+                // Track if we just revealed a new named location
+                if (wasHidden && !loc.IsTerrainOnly && !loc.Explored)
+                    RevealedNewLocations = true;
+            }
         }
     }
 

@@ -382,6 +382,10 @@ public class GameContext(Player player, Location camp, Weather weather)
             GameEventRegistry.HandleEvent(this, evt);
         }
 
+        // Clear visibility reveal flag after event check (transient state, resets each update)
+        if (Map != null)
+            Map.RevealedNewLocations = false;
+
         // Spawn predator encounter if event outcome requested it
         if (_pendingEncounter != null)
         {
@@ -659,4 +663,15 @@ public enum EventCondition
     FrozenWater,        // Water feature is frozen
     OnThinIce,          // Frozen water with ice thickness < 0.4 (dangerous)
     HasIceHole,         // An ice hole has been cut in frozen water
+
+    // Spatial/grid conditions
+    FarFromCamp,           // Manhattan distance > 8 tiles from camp
+    VeryFarFromCamp,       // Manhattan distance > 15 tiles from camp
+    NearMountains,         // Adjacent to Mountain terrain
+    SurroundedByWater,     // 2+ adjacent Water tiles
+    DeepInForest,          // Current + 3+ adjacent tiles are Forest
+    OnBoundary,            // At terrain boundary (multiple distinct terrain types adjacent)
+    Cornered,              // Only 1-2 passable adjacent tiles (limited exits)
+    AtTerrainBottleneck,   // Narrow passage far from camp (cornered + far)
+    JustRevealedLocation,  // Visibility just revealed new named location
 }

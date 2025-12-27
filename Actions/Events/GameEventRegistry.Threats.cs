@@ -66,7 +66,7 @@ public static partial class GameEventRegistry
                     new EventResult("You spot the animal in the distance but can't get close.", weight: 0.35f, minutes: 25),
                     new EventResult("You find a game trail — good hunting ground.", weight: 0.15f, minutes: 30)
                         .FindsGameTrail(),
-                    new EventResult("The tracks were bait. Something was following you.", weight: 0.1f, minutes: 15)
+                    new EventResult("You were so focused on the tracks, you didn't notice what was tracking YOU. It lunges.", weight: 0.1f, minutes: 15)
                         .AnimalAttack()
                         .BecomeStalked(0.4, animal)
                         .Aborts()
@@ -94,6 +94,8 @@ public static partial class GameEventRegistry
             .WithSituationFactor(Situations.AttractiveToPredators, 3.0)  // Meat, bleeding, food scent
             .WithSituationFactor(Situations.Vulnerable, 2.0)             // Injured, slow, no weapon
             .WithConditionFactor(EventCondition.LowVisibility, 1.5)      // Harder to spot stalker
+            .WithConditionFactor(EventCondition.FarFromCamp, 1.5)        // More dangerous far from safety
+            .WithSituationFactor(Situations.TrappedByTerrain, 2.0)       // Cornered or bottleneck
             .Choice("Make Noise",
                 "Stand tall, make yourself big, shout. Assert dominance.",
                 [
@@ -860,5 +862,59 @@ public static partial class GameEventRegistry
                         .CreateTension("Hunted", 0.5, animalType: stalkedTension?.AnimalType),
                     new EventResult("Nothing. Just paranoia. Or maybe it left.", 0.10, 15)
                 ]);
+    }
+
+    private static GameEvent CutOff(GameContext ctx)
+    {
+        // Check for existing threat
+        var stalked = ctx.Tensions.GetTension("Stalked");
+        var hunted = ctx.Tensions.GetTension("Hunted");
+        var predator = stalked?.AnimalType ?? hunted?.AnimalType ?? "Wolf";
+        bool underThreat = stalked != null || hunted != null;
+
+        // Distance description
+        string distanceDesc = ctx.Check(EventCondition.VeryFarFromCamp)
+            ? "You're a long way from camp"
+            : "You're far from safety";
+
+        var evt = new GameEvent("Cut Off",
+            $"{distanceDesc}. The terrain narrows here — cliffs to one side, frozen water to the other. If something comes at you, there's nowhere to go.", 0.9)
+            .Requires(EventCondition.FarFromCamp, EventCondition.AtTerrainBottleneck)
+            .WithSituationFactor(Situations.UnderThreat, 3.0)
+            .WithSituationFactor(Situations.Vulnerable, 2.0);
+
+        // VARIANT: If already under threat, high chance of encounter
+        if (underThreat)
+        {
+            evt.Choice("Push through quickly",
+                "Move fast, before anything notices.",
+                [
+                    new EventResult($"You make your move. The {predator.ToLower()} was waiting. It strikes from the bottleneck.", 0.5, 5)
+                        .ResolvesStalking()
+                        .Encounter(predator, 15, 0.6),
+                    new EventResult("You make it through. But you were exposed.", 0.3, 10)
+                        .EscalatesStalking(0.2),
+                    new EventResult("You stumble in your haste. The slip costs you time.", 0.2, 15)
+                        .WithEffects(EffectFactory.Shaken(0.2))
+                ]);
+        }
+        // DEFAULT: Not yet threatened
+        else
+        {
+            evt.Choice("Push through quickly",
+                "Move fast, before anything notices.",
+                [
+                    new EventResult("You make it through. But you were exposed — anything watching knows you're here.", 0.7, 10)
+                        .BecomeStalked(0.3),
+                    new EventResult("You stumble in your haste. The slip costs you time — and composure.", 0.3, 15)
+                        .WithEffects(EffectFactory.Shaken(0.2))
+                ]);
+        }
+
+        return evt.Choice("Backtrack",
+            "This isn't worth the risk. Find another way.",
+            [
+                new EventResult("You retreat. The long way around costs time, but you're still breathing.", 1.0, 20)
+            ]);
     }
 }

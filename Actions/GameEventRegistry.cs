@@ -72,6 +72,9 @@ public static partial class GameEventRegistry
         WaterCrossing,
         ExposedOnRidge,
         AmbushOpportunity,
+        // Spatial discovery events
+        DistantSmoke,
+        EdgeOfTheIce,
 
         // Water/Ice events (GameEventRegistry.Water.cs)
         FallThroughIce,
@@ -96,6 +99,8 @@ public static partial class GameEventRegistry
         StalkerCircling,
         PredatorRevealed,
         Ambush,
+        // Spatial pressure events
+        CutOff,
         // Blood Trail Arc
         BloodInSnow,
         TheDyingAnimal,
