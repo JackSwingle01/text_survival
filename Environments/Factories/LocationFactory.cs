@@ -1187,6 +1187,53 @@ public static class LocationFactory
         return location;
     }
 
+    /// <summary>
+    /// Stone Scatter - common rocky terrain with reliable stone access.
+    /// Easy traversal, exposed to wind, but good visibility. The "what's nearby" stone source.
+    /// </summary>
+    public static Location MakeStoneScatter(Weather weather)
+    {
+        var location = new Location(
+            name: "Stone Scatter",
+            tags: "[Rocky] [Open]",
+            weather: weather,
+            traversalMinutes: 8,
+            terrainHazardLevel: 0.2,
+            windFactor: 0.9,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.2)
+        {
+            DiscoveryText = "Loose stones litter the ground, tumbled from some ancient rockfall. Dry grass grows between the gaps."
+        };
+
+        // Stone-focused foraging - the main draw
+        var forage = new ForageFeature(0.8)
+            .AddStone(1.2, 0.15, 0.4)      // Primary resource
+            .AddTinder(0.3, 0.02, 0.05)    // Dry grass between rocks
+            .AddFlint(0.1, 0.05, 0.15);    // Occasional better finds
+        location.Features.Add(forage);
+
+        // 25% chance for small game - rocks provide cover
+        if (Utils.RandDouble(0, 1) < 0.25)
+        {
+            var animals = new AnimalTerritoryFeature(0.5)
+                .AddRabbit(1.0)
+                .AddPtarmigan(0.6);
+            location.Features.Add(animals);
+        }
+
+        // 15% chance for meltwater puddle
+        if (Utils.RandDouble(0, 1) < 0.15)
+        {
+            var puddle = new WaterFeature("meltwater", "Meltwater Puddle")
+                .AsOpenWater()
+                .WithDescription("A shallow puddle of snowmelt collected in a rock hollow.");
+            location.Features.Add(puddle);
+        }
+
+        return location;
+    }
+
     #endregion
 
     #region Mountain Pass Factories

@@ -22,6 +22,7 @@ public class GridWorldGenerator
         // Common locations
         (LocationFactory.MakeForest, 40.0),
         (LocationFactory.MakeClearing, 15.0),
+        (LocationFactory.MakeStoneScatter, 10.0),
         (LocationFactory.MakeHillside, 8.0),
         (LocationFactory.MakeRiverbank, 7.0),
         (LocationFactory.MakePlain, 5.0),
