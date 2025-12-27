@@ -268,8 +268,7 @@ class GameClient {
     showEventChoices(eventData, descEl, choicesEl) {
         if (descEl) descEl.textContent = eventData.description;
 
-        // Capture input ID for this set of buttons
-        this.currentInputId++;
+        // Capture input ID for this set of buttons (from backend)
         const inputId = this.currentInputId;
 
         if (choicesEl) {
@@ -457,7 +456,6 @@ class GameClient {
             }
 
             // Continue button - uses null to signal "just continue"
-            this.currentInputId++;
             const inputId = this.currentInputId;
 
             const continueBtn = document.createElement('button');
@@ -640,7 +638,6 @@ class GameClient {
 
         // Show location actions when clicking current tile
         if (isPlayerHere && this.currentInput?.choices) {
-            this.currentInputId++;
             const inputId = this.currentInputId;
             const hiddenActions = ['Inventory', 'Crafting', 'Travel'];
 
@@ -901,7 +898,6 @@ class GameClient {
         if (!this.tilePopup.tileData?.isPlayerHere) return;
         if (!this.currentInput?.choices) return;
 
-        this.currentInputId++;
         const inputId = this.currentInputId;
         const hiddenActions = ['Inventory', 'Crafting'];
 
@@ -935,7 +931,8 @@ class GameClient {
             this.socket.send(JSON.stringify({
                 type: 'travel_to',
                 targetX: x,
-                targetY: y
+                targetY: y,
+                inputId: this.currentInputId
             }));
         }
     }
@@ -950,7 +947,8 @@ class GameClient {
         if (this.socket.readyState === WebSocket.OPEN) {
             this.socket.send(JSON.stringify({
                 type: 'examine',
-                detailId: detailId
+                detailId: detailId,
+                inputId: this.currentInputId
             }));
         }
     }
@@ -1031,7 +1029,6 @@ class GameClient {
         Utils.clearElement(choicesEl);
 
         // Track input ID for button deduplication
-        this.currentInputId++;
         const inputId = this.currentInputId;
 
         // Create Yes/No buttons from input choices
@@ -1070,7 +1067,8 @@ class GameClient {
             this.socket.send(JSON.stringify({
                 type: 'hazard_choice',
                 quickTravel: quickTravel,
-                choiceId: quickTravel ? 'quick' : 'careful'
+                choiceId: quickTravel ? 'quick' : 'careful',
+                inputId: this.currentInputId
             }));
         }
     }
@@ -1085,7 +1083,8 @@ class GameClient {
         if (this.socket.readyState === WebSocket.OPEN) {
             this.socket.send(JSON.stringify({
                 type: 'action',
-                action: action
+                action: action,
+                inputId: this.currentInputId
             }));
         }
     }
@@ -1347,8 +1346,8 @@ class GameClient {
             btn.disabled = false;
         });
 
-        // Increment input ID to track which button set is active
-        this.currentInputId++;
+        // Use backend's input ID to track which button set is active
+        this.currentInputId = input.inputId;
         const inputId = this.currentInputId;
 
         if (input.type === 'select') {
@@ -1419,7 +1418,8 @@ class GameClient {
 
         if (this.socket.readyState === WebSocket.OPEN) {
             this.socket.send(JSON.stringify({
-                type: 'menu'
+                type: 'menu',
+                inputId: this.currentInputId
             }));
         }
     }
@@ -1443,7 +1443,7 @@ class GameClient {
         });
 
         if (this.socket.readyState === WebSocket.OPEN) {
-            this.socket.send(JSON.stringify({ choiceId }));
+            this.socket.send(JSON.stringify({ choiceId, inputId }));
         }
     }
 
@@ -1463,8 +1463,7 @@ class GameClient {
         this.renderInvMaterials(inv);
         this.renderInvMedicinals(inv);
 
-        // Increment input ID for inventory buttons
-        this.currentInputId++;
+        // Track input ID for inventory buttons
         const inputId = this.currentInputId;
 
         // Render action buttons
@@ -1761,8 +1760,7 @@ class GameClient {
 
         document.getElementById('craftingTitle').textContent = crafting.title;
 
-        // Increment input ID FIRST
-        this.currentInputId++;
+        // Track input ID for crafting buttons
         const inputId = this.currentInputId;
 
         // Debug: log the crafting data

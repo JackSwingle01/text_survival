@@ -1858,39 +1858,20 @@ body {
     border-color: var(--text-bright);
 }
 
-/* Temperature Crisis Panel */
-.temperature-crisis-panel {
-    background: rgba(244, 67, 54, 0.15);
-    border: 2px solid rgba(244, 67, 54, 0.6);
-    border-radius: 4px;
-    padding: 12px;
-    margin-bottom: 16px;
+/* Temperature Crisis - Integrated into existing section */
+.status-section.temp-crisis {
+    background: rgba(244, 67, 54, 0.15) !important;
+    border-color: rgba(244, 67, 54, 0.5) !important;
 }
 
-.crisis-header {
+.temp-crisis-warning {
     color: #f44336;
-    font-weight: 600;
-    font-size: 0.9em;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.crisis-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 6px;
-    margin-bottom: 8px;
     font-size: 0.85em;
-    color: var(--text-mid);
-}
-
-.crisis-guidance {
-    color: var(--text-bright);
-    font-size: 0.9em;
     font-weight: 500;
-    padding-top: 8px;
-    border-top: 1px solid rgba(244, 67, 54, 0.3);
+    margin-top: 6px;
+    padding: 4px 6px;
+    background: rgba(244, 67, 54, 0.1);
+    border-radius: 3px;
 }
 
 /* Temperature Trend Arrow */

@@ -40,60 +40,27 @@ export const TemperatureDisplay = {
             airTempEl.textContent = `${state.airTemp.toFixed(0)}°F`;
         }
 
-        // Temperature crisis warning panel
-        this.renderCrisisPanel(state.temperatureCrisis);
-    },
+        // Temperature crisis - make section red and show warning
+        const tempSection = document.querySelector('.status-section:has([data-stat="body-temp"])');
+        let crisisWarning = document.getElementById('tempCrisisWarning');
 
-    renderCrisisPanel(crisis) {
-        let panel = document.getElementById('temperatureCrisisPanel');
+        if (state.temperatureCrisis) {
+            // Add red background to temperature section
+            if (tempSection) tempSection.classList.add('temp-crisis');
 
-        if (!crisis) {
-            if (panel) panel.classList.add('hidden');
-            return;
+            // Add/update warning text
+            if (!crisisWarning) {
+                crisisWarning = document.createElement('div');
+                crisisWarning.id = 'tempCrisisWarning';
+                crisisWarning.className = 'temp-crisis-warning';
+                const tempStat = document.querySelector('[data-stat="body-temp"]');
+                if (tempStat) tempStat.after(crisisWarning);
+            }
+            crisisWarning.textContent = state.temperatureCrisis.actionGuidance;
+        } else {
+            // Remove crisis styling
+            if (tempSection) tempSection.classList.remove('temp-crisis');
+            if (crisisWarning) crisisWarning.remove();
         }
-
-        if (!panel) {
-            panel = document.createElement('div');
-            panel.id = 'temperatureCrisisPanel';
-            panel.className = 'temperature-crisis-panel';
-            const sidebar = document.querySelector('.left-sidebar');
-            if (sidebar) sidebar.prepend(panel);
-        }
-
-        panel.classList.remove('hidden');
-        panel.replaceChildren();
-
-        const header = document.createElement('div');
-        header.className = 'crisis-header';
-        header.textContent = 'Temperature Crisis';
-        panel.appendChild(header);
-
-        const stats = document.createElement('div');
-        stats.className = 'crisis-stats';
-
-        const current = document.createElement('div');
-        current.textContent = `Current: ${crisis.currentTemp.toFixed(1)}°F`;
-        stats.appendChild(current);
-
-        const danger = document.createElement('div');
-        danger.textContent = `Danger: <${crisis.dangerThreshold.toFixed(0)}°F`;
-        stats.appendChild(danger);
-
-        const trend = document.createElement('div');
-        trend.textContent = `Trend: ${crisis.trendPerHour > 0 ? '+' : ''}${crisis.trendPerHour.toFixed(1)}°F/hr`;
-        stats.appendChild(trend);
-
-        if (crisis.minutesUntilDamage) {
-            const damage = document.createElement('div');
-            damage.textContent = `Damage in: ${crisis.minutesUntilDamage} min`;
-            stats.appendChild(damage);
-        }
-
-        panel.appendChild(stats);
-
-        const guidance = document.createElement('div');
-        guidance.className = 'crisis-guidance';
-        guidance.textContent = crisis.actionGuidance;
-        panel.appendChild(guidance);
     }
 };

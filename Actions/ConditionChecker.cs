@@ -1,5 +1,6 @@
 using text_survival.Actors.Player;
 using text_survival.Bodies;
+using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 
@@ -62,6 +63,8 @@ public static class ConditionChecker
             EventCondition.IsMisty => ctx.Weather.CurrentCondition == Weather.WeatherCondition.Misty,
             EventCondition.ExtremelyCold => ctx.Weather.BaseTemperature < -25,
             EventCondition.WeatherWorsening => ctx.Weather.WeatherJustChanged && IsWeatherWorsening(ctx.Weather),
+            EventCondition.CalmBeforeTheStorm => ctx.Weather.CurrentFront?.Type == FrontType.ProlongedBlizzard
+                                               && ctx.Weather.CurrentFront.CurrentStateIndex == 0,
 
             // Resource availability
             EventCondition.HasFuel => ctx.Inventory.HasFuel,

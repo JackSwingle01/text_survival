@@ -71,6 +71,15 @@ public static class WebServer
             }
 
             var socket = await context.WebSockets.AcceptWebSocketAsync();
+
+            // Dispose old session if reconnecting
+            var oldSession = SessionRegistry.Get(sessionId);
+            if (oldSession != null)
+            {
+                Console.WriteLine($"[WebServer] Disposing old session for reconnect: {sessionId}");
+                oldSession.Dispose();
+            }
+
             var session = new WebGameSession(socket);
             SessionRegistry.Register(sessionId, session);
 

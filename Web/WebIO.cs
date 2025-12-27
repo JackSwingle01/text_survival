@@ -126,15 +126,16 @@ public static class WebIO
         // Generate choices with IDs for reliable button identity
         var choiceDtos = list.Select((item, i) => new ChoiceDto($"choice_{i}", display(item))).ToList();
 
+        int inputId = session.GenerateInputId();
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             GetCurrentMode(ctx),
             GetCurrentOverlays(ctx.SessionId),
-            new InputRequestDto("select", prompt, choiceDtos)
+            new InputRequestDto(inputId, "select", prompt, choiceDtos)
         );
 
         session.Send(frame);
-        var response = session.WaitForResponse(ResponseTimeout);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
 
         // Handle travel_to response: player clicked a map tile to start travel
         if (response.Type == "travel_to" && response.TargetX.HasValue && response.TargetY.HasValue)
@@ -150,8 +151,15 @@ public static class WebIO
 
             // No "Travel" option available - clear pending target and wait for another choice
             ctx.PendingTravelTarget = null;
+            inputId = session.GenerateInputId();
+            frame = new WebFrame(
+                GameStateDto.FromContext(ctx),
+                GetCurrentMode(ctx),
+                GetCurrentOverlays(ctx.SessionId),
+                new InputRequestDto(inputId, "select", prompt, choiceDtos)
+            );
             session.Send(frame);
-            response = session.WaitForResponse(ResponseTimeout);
+            response = session.WaitForResponse(inputId, ResponseTimeout);
             // Fall through to process the new response normally
         }
 
@@ -178,8 +186,15 @@ public static class WebIO
 
             // Action not available in current menu - wait for another response
             // (resend the frame and wait again)
+            inputId = session.GenerateInputId();
+            frame = new WebFrame(
+                GameStateDto.FromContext(ctx),
+                GetCurrentMode(ctx),
+                GetCurrentOverlays(ctx.SessionId),
+                new InputRequestDto(inputId, "select", prompt, choiceDtos)
+            );
             session.Send(frame);
-            response = session.WaitForResponse(ResponseTimeout);
+            response = session.WaitForResponse(inputId, ResponseTimeout);
             // Fall through to process the new response normally
         }
 
@@ -214,14 +229,15 @@ public static class WebIO
             }
 
             // Resend frame with updated state and wait for another response
+            inputId = session.GenerateInputId();
             frame = new WebFrame(
                 GameStateDto.FromContext(ctx),
                 GetCurrentMode(ctx),
                 GetCurrentOverlays(ctx.SessionId),
-                new InputRequestDto("select", prompt, choiceDtos)
+                new InputRequestDto(inputId, "select", prompt, choiceDtos)
             );
             session.Send(frame);
-            response = session.WaitForResponse(ResponseTimeout);
+            response = session.WaitForResponse(inputId, ResponseTimeout);
             // Fall through to process the new response normally
         }
 
@@ -246,15 +262,16 @@ public static class WebIO
         if (ctx.SessionId != null)
             _currentConfirm[ctx.SessionId] = prompt;
 
+        int inputId = session.GenerateInputId();
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             GetCurrentMode(ctx),
             GetCurrentOverlays(ctx.SessionId),
-            new InputRequestDto("confirm", prompt, [new ChoiceDto("yes", "Yes"), new ChoiceDto("no", "No")])
+            new InputRequestDto(inputId, "confirm", prompt, [new ChoiceDto("yes", "Yes"), new ChoiceDto("no", "No")])
         );
 
         session.Send(frame);
-        var response = session.WaitForResponse(ResponseTimeout);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
 
         // Clear confirm overlay after response
         ClearConfirm(ctx);
@@ -269,15 +286,16 @@ public static class WebIO
     {
         var session = GetSession(ctx);
 
+        int inputId = session.GenerateInputId();
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             GetCurrentMode(ctx),
             GetCurrentOverlays(ctx.SessionId),
-            new InputRequestDto("anykey", message, null)
+            new InputRequestDto(inputId, "anykey", message, null)
         );
 
         session.Send(frame);
-        session.WaitForResponse(ResponseTimeout);
+        session.WaitForResponse(inputId, ResponseTimeout);
     }
 
     /// <summary>
@@ -288,15 +306,16 @@ public static class WebIO
     {
         var session = GetSession(ctx);
 
+        int inputId = session.GenerateInputId();
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             GetCurrentMode(ctx),
             GetCurrentOverlays(ctx.SessionId),
-            null  // No input - overlay has its own Continue button
+            new InputRequestDto(inputId, "anykey", "Continue", null)  // Overlay has its own Continue button
         );
 
         session.Send(frame);
-        session.WaitForResponse(ResponseTimeout);
+        session.WaitForResponse(inputId, ResponseTimeout);
     }
 
     /// <summary>
@@ -310,15 +329,16 @@ public static class WebIO
         var numbers = Enumerable.Range(min, max - min + 1).ToList();
         var choiceDtos = numbers.Select(n => new ChoiceDto($"num_{n}", n.ToString())).ToList();
 
+        int inputId = session.GenerateInputId();
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             GetCurrentMode(ctx),
             GetCurrentOverlays(ctx.SessionId),
-            new InputRequestDto("select", prompt, choiceDtos)
+            new InputRequestDto(inputId, "select", prompt, choiceDtos)
         );
 
         session.Send(frame);
-        var response = session.WaitForResponse(ResponseTimeout);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
 
         // Parse the number from the choice ID (format: "num_X")
         if (response.ChoiceId != null && response.ChoiceId.StartsWith("num_"))
@@ -427,16 +447,17 @@ public static class WebIO
 
         var session = GetSession(ctx);
 
+        int inputId = session.GenerateInputId();
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             new TravelMode(GridStateDto.FromContext(ctx)),
             GetCurrentOverlays(ctx.SessionId),
-            new InputRequestDto("grid", statusText ?? "Click a tile to move", null),
+            new InputRequestDto(inputId, "grid", statusText ?? "Click a tile to move", null),
             statusText
         );
 
         session.Send(frame);
-        return session.WaitForResponse(ResponseTimeout);
+        return session.WaitForResponse(inputId, ResponseTimeout);
     }
 
     /// <summary>
@@ -463,16 +484,17 @@ public static class WebIO
         if (ctx.SessionId != null)
             _currentHazard[ctx.SessionId] = hazardPrompt;
 
+        int inputId = session.GenerateInputId();
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             new TravelMode(GridStateDto.FromContext(ctx)),  // No hazard in mode
             GetCurrentOverlays(ctx.SessionId),              // Hazard is in overlays
-            new InputRequestDto("hazard_choice", $"Hazardous terrain: {hazardDescription}",
+            new InputRequestDto(inputId, "hazard_choice", $"Hazardous terrain: {hazardDescription}",
                 [new ChoiceDto("quick", "Quick"), new ChoiceDto("careful", "Careful")])
         );
 
         session.Send(frame);
-        var response = session.WaitForResponse(ResponseTimeout);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
 
         // Clear hazard overlay after response
         ClearHazard(ctx);

@@ -41,6 +41,7 @@ public record GameStateDto
     public double FireHeat { get; init; }
     public double TrendPerHour { get; init; }
     public string TempStatus { get; init; } = "";
+    public TemperatureCrisisDto? TemperatureCrisis { get; init; }
 
     // Survival (0-100)
     public int HealthPercent { get; init; }
@@ -160,6 +161,7 @@ public record GameStateDto
             FireHeat = fireHeat,
             TrendPerHour = trendPerHour,
             TempStatus = GetTemperatureStatus(body.BodyTemperature),
+            TemperatureCrisis = DetectTemperatureCrisis(body.BodyTemperature, trendPerHour, ctx),
 
             // Survival
             HealthPercent = healthPercent,
@@ -276,6 +278,15 @@ public record GameStateDto
                 : (int)(fire.BurningHoursRemaining * 60);
         }
 
+        // Calculate urgency based on minutes remaining
+        var urgency = minutesRemaining switch
+        {
+            < 10 => FireUrgency.Critical,
+            < 30 => FireUrgency.Warning,
+            < 60 => FireUrgency.Caution,
+            _ => FireUrgency.Safe
+        };
+
         return new FireDto(
             Phase: phase,
             MinutesRemaining: minutesRemaining,
@@ -284,7 +295,8 @@ public record GameStateDto
             TotalKg: fire.TotalMassKg,
             MaxCapacityKg: fire.MaxFuelCapacityKg,
             HeatOutput: fire.GetEffectiveHeatOutput(zoneTemp),
-            BurnRateKgPerHour: fire.EffectiveBurnRateKgPerHour
+            BurnRateKgPerHour: fire.EffectiveBurnRateKgPerHour,
+            Urgency: urgency
         );
     }
 
@@ -390,6 +402,44 @@ public record GameStateDto
         _ => "Cold"
     };
 
+    private static TemperatureCrisisDto? DetectTemperatureCrisis(double bodyTemp, double trendPerHour, GameContext ctx)
+    {
+        const double DANGER_THRESHOLD = 94.0;
+        const double HYPOTHERMIA_DAMAGE_THRESHOLD = 90.0;
+
+        // Check if in crisis (body temp below danger threshold)
+        var hasDeadlyColdTension = ctx.Tensions.GetAllTensions().Any(t => t.Type == "DeadlyCold");
+
+        if (bodyTemp >= DANGER_THRESHOLD && !hasDeadlyColdTension)
+        {
+            return null; // No crisis
+        }
+
+        // Calculate minutes until hypothermia damage starts (if trending down)
+        int? minutesUntilDamage = null;
+        if (trendPerHour < 0 && bodyTemp > HYPOTHERMIA_DAMAGE_THRESHOLD)
+        {
+            var tempDropNeeded = bodyTemp - HYPOTHERMIA_DAMAGE_THRESHOLD;
+            var hoursUntilDamage = tempDropNeeded / Math.Abs(trendPerHour);
+            minutesUntilDamage = (int)(hoursUntilDamage * 60);
+        }
+
+        // Determine action guidance
+        var guidance = bodyTemp < 92
+            ? "Critical hypothermia - reach fire immediately"
+            : hasDeadlyColdTension
+                ? "Deadly cold active - seek fire or shelter"
+                : "Body temperature dangerously low - find warmth";
+
+        return new TemperatureCrisisDto(
+            CurrentTemp: bodyTemp,
+            DangerThreshold: DANGER_THRESHOLD,
+            TrendPerHour: trendPerHour,
+            MinutesUntilDamage: minutesUntilDamage,
+            ActionGuidance: guidance
+        );
+    }
+
     private static GearSummaryDto ComputeGearSummary(Inventory inv)
     {
         // Count tools by category
@@ -480,6 +530,14 @@ public record GameStateDto
 
 public record FeatureDto(string Type, string Label, string? Detail);
 
+public enum FireUrgency
+{
+    Safe,       // 60+ minutes
+    Caution,    // 30-60 minutes
+    Warning,    // 10-30 minutes
+    Critical    // < 10 minutes
+}
+
 public record FireDto(
     string Phase,
     int MinutesRemaining,
@@ -488,7 +546,8 @@ public record FireDto(
     double TotalKg,
     double MaxCapacityKg,
     double HeatOutput,
-    double BurnRateKgPerHour
+    double BurnRateKgPerHour,
+    FireUrgency Urgency
 );
 
 public record EffectDto(
@@ -519,3 +578,11 @@ public record InjuryDto(
 public record LogEntryDto(string Text, string Level, string Timestamp);
 
 public record TensionDto(string Message, string Category);
+
+public record TemperatureCrisisDto(
+    double CurrentTemp,
+    double DangerThreshold,
+    double TrendPerHour,
+    int? MinutesUntilDamage,
+    string ActionGuidance
+);

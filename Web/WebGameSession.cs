@@ -11,7 +11,7 @@ namespace text_survival.Web;
 /// Manages a single WebSocket connection for one game session.
 /// Handles sending frames and receiving player responses with reconnection support.
 /// </summary>
-public class WebGameSession
+public class WebGameSession : IDisposable
 {
     private WebSocket _socket;
     private readonly BlockingCollection<PlayerResponse> _responses = new();
@@ -19,6 +19,8 @@ public class WebGameSession
     private readonly object _socketLock = new();
     private readonly ManualResetEventSlim _reconnectEvent = new(true);
     private WebFrame? _lastSentFrame = null;  // Cache for reconnection
+    private int _nextInputId = 1;  // Sequential input ID counter
+    private int _currentInputId = 0;  // The ID we're currently waiting for
 
     // Separate JSON options for web API - no ReferenceHandler needed
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -46,6 +48,14 @@ public class WebGameSession
     }
 
     public CancellationToken CancellationToken => _cts.Token;
+
+    /// <summary>
+    /// Generate a unique input ID for the next input request.
+    /// </summary>
+    public int GenerateInputId()
+    {
+        return Interlocked.Increment(ref _nextInputId);
+    }
 
     /// <summary>
     /// Send a frame to the client. Blocks until send completes.
@@ -89,33 +99,54 @@ public class WebGameSession
 
     /// <summary>
     /// Wait for a player response. Blocks until response received or timeout.
+    /// Validates that the response's input ID matches the expected ID.
     /// </summary>
-    public PlayerResponse WaitForResponse(TimeSpan timeout)
+    public PlayerResponse WaitForResponse(int expectedInputId, TimeSpan timeout)
     {
-        // Drain any stale responses that arrived before this input was requested
-        // This prevents old clicks from being consumed by new input prompts
-        while (_responses.TryTake(out _)) { }
+        _currentInputId = expectedInputId;
+
+        // Drain stale responses AND responses with wrong input IDs
+        while (_responses.TryTake(out var staleResponse))
+        {
+            // Log discarded responses for debugging
+            if (staleResponse.InputId != expectedInputId)
+            {
+                Console.WriteLine($"[WebGameSession] Discarded stale response with inputId={staleResponse.InputId}, expected={expectedInputId}");
+            }
+        }
 
         try
         {
-            if (_responses.TryTake(out var response, (int)timeout.TotalMilliseconds, _cts.Token))
+            // Wait for response with matching input ID
+            while (true)
             {
-                return response;
-            }
-
-            // Timeout occurred
-            lock (_socketLock)
-            {
-                // If disconnected, throw instead of returning default
-                // This prevents silent continuation while player is disconnected
-                if (_socket.State != WebSocketState.Open)
+                if (_responses.TryTake(out var response, (int)timeout.TotalMilliseconds, _cts.Token))
                 {
-                    throw new OperationCanceledException("Response timeout during disconnection");
+                    if (response.InputId == expectedInputId)
+                    {
+                        return response;  // Valid response
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[WebGameSession] Discarded late response with inputId={response.InputId}, expected={expectedInputId}");
+                        continue;  // Discard and keep waiting
+                    }
                 }
-            }
 
-            // Connected timeout - return default selection (player chose not to respond)
-            return new PlayerResponse(null);
+                // Timeout occurred
+                lock (_socketLock)
+                {
+                    // If disconnected, throw instead of returning default
+                    // This prevents silent continuation while player is disconnected
+                    if (_socket.State != WebSocketState.Open)
+                    {
+                        throw new OperationCanceledException("Response timeout during disconnection");
+                    }
+                }
+
+                // Connected timeout - return default selection (player chose not to respond)
+                return new PlayerResponse(null, expectedInputId);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -267,5 +298,18 @@ public class WebGameSession
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Dispose the session, clearing response queue and canceling operations.
+    /// </summary>
+    public void Dispose()
+    {
+        _responses.CompleteAdding();
+        while (_responses.TryTake(out _)) { }  // Clear queue
+        _cts.Cancel();
+        _reconnectEvent.Dispose();
+        _responses.Dispose();
+        _cts.Dispose();
     }
 }

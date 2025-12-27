@@ -26,6 +26,7 @@ public record ChoiceDto(string Id, string Label);
 /// Request for player input.
 /// </summary>
 public record InputRequestDto(
+    int InputId,           // Unique ID for this input request
     string Type,           // "select", "confirm", "anykey"
     string Prompt,
     List<ChoiceDto>? Choices  // null for confirm/anykey

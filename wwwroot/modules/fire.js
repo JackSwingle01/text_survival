@@ -38,7 +38,10 @@ export const FireDisplay = {
                           fire.phase === 'Igniting' ? 'Igniting' : fire.phase;
 
         phaseText.textContent = `${phaseLabel} — ${fire.minutesRemaining} min`;
-        statusEl.className = 'fire-status';
+
+        // Apply urgency class for styling
+        const urgencyClass = fire.urgency?.toLowerCase() || 'safe';
+        statusEl.className = `fire-status fire-${urgencyClass}`;
 
         // Fuel display
         if (fire.unlitKg > 0.1) {

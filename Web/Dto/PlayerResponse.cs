@@ -6,6 +6,7 @@ namespace text_survival.Web.Dto;
 /// </summary>
 public record PlayerResponse(
     string? ChoiceId,         // String-based choice identity for reliable button matching
+    int InputId,              // Must match the input request ID to prevent stale responses
     // Grid movement fields
     string? Type = null,      // "select", "move", "hazard_choice", "action", "examine", "travel_to"
     int? TargetX = null,      // For "move"/"travel_to" type

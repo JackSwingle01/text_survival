@@ -13,6 +13,7 @@ export const FrameQueue = {
     queue: [],
     state: 'idle',  // 'idle' | 'processing' | 'animating'
     renderCallback: null,  // Set by GameClient
+    currentState: null,  // Track current game state for stat deltas
 
     /**
      * Initialize with the render callback
@@ -49,15 +50,51 @@ export const FrameQueue = {
         this.state = 'processing';
         console.log(`[FrameQueue] Processing frame, mode=${nextFrame.mode?.type}`);
 
+        // Capture state BEFORE rendering for progress animation
+        let startState = null;
+        if (nextFrame.mode?.type === 'progress' && this.currentState) {
+            startState = {
+                healthPercent: this.currentState.healthPercent,
+                foodPercent: this.currentState.foodPercent,
+                waterPercent: this.currentState.waterPercent,
+                energyPercent: this.currentState.energyPercent,
+                bodyTemp: this.currentState.bodyTemp,
+                fire: this.currentState.fire ? {
+                    minutesRemaining: this.currentState.fire.minutesRemaining,
+                    phase: this.currentState.fire.phase
+                } : null
+            };
+        }
+
         // Render the frame content (state, mode, overlays, input)
         this.renderCallback(nextFrame);
 
+        // Store current state for next frame
+        if (nextFrame.state) {
+            this.currentState = nextFrame.state;
+        }
+
         // Handle progress animation if in progress mode
-        if (nextFrame.mode?.type === 'progress') {
+        if (nextFrame.mode?.type === 'progress' && startState) {
+            // Calculate stat deltas by comparing start vs current
+            const endState = nextFrame.state;
+            const statDeltas = {
+                healthPercent: endState.healthPercent - startState.healthPercent,
+                foodPercent: endState.foodPercent - startState.foodPercent,
+                waterPercent: endState.waterPercent - startState.waterPercent,
+                energyPercent: endState.energyPercent - startState.energyPercent,
+                bodyTemp: endState.bodyTemp - startState.bodyTemp,
+                fireMinutesRemaining: endState.fire && startState.fire
+                    ? endState.fire.minutesRemaining - startState.fire.minutesRemaining
+                    : 0
+            };
+
             this.state = 'animating';
             ProgressDisplay.start(
                 nextFrame.mode.estimatedDurationSeconds,
                 nextFrame.mode.activityText,
+                startState,
+                statDeltas,
                 () => this.onAnimationComplete()
             );
         } else {

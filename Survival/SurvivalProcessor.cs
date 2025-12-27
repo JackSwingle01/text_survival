@@ -483,8 +483,8 @@ public static class SurvivalProcessor
 			context.CurrentWetnessSeverity + wetnessDelta * minutesElapsed - dryingDelta,
 			0, 1);
 
-		// Create/update effect if wet or getting wet
-		if (newSeverity > 0.01 || wetnessDelta > 0)
+		// Create/update effect only when wetness reaches 10% to avoid spam in light snow
+		if (newSeverity >= 0.1)
 		{
 			result.Effects.Add(EffectFactory.Wet(newSeverity));
 		}
