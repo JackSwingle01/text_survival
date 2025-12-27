@@ -88,7 +88,7 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Exhausted(0.4, 90)),
                     new EventResult("You stumble. Rest might be worse.", weight: 0.20, minutes: 15)
                         .Escalate("DeadlyCold", 0.15)
-                        .Damage(2, DamageType.Blunt, "fall")
+                        .Damage(2, DamageType.Blunt)
                 ])
             .Choice("Warm Hands in Armpits",
                 "Stop. Tuck hands under arms. Restore circulation.",

@@ -58,9 +58,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public EventResult Costs(ResourceType type, int amount) { Cost = new ResourceCost(type, amount); return this; }
 
     public EventResult WithEffects(params Effect[] effects) { Effects.AddRange(effects); return this; }
-    public EventResult Damage(int amount, DamageType type, string source)
+    public EventResult Damage(int amount, DamageType type)
     {
-        NewDamage = new DamageInfo(amount, type, source);
+        NewDamage = new DamageInfo(amount, type);
         return this;
     }
 
@@ -70,7 +70,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     /// </summary>
     public EventResult DamageWithVariant(InjuryVariant variant)
     {
-        NewDamage = new DamageInfo(variant.Amount, variant.Type, variant.Source, variant.Target);
+        NewDamage = new DamageInfo(variant.Amount, variant.Type, target: variant.Target);
         if (variant.Effects != null)
             Effects.AddRange(variant.Effects);
         return this;
@@ -190,7 +190,6 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         if (NewDamage is not null)
         {
             var dmgResult = ctx.player.Body.Damage(NewDamage);
-            summary.Losses.Add($"Injury: {NewDamage.Source}");
             foreach (var effect in dmgResult.TriggeredEffects)
             {
                 ctx.player.AddLog(ctx.player.EffectRegistry.AddEffect(effect));

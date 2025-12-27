@@ -209,7 +209,7 @@ public static class HuntRunner
     {
         GameDisplay.AddNarrative(ctx, $"You strike! The {target.Name} falls.");
 
-        target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, "stealth kill", BodyTarget.Heart));
+        target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, BodyTarget.Heart));
         ctx.player.stealthManager.StopHunting(ctx);
 
         var loot = ButcherRunner.ButcherAnimal(target, ctx);
@@ -241,7 +241,7 @@ public static class HuntRunner
             // Kill
             string weaponName = isSpear && weapon != null ? weapon.Name : "stone";
             GameDisplay.AddNarrative(ctx, $"Your {weaponName} strikes true! The {target.Name} falls.");
-            target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, "thrown weapon", BodyTarget.Heart));
+            target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, BodyTarget.Heart));
 
             // Butcher
             var loot = ButcherRunner.ButcherAnimal(target, ctx);

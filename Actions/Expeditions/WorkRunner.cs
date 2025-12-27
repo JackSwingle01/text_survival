@@ -21,8 +21,12 @@ public class WorkRunner(GameContext ctx)
     /// Check if location is too dark to work. Returns true if work is blocked.
     /// Darkness can come from: inherent location darkness OR nighttime.
     /// </summary>
-    private bool CheckDarknessBlocking(Location location)
+    private bool CheckDarknessBlocking(Location location, IWorkStrategy strategy)
     {
+        // If strategy allows darkness work, skip blocking
+        if (strategy.AllowedInDarkness)
+            return false;
+
         // Check inherent location darkness OR nighttime
         bool isNight = _ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;
         bool isDark = location.IsDark || isNight;
@@ -50,7 +54,7 @@ public class WorkRunner(GameContext ctx)
     /// </summary>
     private WorkResult ExecuteWork(Location location, IWorkStrategy strategy)
     {
-        if (CheckDarknessBlocking(location))
+        if (CheckDarknessBlocking(location, strategy))
             return WorkResult.Empty(0);
 
         // Validate location

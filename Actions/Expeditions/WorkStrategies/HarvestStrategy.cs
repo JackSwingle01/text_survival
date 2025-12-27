@@ -69,6 +69,8 @@ public class HarvestStrategy : IWorkStrategy
 
     public string GetActivityName() => "harvesting";
 
+    public bool AllowedInDarkness => false;
+
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
         if (_selectedTarget == null)

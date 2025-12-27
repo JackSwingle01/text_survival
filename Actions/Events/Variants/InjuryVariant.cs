@@ -10,7 +10,6 @@ namespace text_survival.Actions.Variants;
 public record InjuryVariant(
     BodyTarget Target,          // Where damage goes
     string Description,         // What player sees: "Your ankle twists on a hidden rock"
-    string Source,              // For damage log: "twisted ankle"
     DamageType Type,
     int Amount,
     Effect[]? Effects = null    // Optional auto-applied effects (e.g., SprainedAnkle, Dazed)
@@ -207,6 +206,100 @@ public static class VariantSelector
     public static InjuryVariant SelectEmberBurn(GameContext ctx)
     {
         return AccidentVariants.EmberBurns[Random.Shared.Next(AccidentVariants.EmberBurns.Length)];
+    }
+
+    // ========================================
+    // ENVIRONMENTAL INJURY SELECTORS
+    // ========================================
+
+    /// <summary>
+    /// Select a frostbite injury variant.
+    /// </summary>
+    public static InjuryVariant SelectFrostbiteVariant(GameContext ctx)
+    {
+        return AccidentVariants.Frostbite[Random.Shared.Next(AccidentVariants.Frostbite.Length)];
+    }
+
+    /// <summary>
+    /// Select a severe frostbite injury variant.
+    /// </summary>
+    public static InjuryVariant SelectSevereFrostbiteVariant(GameContext ctx)
+    {
+        return AccidentVariants.SevereFrostbite[Random.Shared.Next(AccidentVariants.SevereFrostbite.Length)];
+    }
+
+    /// <summary>
+    /// Select a frostbite injury, severity based on context.
+    /// Uses severe variant if body temp is very low or there's existing frostbite.
+    /// </summary>
+    public static InjuryVariant SelectFrostbiteByContext(GameContext ctx)
+    {
+        // Severe frostbite if extremely cold
+        if (ctx.player.Body.BodyTemperature < 33)
+            return SelectSevereFrostbiteVariant(ctx);
+
+        return SelectFrostbiteVariant(ctx);
+    }
+
+    // ========================================
+    // MUSCLE/STRAIN SELECTORS
+    // ========================================
+
+    /// <summary>
+    /// Select a muscle cramp injury.
+    /// </summary>
+    public static InjuryVariant SelectMuscleCramp(GameContext ctx)
+    {
+        return AccidentVariants.MuscleCramp[Random.Shared.Next(AccidentVariants.MuscleCramp.Length)];
+    }
+
+    /// <summary>
+    /// Select a muscle strain injury.
+    /// </summary>
+    public static InjuryVariant SelectMuscleStrain(GameContext ctx)
+    {
+        return AccidentVariants.MuscleStrain[Random.Shared.Next(AccidentVariants.MuscleStrain.Length)];
+    }
+
+    /// <summary>
+    /// Select a muscle tear injury (severe).
+    /// </summary>
+    public static InjuryVariant SelectMuscleTear(GameContext ctx)
+    {
+        return AccidentVariants.MuscleTear[Random.Shared.Next(AccidentVariants.MuscleTear.Length)];
+    }
+
+    /// <summary>
+    /// Select a muscle injury, severity based on context.
+    /// Cramp for minor, strain for moderate, tear for severe.
+    /// </summary>
+    public static InjuryVariant SelectMuscleInjury(GameContext ctx, double severity = 0.5)
+    {
+        if (severity >= 0.8)
+            return SelectMuscleTear(ctx);
+        if (severity >= 0.5)
+            return SelectMuscleStrain(ctx);
+        return SelectMuscleCramp(ctx);
+    }
+
+    // ========================================
+    // ANIMAL ENCOUNTER SELECTORS
+    // ========================================
+
+    /// <summary>
+    /// Select a stampede injury variant.
+    /// </summary>
+    public static InjuryVariant SelectStampedeVariant(GameContext ctx)
+    {
+        return AccidentVariants.Stampede[Random.Shared.Next(AccidentVariants.Stampede.Length)];
+    }
+
+    /// <summary>
+    /// Select a gore injury variant (horns, tusks).
+    /// </summary>
+    public static InjuryVariant SelectGoreVariant(GameContext ctx)
+    {
+        return AccidentVariants.Gore[Random.Shared.Next(AccidentVariants.Gore.Length)];
     }
 
     private static bool HasIce(GameContext ctx)

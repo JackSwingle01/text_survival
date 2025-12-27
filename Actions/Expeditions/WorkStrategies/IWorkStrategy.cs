@@ -38,6 +38,12 @@ public interface IWorkStrategy
     string GetActivityName();
 
     /// <summary>
+    /// Whether this work type can proceed in darkness without a light source.
+    /// If true, work can proceed but the strategy may apply penalties in Execute().
+    /// </summary>
+    bool AllowedInDarkness { get; }
+
+    /// <summary>
     /// Execute the work after time has elapsed.
     /// Returns the work result (collected items, discovered locations).
     /// </summary>

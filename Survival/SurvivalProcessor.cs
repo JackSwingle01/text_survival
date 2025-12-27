@@ -182,7 +182,7 @@ public static class SurvivalProcessor
 			var vitalOrgans = new[] { BodyTarget.Heart, BodyTarget.Liver, BodyTarget.Brain, BodyTarget.Lungs };
 			BodyTarget target = vitalOrgans[Random.Shared.Next(vitalOrgans.Length)];
 
-			result.DamageEvents.Add(new DamageInfo(damage, DamageType.Internal, "Starvation", target));
+			result.DamageEvents.Add(new DamageInfo(damage, DamageType.Internal, target));
 		}
 
 		return result;
@@ -202,7 +202,7 @@ public static class SurvivalProcessor
 		return new SurvivalProcessorResult
 		{
 			DamageEvents = [
-				new DamageInfo(damage, DamageType.Internal, "Dehydration", target)
+				new DamageInfo(damage, DamageType.Internal, target)
 			],
 			Messages = ["Your organs are failing from dehydration!"],
 		};
@@ -238,7 +238,7 @@ public static class SurvivalProcessor
 		return new SurvivalProcessorResult
 		{
 			DamageEvents = [
-				new DamageInfo(damage, DamageType.Internal, "Hypothermia", target)
+				new DamageInfo(damage, DamageType.Internal, target)
 			],
 			Messages = [urgency],
 		};

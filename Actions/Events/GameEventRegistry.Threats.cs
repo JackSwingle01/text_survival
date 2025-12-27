@@ -1,3 +1,4 @@
+using text_survival.Actions.Variants;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -101,7 +102,7 @@ public static partial class GameEventRegistry
                         .Unsettling()
                         .BecomeStalked(0.3, predator),
                     new EventResult("Your noise provokes it. It attacks.", weight: 0.10, minutes: 5)
-                        .Damage(12, DamageType.Sharp, "animal attack")
+                        .Damage(12, DamageType.Sharp)
                         .Aborts(),
                     new EventResult("Nothing there. Just paranoia.", weight: 0.05, minutes: 3)
                         .Shaken()
@@ -320,12 +321,12 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Nauseous(0.4, 120)),
                     new EventResult("Worse than expected. You're really sick.", weight: 0.30, minutes: 20)
                         .WithEffects(EffectFactory.Nauseous(0.6, 180))
-                        .Damage(3, DamageType.Internal, "food poisoning"),
+                        .Damage(3, DamageType.Internal),
                     new EventResult("Your body handles it. You feel tougher for it.", weight: 0.20, minutes: 10)
                         .WithEffects(EffectFactory.Hardened(0.15, 240)),
                     new EventResult("Serious food poisoning. This is bad.", weight: 0.10, minutes: 30)
                         .WithEffects(EffectFactory.Nauseous(0.8, 240))
-                        .Damage(8, DamageType.Internal, "severe food poisoning")
+                        .Damage(8, DamageType.Internal)
                 ])
             .Choice("Herbal Treatment",
                 "Use plant fiber to settle your stomach.",
@@ -345,6 +346,10 @@ public static partial class GameEventRegistry
 
     private static GameEvent MuscleCramp(GameContext ctx)
     {
+        var strainVariant = VariantSelector.SelectMuscleStrain(ctx);
+        var tearVariant = VariantSelector.SelectMuscleTear(ctx);
+        var fallVariant = VariantSelector.SelectAccidentVariant(ctx);
+
         return new GameEvent("Muscle Cramp",
             "Sharp pain shoots through your leg. The muscle seizes, locks up. You can't put weight on it.", 0.5)
             .Requires(EventCondition.Awake, EventCondition.Traveling)
@@ -358,8 +363,8 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Sore(0.2, 45)),
                     new EventResult("Won't release fully. You're limping.", weight: 0.15, minutes: 12)
                         .WithEffects(EffectFactory.SprainedAnkle(0.3)),
-                    new EventResult("Made it worse forcing it. Something's wrong.", weight: 0.10, minutes: 10)
-                        .Damage(4, DamageType.Internal, "muscle strain")
+                    new EventResult($"{strainVariant.Description} You made it worse.", weight: 0.10, minutes: 10)
+                        .DamageWithVariant(strainVariant)
                         .WithEffects(EffectFactory.SprainedAnkle(0.45))
                 ])
             .Choice("Push Through",
@@ -369,11 +374,11 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Sore(0.1, 30)),
                     new EventResult("Gets worse before better.", weight: 0.35, minutes: 12)
                         .WithEffects(EffectFactory.SprainedAnkle(0.25)),
-                    new EventResult("Something tears.", weight: 0.20, minutes: 8)
-                        .Damage(6, DamageType.Internal, "muscle tear")
+                    new EventResult(tearVariant.Description, weight: 0.20, minutes: 8)
+                        .DamageWithVariant(tearVariant)
                         .WithEffects(EffectFactory.SprainedAnkle(0.5)),
-                    new EventResult("Leg gives out. You fall.", weight: 0.15, minutes: 15)
-                        .Damage(5, DamageType.Blunt, "fall")
+                    new EventResult($"{fallVariant.Description} You fall hard.", weight: 0.15, minutes: 15)
+                        .DamageWithVariant(fallVariant)
                         .WithEffects(EffectFactory.SprainedAnkle(0.6))
                 ])
             .Choice("Eat Something",
@@ -396,7 +401,7 @@ public static partial class GameEventRegistry
                     new EventResult("Heat loosens it. Cramp releases smoothly.", weight: 0.80, minutes: 10),
                     new EventResult("Takes a while but warmth helps.", weight: 0.15, minutes: 18),
                     new EventResult("Too close. Minor burn, but cramp's gone.", weight: 0.05, minutes: 12)
-                        .Damage(2, DamageType.Burn, "minor burn")
+                        .Damage(2, DamageType.Burn)
                         .WithEffects(EffectFactory.Burn(0.15, 45))
                 ],
                 [EventCondition.NearFire]);
@@ -416,7 +421,7 @@ public static partial class GameEventRegistry
                     new EventResult("Doesn't help. Getting worse.", weight: 0.30)
                         .WithEffects(EffectFactory.Shaken(0.4)),
                     new EventResult("Made it worse. Eyes burning now.", weight: 0.20)
-                        .Damage(2, DamageType.Internal, "eye strain")
+                        .Damage(2, DamageType.Internal)
                         .WithEffects(EffectFactory.Shaken(0.3))
                 ])
             .Choice("Rest Eyes",
@@ -536,14 +541,14 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Brutal but effective. Wound sealed.", weight: 0.60, minutes: 10)
                         .ResolveTension("WoundUntreated")
-                        .Damage(5, DamageType.Burn, "cauterization")
+                        .Damage(5, DamageType.Burn)
                         .WithEffects(EffectFactory.Burn(0.4, 120)),
                     new EventResult("Effective but traumatic. You won't forget this.", weight: 0.25, minutes: 10)
                         .ResolveTension("WoundUntreated")
-                        .Damage(5, DamageType.Burn, "cauterization")
+                        .Damage(5, DamageType.Burn)
                         .WithEffects(EffectFactory.Fear(0.3), EffectFactory.Burn(0.4, 120)),
                     new EventResult("Not thorough enough. Still infected.", weight: 0.10, minutes: 10)
-                        .Damage(3, DamageType.Burn, "cauterization")
+                        .Damage(3, DamageType.Burn)
                         .WithEffects(EffectFactory.Burn(0.3, 90))
                         .Escalate("WoundUntreated", 0.1),
                     new EventResult("You can't do it. The pain stops you.", weight: 0.05, minutes: 5)
@@ -603,7 +608,7 @@ public static partial class GameEventRegistry
                     new EventResult("Body loses. Infection spreading. Condition critical.", weight: 0.25, minutes: 120)
                         .WithEffects(EffectFactory.Fever(0.8))
                         .Escalate("WoundUntreated", 0.3)
-                        .Damage(10, DamageType.Internal, "systemic infection")
+                        .Damage(10, DamageType.Internal)
                 ])
             .Choice("Keep Working",
                 "Deny the fever. Push on.",
@@ -615,13 +620,17 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Fever(0.6), EffectFactory.Exhausted(0.5, 120)),
                     new EventResult("The fever wins. You go down.", weight: 0.20, minutes: 90)
                         .WithEffects(EffectFactory.Fever(0.75))
-                        .Damage(8, DamageType.Internal, "fever complications")
+                        .Damage(8, DamageType.Internal)
                         .Aborts()
                 ]);
     }
 
     private static GameEvent FrozenFingers(GameContext ctx)
     {
+        var frostbiteVariant = VariantSelector.SelectFrostbiteByContext(ctx);
+        var minorBurnVariant = VariantSelector.SelectEmberBurn(ctx);
+        var severeBurnVariant = VariantSelector.SelectEmberBurn(ctx);
+
         return new GameEvent("Frozen Fingers",
             "Your fingers have gone white. You can't feel them properly. This is frostbite territory.", 0.8)
             .Requires(EventCondition.LowTemperature)
@@ -634,8 +643,8 @@ public static partial class GameEventRegistry
                     new EventResult("Takes longer. More pain. But they'll heal.", weight: 0.25, minutes: 20)
                         .WithEffects(EffectFactory.Clumsy(0.3, 60)),
                     new EventResult("Caught it in time. No lasting damage.", weight: 0.10, minutes: 8),
-                    new EventResult("Too late for some tissue. Permanent damage.", weight: 0.05, minutes: 15)
-                        .Damage(8, DamageType.Internal, "severe frostbite")
+                    new EventResult($"{frostbiteVariant.Description} Too late for some tissue.", weight: 0.05, minutes: 15)
+                        .DamageWithVariant(frostbiteVariant)
                         .WithEffects(EffectFactory.Frostbite(0.6))
                 ])
             .Choice("Tuck and Continue",
@@ -645,19 +654,19 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Clumsy(0.3, 45)),
                     new EventResult("Still losing feeling. You need to stop soon.", weight: 0.30)
                         .WithEffects(EffectFactory.Frostbite(0.3), EffectFactory.Clumsy(0.4, 60)),
-                    new EventResult("Body heat isn't enough. Frostbite setting in.", weight: 0.20)
-                        .Damage(5, DamageType.Internal, "frostbite")
+                    new EventResult($"{frostbiteVariant.Description} Body heat isn't enough.", weight: 0.20)
+                        .DamageWithVariant(frostbiteVariant)
                         .WithEffects(EffectFactory.Frostbite(0.5))
                 ])
             .Choice("Use Fire",
                 "Direct heat restores circulation fastest.",
                 [
                     new EventResult("Direct heat restores circulation. Painful but effective.", weight: 0.80, minutes: 8),
-                    new EventResult("Too close. Minor burn but fingers saved.", weight: 0.15, minutes: 8)
-                        .Damage(2, DamageType.Burn, "minor burn")
+                    new EventResult($"{minorBurnVariant.Description} Too close, but fingers saved.", weight: 0.15, minutes: 8)
+                        .DamageWithVariant(minorBurnVariant)
                         .WithEffects(EffectFactory.Burn(0.15, 30)),
-                    new EventResult("Numb fingers don't feel the heat. Burn damage before you notice.", weight: 0.05, minutes: 5)
-                        .Damage(5, DamageType.Burn, "burn")
+                    new EventResult($"{severeBurnVariant.Description} Numb fingers don't feel the heat.", weight: 0.05, minutes: 5)
+                        .DamageWithVariant(severeBurnVariant)
                         .WithEffects(EffectFactory.Burn(0.3, 60))
                 ],
                 [EventCondition.NearFire]);
@@ -725,22 +734,22 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Tooth cracked but holding. Pain lingers.", weight: 0.60, minutes: 3)
                         .WithEffects(EffectFactory.Pain(0.3))
-                        .Damage(2, DamageType.Internal, "cracked tooth"),
+                        .Damage(2, DamageType.Internal),
                     new EventResult("Tooth fine, just cut your gum. Minor.", weight: 0.30, minutes: 2)
-                        .Damage(1, DamageType.Sharp, "cut gum"),
+                        .Damage(1, DamageType.Sharp),
                     new EventResult("Tooth broken. This will be a problem.", weight: 0.10, minutes: 5)
                         .WithEffects(EffectFactory.Pain(0.5))
-                        .Damage(5, DamageType.Internal, "broken tooth")
+                        .Damage(5, DamageType.Internal)
                 ])
             .Choice("Check Carefully",
                 "Take time to examine the damage.",
                 [
                     new EventResult("Just the food. Your teeth are fine.", weight: 0.50, minutes: 5),
                     new EventResult("Small chip. Painful but not serious.", weight: 0.35, minutes: 5)
-                        .Damage(1, DamageType.Internal, "chipped tooth"),
+                        .Damage(1, DamageType.Internal),
                     new EventResult("Cracked tooth. Needs attention.", weight: 0.15, minutes: 5)
                         .WithEffects(EffectFactory.Pain(0.25))
-                        .Damage(3, DamageType.Internal, "cracked tooth")
+                        .Damage(3, DamageType.Internal)
                 ]);
     }
 

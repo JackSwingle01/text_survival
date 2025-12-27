@@ -25,8 +25,7 @@ public static class TravelHandler
         ctx.player.Body.Damage(new DamageInfo(
             variant.Amount,
             variant.Type,
-            variant.Source,
-            variant.Target
+            target: variant.Target
         ));
 
         // Apply any auto-triggered effects (sprains, dazed, etc.)

@@ -2,6 +2,7 @@ using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
 using text_survival.Items;
+using text_survival.Actions.Variants;
 
 namespace text_survival.Actions;
 
@@ -57,6 +58,7 @@ public static partial class GameEventRegistry
     {
         var herdTension = ctx.Tensions.GetTension("HerdNearby");
         var animal = herdTension?.AnimalType ?? "deer";
+        var stampedeVariant = VariantSelector.SelectStampedeVariant(ctx);
 
         var isLargeAnimal = animal.ToLower() == "bison";
         var description = isLargeAnimal
@@ -96,8 +98,8 @@ public static partial class GameEventRegistry
                         .CreateTension("WoundedPrey", 0.4, animalType: animal),
                     new EventResult("Miss. They scatter. Stampede risk.", weight: 0.25, minutes: 15)
                         .Escalate("HerdNearby", 0.25),
-                    new EventResult("You spooked the herd. STAMPEDE!", weight: 0.20, minutes: 5)
-                        .Damage(15, DamageType.Blunt, "glancing blow from stampede")
+                    new EventResult($"You spooked the herd. STAMPEDE! {stampedeVariant.Description}", weight: 0.20, minutes: 5)
+                        .DamageWithVariant(stampedeVariant)
                         .ResolveTension("HerdNearby")
                         .Terrifying()
                 ])
@@ -148,11 +150,11 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Exhausted(0.3, 30)),
                     new EventResult("Almost clear. A glancing blow sends you sprawling.", weight: 0.30, minutes: 5)
                         .ResolveTension("HerdNearby")
-                        .Damage(8, DamageType.Blunt, "glancing blow from stampede")
+                        .Damage(8, DamageType.Blunt)
                         .WithEffects(EffectFactory.Sore(0.4, 60)),
                     new EventResult("Too slow. They're everywhere.", weight: 0.15, minutes: 5)
                         .ResolveTension("HerdNearby")
-                        .Damage(20, DamageType.Blunt, "trampled by herd")
+                        .Damage(20, DamageType.Blunt)
                         .Panicking()
                 ])
             .Choice("Find Cover",
@@ -164,7 +166,7 @@ public static partial class GameEventRegistry
                         .ResolveTension("HerdNearby")
                         .Frightening(),
                     new EventResult("No cover. Open ground.", weight: 0.20, minutes: 3)
-                        .Damage(15, DamageType.Blunt, "trampled")
+                        .Damage(15, DamageType.Blunt)
                         .ResolveTension("HerdNearby")
                 ])
             .Choice("Drop and Curl",
@@ -175,10 +177,10 @@ public static partial class GameEventRegistry
                         .Terrifying(),
                     new EventResult("Mostly missed. One clips your shoulder.", weight: 0.35, minutes: 5)
                         .ResolveTension("HerdNearby")
-                        .Damage(10, DamageType.Blunt, "kicked by fleeing animal"),
+                        .Damage(10, DamageType.Blunt),
                     new EventResult("Bad gamble. Trampled.", weight: 0.30, minutes: 5)
                         .ResolveTension("HerdNearby")
-                        .Damage(25, DamageType.Blunt, "trampled by herd")
+                        .Damage(25, DamageType.Blunt)
                         .Panicking()
                 ])
             .Choice("Drop Pack and Sprint",
@@ -190,7 +192,7 @@ public static partial class GameEventRegistry
                         .Costs(ResourceType.Food, 3),
                     new EventResult("Still not fast enough.", weight: 0.20, minutes: 3)
                         .ResolveTension("HerdNearby")
-                        .Damage(12, DamageType.Blunt, "trampled")
+                        .Damage(12, DamageType.Blunt)
                         .Costs(ResourceType.Fuel, 5)
                         .Costs(ResourceType.Food, 3)
                 ]);

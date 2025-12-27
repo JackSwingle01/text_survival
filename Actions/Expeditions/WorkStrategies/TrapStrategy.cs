@@ -136,6 +136,8 @@ public class TrapStrategy : IWorkStrategy
 
     public string GetActivityName() => _mode == TrapMode.Set ? "setting trap" : "checking traps";
 
+    public bool AllowedInDarkness => false;
+
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
         if (_mode == TrapMode.Set)
@@ -152,7 +154,7 @@ public class TrapStrategy : IWorkStrategy
         if (Utils.DetermineSuccess(_injuryChance))
         {
             GameDisplay.AddWarning(ctx, "The snare mechanism snaps unexpectedly!");
-            ctx.player.Body.Damage(new Bodies.DamageInfo(3, Bodies.DamageType.Sharp, "snare mechanism"));
+            ctx.player.Body.Damage(new Bodies.DamageInfo(3, Bodies.DamageType.Sharp));
             GameDisplay.AddNarrative(ctx, "You cut your fingers on the trap mechanism.");
         }
 
@@ -189,7 +191,7 @@ public class TrapStrategy : IWorkStrategy
         if (Utils.DetermineSuccess(_injuryChance))
         {
             GameDisplay.AddWarning(ctx, "A snare catches your hand!");
-            ctx.player.Body.Damage(new Bodies.DamageInfo(2, Bodies.DamageType.Sharp, "snare"));
+            ctx.player.Body.Damage(new Bodies.DamageInfo(2, Bodies.DamageType.Sharp));
         }
 
         // Collect results

@@ -52,6 +52,8 @@ public class ForageStrategy : IWorkStrategy
 
     public string GetActivityName() => "foraging";
 
+    public bool AllowedInDarkness => true;
+
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
         var feature = location.GetFeature<ForageFeature>()!;
@@ -59,6 +61,14 @@ public class ForageStrategy : IWorkStrategy
         GameDisplay.AddNarrative(ctx, "You search the area for resources...");
 
         var found = feature.Forage(actualTime / 60.0);
+
+        // Darkness penalty: limited visibility reduces yield (-50%)
+        bool isDark = location.IsDark || ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;
+        if (isDark && !location.HasActiveHeatSource() && !ctx.Inventory.HasLitTorch)
+        {
+            found.ApplyMultiplier(0.5);
+            GameDisplay.AddWarning(ctx, "The darkness limits what you can find.");
+        }
 
         // Perception impairment reduces yield (-15%)
         var perception = AbilityCalculator.CalculatePerception(

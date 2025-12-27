@@ -56,6 +56,8 @@ public class ExploreStrategy : IWorkStrategy
 
     public string GetActivityName() => "exploring";
 
+    public bool AllowedInDarkness => false;
+
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
         GameDisplay.AddNarrative(ctx, "You scout the area, looking for new paths...");

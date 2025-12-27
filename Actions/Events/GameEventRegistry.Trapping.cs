@@ -38,7 +38,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You reset the snare quickly and continue.", 0.70, 5),
                     new EventResult("In your haste, you cut your finger on the mechanism.", 0.20, 5)
-                        .Damage(2, DamageType.Sharp, "snare"),
+                        .Damage(2, DamageType.Sharp),
                     new EventResult("The snare is damaged beyond quick repair. You'll need to replace it.", 0.10, 5)
                 ])
             .Choice("Leave It",
@@ -189,21 +189,21 @@ public static partial class GameEventRegistry
                     new EventResult("Just a pinch. Hurts but no real damage.", 0.50, 2)
                         .WithEffects(EffectFactory.Pain(0.1)),
                     new EventResult("Deep bruise forming. Your grip will be weak for a while.", 0.30, 5)
-                        .Damage(3, DamageType.Blunt, "snare mechanism"),
+                        .Damage(3, DamageType.Blunt),
                     new EventResult("It caught your finger badly. Bleeding, swelling fast.", 0.15, 5)
-                        .Damage(5, DamageType.Sharp, "snare mechanism")
+                        .Damage(5, DamageType.Sharp)
                         .WithEffects(EffectFactory.Bleeding(0.2)),
                     new EventResult("Something snapped. Not the snare — your finger.", 0.05, 5)
-                        .Damage(10, DamageType.Blunt, "snare mechanism")
+                        .Damage(10, DamageType.Blunt)
                         .WithEffects(EffectFactory.Pain(0.5))
                 ])
             .Choice("Shake It Off",
                 "Keep working. You've had worse.",
                 [
                     new EventResult("You flex your hand and continue. It'll bruise.", 0.70, 0)
-                        .Damage(2, DamageType.Blunt, "snare mechanism"),
+                        .Damage(2, DamageType.Blunt),
                     new EventResult("Pushing through makes it worse. Should have stopped.", 0.30, 0)
-                        .Damage(5, DamageType.Blunt, "snare mechanism")
+                        .Damage(5, DamageType.Blunt)
                         .WithEffects(EffectFactory.Pain(0.2))
                 ]);
     }

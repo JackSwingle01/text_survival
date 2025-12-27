@@ -176,7 +176,7 @@ public class EffectRegistry
         {
             if (e.Damage is null) continue;
             var target = e.TargetBodyPart ?? Bodies.BodyTarget.Random;
-            var damage = new DamageInfo(e.Damage.PerHour / 60 * e.Severity, e.Damage.Type, source: null, target: target);
+            var damage = new DamageInfo(e.Damage.PerHour / 60 * e.Severity, e.Damage.Type, target: target);
             damages.Add(damage);
         }
         return damages;

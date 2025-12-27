@@ -149,6 +149,22 @@ public static class DiscoverySelector
     }
 
     /// <summary>
+    /// Select a material discovery variant (crafting materials).
+    /// </summary>
+    public static DiscoveryVariant SelectMaterialDiscovery(GameContext ctx)
+    {
+        return DiscoveryVariants.MaterialFinds[Random.Shared.Next(DiscoveryVariants.MaterialFinds.Length)];
+    }
+
+    /// <summary>
+    /// Select a bone discovery variant.
+    /// </summary>
+    public static DiscoveryVariant SelectBoneDiscovery(GameContext ctx)
+    {
+        return DiscoveryVariants.BoneFinds[Random.Shared.Next(DiscoveryVariants.BoneFinds.Length)];
+    }
+
+    /// <summary>
     /// Select a camp remnant discovery variant.
     /// </summary>
     public static DiscoveryVariant SelectCampDiscovery(GameContext ctx)
@@ -183,6 +199,14 @@ public static class DiscoverySelector
     public static DiscoveryVariant SelectGameDiscovery(GameContext ctx)
     {
         return DiscoveryVariants.SmallGameFinds[Random.Shared.Next(DiscoveryVariants.SmallGameFinds.Length)];
+    }
+
+    /// <summary>
+    /// Select a hide/leather scrap discovery variant.
+    /// </summary>
+    public static DiscoveryVariant SelectHideDiscovery(GameContext ctx)
+    {
+        return DiscoveryVariants.HideFinds[Random.Shared.Next(DiscoveryVariants.HideFinds.Length)];
     }
 
     private static DiscoveryVariant SelectWeighted(List<(DiscoveryVariant variant, double weight)> pool)

@@ -1,3 +1,4 @@
+using text_survival.Actions.Variants;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -9,6 +10,8 @@ public static partial class GameEventRegistry
 {
     private static GameEvent VerminRaid(GameContext ctx)
     {
+        var biteVariant = VariantSelector.SelectVerminBite(ctx);
+
         return new GameEvent("Vermin Raid",
             "Scratching from your supply cache. Something small has found your food stores.", 1.0)
             .Requires(EventCondition.AtCamp, EventCondition.HasFood, EventCondition.Awake)
@@ -51,9 +54,9 @@ public static partial class GameEventRegistry
                         .Costs(ResourceType.Food, 1),
                     new EventResult("You destroy some supplies in the attempt.", 0.15, 10)
                         .Costs(ResourceType.Food, 2),
-                    new EventResult("It bites you before dying. The puncture bleeds freely.", 0.05, 5)
-                        .Damage(4, DamageType.Pierce, "rodent bite")
-                        .CreateTension("WoundUntreated", 0.2, description: "hand")
+                    new EventResult($"{biteVariant.Description} The puncture bleeds freely.", 0.05, 5)
+                        .DamageWithVariant(biteVariant)
+                        .CreateTension("WoundUntreated", 0.2, description: biteVariant.GetDisplayName(ctx.player.Body))
                 ])
             .Choice("Ignore It",
                 "Not worth the effort right now.",
@@ -141,7 +144,7 @@ public static partial class GameEventRegistry
                     new EventResult("You redirect the smoke. Much better.", 0.15, 20)
                         .WithEffects(EffectFactory.Coughing(0.2, 30)),
                     new EventResult("You pass out briefly from the smoke.", 0.05, 10)
-                        .Damage(5, DamageType.Internal, "smoke inhalation")
+                        .Damage(5, DamageType.Internal)
                         .WithEffects(EffectFactory.Coughing(0.7, 120))
                 ])
             .Choice("Evacuate Temporarily",
@@ -156,6 +159,8 @@ public static partial class GameEventRegistry
 
     private static GameEvent EmbersScatter(GameContext ctx)
     {
+        var burnVariant = VariantSelector.SelectEmberBurn(ctx);
+
         return new GameEvent("Embers Scatter",
             "A gust catches the dying fire. Embers scatter across your camp.", 0.6)
             .Requires(EventCondition.AtCamp, EventCondition.FireBurning, EventCondition.IsCampWork)
@@ -163,8 +168,8 @@ public static partial class GameEventRegistry
             .Choice("Stomp Them Out",
                 "Quick! Before something catches fire.",
                 [
-                    new EventResult("Quick response. Minor burns to your feet.", 0.60, 3)
-                        .Damage(2, DamageType.Burn, "embers")
+                    new EventResult($"Quick response. {burnVariant.Description}", 0.60, 3)
+                        .DamageWithVariant(burnVariant)
                         .WithEffects(EffectFactory.Burn(0.2, 60)),
                     new EventResult("All contained, no harm.", 0.30, 5),
                     new EventResult("You miss one. Something catches fire — you lose some supplies.", 0.10, 8)

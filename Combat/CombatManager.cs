@@ -129,7 +129,6 @@ public class CombatManager
 
         DamageInfo damageInfo = new(
             amount: damage,
-            source: Owner.Name,
             type: damageType
         );
 

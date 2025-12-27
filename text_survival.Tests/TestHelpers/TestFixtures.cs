@@ -103,7 +103,7 @@ public static class TestFixtures
         DamageType damageType = DamageType.Blunt,
         BodyTarget target = BodyTarget.Random)
     {
-        return new DamageInfo(amount, damageType, source: null, target: target);
+        return new DamageInfo(amount, damageType, target: target);
     }
 
     /// <summary>

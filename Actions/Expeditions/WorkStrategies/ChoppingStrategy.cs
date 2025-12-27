@@ -82,6 +82,8 @@ public class ChoppingStrategy : IWorkStrategy
 
     public string GetActivityName() => "chopping wood";
 
+    public bool AllowedInDarkness => false;
+
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
         var feature = location.GetFeature<WoodedAreaFeature>()!;

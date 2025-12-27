@@ -47,6 +47,8 @@ public static partial class GameEventRegistry
 
     private static GameEvent SomethingCatchesYourEye(GameContext ctx)
     {
+        var campDiscovery = DiscoverySelector.SelectCampDiscovery(ctx);
+
         return new GameEvent("Something Catches Your Eye",
             "Movement in your peripheral vision — or was it just a shape that doesn't belong? Something about the landscape ahead seems worth a closer look.", 1.5)
             .Requires(EventCondition.Working, EventCondition.IsExpedition)
@@ -57,8 +59,8 @@ public static partial class GameEventRegistry
                     new EventResult("Nothing. Just shadows and your imagination.", 0.4, 12),
                     new EventResult("You find some useful materials partially buried in the snow.", 0.35, 15)
                         .FindsSupplies(),
-                    new EventResult("Signs of an old campsite. Someone was here before — they left in a hurry.", 0.15, 20)
-                        .Rewards(RewardPool.AbandonedCamp),
+                    new EventResult(campDiscovery.Description, 0.15, 20)
+                        .WithDiscovery(campDiscovery),
                     new EventResult("A cache, deliberately hidden. Whoever left this isn't coming back.", 0.1, 10)
                         .FindsCache()
                 ])
@@ -130,7 +132,7 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.BoneHarvest),
                     new EventResult("Nothing but charred debris.", 0.10, 5),
                     new EventResult("Cut yourself on something sharp.", 0.05, 5)
-                        .Damage(3, DamageType.Sharp, "sharp debris")
+                        .Damage(3, DamageType.Sharp)
                 ])
             .Choice("Stir the Ashes",
                 "Quick search, less careful.",
@@ -139,7 +141,7 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.TinderBundle),
                     new EventResult("Nothing useful.", 0.40, 3),
                     new EventResult("Scatter embers. Minor hazard.", 0.15, 5)
-                        .Damage(1, DamageType.Burn, "ember burn")
+                        .Damage(1, DamageType.Burn)
                         .WithEffects(EffectFactory.Burn(0.1, 30))
                 ])
             .Choice("Ignore",
@@ -187,7 +189,7 @@ public static partial class GameEventRegistry
                     new EventResult("A few sticks they left stacked.", 0.20, 10)
                         .FindsSupplies(),
                     new EventResult("Cut yourself on hidden debris.", 0.05, 8)
-                        .Damage(4, DamageType.Sharp, "debris")
+                        .Damage(4, DamageType.Sharp)
                         .CreateTension("WoundUntreated", 0.2, description: "hand")
                 ])
             .Choice("Keep Distance",
@@ -239,20 +241,25 @@ public static partial class GameEventRegistry
 
     private static GameEvent UnexpectedYield(GameContext ctx)
     {
+        var materialDiscovery = DiscoverySelector.SelectMaterialDiscovery(ctx);
+        var tinderDiscovery = DiscoverySelector.SelectTinderDiscovery(ctx);
+        var boneDiscovery = DiscoverySelector.SelectBoneDiscovery(ctx);
+        var hideDiscovery = DiscoverySelector.SelectHideDiscovery(ctx);
+
         return new GameEvent("Unexpected Yield",
             "As you work, you notice something useful you almost missed.", 0.8)
             .Requires(EventCondition.Working, EventCondition.IsExpedition)
             .Choice("Take It",
                 "A lucky find.",
                 [
-                    new EventResult("Extra materials found. Lucky day.", 0.50, 5)
-                        .Rewards(RewardPool.CraftingMaterials),
-                    new EventResult("Quality tinder in unexpected place.", 0.25, 3)
-                        .Rewards(RewardPool.TinderBundle),
-                    new EventResult("Usable bone fragment.", 0.15, 5)
-                        .Rewards(RewardPool.BoneHarvest),
-                    new EventResult("A scrap of hide, still usable.", 0.10, 5)
-                        .Rewards(RewardPool.HideScrap)
+                    new EventResult(materialDiscovery.Description, 0.50, 5)
+                        .WithDiscovery(materialDiscovery),
+                    new EventResult(tinderDiscovery.Description, 0.25, 3)
+                        .WithDiscovery(tinderDiscovery),
+                    new EventResult(boneDiscovery.Description, 0.15, 5)
+                        .WithDiscovery(boneDiscovery),
+                    new EventResult(hideDiscovery.Description, 0.10, 5)
+                        .WithDiscovery(hideDiscovery)
                 ])
             .Choice("Leave It",
                 "You're focused. Stay on task.",
@@ -275,7 +282,7 @@ public static partial class GameEventRegistry
                     new EventResult("Longer than expected. Wind brutal.", 0.30, 10)
                         .WithCold(-15, 30),
                     new EventResult("Stumble in wind. Fall.", 0.15, 8)
-                        .Damage(4, DamageType.Blunt, "fall")
+                        .Damage(4, DamageType.Blunt)
                         .ModerateCold(),
                     new EventResult("Wind knocks you down. Disoriented.", 0.10, 15)
                         .ModerateFall()
@@ -306,7 +313,7 @@ public static partial class GameEventRegistry
                         .ModerateCold(),
                     new EventResult("Sparks in wind. Burn yourself.", 0.10, 10)
                         .BurnsFuel(2)
-                        .Damage(3, DamageType.Burn, "ember burn")
+                        .Damage(3, DamageType.Burn)
                         .WithEffects(EffectFactory.Burn(0.2, 45))
                 ],
                 requires: [EventCondition.HasFuelPlenty])
@@ -697,7 +704,7 @@ public static partial class GameEventRegistry
                         .BecomeStalked(0.2),
                     new EventResult("The undergrowth scratches and tears. Minor wounds.", 0.15, 22)
                         .FindsSupplies()
-                        .Damage(2, DamageType.Sharp, "thorns"),
+                        .Damage(2, DamageType.Sharp),
                     new EventResult("You disturb a nest. Something angry emerges.", 0.10, 15)
                         .Encounter(territory?.GetRandomAnimalName() ?? "Fox", 15, 0.4)
                 ])

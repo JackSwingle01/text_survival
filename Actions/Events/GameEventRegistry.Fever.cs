@@ -262,7 +262,7 @@ public static partial class GameEventRegistry
                             .WithEffects(EffectFactory.Exhausted(0.8, 300), EffectFactory.Fever(0.2)),
                         new EventResult("Touch and go. But you survive. Barely.", weight: 0.10, minutes: 300)
                             .ResolveTension("FeverRising")
-                            .Damage(5, DamageType.Internal, "fever complications")
+                            .Damage(5, DamageType.Internal)
                             .WithEffects(EffectFactory.Exhausted(0.9, 360))
                     ]
                     : [
@@ -271,9 +271,9 @@ public static partial class GameEventRegistry
                             .WithEffects(EffectFactory.Exhausted(0.8, 300)),
                         new EventResult("Fever holds. You're in trouble.", weight: 0.40, minutes: 180)
                             .WithEffects(EffectFactory.Fever(0.7))
-                            .Damage(8, DamageType.Internal, "severe fever"),
+                            .Damage(8, DamageType.Internal),
                         new EventResult("Critical. Your body is failing.", weight: 0.30, minutes: 120)
-                            .Damage(15, DamageType.Internal, "fever crisis")
+                            .Damage(15, DamageType.Internal)
                             .WithEffects(EffectFactory.Fever(0.8))
                     ])
             .Choice("Herbal Treatment",
@@ -301,10 +301,10 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Exhausted(0.9, 480)),
                     new EventResult("Darkness. Cold. Then warmth. You survive. Barely.", weight: 0.35, minutes: 300)
                         .ResolveTension("FeverRising")
-                        .Damage(10, DamageType.Internal, "severe fever")
+                        .Damage(10, DamageType.Internal)
                         .WithEffects(EffectFactory.Exhausted(0.95, 420)),
                     new EventResult("The darkness takes you. Is this the end?", weight: 0.25, minutes: 240)
-                        .Damage(20, DamageType.Internal, "fever crisis")
+                        .Damage(20, DamageType.Internal)
                         .WithEffects(EffectFactory.Fever(0.9))
                 ]);
     }

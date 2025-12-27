@@ -70,6 +70,8 @@ public class CraftingProjectStrategy : IWorkStrategy
 
     public string GetActivityName() => "constructing";
 
+    public bool AllowedInDarkness => false;
+
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
         var project = location.GetFeature<CraftingProjectFeature>()!;

@@ -51,7 +51,7 @@ public static partial class GameEventRegistry
                     new EventResult("Your foot breaks through. Icy water floods your boot.", 0.20, 12)
                         .WithEffects(EffectFactory.Wet(0.6))
                         .ModerateCold()
-                        .Damage(2, DamageType.Blunt, "ice edge"),
+                        .Damage(2, DamageType.Blunt),
                     new EventResult("The ice gives way. You plunge into freezing water.", 0.10, 18)
                         .WithEffects(EffectFactory.Wet(1.0))
                         .WithCold(-25, 90)

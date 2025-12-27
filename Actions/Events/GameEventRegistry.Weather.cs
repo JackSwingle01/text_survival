@@ -138,7 +138,7 @@ public static partial class GameEventRegistry
                         .ModerateFrostbite()
                         .BurnsFuel(2),
                     new EventResult("The attempt makes things worse. Wet hands in extreme cold.", 0.05, 20)
-                        .Damage(10, DamageType.Internal, "frostbite")
+                        .Damage(10, DamageType.Internal)
                         .BurnsFuel(1)
                 ]);
     }

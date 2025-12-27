@@ -35,6 +35,8 @@ public class CacheStrategy : IWorkStrategy
 
     public string GetActivityName() => "cache";
 
+    public bool AllowedInDarkness => false;
+
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
         var cache = location.GetFeature<CacheFeature>()!;

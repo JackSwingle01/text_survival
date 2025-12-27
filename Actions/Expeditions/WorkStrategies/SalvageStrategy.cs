@@ -50,6 +50,8 @@ public class SalvageStrategy : IWorkStrategy
 
     public string GetActivityName() => "salvaging";
 
+    public bool AllowedInDarkness => false;
+
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
         var salvage = location.GetFeature<SalvageFeature>()!;

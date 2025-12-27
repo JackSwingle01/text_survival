@@ -61,6 +61,8 @@ public class HuntStrategy : IWorkStrategy
 
     public string GetActivityName() => "hunting";
 
+    public bool AllowedInDarkness => false;
+
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
         var territory = location.GetFeature<AnimalTerritoryFeature>()!;
