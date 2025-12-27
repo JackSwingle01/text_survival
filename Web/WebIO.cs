@@ -184,8 +184,10 @@ public static class WebIO
                 }
             }
 
-            // Action not available in current menu - wait for another response
+            // Action not available in current menu - clear overlays and wait for another response
             // (resend the frame and wait again)
+            ClearInventory(ctx);
+            ClearCrafting(ctx);
             inputId = session.GenerateInputId();
             frame = new WebFrame(
                 GameStateDto.FromContext(ctx),

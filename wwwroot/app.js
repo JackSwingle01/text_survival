@@ -70,20 +70,24 @@ class GameClient {
     updateQuickActionStates(choices) {
         const inventoryBtn = document.getElementById('inventoryBtn');
         const craftingBtn = document.getElementById('craftingBtn');
+        const storageBtn = document.getElementById('storageBtn');
 
         if (!choices || choices.length === 0) {
-            // No choices available - disable both
+            // No choices available - disable all
             if (inventoryBtn) inventoryBtn.disabled = true;
             if (craftingBtn) craftingBtn.disabled = true;
+            if (storageBtn) storageBtn.disabled = true;
             return;
         }
 
-        // Check if Inventory/Crafting are in the available choices
+        // Check if Inventory/Crafting/Storage are in the available choices
         const hasInventory = choices.some(c => c.label.includes('Inventory'));
         const hasCrafting = choices.some(c => c.label.includes('Crafting'));
+        const hasStorage = choices.some(c => c.label.includes('Storage'));
 
         if (inventoryBtn) inventoryBtn.disabled = !hasInventory;
         if (craftingBtn) craftingBtn.disabled = !hasCrafting;
+        if (storageBtn) storageBtn.disabled = !hasStorage;
     }
 
     connect() {
