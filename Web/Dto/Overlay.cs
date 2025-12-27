@@ -11,6 +11,7 @@ namespace text_survival.Web.Dto;
 [JsonDerivedType(typeof(CraftingOverlay), "crafting")]
 [JsonDerivedType(typeof(EventOverlay), "event")]
 [JsonDerivedType(typeof(HazardOverlay), "hazard")]
+[JsonDerivedType(typeof(ConfirmOverlay), "confirm")]
 public abstract record Overlay;
 
 /// <summary>
@@ -34,6 +35,11 @@ public record EventOverlay(EventDto Data) : Overlay;
 public record HazardOverlay(HazardPromptDto Data) : Overlay;
 
 /// <summary>
+/// Confirm overlay: Simple yes/no confirmation prompt.
+/// </summary>
+public record ConfirmOverlay(string Prompt) : Overlay;
+
+/// <summary>
 /// Event data for popup display.
 /// When Outcome is non-null and Choices is empty, the popup shows the outcome phase.
 /// </summary>
@@ -42,6 +48,16 @@ public record EventDto(
     string Description,
     List<EventChoiceDto> Choices,
     EventOutcomeDto? Outcome = null
+);
+
+/// <summary>
+/// Stat changes during work or events.
+/// </summary>
+public record StatsDeltaDto(
+    double EnergyDelta,
+    double CaloriesDelta,
+    double HydrationDelta,
+    double TemperatureDelta
 );
 
 /// <summary>
@@ -54,13 +70,15 @@ public record EventOutcomeDto(
     List<string> DamageTaken,
     List<string> ItemsGained,
     List<string> ItemsLost,
-    List<string> TensionsChanged
+    List<string> TensionsChanged,
+    StatsDeltaDto? StatsDelta = null
 );
 
 /// <summary>
 /// A choice option within an event popup.
 /// </summary>
 public record EventChoiceDto(
+    string Id,
     string Label,
     string Description,
     bool IsAvailable

@@ -115,7 +115,7 @@ public class WebGameSession
             }
 
             // Connected timeout - return default selection (player chose not to respond)
-            return new PlayerResponse(0);
+            return new PlayerResponse(null);
         }
         catch (OperationCanceledException)
         {

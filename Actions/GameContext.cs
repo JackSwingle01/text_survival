@@ -75,6 +75,10 @@ public class GameContext(Player player, Location camp, Weather weather)
     /// <summary>Current activity for event condition checks.</summary>
     public ActivityType CurrentActivity { get; private set; } = ActivityType.Idle;
 
+    /// <summary>Snapshot of stats before work for delta display in work results.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public (double Energy, double Calories, double Hydration, double Temp)? StatsBeforeWork { get; set; }
+
     /// <summary>Encounter queued by an event, handled internally by Update().</summary>
     private EncounterConfig? _pendingEncounter;
 

@@ -959,6 +959,234 @@ public static class LocationFactory
         return location;
     }
 
+    // === NEW NATURAL LOCATIONS ===
+
+    /// <summary>
+    /// Peat Bog - resource hub with finite slow-burning fuel.
+    /// High hazard terrain with exceptional fuel reward.
+    /// </summary>
+    public static Location MakePeatBog(Weather weather)
+    {
+        var location = new Location(
+            name: "Peat Bog",
+            tags: "[Marsh] [Fuel] [Treacherous]",
+            weather: weather,
+            traversalMinutes: 18,
+            terrainHazardLevel: 0.55,
+            windFactor: 0.5,
+            overheadCoverLevel: 0.1,
+            visibilityFactor: 0.7)
+        {
+            DiscoveryText = "Dark water glints between mounds of spongy earth. The smell is old — ancient rot preserved in cold. Beneath the surface, centuries of compressed plant matter.",
+            FirstVisitEvent = GameEventRegistry.FirstVisitPeatBog
+        };
+
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 1.0));
+        location.Features.Add(FeatureFactory.CreateWaterfowlAnimals(density: 0.6));
+
+        // Peat extraction - finite exceptional fuel (unique, keep inline)
+        var peatBed = new HarvestableFeature("peat_bed", "Peat Bed")
+        {
+            Description = "Dark compressed plant matter. Burns slow and hot — if you can dig it out.",
+            MinutesToHarvest = 20
+        };
+        peatBed.AddResource("peat blocks", Resource.Peat, maxQuantity: 15, weightPerUnit: 2.0, respawnHoursPerUnit: 0);
+        location.Features.Add(peatBed);
+
+        var bogPools = new WaterFeature("bog_pools", "Bog Pools")
+            .WithDescription("Dark water between the mounds. Thin ice, uncertain depth.")
+            .WithIceThickness(0.15);
+        location.Features.Add(bogPools);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Ice Shelf - tactical location combining escape terrain and vantage.
+    /// Brutal wind exposure creates tradeoff: safe from predators but freezing.
+    /// </summary>
+    public static Location MakeIceShelf(Weather weather)
+    {
+        var location = new Location(
+            name: "Ice Shelf",
+            tags: "[Ice] [Vantage] [Exposed]",
+            weather: weather,
+            traversalMinutes: 16,
+            terrainHazardLevel: 0.40,
+            windFactor: 1.4,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.8)
+        {
+            DiscoveryText = "A massive tongue of ice projects from the hillside — a frozen waterfall locked in time. The top is flat, wind-scoured. Nothing can approach unseen from below.",
+            IsEscapeTerrain = true,
+            IsVantagePoint = true,
+            ClimbRiskFactor = 0.35,
+            FirstVisitEvent = GameEventRegistry.FirstVisitIceShelf
+        };
+
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.2));
+
+        var iceFace = new WaterFeature("ice_face", "Ice Face")
+            .WithDescription("Solid ice. Harvestable for water if you have tools.")
+            .AsSolidIce();
+        location.Features.Add(iceFace);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Bone Hollow - narrative anchor with mammoth graveyard.
+    /// Premium materials (bone, ivory) and natural shelter create forward camp potential.
+    /// </summary>
+    public static Location MakeBoneHollow(Weather weather)
+    {
+        var location = new Location(
+            name: "Bone Hollow",
+            tags: "[Bones] [Sheltered] [Ancient]",
+            weather: weather,
+            traversalMinutes: 22,
+            terrainHazardLevel: 0.25,
+            windFactor: 0.3,
+            overheadCoverLevel: 0.2,
+            visibilityFactor: 0.4)
+        {
+            DiscoveryText = "The ravine narrows, then opens into a hollow. Bones everywhere — tusks, ribs, skulls larger than your torso. Mammoths. A dozen of them, maybe more. They came here to die.",
+            ClimbRiskFactor = 0.15,
+            FirstVisitEvent = GameEventRegistry.FirstVisitBoneHollow
+        };
+
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.3));
+
+        // Ancient bones - premium crafting materials (unique, keep inline)
+        var ancientBones = new HarvestableFeature("ancient_bones", "Ancient Bones")
+        {
+            Description = "Mammoth remains. Large bones for tools, ivory for crafting. The ground is thick with them.",
+            MinutesToHarvest = 15
+        };
+        ancientBones.AddResource("large bones", Resource.Bone, maxQuantity: 20, weightPerUnit: 1.5, respawnHoursPerUnit: 0);
+        ancientBones.AddResource("ivory", Resource.Ivory, maxQuantity: 8, weightPerUnit: 2.0, respawnHoursPerUnit: 0);
+        location.Features.Add(ancientBones);
+
+        // Natural shelter from mammoth ribs
+        location.Features.Add(new ShelterFeature("Rib Arch", 0.35, 0.4, 0.5));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Wind Gap - environmental challenge. Dangerous shortcut through mountain notch.
+    /// Risk/reward based entirely on player condition.
+    /// </summary>
+    public static Location MakeWindGap(Weather weather)
+    {
+        var location = new Location(
+            name: "Wind Gap",
+            tags: "[Mountain] [Exposed] [Shortcut]",
+            weather: weather,
+            traversalMinutes: 25,
+            terrainHazardLevel: 0.70,
+            windFactor: 2.5,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 0.3)
+        {
+            DiscoveryText = "A notch in the ridge where wind funnels through with terrifying force. The snow is scoured to bare rock. But beyond — a whole section of the valley you couldn't reach otherwise.",
+            TemperatureDeltaF = -8,
+            FirstVisitEvent = GameEventRegistry.FirstVisitWindGap
+        };
+
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.2));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Snowfield Hollow - natural funnel for small game. Trapping-focused location.
+    /// Exceptional small game density in exposed conditions.
+    /// </summary>
+    public static Location MakeSnowfieldHollow(Weather weather)
+    {
+        var location = new Location(
+            name: "Snowfield Hollow",
+            tags: "[Trapping] [Open] [Snow]",
+            weather: weather,
+            traversalMinutes: 14,
+            terrainHazardLevel: 0.15,
+            windFactor: 0.9,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.3)
+        {
+            DiscoveryText = "A shallow bowl in the plain, ringed by low rises. Snow drifts pile against the windward side, leaving channels of bare ground. Small tracks crisscross everywhere — animals funnel through here to cross between sheltered areas.",
+            FirstVisitEvent = GameEventRegistry.FirstVisitSnowfieldHollow
+        };
+
+        // Sparse foraging - animals strip this area clean
+        var forage = new ForageFeature(0.4)
+            .AddSticks(0.3, 0.1, 0.25)
+            .AddPlantFiber(0.4, 0.05, 0.12)
+            .AddBone(0.15, 0.1, 0.3)
+            .AddTinder(0.2, 0.01, 0.04);
+        location.Features.Add(forage);
+
+        // Exceptional small game - the core draw for trappers
+        var animals = new AnimalTerritoryFeature(1.4)
+            .AddRabbit(2.0)
+            .AddPtarmigan(1.5)
+            .AddFox(0.6)
+            .WithPeakHours(5, 8, 2.0);
+        location.Features.Add(animals);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Sun-Warmed Cliff - south-facing stone that absorbs solar heat.
+    /// Conditional warmth based on time of day and weather. Ptarmigan habitat.
+    /// </summary>
+    public static Location MakeSunWarmedCliff(Weather weather)
+    {
+        var location = new Location(
+            name: "Sun-Warmed Cliff",
+            tags: "[Stone] [Warm] [Exposed]",
+            weather: weather,
+            traversalMinutes: 15,
+            terrainHazardLevel: 0.30,
+            windFactor: 0.5,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.3)
+        {
+            DiscoveryText = "South-facing stone, dark and bare. The rock drinks sunlight and holds it. In the midday glare, the cliff radiates warmth — you can feel it from ten paces.",
+            TemperatureDeltaF = 5,  // Thermal mass warmth (sun adds up to +10 via existing system)
+            ClimbRiskFactor = 0.2,
+            FirstVisitEvent = GameEventRegistry.FirstVisitSunWarmedCliff
+        };
+
+        // Sparse foraging - stone and bone from animals sheltering here
+        var forage = new ForageFeature(0.6)
+            .AddStone(0.8, 0.2, 0.4)
+            .AddBone(0.2, 0.1, 0.3)
+            .AddTinder(0.3, 0.02, 0.05);
+        location.Features.Add(forage);
+
+        // Ptarmigan-focused hunting - birds sun themselves on warm rocks
+        var animals = new AnimalTerritoryFeature(0.7)
+            .AddPtarmigan(1.5)
+            .AddRabbit(1.0)
+            .AddFox(0.4)
+            .WithPeakHours(6, 9, 1.8);
+        location.Features.Add(animals);
+
+        // Quality stone slabs for tool-making
+        var cliffStone = new HarvestableFeature("cliff_stone", "Cliff Face Stone")
+        {
+            Description = "Flat slabs of quality stone, fractured by freeze-thaw. Good for tools.",
+            MinutesToHarvest = 15
+        };
+        cliffStone.AddResource("stone slabs", Resource.Stone, maxQuantity: 6, weightPerUnit: 1.5, respawnHoursPerUnit: 0);
+        location.Features.Add(cliffStone);
+
+        return location;
+    }
+
     #endregion
 
     #region Mountain Pass Factories

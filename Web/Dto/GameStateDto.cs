@@ -60,6 +60,9 @@ public record GameStateDto
     public string FuelBurnTime { get; init; } = "";
     public GearSummaryDto? GearSummary { get; init; }
 
+    // Storage availability
+    public bool HasStorage { get; init; }
+
     // Narrative log
     public List<LogEntryDto> Log { get; init; } = [];
 
@@ -176,6 +179,9 @@ public record GameStateDto
                 ? $"{(int)inventory.TorchBurnTimeRemainingMinutes / 60}hrs"
                 : $"{(int)inventory.TorchBurnTimeRemainingMinutes}min",
             GearSummary = ComputeGearSummary(inventory),
+
+            // Storage - available when current location has a cache
+            HasStorage = location.GetFeature<CacheFeature>() != null,
 
             // Narrative
             Log = logEntries,

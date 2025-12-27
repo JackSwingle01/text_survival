@@ -15,7 +15,7 @@ public enum ResourceCategory
 public enum Resource
 {
     // Fuel (wood types: Pine, Birch, Oak are also logs)
-    Stick, Pine, Birch, Oak,
+    Stick, Pine, Birch, Oak, Peat,
 
     // Tinder
     Tinder, BirchBark,
@@ -25,7 +25,7 @@ public enum Resource
 
     // Materials
     Stone, Bone, Hide, PlantFiber, Sinew, Shale, Flint, Pyrite,
-    ScrapedHide, CuredHide, RawFiber, RawFat, Tallow, Charcoal, Rope,
+    ScrapedHide, CuredHide, RawFiber, RawFat, Tallow, Charcoal, Rope, Ivory,
 
     // Medicine
     BirchPolypore, Chaga, Amadou, RoseHip, JuniperBerry,
@@ -39,7 +39,7 @@ public static class ResourceCategories
         [ResourceCategory.Fuel] = new()
         {
             Resource.Stick, Resource.Tinder,
-            Resource.Pine, Resource.Birch, Resource.Oak, Resource.BirchBark
+            Resource.Pine, Resource.Birch, Resource.Oak, Resource.BirchBark, Resource.Peat
         },
 
         [ResourceCategory.Log] = new()
@@ -70,7 +70,7 @@ public static class ResourceCategories
             Resource.Stone, Resource.Bone, Resource.Hide, Resource.PlantFiber,
             Resource.Sinew, Resource.Shale, Resource.Flint, Resource.Pyrite,
             Resource.ScrapedHide, Resource.CuredHide, Resource.RawFiber,
-            Resource.RawFat, Resource.Tallow, Resource.Charcoal, Resource.Rope
+            Resource.RawFat, Resource.Tallow, Resource.Charcoal, Resource.Rope, Resource.Ivory
         }
     };
 }

@@ -18,12 +18,17 @@ public record WebFrame(
 );
 
 /// <summary>
+/// A choice option with unique ID for reliable button identity.
+/// </summary>
+public record ChoiceDto(string Id, string Label);
+
+/// <summary>
 /// Request for player input.
 /// </summary>
 public record InputRequestDto(
     string Type,           // "select", "confirm", "anykey"
     string Prompt,
-    List<string>? Choices  // null for confirm/anykey
+    List<ChoiceDto>? Choices  // null for confirm/anykey
 );
 
 // ProgressDto removed - replaced by ProgressMode

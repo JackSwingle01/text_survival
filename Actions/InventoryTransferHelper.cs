@@ -13,9 +13,10 @@ public static class InventoryTransferHelper
     /// <summary>
     /// Run the full transfer menu loop - view toggle, store, retrieve.
     /// </summary>
-    public static void RunTransferMenu(GameContext ctx, Inventory storage, string storageName)
+    /// <param name="viewStorageFirst">If true, starts showing storage contents instead of player inventory.</param>
+    public static void RunTransferMenu(GameContext ctx, Inventory storage, string storageName, bool viewStorageFirst = false)
     {
-        bool viewingStorage = false;
+        bool viewingStorage = viewStorageFirst;
 
         while (true)
         {

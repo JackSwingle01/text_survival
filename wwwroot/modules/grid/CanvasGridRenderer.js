@@ -10,7 +10,7 @@ export class CanvasGridRenderer {
         this.onTileClick = null;
 
         // Grid settings
-        this.TILE_SIZE = 80;
+        this.TILE_SIZE = 100;
         this.GAP = 3;
         this.VIEW_SIZE = 7;
 

@@ -323,7 +323,7 @@ public static partial class GameEventRegistry
                 evt.Name,
                 evt.Description,
                 evt.GetAvailableChoices(ctx)
-                    .Select(c => new EventChoiceDto(c.Label, c.Description, true))
+                    .Select((c, i) => new EventChoiceDto($"choice_{i}", c.Label, c.Description, true))
                     .ToList()
             );
             WebIO.RenderEvent(ctx, eventDto);

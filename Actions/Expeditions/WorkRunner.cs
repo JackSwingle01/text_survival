@@ -85,6 +85,14 @@ public class WorkRunner(GameContext ctx)
             GameDisplay.AddWarning(_ctx, warning);
         }
 
+        // Capture stats before work for delta display
+        _ctx.StatsBeforeWork = (
+            _ctx.player.Body.Energy,
+            _ctx.player.Body.CalorieStore,
+            _ctx.player.Body.Hydration,
+            _ctx.player.Body.BodyTemperature
+        );
+
         // Run work with time passage (if time > 0)
         int actualTime = adjustedTime;
         if (adjustedTime > 0)

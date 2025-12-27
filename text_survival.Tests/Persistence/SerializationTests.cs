@@ -50,6 +50,22 @@ public class SerializationTests
     }
 
     [Fact]
+    public void SerializeDeserialize_LocationExplored_PreservesState()
+    {
+        // Arrange
+        var ctx = GameContext.CreateNewGame();
+        Assert.True(ctx.Camp.Explored, "Camp should start explored");
+
+        // Act
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert
+        Assert.NotNull(deserialized);
+        Assert.True(deserialized.Camp.Explored, "Camp Explored state should survive serialization");
+    }
+
+    [Fact]
     public void SerializeDeserialize_FullGameState_PreservesAllCriticalData()
     {
         // Arrange - Create game with diverse state

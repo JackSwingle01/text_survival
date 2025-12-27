@@ -60,7 +60,15 @@ public class GridWorldGenerator
 
         // Tier 4 locations
         (LocationFactory.MakeTheLookout, 0.8),
-        (LocationFactory.MakeOldCampsite, 0.6)
+        (LocationFactory.MakeOldCampsite, 0.6),
+
+        // New natural locations
+        (LocationFactory.MakePeatBog, 4.0),
+        (LocationFactory.MakeIceShelf, 4.0),
+        (LocationFactory.MakeBoneHollow, 3.5),
+        (LocationFactory.MakeWindGap, 3.5),
+        (LocationFactory.MakeSnowfieldHollow, 4.0),
+        (LocationFactory.MakeSunWarmedCliff, 4.0)
     ];
 
     /// <summary>

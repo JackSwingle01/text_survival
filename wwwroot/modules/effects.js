@@ -121,7 +121,7 @@ export const EffectsDisplay = {
             div.textContent = 'Blood loss ';
             const pctSpan = document.createElement('span');
             pctSpan.className = 'injury-pct';
-            pctSpan.textContent = `(${bloodPercent}%)`;
+            pctSpan.textContent = `(${100 - bloodPercent}%)`;
             div.appendChild(pctSpan);
 
             // Blood loss tooltip
@@ -141,7 +141,7 @@ export const EffectsDisplay = {
                 div.textContent = label;
                 const pctSpan = document.createElement('span');
                 pctSpan.className = 'injury-pct';
-                pctSpan.textContent = `(${i.conditionPercent}%)`;
+                pctSpan.textContent = `(${100 - i.conditionPercent}%)`;
                 div.appendChild(pctSpan);
 
                 // Add tooltip for affected capacities

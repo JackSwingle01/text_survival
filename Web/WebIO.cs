@@ -1,6 +1,7 @@
 using text_survival.Actions;
 using text_survival.Crafting;
 using text_survival.Environments;
+using text_survival.Environments.Features;
 using text_survival.Web.Dto;
 
 namespace text_survival.Web;
@@ -16,6 +17,7 @@ public static class WebIO
     private static readonly Dictionary<string, CraftingDto> _currentCrafting = new();
     private static readonly Dictionary<string, EventDto> _currentEvent = new();
     private static readonly Dictionary<string, HazardPromptDto> _currentHazard = new();
+    private static readonly Dictionary<string, string> _currentConfirm = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -58,6 +60,8 @@ public static class WebIO
                 overlays.Add(new EventOverlay(evt));
             if (_currentHazard.TryGetValue(sessionId, out var hazard))
                 overlays.Add(new HazardOverlay(hazard));
+            if (_currentConfirm.TryGetValue(sessionId, out var confirm))
+                overlays.Add(new ConfirmOverlay(confirm));
         }
 
         return overlays;
@@ -100,6 +104,15 @@ public static class WebIO
     }
 
     /// <summary>
+    /// Clear the current confirm display for a session.
+    /// </summary>
+    public static void ClearConfirm(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentConfirm.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
     /// Present a selection menu and wait for player choice.
     /// </summary>
     public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices, Func<T, string> display)
@@ -110,17 +123,18 @@ public static class WebIO
         if (list.Count == 0)
             throw new ArgumentException("Choices cannot be empty", nameof(choices));
 
+        // Generate choices with IDs for reliable button identity
+        var choiceDtos = list.Select((item, i) => new ChoiceDto($"choice_{i}", display(item))).ToList();
+
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             GetCurrentMode(ctx),
             GetCurrentOverlays(ctx.SessionId),
-            new InputRequestDto("select", prompt, list.Select(display).ToList())
+            new InputRequestDto("select", prompt, choiceDtos)
         );
 
         session.Send(frame);
         var response = session.WaitForResponse(ResponseTimeout);
-
-        var displayList = list.Select(display).ToList();
 
         // Handle travel_to response: player clicked a map tile to start travel
         if (response.Type == "travel_to" && response.TargetX.HasValue && response.TargetY.HasValue)
@@ -128,20 +142,20 @@ public static class WebIO
             ctx.PendingTravelTarget = (response.TargetX.Value, response.TargetY.Value);
 
             // Find the "Travel" option in the list
-            for (int i = 0; i < displayList.Count; i++)
+            for (int i = 0; i < choiceDtos.Count; i++)
             {
-                if (displayList[i].Contains("Travel"))
+                if (choiceDtos[i].Label.Contains("Travel"))
                     return list[i];
             }
 
-            // No "Travel" option available - resend frame and wait for menu choice
-            // PendingTravelTarget is set; GameRunner will handle it on next loop
+            // No "Travel" option available - clear pending target and wait for another choice
+            ctx.PendingTravelTarget = null;
             session.Send(frame);
             response = session.WaitForResponse(ResponseTimeout);
             // Fall through to process the new response normally
         }
 
-        // Handle action response: player clicked persistent inventory/crafting button
+        // Handle action response: player clicked persistent inventory/crafting/storage button
         if (response.Type == "action" && !string.IsNullOrEmpty(response.Action))
         {
             // Map action names to menu option labels
@@ -149,14 +163,15 @@ public static class WebIO
             {
                 "inventory" => "Inventory",
                 "crafting" => "Crafting",
+                "storage" => "Storage",
                 _ => null
             };
 
             if (targetLabel != null)
             {
-                for (int i = 0; i < displayList.Count; i++)
+                for (int i = 0; i < choiceDtos.Count; i++)
                 {
-                    if (displayList[i].Contains(targetLabel))
+                    if (choiceDtos[i].Label.Contains(targetLabel))
                         return list[i];
                 }
             }
@@ -168,8 +183,56 @@ public static class WebIO
             // Fall through to process the new response normally
         }
 
-        int index = Math.Clamp(response.ChoiceIndex ?? 0, 0, list.Count - 1);
-        return list[index];
+        // Handle examine response: player clicked to examine an environmental detail
+        if (response.Type == "examine" && !string.IsNullOrEmpty(response.DetailId))
+        {
+            // Find the detail in the current location
+            var detail = ctx.CurrentLocation.Features
+                .OfType<EnvironmentalDetail>()
+                .FirstOrDefault(d => d.Id == response.DetailId);
+
+            if (detail != null && detail.CanInteract)
+            {
+                var (loot, examinationText) = detail.Interact();
+
+                // Log the examination result
+                if (examinationText != null)
+                {
+                    ctx.Log.Add(examinationText, UI.LogLevel.Normal);
+                }
+
+                // Add any loot to inventory
+                if (loot != null && !loot.IsEmpty)
+                {
+                    ctx.Log.Add($"  Found: {loot.GetDescription()}", UI.LogLevel.Normal);
+                    var leftovers = ctx.Inventory.CombineWithCapacity(loot);
+                    if (!leftovers.IsEmpty)
+                    {
+                        ctx.Log.Add($"  Your pack is full. Left behind: {leftovers.GetDescription()}", UI.LogLevel.Warning);
+                    }
+                }
+            }
+
+            // Resend frame with updated state and wait for another response
+            frame = new WebFrame(
+                GameStateDto.FromContext(ctx),
+                GetCurrentMode(ctx),
+                GetCurrentOverlays(ctx.SessionId),
+                new InputRequestDto("select", prompt, choiceDtos)
+            );
+            session.Send(frame);
+            response = session.WaitForResponse(ResponseTimeout);
+            // Fall through to process the new response normally
+        }
+
+        // Match by choice ID
+        var matchIndex = choiceDtos.FindIndex(c => c.Id == response.ChoiceId);
+        if (matchIndex < 0)
+        {
+            // Invalid choice ID - default to first option
+            matchIndex = 0;
+        }
+        return list[matchIndex];
     }
 
     /// <summary>
@@ -179,18 +242,24 @@ public static class WebIO
     {
         var session = GetSession(ctx);
 
+        // Set confirm overlay
+        if (ctx.SessionId != null)
+            _currentConfirm[ctx.SessionId] = prompt;
+
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             GetCurrentMode(ctx),
             GetCurrentOverlays(ctx.SessionId),
-            new InputRequestDto("confirm", prompt, null)
+            new InputRequestDto("confirm", prompt, [new ChoiceDto("yes", "Yes"), new ChoiceDto("no", "No")])
         );
 
         session.Send(frame);
         var response = session.WaitForResponse(ResponseTimeout);
 
-        // 0 = Yes, 1 = No (matches button order in frontend)
-        return response.ChoiceIndex == 0;
+        // Clear confirm overlay after response
+        ClearConfirm(ctx);
+
+        return response.ChoiceId == "yes";
     }
 
     /// <summary>
@@ -238,20 +307,28 @@ public static class WebIO
     {
         var session = GetSession(ctx);
 
-        var choices = Enumerable.Range(min, max - min + 1).Select(n => n.ToString()).ToList();
+        var numbers = Enumerable.Range(min, max - min + 1).ToList();
+        var choiceDtos = numbers.Select(n => new ChoiceDto($"num_{n}", n.ToString())).ToList();
 
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             GetCurrentMode(ctx),
             GetCurrentOverlays(ctx.SessionId),
-            new InputRequestDto("select", prompt, choices)
+            new InputRequestDto("select", prompt, choiceDtos)
         );
 
         session.Send(frame);
         var response = session.WaitForResponse(ResponseTimeout);
 
-        int index = Math.Clamp(response.ChoiceIndex ?? 0, 0, choices.Count - 1);
-        return min + index;
+        // Parse the number from the choice ID (format: "num_X")
+        if (response.ChoiceId != null && response.ChoiceId.StartsWith("num_"))
+        {
+            if (int.TryParse(response.ChoiceId[4..], out int result))
+                return result;
+        }
+
+        // Default to min if parsing fails
+        return min;
     }
 
     /// <summary>
@@ -390,7 +467,8 @@ public static class WebIO
             GameStateDto.FromContext(ctx),
             new TravelMode(GridStateDto.FromContext(ctx)),  // No hazard in mode
             GetCurrentOverlays(ctx.SessionId),              // Hazard is in overlays
-            new InputRequestDto("hazard_choice", $"Hazardous terrain: {hazardDescription}", ["Quick", "Careful"])
+            new InputRequestDto("hazard_choice", $"Hazardous terrain: {hazardDescription}",
+                [new ChoiceDto("quick", "Quick"), new ChoiceDto("careful", "Careful")])
         );
 
         session.Send(frame);
@@ -399,12 +477,11 @@ public static class WebIO
         // Clear hazard overlay after response
         ClearHazard(ctx);
 
-        // QuickTravel field takes precedence, fall back to ChoiceIndex
+        // QuickTravel field takes precedence, fall back to ChoiceId
         if (response.QuickTravel.HasValue)
             return response.QuickTravel.Value;
 
-        // ChoiceIndex: 0 = Quick, 1 = Careful
-        return response.ChoiceIndex == 0;
+        return response.ChoiceId == "quick";
     }
 
     /// <summary>
@@ -443,6 +520,20 @@ public static class WebIO
     /// </summary>
     public static void ShowWorkResult(GameContext ctx, string activityName, string message, List<string> itemsGained)
     {
+        // Calculate stats delta if snapshot exists
+        StatsDeltaDto? statsDelta = null;
+        if (ctx.StatsBeforeWork.HasValue)
+        {
+            var before = ctx.StatsBeforeWork.Value;
+            statsDelta = new StatsDeltaDto(
+                ctx.player.Body.Energy - before.Energy,
+                ctx.player.Body.CalorieStore - before.Calories,
+                ctx.player.Body.Hydration - before.Hydration,
+                ctx.player.Body.BodyTemperature - before.Temp
+            );
+            ctx.StatsBeforeWork = null; // Clear after use
+        }
+
         var outcome = new EventOutcomeDto(
             Message: message,
             TimeAddedMinutes: 0,
@@ -450,7 +541,8 @@ public static class WebIO
             DamageTaken: [],
             ItemsGained: itemsGained,
             ItemsLost: [],
-            TensionsChanged: []
+            TensionsChanged: [],
+            StatsDelta: statsDelta
         );
 
         var eventData = new EventDto(

@@ -104,10 +104,16 @@ public class CacheFeature : LocationFeature, IWorkableFeature
 
     /// <summary>
     /// Get work options for this feature.
+    /// Skip camp storage since it's accessed via the sidebar button.
     /// </summary>
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
         if (!CanBeAccessed) yield break;
+
+        // Skip camp storage - accessed via sidebar button instead
+        if (ctx.CurrentLocation == ctx.Camp && Name == "Camp Storage")
+            yield break;
+
         yield return new WorkOption(
             $"Access {Name} ({GetDescription()})",
             "cache",

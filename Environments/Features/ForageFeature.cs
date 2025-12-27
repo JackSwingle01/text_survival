@@ -17,9 +17,6 @@ public record ForageResource(
 
 public class ForageFeature : LocationFeature, IWorkableFeature
 {
-    public override string? MapIcon => CanForage() ? "eco" : null;
-    public override int IconPriority => 1;
-
     private readonly double respawnRateHours = 48.0; // Full respawn takes 48 hours
     [System.Text.Json.Serialization.JsonInclude]
     private List<ForageResource> _resources = [];

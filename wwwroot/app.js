@@ -7,7 +7,6 @@ import { TemperatureDisplay } from './modules/temperature.js';
 import { FireDisplay } from './modules/fire.js';
 import { SurvivalDisplay } from './modules/survival.js';
 import { EffectsDisplay } from './modules/effects.js';
-import { LocationDisplay } from './modules/location.js';
 import { getGridRenderer } from './modules/grid/CanvasGridRenderer.js';
 
 class GameClient {
@@ -30,17 +29,21 @@ class GameClient {
     }
 
     /**
-     * Initialize persistent quick action buttons (inventory, crafting)
+     * Initialize persistent quick action buttons (inventory, crafting, storage)
      */
     initQuickActions() {
         const inventoryBtn = document.getElementById('inventoryBtn');
         const craftingBtn = document.getElementById('craftingBtn');
+        const storageBtn = document.getElementById('storageBtn');
 
         if (inventoryBtn) {
             inventoryBtn.onclick = () => this.requestAction('inventory');
         }
         if (craftingBtn) {
             craftingBtn.onclick = () => this.requestAction('crafting');
+        }
+        if (storageBtn) {
+            storageBtn.onclick = () => this.requestAction('storage');
         }
     }
 
@@ -76,8 +79,8 @@ class GameClient {
         }
 
         // Check if Inventory/Crafting are in the available choices
-        const hasInventory = choices.some(c => c.includes('Inventory'));
-        const hasCrafting = choices.some(c => c.includes('Crafting'));
+        const hasInventory = choices.some(c => c.label.includes('Inventory'));
+        const hasCrafting = choices.some(c => c.label.includes('Crafting'));
 
         if (inventoryBtn) inventoryBtn.disabled = !hasInventory;
         if (craftingBtn) craftingBtn.disabled = !hasCrafting;
@@ -219,6 +222,9 @@ class GameClient {
             case 'hazard':
                 this.showHazardPrompt(overlay.data);
                 break;
+            case 'confirm':
+                this.showConfirmPrompt(overlay.prompt, input);
+                break;
         }
     }
 
@@ -230,6 +236,7 @@ class GameClient {
         this.hideCrafting();
         this.hideEventPopup();
         this.hideHazardPrompt();
+        this.hideConfirmPrompt();
     }
 
     /**
@@ -267,7 +274,7 @@ class GameClient {
 
         if (choicesEl) {
             Utils.clearElement(choicesEl);
-            eventData.choices.forEach((choice, i) => {
+            eventData.choices.forEach((choice) => {
                 const btn = document.createElement('button');
                 btn.className = 'event-choice-btn';
                 btn.disabled = !choice.isAvailable;
@@ -284,7 +291,7 @@ class GameClient {
                     btn.appendChild(desc);
                 }
 
-                btn.onclick = () => this.respond(i, inputId);
+                btn.onclick = () => this.respond(choice.id, inputId);
                 choicesEl.appendChild(btn);
             });
         }
@@ -414,6 +421,36 @@ class GameClient {
                 });
             }
 
+            // Stats delta (energy, calories, hydration, temperature changes) - grouped at bottom
+            if (outcome.statsDelta) {
+                const d = outcome.statsDelta;
+                const statItems = [];
+                if (Math.abs(d.energyDelta) >= 1) {
+                    const val = Math.round(d.energyDelta);
+                    statItems.push({ icon: 'bolt', text: `${val > 0 ? '+' : ''}${val} energy` });
+                }
+                if (Math.abs(d.calorieDelta) >= 1) {
+                    const val = Math.round(d.calorieDelta);
+                    statItems.push({ icon: 'restaurant', text: `${val > 0 ? '+' : ''}${val} kcal` });
+                }
+                if (Math.abs(d.hydrationDelta) >= 10) {
+                    const val = Math.round(d.hydrationDelta);
+                    statItems.push({ icon: 'water_drop', text: `${val > 0 ? '+' : ''}${val} mL` });
+                }
+                if (Math.abs(d.temperatureDelta) >= 0.1) {
+                    const val = d.temperatureDelta.toFixed(1);
+                    statItems.push({ icon: 'thermostat', text: `${d.temperatureDelta > 0 ? '+' : ''}${val}°F` });
+                }
+                if (statItems.length > 0) {
+                    const statsGroup = document.createElement('div');
+                    statsGroup.className = 'outcome-stats-group';
+                    statItems.forEach(item => {
+                        this.addOutcomeItem(statsGroup, item.icon, item.text, 'stat');
+                    });
+                    summaryEl.appendChild(statsGroup);
+                }
+            }
+
             // Only show summary if there's content
             if (summaryEl.children.length > 0) {
                 choicesEl.appendChild(summaryEl);
@@ -522,6 +559,9 @@ class GameClient {
         const popup = document.getElementById('tilePopup');
         const nameEl = document.getElementById('popupName');
         const terrainEl = document.getElementById('popupTerrain');
+        const envEl = document.getElementById('popupEnvironment');
+        const hazardsEl = document.getElementById('popupHazards');
+        const tacticalEl = document.getElementById('popupTactical');
         const featuresEl = document.getElementById('popupFeatures');
         const actionsEl = document.getElementById('popupActions');
 
@@ -529,9 +569,24 @@ class GameClient {
         nameEl.textContent = tileData.locationName || tileData.terrain;
         terrainEl.textContent = tileData.locationName ? tileData.terrain : '';
 
-        // Build features list
+        // Clear all sections
+        Utils.clearElement(envEl);
+        Utils.clearElement(hazardsEl);
+        Utils.clearElement(tacticalEl);
         Utils.clearElement(featuresEl);
-        if (tileData.featureIcons && tileData.featureIcons.length > 0) {
+
+        // Build environment section (for explored locations)
+        const isExplored = tileData.visibility === 'visible' && tileData.locationName && tileData.locationName !== '???';
+        if (isExplored) {
+            this.buildEnvironmentSection(envEl, tileData);
+            this.buildHazardsSection(hazardsEl, tileData);
+            this.buildTacticalSection(tacticalEl, tileData);
+        }
+
+        // Build features list - use detailed features if available, otherwise icons
+        if (isExplored && tileData.featureDetails && tileData.featureDetails.length > 0) {
+            this.buildDetailedFeatures(featuresEl, tileData.featureDetails);
+        } else if (tileData.featureIcons && tileData.featureIcons.length > 0) {
             tileData.featureIcons.forEach(icon => {
                 const featureEl = document.createElement('div');
                 featureEl.className = 'popup-feature';
@@ -587,36 +642,63 @@ class GameClient {
         if (isPlayerHere && this.currentInput?.choices) {
             this.currentInputId++;
             const inputId = this.currentInputId;
-            const hiddenActions = ['Inventory', 'Crafting'];
+            const hiddenActions = ['Inventory', 'Crafting', 'Travel'];
 
-            this.currentInput.choices.forEach((choice, i) => {
-                // Skip inventory/crafting (handled by sidebar buttons)
-                if (hiddenActions.some(action => choice.includes(action))) return;
+            this.currentInput.choices.forEach((choice) => {
+                // Skip actions handled elsewhere (sidebar buttons, grid clicks)
+                if (hiddenActions.some(action => choice.label.includes(action))) return;
 
                 const btn = document.createElement('button');
                 btn.className = 'popup-action-btn';
-                btn.textContent = choice;
+                btn.textContent = choice.label;
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     // Don't hide popup - let next frame update it with new choices
-                    this.respond(i, inputId);
+                    this.respond(choice.id, inputId);
                 };
                 actionsEl.appendChild(btn);
             });
         }
 
-        // Position popup
-        popup.style.left = `${screenPos.x + 8}px`;
-        popup.style.top = `${screenPos.y}px`;
+        // Show examine buttons for environmental details on current tile
+        if (isPlayerHere && tileData.details && tileData.details.length > 0) {
+            tileData.details.forEach(detail => {
+                const btn = document.createElement('button');
+                btn.className = 'popup-action-btn';
+                btn.textContent = detail.hint ? `${detail.displayName} (${detail.hint})` : detail.displayName;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.handleExamineRequest(detail.id);
+                };
+                actionsEl.appendChild(btn);
+            });
+        }
 
-        // Adjust if popup would go off-screen
+        // Position popup horizontally
+        popup.style.left = `${screenPos.x + 8}px`;
+
+        // Show popup to measure its height
         popup.classList.remove('hidden');
         const rect = popup.getBoundingClientRect();
-        if (rect.right > window.innerWidth - 10) {
-            popup.style.left = `${screenPos.x - rect.width - this.gridRenderer.TILE_SIZE - 16}px`;
+
+        // Calculate vertically centered position
+        const tileSize = this.gridRenderer.TILE_SIZE;
+        const tileCenterY = screenPos.y + (tileSize / 2);
+        let topPos = tileCenterY - (rect.height / 2);
+
+        // Clamp to screen bounds
+        if (topPos < 10) {
+            topPos = 10;
         }
-        if (rect.bottom > window.innerHeight - 10) {
-            popup.style.top = `${window.innerHeight - rect.height - 10}px`;
+        if (topPos + rect.height > window.innerHeight - 10) {
+            topPos = window.innerHeight - rect.height - 10;
+        }
+
+        popup.style.top = `${topPos}px`;
+
+        // Adjust horizontal if popup would go off-screen
+        if (rect.right > window.innerWidth - 10) {
+            popup.style.left = `${screenPos.x - rect.width - tileSize - 16}px`;
         }
     }
 
@@ -642,9 +724,157 @@ class GameClient {
             'search': 'Salvage site',
             'timelapse': 'Curing in progress',
             'done_all': 'Curing complete!',
-            'construction': 'Construction project'
+            'construction': 'Construction project',
+            // Environmental details
+            'footprint': 'Animal tracks',
+            'scatter_plot': 'Animal droppings',
+            'call_split': 'Bent branches',
+            'forest': 'Fallen log',
+            'nature': 'Hollow tree',
+            'skeleton': 'Scattered bones',
+            'landscape': 'Stone pile'
         };
         return labels[icon] || icon;
+    }
+
+    /**
+     * Build environment section showing wind, cover, temperature
+     */
+    buildEnvironmentSection(container, tileData) {
+        // Wind factor: 0-0.7 = sheltered, 0.7-1.3 = normal (skip), 1.3+ = exposed
+        if (tileData.windFactor != null && tileData.windFactor < 0.7) {
+            this.addPopupItem(container, 'air', 'Sheltered', 'wind');
+        } else if (tileData.windFactor != null && tileData.windFactor > 1.3) {
+            this.addPopupItem(container, 'air', 'Exposed', 'hazard');
+        }
+
+        // Overhead cover: only show if significant
+        if (tileData.overheadCoverLevel != null && tileData.overheadCoverLevel > 0.2) {
+            const pct = Math.round(tileData.overheadCoverLevel * 100);
+            this.addPopupItem(container, 'roofing', `${pct}% cover`, 'neutral');
+        }
+
+        // Temperature modifier: only show if notable
+        if (tileData.temperatureDeltaF != null && Math.abs(tileData.temperatureDeltaF) > 3) {
+            const sign = tileData.temperatureDeltaF > 0 ? '+' : '';
+            const icon = tileData.temperatureDeltaF > 0 ? 'sunny' : 'ac_unit';
+            const cls = tileData.temperatureDeltaF > 0 ? 'warm' : 'cold';
+            this.addPopupItem(container, icon, `${sign}${Math.round(tileData.temperatureDeltaF)}°F`, cls);
+        }
+    }
+
+    /**
+     * Build hazards section showing terrain danger and climb risk
+     */
+    buildHazardsSection(container, tileData) {
+        // Terrain hazard
+        if (tileData.terrainHazardLevel != null && tileData.terrainHazardLevel > 0.1) {
+            const label = tileData.terrainHazardLevel > 0.5 ? 'Treacherous' :
+                         tileData.terrainHazardLevel > 0.2 ? 'Hazardous' : 'Minor hazards';
+            this.addPopupItem(container, 'warning', label, 'hazard');
+        }
+
+        // Climb risk
+        if (tileData.climbRiskFactor != null && tileData.climbRiskFactor > 0.1) {
+            const label = tileData.climbRiskFactor > 0.5 ? 'Technical climbing' :
+                         tileData.climbRiskFactor > 0.2 ? 'Scrambling required' : 'Some climbing';
+            this.addPopupItem(container, 'hiking', label, 'hazard');
+        }
+
+        // Darkness
+        if (tileData.isDark) {
+            this.addPopupItem(container, 'dark_mode', 'Requires light', 'hazard');
+        }
+    }
+
+    /**
+     * Build tactical section showing escape terrain, vantage points, visibility
+     */
+    buildTacticalSection(container, tileData) {
+        if (tileData.isEscapeTerrain) {
+            this.addPopupItem(container, 'sprint', 'Escape terrain', 'tactical-good');
+        }
+
+        if (tileData.isVantagePoint) {
+            this.addPopupItem(container, 'visibility', 'Vantage point', 'tactical-good');
+        }
+
+        // Visibility factor: only show if notably different
+        if (tileData.visibilityFactor != null && tileData.visibilityFactor < 0.7) {
+            this.addPopupItem(container, 'visibility_off', 'Limited sight', 'neutral');
+        } else if (tileData.visibilityFactor != null && tileData.visibilityFactor > 1.3) {
+            this.addPopupItem(container, 'preview', 'Wide view', 'tactical-good');
+        }
+    }
+
+    /**
+     * Build detailed feature cards
+     */
+    buildDetailedFeatures(container, featureDetails) {
+        const featureIcons = {
+            'shelter': 'cabin',
+            'forage': 'eco',
+            'animal': 'cruelty_free',
+            'cache': 'inventory_2',
+            'water': 'water_drop',
+            'wood': 'park',
+            'snares': 'circle',
+            'curing': 'timelapse'
+        };
+
+        featureDetails.forEach(feature => {
+            const featureEl = document.createElement('div');
+            featureEl.className = 'popup-feature-detailed';
+
+            const iconEl = document.createElement('span');
+            iconEl.className = 'material-symbols-outlined';
+            iconEl.textContent = featureIcons[feature.type] || 'info';
+            featureEl.appendChild(iconEl);
+
+            const contentEl = document.createElement('div');
+            contentEl.className = 'feature-content';
+
+            const labelEl = document.createElement('span');
+            labelEl.className = 'feature-label';
+            labelEl.textContent = feature.label;
+            contentEl.appendChild(labelEl);
+
+            if (feature.status) {
+                const statusEl = document.createElement('span');
+                statusEl.className = 'feature-status';
+                statusEl.textContent = feature.status;
+                contentEl.appendChild(statusEl);
+            }
+
+            if (feature.details && feature.details.length > 0) {
+                const detailsEl = document.createElement('span');
+                detailsEl.className = 'feature-details';
+                detailsEl.textContent = feature.details.slice(0, 3).join(', ');
+                contentEl.appendChild(detailsEl);
+            }
+
+            featureEl.appendChild(contentEl);
+            container.appendChild(featureEl);
+        });
+    }
+
+    /**
+     * Helper to add a simple icon + text item to a section
+     */
+    addPopupItem(container, icon, text, typeClass) {
+        const item = document.createElement('div');
+        item.className = `popup-item ${typeClass}`;
+
+        const iconEl = document.createElement('span');
+        iconEl.className = 'material-symbols-outlined';
+        iconEl.textContent = icon;
+        item.appendChild(iconEl);
+
+        const textEl = document.createElement('span');
+        textEl.textContent = text;
+        item.appendChild(textEl);
+
+        container.appendChild(item);
     }
 
     /**
@@ -675,15 +905,15 @@ class GameClient {
         const inputId = this.currentInputId;
         const hiddenActions = ['Inventory', 'Crafting'];
 
-        this.currentInput.choices.forEach((choice, i) => {
-            if (hiddenActions.some(action => choice.includes(action))) return;
+        this.currentInput.choices.forEach((choice) => {
+            if (hiddenActions.some(action => choice.label.includes(action))) return;
 
             const btn = document.createElement('button');
             btn.className = 'popup-action-btn';
-            btn.textContent = choice;
+            btn.textContent = choice.label;
             btn.onclick = (e) => {
                 e.stopPropagation();
-                this.respond(i, inputId);
+                this.respond(choice.id, inputId);
             };
             actionsEl.appendChild(btn);
         });
@@ -706,6 +936,21 @@ class GameClient {
                 type: 'travel_to',
                 targetX: x,
                 targetY: y
+            }));
+        }
+    }
+
+    /**
+     * Send examine request for environmental detail
+     */
+    handleExamineRequest(detailId) {
+        if (this.awaitingResponse) return;
+        this.awaitingResponse = true;
+
+        if (this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'examine',
+                detailId: detailId
             }));
         }
     }
@@ -773,6 +1018,48 @@ class GameClient {
     }
 
     /**
+     * Show confirm prompt overlay
+     */
+    showConfirmPrompt(prompt, input) {
+        const overlay = document.getElementById('confirmOverlay');
+        const promptEl = document.getElementById('confirmPrompt');
+        const choicesEl = document.getElementById('confirmChoices');
+
+        if (!overlay) return;
+
+        promptEl.textContent = prompt;
+        Utils.clearElement(choicesEl);
+
+        // Track input ID for button deduplication
+        this.currentInputId++;
+        const inputId = this.currentInputId;
+
+        // Create Yes/No buttons from input choices
+        if (input?.choices) {
+            input.choices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.className = 'event-choice-btn';
+                btn.textContent = choice.label;
+                btn.onclick = () => {
+                    this.hideConfirmPrompt();
+                    this.respond(choice.id, inputId);
+                };
+                choicesEl.appendChild(btn);
+            });
+        }
+
+        overlay.classList.remove('hidden');
+    }
+
+    /**
+     * Hide confirm prompt overlay
+     */
+    hideConfirmPrompt() {
+        const overlay = document.getElementById('confirmOverlay');
+        if (overlay) overlay.classList.add('hidden');
+    }
+
+    /**
      * Respond to hazard choice (quick vs careful)
      */
     respondHazardChoice(quickTravel) {
@@ -783,7 +1070,7 @@ class GameClient {
             this.socket.send(JSON.stringify({
                 type: 'hazard_choice',
                 quickTravel: quickTravel,
-                choiceIndex: quickTravel ? 0 : 1
+                choiceId: quickTravel ? 'quick' : 'careful'
             }));
         }
     }
@@ -812,9 +1099,28 @@ class GameClient {
         // Deep Ocean time-based background interpolation
         this.updateDeepOceanBackground(state.clockTime);
 
-        // Time panel
-        document.getElementById('dayNumber').textContent = `Day ${state.dayNumber}`;
-        document.getElementById('timeDetail').textContent = `${state.clockTime} — ${state.timeOfDay}`;
+        // Info badges - Time
+        document.getElementById('badgeTime').textContent = state.clockTime;
+        document.getElementById('badgeDay').textContent = `Day ${state.dayNumber}`;
+
+        // Info badges - Feels Like Temperature
+        const feelsLikeTemp = Math.round(state.airTemp);
+        document.getElementById('badgeFeelsLike').textContent = `${feelsLikeTemp}°F`;
+
+        // Update temperature badge color based on temperature
+        const tempBadge = document.querySelector('.temp-badge');
+        if (tempBadge) {
+            tempBadge.classList.remove('freezing', 'cold', 'warm', 'hot');
+            if (feelsLikeTemp <= 20) {
+                tempBadge.classList.add('freezing');
+            } else if (feelsLikeTemp <= 40) {
+                tempBadge.classList.add('cold');
+            } else if (feelsLikeTemp >= 80) {
+                tempBadge.classList.add('hot');
+            } else if (feelsLikeTemp >= 60) {
+                tempBadge.classList.add('warm');
+            }
+        }
 
         // Weather
         const weatherEl = document.getElementById('weatherCond');
@@ -826,7 +1132,6 @@ class GameClient {
         // Location
         document.getElementById('locationName').textContent = state.locationName;
         document.getElementById('locationDesc').textContent = state.locationDescription || '';
-        LocationDisplay.renderFeatures(state.features);
 
         // Fire
         FireDisplay.render(state.fire);
@@ -855,6 +1160,16 @@ class GameClient {
         // Gear summary (from inventory)
         if (state.gearSummary) {
             this.renderGearSummary(state.gearSummary);
+        }
+
+        // Storage button visibility - only show when at a location with storage
+        const storageRow = document.getElementById('storageRow');
+        if (storageRow) {
+            if (state.hasStorage) {
+                storageRow.classList.remove('hidden');
+            } else {
+                storageRow.classList.add('hidden');
+            }
         }
 
         // Narrative log
@@ -1048,18 +1363,18 @@ class GameClient {
 
             console.log('[renderInput] All choices:', input.choices);
 
-            input.choices.forEach((choice, i) => {
+            input.choices.forEach((choice) => {
                 // Skip if this is an inventory/crafting option (handled by sidebar buttons)
-                if (hiddenActions.some(action => choice.includes(action))) {
-                    console.log('[renderInput] Hiding:', choice);
+                if (hiddenActions.some(action => choice.label.includes(action))) {
+                    console.log('[renderInput] Hiding:', choice.label);
                     return;
                 }
 
-                console.log('[renderInput] Adding button:', choice);
+                console.log('[renderInput] Adding button:', choice.label);
                 const btn = document.createElement('button');
                 btn.className = 'action-btn';
-                btn.textContent = choice;
-                btn.onclick = () => this.respond(i, inputId);
+                btn.textContent = choice.label;
+                btn.onclick = () => this.respond(choice.id, inputId);
                 actionsArea.appendChild(btn);
             });
 
@@ -1071,17 +1386,14 @@ class GameClient {
                 actionsArea.appendChild(promptDiv);
             }
 
-            const yesBtn = document.createElement('button');
-            yesBtn.className = 'action-btn';
-            yesBtn.textContent = 'Yes';
-            yesBtn.onclick = () => this.respond(0, inputId);
-            actionsArea.appendChild(yesBtn);
-
-            const noBtn = document.createElement('button');
-            noBtn.className = 'action-btn';
-            noBtn.textContent = 'No';
-            noBtn.onclick = () => this.respond(1, inputId);
-            actionsArea.appendChild(noBtn);
+            // Confirm sends choices with IDs
+            input.choices.forEach((choice) => {
+                const btn = document.createElement('button');
+                btn.className = 'action-btn';
+                btn.textContent = choice.label;
+                btn.onclick = () => this.respond(choice.id, inputId);
+                actionsArea.appendChild(btn);
+            });
 
         } else if (input.type === 'anykey') {
             const btn = document.createElement('button');
@@ -1111,7 +1423,7 @@ class GameClient {
         }
     }
 
-    respond(choiceIndex, inputId) {
+    respond(choiceId, inputId) {
         // Prevent duplicate responses or responses to stale buttons
         if (this.awaitingResponse) {
             return;
@@ -1130,7 +1442,7 @@ class GameClient {
         });
 
         if (this.socket.readyState === WebSocket.OPEN) {
-            this.socket.send(JSON.stringify({ choiceIndex }));
+            this.socket.send(JSON.stringify({ choiceId }));
         }
     }
 
@@ -1159,11 +1471,11 @@ class GameClient {
         Utils.clearElement(actionsContainer);
 
         if (input && input.type === 'select' && input.choices) {
-            input.choices.forEach((choice, i) => {
+            input.choices.forEach((choice) => {
                 const btn = document.createElement('button');
                 btn.className = 'action-btn';
-                btn.textContent = choice;
-                btn.onclick = () => this.respond(i, inputId);
+                btn.textContent = choice.label;
+                btn.onclick = () => this.respond(choice.id, inputId);
                 actionsContainer.appendChild(btn);
             });
         } else {
@@ -1503,8 +1815,13 @@ class GameClient {
         // Handle close button
         document.getElementById('craftingCloseBtn').onclick = () => {
             if (input && input.type === 'select') {
-                // Cancel is always the last choice
-                this.respond(input.choices.length - 1, inputId);
+                // Find the Cancel choice by label and use its ID
+                const cancelChoice = input.choices.find(c => c.label === 'Cancel');
+                if (cancelChoice) {
+                    this.respond(cancelChoice.id, inputId);
+                } else {
+                    this.respond(null, inputId);
+                }
             } else {
                 this.respond(null, inputId);
             }
@@ -1589,13 +1906,13 @@ class GameClient {
             craftBtn.className = 'craft-btn';
             craftBtn.textContent = 'CRAFT';
 
-            // Find the matching choice index by recipe name
-            const choiceIndex = input.choices.findIndex(choice =>
-                choice.includes(recipe.name)
+            // Find the matching choice by recipe name
+            const matchingChoice = input.choices.find(choice =>
+                choice.label.includes(recipe.name)
             );
 
-            if (choiceIndex >= 0) {
-                craftBtn.onclick = () => this.respond(choiceIndex, inputId);
+            if (matchingChoice) {
+                craftBtn.onclick = () => this.respond(matchingChoice.id, inputId);
             } else {
                 craftBtn.disabled = true;
             }

@@ -180,10 +180,12 @@ public class EnvironmentalDetail : LocationFeature
     /// </summary>
     public static EnvironmentalDetail AnimalDroppings(string animalType = "wolf")
     {
-        return new EnvironmentalDetail("animal_droppings", "Animal Droppings", $"Fresh {animalType} scat. They were here recently.")
+        return new EnvironmentalDetail("animal_droppings", "Animal Droppings", $"Fresh {animalType} scat.")
         {
-            _mapIcon = "warning",
-            InteractionHint = null
+            _mapIcon = "scatter_plot",
+            InteractionHint = "examine the scat",
+            InteractionMinutes = 1,
+            ExaminationPool = ExaminationVariants.DroppingExaminations
         };
     }
 
@@ -192,10 +194,12 @@ public class EnvironmentalDetail : LocationFeature
     /// </summary>
     public static EnvironmentalDetail BentBranches()
     {
-        return new EnvironmentalDetail("bent_branches", "Bent Branches", "Low branches bent and broken. Something large passed through here.")
+        return new EnvironmentalDetail("bent_branches", "Bent Branches", "Low branches bent and broken.")
         {
-            _mapIcon = "trending_flat",
-            InteractionHint = null
+            _mapIcon = "line_curve",
+            InteractionHint = "examine the branches",
+            InteractionMinutes = 1,
+            ExaminationPool = ExaminationVariants.BranchExaminations
         };
     }
 

@@ -308,13 +308,15 @@ public class GameMapTests
 public class LocationTests
 {
     [Fact]
-    public void Location_TerrainOnly_HasNoFeatures()
+    public void Location_Terrain_WithoutSeed_HasNoEnvironmentalDetails()
     {
         var weather = new Weather();
         var location = LocationFactory.MakeTerrainLocation(TerrainType.Forest, weather);
 
-        Assert.True(location.IsTerrainOnly);
-        Assert.Empty(location.Features);
+        // Terrain locations without a position seed have basic terrain features (forage)
+        // but no environmental details
+        Assert.DoesNotContain(location.Features,
+            f => f is text_survival.Environments.Features.EnvironmentalDetail);
     }
 
     [Fact]

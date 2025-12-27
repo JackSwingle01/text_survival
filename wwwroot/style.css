@@ -345,12 +345,96 @@ body {
     flex-shrink: 0;
 }
 
-.location-time {
+/* Header row - badges flanking location name */
+.header-row {
     display: flex;
-    justify-content: center;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 8px;
+}
+
+.header-row .info-badge {
+    flex: 0 0 auto;
+}
+
+.location-center {
+    flex: 1;
+    text-align: center;
+    max-width: 300px;
+}
+
+.info-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    min-width: 120px;
+}
+
+.info-badge .material-symbols-outlined {
+    font-size: 28px;
+    opacity: 0.7;
+}
+
+.badge-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.badge-value {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: var(--text-bright);
+    line-height: 1.1;
+}
+
+.badge-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-faint);
+    margin-top: 2px;
+}
+
+/* Time badge styling */
+.time-badge .material-symbols-outlined {
+    color: var(--fire-orange);
+}
+
+/* Temperature badge styling with color states */
+.temp-badge .material-symbols-outlined {
+    color: var(--tech-cyan);
+}
+
+.temp-badge.warm .material-symbols-outlined {
+    color: var(--fire-orange);
+}
+
+.temp-badge.hot .material-symbols-outlined,
+.temp-badge.hot .badge-value {
+    color: var(--vital-red);
+}
+
+.temp-badge.cold .material-symbols-outlined {
+    color: var(--tech-cyan);
+}
+
+.temp-badge.freezing .material-symbols-outlined,
+.temp-badge.freezing .badge-value {
+    color: #8ec8e8;
+}
+
+/* Keep old time display hidden but available for backward compat */
+.location-time {
+    display: none;
 }
 
 .day-display {
@@ -385,52 +469,27 @@ body {
     margin-top: 3px;
 }
 
-/* Weather Strip - integrated into location header */
+/* Weather Strip - horizontal row inside location center */
 .weather-strip {
     display: flex;
     justify-content: center;
-    gap: 16px;
-    margin-top: 8px;
-    padding: 6px 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 4px;
+    gap: 12px;
+    margin-top: 6px;
 }
 
 .weather-item {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-dim);
 }
 
 .weather-item .material-symbols-outlined {
-    font-size: 14px;
+    font-size: 12px;
     color: var(--text-faint);
 }
 
-.location-features {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 6px;
-}
-
-.feature-tag {
-    font-size: 9px;
-    padding: 2px 6px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border-dim);
-    color: var(--text-mid);
-    display: flex;
-    align-items: center;
-    gap: 3px;
-}
-
-.feature-tag .material-symbols-outlined {
-    font-size: 12px;
-}
 
 /* Grid Viewport */
 .grid-viewport {
@@ -764,6 +823,97 @@ body {
     color: var(--text-mid);
 }
 
+/* Inventory slots (gear, armor, weapon) */
+.inv-slot {
+    display: flex;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.inv-slot .slot-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-faint);
+    width: 60px;
+}
+
+.inv-slot .slot-item {
+    flex: 1;
+}
+
+.inv-slot .slot-empty {
+    flex: 1;
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+.inv-slot .slot-stat {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.85rem;
+}
+
+.inv-slot .slot-stat.insulation {
+    color: #6aa;
+}
+
+.inv-slot.weapon {
+    border-bottom: 1px solid rgba(170, 136, 102, 0.2);
+    margin-bottom: 8px;
+    padding-bottom: 10px;
+}
+
+/* Tools list */
+.inv-tools {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.inv-tool {
+    display: flex;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.inv-tool .tool-name {
+    flex: 1;
+}
+
+.inv-tool .tool-warning {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.75rem;
+    color: #a86;
+    margin-left: 8px;
+}
+
+.inv-tool.durability-low {
+    color: #a86;
+}
+
+/* Inventory total row */
+.inv-total {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.9em;
+}
+
+.inv-total .total-value {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    color: #6aa;
+}
+
+/* Generic inventory item */
+.inv-item {
+    padding: 2px 0;
+}
+
 .inventory-actions {
     display: flex;
     gap: 10px;
@@ -1040,9 +1190,10 @@ body {
 .effect-tooltip {
     display: none;
     position: absolute;
-    left: 100%;
-    top: 0;
-    margin-left: 8px;
+    left: 50%;
+    bottom: 100%;
+    transform: translateX(-50%);
+    margin-bottom: 4px;
     padding: 8px;
     background: var(--bg-midnight);
     border: 1px solid var(--border-bright);
@@ -1159,6 +1310,14 @@ body {
     pointer-events: none;
 }
 
+.storage-row {
+    margin-top: 4px;
+}
+
+.storage-btn {
+    flex: 1;
+}
+
 /* ============================================
    TILE POPUP
    ============================================ */
@@ -1238,6 +1397,111 @@ body {
 
 .popup-feature.urgent .material-symbols-outlined {
     color: var(--warning-amber);
+}
+
+/* Enhanced Tile Popup Sections */
+.tile-popup-section {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-dim);
+}
+
+.tile-popup-section:empty {
+    display: none;
+}
+
+.tile-popup-section.hazard {
+    background: rgba(192, 128, 64, 0.05);
+}
+
+.tile-popup-section.tactical {
+    background: rgba(80, 160, 80, 0.03);
+}
+
+/* Popup Item Rows */
+.popup-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+.popup-item .material-symbols-outlined {
+    font-size: 14px;
+    width: 18px;
+    text-align: center;
+}
+
+/* Item type colors */
+.popup-item.wind .material-symbols-outlined {
+    color: var(--tech-cyan);
+}
+
+.popup-item.hazard {
+    color: var(--warning-amber);
+}
+
+.popup-item.hazard .material-symbols-outlined {
+    color: var(--warning-amber);
+}
+
+.popup-item.tactical-good {
+    color: var(--health-green);
+}
+
+.popup-item.tactical-good .material-symbols-outlined {
+    color: var(--health-green);
+}
+
+.popup-item.warm .material-symbols-outlined {
+    color: var(--fire-orange);
+}
+
+.popup-item.cold .material-symbols-outlined {
+    color: var(--tech-cyan);
+}
+
+.popup-item.neutral .material-symbols-outlined {
+    color: var(--text-faint);
+}
+
+/* Detailed Feature Display */
+.popup-feature-detailed {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+}
+
+.popup-feature-detailed .material-symbols-outlined {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+    color: var(--text-faint);
+    margin-top: 2px;
+}
+
+.feature-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.feature-label {
+    font-size: 0.8rem;
+    color: var(--text-bright);
+}
+
+.feature-status {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+}
+
+.feature-details {
+    font-size: 0.65rem;
+    color: var(--text-faint);
+    font-style: italic;
 }
 
 .tile-popup-actions {
@@ -1494,6 +1758,22 @@ body {
 .outcome-item.tension-down {
     background: rgba(80, 200, 120, 0.15);
     color: #66cc88;
+}
+
+.outcome-stats-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.outcome-item.stat {
+    background: rgba(100, 100, 100, 0.15);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    padding: 4px 8px;
 }
 
 .event-continue-btn {

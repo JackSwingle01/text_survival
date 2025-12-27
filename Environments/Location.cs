@@ -152,7 +152,7 @@ public class Location
     public double ClimbRiskFactor { get; set; } = 0;
 
     // Discovery //
-    public bool Explored { get; private set; } = false;
+    public bool Explored { get; set; } = false;
     public List<LocationFeature> Features { get; set; } = [];
 
     /// <summary>

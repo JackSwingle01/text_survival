@@ -58,12 +58,31 @@ public record TileDto(
     string? LocationName,
     string? LocationTags,
     List<string> FeatureIcons,
+    List<EnvironmentalDetailDto> Details,  // Examinable environmental details
     bool HasFire,
     bool IsHazardous,
     bool IsPassable,
     bool IsPlayerHere,
     bool IsAdjacent,  // Can move here from current position
-    int? TravelTimeMinutes  // Estimated travel time from current position (null if not adjacent)
+    int? TravelTimeMinutes,  // Estimated travel time from current position (null if not adjacent)
+
+    // Environmental properties (null if unexplored)
+    double? WindFactor,           // 0-2
+    double? OverheadCoverLevel,   // 0-1
+    double? TemperatureDeltaF,    // location temp modifier
+
+    // Hazard properties
+    double? TerrainHazardLevel,   // 0-1 (from GetEffectiveTerrainHazard)
+    double? ClimbRiskFactor,      // 0-1
+
+    // Tactical properties
+    bool? IsEscapeTerrain,
+    bool? IsVantagePoint,
+    double? VisibilityFactor,     // 0-2
+    bool? IsDark,
+
+    // Detailed feature info
+    List<FeatureDetailDto>? FeatureDetails
 )
 {
     public static TileDto FromLocation(Location location, int x, int y, GameContext ctx)
@@ -100,6 +119,9 @@ public record TileDto(
                 ctx.CurrentLocation, location, ctx.player, ctx.Inventory);
         }
 
+        // Only include detailed info for explored locations
+        bool isExplored = location.Explored;
+
         return new TileDto(
             X: x,
             Y: y,
@@ -108,12 +130,31 @@ public record TileDto(
             LocationName: locationName,
             LocationTags: locationTags,
             FeatureIcons: GetFeatureIcons(location),
+            Details: GetEnvironmentalDetails(location, isPlayerHere),
             HasFire: location.HasActiveHeatSource(),
             IsHazardous: TravelProcessor.IsHazardousTerrain(location),
             IsPassable: location.IsPassable,
             IsPlayerHere: isPlayerHere,
             IsAdjacent: isAdjacent,
-            TravelTimeMinutes: travelTime
+            TravelTimeMinutes: travelTime,
+
+            // Environmental (only for explored)
+            WindFactor: isExplored ? location.WindFactor : null,
+            OverheadCoverLevel: isExplored ? location.OverheadCoverLevel : null,
+            TemperatureDeltaF: isExplored ? location.TemperatureDeltaF : null,
+
+            // Hazards
+            TerrainHazardLevel: isExplored ? location.GetEffectiveTerrainHazard() : null,
+            ClimbRiskFactor: isExplored ? location.ClimbRiskFactor : null,
+
+            // Tactical
+            IsEscapeTerrain: isExplored ? location.IsEscapeTerrain : null,
+            IsVantagePoint: isExplored ? location.IsVantagePoint : null,
+            VisibilityFactor: isExplored ? location.VisibilityFactor : null,
+            IsDark: isExplored ? location.IsDark : null,
+
+            // Feature details
+            FeatureDetails: isExplored ? GetFeatureDetails(location) : null
         );
     }
 
@@ -129,6 +170,90 @@ public record TileDto(
             .Select(f => f.MapIcon!)
             .Take(3)
             .ToList();
+    }
+
+    private static List<EnvironmentalDetailDto> GetEnvironmentalDetails(Location location, bool isPlayerHere)
+    {
+        // Only show interactable details when player is at this location
+        if (!isPlayerHere || location.Visibility != TileVisibility.Visible)
+            return [];
+
+        return location.Features
+            .OfType<EnvironmentalDetail>()
+            .Where(d => d.CanInteract)
+            .Select(d => new EnvironmentalDetailDto(
+                d.Id,
+                d.DisplayName,
+                d.InteractionHint,
+                d.MapIcon
+            ))
+            .ToList();
+    }
+
+    private static List<FeatureDetailDto> GetFeatureDetails(Location location)
+    {
+        var details = new List<FeatureDetailDto>();
+
+        foreach (var feature in location.Features)
+        {
+            var dto = feature switch
+            {
+                ShelterFeature s when !s.IsDestroyed => new FeatureDetailDto(
+                    "shelter",
+                    s.Name,
+                    $"{(int)(s.TemperatureInsulation * 100)}% ins, {(int)(s.WindCoverage * 100)}% wind",
+                    null),
+
+                ForageFeature f when f.CanForage() => new FeatureDetailDto(
+                    "forage",
+                    "Foraging",
+                    f.GetQualityDescription(),
+                    f.GetAvailableResourceTypes()),
+
+                AnimalTerritoryFeature a when a.CanHunt() => new FeatureDetailDto(
+                    "animal",
+                    a.HasPredators() ? "Predator Territory" : "Wildlife",
+                    a.GetDescription(),
+                    null),
+
+                CacheFeature c => new FeatureDetailDto(
+                    "cache",
+                    c.Name,
+                    c.GetDescription(),
+                    null),
+
+                WaterFeature w => new FeatureDetailDto(
+                    "water",
+                    w.DisplayName,
+                    w.GetStatusDescription(),
+                    null),
+
+                WoodedAreaFeature wo when wo.HasTrees => new FeatureDetailDto(
+                    "wood",
+                    wo.WoodType?.ToString() ?? "Mixed",
+                    wo.ProgressPct > 0 ? $"{(int)(wo.ProgressPct * 100)}% felled" : "trees available",
+                    null),
+
+                SnareLineFeature sn => new FeatureDetailDto(
+                    "snares",
+                    "Snares",
+                    sn.GetDescription(),
+                    null),
+
+                CuringRackFeature cr => new FeatureDetailDto(
+                    "curing",
+                    "Curing Rack",
+                    cr.GetDescription(),
+                    null),
+
+                _ => null
+            };
+
+            if (dto != null)
+                details.Add(dto);
+        }
+
+        return details;
     }
 }
 
@@ -161,4 +286,24 @@ public record MoveResultDto(
     int TimeElapsedMinutes,
     bool InjuryOccurred,
     string? InjuryDescription
+);
+
+/// <summary>
+/// Environmental detail info for tile popup.
+/// </summary>
+public record EnvironmentalDetailDto(
+    string Id,
+    string DisplayName,
+    string? Hint,
+    string? Icon
+);
+
+/// <summary>
+/// Detailed feature information for the enhanced tile popup.
+/// </summary>
+public record FeatureDetailDto(
+    string Type,           // "shelter", "forage", "animal", "cache", etc.
+    string Label,          // Display name
+    string? Status,        // e.g., "75% insulation", "abundant"
+    List<string>? Details  // Additional details like resource types
 );

@@ -40,7 +40,7 @@
                     <span class="material-symbols-outlined">thermostat</span>Temperature
                 </div>
                 <div class="compact-stat" data-stat="body-temp">
-                    <span class="stat-icon material-symbols-outlined">person</span>
+                    <span class="stat-icon material-symbols-outlined">thermostat</span>
                     <div class="segment-bar temp">
                         <div class="segment-fill" id="tempBar" style="width: 85%;"></div>
                     </div>
@@ -143,6 +143,12 @@
                         Craft
                     </button>
                 </div>
+                <div class="quick-actions storage-row hidden" id="storageRow">
+                    <button class="quick-btn storage-btn" id="storageBtn">
+                        <span class="material-symbols-outlined">warehouse</span>
+                        Storage
+                    </button>
+                </div>
             </div>
         </aside>
 
@@ -150,31 +156,43 @@
         <div class="center-area location-mode">
             <!-- Location Header with integrated weather -->
             <div class="location-header">
-                <div class="location-time">
-                    <span class="day-display" id="dayNumber">Day 1</span>
-                    <span class="time-separator">•</span>
-                    <span class="time-display" id="timeDetail">9:00 AM</span>
-                </div>
-                <div class="location-name" id="locationName">Loading...</div>
-                <div class="location-desc" id="locationDesc"></div>
-                
-                <!-- Weather integrated into location -->
-                <div class="weather-strip">
-                    <div class="weather-item">
-                        <span class="material-symbols-outlined" id="weatherIcon">partly_cloudy_day</span>
-                        <span id="weatherCond">Clear</span>
+                <!-- Header row with badges and location name -->
+                <div class="header-row">
+                    <div class="info-badge time-badge">
+                        <span class="material-symbols-outlined">schedule</span>
+                        <div class="badge-content">
+                            <span class="badge-value" id="badgeTime">9:00 AM</span>
+                            <span class="badge-label" id="badgeDay">Day 1</span>
+                        </div>
                     </div>
-                    <div class="weather-item">
-                        <span class="material-symbols-outlined">air</span>
-                        <span id="windLabel">Calm</span>
-                    </div>
-                    <div class="weather-item">
-                        <span class="material-symbols-outlined">water_drop</span>
-                        <span id="precipLabel">None</span>
-                    </div>
-                </div>
 
-                <div class="location-features" id="locationFeatures"></div>
+                    <div class="location-center">
+                        <div class="location-name" id="locationName">Loading...</div>
+                        <div class="location-desc" id="locationDesc"></div>
+                        <div class="weather-strip">
+                            <div class="weather-item">
+                                <span class="material-symbols-outlined" id="weatherIcon">partly_cloudy_day</span>
+                                <span id="weatherCond">Clear</span>
+                            </div>
+                            <div class="weather-item">
+                                <span class="material-symbols-outlined">air</span>
+                                <span id="windLabel">Calm</span>
+                            </div>
+                            <div class="weather-item">
+                                <span class="material-symbols-outlined">water_drop</span>
+                                <span id="precipLabel">None</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-badge temp-badge">
+                        <span class="material-symbols-outlined">thermostat</span>
+                        <div class="badge-content">
+                            <span class="badge-value" id="badgeFeelsLike">32°F</span>
+                            <span class="badge-label">Feels Like</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="grid-viewport">
@@ -280,12 +298,23 @@
         </div>
     </div>
 
+    <!-- Confirm Overlay -->
+    <div class="event-overlay hidden" id="confirmOverlay">
+        <div class="event-modal confirm-modal">
+            <div class="event-description" id="confirmPrompt"></div>
+            <div class="event-choices" id="confirmChoices"></div>
+        </div>
+    </div>
+
     <!-- Tile Popup -->
     <div class="tile-popup hidden" id="tilePopup">
         <div class="tile-popup-header">
             <span class="tile-popup-name" id="popupName">Location</span>
             <span class="tile-popup-terrain" id="popupTerrain">Terrain</span>
         </div>
+        <div class="tile-popup-section" id="popupEnvironment"></div>
+        <div class="tile-popup-section hazard" id="popupHazards"></div>
+        <div class="tile-popup-section tactical" id="popupTactical"></div>
         <div class="tile-popup-features" id="popupFeatures"></div>
         <div class="tile-popup-actions" id="popupActions"></div>
     </div>

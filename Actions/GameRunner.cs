@@ -84,6 +84,12 @@ public partial class GameRunner(GameContext ctx)
             choice.AddOption(opt.Label, () => ExecuteWork(workId));
         }
 
+        // Grid-based travel option (allows WebIO.Select to handle travel_to responses)
+        if (ctx.Map != null)
+        {
+            choice.AddOption("Travel", () => new TravelRunner(ctx).DoTravel());
+        }
+
         // Camp activities (combined from CampWork menu)
         if (CanRestByFire())
             choice.AddOption("Wait", Wait);
@@ -114,12 +120,14 @@ public partial class GameRunner(GameContext ctx)
             choice.AddOption(craftLabel, RunCrafting);
         }
 
-        if (ctx.Inventory.HasBuildingMaterials)
+        if (ctx.Inventory.HasBuildingMaterials && ctx.CurrentLocation == ctx.Camp)
             choice.AddOption("Improve Camp", ImproveCamp);
 
         var storage = ctx.Camp.GetFeature<CacheFeature>();
         if (storage != null && (HasItems() || storage.Storage.CurrentWeightKg > 0))
             choice.AddOption("Inventory", RunInventoryMenu);
+        if (storage != null && storage.Storage.CurrentWeightKg > 0)
+            choice.AddOption("Storage", RunStorageMenu);
 
         var rack = ctx.Camp.GetFeature<CuringRackFeature>();
         if (rack != null)
@@ -135,13 +143,15 @@ public partial class GameRunner(GameContext ctx)
         if (CanApplyDirectTreatment())
             choice.AddOption("Treat wounds", ApplyDirectTreatment);
 
-        if (ctx.Camp.HasFeature<BeddingFeature>())
+        // Sleep requires bedding at current location
+        if (ctx.CurrentLocation.HasFeature<BeddingFeature>())
         {
             string sleepLabel = isImpaired ? "Sleep (you need rest)" : "Sleep";
             choice.AddOption(sleepLabel, Sleep);
         }
-        else if (!CanCamp())
+        else
         {
+            // Can make camp at any location without bedding
             choice.AddOption("Make camp", MakeCamp);
         }
 
@@ -207,6 +217,8 @@ public partial class GameRunner(GameContext ctx)
             var storage = ctx.Camp.GetFeature<CacheFeature>();
             if (storage != null && (HasItems() || storage.Storage.CurrentWeightKg > 0))
                 choice.AddOption("Inventory", RunInventoryMenu);
+            if (storage != null && storage.Storage.CurrentWeightKg > 0)
+                choice.AddOption("Storage", RunStorageMenu);
 
             // Curing rack - if player has one at camp
             var rack = ctx.Camp.GetFeature<CuringRackFeature>();
@@ -477,6 +489,13 @@ public partial class GameRunner(GameContext ctx)
 
         // At camp - use shared transfer helper
         InventoryTransferHelper.RunTransferMenu(ctx, ctx.Camp.GetFeature<CacheFeature>()!.Storage, "CAMP STORAGE");
+    }
+
+    private void RunStorageMenu()
+    {
+        var storage = ctx.Camp.GetFeature<CacheFeature>()!;
+        // Start with storage view instead of player inventory
+        InventoryTransferHelper.RunTransferMenu(ctx, storage.Storage, "CAMP STORAGE", viewStorageFirst: true);
     }
 
     private void EatDrink() => ConsumptionHandler.EatDrink(ctx);
