@@ -1,20 +1,22 @@
 import { Utils } from './utils.js';
 
+const FEATURE_ICONS = {
+    'Fire': 'local_fire_department',
+    'Shelter': 'camping',
+    'Cache': 'inventory_2',
+    'Forage': 'eco',
+    'Harvest': 'forest',
+    'Animals': 'pets',
+    'Water': 'water_drop',
+    'Wood': 'carpenter',
+    'Trap': 'trap',
+    'Curing': 'dry_cleaning',
+    'Project': 'construction',
+    'Salvage': 'recycling',
+    'Bedding': 'bed'
+};
+
 export const LocationDisplay = {
-    renderTags(tags) {
-        const container = document.getElementById('locationDesc');
-        Utils.clearElement(container);
-
-        if (!tags || tags.length === 0) return;
-
-        tags.forEach(tag => {
-            const pill = document.createElement('span');
-            pill.className = 'location-tag';
-            pill.textContent = tag;
-            container.appendChild(pill);
-        });
-    },
-
     renderFeatures(features) {
         const container = document.getElementById('locationFeatures');
         Utils.clearElement(container);
@@ -22,17 +24,27 @@ export const LocationDisplay = {
         if (!features || features.length === 0) return;
 
         features.forEach(f => {
-            const span = document.createElement('span');
-            span.className = 'feature-tag';
-            span.textContent = f.label;
+            const tag = document.createElement('span');
+            tag.className = 'feature-tag';
+
+            // Add icon
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined';
+            icon.textContent = FEATURE_ICONS[f.type] || 'category';
+            tag.appendChild(icon);
+
+            // Add label text
+            tag.appendChild(document.createTextNode(f.label));
+
+            // Add detail if present
             if (f.detail) {
-                span.textContent += ': ';
-                const valueSpan = document.createElement('span');
-                valueSpan.className = `feature-value ${f.type}`;
-                valueSpan.textContent = f.detail;
-                span.appendChild(valueSpan);
+                const detail = document.createElement('span');
+                detail.className = 'feature-detail';
+                detail.textContent = f.detail;
+                tag.appendChild(detail);
             }
-            container.appendChild(span);
+
+            container.appendChild(tag);
         });
     }
 };

@@ -8,187 +8,204 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="night">
-
-    <div class="game-container">
-        <main class="main-content">
-            <aside class="left-panel">
-                <div class="status-section time-section">
-                    <div class="status-title"><span class="material-symbols-outlined">schedule</span>Time</div>
-                    <div class="day-number"><span class="material-symbols-outlined">calendar_today</span><span id="dayNumber">Day 1</span></div>
-                    <div class="time-detail"><span class="material-symbols-outlined">schedule</span><span id="timeDetail">9:00 AM — Morning</span></div>
-                    <div class="time-detail time-warning"><span class="material-symbols-outlined">wb_twilight</span><span id="timeWarning">8.5 hrs til dusk</span></div>
-                </div>
-
-                <div class="status-section weather-section">
-                    <div class="status-title"><span class="material-symbols-outlined">cloud</span>Weather</div>
-                    <div class="weather-cond"><span class="material-symbols-outlined">partly_cloudy_day</span><span id="weatherCond">Clear</span></div>
-                    <div class="weather-detail"><span class="material-symbols-outlined">air</span>Wind: <span id="windLabel">Calm</span></div>
-                    <div class="weather-detail"><span class="material-symbols-outlined">water_drop</span>Precip: <span id="precipLabel">None</span></div>
-                </div>
-
-                <div class="status-section fire-section">
-                    <div class="status-title"><span class="material-symbols-outlined">local_fire_department</span>Fire</div>
-                    <div class="fire-phase cold" id="firePhase"><span class="material-symbols-outlined fire-icon">local_fire_department</span><span class="fire-phase-text">No fire pit</span></div>
-                    <div class="fire-time" id="fireTime"></div>
-                    <div class="fire-fuel" id="fireFuel"></div>
-                    <div class="fire-heat" id="fireHeat"></div>
-                </div>
-
-                <div class="status-section">
-                    <div class="status-title"><span class="material-symbols-outlined">thermostat</span>Temperature</div>
-                    <div class="segment-bar temp" id="tempSegmentBar"></div>
-                    <div class="temp-row">
-                        <span class="temp-label"><span class="material-symbols-outlined">person</span>Body</span>
-                        <span><span class="temp-value" id="bodyTempDisplay">98.6°F</span> <span class="temp-status normal" id="tempStatus">Normal</span></span>
-                    </div>
-                    <div class="temp-row">
-                        <span class="temp-label"><span class="material-symbols-outlined">shield</span>Insulation</span>
-                        <span class="temp-value insulation" id="insulationPct">0%</span>
-                    </div>
-                    <div class="temp-breakdown">
-                        <span class="material-symbols-outlined">air</span>Air: <span id="airTempDisplay">32°F</span><span class="fire-contrib" id="fireContrib"></span>
-                    </div>
-                    <div class="temp-trend stable" id="tempTrend">→ Stable</div>
-                </div>
-            </aside>
-
-            <div class="narrative-panel">
-                <div class="location-display">
-                    <div class="temp-badge" id="tempBadge">
-                        <span class="material-symbols-outlined">thermometer</span>
-                        <span class="temp-badge-value" id="tempBadgeValue">--°F</span>
-                    </div>
-                    <div class="location-name" id="locationName">Loading...</div>
-                    <div class="location-desc" id="locationDesc"></div>
-                    <div class="location-features" id="locationFeatures"></div>
-                </div>
-
-                <div class="narrative-log" id="narrativeLog"></div>
-
-                <div class="status-bar" id="statusBar">
-                    <div class="status-content">
-                        <span class="material-symbols-outlined status-icon" id="statusIcon" style="display: none;">hourglass_empty</span>
-                        <span class="status-text" id="statusText">Connecting...</span>
-                        <div class="segment-bar progress" id="progressSegmentBar" style="display: none;"></div>
-                        <span class="progress-percent" id="progressPercent" style="display: none;">0%</span>
-                    </div>
-                </div>
-
-                <div class="actions-area" id="actionsArea"></div>
-            </div>
-
-            <aside class="side-panel">
-                <div class="status-section">
-                    <div class="status-title"><span class="material-symbols-outlined">favorite</span>Survival</div>
-
-                    <div class="survival-stat">
-                        <div class="stat-status" id="healthStatus">Healthy</div>
-                        <div class="stat-bar-row">
-                            <span class="material-symbols-outlined">monitor_heart</span>
-                            <div class="segment-bar health" id="healthSegmentBar"></div>
-                            <span class="stat-value" id="healthPct">100%</span>
-                        </div>
-                    </div>
-
-                    <div class="survival-stat">
-                        <div class="stat-status" id="foodStatus">Well Fed</div>
-                        <div class="stat-bar-row">
-                            <span class="material-symbols-outlined">restaurant</span>
-                            <div class="segment-bar food" id="foodSegmentBar"></div>
-                            <span class="stat-value" id="foodPct">100%</span>
-                        </div>
-                    </div>
-
-                    <div class="survival-stat">
-                        <div class="stat-status" id="waterStatus">Hydrated</div>
-                        <div class="stat-bar-row">
-                            <span class="material-symbols-outlined">water_drop</span>
-                            <div class="segment-bar water" id="waterSegmentBar"></div>
-                            <span class="stat-value" id="waterPct">100%</span>
-                        </div>
-                    </div>
-
-                    <div class="survival-stat">
-                        <div class="stat-status" id="energyStatus">Energized</div>
-                        <div class="stat-bar-row">
-                            <span class="material-symbols-outlined">bolt</span>
-                            <div class="segment-bar energy" id="energySegmentBar"></div>
-                            <span class="stat-value" id="energyPct">100%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="status-section">
-                    <div class="status-title"><span class="material-symbols-outlined">error</span>Effects</div>
-                    <div class="effects-list" id="effectsList">
-                        <div class="effect-item stable">None</div>
-                    </div>
-                </div>
-
-                <div class="status-section">
-                    <div class="status-title"><span class="material-symbols-outlined">healing</span>Injuries</div>
-                    <div class="injuries-list" id="injuriesList">
-                        <div class="injury-item minor">None</div>
-                    </div>
-                </div>
-
-                <div class="status-section gear-section">
-                    <div class="status-title"><span class="material-symbols-outlined">backpack</span>Gear</div>
-
-                    <!-- Carry capacity -->
-                    <div class="gear-row">
-                        <span class="gear-label">Carry</span>
-                        <span class="gear-value" id="carryDisplay">0 / 15 kg</span>
-                    </div>
-                    <div class="segment-bar carry" id="carrySegmentBar"></div>
-
-                    <!-- Weapon (if equipped) -->
-                    <div class="gear-weapon" id="gearWeapon" style="display: none;">
-                        <span class="material-symbols-outlined">swords</span>
-                        <span class="weapon-name" id="weaponName"></span>
-                        <span class="weapon-stat" id="weaponStat"></span>
-                    </div>
-
-                    <!-- Tools summary -->
-                    <div class="gear-tools" id="gearTools">
-                        <div class="tool-pills" id="toolPills"></div>
-                    </div>
-
-                    <!-- Fuel -->
-                    <div class="gear-row">
-                        <span class="gear-label"><span class="material-symbols-outlined">local_fire_department</span>Fuel</span>
-                        <span class="gear-value fuel" id="fuelReserve">0kg</span>
-                    </div>
-
-                    <!-- Food/Water combined -->
-                    <div class="gear-row provisions">
-                        <span class="gear-label"><span class="material-symbols-outlined">restaurant</span>Food</span>
-                        <span class="gear-value" id="foodWaterSummary">No food</span>
-                    </div>
-
-                    <!-- Medicinals summary -->
-                    <div class="gear-row medicinals" id="gearMedicinals" style="display: none;">
-                        <span class="gear-label"><span class="material-symbols-outlined">healing</span>Medicinals</span>
-                        <span class="gear-value" id="medicinalsSummary">None</span>
-                    </div>
-
-                    <!-- Materials summary -->
-                    <div class="gear-row materials" id="gearMaterials" style="display: none;">
-                        <span class="gear-label"><span class="material-symbols-outlined">category</span>Materials</span>
-                        <span class="gear-value" id="materialsSummary">
-                            <span id="materialsCount">None</span><span class="rare-indicator" id="rareIndicator" style="display: none;">*</span>
-                        </span>
-                    </div>
-                </div>
-            </aside>
-        </main>
-    </div>
-
+<body>
+    <!-- Connection overlay -->
     <div class="connection-overlay" id="connectionOverlay">
         <div class="connection-message" id="connectionMessage">Connecting...</div>
     </div>
 
+    <div class="game-container">
+        <!-- LEFT SIDEBAR - Status -->
+        <aside class="left-sidebar">
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">local_fire_department</span>Fire
+                </div>
+                <div class="fire-status" id="fireStatus">
+                    <span class="material-symbols-outlined">local_fire_department</span>
+                    <span class="fire-phase-text" id="firePhaseText">No fire</span>
+                </div>
+                <div class="status-row" style="margin-top: 8px;">
+                    <span class="status-label">Fuel</span>
+                    <span class="status-value" id="fireFuel">--</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Heat</span>
+                    <span class="status-value good" id="fireHeat">--</span>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">thermostat</span>Temperature
+                </div>
+                <div class="status-row">
+                    <span class="status-label"><span class="material-symbols-outlined">person</span>Body</span>
+                    <span class="status-value" id="bodyTempDisplay">--°F</span>
+                </div>
+                <div class="segment-bar temp">
+                    <div class="segment-fill" id="tempBar" style="width: 85%;"></div>
+                </div>
+                <div class="status-row">
+                    <span class="status-label"><span class="material-symbols-outlined">air</span>Air</span>
+                    <span class="status-value" id="airTempDisplay">--°F</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label"><span class="material-symbols-outlined">shield</span>Insulation</span>
+                    <span class="status-value" id="insulationPct">--%</span>
+                </div>
+            </div>
+
+            <!-- Survival Stats moved here -->
+            <div class="status-section survival-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">favorite</span>Survival
+                </div>
+
+                <div class="survival-stat">
+                    <div class="stat-header">
+                        <span class="label"><span class="material-symbols-outlined">monitor_heart</span>Health</span>
+                        <span class="value good" id="healthPct">100%</span>
+                    </div>
+                    <div class="segment-bar health">
+                        <div class="segment-fill" id="healthBar" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="survival-stat">
+                    <div class="stat-header">
+                        <span class="label"><span class="material-symbols-outlined">restaurant</span>Food</span>
+                        <span class="value good" id="foodPct">100%</span>
+                    </div>
+                    <div class="segment-bar food">
+                        <div class="segment-fill" id="foodBar" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="survival-stat">
+                    <div class="stat-header">
+                        <span class="label"><span class="material-symbols-outlined">water_drop</span>Water</span>
+                        <span class="value good" id="waterPct">100%</span>
+                    </div>
+                    <div class="segment-bar water">
+                        <div class="segment-fill" id="waterBar" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="survival-stat">
+                    <div class="stat-header">
+                        <span class="label"><span class="material-symbols-outlined">bolt</span>Energy</span>
+                        <span class="value" id="energyPct">100%</span>
+                    </div>
+                    <div class="segment-bar energy">
+                        <div class="segment-fill" id="energyBar" style="width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">error</span>Effects
+                </div>
+                <div class="effects-list" id="effectsList">
+                    <div class="effect-item">None</div>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">healing</span>Injuries
+                </div>
+                <div class="injuries-list" id="injuriesList">
+                    <div class="injury-item">None</div>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">backpack</span>Gear
+                </div>
+                <div class="gear-row">
+                    <span class="gear-label">Carry</span>
+                    <span class="gear-value" id="carryDisplay">0 / 15 kg</span>
+                </div>
+                <div class="segment-bar energy">
+                    <div class="segment-fill" id="carryBar" style="width: 0%;"></div>
+                </div>
+                <div class="gear-row">
+                    <span class="gear-label"><span class="material-symbols-outlined">local_fire_department</span>Fuel</span>
+                    <span class="gear-value" id="fuelReserve">0 kg</span>
+                </div>
+                <div class="gear-row">
+                    <span class="gear-label"><span class="material-symbols-outlined">restaurant</span>Food</span>
+                    <span class="gear-value" id="foodWaterSummary">No food</span>
+                </div>
+                <div class="tool-pills" id="toolPills"></div>
+            </div>
+        </aside>
+
+        <!-- CENTER AREA -->
+        <div class="center-area">
+            <!-- Location Header with integrated weather -->
+            <div class="location-header">
+                <div class="location-time">
+                    <span class="day-display" id="dayNumber">Day 1</span>
+                    <span class="time-separator">•</span>
+                    <span class="time-display" id="timeDetail">9:00 AM</span>
+                </div>
+                <div class="location-name" id="locationName">Loading...</div>
+                <div class="location-desc" id="locationDesc"></div>
+                
+                <!-- Weather integrated into location -->
+                <div class="weather-strip">
+                    <div class="weather-item">
+                        <span class="material-symbols-outlined" id="weatherIcon">partly_cloudy_day</span>
+                        <span id="weatherCond">Clear</span>
+                    </div>
+                    <div class="weather-item">
+                        <span class="material-symbols-outlined">air</span>
+                        <span id="windLabel">Calm</span>
+                    </div>
+                    <div class="weather-item">
+                        <span class="material-symbols-outlined">water_drop</span>
+                        <span id="precipLabel">None</span>
+                    </div>
+                </div>
+
+                <div class="location-features" id="locationFeatures"></div>
+            </div>
+
+            <div class="grid-viewport">
+                <canvas id="gridCanvas"></canvas>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-bar-container">
+                <span class="material-symbols-outlined" id="progressIcon">hourglass_empty</span>
+                <div class="segment-bar progress">
+                    <div class="segment-fill" id="progressBar" style="width: 0%;"></div>
+                </div>
+                <span class="progress-text" id="progressText">Ready</span>
+            </div>
+
+            <!-- Actions moved to center bottom -->
+            <div class="actions-area">
+                <div class="action-buttons" id="actionButtons"></div>
+            </div>
+        </div>
+
+        <!-- RIGHT SIDEBAR - Logs only -->
+        <aside class="right-sidebar">
+            <div class="narrative-area">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">history</span>Log
+                </div>
+                <div class="narrative-log" id="narrativeLog"></div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Inventory Overlay -->
     <div class="inventory-overlay hidden" id="inventoryOverlay">
         <div class="inventory-modal">
             <div class="inventory-header">
@@ -220,15 +237,12 @@
                     <h3><span class="material-symbols-outlined">healing</span>Medicinals</h3>
                     <div class="inv-content"></div>
                 </div>
-                <div class="inventory-section special-section" id="invSpecial" style="display: none;">
-                    <h3><span class="material-symbols-outlined">star</span>Special</h3>
-                    <div class="inv-content"></div>
-                </div>
             </div>
             <div class="inventory-actions" id="inventoryActions"></div>
         </div>
     </div>
 
+    <!-- Crafting Overlay -->
     <div class="inventory-overlay hidden" id="craftingOverlay">
         <div class="inventory-modal crafting-modal">
             <div class="inventory-header">

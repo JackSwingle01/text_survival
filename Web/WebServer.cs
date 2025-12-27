@@ -125,7 +125,7 @@ public static class WebServer
             if (error != null)
             {
                 // Save load failed - prompt user
-                var tempCtx = GameContext.CreateNewGame();
+                var tempCtx = GameContext.CreateNewGridGame();
                 tempCtx.SessionId = sessionId;
 
                 GameDisplay.AddDanger(tempCtx, "═══════════════════════════════════════════════════════════");
@@ -150,7 +150,7 @@ public static class WebServer
 
                 // Delete corrupted save and start fresh
                 SaveManager.DeleteSave(sessionId);
-                ctx = GameContext.CreateNewGame();
+                ctx = GameContext.CreateNewGridGame();
                 ctx.SessionId = sessionId;
                 isNewGame = true;
             }
@@ -164,7 +164,7 @@ public static class WebServer
             else
             {
                 // No save found (shouldn't happen since we checked HasSaveFile, but handle anyway)
-                ctx = GameContext.CreateNewGame();
+                ctx = GameContext.CreateNewGridGame();
                 ctx.SessionId = sessionId;
                 isNewGame = true;
             }
@@ -172,7 +172,7 @@ public static class WebServer
         else
         {
             // No save file exists
-            ctx = GameContext.CreateNewGame();
+            ctx = GameContext.CreateNewGridGame();
             ctx.SessionId = sessionId;
             isNewGame = true;
         }

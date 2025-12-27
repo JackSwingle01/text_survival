@@ -1,6 +1,7 @@
 ﻿using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Environments.Features;
+using text_survival.Environments.Grid;
 using text_survival.UI;
 
 
@@ -16,6 +17,11 @@ public class Location
     /// Short hints for the player. "[forest] [river] [wolves]"
     /// </summary>
     public string Tags { get; init; } = "";
+
+    /// <summary>
+    /// Position on the tile grid. Null if not yet placed on grid.
+    /// </summary>
+    public GridPosition? GridPosition { get; set; }
 
     public Weather Weather { get; init; } = null!;
     public List<string> ConnectionNames { get; init; } = [];  // Store names to avoid circular refs
@@ -113,6 +119,12 @@ public class Location
     // Discovery //
     public bool Explored { get; private set; } = false;
     public List<LocationFeature> Features { get; set; } = [];
+
+    /// <summary>
+    /// Mark as explored without triggering narrative display.
+    /// Used by grid system when player enters a tile.
+    /// </summary>
+    public void MarkExplored() => Explored = true;
 
     /// <summary>
     /// Resolve connection names to actual Location objects from GameContext.

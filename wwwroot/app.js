@@ -7,6 +7,7 @@ import { FireDisplay } from './modules/fire.js';
 import { SurvivalDisplay } from './modules/survival.js';
 import { EffectsDisplay } from './modules/effects.js';
 import { LocationDisplay } from './modules/location.js';
+import { getGridRenderer } from './modules/grid/CanvasGridRenderer.js';
 
 class GameClient {
     constructor() {
@@ -15,6 +16,8 @@ class GameClient {
         this.maxReconnectAttempts = 5;
         this.awaitingResponse = false;  // Prevent button clicks during frame transitions
         this.currentInputId = 0;        // Track which input set is active
+        this.gridRenderer = null;       // Canvas grid renderer
+        this.gridInitialized = false;
         this.connect();
     }
 
@@ -68,6 +71,12 @@ class GameClient {
             this.renderState(frame.state);
         }
 
+        // Always update grid if present (grid is always visible in new UI)
+        if (frame.grid) {
+            console.log('[GameClient] Frame has grid data, input type:', frame.input?.type);
+            this.updateGrid(frame);
+        }
+
         // Handle inventory overlay
         if (frame.inventory) {
             this.showInventory(frame.inventory, frame.input);
@@ -89,16 +98,148 @@ class GameClient {
         }
     }
 
+    /**
+     * Update grid display with new state
+     */
+    updateGrid(frame) {
+        // Initialize grid renderer if needed
+        if (!this.gridInitialized) {
+            this.gridRenderer = getGridRenderer();
+            this.gridRenderer.init('gridCanvas', (x, y, tileData) => {
+                this.handleTileClick(x, y, tileData);
+            });
+            this.gridInitialized = true;
+        }
+
+        // Store current input type for tile click handling
+        this.currentInputType = frame.input?.type;
+
+        // Update grid with new state
+        this.gridRenderer.update(frame.grid);
+
+        // Handle hazard prompt if present
+        if (frame.hazardPrompt && frame.input?.type === 'hazard_choice') {
+            this.showHazardPrompt(frame.hazardPrompt);
+        }
+    }
+
+    /**
+     * Handle tile click - different behavior based on current mode
+     */
+    handleTileClick(x, y, tileData) {
+        if (this.awaitingResponse) return;
+
+        // If in grid travel mode, send move request directly
+        if (this.currentInputType === 'grid') {
+            this.handleMoveRequest(x, y, tileData);
+        } else {
+            // At camp - show confirmation dialog before traveling
+            const tileName = tileData?.locationName || tileData?.terrain || 'there';
+            if (confirm(`Travel to ${tileName}?`)) {
+                this.handleTravelToRequest(x, y);
+            }
+        }
+    }
+
+    /**
+     * Send travel_to request from map click at camp
+     */
+    handleTravelToRequest(x, y) {
+        if (this.awaitingResponse) return;
+        this.awaitingResponse = true;
+
+        if (this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'travel_to',
+                targetX: x,
+                targetY: y
+            }));
+        }
+    }
+
+    /**
+     * Show hazard choice prompt overlay
+     */
+    showHazardPrompt(hazardPrompt) {
+        // Render hazard choices as action buttons
+        const actionsContainer = document.getElementById('actionButtons');
+        Utils.clearElement(actionsContainer);
+
+        // Title
+        const title = document.createElement('div');
+        title.className = 'hazard-title';
+        title.textContent = 'Hazardous Terrain';
+        actionsContainer.appendChild(title);
+
+        // Description
+        const desc = document.createElement('div');
+        desc.className = 'hazard-desc';
+        desc.textContent = hazardPrompt.hazardDescription;
+        actionsContainer.appendChild(desc);
+
+        // Quick option
+        const quickBtn = document.createElement('button');
+        quickBtn.className = 'action-btn';
+        const quickLabel = document.createElement('span');
+        quickLabel.textContent = 'Quick';
+        const quickTime = document.createElement('span');
+        quickTime.className = 'action-time';
+        quickTime.textContent = `${hazardPrompt.quickTimeMinutes} min • ${hazardPrompt.injuryRiskPercent.toFixed(0)}% risk`;
+        quickBtn.appendChild(quickLabel);
+        quickBtn.appendChild(quickTime);
+        quickBtn.onclick = () => this.respondHazardChoice(true);
+        actionsContainer.appendChild(quickBtn);
+
+        // Careful option
+        const carefulBtn = document.createElement('button');
+        carefulBtn.className = 'action-btn';
+        const carefulLabel = document.createElement('span');
+        carefulLabel.textContent = 'Careful';
+        const carefulTime = document.createElement('span');
+        carefulTime.className = 'action-time';
+        carefulTime.textContent = `${hazardPrompt.carefulTimeMinutes} min`;
+        carefulBtn.appendChild(carefulLabel);
+        carefulBtn.appendChild(carefulTime);
+        carefulBtn.onclick = () => this.respondHazardChoice(false);
+        actionsContainer.appendChild(carefulBtn);
+    }
+
+    /**
+     * Handle move request from grid click
+     */
+    handleMoveRequest(x, y, tileData) {
+        console.log('[GameClient] handleMoveRequest called:', x, y, 'awaitingResponse:', this.awaitingResponse);
+        if (this.awaitingResponse) return;
+        this.awaitingResponse = true;
+
+        if (this.socket.readyState === WebSocket.OPEN) {
+            console.log('[GameClient] Sending move request to server');
+            this.socket.send(JSON.stringify({
+                type: 'move',
+                targetX: x,
+                targetY: y
+            }));
+        }
+    }
+
+    /**
+     * Respond to hazard choice (quick vs careful)
+     */
+    respondHazardChoice(quickTravel) {
+        if (this.awaitingResponse) return;
+        this.awaitingResponse = true;
+
+        if (this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'hazard_choice',
+                quickTravel: quickTravel,
+                choiceIndex: quickTravel ? 0 : 1
+            }));
+        }
+    }
+
 
     renderState(state) {
-        // Debug: log raw capacity values
-        if (state.debugCapacities || state.debugEffectModifiers) {
-            console.log('=== VITALITY DEBUG ===');
-            console.log('Final Vitality:', state.vitality);
-            console.log('Effect Modifiers:', state.debugEffectModifiers);
-            console.log('Final Capacities:', state.debugCapacities);
-            console.log('======================');
-        }
 
         // CSS variables
         document.documentElement.style.setProperty('--warmth', state.warmth);
@@ -110,20 +251,17 @@ class GameClient {
         // Time panel
         document.getElementById('dayNumber').textContent = `Day ${state.dayNumber}`;
         document.getElementById('timeDetail').textContent = `${state.clockTime} — ${state.timeOfDay}`;
-        const transitionType = state.isDaytime ? 'dusk' : 'dawn';
-        document.getElementById('timeWarning').textContent =
-            `${state.hoursUntilTransition.toFixed(1)} hrs til ${transitionType}`;
 
         // Weather
         const weatherEl = document.getElementById('weatherCond');
         weatherEl.textContent = state.weatherCondition;
-        weatherEl.className = 'weather-cond ' + state.weatherCondition.toLowerCase().replace(' ', '-');
+        document.getElementById('weatherIcon').textContent = this.getWeatherIcon(state.weatherCondition);
         document.getElementById('windLabel').textContent = state.wind;
         document.getElementById('precipLabel').textContent = state.precipitation;
 
         // Location
         document.getElementById('locationName').textContent = state.locationName;
-        LocationDisplay.renderTags(state.locationTags);
+        document.getElementById('locationDesc').textContent = state.locationDescription || '';
         LocationDisplay.renderFeatures(state.features);
 
         // Fire
@@ -143,10 +281,12 @@ class GameClient {
         document.getElementById('carryDisplay').textContent =
             `${state.carryWeightKg.toFixed(1)} / ${state.maxWeightKg.toFixed(0)} kg`;
         const carryPct = Math.min(100, (state.carryWeightKg / state.maxWeightKg) * 100);
-        this.renderSegmentBar('carrySegmentBar', carryPct);
+        const carryBar = document.getElementById('carryBar');
+        if (carryBar) {
+            carryBar.style.width = carryPct + '%';
+        }
         document.getElementById('insulationPct').textContent = `${state.insulationPercent}%`;
-        document.getElementById('fuelReserve').textContent =
-            `${state.fuelKg.toFixed(1)}kg (${state.fuelBurnTime})`;
+        document.getElementById('fuelReserve').textContent = `${state.fuelKg.toFixed(1)} kg`;
 
         // Gear summary (from inventory)
         if (state.gearSummary) {
@@ -158,33 +298,32 @@ class GameClient {
     }
 
     renderGearSummary(summary) {
-        // Weapon display
-        const weaponEl = document.getElementById('gearWeapon');
-        if (summary.weaponName) {
-            weaponEl.style.display = '';
-            document.getElementById('weaponName').textContent = summary.weaponName;
-            document.getElementById('weaponStat').textContent =
-                `${summary.weaponDamage?.toFixed(0) || 0} dmg`;
-        } else {
-            weaponEl.style.display = 'none';
-        }
-
         // Tool pills
         const pillsContainer = document.getElementById('toolPills');
         Utils.clearElement(pillsContainer);
 
+        // Weapon
+        if (summary.weaponName) {
+            this.addToolPill(pillsContainer, 'weapon', summary.weaponName);
+        }
+
+        // Cutting tools
         if (summary.cuttingToolCount > 0) {
             this.addToolPill(pillsContainer, 'cutting',
                 summary.cuttingToolCount > 1
                     ? `${summary.cuttingToolCount} blades`
                     : 'Blade');
         }
+
+        // Fire starters
         if (summary.fireStarterCount > 0) {
             this.addToolPill(pillsContainer, 'fire',
                 summary.fireStarterCount > 1
                     ? `${summary.fireStarterCount} fire tools`
                     : 'Fire tool');
         }
+
+        // Other tools
         if (summary.otherToolCount > 0) {
             this.addToolPill(pillsContainer, 'other',
                 summary.otherToolCount > 1
@@ -194,42 +333,23 @@ class GameClient {
 
         // Food/Water combined summary
         const foodWaterSummary = document.getElementById('foodWaterSummary');
-        if (summary.foodPortions === 0 && summary.waterPortions === 0) {
-            foodWaterSummary.textContent = 'None';
-            foodWaterSummary.className = 'gear-value food-empty';
-        } else {
-            let parts = [];
-            if (summary.foodPortions > 0) {
-                let foodText = `${summary.foodPortions} food`;
-                if (summary.hasPreservedFood) foodText += ' +dried';
-                parts.push(foodText);
+        if (foodWaterSummary) {
+            if (summary.foodPortions === 0 && summary.waterPortions === 0) {
+                foodWaterSummary.textContent = 'No food';
+                foodWaterSummary.className = 'gear-value';
+            } else {
+                let parts = [];
+                if (summary.foodPortions > 0) {
+                    let foodText = `${summary.foodPortions} portions`;
+                    if (summary.hasPreservedFood) foodText += ' +dried';
+                    parts.push(foodText);
+                }
+                if (summary.waterPortions > 0) {
+                    parts.push(`${summary.waterPortions}L water`);
+                }
+                foodWaterSummary.textContent = parts.join(', ');
+                foodWaterSummary.className = 'gear-value';
             }
-            if (summary.waterPortions > 0) {
-                parts.push(`${summary.waterPortions} water`);
-            }
-            foodWaterSummary.textContent = parts.join(' • ');
-            foodWaterSummary.className = 'gear-value';
-        }
-
-        // Medicinals summary
-        const medicinalEl = document.getElementById('gearMedicinals');
-        if (summary.medicinalCount > 0) {
-            medicinalEl.style.display = '';
-            document.getElementById('medicinalsSummary').textContent =
-                `${summary.medicinalCount} item${summary.medicinalCount > 1 ? 's' : ''}`;
-        } else {
-            medicinalEl.style.display = 'none';
-        }
-
-        // Materials summary
-        const materialsEl = document.getElementById('gearMaterials');
-        if (summary.craftingMaterialCount > 0) {
-            materialsEl.style.display = '';
-            document.getElementById('materialsCount').textContent = summary.craftingMaterialCount.toString();
-            const rareIndicator = document.getElementById('rareIndicator');
-            rareIndicator.style.display = summary.hasRareMaterials ? '' : 'none';
-        } else {
-            materialsEl.style.display = 'none';
         }
     }
 
@@ -288,6 +408,20 @@ class GameClient {
         return hours * 60 + minutes;
     }
 
+    getWeatherIcon(condition) {
+        const icons = {
+            'Clear': 'wb_sunny',
+            'Cloudy': 'cloud',
+            'Overcast': 'cloud',
+            'Light Snow': 'weather_snowy',
+            'Snow': 'weather_snowy',
+            'Heavy Snow': 'ac_unit',
+            'Blizzard': 'ac_unit',
+            'Fog': 'foggy',
+            'Wind': 'air'
+        };
+        return icons[condition] || 'partly_cloudy_day';
+    }
 
     renderSegmentBar(containerId, percent, state = 'normal') {
         const container = document.getElementById(containerId);
@@ -301,31 +435,28 @@ class GameClient {
     }
 
     renderInput(input, statusText, progress) {
-        const actionsArea = document.getElementById('actionsArea');
-        const statusTextEl = document.getElementById('statusText');
-        const statusIcon = document.getElementById('statusIcon');
-        const progressContainer = document.getElementById('progressSegmentBar');
-        const progressPercent = document.getElementById('progressPercent');
+        const actionsArea = document.getElementById('actionButtons');
+        const progressTextEl = document.getElementById('progressText');
+        const progressIcon = document.getElementById('progressIcon');
+        const progressBar = document.getElementById('progressBar');
 
         // Update progress/status display
         if (progress && progress.total > 0) {
             const pct = Math.round(progress.current / progress.total * 100);
-            statusTextEl.textContent = statusText || 'Working...';
-            statusIcon.style.display = '';
-            progressContainer.style.display = '';
-            ProgressDisplay.renderSegments(pct, pct >= 100);
-            progressPercent.style.display = '';
-            progressPercent.textContent = pct + '%';
+            progressTextEl.textContent = statusText || 'Working...';
+            progressTextEl.classList.add('active');
+            progressIcon.textContent = 'pending';
+            progressBar.style.width = pct + '%';
         } else if (statusText) {
-            statusTextEl.textContent = statusText;
-            statusIcon.style.display = 'none';
-            progressContainer.style.display = 'none';
-            progressPercent.style.display = 'none';
+            progressTextEl.textContent = statusText;
+            progressTextEl.classList.remove('active');
+            progressIcon.textContent = 'hourglass_empty';
+            progressBar.style.width = '0%';
         } else {
-            statusTextEl.textContent = '—';
-            statusIcon.style.display = 'none';
-            progressContainer.style.display = 'none';
-            progressPercent.style.display = 'none';
+            progressTextEl.textContent = 'Ready';
+            progressTextEl.classList.remove('active');
+            progressIcon.textContent = 'hourglass_empty';
+            progressBar.style.width = '0%';
         }
 
         // Clear and render input UI
@@ -343,46 +474,40 @@ class GameClient {
         const inputId = this.currentInputId;
 
         if (input.type === 'select') {
-            const promptDiv = document.createElement('div');
-            promptDiv.className = 'action-prompt';
-            promptDiv.textContent = input.prompt;
-            actionsArea.appendChild(promptDiv);
-
-            const listDiv = document.createElement('div');
-            listDiv.className = 'action-list';
+            if (input.prompt) {
+                const promptDiv = document.createElement('div');
+                promptDiv.className = 'action-prompt';
+                promptDiv.textContent = input.prompt;
+                actionsArea.appendChild(promptDiv);
+            }
 
             input.choices.forEach((choice, i) => {
                 const btn = document.createElement('button');
                 btn.className = 'action-btn';
                 btn.textContent = choice;
                 btn.onclick = () => this.respond(i, inputId);
-                listDiv.appendChild(btn);
+                actionsArea.appendChild(btn);
             });
 
-            actionsArea.appendChild(listDiv);
-
         } else if (input.type === 'confirm') {
-            const promptDiv = document.createElement('div');
-            promptDiv.className = 'action-prompt';
-            promptDiv.textContent = input.prompt;
-            actionsArea.appendChild(promptDiv);
-
-            const listDiv = document.createElement('div');
-            listDiv.className = 'action-list';
+            if (input.prompt) {
+                const promptDiv = document.createElement('div');
+                promptDiv.className = 'action-prompt';
+                promptDiv.textContent = input.prompt;
+                actionsArea.appendChild(promptDiv);
+            }
 
             const yesBtn = document.createElement('button');
             yesBtn.className = 'action-btn';
             yesBtn.textContent = 'Yes';
             yesBtn.onclick = () => this.respond(0, inputId);
-            listDiv.appendChild(yesBtn);
+            actionsArea.appendChild(yesBtn);
 
             const noBtn = document.createElement('button');
             noBtn.className = 'action-btn';
             noBtn.textContent = 'No';
             noBtn.onclick = () => this.respond(1, inputId);
-            listDiv.appendChild(noBtn);
-
-            actionsArea.appendChild(listDiv);
+            actionsArea.appendChild(noBtn);
 
         } else if (input.type === 'anykey') {
             const btn = document.createElement('button');
@@ -390,6 +515,25 @@ class GameClient {
             btn.textContent = input.prompt || 'Continue';
             btn.onclick = () => this.respond(null, inputId);
             actionsArea.appendChild(btn);
+
+        } else if (input.type === 'grid') {
+            // Grid travel mode - show stop button
+            const stopBtn = document.createElement('button');
+            stopBtn.className = 'action-btn';
+            stopBtn.textContent = 'Stop';
+            stopBtn.onclick = () => this.respondStopTravel();
+            actionsArea.appendChild(stopBtn);
+        }
+    }
+
+    respondStopTravel() {
+        if (this.awaitingResponse) return;
+        this.awaitingResponse = true;
+
+        if (this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'menu'
+            }));
         }
     }
 

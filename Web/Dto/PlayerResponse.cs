@@ -2,6 +2,13 @@ namespace text_survival.Web.Dto;
 
 /// <summary>
 /// Response from client to server via WebSocket.
-/// Sent when player makes a selection or acknowledges a prompt.
+/// Sent when player makes a selection, acknowledges a prompt, or clicks a tile.
 /// </summary>
-public record PlayerResponse(int? ChoiceIndex);
+public record PlayerResponse(
+    int? ChoiceIndex,
+    // Grid movement fields
+    string? Type = null,      // "select", "move", "hazard_choice"
+    int? TargetX = null,      // For "move" type
+    int? TargetY = null,      // For "move" type
+    bool? QuickTravel = null  // For "hazard_choice" type (true = quick, false = careful)
+);

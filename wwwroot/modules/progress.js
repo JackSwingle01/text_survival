@@ -2,8 +2,10 @@
  * Progress Display Module
  *
  * Handles client-side progress animation for long-running operations.
- * Displays a segmented progress bar that animates locally while waiting for server response.
+ * Displays a progress bar that animates locally while waiting for server response.
  */
+
+import { Utils } from './utils.js';
 
 export const ProgressDisplay = {
     intervalId: null,
@@ -13,20 +15,18 @@ export const ProgressDisplay = {
      * Client animates the progress bar locally instead of waiting for server updates.
      */
     start(durationSeconds, statusText) {
-        const statusTextEl = document.getElementById('statusText');
-        const statusIcon = document.getElementById('statusIcon');
-        const progressContainer = document.getElementById('progressSegmentBar');
-        const progressPercent = document.getElementById('progressPercent');
-        const actionsArea = document.getElementById('actionsArea');
+        const progressTextEl = document.getElementById('progressText');
+        const progressIcon = document.getElementById('progressIcon');
+        const progressBar = document.getElementById('progressBar');
+        const actionsArea = document.getElementById('actionButtons');
 
         // Show progress UI
-        statusTextEl.textContent = statusText || 'Working...';
-        statusIcon.style.display = '';
-        progressContainer.style.display = '';
-        progressPercent.style.display = '';
+        progressTextEl.textContent = statusText || 'Working...';
+        progressTextEl.classList.add('active');
+        progressIcon.textContent = 'pending';
 
         // Clear actions while progress is running
-        this.clearElement(actionsArea);
+        Utils.clearElement(actionsArea);
 
         const startTime = Date.now();
         const durationMs = durationSeconds * 1000;
@@ -35,8 +35,7 @@ export const ProgressDisplay = {
         this.intervalId = setInterval(() => {
             const elapsed = Date.now() - startTime;
             const pct = Math.min(100, Math.round((elapsed / durationMs) * 100));
-            this.renderSegments(pct, pct >= 100);
-            progressPercent.textContent = pct + '%';
+            progressBar.style.width = pct + '%';
 
             // Stop at 100% (server response will arrive and stop animation properly)
             if (pct >= 100) {
@@ -54,38 +53,16 @@ export const ProgressDisplay = {
             clearInterval(this.intervalId);
             this.intervalId = null;
         }
-    },
 
-    /**
-     * Render progress bar segments at the given percentage.
-     */
-    renderSegments(percent, complete = false) {
-        const container = document.getElementById('progressSegmentBar');
-        if (!container.classList.contains('progress')) {
-            container.classList.add('progress');
-        }
-        this.clearElement(container);
-
-        // Create single fill div instead of segments
-        const fill = document.createElement('div');
-        fill.className = 'progress-fill';
-        fill.style.width = percent + '%';
-
-        if (complete) {
-            container.classList.add('complete');
-        } else {
-            container.classList.remove('complete');
+        // Reset progress bar
+        const progressBar = document.getElementById('progressBar');
+        if (progressBar) {
+            progressBar.style.width = '0%';
         }
 
-        container.appendChild(fill);
-    },
-
-    /**
-     * Helper to clear all children from a DOM element.
-     */
-    clearElement(el) {
-        while (el.firstChild) {
-            el.removeChild(el.firstChild);
+        const progressTextEl = document.getElementById('progressText');
+        if (progressTextEl) {
+            progressTextEl.classList.remove('active');
         }
     }
 };

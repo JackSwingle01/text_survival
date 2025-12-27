@@ -2,6 +2,8 @@ using text_survival.Actors.Player;
 using text_survival.Actions.Tensions;
 using text_survival.Bodies;
 using text_survival.Environments;
+using text_survival.Environments.Grid;
+using text_survival.Environments.Factories;
 using text_survival.Actions.Expeditions;
 using text_survival.Environments.Features;
 using text_survival.Items;
@@ -31,6 +33,39 @@ public class GameContext(Player player, Location camp, Weather weather)
     [System.Text.Json.Serialization.JsonInclude]
     private List<Location> _unrevealedLocations { get; set; } = new();
     public IReadOnlyList<Location> UnrevealedLocations => _unrevealedLocations.AsReadOnly();
+
+    // Grid-based world (new tile system)
+    /// <summary>
+    /// The tile grid. Null if using legacy graph-based locations.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public TileGrid? Grid { get; set; }
+
+    /// <summary>
+    /// Current tile position (grid mode). Null if using legacy mode.
+    /// </summary>
+    public Tile? CurrentTile { get; set; }
+
+    /// <summary>
+    /// Pending travel target from map click (grid mode).
+    /// When set, GridTravelRunner will immediately move to this tile.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public (int X, int Y)? PendingTravelTarget { get; set; }
+
+    /// <summary>
+    /// Whether the game is running in grid mode (vs legacy graph mode).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsGridMode => Grid != null && CurrentTile != null;
+
+    /// <summary>
+    /// Check if at camp (works in both grid and legacy modes).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsAtCampTile => IsGridMode
+        ? CurrentTile?.NamedLocation == Camp
+        : CurrentLocation == Camp;
 
     // Mountain pass tracking (not in standard location pool)
     public List<Location> MountainPassLocations { get; private set; } = [];
@@ -158,6 +193,70 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         // Setup mountain pass - last location in chain is the win location
         ctx.SetupMountainPass(passLocations, passLocations[^1]);
+
+        // Equip starting clothing
+        ctx.Inventory.Equip(Gear.WornFurChestWrap());
+        ctx.Inventory.Equip(Gear.FurLegWraps());
+        ctx.Inventory.Equip(Gear.WornHideBoots());
+        ctx.Inventory.Equip(Gear.HideHandwraps());
+
+        // Add starting supplies
+        ctx.Inventory.Tools.Add(Gear.HandDrill());
+        ctx.Inventory.Add(Resource.Stick, 0.3);
+        ctx.Inventory.Add(Resource.Stick, 0.25);
+        ctx.Inventory.Add(Resource.Stick, 0.35);
+        ctx.Inventory.Add(Resource.Tinder, 0.05);
+        ctx.Inventory.Add(Resource.Tinder, 0.04);
+
+        return ctx;
+    }
+
+    /// <summary>
+    /// Create a new game using the grid-based tile world.
+    /// </summary>
+    public static GameContext CreateNewGridGame()
+    {
+        // Clear event cooldowns for fresh game
+        GameEventRegistry.ClearTriggerTimes();
+        Weather weather = new Weather(-10);
+
+        // Generate grid-based world
+        var worldGen = new GridWorldGenerator
+        {
+            Width = 32,
+            Height = 32,
+            TargetNamedLocations = 40,
+            MinLocationSpacing = 3
+        };
+
+        var (grid, campTile, camp) = worldGen.Generate(weather);
+
+        // Initialize weather for game start time (9:00 AM, Jan 1)
+        var gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
+        weather.Update(gameStartTime);
+
+        // Add campfire (unlit - player must start it)
+        HeatSourceFeature campfire = new HeatSourceFeature();
+        campfire.AddFuel(2, FuelType.Kindling);
+        camp.Features.Add(campfire);
+
+        // Add camp storage cache
+        camp.Features.Add(CacheFeature.CreateCampCache());
+
+        var player = new Player();
+
+        GameContext ctx = new GameContext(player, camp, weather);
+
+        // Set up grid mode
+        ctx.Grid = grid;
+        ctx.CurrentTile = campTile;
+        ctx.CurrentLocation = camp;
+
+        // Add all named locations to the Locations list for compatibility
+        foreach (var tile in grid.NamedLocationTiles)
+        {
+            ctx.Locations.Add(tile.NamedLocation!);
+        }
 
         // Equip starting clothing
         ctx.Inventory.Equip(Gear.WornFurChestWrap());

@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Survival</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-midnight: hsl(215, 30%, 5%);
+            --bg-panel: hsl(215, 25%, 8%);
+            --bg-darker: hsl(215, 28%, 6%);
+            --border-dim: rgba(255, 255, 255, 0.1);
+            --border-bright: rgba(255, 255, 255, 0.2);
+            --text-dim: rgba(255, 255, 255, 0.5);
+            --text-mid: rgba(255, 255, 255, 0.7);
+            --text-bright: rgba(255, 255, 255, 0.9);
+            
+            --fire-orange: #e08830;
+            --fire-dim: #a06020;
+            --tech-cyan: #60a0b0;
+            --vital-red: #a05050;
+            --health-green: #50a060;
+            --water-blue: #5080a0;
+            --energy-yellow: #a0a050;
+            --warning-amber: #c08040;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-midnight);
+            color: var(--text-bright);
+            font-family: 'JetBrains Mono', monospace;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .game-container {
+            display: grid;
+            grid-template-columns: 280px 1fr 240px;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            gap: 0;
+        }
+
+        /* ===== LEFT SIDEBAR ===== */
+        .left-sidebar {
+            grid-column: 1;
+            grid-row: 1 / -1;
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border-dim);
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .status-section {
+            background: var(--bg-darker);
+            border: 1px solid var(--border-dim);
+            padding: 10px;
+        }
+
+        .status-title {
+            font-family: 'Oswald', sans-serif;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .status-title .material-symbols-outlined {
+            font-size: 16px;
+            color: var(--fire-orange);
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            margin-bottom: 4px;
+        }
+
+        .status-label {
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-label .material-symbols-outlined {
+            font-size: 14px;
+        }
+
+        .status-value {
+            color: var(--text-mid);
+        }
+
+        .status-value.good { color: var(--health-green); }
+        .status-value.warning { color: var(--warning-amber); }
+        .status-value.danger { color: var(--vital-red); }
+
+        /* Segment bars */
+        .segment-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            margin: 4px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .segment-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .segment-bar.health .segment-fill { background: var(--health-green); }
+        .segment-bar.food .segment-fill { background: var(--fire-orange); }
+        .segment-bar.water .segment-fill { background: var(--water-blue); }
+        .segment-bar.energy .segment-fill { background: var(--energy-yellow); }
+        .segment-bar.temp .segment-fill { background: var(--vital-red); }
+        .segment-bar.progress .segment-fill { background: var(--tech-cyan); }
+
+        /* Fire status special styling */
+        .fire-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            background: rgba(224, 136, 48, 0.1);
+            border: 1px solid rgba(224, 136, 48, 0.2);
+            margin-top: 6px;
+        }
+
+        .fire-status .material-symbols-outlined {
+            color: var(--fire-orange);
+            font-size: 18px;
+        }
+
+        .fire-status.cold {
+            background: rgba(96, 160, 176, 0.1);
+            border-color: rgba(96, 160, 176, 0.2);
+        }
+
+        .fire-status.cold .material-symbols-outlined {
+            color: var(--tech-cyan);
+        }
+
+        .fire-phase-text {
+            font-size: 11px;
+            color: var(--fire-orange);
+        }
+
+        .fire-status.cold .fire-phase-text {
+            color: var(--tech-cyan);
+        }
+
+        /* Survival stats */
+        .survival-stat {
+            margin-bottom: 8px;
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            margin-bottom: 2px;
+        }
+
+        .stat-header .label {
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-header .label .material-symbols-outlined {
+            font-size: 14px;
+        }
+
+        .stat-header .value {
+            font-family: 'Oswald', sans-serif;
+        }
+
+        /* Effects and injuries */
+        .effect-item, .injury-item {
+            font-size: 10px;
+            padding: 4px 6px;
+            margin-bottom: 3px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 2px solid var(--border-dim);
+        }
+
+        .effect-item.warning { border-color: var(--warning-amber); color: var(--warning-amber); }
+        .effect-item.danger { border-color: var(--vital-red); color: var(--vital-red); }
+        .injury-item.minor { border-color: var(--warning-amber); }
+        .injury-item.severe { border-color: var(--vital-red); }
+
+        /* Gear section */
+        .gear-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            margin-bottom: 3px;
+        }
+
+        .gear-label {
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .gear-label .material-symbols-outlined {
+            font-size: 12px;
+        }
+
+        .gear-value {
+            color: var(--text-mid);
+        }
+
+        .tool-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 6px;
+        }
+
+        .tool-pill {
+            font-size: 9px;
+            padding: 2px 6px;
+            background: rgba(96, 160, 176, 0.15);
+            border: 1px solid rgba(96, 160, 176, 0.3);
+            color: var(--tech-cyan);
+        }
+
+        /* ===== CENTER AREA ===== */
+        .center-area {
+            grid-column: 2;
+            grid-row: 1 / 3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            gap: 12px;
+        }
+
+        /* Location header */
+        .location-header {
+            text-align: center;
+            width: 100%;
+            max-width: 660px;
+        }
+
+        .location-name {
+            font-family: 'Oswald', sans-serif;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--text-bright);
+            text-transform: uppercase;
+        }
+
+        .location-desc {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        .location-features {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .feature-tag {
+            font-size: 10px;
+            padding: 3px 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-dim);
+            color: var(--text-mid);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .feature-tag .material-symbols-outlined {
+            font-size: 14px;
+        }
+
+        /* Grid viewport */
+        .grid-viewport {
+            background: var(--bg-darker);
+            border: 1px solid var(--border-dim);
+            padding: 8px;
+        }
+
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        /* Progress bar */
+        .progress-bar-container {
+            width: 100%;
+            max-width: 660px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: var(--bg-darker);
+            border: 1px solid var(--border-dim);
+        }
+
+        .progress-bar-container .material-symbols-outlined {
+            font-size: 16px;
+            color: var(--tech-cyan);
+        }
+
+        .progress-bar-container .segment-bar {
+            flex: 1;
+            height: 6px;
+        }
+
+        .progress-text {
+            font-size: 11px;
+            color: var(--text-dim);
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .progress-text.active {
+            color: var(--tech-cyan);
+        }
+
+        /* ===== RIGHT SIDEBAR - ACTIONS ===== */
+        .right-sidebar {
+            grid-column: 3;
+            grid-row: 1 / -1;
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border-dim);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .actions-title {
+            font-family: 'Oswald', sans-serif;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .actions-title .material-symbols-outlined {
+            font-size: 16px;
+            color: var(--fire-orange);
+        }
+
+        .action-btn {
+            background: transparent;
+            border: 1px solid var(--border-dim);
+            color: var(--text-mid);
+            padding: 10px 12px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .action-btn:hover {
+            border-color: var(--tech-cyan);
+            background: rgba(96, 160, 176, 0.1);
+            color: var(--text-bright);
+        }
+
+        .action-btn .material-symbols-outlined {
+            font-size: 16px;
+            opacity: 0.6;
+        }
+
+        .action-btn:hover .material-symbols-outlined {
+            opacity: 1;
+            color: var(--tech-cyan);
+        }
+
+        .action-btn.primary {
+            border-color: var(--fire-orange);
+            color: var(--fire-orange);
+        }
+
+        .action-btn.primary:hover {
+            background: rgba(224, 136, 48, 0.15);
+            border-color: var(--fire-orange);
+        }
+
+        .action-btn.primary .material-symbols-outlined {
+            color: var(--fire-orange);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .action-btn:disabled:hover {
+            border-color: var(--border-dim);
+            background: transparent;
+        }
+
+        .action-time {
+            font-size: 9px;
+            color: var(--text-dim);
+            margin-left: 8px;
+        }
+
+        /* ===== NARRATIVE LOG ===== */
+        .narrative-area {
+            grid-column: 1 / -1;
+            grid-row: 3;
+            background: var(--bg-darker);
+            border-top: 1px solid var(--border-dim);
+            padding: 12px 20px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .narrative-log {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .log-entry {
+            font-size: 12px;
+            line-height: 1.5;
+            padding: 6px 10px;
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 2px solid var(--border-dim);
+        }
+
+        .log-entry.event {
+            border-color: var(--fire-orange);
+        }
+
+        .log-entry.info {
+            border-color: var(--tech-cyan);
+            color: var(--text-dim);
+        }
+
+        .log-entry.danger {
+            border-color: var(--vital-red);
+            color: var(--vital-red);
+        }
+
+        .log-entry .timestamp {
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-right: 8px;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-darker);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-dim);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-bright);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- LEFT SIDEBAR -->
+        <aside class="left-sidebar">
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">schedule</span>Time
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Day</span>
+                    <span class="status-value">Day 1</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label"><span class="material-symbols-outlined">schedule</span></span>
+                    <span class="status-value">9:00 AM — Morning</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label"><span class="material-symbols-outlined">wb_twilight</span></span>
+                    <span class="status-value warning">8.5 hrs til dusk</span>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">cloud</span>Weather
+                </div>
+                <div class="status-row">
+                    <span class="status-label"><span class="material-symbols-outlined">partly_cloudy_day</span></span>
+                    <span class="status-value">Clear</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label"><span class="material-symbols-outlined">air</span>Wind</span>
+                    <span class="status-value">Calm</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label"><span class="material-symbols-outlined">water_drop</span>Precip</span>
+                    <span class="status-value">None</span>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">local_fire_department</span>Fire
+                </div>
+                <div class="fire-status">
+                    <span class="material-symbols-outlined">local_fire_department</span>
+                    <span class="fire-phase-text">Steady — 43 min</span>
+                </div>
+                <div class="status-row" style="margin-top: 8px;">
+                    <span class="status-label">Fuel</span>
+                    <span class="status-value">Oak logs</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Heat</span>
+                    <span class="status-value good">+12°F</span>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">thermostat</span>Temperature
+                </div>
+                <div class="status-row">
+                    <span class="status-label"><span class="material-symbols-outlined">person</span>Body</span>
+                    <span class="status-value">98.6°F</span>
+                </div>
+                <div class="segment-bar temp">
+                    <div class="segment-fill" style="width: 85%;"></div>
+                </div>
+                <div class="status-row">
+                    <span class="status-label"><span class="material-symbols-outlined">air</span>Air</span>
+                    <span class="status-value">32°F</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label"><span class="material-symbols-outlined">shield</span>Insulation</span>
+                    <span class="status-value">15%</span>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">favorite</span>Survival
+                </div>
+                
+                <div class="survival-stat">
+                    <div class="stat-header">
+                        <span class="label"><span class="material-symbols-outlined">monitor_heart</span>Health</span>
+                        <span class="value good">100%</span>
+                    </div>
+                    <div class="segment-bar health">
+                        <div class="segment-fill" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="survival-stat">
+                    <div class="stat-header">
+                        <span class="label"><span class="material-symbols-outlined">restaurant</span>Food</span>
+                        <span class="value good">85%</span>
+                    </div>
+                    <div class="segment-bar food">
+                        <div class="segment-fill" style="width: 85%;"></div>
+                    </div>
+                </div>
+
+                <div class="survival-stat">
+                    <div class="stat-header">
+                        <span class="label"><span class="material-symbols-outlined">water_drop</span>Water</span>
+                        <span class="value warning">45%</span>
+                    </div>
+                    <div class="segment-bar water">
+                        <div class="segment-fill" style="width: 45%;"></div>
+                    </div>
+                </div>
+
+                <div class="survival-stat">
+                    <div class="stat-header">
+                        <span class="label"><span class="material-symbols-outlined">bolt</span>Energy</span>
+                        <span class="value">78%</span>
+                    </div>
+                    <div class="segment-bar energy">
+                        <div class="segment-fill" style="width: 78%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">error</span>Effects
+                </div>
+                <div class="effect-item">None</div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">healing</span>Injuries
+                </div>
+                <div class="injury-item minor">None</div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="material-symbols-outlined">backpack</span>Gear
+                </div>
+                <div class="gear-row">
+                    <span class="gear-label">Carry</span>
+                    <span class="gear-value">8.2 / 15 kg</span>
+                </div>
+                <div class="segment-bar energy">
+                    <div class="segment-fill" style="width: 55%;"></div>
+                </div>
+                <div class="gear-row">
+                    <span class="gear-label"><span class="material-symbols-outlined">local_fire_department</span>Fuel</span>
+                    <span class="gear-value">2.4 kg</span>
+                </div>
+                <div class="gear-row">
+                    <span class="gear-label"><span class="material-symbols-outlined">restaurant</span>Food</span>
+                    <span class="gear-value">3 items</span>
+                </div>
+                <div class="tool-pills">
+                    <span class="tool-pill">Knife</span>
+                    <span class="tool-pill">Axe</span>
+                    <span class="tool-pill">Rope</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CENTER AREA -->
+        <div class="center-area">
+            <div class="location-header">
+                <div class="location-name">Camp</div>
+                <div class="location-desc">A sheltered clearing with your fire pit</div>
+                <div class="location-features">
+                    <span class="feature-tag"><span class="material-symbols-outlined">local_fire_department</span>Fire Pit</span>
+                    <span class="feature-tag"><span class="material-symbols-outlined">camping</span>Shelter</span>
+                    <span class="feature-tag"><span class="material-symbols-outlined">inventory_2</span>Cache</span>
+                </div>
+            </div>
+
+            <div class="grid-viewport">
+                <canvas id="gridCanvas"></canvas>
+            </div>
+
+            <div class="progress-bar-container">
+                <span class="material-symbols-outlined">hourglass_empty</span>
+                <div class="segment-bar progress">
+                    <div class="segment-fill" style="width: 0%;"></div>
+                </div>
+                <span class="progress-text">Ready</span>
+            </div>
+        </div>
+
+        <!-- RIGHT SIDEBAR - ACTIONS -->
+        <aside class="right-sidebar">
+            <div class="actions-title">
+                <span class="material-symbols-outlined">bolt</span>Actions
+            </div>
+
+            <button class="action-btn primary">
+                <span>Tend Fire</span>
+                <span class="material-symbols-outlined">local_fire_department</span>
+            </button>
+
+            <button class="action-btn">
+                <span>Scout Area<span class="action-time">15 min</span></span>
+                <span class="material-symbols-outlined">search</span>
+            </button>
+
+            <button class="action-btn">
+                <span>Gather Wood<span class="action-time">20 min</span></span>
+                <span class="material-symbols-outlined">forest</span>
+            </button>
+
+            <button class="action-btn">
+                <span>Set Trap<span class="action-time">30 min</span></span>
+                <span class="material-symbols-outlined">trap</span>
+            </button>
+
+            <button class="action-btn">
+                <span>Check Snares<span class="action-time">25 min</span></span>
+                <span class="material-symbols-outlined">cruelty_free</span>
+            </button>
+
+            <button class="action-btn">
+                <span>Rest<span class="action-time">1 hr</span></span>
+                <span class="material-symbols-outlined">bed</span>
+            </button>
+
+            <button class="action-btn" disabled>
+                <span>Craft</span>
+                <span class="material-symbols-outlined">construction</span>
+            </button>
+
+            <button class="action-btn">
+                <span>Inventory</span>
+                <span class="material-symbols-outlined">backpack</span>
+            </button>
+        </aside>
+
+        <!-- NARRATIVE LOG -->
+        <div class="narrative-area">
+            <div class="narrative-log">
+                <div class="log-entry event">
+                    <span class="timestamp">9:00</span>
+                    You arrive at camp. The fire crackles steadily, warding off the bitter cold.
+                </div>
+                <div class="log-entry info">
+                    <span class="timestamp">8:52</span>
+                    Travel time: 8 minutes through deep snow.
+                </div>
+                <div class="log-entry event">
+                    <span class="timestamp">8:37</span>
+                    You harvest 3.2 kg of birch bark from the dead tree.
+                </div>
+                <div class="log-entry danger">
+                    <span class="timestamp">8:20</span>
+                    A wolf howl echoes from the northwest. Close.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gridCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Grid settings
+        const WORLD_SIZE = 20;
+        const VIEW_SIZE = 7;
+        const TILE_SIZE = 80;
+        const GAP = 3;
+
+        canvas.width = VIEW_SIZE * TILE_SIZE + (VIEW_SIZE - 1) * GAP;
+        canvas.height = VIEW_SIZE * TILE_SIZE + (VIEW_SIZE - 1) * GAP;
+
+        const playerPos = { x: 10, y: 10 };
+        const playerHistory = [];
+        const visibilityRange = 4;
+
+        // Colors
+        const COLORS = {
+            midnight: 'hsl(215, 30%, 5%)',
+            panel: 'hsl(215, 25%, 8%)',
+            borderDim: 'rgba(255, 255, 255, 0.1)',
+            textDim: 'rgba(255, 255, 255, 0.5)',
+            fireOrange: '#e08830',
+            techCyan: '#60a0b0',
+            vitalRed: '#a05050'
+        };
+
+        const TERRAIN_COLORS = {
+            forest: '#1a2530',
+            clearing: '#2a3a48',
+            plain: '#253040',
+            hills: '#1e2832',
+            water: '#1a3040',
+            rock: '#2a2a30',
+            mountain: '#151518',
+            unexplored: '#080a0c'
+        };
+
+        const ICONS = {
+            fire: 'local_fire_department',
+            tent: 'camping',
+            axe: 'carpenter',
+            meat: 'kebab_dining',
+            wood: 'forest',
+            herb: 'grass',
+            mushroom: 'spa',
+            ice: 'ac_unit',
+            fish: 'phishing',
+            eye: 'visibility',
+            rock: 'landscape',
+            mountain: 'terrain',
+            deer: 'pets',
+            berry: 'nutrition',
+            box: 'inventory_2',
+            knife: 'content_cut',
+            rope: 'cable',
+            trap: 'trap',
+            rabbit: 'cruelty_free',
+            rack: 'dry_cleaning',
+            warning: 'warning',
+            water: 'water_drop',
+            tree: 'park'
+        };
+
+        // Snow particles
+        const snowParticles = [];
+        for (let i = 0; i < 25; i++) {
+            snowParticles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                speed: 0.3 + Math.random() * 0.6,
+                size: 1 + Math.random() * 1.2,
+                drift: Math.random() * Math.PI * 2
+            });
+        }
+
+        // Create world grid
+        const grid = [];
+        for (let y = 0; y < WORLD_SIZE; y++) {
+            grid[y] = [];
+            for (let x = 0; x < WORLD_SIZE; x++) {
+                grid[y][x] = {
+                    x, y,
+                    terrain: getTerrainForPosition(x, y),
+                    explored: false,
+                    label: null,
+                    features: []
+                };
+            }
+        }
+
+        // Place locations
+        const locations = [
+            { x: 10, y: 10, label: 'Camp', features: ['fire', 'tent', 'axe', 'meat'], terrain: 'clearing' },
+            { x: 8, y: 9, label: 'Birches', features: ['wood', 'herb', 'mushroom'], terrain: 'forest' },
+            { x: 12, y: 8, label: 'Creek', features: ['ice', 'fish'], terrain: 'water' },
+            { x: 9, y: 12, label: 'Overlook', features: ['eye', 'rock', 'mountain'], terrain: 'rock' },
+            { x: 13, y: 11, label: 'Hollow', features: ['herb', 'deer', 'berry'], terrain: 'forest' },
+            { x: 7, y: 7, label: 'Deadfall', features: ['axe', 'wood'], terrain: 'forest' },
+            { x: 11, y: 10, label: 'Cache', features: ['box', 'knife', 'rope'], terrain: 'clearing' },
+            { x: 10, y: 11, label: 'Snares', features: ['trap', 'rabbit'], terrain: 'forest' },
+            { x: 11, y: 9, label: 'Rack', features: ['rack', 'meat'], terrain: 'clearing' }
+        ];
+
+        locations.forEach(loc => {
+            if (grid[loc.y] && grid[loc.y][loc.x]) {
+                const tile = grid[loc.y][loc.x];
+                tile.label = loc.label;
+                tile.features = loc.features;
+                tile.terrain = loc.terrain;
+            }
+        });
+
+        updateVisibility();
+
+        function getTerrainForPosition(x, y) {
+            if (y > WORLD_SIZE - 3) return 'mountain';
+            if (x > 11 && x < 14 && y > 7 && y < 10) return 'water';
+            if (x < 6 && y < 6) return 'hills';
+            if ((x > 14 && y > 10 && y < 14) || (x > 8 && x < 11 && y > 11 && y < 14)) return 'rock';
+            
+            const noise = Math.sin(x * 0.4) * Math.cos(y * 0.4);
+            if (noise > 0.3) return 'forest';
+            if (noise > -0.2) return 'clearing';
+            return 'plain';
+        }
+
+        function updateVisibility() {
+            for (let y = 0; y < WORLD_SIZE; y++) {
+                for (let x = 0; x < WORLD_SIZE; x++) {
+                    const dist = Math.abs(x - playerPos.x) + Math.abs(y - playerPos.y);
+                    if (dist <= visibilityRange) {
+                        grid[y][x].explored = true;
+                    }
+                }
+            }
+        }
+
+        function isVisible(x, y) {
+            const dist = Math.abs(x - playerPos.x) + Math.abs(y - playerPos.y);
+            return dist <= visibilityRange;
+        }
+
+        function isAdjacent(x, y) {
+            return Math.abs(x - playerPos.x) + Math.abs(y - playerPos.y) === 1;
+        }
+
+        function worldToView(worldX, worldY) {
+            const viewCenterX = Math.floor(VIEW_SIZE / 2);
+            const viewCenterY = Math.floor(VIEW_SIZE / 2);
+            return {
+                vx: worldX - playerPos.x + viewCenterX,
+                vy: worldY - playerPos.y + viewCenterY
+            };
+        }
+
+        function viewToWorld(vx, vy) {
+            const viewCenterX = Math.floor(VIEW_SIZE / 2);
+            const viewCenterY = Math.floor(VIEW_SIZE / 2);
+            return {
+                x: vx - viewCenterX + playerPos.x,
+                y: vy - viewCenterY + playerPos.y
+            };
+        }
+
+        function getTileScreenPos(vx, vy) {
+            return {
+                px: vx * (TILE_SIZE + GAP),
+                py: vy * (TILE_SIZE + GAP)
+            };
+        }
+
+        function drawMaterialIcon(icon, x, y, size, color, alpha = 1) {
+            ctx.save();
+            ctx.font = `${size}px 'Material Symbols Outlined'`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = color;
+            ctx.fillText(icon, x, y);
+            ctx.restore();
+        }
+
+        let currentHover = null;
+
+        function render() {
+            ctx.fillStyle = COLORS.midnight;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let vy = 0; vy < VIEW_SIZE; vy++) {
+                for (let vx = 0; vx < VIEW_SIZE; vx++) {
+                    const { x: worldX, y: worldY } = viewToWorld(vx, vy);
+                    const { px, py } = getTileScreenPos(vx, vy);
+
+                    if (worldX < 0 || worldX >= WORLD_SIZE || worldY < 0 || worldY >= WORLD_SIZE) {
+                        ctx.fillStyle = TERRAIN_COLORS.unexplored;
+                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                        continue;
+                    }
+
+                    const tile = grid[worldY][worldX];
+
+                    if (!tile.explored) {
+                        ctx.fillStyle = TERRAIN_COLORS.unexplored;
+                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
+                        continue;
+                    }
+
+                    ctx.fillStyle = TERRAIN_COLORS[tile.terrain];
+                    ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+                    // Terrain textures
+                    if (isVisible(worldX, worldY)) {
+                        if (['plain', 'clearing', 'hills'].includes(tile.terrain)) {
+                            ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+                            for (let i = 0; i < 5; i++) {
+                                const sx = px + 8 + (i * 15) % TILE_SIZE;
+                                const sy = py + 6 + (i * 19) % TILE_SIZE;
+                                ctx.fillRect(sx, sy, 2, 2);
+                            }
+                        }
+
+                        if (tile.terrain === 'water') {
+                            ctx.strokeStyle = 'rgba(96, 160, 176, 0.2)';
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.moveTo(px + 15, py + 12);
+                            ctx.lineTo(px + 40, py + 35);
+                            ctx.lineTo(px + 65, py + 30);
+                            ctx.stroke();
+                        }
+
+                        if (tile.terrain === 'forest') {
+                            ctx.fillStyle = 'rgba(10, 15, 20, 0.4)';
+                            [[0.2, 0.3], [0.7, 0.4], [0.5, 0.75]].forEach(([ox, oy]) => {
+                                const tx = px + TILE_SIZE * ox;
+                                const ty = py + TILE_SIZE * oy;
+                                ctx.beginPath();
+                                ctx.moveTo(tx, ty);
+                                ctx.lineTo(tx - 3, ty + 8);
+                                ctx.lineTo(tx + 3, ty + 8);
+                                ctx.closePath();
+                                ctx.fill();
+                            });
+                        }
+                    }
+
+                    if (!isVisible(worldX, worldY)) {
+                        ctx.fillStyle = 'rgba(8, 10, 12, 0.65)';
+                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                    }
+
+                    const isPlayer = worldX === playerPos.x && worldY === playerPos.y;
+                    const adj = isAdjacent(worldX, worldY) && tile.terrain !== 'mountain';
+                    const hovered = currentHover && currentHover.x === worldX && currentHover.y === worldY;
+
+                    if (isPlayer) {
+                        ctx.strokeStyle = COLORS.fireOrange;
+                        ctx.lineWidth = 2;
+                        const gradient = ctx.createRadialGradient(
+                            px + TILE_SIZE/2, py + TILE_SIZE/2, 0,
+                            px + TILE_SIZE/2, py + TILE_SIZE/2, TILE_SIZE * 0.6
+                        );
+                        gradient.addColorStop(0, 'rgba(224, 136, 48, 0.12)');
+                        gradient.addColorStop(1, 'rgba(224, 136, 48, 0)');
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                    } else if (hovered && adj) {
+                        ctx.fillStyle = 'rgba(96, 160, 176, 0.12)';
+                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                        ctx.strokeStyle = COLORS.techCyan;
+                        ctx.lineWidth = 2;
+                    } else if (adj) {
+                        ctx.strokeStyle = 'rgba(96, 160, 176, 0.25)';
+                        ctx.lineWidth = 1;
+                    } else {
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+                        ctx.lineWidth = 1;
+                    }
+
+                    ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
+
+                    // Corner marker
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+                    ctx.fillRect(px + TILE_SIZE - 5, py + TILE_SIZE - 5, 3, 1);
+                    ctx.fillRect(px + TILE_SIZE - 3, py + TILE_SIZE - 5, 1, 3);
+
+                    // Tile label
+                    if (isVisible(worldX, worldY) && tile.label) {
+                        ctx.font = "500 8px 'Oswald', sans-serif";
+                        ctx.textAlign = 'left';
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                        ctx.fillText(tile.label.toUpperCase(), px + 4, py + 10);
+                    }
+
+                    // Features
+                    if (isVisible(worldX, worldY) && tile.features.length > 0) {
+                        const iconPositions = [
+                            { ox: TILE_SIZE * 0.28, oy: TILE_SIZE * 0.38 },
+                            { ox: TILE_SIZE * 0.72, oy: TILE_SIZE * 0.38 },
+                            { ox: TILE_SIZE * 0.28, oy: TILE_SIZE * 0.73 },
+                            { ox: TILE_SIZE * 0.72, oy: TILE_SIZE * 0.73 }
+                        ];
+
+                        tile.features.forEach((feature, i) => {
+                            if (i < 4 && ICONS[feature]) {
+                                const pos = iconPositions[i];
+                                const iconX = px + pos.ox;
+                                const iconY = py + pos.oy;
+
+                                let color = 'rgba(255, 255, 255, 0.45)';
+                                let glow = false;
+
+                                if (feature === 'fire') {
+                                    color = COLORS.fireOrange;
+                                    glow = true;
+                                } else if (feature === 'warning') {
+                                    color = COLORS.vitalRed;
+                                } else if (['water', 'ice', 'fish'].includes(feature)) {
+                                    color = COLORS.techCyan;
+                                }
+
+                                if (glow) {
+                                    ctx.save();
+                                    ctx.shadowColor = color;
+                                    ctx.shadowBlur = 6;
+                                }
+
+                                drawMaterialIcon(ICONS[feature], iconX, iconY, 18, color, 0.8);
+
+                                if (glow) ctx.restore();
+                            }
+                        });
+                    }
+
+                    // Fire glow
+                    if (tile.label === 'Camp' && isVisible(worldX, worldY)) {
+                        const gradient = ctx.createRadialGradient(
+                            px + TILE_SIZE * 0.28, py + TILE_SIZE * 0.38, 0,
+                            px + TILE_SIZE * 0.28, py + TILE_SIZE * 0.38, TILE_SIZE * 1.3
+                        );
+                        gradient.addColorStop(0, 'rgba(224, 136, 48, 0.15)');
+                        gradient.addColorStop(0.4, 'rgba(224, 136, 48, 0.05)');
+                        gradient.addColorStop(1, 'rgba(224, 136, 48, 0)');
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(px - TILE_SIZE, py - TILE_SIZE, TILE_SIZE * 3, TILE_SIZE * 3);
+                    }
+
+                    // Player icon
+                    if (isPlayer) {
+                        drawMaterialIcon('person_pin_circle', px + TILE_SIZE/2, py + TILE_SIZE/2 + 4, 26, COLORS.fireOrange, 1);
+                    }
+                }
+            }
+
+            // Footprints
+            playerHistory.forEach((pos, i) => {
+                const { vx, vy } = worldToView(pos.x, pos.y);
+                if (vx >= 0 && vx < VIEW_SIZE && vy >= 0 && vy < VIEW_SIZE) {
+                    const { px, py } = getTileScreenPos(vx, vy);
+                    const alpha = 0.2 - (i * 0.06);
+                    if (alpha > 0) {
+                        ctx.fillStyle = `rgba(96, 160, 176, ${alpha})`;
+                        ctx.fillRect(px + TILE_SIZE/2 - 6, py + TILE_SIZE/2 - 2, 4, 6);
+                        ctx.fillRect(px + TILE_SIZE/2 + 2, py + TILE_SIZE/2 - 2, 4, 6);
+                    }
+                }
+            });
+
+            // Snow
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            snowParticles.forEach(p => {
+                p.y += p.speed;
+                p.x += Math.sin(p.drift + p.y * 0.01) * 0.2;
+                if (p.y > canvas.height + 10) {
+                    p.y = -10;
+                    p.x = Math.random() * canvas.width;
+                }
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Vignette
+            const vignette = ctx.createRadialGradient(
+                canvas.width/2, canvas.height/2, canvas.height * 0.3,
+                canvas.width/2, canvas.height/2, canvas.height * 0.7
+            );
+            vignette.addColorStop(0, 'rgba(8, 10, 14, 0)');
+            vignette.addColorStop(1, 'rgba(8, 10, 14, 0.35)');
+            ctx.fillStyle = vignette;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            const vx = Math.floor(mx / (TILE_SIZE + GAP));
+            const vy = Math.floor(my / (TILE_SIZE + GAP));
+
+            if (vx >= 0 && vx < VIEW_SIZE && vy >= 0 && vy < VIEW_SIZE) {
+                const { x: worldX, y: worldY } = viewToWorld(vx, vy);
+                if (worldX >= 0 && worldX < WORLD_SIZE && worldY >= 0 && worldY < WORLD_SIZE) {
+                    const tile = grid[worldY][worldX];
+                    if (tile.explored && isAdjacent(worldX, worldY) && tile.terrain !== 'mountain') {
+                        currentHover = { x: worldX, y: worldY };
+                    } else {
+                        currentHover = null;
+                    }
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            currentHover = null;
+        });
+
+        canvas.addEventListener('click', () => {
+            if (currentHover) {
+                playerHistory.unshift({ x: playerPos.x, y: playerPos.y });
+                if (playerHistory.length > 3) playerHistory.pop();
+                playerPos.x = currentHover.x;
+                playerPos.y = currentHover.y;
+                updateVisibility();
+                currentHover = null;
+            }
+        });
+
+        function animate() {
+            render();
+            requestAnimationFrame(animate);
+        }
+
+        document.fonts.ready.then(() => {
+            animate();
+        });
+    </script>
+</body>
+</html>

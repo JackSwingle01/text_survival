@@ -1,78 +1,56 @@
-import { Utils } from './utils.js';
-
 export const FireDisplay = {
     render(fire) {
-        const phaseEl = document.getElementById('firePhase');
-        const phaseText = phaseEl.querySelector('.fire-phase-text');
-        const timeEl = document.getElementById('fireTime');
+        const statusEl = document.getElementById('fireStatus');
+        const phaseText = document.getElementById('firePhaseText');
         const fuelEl = document.getElementById('fireFuel');
         const heatEl = document.getElementById('fireHeat');
 
         if (!fire) {
             phaseText.textContent = 'No fire pit';
-            phaseEl.className = 'fire-phase cold';
-            timeEl.textContent = '';
-            fuelEl.textContent = '';
-            heatEl.textContent = '';
+            statusEl.className = 'fire-status cold';
+            fuelEl.textContent = '--';
+            heatEl.textContent = '--';
             return;
         }
 
         if (fire.phase === 'Cold') {
-            phaseText.textContent = 'Cold';
-            phaseEl.className = 'fire-phase cold';
-            timeEl.textContent = '';
-            // Show fuel if any is loaded
-            Utils.clearElement(fuelEl);
-            const icon = document.createElement('span');
-            icon.className = 'material-symbols-outlined';
-            icon.textContent = 'local_fire_department';
-            fuelEl.appendChild(icon);
+            phaseText.textContent = 'No fire';
+            statusEl.className = 'fire-status cold';
 
             if (fire.totalKg > 0) {
-                const litPercent = fire.totalKg > 0 ? Math.round(fire.burningKg / fire.totalKg * 100) : 0;
-                const text = document.createTextNode(`${fire.totalKg.toFixed(1)}kg fuel (${litPercent}% lit)`);
-                fuelEl.appendChild(text);
+                fuelEl.textContent = `${fire.totalKg.toFixed(1)}kg ready`;
             } else {
-                const text = document.createTextNode('No fuel');
-                fuelEl.appendChild(text);
+                fuelEl.textContent = 'None';
             }
-            heatEl.textContent = '';
+            heatEl.textContent = '--';
             return;
         }
 
-        // Active fire
-        phaseText.textContent = fire.phase;
-        phaseEl.className = 'fire-phase ' + fire.phase.toLowerCase();
+        // Active fire - show phase and time
+        const phaseLabel = fire.phase === 'Roaring' ? 'Roaring' :
+                          fire.phase === 'Steady' ? 'Steady' :
+                          fire.phase === 'Dying' ? 'Dying' :
+                          fire.phase === 'Embers' ? 'Embers' :
+                          fire.phase === 'Building' ? 'Building' :
+                          fire.phase === 'Igniting' ? 'Igniting' : fire.phase;
 
-        // Time remaining with burn rate
-        timeEl.textContent = `${fire.minutesRemaining} min (${fire.burnRateKgPerHour.toFixed(1)} kg/hr)`;
+        phaseText.textContent = `${phaseLabel} — ${fire.minutesRemaining} min`;
+        statusEl.className = 'fire-status';
 
-        // Fuel breakdown: burning vs unlit, or total/max
-        Utils.clearElement(fuelEl);
-        const fuelIcon = document.createElement('span');
-        fuelIcon.className = 'material-symbols-outlined';
-        fuelIcon.textContent = 'local_fire_department';
-        fuelEl.appendChild(fuelIcon);
-
+        // Fuel display
         if (fire.unlitKg > 0.1) {
-            const burningSpan = document.createElement('span');
-            burningSpan.className = 'fire-burning';
-            burningSpan.textContent = `${fire.burningKg.toFixed(1)}kg burning`;
-            const unlitSpan = document.createElement('span');
-            unlitSpan.className = 'fire-unlit';
-            unlitSpan.textContent = ` (+${fire.unlitKg.toFixed(1)}kg unlit)`;
-            fuelEl.appendChild(burningSpan);
-            fuelEl.appendChild(unlitSpan);
+            fuelEl.textContent = `${fire.burningKg.toFixed(1)}kg (+${fire.unlitKg.toFixed(1)}kg)`;
         } else {
-            const fuelText = document.createTextNode(`${fire.totalKg.toFixed(1)}/${fire.maxCapacityKg.toFixed(0)} kg fuel`);
-            fuelEl.appendChild(fuelText);
+            fuelEl.textContent = `${fire.totalKg.toFixed(1)}kg`;
         }
 
         // Heat output
         if (fire.heatOutput > 0) {
-            heatEl.textContent = `+${fire.heatOutput.toFixed(0)}°F heat`;
+            heatEl.textContent = `+${fire.heatOutput.toFixed(0)}°F`;
+            heatEl.className = 'status-value good';
         } else {
-            heatEl.textContent = '';
+            heatEl.textContent = '--';
+            heatEl.className = 'status-value';
         }
     }
 };

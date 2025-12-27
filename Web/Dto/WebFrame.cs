@@ -16,7 +16,9 @@ public record WebFrame(
     string? StatusText = null,
     InventoryDto? Inventory = null,
     CraftingDto? Crafting = null,
-    int? EstimatedDurationSeconds = null
+    int? EstimatedDurationSeconds = null,
+    GridStateDto? Grid = null,          // Grid mode: tile map state
+    HazardPromptDto? HazardPrompt = null // Grid mode: hazard speed choice
 );
 
 /// <summary>

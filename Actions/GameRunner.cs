@@ -1,6 +1,7 @@
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments.Features;
+using text_survival.Environments.Grid;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Actions.Expeditions;
@@ -59,7 +60,11 @@ public partial class GameRunner(GameContext ctx)
 
     private void MainMenu()
     {
-        // choose camp, work, or travel
+        // Auto-save when at main menu
+        _ = SaveManager.Save(ctx);
+        CheckFireWarning();
+
+        var choice = new Choice<Action>();
         var capacities = ctx.player.GetCapacities();
         var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
         var isLimping = AbilityCalculator.IsMovingImpaired(capacities.Moving);
@@ -68,8 +73,7 @@ public partial class GameRunner(GameContext ctx)
             AbilityCalculator.CalculatePerception(ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers()));
         var isWinded = AbilityCalculator.IsBreathingImpaired(capacities.Breathing);
 
-
-        var choice = new Choice<Action>();
+        // Work options (field activities)
         if (CanWork())
         {
             string workLabel = "Work";
@@ -82,9 +86,9 @@ public partial class GameRunner(GameContext ctx)
             choice.AddOption(workLabel, Work);
         }
 
+        // Travel (no longer needed since clicking map does this, but keep for now)
         if (CanTravel())
         {
-            // Build descriptors for travel-affecting impairments
             var travelImpairments = new List<string>();
             if (isImpaired) travelImpairments.Add("impaired");
             if (isLimping) travelImpairments.Add("limping");
@@ -105,12 +109,63 @@ public partial class GameRunner(GameContext ctx)
             choice.AddOption(leaveLabel, LeaveCamp);
         }
 
-        // Rest at existing bedding
-        if (CanCamp())
+        // Camp activities (combined from CampWork menu)
+        if (CanRestByFire())
+            choice.AddOption("Wait", Wait);
+
+        if (HasActiveFire())
+            choice.AddOption("Tend fire", TendFire);
+
+        if (CanStartFire())
+            choice.AddOption("Start fire", StartFire);
+
+        if (ctx.Inventory.HasFood || ctx.Inventory.HasWater)
+            choice.AddOption("Eat/Drink", EatDrink);
+
+        if (HasActiveFire() && (ctx.Inventory.Count(Resource.RawMeat) > 0 || true))
+            choice.AddOption("Cook/Melt", CookMelt);
+
+        if (CanLightTorch())
+            choice.AddOption("Light torch", LightTorch);
+        if (ctx.Inventory.HasLitTorch)
         {
-            choice.AddOption("Camp", CampWork);
+            int mins = (int)ctx.Inventory.TorchBurnTimeRemainingMinutes;
+            choice.AddOption($"Extinguish torch ({mins} min remaining)", ExtinguishTorch);
         }
-        else
+
+        if (ctx.Inventory.HasCraftingMaterials)
+        {
+            string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
+            choice.AddOption(craftLabel, RunCrafting);
+        }
+
+        if (ctx.Inventory.HasBuildingMaterials)
+            choice.AddOption("Improve Camp", ImproveCamp);
+
+        var storage = ctx.Camp.GetFeature<CacheFeature>();
+        if (storage != null && (HasItems() || storage.Storage.CurrentWeightKg > 0))
+            choice.AddOption("Inventory", RunInventoryMenu);
+
+        var rack = ctx.Camp.GetFeature<CuringRackFeature>();
+        if (rack != null)
+        {
+            string rackLabel = rack.HasReadyItems
+                ? "Curing rack (items ready!)"
+                : rack.ItemCount > 0
+                    ? $"Curing rack ({rack.ItemCount} items curing)"
+                    : "Curing rack (empty)";
+            choice.AddOption(rackLabel, UseCuringRack);
+        }
+
+        if (CanApplyDirectTreatment())
+            choice.AddOption("Treat wounds", ApplyDirectTreatment);
+
+        if (ctx.Camp.HasFeature<BeddingFeature>())
+        {
+            string sleepLabel = isImpaired ? "Sleep (you need rest)" : "Sleep";
+            choice.AddOption(sleepLabel, Sleep);
+        }
+        else if (!CanCamp())
         {
             choice.AddOption("Make camp", MakeCamp);
         }
@@ -119,7 +174,16 @@ public partial class GameRunner(GameContext ctx)
     }
 
     private bool CanCamp() => ctx.CurrentLocation.HasFeature<BeddingFeature>();
-    private bool CanTravel() => ctx.CurrentLocation.ConnectionNames.Count > 0;
+    private bool CanTravel()
+    {
+        if (ctx.IsGridMode)
+        {
+            // Grid mode: can travel if there are adjacent passable tiles
+            return ctx.CurrentTile != null &&
+                   ctx.Grid!.GetPassableNeighbors(ctx.CurrentTile).Any();
+        }
+        return ctx.CurrentLocation.ConnectionNames.Count > 0;
+    }
     private bool CanWork() => WorkRunner.HasWorkOptions(ctx, ctx.CurrentLocation);
     private void MakeCamp() => CampHandler.MakeCamp(ctx, ctx.CurrentLocation);
     private void CampWork()
@@ -359,8 +423,16 @@ public partial class GameRunner(GameContext ctx)
 
     private void LeaveCamp()
     {
-        var traveler = new TravelRunner(ctx);
-        traveler.DoTravel();
+        if (ctx.IsGridMode)
+        {
+            var gridTraveler = new GridTravelRunner(ctx);
+            gridTraveler.DoGridTravel();
+        }
+        else
+        {
+            var traveler = new TravelRunner(ctx);
+            traveler.DoTravel();
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

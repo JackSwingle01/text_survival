@@ -3,15 +3,15 @@ import { Utils } from './utils.js';
 export const EffectsDisplay = {
     render(effects) {
         const container = document.getElementById('effectsList');
-        const section = container.parentElement;
         Utils.clearElement(container);
 
         if (!effects || effects.length === 0) {
-            section.style.display = 'none';
+            const none = document.createElement('div');
+            none.className = 'effect-item';
+            none.textContent = 'None';
+            container.appendChild(none);
             return;
         }
-
-        section.style.display = '';
 
         effects.forEach(e => {
             const div = document.createElement('div');
@@ -98,18 +98,18 @@ export const EffectsDisplay = {
 
     renderInjuries(injuries, bloodPercent) {
         const container = document.getElementById('injuriesList');
-        const section = container.parentElement;
         Utils.clearElement(container);
 
         const hasBloodLoss = bloodPercent && bloodPercent < 95;
         const hasInjuries = injuries && injuries.length > 0;
 
         if (!hasBloodLoss && !hasInjuries) {
-            section.style.display = 'none';
+            const none = document.createElement('div');
+            none.className = 'injury-item';
+            none.textContent = 'None';
+            container.appendChild(none);
             return;
         }
-
-        section.style.display = '';
 
         if (hasBloodLoss) {
             const div = document.createElement('div');

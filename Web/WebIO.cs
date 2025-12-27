@@ -1,5 +1,6 @@
 using text_survival.Actions;
 using text_survival.Crafting;
+using text_survival.Environments.Grid;
 using text_survival.Web.Dto;
 
 namespace text_survival.Web;
@@ -67,11 +68,27 @@ public static class WebIO
             null,
             null,
             GetInventory(ctx.SessionId),
-            GetCrafting(ctx.SessionId)
+            GetCrafting(ctx.SessionId),
+            null,
+            ctx.IsGridMode ? GridStateDto.FromContext(ctx) : null
         );
 
         session.Send(frame);
         var response = session.WaitForResponse(ResponseTimeout);
+
+        // Handle travel_to response: player clicked a map tile to start travel
+        if (response.Type == "travel_to" && response.TargetX.HasValue && response.TargetY.HasValue)
+        {
+            ctx.PendingTravelTarget = (response.TargetX.Value, response.TargetY.Value);
+
+            // Find the "Travel" option in the list
+            var displayList = list.Select(display).ToList();
+            for (int i = 0; i < displayList.Count; i++)
+            {
+                if (displayList[i].Contains("Travel"))
+                    return list[i];
+            }
+        }
 
         int index = Math.Clamp(response.ChoiceIndex ?? 0, 0, list.Count - 1);
         return list[index];
@@ -90,7 +107,9 @@ public static class WebIO
             null,
             null,
             GetInventory(ctx.SessionId),
-            GetCrafting(ctx.SessionId)
+            GetCrafting(ctx.SessionId),
+            null,
+            ctx.IsGridMode ? GridStateDto.FromContext(ctx) : null
         );
 
         session.Send(frame);
@@ -113,7 +132,9 @@ public static class WebIO
             null,
             null,
             GetInventory(ctx.SessionId),
-            GetCrafting(ctx.SessionId)
+            GetCrafting(ctx.SessionId),
+            null,
+            ctx.IsGridMode ? GridStateDto.FromContext(ctx) : null
         );
 
         session.Send(frame);
@@ -136,7 +157,9 @@ public static class WebIO
             null,
             null,
             GetInventory(ctx.SessionId),
-            GetCrafting(ctx.SessionId)
+            GetCrafting(ctx.SessionId),
+            null,
+            ctx.IsGridMode ? GridStateDto.FromContext(ctx) : null
         );
 
         session.Send(frame);
@@ -160,7 +183,9 @@ public static class WebIO
             progress.HasValue ? new ProgressDto(progress.Value, total ?? progress.Value) : null,
             statusText,
             GetInventory(ctx.SessionId),  // Preserve current inventory screen
-            GetCrafting(ctx.SessionId)     // Preserve current crafting screen
+            GetCrafting(ctx.SessionId),    // Preserve current crafting screen
+            null,  // EstimatedDurationSeconds
+            ctx.IsGridMode ? GridStateDto.FromContext(ctx) : null  // Include grid when in grid mode
         );
 
         session.Send(frame);
@@ -185,7 +210,8 @@ public static class WebIO
             statusText,
             GetInventory(ctx.SessionId),
             GetCrafting(ctx.SessionId),
-            EstimatedDurationSeconds: estimatedSeconds
+            EstimatedDurationSeconds: estimatedSeconds,
+            Grid: ctx.IsGridMode ? GridStateDto.FromContext(ctx) : null
         );
 
         session.Send(frame);
@@ -230,5 +256,103 @@ public static class WebIO
         if (ctx.SessionId == null) return;
         // Reuse CraftingDto but filter to only CampInfrastructure category
         _currentCrafting[ctx.SessionId] = CraftingDto.FromContext(ctx, crafting, filterCategory: Crafting.NeedCategory.CampInfrastructure);
+    }
+
+    // Grid Mode Methods //
+
+    /// <summary>
+    /// Render grid state and wait for player to click a tile.
+    /// Returns the tile they clicked, or null if they clicked a non-grid action.
+    /// </summary>
+    public static PlayerResponse RenderGridAndWaitForInput(GameContext ctx, string? statusText = null)
+    {
+        if (!ctx.IsGridMode)
+            throw new InvalidOperationException("RenderGridAndWaitForInput requires grid mode");
+
+        var session = GetSession(ctx);
+
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            new InputRequestDto("grid", statusText ?? "Click a tile to move", null),
+            null,
+            statusText,
+            GetInventory(ctx.SessionId),
+            GetCrafting(ctx.SessionId),
+            null,
+            GridStateDto.FromContext(ctx),
+            null  // No hazard prompt
+        );
+
+        session.Send(frame);
+        return session.WaitForResponse(ResponseTimeout);
+    }
+
+    /// <summary>
+    /// Render grid with hazard prompt (quick vs careful choice).
+    /// </summary>
+    public static bool PromptHazardChoice(GameContext ctx, Tile targetTile, string hazardDescription,
+        int quickTimeMinutes, int carefulTimeMinutes, double injuryRiskPercent)
+    {
+        if (!ctx.IsGridMode)
+            throw new InvalidOperationException("PromptHazardChoice requires grid mode");
+
+        var session = GetSession(ctx);
+
+        var hazardPrompt = new HazardPromptDto(
+            targetTile.X,
+            targetTile.Y,
+            hazardDescription,
+            quickTimeMinutes,
+            carefulTimeMinutes,
+            injuryRiskPercent
+        );
+
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            new InputRequestDto("hazard_choice", $"Hazardous terrain: {hazardDescription}", ["Quick", "Careful"]),
+            null,
+            null,
+            GetInventory(ctx.SessionId),
+            GetCrafting(ctx.SessionId),
+            null,
+            GridStateDto.FromContext(ctx),
+            hazardPrompt
+        );
+
+        session.Send(frame);
+        var response = session.WaitForResponse(ResponseTimeout);
+
+        // QuickTravel field takes precedence, fall back to ChoiceIndex
+        if (response.QuickTravel.HasValue)
+            return response.QuickTravel.Value;
+
+        // ChoiceIndex: 0 = Quick, 1 = Careful
+        return response.ChoiceIndex == 0;
+    }
+
+    /// <summary>
+    /// Render grid state without waiting for input.
+    /// </summary>
+    public static void RenderGrid(GameContext ctx, string? statusText = null)
+    {
+        if (!ctx.IsGridMode)
+            throw new InvalidOperationException("RenderGrid requires grid mode");
+
+        var session = SessionRegistry.Get(ctx.SessionId);
+        if (session == null) return;
+
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            null,  // No input request
+            null,
+            statusText,
+            GetInventory(ctx.SessionId),
+            GetCrafting(ctx.SessionId),
+            null,
+            GridStateDto.FromContext(ctx),
+            null
+        );
+
+        session.Send(frame);
     }
 }
