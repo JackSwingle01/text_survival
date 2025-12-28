@@ -223,16 +223,25 @@ export class CanvasGridRenderer {
     }
 
     /**
-     * Draw a material icon at position
+     * Draw a material icon at position with optional outline for contrast
      */
     drawMaterialIcon(icon, x, y, size, color, alpha = 1) {
         this.ctx.save();
+
         this.ctx.font = `${size}px 'Material Symbols Outlined'`;
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
+
+        // Draw dark outline for contrast
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+        this.ctx.lineWidth = 3;
+        this.ctx.strokeText(icon, x, y);
+
+        // Draw icon
         this.ctx.globalAlpha = alpha;
         this.ctx.fillStyle = color;
         this.ctx.fillText(icon, x, y);
+
         this.ctx.restore();
     }
 
@@ -367,12 +376,36 @@ export class CanvasGridRenderer {
         ctx.fillRect(px + this.TILE_SIZE - 5, py + this.TILE_SIZE - 5, 3, 1);
         ctx.fillRect(px + this.TILE_SIZE - 3, py + this.TILE_SIZE - 5, 1, 3);
 
-        // Draw location name
+        // Draw location name with badge background (matches event choice button theme)
         if (isVisible && tile.locationName) {
-            ctx.font = "500 8px 'Oswald', sans-serif";
+            const nameText = tile.locationName.toUpperCase();
+            ctx.font = "500 10px 'Oswald', sans-serif";
+            ctx.letterSpacing = '1px';
+
+            // Measure text to size badge
+            const textMetrics = ctx.measureText(nameText);
+            const textWidth = textMetrics.width;
+            const badgePaddingX = 10;
+            const badgePaddingY = 5;
+            const badgeWidth = textWidth + badgePaddingX * 2;
+            const badgeHeight = 20;
+            const badgeX = px + 4;
+            const badgeY = py + 4;
+
+            // Draw square badge background (matching event choice button theme)
+            ctx.fillStyle = 'rgb(31, 39, 51)';
+            ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
+
+            // Draw border (matching event choice button theme - 2px border)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(badgeX, badgeY, badgeWidth, badgeHeight);
+
+            // Draw text
             ctx.textAlign = 'left';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.fillText(tile.locationName.toUpperCase(), px + 4, py + 10);
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillText(nameText, badgeX + badgePaddingX, badgeY + badgeHeight / 2);
         }
 
         // Draw feature icons
@@ -475,7 +508,7 @@ export class CanvasGridRenderer {
                 this.ctx.shadowBlur = 6;
             }
 
-            this.drawMaterialIcon(iconName, iconX, iconY, 20, color, 0.8);
+            this.drawMaterialIcon(iconName, iconX, iconY, 24, color, 0.9);
 
             if (glow) {
                 this.ctx.restore();

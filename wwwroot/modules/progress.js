@@ -67,7 +67,7 @@ export const ProgressDisplay = {
                     setTimeout(callback, 150);
                 }
             }
-        }, 50); // Update every 50ms for smooth animation
+        }, 30); // Update every 30ms for smooth animation
     },
 
     /**

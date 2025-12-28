@@ -1746,7 +1746,7 @@ body {
     height: 100%;
     width: 0%;
     background: var(--text-bright);
-    transition: width 0.05s linear;
+    transition: width 0.03s linear;
 }
 
 /* Event Outcome Phase Styling */
