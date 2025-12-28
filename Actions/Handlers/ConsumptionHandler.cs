@@ -132,7 +132,7 @@ public static class ConsumptionHandler
                 break;
 
             consumeActions[choice]();
-            ctx.Update(5, ActivityType.Eating, render: true);
+            GameDisplay.UpdateAndRenderProgress(ctx, "Eating.", 5, ActivityType.Eating);
         }
     }
 }

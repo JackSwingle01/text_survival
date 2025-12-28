@@ -36,6 +36,7 @@ public static class ActivityConfig
         [ActivityType.Exploring] = new(1.0, 1.5, 0.0, "Exploring."),
         [ActivityType.Chopping] = new(1.0, 1.8, 0.0, "Chopping wood."),
         [ActivityType.Tracking] = new(1.0, 1.5, 0.0, "Tracking."),
+        [ActivityType.Butchering] = new(1.0, 1.5, 0.0, "Butchering."),
     };
 
     /// <summary>

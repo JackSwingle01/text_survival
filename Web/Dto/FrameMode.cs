@@ -10,6 +10,7 @@ namespace text_survival.Web.Dto;
 [JsonDerivedType(typeof(LocationMode), "location")]
 [JsonDerivedType(typeof(TravelMode), "travel")]
 [JsonDerivedType(typeof(ProgressMode), "progress")]
+[JsonDerivedType(typeof(TravelProgressMode), "travel_progress")]
 public abstract record FrameMode;
 
 /// <summary>
@@ -29,3 +30,15 @@ public record TravelMode(GridStateDto Grid) : FrameMode;
 /// Frontend animates progress bar locally.
 /// </summary>
 public record ProgressMode(string ActivityText, int EstimatedDurationSeconds) : FrameMode;
+
+/// <summary>
+/// Travel progress mode: Combines travel grid with progress animation.
+/// Frontend shows grid and animates camera pan synchronized with progress bar.
+/// </summary>
+public record TravelProgressMode(
+    GridStateDto Grid,
+    string ActivityText,
+    int EstimatedDurationSeconds,
+    int OriginX,
+    int OriginY
+) : FrameMode;

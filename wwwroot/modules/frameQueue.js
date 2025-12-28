@@ -26,8 +26,6 @@ export const FrameQueue = {
      * Queue a frame for processing
      */
     enqueue(frame) {
-        console.log(`[FrameQueue] enqueue, state=${this.state}, queueLen=${this.queue.length}`);
-
         if (this.state === 'idle') {
             this.processNext(frame);
         } else {
@@ -43,22 +41,24 @@ export const FrameQueue = {
 
         if (!nextFrame) {
             this.state = 'idle';
-            console.log('[FrameQueue] Queue empty, state=idle');
             return;
         }
 
         this.state = 'processing';
-        console.log(`[FrameQueue] Processing frame, mode=${nextFrame.mode?.type}`);
 
         // Capture state BEFORE rendering for progress animation
+        const isProgress = nextFrame.mode?.type === 'progress';
+        const isTravelProgress = nextFrame.mode?.type === 'travel_progress';
         let startState = null;
-        if (nextFrame.mode?.type === 'progress' && this.currentState) {
+        if ((isProgress || isTravelProgress) && this.currentState) {
             startState = {
                 healthPercent: this.currentState.healthPercent,
                 foodPercent: this.currentState.foodPercent,
                 waterPercent: this.currentState.waterPercent,
                 energyPercent: this.currentState.energyPercent,
                 bodyTemp: this.currentState.bodyTemp,
+                clockTimeMinutes: this.currentState.clockTimeMinutes,
+                airTemp: this.currentState.airTemp,
                 fire: this.currentState.fire ? {
                     minutesRemaining: this.currentState.fire.minutesRemaining,
                     phase: this.currentState.fire.phase
@@ -74,8 +74,8 @@ export const FrameQueue = {
             this.currentState = nextFrame.state;
         }
 
-        // Handle progress animation if in progress mode
-        if (nextFrame.mode?.type === 'progress' && startState) {
+        // Handle progress animation
+        if ((isProgress || isTravelProgress) && startState) {
             // Calculate stat deltas by comparing start vs current
             const endState = nextFrame.state;
             const statDeltas = {
@@ -84,19 +84,36 @@ export const FrameQueue = {
                 waterPercent: endState.waterPercent - startState.waterPercent,
                 energyPercent: endState.energyPercent - startState.energyPercent,
                 bodyTemp: endState.bodyTemp - startState.bodyTemp,
+                clockTimeMinutes: endState.clockTimeMinutes - startState.clockTimeMinutes,
+                airTemp: endState.airTemp - startState.airTemp,
                 fireMinutesRemaining: endState.fire && startState.fire
                     ? endState.fire.minutesRemaining - startState.fire.minutesRemaining
                     : 0
             };
 
             this.state = 'animating';
-            ProgressDisplay.start(
-                nextFrame.mode.estimatedDurationSeconds,
-                nextFrame.mode.activityText,
-                startState,
-                statDeltas,
-                () => this.onAnimationComplete()
-            );
+
+            if (isTravelProgress) {
+                // Travel progress: animate camera pan synchronized with progress bar
+                ProgressDisplay.startWithCamera(
+                    nextFrame.mode.estimatedDurationSeconds,
+                    nextFrame.mode.activityText,
+                    startState,
+                    statDeltas,
+                    nextFrame.mode.originX,
+                    nextFrame.mode.originY,
+                    () => this.onAnimationComplete()
+                );
+            } else {
+                // Regular progress
+                ProgressDisplay.start(
+                    nextFrame.mode.estimatedDurationSeconds,
+                    nextFrame.mode.activityText,
+                    startState,
+                    statDeltas,
+                    () => this.onAnimationComplete()
+                );
+            }
         } else {
             // No animation - process next immediately
             this.processNext();
@@ -107,7 +124,6 @@ export const FrameQueue = {
      * Called when progress animation completes
      */
     onAnimationComplete() {
-        console.log(`[FrameQueue] Animation complete, queueLen=${this.queue.length}`);
         this.processNext();
     },
 

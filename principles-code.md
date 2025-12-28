@@ -64,6 +64,10 @@ Create concrete scenarios. Verify the architecture supports them. "Let's really 
 
 Draw them out. Derive don't track. If the state transitions aren't clear, the code will be buggy.
 
+**Never Fail Silently**
+
+Throw errors on invalid states. Log lookup failures and other things instead of silently passing them over. Fail early and fast instead of silently hiding bugs.
+
 ---
 
 ## Code Quality

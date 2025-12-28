@@ -13,6 +13,8 @@ namespace text_survival.Web.Dto;
 [JsonDerivedType(typeof(HazardOverlay), "hazard")]
 [JsonDerivedType(typeof(ConfirmOverlay), "confirm")]
 [JsonDerivedType(typeof(ForageOverlay), "forage")]
+[JsonDerivedType(typeof(DeathScreenOverlay), "deathScreen")]
+[JsonDerivedType(typeof(HuntOverlay), "hunt")]
 public abstract record Overlay;
 
 /// <summary>
@@ -120,3 +122,65 @@ public record ForageFocusDto(string Id, string Label, string Description);
 /// A time option in the forage overlay.
 /// </summary>
 public record ForageTimeDto(string Id, string Label, int Minutes);
+
+/// <summary>
+/// Hunt overlay: Interactive hunting popup with distance tracking and choices.
+/// </summary>
+public record HuntOverlay(HuntDto Data) : Overlay;
+
+/// <summary>
+/// Hunt state data for the hunt overlay popup.
+/// </summary>
+public record HuntDto(
+    string AnimalName,
+    string AnimalDescription,
+    string AnimalActivity,
+    string AnimalState,              // "idle", "alert", "detected"
+    double CurrentDistanceMeters,
+    double? PreviousDistanceMeters,  // For animation (null on first frame)
+    bool IsAnimatingDistance,
+    int MinutesSpent,
+    string? StatusMessage,
+    List<HuntChoiceDto> Choices,
+    HuntOutcomeDto? Outcome          // null during choice phase
+);
+
+/// <summary>
+/// A choice option in the hunt overlay.
+/// </summary>
+public record HuntChoiceDto(
+    string Id,
+    string Label,
+    string? Description,
+    bool IsAvailable,
+    string? DisabledReason
+);
+
+/// <summary>
+/// Hunt outcome when the hunt concludes.
+/// </summary>
+public record HuntOutcomeDto(
+    string Result,                   // "success", "fled", "abandoned", "combat"
+    string Message,
+    int TotalMinutesSpent,
+    List<string> ItemsGained,
+    List<string> EffectsApplied,
+    bool TransitionToCombat
+);
+
+/// <summary>
+/// Death screen overlay: Game over popup with restart option.
+/// </summary>
+public record DeathScreenOverlay(DeathScreenDto Data) : Overlay;
+
+/// <summary>
+/// Data for the death screen overlay.
+/// </summary>
+public record DeathScreenDto(
+    string CauseOfDeath,
+    string TimeSurvived,
+    double FinalVitality,
+    double FinalCalories,
+    double FinalHydration,
+    double FinalTemperature
+);

@@ -430,45 +430,18 @@ public record RecipeDto(
         return $"{hours}h {remainingMinutes}m";
     }
 
-    private static int GetMaterialCount(Inventory inv, string material)
+    private static int GetMaterialCount(Inventory inv, Crafting.MaterialSpecifier material) => material switch
     {
-        if (Enum.TryParse<Resource>(material, out var resource))
-            return inv.Count(resource);
-        if (Enum.TryParse<ResourceCategory>(material, out var category))
-            return inv.GetCount(category);
-        return 0;
-    }
+        Crafting.MaterialSpecifier.Specific(var resource) => inv.Count(resource),
+        Crafting.MaterialSpecifier.Category(var category) => inv.GetCount(category),
+        _ => 0
+    };
 
-    private static string FormatMaterialName(string material) => material switch
+    private static string FormatMaterialName(Crafting.MaterialSpecifier material) => material switch
     {
-        "Sticks" => "sticks",
-        "Logs" => "logs",
-        "Stone" => "stone",
-        "Bone" => "bone",
-        "Hide" => "hide",
-        "PlantFiber" => "plant fiber",
-        "Sinew" => "sinew",
-        "BirchBark" => "birch bark",
-        "Flint" => "flint",
-        "Pyrite" => "pyrite",
-        "Amadou" => "amadou",
-        "Shale" => "shale",
-        "Tinder" => "tinder",
-        "CuredHide" => "cured hide",
-        "ScrapedHide" => "scraped hide",
-        "RawFiber" => "raw fiber",
-        "RawFat" => "raw fat",
-        "Rope" => "rope",
-        "Tallow" => "tallow",
-        "WillowBark" => "willow bark",
-        "PineNeedles" => "pine needles",
-        "RoseHip" => "rose hips",
-        "Chaga" => "chaga",
-        "BirchPolypore" => "birch polypore",
-        "Usnea" => "usnea",
-        "SphagnumMoss" => "sphagnum moss",
-        "PineResin" => "pine resin",
-        _ => material.ToLower()
+        Crafting.MaterialSpecifier.Specific(var r) => r.ToDisplayName().ToLower(),
+        Crafting.MaterialSpecifier.Category(var c) => c.ToString().ToLower(),
+        _ => "unknown"
     };
 }
 

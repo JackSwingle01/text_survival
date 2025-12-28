@@ -20,6 +20,7 @@ public static class WebIO
     private static readonly Dictionary<string, HazardPromptDto> _currentHazard = new();
     private static readonly Dictionary<string, string> _currentConfirm = new();
     private static readonly Dictionary<string, ForageDto> _currentForage = new();
+    private static readonly Dictionary<string, HuntDto> _currentHunt = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -79,6 +80,8 @@ public static class WebIO
                 overlays.Add(new ConfirmOverlay(confirm));
             if (_currentForage.TryGetValue(sessionId, out var forage))
                 overlays.Add(new ForageOverlay(forage));
+            if (_currentHunt.TryGetValue(sessionId, out var hunt))
+                overlays.Add(new HuntOverlay(hunt));
         }
 
         return overlays;
@@ -136,6 +139,79 @@ public static class WebIO
     {
         if (ctx.SessionId != null)
             _currentForage.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
+    /// Clear the current hunt display for a session.
+    /// </summary>
+    public static void ClearHunt(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentHunt.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
+    /// Clear all overlays for a session. Used on reconnect to prevent stale overlays.
+    /// </summary>
+    public static void ClearAllOverlays(string sessionId)
+    {
+        _currentInventory.Remove(sessionId);
+        _currentCrafting.Remove(sessionId);
+        _currentEvent.Remove(sessionId);
+        _currentHazard.Remove(sessionId);
+        _currentConfirm.Remove(sessionId);
+        _currentForage.Remove(sessionId);
+        _currentHunt.Remove(sessionId);
+    }
+
+    /// <summary>
+    /// Set the hunt overlay data. Will be included in subsequent frames.
+    /// </summary>
+    public static void RenderHunt(GameContext ctx, HuntDto huntData)
+    {
+        if (ctx.SessionId != null)
+            _currentHunt[ctx.SessionId] = huntData;
+    }
+
+    /// <summary>
+    /// Render hunt overlay and wait for player choice.
+    /// Returns the choice ID selected by the player.
+    /// </summary>
+    public static string WaitForHuntChoice(GameContext ctx, HuntDto huntData)
+    {
+        var session = GetSession(ctx);
+
+        // Set hunt overlay
+        RenderHunt(ctx, huntData);
+
+        // Build choice list from available hunt choices
+        var choices = huntData.Choices
+            .Where(c => c.IsAvailable)
+            .Select(c => new ChoiceDto(c.Id, c.Label))
+            .ToList();
+
+        int inputId = session.GenerateInputId();
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto(inputId, "hunt", "What do you do?", choices)
+        );
+
+        session.Send(frame);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+        return response.ChoiceId ?? "stop";
+    }
+
+    /// <summary>
+    /// Wait for user to acknowledge the hunt outcome (Continue button).
+    /// The hunt overlay must already be set via RenderHunt with an outcome.
+    /// </summary>
+    public static void WaitForHuntContinue(GameContext ctx)
+    {
+        WaitForEventContinue(ctx);
+        ClearHunt(ctx);
     }
 
     /// <summary>
@@ -228,6 +304,21 @@ public static class WebIO
             session.Send(frame);
             response = session.WaitForResponse(inputId, ResponseTimeout);
             // Fall through to process the new response normally
+        }
+
+        // Handle "continue" response - this is from a Continue/Close button
+        // that was clicked during a Select (e.g., stale event overlay). Resend frame and wait again.
+        if (response.ChoiceId == "continue")
+        {
+            inputId = session.GenerateInputId();
+            frame = new WebFrame(
+                GameStateDto.FromContext(ctx),
+                GetCurrentMode(ctx),
+                GetCurrentOverlays(ctx.SessionId),
+                new InputRequestDto(inputId, "select", prompt, choiceDtos)
+            );
+            session.Send(frame);
+            response = session.WaitForResponse(inputId, ResponseTimeout);
         }
 
         // Match by choice ID
@@ -357,6 +448,40 @@ public static class WebIO
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             GetCurrentMode(ctx, estimatedSeconds, statusText),
+            GetCurrentOverlays(ctx.SessionId),
+            null,  // No input during progress
+            statusText
+        );
+
+        session.Send(frame);
+    }
+
+    /// <summary>
+    /// Render travel progress with synchronized camera animation.
+    /// Sends TravelProgressMode so frontend animates camera pan and progress bar together.
+    /// Called AFTER MoveTo() completes - grid state reflects destination.
+    /// </summary>
+    public static void RenderTravelProgress(
+        GameContext ctx,
+        string statusText,
+        int estimatedMinutes,
+        int originX,
+        int originY)
+    {
+        var session = SessionRegistry.Get(ctx.SessionId);
+        if (session == null) return;
+
+        int estimatedSeconds = Math.Max(1, estimatedMinutes / 7);
+
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            new TravelProgressMode(
+                GridStateDto.FromContext(ctx),
+                statusText,
+                estimatedSeconds,
+                originX,
+                originY
+            ),
             GetCurrentOverlays(ctx.SessionId),
             null,  // No input during progress
             statusText
@@ -613,5 +738,26 @@ public static class WebIO
         RenderEvent(ctx, eventData);
         WaitForEventContinue(ctx);
         ClearEvent(ctx);
+    }
+
+    /// <summary>
+    /// Show death screen overlay and wait for player to click restart.
+    /// </summary>
+    public static void ShowDeathScreen(GameContext ctx, DeathScreenDto data)
+    {
+        var session = GetSession(ctx);
+
+        int inputId = session.GenerateInputId();
+        var overlay = new DeathScreenOverlay(data);
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            GetCurrentMode(ctx),
+            [overlay],
+            new InputRequestDto(inputId, "deathScreen", "", [new ChoiceDto("restart", "Start New Game")])
+        );
+
+        session.Send(frame);
+        session.WaitForResponse(inputId, ResponseTimeout);
+        // After response, the session loop will end and restart
     }
 }

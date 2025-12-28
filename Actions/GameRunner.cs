@@ -67,7 +67,9 @@ public partial class GameRunner(GameContext ctx)
     private void MainMenu()
     {
         // Auto-save when at main menu
-        _ = SaveManager.Save(ctx);
+        var (saved, saveError) = SaveManager.Save(ctx);
+        if (!saved)
+            Console.WriteLine($"[GameRunner] Save failed: {saveError}");
         CheckFireWarning();
 
         var choice = new Choice<Action>();
@@ -166,7 +168,9 @@ public partial class GameRunner(GameContext ctx)
         while (true)
         {
             // Auto-save when at camp menu
-            _ = SaveManager.Save(ctx);
+            var (saved, saveError) = SaveManager.Save(ctx);
+            if (!saved)
+                Console.WriteLine($"[GameRunner] Save failed: {saveError}");
             CheckFireWarning();
 
             var choice = new Choice<Action>();

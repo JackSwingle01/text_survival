@@ -4,9 +4,10 @@ using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web;
+using text_survival.Web.Dto;
 
 namespace text_survival.Actions;
 
@@ -23,8 +24,66 @@ public enum HuntOutcome
 }
 
 /// <summary>
+/// Internal state for tracking hunt progress across turns.
+/// </summary>
+internal class HuntState
+{
+    public Animal Target { get; }
+    public Location Location { get; }
+    public GameContext Context { get; }
+    public int MinutesSpent { get; set; }
+    public double? PreviousDistanceMeters { get; set; }
+    public string? StatusMessage { get; set; }
+    public bool JustApproached { get; set; }
+
+    public HuntState(Animal target, Location location, GameContext ctx)
+    {
+        Target = target;
+        Location = location;
+        Context = ctx;
+        MinutesSpent = 0;
+        PreviousDistanceMeters = null;
+        StatusMessage = null;
+        JustApproached = false;
+    }
+
+    public bool IsActive => Target.IsAlive && !Target.IsEngaged &&
+                            Context.player.stealthManager.IsHunting;
+
+    public bool HasSpear => Context.Inventory.Weapon?.ToolType == ToolType.Spear;
+    public bool HasStones => Context.Inventory.Count(Resource.Stone) > 0;
+
+    public bool InSpearRange
+    {
+        get
+        {
+            if (!HasSpear || Context.Inventory.Weapon == null) return false;
+            double range = HuntHandler.GetSpearRange(Context.Inventory.Weapon);
+            return Target.DistanceFromPlayer <= range;
+        }
+    }
+
+    public bool InStoneRange => HasStones && Target.Size == AnimalSize.Small &&
+                                 Target.DistanceFromPlayer <= 15;
+
+    public bool InMeleeRange => Target.DistanceFromPlayer <= 5 &&
+                                Target.State != AnimalState.Detected;
+}
+
+/// <summary>
+/// Result of processing a hunt choice.
+/// </summary>
+internal record HuntChoiceResult(
+    bool HuntEnded,
+    bool TransitionToCombat,
+    HuntOutcome Outcome,
+    string? StatusMessage,
+    Inventory? Loot = null
+);
+
+/// <summary>
 /// Handles the interactive hunting phase after an animal is found.
-/// This is the approach/throw/kill loop - separate from the time-based search.
+/// Uses overlay pattern for UI presentation.
 /// </summary>
 public static class HuntRunner
 {
@@ -35,194 +94,365 @@ public static class HuntRunner
     /// <returns>Outcome of the hunt and minutes elapsed</returns>
     public static (HuntOutcome outcome, int minutesElapsed) Run(Animal target, Location location, GameContext ctx)
     {
-        GameDisplay.Render(ctx, statusText: "Watching.");
-
-        // Prompt to stalk
-        var huntChoice = new Choice<bool>("Do you want to stalk it?");
-        huntChoice.AddOption($"Stalk the {target.Name}", true);
-        huntChoice.AddOption("Let it go", false);
-
-        if (!huntChoice.GetPlayerChoice(ctx))
+        // Initial "Stalk?" prompt
+        if (!PromptInitialStalk(target, ctx))
         {
             return (HuntOutcome.PlayerAbandoned, 0);
         }
 
-        // Run the interactive hunt loop
-        int minutesSpent = RunHuntLoop(target, location, ctx);
-
-        if (!ctx.player.IsAlive)
-            return (HuntOutcome.PlayerDied, minutesSpent);
-
-        if (!target.IsAlive)
-        {
-            // Record the successful hunt in the territory
-            var territory = location.GetFeature<AnimalTerritoryFeature>();
-            territory?.RecordSuccessfulHunt();
-            return (HuntOutcome.Success, minutesSpent);
-        }
-
-        if (target.IsEngaged)
-            return (HuntOutcome.TurnedCombat, minutesSpent);
-
-        return (HuntOutcome.PreyFled, minutesSpent);
-    }
-
-    private static int RunHuntLoop(Animal target, Location location, GameContext ctx)
-    {
+        // Initialize hunt state
         ctx.player.stealthManager.StartHunting(target, ctx);
-        int minutesSpent = 0;
+        var state = new HuntState(target, location, ctx);
 
         // Auto-equip spear if available
         var spear = ctx.Inventory.GetOrEquipWeapon(ctx, ToolType.Spear);
-        bool hasSpear = spear != null;
-        bool hasStones = ctx.Inventory.Count(Resource.Stone) > 0;
-
-        if (!hasSpear && !hasStones)
+        if (!state.HasSpear && !state.HasStones)
         {
-            GameDisplay.AddWarning(ctx, "You don't have a ranged weapon so you need to get very close. This will be difficult.");
+            state.StatusMessage = "You don't have a ranged weapon so you need to get very close. This will be difficult.";
         }
 
-        while (ctx.player.stealthManager.IsHunting && ctx.player.stealthManager.IsTargetValid(ctx))
+        // Main turn loop
+        while (state.IsActive)
         {
-            GameDisplay.AddNarrative(ctx, $"\nDistance: {target.DistanceFromPlayer:F0}m | {target.GetActivityDescription()}");
-            GameDisplay.Render(ctx, statusText: "Stalking.");
+            var huntDto = BuildHuntDto(state);
+            string choiceId = WebIO.WaitForHuntChoice(ctx, huntDto);
 
-            var choice = new Choice<string>("What do you do?");
-            choice.AddOption("Approach carefully", "approach");
-            choice.AddOption("Wait and watch", "wait");
-            choice.AddOption("Assess target", "assess");
+            // Clear animation flag after first frame
+            state.JustApproached = false;
 
-            // Check throw options (spear already equipped at hunt start if available)
-            hasSpear = ctx.Inventory.Weapon?.ToolType == ToolType.Spear;
-            hasStones = ctx.Inventory.Count(Resource.Stone) > 0;
+            var result = ProcessChoice(choiceId, state);
 
-            if (hasSpear && ctx.Inventory.Weapon != null)
+            if (result.TransitionToCombat)
             {
-                double spearRange = HuntHandler.GetSpearRange(ctx.Inventory.Weapon);
-                if (target.DistanceFromPlayer <= spearRange)
+                // Show transition message
+                state.StatusMessage = $"The {target.Name} attacks!";
+                var transitionDto = BuildHuntDto(state);
+                WebIO.RenderHunt(ctx, transitionDto);
+
+                // Hand off to encounter runner
+                var encounterResult = EncounterRunner.HandlePredatorEncounter(target, ctx);
+                WebIO.ClearHunt(ctx);
+
+                return TranslateEncounterResult(encounterResult, state.MinutesSpent);
+            }
+
+            if (result.HuntEnded)
+            {
+                // Show outcome overlay
+                ShowHuntOutcome(state, result);
+                WebIO.ClearHunt(ctx);
+
+                // Record successful hunt if applicable
+                if (result.Outcome == HuntOutcome.Success)
                 {
-                    double hitChance = HuntHandler.CalculateSpearHitChance(ctx.Inventory.Weapon, target, ctx);
-                    choice.AddOption($"Throw {ctx.Inventory.Weapon.Name} ({hitChance:P0} hit)", "throw_spear");
+                    var territory = location.GetFeature<AnimalTerritoryFeature>();
+                    territory?.RecordSuccessfulHunt();
                 }
+
+                return (result.Outcome, state.MinutesSpent);
             }
 
-            if (hasStones && target.Size == AnimalSize.Small && target.DistanceFromPlayer <= 15)
-            {
-                double hitChance = HuntHandler.CalculateStoneHitChance(target, ctx);
-                choice.AddOption($"Throw stone ({hitChance:P0} hit) [{ctx.Inventory.Count(Resource.Stone)} left]", "throw_stone");
-            }
-
-            choice.AddOption("Give up this hunt", "stop");
-
-            string action = choice.GetPlayerChoice(ctx);
-
-            switch (action)
-            {
-                case "approach":
-                    bool success = ctx.player.stealthManager.AttemptApproach(location, ctx);
-                    minutesSpent += 7;
-
-                    if (success)
-                    {
-                        ctx.player.Skills.GetSkill("Hunting").GainExperience(1);
-
-                        if (target.DistanceFromPlayer <= 5 && target.State != AnimalState.Detected)
-                        {
-                            GameDisplay.AddNarrative(ctx, "You're close enough to strike!");
-                            GameDisplay.Render(ctx, statusText: "Poised.");
-
-                            var attackChoice = new Choice<bool>("Attack?");
-                            attackChoice.AddOption("Strike now!", true);
-                            attackChoice.AddOption("Back off", false);
-
-                            if (attackChoice.GetPlayerChoice(ctx))
-                            {
-                                PerformKill(target, ctx);
-                            }
-                        }
-                    }
-                    else if (target.IsEngaged)
-                    {
-                        // Prey turned aggressive - handle as predator encounter
-                        var outcome = EncounterRunner.HandlePredatorEncounter(target, ctx);
-
-                        switch (outcome)
-                        {
-                            case EncounterOutcome.PredatorRetreated:
-                                ctx.player.stealthManager.StopHunting(ctx, $"The {target.Name} retreated.");
-                                break;
-                            case EncounterOutcome.PlayerEscaped:
-                                ctx.player.stealthManager.StopHunting(ctx, "You escaped.");
-                                break;
-                            case EncounterOutcome.CombatVictory:
-                                ctx.player.stealthManager.StopHunting(ctx, $"You killed the {target.Name}.");
-                                break;
-                            case EncounterOutcome.PlayerDied:
-                                // No cleanup needed
-                                break;
-                        }
-                        break; // Exit hunt loop after encounter
-                    }
-                    break;
-
-                case "assess":
-                    ctx.player.stealthManager.AssessTarget(ctx);
-                    minutesSpent += 2;
-                    break;
-
-                case "wait":
-                    int waitTime = Utils.RandInt(5, 10);
-                    GameDisplay.AddNarrative(ctx, $"You wait and watch for {waitTime} minutes...");
-                    minutesSpent += waitTime;
-
-                    if (target.CheckActivityChange(waitTime, out var newActivity) && newActivity.HasValue)
-                    {
-                        GameDisplay.AddNarrative(ctx, $"The {target.Name} shifts—now {target.GetActivityDescription()}.");
-                    }
-                    else
-                    {
-                        GameDisplay.AddNarrative(ctx, $"The {target.Name} continues {target.GetActivityDescription()}.");
-                    }
-                    break;
-
-                case "throw_spear":
-                    PerformRangedAttack(target, ctx, isSpear: true);
-                    minutesSpent += 2;
-                    break;
-
-                case "throw_stone":
-                    PerformRangedAttack(target, ctx, isSpear: false);
-                    minutesSpent += 2;
-                    break;
-
-                case "stop":
-                    ctx.player.stealthManager.StopHunting(ctx, "You abandon the hunt.");
-                    break;
-            }
+            // Update status message from result
+            state.StatusMessage = result.StatusMessage;
         }
 
-        return minutesSpent;
+        // Hunt ended due to state becoming invalid
+        WebIO.ClearHunt(ctx);
+
+        if (!ctx.player.IsAlive)
+            return (HuntOutcome.PlayerDied, state.MinutesSpent);
+
+        if (!target.IsAlive)
+            return (HuntOutcome.Success, state.MinutesSpent);
+
+        return (HuntOutcome.PreyFled, state.MinutesSpent);
     }
 
-    private static void PerformKill(Animal target, GameContext ctx)
+    /// <summary>
+    /// Show initial stalk prompt via hunt overlay.
+    /// </summary>
+    private static bool PromptInitialStalk(Animal target, GameContext ctx)
     {
-        GameDisplay.AddNarrative(ctx, $"You strike! The {target.Name} falls.");
+        var choices = new List<HuntChoiceDto>
+        {
+            new("stalk", $"Stalk the {target.Name}", null, true, null),
+            new("leave", "Let it go", null, true, null)
+        };
+
+        var huntDto = new HuntDto(
+            AnimalName: target.Name,
+            AnimalDescription: target.GetTraitDescription(),
+            AnimalActivity: target.GetActivityDescription(),
+            AnimalState: target.State.ToString().ToLower(),
+            CurrentDistanceMeters: target.DistanceFromPlayer,
+            PreviousDistanceMeters: null,
+            IsAnimatingDistance: false,
+            MinutesSpent: 0,
+            StatusMessage: "You spot game.",
+            Choices: choices,
+            Outcome: null
+        );
+
+        string choiceId = WebIO.WaitForHuntChoice(ctx, huntDto);
+        WebIO.ClearHunt(ctx);
+
+        return choiceId == "stalk";
+    }
+
+    /// <summary>
+    /// Build HuntDto from current state.
+    /// </summary>
+    private static HuntDto BuildHuntDto(HuntState state)
+    {
+        return new HuntDto(
+            AnimalName: state.Target.Name,
+            AnimalDescription: state.Target.GetTraitDescription(),
+            AnimalActivity: state.Target.GetActivityDescription(),
+            AnimalState: state.Target.State.ToString().ToLower(),
+            CurrentDistanceMeters: state.Target.DistanceFromPlayer,
+            PreviousDistanceMeters: state.PreviousDistanceMeters,
+            IsAnimatingDistance: state.JustApproached,
+            MinutesSpent: state.MinutesSpent,
+            StatusMessage: state.StatusMessage,
+            Choices: BuildAvailableChoices(state),
+            Outcome: null
+        );
+    }
+
+    /// <summary>
+    /// Build available choices based on current state.
+    /// </summary>
+    private static List<HuntChoiceDto> BuildAvailableChoices(HuntState state)
+    {
+        var choices = new List<HuntChoiceDto>();
+        var target = state.Target;
+        var ctx = state.Context;
+
+        // Always available
+        choices.Add(new HuntChoiceDto("approach", "Approach carefully", "~7 min, reduces distance", true, null));
+        choices.Add(new HuntChoiceDto("wait", "Wait and watch", "5-10 min, may change activity", true, null));
+        choices.Add(new HuntChoiceDto("assess", "Assess target", "~2 min, check detection risk", true, null));
+
+        // Melee strike (if very close and undetected)
+        if (state.InMeleeRange)
+        {
+            choices.Add(new HuntChoiceDto("strike", "Strike now!", "Guaranteed kill", true, null));
+        }
+
+        // Spear throw
+        if (state.HasSpear && ctx.Inventory.Weapon != null)
+        {
+            double range = HuntHandler.GetSpearRange(ctx.Inventory.Weapon);
+            if (target.DistanceFromPlayer <= range)
+            {
+                double hitChance = HuntHandler.CalculateSpearHitChance(ctx.Inventory.Weapon, target, ctx);
+                choices.Add(new HuntChoiceDto("throw_spear",
+                    $"Throw {ctx.Inventory.Weapon.Name}",
+                    $"{hitChance:P0} hit chance", true, null));
+            }
+            else
+            {
+                choices.Add(new HuntChoiceDto("throw_spear",
+                    $"Throw {ctx.Inventory.Weapon.Name}",
+                    $"Out of range ({range:F0}m)", false, "Too far"));
+            }
+        }
+
+        // Stone throw
+        if (state.HasStones && target.Size == AnimalSize.Small)
+        {
+            if (target.DistanceFromPlayer <= 15)
+            {
+                double hitChance = HuntHandler.CalculateStoneHitChance(target, ctx);
+                int stoneCount = ctx.Inventory.Count(Resource.Stone);
+                choices.Add(new HuntChoiceDto("throw_stone",
+                    $"Throw stone ({stoneCount} left)",
+                    $"{hitChance:P0} hit chance", true, null));
+            }
+            else
+            {
+                choices.Add(new HuntChoiceDto("throw_stone",
+                    "Throw stone",
+                    "Out of range (15m)", false, "Too far"));
+            }
+        }
+
+        choices.Add(new HuntChoiceDto("stop", "Give up this hunt", null, true, null));
+
+        return choices;
+    }
+
+    /// <summary>
+    /// Process the player's choice and update state.
+    /// </summary>
+    private static HuntChoiceResult ProcessChoice(string choiceId, HuntState state)
+    {
+        return choiceId switch
+        {
+            "approach" => ProcessApproach(state),
+            "wait" => ProcessWait(state),
+            "assess" => ProcessAssess(state),
+            "strike" => ProcessMeleeStrike(state),
+            "throw_spear" => ProcessRangedAttack(state, isSpear: true),
+            "throw_stone" => ProcessRangedAttack(state, isSpear: false),
+            "stop" => ProcessStop(state),
+            _ => ProcessStop(state)
+        };
+    }
+
+    private static HuntChoiceResult ProcessApproach(HuntState state)
+    {
+        var ctx = state.Context;
+        var target = state.Target;
+
+        // Store previous distance for animation
+        state.PreviousDistanceMeters = target.DistanceFromPlayer;
+
+        bool success = ctx.player.stealthManager.AttemptApproach(state.Location, ctx);
+        state.MinutesSpent += 7;
+        state.JustApproached = true;
+
+        ctx.player.Skills.GetSkill("Hunting").GainExperience(1);
+
+        if (!success)
+        {
+            if (target.IsEngaged)
+            {
+                // Prey turned aggressive
+                return new HuntChoiceResult(
+                    HuntEnded: true,
+                    TransitionToCombat: true,
+                    Outcome: HuntOutcome.TurnedCombat,
+                    StatusMessage: $"The {target.Name} attacks!"
+                );
+            }
+
+            // Animal fled
+            return new HuntChoiceResult(
+                HuntEnded: true,
+                TransitionToCombat: false,
+                Outcome: HuntOutcome.PreyFled,
+                StatusMessage: $"The {target.Name} fled!"
+            );
+        }
+
+        // Check if close enough for melee
+        if (state.InMeleeRange)
+        {
+            return new HuntChoiceResult(
+                HuntEnded: false,
+                TransitionToCombat: false,
+                Outcome: HuntOutcome.Success,
+                StatusMessage: "You're close enough to strike!"
+            );
+        }
+
+        string statusMsg = target.State == AnimalState.Alert
+            ? $"You move closer. The {target.Name} is alert."
+            : "You remain undetected.";
+
+        return new HuntChoiceResult(
+            HuntEnded: false,
+            TransitionToCombat: false,
+            Outcome: HuntOutcome.Success,
+            StatusMessage: statusMsg
+        );
+    }
+
+    private static HuntChoiceResult ProcessWait(HuntState state)
+    {
+        var target = state.Target;
+        int waitTime = Utils.RandInt(5, 10);
+        state.MinutesSpent += waitTime;
+
+        string statusMsg;
+        if (target.CheckActivityChange(waitTime, out var newActivity) && newActivity.HasValue)
+        {
+            statusMsg = $"The {target.Name} shifts—now {target.GetActivityDescription()}.";
+        }
+        else
+        {
+            statusMsg = $"The {target.Name} continues {target.GetActivityDescription()}.";
+        }
+
+        return new HuntChoiceResult(
+            HuntEnded: false,
+            TransitionToCombat: false,
+            Outcome: HuntOutcome.Success,
+            StatusMessage: statusMsg
+        );
+    }
+
+    private static HuntChoiceResult ProcessAssess(HuntState state)
+    {
+        var ctx = state.Context;
+        var target = state.Target;
+        state.MinutesSpent += 2;
+
+        // Calculate detection chance for next approach
+        int huntingSkill = ctx.player.Skills.GetSkill("Hunting").Level;
+        double nextApproachDistance = target.DistanceFromPlayer - 25;
+        double impairedMultiplier = 1.0;
+        if (AbilityCalculator.IsConsciousnessImpaired(ctx.player.GetCapacities().Consciousness))
+            impairedMultiplier *= 1.3;
+        if (AbilityCalculator.IsPerceptionImpaired(
+            AbilityCalculator.CalculatePerception(ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers())))
+            impairedMultiplier *= 1.3;
+        double detectionChance = HuntingCalculator.CalculateDetectionChanceWithTraits(
+            nextApproachDistance,
+            target,
+            huntingSkill,
+            target.FailedStealthChecks,
+            impairedMultiplier
+        );
+
+        string hint = target.CurrentActivity == AnimalActivity.Grazing
+            ? "It's distracted—a good time to approach."
+            : target.CurrentActivity == AnimalActivity.Alert
+                ? "It's very alert—approaching now is risky."
+                : "";
+
+        string statusMsg = $"Detection risk: {detectionChance * 100:F0}%. {hint}";
+
+        return new HuntChoiceResult(
+            HuntEnded: false,
+            TransitionToCombat: false,
+            Outcome: HuntOutcome.Success,
+            StatusMessage: statusMsg
+        );
+    }
+
+    private static HuntChoiceResult ProcessMeleeStrike(HuntState state)
+    {
+        var ctx = state.Context;
+        var target = state.Target;
 
         target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, BodyTarget.Heart));
         ctx.player.stealthManager.StopHunting(ctx);
 
-        var loot = ButcherRunner.ButcherAnimal(target, ctx);
+        // Create carcass for butchering (not immediate butcher)
+        var carcass = new CarcassFeature(target.Name, target.Body.WeightKG);
+        ctx.CurrentLocation.AddFeature(carcass);
 
         ctx.player.Skills.GetSkill("Hunting").GainExperience(5);
-        GameDisplay.AddNarrative(ctx, $"You butcher the {target.Name} and collect {loot.CurrentWeightKg:F1}kg of meat.");
-        InventoryCapacityHelper.CombineAndReport(ctx, loot);
+
+        return new HuntChoiceResult(
+            HuntEnded: true,
+            TransitionToCombat: false,
+            Outcome: HuntOutcome.Success,
+            StatusMessage: $"You strike! The {target.Name} falls. Its carcass awaits butchering.",
+            Loot: null
+        );
     }
 
-    private static void PerformRangedAttack(Animal target, GameContext ctx, bool isSpear)
+    private static HuntChoiceResult ProcessRangedAttack(HuntState state, bool isSpear)
     {
+        var ctx = state.Context;
+        var target = state.Target;
         var weapon = ctx.Inventory.Weapon;
 
-        // Calculate hit chance using HuntHandler
+        state.MinutesSpent += 2;
+
         double hitChance = HuntHandler.CalculateThrownAccuracy(ctx, target, isSpear, weapon);
 
         // Consume stone immediately (it's thrown either way)
@@ -235,40 +465,39 @@ public static class HuntRunner
 
         if (hit)
         {
-            // Kill
             string weaponName = isSpear && weapon != null ? weapon.Name : "stone";
-            GameDisplay.AddNarrative(ctx, $"Your {weaponName} strikes true! The {target.Name} falls.");
             target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, BodyTarget.Heart));
 
-            // Butcher
-            var loot = ButcherRunner.ButcherAnimal(target, ctx);
-
-            GameDisplay.AddNarrative(ctx, $"You butcher the {target.Name} and collect {loot.CurrentWeightKg:F1}kg of meat.");
-            InventoryCapacityHelper.CombineAndReport(ctx, loot);
+            // Create carcass for butchering (not immediate butcher)
+            var carcass = new CarcassFeature(target.Name, target.Body.WeightKG);
+            ctx.CurrentLocation.AddFeature(carcass);
 
             ctx.player.stealthManager.StopHunting(ctx, "Hunt successful.");
+
+            return new HuntChoiceResult(
+                HuntEnded: true,
+                TransitionToCombat: false,
+                Outcome: HuntOutcome.Success,
+                StatusMessage: $"Your {weaponName} strikes true! The {target.Name} falls. Its carcass awaits butchering.",
+                Loot: null
+            );
         }
         else
         {
-            // Miss - but check for glancing hit (wound)
+            // Miss - check for glancing hit (wound)
             double roll = Utils.RandDouble(0, 1);
-            bool isGlancingHit = roll < hitChance + (hitChance * 0.3) && isSpear; // Only spears can wound
+            bool isGlancingHit = roll < hitChance + (hitChance * 0.3) && isSpear;
 
             string weaponName = isSpear && weapon != null ? weapon.Name : "stone";
 
             if (isGlancingHit)
             {
-                // Glancing hit - animal wounded but escapes
                 double woundSeverity = Utils.RandDouble(0.3, 0.8);
                 string woundDesc = woundSeverity > 0.6
-                    ? "Bright red arterial spray, pumping with each heartbeat"
-                    : "Dark blood, muscle wound — the animal barely slowed";
+                    ? "Bright red arterial spray—you could follow the blood trail."
+                    : "Dark blood, muscle wound—the animal barely slowed.";
 
-                GameDisplay.AddNarrative(ctx, $"Your {weaponName} grazes the {target.Name}!");
-                GameDisplay.AddNarrative(ctx, woundDesc);
-                GameDisplay.AddNarrative(ctx, $"The {target.Name} bolts, leaving blood on the snow.");
-
-                // Create WoundedPrey tension - entry point to Blood Trail arc
+                // Create WoundedPrey tension
                 var tension = Tensions.ActiveTension.WoundedPrey(
                     woundSeverity,
                     target.Name,
@@ -276,23 +505,126 @@ public static class HuntRunner
                 );
                 ctx.Tensions.AddTension(tension);
 
-                GameDisplay.AddNarrative(ctx, "You could follow the blood trail...");
+                if (isSpear)
+                {
+                    ctx.Update(3, ActivityType.Hunting); // Time to retrieve spear
+                    state.MinutesSpent += 3;
+                }
+
+                ctx.player.stealthManager.StopHunting(ctx, $"The {target.Name} escaped.");
+
+                return new HuntChoiceResult(
+                    HuntEnded: true,
+                    TransitionToCombat: false,
+                    Outcome: HuntOutcome.PreyFled,
+                    StatusMessage: $"Your {weaponName} grazes the {target.Name}! {woundDesc}"
+                );
             }
             else
             {
                 // Clean miss
-                GameDisplay.AddNarrative(ctx, $"Your {weaponName} misses! The {target.Name} bolts.");
-            }
+                if (isSpear)
+                {
+                    ctx.Update(3, ActivityType.Hunting);
+                    state.MinutesSpent += 3;
+                }
 
-            if (isSpear)
-            {
-                // Spear recovery: spend time searching
-                GameDisplay.AddNarrative(ctx, "You spend a few minutes searching for your spear...");
-                ctx.Update(3, ActivityType.Hunting);
-            }
+                ctx.player.stealthManager.StopHunting(ctx, $"The {target.Name} escaped.");
 
-            // Animal flees
-            ctx.player.stealthManager.StopHunting(ctx, $"The {target.Name} escaped.");
+                return new HuntChoiceResult(
+                    HuntEnded: true,
+                    TransitionToCombat: false,
+                    Outcome: HuntOutcome.PreyFled,
+                    StatusMessage: $"Your {weaponName} misses! The {target.Name} bolts."
+                );
+            }
         }
+    }
+
+    private static HuntChoiceResult ProcessStop(HuntState state)
+    {
+        state.Context.player.stealthManager.StopHunting(state.Context, "You abandon the hunt.");
+
+        return new HuntChoiceResult(
+            HuntEnded: true,
+            TransitionToCombat: false,
+            Outcome: HuntOutcome.PlayerAbandoned,
+            StatusMessage: "You abandon the hunt."
+        );
+    }
+
+    /// <summary>
+    /// Show hunt outcome overlay.
+    /// </summary>
+    private static void ShowHuntOutcome(HuntState state, HuntChoiceResult result)
+    {
+        var ctx = state.Context;
+
+        // Build items gained list
+        var itemsGained = new List<string>();
+        if (result.Loot != null)
+        {
+            // Iterate through resources to build summary
+            foreach (Resource resource in Enum.GetValues<Resource>())
+            {
+                int count = result.Loot.Count(resource);
+                if (count > 0)
+                {
+                    double weight = result.Loot.Weight(resource);
+                    itemsGained.Add($"+{weight:F1}kg {resource.ToDisplayName()}");
+                }
+            }
+        }
+
+        // Determine result string
+        string resultStr = result.Outcome switch
+        {
+            HuntOutcome.Success => "success",
+            HuntOutcome.PreyFled => "fled",
+            HuntOutcome.PlayerAbandoned => "abandoned",
+            HuntOutcome.TurnedCombat => "combat",
+            _ => "unknown"
+        };
+
+        var outcome = new HuntOutcomeDto(
+            Result: resultStr,
+            Message: result.StatusMessage ?? "The hunt is over.",
+            TotalMinutesSpent: state.MinutesSpent,
+            ItemsGained: itemsGained,
+            EffectsApplied: [],
+            TransitionToCombat: result.TransitionToCombat
+        );
+
+        var huntDto = new HuntDto(
+            AnimalName: state.Target.Name,
+            AnimalDescription: state.Target.GetTraitDescription(),
+            AnimalActivity: state.Target.GetActivityDescription(),
+            AnimalState: state.Target.State.ToString().ToLower(),
+            CurrentDistanceMeters: state.Target.DistanceFromPlayer,
+            PreviousDistanceMeters: state.PreviousDistanceMeters,
+            IsAnimatingDistance: state.JustApproached,
+            MinutesSpent: state.MinutesSpent,
+            StatusMessage: null,
+            Choices: [],
+            Outcome: outcome
+        );
+
+        WebIO.RenderHunt(ctx, huntDto);
+        WebIO.WaitForHuntContinue(ctx);
+    }
+
+    /// <summary>
+    /// Translate encounter result to hunt outcome.
+    /// </summary>
+    private static (HuntOutcome, int) TranslateEncounterResult(EncounterOutcome encounterResult, int minutesSpent)
+    {
+        return encounterResult switch
+        {
+            EncounterOutcome.PredatorRetreated => (HuntOutcome.PreyFled, minutesSpent),
+            EncounterOutcome.PlayerEscaped => (HuntOutcome.PreyFled, minutesSpent),
+            EncounterOutcome.CombatVictory => (HuntOutcome.Success, minutesSpent),
+            EncounterOutcome.PlayerDied => (HuntOutcome.PlayerDied, minutesSpent),
+            _ => (HuntOutcome.PreyFled, minutesSpent)
+        };
     }
 }

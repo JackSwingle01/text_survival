@@ -13,6 +13,7 @@ public record GameStateDto
     // Time
     public int DayNumber { get; init; }
     public string ClockTime { get; init; } = "";
+    public int ClockTimeMinutes { get; init; }  // Minutes since midnight for lerp
     public string TimeOfDay { get; init; } = "";
     public bool IsDaytime { get; init; }
     public double HoursUntilTransition { get; init; }
@@ -133,6 +134,7 @@ public record GameStateDto
             // Time
             DayNumber = dayNumber,
             ClockTime = ctx.GameTime.ToString("h:mm tt"),
+            ClockTimeMinutes = ctx.GameTime.Hour * 60 + ctx.GameTime.Minute,
             TimeOfDay = ctx.GetTimeOfDay().ToString(),
             IsDaytime = isDaytime,
             HoursUntilTransition = hoursUntilTransition,

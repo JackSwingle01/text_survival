@@ -1,4 +1,5 @@
 using text_survival.Actors.Animals;
+using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
@@ -149,22 +150,11 @@ public static class EncounterRunner
             return EncounterOutcome.PlayerDied;
         }
 
-        // Victory
-        GameDisplay.AddNarrative(ctx, $"The {predator.Name} falls!");
+        // Victory - create carcass for butchering
+        GameDisplay.AddNarrative(ctx, $"The {predator.Name} falls! Its carcass awaits butchering.");
 
-        var butcherChoice = new Choice<bool>("Butcher the carcass?");
-        butcherChoice.AddOption("Yes", true);
-        butcherChoice.AddOption("No", false);
-
-        if (butcherChoice.GetPlayerChoice(ctx))
-        {
-            var loot = ButcherRunner.ButcherAnimal(predator, ctx);
-            GameDisplay.AddNarrative(ctx, $"You collect {loot.CurrentWeightKg:F1}kg of resources.");
-            InventoryCapacityHelper.CombineAndReport(ctx, loot);
-
-            // Butchering can be interrupted by events
-            var result = ctx.Update(10, ActivityType.Hunting);
-        }
+        var carcass = new CarcassFeature(predator.Name, predator.Body.WeightKG);
+        ctx.CurrentLocation.AddFeature(carcass);
 
         return EncounterOutcome.CombatVictory;
     }

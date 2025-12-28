@@ -62,8 +62,10 @@ public static partial class GameEventRegistry
             .Choice("Follow Them",
                 "The trail is clear. You could track this animal.",
                 [
-                    new EventResult("The tracks lead nowhere. You lose the trail.", weight: 0.4f, minutes: 20),
-                    new EventResult("You spot the animal in the distance but can't get close.", weight: 0.35f, minutes: 25),
+                    new EventResult("The tracks lead nowhere. You lose the trail.", weight: 0.4f, minutes: 20)
+                        .CreateTension("FreshTrail", 0.1, description: "faint sign of game"),
+                    new EventResult("You spot the animal in the distance but can't get close.", weight: 0.35f, minutes: 25)
+                        .CreateTension("FreshTrail", 0.2, description: "sighting of game"),
                     new EventResult("You find a game trail — good hunting ground.", weight: 0.15f, minutes: 30)
                         .FindsGameTrail(),
                     new EventResult("You were so focused on the tracks, you didn't notice what was tracking YOU. It lunges.", weight: 0.1f, minutes: 15)
@@ -75,6 +77,7 @@ public static partial class GameEventRegistry
                 "You mark the direction mentally. Could be useful later.",
                 [
                     new EventResult("You file the information away and continue.", minutes: 2)
+                        .CreateTension("FreshTrail", 0.15, description: "noted animal direction")
                 ])
             .Choice("Avoid the Area",
                 "Best not to cross paths with whatever made these.",
@@ -146,11 +149,13 @@ public static partial class GameEventRegistry
             .Choice("Follow Them",
                 "Ravens often lead to carcasses or resources.",
                 [
-                    new EventResult("They lead you to a small carcass.", weight: 0.35, minutes: 25)
-                        .FindsMeat(),
+                    new EventResult("They lead you to a fresh carcass.", weight: 0.35, minutes: 25)
+                        .CreatesCarcass()
+                        .BecomeStalked(0.2),
                     new EventResult("They lead nowhere. Wasting your time.", weight: 0.25, minutes: 30),
                     new EventResult("They lead you to another predator's kill.", weight: 0.20, minutes: 25)
-                        .BecomeStalked(0.25),
+                        .CreatesCarcass()
+                        .BecomeStalked(0.4),
                     new EventResult("They lead you somewhere dangerous.", weight: 0.10, minutes: 20)
                         .Encounter("Wolf", 25, 0.5),
                     new EventResult("They lead you to something unexpected.", weight: 0.10, minutes: 30)
@@ -159,7 +164,7 @@ public static partial class GameEventRegistry
             .Choice("Ignore Them",
                 "They're just birds.",
                 [
-                    new EventResult("You continue working. They circle away eventually.", weight: 1.0)
+                    new EventResult("You continue working. They circle away eventually.", weight: 1.0, minutes: 2)
                 ]);
     }
 

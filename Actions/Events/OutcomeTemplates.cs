@@ -263,6 +263,16 @@ public static class OutcomeTemplates
         double temp, double overhead, double wind)
         => r.AddsFeature(typeof(Environments.Features.ShelterFeature), (temp, overhead, wind));
 
+    /// <summary>
+    /// Create a carcass at the current location.
+    /// If no animal specified, uses territory-based selection.
+    /// </summary>
+    public static EventResult CreatesCarcass(this EventResult r, string? animalType = null, double? weightKg = null)
+    {
+        r.CarcassCreation = new CarcassCreation(animalType, weightKg);
+        return r;
+    }
+
     // === EQUIPMENT WEAR ===
 
     /// <summary>Damage equipment in a specific slot.</summary>

@@ -75,6 +75,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     /// Optional tension created when this detail is examined.
     /// Factory function to create the tension (allows randomization).
     /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public Func<ActiveTension>? TensionOnInteract { get; init; }
 
     [System.Text.Json.Serialization.JsonConstructor]
@@ -284,7 +285,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 
         return new EnvironmentalDetail("old_campfire", "Old Campfire", "The remains of a fire ring. Long since cold.")
         {
-            _mapIcon = "fireplace",
+            _mapIcon = null, // No icon - cold campfires aren't visually prominent
             Loot = loot.IsEmpty ? null : loot,
             InteractionHint = loot.IsEmpty ? null : "sift through ashes",
             InteractionMinutes = 3

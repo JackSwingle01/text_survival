@@ -310,6 +310,16 @@
         </div>
     </div>
 
+    <!-- Death Screen Overlay -->
+    <div class="event-overlay hidden" id="deathOverlay">
+        <div class="event-modal death-modal">
+            <div class="event-header"><h2>YOU DIED</h2></div>
+            <div class="event-description" id="deathCause"></div>
+            <div class="death-stats" id="deathStats"></div>
+            <div class="event-choices" id="deathChoices"></div>
+        </div>
+    </div>
+
     <!-- Forage Overlay -->
     <div class="event-overlay hidden" id="forageOverlay">
         <div class="event-modal forage-modal">
@@ -350,6 +360,56 @@
                 <button class="event-choice-btn forage-cancel" id="forageCancelBtn">
                     <span class="choice-label">Cancel</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hunt Overlay -->
+    <div class="event-overlay hidden" id="huntOverlay">
+        <div class="event-modal hunt-modal">
+            <div class="event-header">
+                <h2><span class="material-symbols-outlined">pets</span> Hunting</h2>
+            </div>
+
+            <!-- Animal info -->
+            <div class="hunt-target">
+                <span class="hunt-animal-name" id="huntAnimalName">Deer</span>
+                <span class="hunt-animal-desc" id="huntAnimalDesc">a lean doe</span>
+            </div>
+
+            <!-- Distance bar -->
+            <div class="hunt-distance-section">
+                <div class="hunt-distance-label">
+                    <span>Distance</span>
+                    <span class="hunt-distance-value" id="huntDistanceValue">75m</span>
+                </div>
+                <div class="hunt-distance-bar-container">
+                    <div class="hunt-distance-mask" id="huntDistanceMask"></div>
+                    <div class="hunt-distance-zones">
+                        <span class="zone-marker melee" style="left: 95%;">5m</span>
+                        <span class="zone-marker spear" style="left: 80%;">20m</span>
+                        <span class="zone-marker stone" style="left: 85%;">15m</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Animal status -->
+            <div class="hunt-status">
+                <span class="hunt-activity" id="huntActivity">grazing, head down</span>
+                <span class="hunt-time" id="huntTime">0 min</span>
+                <span class="hunt-state" id="huntState">unaware</span>
+            </div>
+
+            <!-- Status message -->
+            <div class="hunt-message" id="huntMessage"></div>
+
+            <!-- Choices (hidden during outcome) -->
+            <div class="event-choices" id="huntChoices"></div>
+
+            <!-- Outcome section (hidden during choice phase) -->
+            <div class="hunt-outcome hidden" id="huntOutcome">
+                <div class="hunt-outcome-message" id="huntOutcomeMessage"></div>
+                <div class="hunt-outcome-summary" id="huntOutcomeSummary"></div>
             </div>
         </div>
     </div>

@@ -1,6 +1,7 @@
 using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Expeditions.WorkStrategies;
+using text_survival.Actions.Variants;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
@@ -116,6 +117,19 @@ public class ForageFeature : LocationFeature, IWorkableFeature
         _resources.Add(new ForageResource(name, resourceType, abundance, minWeight, maxWeight));
         return this;
     }
+
+    /// <summary>
+    /// Check if this feature has any resources matching a forage focus.
+    /// </summary>
+    public bool HasResourcesForFocus(ForageFocus focus) => focus switch
+    {
+        ForageFocus.Fuel => _resources.Any(r => r.ResourceType.IsFuel()),
+        ForageFocus.Food => _resources.Any(r => r.ResourceType.IsFood()),
+        ForageFocus.Medicine => _resources.Any(r => r.ResourceType.IsMedicine()),
+        ForageFocus.Materials => _resources.Any(r => r.ResourceType.IsMaterial()),
+        ForageFocus.General => true,
+        _ => true
+    };
 
     // Convenience methods for common configurations
 

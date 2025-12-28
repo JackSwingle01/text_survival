@@ -27,6 +27,9 @@ export class CanvasGridRenderer {
         this.currentOffsetY = 0;
         this.transitionStartTime = null;
         this.TRANSITION_DURATION = 300;  // ms
+        this.synchronizedPan = false;  // True when animated pan is in progress
+        this.panOriginX = null;  // Origin position for player icon animation
+        this.panOriginY = null;
 
         // Colors
         this.COLORS = {
@@ -78,7 +81,6 @@ export class CanvasGridRenderer {
      * Initialize the canvas renderer
      */
     init(canvasId, onTileClick) {
-        console.log('[GridRenderer] Initializing with canvas:', canvasId);
         this.onTileClick = onTileClick;
         this.canvas = document.getElementById(canvasId);
 
@@ -87,7 +89,6 @@ export class CanvasGridRenderer {
             return;
         }
 
-        console.log('[GridRenderer] Canvas found, setting up context');
         this.ctx = this.canvas.getContext('2d');
 
         // Set canvas size
@@ -131,10 +132,9 @@ export class CanvasGridRenderer {
      * Update grid state from server
      */
     update(gridState) {
-        console.log('[GridRenderer] Received grid state:', gridState ? `${gridState.tiles?.length} tiles` : 'null');
-
         // Detect player movement and start camera transition
-        if (this.gridState && gridState) {
+        // Skip auto-animation if synchronized pan is in progress
+        if (this.gridState && gridState && !this.synchronizedPan) {
             const oldX = this.gridState.playerX;
             const oldY = this.gridState.playerY;
             const newX = gridState.playerX;
@@ -146,6 +146,7 @@ export class CanvasGridRenderer {
                 this.cameraOffsetX = (newX - oldX) * cellSize;
                 this.cameraOffsetY = (newY - oldY) * cellSize;
                 this.transitionStartTime = performance.now();
+                this.TRANSITION_DURATION = 300;  // Reset to default duration
             }
         }
 
@@ -181,7 +182,39 @@ export class CanvasGridRenderer {
             this.transitionStartTime = null;
             this.currentOffsetX = 0;
             this.currentOffsetY = 0;
+            this.synchronizedPan = false;  // Clear synchronized pan flag
+            this.panOriginX = null;  // Clear origin for player icon animation
+            this.panOriginY = null;
         }
+    }
+
+    /**
+     * Start a synchronized camera pan from origin to current position.
+     * Used for travel progress to animate camera movement over the progress duration.
+     * @param {number} originX - Origin grid X position
+     * @param {number} originY - Origin grid Y position
+     * @param {number} durationMs - Animation duration in milliseconds
+     */
+    startAnimatedPan(originX, originY, durationMs) {
+        if (!this.gridState) return;
+
+        const cellSize = this.TILE_SIZE + this.GAP;
+        const destX = this.gridState.playerX;
+        const destY = this.gridState.playerY;
+
+        // Calculate offset: same as auto-animation (dest - origin)
+        // This shifts tiles so we visually start at origin, then animate to dest
+        this.cameraOffsetX = (destX - originX) * cellSize;
+        this.cameraOffsetY = (destY - originY) * cellSize;
+
+        // Store origin for player icon animation
+        this.panOriginX = originX;
+        this.panOriginY = originY;
+
+        // Start transition with custom duration
+        this.transitionStartTime = performance.now();
+        this.TRANSITION_DURATION = durationMs;
+        this.synchronizedPan = true;  // Mark as synchronized pan to skip auto-animation
     }
 
     /**
@@ -304,6 +337,9 @@ export class CanvasGridRenderer {
             }
         }
 
+        // Render player icon (after tiles so it's always on top)
+        this.renderPlayer();
+
         // Render footprints
         this.renderFootprints();
 
@@ -410,7 +446,7 @@ export class CanvasGridRenderer {
             const badgeX = px + 4;
             const badgeY = py + 4;
 
-            // Draw square badge background (matching event choice button theme)
+            // Draw square badge background - matches --bg-surface (#1d2734)
             ctx.fillStyle = 'rgb(31, 39, 51)';
             ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
 
@@ -444,13 +480,37 @@ export class CanvasGridRenderer {
             ctx.fillRect(px - this.TILE_SIZE, py - this.TILE_SIZE, this.TILE_SIZE * 3, this.TILE_SIZE * 3);
         }
 
-        // Draw player icon
-        if (isPlayer) {
-            this.drawMaterialIcon('person_pin_circle',
-                px + this.TILE_SIZE/2,
-                py + this.TILE_SIZE/2 + 4,
-                26, this.COLORS.fireOrange, 1);
+    }
+
+    /**
+     * Render player icon on top of all tiles
+     */
+    renderPlayer() {
+        if (!this.gridState) return;
+
+        const viewCenterX = Math.floor(this.VIEW_SIZE / 2);
+        const viewCenterY = Math.floor(this.VIEW_SIZE / 2);
+        const { px, py } = this.getTileScreenPos(viewCenterX, viewCenterY);
+
+        let playerX = px + this.TILE_SIZE/2;
+        let playerY = py + this.TILE_SIZE/2 + 4;
+
+        // During synchronized pan, animate player icon from origin to destination
+        // Uses linear interpolation to match progress bar timing
+        if (this.synchronizedPan && this.panOriginX !== null) {
+            const elapsed = performance.now() - this.transitionStartTime;
+            const progress = Math.min(1, elapsed / this.TRANSITION_DURATION);
+
+            // Player offset: starts at (origin - dest), animates to 0 (linear to match progress bar)
+            const cellSize = this.TILE_SIZE + this.GAP;
+            const offsetX = (this.panOriginX - this.gridState.playerX) * cellSize * (1 - progress);
+            const offsetY = (this.panOriginY - this.gridState.playerY) * cellSize * (1 - progress);
+
+            playerX += offsetX;
+            playerY += offsetY;
         }
+
+        this.drawMaterialIcon('person_pin_circle', playerX, playerY, 26, this.COLORS.fireOrange, 1);
     }
 
     /**

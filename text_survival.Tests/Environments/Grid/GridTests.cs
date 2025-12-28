@@ -415,11 +415,11 @@ public class VisibilityTests
         map.UpdateVisibility();
         Assert.Equal(TileVisibility.Visible, map.GetLocationAt(5, 6)!.Visibility);
 
-        // Move to (7, 7)
-        map.CurrentPosition = new GridPosition(7, 7);
+        // Move to (8, 8) - far enough that (5, 6) is outside sight range of 3
+        map.CurrentPosition = new GridPosition(8, 8);
         map.UpdateVisibility();
 
-        // Previous tile should now be explored but not visible
+        // Previous tile should now be explored but not visible (distance 5 > range 3)
         Assert.Equal(TileVisibility.Explored, map.GetLocationAt(5, 6)!.Visibility);
     }
 }

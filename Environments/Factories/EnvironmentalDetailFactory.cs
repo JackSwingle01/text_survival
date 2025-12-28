@@ -73,7 +73,6 @@ public static class EnvironmentalDetailFactory
     private static List<Func<EnvironmentalDetail>> ClearingDetails() =>
     [
         EnvironmentalDetail.FallenLog,
-        EnvironmentalDetail.OldCampfire,
         () => EnvironmentalDetail.AnimalTracks("deer"),
         () => EnvironmentalDetail.AnimalTracks("rabbit"),
         EnvironmentalDetail.ScatteredBones
@@ -83,7 +82,6 @@ public static class EnvironmentalDetailFactory
     [
         () => EnvironmentalDetail.AnimalTracks("deer"),
         () => EnvironmentalDetail.AnimalTracks("wolf"),
-        EnvironmentalDetail.OldCampfire,
         EnvironmentalDetail.ScatteredBones,
         EnvironmentalDetail.FrozenPuddle
     ];
@@ -102,8 +100,7 @@ public static class EnvironmentalDetailFactory
         EnvironmentalDetail.StonePile,
         EnvironmentalDetail.StonePile, // Double weight for stone in rocky areas
         () => EnvironmentalDetail.AnimalDroppings("wolf"),
-        EnvironmentalDetail.ScatteredBones,
-        EnvironmentalDetail.OldCampfire
+        EnvironmentalDetail.ScatteredBones
     ];
 
     private static List<Func<EnvironmentalDetail>> MarshDetails() =>

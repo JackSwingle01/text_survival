@@ -70,7 +70,7 @@ public static partial class GameEventRegistry
 
         return new GameEvent("Assessing the Claim",
             $"You know what lives here now. {variant.TacticsDescription} The question is: is it worth it?", 1.5)
-            .Requires(EventCondition.ClaimedTerritory, EventCondition.Working)
+            .Requires(EventCondition.ClaimedTerritory, EventCondition.Working, EventCondition.AtClaimedTerritory)
             .Choice("Wait for It to Leave",
                 variant.WaitDescription,
                 variant.IsDiurnal
@@ -158,7 +158,7 @@ public static partial class GameEventRegistry
 
         return new GameEvent("The Confrontation",
             $"The {animal.ToLower()} is aware of you. It's defending its home. Cornered animals fight hardest.", 2.5)
-            .Requires(EventCondition.ClaimedTerritoryHigh, EventCondition.Working)
+            .Requires(EventCondition.ClaimedTerritoryHigh, EventCondition.Working, EventCondition.AtClaimedTerritory)
             .Choice("Commit to the Fight",
                 "This is happening. Make it count.",
                 [

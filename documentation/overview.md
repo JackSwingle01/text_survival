@@ -137,6 +137,8 @@ Features are what make locations useful. They live on locations and define avail
 
 **HeatSourceFeature** — Fire. See Fire section above.
 
+**CarcassFeature** — Dead animal carcasses awaiting butchering. Created by successful hunts, combat victories, and some events (like following ravens). Carcasses decay over time (fresh → good → questionable → spoiled) affecting meat yield. Contains all butchering logic: yields based on animal weight (40% meat, 15% bone, 10% hide, 5% sinew, 8% fat), tool checks (no knife = reduced yield), manipulation impairment penalties. Butchered via ButcherStrategy work type. Creates time pressure to return and process before spoilage.
+
 **EnvironmentFeature** — Terrain properties affecting gameplay.
 
 Features interact with: locations (features live on locations), expeditions (work types use features), events (features can trigger events and be modified by event outcomes), crafting (features provide materials), survival simulation (shelter and heat).
@@ -455,9 +457,8 @@ Runners — Control flow, player decisions, display UI
 - TravelRunner: movement between locations
 - WorkRunner: all work activities (uses strategy pattern)
 - CraftingRunner: need-based crafting UI
-- HuntRunner: interactive hunt sequences
-- EncounterRunner: predator encounters
-- ButcherRunner: animal butchering
+- HuntRunner: interactive hunt sequences (creates CarcassFeature on kill)
+- EncounterRunner: predator encounters (creates CarcassFeature on victory)
 
 Handlers — Activity-specific execution logic (static classes)
 - FireHandler: fire starting, tending, fuel management
@@ -476,7 +477,7 @@ Handlers take `GameContext`, mutate state directly, handle player choices via `I
 Work Strategies — `IWorkStrategy` implementations for each work type:
 - ForageStrategy, HuntStrategy, HarvestStrategy, ExploreStrategy
 - TrapStrategy (set/check modes), ChoppingStrategy, CacheStrategy
-- CraftingProjectStrategy, SalvageStrategy
+- CraftingProjectStrategy, SalvageStrategy, ButcherStrategy
 - Each strategy provides: location validation, time options, impairment calculations, execution logic
 
 GameContext — Central hub holding game state

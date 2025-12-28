@@ -27,6 +27,7 @@ public record FeatureUIInfo(
 [JsonDerivedType(typeof(CraftingProjectFeature), "craftingProject")]
 [JsonDerivedType(typeof(WoodedAreaFeature), "woodedArea")]
 [JsonDerivedType(typeof(EnvironmentalDetail), "environmentalDetail")]
+[JsonDerivedType(typeof(CarcassFeature), "carcass")]
 public abstract class LocationFeature
 {
     public string Name { get; set; } = string.Empty;

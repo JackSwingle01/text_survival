@@ -89,7 +89,7 @@ public class CraftOption
             if (have < req.Count)
             {
                 int need = req.Count - have;
-                missing.Add($"{need} {req.Material.ToLower()}");
+                missing.Add($"{need} {GetMaterialDisplayName(req.Material)}");
             }
         }
 
@@ -247,8 +247,9 @@ public class CraftOption
         foreach (var req in Requirements)
         {
             int have = GetMaterialCount(inventory, req.Material);
+            string displayName = GetMaterialDisplayName(req.Material);
             string status = have >= req.Count ? "ok" : $"need {req.Count - have} more";
-            parts.Add($"{req.Count} {req.Material.ToLower()} ({status})");
+            parts.Add($"{req.Count} {displayName} ({status})");
         }
 
         // Tool requirements
@@ -274,7 +275,7 @@ public class CraftOption
     /// </summary>
     public string GetRequirementsShort()
     {
-        var parts = Requirements.Select(r => $"{r.Count} {r.Material.ToLower()}").ToList();
+        var parts = Requirements.Select(r => $"{r.Count} {GetMaterialDisplayName(r.Material)}").ToList();
 
         // Add tool requirements
         if (RequiredTools.Count > 0)
@@ -308,37 +309,64 @@ public class CraftOption
         _ => material.ToLower()
     };
 
-    private static int GetMaterialCount(Inventory inv, string material)
+    private static int GetMaterialCount(Inventory inv, MaterialSpecifier material) => material switch
     {
-        // Try to parse as Resource enum first
-        if (Enum.TryParse<Resource>(material, out var resource))
-            return inv.Count(resource);
+        MaterialSpecifier.Specific(var resource) => inv.Count(resource),
+        MaterialSpecifier.Category(var category) => inv.GetCount(category),
+        _ => 0
+    };
 
-        // Fall back to category check
-        if (Enum.TryParse<ResourceCategory>(material, out var category))
-            return inv.GetCount(category);
-
-        return 0;
-    }
-
-    private static void ConsumeMaterial(Inventory inv, string material, int count)
+    private static void ConsumeMaterial(Inventory inv, MaterialSpecifier material, int count)
     {
-        // Try to parse as Resource enum first
-        if (Enum.TryParse<Resource>(material, out var resource))
+        switch (material)
         {
-            inv.Take(resource, count);
-            return;
+            case MaterialSpecifier.Specific(var resource):
+                inv.Take(resource, count);
+                break;
+            case MaterialSpecifier.Category(var category):
+                // For category requirements, consume from the first available resource in that category
+                var categoryResources = ResourceCategories.Items[category];
+                int remaining = count;
+                foreach (var res in categoryResources)
+                {
+                    while (remaining > 0 && inv.Count(res) > 0)
+                    {
+                        inv.Pop(res);
+                        remaining--;
+                    }
+                    if (remaining <= 0) break;
+                }
+                break;
         }
-
-        // Material name doesn't match enum - this is an error
-        throw new ArgumentException($"Unknown material: {material}");
     }
+
+    private static string GetMaterialDisplayName(MaterialSpecifier material) => material switch
+    {
+        MaterialSpecifier.Specific(var r) => r.ToDisplayName(),
+        MaterialSpecifier.Category(var c) => c.ToString().ToLower(),
+        _ => "unknown"
+    };
+}
+
+/// <summary>
+/// Type-safe material specifier - either a specific Resource or a ResourceCategory.
+/// Prevents string matching bugs by using enum types directly.
+/// </summary>
+public abstract record MaterialSpecifier
+{
+    public sealed record Specific(Resource Resource) : MaterialSpecifier;
+    public sealed record Category(ResourceCategory Value) : MaterialSpecifier;
+
+    // Implicit conversions for clean recipe syntax
+    public static implicit operator MaterialSpecifier(Resource r) => new Specific(r);
+    public static implicit operator MaterialSpecifier(ResourceCategory c) => new Category(c);
 }
 
 /// <summary>
 /// A single material requirement for crafting.
+/// Uses type-safe MaterialSpecifier instead of strings.
 /// </summary>
-public record MaterialRequirement(string Material, int Count);
+public record MaterialRequirement(MaterialSpecifier Material, int Count);
 
 /// <summary>
 /// Output material from a processing recipe.

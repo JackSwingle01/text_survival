@@ -78,6 +78,7 @@ public static class WebServer
             {
                 Console.WriteLine($"[WebServer] Disposing old session for reconnect: {sessionId}");
                 oldSession.Dispose();
+                WebIO.ClearAllOverlays(sessionId);
             }
 
             var session = new WebGameSession(socket);
@@ -221,35 +222,22 @@ public static class WebServer
     private static void DisplayDeathScreen(GameContext ctx)
     {
         Player player = ctx.player;
-
-        GameDisplay.AddNarrative(ctx, "");
-        GameDisplay.AddNarrative(ctx, "═══════════════════════════════════════════════════════════");
-        GameDisplay.AddDanger(ctx, "                       YOU DIED                            ");
-        GameDisplay.AddNarrative(ctx, "═══════════════════════════════════════════════════════════");
-        GameDisplay.AddNarrative(ctx, "");
-
         string causeOfDeath = DetermineCauseOfDeath(player);
-        GameDisplay.AddDanger(ctx, $"Cause of Death: {causeOfDeath}");
-        GameDisplay.AddNarrative(ctx, "");
-
-        var body = player.Body;
-        GameDisplay.AddNarrative(ctx, "=== Final Survival Stats ===");
-        GameDisplay.AddNarrative(ctx, $"Vitality: {player.Vitality * 100:F1}%");
-        GameDisplay.AddNarrative(ctx, $"Calories: {body.CalorieStore:F0}/{Survival.SurvivalProcessor.MAX_CALORIES:F0}");
-        GameDisplay.AddNarrative(ctx, $"Hydration: {body.Hydration:F0}/{Survival.SurvivalProcessor.MAX_HYDRATION:F0}");
-        GameDisplay.AddNarrative(ctx, $"Body Temperature: {body.BodyTemperature:F1}F");
-        GameDisplay.AddNarrative(ctx, "");
 
         var startTime = new DateTime(2025, 1, 1, 9, 0, 0);
         var timeSurvived = ctx.GameTime - startTime;
-        GameDisplay.AddNarrative(ctx, $"You survived for {timeSurvived.Days} days, {timeSurvived.Hours} hours, and {timeSurvived.Minutes} minutes.");
-        GameDisplay.AddNarrative(ctx, "");
-        GameDisplay.AddNarrative(ctx, "═══════════════════════════════════════════════════════════");
-        GameDisplay.AddNarrative(ctx, "                    GAME OVER                              ");
-        GameDisplay.AddNarrative(ctx, "═══════════════════════════════════════════════════════════");
+        string timeSurvivedText = $"{timeSurvived.Days} days, {timeSurvived.Hours} hours, and {timeSurvived.Minutes} minutes";
 
-        // Send final frame
-        GameDisplay.Render(ctx);
+        var deathData = new DeathScreenDto(
+            causeOfDeath,
+            timeSurvivedText,
+            player.Vitality * 100,
+            player.Body.CalorieStore,
+            player.Body.Hydration,
+            player.Body.BodyTemperature
+        );
+
+        WebIO.ShowDeathScreen(ctx, deathData);
     }
 
     private static string DetermineCauseOfDeath(Player player)

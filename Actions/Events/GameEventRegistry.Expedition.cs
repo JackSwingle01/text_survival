@@ -207,7 +207,7 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Water Source",
             "You hear it before you see it — running water, or the promising crack of ice over a stream.", 0.7)
-            .Requires(EventCondition.Working, EventCondition.Outside, EventCondition.IsExpedition)
+            .Requires(EventCondition.Working, EventCondition.Outside, EventCondition.IsExpedition, EventCondition.NotNearWater)
             .Choice("Investigate Thoroughly",
                 "Check the source carefully.",
                 [
@@ -236,7 +236,10 @@ public static partial class GameEventRegistry
             .Choice("Mark and Continue",
                 "Note the location for later.",
                 [
-                    new EventResult("You make a mental note and continue.", 1.0, 3)
+                    new EventResult("You mark a reliable water source — a frozen stream you can return to.", 0.25, 3)
+                        .AddsFeature(typeof(WaterFeature), (0.4, 0.6, 0.8)),
+                    new EventResult("You find a small frozen puddle worth remembering.", 0.75, 3)
+                        .AddsDetail(EnvironmentalDetail.FrozenPuddle)
                 ]);
     }
 

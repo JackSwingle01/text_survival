@@ -527,6 +527,7 @@ public enum ActivityType
     Exploring,      // Full events, scouting new areas (away from fire)
     Chopping,       // Full events, felling trees (strenuous)
     Tracking,       // Full events, following animal signs while foraging
+    Butchering,     // Full events, processing a carcass
 }
 public enum EventCondition
 {
@@ -664,10 +665,12 @@ public enum EventCondition
     InDarkness,         // Location is dark AND no active light source
     HasLightSource,     // Active fire/torch at current location
     NearWater,          // Location has a water feature
+    NotNearWater,       // No water feature at current or adjacent locations
     HazardousTerrain,   // Location terrain hazard >= 0.5
     HasFuelForage,      // Location has ForageFeature with fuel resources (deadfall, etc.)
     HighOverheadCover,  // Location or shelter has overhead coverage >= 0.6 (traps smoke)
     AtDisturbedSource,  // At the location where Disturbed tension originated
+    AtClaimedTerritory, // At the location where ClaimedTerritory tension originated
 
     // Water/Ice conditions
     FrozenWater,        // Water feature is frozen

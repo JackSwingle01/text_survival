@@ -23,6 +23,7 @@ class GameClient {
         this.gridRenderer = null;       // Canvas grid renderer
         this.gridInitialized = false;
         this.tilePopup = null;          // Current tile popup state
+        this.lastHuntTime = 0;          // Track hunt time for animation
 
         // Initialize FrameQueue with render callback
         FrameQueue.init((frame) => this.renderFrame(frame));
@@ -132,11 +133,6 @@ class GameClient {
      * Handle incoming frame - delegate to FrameQueue
      */
     handleFrame(frame) {
-        console.log('[GameClient] Frame received:', {
-            mode: frame.mode?.type,
-            overlays: frame.overlays?.map(o => o.type),
-            inputType: frame.input?.type
-        });
         FrameQueue.enqueue(frame);
     }
 
@@ -204,6 +200,13 @@ class GameClient {
                 this.setUIMode('travel');
                 this.updateGridFromMode(mode);
                 break;
+            case 'travel_progress':
+                // Travel progress: show grid and let FrameQueue handle animation
+                this.setUIMode('travel');
+                if (mode.grid) {
+                    this.updateGrid(mode.grid);
+                }
+                break;
             case 'progress':
                 // Progress animation is handled by FrameQueue
                 break;
@@ -242,6 +245,12 @@ class GameClient {
             case 'forage':
                 this.showForagePopup(overlay.data);
                 break;
+            case 'deathScreen':
+                this.showDeathScreen(overlay.data, input);
+                break;
+            case 'hunt':
+                this.showHuntPopup(overlay.data);
+                break;
         }
     }
 
@@ -255,6 +264,8 @@ class GameClient {
         this.hideHazardPrompt();
         this.hideConfirmPrompt();
         this.hideForagePopup();
+        this.hideDeathScreen();
+        this.hideHuntPopup();
     }
 
     /**
@@ -331,7 +342,7 @@ class GameClient {
 
             // Show and animate progress bar
             show(progressEl);
-            progressText.textContent = `Acting... (+${outcome.timeAddedMinutes} min)`;
+            progressText.textContent = `${eventData.description} (+${outcome.timeAddedMinutes} min)`;
             progressBar.style.width = '0%';
 
             // Convert game minutes to animation seconds (~5 game-min per real second)
@@ -479,7 +490,7 @@ class GameClient {
             const continueBtn = document.createElement('button');
             continueBtn.className = 'event-continue-btn';
             continueBtn.textContent = 'Continue';
-            continueBtn.onclick = () => this.respond(null, inputId);
+            continueBtn.onclick = () => this.respond('continue', inputId);
             choicesEl.appendChild(continueBtn);
         }
     }
@@ -1031,6 +1042,67 @@ class GameClient {
     }
 
     /**
+     * Show death screen overlay
+     */
+    showDeathScreen(data, input) {
+        const overlay = document.getElementById('deathOverlay');
+        const causeEl = document.getElementById('deathCause');
+        const statsEl = document.getElementById('deathStats');
+        const choicesEl = document.getElementById('deathChoices');
+
+        if (!overlay) return;
+
+        causeEl.textContent = data.causeOfDeath;
+
+        // Build stats using safe DOM methods
+        Utils.clearElement(statsEl);
+        const statLines = [
+            `Time Survived: ${data.timeSurvived}`,
+            `Final Vitality: ${data.finalVitality.toFixed(0)}%`,
+            `Final Calories: ${data.finalCalories.toFixed(0)} kcal`,
+            `Final Hydration: ${data.finalHydration.toFixed(0)}%`,
+            `Body Temperature: ${data.finalTemperature.toFixed(1)}°F`
+        ];
+        statLines.forEach(line => {
+            const div = document.createElement('div');
+            div.textContent = line;
+            statsEl.appendChild(div);
+        });
+
+        // Add restart button
+        Utils.clearElement(choicesEl);
+        const inputId = this.currentInputId;
+
+        if (input?.choices) {
+            input.choices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.className = 'event-choice-btn';
+
+                const label = document.createElement('span');
+                label.className = 'choice-label';
+                label.textContent = choice.label;
+                btn.appendChild(label);
+
+                btn.onclick = () => {
+                    this.hideDeathScreen();
+                    this.respond(choice.id, inputId);
+                };
+                choicesEl.appendChild(btn);
+            });
+        }
+
+        show(overlay);
+    }
+
+    /**
+     * Hide death screen overlay
+     */
+    hideDeathScreen() {
+        const overlay = document.getElementById('deathOverlay');
+        hide(overlay);
+    }
+
+    /**
      * Show forage popup overlay
      */
     showForagePopup(forageData) {
@@ -1233,6 +1305,254 @@ class GameClient {
     hideForagePopup() {
         hide(document.getElementById('forageOverlay'));
         this.forageSelection = null;
+    }
+
+    /**
+     * Show hunt popup overlay
+     */
+    showHuntPopup(huntData) {
+        const overlay = document.getElementById('huntOverlay');
+        if (!overlay) return;
+
+        show(overlay);
+
+        // Animal info
+        document.getElementById('huntAnimalName').textContent = huntData.animalName;
+        document.getElementById('huntAnimalDesc').textContent = huntData.animalDescription || '';
+
+        // Distance bar with animation
+        this.updateHuntDistanceBar(huntData);
+
+        // Status
+        document.getElementById('huntActivity').textContent = huntData.animalActivity || '';
+
+        // Time with animation
+        const timeEl = document.getElementById('huntTime');
+        const newTime = huntData.minutesSpent;
+        if (huntData.isAnimatingDistance && this.lastHuntTime < newTime) {
+            this.animateTimeValue(this.lastHuntTime, newTime, timeEl);
+        } else {
+            timeEl.textContent = newTime + ' min';
+        }
+        this.lastHuntTime = newTime;
+
+        this.updateHuntStateDisplay(huntData.animalState);
+
+        // Message
+        const messageEl = document.getElementById('huntMessage');
+        if (huntData.statusMessage) {
+            messageEl.textContent = huntData.statusMessage;
+            show(messageEl);
+        } else {
+            hide(messageEl);
+        }
+
+        // Check if outcome phase
+        if (huntData.outcome) {
+            this.showHuntOutcome(huntData);
+        } else {
+            this.showHuntChoices(huntData);
+        }
+    }
+
+    /**
+     * Update distance bar with animation
+     * Uses a mask that covers the unfilled portion from the right
+     */
+    updateHuntDistanceBar(huntData) {
+        const mask = document.getElementById('huntDistanceMask');
+        const valueEl = document.getElementById('huntDistanceValue');
+
+        // Mask covers right portion: 100m = 100% mask (all covered), 0m = 0% mask (all revealed)
+        const maxDistance = 100;
+        const targetPct = Math.max(0, Math.min(100, huntData.currentDistanceMeters / maxDistance * 100));
+
+        valueEl.textContent = `${Math.round(huntData.currentDistanceMeters)}m`;
+
+        if (huntData.isAnimatingDistance && huntData.previousDistanceMeters != null) {
+            // Animate from previous to current
+            const startPct = Math.max(0, Math.min(100, huntData.previousDistanceMeters / maxDistance * 100));
+            mask.style.transition = 'none';
+            mask.style.width = startPct + '%';
+
+            // Force reflow to ensure initial state is painted
+            mask.offsetHeight;
+
+            // Trigger animation (double rAF ensures browser has painted)
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    mask.style.transition = 'width 0.8s ease-out';
+                    mask.style.width = targetPct + '%';
+                });
+            });
+
+            // Animate the text value too
+            this.animateDistanceValue(
+                huntData.previousDistanceMeters,
+                huntData.currentDistanceMeters,
+                valueEl
+            );
+        } else {
+            mask.style.transition = 'none';
+            mask.style.width = targetPct + '%';
+        }
+    }
+
+    /**
+     * Animate distance value text
+     */
+    animateDistanceValue(fromDistance, toDistance, element) {
+        const duration = 800;
+        const startTime = Date.now();
+
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(1, elapsed / duration);
+            const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+
+            const current = fromDistance + (toDistance - fromDistance) * eased;
+            element.textContent = `${Math.round(current)}m`;
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            }
+        };
+
+        requestAnimationFrame(animate);
+    }
+
+    /**
+     * Animate time value text
+     */
+    animateTimeValue(fromTime, toTime, element) {
+        const duration = 800;
+        const startTime = Date.now();
+
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(1, elapsed / duration);
+            const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+
+            const current = fromTime + (toTime - fromTime) * eased;
+            element.textContent = `${Math.round(current)} min`;
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            }
+        };
+
+        requestAnimationFrame(animate);
+    }
+
+    /**
+     * Update animal state visual indicator
+     */
+    updateHuntStateDisplay(state) {
+        const stateEl = document.getElementById('huntState');
+        if (!stateEl) return;
+
+        stateEl.className = 'hunt-state ' + (state || 'idle').toLowerCase();
+
+        const stateText = {
+            'idle': 'unaware',
+            'alert': 'alert!',
+            'detected': 'spotted you!'
+        };
+
+        stateEl.textContent = stateText[(state || 'idle').toLowerCase()] || state;
+    }
+
+    /**
+     * Show hunt choices (during hunt)
+     */
+    showHuntChoices(huntData) {
+        const choicesEl = document.getElementById('huntChoices');
+        const outcomeEl = document.getElementById('huntOutcome');
+
+        hide(outcomeEl);
+        show(choicesEl);
+
+        Utils.clearElement(choicesEl);
+        const inputId = this.currentInputId;
+
+        huntData.choices.forEach(choice => {
+            const btn = document.createElement('button');
+            btn.className = 'event-choice-btn';
+            btn.disabled = !choice.isAvailable;
+
+            const label = document.createElement('span');
+            label.className = 'choice-label';
+            label.textContent = choice.label;
+            btn.appendChild(label);
+
+            if (choice.description) {
+                const desc = document.createElement('span');
+                desc.className = 'choice-desc';
+                desc.textContent = choice.description;
+                btn.appendChild(desc);
+            }
+
+            if (!choice.isAvailable && choice.disabledReason) {
+                btn.title = choice.disabledReason;
+            }
+
+            btn.onclick = () => this.respond(choice.id, inputId);
+            choicesEl.appendChild(btn);
+        });
+    }
+
+    /**
+     * Show hunt outcome
+     */
+    showHuntOutcome(huntData) {
+        const choicesEl = document.getElementById('huntChoices');
+        const outcomeEl = document.getElementById('huntOutcome');
+        const messageEl = document.getElementById('huntOutcomeMessage');
+        const summaryEl = document.getElementById('huntOutcomeSummary');
+
+        hide(choicesEl);
+        show(outcomeEl);
+
+        const outcome = huntData.outcome;
+        messageEl.textContent = outcome.message;
+
+        Utils.clearElement(summaryEl);
+
+        // Time spent
+        if (outcome.totalMinutesSpent > 0) {
+            this.addOutcomeItem(summaryEl, 'schedule',
+                `${outcome.totalMinutesSpent} minutes`, 'time');
+        }
+
+        // Items gained
+        if (outcome.itemsGained && outcome.itemsGained.length > 0) {
+            outcome.itemsGained.forEach(item => {
+                this.addOutcomeItem(summaryEl, 'add', item, 'gain');
+            });
+        }
+
+        // Effects
+        if (outcome.effectsApplied && outcome.effectsApplied.length > 0) {
+            outcome.effectsApplied.forEach(effect => {
+                this.addOutcomeItem(summaryEl, 'warning', effect, 'effect');
+            });
+        }
+
+        // Continue button
+        const inputId = this.currentInputId;
+        const continueBtn = document.createElement('button');
+        continueBtn.className = 'event-continue-btn';
+        continueBtn.textContent = outcome.transitionToCombat ? 'Face It!' : 'Continue';
+        continueBtn.onclick = () => this.respond('continue', inputId);
+        summaryEl.appendChild(continueBtn);
+    }
+
+    /**
+     * Hide hunt popup
+     */
+    hideHuntPopup() {
+        hide(document.getElementById('huntOverlay'));
+        this.lastHuntTime = 0;
     }
 
     /**
@@ -1575,7 +1895,7 @@ class GameClient {
             const btn = document.createElement('button');
             btn.className = 'action-btn';
             btn.textContent = input.prompt || 'Continue';
-            btn.onclick = () => this.respond(null, inputId);
+            btn.onclick = () => this.respond('continue', inputId);
             actionsArea.appendChild(btn);
 
         } else if (input.type === 'grid') {
@@ -1609,6 +1929,12 @@ class GameClient {
     respond(choiceId, inputId) {
         // Prevent duplicate responses or responses to stale buttons
         if (this.awaitingResponse) {
+            return;
+        }
+
+        // Reject empty string choiceId - this indicates a bug in button creation
+        if (choiceId === '') {
+            console.error('[respond] Empty choiceId rejected! Stack:', new Error().stack);
             return;
         }
 
@@ -1674,7 +2000,7 @@ class GameClient {
             const closeBtn = document.createElement('button');
             closeBtn.className = 'action-btn';
             closeBtn.textContent = 'Close';
-            closeBtn.onclick = () => this.respond(null, inputId);
+            closeBtn.onclick = () => this.respond('continue', inputId);
             actionsContainer.appendChild(closeBtn);
         }
     }
@@ -1934,10 +2260,10 @@ class GameClient {
                 if (cancelChoice) {
                     this.respond(cancelChoice.id, inputId);
                 } else {
-                    this.respond(null, inputId);
+                    this.respond('continue', inputId);
                 }
             } else {
-                this.respond(null, inputId);
+                this.respond('continue', inputId);
             }
         };
     }

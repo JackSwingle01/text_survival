@@ -24,6 +24,7 @@ public class ForageStrategy : IWorkStrategy
     private ForageFocus _focus = ForageFocus.General;
     private ForageClue? _followedClue;
     private int _selectedMinutes;
+    private bool _cancelled;
 
     public string? ValidateLocation(GameContext ctx, Location location)
     {
@@ -54,15 +55,20 @@ public class ForageStrategy : IWorkStrategy
             SuggestedFocusId: GetSuggestedFocusId(clue)
         )).ToList();
 
-        // Build focus options
-        var focusOptions = new List<ForageFocusDto>
+        // Build focus options - only show if resources of that type exist
+        var allFocusOptions = new List<(ForageFocus focus, ForageFocusDto dto)>
         {
-            new("fuel", "Fuel", "sticks, bark, wood"),
-            new("food", "Food", "berries, roots, nuts"),
-            new("medicine", "Medicine", "fungi, moss, bark"),
-            new("materials", "Materials", "stone, bone, fiber"),
-            new("general", "General", "balanced yield")
+            (ForageFocus.Fuel, new("fuel", "Fuel", "sticks, bark, wood")),
+            (ForageFocus.Food, new("food", "Food", "berries, roots, nuts")),
+            (ForageFocus.Medicine, new("medicine", "Medicine", "fungi, moss, bark")),
+            (ForageFocus.Materials, new("materials", "Materials", "stone, bone, fiber")),
+            (ForageFocus.General, new("general", "General", "balanced yield"))
         };
+
+        var focusOptions = allFocusOptions
+            .Where(f => feature.HasResourcesForFocus(f.focus))
+            .Select(f => f.dto)
+            .ToList();
 
         // Build time options
         var timeOptions = new List<ForageTimeDto>
@@ -100,7 +106,10 @@ public class ForageStrategy : IWorkStrategy
         var (selectedFocus, selectedMinutes) = WebIO.SelectForageOptions(ctx, forageDto);
 
         if (selectedFocus == null)
+        {
+            _cancelled = true;
             return null; // Cancelled
+        }
 
         _focus = selectedFocus.Value;
 
@@ -168,6 +177,10 @@ public class ForageStrategy : IWorkStrategy
 
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
+        // Early return if user cancelled
+        if (_cancelled)
+            return new WorkResult([], null, 0, false);
+
         var feature = location.GetFeature<ForageFeature>()!;
 
         // Narrative based on focus
@@ -234,12 +247,15 @@ public class ForageStrategy : IWorkStrategy
         string quality = feature.GetQualityDescription();
         string resultMessage;
 
+        string activityHeader;
         if (found.IsEmpty)
         {
+            activityHeader = "You didn't find anything";
             resultMessage = WorkRunner.GetForageFailureMessage(quality);
         }
         else
         {
+            activityHeader = "Foraging";
             collected.Add(found.GetDescription());
             InventoryCapacityHelper.CombineAndReport(ctx, found);
             resultMessage = quality is "sparse" or "picked over"
@@ -248,7 +264,7 @@ public class ForageStrategy : IWorkStrategy
         }
 
         // Show results in popup overlay
-        WebIO.ShowWorkResult(ctx, "Foraging", resultMessage, collected);
+        WebIO.ShowWorkResult(ctx, activityHeader, resultMessage, collected);
 
         // Tutorial: Show fuel progress on Day 1
         double totalFuelGathered = found.GetWeight(ResourceCategory.Fuel);

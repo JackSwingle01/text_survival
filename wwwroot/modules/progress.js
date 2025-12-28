@@ -1,3 +1,18 @@
+import { getGridRenderer } from './grid/CanvasGridRenderer.js';
+
+/**
+ * Format minutes since midnight as a clock time string (e.g., "9:30 AM")
+ */
+function formatClockTime(totalMinutes) {
+    // Handle day wrapping (1440 = 24 hours * 60 min)
+    totalMinutes = ((totalMinutes % 1440) + 1440) % 1440;
+    const hours24 = Math.floor(totalMinutes / 60);
+    const mins = Math.floor(totalMinutes % 60);
+    const hours12 = hours24 % 12 || 12;
+    const ampm = hours24 < 12 ? 'AM' : 'PM';
+    return `${hours12}:${mins.toString().padStart(2, '0')} ${ampm}`;
+}
+
 /**
  * Progress Display Module
  *
@@ -10,6 +25,7 @@ export const ProgressDisplay = {
     onComplete: null,
     startState: null,
     statDeltas: null,
+    completed: false,  // Track whether animation completed (vs interrupted)
 
     /**
      * Start a local progress animation that runs for the specified duration.
@@ -57,6 +73,7 @@ export const ProgressDisplay = {
 
             // Stop at 100% and call completion callback
             if (pct >= 100) {
+                this.completed = true;  // Mark as completed (not interrupted)
                 clearInterval(this.intervalId);
                 this.intervalId = null;
                 if (this.onComplete) {
@@ -68,6 +85,28 @@ export const ProgressDisplay = {
                 }
             }
         }, 30); // Update every 30ms for smooth animation
+    },
+
+    /**
+     * Start progress animation with synchronized camera pan.
+     * Used for travel to animate both progress bar and map movement together.
+     * @param {number} durationSeconds - Animation duration in seconds
+     * @param {string} statusText - Status text to display
+     * @param {object} startState - Initial game state (for stat interpolation)
+     * @param {object} statDeltas - Stat changes to animate
+     * @param {number} originX - Origin grid X position (for camera animation)
+     * @param {number} originY - Origin grid Y position (for camera animation)
+     * @param {function} onComplete - Callback when animation completes
+     */
+    startWithCamera(durationSeconds, statusText, startState, statDeltas, originX, originY, onComplete) {
+        // Start the camera pan animation first (before progress bar)
+        const gridRenderer = getGridRenderer();
+        if (gridRenderer) {
+            gridRenderer.startAnimatedPan(originX, originY, durationSeconds * 1000);
+        }
+
+        // Then start the regular progress animation
+        this.start(durationSeconds, statusText, startState, statDeltas, onComplete);
     },
 
     /**
@@ -109,6 +148,20 @@ export const ProgressDisplay = {
                 const tempPct = Math.max(0, Math.min(100, ((current - 87) / 15) * 100));
                 tempBar.style.width = tempPct + '%';
             }
+        }
+
+        // Interpolate clock time badge
+        if (this.statDeltas.clockTimeMinutes !== undefined) {
+            const currentMinutes = lerp(this.startState.clockTimeMinutes, this.statDeltas.clockTimeMinutes);
+            const timeEl = document.getElementById('badgeTime');
+            if (timeEl) timeEl.textContent = formatClockTime(currentMinutes);
+        }
+
+        // Interpolate feels-like temperature badge
+        if (this.statDeltas.airTemp !== undefined) {
+            const currentTemp = lerp(this.startState.airTemp, this.statDeltas.airTemp);
+            const tempEl = document.getElementById('badgeFeelsLike');
+            if (tempEl) tempEl.textContent = `${Math.round(currentTemp)}°F`;
         }
 
         // Interpolate fire time remaining (if fire exists)
@@ -161,11 +214,13 @@ export const ProgressDisplay = {
         // Clear callback to prevent stale state
         this.onComplete = null;
 
-        // Reset progress bar
+        // Only reset progress bar if animation completed normally
+        // If interrupted (e.g., by event), leave bar where it was
         const progressBar = document.getElementById('progressBar');
-        if (progressBar) {
+        if (progressBar && this.completed) {
             progressBar.style.width = '0%';
         }
+        this.completed = false;  // Reset flag for next animation
 
         const progressTextEl = document.getElementById('progressText');
         if (progressTextEl) {

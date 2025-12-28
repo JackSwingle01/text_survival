@@ -1,5 +1,6 @@
 using text_survival.Environments.Features;
 using text_survival.Items;
+using static text_survival.Crafting.MaterialSpecifier;
 
 namespace text_survival.Crafting;
 
@@ -73,7 +74,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.FireStarting,
             CraftingTimeMinutes = 15,
             Durability = 5,
-            Requirements = [new MaterialRequirement("Sticks", 2)],
+            Requirements = [new MaterialRequirement(Resource.Stick, 2)],
             RequiredTools = [ToolType.Knife],
             GearFactory = dur => new Gear
             {
@@ -94,7 +95,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.FireStarting,
             CraftingTimeMinutes = 25,
             Durability = 15,
-            Requirements = [new MaterialRequirement("Sticks", 3), new MaterialRequirement("PlantFiber", 1)],
+            Requirements = [new MaterialRequirement(Resource.Stick, 3), new MaterialRequirement(Resource.PlantFiber, 1)],
             RequiredTools = [ToolType.Knife],
             GearFactory = dur => new Gear
             {
@@ -116,8 +117,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15,
             Durability = 20,
             Requirements = [
-                new MaterialRequirement("Flint", 1),
-                new MaterialRequirement("Amadou", 1)
+                new MaterialRequirement(Resource.Flint, 1),
+                new MaterialRequirement(Resource.Amadou, 1)
             ],
             GearFactory = dur => new Gear
             {
@@ -139,8 +140,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 10,
             Durability = 30,
             Requirements = [
-                new MaterialRequirement("Flint", 1),
-                new MaterialRequirement("Pyrite", 1)
+                new MaterialRequirement(Resource.Flint, 1),
+                new MaterialRequirement(Resource.Pyrite, 1)
             ],
             GearFactory = dur => new Gear
             {
@@ -162,8 +163,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 5,
             Durability = 3,
             Requirements = [
-                new MaterialRequirement("BirchBark", 1),
-                new MaterialRequirement("Amadou", 1)
+                new MaterialRequirement(Resource.BirchBark, 1),
+                new MaterialRequirement(Resource.Amadou, 1)
             ],
             GearFactory = dur => new Gear
             {
@@ -191,7 +192,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.CuttingTool,
             CraftingTimeMinutes = 5,
             Durability = 3,
-            Requirements = [new MaterialRequirement("Stone", 2)],
+            Requirements = [new MaterialRequirement(Resource.Stone, 2)],
             GearFactory = dur => new Gear
             {
                 Name = "Sharp Rock",
@@ -215,9 +216,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 20,
             Durability = 10,
             Requirements = [
-                new MaterialRequirement("Stone", 1),
-                new MaterialRequirement("Sticks", 1),
-                new MaterialRequirement("PlantFiber", 1)
+                new MaterialRequirement(Resource.Stone, 1),
+                new MaterialRequirement(Resource.Stick, 1),
+                new MaterialRequirement(Resource.PlantFiber, 1)
             ],
             RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
@@ -243,9 +244,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15,
             Durability = 8,
             Requirements = [
-                new MaterialRequirement("Bone", 1),
-                new MaterialRequirement("Sticks", 1),
-                new MaterialRequirement("PlantFiber", 1)
+                new MaterialRequirement(Resource.Bone, 1),
+                new MaterialRequirement(Resource.Stick, 1),
+                new MaterialRequirement(Resource.PlantFiber, 1)
             ],
             RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
@@ -271,9 +272,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 10,
             Durability = 4,
             Requirements = [
-                new MaterialRequirement("Shale", 1),
-                new MaterialRequirement("Sticks", 1),
-                new MaterialRequirement("PlantFiber", 1)
+                new MaterialRequirement(Resource.Shale, 1),
+                new MaterialRequirement(Resource.Stick, 1),
+                new MaterialRequirement(Resource.PlantFiber, 1)
             ],
             RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
@@ -299,9 +300,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 25,
             Durability = 15,
             Requirements = [
-                new MaterialRequirement("Flint", 1),
-                new MaterialRequirement("Sticks", 1),
-                new MaterialRequirement("PlantFiber", 1)
+                new MaterialRequirement(Resource.Flint, 1),
+                new MaterialRequirement(Resource.Stick, 1),
+                new MaterialRequirement(Resource.PlantFiber, 1)
             ],
             RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
@@ -333,7 +334,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.HuntingWeapon,
             CraftingTimeMinutes = 15,
             Durability = 5,
-            Requirements = [new MaterialRequirement("Sticks", 3)],
+            Requirements = [new MaterialRequirement(Resource.Stick, 3)],
             RequiredTools = [ToolType.Knife],
             GearFactory = dur => new Gear
             {
@@ -357,7 +358,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.HuntingWeapon,
             CraftingTimeMinutes = 25,
             Durability = 8,
-            Requirements = [new MaterialRequirement("Logs", 1)],
+            Requirements = [new MaterialRequirement(ResourceCategory.Log, 1)],
             RequiredTools = [ToolType.Knife],
             GearFactory = dur => new Gear
             {
@@ -382,9 +383,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 35,
             Durability = 12,
             Requirements = [
-                new MaterialRequirement("Logs", 1),
-                new MaterialRequirement("Stone", 1),
-                new MaterialRequirement("PlantFiber", 1)
+                new MaterialRequirement(ResourceCategory.Log, 1),
+                new MaterialRequirement(Resource.Stone, 1),
+                new MaterialRequirement(Resource.PlantFiber, 1)
             ],
             RequiredTools = [ToolType.Knife, ToolType.KnappingStone],
             GearFactory = dur => new Gear
@@ -411,9 +412,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 60,
             Durability = 25,  // Very durable ivory
             Requirements = [
-                new MaterialRequirement("Ivory", 1),
-                new MaterialRequirement("Logs", 1),
-                new MaterialRequirement("Sinew", 2)
+                new MaterialRequirement(Resource.Ivory, 1),
+                new MaterialRequirement(ResourceCategory.Log, 1),
+                new MaterialRequirement(Resource.Sinew, 2)
             ],
             RequiredTools = [ToolType.Knife],
             GearFactory = dur => new Gear
@@ -446,8 +447,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 10,
             Durability = 5,
             Requirements = [
-                new MaterialRequirement("Sticks", 2),
-                new MaterialRequirement("PlantFiber", 2)
+                new MaterialRequirement(Resource.Stick, 2),
+                new MaterialRequirement(Resource.PlantFiber, 2)
             ],
             GearFactory = dur => new Gear
             {
@@ -469,9 +470,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15,
             Durability = 10,
             Requirements = [
-                new MaterialRequirement("Sticks", 2),
-                new MaterialRequirement("Sinew", 1),
-                new MaterialRequirement("PlantFiber", 1)
+                new MaterialRequirement(Resource.Stick, 2),
+                new MaterialRequirement(Resource.Sinew, 1),
+                new MaterialRequirement(Resource.PlantFiber, 1)
             ],
             GearFactory = dur => new Gear
             {
@@ -499,7 +500,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Processing,
             CraftingTimeMinutes = 30,
             Durability = 0, // Not a tool
-            Requirements = [new MaterialRequirement("Hide", 1)],
+            Requirements = [new MaterialRequirement(Resource.Hide, 1)],
             MaterialOutputs = [new MaterialOutput("ScrapedHide", 1, 0.8)] // Slightly lighter after scraping
         });
 
@@ -511,7 +512,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Processing,
             CraftingTimeMinutes = 20,
             Durability = 0,
-            Requirements = [new MaterialRequirement("RawFat", 1)],
+            Requirements = [new MaterialRequirement(Resource.RawFat, 1)],
             MaterialOutputs = [new MaterialOutput("Tallow", 1, 0.15)]
         });
 
@@ -523,7 +524,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Processing,
             CraftingTimeMinutes = 15,
             Durability = 0,
-            Requirements = [new MaterialRequirement("RawFiber", 1)],
+            Requirements = [new MaterialRequirement(Resource.RawFiber, 1)],
             MaterialOutputs = [new MaterialOutput("PlantFiber", 2, 0.05)] // Get 2 units of fiber per raw
         });
 
@@ -535,7 +536,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Processing,
             CraftingTimeMinutes = 15,
             Durability = 0,
-            Requirements = [new MaterialRequirement("PlantFiber", 3)],
+            Requirements = [new MaterialRequirement(Resource.PlantFiber, 3)],
             MaterialOutputs = [new MaterialOutput("Rope", 1, 0.2)]
         });
 
@@ -548,9 +549,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 20,
             Durability = 15,
             Requirements = [
-                new MaterialRequirement("Bone", 2),
-                new MaterialRequirement("Sticks", 1),
-                new MaterialRequirement("PlantFiber", 1)
+                new MaterialRequirement(Resource.Bone, 2),
+                new MaterialRequirement(Resource.Stick, 1),
+                new MaterialRequirement(Resource.PlantFiber, 1)
             ],
             RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
@@ -573,9 +574,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 25,
             Durability = 12,
             Requirements = [
-                new MaterialRequirement("Stone", 1),
-                new MaterialRequirement("Sticks", 1),
-                new MaterialRequirement("PlantFiber", 1)
+                new MaterialRequirement(Resource.Stone, 1),
+                new MaterialRequirement(Resource.Stick, 1),
+                new MaterialRequirement(Resource.PlantFiber, 1)
             ],
             RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
@@ -600,7 +601,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Processing,
             CraftingTimeMinutes = 10,
             Durability = 30,
-            Requirements = [new MaterialRequirement("Stone", 3)],
+            Requirements = [new MaterialRequirement(Resource.Stone, 3)],
             GearFactory = dur => new Gear
             {
                 Name = "Knapping Stone",
@@ -620,7 +621,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Processing,
             CraftingTimeMinutes = 20,
             Durability = 20,
-            Requirements = [new MaterialRequirement("Bone", 1)],
+            Requirements = [new MaterialRequirement(Resource.Bone, 1)],
             RequiredTools = [ToolType.Knife],
             GearFactory = dur => Gear.BoneNeedle(durability: dur)
         });
@@ -640,7 +641,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 10,
             Durability = 1, // Single use
-            Requirements = [new MaterialRequirement("WillowBark", 1)],
+            Requirements = [new MaterialRequirement(Resource.WillowBark, 1)],
             GearFactory = dur => new Gear
             {
                 Name = "Willow Bark Tea",
@@ -660,7 +661,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 10,
             Durability = 1,
-            Requirements = [new MaterialRequirement("PineNeedles", 1)],
+            Requirements = [new MaterialRequirement(Resource.PineNeedles, 1)],
             GearFactory = dur => new Gear
             {
                 Name = "Pine Needle Tea",
@@ -680,7 +681,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 10,
             Durability = 1,
-            Requirements = [new MaterialRequirement("RoseHips", 2)],
+            Requirements = [new MaterialRequirement(Resource.RoseHip, 2)],
             GearFactory = dur => new Gear
             {
                 Name = "Rose Hip Tea",
@@ -700,7 +701,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 15,
             Durability = 1,
-            Requirements = [new MaterialRequirement("Chaga", 1)],
+            Requirements = [new MaterialRequirement(Resource.Chaga, 1)],
             GearFactory = dur => new Gear
             {
                 Name = "Chaga Tea",
@@ -720,7 +721,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 10,
             Durability = 1,
-            Requirements = [new MaterialRequirement("BirchPolypore", 1)],
+            Requirements = [new MaterialRequirement(Resource.BirchPolypore, 1)],
             GearFactory = dur => new Gear
             {
                 Name = "Polypore Poultice",
@@ -740,7 +741,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 5,
             Durability = 1,
-            Requirements = [new MaterialRequirement("Usnea", 1)],
+            Requirements = [new MaterialRequirement(Resource.Usnea, 1)],
             GearFactory = dur => new Gear
             {
                 Name = "Usnea Dressing",
@@ -760,7 +761,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 5,
             Durability = 1,
-            Requirements = [new MaterialRequirement("Sphagnum", 2)],
+            Requirements = [new MaterialRequirement(Resource.SphagnumMoss, 2)],
             GearFactory = dur => new Gear
             {
                 Name = "Sphagnum Bandage",
@@ -780,7 +781,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 5,
             Durability = 1,
-            Requirements = [new MaterialRequirement("PineResin", 1)],
+            Requirements = [new MaterialRequirement(Resource.PineResin, 1)],
             GearFactory = dur => new Gear
             {
                 Name = "Resin Seal",
@@ -808,8 +809,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 30,
             Durability = 80,
             Requirements = [
-                new MaterialRequirement("CuredHide", 1),
-                new MaterialRequirement("Sinew", 1)
+                new MaterialRequirement(Resource.CuredHide, 1),
+                new MaterialRequirement(Resource.Sinew, 1)
             ],
             RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
@@ -833,8 +834,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 25,
             Durability = 80,
             Requirements = [
-                new MaterialRequirement("CuredHide", 1),
-                new MaterialRequirement("Sinew", 1)
+                new MaterialRequirement(Resource.CuredHide, 1),
+                new MaterialRequirement(Resource.Sinew, 1)
             ],
             RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
@@ -858,8 +859,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 45,
             Durability = 80,
             Requirements = [
-                new MaterialRequirement("CuredHide", 2),
-                new MaterialRequirement("Sinew", 2)
+                new MaterialRequirement(Resource.CuredHide, 2),
+                new MaterialRequirement(Resource.Sinew, 2)
             ],
             RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
@@ -883,8 +884,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 40,
             Durability = 80,
             Requirements = [
-                new MaterialRequirement("CuredHide", 2),
-                new MaterialRequirement("Sinew", 1)
+                new MaterialRequirement(Resource.CuredHide, 2),
+                new MaterialRequirement(Resource.Sinew, 1)
             ],
             RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
@@ -908,8 +909,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 35,
             Durability = 80,
             Requirements = [
-                new MaterialRequirement("CuredHide", 1),
-                new MaterialRequirement("Sinew", 1)
+                new MaterialRequirement(Resource.CuredHide, 1),
+                new MaterialRequirement(Resource.Sinew, 1)
             ],
             RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
@@ -934,9 +935,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 180,  // 3 hours - serious undertaking
             Durability = 40,
             Requirements = [
-                new MaterialRequirement("MammothHide", 3),
-                new MaterialRequirement("Sinew", 4),
-                new MaterialRequirement("CuredHide", 2)  // For lining
+                new MaterialRequirement(Resource.MammothHide, 3),
+                new MaterialRequirement(Resource.Sinew, 4),
+                new MaterialRequirement(Resource.CuredHide, 2)  // For lining
             ],
             RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
@@ -960,8 +961,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 90,
             Durability = 30,
             Requirements = [
-                new MaterialRequirement("MammothHide", 1),
-                new MaterialRequirement("Sinew", 2)
+                new MaterialRequirement(Resource.MammothHide, 1),
+                new MaterialRequirement(Resource.Sinew, 2)
             ],
             RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
@@ -992,8 +993,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 5,
             Durability = 1,
             Requirements = [
-                new MaterialRequirement("Sticks", 1),
-                new MaterialRequirement("Tinder", 2)
+                new MaterialRequirement(Resource.Stick, 1),
+                new MaterialRequirement(Resource.Tinder, 2)
             ],
             GearFactory = dur => Gear.Torch("Simple Torch")
         });
@@ -1007,8 +1008,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 5,
             Durability = 1,
             Requirements = [
-                new MaterialRequirement("Sticks", 1),
-                new MaterialRequirement("BirchBark", 1)
+                new MaterialRequirement(Resource.Stick, 1),
+                new MaterialRequirement(Resource.BirchBark, 1)
             ],
             GearFactory = dur => Gear.Torch("Birch Bark Torch")
         });
@@ -1022,9 +1023,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 10,
             Durability = 1,
             Requirements = [
-                new MaterialRequirement("Sticks", 1),
-                new MaterialRequirement("Tinder", 1),
-                new MaterialRequirement("PineResin", 1)
+                new MaterialRequirement(Resource.Stick, 1),
+                new MaterialRequirement(Resource.Tinder, 1),
+                new MaterialRequirement(Resource.PineResin, 1)
             ],
             GearFactory = dur => Gear.Torch("Resin Torch")
         });
@@ -1045,8 +1046,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15,
             Durability = 100,
             Requirements = [
-                new MaterialRequirement("PlantFiber", 1),
-                new MaterialRequirement("BirchBark", 1)
+                new MaterialRequirement(Resource.PlantFiber, 1),
+                new MaterialRequirement(Resource.BirchBark, 1)
             ],
             GearFactory = dur => Gear.SmallPouch(dur)
         });
@@ -1059,7 +1060,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.Carrying,
             CraftingTimeMinutes = 20,
             Durability = 100,
-            Requirements = [new MaterialRequirement("Rope", 2)],
+            Requirements = [new MaterialRequirement(Resource.Rope, 2)],
             GearFactory = dur => Gear.RopeBelt(dur)
         });
 
@@ -1072,8 +1073,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 30,
             Durability = 150,
             Requirements = [
-                new MaterialRequirement("CuredHide", 1),
-                new MaterialRequirement("Sinew", 1)
+                new MaterialRequirement(Resource.CuredHide, 1),
+                new MaterialRequirement(Resource.Sinew, 1)
             ],
             GearFactory = dur => Gear.ProperBelt(dur)
         });
@@ -1087,9 +1088,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 60,
             Durability = 100,
             Requirements = [
-                new MaterialRequirement("CuredHide", 3),
-                new MaterialRequirement("Sinew", 2),
-                new MaterialRequirement("Rope", 2)
+                new MaterialRequirement(Resource.CuredHide, 3),
+                new MaterialRequirement(Resource.Sinew, 2),
+                new MaterialRequirement(Resource.Rope, 2)
             ],
             GearFactory = dur => Gear.LargeBag(dur)
         });
@@ -1104,9 +1105,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 120,
             Durability = 200,  // Very durable
             Requirements = [
-                new MaterialRequirement("MammothHide", 2),
-                new MaterialRequirement("Sinew", 2),
-                new MaterialRequirement("Rope", 1)
+                new MaterialRequirement(Resource.MammothHide, 2),
+                new MaterialRequirement(Resource.Sinew, 2),
+                new MaterialRequirement(Resource.Rope, 1)
             ],
             GearFactory = dur => new Gear
             {
@@ -1135,8 +1136,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 45,
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("PlantFiber", 10),
-                new MaterialRequirement("Hide", 1)
+                new MaterialRequirement(Resource.PlantFiber, 10),
+                new MaterialRequirement(Resource.Hide, 1)
             ],
             FeatureFactory = () => BeddingFeature.CreatePaddedBedding()
         });
@@ -1150,9 +1151,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 45,
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("Logs", 2),
-                new MaterialRequirement("Sticks", 4),
-                new MaterialRequirement("PlantFiber", 2)
+                new MaterialRequirement(ResourceCategory.Log, 2),
+                new MaterialRequirement(Resource.Stick, 4),
+                new MaterialRequirement(Resource.PlantFiber, 2)
             ],
             FeatureFactory = () => new CuringRackFeature()
         });
@@ -1166,8 +1167,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15, // Setup time
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("Stone", 15),
-                new MaterialRequirement("Sticks", 5)
+                new MaterialRequirement(Resource.Stone, 15),
+                new MaterialRequirement(Resource.Stick, 5)
             ],
             FeatureFactory = () => new FirePitUpgradeProject(
                 "Mound Fire Pit",
@@ -1185,8 +1186,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15, // Setup time
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("Stone", 30),
-                new MaterialRequirement("Sticks", 10)
+                new MaterialRequirement(Resource.Stone, 30),
+                new MaterialRequirement(Resource.Stick, 10)
             ],
             Prerequisite = ctx => {
                 var fire = ctx.Camp.GetFeature<HeatSourceFeature>();
@@ -1210,9 +1211,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15, // Setup time
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("Sticks", 15),
-                new MaterialRequirement("Logs", 10),
-                new MaterialRequirement("PlantFiber", 5)
+                new MaterialRequirement(Resource.Stick, 15),
+                new MaterialRequirement(ResourceCategory.Log, 10),
+                new MaterialRequirement(Resource.PlantFiber, 5)
             ],
             Prerequisite = ctx => {
                 if (ctx.Camp.HasFeature<ShelterFeature>())
@@ -1235,7 +1236,7 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15, // Setup time
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("Sticks", 5)
+                new MaterialRequirement(Resource.Stick, 5)
             ],
             Prerequisite = ctx => {
                 if (ctx.Camp.HasFeature<ShelterFeature>())
@@ -1261,9 +1262,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 180,  // 3 hours to craft
             Durability = 50,
             Requirements = [
-                new MaterialRequirement("CuredHide", 4),
-                new MaterialRequirement("Sticks", 4),
-                new MaterialRequirement("Rope", 2)
+                new MaterialRequirement(Resource.CuredHide, 4),
+                new MaterialRequirement(Resource.Stick, 4),
+                new MaterialRequirement(Resource.Rope, 2)
             ],
             GearFactory = dur => Gear.HideTent(dur)
         });
@@ -1277,9 +1278,9 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 240,  // 4 hours to craft
             Durability = 80,
             Requirements = [
-                new MaterialRequirement("MammothHide", 2),
-                new MaterialRequirement("Sinew", 4),
-                new MaterialRequirement("Sticks", 2)
+                new MaterialRequirement(Resource.MammothHide, 2),
+                new MaterialRequirement(Resource.Sinew, 4),
+                new MaterialRequirement(Resource.Stick, 2)
             ],
             GearFactory = dur => Gear.MammothHideTent(dur)
         });
@@ -1293,10 +1294,10 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 30, // Setup time
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("Logs", 80),
-                new MaterialRequirement("Stone", 40),
-                new MaterialRequirement("PlantFiber", 20),
-                new MaterialRequirement("Rope", 10)
+                new MaterialRequirement(ResourceCategory.Log, 80),
+                new MaterialRequirement(Resource.Stone, 40),
+                new MaterialRequirement(Resource.PlantFiber, 20),
+                new MaterialRequirement(Resource.Rope, 10)
             ],
             Prerequisite = ctx => {
                 if (ctx.Camp.HasFeature<ShelterFeature>())
@@ -1319,8 +1320,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15, // Setup time
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("CuredHide", 4),
-                new MaterialRequirement("Sinew", 6)
+                new MaterialRequirement(Resource.CuredHide, 4),
+                new MaterialRequirement(Resource.Sinew, 6)
             ],
             FeatureFactory = () => new CraftingProjectFeature(
                 "Sleeping Bag",
@@ -1345,8 +1346,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15,
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("Sinew", 1),
-                new MaterialRequirement("Hide", 1)
+                new MaterialRequirement(Resource.Sinew, 1),
+                new MaterialRequirement(Resource.Hide, 1)
             ],
             RequiredTools = [ToolType.Needle],
             MendSlot = EquipSlot.Feet,
@@ -1368,8 +1369,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15,
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("Sinew", 1),
-                new MaterialRequirement("Hide", 1)
+                new MaterialRequirement(Resource.Sinew, 1),
+                new MaterialRequirement(Resource.Hide, 1)
             ],
             RequiredTools = [ToolType.Needle],
             MendSlot = EquipSlot.Hands,
@@ -1391,8 +1392,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 15,
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("Sinew", 1),
-                new MaterialRequirement("Hide", 1)
+                new MaterialRequirement(Resource.Sinew, 1),
+                new MaterialRequirement(Resource.Hide, 1)
             ],
             RequiredTools = [ToolType.Needle],
             MendSlot = EquipSlot.Head,
@@ -1414,8 +1415,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 20,
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("Sinew", 1),
-                new MaterialRequirement("Hide", 1)
+                new MaterialRequirement(Resource.Sinew, 1),
+                new MaterialRequirement(Resource.Hide, 1)
             ],
             RequiredTools = [ToolType.Needle],
             MendSlot = EquipSlot.Chest,
@@ -1437,8 +1438,8 @@ public class NeedCraftingSystem
             CraftingTimeMinutes = 18,
             Durability = 0,
             Requirements = [
-                new MaterialRequirement("Sinew", 1),
-                new MaterialRequirement("Hide", 1)
+                new MaterialRequirement(Resource.Sinew, 1),
+                new MaterialRequirement(Resource.Hide, 1)
             ],
             RequiredTools = [ToolType.Needle],
             MendSlot = EquipSlot.Legs,

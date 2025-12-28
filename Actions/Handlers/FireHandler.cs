@@ -333,7 +333,8 @@ public static class FireHandler
             }
             else
             {
-                GameDisplay.AddWarning(ctx, $"You failed to start the fire. The {tinderName} was wasted. ({finalChance:P0} chance)");
+                string failureMessage = $"You failed to start the fire. The {tinderName} was wasted. ({finalChance:P0} chance)";
+                GameDisplay.AddWarning(ctx, failureMessage);
                 ctx.player.Skills.GetSkill("Firecraft").GainExperience(1);
 
                 // Check if retry is possible with any tinder type
@@ -341,7 +342,7 @@ public static class FireHandler
                 if (canRetry)
                 {
                     GameDisplay.Render(ctx, statusText: "Thinking.");
-                    if (Input.Confirm(ctx, $"Try again with {selectedTool.Name}?"))
+                    if (Input.Confirm(ctx, $"{failureMessage}\n\nTry again with {selectedTool.Name}?"))
                         continue;
                 }
                 break;

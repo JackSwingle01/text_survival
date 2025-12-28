@@ -37,7 +37,9 @@ public class TravelRunner(GameContext ctx)
         while (true)
         {
             // Auto-save when at travel menu
-            _ = SaveManager.Save(_ctx);
+            var (saved, saveError) = SaveManager.Save(_ctx);
+            if (!saved)
+                Console.WriteLine($"[TravelRunner] Save failed: {saveError}");
 
             var connections = _ctx.Map?.GetTravelOptions() ?? [];
             if (connections.Count == 0)
@@ -115,13 +117,13 @@ public class TravelRunner(GameContext ctx)
             destQuickTravel = quickTravel;
         }
 
-        // Single combined progress bar
-        int totalTime = exitTime + entryTime;
-        bool died = RunTravelWithProgress(totalTime);
-        if (died) return false;
+        // Capture origin position for animation
+        var originPos = _ctx.Map!.CurrentPosition;
 
-        // Move to destination
-        _ctx.Map!.MoveTo(destination);
+        // Single combined progress bar with synchronized camera pan
+        int totalTime = exitTime + entryTime;
+        bool died = RunTravelWithProgress(totalTime, destination, originPos);
+        if (died) return false;
 
         // Apply injury checks after travel completes
         if (originQuickTravel)
@@ -231,12 +233,22 @@ public class TravelRunner(GameContext ctx)
     // --- Progress Bar Helpers ---
 
     /// <summary>
-    /// Runs travel with a progress bar. Returns true if player died during travel.
+    /// Runs travel with synchronized progress bar and camera pan animation.
+    /// Processes time, moves to destination, then sends TravelProgressMode.
+    /// Returns true if player died during travel.
     /// </summary>
-    private bool RunTravelWithProgress(int totalTime)
+    private bool RunTravelWithProgress(int totalTime, Location destination, Environments.Grid.GridPosition originPos)
     {
-        // Use centralized progress method - handles web animation and processes all time at once
-        var (elapsed, interrupted) = GameDisplay.UpdateAndRenderProgress(_ctx, "Traveling...", totalTime, ActivityType.Traveling);
+        // Process time without sending a frame (ctx.Update handles minute-by-minute internally)
+        _ctx.Update(totalTime, ActivityType.Traveling);
+        if (PlayerDied) return true;
+
+        // Move to destination
+        _ctx.Map!.MoveTo(destination);
+
+        // Send combined frame for synchronized animation
+        // Grid state shows destination, origin position enables camera pan from start
+        WebIO.RenderTravelProgress(_ctx, "Traveling...", totalTime, originPos.X, originPos.Y);
 
         return PlayerDied;
     }

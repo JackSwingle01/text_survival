@@ -39,6 +39,8 @@ public static class ConditionChecker
             EventCondition.InDarkness => ctx.CurrentLocation.IsDark && !Check(ctx, EventCondition.HasLightSource),
             EventCondition.HasLightSource => ctx.CurrentLocation.HasActiveHeatSource() || ctx.Inventory.HasLitTorch,
             EventCondition.NearWater => ctx.CurrentLocation.HasFeature<WaterFeature>(),
+            EventCondition.NotNearWater => !ctx.CurrentLocation.HasFeature<WaterFeature>()
+                && !(ctx.Map?.GetTravelOptions().Any(loc => loc.HasFeature<WaterFeature>()) ?? false),
             EventCondition.HazardousTerrain => ctx.CurrentLocation.GetEffectiveTerrainHazard() >= 0.5,
             EventCondition.HasFuelForage => ctx.CurrentLocation.GetFeature<ForageFeature>()?.HasFuelResources() ?? false,
             EventCondition.HighOverheadCover =>
@@ -46,6 +48,8 @@ public static class ConditionChecker
                 (ctx.CurrentLocation.GetFeature<ShelterFeature>()?.OverheadCoverage ?? 0) >= 0.6,
             EventCondition.AtDisturbedSource =>
                 ctx.Tensions.GetTension("Disturbed")?.SourceLocation == ctx.CurrentLocation,
+            EventCondition.AtClaimedTerritory =>
+                ctx.Tensions.GetTension("ClaimedTerritory")?.SourceLocation == ctx.CurrentLocation,
 
             // Water/Ice conditions
             EventCondition.FrozenWater => ctx.CurrentLocation.GetFeature<WaterFeature>()?.IsFrozen ?? false,

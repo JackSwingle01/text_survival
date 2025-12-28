@@ -20,6 +20,12 @@ public enum ResourceType { Fuel, Tinder, Food, Water, PlantFiber }
 /// </summary>
 public record ResourceCost(ResourceType Type, int Amount);
 
+/// <summary>
+/// Configuration for creating a carcass at the current location.
+/// If AnimalType is null, uses territory-based selection.
+/// </summary>
+public record CarcassCreation(string? AnimalType, double? WeightKg);
+
 public class EventResult(string message, double weight = 1, int minutes = 0)
 {
     public string Message = message;
@@ -47,6 +53,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     // Feature modification
     public FeatureCreation? AddFeature;
+    public Func<EnvironmentalDetail>? AddDetail;  // Factory for environmental details
     public FeatureModification? ModifyFeature;
     public Type? RemoveFeature;  // Remove feature of this type from location
 
@@ -55,6 +62,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     // Direct stat drains (for vomiting, etc)
     public (double calories, double hydration)? StatDrain;
+
+    // Carcass creation
+    public CarcassCreation? CarcassCreation;
 
     // === Fluent builder methods ===
 
@@ -133,6 +143,11 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         AddFeature = new FeatureCreation(featureType, qualityRange);
         return this;
     }
+    public EventResult AddsDetail(Func<EnvironmentalDetail> detailFactory)
+    {
+        AddDetail = detailFactory;
+        return this;
+    }
     public EventResult ModifiesFeature(Type featureType, double? depleteAmount = null)
     {
         ModifyFeature = new FeatureModification(featureType, depleteAmount);
@@ -168,6 +183,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         ApplyTensions(ctx, summary);
         ApplyEquipmentDamage(ctx, summary);
         ApplyFeatureModifications(ctx);
+        ApplyCarcassCreation(ctx, summary);
         DisplaySummary(ctx, summary);
 
         return new EventOutcomeDto(
@@ -371,6 +387,13 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
             }
         }
 
+        if (AddDetail is not null)
+        {
+            var detail = AddDetail();
+            ctx.CurrentLocation.AddFeature(detail);
+            GameDisplay.AddNarrative(ctx, $"Noted: {detail.DisplayName}");
+        }
+
         if (ModifyFeature is not null)
         {
             if (ModifyFeature.FeatureType == typeof(ForageFeature) && ModifyFeature.DepleteAmount is not null)
@@ -430,6 +453,39 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         }
     }
 
+    private void ApplyCarcassCreation(GameContext ctx, OutcomeSummary summary)
+    {
+        if (CarcassCreation is null) return;
+
+        string animalType = CarcassCreation.AnimalType ?? GetTerritoryAnimal(ctx);
+        double weightKg = CarcassCreation.WeightKg ?? CarcassFeature.GetDefaultWeight(animalType);
+
+        var carcass = new CarcassFeature(animalType, weightKg);
+        ctx.CurrentLocation.AddFeature(carcass);
+
+        GameDisplay.AddSuccess(ctx, $"  + Found a {animalType.ToLower()} carcass");
+        summary.ItemsGained.Add($"{animalType} carcass");
+    }
+
+    /// <summary>
+    /// Get a random animal type from the current location's territory feature.
+    /// Falls back to "deer" if no territory feature exists.
+    /// </summary>
+    private static string GetTerritoryAnimal(GameContext ctx)
+    {
+        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
+        if (territory != null)
+        {
+            // Use the territory's spawn entries to pick a random animal
+            var animal = territory.SearchForGame(0);  // 0 minutes = just get random type
+            if (animal != null)
+                return animal.Name;
+        }
+
+        // Default fallback
+        return "Deer";
+    }
+
     private void DisplaySummary(GameContext ctx, OutcomeSummary summary)
     {
         if (summary.HasContent)
@@ -487,7 +543,21 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
                 return new ShelterFeature("Improvised Shelter", 0.3, 0.4, 0.5);
         }
 
-        // Add other feature types as needed
+        if (config.FeatureType == typeof(WaterFeature))
+        {
+            // Config is (min, typical, max) ice thickness - pick randomly in range
+            var thickness = 0.6;
+            if (config.Config is (double min, double typical, double max))
+            {
+                // Weight toward typical value
+                thickness = typical + (Random.Shared.NextDouble() - 0.5) * (max - min) * 0.5;
+                thickness = Math.Clamp(thickness, min, max);
+            }
+            return new WaterFeature("water", "Stream")
+                .WithIceThickness(thickness)
+                .WithDescription("A frozen stream you marked earlier.");
+        }
+
         return null;
     }
 

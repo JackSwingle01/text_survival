@@ -213,7 +213,8 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.SmallGame),
                     new EventResult("A fox. It retreats but doesn't go far.", 0.20, 8)
                         .BecomeStalked(0.15, "Fox"),
-                    new EventResult("Nothing there now. Tracks suggest a small scavenger.", 0.15, 8),
+                    new EventResult("Nothing there now. Tracks suggest a small scavenger.", 0.15, 8)
+                        .BecomeStalked(0.05, "Scavenger"),
                     new EventResult($"{predator}. Close. It hasn't decided if you're prey yet.", 0.20, 5)
                         .Frightening()
                         .BecomeStalked(0.4, predator),

@@ -51,8 +51,8 @@ public static class SomeHandler
 - `ExpeditionRunner` - manages travel, working, and returning
 - `WorkRunner` - handles foraging, hunting, exploring loops
 - `CraftingRunner` - multi-step crafting interface
-- `ButcherRunner` - butchering flow with multiple decisions
-- `EncounterRunner` - predator encounter with turn-by-turn decisions
+- `HuntRunner` - interactive hunting (creates CarcassFeature on kill)
+- `EncounterRunner` - predator encounter with turn-by-turn decisions (creates CarcassFeature on victory)
 
 ### Pattern:
 ```csharp
