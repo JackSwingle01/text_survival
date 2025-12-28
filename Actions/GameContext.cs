@@ -533,6 +533,7 @@ public enum EventCondition
     IsDaytime,
     Traveling,
     Working,
+    Foraging,
     HasFood,
     HasMeat,
     Injured,
@@ -678,6 +679,7 @@ public enum EventCondition
     VeryFarFromCamp,       // Manhattan distance > 15 tiles from camp
     NearMountains,         // Adjacent to Mountain terrain
     SurroundedByWater,     // 2+ adjacent Water tiles
+    IsForest,              // Current tile is Forest terrain
     DeepInForest,          // Current + 3+ adjacent tiles are Forest
     OnBoundary,            // At terrain boundary (multiple distinct terrain types adjacent)
     Cornered,              // Only 1-2 passable adjacent tiles (limited exits)

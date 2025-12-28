@@ -444,6 +444,166 @@ public static class Situations
         ctx.Check(EventCondition.Cornered) ||
         ctx.Check(EventCondition.AtTerrainBottleneck);
 
+    // === ICE/WATER HAZARDS ===
+
+    /// <summary>
+    /// Near frozen water with ice hazard potential.
+    /// Combines: NearWater + LowTemperature or frozen water feature.
+    /// Found in: WaterCrossing, EdgeOfTheIce, travel events.
+    /// </summary>
+    public static bool IceHazard(GameContext ctx) =>
+        ctx.Check(EventCondition.NearWater) &&
+        (ctx.Check(EventCondition.LowTemperature) ||
+         ctx.CurrentLocation.GetFeature<WaterFeature>()?.IsFrozen == true);
+
+    /// <summary>
+    /// Graduated ice hazard level (0-1).
+    /// Accounts for ice thickness and temperature.
+    /// </summary>
+    public static double IceHazardLevel(GameContext ctx)
+    {
+        double level = 0;
+        if (!ctx.Check(EventCondition.NearWater)) return 0;
+
+        level += 0.3; // Base level for being near water
+        var water = ctx.CurrentLocation.GetFeature<WaterFeature>();
+        if (water?.IsFrozen == true)
+        {
+            level += 0.4;
+            // Thin ice is more dangerous (IceThicknessLevel < 0.3 = thin)
+            if (water.HasThinIce) level += 0.3;
+        }
+        if (ctx.Check(EventCondition.LowTemperature)) level += 0.2;
+        return Math.Min(1.0, level);
+    }
+
+    // === STORM CONDITIONS ===
+
+    /// <summary>
+    /// Storm conditions are building or imminent.
+    /// Use for pre-storm warning events.
+    /// </summary>
+    public static bool StormApproaching(GameContext ctx) =>
+        ctx.Check(EventCondition.WeatherWorsening);
+
+    /// <summary>
+    /// Active dangerous storm conditions while outside.
+    /// Combines: IsBlizzard or IsStormy with being outside.
+    /// </summary>
+    public static bool InActiveStorm(GameContext ctx) =>
+        (ctx.Check(EventCondition.IsBlizzard) || ctx.Check(EventCondition.IsStormy)) &&
+        ctx.Check(EventCondition.Outside);
+
+    /// <summary>
+    /// Graduated storm danger level (0-1).
+    /// Accounts for storm severity, shelter, and distance from safety.
+    /// </summary>
+    public static double StormDangerLevel(GameContext ctx)
+    {
+        double level = 0;
+        if (ctx.Check(EventCondition.IsBlizzard)) level += 0.5;
+        else if (ctx.Check(EventCondition.IsStormy)) level += 0.3;
+        else if (ctx.Check(EventCondition.WeatherWorsening)) level += 0.15;
+
+        if (ctx.Check(EventCondition.Outside)) level += 0.2;
+        if (ctx.Check(EventCondition.FarFromCamp)) level += 0.2;
+        if (ctx.Check(EventCondition.NoShelter)) level += 0.15;
+        return Math.Min(1.0, level);
+    }
+
+    // === PACK DYNAMICS ===
+
+    /// <summary>
+    /// Pack predators are actively threatening.
+    /// Combines: PackNearby tension with predator territory.
+    /// </summary>
+    public static bool PackThreat(GameContext ctx) =>
+        ctx.Tensions.HasTension("PackNearby") &&
+        ctx.Check(EventCondition.HasPredators);
+
+    /// <summary>
+    /// Graduated pack threat level (0-1).
+    /// Accounts for pack tension severity and player vulnerability.
+    /// </summary>
+    public static double PackThreatLevel(GameContext ctx)
+    {
+        var packTension = ctx.Tensions.GetTension("PackNearby");
+        if (packTension == null) return 0;
+
+        double level = packTension.Severity;
+        level += VulnerabilityLevel(ctx) * 0.3;
+        level += PredatorAttractionLevel(ctx) * 0.2;
+        return Math.Min(1.0, level);
+    }
+
+    // === ENCUMBRANCE ===
+
+    /// <summary>
+    /// Player is heavily loaded, affecting movement and accident risk.
+    /// Triggers at 75% of max capacity.
+    /// </summary>
+    public static bool HeavilyEncumbered(GameContext ctx) =>
+        ctx.Inventory.MaxWeightKg > 0 &&
+        ctx.Inventory.CurrentWeightKg > ctx.Inventory.MaxWeightKg * 0.75;
+
+    /// <summary>
+    /// Graduated encumbrance level (0-1).
+    /// Linear scale based on weight ratio.
+    /// </summary>
+    public static double EncumbranceLevel(GameContext ctx)
+    {
+        if (ctx.Inventory.MaxWeightKg <= 0) return 0;
+        double ratio = ctx.Inventory.CurrentWeightKg / ctx.Inventory.MaxWeightKg;
+        return Math.Clamp(ratio, 0, 1.0);
+    }
+
+    // === EQUIPMENT DEGRADATION ===
+
+    /// <summary>
+    /// Any equipment or tool is worn (below threshold).
+    /// Use for triggering equipment maintenance events.
+    /// </summary>
+    public static bool EquipmentDegraded(GameContext ctx) =>
+        HasWornEquipment(ctx, 0.4) || HasWornTool(ctx, 0.4);
+
+    /// <summary>
+    /// Any equipment or tool is critically worn (below 25%).
+    /// Use for urgent repair events.
+    /// </summary>
+    public static bool EquipmentCritical(GameContext ctx) =>
+        HasWornEquipment(ctx, 0.25) || HasWornTool(ctx, 0.25);
+
+    /// <summary>
+    /// Boots specifically are worn. Triggers during travel.
+    /// </summary>
+    public static bool BootsWorn(GameContext ctx) =>
+        GetEquipmentCondition(ctx, EquipSlot.Feet) is double c && c < 0.35;
+
+    /// <summary>
+    /// Gloves specifically are worn. Triggers during work.
+    /// </summary>
+    public static bool GlovesWorn(GameContext ctx) =>
+        GetEquipmentCondition(ctx, EquipSlot.Hands) is double c && c < 0.4;
+
+    /// <summary>
+    /// Chest wrap is critically worn. Triggers during travel/exposure.
+    /// </summary>
+    public static bool ChestWrapCritical(GameContext ctx) =>
+        GetEquipmentCondition(ctx, EquipSlot.Chest) is double c && c < 0.25;
+
+    /// <summary>
+    /// Any cutting tool (knife/axe) is worn.
+    /// </summary>
+    public static bool BladeWorn(GameContext ctx) =>
+        GetToolCondition(ctx, ToolType.Knife) is double c && c < 0.3 ||
+        GetToolCondition(ctx, ToolType.Axe) is double c2 && c2 < 0.3;
+
+    /// <summary>
+    /// Firestarter is critically worn.
+    /// </summary>
+    public static bool FirestarterCritical(GameContext ctx) =>
+        GetFirestarterCondition(ctx) is double c && c < 0.2;
+
     // === HELPERS ===
 
     /// <summary>
@@ -451,4 +611,93 @@ public static class Situations
     /// </summary>
     private static double GetWetness(GameContext ctx) =>
         ctx.player.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault()?.Severity ?? 0;
+
+    /// <summary>
+    /// Check if any worn equipment is below the threshold.
+    /// </summary>
+    private static bool HasWornEquipment(GameContext ctx, double threshold)
+    {
+        foreach (EquipSlot slot in Enum.GetValues<EquipSlot>())
+        {
+            var gear = ctx.Inventory.GetEquipment(slot);
+            if (gear != null && gear.ConditionPct < threshold)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Check if any tool is below the threshold.
+    /// </summary>
+    private static bool HasWornTool(GameContext ctx, double threshold)
+    {
+        foreach (var tool in ctx.Inventory.Tools)
+        {
+            if (tool.ConditionPct < threshold)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Get condition of equipment in a specific slot. Returns null if empty.
+    /// </summary>
+    private static double? GetEquipmentCondition(GameContext ctx, EquipSlot slot)
+    {
+        var gear = ctx.Inventory.GetEquipment(slot);
+        return gear?.ConditionPct;
+    }
+
+    /// <summary>
+    /// Get condition of a specific tool type. Returns null if not owned.
+    /// </summary>
+    private static double? GetToolCondition(GameContext ctx, ToolType type)
+    {
+        var tool = ctx.Inventory.Tools.FirstOrDefault(t => t.ToolType == type);
+        return tool?.ConditionPct;
+    }
+
+    /// <summary>
+    /// Get condition of best firestarter. Returns null if none owned.
+    /// </summary>
+    private static double? GetFirestarterCondition(GameContext ctx)
+    {
+        var firestarters = ctx.Inventory.Tools
+            .Where(t => t.ToolType == ToolType.FireStriker ||
+                       t.ToolType == ToolType.HandDrill ||
+                       t.ToolType == ToolType.BowDrill)
+            .ToList();
+
+        if (firestarters.Count == 0) return null;
+        return firestarters.Min(f => f.ConditionPct);
+    }
+
+    /// <summary>
+    /// Get the worst-condition equipment item. Returns (slot, condition) or null.
+    /// </summary>
+    public static (EquipSlot Slot, double Condition)? GetWorstEquipment(GameContext ctx)
+    {
+        (EquipSlot Slot, double Condition)? worst = null;
+        foreach (EquipSlot slot in Enum.GetValues<EquipSlot>())
+        {
+            var gear = ctx.Inventory.GetEquipment(slot);
+            if (gear != null && (worst == null || gear.ConditionPct < worst.Value.Condition))
+                worst = (slot, gear.ConditionPct);
+        }
+        return worst;
+    }
+
+    /// <summary>
+    /// Get the worst-condition tool. Returns (tool, condition) or null.
+    /// </summary>
+    public static (Gear Tool, double Condition)? GetWorstTool(GameContext ctx)
+    {
+        Gear? worst = null;
+        foreach (var tool in ctx.Inventory.Tools)
+        {
+            if (worst == null || tool.ConditionPct < worst.ConditionPct)
+                worst = tool;
+        }
+        return worst != null ? (worst, worst.ConditionPct) : null;
+    }
 }

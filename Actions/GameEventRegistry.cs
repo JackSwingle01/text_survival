@@ -181,6 +181,11 @@ public static partial class GameEventRegistry
         TrappingAccident,
         BaitedTrapAttention,
 
+        // Foraging events (GameEventRegistry.Foraging.cs)
+        MushroomPatch,
+        SquirrelCache,
+        BeehiveSpotted,
+
         // Location-specific events - Tier 1 (GameEventRegistry.Locations.cs)
         DiscoverFireOrigin,
         SpottedInOpen,

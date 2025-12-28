@@ -173,6 +173,16 @@ public class WoodedAreaFeature : LocationFeature, IWorkableFeature
         }
     }
 
+    public override FeatureUIInfo? GetUIInfo()
+    {
+        if (!HasTrees) return null;
+        return new FeatureUIInfo(
+            "wood",
+            WoodType?.ToString() ?? "Mixed",
+            ProgressPct > 0 ? $"{(int)(ProgressPct * 100)}% felled" : "trees available",
+            null);
+    }
+
     /// <summary>
     /// Get a status description for display.
     /// </summary>

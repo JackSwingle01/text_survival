@@ -1,20 +1,5 @@
 import { Utils, createIcon } from './utils.js';
-
-const FEATURE_ICONS = {
-    'Fire': 'local_fire_department',
-    'Shelter': 'camping',
-    'Cache': 'inventory_2',
-    'Forage': 'eco',
-    'Harvest': 'forest',
-    'Animals': 'pets',
-    'Water': 'water_drop',
-    'Wood': 'carpenter',
-    'Trap': 'trap',
-    'Curing': 'dry_cleaning',
-    'Project': 'construction',
-    'Salvage': 'recycling',
-    'Bedding': 'bed'
-};
+import { getLocationFeatureIcon } from './icons.js';
 
 export const LocationDisplay = {
     renderFeatures(features) {
@@ -27,8 +12,8 @@ export const LocationDisplay = {
             const tag = document.createElement('span');
             tag.className = 'feature-tag';
 
-            // Add icon
-            tag.appendChild(createIcon(FEATURE_ICONS[f.type] || 'category'));
+            // Add icon (using centralized icons module)
+            tag.appendChild(createIcon(getLocationFeatureIcon(f.type)));
 
             // Add label text
             tag.appendChild(document.createTextNode(f.label));

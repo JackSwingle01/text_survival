@@ -46,10 +46,11 @@ public static class ButcherRunner
         {
             // Mammoth yields: trophy amounts, not proportional to body weight
             AddMeat(result, 50, animalName);  // 50kg meat (multiple trips or caching required)
-            AddBones(result, 8, animalName);  // 8kg bone/ivory
-            AddMammothHide(result, 15);  // 15kg mammoth hide (trophy material)
+            AddBones(result, 4, animalName);  // 4kg bone
+            AddIvory(result, 4);              // 4kg ivory (2 tusks)
+            AddMammothHide(result, 15);       // 15kg mammoth hide (trophy material)
             AddSinew(result, 4, animalName);  // 4kg sinew
-            AddFat(result, 6, animalName);  // 6kg fat
+            AddFat(result, 6, animalName);    // 6kg fat
         }
         else
         {
@@ -152,6 +153,14 @@ public static class ButcherRunner
         {
             result.Add(Resource.MammothHide, perPiece);
         }
+    }
+
+    private static void AddIvory(Inventory result, double totalKg)
+    {
+        // Ivory from mammoth tusks - split into 2 tusks
+        double perTusk = totalKg / 2;
+        result.Add(Resource.Ivory, perTusk);
+        result.Add(Resource.Ivory, perTusk);
     }
 
     private static void AddSinew(Inventory result, double totalKg, string animalName)

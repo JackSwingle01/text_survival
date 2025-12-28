@@ -177,6 +177,15 @@ public class CuringRackFeature : LocationFeature
         public double HoursRemaining => Math.Max(0, (MinutesRequired - MinutesCured) / 60.0);
     }
 
+    public override FeatureUIInfo? GetUIInfo()
+    {
+        return new FeatureUIInfo(
+            "curing",
+            "Curing Rack",
+            GetDescription(),
+            null);
+    }
+
     /// <summary>
     /// Get internal state for saving.
     /// </summary>

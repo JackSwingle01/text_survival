@@ -246,6 +246,16 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
         return $"{usable} snares set";
     }
 
+    public override FeatureUIInfo? GetUIInfo()
+    {
+        if (SnareCount == 0) return null;
+        return new FeatureUIInfo(
+            "snares",
+            "Snares",
+            GetDescription(),
+            null);
+    }
+
     #region Save/Load Support
 
     /// <summary>

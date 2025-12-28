@@ -14,6 +14,18 @@ public class ShelterFeature : LocationFeature
     /// </summary>
     public bool IsSnowShelter { get; init; } = false;
 
+    /// <summary>
+    /// The tent gear item that created this shelter (if deployed from a portable tent).
+    /// Null for permanent structures like lean-tos, cabins.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public text_survival.Items.Gear? SourceTent { get; set; }
+
+    /// <summary>
+    /// Whether this shelter was deployed from a portable tent and can be packed up.
+    /// </summary>
+    public bool IsPortable => SourceTent != null;
+
     public ShelterFeature(string name, double tempInsulation, double overheadCoverage, double windCoverage, bool isSnowShelter = false) : base(name)
     {
         TemperatureInsulation = tempInsulation;
@@ -120,6 +132,16 @@ public class ShelterFeature : LocationFeature
 
     #endregion
 
+    public override FeatureUIInfo? GetUIInfo()
+    {
+        if (IsDestroyed) return null;
+        return new FeatureUIInfo(
+            "shelter",
+            Name,
+            $"{(int)(TemperatureInsulation * 100)}% ins, {(int)(WindCoverage * 100)}% wind",
+            null);
+    }
+
     #region Factory Methods
 
     /// <summary>
@@ -165,6 +187,26 @@ public class ShelterFeature : LocationFeature
         windCoverage: 0.9,
         isSnowShelter: false
     );
+
+    /// <summary>
+    /// Create a shelter from a deployed tent.
+    /// The tent is stored so it can be packed up later.
+    /// </summary>
+    public static ShelterFeature CreateFromTent(text_survival.Items.Gear tent)
+    {
+        if (!tent.IsTent)
+            throw new ArgumentException("Gear is not a tent", nameof(tent));
+
+        var shelter = new ShelterFeature(
+            tent.Name,
+            tent.ShelterTempInsulation,
+            tent.ShelterOverheadCoverage,
+            tent.ShelterWindCoverage,
+            isSnowShelter: false
+        );
+        shelter.SourceTent = tent;
+        return shelter;
+    }
 
     #endregion
 }

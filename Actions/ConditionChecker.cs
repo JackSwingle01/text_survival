@@ -157,6 +157,7 @@ public static class ConditionChecker
             EventCondition.Eating => ctx.CurrentActivity == ActivityType.Eating,
             EventCondition.FieldWork => (ctx.CurrentActivity is ActivityType.Traveling or ActivityType.Foraging or ActivityType.Hunting or ActivityType.Exploring),
             EventCondition.Working => Check(ctx, EventCondition.IsCampWork) || Check(ctx, EventCondition.FieldWork),
+            EventCondition.Foraging => ctx.CurrentActivity == ActivityType.Foraging,
 
             // Trapping conditions
             EventCondition.HasActiveSnares => HasActiveSnares(ctx),
@@ -169,6 +170,7 @@ public static class ConditionChecker
             EventCondition.VeryFarFromCamp => GetDistanceFromCamp(ctx) > 15,
             EventCondition.NearMountains => HasAdjacentTerrain(ctx, TerrainType.Mountain),
             EventCondition.SurroundedByWater => CountAdjacentTerrain(ctx, TerrainType.Water) >= 2,
+            EventCondition.IsForest => ctx.CurrentLocation?.Terrain == TerrainType.Forest,
             EventCondition.DeepInForest =>
                 ctx.CurrentLocation?.Terrain == TerrainType.Forest &&
                 CountAdjacentTerrain(ctx, TerrainType.Forest) >= 3,

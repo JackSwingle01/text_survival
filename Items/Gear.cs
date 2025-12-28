@@ -31,7 +31,8 @@ public enum ToolType
     Treatment,  // Consumable medical treatment (teas, poultices, salves)
     Torch,      // Portable light source
     Shovel,     // Digging tool - speeds up camp setup, fire pits, snow shelters
-    KnappingStone  // Hammer stone for shaping flint, shale, and bone tools
+    KnappingStone,  // Hammer stone for shaping flint, shale, and bone tools
+    Tent        // Portable shelter - can be deployed at any location
 }
 
 /// <summary>
@@ -154,6 +155,27 @@ public class Gear
     /// Carrying capacity bonus in kg. Only used for category=Accessory.
     /// </summary>
     public double CapacityBonusKg { get; init; }
+
+    // === Tent-Specific (ToolType.Tent) ===
+    /// <summary>
+    /// Temperature insulation provided when deployed (0-1 scale).
+    /// </summary>
+    public double ShelterTempInsulation { get; init; }
+
+    /// <summary>
+    /// Overhead coverage when deployed (0-1 scale, blocks precipitation).
+    /// </summary>
+    public double ShelterOverheadCoverage { get; init; }
+
+    /// <summary>
+    /// Wind coverage when deployed (0-1 scale, blocks wind chill).
+    /// </summary>
+    public double ShelterWindCoverage { get; init; }
+
+    /// <summary>
+    /// Whether this item is a deployable tent.
+    /// </summary>
+    public bool IsTent => ToolType == Items.ToolType.Tent;
 
     // === Display ===
     public override string ToString()
@@ -426,5 +448,39 @@ public class Gear
         CapacityBonusKg = 10.0,
         Durability = durability,
         MaxDurability = durability
+    };
+
+    // === Tent Factory Methods ===
+
+    /// <summary>
+    /// Portable hide tent - good all-around protection.
+    /// </summary>
+    public static Gear HideTent(int durability = 50) => new()
+    {
+        Name = "Hide Tent",
+        Category = GearCategory.Tool,
+        ToolType = Items.ToolType.Tent,
+        Weight = 3.0,
+        Durability = durability,
+        MaxDurability = durability,
+        ShelterTempInsulation = 0.5,
+        ShelterOverheadCoverage = 0.9,
+        ShelterWindCoverage = 0.7
+    };
+
+    /// <summary>
+    /// Mammoth hide tent - superior protection, heavier.
+    /// </summary>
+    public static Gear MammothHideTent(int durability = 80) => new()
+    {
+        Name = "Mammoth Hide Tent",
+        Category = GearCategory.Tool,
+        ToolType = Items.ToolType.Tent,
+        Weight = 5.0,
+        Durability = durability,
+        MaxDurability = durability,
+        ShelterTempInsulation = 0.6,
+        ShelterOverheadCoverage = 0.95,
+        ShelterWindCoverage = 0.85
     };
 }

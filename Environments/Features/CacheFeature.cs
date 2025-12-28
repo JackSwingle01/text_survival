@@ -121,6 +121,15 @@ public class CacheFeature : LocationFeature, IWorkableFeature
         );
     }
 
+    public override FeatureUIInfo? GetUIInfo()
+    {
+        return new FeatureUIInfo(
+            "cache",
+            Name,
+            GetDescription(),
+            null);
+    }
+
     /// <summary>
     /// Create a basic camp cache (unlimited storage, no special protection).
     /// </summary>

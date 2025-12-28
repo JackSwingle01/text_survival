@@ -87,6 +87,11 @@ public static partial class GameEventRegistry
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
         var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+        var variant = AnimalSelector.GetVariant(predator);
+
+        // Noise effectiveness varies by animal - skittish animals flee, others may be provoked
+        double noiseFleeWeight = 0.40 + variant.NoiseEffectiveness * 0.3;  // 0.40-0.70
+        double noiseProvokeWeight = 0.05 + (1 - variant.NoiseEffectiveness) * 0.10;  // 0.05-0.15
 
         return new GameEvent("Something Watching",
             $"The hair on your neck stands up. Something is watching. You catch a glimpse of movement — {predator.ToLower()}?", 0.8)
@@ -98,13 +103,13 @@ public static partial class GameEventRegistry
             .WithConditionFactor(EventCondition.FarFromCamp, 1.5)        // More dangerous far from safety
             .WithSituationFactor(Situations.TrappedByTerrain, 2.0)       // Cornered or bottleneck
             .Choice("Make Noise",
-                "Stand tall, make yourself big, shout. Assert dominance.",
+                $"Stand tall, make yourself big, shout. {(variant.NoiseEffectiveness > 0.6 ? "Should work." : "Risky.")}",
                 [
-                    new EventResult("Whatever it was slinks away. You're not worth the trouble.", weight: 0.60, minutes: 5),
-                    new EventResult("It doesn't retreat. It's testing you. You back away slowly.", weight: 0.25, minutes: 10)
+                    new EventResult("Whatever it was slinks away. You're not worth the trouble.", weight: noiseFleeWeight, minutes: 5),
+                    new EventResult("It doesn't retreat. It's testing you. You back away slowly.", weight: 0.30 - noiseFleeWeight * 0.2, minutes: 10)
                         .Unsettling()
                         .BecomeStalked(0.3, predator),
-                    new EventResult("Your noise provokes it. It attacks.", weight: 0.10, minutes: 5)
+                    new EventResult("Your noise provokes it. It attacks.", weight: noiseProvokeWeight, minutes: 5)
                         .Damage(12, DamageType.Sharp)
                         .Aborts(),
                     new EventResult("Nothing there. Just paranoia.", weight: 0.05, minutes: 3)
@@ -123,7 +128,7 @@ public static partial class GameEventRegistry
                     new EventResult("You see it now — keeping its distance. It's not attacking yet.", weight: 0.35, minutes: 10)
                         .WithEffects(EffectFactory.Fear(0.15))
                         .BecomeStalked(0.25, predator),
-                    new EventResult("You make eye contact. That was a mistake.", weight: 0.15, minutes: 5)
+                    new EventResult($"You make eye contact. {(variant.AmbushChance > 0.3 ? "It lunges." : "It retreats, but remembers you.")}", weight: 0.15, minutes: 5)
                         .AnimalAttack()
                         .Aborts(),
                     new EventResult("Can't see it but you KNOW it's there.", weight: 0.10, minutes: 10)
@@ -163,27 +168,35 @@ public static partial class GameEventRegistry
     private static GameEvent StalkerCircling(GameContext ctx)
     {
         var stalkedTension = ctx.Tensions.GetTension("Stalked");
-        var predator = stalkedTension?.AnimalType ?? "predator";
+        var predator = stalkedTension?.AnimalType ?? "Wolf";
+        var variant = AnimalSelector.GetVariant(predator);
+
+        // Calculate weights based on animal behavior
+        double loseTrailWeight = AnimalSelector.LoseTrailSuccessWeight(variant) * 0.5 + 0.15;  // 0.15-0.65
+        double staysWithYouWeight = variant.StalkingPersistence * 0.5;  // 0.0-0.50
+        double chaseOnRetreatWeight = variant.ChaseThreshold * 0.25;  // 0.0-0.25
+
+        // Darkness affects differently based on whether animal is nocturnal
+        double darknessFactor = variant.IsDiurnal ? 0.8 : 1.5;
 
         return new GameEvent("Stalker Circling",
-            $"You catch movement in your peripheral vision. Again. The {predator.ToLower()} is pacing you, staying just out of clear sight. Testing.", 1.5)
+            $"You catch movement in your peripheral vision. Again. {variant.CirclingDescription}", 1.5)
             .Requires(EventCondition.Stalked, EventCondition.IsExpedition)
-            .WithSituationFactor(Situations.InDarkness, 1.3)  // Night, darkness
+            .WithSituationFactor(Situations.InDarkness, darknessFactor)
             .Choice("Confront It Now",
                 "Turn and face it. Better to fight on your terms.",
                 [
                     new EventResult("You spin to face it. The confrontation is now.", weight: 1.0, minutes: 5)
-                        .ResolveTension("Stalked")
-                        .Encounter(predator, 20, stalkedTension?.Severity ?? 0.5)
+                        .ConfrontStalker(predator, 20, stalkedTension?.Severity ?? 0.5)
                 ])
             .Choice("Try to Lose It",
-                "Double back, cross water, break your trail.",
+                $"Double back, cross water, break your trail. {(variant.StalkingPersistence > 0.5 ? "Difficult with this one." : "Worth a shot.")}",
                 [
-                    new EventResult("You double back, cross water, break your trail. It works.", weight: 0.35, minutes: 25)
+                    new EventResult("You double back, cross water, break your trail. It works.", weight: loseTrailWeight, minutes: 25)
                         .ResolvesStalking(),
-                    new EventResult("It stays with you. You've wasted time and energy.", weight: 0.35, minutes: 20)
+                    new EventResult("It stays with you. You've wasted time and energy.", weight: staysWithYouWeight, minutes: 20)
                         .EscalatesStalking(0.2),
-                    new EventResult("You get turned around trying to lose it.", weight: 0.20, minutes: 35)
+                    new EventResult("You get turned around trying to lose it.", weight: 0.15, minutes: 35)
                         .WithEffects(EffectFactory.Cold(-8, 30), EffectFactory.Shaken(0.2)),
                     new EventResult("Your evasion leads you somewhere unexpected.", weight: 0.10, minutes: 30)
                 ])
@@ -191,27 +204,25 @@ public static partial class GameEventRegistry
                 "Maintain distance. Don't show weakness.",
                 [
                     new EventResult("You maintain distance. Exhausting but stable.", weight: 0.40, minutes: 10),
-                    new EventResult("It's getting bolder.", weight: 0.30, minutes: 8)
+                    new EventResult("It's getting bolder.", weight: 0.25 + variant.StalkingPersistence * 0.1, minutes: 8)
                         .EscalatesStalking(),
-                    new EventResult("It backs off. Maybe lost interest.", weight: 0.20, minutes: 5)
+                    new EventResult("It backs off. Maybe lost interest.", weight: 0.25 - variant.StalkingPersistence * 0.1, minutes: 5)
                         .EscalatesStalking(-0.1),
                     new EventResult("It commits.", weight: 0.10, minutes: 5)
-                        .ResolvesStalking()
-                        .Encounter(predator, 15, 0.6)
+                        .ConfrontStalker(predator, 15, 0.6)
                 ])
             .Choice("Return to Camp",
-                "Head back now. Fire deters predators.",
+                $"Head back now. {(variant.FireEffectiveness > 0.6 ? "Fire should deter it." : "Risky — fire may not work.")}",
                 [
-                    new EventResult("You make it back. Fire deters it.", weight: 0.60)
+                    new EventResult("You make it back. Fire deters it.", weight: 0.40 + variant.FireEffectiveness * 0.3)
                         .ResolvesStalking()
                         .Aborts(),
-                    new EventResult("It follows to camp perimeter but won't approach fire.", weight: 0.25)
+                    new EventResult("It follows to camp perimeter but won't approach fire.", weight: 0.20 + variant.FireEffectiveness * 0.1)
                         .ResolvesStalking()
                         .Unsettling()
                         .Aborts(),
-                    new EventResult("It's bolder than you thought. Attacks before you reach safety.", weight: 0.15, minutes: 5)
-                        .ResolvesStalking()
-                        .Encounter(predator, 10, 0.8)
+                    new EventResult($"It's bolder than you thought. {(variant.ChaseThreshold > 0.5 ? "Attacks as you flee." : "Cuts you off.")}", weight: chaseOnRetreatWeight + 0.10, minutes: 5)
+                        .ConfrontStalker(predator, 10, 0.8)
                         .Aborts()
                 ]);
     }
@@ -220,9 +231,14 @@ public static partial class GameEventRegistry
     {
         var stalkedTension = ctx.Tensions.GetTension("Stalked");
         var predator = stalkedTension?.AnimalType ?? "Wolf";
+        var variant = AnimalSelector.GetVariant(predator);
+
+        // Slow retreat success depends on chase threshold - low chase = easier escape
+        double slowRetreatWeight = AnimalSelector.SlowRetreatSuccessWeight(variant) * 0.5 + 0.25;  // 0.25-0.75
+        double chargeWeight = variant.ChaseThreshold * 0.35;  // 0.0-0.35
 
         return new GameEvent("The Predator Revealed",
-            $"You finally see it clearly. A {predator.ToLower()}. It's watching you from maybe thirty feet away. Not hiding anymore.", 2.0)
+            $"You finally see it clearly. A {predator.ToLower()}. It's watching you from maybe thirty feet away. Not hiding anymore. {variant.TacticsDescription}", 2.0)
             .Requires(EventCondition.StalkedHigh, EventCondition.IsExpedition)
             .WithSituationFactor(Situations.TrappedByTerrain, 2.0)  // Cornered = revealed faster
             .WithSituationFactor(Situations.RemoteAndVulnerable, 1.5)  // Far + weak = dangerous
@@ -230,19 +246,17 @@ public static partial class GameEventRegistry
                 "Face it. This ends now.",
                 [
                     new EventResult("You turn to face it. The confrontation is inevitable.", weight: 1.0, minutes: 5)
-                        .ResolvesStalking()
-                        .Encounter(predator, 30, stalkedTension?.Severity ?? 0.6)
+                        .ConfrontStalker(predator, 30, stalkedTension?.Severity ?? 0.6)
                 ])
             .Choice("Calculated Retreat",
-                "Slow, deliberate backward movement. Don't run. Don't look away.",
+                $"Slow, deliberate backward movement. Don't run. {(variant.ChaseThreshold > 0.5 ? "Don't trigger the chase." : "Keep steady.")}",
                 [
-                    new EventResult("You back away slowly. It watches but doesn't follow.", weight: 0.45, minutes: 15)
+                    new EventResult("You back away slowly. It watches but doesn't follow.", weight: slowRetreatWeight, minutes: 15)
                         .ResolvesStalking(),
-                    new EventResult("It follows at a distance. You're not out of this yet.", weight: 0.30, minutes: 10)
+                    new EventResult("It follows at a distance. You're not out of this yet.", weight: 0.40 - slowRetreatWeight * 0.3, minutes: 10)
                         .EscalatesStalking(0.2),
-                    new EventResult("Your retreat emboldens it. It charges.", weight: 0.25, minutes: 5)
-                        .ResolvesStalking()
-                        .Encounter(predator, 15, 0.75)
+                    new EventResult($"Your retreat emboldens it. {(variant.AmbushChance > 0.3 ? "It was waiting for this." : "It charges.")}", weight: chargeWeight + 0.10, minutes: 5)
+                        .ConfrontStalker(predator, 15, 0.75)
                 ]);
     }
 
@@ -250,18 +264,22 @@ public static partial class GameEventRegistry
     {
         var stalkedTension = ctx.Tensions.GetTension("Stalked");
         var predator = stalkedTension?.AnimalType ?? "Wolf";
+        var variant = AnimalSelector.GetVariant(predator);
 
-        return new GameEvent("Ambush",
-            $"It's done waiting. The {predator.ToLower()} bursts from cover.", 3.0)
+        // Ambush chance affects how the attack unfolds
+        string ambushDesc = variant.AmbushChance > 0.3
+            ? $"It's been waiting for this moment. The {predator.ToLower()} strikes from cover."
+            : $"It's done testing. The {predator.ToLower()} charges.";
+
+        return new GameEvent("Ambush", ambushDesc, 3.0)
             .Requires(EventCondition.StalkedCritical, EventCondition.IsExpedition)
             .WithSituationFactor(Situations.RemoteAndVulnerable, 2.0)  // Isolation invites attack
             .WithSituationFactor(Situations.TrappedByTerrain, 2.5)  // No escape = perfect ambush
             .Choice("Brace Yourself",
                 "No time to run. It's on you.",
                 [
-                    new EventResult("The predator attacks!", weight: 1.0, minutes: 3)
-                        .ResolvesStalking()
-                        .Encounter(predator, 5, 0.9)
+                    new EventResult($"The {predator.ToLower()} attacks!", weight: 1.0, minutes: 3)
+                        .ConfrontStalker(predator, 5, 0.9)
                 ]);
     }
 

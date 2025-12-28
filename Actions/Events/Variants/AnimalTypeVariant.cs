@@ -13,7 +13,13 @@ public record AnimalTypeVariant(
     double NoiseEffectiveness,  // 0-1 how well noise/intimidation works
     double AmbushChance,        // Likelihood of ambush-style attacks
     bool IsDiurnal,             // Hunts during day (wolves) vs nocturnal/hibernating
-    double PackBonus            // Weight modifier when in group
+    double PackBonus,           // Weight modifier when in group
+    // === STALKING BEHAVIOR ===
+    double StalkingPersistence, // 0-1 how likely to keep following after losing sight
+    double ChaseThreshold,      // 0-1 how easily running triggers chase (higher = more likely to chase)
+    // === PACK BEHAVIOR ===
+    double PackCoordination,    // 0-1 how well they coordinate (wolves high, bears N/A)
+    string CirclingDescription  // Description for "They're circling" events
 );
 
 /// <summary>
@@ -29,7 +35,11 @@ public static class AnimalVariants
         NoiseEffectiveness: 0.5,
         AmbushChance: 0.3,
         IsDiurnal: true,
-        PackBonus: 1.5
+        PackBonus: 1.5,
+        StalkingPersistence: 0.7,   // Wolves are persistent trackers
+        ChaseThreshold: 0.6,        // Will chase if you run, but test first
+        PackCoordination: 0.9,      // Excellent pack coordination
+        CirclingDescription: "The wolves move in unison, cutting off escape routes."
     );
 
     public static readonly AnimalTypeVariant Bear = new(
@@ -39,8 +49,12 @@ public static class AnimalVariants
         FireEffectiveness: 0.85,
         NoiseEffectiveness: 0.15,
         AmbushChance: 0.1,
-        IsDiurnal: false,  // Less predictable
-        PackBonus: 1.0
+        IsDiurnal: false,
+        PackBonus: 1.0,
+        StalkingPersistence: 0.3,   // Bears don't stalk long
+        ChaseThreshold: 0.4,        // Less likely to chase, but devastating if they do
+        PackCoordination: 0.0,      // Solitary
+        CirclingDescription: "The bear watches, waiting for you to make a mistake."
     );
 
     public static readonly AnimalTypeVariant Fox = new(
@@ -51,7 +65,11 @@ public static class AnimalVariants
         NoiseEffectiveness: 0.9,
         AmbushChance: 0.05,
         IsDiurnal: true,
-        PackBonus: 1.0
+        PackBonus: 1.0,
+        StalkingPersistence: 0.2,   // Easily discouraged
+        ChaseThreshold: 0.1,        // Almost never chases humans
+        PackCoordination: 0.1,      // Mostly solitary
+        CirclingDescription: "The fox darts between cover, watching."
     );
 
     public static readonly AnimalTypeVariant Lynx = new(
@@ -62,7 +80,11 @@ public static class AnimalVariants
         NoiseEffectiveness: 0.6,
         AmbushChance: 0.4,
         IsDiurnal: false,
-        PackBonus: 1.0
+        PackBonus: 1.0,
+        StalkingPersistence: 0.5,   // Patient but not obsessive
+        ChaseThreshold: 0.3,        // Prefers ambush to chase
+        PackCoordination: 0.0,      // Solitary
+        CirclingDescription: "The lynx paces at the edge of visibility, patient."
     );
 
     /// <summary>
@@ -76,7 +98,89 @@ public static class AnimalVariants
         NoiseEffectiveness: 0.4,
         AmbushChance: 0.2,
         IsDiurnal: false,
-        PackBonus: 1.2
+        PackBonus: 1.2,
+        StalkingPersistence: 0.5,
+        ChaseThreshold: 0.5,
+        PackCoordination: 0.3,
+        CirclingDescription: "Something moves at the edge of your vision."
+    );
+
+    // === SMALL GAME ===
+    // Quick opportunity targets - not threats, but rewards for prepared players
+
+    public static readonly AnimalTypeVariant Rabbit = new(
+        "Rabbit",
+        "Rabbit. Freeze response. Quick hands or a good throw.",
+        "Wait quietly. It might come closer.",
+        FireEffectiveness: 0.0,  // Fire irrelevant
+        NoiseEffectiveness: 0.0, // Noise just spooks them
+        AmbushChance: 0.15,      // Small chance to catch by hand
+        IsDiurnal: true,
+        PackBonus: 1.0,
+        StalkingPersistence: 0.0, // They don't stalk
+        ChaseThreshold: 0.0,      // They don't chase
+        PackCoordination: 0.0,
+        CirclingDescription: "N/A"
+    );
+
+    public static readonly AnimalTypeVariant Ptarmigan = new(
+        "Ptarmigan",
+        "Ptarmigan. Ground bird. Reluctant to fly if you move slowly.",
+        "Wait. They're calmer than most birds.",
+        FireEffectiveness: 0.0,
+        NoiseEffectiveness: 0.0,
+        AmbushChance: 0.2,       // Slightly easier than rabbit
+        IsDiurnal: true,
+        PackBonus: 1.3,          // Often in groups
+        StalkingPersistence: 0.0,
+        ChaseThreshold: 0.0,
+        PackCoordination: 0.0,
+        CirclingDescription: "N/A"
+    );
+
+    public static readonly AnimalTypeVariant Squirrel = new(
+        "Squirrel",
+        "Squirrel. Fast, arboreal. Caches are worth more than the animal.",
+        "Watch where it goes. It might lead to a cache.",
+        FireEffectiveness: 0.0,
+        NoiseEffectiveness: 0.0,
+        AmbushChance: 0.05,      // Very hard to catch
+        IsDiurnal: true,
+        PackBonus: 1.0,
+        StalkingPersistence: 0.0,
+        ChaseThreshold: 0.0,
+        PackCoordination: 0.0,
+        CirclingDescription: "N/A"
+    );
+
+    public static readonly AnimalTypeVariant Fish = new(
+        "Fish",
+        "Fish. Visible in shallows. Spear or patience required.",
+        "Wait for them to settle. Movement spooks them.",
+        FireEffectiveness: 0.0,
+        NoiseEffectiveness: 0.0,
+        AmbushChance: 0.25,      // Easier with spear
+        IsDiurnal: true,
+        PackBonus: 1.5,          // Often in schools
+        StalkingPersistence: 0.0,
+        ChaseThreshold: 0.0,
+        PackCoordination: 0.0,
+        CirclingDescription: "N/A"
+    );
+
+    public static readonly AnimalTypeVariant Grouse = new(
+        "Grouse",
+        "Grouse. Camouflaged until disturbed. Explosive takeoff.",
+        "Mark where they land. Approach from downwind.",
+        FireEffectiveness: 0.0,
+        NoiseEffectiveness: 0.0,
+        AmbushChance: 0.1,
+        IsDiurnal: true,
+        PackBonus: 1.2,
+        StalkingPersistence: 0.0,
+        ChaseThreshold: 0.0,
+        PackCoordination: 0.0,
+        CirclingDescription: "N/A"
     );
 }
 
@@ -96,8 +200,38 @@ public static class AnimalSelector
             var t when t.Contains("bear") => AnimalVariants.Bear,
             var t when t.Contains("fox") => AnimalVariants.Fox,
             var t when t.Contains("lynx") => AnimalVariants.Lynx,
+            // Small game
+            var t when t.Contains("rabbit") || t.Contains("hare") => AnimalVariants.Rabbit,
+            var t when t.Contains("ptarmigan") => AnimalVariants.Ptarmigan,
+            var t when t.Contains("squirrel") => AnimalVariants.Squirrel,
+            var t when t.Contains("fish") => AnimalVariants.Fish,
+            var t when t.Contains("grouse") => AnimalVariants.Grouse,
             _ => AnimalVariants.Unknown
         };
+    }
+
+    /// <summary>
+    /// Returns true if this is a small game animal (not a predator threat).
+    /// </summary>
+    public static bool IsSmallGame(AnimalTypeVariant variant)
+        => variant == AnimalVariants.Rabbit ||
+           variant == AnimalVariants.Ptarmigan ||
+           variant == AnimalVariants.Squirrel ||
+           variant == AnimalVariants.Fish ||
+           variant == AnimalVariants.Grouse;
+
+    /// <summary>
+    /// Get a random small game variant for sighting events.
+    /// </summary>
+    public static AnimalTypeVariant GetRandomSmallGame()
+    {
+        var smallGame = new[] {
+            AnimalVariants.Rabbit,
+            AnimalVariants.Ptarmigan,
+            AnimalVariants.Squirrel,
+            AnimalVariants.Grouse
+        };
+        return smallGame[Random.Shared.Next(smallGame.Length)];
     }
 
     /// <summary>
@@ -115,4 +249,42 @@ public static class AnimalSelector
     /// Calculate success chance for fire/smoke tactics.
     /// </summary>
     public static double FireSuccessWeight(AnimalTypeVariant variant) => variant.FireEffectiveness;
+
+    // === STALKING HELPERS ===
+
+    /// <summary>
+    /// Calculate weight for "stalker continues following" outcomes.
+    /// Higher persistence = more likely to keep tracking.
+    /// </summary>
+    public static double LoseTrailSuccessWeight(AnimalTypeVariant variant)
+        => 1.0 - variant.StalkingPersistence;
+
+    /// <summary>
+    /// Calculate weight for "running triggers chase" outcomes.
+    /// Higher threshold = more likely to chase.
+    /// </summary>
+    public static double ChaseTriggeredWeight(AnimalTypeVariant variant)
+        => variant.ChaseThreshold;
+
+    /// <summary>
+    /// Calculate weight for successful evasion when retreating slowly.
+    /// Low chase threshold + low persistence = better chance.
+    /// </summary>
+    public static double SlowRetreatSuccessWeight(AnimalTypeVariant variant)
+        => (1.0 - variant.ChaseThreshold) * (1.0 - variant.StalkingPersistence * 0.5);
+
+    // === PACK HELPERS ===
+
+    /// <summary>
+    /// Returns true if this animal typically operates in packs.
+    /// </summary>
+    public static bool IsPredatorPackAnimal(AnimalTypeVariant variant)
+        => variant.PackCoordination > 0.5;
+
+    /// <summary>
+    /// Get weight modifier for pack-based attacks.
+    /// High coordination = more dangerous group tactics.
+    /// </summary>
+    public static double PackTacticsWeight(AnimalTypeVariant variant)
+        => variant.PackCoordination * variant.PackBonus;
 }

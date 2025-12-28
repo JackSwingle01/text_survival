@@ -14,13 +14,13 @@ A camp-centric survival experience where fire is the anchor. Every expedition is
 
 **Intersecting pressures create decisions.** A wolf isn't dangerous because it's a wolf. It's dangerous because you're bleeding, limping, low on fuel, and far from camp. Single systems create problems. Intersecting systems create meaningful choices.
 
-**Knowledge is progression.** No meta-progression, no unlocks, no character stats that grow. The player gets better, not the character. An experienced player survives because they understand the systems — when 10 minutes of margin is actually fine, when "abundant" doesn't mean safe, when to let a fire die on purpose.
+**Knowledge is progression.** No meta-progression, no unlocks, no character stats that grow. The player gets better, not the character. An experienced player survives because they understand the systems — when 10 minutes of fire is actually fine, when "abundant" doesn't mean safe, when to let a fire die on purpose.
 
 **The game decides low-stakes, the player decides high-stakes.** The interface reads game state and surfaces what matters. "Tend fire" appears prominently when fuel is low. The player chooses from 2-4 meaningful options, not exhaustive menus.
 
 ## Core Systems
 
-**Expeditions** — You have a camp. Everything else is an expedition. Leave camp, travel between locations, work (forage, hunt, explore), and return before your fire dies. The UI always shows fire status so you can judge your margin.
+**Expeditions** — You have a camp. Everything else is an expedition. Leave camp, travel between locations, work (forage, hunt, explore), and return before your fire dies.
 
 **Survival Simulation** — Rate-based calculation per minute: energy, hydration, calories, temperature. Thresholds trigger effects. Temperature drops below 95°F, you start shivering. The simulation creates pressure, not busywork.
 

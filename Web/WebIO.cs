@@ -24,6 +24,19 @@ public static class WebIO
         ?? throw new InvalidOperationException($"No session found for ID: {ctx.SessionId}");
 
     /// <summary>
+    /// Generate a semantic ID from a label for more debuggable choice matching.
+    /// Format: slugified_label_index (e.g., "forage_for_supplies_0")
+    /// </summary>
+    private static string GenerateSemanticId(string label, int index)
+    {
+        // Create a slug from the label: lowercase, replace non-alphanumeric with underscore
+        var slug = System.Text.RegularExpressions.Regex.Replace(label.ToLowerInvariant(), @"[^a-z0-9]+", "_").Trim('_');
+        // Truncate if too long
+        if (slug.Length > 30) slug = slug[..30];
+        return $"{slug}_{index}";
+    }
+
+    /// <summary>
     /// Get the current UI mode based on context state.
     /// </summary>
     private static FrameMode GetCurrentMode(
@@ -123,8 +136,12 @@ public static class WebIO
         if (list.Count == 0)
             throw new ArgumentException("Choices cannot be empty", nameof(choices));
 
-        // Generate choices with IDs for reliable button identity
-        var choiceDtos = list.Select((item, i) => new ChoiceDto($"choice_{i}", display(item))).ToList();
+        // Generate choices with semantic IDs for reliable button identity
+        var choiceDtos = list.Select((item, i) => {
+            var label = display(item);
+            var semanticId = GenerateSemanticId(label, i);
+            return new ChoiceDto(semanticId, label);
+        }).ToList();
 
         int inputId = session.GenerateInputId();
         var frame = new WebFrame(
@@ -247,7 +264,9 @@ public static class WebIO
         var matchIndex = choiceDtos.FindIndex(c => c.Id == response.ChoiceId);
         if (matchIndex < 0)
         {
-            // Invalid choice ID - default to first option
+            // Log mismatch for debugging - this indicates a frontend/backend sync issue
+            Console.WriteLine($"[WebIO] WARNING: Unknown choice ID '{response.ChoiceId}', " +
+                              $"available: [{string.Join(", ", choiceDtos.Select(c => c.Id))}]. Defaulting to first option.");
             matchIndex = 0;
         }
         return list[matchIndex];

@@ -8,6 +8,7 @@ import { FireDisplay } from './modules/fire.js';
 import { SurvivalDisplay } from './modules/survival.js';
 import { EffectsDisplay } from './modules/effects.js';
 import { getGridRenderer } from './modules/grid/CanvasGridRenderer.js';
+import { getWeatherIcon, getFeatureIconLabel, getFeatureTypeIcon } from './modules/icons.js';
 
 // Actions handled elsewhere (sidebar buttons, grid clicks) - hidden from popup
 const POPUP_HIDDEN_ACTIONS = ['Inventory', 'Crafting', 'Travel'];
@@ -714,37 +715,10 @@ class GameClient {
 
     /**
      * Get human-readable label for a feature icon
+     * (delegates to centralized icons module)
      */
     getIconLabel(icon) {
-        const labels = {
-            'local_fire_department': 'Active fire',
-            'fireplace': 'Embers (relight possible)',
-            'eco': 'Foraging area',
-            'nutrition': 'Harvestable resources',
-            'cruelty_free': 'Wildlife territory',
-            'pets': 'Predator territory',
-            'water_drop': 'Water source',
-            'park': 'Wooded area',
-            'cabin': 'Shelter',
-            'ac_unit': 'Snow shelter',
-            'bed': 'Bedding',
-            'inventory_2': 'Storage cache',
-            'circle': 'Snares set',
-            'catching_pokemon': 'Snare catch ready!',
-            'search': 'Salvage site',
-            'timelapse': 'Curing in progress',
-            'done_all': 'Curing complete!',
-            'construction': 'Construction project',
-            // Environmental details
-            'footprint': 'Animal tracks',
-            'scatter_plot': 'Animal droppings',
-            'call_split': 'Bent branches',
-            'forest': 'Fallen log',
-            'nature': 'Hollow tree',
-            'skeleton': 'Scattered bones',
-            'landscape': 'Stone pile'
-        };
-        return labels[icon] || icon;
+        return getFeatureIconLabel(icon);
     }
 
     /**
@@ -820,24 +794,13 @@ class GameClient {
      * Build detailed feature cards
      */
     buildDetailedFeatures(container, featureDetails) {
-        const featureIcons = {
-            'shelter': 'cabin',
-            'forage': 'eco',
-            'animal': 'cruelty_free',
-            'cache': 'inventory_2',
-            'water': 'water_drop',
-            'wood': 'park',
-            'snares': 'circle',
-            'curing': 'timelapse'
-        };
-
         featureDetails.forEach(feature => {
             const featureEl = document.createElement('div');
             featureEl.className = 'popup-feature-detailed';
 
             const iconEl = document.createElement('span');
             iconEl.className = ICON_CLASS;
-            iconEl.textContent = featureIcons[feature.type] || 'info';
+            iconEl.textContent = getFeatureTypeIcon(feature.type);
             featureEl.appendChild(iconEl);
 
             const contentEl = document.createElement('div');
@@ -1179,7 +1142,7 @@ class GameClient {
         document.getElementById('weatherFront').textContent = state.weatherFront;
         const weatherEl = document.getElementById('weatherCond');
         weatherEl.textContent = state.weatherCondition;
-        document.getElementById('weatherIcon').textContent = this.getWeatherIcon(state.weatherCondition);
+        document.getElementById('weatherIcon').textContent = getWeatherIcon(state.weatherCondition);
         document.getElementById('windLabel').textContent = state.wind;
         document.getElementById('precipLabel').textContent = state.precipitation;
 
@@ -1339,21 +1302,6 @@ class GameClient {
         }
 
         return hours * 60 + minutes;
-    }
-
-    getWeatherIcon(condition) {
-        const icons = {
-            'Clear': 'wb_sunny',
-            'Cloudy': 'cloud',
-            'Overcast': 'cloud',
-            'Light Snow': 'weather_snowy',
-            'Snow': 'weather_snowy',
-            'Heavy Snow': 'ac_unit',
-            'Blizzard': 'ac_unit',
-            'Fog': 'foggy',
-            'Wind': 'air'
-        };
-        return icons[condition] || 'partly_cloudy_day';
     }
 
     renderSegmentBar(containerId, percent, state = 'normal') {
@@ -1674,26 +1622,12 @@ class GameClient {
         const content = document.querySelector('#invFuel .inv-content');
         Utils.clearElement(content);
 
-        // Generic fuel
-        if (inv.logCount > 0)
-            this.addInvItem(content, `${inv.logCount} logs`, `${inv.logsKg.toFixed(1)}kg`);
-        if (inv.stickCount > 0)
-            this.addInvItem(content, `${inv.stickCount} sticks`, `${inv.sticksKg.toFixed(1)}kg`);
-        if (inv.tinderCount > 0)
-            this.addInvItem(content, `${inv.tinderCount} tinder`, `${inv.tinderKg.toFixed(2)}kg`);
-
-        // Wood types
-        if (inv.pineCount > 0)
-            this.addInvItem(content, `${inv.pineCount} pine`, `${inv.pineKg.toFixed(1)}kg`, 'wood-pine');
-        if (inv.birchCount > 0)
-            this.addInvItem(content, `${inv.birchCount} birch`, `${inv.birchKg.toFixed(1)}kg`, 'wood-birch');
-        if (inv.oakCount > 0)
-            this.addInvItem(content, `${inv.oakCount} oak`, `${inv.oakKg.toFixed(1)}kg`, 'wood-oak');
-        if (inv.birchBarkCount > 0)
-            this.addInvItem(content, `${inv.birchBarkCount} birch bark`, `${inv.birchBarkKg.toFixed(2)}kg`, 'tinder');
-
-        // Burn time summary
-        if (content.children.length > 0) {
+        // Iterate over fuel items from backend
+        if (inv.fuel && inv.fuel.length > 0) {
+            for (const item of inv.fuel) {
+                const weightStr = item.weightKg >= 1 ? `${item.weightKg.toFixed(1)}kg` : `${item.weightKg.toFixed(2)}kg`;
+                this.addInvItem(content, `${item.count} ${item.displayName}`, weightStr, item.cssClass || '');
+            }
             this.addInvItem(content, 'Burn time', `~${inv.fuelBurnTimeHours.toFixed(1)} hrs`, 'summary');
         } else {
             this.addNoneItem(content);
@@ -1704,29 +1638,13 @@ class GameClient {
         const content = document.querySelector('#invFood .inv-content');
         Utils.clearElement(content);
 
-        // Cooked (best)
-        if (inv.cookedMeatCount > 0)
-            this.addInvItem(content, `${inv.cookedMeatCount} cooked meat`, `${inv.cookedMeatKg.toFixed(1)}kg`, 'food-cooked');
-
-        // Preserved
-        if (inv.driedMeatCount > 0)
-            this.addInvItem(content, `${inv.driedMeatCount} dried meat`, `${inv.driedMeatKg.toFixed(1)}kg`, 'food-preserved');
-        if (inv.driedBerriesCount > 0)
-            this.addInvItem(content, `${inv.driedBerriesCount} dried berries`, `${inv.driedBerriesKg.toFixed(2)}kg`, 'food-preserved');
-
-        // Raw
-        if (inv.rawMeatCount > 0)
-            this.addInvItem(content, `${inv.rawMeatCount} raw meat`, `${inv.rawMeatKg.toFixed(1)}kg`, 'food-raw');
-
-        // Foraged
-        if (inv.berryCount > 0)
-            this.addInvItem(content, `${inv.berryCount} berries`, `${inv.berriesKg.toFixed(2)}kg`, 'food-foraged');
-        if (inv.nutsCount > 0)
-            this.addInvItem(content, `${inv.nutsCount} nuts`, `${inv.nutsKg.toFixed(2)}kg`, 'food-foraged');
-        if (inv.rootsCount > 0)
-            this.addInvItem(content, `${inv.rootsCount} roots`, `${inv.rootsKg.toFixed(2)}kg`, 'food-raw');
-
-        if (content.children.length === 0) {
+        // Iterate over food items from backend
+        if (inv.food && inv.food.length > 0) {
+            for (const item of inv.food) {
+                const weightStr = item.weightKg >= 1 ? `${item.weightKg.toFixed(1)}kg` : `${item.weightKg.toFixed(2)}kg`;
+                this.addInvItem(content, `${item.count} ${item.displayName}`, weightStr, item.cssClass || '');
+            }
+        } else {
             this.addNoneItem(content);
         }
     }
@@ -1746,41 +1664,15 @@ class GameClient {
         const content = document.querySelector('#invMaterials .inv-content');
         Utils.clearElement(content);
 
-        // Stone types (highlight rare)
-        if (inv.stoneCount > 0)
-            this.addInvItem(content, `${inv.stoneCount} stone`, `${inv.stoneKg.toFixed(1)}kg`);
-        if (inv.shaleCount > 0)
-            this.addInvItem(content, `${inv.shaleCount} shale`, `${inv.shaleKg.toFixed(1)}kg`, 'material-stone');
-        if (inv.flintCount > 0)
-            this.addInvItem(content, `${inv.flintCount} flint`, `${inv.flintKg.toFixed(1)}kg`, 'material-rare');
-        if (inv.pyriteKg > 0)
-            this.addInvItem(content, 'Pyrite', `${inv.pyriteKg.toFixed(2)}kg`, 'material-precious');
-
-        // Organics
-        if (inv.boneCount > 0)
-            this.addInvItem(content, `${inv.boneCount} bone`, `${inv.boneKg.toFixed(1)}kg`);
-        if (inv.hideCount > 0)
-            this.addInvItem(content, `${inv.hideCount} hide`, `${inv.hideKg.toFixed(1)}kg`);
-        if (inv.plantFiberCount > 0)
-            this.addInvItem(content, `${inv.plantFiberCount} plant fiber`, `${inv.plantFiberKg.toFixed(2)}kg`);
-        if (inv.sinewCount > 0)
-            this.addInvItem(content, `${inv.sinewCount} sinew`, `${inv.sinewKg.toFixed(2)}kg`);
-
-        // Processed
-        if (inv.scrapedHideCount > 0)
-            this.addInvItem(content, `${inv.scrapedHideCount} scraped hide`, '', 'material-processed');
-        if (inv.curedHideCount > 0)
-            this.addInvItem(content, `${inv.curedHideCount} cured hide`, '', 'material-processed');
-        if (inv.rawFiberCount > 0)
-            this.addInvItem(content, `${inv.rawFiberCount} raw fiber`, '');
-        if (inv.rawFatCount > 0)
-            this.addInvItem(content, `${inv.rawFatCount} raw fat`, '');
-        if (inv.tallowCount > 0)
-            this.addInvItem(content, `${inv.tallowCount} tallow`, '', 'material-processed');
-        if (inv.charcoalKg > 0)
-            this.addInvItem(content, 'Charcoal', `${inv.charcoalKg.toFixed(2)}kg`);
-
-        if (content.children.length === 0) {
+        // Iterate over material items from backend
+        if (inv.materials && inv.materials.length > 0) {
+            for (const item of inv.materials) {
+                const weightStr = item.weightKg > 0
+                    ? (item.weightKg >= 1 ? `${item.weightKg.toFixed(1)}kg` : `${item.weightKg.toFixed(2)}kg`)
+                    : '';
+                this.addInvItem(content, `${item.count} ${item.displayName}`, weightStr, item.cssClass || '');
+            }
+        } else {
             this.addNoneItem(content);
         }
     }
@@ -1789,33 +1681,12 @@ class GameClient {
         const content = document.querySelector('#invMedicinals .inv-content');
         Utils.clearElement(content);
 
-        // Fungi
-        if (inv.birchPolyporeCount > 0)
-            this.addInvItem(content, `${inv.birchPolyporeCount} birch polypore`, '', 'medicinal-wound');
-        if (inv.chagaCount > 0)
-            this.addInvItem(content, `${inv.chagaCount} chaga`, '', 'medicinal-health');
-        if (inv.amadouCount > 0)
-            this.addInvItem(content, `${inv.amadouCount} amadou`, '', 'medicinal-versatile');
-
-        // Plants
-        if (inv.roseHipsCount > 0)
-            this.addInvItem(content, `${inv.roseHipsCount} rose hips`, '', 'medicinal-vitamin');
-        if (inv.juniperBerriesCount > 0)
-            this.addInvItem(content, `${inv.juniperBerriesCount} juniper berries`, '', 'medicinal-antiseptic');
-        if (inv.willowBarkCount > 0)
-            this.addInvItem(content, `${inv.willowBarkCount} willow bark`, '', 'medicinal-pain');
-        if (inv.pineNeedlesCount > 0)
-            this.addInvItem(content, `${inv.pineNeedlesCount} pine needles`, '', 'medicinal-vitamin');
-
-        // Tree products
-        if (inv.pineResinCount > 0)
-            this.addInvItem(content, `${inv.pineResinCount} pine resin`, '', 'medicinal-wound');
-        if (inv.usneaCount > 0)
-            this.addInvItem(content, `${inv.usneaCount} usnea`, '', 'medicinal-antiseptic');
-        if (inv.sphagnumCount > 0)
-            this.addInvItem(content, `${inv.sphagnumCount} sphagnum moss`, '', 'medicinal-wound');
-
-        if (content.children.length === 0) {
+        // Iterate over medicinal items from backend
+        if (inv.medicinals && inv.medicinals.length > 0) {
+            for (const item of inv.medicinals) {
+                this.addInvItem(content, `${item.count} ${item.displayName}`, '', item.cssClass || '');
+            }
+        } else {
             this.addNoneItem(content);
         }
     }

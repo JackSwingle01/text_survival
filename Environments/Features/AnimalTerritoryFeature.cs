@@ -23,7 +23,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
 
     [System.Text.Json.Serialization.JsonInclude]
     private readonly List<AnimalSpawnEntry> _possibleAnimals = [];
-    private readonly double _respawnRateHours = 72.0; // Full respawn takes 72 hours
+    private readonly double _respawnRateHours = 168.0; // Full respawn takes 1 week
 
     // Explicit private fields for serialization
     private double _baseGameDensity;
@@ -334,6 +334,16 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
             "wolf" or "bear" or "cave bear" => true,
             _ => false
         };
+    }
+
+    public override FeatureUIInfo? GetUIInfo()
+    {
+        if (!CanHunt()) return null;
+        return new FeatureUIInfo(
+            "animal",
+            HasPredators() ? "Predator Territory" : "Wildlife",
+            GetDescription(),
+            null);
     }
 
     #region Save/Load Support - No longer needed with field-based serialization

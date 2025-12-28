@@ -181,6 +181,28 @@ public static class OutcomeTemplates
     public static EventResult ResolvesPack(this EventResult r)
         => r.ResolveTension("PackNearby");
 
+    /// <summary>Mark something for later investigation.</summary>
+    public static EventResult MarksDiscovery(this EventResult r, string description, double severity = 0.5)
+        => r.CreateTension("MarkedDiscovery", severity, description: description);
+
+    /// <summary>Mark location with animal sign for tracking.</summary>
+    public static EventResult MarksAnimalSign(this EventResult r, string animal, double severity = 0.4)
+        => r.CreateTension("MarkedDiscovery", severity, animalType: animal, description: $"{animal.ToLower()} territory");
+
+    // === PREDATOR ENCOUNTER PATTERNS ===
+
+    /// <summary>Predator encounter that resolves stalking tension.</summary>
+    public static EventResult ConfrontStalker(this EventResult r, string animal, int distance, double boldness)
+        => r.ResolveTension("Stalked").Encounter(animal, distance, boldness);
+
+    /// <summary>Pack encounter that resolves pack tension.</summary>
+    public static EventResult ConfrontPack(this EventResult r, string animal, int distance, double boldness)
+        => r.ResolveTension("PackNearby").Encounter(animal, distance, boldness);
+
+    /// <summary>Stalker escalates to "Hunted" - more aggressive pursuit.</summary>
+    public static EventResult EscalatesToHunted(this EventResult r, string? animal = null)
+        => r.ResolveTension("Stalked").CreateTension("Hunted", 0.5, animalType: animal);
+
     // === COMPOUND PATTERNS ===
 
     /// <summary>Escape back to camp, resolving active threats.</summary>
@@ -218,6 +240,19 @@ public static class OutcomeTemplates
     public static EventResult PartialShelter(this EventResult r)
         => r.WithEffects(EffectFactory.Cold(-8, 35));
 
+    /// <summary>Wet and cold combo - common rain/sleet/water result.</summary>
+    public static EventResult SoakedAndCold(this EventResult r, double wetness = 0.6, double coldDegrees = -12, int minutes = 40)
+        => r.WithEffects(EffectFactory.Wet(wetness), EffectFactory.Cold(coldDegrees, minutes));
+
+    /// <summary>Storm exposure with exhaustion - caught in severe weather.</summary>
+    public static EventResult StormBattered(this EventResult r)
+        => r.WithEffects(EffectFactory.Cold(-15, 50), EffectFactory.Exhausted(0.3, 60));
+
+    /// <summary>Fell through ice - severe wet and cold.</summary>
+    public static EventResult FellThroughIce(this EventResult r)
+        => r.WithEffects(EffectFactory.Wet(0.9), EffectFactory.Cold(-20, 60))
+           .Frightening();
+
     // === FEATURE CREATION ===
 
     /// <summary>
@@ -227,4 +262,69 @@ public static class OutcomeTemplates
     public static EventResult AddsShelter(this EventResult r,
         double temp, double overhead, double wind)
         => r.AddsFeature(typeof(Environments.Features.ShelterFeature), (temp, overhead, wind));
+
+    // === EQUIPMENT WEAR ===
+
+    /// <summary>Damage equipment in a specific slot.</summary>
+    public static EventResult DamagesEquipment(this EventResult r, EquipSlot slot, int durabilityLoss)
+    {
+        r.DamageGear = new GearDamage(GearCategory.Equipment, durabilityLoss, Slot: slot);
+        return r;
+    }
+
+    /// <summary>Repair equipment in a specific slot.</summary>
+    public static EventResult RepairsEquipment(this EventResult r, EquipSlot slot, int durabilityGain)
+    {
+        r.RepairGear = new GearRepair(GearCategory.Equipment, durabilityGain, Slot: slot);
+        return r;
+    }
+
+    /// <summary>Destroy equipment in a specific slot (set durability to 0).</summary>
+    public static EventResult DestroysEquipment(this EventResult r, EquipSlot slot)
+    {
+        // Use a very high damage value to ensure destruction
+        r.DamageGear = new GearDamage(GearCategory.Equipment, 1000, Slot: slot);
+        return r;
+    }
+
+    /// <summary>Damage a specific tool type.</summary>
+    public static EventResult DamagesTool(this EventResult r, ToolType tool, int durabilityLoss)
+    {
+        r.DamageGear = new GearDamage(GearCategory.Tool, durabilityLoss, ToolType: tool);
+        return r;
+    }
+
+    /// <summary>Repair a specific tool type.</summary>
+    public static EventResult RepairsTool(this EventResult r, ToolType tool, int durabilityGain)
+    {
+        r.RepairGear = new GearRepair(GearCategory.Tool, durabilityGain, ToolType: tool);
+        return r;
+    }
+
+    /// <summary>Destroy a specific tool (set durability to 0).</summary>
+    public static EventResult DestroysTool(this EventResult r, ToolType tool)
+    {
+        r.BreakTool = tool;
+        return r;
+    }
+
+    /// <summary>Minor equipment wear - small durability loss.</summary>
+    public static EventResult MinorEquipmentWear(this EventResult r, EquipSlot slot)
+        => r.DamagesEquipment(slot, 3);
+
+    /// <summary>Moderate equipment wear - noticeable durability loss.</summary>
+    public static EventResult ModerateEquipmentWear(this EventResult r, EquipSlot slot)
+        => r.DamagesEquipment(slot, 6);
+
+    /// <summary>Severe equipment wear - major durability loss.</summary>
+    public static EventResult SevereEquipmentWear(this EventResult r, EquipSlot slot)
+        => r.DamagesEquipment(slot, 10);
+
+    /// <summary>Field repair - partial durability restoration.</summary>
+    public static EventResult FieldRepair(this EventResult r, EquipSlot slot)
+        => r.RepairsEquipment(slot, 5);
+
+    /// <summary>Proper repair - significant durability restoration.</summary>
+    public static EventResult ProperRepair(this EventResult r, EquipSlot slot)
+        => r.RepairsEquipment(slot, 10);
 }

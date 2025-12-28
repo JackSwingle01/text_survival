@@ -182,7 +182,7 @@ public record GameStateDto
             FuelBurnTime = inventory.TorchBurnTimeRemainingMinutes >= 60
                 ? $"{(int)inventory.TorchBurnTimeRemainingMinutes / 60}hrs"
                 : $"{(int)inventory.TorchBurnTimeRemainingMinutes}min",
-            GearSummary = ComputeGearSummary(inventory),
+            GearSummary = GearSummaryHelper.ComputeGearSummary(inventory),
 
             // Storage - available when current location has a cache
             HasStorage = location.GetFeature<CacheFeature>() != null,
@@ -440,47 +440,6 @@ public record GameStateDto
         );
     }
 
-    private static GearSummaryDto ComputeGearSummary(Inventory inv)
-    {
-        // Count tools by category
-        var allTools = inv.Tools.ToList();
-        if (inv.Weapon != null) allTools.Add(inv.Weapon);
-
-        int cuttingCount = allTools.Count(t => t.ToolType == Items.ToolType.Knife || t.ToolType == Items.ToolType.Axe);
-        int fireCount = allTools.Count(t => t.ToolType == Items.ToolType.FireStriker ||
-                                            t.ToolType == Items.ToolType.HandDrill ||
-                                            t.ToolType == Items.ToolType.BowDrill);
-        int otherCount = allTools.Count - cuttingCount - fireCount;
-
-        // Food portions (count)
-        int foodPortions = inv.GetCount(ResourceCategory.Food);
-
-        // Water portions (~0.25L each)
-        int waterPortions = (int)(inv.WaterLiters / 0.25);
-
-        // Total crafting materials
-        int craftingCount = inv.GetCount(ResourceCategory.Material);
-
-        // Total medicinals
-        int medicinalCount = inv.GetCount(ResourceCategory.Medicine);
-
-        // Has rare materials (flint or pyrite)
-        bool hasRare = inv.Count(Resource.Flint) > 0 || inv.Count(Resource.Pyrite) > 0;
-
-        return new GearSummaryDto(
-            WeaponName: inv.Weapon?.Name,
-            WeaponDamage: inv.Weapon?.Damage,
-            CuttingToolCount: cuttingCount,
-            FireStarterCount: fireCount,
-            OtherToolCount: otherCount,
-            FoodPortions: foodPortions,
-            WaterPortions: waterPortions,
-            CraftingMaterialCount: craftingCount,
-            MedicinalCount: medicinalCount,
-            HasRareMaterials: hasRare
-        );
-    }
-
     private static List<string> ParseTags(string? tagString)
     {
         if (string.IsNullOrEmpty(tagString)) return [];
@@ -492,40 +451,11 @@ public record GameStateDto
     {
         return registry.GetAllTensions()
             .Select(t => new TensionDto(
-                Message: GetTensionMessage(t),
-                Category: GetTensionCategory(t.Type)
+                Message: Actions.Tensions.TensionDisplay.GetMessage(t),
+                Category: Actions.Tensions.TensionDisplay.GetCategory(t.Type)
             ))
             .ToList();
     }
-
-    private static string GetTensionMessage(Actions.Tensions.ActiveTension t) => t.Type switch
-    {
-        "Stalked" => t.AnimalType != null
-            ? $"A {t.AnimalType.ToLower()} is following you"
-            : "Something is following you",
-        "Hunted" => "You are being hunted",
-        "PackNearby" => "A pack is nearby",
-        "WoundedPrey" => "A blood trail leads away",
-        "DeadlyCold" => "The cold is killing you",
-        "FeverRising" => "Fever burns in your blood",
-        "Disturbed" => "Dark thoughts linger",
-        "FoodScentStrong" => "The scent of meat carries",
-        "WoundUntreated" => "Your wound needs attention",
-        "HerdNearby" => t.AnimalType != null
-            ? $"A herd of {t.AnimalType.ToLower()} passes nearby"
-            : "A herd passes nearby",
-        "ClaimedTerritory" => "Something has claimed this place",
-        "TrapLineActive" => "Snares are set",
-        _ => t.Description ?? t.Type
-    };
-
-    private static string GetTensionCategory(string type) => type switch
-    {
-        "Stalked" or "Hunted" or "PackNearby" or "DeadlyCold" => "threat",
-        "WoundedPrey" or "HerdNearby" or "TrapLineActive" => "opportunity",
-        "FeverRising" or "WoundUntreated" or "Disturbed" => "condition",
-        _ => "neutral"
-    };
 }
 
 public record FeatureDto(string Type, string Label, string? Detail);

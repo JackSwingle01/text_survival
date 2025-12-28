@@ -17,7 +17,7 @@ public record ForageResource(
 
 public class ForageFeature : LocationFeature, IWorkableFeature
 {
-    private readonly double respawnRateHours = 48.0; // Full respawn takes 48 hours
+    private readonly double respawnRateHours = 168.0; // Full respawn takes 1 week
     [System.Text.Json.Serialization.JsonInclude]
     private List<ForageResource> _resources = [];
     private static readonly Random rng = new();
@@ -302,6 +302,16 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     public void Restore(double hours)
     {
         HoursSinceLastForage += hours;
+    }
+
+    public override FeatureUIInfo? GetUIInfo()
+    {
+        if (!CanForage()) return null;
+        return new FeatureUIInfo(
+            "forage",
+            "Foraging",
+            GetQualityDescription(),
+            GetAvailableResourceTypes());
     }
 
     #region Save/Load Support

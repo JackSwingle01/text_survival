@@ -1,3 +1,4 @@
+using text_survival.Environments.Features;
 using text_survival.Items;
 
 namespace text_survival.Actions;
@@ -385,27 +386,56 @@ public static partial class GameEventRegistry
     // === GAME TRAIL EVENTS ===
 
     /// <summary>
-    /// Timing event - fresh tracks indicate peak activity.
+    /// Fresh animal tracks - opportunity to follow, mark, or note the area.
+    /// Works anywhere with animal territory, weighted higher at Game Trail.
     /// </summary>
     private static GameEvent FreshTracks(GameContext ctx)
     {
+        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
+        var animal = territory?.GetRandomAnimalName() ?? "deer";
+        var animalLower = animal.ToLower();
+        var trackDesc = animalLower switch
+        {
+            "deer" => "Hoofprints in the snow",
+            "elk" => "Hoofprints in the snow",
+            "moose" => "Hoofprints in the snow",
+            "rabbit" => "Small paw prints, close together",
+            "hare" => "Small paw prints, close together",
+            "boar" => "Deep cloven tracks and rooted earth",
+            "pig" => "Deep cloven tracks and rooted earth",
+            _ => "Fresh tracks"
+        };
+
+        bool isGameTrail = ctx.CurrentLocation?.Name == "Game Trail";
+
         return new GameEvent("Fresh Tracks",
-            "Hoofprints in the mud, still filling with water. They passed through moments ago.", 0.5)
-            .Requires(EventCondition.Working)
-            .OnlyAt("Game Trail")
+            $"{trackDesc}, still crisp. {char.ToUpper(animal[0]) + animal[1..]} passed through recently.", isGameTrail ? 1.2 : 0.6)
+            .Requires(EventCondition.Working, EventCondition.InAnimalTerritory)
+            .WithSituationFactor(Situations.IsFollowingAnimalSigns, 1.5)
             .WithCooldown(4)
             .Choice("Follow Them",
-                "They can't be far.",
+                "The trail is fresh. They can't be far.",
                 [
-                    new EventResult("You track them to a clearing. Deer, grazing. An opportunity.", weight: 0.50, minutes: 20),
-                    new EventResult("The trail goes cold. They're faster than you.", weight: 0.35, minutes: 15),
-                    new EventResult("You find them — but a wolf found them first. It looks up from its kill.", weight: 0.15, minutes: 12)
-                        .BecomeStalked(0.4, "Wolf")
+                    new EventResult($"You track them carefully. {char.ToUpper(animal[0]) + animal[1..]} ahead, grazing. An opportunity.", weight: 0.45, minutes: 20)
+                        .CreateTension("WoundedPrey", 0.5, description: $"Fresh {animal} trail"),
+                    new EventResult("The trail goes cold. They're faster than you.", weight: 0.30, minutes: 15),
+                    new EventResult("The trail leads to a thicket. Bedded down - dangerous to approach.", weight: 0.15, minutes: 12)
+                        .CreateTension("WoundedPrey", 0.3),
+                    new EventResult("Following the tracks, you find something else found them first.", weight: 0.10, minutes: 12)
+                        .BecomeStalked(0.4)
                 ])
-            .Choice("Wait Here",
-                "They might come back.",
+            .Choice("Mark the Location",
+                "Note where you found these. Return prepared for a proper hunt.",
                 [
-                    new EventResult("You settle in. The trail sees regular traffic.", weight: 1.0, minutes: 5)
+                    new EventResult("You memorize the landmarks. Good hunting ground.", weight: 0.80, minutes: 3)
+                        .CreateTension("MarkedDiscovery", 0.3, description: $"{animal} trail spotted"),
+                    new EventResult("You break some branches to mark the spot.", weight: 0.20, minutes: 5)
+                        .CreateTension("MarkedDiscovery", 0.4, description: $"Marked {animal} trail")
+                ])
+            .Choice("Keep Working",
+                "Note the tracks and continue what you were doing.",
+                [
+                    new EventResult("You file it away mentally. Good to know they're in the area.", weight: 1.0, minutes: 0)
                 ]);
     }
 

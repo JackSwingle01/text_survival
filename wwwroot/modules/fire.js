@@ -1,4 +1,5 @@
 import { show, hide } from './utils.js';
+import { getFirePhaseLabel } from './icons.js';
 
 export const FireDisplay = {
     render(fire) {
@@ -19,7 +20,7 @@ export const FireDisplay = {
         const heatEl = document.getElementById('fireHeat');
 
         if (fire.phase === 'Cold') {
-            phaseText.textContent = 'No fire';
+            phaseText.textContent = getFirePhaseLabel('Cold');
             statusEl.className = 'fire-status cold';
 
             if (fire.totalKg > 0) {
@@ -31,13 +32,8 @@ export const FireDisplay = {
             return;
         }
 
-        // Active fire - show phase and time
-        const phaseLabel = fire.phase === 'Roaring' ? 'Roaring' :
-                          fire.phase === 'Steady' ? 'Steady' :
-                          fire.phase === 'Dying' ? 'Dying' :
-                          fire.phase === 'Embers' ? 'Embers' :
-                          fire.phase === 'Building' ? 'Building' :
-                          fire.phase === 'Igniting' ? 'Igniting' : fire.phase;
+        // Active fire - show phase and time (using centralized labels)
+        const phaseLabel = getFirePhaseLabel(fire.phase);
 
         const timeDisplay = fire.minutesRemaining >= 60
             ? `${Math.floor(fire.minutesRemaining / 60)}hrs`

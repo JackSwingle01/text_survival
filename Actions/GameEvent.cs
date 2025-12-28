@@ -42,6 +42,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     // Equipment targeting
     public GearDamage? DamageGear;
+    public GearRepair? RepairGear;
     public ToolType? BreakTool;  // Legacy - completely destroy a tool
 
     // Feature modification
@@ -62,9 +63,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public EventResult Costs(ResourceType type, int amount) { Cost = new ResourceCost(type, amount); return this; }
 
     public EventResult WithEffects(params Effect[] effects) { Effects.AddRange(effects); return this; }
-    public EventResult Damage(int amount, DamageType type)
+    public EventResult Damage(int amount, DamageType type, BodyTarget target = BodyTarget.Random)
     {
-        NewDamage = new DamageInfo(amount, type);
+        NewDamage = new DamageInfo(amount, type, target);
         return this;
     }
 
@@ -319,6 +320,29 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
                     GameDisplay.AddWarning(ctx, $"  - {target.Name} damaged{conditionInfo}");
                     summary.ItemsLost.Add($"{target.Name} damaged");
                 }
+            }
+        }
+
+        // Gear repair - restores durability
+        if (RepairGear is not null)
+        {
+            Gear? target = RepairGear.Category switch
+            {
+                GearCategory.Tool when RepairGear.ToolType.HasValue =>
+                    ctx.Inventory.GetTool(RepairGear.ToolType.Value),
+                GearCategory.Equipment when RepairGear.Slot.HasValue =>
+                    ctx.Inventory.GetEquipment(RepairGear.Slot.Value),
+                _ => null
+            };
+
+            if (target != null && target.MaxDurability > 0)
+            {
+                target.Durability = Math.Min(target.MaxDurability, target.Durability + RepairGear.DurabilityGain);
+                string conditionInfo = target.Category == GearCategory.Equipment
+                    ? $" (now {target.ConditionPct:P0})"
+                    : $" (+{RepairGear.DurabilityGain} uses)";
+                GameDisplay.AddSuccess(ctx, $"  + {target.Name} repaired{conditionInfo}");
+                summary.ItemsGained.Add($"{target.Name} repaired");
             }
         }
 

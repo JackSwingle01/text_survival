@@ -192,68 +192,12 @@ public record TileDto(
 
     private static List<FeatureDetailDto> GetFeatureDetails(Location location)
     {
-        var details = new List<FeatureDetailDto>();
-
-        foreach (var feature in location.Features)
-        {
-            var dto = feature switch
-            {
-                ShelterFeature s when !s.IsDestroyed => new FeatureDetailDto(
-                    "shelter",
-                    s.Name,
-                    $"{(int)(s.TemperatureInsulation * 100)}% ins, {(int)(s.WindCoverage * 100)}% wind",
-                    null),
-
-                ForageFeature f when f.CanForage() => new FeatureDetailDto(
-                    "forage",
-                    "Foraging",
-                    f.GetQualityDescription(),
-                    f.GetAvailableResourceTypes()),
-
-                AnimalTerritoryFeature a when a.CanHunt() => new FeatureDetailDto(
-                    "animal",
-                    a.HasPredators() ? "Predator Territory" : "Wildlife",
-                    a.GetDescription(),
-                    null),
-
-                CacheFeature c => new FeatureDetailDto(
-                    "cache",
-                    c.Name,
-                    c.GetDescription(),
-                    null),
-
-                WaterFeature w => new FeatureDetailDto(
-                    "water",
-                    w.DisplayName,
-                    w.GetStatusDescription(),
-                    null),
-
-                WoodedAreaFeature wo when wo.HasTrees => new FeatureDetailDto(
-                    "wood",
-                    wo.WoodType?.ToString() ?? "Mixed",
-                    wo.ProgressPct > 0 ? $"{(int)(wo.ProgressPct * 100)}% felled" : "trees available",
-                    null),
-
-                SnareLineFeature sn => new FeatureDetailDto(
-                    "snares",
-                    "Snares",
-                    sn.GetDescription(),
-                    null),
-
-                CuringRackFeature cr => new FeatureDetailDto(
-                    "curing",
-                    "Curing Rack",
-                    cr.GetDescription(),
-                    null),
-
-                _ => null
-            };
-
-            if (dto != null)
-                details.Add(dto);
-        }
-
-        return details;
+        // Features are self-describing - each feature knows how to represent itself for UI
+        return location.Features
+            .Select(f => f.GetUIInfo())
+            .Where(info => info != null)
+            .Select(info => new FeatureDetailDto(info!.Type, info.Label, info.Status, info.Details))
+            .ToList();
     }
 }
 

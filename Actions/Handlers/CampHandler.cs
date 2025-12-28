@@ -58,4 +58,95 @@ public static class CampHandler
         GameDisplay.AddNarrative(ctx, "You have established a camp here. You can now make a fire and rest.");
         GameDisplay.Render(ctx);
     }
+
+    /// <summary>
+    /// Deploy a portable tent at the current location.
+    /// Removes tent from inventory and adds a ShelterFeature to the location.
+    /// </summary>
+    public static void DeployTent(GameContext ctx, Gear tent)
+    {
+        if (!tent.IsTent)
+        {
+            GameDisplay.AddWarning(ctx, "That's not a tent.");
+            return;
+        }
+
+        var location = ctx.CurrentLocation;
+        if (location.HasFeature<ShelterFeature>())
+        {
+            GameDisplay.AddWarning(ctx, "There's already a shelter here.");
+            return;
+        }
+
+        // Remove tent from inventory
+        ctx.Inventory.Tools.Remove(tent);
+
+        // Create shelter from tent
+        var shelter = ShelterFeature.CreateFromTent(tent);
+        location.Features.Add(shelter);
+
+        // Takes a few minutes to set up
+        GameDisplay.AddNarrative(ctx, $"You set up your {tent.Name}...");
+        GameDisplay.UpdateAndRenderProgress(ctx, $"Setting up {tent.Name}", 10, ActivityType.Crafting);
+
+        GameDisplay.AddSuccess(ctx, $"{tent.Name} is now set up. You have shelter here.");
+        GameDisplay.Render(ctx);
+    }
+
+    /// <summary>
+    /// Pack up a deployed tent and return it to inventory.
+    /// </summary>
+    public static void PackTent(GameContext ctx)
+    {
+        var location = ctx.CurrentLocation;
+        var shelter = location.GetFeature<ShelterFeature>();
+
+        if (shelter == null || !shelter.IsPortable)
+        {
+            GameDisplay.AddWarning(ctx, "There's no tent to pack up here.");
+            return;
+        }
+
+        var tent = shelter.SourceTent!;
+
+        // Remove shelter from location
+        location.Features.Remove(shelter);
+
+        // Return tent to inventory
+        ctx.Inventory.Tools.Add(tent);
+
+        // Takes a few minutes to pack up
+        GameDisplay.AddNarrative(ctx, $"You pack up your {tent.Name}...");
+        GameDisplay.UpdateAndRenderProgress(ctx, $"Packing {tent.Name}", 5, ActivityType.Crafting);
+
+        GameDisplay.AddSuccess(ctx, $"{tent.Name} packed and ready to carry.");
+        GameDisplay.Render(ctx);
+    }
+
+    /// <summary>
+    /// Check if a tent can be deployed at the current location.
+    /// </summary>
+    public static bool CanDeployTent(GameContext ctx)
+    {
+        // Need a tent and no existing shelter
+        return ctx.Inventory.Tools.Any(t => t.IsTent)
+            && !ctx.CurrentLocation.HasFeature<ShelterFeature>();
+    }
+
+    /// <summary>
+    /// Check if a tent can be packed up at the current location.
+    /// </summary>
+    public static bool CanPackTent(GameContext ctx)
+    {
+        var shelter = ctx.CurrentLocation.GetFeature<ShelterFeature>();
+        return shelter?.IsPortable == true;
+    }
+
+    /// <summary>
+    /// Get the deployable tent from inventory.
+    /// </summary>
+    public static Gear? GetDeployableTent(GameContext ctx)
+    {
+        return ctx.Inventory.Tools.FirstOrDefault(t => t.IsTent);
+    }
 }

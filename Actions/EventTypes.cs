@@ -61,3 +61,13 @@ public record GearDamage(
     ToolType? ToolType = null,
     EquipSlot? Slot = null
 );
+
+/// <summary>
+/// Gear repair specification - restores durability to equipment or tools.
+/// </summary>
+public record GearRepair(
+    GearCategory Category,
+    int DurabilityGain,
+    ToolType? ToolType = null,
+    EquipSlot? Slot = null
+);

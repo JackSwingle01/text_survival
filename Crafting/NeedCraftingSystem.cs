@@ -399,6 +399,35 @@ public class NeedCraftingSystem
                 WeaponClass = WeaponClass.Pierce
             }
         });
+
+        // Ivory-Tipped Spear: 1 ivory + 1 log + 2 sinew -> best spear
+        // Trophy weapon from mammoth hunts
+        _options.Add(new CraftOption
+        {
+            Name = "Ivory-Tipped Spear",
+            Description = "A spear with a sharpened ivory point. Mammoth tusk is incredibly hard and holds an edge. Trophy weapon.",
+            Category = NeedCategory.HuntingWeapon,
+            CraftingTimeMinutes = 60,
+            Durability = 25,  // Very durable ivory
+            Requirements = [
+                new MaterialRequirement("Ivory", 1),
+                new MaterialRequirement("Logs", 1),
+                new MaterialRequirement("Sinew", 2)
+            ],
+            RequiredTools = [ToolType.Knife],
+            GearFactory = dur => new Gear
+            {
+                Name = "Ivory-Tipped Spear",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Spear,
+                Weight = 2.2,
+                Durability = dur,
+                MaxDurability = dur,
+                Damage = 16,  // Best spear damage
+                BlockChance = 0.15,
+                WeaponClass = WeaponClass.Pierce
+            }
+        });
     }
 
     #endregion
@@ -877,24 +906,50 @@ public class NeedCraftingSystem
         });
 
         // Mammoth Hide Coat: Trophy equipment from megafauna hunts
+        // Uses all 3 hides from one mammoth - the all-in warmth choice
         _options.Add(new CraftOption
         {
             Name = "Mammoth Hide Coat",
-            Description = "A heavy coat sewn from woolly mammoth hide. Superior cold protection. Trophy gear.",
+            Description = "A massive coat of woolly mammoth hide. The thick fur and dense leather block wind completely. Trophy gear.",
             Category = NeedCategory.Equipment,
-            CraftingTimeMinutes = 120,
-            Durability = 30,
+            CraftingTimeMinutes = 180,  // 3 hours - serious undertaking
+            Durability = 40,
             Requirements = [
-                new MaterialRequirement("MammothHide", 8),
-                new MaterialRequirement("Sinew", 3)
+                new MaterialRequirement("MammothHide", 3),
+                new MaterialRequirement("Sinew", 4),
+                new MaterialRequirement("CuredHide", 2)  // For lining
             ],
             GearFactory = dur => new Gear
             {
                 Name = "Mammoth Hide Coat",
                 Category = GearCategory.Equipment,
                 Slot = EquipSlot.Chest,
-                Weight = 3.5,
-                BaseInsulation = 12.0,  // Aspirational high value
+                Weight = 4.0,
+                BaseInsulation = 0.45,  // Best chest insulation in game
+                Durability = dur,
+                MaxDurability = dur
+            }
+        });
+
+        // Mammoth Hood: Uses 1 hide, leaving 2 for utility items
+        _options.Add(new CraftOption
+        {
+            Name = "Mammoth Hood",
+            Description = "A hood of mammoth hide with thick fur lining. Covers head and neck completely.",
+            Category = NeedCategory.Equipment,
+            CraftingTimeMinutes = 90,
+            Durability = 30,
+            Requirements = [
+                new MaterialRequirement("MammothHide", 1),
+                new MaterialRequirement("Sinew", 2)
+            ],
+            GearFactory = dur => new Gear
+            {
+                Name = "Mammoth Hood",
+                Category = GearCategory.Equipment,
+                Slot = EquipSlot.Head,
+                Weight = 0.8,
+                BaseInsulation = 0.22,  // Best head insulation
                 Durability = dur,
                 MaxDurability = dur
             }
@@ -1016,6 +1071,31 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Rope", 2)
             ],
             GearFactory = dur => Gear.LargeBag(dur)
+        });
+
+        // Mammoth Hide Pack: 2 MammothHide + 2 Sinew + 1 Rope -> +15kg
+        // Uses 2 of 3 mammoth hides - alternative to the coat
+        _options.Add(new CraftOption
+        {
+            Name = "Mammoth Hide Pack",
+            Description = "A massive pack of mammoth hide. The thick leather is nearly indestructible. Trophy gear.",
+            Category = NeedCategory.Carrying,
+            CraftingTimeMinutes = 120,
+            Durability = 200,  // Very durable
+            Requirements = [
+                new MaterialRequirement("MammothHide", 2),
+                new MaterialRequirement("Sinew", 2),
+                new MaterialRequirement("Rope", 1)
+            ],
+            GearFactory = dur => new Gear
+            {
+                Name = "Mammoth Hide Pack",
+                Category = GearCategory.Accessory,
+                Weight = 2.0,
+                CapacityBonusKg = 15.0,  // Best capacity in game
+                Durability = dur,
+                MaxDurability = dur
+            }
         });
     }
 
@@ -1151,32 +1231,39 @@ public class NeedCraftingSystem
             ) { BenefitsFromShovel = true }
         });
 
-        // 6. Hide Tent (Multi-Session Project)
+        // 6. Portable Hide Tent - crafted item you can deploy anywhere
         _options.Add(new CraftOption
         {
-            Name = "Hide Tent (Project)",
-            Description = "A durable tent made from cured hides stretched over a wooden frame. Good all-around protection. Takes several hours to construct.",
+            Name = "Hide Tent",
+            Description = "A portable tent made from cured hides and a collapsible frame. Carry it with you and deploy shelter anywhere.",
             Category = NeedCategory.CampInfrastructure,
-            CraftingTimeMinutes = 15, // Setup time
-            Durability = 0,
+            CraftingTimeMinutes = 180,  // 3 hours to craft
+            Durability = 50,
             Requirements = [
-                new MaterialRequirement("Sticks", 20),
-                new MaterialRequirement("CuredHide", 5),
-                new MaterialRequirement("Rope", 10)
+                new MaterialRequirement("CuredHide", 4),
+                new MaterialRequirement("Sticks", 4),
+                new MaterialRequirement("Rope", 2)
             ],
-            Prerequisite = ctx => {
-                if (ctx.Camp.HasFeature<ShelterFeature>())
-                    return "Camp already has a shelter";
-                return null;
-            },
-            FeatureFactory = () => new CraftingProjectFeature(
-                "Hide Tent",
-                ShelterFeature.CreateHideTent(),
-                360 // 6 hours of work
-            )
+            GearFactory = dur => Gear.HideTent(dur)
         });
 
-        // 7. Cabin (Multi-Session Project - Major Undertaking)
+        // 7. Mammoth Hide Tent - superior portable shelter from trophy materials
+        _options.Add(new CraftOption
+        {
+            Name = "Mammoth Hide Tent",
+            Description = "A heavy-duty tent of mammoth hide. Superior wind and cold protection. Trophy gear.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 240,  // 4 hours to craft
+            Durability = 80,
+            Requirements = [
+                new MaterialRequirement("MammothHide", 2),
+                new MaterialRequirement("Sinew", 4),
+                new MaterialRequirement("Sticks", 2)
+            ],
+            GearFactory = dur => Gear.MammothHideTent(dur)
+        });
+
+        // 8. Cabin (Multi-Session Project - Major Undertaking)
         _options.Add(new CraftOption
         {
             Name = "Cabin (Project)",

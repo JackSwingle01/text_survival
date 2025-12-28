@@ -74,7 +74,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("The storm passes in about half an hour. You continue.", 0.40, 30)
                         .MinorCold(),
-                    new EventResult("The storm lasts longer than expected. Your fire margin is in danger.", 0.35, 60)
+                    new EventResult("The storm lasts longer than expected. Your fire is in danger.", 0.35, 60)
                         .WithCold(-12, 50),
                     new EventResult("The cold seeps in despite your efforts. You feel the early signs of hypothermia.", 0.20, 40)
                         .DangerousCold(),
