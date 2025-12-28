@@ -1,3 +1,4 @@
+using text_survival.Actions.Variants;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -12,9 +13,16 @@ namespace text_survival.Actions.Expeditions.WorkStrategies;
 /// Strategy for foraging ambient resources from a location.
 /// Requires ForageFeature. Impaired by moving and breathing capacity.
 /// Yields reduced by perception impairment.
+///
+/// Shows environmental clues to help players make informed focus choices.
 /// </summary>
 public class ForageStrategy : IWorkStrategy
 {
+    // Store clues and focus between GetTimeOptions and Execute
+    private List<ForageClue>? _clues;
+    private ForageFocus _focus = ForageFocus.General;
+    private ForageClue? _followedClue;
+
     public string? ValidateLocation(GameContext ctx, Location location)
     {
         var feature = location.GetFeature<ForageFeature>();
@@ -25,12 +33,85 @@ public class ForageStrategy : IWorkStrategy
 
     public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
     {
-        var choice = new Choice<int>("How long should you forage?");
-        choice.AddOption("Quick gather - 15 min", 15);
-        choice.AddOption("Standard search - 30 min", 30);
-        choice.AddOption("Thorough search - 60 min", 60);
-        choice.AddOption("Cancel", 0);
-        return choice;
+        var feature = location.GetFeature<ForageFeature>()!;
+        string quality = feature.GetQualityDescription();
+
+        // Generate environmental clues
+        _clues = ClueSelector.GenerateClues(ctx, location);
+
+        // Calculate perception for clue display
+        var perception = AbilityCalculator.CalculatePerception(
+            ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers());
+        bool showHints = ClueSelector.ShouldShowHints(perception);
+
+        // Display clues as narrative observations (not buttons)
+        GameDisplay.ClearNarrative(ctx);
+        GameDisplay.AddNarrative(ctx, $"You scan the area. Resources look {quality}.");
+        if (_clues.Count > 0)
+        {
+            GameDisplay.AddNarrative(ctx, "You notice:");
+            foreach (var clue in _clues)
+            {
+                // Show hint text only if perception is adequate
+                string display = showHints
+                    ? $"  • {clue.Description} {clue.HintText}"
+                    : $"  • {clue.Description}";
+                GameDisplay.AddNarrative(ctx, display);
+            }
+            if (!showHints)
+                GameDisplay.AddWarning(ctx, "Your foggy senses make it hard to read the signs.");
+        }
+
+        // Show any penalties/bonuses
+        bool isDark = location.IsDark || ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;
+        if (isDark && !location.HasActiveHeatSource() && !ctx.Inventory.HasLitTorch)
+            GameDisplay.AddWarning(ctx, "It's dark - your yield will be halved without light.");
+
+        var axe = ctx.Inventory.GetTool(ToolType.Axe);
+        var shovel = ctx.Inventory.GetTool(ToolType.Shovel);
+        if (axe?.Works == true)
+            GameDisplay.AddNarrative(ctx, "Your axe will help gather wood.");
+        if (shovel?.Works == true)
+            GameDisplay.AddNarrative(ctx, "Your shovel will help dig up roots.");
+
+        GameDisplay.Render(ctx, statusText: "Reading the land.");
+
+        // Get focus choice
+        var focusChoice = new Choice<ForageFocus?>("What do you focus on?");
+        focusChoice.AddOption("Fuel (sticks, bark, wood)", ForageFocus.Fuel);
+        focusChoice.AddOption("Food (berries, roots, nuts)", ForageFocus.Food);
+        focusChoice.AddOption("Medicine (fungi, moss, bark)", ForageFocus.Medicine);
+        focusChoice.AddOption("Materials (stone, bone, fiber)", ForageFocus.Materials);
+        focusChoice.AddOption("Search generally", ForageFocus.General);
+        focusChoice.AddOption("Cancel", null);
+
+        var focusResult = focusChoice.GetPlayerChoice(ctx);
+        if (focusResult == null)
+            return null; // Cancel work
+
+        _focus = focusResult.Value;
+
+        // Check if focus matches any visible clue (implicit clue-following)
+        _followedClue = _clues.FirstOrDefault(c =>
+            (_focus == ForageFocus.Fuel && c.SuggestedResources.Any(r => r.IsFuel())) ||
+            (_focus == ForageFocus.Food && c.SuggestedResources.Any(r => r.IsFood())) ||
+            (_focus == ForageFocus.Medicine && c.SuggestedResources.Any(r => r.IsMedicine())) ||
+            (_focus == ForageFocus.Materials && c.SuggestedResources.Any(r => r.IsMaterial()))
+        );
+
+        // Tutorial for first clue experience
+        if (_clues.Count > 0)
+        {
+            ctx.ShowTutorialOnce("You've learned to read the land. Signs like these tell you what might be found nearby.");
+        }
+
+        // Now show time choice
+        var timeChoice = new Choice<int>("How long should you search?");
+        timeChoice.AddOption("Quick - 15 min", 15);
+        timeChoice.AddOption("Standard - 30 min", 30);
+        timeChoice.AddOption("Thorough - 60 min", 60);
+        timeChoice.AddOption("Cancel", 0);
+        return timeChoice;
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -49,7 +130,12 @@ public class ForageStrategy : IWorkStrategy
         return ((int)(baseTime * timeFactor), warnings);
     }
 
-    public ActivityType GetActivityType() => ActivityType.Foraging;
+    public ActivityType GetActivityType() =>
+        FollowingAnimalSigns() ? ActivityType.Tracking : ActivityType.Foraging;
+
+    private bool FollowingAnimalSigns() =>
+        _followedClue?.SuggestedResources.Any(r =>
+            r == Resource.Bone || r == Resource.RawMeat) == true;
 
     public string GetActivityName() => "foraging";
 
@@ -59,9 +145,24 @@ public class ForageStrategy : IWorkStrategy
     {
         var feature = location.GetFeature<ForageFeature>()!;
 
-        GameDisplay.AddNarrative(ctx, "You search the area for resources...");
+        // Narrative based on focus
+        if (_followedClue != null)
+        {
+            GameDisplay.AddNarrative(ctx, $"You follow the signs... {_followedClue.Description.ToLower()}");
+        }
+        else if (_focus != ForageFocus.General)
+        {
+            GameDisplay.AddNarrative(ctx, $"You search for {FocusProcessor.GetFocusDescription(_focus)}...");
+        }
+        else
+        {
+            GameDisplay.AddNarrative(ctx, "You search the area for resources...");
+        }
 
         var found = feature.Forage(actualTime / 60.0);
+
+        // Apply focus to results (self-contained in FocusProcessor)
+        FocusProcessor.ApplyFocus(found, _focus, _followedClue);
 
         // Darkness penalty: limited visibility reduces yield (-50%)
         bool isDark = location.IsDark || ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;

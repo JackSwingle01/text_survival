@@ -64,7 +64,6 @@ public static class TreatmentHandler
         {
             GameDisplay.AddNarrative(ctx, "You don't have the right materials to treat your wounds.");
             GameDisplay.Render(ctx, statusText: "Thinking.");
-            Input.WaitForKey(ctx);
             return;
         }
 
@@ -144,6 +143,5 @@ public static class TreatmentHandler
         }
 
         GameDisplay.Render(ctx, statusText: "Treating.");
-        Input.WaitForKey(ctx);
     }
 }

@@ -153,7 +153,6 @@ public static class WebServer
                     GameDisplay.AddNarrative(tempCtx, "");
                     GameDisplay.AddNarrative(tempCtx, "Game cancelled. Refresh the page to try again.");
                     GameDisplay.Render(tempCtx);
-                    Input.WaitForKey(tempCtx, "Press any key to close...");
                     return;
                 }
 
@@ -251,9 +250,6 @@ public static class WebServer
 
         // Send final frame
         GameDisplay.Render(ctx);
-
-        // Wait for player acknowledgment
-        Input.WaitForKey(ctx, "Press any key to close...");
     }
 
     private static string DetermineCauseOfDeath(Player player)

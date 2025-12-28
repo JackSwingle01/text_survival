@@ -1,3 +1,4 @@
+using text_survival.Actions.Variants;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -16,13 +17,11 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent SomethingWrong(GameContext ctx)
     {
-        var woundTension = ctx.Tensions.GetTension("WoundUntreated");
-        var cause = woundTension != null
-            ? "Your wound is hot. Infection spreading."
-            : "The cold has seeped into your bones. Your body is fighting.";
+        // Use IllnessVariant for context-aware cause detection
+        var onset = IllnessSelector.SelectOnsetVariant(ctx);
 
         return new GameEvent("Something Wrong",
-            $"Chills that won't stop. Head pounding. {cause}", 0.8)
+            $"Chills that won't stop. Head pounding. {onset.Description}", 0.8)
             .Requires(EventCondition.Awake, EventCondition.LowTemperature)
             // InfectionRisk covers: WoundUntreated/WoundUntreatedHigh + LowTemperature
             .WithSituationFactor(Situations.InfectionRisk, 4.0)
@@ -119,14 +118,13 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent TheFireIllusion(GameContext ctx)
     {
-        // Pre-determine if this is real or hallucination
-        // Checking actual fire state to know the truth
-        var fireActuallyLow = ctx.CurrentLocation.GetFeature<HeatSourceFeature>()?.BurningMassKg < 0.5;
-        var isReal = fireActuallyLow && Utils.DetermineSuccess(0.20);  // Only 20% of alarms are real
+        // Use IllnessVariant for context-aware hallucination
+        var hallucination = IllnessSelector.SelectFireHallucination(ctx);
+        var isReal = IllnessSelector.IsHallucinationReal(hallucination, ctx);
 
         var description = isReal
             ? "Your fire — the embers are dying! The light fading! You need to act!"  // Real - more urgent
-            : "Your fire — is it dying? The light seems to flicker. Embers fading?";   // Hallucination - slightly off
+            : hallucination.Description;  // Varied hallucination text
 
         return new GameEvent("The Fire Illusion",
             $"Through the fog of fever, panic strikes. {description}", 2.0)
@@ -180,12 +178,14 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent FootstepsOutside(GameContext ctx)
     {
-        // Pre-determine reality
-        var isReal = Utils.DetermineSuccess(0.20);
+        // Use IllnessVariant for context-aware hallucination
+        // Reality now responds to Stalked tension state, not flat 20%
+        var hallucination = IllnessSelector.SelectPredatorHallucination(ctx);
+        var isReal = IllnessSelector.IsHallucinationReal(hallucination, ctx);
 
         var description = isReal
             ? "Footsteps. Circling the camp. Something is OUT THERE."
-            : "Footsteps? Something circling? The snow crunches... or does it?";
+            : hallucination.Description;  // Varied hallucination text
 
         return new GameEvent("Footsteps Outside",
             $"Through fevered haze, you hear it. {description}", 1.8)

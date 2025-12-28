@@ -1,4 +1,4 @@
-import { Utils } from './utils.js';
+import { Utils, show, hide } from './utils.js';
 
 export const EffectsDisplay = {
     render(effects) {
@@ -7,12 +7,12 @@ export const EffectsDisplay = {
 
         // Hide entire section if no effects
         if (!effects || effects.length === 0) {
-            if (section) section.classList.add('hidden');
+            hide(section);
             return;
         }
 
         // Show section
-        if (section) section.classList.remove('hidden');
+        show(section);
         Utils.clearElement(container);
 
         effects.forEach(e => {
@@ -107,12 +107,12 @@ export const EffectsDisplay = {
 
         // Hide entire section if no injuries
         if (!hasBloodLoss && !hasInjuries) {
-            if (section) section.classList.add('hidden');
+            hide(section);
             return;
         }
 
         // Show section
-        if (section) section.classList.remove('hidden');
+        show(section);
         Utils.clearElement(container);
 
         if (hasBloodLoss) {

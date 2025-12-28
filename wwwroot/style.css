@@ -1423,6 +1423,71 @@ body {
     margin-top: 2px;
 }
 
+/* Quick Glance Bar - color-coded badges */
+.tile-popup-glance {
+    padding: 8px 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    border-bottom: 1px solid var(--border-dim);
+}
+
+.tile-popup-glance:empty {
+    display: none;
+}
+
+.glance-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.glance-badge .material-symbols-outlined {
+    font-size: 14px;
+}
+
+/* Badge type colors */
+.glance-badge.danger {
+    background: rgba(200, 80, 60, 0.25);
+    color: #e08060;
+}
+
+.glance-badge.fire {
+    background: rgba(224, 136, 48, 0.25);
+    color: var(--fire-orange);
+}
+
+.glance-badge.water {
+    background: rgba(96, 160, 176, 0.25);
+    color: var(--tech-cyan);
+}
+
+.glance-badge.cold {
+    background: rgba(100, 160, 200, 0.2);
+    color: #80b0d0;
+}
+
+.glance-badge.warm {
+    background: rgba(224, 160, 80, 0.2);
+    color: #e0a050;
+}
+
+.glance-badge.good {
+    background: rgba(80, 160, 80, 0.2);
+    color: var(--health-green);
+}
+
+.glance-badge.neutral {
+    background: rgba(128, 128, 128, 0.2);
+    color: var(--text-dim);
+}
+
 .tile-popup-features {
     padding: 8px 12px;
     border-bottom: 1px solid var(--border-dim);
@@ -1460,72 +1525,7 @@ body {
     color: var(--warning-amber);
 }
 
-/* Enhanced Tile Popup Sections */
-.tile-popup-section {
-    padding: 6px 12px;
-    border-bottom: 1px solid var(--border-dim);
-}
-
-.tile-popup-section:empty {
-    display: none;
-}
-
-.tile-popup-section.hazard {
-    background: rgba(192, 128, 64, 0.05);
-}
-
-.tile-popup-section.tactical {
-    background: rgba(80, 160, 80, 0.03);
-}
-
-/* Popup Item Rows */
-.popup-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 0;
-    font-size: 0.75rem;
-    color: var(--text-dim);
-}
-
-.popup-item .material-symbols-outlined {
-    font-size: 14px;
-    width: 18px;
-    text-align: center;
-}
-
-/* Item type colors */
-.popup-item.wind .material-symbols-outlined {
-    color: var(--tech-cyan);
-}
-
-.popup-item.hazard {
-    color: var(--warning-amber);
-}
-
-.popup-item.hazard .material-symbols-outlined {
-    color: var(--warning-amber);
-}
-
-.popup-item.tactical-good {
-    color: var(--health-green);
-}
-
-.popup-item.tactical-good .material-symbols-outlined {
-    color: var(--health-green);
-}
-
-.popup-item.warm .material-symbols-outlined {
-    color: var(--fire-orange);
-}
-
-.popup-item.cold .material-symbols-outlined {
-    color: var(--tech-cyan);
-}
-
-.popup-item.neutral .material-symbols-outlined {
-    color: var(--text-faint);
-}
+/* (Old popup sections removed - replaced by glance bar) */
 
 /* Detailed Feature Display */
 .popup-feature-detailed {
@@ -1565,11 +1565,26 @@ body {
     font-style: italic;
 }
 
+.tile-popup-prompt {
+    padding: 8px 12px;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    border-bottom: 1px solid var(--border-dim);
+    border-left: 3px solid rgba(100, 151, 177, 0.4);
+    margin: 0 10px;
+}
+
+.tile-popup-prompt.hidden {
+    display: none;
+}
+
 .tile-popup-actions {
-    padding: 8px;
+    padding: 10px;
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .tile-popup-actions:empty {
@@ -1577,15 +1592,14 @@ body {
 }
 
 .popup-action-btn {
-    flex: 1 1 auto;
-    min-width: 80px;
+    width: 100%;
     background: #1d2734;
-    border: 2px solid rgba(255, 255, 255, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 0;
-    color: inherit;
-    padding: 0.6rem 0.8rem;
+    color: var(--text-dim);
+    padding: 0.5rem 0.6rem;
     font-family: 'Oswald', sans-serif;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 1px;
     text-align: center;
@@ -1597,7 +1611,7 @@ body {
     background: rgba(255, 255, 255, 0.9);
     color: hsl(var(--bg-h), var(--bg-s), var(--bg-l));
     border-color: rgba(255, 255, 255, 0.9);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
 }
 
 .popup-action-btn:active {
@@ -1606,13 +1620,20 @@ body {
     transform: translateY(0);
 }
 
+/* Primary action (Go button) - prominent and unmissable */
 .popup-action-btn.primary {
-    border-color: var(--fire-orange);
+    background: rgba(224, 136, 48, 0.15);
+    border: 2px solid var(--fire-orange);
+    color: var(--fire-orange);
+    padding: 0.7rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 500;
 }
 
 .popup-action-btn.primary:hover {
-    background: rgba(255, 255, 255, 0.9);
-    border-color: rgba(255, 255, 255, 0.9);
+    background: var(--fire-orange);
+    color: #000;
+    border-color: var(--fire-orange);
 }
 
 /* ============================================

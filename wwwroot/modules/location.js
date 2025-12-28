@@ -1,4 +1,4 @@
-import { Utils } from './utils.js';
+import { Utils, createIcon } from './utils.js';
 
 const FEATURE_ICONS = {
     'Fire': 'local_fire_department',
@@ -28,10 +28,7 @@ export const LocationDisplay = {
             tag.className = 'feature-tag';
 
             // Add icon
-            const icon = document.createElement('span');
-            icon.className = 'material-symbols-outlined';
-            icon.textContent = FEATURE_ICONS[f.type] || 'category';
-            tag.appendChild(icon);
+            tag.appendChild(createIcon(FEATURE_ICONS[f.type] || 'category'));
 
             // Add label text
             tag.appendChild(document.createTextNode(f.label));

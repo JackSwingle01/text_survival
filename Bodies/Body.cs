@@ -1,4 +1,7 @@
 // Body.cs
+using text_survival.Effects;
+using text_survival.Environments;
+using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.Survival;
 
@@ -225,16 +228,32 @@ public class Body
         return capacities.Digestion;
     }
 
-    public bool Rest(int minutes)
+    public bool Rest(int minutes, Location? location = null, EffectRegistry? effects = null)
     {
         var result = SurvivalProcessor.Sleep(this, minutes);
         ApplyResult(result);
+
+        // Base quality from exhaustion state
+        double quality = Energy <= 0 ? 1.0 : 0.7;
+
+        // Bedding quality (0.3 none → 1.0 sleeping bag)
+        var bedding = location?.GetFeature<BeddingFeature>();
+        double beddingFactor = bedding?.Quality ?? 0.3;
+        quality *= beddingFactor;
+
+        // Wetness penalty - sleeping wet is miserable (up to -50%)
+        if (effects != null)
+        {
+            var wetness = effects.GetEffectsByKind("Wet").FirstOrDefault()?.Severity ?? 0;
+            if (wetness > 0.2)
+                quality *= (1 - wetness * 0.5);
+        }
 
         HealingInfo healing = new()
         {
             Amount = minutes / 10.0,
             Type = "natural",
-            Quality = Energy <= 0 ? 1 : 0.7,
+            Quality = quality,
         };
         Heal(healing);
 

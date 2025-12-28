@@ -281,7 +281,7 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     {
         if (!CanForage()) yield break;
         yield return new WorkOption(
-            $"Forage for resources ({GetQualityDescription()})",
+            $"Forage ({GetQualityDescription()})",
             "forage",
             new ForageStrategy()
         );

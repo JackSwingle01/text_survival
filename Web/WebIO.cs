@@ -282,45 +282,6 @@ public static class WebIO
     }
 
     /// <summary>
-    /// Wait for any key press (continue button in web UI).
-    /// </summary>
-    public static void WaitForKey(GameContext ctx, string message = "Continue")
-    {
-        var session = GetSession(ctx);
-
-        int inputId = session.GenerateInputId();
-        var frame = new WebFrame(
-            GameStateDto.FromContext(ctx),
-            GetCurrentMode(ctx),
-            GetCurrentOverlays(ctx.SessionId),
-            new InputRequestDto(inputId, "anykey", message, null)
-        );
-
-        session.Send(frame);
-        session.WaitForResponse(inputId, ResponseTimeout);
-    }
-
-    /// <summary>
-    /// Wait for user to dismiss an overlay (e.g., event outcome popup).
-    /// Sends a frame with no input request - the overlay provides its own button.
-    /// </summary>
-    public static void WaitForOverlayDismiss(GameContext ctx)
-    {
-        var session = GetSession(ctx);
-
-        int inputId = session.GenerateInputId();
-        var frame = new WebFrame(
-            GameStateDto.FromContext(ctx),
-            GetCurrentMode(ctx),
-            GetCurrentOverlays(ctx.SessionId),
-            new InputRequestDto(inputId, "anykey", "Continue", null)  // Overlay has its own Continue button
-        );
-
-        session.Send(frame);
-        session.WaitForResponse(inputId, ResponseTimeout);
-    }
-
-    /// <summary>
     /// Present a numeric selection and wait for player choice.
     /// Shows as buttons with the available numbers.
     /// </summary>

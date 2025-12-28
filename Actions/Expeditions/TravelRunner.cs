@@ -3,6 +3,7 @@ using text_survival.Environments;
 using text_survival.IO;
 using text_survival.Persistence;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions.Expeditions;
 
@@ -184,19 +185,27 @@ public class TravelRunner(GameContext ctx)
         int carefulTime = (int)Math.Ceiling(normalTime * TravelProcessor.CarefulTravelMultiplier);
         double injuryRisk = TravelProcessor.GetInjuryRisk(location, _ctx.player, _ctx.Weather);
 
-        // Determine hazard type and narrative
-        string direction = isExiting ? "Exiting" : "Entering";
+        // Get location position for UI overlay
+        var position = _ctx.Map!.GetPosition(location);
+        if (position == null)
+            throw new InvalidOperationException($"Location {location.Name} not found on map");
+
+        // Determine hazard type for display
         string hazardType = GetHazardDescription(location);
 
-        GameDisplay.AddNarrative(_ctx, $"{direction} {location.Name} — the {hazardType} looks treacherous.");
+        // Use specialized hazard prompt (already exists in WebIO)
+        bool quickTravel = WebIO.PromptHazardChoice(
+            _ctx,
+            location,
+            position.Value.X,
+            position.Value.Y,
+            hazardType,
+            normalTime,
+            carefulTime,
+            injuryRisk
+        );
 
-        var speedChoice = new Choice<bool>("How do you proceed?");
-        speedChoice.AddOption($"Careful (~{carefulTime} min) - Safe passage", false);
-        speedChoice.AddOption($"Quick (~{normalTime} min) - {injuryRisk:P0} injury risk", true);
-
-        bool quickTravel = speedChoice.GetPlayerChoice(_ctx);
         int segmentTime = quickTravel ? normalTime : carefulTime;
-
         return (segmentTime, quickTravel);
     }
 
@@ -248,8 +257,6 @@ public class TravelRunner(GameContext ctx)
         GameDisplay.AddNarrative(_ctx, $"Days survived: {_ctx.DaysSurvived}");
         GameDisplay.AddNarrative(_ctx, $"Season: {_ctx.Weather.GetSeasonLabel()}");
         GameDisplay.Render(_ctx, statusText: "Victory!");
-
-        Input.WaitForKey(_ctx);
     }
 
 }

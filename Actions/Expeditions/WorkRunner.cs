@@ -46,7 +46,6 @@ public class WorkRunner(GameContext ctx)
         string reason = isNight ? "It's too dark to work at night." : "It's too dark to work here.";
         GameDisplay.AddWarning(_ctx, $"{reason} You need a light source.");
         GameDisplay.Render(_ctx, statusText: "Darkness.");
-        Input.WaitForKey(_ctx);
         return true;
     }
 
@@ -115,7 +114,6 @@ public class WorkRunner(GameContext ctx)
 
         // Show UI and check weight
         GameDisplay.Render(_ctx, statusText: "Thinking.");
-        Input.WaitForKey(_ctx);
 
         // Clear work result overlay so it doesn't persist
         WebIO.ClearEvent(_ctx);
@@ -374,7 +372,6 @@ public class WorkRunner(GameContext ctx)
         );
         GameDisplay.AddNarrative(_ctx, "You must drop some items.");
         GameDisplay.Render(_ctx, statusText: "Overburdened.");
-        Input.WaitForKey(_ctx);
 
         // Create a dummy "drop target" that just discards items
         var dropTarget = new Inventory { MaxWeightKg = -1 };
@@ -402,6 +399,5 @@ public class WorkRunner(GameContext ctx)
 
         GameDisplay.AddNarrative(_ctx, "You adjust your load and continue.");
         GameDisplay.Render(_ctx, statusText: "Relieved.");
-        Input.WaitForKey(_ctx);
     }
 }

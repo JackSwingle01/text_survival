@@ -1,4 +1,5 @@
 import { GridScene } from './GridScene.js';
+import { show as showEl, hide as hideEl } from '../utils.js';
 
 /**
  * GridDisplay - Manages the Phaser game instance for grid rendering
@@ -81,9 +82,7 @@ export class GridDisplay {
         const gridContainer = document.getElementById('gridContainer');
         const narrativePanel = document.querySelector('.narrative-panel');
 
-        if (gridContainer) {
-            gridContainer.classList.remove('hidden');
-        }
+        showEl(gridContainer);
         if (narrativePanel) {
             narrativePanel.classList.add('grid-mode');
         }
@@ -98,9 +97,7 @@ export class GridDisplay {
         const gridContainer = document.getElementById('gridContainer');
         const narrativePanel = document.querySelector('.narrative-panel');
 
-        if (gridContainer) {
-            gridContainer.classList.add('hidden');
-        }
+        hideEl(gridContainer);
         if (narrativePanel) {
             narrativePanel.classList.remove('grid-mode');
         }

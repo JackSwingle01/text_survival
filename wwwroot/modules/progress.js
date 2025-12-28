@@ -102,6 +102,13 @@ export const ProgressDisplay = {
             const current = lerp(this.startState.bodyTemp, this.statDeltas.bodyTemp);
             const tempEl = document.getElementById('bodyTempDisplay');
             if (tempEl) tempEl.textContent = `${current.toFixed(1)}°F`;
+
+            // Also update temperature bar (87-102°F range)
+            const tempBar = document.getElementById('tempBar');
+            if (tempBar) {
+                const tempPct = Math.max(0, Math.min(100, ((current - 87) / 15) * 100));
+                tempBar.style.width = tempPct + '%';
+            }
         }
 
         // Interpolate fire time remaining (if fire exists)
@@ -110,7 +117,11 @@ export const ProgressDisplay = {
             const phaseTextEl = document.getElementById('firePhaseText');
             if (phaseTextEl && current > 0) {
                 const phaseLabel = this.startState.fire.phase;
-                phaseTextEl.textContent = `${phaseLabel} — ${Math.round(current)} min`;
+                const currentMinutes = Math.round(current);
+                const timeDisplay = currentMinutes >= 60
+                    ? `${Math.floor(currentMinutes / 60)}hrs`
+                    : `${currentMinutes}min`;
+                phaseTextEl.textContent = `${phaseLabel} — ${timeDisplay}`;
             }
         }
     },
@@ -121,7 +132,18 @@ export const ProgressDisplay = {
      * @param {number} value - Current interpolated value (0-100)
      */
     updateStatBar(statName, value) {
-        const bar = document.querySelector(`[data-stat="${statName}"] .stat-fill`);
+        // Map from stat names used in animation to actual element IDs
+        const idMap = {
+            'healthPercent': 'healthBar',
+            'foodPercent': 'foodBar',
+            'waterPercent': 'waterBar',
+            'energyPercent': 'energyBar'
+        };
+
+        const barId = idMap[statName];
+        if (!barId) return;
+
+        const bar = document.getElementById(barId);
         if (bar) {
             bar.style.width = `${Math.max(0, Math.min(100, value))}%`;
         }

@@ -1,3 +1,4 @@
+using text_survival.Actions.Variants;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -64,22 +65,15 @@ public static partial class GameEventRegistry
         var denTension = ctx.Tensions.GetTension("ClaimedTerritory");
         var animal = denTension?.AnimalType ?? "Wolf";
 
-        // Different animals, different tactics
-        var isBear = animal.ToLower().Contains("bear");
-        var isWolf = animal.ToLower().Contains("wolf");
-
-        var tacticsDesc = isBear
-            ? "Bear. Fire works best — smoke them out. Noise alone won't help."
-            : isWolf
-                ? "Wolves. Fire works. Noise might work. They hunt during the day — maybe wait."
-                : "Something territorial. Proceed with caution.";
+        // Use AnimalTypeVariant for behavior - eliminates branching
+        var variant = AnimalSelector.GetVariant(animal);
 
         return new GameEvent("Assessing the Claim",
-            $"You know what lives here now. {tacticsDesc} The question is: is it worth it?", 1.5)
+            $"You know what lives here now. {variant.TacticsDescription} The question is: is it worth it?", 1.5)
             .Requires(EventCondition.ClaimedTerritory, EventCondition.Working)
             .Choice("Wait for It to Leave",
-                isWolf ? "Wolves hunt during the day. Maybe it's out." : "Wait and watch. Maybe an opportunity.",
-                isWolf
+                variant.WaitDescription,
+                variant.IsDiurnal
                     ? [
                         new EventResult("The den is empty. The pack is hunting. Quick, claim it.", weight: 0.45, minutes: 60)
                             .ResolveTension("ClaimedTerritory")
@@ -95,8 +89,8 @@ public static partial class GameEventRegistry
                             .ResolveTension("ClaimedTerritory")
                             .AddsShelter(temp: 0.5, overhead: 0.7, wind: 0.8)
                             .Chain(ClaimingTheDen),
-                        new EventResult("It's not leaving. Bears are stubborn.", weight: 0.50, minutes: 90),
-                        new EventResult("Hibernating. It's not going anywhere.", weight: 0.25, minutes: 60)
+                        new EventResult("It's not leaving. Stubborn.", weight: 0.50, minutes: 90),
+                        new EventResult("Hunkered down. It's not going anywhere.", weight: 0.25, minutes: 60)
                             .Escalate("ClaimedTerritory", 0.2)
                     ])
             .Choice("Drive It Out with Smoke",
@@ -120,9 +114,9 @@ public static partial class GameEventRegistry
                 [EventCondition.HasFuel, EventCondition.HasTinder])
             .Choice("Drive It Out with Noise",
                 "Shouting, banging rocks, make it think twice.",
-                isWolf
+                variant.NoiseEffectiveness > 0.4
                     ? [
-                        new EventResult("The wolves scatter at the commotion. Den yours.", weight: 0.40, minutes: 25)
+                        new EventResult("They scatter at the commotion. Den yours.", weight: 0.40, minutes: 25)
                             .ResolveTension("ClaimedTerritory")
                             .AddsShelter(temp: 0.4, overhead: 0.6, wind: 0.7)
                             .Chain(ClaimingTheDen),

@@ -40,7 +40,6 @@ public class CraftingRunner(GameContext ctx)
         {
             GameDisplay.AddNarrative(_ctx, "You don't have materials to make anything.");
             GameDisplay.Render(_ctx, statusText: "Thinking.");
-            Input.WaitForKey(_ctx);
             Web.WebIO.ClearCrafting(_ctx);
             return;
         }
@@ -83,7 +82,6 @@ public class CraftingRunner(GameContext ctx)
         {
             GameDisplay.AddNarrative(_ctx, $"You need {GetNeedDescription(need)}, but don't have materials to make one.");
             GameDisplay.Render(_ctx, statusText: "Thinking.");
-            Input.WaitForKey(_ctx);
             return false;
         }
 
@@ -119,7 +117,6 @@ public class CraftingRunner(GameContext ctx)
         {
             GameDisplay.AddNarrative(_ctx, "You can't make anything right now.");
             GameDisplay.Render(_ctx, statusText: "Thinking.");
-            Input.WaitForKey(_ctx);
             return false;
         }
 
@@ -254,7 +251,6 @@ public class CraftingRunner(GameContext ctx)
         }
 
         GameDisplay.Render(_ctx, statusText: "Satisfied.");
-        Input.WaitForKey(_ctx);
 
         return true;
     }

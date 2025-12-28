@@ -71,7 +71,6 @@ public static class InventoryTransferHelper
             {
                 GameDisplay.AddNarrative(ctx, "Nothing to store.");
                 GameDisplay.Render(ctx, statusText: "Organizing.");
-                Input.WaitForKey(ctx);
                 break;
             }
 
@@ -93,7 +92,6 @@ public static class InventoryTransferHelper
             {
                 GameDisplay.AddWarning(ctx, $"{storageName} is full! ({storage.CurrentWeightKg:F1}/{storage.MaxWeightKg:F0} kg)");
                 GameDisplay.Render(ctx, statusText: "Organizing.");
-                Input.WaitForKey(ctx);
                 continue;
             }
 
@@ -117,7 +115,6 @@ public static class InventoryTransferHelper
             {
                 GameDisplay.AddNarrative(ctx, $"{storageName} is empty.");
                 GameDisplay.Render(ctx, statusText: "Organizing.");
-                Input.WaitForKey(ctx);
                 break;
             }
 
@@ -139,7 +136,6 @@ public static class InventoryTransferHelper
             {
                 GameDisplay.AddWarning(ctx, $"You can't carry that much! ({playerInv.CurrentWeightKg:F1}/{playerInv.MaxWeightKg:F0} kg)");
                 GameDisplay.Render(ctx, statusText: "Organizing.");
-                Input.WaitForKey(ctx);
                 continue;
             }
 

@@ -39,7 +39,7 @@ public class HarvestStrategy : IWorkStrategy
             var harvestChoice = new Choice<HarvestableFeature>("What do you want to harvest?");
             foreach (var h in harvestables)
             {
-                harvestChoice.AddOption($"{h.DisplayName} - {h.GetStatusDescription()}", h);
+                harvestChoice.AddOption($"{h.DisplayName}", h);
             }
             _selectedTarget = harvestChoice.GetPlayerChoice(ctx);
         }

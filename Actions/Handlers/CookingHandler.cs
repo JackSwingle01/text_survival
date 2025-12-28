@@ -64,7 +64,6 @@ public static class CookingHandler
 
             actions[choice]();
             GameDisplay.Render(ctx, statusText: "Cooking.");
-            Input.WaitForKey(ctx);
         }
     }
 }

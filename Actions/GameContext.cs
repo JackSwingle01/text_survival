@@ -8,6 +8,7 @@ using text_survival.Actions.Expeditions;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
+
 namespace text_survival.Actions;
 
 public class GameContext(Player player, Location camp, Weather weather)
@@ -525,6 +526,7 @@ public enum ActivityType
     Hunting,        // Full events, tracking game
     Exploring,      // Full events, scouting new areas (away from fire)
     Chopping,       // Full events, felling trees (strenuous)
+    Tracking,       // Full events, following animal signs while foraging
 }
 public enum EventCondition
 {

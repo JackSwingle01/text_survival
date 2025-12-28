@@ -62,7 +62,6 @@ public partial class GameRunner(GameContext ctx)
         GameDisplay.AddDanger(ctx, "Your vision fades to black as you collapse...");
         GameDisplay.AddDanger(ctx, "You have died.");
         GameDisplay.Render(ctx, addSeparator: false);
-        Input.WaitForKey(ctx);
     }
 
     private void MainMenu()
@@ -451,7 +450,7 @@ public partial class GameRunner(GameContext ctx)
         {
             // Sleep in 60-minute chunks, checking for events
             int chunkMinutes = Math.Min(60, totalMinutes - slept);
-            ctx.player.Body.Rest(chunkMinutes);
+            ctx.player.Body.Rest(chunkMinutes, ctx.CurrentLocation, ctx.player.EffectRegistry);
 
             int minutes = ctx.Update(chunkMinutes, ActivityType.Sleeping, render: true);
             slept += minutes;
@@ -481,7 +480,6 @@ public partial class GameRunner(GameContext ctx)
         {
             // Not at camp - just show read-only inventory view
             GameDisplay.RenderInventoryScreen(ctx);
-            Input.WaitForKey(ctx, "Press any key to return...");
             if (ctx.SessionId != null)
                 Web.WebIO.ClearInventory(ctx);
             return;

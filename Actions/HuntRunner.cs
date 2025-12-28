@@ -168,7 +168,6 @@ public static class HuntRunner
                 case "assess":
                     ctx.player.stealthManager.AssessTarget(ctx);
                     minutesSpent += 2;
-                    Input.WaitForKey(ctx);
                     break;
 
                 case "wait":
@@ -217,8 +216,6 @@ public static class HuntRunner
         ctx.player.Skills.GetSkill("Hunting").GainExperience(5);
         GameDisplay.AddNarrative(ctx, $"You butcher the {target.Name} and collect {loot.CurrentWeightKg:F1}kg of meat.");
         InventoryCapacityHelper.CombineAndReport(ctx, loot);
-
-        Input.WaitForKey(ctx);
     }
 
     private static void PerformRangedAttack(Animal target, GameContext ctx, bool isSpear)
@@ -250,7 +247,6 @@ public static class HuntRunner
             InventoryCapacityHelper.CombineAndReport(ctx, loot);
 
             ctx.player.stealthManager.StopHunting(ctx, "Hunt successful.");
-            Input.WaitForKey(ctx);
         }
         else
         {
@@ -297,7 +293,6 @@ public static class HuntRunner
 
             // Animal flees
             ctx.player.stealthManager.StopHunting(ctx, $"The {target.Name} escaped.");
-            Input.WaitForKey(ctx);
         }
     }
 }

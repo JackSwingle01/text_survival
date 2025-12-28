@@ -44,7 +44,7 @@
                     <div class="segment-bar temp">
                         <div class="segment-fill" id="tempBar" style="width: 85%;"></div>
                     </div>
-                    <div class="stat-tooltip"><span class="stat-name">Body</span> <span class="stat-value" id="bodyTempDisplay">--°F</span></div>
+                    <div class="stat-tooltip"><span class="stat-name">Body</span> <span class="stat-value" id="bodyTempDisplay">--°F</span> <span class="stat-trend" id="bodyTempTrend"></span></div>
                 </div>
                 <div class="status-row">
                     <span class="status-label"><span class="material-symbols-outlined">air</span>Air</span>
@@ -316,10 +316,9 @@
             <span class="tile-popup-name" id="popupName">Location</span>
             <span class="tile-popup-terrain" id="popupTerrain">Terrain</span>
         </div>
-        <div class="tile-popup-section" id="popupEnvironment"></div>
-        <div class="tile-popup-section hazard" id="popupHazards"></div>
-        <div class="tile-popup-section tactical" id="popupTactical"></div>
+        <div class="tile-popup-glance" id="popupGlance"></div>
         <div class="tile-popup-features" id="popupFeatures"></div>
+        <div class="tile-popup-prompt hidden" id="popupPrompt"></div>
         <div class="tile-popup-actions" id="popupActions"></div>
     </div>
 

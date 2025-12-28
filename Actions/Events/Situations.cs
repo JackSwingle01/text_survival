@@ -1,5 +1,6 @@
 using System.Linq;
 using text_survival.Environments.Features;
+using text_survival.Items;
 
 namespace text_survival.Actions;
 
@@ -36,6 +37,16 @@ public static class Situations
         if (ctx.Check(EventCondition.Injured)) level += 0.2;
         return Math.Min(1.0, level);
     }
+
+    // === FORAGING CONTEXT ===
+
+    /// <summary>
+    /// Player is following animal sign clues while foraging.
+    /// Detected via ActivityType.Tracking (set by ForageStrategy when following animal clues).
+    /// Higher chance of wildlife encounters - both opportunity and danger.
+    /// </summary>
+    public static bool IsFollowingAnimalSigns(GameContext ctx) =>
+        ctx.CurrentActivity == ActivityType.Tracking;
 
     // === VULNERABILITY ===
 
@@ -177,6 +188,26 @@ public static class Situations
         ctx.Check(EventCondition.HasFuel) &&
         ctx.Check(EventCondition.HasFood) &&
         !ctx.Check(EventCondition.Injured);
+
+    /// <summary>
+    /// Player has hunting advantage - good for positive hunt outcomes.
+    /// Combines: weapon equipped, not bleeding (no scent trail), good stealth conditions.
+    /// Use for weighting positive outcomes in hunting/ambush events.
+    /// </summary>
+    public static bool HuntingAdvantage(GameContext ctx) =>
+        ctx.Inventory.HasWeapon &&
+        !ctx.player.EffectRegistry.HasEffect("Bleeding") &&
+        GoodForStealth(ctx);
+
+    /// <summary>
+    /// Player is recovering at camp - good for positive camp events.
+    /// Combines: at camp, near fire, has food.
+    /// Use for weighting recovery events and positive camp outcomes.
+    /// </summary>
+    public static bool Recovering(GameContext ctx) =>
+        ctx.Check(EventCondition.AtCamp) &&
+        ctx.Check(EventCondition.NearFire) &&
+        ctx.Check(EventCondition.HasFood);
 
     // === STEALTH / DETECTION ===
 

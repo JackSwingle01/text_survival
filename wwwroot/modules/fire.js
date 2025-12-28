@@ -1,3 +1,5 @@
+import { show, hide } from './utils.js';
+
 export const FireDisplay = {
     render(fire) {
         const statusEl = document.getElementById('fireStatus');
@@ -5,12 +7,12 @@ export const FireDisplay = {
 
         // Hide entire section if no fire pit
         if (!fire) {
-            if (section) section.classList.add('hidden');
+            hide(section);
             return;
         }
 
         // Show section
-        if (section) section.classList.remove('hidden');
+        show(section);
 
         const phaseText = document.getElementById('firePhaseText');
         const fuelEl = document.getElementById('fireFuel');
@@ -37,7 +39,10 @@ export const FireDisplay = {
                           fire.phase === 'Building' ? 'Building' :
                           fire.phase === 'Igniting' ? 'Igniting' : fire.phase;
 
-        phaseText.textContent = `${phaseLabel} — ${fire.minutesRemaining} min`;
+        const timeDisplay = fire.minutesRemaining >= 60
+            ? `${Math.floor(fire.minutesRemaining / 60)}hrs`
+            : `${fire.minutesRemaining}min`;
+        phaseText.textContent = `${phaseLabel} — ${timeDisplay}`;
 
         // Apply urgency class for styling
         const urgencyClass = fire.urgency?.toLowerCase() || 'safe';

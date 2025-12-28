@@ -93,6 +93,7 @@ public static partial class GameEventRegistry
             .Requires(EventCondition.Working, EventCondition.HasPredators)
             .WithSituationFactor(Situations.AttractiveToPredators, 3.0)  // Meat, bleeding, food scent
             .WithSituationFactor(Situations.Vulnerable, 2.0)             // Injured, slow, no weapon
+            .WithSituationFactor(Situations.IsFollowingAnimalSigns, 2.5) // Following tracks/scat clues
             .WithConditionFactor(EventCondition.LowVisibility, 1.5)      // Harder to spot stalker
             .WithConditionFactor(EventCondition.FarFromCamp, 1.5)        // More dangerous far from safety
             .WithSituationFactor(Situations.TrappedByTerrain, 2.0)       // Cornered or bottleneck
@@ -223,6 +224,8 @@ public static partial class GameEventRegistry
         return new GameEvent("The Predator Revealed",
             $"You finally see it clearly. A {predator.ToLower()}. It's watching you from maybe thirty feet away. Not hiding anymore.", 2.0)
             .Requires(EventCondition.StalkedHigh, EventCondition.IsExpedition)
+            .WithSituationFactor(Situations.TrappedByTerrain, 2.0)  // Cornered = revealed faster
+            .WithSituationFactor(Situations.RemoteAndVulnerable, 1.5)  // Far + weak = dangerous
             .Choice("Stand Your Ground",
                 "Face it. This ends now.",
                 [
@@ -251,6 +254,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Ambush",
             $"It's done waiting. The {predator.ToLower()} bursts from cover.", 3.0)
             .Requires(EventCondition.StalkedCritical, EventCondition.IsExpedition)
+            .WithSituationFactor(Situations.RemoteAndVulnerable, 2.0)  // Isolation invites attack
+            .WithSituationFactor(Situations.TrappedByTerrain, 2.5)  // No escape = perfect ambush
             .Choice("Brace Yourself",
                 "No time to run. It's on you.",
                 [

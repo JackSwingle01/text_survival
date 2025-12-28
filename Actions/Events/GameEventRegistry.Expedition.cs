@@ -250,6 +250,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Unexpected Yield",
             "As you work, you notice something useful you almost missed.", 0.8)
             .Requires(EventCondition.Working, EventCondition.IsExpedition)
+            .WithSituationFactor(Situations.IsFollowingAnimalSigns, 1.8) // Following tracks leads to finds
             .Choice("Take It",
                 "A lucky find.",
                 [
@@ -266,6 +267,30 @@ public static partial class GameEventRegistry
                 "You're focused. Stay on task.",
                 [
                     new EventResult("You ignore the distraction and keep working.", 1.0, 0)
+                ]);
+    }
+
+    private static GameEvent TrailGoesCold(GameContext ctx)
+    {
+        return new GameEvent("Trail Goes Cold",
+            "The tracks you were following scatter and disappear. Whatever was here is gone.", 0.6)
+            .Requires(EventCondition.Working, EventCondition.IsExpedition)
+            .RequiresSituation(Situations.IsFollowingAnimalSigns)
+            .WithSituationFactor(Situations.ResourceScarcity, 2.5)  // Much more likely in depleted areas
+            .WithConditionFactor(EventCondition.LowVisibility, 1.5) // Harder to track in poor visibility
+            .Choice("Keep Searching",
+                "There might still be something here.",
+                [
+                    new EventResult("Nothing. The area's picked clean.", 0.60, 15),
+                    new EventResult("Old scat, scattered bones. Nothing fresh.", 0.25, 12)
+                        .FindsSupplies(),
+                    new EventResult("You find a small cache — something was storing food here.", 0.15, 20)
+                        .Rewards(RewardPool.SmallGame)
+                ])
+            .Choice("Move On",
+                "Don't waste more time on dead ends.",
+                [
+                    new EventResult("You've learned to read the signs better for next time.", 1.0, 5)
                 ]);
     }
 
@@ -634,6 +659,7 @@ public static partial class GameEventRegistry
             "The terrain opens up. You can see for miles — which means anything for miles can see you.", 1.0)
             .Requires(EventCondition.HighVisibility, EventCondition.HazardousTerrain)
             .WithConditionFactor(EventCondition.HighWind, 1.5)
+            .WithSituationFactor(Situations.RemoteAndVulnerable, 1.5)  // Far + weak = worse exposure
             .Choice("Move Fast",
                 "Minimize your exposure time. Speed across.",
                 [
@@ -680,6 +706,8 @@ public static partial class GameEventRegistry
         return new GameEvent("Ambush Opportunity",
             $"Dense cover conceals you. Fresh {animal.ToLower()} sign everywhere. Perfect hunting ground — or perfect place for something to hunt YOU.", 0.8)
             .Requires(EventCondition.LowVisibility, EventCondition.InAnimalTerritory, EventCondition.Working)
+            .WithSituationFactor(Situations.HuntingAdvantage, 1.5)  // Weapon + stealth = better odds
+            .WithSituationFactor(Situations.GoodForStealth, 1.3)  // Good conditions amplify opportunity
             .Choice("Set Up an Ambush",
                 "Use this cover to your advantage. Wait for prey.",
                 [

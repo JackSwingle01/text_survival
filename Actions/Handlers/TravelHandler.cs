@@ -39,7 +39,5 @@ public static class TravelHandler
 
         // Show narrative
         GameDisplay.AddNarrative(ctx, variant.Description);
-
-        Input.WaitForKey(ctx);
     }
 }

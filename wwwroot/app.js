@@ -1,5 +1,5 @@
 import { ConnectionOverlay } from './modules/connection.js';
-import { Utils } from './modules/utils.js';
+import { Utils, ICON_CLASS, createIcon, show, hide } from './modules/utils.js';
 import { ProgressDisplay } from './modules/progress.js';
 import { FrameQueue } from './modules/frameQueue.js';
 import { NarrativeLog } from './modules/log.js';
@@ -8,6 +8,9 @@ import { FireDisplay } from './modules/fire.js';
 import { SurvivalDisplay } from './modules/survival.js';
 import { EffectsDisplay } from './modules/effects.js';
 import { getGridRenderer } from './modules/grid/CanvasGridRenderer.js';
+
+// Actions handled elsewhere (sidebar buttons, grid clicks) - hidden from popup
+const POPUP_HIDDEN_ACTIONS = ['Inventory', 'Crafting', 'Travel'];
 
 class GameClient {
     constructor() {
@@ -256,7 +259,7 @@ class GameClient {
         const overlay = document.getElementById('eventOverlay');
         if (!overlay) return;
 
-        overlay.classList.remove('hidden');
+        show(overlay);
 
         const nameEl = document.getElementById('eventName');
         const descEl = document.getElementById('eventDescription');
@@ -318,11 +321,11 @@ class GameClient {
         // If there's time added, show progress animation first
         if (outcome.timeAddedMinutes > 0) {
             // Hide content during progress
-            if (descEl) descEl.classList.add('hidden');
-            if (choicesEl) choicesEl.classList.add('hidden');
+            hide(descEl);
+            hide(choicesEl);
 
             // Show and animate progress bar
-            progressEl.classList.remove('hidden');
+            show(progressEl);
             progressText.textContent = `Acting... (+${outcome.timeAddedMinutes} min)`;
             progressBar.style.width = '0%';
 
@@ -341,7 +344,7 @@ class GameClient {
                 } else {
                     // Animation complete - show outcome
                     setTimeout(() => {
-                        progressEl.classList.add('hidden');
+                        hide(progressEl);
                         this.showOutcomeContent(eventData, descEl, choicesEl);
                     }, 150);
                 }
@@ -350,7 +353,7 @@ class GameClient {
             requestAnimationFrame(animateProgress);
         } else {
             // No time added - show outcome immediately
-            progressEl.classList.add('hidden');
+            hide(progressEl);
             this.showOutcomeContent(eventData, descEl, choicesEl);
         }
     }
@@ -363,7 +366,7 @@ class GameClient {
 
         // Show choice context + outcome message
         if (descEl) {
-            descEl.classList.remove('hidden');
+            show(descEl);
             Utils.clearElement(descEl);
 
             // Choice context (what the player chose)
@@ -381,7 +384,7 @@ class GameClient {
 
         // Build outcome summary
         if (choicesEl) {
-            choicesEl.classList.remove('hidden');
+            show(choicesEl);
             Utils.clearElement(choicesEl);
 
             const summaryEl = document.createElement('div');
@@ -484,7 +487,7 @@ class GameClient {
         item.className = `outcome-item ${styleClass}`;
 
         const iconEl = document.createElement('span');
-        iconEl.className = 'material-symbols-outlined';
+        iconEl.className = ICON_CLASS;
         iconEl.textContent = icon;
         item.appendChild(iconEl);
 
@@ -500,12 +503,12 @@ class GameClient {
      */
     hideEventPopup() {
         const overlay = document.getElementById('eventOverlay');
-        if (overlay) overlay.classList.add('hidden');
+        hide(overlay);
 
         // Reset progress bar state
         const progressEl = document.getElementById('eventProgress');
         const progressBar = document.getElementById('eventProgressBar');
-        if (progressEl) progressEl.classList.add('hidden');
+        if (progressEl) hide(progressEl);
         if (progressBar) progressBar.style.width = '0%';
     }
 
@@ -567,28 +570,23 @@ class GameClient {
         const popup = document.getElementById('tilePopup');
         const nameEl = document.getElementById('popupName');
         const terrainEl = document.getElementById('popupTerrain');
-        const envEl = document.getElementById('popupEnvironment');
-        const hazardsEl = document.getElementById('popupHazards');
-        const tacticalEl = document.getElementById('popupTactical');
+        const glanceEl = document.getElementById('popupGlance');
         const featuresEl = document.getElementById('popupFeatures');
+        const promptEl = document.getElementById('popupPrompt');
         const actionsEl = document.getElementById('popupActions');
 
         // Set location info
         nameEl.textContent = tileData.locationName || tileData.terrain;
         terrainEl.textContent = tileData.locationName ? tileData.terrain : '';
 
-        // Clear all sections
-        Utils.clearElement(envEl);
-        Utils.clearElement(hazardsEl);
-        Utils.clearElement(tacticalEl);
+        // Clear sections
+        Utils.clearElement(glanceEl);
         Utils.clearElement(featuresEl);
 
-        // Build environment section (for explored locations)
+        // Build quick glance badges (for explored locations)
         const isExplored = tileData.visibility === 'visible' && tileData.locationName && tileData.locationName !== '???';
         if (isExplored) {
-            this.buildEnvironmentSection(envEl, tileData);
-            this.buildHazardsSection(hazardsEl, tileData);
-            this.buildTacticalSection(tacticalEl, tileData);
+            this.buildGlanceBar(glanceEl, tileData);
         }
 
         // Build features list - use detailed features if available, otherwise icons
@@ -609,7 +607,7 @@ class GameClient {
                 }
 
                 const iconEl = document.createElement('span');
-                iconEl.className = 'material-symbols-outlined';
+                iconEl.className = ICON_CLASS;
                 iconEl.textContent = icon;
                 featureEl.appendChild(iconEl);
 
@@ -621,10 +619,17 @@ class GameClient {
             });
         }
 
+        // Show prompt if player is here and there's a prompt
+        const isPlayerHere = tileData.isPlayerHere;
+        if (isPlayerHere && this.currentInput?.prompt) {
+            promptEl.textContent = this.currentInput.prompt;
+            show(promptEl);
+        } else {
+            hide(promptEl);
+        }
+
         // Build actions
         Utils.clearElement(actionsEl);
-
-        const isPlayerHere = tileData.isPlayerHere;
         const canTravel = tileData.isAdjacent && tileData.isPassable && !isPlayerHere;
 
         if (canTravel) {
@@ -649,11 +654,9 @@ class GameClient {
         // Show location actions when clicking current tile
         if (isPlayerHere && this.currentInput?.choices) {
             const inputId = this.currentInputId;
-            const hiddenActions = ['Inventory', 'Crafting', 'Travel'];
 
             this.currentInput.choices.forEach((choice) => {
-                // Skip actions handled elsewhere (sidebar buttons, grid clicks)
-                if (hiddenActions.some(action => choice.label.includes(action))) return;
+                if (POPUP_HIDDEN_ACTIONS.some(action => choice.label.includes(action))) return;
 
                 const btn = document.createElement('button');
                 btn.className = 'popup-action-btn';
@@ -685,7 +688,7 @@ class GameClient {
         popup.style.left = `${screenPos.x + 8}px`;
 
         // Show popup to measure its height
-        popup.classList.remove('hidden');
+        show(popup);
         const rect = popup.getBoundingClientRect();
 
         // Calculate vertically centered position
@@ -745,73 +748,72 @@ class GameClient {
     }
 
     /**
-     * Build environment section showing wind, cover, temperature
+     * Build quick glance bar with color-coded badges
+     * Shows key info at a glance - scannable in 2 seconds
      */
-    buildEnvironmentSection(container, tileData) {
-        // Wind factor: 0-0.7 = sheltered, 0.7-1.3 = normal (skip), 1.3+ = exposed
-        if (tileData.windFactor != null && tileData.windFactor < 0.7) {
-            this.addPopupItem(container, 'air', 'Sheltered', 'wind');
-        } else if (tileData.windFactor != null && tileData.windFactor > 1.3) {
-            this.addPopupItem(container, 'air', 'Exposed', 'hazard');
+    buildGlanceBar(container, tileData) {
+        const badges = [];
+
+        // Priority 1: Safety hazards (most important)
+        if (tileData.terrainHazardLevel != null && tileData.terrainHazardLevel > 0.2) {
+            const label = tileData.terrainHazardLevel > 0.5 ? 'Dangerous' : 'Hazardous';
+            badges.push({ icon: 'warning', label, type: 'danger' });
         }
 
-        // Overhead cover: only show if significant
-        if (tileData.overheadCoverLevel != null && tileData.overheadCoverLevel > 0.2) {
-            const pct = Math.round(tileData.overheadCoverLevel * 100);
-            this.addPopupItem(container, 'roofing', `${pct}% cover`, 'neutral');
+        if (tileData.climbRiskFactor != null && tileData.climbRiskFactor > 0.2) {
+            badges.push({ icon: 'hiking', label: 'Climbing', type: 'danger' });
         }
 
-        // Temperature modifier: only show if notable
-        if (tileData.temperatureDeltaF != null && Math.abs(tileData.temperatureDeltaF) > 3) {
-            const sign = tileData.temperatureDeltaF > 0 ? '+' : '';
-            const icon = tileData.temperatureDeltaF > 0 ? 'sunny' : 'ac_unit';
-            const cls = tileData.temperatureDeltaF > 0 ? 'warm' : 'cold';
-            this.addPopupItem(container, icon, `${sign}${Math.round(tileData.temperatureDeltaF)}°F`, cls);
-        }
-    }
-
-    /**
-     * Build hazards section showing terrain danger and climb risk
-     */
-    buildHazardsSection(container, tileData) {
-        // Terrain hazard
-        if (tileData.terrainHazardLevel != null && tileData.terrainHazardLevel > 0.1) {
-            const label = tileData.terrainHazardLevel > 0.5 ? 'Treacherous' :
-                         tileData.terrainHazardLevel > 0.2 ? 'Hazardous' : 'Minor hazards';
-            this.addPopupItem(container, 'warning', label, 'hazard');
+        // Priority 2: Key resources
+        if (tileData.featureIcons?.includes('local_fire_department')) {
+            badges.push({ icon: 'local_fire_department', label: 'Fire', type: 'fire' });
+        } else if (tileData.featureIcons?.includes('fireplace')) {
+            badges.push({ icon: 'fireplace', label: 'Embers', type: 'fire' });
         }
 
-        // Climb risk
-        if (tileData.climbRiskFactor != null && tileData.climbRiskFactor > 0.1) {
-            const label = tileData.climbRiskFactor > 0.5 ? 'Technical climbing' :
-                         tileData.climbRiskFactor > 0.2 ? 'Scrambling required' : 'Some climbing';
-            this.addPopupItem(container, 'hiking', label, 'hazard');
+        if (tileData.featureIcons?.includes('water_drop')) {
+            badges.push({ icon: 'water_drop', label: 'Water', type: 'water' });
         }
 
-        // Darkness
+        // Priority 3: Temperature effects
+        if (tileData.temperatureDeltaF != null && tileData.temperatureDeltaF < -5) {
+            badges.push({ icon: 'ac_unit', label: 'Cold', type: 'cold' });
+        } else if (tileData.temperatureDeltaF != null && tileData.temperatureDeltaF > 5) {
+            badges.push({ icon: 'sunny', label: 'Warm', type: 'warm' });
+        }
+
+        // Priority 4: Wind exposure
+        if (tileData.windFactor != null && tileData.windFactor > 1.3) {
+            badges.push({ icon: 'air', label: 'Exposed', type: 'danger' });
+        } else if (tileData.windFactor != null && tileData.windFactor < 0.7) {
+            badges.push({ icon: 'forest', label: 'Sheltered', type: 'good' });
+        }
+
+        // Priority 5: Special conditions
         if (tileData.isDark) {
-            this.addPopupItem(container, 'dark_mode', 'Requires light', 'hazard');
-        }
-    }
-
-    /**
-     * Build tactical section showing escape terrain, vantage points, visibility
-     */
-    buildTacticalSection(container, tileData) {
-        if (tileData.isEscapeTerrain) {
-            this.addPopupItem(container, 'sprint', 'Escape terrain', 'tactical-good');
+            badges.push({ icon: 'dark_mode', label: 'Dark', type: 'neutral' });
         }
 
         if (tileData.isVantagePoint) {
-            this.addPopupItem(container, 'visibility', 'Vantage point', 'tactical-good');
+            badges.push({ icon: 'visibility', label: 'Vantage', type: 'good' });
         }
 
-        // Visibility factor: only show if notably different
-        if (tileData.visibilityFactor != null && tileData.visibilityFactor < 0.7) {
-            this.addPopupItem(container, 'visibility_off', 'Limited sight', 'neutral');
-        } else if (tileData.visibilityFactor != null && tileData.visibilityFactor > 1.3) {
-            this.addPopupItem(container, 'preview', 'Wide view', 'tactical-good');
-        }
+        // Render badges (limit to 4 most important)
+        badges.slice(0, 4).forEach(badge => {
+            const badgeEl = document.createElement('span');
+            badgeEl.className = `glance-badge ${badge.type}`;
+
+            const iconEl = document.createElement('span');
+            iconEl.className = ICON_CLASS;
+            iconEl.textContent = badge.icon;
+            badgeEl.appendChild(iconEl);
+
+            const labelEl = document.createElement('span');
+            labelEl.textContent = badge.label;
+            badgeEl.appendChild(labelEl);
+
+            container.appendChild(badgeEl);
+        });
     }
 
     /**
@@ -834,7 +836,7 @@ class GameClient {
             featureEl.className = 'popup-feature-detailed';
 
             const iconEl = document.createElement('span');
-            iconEl.className = 'material-symbols-outlined';
+            iconEl.className = ICON_CLASS;
             iconEl.textContent = featureIcons[feature.type] || 'info';
             featureEl.appendChild(iconEl);
 
@@ -873,7 +875,7 @@ class GameClient {
         item.className = `popup-item ${typeClass}`;
 
         const iconEl = document.createElement('span');
-        iconEl.className = 'material-symbols-outlined';
+        iconEl.className = ICON_CLASS;
         iconEl.textContent = icon;
         item.appendChild(iconEl);
 
@@ -889,7 +891,7 @@ class GameClient {
      */
     hideTilePopup() {
         const popup = document.getElementById('tilePopup');
-        popup.classList.add('hidden');
+        hide(popup);
         this.tilePopup = null;
     }
 
@@ -899,20 +901,32 @@ class GameClient {
     updateTilePopupActions() {
         if (!this.tilePopup) return;
 
+        const promptEl = document.getElementById('popupPrompt');
         const actionsEl = document.getElementById('popupActions');
         if (!actionsEl) return;
 
         Utils.clearElement(actionsEl);
 
         // Only show actions if player is at this tile
-        if (!this.tilePopup.tileData?.isPlayerHere) return;
+        if (!this.tilePopup.tileData?.isPlayerHere) {
+            hide(promptEl);
+            return;
+        }
+
+        // Update prompt
+        if (this.currentInput?.prompt && promptEl) {
+            promptEl.textContent = this.currentInput.prompt;
+            show(promptEl);
+        } else {
+            hide(promptEl);
+        }
+
         if (!this.currentInput?.choices) return;
 
         const inputId = this.currentInputId;
-        const hiddenActions = ['Inventory', 'Crafting'];
 
         this.currentInput.choices.forEach((choice) => {
-            if (hiddenActions.some(action => choice.label.includes(action))) return;
+            if (POPUP_HIDDEN_ACTIONS.some(action => choice.label.includes(action))) return;
 
             const btn = document.createElement('button');
             btn.className = 'popup-action-btn';
@@ -1028,14 +1042,14 @@ class GameClient {
         };
         choicesEl.appendChild(carefulBtn);
 
-        overlay.classList.remove('hidden');
+        show(overlay);
     }
 
     /**
      * Hide hazard prompt overlay
      */
     hideHazardPrompt() {
-        document.getElementById('hazardOverlay').classList.add('hidden');
+        hide(document.getElementById('hazardOverlay'));
     }
 
     /**
@@ -1073,7 +1087,7 @@ class GameClient {
             });
         }
 
-        overlay.classList.remove('hidden');
+        show(overlay);
     }
 
     /**
@@ -1081,7 +1095,7 @@ class GameClient {
      */
     hideConfirmPrompt() {
         const overlay = document.getElementById('confirmOverlay');
-        if (overlay) overlay.classList.add('hidden');
+        hide(overlay);
     }
 
     /**
@@ -1206,9 +1220,9 @@ class GameClient {
         const storageRow = document.getElementById('storageRow');
         if (storageRow) {
             if (state.hasStorage) {
-                storageRow.classList.remove('hidden');
+                show(storageRow);
             } else {
-                storageRow.classList.add('hidden');
+                hide(storageRow);
             }
         }
 
@@ -1361,7 +1375,7 @@ class GameClient {
         const progressBar = document.getElementById('progressBar');
 
         // Show the actions container for travel mode inputs
-        actionsContainer?.classList.remove('hidden');
+        show(actionsContainer);
 
         // Update status display (progress handled by ProgressMode/FrameQueue)
         if (statusText) {
@@ -1505,7 +1519,7 @@ class GameClient {
 
     showInventory(inv, input) {
         const overlay = document.getElementById('inventoryOverlay');
-        overlay.classList.remove('hidden');
+        show(overlay);
 
         document.getElementById('inventoryTitle').textContent = inv.title;
         document.getElementById('inventoryWeight').textContent =
@@ -1807,12 +1821,12 @@ class GameClient {
     }
 
     hideInventory() {
-        document.getElementById('inventoryOverlay').classList.add('hidden');
+        hide(document.getElementById('inventoryOverlay'));
     }
 
     showCrafting(crafting, input) {
         const overlay = document.getElementById('craftingOverlay');
-        overlay.classList.remove('hidden');
+        show(overlay);
 
         document.getElementById('craftingTitle').textContent = crafting.title;
 
@@ -1837,7 +1851,7 @@ class GameClient {
             const categoryHeader = document.createElement('h3');
             categoryHeader.className = 'category-header';
             const icon = document.createElement('span');
-            icon.className = 'material-symbols-outlined';
+            icon.className = ICON_CLASS;
             icon.textContent = 'construction';
             categoryHeader.appendChild(icon);
             categoryHeader.appendChild(document.createTextNode(category.categoryName));
@@ -1919,7 +1933,7 @@ class GameClient {
                 const toolSpan = document.createElement('span');
 
                 const icon = document.createElement('span');
-                icon.className = 'material-symbols-outlined';
+                icon.className = ICON_CLASS;
 
                 if (!tool.isAvailable) {
                     toolSpan.className = 'tool-requirement missing';
@@ -1979,7 +1993,7 @@ class GameClient {
     }
 
     hideCrafting() {
-        document.getElementById('craftingOverlay').classList.add('hidden');
+        hide(document.getElementById('craftingOverlay'));
     }
 
     addInvItem(container, label, value, styleClass = '') {

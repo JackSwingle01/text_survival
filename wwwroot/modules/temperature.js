@@ -13,6 +13,16 @@ export const TemperatureDisplay = {
             tempBar.style.width = tempPct + '%';
         }
 
+        // Temperature trend in tooltip
+        const trendEl = document.getElementById('bodyTempTrend');
+        if (trendEl && state.trendPerHour !== undefined) {
+            const sign = state.trendPerHour > 0 ? '+' : '';
+            const trendText = Math.abs(state.trendPerHour) > 0.1
+                ? `(${sign}${state.trendPerHour.toFixed(1)}°F/hr)`
+                : '(stable)';
+            trendEl.textContent = trendText;
+        }
+
         // Temperature trend arrow (to the right of the bar)
         let trendArrow = document.getElementById('tempTrendArrow');
         if (!trendArrow) {

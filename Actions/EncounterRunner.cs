@@ -116,7 +116,6 @@ public static class EncounterRunner
             }
 
             ctx.Update(1, ActivityType.Encounter); // 1 minute per turn, no events during encounter
-            Input.WaitForKey(ctx);
         }
 
         return ctx.player.IsAlive ? EncounterOutcome.PredatorRetreated : EncounterOutcome.PlayerDied;
@@ -167,7 +166,6 @@ public static class EncounterRunner
             var result = ctx.Update(10, ActivityType.Hunting);
         }
 
-        Input.WaitForKey(ctx);
         return EncounterOutcome.CombatVictory;
     }
 

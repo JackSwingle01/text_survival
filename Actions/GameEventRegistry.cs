@@ -65,6 +65,7 @@ public static partial class GameEventRegistry
         OldCampsite,
         WaterSource,
         UnexpectedYield,
+        TrailGoesCold,
         ExposedPosition,
         NaturalShelterSpotted,
         Debris,
@@ -266,6 +267,10 @@ public static partial class GameEventRegistry
             if (!evt.RequiredConditions.All(ctx.Check))
                 continue;
 
+            // Filter: skip if required situations not met
+            if (!evt.RequiredSituations.All(s => s(ctx)))
+                continue;
+
             // Filter: skip if on cooldown
             if (IsOnCooldown(evt.Name, evt.CooldownHours, ctx.GameTime))
                 continue;
@@ -349,9 +354,7 @@ public static partial class GameEventRegistry
             );
             WebIO.RenderEvent(ctx, outcomeDto);
 
-            // Wait for user to click Continue in the popup (no extra button in actions area)
-            WebIO.WaitForOverlayDismiss(ctx);
-
+            // Removed WaitForOverlayDismiss - overlay has its own Continue button
             // Clear event overlay after user acknowledges
             WebIO.ClearEvent(ctx);
             GameDisplay.Render(ctx);

@@ -22,15 +22,6 @@ namespace text_survival.IO
         }
 
         /// <summary>
-        /// Wait for key with game context.
-        /// </summary>
-        public static void WaitForKey(GameContext ctx, string message = "Continue")
-        {
-            WebIO.WaitForKey(ctx, message);
-            return;
-        }
-
-        /// <summary>
         /// Read integer with range and game context - routes to web UI if session active.
         /// </summary>
         public static int ReadInt(GameContext ctx, string prompt, int min, int max)

@@ -61,7 +61,6 @@ public class ImproveCampRunner(GameContext ctx)
         {
             GameDisplay.AddNarrative(_ctx, "You don't have materials to improve your camp.");
             GameDisplay.Render(_ctx, statusText: "Thinking.");
-            Input.WaitForKey(_ctx);
             Web.WebIO.ClearCrafting(_ctx);
             return;
         }
@@ -202,7 +201,6 @@ public class ImproveCampRunner(GameContext ctx)
         }
 
         GameDisplay.Render(_ctx, statusText: "Satisfied.");
-        Input.WaitForKey(_ctx);
 
         return true;
     }

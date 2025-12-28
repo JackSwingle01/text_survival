@@ -536,6 +536,7 @@ public class GameEvent(string name, string description, double weight)
     public string Name = name;
     public string Description = description;
     public readonly List<EventCondition> RequiredConditions = [];
+    public readonly List<Func<GameContext, bool>> RequiredSituations = [];
 
     public double BaseWeight = weight;  // Selection weight (not trigger chance)
     public readonly Dictionary<EventCondition, double> WeightFactors = [];
@@ -566,6 +567,16 @@ public class GameEvent(string name, string description, double weight)
     public GameEvent Requires(params EventCondition[] conditions)
     {
         RequiredConditions.AddRange(conditions);
+        return this;
+    }
+
+    /// <summary>
+    /// Add a required situation predicate. Event only triggers if situation is true.
+    /// Use with Situations.* methods for compound conditions.
+    /// </summary>
+    public GameEvent RequiresSituation(Func<GameContext, bool> situation)
+    {
+        RequiredSituations.Add(situation);
         return this;
     }
 
