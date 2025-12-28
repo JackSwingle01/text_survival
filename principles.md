@@ -44,7 +44,7 @@ There shouldn't be clean good or bad choices. Players weigh every decision. Time
 
 No carry-over between runs. The player gets better, not the character. You learn to read situations, learn when risks are worth taking, learn the systems. The game teaches through consequences—but only if the player can read cause and effect
 
-*Example: An experienced player knows when 10 minutes of fire margin is actually fine, when "abundant" foraging is worth staying for, when to let a fire die on purpose to preserve embers.*
+*Example: An experienced player knows when 10 minutes of fire is actually fine, when "abundant" foraging is worth staying for, when to let a fire die on purpose to preserve embers.*
 
 **Contextual dynamics**
 

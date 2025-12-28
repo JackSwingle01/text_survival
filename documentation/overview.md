@@ -55,8 +55,6 @@ Work system (`WorkRunner`):
 - Impairment calculations — manipulation and consciousness affect work speed
 - Event interruption during work sessions
 
-Fire status always visible. Travel times derived from terrain type, hazard level, and location-specific modifiers (see Grid section for scale). The UI shows what you need to judge your margin.
-
 Expeditions interact with: fire (time pressure), torches (enables dark work), locations (destinations and features), events (triggers during travel and work), survival simulation (stats drain during travel).
 
 ---
