@@ -58,7 +58,6 @@ public record TileDto(
     string? LocationName,
     string? LocationTags,
     List<string> FeatureIcons,
-    List<EnvironmentalDetailDto> Details,  // Examinable environmental details
     bool HasFire,
     bool IsHazardous,
     bool IsPassable,
@@ -130,7 +129,6 @@ public record TileDto(
             LocationName: locationName,
             LocationTags: locationTags,
             FeatureIcons: GetFeatureIcons(location),
-            Details: GetEnvironmentalDetails(location, isPlayerHere),
             HasFire: location.HasActiveHeatSource(),
             IsHazardous: TravelProcessor.IsHazardousTerrain(location),
             IsPassable: location.IsPassable,
@@ -169,24 +167,6 @@ public record TileDto(
             .OrderByDescending(f => f.IconPriority)
             .Select(f => f.MapIcon!)
             .Take(3)
-            .ToList();
-    }
-
-    private static List<EnvironmentalDetailDto> GetEnvironmentalDetails(Location location, bool isPlayerHere)
-    {
-        // Only show interactable details when player is at this location
-        if (!isPlayerHere || location.Visibility != TileVisibility.Visible)
-            return [];
-
-        return location.Features
-            .OfType<EnvironmentalDetail>()
-            .Where(d => d.CanInteract)
-            .Select(d => new EnvironmentalDetailDto(
-                d.Id,
-                d.DisplayName,
-                d.InteractionHint,
-                d.MapIcon
-            ))
             .ToList();
     }
 
@@ -230,16 +210,6 @@ public record MoveResultDto(
     int TimeElapsedMinutes,
     bool InjuryOccurred,
     string? InjuryDescription
-);
-
-/// <summary>
-/// Environmental detail info for tile popup.
-/// </summary>
-public record EnvironmentalDetailDto(
-    string Id,
-    string DisplayName,
-    string? Hint,
-    string? Icon
 );
 
 /// <summary>

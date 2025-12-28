@@ -333,11 +333,12 @@ public static partial class GameEventRegistry
             GameDisplay.AddNarrative(ctx, evt.Description);
 
             // Phase 1: Show event with choices
+            // Use same ID generation as WebIO.Select to ensure frontend/backend match
             var eventDto = new EventDto(
                 evt.Name,
                 evt.Description,
                 evt.GetAvailableChoices(ctx)
-                    .Select((c, i) => new EventChoiceDto($"choice_{i}", c.Label, c.Description, true))
+                    .Select((c, i) => new EventChoiceDto(WebIO.GenerateSemanticId(c.Label, i), c.Label, c.Description, true))
                     .ToList()
             );
             WebIO.RenderEvent(ctx, eventDto);

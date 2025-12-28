@@ -29,7 +29,7 @@ public static class WebIO
     /// Generate a semantic ID from a label for more debuggable choice matching.
     /// Format: slugified_label_index (e.g., "forage_for_supplies_0")
     /// </summary>
-    private static string GenerateSemanticId(string label, int index)
+    public static string GenerateSemanticId(string label, int index)
     {
         // Create a slug from the label: lowercase, replace non-alphanumeric with underscore
         var slug = System.Text.RegularExpressions.Regex.Replace(label.ToLowerInvariant(), @"[^a-z0-9]+", "_").Trim('_');
@@ -218,55 +218,6 @@ public static class WebIO
             // (resend the frame and wait again)
             ClearInventory(ctx);
             ClearCrafting(ctx);
-            inputId = session.GenerateInputId();
-            frame = new WebFrame(
-                GameStateDto.FromContext(ctx),
-                GetCurrentMode(ctx),
-                GetCurrentOverlays(ctx.SessionId),
-                new InputRequestDto(inputId, "select", prompt, choiceDtos)
-            );
-            session.Send(frame);
-            response = session.WaitForResponse(inputId, ResponseTimeout);
-            // Fall through to process the new response normally
-        }
-
-        // Handle examine response: player clicked to examine an environmental detail
-        if (response.Type == "examine" && !string.IsNullOrEmpty(response.DetailId))
-        {
-            // Find the detail in the current location
-            var detail = ctx.CurrentLocation.Features
-                .OfType<EnvironmentalDetail>()
-                .FirstOrDefault(d => d.Id == response.DetailId);
-
-            if (detail != null && detail.CanInteract)
-            {
-                var (loot, examinationText, tension) = detail.Interact();
-
-                // Log the examination result
-                if (examinationText != null)
-                {
-                    ctx.Log.Add(examinationText, UI.LogLevel.Normal);
-                }
-
-                // Add any loot to inventory
-                if (loot != null && !loot.IsEmpty)
-                {
-                    ctx.Log.Add($"  Found: {loot.GetDescription()}", UI.LogLevel.Normal);
-                    var leftovers = ctx.Inventory.CombineWithCapacity(loot);
-                    if (!leftovers.IsEmpty)
-                    {
-                        ctx.Log.Add($"  Your pack is full. Left behind: {leftovers.GetDescription()}", UI.LogLevel.Warning);
-                    }
-                }
-
-                // Add any tension from examining the detail
-                if (tension != null)
-                {
-                    ctx.Tensions.AddTension(tension);
-                }
-            }
-
-            // Resend frame with updated state and wait for another response
             inputId = session.GenerateInputId();
             frame = new WebFrame(
                 GameStateDto.FromContext(ctx),

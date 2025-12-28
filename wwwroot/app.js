@@ -541,16 +541,6 @@ class GameClient {
 
         // Update grid with new state
         this.gridRenderer.update(gridState);
-
-        // Refresh popup tile data if popup is visible (prevents stale data)
-        if (this.tilePopup) {
-            const freshTile = gridState.tiles?.find(
-                t => t.x === this.tilePopup.x && t.y === this.tilePopup.y
-            );
-            if (freshTile) {
-                this.tilePopup.tileData = freshTile;
-            }
-        }
     }
 
     /**
@@ -680,20 +670,6 @@ class GameClient {
                     e.stopPropagation();
                     // Don't hide popup - let next frame update it with new choices
                     this.respond(choice.id, inputId);
-                };
-                actionsEl.appendChild(btn);
-            });
-        }
-
-        // Show examine buttons for environmental details on current tile
-        if (isPlayerHere && tileData.details && tileData.details.length > 0) {
-            tileData.details.forEach(detail => {
-                const btn = document.createElement('button');
-                btn.className = 'popup-action-btn';
-                btn.textContent = detail.hint ? `${detail.displayName} (${detail.hint})` : detail.displayName;
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    this.handleExamineRequest(detail.id);
                 };
                 actionsEl.appendChild(btn);
             });
@@ -915,23 +891,6 @@ class GameClient {
                 actionsEl.appendChild(btn);
             });
         }
-
-        // Rebuild environment detail buttons (must use fresh tileData)
-        const tileData = this.tilePopup.tileData;
-        if (tileData?.details && tileData.details.length > 0) {
-            tileData.details.forEach(detail => {
-                const btn = document.createElement('button');
-                btn.className = 'popup-action-btn';
-                btn.textContent = detail.hint
-                    ? `${detail.displayName} (${detail.hint})`
-                    : detail.displayName;
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    this.handleExamineRequest(detail.id);
-                };
-                actionsEl.appendChild(btn);
-            });
-        }
     }
 
     /**
@@ -958,28 +917,6 @@ class GameClient {
                 type: 'travel_to',
                 targetX: x,
                 targetY: y,
-                inputId: inputId
-            }));
-        }
-    }
-
-    /**
-     * Send examine request for environmental detail
-     */
-    handleExamineRequest(detailId) {
-        if (this.awaitingResponse) return;
-        this.awaitingResponse = true;
-
-        if (this.socket.readyState === WebSocket.OPEN) {
-            const inputId = this.currentInputId || 0;
-            if (inputId <= 0) {
-                console.warn('[handleExamineRequest] No valid inputId, ignoring');
-                this.awaitingResponse = false;
-                return;
-            }
-            this.socket.send(JSON.stringify({
-                type: 'examine',
-                detailId: detailId,
                 inputId: inputId
             }));
         }

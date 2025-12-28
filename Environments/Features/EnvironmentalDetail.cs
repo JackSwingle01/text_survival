@@ -1,4 +1,6 @@
 using text_survival.Actions;
+using text_survival.Actions.Expeditions;
+using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Actions.Tensions;
 using text_survival.Actions.Variants;
 using text_survival.Items;
@@ -10,7 +12,7 @@ namespace text_survival.Environments.Features;
 /// Adds world flavor and minor discoveries without the complexity of full features.
 /// Examples: fallen logs, animal tracks, frozen puddles, old campsites.
 /// </summary>
-public class EnvironmentalDetail : LocationFeature
+public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 {
     private static int _nextId = 1;
 
@@ -132,6 +134,21 @@ public class EnvironmentalDetail : LocationFeature
         if (Interacted) return "examined";
         if (InteractionHint != null) return InteractionHint;
         return Description;
+    }
+
+    /// <summary>
+    /// Returns work option for examining this detail.
+    /// Part of IWorkableFeature - allows details to appear in the regular work menu.
+    /// </summary>
+    public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
+    {
+        if (!CanInteract) yield break;
+
+        string label = InteractionHint != null
+            ? $"{DisplayName} ({InteractionHint})"
+            : DisplayName;
+
+        yield return new WorkOption(label, $"examine_{Id}", new ExamineStrategy(Id));
     }
 
     // ===== Factory Methods for Common Details =====
