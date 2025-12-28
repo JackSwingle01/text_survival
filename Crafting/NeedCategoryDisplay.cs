@@ -17,7 +17,8 @@ public static class NeedCategoryDisplay
         [NeedCategory.Equipment] = "Clothing & Gear",
         [NeedCategory.Lighting] = "Light Sources",
         [NeedCategory.Carrying] = "Carrying Gear",
-        [NeedCategory.CampInfrastructure] = "Camp Improvements"
+        [NeedCategory.CampInfrastructure] = "Camp Improvements",
+        [NeedCategory.Mending] = "Mend Equipment"
     };
 
     public static string GetDisplayName(NeedCategory category) =>

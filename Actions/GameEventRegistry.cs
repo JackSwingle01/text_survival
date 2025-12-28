@@ -50,10 +50,8 @@ public static partial class GameEventRegistry
         // Weather events (GameEventRegistry.Weather.cs)
         StormApproaching,
         Whiteout,
-        FrostbiteWarning,
-        ColdRainSoaking,
+        ColdExposure,  // Unified: FrostbiteWarning, ColdRainSoaking, BitterWind
         LostInFog,
-        BitterWind,
         SuddenClearing,
         MassiveStormApproaching,  // Prolonged blizzard warning
 
@@ -358,8 +356,8 @@ public static partial class GameEventRegistry
                 outcomeData
             );
             WebIO.RenderEvent(ctx, outcomeDto);
+            WebIO.WaitForEventContinue(ctx);
 
-            // Removed WaitForOverlayDismiss - overlay has its own Continue button
             // Clear event overlay after user acknowledges
             WebIO.ClearEvent(ctx);
             GameDisplay.Render(ctx);

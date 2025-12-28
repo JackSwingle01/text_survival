@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Actions.Tensions;
 using text_survival.Actions.Variants;
 using text_survival.Items;
 
@@ -37,19 +38,21 @@ public class EnvironmentalDetail : LocationFeature
     /// <summary>
     /// Material symbol for map display.
     /// </summary>
-    private string? _mapIcon;
+    public string? _mapIcon;
     public override string? MapIcon => !Interacted ? _mapIcon : null;
     public override int IconPriority => 0; // Low priority - other features show first
 
     /// <summary>
     /// Whether this detail has been discovered by the player.
     /// </summary>
-    public bool Discovered { get; private set; } = true; // Start visible for now
+    public bool _discovered = true; // Start visible for now
+    public bool Discovered => _discovered;
 
     /// <summary>
     /// Whether this detail has been interacted with (one-time only).
     /// </summary>
-    public bool Interacted { get; private set; } = false;
+    public bool _interacted = false;
+    public bool Interacted => _interacted;
 
     /// <summary>
     /// Optional loot when interacted with.
@@ -66,6 +69,13 @@ public class EnvironmentalDetail : LocationFeature
     /// </summary>
     public int InteractionMinutes { get; init; } = 5;
 
+    /// <summary>
+    /// Optional tension created when this detail is examined.
+    /// Factory function to create the tension (allows randomization).
+    /// </summary>
+    public Func<ActiveTension>? TensionOnInteract { get; init; }
+
+    [System.Text.Json.Serialization.JsonConstructor]
     public EnvironmentalDetail() : base("environmental_detail")
     {
         Id = $"detail_{_nextId++}";
@@ -82,34 +92,37 @@ public class EnvironmentalDetail : LocationFeature
 
     /// <summary>
     /// Interact with this detail.
-    /// Returns loot (if any) and examination text (for info-only details).
-    /// Returns (null, null) if already interacted.
+    /// Returns loot (if any), examination text (for info-only details), and tension (if any).
+    /// Returns (null, null, null) if already interacted.
     /// </summary>
-    public (Inventory? loot, string? examinationText) Interact()
+    public (Inventory? loot, string? examinationText, ActiveTension? tension) Interact()
     {
-        if (Interacted) return (null, null);
+        if (Interacted) return (null, null, null);
 
-        Interacted = true;
+        _interacted = true;
+
+        // Create tension if this detail produces one
+        var tension = TensionOnInteract?.Invoke();
 
         // Loot-based detail
         if (Loot != null)
-            return (Loot, null);
+            return (Loot, null, tension);
 
         // Info-only detail with examination pool
         if (ExaminationPool?.Length > 0)
         {
             var variant = ExaminationVariants.SelectRandom(ExaminationPool);
-            return (new Inventory(), variant.Description);
+            return (new Inventory(), variant.Description, tension);
         }
 
         // Fallback to base description
-        return (new Inventory(), Description);
+        return (new Inventory(), Description, tension);
     }
 
     /// <summary>
     /// Check if this detail can be interacted with.
     /// </summary>
-    public bool CanInteract => Discovered && !Interacted && (Loot != null || InteractionHint != null || ExaminationPool != null);
+    public bool CanInteract => Discovered && !Interacted && (Loot != null || InteractionHint != null || ExaminationPool != null || TensionOnInteract != null);
 
     /// <summary>
     /// Get status description for display.
@@ -146,15 +159,21 @@ public class EnvironmentalDetail : LocationFeature
 
     /// <summary>
     /// Animal tracks indicating nearby game.
+    /// Prey tracks create FreshTrail tension, predator tracks create weak Stalked tension.
     /// </summary>
     public static EnvironmentalDetail AnimalTracks(string animalType = "deer")
     {
+        bool isPredator = animalType is "wolf" or "bear";
+
         return new EnvironmentalDetail("animal_tracks", "Animal Tracks", $"Fresh {animalType} tracks in the snow.")
         {
-            _mapIcon = "footprint",
+            _mapIcon = "pets",
             InteractionHint = "examine the tracks",
             InteractionMinutes = 1,
-            ExaminationPool = ExaminationVariants.TrackExaminations
+            ExaminationPool = ExaminationVariants.TrackExaminations,
+            TensionOnInteract = isPredator
+                ? () => ActiveTension.Stalked(0.2, animalType)
+                : () => ActiveTension.FreshTrail(0.4, animalType)
         };
     }
 
@@ -177,20 +196,27 @@ public class EnvironmentalDetail : LocationFeature
 
     /// <summary>
     /// Animal droppings indicating territory.
+    /// Prey droppings create FreshTrail tension, predator droppings create weak Stalked tension.
     /// </summary>
     public static EnvironmentalDetail AnimalDroppings(string animalType = "wolf")
     {
+        bool isPredator = animalType is "wolf" or "bear";
+
         return new EnvironmentalDetail("animal_droppings", "Animal Droppings", $"Fresh {animalType} scat.")
         {
             _mapIcon = "scatter_plot",
             InteractionHint = "examine the scat",
             InteractionMinutes = 1,
-            ExaminationPool = ExaminationVariants.DroppingExaminations
+            ExaminationPool = ExaminationVariants.DroppingExaminations,
+            TensionOnInteract = isPredator
+                ? () => ActiveTension.Stalked(0.15, animalType)
+                : () => ActiveTension.FreshTrail(0.3, animalType)
         };
     }
 
     /// <summary>
     /// Bent or broken branches suggesting something passed through.
+    /// 50/50 chance of creating FreshTrail (prey) or weak Stalked (predator) tension.
     /// </summary>
     public static EnvironmentalDetail BentBranches()
     {
@@ -199,7 +225,10 @@ public class EnvironmentalDetail : LocationFeature
             _mapIcon = "line_curve",
             InteractionHint = "examine the branches",
             InteractionMinutes = 1,
-            ExaminationPool = ExaminationVariants.BranchExaminations
+            ExaminationPool = ExaminationVariants.BranchExaminations,
+            TensionOnInteract = () => Random.Shared.NextDouble() < 0.5
+                ? ActiveTension.FreshTrail(0.3, "unknown")
+                : ActiveTension.Stalked(0.1)
         };
     }
 

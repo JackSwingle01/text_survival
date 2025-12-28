@@ -197,6 +197,7 @@ public static partial class GameEventRegistry
             .Requires(EventCondition.Foraging)
             .RequiresSituation(Situations.IsFollowingAnimalSigns)
             .WithSituationFactor(Situations.GoodForStealth, 1.4)
+            .WithSituationFactor(Situations.HasFreshTrail, 1.4)  // Recent sign examination helps
             .WithCooldown(6)
             .Choice("Flush It Out",
                 "Make noise. Force it to move.",

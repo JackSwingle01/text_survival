@@ -17,7 +17,7 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
 
     // Explicit public fields for serialization (System.Text.Json IncludeFields requires public)
     public string _displayName = "";
-    private bool _isSalvaged = false;
+    public bool _isSalvaged = false;
 
     /// <summary>
     /// Display name shown in UI.

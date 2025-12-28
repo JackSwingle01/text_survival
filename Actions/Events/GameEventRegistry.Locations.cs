@@ -412,6 +412,7 @@ public static partial class GameEventRegistry
             $"{trackDesc}, still crisp. {char.ToUpper(animal[0]) + animal[1..]} passed through recently.", isGameTrail ? 1.2 : 0.6)
             .Requires(EventCondition.Working, EventCondition.InAnimalTerritory)
             .WithSituationFactor(Situations.IsFollowingAnimalSigns, 1.5)
+            .WithSituationFactor(Situations.HasFreshTrail, 1.5)  // Examining signs helps find more
             .WithCooldown(4)
             .Choice("Follow Them",
                 "The trail is fresh. They can't be far.",

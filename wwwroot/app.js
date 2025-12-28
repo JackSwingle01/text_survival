@@ -239,6 +239,9 @@ class GameClient {
             case 'confirm':
                 this.showConfirmPrompt(overlay.prompt, input);
                 break;
+            case 'forage':
+                this.showForagePopup(overlay.data);
+                break;
         }
     }
 
@@ -251,6 +254,7 @@ class GameClient {
         this.hideEventPopup();
         this.hideHazardPrompt();
         this.hideConfirmPrompt();
+        this.hideForagePopup();
     }
 
     /**
@@ -537,6 +541,16 @@ class GameClient {
 
         // Update grid with new state
         this.gridRenderer.update(gridState);
+
+        // Refresh popup tile data if popup is visible (prevents stale data)
+        if (this.tilePopup) {
+            const freshTile = gridState.tiles?.find(
+                t => t.x === this.tilePopup.x && t.y === this.tilePopup.y
+            );
+            if (freshTile) {
+                this.tilePopup.tileData = freshTile;
+            }
+        }
     }
 
     /**
@@ -884,22 +898,40 @@ class GameClient {
             hide(promptEl);
         }
 
-        if (!this.currentInput?.choices) return;
+        // Build action buttons from current input choices
+        if (this.currentInput?.choices) {
+            const inputId = this.currentInputId;
 
-        const inputId = this.currentInputId;
+            this.currentInput.choices.forEach((choice) => {
+                if (POPUP_HIDDEN_ACTIONS.some(action => choice.label.includes(action))) return;
 
-        this.currentInput.choices.forEach((choice) => {
-            if (POPUP_HIDDEN_ACTIONS.some(action => choice.label.includes(action))) return;
+                const btn = document.createElement('button');
+                btn.className = 'popup-action-btn';
+                btn.textContent = choice.label;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.respond(choice.id, inputId);
+                };
+                actionsEl.appendChild(btn);
+            });
+        }
 
-            const btn = document.createElement('button');
-            btn.className = 'popup-action-btn';
-            btn.textContent = choice.label;
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                this.respond(choice.id, inputId);
-            };
-            actionsEl.appendChild(btn);
-        });
+        // Rebuild environment detail buttons (must use fresh tileData)
+        const tileData = this.tilePopup.tileData;
+        if (tileData?.details && tileData.details.length > 0) {
+            tileData.details.forEach(detail => {
+                const btn = document.createElement('button');
+                btn.className = 'popup-action-btn';
+                btn.textContent = detail.hint
+                    ? `${detail.displayName} (${detail.hint})`
+                    : detail.displayName;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.handleExamineRequest(detail.id);
+                };
+                actionsEl.appendChild(btn);
+            });
+        }
     }
 
     /**
@@ -1059,6 +1091,211 @@ class GameClient {
     hideConfirmPrompt() {
         const overlay = document.getElementById('confirmOverlay');
         hide(overlay);
+    }
+
+    /**
+     * Show forage popup overlay
+     */
+    showForagePopup(forageData) {
+        const overlay = document.getElementById('forageOverlay');
+        if (!overlay) return;
+
+        show(overlay);
+
+        // Store selection state
+        this.forageSelection = {
+            focusId: null,
+            timeId: null
+        };
+
+        // Quality indicator
+        const qualityEl = document.getElementById('forageQuality');
+        qualityEl.textContent = `Resources look ${forageData.locationQuality}.`;
+
+        // Clues list
+        const cluesListEl = document.getElementById('forageCluesList');
+        Utils.clearElement(cluesListEl);
+
+        // Hide clues section if no clues
+        const cluesSection = document.getElementById('forageClues');
+        if (forageData.clues && forageData.clues.length > 0) {
+            show(cluesSection);
+            forageData.clues.forEach(clue => {
+                const clueEl = document.createElement('div');
+                clueEl.className = 'forage-clue';
+                if (clue.suggestedFocusId) {
+                    clueEl.classList.add('clickable');
+                    clueEl.dataset.focusId = clue.suggestedFocusId;
+                }
+
+                const bulletEl = document.createElement('span');
+                bulletEl.className = 'clue-bullet';
+                bulletEl.textContent = '•';
+                clueEl.appendChild(bulletEl);
+
+                const descEl = document.createElement('span');
+                descEl.className = 'clue-desc';
+                descEl.textContent = clue.description;
+                clueEl.appendChild(descEl);
+
+                if (clue.hintText) {
+                    const hintEl = document.createElement('span');
+                    hintEl.className = 'clue-hint';
+                    hintEl.textContent = ` ${clue.hintText}`;
+                    clueEl.appendChild(hintEl);
+                }
+
+                // Click handler to select matching focus
+                if (clue.suggestedFocusId) {
+                    clueEl.onclick = () => this.selectForageFocus(clue.suggestedFocusId);
+                }
+
+                cluesListEl.appendChild(clueEl);
+            });
+        } else {
+            hide(cluesSection);
+        }
+
+        // Warnings
+        const warningsEl = document.getElementById('forageWarnings');
+        Utils.clearElement(warningsEl);
+
+        if (forageData.warnings && forageData.warnings.length > 0) {
+            forageData.warnings.forEach(warning => {
+                const warnEl = document.createElement('div');
+                warnEl.className = 'forage-warning';
+
+                const iconEl = document.createElement('span');
+                iconEl.className = ICON_CLASS;
+                iconEl.textContent = warning.includes('dark') ? 'dark_mode' :
+                                    warning.includes('axe') ? 'carpenter' :
+                                    warning.includes('shovel') ? 'agriculture' : 'info';
+                warnEl.appendChild(iconEl);
+
+                const textEl = document.createElement('span');
+                textEl.textContent = warning;
+                warnEl.appendChild(textEl);
+
+                warningsEl.appendChild(warnEl);
+            });
+        }
+
+        // Focus options
+        const focusOptionsEl = document.getElementById('forageFocusOptions');
+        Utils.clearElement(focusOptionsEl);
+
+        forageData.focusOptions.forEach(focus => {
+            const btn = document.createElement('button');
+            btn.className = 'focus-btn';
+            btn.dataset.focusId = focus.id;
+
+            const labelEl = document.createElement('span');
+            labelEl.className = 'focus-label';
+            labelEl.textContent = focus.label;
+            btn.appendChild(labelEl);
+
+            const descEl = document.createElement('span');
+            descEl.className = 'focus-desc';
+            descEl.textContent = focus.description;
+            btn.appendChild(descEl);
+
+            btn.onclick = () => this.selectForageFocus(focus.id);
+            focusOptionsEl.appendChild(btn);
+        });
+
+        // Time options
+        const timeOptionsEl = document.getElementById('forageTimeOptions');
+        Utils.clearElement(timeOptionsEl);
+
+        forageData.timeOptions.forEach(time => {
+            const btn = document.createElement('button');
+            btn.className = 'time-btn';
+            btn.dataset.timeId = time.id;
+            btn.textContent = time.label;
+            btn.onclick = () => this.selectForageTime(time.id);
+            timeOptionsEl.appendChild(btn);
+        });
+
+        // Action buttons
+        const inputId = this.currentInputId;
+
+        document.getElementById('forageConfirmBtn').onclick = () => {
+            if (this.forageSelection.focusId && this.forageSelection.timeId) {
+                const choiceId = `${this.forageSelection.focusId}_${this.forageSelection.timeId}`;
+                this.respond(choiceId, inputId);
+            }
+        };
+
+        document.getElementById('forageCancelBtn').onclick = () => {
+            this.respond('cancel', inputId);
+        };
+
+        this.updateForageConfirmButton();
+    }
+
+    /**
+     * Select a focus option in forage popup
+     */
+    selectForageFocus(focusId) {
+        this.forageSelection.focusId = focusId;
+
+        // Update visual selection
+        document.querySelectorAll('.focus-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.focusId === focusId);
+        });
+
+        // Highlight matching clues
+        document.querySelectorAll('.forage-clue').forEach(clue => {
+            clue.classList.toggle('highlighted', clue.dataset.focusId === focusId);
+        });
+
+        this.updateForageConfirmButton();
+    }
+
+    /**
+     * Select a time option in forage popup
+     */
+    selectForageTime(timeId) {
+        this.forageSelection.timeId = timeId;
+
+        // Update visual selection
+        document.querySelectorAll('.time-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.timeId === timeId);
+        });
+
+        this.updateForageConfirmButton();
+    }
+
+    /**
+     * Update the confirm button based on selection state
+     */
+    updateForageConfirmButton() {
+        const btn = document.getElementById('forageConfirmBtn');
+        const desc = document.getElementById('forageConfirmDesc');
+
+        if (this.forageSelection.focusId && this.forageSelection.timeId) {
+            btn.disabled = false;
+            const focusLabel = document.querySelector(`.focus-btn[data-focus-id="${this.forageSelection.focusId}"] .focus-label`)?.textContent || '';
+            const timeLabel = document.querySelector(`.time-btn[data-time-id="${this.forageSelection.timeId}"]`)?.textContent || '';
+            desc.textContent = `${focusLabel} - ${timeLabel}`;
+        } else if (this.forageSelection.focusId) {
+            btn.disabled = true;
+            desc.textContent = 'Select time';
+        } else if (this.forageSelection.timeId) {
+            btn.disabled = true;
+            desc.textContent = 'Select focus';
+        } else {
+            btn.disabled = true;
+            desc.textContent = 'Select focus and time';
+        }
+    }
+
+    /**
+     * Hide forage popup overlay
+     */
+    hideForagePopup() {
+        hide(document.getElementById('forageOverlay'));
+        this.forageSelection = null;
     }
 
     /**

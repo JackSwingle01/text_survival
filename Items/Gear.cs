@@ -310,6 +310,17 @@ public class Gear
         MaxDurability = durability
     };
 
+    /// <summary>Bone needle - sewing tool for equipment crafting and mending</summary>
+    public static Gear BoneNeedle(string name = "Bone Needle", int durability = 20) => new()
+    {
+        Name = name,
+        Category = GearCategory.Tool,
+        ToolType = Items.ToolType.Needle,
+        Weight = 0.05,
+        Durability = durability,
+        MaxDurability = durability
+    };
+
     // === Equipment Factory Methods ===
 
     /// <summary>Fur head covering - good insulation</summary>

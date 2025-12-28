@@ -111,7 +111,7 @@ public class HeatSourceFeature : LocationFeature
     public double EmberTimeRemaining => _emberTimeRemaining;
 
     // Charcoal production tracking
-    private double _totalFuelBurnedKg;
+    [JsonInclude] private double _totalFuelBurnedKg;
     public double CharcoalAvailableKg => _charcoalAvailableKg;
     public bool HasCharcoal => _charcoalAvailableKg > 0.01;
 

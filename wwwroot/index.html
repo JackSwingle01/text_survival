@@ -310,6 +310,50 @@
         </div>
     </div>
 
+    <!-- Forage Overlay -->
+    <div class="event-overlay hidden" id="forageOverlay">
+        <div class="event-modal forage-modal">
+            <div class="event-header">
+                <h2><span class="material-symbols-outlined">eco</span> Foraging</h2>
+            </div>
+
+            <!-- Quality indicator -->
+            <div class="forage-quality" id="forageQuality">Resources look decent.</div>
+
+            <!-- Clues section -->
+            <div class="forage-clues" id="forageClues">
+                <div class="clues-header">You notice:</div>
+                <div class="clues-list" id="forageCluesList"></div>
+            </div>
+
+            <!-- Warnings -->
+            <div class="forage-warnings" id="forageWarnings"></div>
+
+            <!-- Focus selection -->
+            <div class="forage-focus-section">
+                <div class="focus-header">What do you focus on?</div>
+                <div class="focus-options" id="forageFocusOptions"></div>
+            </div>
+
+            <!-- Time selection -->
+            <div class="forage-time-section">
+                <div class="time-header">How long?</div>
+                <div class="time-options" id="forageTimeOptions"></div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="forage-actions" id="forageActions">
+                <button class="event-choice-btn forage-confirm" id="forageConfirmBtn" disabled>
+                    <span class="choice-label">Search</span>
+                    <span class="choice-desc" id="forageConfirmDesc">Select focus and time</span>
+                </button>
+                <button class="event-choice-btn forage-cancel" id="forageCancelBtn">
+                    <span class="choice-label">Cancel</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Tile Popup -->
     <div class="tile-popup hidden" id="tilePopup">
         <div class="tile-popup-header">

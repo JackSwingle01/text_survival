@@ -115,9 +115,6 @@ public class WorkRunner(GameContext ctx)
         // Show UI and check weight
         GameDisplay.Render(_ctx, statusText: "Thinking.");
 
-        // Clear work result overlay so it doesn't persist
-        WebIO.ClearEvent(_ctx);
-
         ForceDropIfOverweight();
 
         return result;

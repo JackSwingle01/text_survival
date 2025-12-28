@@ -1,3 +1,4 @@
+using text_survival.Actions.Variants;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Items;
@@ -98,95 +99,136 @@ public static partial class GameEventRegistry
                 ]);
     }
 
-    private static GameEvent FrostbiteWarning(GameContext ctx)
+    /// <summary>
+    /// Unified cold exposure event that adapts to weather conditions.
+    /// Uses ColdExposureVariant to match description with mechanics.
+    /// </summary>
+    private static GameEvent ColdExposure(GameContext ctx)
     {
-        return new GameEvent("Frostbite Warning",
-            "Your fingers have gone white. You can't feel your toes. This is getting serious.", 1.2)
-            .Requires(EventCondition.ExtremelyCold, EventCondition.Outside, EventCondition.IsExpedition)
-            .Choice("Treat It Now",
-                "Stop, tuck your hands under your arms, stamp your feet. Get the blood flowing.",
-                [
-                    new EventResult("You catch it in time. Painful but no lasting damage.", 0.55, 10)
-                        .WithCold(-3, 15),
-                    new EventResult("It takes longer than expected, but the feeling returns.", 0.30, 20)
-                        .WithCold(-5, 20),
-                    new EventResult("Despite your efforts, the damage was already done. Your fingertips are numb.", 0.15, 15)
-                        .WithFrostbite(5, 0.3)
-                ])
-            .Choice("Push On",
-                "You'll deal with it at camp. Just need to get back.",
-                [
-                    new EventResult("You make it back. The damage is treatable.", 0.35)
-                        .MinorFrostbite(),
-                    new EventResult("Too late. Some tissue is permanently damaged.", 0.30)
-                        .ModerateFrostbite(),
-                    new EventResult("The movement actually helps circulation. You warm up a bit.", 0.25, 5)
-                        .WithCold(-2, 10),
-                    new EventResult("Your body gives out before you reach safety.", 0.10, 30)
-                        .SevereFrostbite()
-                        .SevereCold()
-                ])
-            .Choice("Burn Supplies",
-                "Use fuel or tinder to start an emergency fire. Your extremities are worth more than supplies.",
-                [
-                    new EventResult("The fire saves your fingers. Worth every stick.", 0.50, 15)
-                        .BurnsFuel(2),
-                    new EventResult("It partially works. Some damage, but you'll keep your fingers.", 0.30, 20)
-                        .MinorFrostbite()
-                        .BurnsFuel(2),
-                    new EventResult("The fire doesn't help enough. The damage is done, and you've wasted supplies.", 0.15, 15)
-                        .ModerateFrostbite()
-                        .BurnsFuel(2),
-                    new EventResult("The attempt makes things worse. Wet hands in extreme cold.", 0.05, 20)
-                        .Damage(10, DamageType.Internal)
-                        .BurnsFuel(1)
-                ]);
+        var variant = ColdExposureSelector.SelectByWeather(ctx);
+
+        var evt = new GameEvent(variant.EventName, variant.Description, 1.0)
+            .Requires(EventCondition.Outside, EventCondition.IsExpedition);
+
+        // Add type-specific conditions
+        switch (variant.ExposureType)
+        {
+            case ColdExposureType.ExtremeCold:
+                evt.Requires(EventCondition.ExtremelyCold);
+                break;
+            case ColdExposureType.WetCold:
+                evt.Requires(EventCondition.IsRaining, EventCondition.LowTemperature);
+                break;
+            case ColdExposureType.WindChill:
+                evt.Requires(EventCondition.HighWind);
+                break;
+        }
+
+        // Build choices based on exposure type
+        AddColdExposureChoices(evt, variant);
+
+        return evt;
     }
 
-    private static GameEvent ColdRainSoaking(GameContext ctx)
+    private static void AddColdExposureChoices(GameEvent evt, ColdExposureVariant variant)
     {
-        return new GameEvent("Cold Rain Soaking",
-            "The rain is seeping through everything. You're getting dangerously wet in freezing conditions.", 1.0)
-            .Requires(EventCondition.IsRaining, EventCondition.Outside, EventCondition.IsExpedition, EventCondition.LowTemperature)
-            .Choice("Strip and Wring",
-                "Find what cover you can, strip off wet layers, wring them out. Brief exposure, but drier clothes.",
-                [
-                    new EventResult("It works. You're cold but no longer waterlogged.", 0.50, 15)
-                        .WithCold(-5, 20),
-                    new EventResult("The brief exposure causes additional cold damage.", 0.30, 15)
-                        .WithCold(-12, 35),
-                    new EventResult("You can't get dry enough. Still soaked.", 0.15, 20)
-                        .HarshCold(),
-                    new EventResult("Something sees you while you're vulnerable.", 0.05, 10)
-                        .Frightening()
-                        .Aborts()
-                ])
-            .Choice("Keep Moving Fast",
-                "Generate body heat through movement. If you stop, you'll freeze.",
-                [
-                    new EventResult("The movement keeps you warm enough to push through.", 0.35, 5)
-                        .WithCold(-8, 25),
-                    new EventResult("Exhaustion plus cold. You're in serious trouble.", 0.35, 20)
-                        .WithCold(-18, 50)
-                        .ExposureDamage(3),
-                    new EventResult("You find shelter faster than expected.", 0.20, 10)
-                        .WithCold(-3, 15),
-                    new EventResult("You push through successfully. Cold but alive.", 0.10, 5)
-                ])
-            .Choice("Start Emergency Fire",
-                "Find what dry materials you can. You need heat desperately.",
-                [
-                    new EventResult("You find dry tinder under a rock overhang. The fire saves you.", 0.30, 25)
-                        .QuickFire(),
-                    new EventResult("Everything is too wet. The fire won't catch.", 0.35, 20)
-                        .WithCold(-12, 40),
-                    new EventResult("Partial success. A small fire buys you time to dry out somewhat.", 0.25, 30)
-                        .WithCold(-5, 25)
-                        .QuickFire(),
-                    new EventResult("The fire attempt takes too long. Hypothermia sets in.", 0.10, 35)
-                        .SevereCold()
-                        .WastesTinder()
-                ]);
+        switch (variant.ExposureType)
+        {
+            case ColdExposureType.ExtremeCold:
+                AddExtremeColdChoices(evt);
+                break;
+            case ColdExposureType.WetCold:
+                AddWetColdChoices(evt);
+                break;
+            case ColdExposureType.WindChill:
+                AddWindChillChoices(evt);
+                break;
+        }
+    }
+
+    private static void AddExtremeColdChoices(GameEvent evt)
+    {
+        evt.Choice("Treat It Now",
+            "Stop, tuck your hands under your arms, stamp your feet. Get the blood flowing.",
+            [
+                new EventResult("You catch it in time. Painful but no lasting damage.", 0.55, 10)
+                    .WithCold(-3, 15),
+                new EventResult("It takes longer than expected, but the feeling returns.", 0.30, 20)
+                    .WithCold(-5, 20),
+                new EventResult("Despite your efforts, the damage was already done. Your fingertips are numb.", 0.15, 15)
+                    .WithFrostbite(5, 0.3)
+            ])
+        .Choice("Push On",
+            "You'll deal with it at camp. Just need to get back.",
+            [
+                new EventResult("You make it back. The damage is treatable.", 0.35)
+                    .MinorFrostbite(),
+                new EventResult("Too late. Some tissue is permanently damaged.", 0.30)
+                    .ModerateFrostbite(),
+                new EventResult("The movement actually helps circulation. You warm up a bit.", 0.25, 5)
+                    .WithCold(-2, 10),
+                new EventResult("Your body gives out before you reach safety.", 0.10, 30)
+                    .SevereFrostbite()
+                    .SevereCold()
+            ])
+        .Choice("Burn Supplies",
+            "Use fuel or tinder to start an emergency fire. Your extremities are worth more than supplies.",
+            [
+                new EventResult("The fire saves your fingers. Worth every stick.", 0.50, 15)
+                    .BurnsFuel(2),
+                new EventResult("It partially works. Some damage, but you'll keep your fingers.", 0.30, 20)
+                    .MinorFrostbite()
+                    .BurnsFuel(2),
+                new EventResult("The fire doesn't help enough. The damage is done, and you've wasted supplies.", 0.15, 15)
+                    .ModerateFrostbite()
+                    .BurnsFuel(2),
+                new EventResult("The attempt makes things worse. Wet hands in extreme cold.", 0.05, 20)
+                    .Damage(10, DamageType.Internal)
+                    .BurnsFuel(1)
+            ]);
+    }
+
+    private static void AddWetColdChoices(GameEvent evt)
+    {
+        evt.Choice("Strip and Wring",
+            "Find what cover you can, strip off wet layers, wring them out. Brief exposure, but drier clothes.",
+            [
+                new EventResult("It works. You're cold but no longer waterlogged.", 0.50, 15)
+                    .WithCold(-5, 20),
+                new EventResult("The brief exposure causes additional cold damage.", 0.30, 15)
+                    .WithCold(-12, 35),
+                new EventResult("You can't get dry enough. Still soaked.", 0.15, 20)
+                    .HarshCold(),
+                new EventResult("Something sees you while you're vulnerable.", 0.05, 10)
+                    .Frightening()
+                    .Aborts()
+            ])
+        .Choice("Keep Moving Fast",
+            "Generate body heat through movement. If you stop, you'll freeze.",
+            [
+                new EventResult("The movement keeps you warm enough to push through.", 0.35, 5)
+                    .WithCold(-8, 25),
+                new EventResult("Exhaustion plus cold. You're in serious trouble.", 0.35, 20)
+                    .WithCold(-18, 50)
+                    .ExposureDamage(3),
+                new EventResult("You find shelter faster than expected.", 0.20, 10)
+                    .WithCold(-3, 15),
+                new EventResult("You push through successfully. Cold but alive.", 0.10, 5)
+            ])
+        .Choice("Start Emergency Fire",
+            "Find what dry materials you can. You need heat desperately.",
+            [
+                new EventResult("You find dry tinder under a rock overhang. The fire saves you.", 0.30, 25)
+                    .QuickFire(),
+                new EventResult("Everything is too wet. The fire won't catch.", 0.35, 20)
+                    .WithCold(-12, 40),
+                new EventResult("Partial success. A small fire buys you time to dry out somewhat.", 0.25, 30)
+                    .WithCold(-5, 25)
+                    .QuickFire(),
+                new EventResult("The fire attempt takes too long. Hypothermia sets in.", 0.10, 35)
+                    .SevereCold()
+                    .WastesTinder()
+            ]);
     }
 
     private static GameEvent LostInFog(GameContext ctx)
@@ -231,46 +273,43 @@ public static partial class GameEventRegistry
                 ]);
     }
 
-    private static GameEvent BitterWind(GameContext ctx)
+    private static void AddWindChillChoices(GameEvent evt)
     {
-        return new GameEvent("Bitter Wind",
-            "The wind cuts through your clothes like they're not there. Your body heat is being stripped away.", 1.0)
-            .Requires(EventCondition.HighWind, EventCondition.Outside, EventCondition.IsExpedition)
-            .Choice("Find a Windbreak",
-                "Look for natural cover. Rocks, trees, a depression in the ground.",
-                [
-                    new EventResult("You find good cover. You warm up and continue.", 0.50, 8)
-                        .WithCold(-2, 10),
-                    new EventResult("Partial cover. It helps somewhat.", 0.30, 12)
-                        .WithCold(-5, 20),
-                    new EventResult("No good options nearby. You waste time looking.", 0.15, 18)
-                        .WithCold(-10, 30),
-                    new EventResult("The windbreak has another problem. You're not alone.", 0.05, 10)
-                        .Unsettling()
-                ])
-            .Choice("Turn Your Back and Keep Moving",
-                "Let your clothing do its job. The wind is cold but you can take it.",
-                [
-                    new EventResult("Cold but manageable. You push through.", 0.40, 5)
-                        .WithCold(-8, 25),
-                    new EventResult("The cold is worse than you thought. Hypothermia risk.", 0.35, 10)
-                        .WithCold(-15, 40),
-                    new EventResult("You find a route that naturally shields you from the wind.", 0.15, 8),
-                    new EventResult("The wind clears snow from something interesting.", 0.10, 10)
-                        .FindsSupplies()
-                ])
-            .Choice("Build a Quick Shelter",
-                "Pile up snow, lean branches, create a windbreak. It takes time but might be worth it.",
-                [
-                    new EventResult("Worth it. You warm up significantly behind your barrier.", 0.40, 25)
-                        .WithCold(-2, 15),
-                    new EventResult("Takes longer than expected, but works.", 0.30, 40)
-                        .LightChill(),
-                    new EventResult("The wind destroys your shelter. Wasted effort.", 0.20, 20)
-                        .WithCold(-10, 30),
-                    new EventResult("Your shelter works too well. You fall asleep and wake up later.", 0.10, 60)
-                        .WithEffects(EffectFactory.Cold(-5, 25), EffectFactory.Rested(0.5, 60))
-                ]);
+        evt.Choice("Find a Windbreak",
+            "Look for natural cover. Rocks, trees, a depression in the ground.",
+            [
+                new EventResult("You find good cover. You warm up and continue.", 0.50, 8)
+                    .WithCold(-2, 10),
+                new EventResult("Partial cover. It helps somewhat.", 0.30, 12)
+                    .WithCold(-5, 20),
+                new EventResult("No good options nearby. You waste time looking.", 0.15, 18)
+                    .WithCold(-10, 30),
+                new EventResult("The windbreak has another problem. You're not alone.", 0.05, 10)
+                    .Unsettling()
+            ])
+        .Choice("Turn Your Back and Keep Moving",
+            "Let your clothing do its job. The wind is cold but you can take it.",
+            [
+                new EventResult("Cold but manageable. You push through.", 0.40, 5)
+                    .WithCold(-8, 25),
+                new EventResult("The cold is worse than you thought. Hypothermia risk.", 0.35, 10)
+                    .WithCold(-15, 40),
+                new EventResult("You find a route that naturally shields you from the wind.", 0.15, 8),
+                new EventResult("The wind clears snow from something interesting.", 0.10, 10)
+                    .FindsSupplies()
+            ])
+        .Choice("Build a Quick Shelter",
+            "Pile up snow, lean branches, create a windbreak. It takes time but might be worth it.",
+            [
+                new EventResult("Worth it. You warm up significantly behind your barrier.", 0.40, 25)
+                    .WithCold(-2, 15),
+                new EventResult("Takes longer than expected, but works.", 0.30, 40)
+                    .LightChill(),
+                new EventResult("The wind destroys your shelter. Wasted effort.", 0.20, 20)
+                    .WithCold(-10, 30),
+                new EventResult("Your shelter works too well. You fall asleep and wake up later.", 0.10, 60)
+                    .WithEffects(EffectFactory.Cold(-5, 25), EffectFactory.Rested(0.5, 60))
+            ]);
     }
 
     private static GameEvent SuddenClearing(GameContext ctx)

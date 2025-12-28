@@ -14,7 +14,8 @@ public class CuringRackFeature : LocationFeature
     /// <summary>
     /// Items currently being processed on the rack.
     /// </summary>
-    private readonly List<CuringItem> _items = [];
+    [System.Text.Json.Serialization.JsonInclude]
+    private List<CuringItem> _items = [];
 
     /// <summary>
     /// Maximum number of items the rack can hold.
@@ -41,6 +42,7 @@ public class CuringRackFeature : LocationFeature
         { CurableItemType.Berries, 720 }        // 12 hours
     };
 
+    [System.Text.Json.Serialization.JsonConstructor]
     public CuringRackFeature() : base("CuringRack") { }
 
     /// <summary>

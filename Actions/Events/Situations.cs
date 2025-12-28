@@ -48,6 +48,13 @@ public static class Situations
     public static bool IsFollowingAnimalSigns(GameContext ctx) =>
         ctx.CurrentActivity == ActivityType.Tracking;
 
+    /// <summary>
+    /// Player has a fresh trail tension from examining animal signs.
+    /// Boosts hunting event chances.
+    /// </summary>
+    public static bool HasFreshTrail(GameContext ctx) =>
+        ctx.Tensions.HasTension("FreshTrail");
+
     // === VULNERABILITY ===
 
     /// <summary>

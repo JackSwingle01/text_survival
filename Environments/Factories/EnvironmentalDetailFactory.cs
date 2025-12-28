@@ -18,8 +18,8 @@ public static class EnvironmentalDetailFactory
         var rng = new Random(seed);
         var details = new List<EnvironmentalDetail>();
 
-        // 30% chance of no details
-        if (rng.NextDouble() < 0.3)
+        // 65% chance of no details (details are relatively rare finds)
+        if (rng.NextDouble() < 0.65)
             return details;
 
         // Get pool of possible details for this terrain

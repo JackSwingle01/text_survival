@@ -191,8 +191,25 @@ public class CraftingRunner(GameContext ctx)
 
             if (gear == null)
             {
-                // Processing recipe - materials were added to inventory
-                GameDisplay.AddSuccess(_ctx, $"You produced {option.GetOutputDescription()}!");
+                // Check if this was a mending recipe
+                if (option.IsMendingRecipe)
+                {
+                    var equipment = _ctx.Inventory.GetEquipment(option.MendSlot!.Value);
+                    if (equipment != null)
+                    {
+                        GameDisplay.AddSuccess(_ctx, $"You mended your {equipment.Name}!");
+                        GameDisplay.AddNarrative(_ctx, $"Condition: {equipment.ConditionPct:P0}");
+                    }
+                    else
+                    {
+                        GameDisplay.AddSuccess(_ctx, "You completed the mending work.");
+                    }
+                }
+                else
+                {
+                    // Processing recipe - materials were added to inventory
+                    GameDisplay.AddSuccess(_ctx, $"You produced {option.GetOutputDescription()}!");
+                }
             }
             else
             {
@@ -266,6 +283,7 @@ public class CraftingRunner(GameContext ctx)
         NeedCategory.Equipment => "Gear",
         NeedCategory.Lighting => "Light",
         NeedCategory.Carrying => "Carry",
+        NeedCategory.Mending => "Mend",
         _ => category.ToString()
     };
 
@@ -280,6 +298,7 @@ public class CraftingRunner(GameContext ctx)
         NeedCategory.Equipment => "Clothing and gear",
         NeedCategory.Lighting => "Light sources",
         NeedCategory.Carrying => "Carrying gear",
+        NeedCategory.Mending => "Equipment mending",
         _ => need.ToString()
     };
 
@@ -294,6 +313,7 @@ public class CraftingRunner(GameContext ctx)
         NeedCategory.Equipment => "clothing and gear",
         NeedCategory.Lighting => "a light source",
         NeedCategory.Carrying => "something to carry more",
+        NeedCategory.Mending => "mending worn equipment",
         _ => need.ToString().ToLower()
     };
 

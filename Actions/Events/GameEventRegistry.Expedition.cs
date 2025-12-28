@@ -251,6 +251,7 @@ public static partial class GameEventRegistry
             "As you work, you notice something useful you almost missed.", 0.8)
             .Requires(EventCondition.Working, EventCondition.IsExpedition)
             .WithSituationFactor(Situations.IsFollowingAnimalSigns, 1.8) // Following tracks leads to finds
+            .WithSituationFactor(Situations.HasFreshTrail, 1.3)          // Examined signs heighten awareness
             .Choice("Take It",
                 "A lucky find.",
                 [

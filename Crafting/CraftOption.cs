@@ -50,6 +50,11 @@ public class CraftOption
     public List<MaterialOutput>? MaterialOutputs { get; init; }
 
     /// <summary>
+    /// For mending recipes: the equipment slot to repair.
+    /// </summary>
+    public Items.EquipSlot? MendSlot { get; init; }
+
+    /// <summary>
     /// Check if player has all required materials and tools.
     /// </summary>
     public bool CanCraft(Inventory inventory)
@@ -117,6 +122,11 @@ public class CraftOption
     public bool ProducesFeature => FeatureFactory != null;
 
     /// <summary>
+    /// Whether this recipe mends equipment rather than creating items.
+    /// </summary>
+    public bool IsMendingRecipe => MendSlot.HasValue;
+
+    /// <summary>
     /// Consume materials and create the item.
     /// Returns null if this recipe produces materials or features instead.
     /// </summary>
@@ -133,6 +143,19 @@ public class CraftOption
         {
             var tool = inventory.GetTool(toolType)!;
             tool.Use();
+        }
+
+        // If this is a mending recipe, repair the equipment
+        if (IsMendingRecipe)
+        {
+            var equipment = inventory.GetEquipment(MendSlot!.Value);
+            if (equipment != null)
+            {
+                // Restore 50% of max durability (imperfect field mending)
+                int repairAmount = equipment.MaxDurability / 2;
+                equipment.Repair(repairAmount);
+            }
+            return null;
         }
 
         // If this produces materials instead of an item, add them to inventory

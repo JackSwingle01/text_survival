@@ -62,6 +62,12 @@ public static class LocationFactory
                 if (animals != null)
                     location.Features.Add(animals);
             }
+
+            // Add wooded area to forest terrain
+            if (terrain == TerrainType.Forest)
+            {
+                location.Features.Add(new WoodedAreaFeature("Forest Trees", null, 100));
+            }
         }
 
         return location;

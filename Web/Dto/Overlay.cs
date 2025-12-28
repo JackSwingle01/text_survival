@@ -12,6 +12,7 @@ namespace text_survival.Web.Dto;
 [JsonDerivedType(typeof(EventOverlay), "event")]
 [JsonDerivedType(typeof(HazardOverlay), "hazard")]
 [JsonDerivedType(typeof(ConfirmOverlay), "confirm")]
+[JsonDerivedType(typeof(ForageOverlay), "forage")]
 public abstract record Overlay;
 
 /// <summary>
@@ -83,3 +84,39 @@ public record EventChoiceDto(
     string Description,
     bool IsAvailable
 );
+
+/// <summary>
+/// Forage overlay: Popup for foraging with clues, focus, and time selection.
+/// </summary>
+public record ForageOverlay(ForageDto Data) : Overlay;
+
+/// <summary>
+/// Data for the forage overlay popup.
+/// </summary>
+public record ForageDto(
+    string LocationQuality,
+    List<ForageClueDto> Clues,
+    List<ForageFocusDto> FocusOptions,
+    List<ForageTimeDto> TimeOptions,
+    List<string> Warnings
+);
+
+/// <summary>
+/// An environmental clue in the forage overlay.
+/// </summary>
+public record ForageClueDto(
+    string Id,
+    string Description,
+    string? HintText,
+    string? SuggestedFocusId
+);
+
+/// <summary>
+/// A focus option in the forage overlay.
+/// </summary>
+public record ForageFocusDto(string Id, string Label, string Description);
+
+/// <summary>
+/// A time option in the forage overlay.
+/// </summary>
+public record ForageTimeDto(string Id, string Label, int Minutes);

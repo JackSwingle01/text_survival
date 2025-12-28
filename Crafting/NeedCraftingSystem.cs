@@ -23,6 +23,7 @@ public class NeedCraftingSystem
         InitializeLightingOptions();
         InitializeCarryingOptions();
         InitializeCampInfrastructureOptions();
+        InitializeMendingOptions();
     }
 
     /// <summary>
@@ -610,6 +611,19 @@ public class NeedCraftingSystem
                 MaxDurability = dur
             }
         });
+
+        // Bone Needle: Essential for sewing equipment and mending
+        _options.Add(new CraftOption
+        {
+            Name = "Bone Needle",
+            Description = "A fine bone needle for stitching hide. Required for crafting and mending equipment.",
+            Category = NeedCategory.Processing,
+            CraftingTimeMinutes = 20,
+            Durability = 20,
+            Requirements = [new MaterialRequirement("Bone", 1)],
+            RequiredTools = [ToolType.Knife],
+            GearFactory = dur => Gear.BoneNeedle(durability: dur)
+        });
     }
 
     #endregion
@@ -797,6 +811,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("CuredHide", 1),
                 new MaterialRequirement("Sinew", 1)
             ],
+            RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
             {
                 Name = "Hide Gloves",
@@ -821,6 +836,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("CuredHide", 1),
                 new MaterialRequirement("Sinew", 1)
             ],
+            RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
             {
                 Name = "Hide Cap",
@@ -845,6 +861,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("CuredHide", 2),
                 new MaterialRequirement("Sinew", 2)
             ],
+            RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
             {
                 Name = "Hide Wrap",
@@ -869,6 +886,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("CuredHide", 2),
                 new MaterialRequirement("Sinew", 1)
             ],
+            RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
             {
                 Name = "Hide Leggings",
@@ -893,6 +911,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("CuredHide", 1),
                 new MaterialRequirement("Sinew", 1)
             ],
+            RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
             {
                 Name = "Hide Boots",
@@ -919,6 +938,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("Sinew", 4),
                 new MaterialRequirement("CuredHide", 2)  // For lining
             ],
+            RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
             {
                 Name = "Mammoth Hide Coat",
@@ -943,6 +963,7 @@ public class NeedCraftingSystem
                 new MaterialRequirement("MammothHide", 1),
                 new MaterialRequirement("Sinew", 2)
             ],
+            RequiredTools = [ToolType.Needle],
             GearFactory = dur => new Gear
             {
                 Name = "Mammoth Hood",
@@ -1306,6 +1327,128 @@ public class NeedCraftingSystem
                 BeddingFeature.CreateSleepingBag(),
                 180 // 3 hours of stitching work
             )
+        });
+    }
+
+    #endregion
+
+    #region Mending Options
+
+    private void InitializeMendingOptions()
+    {
+        // Mend Boots
+        _options.Add(new CraftOption
+        {
+            Name = "Mend Boots",
+            Description = "Patch holes and restitch seams on your footwear.",
+            Category = NeedCategory.Mending,
+            CraftingTimeMinutes = 15,
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("Sinew", 1),
+                new MaterialRequirement("Hide", 1)
+            ],
+            RequiredTools = [ToolType.Needle],
+            MendSlot = EquipSlot.Feet,
+            Prerequisite = ctx =>
+            {
+                var boots = ctx.Inventory.GetEquipment(EquipSlot.Feet);
+                if (boots == null) return "No boots equipped";
+                if (boots.ConditionPct >= 1.0) return "Boots don't need mending";
+                return null;
+            }
+        });
+
+        // Mend Gloves
+        _options.Add(new CraftOption
+        {
+            Name = "Mend Gloves",
+            Description = "Patch worn spots and fix loose stitching on your gloves.",
+            Category = NeedCategory.Mending,
+            CraftingTimeMinutes = 15,
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("Sinew", 1),
+                new MaterialRequirement("Hide", 1)
+            ],
+            RequiredTools = [ToolType.Needle],
+            MendSlot = EquipSlot.Hands,
+            Prerequisite = ctx =>
+            {
+                var gloves = ctx.Inventory.GetEquipment(EquipSlot.Hands);
+                if (gloves == null) return "No gloves equipped";
+                if (gloves.ConditionPct >= 1.0) return "Gloves don't need mending";
+                return null;
+            }
+        });
+
+        // Mend Cap
+        _options.Add(new CraftOption
+        {
+            Name = "Mend Cap",
+            Description = "Patch and restitch your head covering.",
+            Category = NeedCategory.Mending,
+            CraftingTimeMinutes = 15,
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("Sinew", 1),
+                new MaterialRequirement("Hide", 1)
+            ],
+            RequiredTools = [ToolType.Needle],
+            MendSlot = EquipSlot.Head,
+            Prerequisite = ctx =>
+            {
+                var cap = ctx.Inventory.GetEquipment(EquipSlot.Head);
+                if (cap == null) return "No head covering equipped";
+                if (cap.ConditionPct >= 1.0) return "Head covering doesn't need mending";
+                return null;
+            }
+        });
+
+        // Mend Chest Wrap
+        _options.Add(new CraftOption
+        {
+            Name = "Mend Chest Wrap",
+            Description = "Patch tears and reinforce seams on your chest covering.",
+            Category = NeedCategory.Mending,
+            CraftingTimeMinutes = 20,
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("Sinew", 1),
+                new MaterialRequirement("Hide", 1)
+            ],
+            RequiredTools = [ToolType.Needle],
+            MendSlot = EquipSlot.Chest,
+            Prerequisite = ctx =>
+            {
+                var chest = ctx.Inventory.GetEquipment(EquipSlot.Chest);
+                if (chest == null) return "No chest covering equipped";
+                if (chest.ConditionPct >= 1.0) return "Chest covering doesn't need mending";
+                return null;
+            }
+        });
+
+        // Mend Leggings
+        _options.Add(new CraftOption
+        {
+            Name = "Mend Leggings",
+            Description = "Patch worn areas and fix loose stitching on your leg wraps.",
+            Category = NeedCategory.Mending,
+            CraftingTimeMinutes = 18,
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement("Sinew", 1),
+                new MaterialRequirement("Hide", 1)
+            ],
+            RequiredTools = [ToolType.Needle],
+            MendSlot = EquipSlot.Legs,
+            Prerequisite = ctx =>
+            {
+                var legs = ctx.Inventory.GetEquipment(EquipSlot.Legs);
+                if (legs == null) return "No leg covering equipped";
+                if (legs.ConditionPct >= 1.0) return "Leg covering doesn't need mending";
+                return null;
+            }
         });
     }
 

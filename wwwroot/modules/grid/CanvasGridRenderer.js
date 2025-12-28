@@ -59,6 +59,11 @@ export class CanvasGridRenderer {
             'water_drop': { color: '#60a0b0', glow: false },            // Water
             'catching_pokemon': { color: '#e0a030', glow: true }        // Catch ready!
         };
+
+        // Bound event handlers for proper add/remove
+        this._boundHandleMouseMove = (e) => this.handleMouseMove(e);
+        this._boundHandleMouseLeave = () => this.handleMouseLeave();
+        this._boundHandleClick = (e) => this.handleClick(e);
     }
 
     /**
@@ -92,10 +97,15 @@ export class CanvasGridRenderer {
         // Initialize snow particles
         this.initSnowParticles();
 
-        // Set up event handlers
-        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
-        this.canvas.addEventListener('click', (e) => this.handleClick(e));
+        // Remove any existing handlers first (idempotent init)
+        this.canvas.removeEventListener('mousemove', this._boundHandleMouseMove);
+        this.canvas.removeEventListener('mouseleave', this._boundHandleMouseLeave);
+        this.canvas.removeEventListener('click', this._boundHandleClick);
+
+        // Set up event handlers using bound references
+        this.canvas.addEventListener('mousemove', this._boundHandleMouseMove);
+        this.canvas.addEventListener('mouseleave', this._boundHandleMouseLeave);
+        this.canvas.addEventListener('click', this._boundHandleClick);
 
         // Start animation loop
         this.startAnimation();
@@ -954,9 +964,9 @@ export class CanvasGridRenderer {
     destroy() {
         this.stopAnimation();
         if (this.canvas) {
-            this.canvas.removeEventListener('mousemove', this.handleMouseMove);
-            this.canvas.removeEventListener('mouseleave', this.handleMouseLeave);
-            this.canvas.removeEventListener('click', this.handleClick);
+            this.canvas.removeEventListener('mousemove', this._boundHandleMouseMove);
+            this.canvas.removeEventListener('mouseleave', this._boundHandleMouseLeave);
+            this.canvas.removeEventListener('click', this._boundHandleClick);
         }
     }
 }

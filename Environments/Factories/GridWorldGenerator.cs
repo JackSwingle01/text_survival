@@ -8,8 +8,8 @@ namespace text_survival.Environments.Factories;
 /// </summary>
 public class GridWorldGenerator
 {
-    public int Width { get; set; } = 32;
-    public int Height { get; set; } = 32;
+    public int Width { get; set; } = 16;
+    public int Height { get; set; } = 16;
     public int TargetNamedLocations { get; set; } = 40;
     public int MinLocationSpacing { get; set; } = 3;  // Minimum tiles between named locations
 

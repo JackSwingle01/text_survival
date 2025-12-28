@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Actions.Variants;
 using text_survival.Crafting;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -18,6 +19,7 @@ public static class WebIO
     private static readonly Dictionary<string, EventDto> _currentEvent = new();
     private static readonly Dictionary<string, HazardPromptDto> _currentHazard = new();
     private static readonly Dictionary<string, string> _currentConfirm = new();
+    private static readonly Dictionary<string, ForageDto> _currentForage = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -75,6 +77,8 @@ public static class WebIO
                 overlays.Add(new HazardOverlay(hazard));
             if (_currentConfirm.TryGetValue(sessionId, out var confirm))
                 overlays.Add(new ConfirmOverlay(confirm));
+            if (_currentForage.TryGetValue(sessionId, out var forage))
+                overlays.Add(new ForageOverlay(forage));
         }
 
         return overlays;
@@ -123,6 +127,15 @@ public static class WebIO
     {
         if (ctx.SessionId != null)
             _currentConfirm.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
+    /// Clear the current forage display for a session.
+    /// </summary>
+    public static void ClearForage(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentForage.Remove(ctx.SessionId);
     }
 
     /// <summary>
@@ -227,7 +240,7 @@ public static class WebIO
 
             if (detail != null && detail.CanInteract)
             {
-                var (loot, examinationText) = detail.Interact();
+                var (loot, examinationText, tension) = detail.Interact();
 
                 // Log the examination result
                 if (examinationText != null)
@@ -244,6 +257,12 @@ public static class WebIO
                     {
                         ctx.Log.Add($"  Your pack is full. Left behind: {leftovers.GetDescription()}", UI.LogLevel.Warning);
                     }
+                }
+
+                // Add any tension from examining the detail
+                if (tension != null)
+                {
+                    ctx.Tensions.AddTension(tension);
                 }
             }
 
@@ -331,6 +350,26 @@ public static class WebIO
 
         // Default to min if parsing fails
         return min;
+    }
+
+    /// <summary>
+    /// Wait for user to acknowledge the current event overlay (Continue button).
+    /// The event overlay must already be set via RenderEvent.
+    /// </summary>
+    public static void WaitForEventContinue(GameContext ctx)
+    {
+        var session = GetSession(ctx);
+
+        int inputId = session.GenerateInputId();
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto(inputId, "anykey", "Continue", null)
+        );
+
+        session.Send(frame);
+        session.WaitForResponse(inputId, ResponseTimeout);
     }
 
     /// <summary>
@@ -520,6 +559,70 @@ public static class WebIO
     }
 
     /// <summary>
+    /// Show forage overlay and wait for player to select focus and time.
+    /// Returns (focus, minutes) or (null, 0) if cancelled.
+    /// </summary>
+    public static (ForageFocus? focus, int minutes) SelectForageOptions(GameContext ctx, ForageDto forageData)
+    {
+        var session = GetSession(ctx);
+
+        // Set forage as overlay
+        if (ctx.SessionId != null)
+            _currentForage[ctx.SessionId] = forageData;
+
+        // Build choice list - each is a focus_time combo
+        var choices = new List<ChoiceDto>();
+        foreach (var focusOption in forageData.FocusOptions)
+        {
+            foreach (var time in forageData.TimeOptions)
+            {
+                string id = $"{focusOption.Id}_{time.Minutes}";
+                string label = $"{focusOption.Label} - {time.Label}";
+                choices.Add(new ChoiceDto(id, label));
+            }
+        }
+        choices.Add(new ChoiceDto("cancel", "Cancel"));
+
+        int inputId = session.GenerateInputId();
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto(inputId, "forage", "Choose focus and time", choices)
+        );
+
+        session.Send(frame);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+        // Clear forage overlay after response
+        ClearForage(ctx);
+
+        if (response.ChoiceId == "cancel" || response.ChoiceId == null)
+            return (null, 0);
+
+        // Parse response: "fuel_30" -> (Fuel, 30)
+        var parts = response.ChoiceId.Split('_');
+        if (parts.Length != 2)
+            return (null, 0);
+
+        var focusId = parts[0];
+        var focus = focusId switch
+        {
+            "fuel" => ForageFocus.Fuel,
+            "food" => ForageFocus.Food,
+            "medicine" => ForageFocus.Medicine,
+            "materials" => ForageFocus.Materials,
+            "general" => ForageFocus.General,
+            _ => ForageFocus.General
+        };
+
+        if (!int.TryParse(parts[1], out int minutes))
+            minutes = 30;
+
+        return (focus, minutes);
+    }
+
+    /// <summary>
     /// Show work results as an event overlay. Uses outcome-only mode for display.
     /// </summary>
     public static void ShowWorkResult(GameContext ctx, string activityName, string message, List<string> itemsGained)
@@ -557,5 +660,7 @@ public static class WebIO
         );
 
         RenderEvent(ctx, eventData);
+        WaitForEventContinue(ctx);
+        ClearEvent(ctx);
     }
 }

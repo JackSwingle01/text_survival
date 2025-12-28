@@ -54,5 +54,10 @@ public enum NeedCategory
     /// <summary>
     /// Camp infrastructure improvements (fire pits, shelters, bedding).
     /// </summary>
-    CampInfrastructure
+    CampInfrastructure,
+
+    /// <summary>
+    /// Mending worn equipment (requires needle).
+    /// </summary>
+    Mending
 }

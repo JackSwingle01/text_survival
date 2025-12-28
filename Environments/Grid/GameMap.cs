@@ -264,14 +264,14 @@ public class GameMap
         double visibility = location.VisibilityFactor;
 
         if (visibility < 0.5)
-            return 0;  // Only current location
+            return 1;  // Bordering locations (was 0)
         if (visibility < 1.0)
-            return 1;  // Bordering locations
+            return 2;  // 2 tile radius (was 1)
         if (visibility < 1.5)
-            return 2;  // 2 tile radius
+            return 3;  // 3 tile radius (was 2)
         if (visibility < 2.0)
-            return 3;  // 3 tile radius
-        return 4;      // Vantage points
+            return 4;  // 4 tile radius (was 3)
+        return 5;      // Vantage points (was 4)
     }
 
     // === Serialization ===

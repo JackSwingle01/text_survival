@@ -21,17 +21,16 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     public override string? MapIcon => CanHunt() ? (HasPredators() ? "pets" : "cruelty_free") : null;
     public override int IconPriority => HasPredators() ? 3 : 2; // Predators show prominently
 
-    [System.Text.Json.Serialization.JsonInclude]
-    private readonly List<AnimalSpawnEntry> _possibleAnimals = [];
+    public List<AnimalSpawnEntry> _possibleAnimals = [];
     private readonly double _respawnRateHours = 168.0; // Full respawn takes 1 week
 
-    // Explicit private fields for serialization
-    private double _baseGameDensity;
-    private double _gameDensity;
-    private double _initialDepletedDensity;
-    private double _hoursSinceLastHunt;
-    private (int Start, int End)? _peakHours;
-    private double _peakMultiplier = 1.0;
+    // Public fields for serialization (System.Text.Json IncludeFields requires public)
+    public double _baseGameDensity;
+    public double _gameDensity;
+    public double _initialDepletedDensity;
+    public double _hoursSinceLastHunt;
+    public (int Start, int End)? _peakHours;
+    public double _peakMultiplier = 1.0;
 
     // Public properties backed by private fields
     internal double BaseGameDensity => _baseGameDensity;

@@ -1879,6 +1879,207 @@ body {
     border-color: var(--text-bright);
 }
 
+/* ============================================
+   FORAGE OVERLAY
+   ============================================ */
+
+.forage-modal {
+    max-width: 650px;
+}
+
+.forage-quality {
+    font-size: 0.95rem;
+    color: var(--text-bright);
+    margin-bottom: 16px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 3px solid var(--health-green);
+}
+
+.forage-clues {
+    margin-bottom: 16px;
+}
+
+.clues-header {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+}
+
+.clues-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.forage-clue {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.forage-clue.clickable {
+    cursor: pointer;
+}
+
+.forage-clue.clickable:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--border-dim);
+}
+
+.forage-clue.highlighted {
+    background: rgba(80, 160, 96, 0.15);
+    border-color: var(--health-green);
+}
+
+.clue-bullet {
+    color: var(--text-dim);
+}
+
+.clue-desc {
+    color: var(--text-bright);
+    font-size: 0.9rem;
+}
+
+.clue-hint {
+    color: var(--text-faint);
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.forage-warnings {
+    margin-bottom: 16px;
+}
+
+.forage-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 0.85rem;
+    color: var(--warning-amber);
+}
+
+.forage-warning .material-symbols-outlined {
+    font-size: 1rem;
+}
+
+.forage-focus-section,
+.forage-time-section {
+    margin-bottom: 16px;
+}
+
+.focus-header,
+.time-header {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+}
+
+.focus-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+}
+
+.focus-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.focus-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.focus-btn.selected {
+    background: rgba(80, 160, 96, 0.2);
+    border-color: var(--health-green);
+}
+
+.focus-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-bright);
+}
+
+.focus-desc {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+.time-options {
+    display: flex;
+    gap: 8px;
+}
+
+.time-btn {
+    flex: 1;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0;
+    cursor: pointer;
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-bright);
+    transition: all 0.2s ease;
+}
+
+.time-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.time-btn.selected {
+    background: rgba(96, 160, 176, 0.2);
+    border-color: var(--tech-cyan);
+}
+
+.forage-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-dim);
+}
+
+.forage-confirm {
+    background: rgba(80, 160, 96, 0.1);
+    border-color: var(--health-green);
+}
+
+.forage-confirm:hover:not(:disabled) {
+    background: rgba(80, 160, 96, 0.2);
+}
+
+.forage-cancel {
+    opacity: 0.7;
+}
+
 /* Temperature Crisis - Integrated into existing section */
 .status-section.temp-crisis {
     background: rgba(244, 67, 54, 0.15) !important;

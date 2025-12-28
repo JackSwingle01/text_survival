@@ -249,6 +249,18 @@ public class ActiveTension
     );
 
     /// <summary>
+    /// Player found fresh animal signs. Decays quickly as trail goes cold.
+    /// Boosts hunting event chances.
+    /// </summary>
+    public static ActiveTension FreshTrail(double severity, string? animalType = null) => new(
+        type: "FreshTrail",
+        severity: severity,
+        decayPerHour: 0.15,  // Decays quickly - trail goes cold
+        decaysAtCamp: true,  // Returning to camp means losing the trail
+        animalType: animalType
+    );
+
+    /// <summary>
     /// Generic factory for custom tension types.
     /// </summary>
     public static ActiveTension Custom(

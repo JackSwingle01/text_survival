@@ -13,7 +13,7 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class WoodedAreaFeature : LocationFeature, IWorkableFeature
 {
-    public override string? MapIcon => HasTrees ? "park" : null;
+    public override string? MapIcon => null; // Forests are common - no need for map icon
     public override int IconPriority => 1;
 
     /// <summary>
@@ -45,6 +45,7 @@ public class WoodedAreaFeature : LocationFeature, IWorkableFeature
     /// <summary>
     /// Accumulated respawn time (in hours).
     /// </summary>
+    [System.Text.Json.Serialization.JsonInclude]
     private double _respawnAccumulator = 0;
 
     /// <summary>
