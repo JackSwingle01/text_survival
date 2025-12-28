@@ -688,4 +688,13 @@ public enum EventCondition
     Cornered,              // Only 1-2 passable adjacent tiles (limited exits)
     AtTerrainBottleneck,   // Narrow passage far from camp (cornered + far)
     JustRevealedLocation,  // Visibility just revealed new named location
+
+    // Carcass conditions
+    HasCarcass,            // Current location has a carcass feature
+    HasFreshCarcass,       // Carcass with ScentIntensity > 0.5
+    HasStrongScent,        // Carcass with ScentIntensity > 0.6
+
+    // Player scent conditions
+    PlayerBloody,          // Player has the Bloody effect
+    PlayerBloodyHigh,      // Player has Bloody effect with severity > 0.2
 }

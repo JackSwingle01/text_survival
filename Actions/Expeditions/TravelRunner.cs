@@ -122,8 +122,9 @@ public class TravelRunner(GameContext ctx)
 
         // Single combined progress bar with synchronized camera pan
         int totalTime = exitTime + entryTime;
-        bool died = RunTravelWithProgress(totalTime, destination, originPos);
+        var (died, stayed) = RunTravelWithProgress(totalTime, destination, originPos);
         if (died) return false;
+        if (stayed) return true;  // Player chose to stay at origin after event - travel "succeeded" but ended early
 
         // Apply injury checks after travel completes
         if (originQuickTravel)
@@ -235,13 +236,29 @@ public class TravelRunner(GameContext ctx)
     /// <summary>
     /// Runs travel with synchronized progress bar and camera pan animation.
     /// Processes time, moves to destination, then sends TravelProgressMode.
-    /// Returns true if player died during travel.
+    /// Returns (died, stayed) - died if player died, stayed if player chose to stay at origin after event.
     /// </summary>
-    private bool RunTravelWithProgress(int totalTime, Location destination, Environments.Grid.GridPosition originPos)
+    private (bool died, bool stayed) RunTravelWithProgress(int totalTime, Location destination, Environments.Grid.GridPosition originPos)
     {
         // Process time without sending a frame (ctx.Update handles minute-by-minute internally)
         _ctx.Update(totalTime, ActivityType.Traveling);
-        if (PlayerDied) return true;
+        if (PlayerDied) return (true, false);
+
+        // Check if event interrupted travel - give player option to stay at origin
+        if (_ctx.EventOccurredLastUpdate)
+        {
+            GameDisplay.Render(_ctx, statusText: "Interrupted");
+
+            var choice = new Choice<bool>("Continue traveling?");
+            choice.AddOption($"Continue to {destination.Name}", true);
+            choice.AddOption("Stay here", false);
+
+            if (!choice.GetPlayerChoice(_ctx))
+            {
+                // Player chose to stay at origin - don't move
+                return (false, true);
+            }
+        }
 
         // Move to destination
         _ctx.Map!.MoveTo(destination);
@@ -250,7 +267,7 @@ public class TravelRunner(GameContext ctx)
         // Grid state shows destination, origin position enables camera pan from start
         WebIO.RenderTravelProgress(_ctx, "Traveling...", totalTime, originPos.X, originPos.Y);
 
-        return PlayerDied;
+        return (PlayerDied, false);
     }
 
     private void HandleVictory()

@@ -127,6 +127,30 @@ public class Gear
     /// </summary>
     public ToolType? ToolType { get; init; }
 
+    // === Treatment-Specific (ToolType.Treatment) ===
+    /// <summary>
+    /// Effect kind this treatment targets (e.g., "Bleeding", "Pain", "Fever").
+    /// Null if not a treatment or doesn't treat an existing effect.
+    /// </summary>
+    public string? TreatsEffect { get; init; }
+
+    /// <summary>
+    /// How much to reduce the target effect's severity (0-1 scale).
+    /// 0.5 = 50% reduction.
+    /// </summary>
+    public double EffectReduction { get; init; }
+
+    /// <summary>
+    /// Description shown when applying this treatment.
+    /// </summary>
+    public string? TreatmentDescription { get; init; }
+
+    /// <summary>
+    /// Effect to grant when consumed (e.g., "Nourished" buff).
+    /// Null if treatment only reduces existing effects.
+    /// </summary>
+    public string? GrantsEffect { get; init; }
+
     // === Combat (optional, for weapon-tools) ===
     public double? Damage { get; init; }
     public double? BlockChance { get; init; }

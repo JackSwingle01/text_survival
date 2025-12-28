@@ -7,6 +7,30 @@ using text_survival.Items;
 namespace text_survival.Environments.Features;
 
 /// <summary>
+/// Butchering mode affects time, yields, and scent.
+/// </summary>
+public enum ButcheringMode
+{
+    QuickStrip,      // Fast, meat-focused, messy - more scent, less yield
+    Careful,         // Balanced (default)
+    FullProcessing   // Slow, maximum yield, bonus sinew
+}
+
+/// <summary>
+/// Configuration for each butchering mode.
+/// </summary>
+public record ButcheringModeConfig(
+    double TimeFactor,       // Multiplier on base time
+    double MeatYieldFactor,  // Multiplier on meat yield
+    double HideYieldFactor,  // 0 = no hide (QuickStrip)
+    double BoneYieldFactor,
+    double SinewYieldFactor, // 0 = no sinew (QuickStrip)
+    double FatYieldFactor,
+    double ScentIncrease,    // Added to carcass scent
+    double BloodySeverity    // Bloody effect severity applied to player
+);
+
+/// <summary>
 /// Represents a dead animal carcass that can be butchered for resources.
 /// Absorbs all butchering logic from ButcherRunner.
 /// Carcasses decay over time - meat spoils but bone/hide/sinew remain.
@@ -20,8 +44,13 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     public string AnimalName { get; set; } = "";
     public double BodyWeightKg { get; set; }
 
-    // Decay tracking
-    public double HoursSinceDeath { get; set; }
+    // Decay tracking - two time trackers
+    /// <summary>Raw time since death (used for scent intensity).</summary>
+    public double RawHoursSinceDeath { get; set; }
+    /// <summary>Temperature-adjusted time (used for decay calculation).</summary>
+    public double EffectiveHoursSinceDeath { get; set; }
+    /// <summary>Last known temperature at this carcass location.</summary>
+    public double LastKnownTemperatureF { get; set; } = 32;  // Default to freezing
 
     // Butchering progress
     public double MinutesButchered { get; set; }
@@ -109,31 +138,117 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     }
 
     /// <summary>
-    /// Advance decay based on elapsed time.
+    /// Advance raw time (for scent intensity tracking).
+    /// Temperature-based decay is applied separately via ApplyTemperatureDecay().
     /// </summary>
     public override void Update(int minutes)
     {
-        HoursSinceDeath += minutes / 60.0;
+        RawHoursSinceDeath += minutes / 60.0;
     }
 
     /// <summary>
-    /// Calculate decay level from hours since death.
+    /// Apply temperature-adjusted decay. Called from Location.Update() with temperature context.
+    /// </summary>
+    public void ApplyTemperatureDecay(double temperatureF, int minutes)
+    {
+        LastKnownTemperatureF = temperatureF;
+        double decayMultiplier = GetDecayMultiplier(temperatureF);
+        EffectiveHoursSinceDeath += (minutes / 60.0) * decayMultiplier;
+    }
+
+    /// <summary>
+    /// Get decay rate multiplier based on temperature.
+    /// Cold preserves meat, warmth accelerates spoilage.
+    /// </summary>
+    private static double GetDecayMultiplier(double temperatureF) => temperatureF switch
+    {
+        < 0 => 0.1,      // Deep freeze - near-preservation
+        < 15 => 0.25,    // Very cold - slow decay
+        < 32 => 0.5,     // Freezing point - moderate
+        < 50 => 1.0,     // Cool - normal rate
+        _ => 2.0         // Warm - fast spoilage
+    };
+
+    /// <summary>
+    /// Whether the carcass is frozen solid (makes butchering harder).
+    /// Requires cold temperature and some time to freeze through.
+    /// </summary>
+    public bool IsFrozen => LastKnownTemperatureF < 15 && RawHoursSinceDeath > 2;
+
+    // === SCENT SYSTEM ===
+
+    /// <summary>
+    /// Bonus scent from butchering activity (blood, opened carcass).
+    /// Adds to base ScentIntensity.
+    /// </summary>
+    public double ScentIntensityBonus { get; set; }
+
+    /// <summary>
+    /// How attractive this carcass is to predators (0-1).
+    /// Based on raw time since death (not temperature-adjusted).
+    /// Fresh blood is strongest, old carcasses less attractive.
+    /// </summary>
+    public double ScentIntensity
+    {
+        get
+        {
+            double baseScent = RawHoursSinceDeath switch
+            {
+                < 2 => 0.8,    // Fresh blood - strongest
+                < 6 => 0.6,    // Still warm
+                < 12 => 0.4,   // Cooling, less scent
+                < 24 => 0.2,   // Old, weak scent
+                _ => 0.1       // Spoiled - different smell, less attractive
+            };
+
+            return Math.Min(1.0, baseScent + ScentIntensityBonus);
+        }
+    }
+
+    /// <summary>
+    /// Apply scavenging losses when player was away from the carcass.
+    /// Higher scent = more loss to scavengers.
+    /// </summary>
+    /// <param name="hoursAway">Hours the player was away</param>
+    /// <param name="predatorActivityNearby">Whether predators are active in the area (tensions)</param>
+    public void ProcessScavenging(double hoursAway, bool predatorActivityNearby)
+    {
+        if (!predatorActivityNearby || hoursAway < 0.5) return;
+
+        // Higher scent = more attractive to scavengers
+        // Up to 15% meat loss per hour at max scent
+        double lossRatePerHour = ScentIntensity * 0.15;
+        double totalLossPct = Math.Min(0.8, lossRatePerHour * hoursAway);  // Cap at 80% loss
+
+        MeatRemainingKg *= (1 - totalLossPct);
+
+        // Scavengers also damage hide/sinew (tearing)
+        if (totalLossPct > 0.3)
+        {
+            HideRemainingKg *= 0.7;  // 30% hide damage from scavenger activity
+            SinewRemainingKg *= 0.8;  // 20% sinew loss
+        }
+    }
+
+    /// <summary>
+    /// Calculate decay level from temperature-adjusted hours since death.
     /// Returns 0-1 where 0=fresh, 1=completely spoiled.
+    /// Uses EffectiveHoursSinceDeath which accounts for temperature preservation.
     /// </summary>
     public double DecayLevel
     {
         get
         {
-            // Fresh: 0-4 hours (slow decay)
-            // Good: 4-12 hours (moderate decay)
-            // Questionable: 12-24 hours (faster decay)
-            // Spoiled: 24+ hours (capped at 1.0)
-            return HoursSinceDeath switch
+            // Fresh: 0-4 effective hours (slow decay)
+            // Good: 4-12 effective hours (moderate decay)
+            // Questionable: 12-24 effective hours (faster decay)
+            // Spoiled: 24+ effective hours (capped at 1.0)
+            return EffectiveHoursSinceDeath switch
             {
-                <= 4 => HoursSinceDeath * 0.05,  // 0-0.2
-                <= 12 => 0.2 + (HoursSinceDeath - 4) * 0.0375,  // 0.2-0.5
-                <= 24 => 0.5 + (HoursSinceDeath - 12) * 0.025,  // 0.5-0.8
-                _ => Math.Min(1.0, 0.8 + (HoursSinceDeath - 24) * 0.02)  // 0.8-1.0
+                <= 4 => EffectiveHoursSinceDeath * 0.05,  // 0-0.2
+                <= 12 => 0.2 + (EffectiveHoursSinceDeath - 4) * 0.0375,  // 0.2-0.5
+                <= 24 => 0.5 + (EffectiveHoursSinceDeath - 12) * 0.025,  // 0.5-0.8
+                _ => Math.Min(1.0, 0.8 + (EffectiveHoursSinceDeath - 24) * 0.02)  // 0.8-1.0
             };
         }
     }
@@ -141,13 +256,70 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     /// <summary>
     /// Get human-readable decay description.
     /// </summary>
-    public string GetDecayDescription() => DecayLevel switch
+    public string GetDecayDescription()
     {
-        < 0.2 => "fresh",
-        < 0.5 => "good condition",
-        < 0.8 => "starting to spoil",
-        _ => "spoiled"
+        string baseDesc = DecayLevel switch
+        {
+            < 0.2 => "fresh",
+            < 0.5 => "good condition",
+            < 0.8 => "starting to spoil",
+            _ => "spoiled"
+        };
+
+        return IsFrozen ? $"{baseDesc}, frozen" : baseDesc;
+    }
+
+    // === BUTCHERING MODES ===
+
+    /// <summary>
+    /// Get configuration for a butchering mode.
+    /// </summary>
+    public static ButcheringModeConfig GetModeConfig(ButcheringMode mode) => mode switch
+    {
+        // QuickStrip: 50% time, 80% meat, no hide/sinew, 50% bone/fat, high scent/blood
+        ButcheringMode.QuickStrip => new ButcheringModeConfig(
+            TimeFactor: 0.5,
+            MeatYieldFactor: 0.8,
+            HideYieldFactor: 0,
+            BoneYieldFactor: 0.5,
+            SinewYieldFactor: 0,
+            FatYieldFactor: 0.5,
+            ScentIncrease: 0.2,
+            BloodySeverity: 0.3
+        ),
+        // Careful: normal time, full yields
+        ButcheringMode.Careful => new ButcheringModeConfig(
+            TimeFactor: 1.0,
+            MeatYieldFactor: 1.0,
+            HideYieldFactor: 1.0,
+            BoneYieldFactor: 1.0,
+            SinewYieldFactor: 1.0,
+            FatYieldFactor: 1.0,
+            ScentIncrease: 0.1,
+            BloodySeverity: 0.15
+        ),
+        // FullProcessing: 150% time, +10% meat/fat, +20% sinew, minimal scent/blood
+        ButcheringMode.FullProcessing => new ButcheringModeConfig(
+            TimeFactor: 1.5,
+            MeatYieldFactor: 1.1,  // +10% from careful work
+            HideYieldFactor: 1.0,
+            BoneYieldFactor: 1.0,
+            SinewYieldFactor: 1.2, // +20% from careful extraction
+            FatYieldFactor: 1.1,   // +10% from thorough rendering
+            ScentIncrease: 0.05,
+            BloodySeverity: 0.1
+        ),
+        _ => GetModeConfig(ButcheringMode.Careful)
     };
+
+    /// <summary>
+    /// Get time estimate for a specific mode.
+    /// </summary>
+    public int GetRemainingMinutes(ButcheringMode mode)
+    {
+        var config = GetModeConfig(mode);
+        return (int)Math.Ceiling(GetTotalRemainingKg() * MinutesPerKgYield * config.TimeFactor);
+    }
 
     /// <summary>
     /// Total remaining yield in kg (for time estimation).
@@ -188,16 +360,22 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     /// <param name="minutes">Minutes of work to perform</param>
     /// <param name="hasCuttingTool">Whether player has a cutting tool</param>
     /// <param name="manipulationImpaired">Whether player's manipulation is impaired</param>
+    /// <param name="mode">Butchering mode affecting yields and scent</param>
     /// <returns>Inventory with harvested resources</returns>
-    public Inventory Harvest(int minutes, bool hasCuttingTool, bool manipulationImpaired)
+    public Inventory Harvest(int minutes, bool hasCuttingTool, bool manipulationImpaired,
+        ButcheringMode mode = ButcheringMode.Careful)
     {
         var result = new Inventory();
 
         if (IsCompletelyButchered)
             return result;
 
+        var modeConfig = GetModeConfig(mode);
+
         // Calculate what fraction of total work this represents
-        double totalMinutesRequired = GetTotalRemainingKg() * MinutesPerKgYield;
+        // Mode affects time: QuickStrip finishes faster per kg
+        double adjustedMinutesPerKg = MinutesPerKgYield * modeConfig.TimeFactor;
+        double totalMinutesRequired = GetTotalRemainingKg() * adjustedMinutesPerKg;
         double workFraction = Math.Min(1.0, minutes / totalMinutesRequired);
 
         MinutesButchered += minutes;
@@ -211,10 +389,10 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         double meatDecayMultiplier = 1.0 - (DecayLevel * 0.8);  // At 100% decay, only 20% meat usable
 
         // Without cutting tool: can only get meat (reduced) and bone
-        // With tool: get everything
+        // With tool: get everything (mode affects yields)
         if (hasCuttingTool)
         {
-            HarvestFullButcher(result, workFraction, yieldMultiplier, meatDecayMultiplier);
+            HarvestFullButcher(result, workFraction, yieldMultiplier, meatDecayMultiplier, modeConfig);
         }
         else
         {
@@ -224,7 +402,8 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         return result;
     }
 
-    private void HarvestFullButcher(Inventory result, double workFraction, double yieldMultiplier, double meatDecayMultiplier)
+    private void HarvestFullButcher(Inventory result, double workFraction, double yieldMultiplier,
+        double meatDecayMultiplier, ButcheringModeConfig mode)
     {
         // Extract proportional amounts of each resource
         double meatToExtract = MeatRemainingKg * workFraction;
@@ -235,12 +414,13 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         double ivoryToExtract = IvoryRemainingKg * workFraction;
         double mammothHideToExtract = MammothHideRemainingKg * workFraction;
 
-        // Apply yield multiplier and decay (meat only for decay)
-        double effectiveMeat = meatToExtract * yieldMultiplier * meatDecayMultiplier;
-        double effectiveBone = boneToExtract * yieldMultiplier;
-        double effectiveHide = hideToExtract * yieldMultiplier;
-        double effectiveSinew = sinewToExtract * yieldMultiplier;
-        double effectiveFat = fatToExtract * yieldMultiplier;
+        // Apply yield multiplier, decay (meat only), and mode multipliers
+        double effectiveMeat = meatToExtract * yieldMultiplier * meatDecayMultiplier * mode.MeatYieldFactor;
+        double effectiveBone = boneToExtract * yieldMultiplier * mode.BoneYieldFactor;
+        double effectiveHide = hideToExtract * yieldMultiplier * mode.HideYieldFactor;
+        double effectiveSinew = sinewToExtract * yieldMultiplier * mode.SinewYieldFactor;
+        double effectiveFat = fatToExtract * yieldMultiplier * mode.FatYieldFactor;
+        // Ivory and mammoth hide not affected by mode (trophy materials)
         double effectiveIvory = ivoryToExtract * yieldMultiplier;
         double effectiveMammothHide = mammothHideToExtract * yieldMultiplier;
 
@@ -253,7 +433,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         AddIvory(result, effectiveIvory);
         AddMammothHide(result, effectiveMammothHide);
 
-        // Decrement remaining yields
+        // Decrement remaining yields (full amount consumed regardless of yield factor)
         MeatRemainingKg -= meatToExtract;
         BoneRemainingKg -= boneToExtract;
         HideRemainingKg -= hideToExtract;

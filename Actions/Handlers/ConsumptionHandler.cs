@@ -1,3 +1,4 @@
+using text_survival.Effects;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Survival;
@@ -113,6 +114,25 @@ public static class ConsumptionHandler
                         {
                             GameDisplay.AddSuccess(ctx, "You drink some water.");
                         }
+                    };
+                }
+
+                // Wash off blood if player has Bloody effect
+                if (ctx.player.EffectRegistry.HasEffect("Bloody"))
+                {
+                    double waterNeeded = 0.5;
+                    double toUse = Math.Min(waterNeeded, inv.WaterLiters);
+                    string washOpt = $"Wash off blood ({toUse:F2}L)";
+                    options.Add(washOpt);
+                    consumeActions[washOpt] = () =>
+                    {
+                        inv.WaterLiters -= toUse;
+                        ctx.player.EffectRegistry.RemoveEffectsByKind("Bloody");
+
+                        // Washing adds wetness (+5% = 0.05 severity)
+                        ctx.player.EffectRegistry.AddEffect(EffectFactory.Wet(0.05));
+
+                        GameDisplay.AddSuccess(ctx, "You wash the blood from your hands and clothes. You're a bit damp now.");
                     };
                 }
             }

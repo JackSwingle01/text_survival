@@ -149,6 +149,15 @@ public class EffectRegistry
     public List<Effect> GetAll() => _effects.Where(e => e.IsActive).ToList();
     public List<Effect> GetEffectsByKind(string kind) => [.. _effects.Where(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase))];
     public bool HasEffect(string kind) => _effects.Any(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase));
+
+    /// <summary>
+    /// Get the severity of an effect by kind. Returns 0 if effect is not present.
+    /// </summary>
+    public double GetSeverity(string kind)
+    {
+        var effect = _effects.FirstOrDefault(e => e.EffectKind.Equals(kind, StringComparison.CurrentCultureIgnoreCase));
+        return effect?.Severity ?? 0;
+    }
     public List<string> RemoveEffectsByKind(string kind)
     {
         var messages = new List<string>();

@@ -334,10 +334,19 @@ public class Location
 
     public void Update(int minutes)
     {
+        // Get temperature once for features that need it
+        double temperatureF = GetTemperature(isStationary: true);
+
         // Update location features (fires consume fuel, etc.)
         foreach (var feature in Features)
         {
             feature.Update(minutes);
+
+            // Temperature-aware decay for carcasses
+            if (feature is CarcassFeature carcass)
+            {
+                carcass.ApplyTemperatureDecay(temperatureF, minutes);
+            }
         }
     }
 

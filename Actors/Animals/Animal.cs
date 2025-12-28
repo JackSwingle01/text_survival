@@ -265,6 +265,11 @@ namespace text_survival.Actors.Animals
             if (player.Vitality < 0.7) boldness += 0.15;
             if (player.Body.WeightKG > this.Body.WeightKG) boldness -= 0.10;
 
+            // Blood scent attracts predators
+            double bloodySeverity = player.EffectRegistry.GetSeverity("Bloody");
+            if (bloodySeverity > 0)
+                boldness += 0.15 * bloodySeverity;  // Up to +0.15 at full severity
+
             return Math.Clamp(boldness, 0.0, 1.0);
         }
 

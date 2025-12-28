@@ -20,6 +20,12 @@ namespace text_survival.Effects
         public CapacityModifierContainer CapacityModifiers { get; init; } = new();
         public DamageOverTime? Damage { get; init; }
 
+        /// <summary>
+        /// Multiplier for body healing rate. 1.0 = normal, 1.5 = +50% faster healing.
+        /// Used by positive effects like Nourished.
+        /// </summary>
+        public double HealingMultiplier { get; init; } = 1.0;
+
         // Messages
         public string? ApplicationMessage { get; init; }
         public string? RemovalMessage { get; init; }

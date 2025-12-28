@@ -17,11 +17,12 @@ public static class Situations
 
     /// <summary>
     /// Player state that attracts predators.
-    /// Combines: carrying meat, bleeding, food scent tension.
+    /// Combines: carrying meat, bleeding, bloody, food scent tension.
     /// </summary>
     public static bool AttractiveToPredators(GameContext ctx) =>
         ctx.Inventory.HasMeat ||
         ctx.player.EffectRegistry.HasEffect("Bleeding") ||
+        ctx.player.EffectRegistry.HasEffect("Bloody") ||
         ctx.Tensions.HasTension("FoodScentStrong");
 
     /// <summary>
@@ -35,6 +36,11 @@ public static class Situations
         if (ctx.player.EffectRegistry.HasEffect("Bleeding")) level += 0.4;
         if (ctx.Tensions.HasTension("FoodScentStrong")) level += 0.3;
         if (ctx.Check(EventCondition.Injured)) level += 0.2;
+
+        // Blood on player attracts predators (scales with severity)
+        double bloodySeverity = ctx.player.EffectRegistry.GetSeverity("Bloody");
+        level += bloodySeverity * 0.3;  // Up to +0.3 at full severity
+
         return Math.Min(1.0, level);
     }
 
@@ -198,12 +204,13 @@ public static class Situations
 
     /// <summary>
     /// Player has hunting advantage - good for positive hunt outcomes.
-    /// Combines: weapon equipped, not bleeding (no scent trail), good stealth conditions.
+    /// Combines: weapon equipped, no blood scent (bleeding or bloody), good stealth conditions.
     /// Use for weighting positive outcomes in hunting/ambush events.
     /// </summary>
     public static bool HuntingAdvantage(GameContext ctx) =>
         ctx.Inventory.HasWeapon &&
         !ctx.player.EffectRegistry.HasEffect("Bleeding") &&
+        !ctx.player.EffectRegistry.HasEffect("Bloody") &&
         GoodForStealth(ctx);
 
     /// <summary>

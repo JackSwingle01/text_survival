@@ -649,7 +649,10 @@ public class NeedCraftingSystem
                 ToolType = ToolType.Treatment,
                 Weight = 0.3,
                 Durability = dur,
-                MaxDurability = dur
+                MaxDurability = dur,
+                TreatsEffect = "Pain",
+                EffectReduction = 0.6,
+                TreatmentDescription = "You drink the bitter tea. The ache begins to fade."
             }
         });
 
@@ -669,7 +672,10 @@ public class NeedCraftingSystem
                 ToolType = ToolType.Treatment,
                 Weight = 0.3,
                 Durability = dur,
-                MaxDurability = dur
+                MaxDurability = dur,
+                TreatsEffect = "Coughing",
+                EffectReduction = 0.5,
+                TreatmentDescription = "You drink the sharp, resinous tea. Your breathing eases."
             }
         });
 
@@ -689,7 +695,11 @@ public class NeedCraftingSystem
                 ToolType = ToolType.Treatment,
                 Weight = 0.3,
                 Durability = dur,
-                MaxDurability = dur
+                MaxDurability = dur,
+                TreatsEffect = "Pain",
+                EffectReduction = 0.5,
+                TreatmentDescription = "You drink the tangy, sweet tea. The pain dulls and warmth spreads through you.",
+                GrantsEffect = "Nourished"
             }
         });
 
@@ -709,7 +719,10 @@ public class NeedCraftingSystem
                 ToolType = ToolType.Treatment,
                 Weight = 0.3,
                 Durability = dur,
-                MaxDurability = dur
+                MaxDurability = dur,
+                TreatsEffect = "Fever",
+                EffectReduction = 0.35,
+                TreatmentDescription = "You drink the dark, earthy tea. The burning heat in your body begins to ease."
             }
         });
 
@@ -729,7 +742,10 @@ public class NeedCraftingSystem
                 ToolType = ToolType.Treatment,
                 Weight = 0.2,
                 Durability = dur,
-                MaxDurability = dur
+                MaxDurability = dur,
+                TreatsEffect = "Fever",
+                EffectReduction = 0.3,
+                TreatmentDescription = "You press the damp poultice against your skin. It draws out the heat."
             }
         });
 
@@ -749,7 +765,10 @@ public class NeedCraftingSystem
                 ToolType = ToolType.Treatment,
                 Weight = 0.1,
                 Durability = dur,
-                MaxDurability = dur
+                MaxDurability = dur,
+                TreatsEffect = "Bleeding",
+                EffectReduction = 0.6,
+                TreatmentDescription = "You pack the wound with usnea. The lichen absorbs the blood and seals the wound."
             }
         });
 
@@ -769,7 +788,10 @@ public class NeedCraftingSystem
                 ToolType = ToolType.Treatment,
                 Weight = 0.15,
                 Durability = dur,
-                MaxDurability = dur
+                MaxDurability = dur,
+                TreatsEffect = "Bleeding",
+                EffectReduction = 0.55,
+                TreatmentDescription = "You wrap the wound with the sphagnum bandage. It absorbs the blood quickly."
             }
         });
 
@@ -789,7 +811,10 @@ public class NeedCraftingSystem
                 ToolType = ToolType.Treatment,
                 Weight = 0.05,
                 Durability = dur,
-                MaxDurability = dur
+                MaxDurability = dur,
+                TreatsEffect = "Bleeding",
+                EffectReduction = 0.4,
+                TreatmentDescription = "You apply the warm resin to the wound. It hardens into a protective seal."
             }
         });
     }

@@ -187,8 +187,28 @@ public static class ConditionChecker
             EventCondition.AtTerrainBottleneck => CountPassableExits(ctx) <= 2 && GetDistanceFromCamp(ctx) > 5,
             EventCondition.JustRevealedLocation => ctx.Map?.RevealedNewLocations ?? false,
 
+            // Carcass conditions
+            EventCondition.HasCarcass => ctx.CurrentLocation.HasFeature<CarcassFeature>(),
+            EventCondition.HasFreshCarcass => GetCarcassScentIntensity(ctx) > 0.5,
+            EventCondition.HasStrongScent => GetCarcassScentIntensity(ctx) > 0.6,
+
+            // Player scent conditions
+            EventCondition.PlayerBloody => ctx.player.EffectRegistry.HasEffect("Bloody"),
+            EventCondition.PlayerBloodyHigh => ctx.player.EffectRegistry.GetSeverity("Bloody") > 0.2,
+
             _ => false,
         };
+    }
+
+    // === CARCASS HELPERS ===
+
+    /// <summary>
+    /// Get the scent intensity of any carcass at the current location.
+    /// </summary>
+    private static double GetCarcassScentIntensity(GameContext ctx)
+    {
+        var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
+        return carcass?.ScentIntensity ?? 0;
     }
 
     // === TRAPPING HELPERS ===

@@ -156,18 +156,36 @@ public static class EffectFactory
 
     /// <summary>
     /// Nauseous - from bad food, dehydration, or stress.
-    /// Affects digestion and consciousness.
+    /// Affects digestion and consciousness. At high severity, causes vomiting (hydration loss).
+    /// Mild nausea fades naturally; severe nausea (gut sickness) requires treatment.
     /// </summary>
-    public static Effect Nauseous(double severity, int durationMinutes = 60) => new()
+    public static Effect Nauseous(double severity, int durationMinutes = 60, bool fromContamination = false) => new()
     {
         EffectKind = "Nauseous",
         Severity = severity,
-        HourlySeverityChange = -60.0 / durationMinutes,
+        // Contamination-based nausea worsens without treatment; mild nausea fades
+        HourlySeverityChange = fromContamination ? 0.05 : -60.0 / durationMinutes,
+        RequiresTreatment = fromContamination || severity > 0.5,
+        // High severity causes hydration loss from vomiting/cramping
+        StatsDelta = new() { HydrationDelta = severity > 0.5 ? -300.0 / 60.0 : 0 },  // 300ml/hour at severe
         CapacityModifiers = Capacities(
             (CapacityNames.Digestion, -0.3),
-            (CapacityNames.Consciousness, -0.1)),
-        ApplicationMessage = "You feel sick to your stomach."
+            (CapacityNames.Consciousness, -0.1),
+            (CapacityNames.Moving, -0.15)),
+        ApplicationMessage = fromContamination
+            ? "Your stomach lurches. Something you ate is fighting back."
+            : "You feel sick to your stomach.",
+        RemovalMessage = "The nausea has passed.",
+        ThresholdMessages = [
+            new Effect.ThresholdMessage(0.5, "The nausea is getting worse. Your stomach cramps.", true),
+            new Effect.ThresholdMessage(0.7, "You can barely keep anything down. You need to rest.", true),
+        ]
     };
+
+    /// <summary>
+    /// Gut sickness variant - contaminated food/water. Worsens without treatment.
+    /// </summary>
+    public static Effect GutSickness(double severity) => Nauseous(severity, fromContamination: true);
 
     /// <summary>
     /// Coughing - from smoke inhalation or illness.
@@ -370,6 +388,20 @@ public static class EffectFactory
     };
 
     /// <summary>
+    /// Nourished - well-fed with vitamins and nutrients.
+    /// Boosts body regeneration rate. From vitamin-rich foods like rose hips.
+    /// </summary>
+    public static Effect Nourished(double severity = 1.0, int durationMinutes = 180) => new()
+    {
+        EffectKind = "Nourished",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        HealingMultiplier = 1.5,  // +50% healing rate
+        ApplicationMessage = "You feel nourished and healthy.",
+        RemovalMessage = "The nourishing warmth fades."
+    };
+
+    /// <summary>
     /// Burn - tissue damage from heat.
     /// Causes pain and manipulation penalty. Heals slowly.
     /// </summary>
@@ -397,6 +429,29 @@ public static class EffectFactory
         CapacityModifiers = Capacities((CapacityNames.Moving, -0.25)),
         ApplicationMessage = "Your joints ache and your muscles are stiff.",
         RemovalMessage = "The stiffness has faded."
+    };
+
+    /// <summary>
+    /// Inflamed - localized wound infection warning.
+    /// Early warning stage before fever develops. Treating now prevents fever arc.
+    /// Hot, red, swelling around wound. Mild penalties, natural decay.
+    /// </summary>
+    public static Effect Inflamed(double severity, int durationMinutes = 480) => new()
+    {
+        EffectKind = "Inflamed",
+        Severity = severity,
+        // Slow natural decay OR can escalate to Fever if untreated in cold/dirty conditions
+        HourlySeverityChange = -60.0 / durationMinutes,
+        RequiresTreatment = severity > 0.4,  // Moderate inflammation needs treatment
+        CapacityModifiers = Capacities(
+            (CapacityNames.Manipulation, -0.1),
+            (CapacityNames.Moving, -0.05)),
+        ApplicationMessage = "The wound is hot to the touch. Red lines spreading from the edges.",
+        RemovalMessage = "The inflammation has subsided.",
+        ThresholdMessages = [
+            new Effect.ThresholdMessage(0.5, "The wound is getting worse. Swelling and heat.", true),
+            new Effect.ThresholdMessage(0.7, "Serious infection. Fever may follow if untreated.", true),
+        ]
     };
 
     /// <summary>
@@ -478,11 +533,43 @@ public static class EffectFactory
         ]
     };
 
+    /// <summary>
+    /// Bloody - covered in blood from butchering or combat.
+    /// Attracts predators (affects boldness and event weights).
+    /// Requires washing with water to remove. Washing adds wetness.
+    /// </summary>
+    public static Effect Bloody(double severity) => new()
+    {
+        EffectKind = "Bloody",
+        Severity = severity,
+        HourlySeverityChange = -0.02,  // Dries very slowly
+        RequiresTreatment = true,       // Only washing removes it properly
+        ApplicationMessage = "Blood covers you.",
+        RemovalMessage = "You've cleaned off the blood."
+    };
+
     private static CapacityModifierContainer Capacities(params (string name, double value)[] modifiers)
     {
         var container = new CapacityModifierContainer();
         foreach (var (name, value) in modifiers)
             container.SetCapacityModifier(name, value);
         return container;
+    }
+
+    /// <summary>
+    /// Create an effect by name. Used by TreatmentHandler for buff effects.
+    /// Returns null if effect name is not recognized.
+    /// </summary>
+    public static Effect? Create(string effectKind, double severity = 1.0)
+    {
+        return effectKind.ToLower() switch
+        {
+            "nourished" => Nourished(severity),
+            "warmed" => Warmed(severity),
+            "rested" => Rested(severity),
+            "focused" => Focused(severity),
+            "hardened" => Hardened(severity),
+            _ => null
+        };
     }
 }

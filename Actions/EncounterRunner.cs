@@ -43,6 +43,8 @@ public static class EncounterRunner
                 GameDisplay.AddNarrative(ctx, "It's eyeing the meat you're carrying.");
             if (ctx.player.Vitality < 0.7)
                 GameDisplay.AddNarrative(ctx, "It seems to sense your weakness.");
+            if (ctx.player.EffectRegistry.HasEffect("Bloody"))
+                GameDisplay.AddNarrative(ctx, "Its nostrils flare. It smells blood on you.");
 
             GameDisplay.Render(ctx, statusText: "Alert.");
 

@@ -66,6 +66,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     // Carcass creation
     public CarcassCreation? CarcassCreation;
 
+    // Carcass modification (scavenger loss as percentage, e.g. 0.5 = 50% loss)
+    public double? CarcassScavengerLoss;
+
     // === Fluent builder methods ===
 
     public EventResult Aborts() { AbortsExpedition = true; return this; }
@@ -155,6 +158,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     }
     public EventResult RemovesFeature(Type featureType) { RemoveFeature = featureType; return this; }
     public EventResult DestroysSnare(int count = 1) { DestroysSnareCount = count; return this; }
+    public EventResult WithScavengerLoss(double lossPct) { CarcassScavengerLoss = lossPct; return this; }
 
     // Stat drains
     public EventResult DrainsStats(double calories = 0, double hydration = 0)
@@ -449,6 +453,18 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
                         ? "  - A snare is destroyed"
                         : $"  - {destroyed} snares destroyed");
                 }
+            }
+        }
+
+        // Carcass scavenger loss
+        if (CarcassScavengerLoss is not null)
+        {
+            var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
+            if (carcass != null)
+            {
+                double lossPct = CarcassScavengerLoss.Value;
+                carcass.MeatRemainingKg *= (1 - lossPct);
+                carcass.FatRemainingKg *= (1 - lossPct);
             }
         }
     }

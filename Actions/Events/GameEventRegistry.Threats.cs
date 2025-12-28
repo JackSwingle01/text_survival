@@ -945,4 +945,188 @@ public static partial class GameEventRegistry
                 new EventResult("You retreat. The long way around costs time, but you're still breathing.", 1.0, 20)
             ]);
     }
+
+    // === CARCASS ATTRACTION EVENTS ===
+
+    /// <summary>
+    /// Something is investigating your carcass location.
+    /// Low scent threshold - early warning.
+    /// </summary>
+    private static GameEvent CarcassInvestigation(GameContext ctx)
+    {
+        var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
+        string animal = carcass?.AnimalName ?? "animal";
+
+        return new GameEvent(
+            "Something Investigates",
+            $"Fresh tracks circle the {animal.ToLower()} carcass. Something has been here recently.", 0.8)
+            .Requires(EventCondition.HasCarcass)
+            .WithConditionFactor(EventCondition.HasFreshCarcass, 1.5)
+            .WithConditionFactor(EventCondition.PlayerBloody, 1.3)
+            .Choice("Search for signs",
+                "See if you can tell what's been investigating.",
+                [
+                    new EventResult("Wolf tracks. A scout. The pack will come.", 0.4, 5)
+                        .BecomeStalked(0.3, "wolf"),
+                    new EventResult("Fox tracks. Bold, but not dangerous.", 0.35, 5),
+                    new EventResult("You were so focused on the tracks you didn't notice it watching from the treeline.", 0.25, 5)
+                        .BecomeStalked(0.4)
+                        .Frightening()
+                ])
+            .Choice("Work faster",
+                "Whatever it is will be back. Hurry.",
+                [
+                    new EventResult("You pick up the pace, keeping one eye on the treeline.", 1.0, 0)
+                ])
+            .Choice("Abandon the carcass",
+                "Not worth the risk. Leave it.",
+                [
+                    new EventResult("You leave the carcass. Let them have it.", 1.0, 2)
+                ]);
+    }
+
+    /// <summary>
+    /// Scavenger approaches while you're at a fresh carcass.
+    /// Medium scent threshold.
+    /// </summary>
+    private static GameEvent ScavengerApproach(GameContext ctx)
+    {
+        var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
+        string carcassName = carcass?.AnimalName ?? "carcass";
+
+        // Pick a scavenger based on territory
+        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
+        string scavenger = territory?.HasPredators() == true ? "wolf" : "fox";
+
+        return new GameEvent(
+            "Scavenger Approach",
+            $"A {scavenger} emerges from the brush, eyeing the {carcassName.ToLower()} carcass. It hasn't committed yet.", 0.7)
+            .Requires(EventCondition.HasFreshCarcass)
+            .WithConditionFactor(EventCondition.HasStrongScent, 1.5)
+            .WithConditionFactor(EventCondition.PlayerBloody, 1.4)
+            .Choice("Shout and wave",
+                "Scare it off. Show you're not easy prey.",
+                [
+                    new EventResult($"The {scavenger} slinks away. It will remember this place.", 0.7, 2),
+                    new EventResult($"The {scavenger} flinches but doesn't leave. It's hungry.", 0.2, 2)
+                        .BecomeStalked(0.25, scavenger),
+                    new EventResult($"Your shouting draws more attention. Now there are two.", 0.1, 2)
+                        .CreateTension("PackNearby", 0.3, animalType: scavenger)
+                ])
+            .Choice("Ignore it",
+                "Keep working. One animal won't attack while you're active.",
+                [
+                    new EventResult($"The {scavenger} watches but keeps its distance. For now.", 0.6, 0)
+                        .BecomeStalked(0.2, scavenger),
+                    new EventResult($"The {scavenger} creeps closer. You lock eyes. It backs off.", 0.3, 0),
+                    new EventResult($"The {scavenger} lunges! It wants this kill.", 0.1, 5)
+                        .Encounter(scavenger, 10, 0.5)
+                ])
+            .Choice("Throw it some meat",
+                "Maybe feeding it will keep it occupied.",
+                [
+                    new EventResult($"It takes the offering and retreats to eat.", 0.7, 3)
+                        .Costs(ResourceType.Food, 1),
+                    new EventResult($"It grabs the meat and wants more. Others are watching.", 0.3, 3)
+                        .Costs(ResourceType.Food, 1)
+                        .BecomeStalked(0.3, scavenger)
+                ]);
+    }
+
+    /// <summary>
+    /// A predator challenges you for the carcass while butchering.
+    /// High scent threshold, requires Working.
+    /// </summary>
+    private static GameEvent ContestedKill(GameContext ctx)
+    {
+        var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
+        string carcassName = carcass?.AnimalName ?? "kill";
+
+        // More dangerous predator for contested kills
+        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
+        string predator = territory?.GetRandomAnimalName() ?? "wolf";
+        if (territory?.HasPredators() == true)
+            predator = "wolf";  // Default to wolf for contested kills
+
+        return new GameEvent(
+            "Contested Kill",
+            $"A low growl. A {predator.ToLower()} steps into view, eyes fixed on your {carcassName.ToLower()}. It's not backing down.", 0.6)
+            .Requires(EventCondition.HasStrongScent, EventCondition.Working)
+            .WithConditionFactor(EventCondition.PlayerBloody, 1.5)
+            .WithConditionFactor(EventCondition.Injured, 1.3)
+            .Choice("Stand your ground",
+                "This is YOUR kill. Make that clear.",
+                [
+                    new EventResult($"You raise your arms and shout. The {predator.ToLower()} hesitates, then retreats.", 0.4, 5)
+                        .ResolvesStalking(),
+                    new EventResult($"You lock eyes. Neither of you blinks. It circles once, then leaves.", 0.3, 8)
+                        .Frightening(),
+                    new EventResult($"It charges. You're between it and food.", 0.3, 3)
+                        .Encounter(predator, 8, 0.7)
+                ])
+            .Choice("Grab what you have",
+                "Take what you've butchered and go. The rest isn't worth dying for.",
+                [
+                    new EventResult("You back away slowly with your haul. It claims the rest.", 0.8, 5)
+                        .Aborts(),
+                    new EventResult($"As you turn, it lunges. It wanted YOU, not the {carcassName.ToLower()}.", 0.2, 3)
+                        .Encounter(predator, 5, 0.6)
+                        .Aborts()
+                ])
+            .Choice("Use fire",
+                "Light a torch. Most animals fear flame.",
+                ctx.Inventory.HasLitTorch || ctx.CurrentLocation.HasActiveHeatSource()
+                    ? [
+                        new EventResult($"You thrust the flame forward. The {predator.ToLower()} snarls but backs away.", 0.8, 5)
+                            .ResolvesStalking(),
+                        new EventResult($"It flinches from the flame but doesn't leave. It's starving.", 0.2, 5)
+                            .BecomeStalked(0.4, predator)
+                    ]
+                    : [
+                        new EventResult("You have no fire to use.", 1.0, 0)
+                    ]);
+    }
+
+    /// <summary>
+    /// Return to find scavengers have claimed the carcass.
+    /// Triggers when player returns to carcass location after time away.
+    /// </summary>
+    private static GameEvent CarcassClaimed(GameContext ctx)
+    {
+        var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
+        if (carcass == null) return new GameEvent("Empty", "", 0).Requires(EventCondition.Cornered);  // Invalid
+
+        string animal = carcass.AnimalName;
+        double lossPercent = Random.Shared.NextDouble() * 0.5 + 0.3;  // 30-80% loss
+        double remainingKg = carcass.MeatRemainingKg * (1 - lossPercent);
+
+        return new GameEvent(
+            "Carcass Claimed",
+            $"You return to find the {animal.ToLower()} carcass torn apart. Scavengers have been at it. Some meat remains.", 0.5)
+            .Requires(EventCondition.HasCarcass, EventCondition.HasFreshCarcass)
+            .RequiresSituation(ctx => !ctx.Check(EventCondition.Working))  // Not during active work
+            .Choice("Salvage what's left",
+                $"There's still meat here. Maybe {remainingKg:F1}kg.",
+                [
+                    new EventResult("You gather what the scavengers left behind.", 0.7, 10)
+                        .WithScavengerLoss(lossPercent),
+                    new EventResult("You hear movement nearby. The scavengers are watching, waiting for you to leave.", 0.3, 8)
+                        .WithScavengerLoss(lossPercent)
+                        .BecomeStalked(0.25)
+                ])
+            .Choice("Track the scavengers",
+                "Fresh tracks lead away. They can't have gone far.",
+                [
+                    new EventResult("The tracks lead into thick brush. They're watching you.", 0.5, 15)
+                        .BecomeStalked(0.3),
+                    new EventResult("You find them. A standoff at their cache.", 0.3, 20)
+                        .Encounter("wolf", 20, 0.4),
+                    new EventResult("The trail goes cold. They know this territory better than you.", 0.2, 25)
+                ])
+            .Choice("Leave it",
+                "Not worth fighting over scraps.",
+                [
+                    new EventResult($"You abandon what remains of the {animal.ToLower()}.", 1.0, 2)
+                ]);
+    }
 }

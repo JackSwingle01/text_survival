@@ -115,6 +115,20 @@ public static class OutcomeTemplates
     public static EventResult PredatorAttack(this EventResult r, int amount = 10)
         => r.Damage(amount, DamageType.Sharp);
 
+    // === SCENT / BLOODY ===
+
+    /// <summary>Minor blood coverage (handling fresh kill, minor injury).</summary>
+    public static EventResult MinorBloody(this EventResult r)
+        => r.WithEffects(EffectFactory.Bloody(0.1));
+
+    /// <summary>Moderate blood coverage (butchering, combat injury).</summary>
+    public static EventResult ModerateBloody(this EventResult r)
+        => r.WithEffects(EffectFactory.Bloody(0.25));
+
+    /// <summary>Heavily bloodied (mauling, prolonged butchering).</summary>
+    public static EventResult HeavilyBloody(this EventResult r)
+        => r.WithEffects(EffectFactory.Bloody(0.4));
+
     // === RESOURCE COSTS ===
 
     /// <summary>Start a proper fire. 1 tinder + 2 fuel.</summary>

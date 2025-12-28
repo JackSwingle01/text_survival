@@ -105,6 +105,11 @@ public static partial class GameEventRegistry
         BloodInSnow,
         TheDyingAnimal,
         ScavengersConverge,
+        // Carcass events
+        CarcassInvestigation,
+        ScavengerApproach,
+        ContestedKill,
+        CarcassClaimed,
 
         // Herd events (GameEventRegistry.Herd.cs)
         DistantThunder,

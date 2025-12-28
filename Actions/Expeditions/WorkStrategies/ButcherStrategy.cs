@@ -1,4 +1,5 @@
 using text_survival.Bodies;
+using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
@@ -15,10 +16,12 @@ namespace text_survival.Actions.Expeditions.WorkStrategies;
 public class ButcherStrategy : IWorkStrategy
 {
     private readonly CarcassFeature _carcass;
+    private ButcheringMode? _selectedMode;
 
-    public ButcherStrategy(CarcassFeature carcass)
+    public ButcherStrategy(CarcassFeature carcass, ButcheringMode? mode = null)
     {
         _carcass = carcass;
+        _selectedMode = mode;
     }
 
     public string? ValidateLocation(GameContext ctx, Location location)
@@ -69,6 +72,13 @@ public class ButcherStrategy : IWorkStrategy
             effectRegistry: ctx.player.EffectRegistry
         );
 
+        // Frozen carcass takes 50% longer to butcher
+        if (_carcass.IsFrozen)
+        {
+            timeFactor *= 1.5;
+            warnings.Add("The carcass is frozen solid. This will take longer.");
+        }
+
         return ((int)(baseTime * timeFactor), warnings);
     }
 
@@ -80,6 +90,11 @@ public class ButcherStrategy : IWorkStrategy
 
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
+        // Select butchering mode if not already chosen
+        var mode = _selectedMode ?? SelectMode(ctx);
+        _selectedMode = mode;
+        var modeConfig = CarcassFeature.GetModeConfig(mode);
+
         // Determine tool and impairment status
         bool hasCuttingTool = ctx.Inventory.HasCuttingTool;
         var manipulation = ctx.player.GetCapacities().Manipulation;
@@ -97,8 +112,19 @@ public class ButcherStrategy : IWorkStrategy
             GameDisplay.AddWarning(ctx, "Your unsteady hands waste some of the meat.");
         }
 
-        // Harvest from carcass
-        var yield = _carcass.Harvest(actualTime, hasCuttingTool, manipulationImpaired);
+        // Harvest from carcass with selected mode
+        var yield = _carcass.Harvest(actualTime, hasCuttingTool, manipulationImpaired, mode);
+
+        // Apply Bloody effect based on mode (messy modes = more blood)
+        double bloodySeverity = modeConfig.BloodySeverity * (actualTime / 60.0);
+        bloodySeverity = Math.Min(0.5, bloodySeverity);
+        if (bloodySeverity > 0.05)
+        {
+            ctx.player.EffectRegistry.AddEffect(EffectFactory.Bloody(bloodySeverity));
+        }
+
+        // Increase carcass scent based on mode
+        _carcass.ScentIntensityBonus += modeConfig.ScentIncrease;
 
         // Add to inventory
         var collected = new List<string>();
@@ -136,5 +162,28 @@ public class ButcherStrategy : IWorkStrategy
         WebIO.ShowWorkResult(ctx, "Butchering", resultMessage, collected);
 
         return new WorkResult(collected, null, actualTime, false);
+    }
+
+    /// <summary>
+    /// Prompt player to select butchering mode.
+    /// </summary>
+    private ButcheringMode SelectMode(GameContext ctx)
+    {
+        var choice = new Choice<ButcheringMode>("How do you want to butcher?");
+
+        // Quick strip - for when you need to grab and go
+        int quickTime = _carcass.GetRemainingMinutes(ButcheringMode.QuickStrip);
+        choice.AddOption($"Quick strip (~{quickTime} min) - fast, meat only, messy", ButcheringMode.QuickStrip);
+
+        // Careful - balanced approach (recommended)
+        int carefulTime = _carcass.GetRemainingMinutes(ButcheringMode.Careful);
+        choice.AddOption($"Careful (~{carefulTime} min) - full yields (Recommended)", ButcheringMode.Careful);
+
+        // Full processing - for when you have time and want maximum value
+        int fullTime = _carcass.GetRemainingMinutes(ButcheringMode.FullProcessing);
+        choice.AddOption($"Full processing (~{fullTime} min) - +10% meat/fat, +20% sinew, less mess",
+            ButcheringMode.FullProcessing);
+
+        return choice.GetPlayerChoice(ctx);
     }
 }
