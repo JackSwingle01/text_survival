@@ -1572,7 +1572,7 @@ body {
     font-size: 0.8rem;
     border-bottom: 1px solid var(--border-dim);
     border-left: 3px solid rgba(100, 151, 177, 0.4);
-    margin: 0 10px;
+    margin: 8px 10px 0 10px;
 }
 
 .tile-popup-prompt.hidden {

@@ -17,21 +17,44 @@ public static class TreatmentHandler
     /// </summary>
     private static readonly List<(Resource Resource, string EffectKind, string Description, double EffectReduction)> DirectTreatments =
     [
-        // Bleeding treatments
-        (Resource.Amadou, "Bleeding", "Press amadou into wound to stop bleeding", 0.5),
-        (Resource.SphagnumMoss, "Bleeding", "Pack sphagnum moss as absorbent dressing", 0.4),
-        (Resource.PineResin, "Bleeding", "Seal wound with pine resin", 0.3),
-        // Fever treatments
-        (Resource.Usnea, "Fever", "Apply usnea as antimicrobial dressing", 0.25),
-        (Resource.BirchPolypore, "Fever", "Use birch polypore for infection", 0.2),
-        // Wound infection prevention (Inflamed = precursor to Fever)
-        (Resource.Usnea, "Inflamed", "Pack wound with usnea to fight infection", 0.5),
-        (Resource.SphagnumMoss, "Inflamed", "Apply sphagnum moss antiseptic dressing", 0.4),
-        (Resource.PineResin, "Inflamed", "Seal wound with antiseptic resin", 0.3),
-        // Gut sickness treatment
-        (Resource.JuniperBerry, "Nauseous", "Chew juniper berries to settle stomach", 0.4),
-        // Pain treatment
-        (Resource.WillowBark, "Pain", "Chew willow bark for pain relief", 0.35),
+        // SphagnumMoss - absorbent dressing (BEST bleeding)
+        (Resource.SphagnumMoss, "Bleeding", "Pack wound with absorbent sphagnum moss", 0.6),
+        (Resource.SphagnumMoss, "Inflamed", "Apply sphagnum moss antiseptic dressing", 0.25),
+
+        // BirchPolypore - styptic + mild fever
+        (Resource.BirchPolypore, "Bleeding", "Press birch polypore to staunch bleeding", 0.4),
+        (Resource.BirchPolypore, "Fever", "Chew birch polypore for infection", 0.2),
+
+        // PineResin - wound seal (BEST inflamed raw)
+        (Resource.PineResin, "Inflamed", "Seal wound with antiseptic pine resin", 0.45),
+        (Resource.PineResin, "Bleeding", "Seal wound with sticky resin", 0.2),
+
+        // Usnea - antimicrobial
+        (Resource.Usnea, "Inflamed", "Pack wound with antimicrobial usnea", 0.4),
+        (Resource.Usnea, "Coughing", "Chew usnea lichen for throat", 0.15),
+
+        // Amadou - weak wound treatment (fire utility is main value)
+        (Resource.Amadou, "Bleeding", "Press amadou felt into wound", 0.25),
+        (Resource.Amadou, "Inflamed", "Apply amadou as dressing", 0.15),
+
+        // Chaga - fever fighter (BEST fever raw)
+        (Resource.Chaga, "Fever", "Chew raw chaga for immune boost", 0.35),
+        (Resource.Chaga, "Coughing", "Chew chaga for respiratory relief", 0.2),
+
+        // WillowBark - pain/fever (BEST pain raw)
+        (Resource.WillowBark, "Pain", "Chew willow bark for pain relief", 0.45),
+        (Resource.WillowBark, "Fever", "Chew willow bark to reduce fever", 0.15),
+
+        // JuniperBerry - gut + mild pain (BEST nauseous)
+        (Resource.JuniperBerry, "Nauseous", "Chew juniper berries to settle stomach", 0.5),
+        (Resource.JuniperBerry, "Pain", "Chew juniper berries for mild relief", 0.1),
+
+        // PineNeedles - respiratory (BEST coughing raw)
+        (Resource.PineNeedles, "Coughing", "Chew pine needles for throat", 0.35),
+        (Resource.PineNeedles, "Nauseous", "Chew pine needles to settle stomach", 0.1),
+
+        // RoseHip - weak pain raw (main value is Nourished buff from tea)
+        (Resource.RoseHip, "Pain", "Eat rose hips for mild relief", 0.15),
     ];
 
     /// <summary>
@@ -246,6 +269,29 @@ public static class TreatmentHandler
                     else
                     {
                         GameDisplay.AddNarrative(ctx, $"{selected.SuccessMessage} The {selected.EffectKind.ToLower()} is slightly better.");
+                    }
+                }
+            }
+
+            // Apply secondary effect reduction (crafted treatments only)
+            if (selected.IsCrafted && !string.IsNullOrEmpty(selected.CraftedGear!.SecondaryTreatsEffect))
+            {
+                var secondaryEffect = effects.FirstOrDefault(e =>
+                    e.EffectKind.Equals(selected.CraftedGear.SecondaryTreatsEffect, StringComparison.OrdinalIgnoreCase));
+
+                if (secondaryEffect != null)
+                {
+                    double oldSecondary = secondaryEffect.Severity;
+                    secondaryEffect.Severity = Math.Max(0, secondaryEffect.Severity - selected.CraftedGear.SecondaryEffectReduction);
+
+                    if (secondaryEffect.Severity <= 0)
+                    {
+                        ctx.player.AddLog(ctx.player.EffectRegistry.RemoveEffect(secondaryEffect));
+                        GameDisplay.AddNarrative(ctx, $"The {selected.CraftedGear.SecondaryTreatsEffect.ToLower()} has also stopped.");
+                    }
+                    else if (secondaryEffect.Severity < oldSecondary)
+                    {
+                        GameDisplay.AddNarrative(ctx, $"The {selected.CraftedGear.SecondaryTreatsEffect.ToLower()} has also improved.");
                     }
                 }
             }

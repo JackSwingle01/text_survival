@@ -633,7 +633,7 @@ public class NeedCraftingSystem
 
     private void InitializeTreatmentOptions()
     {
-        // Willow Tea: Pain relief, reduces fever and inflammation
+        // Willow Tea: Pain relief + fever reduction
         _options.Add(new CraftOption
         {
             Name = "Willow Bark Tea",
@@ -651,16 +651,18 @@ public class NeedCraftingSystem
                 Durability = dur,
                 MaxDurability = dur,
                 TreatsEffect = "Pain",
-                EffectReduction = 0.6,
-                TreatmentDescription = "You drink the bitter tea. The ache begins to fade."
+                EffectReduction = 0.65,
+                SecondaryTreatsEffect = "Fever",
+                SecondaryEffectReduction = 0.25,
+                TreatmentDescription = "You drink the bitter tea. The ache fades and the fever cools."
             }
         });
 
-        // Pine Needle Tea: Vitamin C, respiratory relief
+        // Pine Needle Tea: Respiratory relief + nourishment
         _options.Add(new CraftOption
         {
             Name = "Pine Needle Tea",
-            Description = "Sharp-tasting tea rich in vitamins. Helps clear breathing.",
+            Description = "Sharp-tasting tea rich in vitamins. Helps clear breathing and strengthens the body.",
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 10,
             Durability = 1,
@@ -674,8 +676,9 @@ public class NeedCraftingSystem
                 Durability = dur,
                 MaxDurability = dur,
                 TreatsEffect = "Coughing",
-                EffectReduction = 0.5,
-                TreatmentDescription = "You drink the sharp, resinous tea. Your breathing eases."
+                EffectReduction = 0.55,
+                TreatmentDescription = "You drink the sharp, resinous tea. Your breathing eases.",
+                GrantsEffect = "Nourished"
             }
         });
 
@@ -703,11 +706,11 @@ public class NeedCraftingSystem
             }
         });
 
-        // Chaga Tea: Anti-inflammatory, general health
+        // Chaga Tea: Fever fighter + immune boost
         _options.Add(new CraftOption
         {
             Name = "Chaga Tea",
-            Description = "Dark, earthy tea from birch fungus. Reduces inflammation and aids healing.",
+            Description = "Dark, earthy tea from birch fungus. Fights fever and strengthens the body.",
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 15,
             Durability = 1,
@@ -721,16 +724,17 @@ public class NeedCraftingSystem
                 Durability = dur,
                 MaxDurability = dur,
                 TreatsEffect = "Fever",
-                EffectReduction = 0.35,
-                TreatmentDescription = "You drink the dark, earthy tea. The burning heat in your body begins to ease."
+                EffectReduction = 0.55,
+                TreatmentDescription = "You drink the dark, earthy tea. The burning heat fades and strength returns.",
+                GrantsEffect = "Nourished"
             }
         });
 
-        // Polypore Poultice: External infection treatment
+        // Polypore Poultice: Styptic bleeding treatment
         _options.Add(new CraftOption
         {
             Name = "Polypore Poultice",
-            Description = "A damp compress of birch polypore. Draws out infection from wounds.",
+            Description = "A compress of birch polypore. The styptic properties staunch bleeding quickly.",
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 10,
             Durability = 1,
@@ -743,78 +747,103 @@ public class NeedCraftingSystem
                 Weight = 0.2,
                 Durability = dur,
                 MaxDurability = dur,
-                TreatsEffect = "Fever",
-                EffectReduction = 0.3,
-                TreatmentDescription = "You press the damp poultice against your skin. It draws out the heat."
+                TreatsEffect = "Bleeding",
+                EffectReduction = 0.55,
+                TreatmentDescription = "You press the polypore compress against the wound. The bleeding slows."
             }
         });
 
-        // Usnea Dressing: Antimicrobial wound packing
+        // Usnea Poultice: Antimicrobial infection treatment
         _options.Add(new CraftOption
         {
-            Name = "Usnea Dressing",
-            Description = "Old man's beard lichen prepared as wound packing. Naturally antimicrobial.",
+            Name = "Usnea Poultice",
+            Description = "Old man's beard lichen prepared as an antimicrobial poultice. Fights wound infection.",
             Category = NeedCategory.Treatment,
-            CraftingTimeMinutes = 5,
+            CraftingTimeMinutes = 10,
             Durability = 1,
-            Requirements = [new MaterialRequirement(Resource.Usnea, 1)],
+            Requirements = [new MaterialRequirement(Resource.Usnea, 1), new MaterialRequirement(Resource.RawFat, 1)],
             GearFactory = dur => new Gear
             {
-                Name = "Usnea Dressing",
+                Name = "Usnea Poultice",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Treatment,
+                Weight = 0.15,
+                Durability = dur,
+                MaxDurability = dur,
+                TreatsEffect = "Inflamed",
+                EffectReduction = 0.65,
+                TreatmentDescription = "You apply the poultice to the wound. The inflammation begins to subside."
+            }
+        });
+
+        // Sphagnum Bandage: Premium bleeding treatment
+        _options.Add(new CraftOption
+        {
+            Name = "Sphagnum Bandage",
+            Description = "Peat moss bound with fat into a thick bandage. Highly absorbent and antiseptic.",
+            Category = NeedCategory.Treatment,
+            CraftingTimeMinutes = 10,
+            Durability = 1,
+            Requirements = [new MaterialRequirement(Resource.SphagnumMoss, 2), new MaterialRequirement(Resource.RawFat, 1)],
+            GearFactory = dur => new Gear
+            {
+                Name = "Sphagnum Bandage",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Treatment,
+                Weight = 0.2,
+                Durability = dur,
+                MaxDurability = dur,
+                TreatsEffect = "Bleeding",
+                EffectReduction = 0.75,
+                TreatmentDescription = "You wrap the wound with the thick bandage. It absorbs the blood completely."
+            }
+        });
+
+        // Resin Seal: Infection prevention
+        _options.Add(new CraftOption
+        {
+            Name = "Resin Seal",
+            Description = "Pine resin mixed with fat and applied as an antiseptic seal. Protects wounds from infection.",
+            Category = NeedCategory.Treatment,
+            CraftingTimeMinutes = 10,
+            Durability = 1,
+            Requirements = [new MaterialRequirement(Resource.PineResin, 1), new MaterialRequirement(Resource.RawFat, 1)],
+            GearFactory = dur => new Gear
+            {
+                Name = "Resin Seal",
                 Category = GearCategory.Tool,
                 ToolType = ToolType.Treatment,
                 Weight = 0.1,
                 Durability = dur,
                 MaxDurability = dur,
-                TreatsEffect = "Bleeding",
+                TreatsEffect = "Inflamed",
                 EffectReduction = 0.6,
-                TreatmentDescription = "You pack the wound with usnea. The lichen absorbs the blood and seals the wound."
+                TreatmentDescription = "You apply the resin seal to the wound. The antiseptic properties fight the infection."
             }
         });
 
-        // Sphagnum Bandage: Absorbent, antiseptic dressing
+        // Sealed Bandage: Combination treatment for both bleeding and infection
         _options.Add(new CraftOption
         {
-            Name = "Sphagnum Bandage",
-            Description = "Dried peat moss prepared as a bandage. Highly absorbent and naturally antiseptic.",
+            Name = "Sealed Bandage",
+            Description = "Sphagnum moss sealed with pine resin. Treats bleeding and prevents infection.",
             Category = NeedCategory.Treatment,
-            CraftingTimeMinutes = 5,
+            CraftingTimeMinutes = 15,
             Durability = 1,
-            Requirements = [new MaterialRequirement(Resource.SphagnumMoss, 2)],
+            Requirements = [new MaterialRequirement(Resource.SphagnumMoss, 1), new MaterialRequirement(Resource.PineResin, 1)],
             GearFactory = dur => new Gear
             {
-                Name = "Sphagnum Bandage",
+                Name = "Sealed Bandage",
                 Category = GearCategory.Tool,
                 ToolType = ToolType.Treatment,
                 Weight = 0.15,
                 Durability = dur,
                 MaxDurability = dur,
                 TreatsEffect = "Bleeding",
-                EffectReduction = 0.55,
-                TreatmentDescription = "You wrap the wound with the sphagnum bandage. It absorbs the blood quickly."
-            }
-        });
-
-        // Resin Seal: Wound sealing
-        _options.Add(new CraftOption
-        {
-            Name = "Resin Seal",
-            Description = "Pine resin warmed and applied to seal wounds. Waterproof and mildly antiseptic.",
-            Category = NeedCategory.Treatment,
-            CraftingTimeMinutes = 5,
-            Durability = 1,
-            Requirements = [new MaterialRequirement(Resource.PineResin, 1)],
-            GearFactory = dur => new Gear
-            {
-                Name = "Resin Seal",
-                Category = GearCategory.Tool,
-                ToolType = ToolType.Treatment,
-                Weight = 0.05,
-                Durability = dur,
-                MaxDurability = dur,
-                TreatsEffect = "Bleeding",
-                EffectReduction = 0.4,
-                TreatmentDescription = "You apply the warm resin to the wound. It hardens into a protective seal."
+                EffectReduction = 0.5,
+                SecondaryTreatsEffect = "Inflamed",
+                SecondaryEffectReduction = 0.5,
+                TreatmentDescription = "You apply the sealed bandage. It stops the bleeding and seals against infection."
             }
         });
     }
@@ -1187,14 +1216,12 @@ public class NeedCraftingSystem
         _options.Add(new CraftOption
         {
             Name = "Mound Fire Pit (Project)",
-            Description = "A shaped depression lined with stone. Provides wind protection and larger fuel capacity. Requires digging work (benefits from shovel).",
+            Description = "A shaped depression in the earth. Provides wind protection and larger fuel capacity. Requires shovel.",
             Category = NeedCategory.CampInfrastructure,
             CraftingTimeMinutes = 15, // Setup time
             Durability = 0,
-            Requirements = [
-                new MaterialRequirement(Resource.Stone, 15),
-                new MaterialRequirement(Resource.Stick, 5)
-            ],
+            Requirements = [],
+            RequiredTools = [ToolType.Shovel],
             FeatureFactory = () => new FirePitUpgradeProject(
                 "Mound Fire Pit",
                 FirePitType.Mound,
@@ -1256,13 +1283,12 @@ public class NeedCraftingSystem
         _options.Add(new CraftOption
         {
             Name = "Snow Shelter (Project)",
-            Description = "A carved snow shelter with excellent insulation. Requires cold weather (below 32°F). Benefits from shovel. Melts in warm temperatures.",
+            Description = "A carved snow shelter with excellent insulation. Requires cold weather (below 32°F) and a shovel. Melts in warm temperatures.",
             Category = NeedCategory.CampInfrastructure,
             CraftingTimeMinutes = 15, // Setup time
             Durability = 0,
-            Requirements = [
-                new MaterialRequirement(Resource.Stick, 5)
-            ],
+            Requirements = [],
+            RequiredTools = [ToolType.Shovel],
             Prerequisite = ctx => {
                 if (ctx.Camp.HasFeature<ShelterFeature>())
                     return "Camp already has a shelter";

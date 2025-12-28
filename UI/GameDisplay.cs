@@ -105,11 +105,11 @@ public static class GameDisplay
     /// </summary>
     public static (int elapsed, bool interrupted) UpdateAndRenderProgress(GameContext ctx, string statusText, int minutes, ActivityType activity, bool updateTime = true)
     {
-        // Send estimated duration to client for local animation
-        Web.WebIO.RenderWithDuration(ctx, statusText, minutes);
-
-        // Process all time at once - ctx.Update handles minute-by-minute internally
+        // Process time first so frame contains updated state for animation deltas
         int elapsed = updateTime ? ctx.Update(minutes, activity) : minutes;
+
+        // Send frame with actual elapsed time for accurate animation duration
+        Web.WebIO.RenderWithDuration(ctx, statusText, elapsed);
 
         return (elapsed, ctx.EventOccurredLastUpdate);
     }

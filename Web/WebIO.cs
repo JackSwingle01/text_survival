@@ -232,11 +232,22 @@ public static class WebIO
             return new ChoiceDto(semanticId, label);
         }).ToList();
 
+        // Detect continue/stop pattern (2 choices, first is Continue)
+        // These should show as a ConfirmOverlay so they're clearly visible
+        bool isContinuePrompt = list.Count == 2 &&
+            choiceDtos[0].Label.Contains("Continue");
+
+        var overlays = GetCurrentOverlays(ctx.SessionId);
+        if (isContinuePrompt)
+        {
+            overlays = [..overlays, new ConfirmOverlay(prompt)];
+        }
+
         int inputId = session.GenerateInputId();
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
             GetCurrentMode(ctx),
-            GetCurrentOverlays(ctx.SessionId),
+            overlays,
             new InputRequestDto(inputId, "select", prompt, choiceDtos)
         );
 
@@ -256,8 +267,8 @@ public static class WebIO
             }
 
             // No "Travel" option available - clear pending target and wait for another choice
+            // NOTE: Keep same inputId - this is the same logical request, just resent
             ctx.PendingTravelTarget = null;
-            inputId = session.GenerateInputId();
             frame = new WebFrame(
                 GameStateDto.FromContext(ctx),
                 GetCurrentMode(ctx),
@@ -291,10 +302,9 @@ public static class WebIO
             }
 
             // Action not available in current menu - clear overlays and wait for another response
-            // (resend the frame and wait again)
+            // NOTE: Keep same inputId - this is the same logical request, just resent
             ClearInventory(ctx);
             ClearCrafting(ctx);
-            inputId = session.GenerateInputId();
             frame = new WebFrame(
                 GameStateDto.FromContext(ctx),
                 GetCurrentMode(ctx),
@@ -308,9 +318,9 @@ public static class WebIO
 
         // Handle "continue" response - this is from a Continue/Close button
         // that was clicked during a Select (e.g., stale event overlay). Resend frame and wait again.
+        // NOTE: Keep same inputId - this is the same logical request, just resent
         if (response.ChoiceId == "continue")
         {
-            inputId = session.GenerateInputId();
             frame = new WebFrame(
                 GameStateDto.FromContext(ctx),
                 GetCurrentMode(ctx),

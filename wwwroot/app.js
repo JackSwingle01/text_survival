@@ -646,7 +646,10 @@ class GameClient {
 
         // Build actions
         Utils.clearElement(actionsEl);
-        const canTravel = tileData.isAdjacent && tileData.isPassable && !isPlayerHere;
+        // Travel blocked if there's a pending input without Travel option
+        const hasBlockingInput = this.currentInput?.choices?.length > 0 &&
+            !this.currentInput.choices.some(c => c.label.includes('Travel'));
+        const canTravel = tileData.isAdjacent && tileData.isPassable && !isPlayerHere && !hasBlockingInput;
 
         if (canTravel) {
             const goBtn = document.createElement('button');

@@ -151,6 +151,17 @@ public class Gear
     /// </summary>
     public string? GrantsEffect { get; init; }
 
+    /// <summary>
+    /// Secondary effect this treatment targets (for dual-effect treatments).
+    /// Null if treatment only targets one effect.
+    /// </summary>
+    public string? SecondaryTreatsEffect { get; init; }
+
+    /// <summary>
+    /// How much to reduce the secondary effect's severity (0-1 scale).
+    /// </summary>
+    public double SecondaryEffectReduction { get; init; }
+
     // === Combat (optional, for weapon-tools) ===
     public double? Damage { get; init; }
     public double? BlockChance { get; init; }
