@@ -381,8 +381,8 @@ public static class WebIO
         var session = SessionRegistry.Get(ctx.SessionId);
         if (session == null) return;
 
-        // Convert game minutes to real seconds (~5 game-min per real second)
-        int estimatedSeconds = Math.Max(1, estimatedMinutes / 5);
+        // Convert game minutes to real seconds (~7 game-min per real second)
+        int estimatedSeconds = Math.Max(1, estimatedMinutes / 7);
 
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
