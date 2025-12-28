@@ -231,11 +231,15 @@ public static class FireHandler
         var capacities = ctx.player.GetCapacities();
         var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
         var isClumsy = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
+        var wetness = ctx.player.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault()?.Severity ?? 0;
+        var isWet = wetness > 0.3;
 
         if (isImpaired)
             GameDisplay.AddWarning(ctx, "Your foggy mind makes this harder.");
         if (isClumsy)
             GameDisplay.AddWarning(ctx, "Your unsteady hands make this harder.");
+        if (isWet)
+            GameDisplay.AddWarning(ctx, "Your wet hands make this harder.");
 
         while (true)
         {
@@ -254,6 +258,10 @@ public static class FireHandler
             // Manipulation impairment penalty (-25%)
             if (isClumsy)
                 finalChance -= 0.25;
+
+            // Wetness penalty - wet hands fumble with tinder (up to -25% at full wetness)
+            if (isWet)
+                finalChance -= wetness * 0.25;
 
             // Select best available tinder and get its ignition bonus
             // Priority: Amadou (best) > BirchBark (great) > Regular Tinder

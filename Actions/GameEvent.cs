@@ -49,6 +49,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public FeatureModification? ModifyFeature;
     public Type? RemoveFeature;  // Remove feature of this type from location
 
+    // Snare destruction
+    public int DestroysSnareCount;
+
     // Direct stat drains (for vomiting, etc)
     public (double calories, double hydration)? StatDrain;
 
@@ -135,6 +138,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         return this;
     }
     public EventResult RemovesFeature(Type featureType) { RemoveFeature = featureType; return this; }
+    public EventResult DestroysSnare(int count = 1) { DestroysSnareCount = count; return this; }
 
     // Stat drains
     public EventResult DrainsStats(double calories = 0, double hydration = 0)
@@ -381,6 +385,22 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
                 {
                     ctx.CurrentLocation.RemoveFeature(feature);
                     GameDisplay.AddDanger(ctx, $"  - {feature.Name} destroyed");
+                }
+            }
+        }
+
+        // Snare destruction
+        if (DestroysSnareCount > 0)
+        {
+            var snareLine = ctx.CurrentLocation.GetFeature<SnareLineFeature>();
+            if (snareLine != null)
+            {
+                int destroyed = snareLine.DestroySnares(DestroysSnareCount);
+                if (destroyed > 0)
+                {
+                    GameDisplay.AddDanger(ctx, destroyed == 1
+                        ? "  - A snare is destroyed"
+                        : $"  - {destroyed} snares destroyed");
                 }
             }
         }

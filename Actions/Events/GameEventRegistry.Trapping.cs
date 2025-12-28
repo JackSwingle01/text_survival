@@ -40,6 +40,7 @@ public static partial class GameEventRegistry
                     new EventResult("In your haste, you cut your finger on the mechanism.", 0.20, 5)
                         .Damage(2, DamageType.Sharp),
                     new EventResult("The snare is damaged beyond quick repair. You'll need to replace it.", 0.10, 5)
+                        .DestroysSnare()
                 ])
             .Choice("Leave It",
                 "Whatever it was might still be nearby.",
@@ -84,7 +85,8 @@ public static partial class GameEventRegistry
                     new EventResult($"The {predator.ToLower()} sniffs around, then wanders off. Your catches are safe.", 0.30, 20)
                         .ResolvesStalking(),
                     new EventResult($"It finds your catch and drags it away. You watch helplessly.", 0.40, 15),
-                    new EventResult($"It destroys a snare trying to get at something. Then leaves.", 0.20, 15),
+                    new EventResult($"It destroys a snare trying to get at something. Then leaves.", 0.20, 15)
+                        .DestroysSnare(),
                     new EventResult($"It catches your scent. Turns toward your hiding spot.", 0.10, 10)
                         .Terrifying()
                         .Encounter(predator, 15, 0.6)
@@ -145,7 +147,8 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Bones and scraps. Enough for tools, at least.", 0.50, 10)
                         .Rewards(RewardPool.BoneHarvest),
-                    new EventResult("One snare destroyed, but the other still has its catch.", 0.25, 10),
+                    new EventResult("One snare destroyed, but the other still has its catch.", 0.25, 10)
+                        .DestroysSnare(),
                     new EventResult("Picked clean. Nothing left but tracks.", 0.20, 8),
                     new EventResult("Blood trail leads away. Something large was here recently.", 0.05, 5)
                         .BecomeStalked(0.3)
@@ -168,6 +171,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You reset what's salvageable. Tomorrow's another day.", 0.85, 10),
                     new EventResult("The damage is worse than you thought. You'll need new snares.", 0.15, 10)
+                        .DestroysSnare(2)
                 ]);
     }
 

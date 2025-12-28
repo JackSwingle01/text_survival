@@ -121,6 +121,32 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
     }
 
     /// <summary>
+    /// Destroy snares (called by predator events).
+    /// Prioritizes snares with catches or bait.
+    /// Returns number actually destroyed.
+    /// </summary>
+    public int DestroySnares(int count)
+    {
+        int destroyed = 0;
+
+        // Prioritize snares with catches or bait (more attractive to predators)
+        var targets = _snares
+            .Where(s => s.IsUsable)
+            .OrderByDescending(s => s.HasCatch)
+            .ThenByDescending(s => s.IsBaited)
+            .Take(count)
+            .ToList();
+
+        foreach (var snare in targets)
+        {
+            snare.Destroy();
+            destroyed++;
+        }
+
+        return destroyed;
+    }
+
+    /// <summary>
     /// Get all snares for inspection.
     /// </summary>
     public IReadOnlyList<PlacedSnare> GetSnares() => _snares.AsReadOnly();
