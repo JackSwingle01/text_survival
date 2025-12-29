@@ -1,5 +1,3 @@
-using Spectre.Console;
-using Spectre.Console.Rendering;
 using text_survival.Actions;
 using text_survival.Effects;
 using text_survival.Environments.Features;

@@ -1,6 +1,7 @@
 using text_survival.Actions;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
+using text_survival.Items;
 
 namespace text_survival.Actors.Animals.Behaviors;
 
@@ -199,7 +200,7 @@ public class PackPredatorBehavior : IHerdBehavior
         // Attack initiated - resolve kill attempt
         if (PredatorPreyResolver.AttemptPreyKill(predator, prey))
         {
-            var victim = prey.Members.OrderBy(m => m.Body.GetSpeed())
+            var victim = prey.Members.OrderBy(m => m.SpeedMps * m.Condition)
                 .ThenBy(m => m.Condition)
                 .FirstOrDefault();
 
@@ -288,11 +289,11 @@ public class PackPredatorBehavior : IHerdBehavior
                           ctx.player.EffectRegistry.GetSeverity("Bloody") > 0.3;
         if (isBleeding) bold += 0.15;
 
-        bool carryingMeat = ctx.Inventory.Count(Items.Resource.RawMeat) > 0 ||
-                            ctx.Inventory.Count(Items.Resource.CookedMeat) > 0;
+        bool carryingMeat = ctx.Inventory.Count(Resource.RawMeat) > 0 ||
+                            ctx.Inventory.Count(Resource.CookedMeat) > 0;
         if (carryingMeat) bold += 0.1;
 
-        double movementCapacity = ctx.player.Body.GetCapacities().Moving;
+        double movementCapacity = ctx.player.GetCapacities().Moving;
         if (movementCapacity < 0.5) bold += 0.2;
 
         // Night time
@@ -318,8 +319,8 @@ public class PackPredatorBehavior : IHerdBehavior
                                   ctx.player.EffectRegistry.GetSeverity("Bloody") > 0.3;
                 if (isBleeding) pullStrength += 0.4;
 
-                bool carryingMeat = ctx.Inventory.Count(Items.Resource.RawMeat) > 0 ||
-                                    ctx.Inventory.Count(Items.Resource.CookedMeat) > 0;
+                bool carryingMeat = ctx.Inventory.Count(Resource.RawMeat) > 0 ||
+                                    ctx.Inventory.Count(Resource.CookedMeat) > 0;
                 if (carryingMeat) pullStrength += 0.3;
 
                 if (_rng.NextDouble() < pullStrength)
@@ -343,7 +344,7 @@ public class PackPredatorBehavior : IHerdBehavior
         if (dx != 0) candidates.Add(new GridPosition(from.X + dx, from.Y));
         if (dy != 0) candidates.Add(new GridPosition(from.X, from.Y + dy));
 
-        return candidates.FirstOrDefault(p => ctx.Map?.IsPassable(p) ?? false);
+        return candidates.FirstOrDefault(p => ctx.Map?.GetLocationAt(p)?.IsPassable ?? false);
     }
 
     private static void ReturnToHome(Herd herd)
