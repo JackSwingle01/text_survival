@@ -147,13 +147,13 @@ public static partial class GameEventRegistry
                 "Feel around in the hollow. The squirrel looks small.",
                 [
                     new EventResult("A cache of nuts! The squirrel's winter stores.", 0.35, 5)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .Rewards(RewardPool.SquirrelCache),
                     new EventResult("Empty. Already cleaned out.", 0.30, 5),
                     new EventResult("It bites. Hard. You jerk your hand back.", 0.20, 3)
                         .DamageWithVariant(biteVariant)
                         .CreateTension("WoundUntreated", 0.15, description: "squirrel bite"),
                     new EventResult("Nuts and seeds. And something shiny — a pyrite fragment.", 0.10, 8)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .Rewards(RewardPool.SquirrelCache, 1.2)
                         .Rewards(RewardPool.CraftingMaterials),
                     new EventResult("A second squirrel. They defend their home viciously.", 0.05, 5)
                         .DamageWithVariant(biteVariant)
@@ -164,14 +164,14 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("It flees. The cache is yours.", 0.50, 15)
                         .Costs(ResourceType.Tinder, 1)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .Rewards(RewardPool.SquirrelCache, 1.3),
                     new EventResult("The smoke doesn't reach. Waste of tinder.", 0.25, 12)
                         .Costs(ResourceType.Tinder, 1),
                     new EventResult("Success, but the hollow catches fire. Nothing salvageable.", 0.15, 10)
                         .Costs(ResourceType.Tinder, 1),
                     new EventResult("Perfect execution. Nuts, seeds, and a very angry but displaced squirrel.", 0.10, 18)
                         .Costs(ResourceType.Tinder, 1)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .Rewards(RewardPool.SquirrelCache, 1.5)
                         .Rewards(RewardPool.SmallGame)
                 ],
                 requires: [EventCondition.HasTinder])
@@ -182,7 +182,7 @@ public static partial class GameEventRegistry
                         .MarksDiscovery("squirrel cache cluster", 0.6),
                     new EventResult("You lose sight of it in the canopy.", 0.40, 15),
                     new EventResult("It goes to ground. You find a second hollow.", 0.15, 25)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .Rewards(RewardPool.SquirrelCache, 1.2),
                     new EventResult("It circles back. You're not fooling anyone.", 0.05, 10)
                 ]);
     }

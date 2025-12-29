@@ -115,11 +115,9 @@ public partial class GameRunner(GameContext ctx)
             choice.AddOption($"Extinguish torch ({mins} min remaining)", ExtinguishTorch);
         }
 
-        if (ctx.Inventory.HasCraftingMaterials)
-        {
-            string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
-            choice.AddOption(craftLabel, RunCrafting);
-        }
+        // Crafting always available - menu shows what's craftable/uncraftable
+        string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
+        choice.AddOption(craftLabel, RunCrafting);
 
         if (ctx.Inventory.HasBuildingMaterials && ctx.CurrentLocation == ctx.Camp)
             choice.AddOption("Improve Camp", ImproveCamp);
@@ -210,12 +208,9 @@ public partial class GameRunner(GameContext ctx)
                 choice.AddOption($"Extinguish torch ({mins} min remaining)", ExtinguishTorch);
             }
 
-            // Crafting - make tools from available materials
-            if (ctx.Inventory.HasCraftingMaterials)
-            {
-                string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
-                choice.AddOption(craftLabel, RunCrafting);
-            }
+            // Crafting always available - menu shows what's craftable/uncraftable
+            string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
+            choice.AddOption(craftLabel, RunCrafting);
 
             // Improve Camp - build infrastructure (fire pits, shelters, bedding)
             if (ctx.Inventory.HasBuildingMaterials)
@@ -416,9 +411,9 @@ public partial class GameRunner(GameContext ctx)
         return ctx.CurrentLocation.HasActiveHeatSource();
     }
 
-    private void TendFire() => FireHandler.TendFire(ctx);
+    private void TendFire() => FireHandler.ManageFire(ctx);
 
-    private void StartFire() => FireHandler.StartFire(ctx);
+    private void StartFire() => FireHandler.ManageFire(ctx);
 
     private bool CanLightTorch() => TorchHandler.CanLightTorch(ctx);
 

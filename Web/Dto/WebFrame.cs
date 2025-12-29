@@ -417,6 +417,338 @@ public record TransferDto(
     };
 }
 
+// ============================================================================
+// Fire Management DTOs
+// ============================================================================
+
+/// <summary>
+/// A fuel item available for adding to fire.
+/// </summary>
+public record FuelItemDto(
+    string Id,              // "fuel_Pine" or "fuel_Stick"
+    string DisplayName,     // "5 pine logs"
+    string Icon,            // Material icon name
+    double WeightKg,
+    int Count,
+    bool CanAdd,            // false if fire too cold for this fuel
+    string? DisabledReason  // "Fire too small for oak"
+);
+
+/// <summary>
+/// A fire-starting tool with calculated success chance.
+/// </summary>
+public record FireToolDto(
+    string Id,              // "tool_0" (index in tools list)
+    string DisplayName,     // "Hand Drill"
+    string Icon,
+    int SuccessPercent,     // Calculated base success chance
+    bool IsSelected
+);
+
+/// <summary>
+/// A tinder option with ignition bonus.
+/// </summary>
+public record TinderDto(
+    string Id,              // "tinder_BirchBark"
+    string DisplayName,     // "Birch Bark"
+    string Icon,
+    int BonusPercent,       // +25 for birch bark
+    int Count,
+    bool IsSelected
+);
+
+/// <summary>
+/// Fire status panel showing current fire state.
+/// </summary>
+public record FirePanelDto(
+    string Mode,            // "starting" or "tending"
+    string Phase,           // "Cold", "Roaring", etc.
+    string PhaseIcon,
+    double TemperatureF,
+    double HeatOutputF,
+    double BurningKg,
+    double UnburnedKg,
+    double TotalKg,
+    double MaxCapacityKg,
+    int MinutesRemaining,
+    double BurnRateKgPerHour,
+    string Urgency,         // "safe", "caution", "warning", "critical"
+    string PitType,
+    double WindProtection,
+    double FuelEfficiency,
+    bool HasEmbers,
+    double CharcoalKg,
+    // Starting mode fields
+    bool HasKindling,
+    int FinalSuccessPercent
+);
+
+/// <summary>
+/// Combined fire management data - adapts to starting or tending mode.
+/// </summary>
+public record FireManagementDto(
+    string Mode,                    // "starting" or "tending"
+    List<FuelItemDto>? Fuels,       // Tending mode
+    List<FireToolDto>? Tools,       // Starting mode
+    List<TinderDto>? Tinders,       // Starting mode
+    FirePanelDto Fire
+)
+{
+    public static FireManagementDto FromContext(
+        GameContext ctx,
+        HeatSourceFeature fire,
+        string? selectedToolId,
+        string? selectedTinderId)
+    {
+        bool isStartingMode = !fire.IsActive && !fire.HasEmbers;
+        string mode = isStartingMode ? "starting" : "tending";
+
+        List<FuelItemDto>? fuels = null;
+        List<FireToolDto>? tools = null;
+        List<TinderDto>? tinders = null;
+
+        if (isStartingMode)
+        {
+            tools = BuildToolList(ctx, selectedToolId);
+            tinders = BuildTinderList(ctx, selectedTinderId);
+        }
+        else
+        {
+            fuels = BuildFuelList(ctx, fire);
+        }
+
+        var panel = BuildFirePanel(ctx, fire, mode, selectedToolId, selectedTinderId);
+
+        return new FireManagementDto(mode, fuels, tools, tinders, panel);
+    }
+
+    private static List<FuelItemDto> BuildFuelList(GameContext ctx, HeatSourceFeature fire)
+    {
+        var fuels = new List<FuelItemDto>();
+        var inv = ctx.Inventory;
+
+        // Map resource types to fuel types
+        var fuelMappings = new (Resource resource, FuelType fuel, string icon, string name)[]
+        {
+            (Resource.Stick, FuelType.Kindling, "horizontal_rule", "Sticks"),
+            (Resource.Pine, FuelType.PineWood, "park", "Pine Logs"),
+            (Resource.Birch, FuelType.BirchWood, "nature", "Birch Logs"),
+            (Resource.Oak, FuelType.OakWood, "forest", "Oak Logs"),
+            (Resource.Tinder, FuelType.Tinder, "grass", "Tinder"),
+            (Resource.BirchBark, FuelType.BirchBark, "note", "Birch Bark"),
+            (Resource.Usnea, FuelType.Usnea, "eco", "Usnea"),
+            (Resource.Chaga, FuelType.Chaga, "spa", "Chaga"),
+            (Resource.Charcoal, FuelType.Kindling, "whatshot", "Charcoal"),
+            (Resource.Bone, FuelType.Bone, "pets", "Bone"),
+        };
+
+        foreach (var (resource, fuelType, icon, name) in fuelMappings)
+        {
+            int count = inv.Count(resource);
+            if (count <= 0) continue;
+
+            double weight = inv.Weight(resource);
+            bool canAdd = fire.CanAddFuel(fuelType);
+            string? reason = null;
+
+            if (!canAdd)
+            {
+                var props = FuelDatabase.Get(fuelType);
+                if (props.MinFireTemperature > 0)
+                    reason = $"Fire too small (needs {props.MinFireTemperature:0}°F)";
+                else if (fire.TotalMassKg >= fire.MaxFuelCapacityKg)
+                    reason = "Fire at capacity";
+            }
+
+            fuels.Add(new FuelItemDto(
+                Id: $"fuel_{resource}",
+                DisplayName: count > 1 ? $"{name} ({count})" : name,
+                Icon: icon,
+                WeightKg: weight,
+                Count: count,
+                CanAdd: canAdd,
+                DisabledReason: reason
+            ));
+        }
+
+        return fuels;
+    }
+
+    private static List<FireToolDto> BuildToolList(GameContext ctx, string? selectedId)
+    {
+        var tools = new List<FireToolDto>();
+        var fireTools = ctx.Inventory.Tools
+            .Where(t => t.ToolType == ToolType.HandDrill ||
+                       t.ToolType == ToolType.BowDrill ||
+                       t.ToolType == ToolType.FireStriker)
+            .ToList();
+
+        for (int i = 0; i < fireTools.Count; i++)
+        {
+            var tool = fireTools[i];
+            string id = $"tool_{i}";
+            int baseChance = tool.ToolType switch
+            {
+                ToolType.HandDrill => 35,
+                ToolType.BowDrill => 55,
+                ToolType.FireStriker => 75,
+                _ => 30
+            };
+
+            tools.Add(new FireToolDto(
+                Id: id,
+                DisplayName: tool.Name,
+                Icon: "hardware",
+                SuccessPercent: baseChance,
+                IsSelected: id == selectedId || (selectedId == null && i == 0)
+            ));
+        }
+
+        return tools;
+    }
+
+    private static List<TinderDto> BuildTinderList(GameContext ctx, string? selectedId)
+    {
+        var tinders = new List<TinderDto>();
+        var inv = ctx.Inventory;
+
+        var tinderTypes = new (Resource resource, FuelType fuel, string icon, string name)[]
+        {
+            (Resource.BirchBark, FuelType.BirchBark, "note", "Birch Bark"),
+            (Resource.Amadou, FuelType.Tinder, "spa", "Amadou"),
+            (Resource.Usnea, FuelType.Usnea, "eco", "Usnea"),
+            (Resource.Chaga, FuelType.Chaga, "spa", "Chaga"),
+            (Resource.Tinder, FuelType.Tinder, "grass", "Tinder"),
+        };
+
+        bool hasSelection = false;
+        foreach (var (resource, fuelType, icon, name) in tinderTypes)
+        {
+            int count = inv.Count(resource);
+            if (count <= 0) continue;
+
+            var props = FuelDatabase.Get(fuelType);
+            int bonus = (int)(props.IgnitionBonus * 100);
+            string id = $"tinder_{resource}";
+            bool isSelected = id == selectedId || (!hasSelection && selectedId == null);
+            if (isSelected) hasSelection = true;
+
+            tinders.Add(new TinderDto(
+                Id: id,
+                DisplayName: name,
+                Icon: icon,
+                BonusPercent: bonus,
+                Count: count,
+                IsSelected: isSelected
+            ));
+        }
+
+        return tinders;
+    }
+
+    private static FirePanelDto BuildFirePanel(
+        GameContext ctx,
+        HeatSourceFeature fire,
+        string mode,
+        string? selectedToolId,
+        string? selectedTinderId)
+    {
+        double temp = fire.GetCurrentFireTemperature();
+        double heatOutput = fire.GetEffectiveHeatOutput(ctx.Weather.TemperatureInFahrenheit);
+        string phase = fire.GetFirePhase();
+        int minutesRemaining = (int)(fire.TotalHoursRemaining * 60);
+
+        string urgency = minutesRemaining switch
+        {
+            >= 60 => "safe",
+            >= 30 => "caution",
+            >= 10 => "warning",
+            _ => "critical"
+        };
+
+        string phaseIcon = phase switch
+        {
+            "Cold" => "ac_unit",
+            "Embers" => "fireplace",
+            "Igniting" => "local_fire_department",
+            "Building" => "local_fire_department",
+            "Steady" => "local_fire_department",
+            "Roaring" => "whatshot",
+            "Dying" => "whatshot",
+            _ => "local_fire_department"
+        };
+
+        // Calculate success chance for starting mode
+        int finalSuccess = 0;
+        bool hasKindling = ctx.Inventory.Count(Resource.Stick) > 0;
+
+        if (mode == "starting")
+        {
+            var tools = ctx.Inventory.Tools
+                .Where(t => t.ToolType == ToolType.HandDrill ||
+                           t.ToolType == ToolType.BowDrill ||
+                           t.ToolType == ToolType.FireStriker)
+                .ToList();
+            int toolIndex = 0;
+            if (selectedToolId != null && selectedToolId.StartsWith("tool_"))
+                int.TryParse(selectedToolId[5..], out toolIndex);
+
+            int baseChance = 30;
+            if (toolIndex < tools.Count)
+            {
+                baseChance = tools[toolIndex].ToolType switch
+                {
+                    ToolType.HandDrill => 35,
+                    ToolType.BowDrill => 55,
+                    ToolType.FireStriker => 75,
+                    _ => 30
+                };
+            }
+
+            int tinderBonus = 0;
+            if (selectedTinderId != null && selectedTinderId.StartsWith("tinder_"))
+            {
+                var resourceName = selectedTinderId[7..];
+                if (Enum.TryParse<Resource>(resourceName, out var res))
+                {
+                    var fuelType = res switch
+                    {
+                        Resource.BirchBark => FuelType.BirchBark,
+                        Resource.Usnea => FuelType.Usnea,
+                        Resource.Chaga => FuelType.Chaga,
+                        _ => FuelType.Tinder
+                    };
+                    tinderBonus = (int)(FuelDatabase.Get(fuelType).IgnitionBonus * 100);
+                }
+            }
+
+            finalSuccess = Math.Min(95, baseChance + tinderBonus);
+        }
+
+        return new FirePanelDto(
+            Mode: mode,
+            Phase: phase,
+            PhaseIcon: phaseIcon,
+            TemperatureF: temp,
+            HeatOutputF: heatOutput,
+            BurningKg: fire.BurningMassKg,
+            UnburnedKg: fire.UnburnedMassKg,
+            TotalKg: fire.TotalMassKg,
+            MaxCapacityKg: fire.MaxFuelCapacityKg,
+            MinutesRemaining: minutesRemaining,
+            BurnRateKgPerHour: fire.EffectiveBurnRateKgPerHour,
+            Urgency: urgency,
+            PitType: fire.PitType.ToString(),
+            WindProtection: fire.WindProtectionFactor,
+            FuelEfficiency: fire.FuelEfficiencyFactor,
+            HasEmbers: fire.HasEmbers,
+            CharcoalKg: fire.CharcoalAvailableKg,
+            HasKindling: hasKindling,
+            FinalSuccessPercent: finalSuccess
+        );
+    }
+}
+
 /// <summary>
 /// Full crafting data for crafting screen.
 /// Organized by NeedCategory with craftable/uncraftable separation.

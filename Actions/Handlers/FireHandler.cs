@@ -3,6 +3,7 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions.Handlers;
 
@@ -12,6 +13,28 @@ namespace text_survival.Actions.Handlers;
 /// </summary>
 public static class FireHandler
 {
+    /// <summary>
+    /// Unified entry point for fire management. Routes to web UI or console based on session.
+    /// </summary>
+    public static void ManageFire(GameContext ctx, HeatSourceFeature? fire = null)
+    {
+        // Web sessions get the combined fire UI
+        if (ctx.SessionId != null)
+        {
+            // Get existing fire or create temporary for starting mode
+            fire ??= ctx.CurrentLocation.GetFeature<HeatSourceFeature>() ?? new HeatSourceFeature();
+            WebIO.RunFireUI(ctx, fire);
+            return;
+        }
+
+        // Console fallback - use existing methods based on fire state
+        fire ??= ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+        if (fire != null && (fire.IsActive || fire.HasEmbers))
+            TendFire(ctx);
+        else
+            StartFire(ctx);
+    }
+
     public static void TendFire(GameContext ctx)
     {
         var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>()!;

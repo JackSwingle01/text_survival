@@ -13,6 +13,21 @@ import { getWeatherIcon, getFeatureIconLabel, getFeatureTypeIcon } from './modul
 // Actions handled elsewhere (sidebar buttons, grid clicks) - hidden from popup
 const POPUP_HIDDEN_ACTIONS = ['Inventory', 'Crafting', 'Travel', 'Storage'];
 
+// Crafting category icons
+const CRAFT_CATEGORY_ICONS = {
+    'FireStarting': 'local_fire_department',
+    'CuttingTool': 'content_cut',
+    'HuntingWeapon': 'gps_fixed',
+    'Trapping': 'trip_origin',
+    'Processing': 'build',
+    'Treatment': 'healing',
+    'Equipment': 'checkroom',
+    'Lighting': 'flare',
+    'Carrying': 'backpack',
+    'CampInfrastructure': 'house',
+    'Mending': 'build_circle'
+};
+
 class GameClient {
     constructor() {
         this.socket = null;
@@ -24,6 +39,9 @@ class GameClient {
         this.gridInitialized = false;
         this.tilePopup = null;          // Current tile popup state
         this.lastHuntTime = 0;          // Track hunt time for animation
+        this.craftingActiveTab = null;  // Current crafting category tab
+        this.currentCraftingData = null; // Stored crafting data for tab switching
+        this.currentCraftingInput = null; // Stored input for crafting actions
 
         // Initialize FrameQueue with render callback
         FrameQueue.init((frame) => this.renderFrame(frame));
@@ -254,6 +272,9 @@ class GameClient {
             case 'transfer':
                 this.showTransferOverlay(overlay.data, input);
                 break;
+            case 'fire':
+                this.showFireOverlay(overlay.data, input);
+                break;
         }
     }
 
@@ -270,6 +291,7 @@ class GameClient {
         this.hideDeathScreen();
         this.hideHuntPopup();
         this.hideTransferOverlay();
+        this.hideFireOverlay();
     }
 
     /**
@@ -2360,67 +2382,429 @@ class GameClient {
         hide(document.getElementById('transferOverlay'));
     }
 
+    // ============================================
+    // Fire Overlay Methods
+    // ============================================
+
+    showFireOverlay(fireData, input) {
+        const overlay = document.getElementById('fireOverlay');
+        show(overlay);
+
+        const inputId = this.currentInputId;
+
+        // Set title based on mode
+        const titleEl = document.getElementById('fireTitle');
+        titleEl.textContent = fireData.mode === 'starting' ? 'START FIRE' : 'TEND FIRE';
+
+        // Render left pane based on mode
+        if (fireData.mode === 'starting') {
+            this.renderFireStartingMode(fireData.tools, fireData.tinders, fireData.fire, inputId);
+            show(document.getElementById('fireStartBtn'));
+            const startBtn = document.getElementById('fireStartBtn');
+            startBtn.disabled = !fireData.fire.hasKindling || !fireData.tools || fireData.tools.length === 0;
+            startBtn.onclick = () => this.respond('start_fire', inputId);
+        } else {
+            this.renderFireTendingMode(fireData.fuels, fireData.fire, inputId);
+            hide(document.getElementById('fireStartBtn'));
+        }
+
+        // Render right pane (fire status)
+        this.renderFireStatus(fireData.fire, fireData.mode);
+
+        // Done button
+        const doneBtn = document.getElementById('fireDoneBtn');
+        doneBtn.onclick = () => this.respond('done', inputId);
+    }
+
+    renderFireStartingMode(tools, tinders, fire, inputId) {
+        const pane = document.getElementById('fireLeftPane');
+        Utils.clearElement(pane);
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'fire-pane-header';
+        const h3 = document.createElement('h3');
+        const headerIcon = document.createElement('span');
+        headerIcon.className = 'material-symbols-outlined';
+        headerIcon.textContent = 'construction';
+        h3.appendChild(headerIcon);
+        h3.appendChild(document.createTextNode('Materials'));
+        header.appendChild(h3);
+        pane.appendChild(header);
+
+        const items = document.createElement('div');
+        items.className = 'fire-items';
+
+        // Tools section
+        if (tools && tools.length > 0) {
+            const toolHeader = document.createElement('div');
+            toolHeader.className = 'fire-section-header';
+            const toolIcon = document.createElement('span');
+            toolIcon.className = 'material-symbols-outlined';
+            toolIcon.textContent = 'handyman';
+            toolHeader.appendChild(toolIcon);
+            toolHeader.appendChild(document.createTextNode('Tools'));
+            items.appendChild(toolHeader);
+
+            for (const tool of tools) {
+                const row = document.createElement('div');
+                row.className = 'fire-tool-item' + (tool.isSelected ? ' selected' : '');
+                row.onclick = () => this.sendFireToolSelect(tool.id, inputId);
+
+                const indicator = document.createElement('span');
+                indicator.className = 'fire-selection-indicator material-symbols-outlined';
+                indicator.textContent = tool.isSelected ? 'radio_button_checked' : 'radio_button_unchecked';
+                row.appendChild(indicator);
+
+                const name = document.createElement('span');
+                name.className = 'fire-tool-name';
+                name.textContent = tool.displayName;
+                row.appendChild(name);
+
+                const chance = document.createElement('span');
+                chance.className = 'fire-tool-chance';
+                chance.textContent = tool.successPercent + '%';
+                row.appendChild(chance);
+
+                items.appendChild(row);
+            }
+        } else {
+            const noTools = document.createElement('div');
+            noTools.className = 'fire-empty';
+            noTools.textContent = 'No fire-making tools';
+            items.appendChild(noTools);
+        }
+
+        // Tinder section
+        if (tinders && tinders.length > 0) {
+            const tinderHeader = document.createElement('div');
+            tinderHeader.className = 'fire-section-header';
+            const tinderIcon = document.createElement('span');
+            tinderIcon.className = 'material-symbols-outlined';
+            tinderIcon.textContent = 'grass';
+            tinderHeader.appendChild(tinderIcon);
+            tinderHeader.appendChild(document.createTextNode('Tinder'));
+            items.appendChild(tinderHeader);
+
+            for (const tinder of tinders) {
+                const row = document.createElement('div');
+                row.className = 'fire-tinder-item' + (tinder.isSelected ? ' selected' : '');
+                row.onclick = () => this.sendFireTinderSelect(tinder.id, inputId);
+
+                const indicator = document.createElement('span');
+                indicator.className = 'fire-selection-indicator material-symbols-outlined';
+                indicator.textContent = tinder.isSelected ? 'radio_button_checked' : 'radio_button_unchecked';
+                row.appendChild(indicator);
+
+                const name = document.createElement('span');
+                name.className = 'fire-tinder-name';
+                name.textContent = tinder.displayName;
+                row.appendChild(name);
+
+                const count = document.createElement('span');
+                count.className = 'fire-tinder-count';
+                count.textContent = `(${tinder.count})`;
+                row.appendChild(count);
+
+                const bonus = document.createElement('span');
+                bonus.className = 'fire-tinder-bonus';
+                bonus.textContent = '+' + tinder.bonusPercent + '%';
+                row.appendChild(bonus);
+
+                items.appendChild(row);
+            }
+        }
+
+        // Kindling check
+        const kindlingHeader = document.createElement('div');
+        kindlingHeader.className = 'fire-section-header';
+        const kindlingIcon = document.createElement('span');
+        kindlingIcon.className = 'material-symbols-outlined';
+        kindlingIcon.textContent = 'park';
+        kindlingHeader.appendChild(kindlingIcon);
+        kindlingHeader.appendChild(document.createTextNode('Kindling'));
+        items.appendChild(kindlingHeader);
+
+        const kindling = document.createElement('div');
+        kindling.className = 'fire-kindling-status ' + (fire.hasKindling ? 'has-kindling' : 'no-kindling');
+        const kindlingStatusIcon = document.createElement('span');
+        kindlingStatusIcon.className = 'material-symbols-outlined';
+        kindlingStatusIcon.textContent = fire.hasKindling ? 'check_circle' : 'cancel';
+        kindling.appendChild(kindlingStatusIcon);
+        kindling.appendChild(document.createTextNode(fire.hasKindling ? 'Sticks (required)' : 'No sticks (required)'));
+        items.appendChild(kindling);
+
+        pane.appendChild(items);
+    }
+
+    renderFireTendingMode(fuels, fire, inputId) {
+        const pane = document.getElementById('fireLeftPane');
+        Utils.clearElement(pane);
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'fire-pane-header';
+        const h3 = document.createElement('h3');
+        const headerIcon = document.createElement('span');
+        headerIcon.className = 'material-symbols-outlined';
+        headerIcon.textContent = 'local_fire_department';
+        h3.appendChild(headerIcon);
+        h3.appendChild(document.createTextNode('Fuel'));
+        header.appendChild(h3);
+        pane.appendChild(header);
+
+        const items = document.createElement('div');
+        items.className = 'fire-items';
+
+        if (fuels && fuels.length > 0) {
+            for (const fuel of fuels) {
+                const row = document.createElement('div');
+                row.className = 'fire-fuel-item' + (fuel.canAdd ? '' : ' disabled');
+                if (fuel.canAdd) {
+                    row.onclick = () => this.sendFireAddFuel(fuel.id, 1, inputId);
+                }
+
+                const icon = document.createElement('span');
+                icon.className = 'material-symbols-outlined fire-item-icon';
+                icon.textContent = fuel.icon || 'local_fire_department';
+                row.appendChild(icon);
+
+                const name = document.createElement('span');
+                name.className = 'fire-item-name';
+                name.textContent = fuel.displayName;
+                row.appendChild(name);
+
+                const count = document.createElement('span');
+                count.className = 'fire-item-count';
+                count.textContent = `x${fuel.count}`;
+                row.appendChild(count);
+
+                const weight = document.createElement('span');
+                weight.className = 'fire-item-weight';
+                weight.textContent = fuel.weightKg >= 1
+                    ? `${fuel.weightKg.toFixed(1)}kg`
+                    : `${fuel.weightKg.toFixed(2)}kg`;
+                row.appendChild(weight);
+
+                if (fuel.canAdd) {
+                    const arrow = document.createElement('span');
+                    arrow.className = 'fire-item-arrow material-symbols-outlined';
+                    arrow.textContent = 'arrow_forward';
+                    row.appendChild(arrow);
+                } else if (fuel.disabledReason) {
+                    const reason = document.createElement('span');
+                    reason.className = 'fire-item-reason';
+                    reason.textContent = fuel.disabledReason;
+                    reason.style.display = 'block';
+                    row.appendChild(reason);
+                }
+
+                items.appendChild(row);
+            }
+        } else {
+            const empty = document.createElement('div');
+            empty.className = 'fire-empty';
+            empty.textContent = 'No fuel in inventory';
+            items.appendChild(empty);
+        }
+
+        pane.appendChild(items);
+    }
+
+    renderFireStatus(fire, mode) {
+        const pane = document.getElementById('fireStatusPane');
+        Utils.clearElement(pane);
+
+        // Phase display
+        const phaseDisplay = document.createElement('div');
+        phaseDisplay.className = 'fire-phase-display';
+
+        const phaseIconClass = fire.phase.toLowerCase().replace(' ', '');
+        const phaseIcon = document.createElement('div');
+        phaseIcon.className = 'fire-phase-icon material-symbols-outlined ' + phaseIconClass;
+        phaseIcon.textContent = fire.phaseIcon || 'local_fire_department';
+        phaseDisplay.appendChild(phaseIcon);
+
+        const phaseName = document.createElement('div');
+        phaseName.className = 'fire-phase-name ' + phaseIconClass;
+        phaseName.textContent = fire.phase;
+        phaseDisplay.appendChild(phaseName);
+
+        pane.appendChild(phaseDisplay);
+
+        // Fire stats
+        if (mode === 'tending') {
+            // Temperature
+            this.addFireStatRow(pane, 'thermostat', 'Temperature', `${Math.round(fire.temperatureF)}°F`, this.getFireTempClass(fire.temperatureF));
+
+            // Heat output
+            this.addFireStatRow(pane, 'wb_sunny', 'Heat Output', `+${Math.round(fire.heatOutputF)}°F`);
+
+            // Fuel gauge
+            const gauge = document.createElement('div');
+            gauge.className = 'fire-fuel-gauge';
+
+            const gaugeLabel = document.createElement('div');
+            gaugeLabel.className = 'fire-gauge-label';
+            const gaugeLabelLeft = document.createElement('span');
+            gaugeLabelLeft.textContent = 'Fuel';
+            const gaugeLabelRight = document.createElement('span');
+            gaugeLabelRight.textContent = `${fire.totalKg.toFixed(1)} / ${fire.maxCapacityKg.toFixed(0)} kg`;
+            gaugeLabel.appendChild(gaugeLabelLeft);
+            gaugeLabel.appendChild(gaugeLabelRight);
+            gauge.appendChild(gaugeLabel);
+
+            const gaugeBar = document.createElement('div');
+            gaugeBar.className = 'fire-gauge-bar';
+
+            const fillPct = (fire.totalKg / fire.maxCapacityKg) * 100;
+            const burningPct = (fire.burningKg / fire.maxCapacityKg) * 100;
+
+            const unburnedFill = document.createElement('div');
+            unburnedFill.className = 'fire-gauge-fill unburned';
+            unburnedFill.style.width = fillPct + '%';
+            gaugeBar.appendChild(unburnedFill);
+
+            const burningFill = document.createElement('div');
+            burningFill.className = 'fire-gauge-fill burning';
+            burningFill.style.width = burningPct + '%';
+            gaugeBar.appendChild(burningFill);
+
+            gauge.appendChild(gaugeBar);
+            pane.appendChild(gauge);
+
+            // Time remaining
+            const timeClass = fire.minutesRemaining < 30 ? 'danger' : fire.minutesRemaining < 60 ? 'warning' : '';
+            this.addFireStatRow(pane, 'timer', 'Time Remaining', this.formatFireTime(fire.minutesRemaining), timeClass);
+
+            // Burn rate
+            this.addFireStatRow(pane, 'speed', 'Burn Rate', `${fire.burnRateKgPerHour.toFixed(1)} kg/hr`);
+
+            // Pit info
+            this.addFireStatRow(pane, 'circle', 'Pit Type', fire.pitType);
+
+            // Charcoal
+            if (fire.charcoalKg > 0) {
+                this.addFireStatRow(pane, 'whatshot', 'Charcoal', `${fire.charcoalKg.toFixed(2)} kg`);
+            }
+        } else {
+            // Starting mode - show pit info and success chance
+            this.addFireStatRow(pane, 'circle', 'Pit Type', fire.pitType);
+            this.addFireStatRow(pane, 'air', 'Wind Protection', `${Math.round(fire.windProtection * 100)}%`);
+            this.addFireStatRow(pane, 'eco', 'Fuel Efficiency', `+${Math.round((fire.fuelEfficiency - 1) * 100)}%`);
+
+            // Success chance section
+            const successSection = document.createElement('div');
+            successSection.className = 'fire-success-section';
+
+            const successLabel = document.createElement('div');
+            successLabel.className = 'fire-success-label';
+            successLabel.textContent = 'Success Chance';
+            successSection.appendChild(successLabel);
+
+            const successValue = document.createElement('div');
+            successValue.className = 'fire-success-value';
+            successValue.textContent = fire.finalSuccessPercent + '%';
+            successSection.appendChild(successValue);
+
+            pane.appendChild(successSection);
+        }
+    }
+
+    addFireStatRow(container, icon, label, value, valueClass = '') {
+        const row = document.createElement('div');
+        row.className = 'fire-stat-row';
+
+        const labelEl = document.createElement('span');
+        labelEl.className = 'fire-stat-label';
+        const iconEl = document.createElement('span');
+        iconEl.className = 'material-symbols-outlined';
+        iconEl.textContent = icon;
+        labelEl.appendChild(iconEl);
+        labelEl.appendChild(document.createTextNode(label));
+        row.appendChild(labelEl);
+
+        const valueEl = document.createElement('span');
+        valueEl.className = 'fire-stat-value' + (valueClass ? ' ' + valueClass : '');
+        valueEl.textContent = value;
+        row.appendChild(valueEl);
+
+        container.appendChild(row);
+    }
+
+    getFireTempClass(temp) {
+        if (temp < 200) return 'danger';
+        if (temp < 400) return 'warning';
+        return 'good';
+    }
+
+    formatFireTime(minutes) {
+        if (minutes < 60) return `${minutes} min`;
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    }
+
+    sendFireToolSelect(toolId, inputId) {
+        if (this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'fire',
+                fireToolId: toolId,
+                inputId: inputId
+            }));
+        }
+    }
+
+    sendFireTinderSelect(tinderId, inputId) {
+        if (this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'fire',
+                tinderId: tinderId,
+                inputId: inputId
+            }));
+        }
+    }
+
+    sendFireAddFuel(fuelId, count, inputId) {
+        if (this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'fire',
+                fuelItemId: fuelId,
+                fuelCount: count,
+                inputId: inputId
+            }));
+        }
+    }
+
+    hideFireOverlay() {
+        hide(document.getElementById('fireOverlay'));
+    }
+
     showCrafting(crafting, input) {
         const overlay = document.getElementById('craftingOverlay');
         show(overlay);
 
         document.getElementById('craftingTitle').textContent = crafting.title;
 
-        // Track input ID for crafting buttons
-        const inputId = this.currentInputId;
+        // Store crafting data and input for tab switching
+        this.currentCraftingData = crafting;
+        this.currentCraftingInput = input;
 
-        // Debug: log the crafting data
-        console.log('Crafting data:', crafting);
+        // Build tab bar
+        this.buildCraftingTabs(crafting.categories);
 
-        const categoriesContainer = document.getElementById('craftingCategories');
-        Utils.clearElement(categoriesContainer);
+        // Select first tab with craftable recipes, or first tab
+        const defaultTab = crafting.categories.find(c => c.craftableRecipes && c.craftableRecipes.length > 0)
+            || crafting.categories[0];
 
-        // Render each category
-        crafting.categories.forEach(category => {
-            console.log(`Category: ${category.categoryName}`);
-            console.log(`  Craftable: ${category.craftableRecipes?.length || 0}`);
-            console.log(`  Uncraftable: ${category.uncraftableRecipes?.length || 0}`);
-
-            const categoryDiv = document.createElement('div');
-            categoryDiv.className = 'crafting-category';
-
-            const categoryHeader = document.createElement('h3');
-            categoryHeader.className = 'category-header';
-            const icon = document.createElement('span');
-            icon.className = ICON_CLASS;
-            icon.textContent = 'construction';
-            categoryHeader.appendChild(icon);
-            categoryHeader.appendChild(document.createTextNode(category.categoryName));
-            categoryDiv.appendChild(categoryHeader);
-
-            // Craftable recipes
-            if (category.craftableRecipes && category.craftableRecipes.length > 0) {
-                category.craftableRecipes.forEach((recipe, index) => {
-                    const recipeRow = this.createRecipeRow(recipe, true, input, inputId);
-                    categoryDiv.appendChild(recipeRow);
-                });
-            }
-
-            // Uncraftable recipes
-            if (category.uncraftableRecipes && category.uncraftableRecipes.length > 0) {
-                const uncraftableHeader = document.createElement('div');
-                uncraftableHeader.className = 'uncraftable-header';
-                uncraftableHeader.textContent = 'Needs materials:';
-                categoryDiv.appendChild(uncraftableHeader);
-
-                category.uncraftableRecipes.forEach(recipe => {
-                    const recipeRow = this.createRecipeRow(recipe, false, input, inputId);
-                    categoryDiv.appendChild(recipeRow);
-                });
-            }
-
-            categoriesContainer.appendChild(categoryDiv);
-        });
+        if (defaultTab) {
+            this.setCraftingTab(defaultTab.categoryKey);
+        }
 
         // Handle close button
+        const inputId = this.currentInputId;
         document.getElementById('craftingCloseBtn').onclick = () => {
             if (input && input.type === 'select') {
-                // Find the Cancel choice by label and use its ID
                 const cancelChoice = input.choices.find(c => c.label === 'Cancel');
                 if (cancelChoice) {
                     this.respond(cancelChoice.id, inputId);
@@ -2431,6 +2815,110 @@ class GameClient {
                 this.respond('continue', inputId);
             }
         };
+    }
+
+    buildCraftingTabs(categories) {
+        const tabBar = document.getElementById('craftTabBar');
+        Utils.clearElement(tabBar);
+
+        categories.forEach(cat => {
+            const tab = document.createElement('button');
+            tab.className = 'craft-tab';
+            tab.dataset.category = cat.categoryKey;
+
+            // Icon
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined';
+            icon.textContent = CRAFT_CATEGORY_ICONS[cat.categoryKey] || 'category';
+            tab.appendChild(icon);
+
+            // Short label (abbreviated for space)
+            const label = document.createElement('span');
+            label.textContent = this.getShortCategoryName(cat.categoryName);
+            tab.appendChild(label);
+
+            // Badge if has craftable recipes
+            if (cat.craftableRecipes && cat.craftableRecipes.length > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'craft-tab-badge';
+                badge.textContent = cat.craftableRecipes.length;
+                tab.appendChild(badge);
+            }
+
+            tab.onclick = () => this.setCraftingTab(cat.categoryKey);
+            tabBar.appendChild(tab);
+        });
+    }
+
+    getShortCategoryName(name) {
+        const shorts = {
+            'Fire-Starting': 'Fire',
+            'Cutting Tools': 'Cutting',
+            'Hunting Weapons': 'Hunting',
+            'Processing & Tools': 'Process',
+            'Medical Treatments': 'Medical',
+            'Clothing & Gear': 'Clothing',
+            'Light Sources': 'Light',
+            'Carrying Gear': 'Carry',
+            'Camp Improvements': 'Camp',
+            'Mend Equipment': 'Mend'
+        };
+        return shorts[name] || name;
+    }
+
+    setCraftingTab(categoryKey) {
+        this.craftingActiveTab = categoryKey;
+
+        // Update tab active states
+        document.querySelectorAll('.craft-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.category === categoryKey);
+        });
+
+        // Find category data and render
+        const category = this.currentCraftingData.categories
+            .find(c => c.categoryKey === categoryKey);
+
+        if (category) {
+            this.renderCraftingCategory(category);
+        }
+    }
+
+    renderCraftingCategory(category) {
+        const content = document.getElementById('craftingCategories');
+        Utils.clearElement(content);
+
+        const inputId = this.currentInputId;
+        const input = this.currentCraftingInput;
+
+        // Craftable recipes first
+        if (category.craftableRecipes && category.craftableRecipes.length > 0) {
+            category.craftableRecipes.forEach(recipe => {
+                const row = this.createRecipeRow(recipe, true, input, inputId);
+                content.appendChild(row);
+            });
+        }
+
+        // Uncraftable recipes
+        if (category.uncraftableRecipes && category.uncraftableRecipes.length > 0) {
+            const separator = document.createElement('div');
+            separator.className = 'uncraftable-separator';
+            separator.textContent = 'Needs materials:';
+            content.appendChild(separator);
+
+            category.uncraftableRecipes.forEach(recipe => {
+                const row = this.createRecipeRow(recipe, false, input, inputId);
+                content.appendChild(row);
+            });
+        }
+
+        // Empty state
+        if ((!category.craftableRecipes || category.craftableRecipes.length === 0) &&
+            (!category.uncraftableRecipes || category.uncraftableRecipes.length === 0)) {
+            const empty = document.createElement('div');
+            empty.className = 'empty-category';
+            empty.textContent = 'No recipes in this category.';
+            content.appendChild(empty);
+        }
     }
 
     createRecipeRow(recipe, isCraftable, input, inputId) {

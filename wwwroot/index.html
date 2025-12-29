@@ -284,13 +284,38 @@
         </div>
     </div>
 
+    <!-- Fire Overlay -->
+    <div class="fire-overlay hidden" id="fireOverlay">
+        <div class="fire-modal">
+            <div class="fire-header">
+                <h2><span class="material-symbols-outlined">local_fire_department</span>
+                    <span id="fireTitle">FIRE</span>
+                </h2>
+            </div>
+            <div class="fire-content">
+                <!-- Left pane: materials (changes based on mode) -->
+                <div class="fire-left-pane" id="fireLeftPane"></div>
+                <div class="fire-divider">
+                    <span class="material-symbols-outlined">arrow_forward</span>
+                </div>
+                <!-- Right pane: fire status -->
+                <div class="fire-status-pane" id="fireStatusPane"></div>
+            </div>
+            <div class="fire-actions">
+                <button class="action-btn primary hidden" id="fireStartBtn">Start Fire</button>
+                <button class="action-btn" id="fireDoneBtn">Done</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Crafting Overlay -->
     <div class="inventory-overlay hidden" id="craftingOverlay">
         <div class="inventory-modal crafting-modal">
             <div class="inventory-header">
                 <h2 id="craftingTitle">CRAFTING</h2>
             </div>
-            <div class="crafting-categories" id="craftingCategories"></div>
+            <div class="craft-tab-bar" id="craftTabBar"></div>
+            <div class="craft-tab-content" id="craftingCategories"></div>
             <div class="inventory-actions">
                 <button class="action-btn" id="craftingCloseBtn">Cancel</button>
             </div>

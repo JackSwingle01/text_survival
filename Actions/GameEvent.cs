@@ -35,6 +35,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public List<Effect> Effects = [];
     public DamageInfo? NewDamage;
     public RewardPool RewardPool = RewardPool.None;
+    public double RewardDensity = 1.0;
     public ResourceCost? Cost;  // Resources consumed by this outcome
 
     // Tension fields
@@ -72,7 +73,12 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     // === Fluent builder methods ===
 
     public EventResult Aborts() { AbortsExpedition = true; return this; }
-    public EventResult Rewards(RewardPool pool) { RewardPool = pool; return this; }
+    public EventResult Rewards(RewardPool pool, double density = 1.0)
+    {
+        RewardPool = pool;
+        RewardDensity = density;
+        return this;
+    }
     public EventResult Costs(ResourceType type, int amount) { Cost = new ResourceCost(type, amount); return this; }
 
     public EventResult WithEffects(params Effect[] effects) { Effects.AddRange(effects); return this; }
@@ -246,7 +252,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     {
         if (RewardPool != RewardPool.None)
         {
-            var resources = RewardGenerator.Generate(RewardPool);
+            var resources = RewardGenerator.Generate(RewardPool, RewardDensity);
             if (!resources.IsEmpty)
             {
                 var desc = resources.GetDescription();

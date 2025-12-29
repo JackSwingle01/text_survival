@@ -65,20 +65,17 @@ public static partial class GameEventRegistry
                 "Take your time and get everything.",
                 [
                     new EventResult("A good haul - nuts, seeds, even some dried berries the squirrel collected.", 0.65, 15)
-                        .Rewards(RewardPool.BasicSupplies)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .Rewards(RewardPool.SquirrelCache, 1.5),
                     new EventResult("Mostly acorns, but food is food.", 0.30, 12)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .Rewards(RewardPool.SquirrelCache, 0.8),
                     new EventResult("The cache goes deeper than expected. Worth the effort.", 0.05, 20)
-                        .Rewards(RewardPool.BasicSupplies)
-                        .Rewards(RewardPool.BasicSupplies)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .Rewards(RewardPool.SquirrelCache, 2.5)
                 ])
             .Choice("Grab and Go",
                 "Scoop what you can quickly. The squirrel's already angry.",
                 [
                     new EventResult("You snag a handful of nuts before the squirrel gets brave.", 0.70, 3)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .Rewards(RewardPool.SquirrelCache, 0.5),
                     new EventResult("Quick work. Not much, but better than nothing.", 0.25, 2),
                     new EventResult("The little beast bites your hand as you reach in!", 0.05, 2)
                         .Damage(1, DamageType.Pierce, BodyTarget.AnyArm)

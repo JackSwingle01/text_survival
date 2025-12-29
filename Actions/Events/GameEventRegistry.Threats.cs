@@ -520,23 +520,23 @@ public static partial class GameEventRegistry
     private static GameEvent MomentOfClarity(GameContext ctx)
     {
         return new GameEvent("Moment of Clarity",
-            "Your mind clears. For a brief moment, everything makes sense. You see your situation with perfect clarity.", 0.3)
+            "Your mind clears. For a brief moment, everything makes sense. You see your situation with perfect clarity.", 0.12)
             .Requires(EventCondition.Awake)
             .WithSituationFactor(Situations.CriticallyDepleted, 2.0)  // LowCalories + LowHydration
             .WithSituationFactor(Situations.Vulnerable, 1.5)  // Injured, slow, impaired, no weapon
             .Choice("Act on It",
                 "Use this clarity productively.",
                 [
-                    new EventResult("You notice something you'd been missing — a better approach.", weight: 0.60, minutes: 5)
+                    new EventResult("You notice something you'd been missing — a better approach.", weight: 0.60, minutes: 2)
                         .FindsSupplies(),
-                    new EventResult("You see a solution to something that's been bothering you.", weight: 0.40, minutes: 5)
-                        .WithEffects(EffectFactory.Focused(0.3, 120))
+                    new EventResult("You see a solution to something that's been bothering you.", weight: 0.40, minutes: 2)
+                        .WithEffects(EffectFactory.Focused(0.5, 120))
                 ])
             .Choice("Rest in the Feeling",
                 "Don't force it. Let clarity come naturally.",
                 [
-                    new EventResult("You feel centered. Calm.", weight: 1.0, minutes: 15)
-                        .WithEffects(EffectFactory.Rested(0.5, 90))
+                    new EventResult("You feel centered. Calm.", weight: 1.0, minutes: 5)
+                        .WithEffects(EffectFactory.Rested(0.7, 90))
                 ]);
     }
 

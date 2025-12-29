@@ -3,6 +3,7 @@ using text_survival.Actions.Variants;
 using text_survival.Crafting;
 using text_survival.Environments;
 using text_survival.Environments.Features;
+using text_survival.Items;
 using text_survival.Web.Dto;
 
 namespace text_survival.Web;
@@ -22,6 +23,7 @@ public static class WebIO
     private static readonly Dictionary<string, ForageDto> _currentForage = new();
     private static readonly Dictionary<string, HuntDto> _currentHunt = new();
     private static readonly Dictionary<string, TransferDto> _currentTransfer = new();
+    private static readonly Dictionary<string, FireManagementDto> _currentFire = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -85,6 +87,8 @@ public static class WebIO
                 overlays.Add(new HuntOverlay(hunt));
             if (_currentTransfer.TryGetValue(sessionId, out var transfer))
                 overlays.Add(new TransferOverlay(transfer));
+            if (_currentFire.TryGetValue(sessionId, out var fire))
+                overlays.Add(new FireOverlay(fire));
         }
 
         return overlays;
@@ -163,6 +167,15 @@ public static class WebIO
     }
 
     /// <summary>
+    /// Clear the current fire display for a session.
+    /// </summary>
+    public static void ClearFire(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentFire.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
     /// Clear all overlays for a session. Used on reconnect to prevent stale overlays.
     /// </summary>
     public static void ClearAllOverlays(string sessionId)
@@ -175,6 +188,7 @@ public static class WebIO
         _currentForage.Remove(sessionId);
         _currentHunt.Remove(sessionId);
         _currentTransfer.Remove(sessionId);
+        _currentFire.Remove(sessionId);
     }
 
     /// <summary>
@@ -923,5 +937,206 @@ public static class WebIO
                 }
                 break;
         }
+    }
+
+    // ========================================================================
+    // Fire Management UI
+    // ========================================================================
+
+    /// <summary>
+    /// Run the fire management UI - handles both starting and tending modes.
+    /// </summary>
+    public static void RunFireUI(GameContext ctx, HeatSourceFeature fire)
+    {
+        var session = GetSession(ctx);
+        string? selectedToolId = null;
+        string? selectedTinderId = null;
+
+        while (true)
+        {
+            // Build fire DTO with current selections
+            var fireData = FireManagementDto.FromContext(ctx, fire, selectedToolId, selectedTinderId);
+            _currentFire[ctx.SessionId!] = fireData;
+
+            // Build choices based on mode
+            var choices = new List<ChoiceDto> { new("done", "Done") };
+            if (fireData.Mode == "starting" && fireData.Fire.HasKindling && (fireData.Tools?.Count ?? 0) > 0)
+            {
+                choices.Insert(0, new ChoiceDto("start_fire", "Start Fire"));
+            }
+
+            int inputId = session.GenerateInputId();
+            var frame = new WebFrame(
+                GameStateDto.FromContext(ctx),
+                GetCurrentMode(ctx),
+                GetCurrentOverlays(ctx.SessionId),
+                new InputRequestDto(inputId, "fire", fireData.Mode == "starting" ? "Start Fire" : "Add Fuel", choices)
+            );
+
+            session.Send(frame);
+            var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+            // Handle response
+            if (response.ChoiceId == "done" || response.Type == "close")
+                break;
+
+            // Tending mode: add fuel
+            if (response.FuelItemId != null)
+            {
+                int count = response.FuelCount ?? 1;
+                ExecuteAddFuel(ctx, fire, response.FuelItemId, count);
+                ctx.Update(1, ActivityType.TendingFire);
+            }
+            // Starting mode: select tool
+            else if (response.FireToolId != null)
+            {
+                selectedToolId = response.FireToolId;
+            }
+            // Starting mode: select tinder
+            else if (response.TinderId != null)
+            {
+                selectedTinderId = response.TinderId;
+            }
+            // Starting mode: attempt ignition
+            else if (response.ChoiceId == "start_fire")
+            {
+                bool success = ExecuteStartFire(ctx, fire, selectedToolId, selectedTinderId);
+                if (success)
+                {
+                    // Fire now active, mode switches to tending automatically
+                    selectedToolId = null;
+                    selectedTinderId = null;
+                }
+                // On failure, loop continues to show updated UI (may have consumed materials)
+            }
+        }
+
+        ClearFire(ctx);
+    }
+
+    /// <summary>
+    /// Execute adding fuel to fire.
+    /// </summary>
+    private static void ExecuteAddFuel(GameContext ctx, HeatSourceFeature fire, string fuelItemId, int count)
+    {
+        // Parse fuelItemId: "fuel_Pine", "fuel_Stick", etc.
+        if (!fuelItemId.StartsWith("fuel_")) return;
+        var resourceName = fuelItemId[5..];
+        if (!Enum.TryParse<Resource>(resourceName, out var resource)) return;
+
+        // Map resource to fuel type
+        var fuelType = resource switch
+        {
+            Resource.Stick => FuelType.Kindling,
+            Resource.Pine => FuelType.PineWood,
+            Resource.Birch => FuelType.BirchWood,
+            Resource.Oak => FuelType.OakWood,
+            Resource.Tinder => FuelType.Tinder,
+            Resource.BirchBark => FuelType.BirchBark,
+            Resource.Usnea => FuelType.Usnea,
+            Resource.Chaga => FuelType.Chaga,
+            Resource.Charcoal => FuelType.Kindling,
+            Resource.Bone => FuelType.Bone,
+            _ => FuelType.Kindling
+        };
+
+        // Add fuel up to count
+        for (int i = 0; i < count && ctx.Inventory.Count(resource) > 0; i++)
+        {
+            if (!fire.CanAddFuel(fuelType)) break;
+            double weight = ctx.Inventory.Pop(resource);
+            fire.AddFuel(weight, fuelType);
+        }
+    }
+
+    /// <summary>
+    /// Execute starting a fire with selected tool and tinder.
+    /// Returns true on success.
+    /// </summary>
+    private static bool ExecuteStartFire(
+        GameContext ctx,
+        HeatSourceFeature fire,
+        string? selectedToolId,
+        string? selectedTinderId)
+    {
+        var inv = ctx.Inventory;
+
+        // Get selected tool
+        var fireTools = inv.Tools
+            .Where(t => t.ToolType == ToolType.HandDrill ||
+                       t.ToolType == ToolType.BowDrill ||
+                       t.ToolType == ToolType.FireStriker)
+            .ToList();
+
+        int toolIndex = 0;
+        if (selectedToolId != null && selectedToolId.StartsWith("tool_"))
+            int.TryParse(selectedToolId[5..], out toolIndex);
+
+        if (toolIndex >= fireTools.Count) return false;
+        var tool = fireTools[toolIndex];
+
+        // Check kindling
+        if (inv.Count(Resource.Stick) <= 0) return false;
+
+        // Get selected tinder
+        Resource tinderResource = Resource.Tinder;
+        FuelType tinderFuelType = FuelType.Tinder;
+        if (selectedTinderId != null && selectedTinderId.StartsWith("tinder_"))
+        {
+            var resourceName = selectedTinderId[7..];
+            if (Enum.TryParse<Resource>(resourceName, out var res))
+            {
+                tinderResource = res;
+                tinderFuelType = res switch
+                {
+                    Resource.BirchBark => FuelType.BirchBark,
+                    Resource.Usnea => FuelType.Usnea,
+                    Resource.Chaga => FuelType.Chaga,
+                    _ => FuelType.Tinder
+                };
+            }
+        }
+
+        if (inv.Count(tinderResource) <= 0) return false;
+
+        // Calculate success chance
+        int baseChance = tool.ToolType switch
+        {
+            ToolType.HandDrill => 35,
+            ToolType.BowDrill => 55,
+            ToolType.FireStriker => 75,
+            _ => 30
+        };
+
+        int tinderBonus = (int)(FuelDatabase.Get(tinderFuelType).IgnitionBonus * 100);
+        int finalChance = Math.Min(95, baseChance + tinderBonus);
+
+        // Consume materials (tinder + kindling)
+        inv.Pop(tinderResource);
+        inv.Pop(Resource.Stick);
+
+        // Use tool (decrement durability)
+        if (tool.Durability > 0)
+            tool.Durability--;
+
+        // Time cost for fire-starting attempt
+        ctx.Update(10, ActivityType.TendingFire);
+
+        // Roll for success
+        bool success = Utils.RandInt(0, 99) < finalChance;
+
+        if (success)
+        {
+            // Light the fire with kindling
+            fire.AddFuel(0.1, FuelType.Tinder);  // Initial tinder
+            fire.AddFuel(0.2, FuelType.Kindling); // Initial kindling
+            fire.IgniteAll();
+
+            // Add fire to location if it's new
+            if (!ctx.CurrentLocation.Features.Contains(fire))
+                ctx.CurrentLocation.Features.Add(fire);
+        }
+
+        return success;
     }
 }

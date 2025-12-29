@@ -16,5 +16,10 @@ public record PlayerResponse(
     string? DetailId = null,  // For "examine" type: environmental detail ID
     // Transfer fields
     string? TransferItemId = null,  // For "transfer" type: item ID to transfer
-    int? TransferCount = null       // For "transfer" type: how many to transfer (1 or all)
+    int? TransferCount = null,      // For "transfer" type: how many to transfer (1 or all)
+    // Fire management fields
+    string? FuelItemId = null,      // For "fire" type: fuel to add (tending mode)
+    int? FuelCount = null,          // For "fire" type: how many units
+    string? FireToolId = null,      // For "fire" type: selected tool (starting mode)
+    string? TinderId = null         // For "fire" type: selected tinder (starting mode)
 );

@@ -10,6 +10,7 @@ public enum RewardPool
     LargeMeat,          // Significant meat haul (thorough butchering)
     MassiveMeat,        // Megafauna kill (mammoth, cave bear - huge yield)
     GameTrailDiscovery, // Minor supplies (info reward placeholder)
+    SquirrelCache,      // Nuts, dried berries - rodent food stores
 
     // Extended pools
     CraftingMaterials,  // Stone, bone, plant fiber
@@ -23,7 +24,7 @@ public enum RewardPool
 
 public static class RewardGenerator
 {
-    public static Inventory Generate(RewardPool pool)
+    public static Inventory Generate(RewardPool pool, double densityFactor = 1.0)
     {
         return pool switch
         {
@@ -34,6 +35,7 @@ public static class RewardGenerator
             RewardPool.LargeMeat => GenerateLargeMeat(),
             RewardPool.MassiveMeat => GenerateMassiveMeat(),
             RewardPool.GameTrailDiscovery => GenerateGameTrailDiscovery(),
+            RewardPool.SquirrelCache => GenerateSquirrelCache(densityFactor),
             RewardPool.CraftingMaterials => GenerateCraftingMaterials(),
             RewardPool.ScrapTool => GenerateScrapTool(),
             RewardPool.WaterSource => GenerateWaterSource(),
@@ -159,6 +161,28 @@ public static class RewardGenerator
             resources.Add(Resource.Stick, RandomWeight(0.2, 0.4));
         else
             resources.Add(Resource.Tinder, RandomWeight(0.1, 0.2));
+        return resources;
+    }
+
+    private static Inventory GenerateSquirrelCache(double densityFactor)
+    {
+        var resources = new Inventory();
+
+        // Scale item count by density: 1-2 base, up to 2-4 for deep cache
+        int baseItems = Random.Shared.Next(1, 3);
+        int itemCount = (int)Math.Ceiling(baseItems * densityFactor);
+
+        var options = new List<Action>
+        {
+            () => resources.Add(Resource.Nuts, RandomWeight(0.1, 0.2) * densityFactor),
+            () => resources.Add(Resource.DriedBerries, RandomWeight(0.05, 0.15) * densityFactor),
+            () => resources.Add(Resource.Berries, RandomWeight(0.1, 0.2) * densityFactor),
+            () => resources.Add(Resource.Nuts, RandomWeight(0.15, 0.25) * densityFactor)
+        };
+
+        var shuffled = options.OrderBy(_ => Random.Shared.Next()).Take(itemCount);
+        foreach (var add in shuffled) add();
+
         return resources;
     }
 
