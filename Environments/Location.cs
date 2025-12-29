@@ -164,11 +164,40 @@ public class Location
     /// </summary>
     public bool IsVantagePoint { get; set; } = false;
 
+    // Edge Specifications //
+
     /// <summary>
-    /// Risk of falling or climbing injury at this location (0-1).
-    /// 0 = flat ground, 0.3 = moderate scrambling, 0.7 = technical climbing.
+    /// Edge specifications for this location. Applied when location is placed on map.
+    /// Key = direction, Value = edge to create on that side.
+    /// Null means no special edge (use terrain-based generation).
     /// </summary>
-    public double ClimbRiskFactor { get; set; } = 0;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Dictionary<Direction, TileEdge>? EdgeOverrides { get; set; }
+
+    /// <summary>
+    /// Apply the same edge type on all sides. Convenience for locations like Boulder Field.
+    /// </summary>
+    public Location WithEdgesOnAllSides(EdgeType type, List<EdgeEvent>? customEvents = null)
+    {
+        EdgeOverrides = new()
+        {
+            [Direction.North] = customEvents != null ? new TileEdge(type, customEvents) : new TileEdge(type),
+            [Direction.East] = customEvents != null ? new TileEdge(type, customEvents) : new TileEdge(type),
+            [Direction.South] = customEvents != null ? new TileEdge(type, customEvents) : new TileEdge(type),
+            [Direction.West] = customEvents != null ? new TileEdge(type, customEvents) : new TileEdge(type),
+        };
+        return this;
+    }
+
+    /// <summary>
+    /// Set a specific edge on one side.
+    /// </summary>
+    public Location WithEdge(Direction dir, EdgeType type, List<EdgeEvent>? customEvents = null)
+    {
+        EdgeOverrides ??= new();
+        EdgeOverrides[dir] = customEvents != null ? new TileEdge(type, customEvents) : new TileEdge(type);
+        return this;
+    }
 
     // Discovery //
     public bool Explored { get; set; } = false;

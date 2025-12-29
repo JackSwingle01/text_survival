@@ -124,16 +124,10 @@ public static class VariantSelector
         double severity = location.TerrainHazardLevel;
 
         // Determine primary hazard type
-        bool hasClimbRisk = location.ClimbRiskFactor > 0;
+        // Note: Climb hazards now handled via edge events (EdgeEvents.ClimbingHazard)
         bool hasIce = HasIce(ctx);
 
-        if (hasClimbRisk)
-        {
-            // Climbing hazards - serious falls and impact injuries
-            pool.AddRange(AccidentVariants.ClimbingFall.Select(v => (v, 2.0)));
-            pool.AddRange(AccidentVariants.FallImpact.Select(v => (v, 1.0)));
-        }
-        else if (hasIce)
+        if (hasIce)
         {
             // Ice hazards - slips and impact
             pool.AddRange(AccidentVariants.IceSlip.Select(v => (v, 2.0)));

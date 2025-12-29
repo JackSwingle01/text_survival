@@ -73,7 +73,6 @@ public record TileDto(
 
     // Hazard properties
     double? TerrainHazardLevel,   // 0-1 (from GetEffectiveTerrainHazard)
-    double? ClimbRiskFactor,      // 0-1
 
     // Tactical properties
     bool? IsEscapeTerrain,
@@ -145,7 +144,6 @@ public record TileDto(
 
             // Hazards
             TerrainHazardLevel: isExplored ? location.GetEffectiveTerrainHazard() : null,
-            ClimbRiskFactor: isExplored ? location.ClimbRiskFactor : null,
 
             // Tactical
             IsEscapeTerrain: isExplored ? location.IsEscapeTerrain : null,

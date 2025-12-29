@@ -1,3 +1,5 @@
+using text_survival.Actions;
+
 namespace text_survival.Environments.Grid;
 
 /// <summary>
@@ -26,13 +28,21 @@ public class MapLocationData
 /// </summary>
 public class GameMap
 {
-    // === Storage ===
+    // === Location Storage ===
     private Location?[,] _locations;
 
     /// <summary>
     /// Reverse lookup: Location ID -> Position. For finding where a location is.
     /// </summary>
     private readonly Dictionary<Guid, GridPosition> _locationIndex = new();
+
+    // === Edge Storage ===
+
+    /// <summary>
+    /// Edge features between tiles. Key is (canonical position, direction).
+    /// Multiple edges can exist between same tiles (river + game trail).
+    /// </summary>
+    private Dictionary<(GridPosition, Direction), List<TileEdge>> _edges = new();
 
     public int Width { get; private set; }
     public int Height { get; private set; }
@@ -65,12 +75,18 @@ public class GameMap
 
     /// <summary>
     /// Adjacent passable locations the player can travel to from current position.
+    /// Filters out edge-blocked paths based on current season.
     /// </summary>
     public IReadOnlyList<Location> GetTravelOptions()
     {
+        var season = Weather?.CurrentSeason ?? Weather.Season.Winter;
         var options = new List<Location>();
         foreach (var neighborPos in CurrentPosition.GetCardinalNeighbors())
         {
+            // Skip edge-blocked paths
+            if (IsEdgeBlocked(CurrentPosition, neighborPos, season))
+                continue;
+
             var location = GetLocationAt(neighborPos);
             if (location != null && location.IsPassable)
                 options.Add(location);
@@ -80,15 +96,21 @@ public class GameMap
 
     /// <summary>
     /// Get travel options from a specific location.
+    /// Filters out edge-blocked paths based on current season.
     /// </summary>
     public IReadOnlyList<Location> GetTravelOptionsFrom(Location from)
     {
         var position = GetPosition(from);
         if (!position.HasValue) return [];
 
+        var season = Weather?.CurrentSeason ?? Weather.Season.Winter;
         var options = new List<Location>();
         foreach (var neighborPos in position.Value.GetCardinalNeighbors())
         {
+            // Skip edge-blocked paths
+            if (IsEdgeBlocked(position.Value, neighborPos, season))
+                continue;
+
             var location = GetLocationAt(neighborPos);
             if (location != null && location.IsPassable)
                 options.Add(location);
@@ -380,5 +402,149 @@ public class GameMap
         var location = unexplored[Random.Shared.Next(unexplored.Count)];
         location.MarkExplored();
         return location;
+    }
+
+    // === Edge Operations ===
+
+    /// <summary>
+    /// Get all edges when moving from one position to another.
+    /// Filters out one-way edges when traveling the reverse direction.
+    /// </summary>
+    public IReadOnlyList<TileEdge> GetEdgesBetween(GridPosition from, GridPosition to)
+    {
+        var (canonical, dir, reversed) = Canonicalize(from, to);
+
+        if (!_edges.TryGetValue((canonical, dir), out var edges))
+            return [];
+
+        // Filter out one-way edges if traveling reverse direction
+        if (reversed)
+            return edges.Where(e => e.Bidirectional).ToList();
+
+        return edges;
+    }
+
+    /// <summary>
+    /// Check if passage is blocked between two positions.
+    /// </summary>
+    public bool IsEdgeBlocked(GridPosition from, GridPosition to, Weather.Season season)
+    {
+        var edges = GetEdgesBetween(from, to);
+        return edges.Any(e => e.IsBlockedIn(season));
+    }
+
+    /// <summary>
+    /// Get total traversal modifier for crossing between positions.
+    /// </summary>
+    public int GetEdgeTraversalModifier(GridPosition from, GridPosition to)
+    {
+        return GetEdgesBetween(from, to).Sum(e => e.TraversalModifierMinutes);
+    }
+
+    /// <summary>
+    /// Check for specific edge types (for fishing, hunting, events).
+    /// </summary>
+    public bool HasEdgeType(GridPosition a, GridPosition b, EdgeType type) =>
+        GetEdgesBetween(a, b).Any(e => e.Type == type);
+
+    /// <summary>
+    /// Add an edge between two adjacent positions.
+    /// </summary>
+    public void AddEdge(GridPosition a, GridPosition b, TileEdge edge)
+    {
+        var (canonical, dir, _) = Canonicalize(a, b);
+        var key = (canonical, dir);
+
+        if (!_edges.ContainsKey(key))
+            _edges[key] = new List<TileEdge>();
+
+        // Replace existing edge of same type (trail marker → cut trail)
+        _edges[key].RemoveAll(e => e.Type == edge.Type);
+        _edges[key].Add(edge);
+    }
+
+    /// <summary>
+    /// Remove edge of specific type.
+    /// </summary>
+    public void RemoveEdge(GridPosition a, GridPosition b, EdgeType type)
+    {
+        var (canonical, dir, _) = Canonicalize(a, b);
+        if (_edges.TryGetValue((canonical, dir), out var edges))
+            edges.RemoveAll(e => e.Type == type);
+    }
+
+    /// <summary>
+    /// Try to trigger an edge event when crossing between positions.
+    /// Returns the first event that triggers, or null if none.
+    /// </summary>
+    public GameEvent? TryTriggerEdgeEvent(GridPosition from, GridPosition to, GameContext ctx)
+    {
+        var edges = GetEdgesBetween(from, to);
+        foreach (var edge in edges)
+        {
+            var evt = edge.TryTriggerEvent(ctx);
+            if (evt != null) return evt;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Canonicalize edge storage. Store from top-left position.
+    /// Returns (canonical position, direction, whether input was reversed).
+    /// </summary>
+    private static (GridPosition pos, Direction dir, bool reversed) Canonicalize(GridPosition a, GridPosition b)
+    {
+        // Store North→South edges from the northern tile
+        if (a.Y < b.Y) return (a, Direction.South, false);
+        if (b.Y < a.Y) return (b, Direction.South, true);
+
+        // Same row: store West→East from western tile
+        if (a.X < b.X) return (a, Direction.East, false);
+        return (b, Direction.East, true);
+    }
+
+    // === Edge Serialization ===
+
+    /// <summary>
+    /// Serializable edge data.
+    /// </summary>
+    public class EdgeData
+    {
+        public int X { get; set; }
+        public int Y { get; set; }
+        public Direction Direction { get; set; }
+        public TileEdge Edge { get; set; } = null!;
+
+        public EdgeData() { }
+
+        public EdgeData(int x, int y, Direction direction, TileEdge edge)
+        {
+            X = x;
+            Y = y;
+            Direction = direction;
+            Edge = edge;
+        }
+    }
+
+    /// <summary>
+    /// Serializable edge data property.
+    /// </summary>
+    public List<EdgeData> Edges
+    {
+        get => _edges
+            .SelectMany(kvp => kvp.Value.Select(edge =>
+                new EdgeData(kvp.Key.Item1.X, kvp.Key.Item1.Y, kvp.Key.Item2, edge)))
+            .ToList();
+        set
+        {
+            _edges.Clear();
+            foreach (var data in value ?? [])
+            {
+                var key = (new GridPosition(data.X, data.Y), data.Direction);
+                if (!_edges.ContainsKey(key))
+                    _edges[key] = new List<TileEdge>();
+                _edges[key].Add(data.Edge);
+            }
+        }
     }
 }

@@ -1,5 +1,6 @@
 using text_survival.Actions.Handlers;
 using text_survival.Environments;
+using text_survival.Environments.Grid;
 using text_survival.IO;
 using text_survival.Persistence;
 using text_survival.UI;
@@ -87,12 +88,49 @@ public class TravelRunner(GameContext ctx)
     }
 
     /// <summary>
-    /// Travels to the specified destination, handling hazardous terrain and progress.
+    /// Travels to the specified destination, handling hazardous terrain, edge events, and progress.
     /// Returns true if travel succeeded, false if player died.
     /// </summary>
     internal bool TravelToLocation(Location destination)
     {
         Location origin = _ctx.CurrentLocation;
+        var originPos = _ctx.Map!.CurrentPosition;
+        var destPos = _ctx.Map.GetPosition(destination);
+
+        // Check for blocked edges
+        if (destPos.HasValue)
+        {
+            var season = _ctx.Weather.CurrentSeason;
+            if (_ctx.Map.IsEdgeBlocked(originPos, destPos.Value, season))
+            {
+                GameDisplay.AddNarrative(_ctx, GetBlockedMessage(originPos, destPos.Value));
+                return true;  // Not dead, just can't go there
+            }
+        }
+
+        // Check for edge events BEFORE travel
+        if (destPos.HasValue)
+        {
+            var edgeEvent = _ctx.Map.TryTriggerEdgeEvent(originPos, destPos.Value, _ctx);
+            if (edgeEvent != null)
+            {
+                var result = GameEventRegistry.HandleEvent(_ctx, edgeEvent);
+
+                // Check if the chosen outcome aborted the travel
+                if (result.AbortsExpedition)
+                {
+                    GameDisplay.AddNarrative(_ctx, "You decide not to proceed.");
+                    return true;  // Didn't travel, but not dead
+                }
+
+                if (!_ctx.player.IsAlive) return false;
+            }
+        }
+
+        // Get edge time modifier
+        int edgeModifier = destPos.HasValue
+            ? _ctx.Map.GetEdgeTraversalModifier(originPos, destPos.Value)
+            : 0;
 
         // Calculate base segment times
         int exitTime = TravelProcessor.CalculateSegmentTime(origin, _ctx.player, _ctx.Inventory);
@@ -117,11 +155,11 @@ public class TravelRunner(GameContext ctx)
             destQuickTravel = quickTravel;
         }
 
-        // Capture origin position for animation
-        var originPos = _ctx.Map!.CurrentPosition;
-
         // Single combined progress bar with synchronized camera pan
-        int totalTime = exitTime + entryTime;
+        // Edge modifier applies once to total crossing
+        int totalTime = exitTime + entryTime + edgeModifier;
+        totalTime = Math.Max(5, totalTime);  // Minimum 5 minutes
+
         var (died, stayed) = RunTravelWithProgress(totalTime, destination, originPos);
         if (died) return false;
         if (stayed) return true;  // Player chose to stay at origin after event - travel "succeeded" but ended early
@@ -217,10 +255,6 @@ public class TravelRunner(GameContext ctx)
     /// </summary>
     private static string GetHazardDescription(Location location)
     {
-        // Check for climb risk
-        if (location.ClimbRiskFactor > 0)
-            return "climb";
-
         // Check for ice hazard
         var water = location.GetFeature<Environments.Features.WaterFeature>();
         if (water != null && water.GetTerrainHazardContribution() > 0)
@@ -228,6 +262,23 @@ public class TravelRunner(GameContext ctx)
 
         // Generic terrain hazard
         return "terrain";
+    }
+
+    /// <summary>
+    /// Get message explaining why a path is blocked.
+    /// </summary>
+    private string GetBlockedMessage(GridPosition from, GridPosition to)
+    {
+        var edges = _ctx.Map!.GetEdgesBetween(from, to);
+        var blocking = edges.FirstOrDefault(e => e.IsBlockedIn(_ctx.Weather.CurrentSeason));
+
+        return blocking?.Type switch
+        {
+            EdgeType.Cliff => "Sheer cliff face. No way up.",
+            EdgeType.River when blocking.BlockedSeason == Weather.Season.Spring =>
+                "The river is in full flood. Impassable until the waters recede.",
+            _ => "The way is blocked."
+        };
     }
 
 

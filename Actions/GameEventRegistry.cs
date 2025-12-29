@@ -321,12 +321,13 @@ public static partial class GameEventRegistry
     /// <summary>
     /// Handle a triggered event - display, get player choice, apply outcome.
     /// Sets ctx.PendingEncounter if the outcome spawns a predator encounter.
+    /// Returns the EventResult so callers can check flags like AbortsExpedition.
     /// </summary>
-    public static void HandleEvent(GameContext ctx, GameEvent evt)
+    public static EventResult HandleEvent(GameContext ctx, GameEvent evt)
     {
         List<ActivityType> excluded = [ActivityType.Sleeping, ActivityType.Fighting, ActivityType.Encounter];
         if (excluded.Contains(ctx.CurrentActivity))
-            return;
+            return new EventResult("", 1.0, 0);  // No-op result
 
         // Record trigger time for cooldown
         EventTriggerTimes[evt.Name] = ctx.GameTime;
@@ -384,6 +385,8 @@ public static partial class GameEventRegistry
                 var chainedEvent = outcome.ChainEvent(ctx);
                 HandleEvent(ctx, chainedEvent);
             }
+
+            return outcome;
         }
         finally
         {

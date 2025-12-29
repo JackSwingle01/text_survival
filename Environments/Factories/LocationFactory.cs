@@ -713,9 +713,11 @@ public static class LocationFactory
             Terrain = TerrainType.Rock,
             TraversalModifier = 1.4,  // Difficult terrain - 40% slower than regular rock
             DiscoveryText = "Massive boulders tumbled across the slope. Gaps and crevices between them. Hard going, but wolves can't follow into the gaps.",
-            IsEscapeTerrain = true,
-            ClimbRiskFactor = 0.3
+            IsEscapeTerrain = true
         };
+
+        // Climb edges on all sides - scrambling over rocks
+        location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
 
         location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.8));
 
@@ -738,9 +740,14 @@ public static class LocationFactory
         {
             DiscoveryText = "Spine of broken stone above the treeline. Wind never stops. You can see for miles — both valley sides visible.",
             IsVantagePoint = true,
-            ClimbRiskFactor = 0.4,
             FirstVisitEvent = GameEventRegistry.FirstVisitRockyRidge
         };
+
+        // Climb edges with 100% first-climb narrative event
+        location.WithEdgesOnAllSides(Grid.EdgeType.Climb, [
+            new Grid.EdgeEvent(1.0, Actions.Events.EdgeEvents.FirstClimb("Rocky Ridge",
+                "The ridge rises sharply. Broken stone and loose scree. Good handholds if you pick your route."))
+        ]);
 
         location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.3));
 
@@ -838,6 +845,7 @@ public static class LocationFactory
     /// The Lookout - massive lone pine with climbing opportunity.
     /// From the top, see the mountain pass (win condition).
     /// High risk, high reward vantage point.
+    /// Note: Tree climbing is a choice via FirstVisitEvent, not an approach hazard.
     /// </summary>
     public static Location MakeTheLookout(Weather weather)
     {
@@ -852,7 +860,6 @@ public static class LocationFactory
         {
             DiscoveryText = "A massive lone pine stands on a rise. Its branches form a natural ladder. From up there, you could see everything — including the mountain pass.",
             IsVantagePoint = true,
-            ClimbRiskFactor = 0.25,   // Moderate climb risk
             FirstVisitEvent = GameEventRegistry.FirstVisitLookout
         };
 
@@ -1030,9 +1037,11 @@ public static class LocationFactory
             DiscoveryText = "A massive tongue of ice projects from the hillside — a frozen waterfall locked in time. The top is flat, wind-scoured. Nothing can approach unseen from below.",
             IsEscapeTerrain = true,
             IsVantagePoint = true,
-            ClimbRiskFactor = 0.35,
             FirstVisitEvent = GameEventRegistry.FirstVisitIceShelf
         };
+
+        // Climb edges on all sides - scrambling up frozen waterfall
+        location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
 
         location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.2));
 
@@ -1060,7 +1069,6 @@ public static class LocationFactory
             visibilityFactor: 0.4)
         {
             DiscoveryText = "The ravine narrows, then opens into a hollow. Bones everywhere — tusks, ribs, skulls larger than your torso. Mammoths. A dozen of them, maybe more. They came here to die.",
-            ClimbRiskFactor = 0.15,
             FirstVisitEvent = GameEventRegistry.FirstVisitBoneHollow
         };
 
@@ -1170,9 +1178,11 @@ public static class LocationFactory
         {
             DiscoveryText = "South-facing stone, dark and bare. The rock drinks sunlight and holds it. In the midday glare, the cliff radiates warmth — you can feel it from ten paces.",
             TemperatureDeltaF = 5,  // Thermal mass warmth (sun adds up to +10 via existing system)
-            ClimbRiskFactor = 0.2,
             FirstVisitEvent = GameEventRegistry.FirstVisitSunWarmedCliff
         };
+
+        // Climb edges on all sides - scrambling on cliff face
+        location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
 
         // Sparse foraging - stone and bone from animals sheltering here
         var forage = new ForageFeature(0.6)
