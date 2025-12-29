@@ -1,0 +1,1625 @@
+# Persistent Animal System — Revised Design
+
+*Animals exist on the map, move between tiles, and interact within shared tiles. No cross-tile detection. Tile = encounter boundary.*
+
+---
+
+## Core Concepts
+
+**Tile scale:** ~1 square mile. Travel time based on terrain, ~10-20 minutes to cross.
+
+**Herd as universal unit:** Even solitary animals are herds of size 1. Herds share position and move together.
+
+**Two-layer model:**
+- **Strategic layer (tiles):** Herds move based on behavior. No awareness of player unless sharing tile. Predator-prey interactions resolve when herds share tile.
+- **Tactical layer (meters, same tile only):** Player hunting uses existing HuntRunner (0-200m stalking). Predator encounters use existing EncounterRunner.
+
+**Strategy pattern for behavior:** `IHerdBehavior` implementations handle state machines. Prey, pack predator, and solitary predator behaviors. Extensible for megafauna without inheritance tangles.
+
+**Integration with existing systems:** Animal movement uses `TravelProcessor`. Hunts flow through `HuntRunner`. Encounters flow through `EncounterRunner`. Carcasses use existing `CarcassFeature`.
+
+---
+
+## Changes from Original Plan
+
+| Original | Revised |
+|----------|---------|
+| Detection ranges of 2-3 tiles | No cross-tile detection |
+| Alert state at strategic level (prey) | Alert is tactical only (HuntRunner) |
+| Stalking state for predators | Removed—predators engage or don't when sharing tile |
+| Player signals affect detection | Player signals bias predator movement, not detection |
+| Wind direction modifier | Cut (scope creep) |
+| Cross-tile pursuit | Limited—hungry predators may follow fleeing prey one tile |
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         GameContext                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │   Herds     │  │  Tensions   │  │    Map (GameMap)        │  │
+│  │ (Registry)  │  │ (Registry)  │  │                         │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+            ┌─────────────────┼─────────────────┐
+            ▼                 ▼                 ▼
+     ┌────────────┐    ┌────────────┐    ┌────────────┐
+     │   Herd     │    │   Herd     │    │   Herd     │
+     │ (Caribou)  │    │  (Wolves)  │    │  (Bear)    │
+     └────────────┘    └────────────┘    └────────────┘
+            │                 │                 │
+            ▼                 ▼                 ▼
+     ┌────────────┐    ┌────────────┐    ┌────────────┐
+     │   Prey     │    │   Pack     │    │  Solitary  │
+     │  Behavior  │    │ Predator   │    │  Predator  │
+     │            │    │ Behavior   │    │  Behavior  │
+     └────────────┘    └────────────┘    └────────────┘
+```
+
+---
+
+## New Files
+
+### 1. `Actors/Animals/Herd.cs`
+
+Core entity representing a group of animals sharing position and state.
+
+```csharp
+public class Herd
+{
+    // Identity
+    public Guid Id { get; } = Guid.NewGuid();
+    public string AnimalType { get; init; }  // "Wolf", "Bear", "Caribou", etc.
+    public List<Animal> Members { get; } = new();
+    
+    // Position & Territory
+    public GridPosition Position { get; set; }
+    public GridPosition HomeTile { get; init; }  // Return here for resting
+    public List<GridPosition> Territory { get; init; } = new();
+    public int TerritoryIndex { get; set; }  // Current patrol position
+    
+    // State (behavior-specific, stored as object, cast by behavior)
+    public object State { get; set; }
+    public int StateTimeMinutes { get; set; }
+    
+    // Shared condition
+    public double Hunger { get; set; }  // 0-1, drives foraging/hunting
+    
+    // Targeting (for predators)
+    public HerdTarget? Target { get; set; }
+    public GridPosition? ThreatSource { get; set; }  // For fleeing prey
+    
+    // Movement accumulator (partial tile crossing)
+    public int MovementAccumulatorMinutes { get; set; }
+    
+    // Behavior strategy
+    public IHerdBehavior Behavior { get; init; }
+    
+    // Computed
+    public bool IsEmpty => Members.Count == 0;
+    public bool IsPredator => Behavior is PackPredatorBehavior or SolitaryPredatorBehavior;
+    
+    public double GetAverageSpeed()
+    {
+        if (Members.Count == 0) return 1.0;
+        return Members.Average(m => m.Body.GetSpeed());
+    }
+    
+    public Animal GetRandomMember() => Members[Utils.RandInt(0, Members.Count - 1)];
+    
+    public Animal GetWeakestMember() => Members
+        .OrderBy(m => m.Body.GetSpeed())
+        .ThenBy(m => m.Condition)
+        .First();
+    
+    public void RemoveMember(Animal animal)
+    {
+        Members.Remove(animal);
+    }
+}
+```
+
+**Target types:**
+
+```csharp
+public abstract record HerdTarget(GridPosition LastKnownPosition);
+public record PlayerTarget(GridPosition LastKnownPosition) : HerdTarget(LastKnownPosition);
+public record PreyHerdTarget(Guid HerdId, GridPosition LastKnownPosition) : HerdTarget(LastKnownPosition);
+```
+
+---
+
+### 2. `Actors/Animals/IHerdBehavior.cs`
+
+Strategy interface for herd AI.
+
+```csharp
+public interface IHerdBehavior
+{
+    /// <summary>
+    /// Update herd state for elapsed time. Called every game tick.
+    /// </summary>
+    HerdUpdateResult Update(Herd herd, int elapsedMinutes, HerdUpdateContext ctx);
+    
+    /// <summary>
+    /// Trigger flee response (called externally when hunt fails or predator attacks).
+    /// </summary>
+    void TriggerFlee(Herd herd, GridPosition threatSource, HerdUpdateContext ctx);
+    
+    /// <summary>
+    /// Get visibility factor for player searching (1.0 = normal, lower = harder to find).
+    /// </summary>
+    double GetVisibilityFactor(Herd herd);
+}
+```
+
+**Context passed to behaviors:**
+
+```csharp
+public class HerdUpdateContext
+{
+    public GameMap Map { get; init; }
+    public GridPosition PlayerPosition { get; init; }
+    public PlayerState PlayerState { get; init; }  // Bleeding, carrying meat, etc.
+    public ActivityType CurrentPlayerActivity { get; init; }
+    public List<Herd> AllHerds { get; init; }  // For predator-prey interaction
+    public Func<Guid, Herd?> GetHerdById { get; init; }
+    public bool IsNight { get; init; }
+    
+    public IEnumerable<Herd> GetHerdsAt(GridPosition pos) =>
+        AllHerds.Where(h => h.Position == pos);
+        
+    public IEnumerable<Herd> GetPreyHerdsAt(GridPosition pos) =>
+        GetHerdsAt(pos).Where(h => h.Behavior is PreyBehavior);
+        
+    public IEnumerable<Herd> GetPredatorHerdsAt(GridPosition pos) =>
+        GetHerdsAt(pos).Where(h => h.IsPredator);
+}
+
+public class PlayerState
+{
+    public bool IsBleeding { get; init; }
+    public bool CarryingMeat { get; init; }
+    public double MovementCapacity { get; init; }  // 0-1
+    public bool RecentlyFiredWeapon { get; init; }  // Noise in last 10 min
+}
+```
+
+**Update result:**
+
+```csharp
+public record HerdUpdateResult
+{
+    public GridPosition? NewPosition { get; init; }
+    public HerdEncounterRequest? EncounterRequest { get; init; }
+    public PreyKillResult? PreyKill { get; init; }
+    public string? NarrativeMessage { get; init; }  // If player should see something
+    
+    public static HerdUpdateResult None => new();
+    
+    public static HerdUpdateResult WithEncounter(Herd herd, bool isDefending = false) =>
+        new() { EncounterRequest = new HerdEncounterRequest(herd.Id, isDefending) };
+        
+    public static HerdUpdateResult WithPreyKill(Herd preyHerd, Animal victim) =>
+        new() { PreyKill = new PreyKillResult(preyHerd.Id, victim) };
+        
+    public static HerdUpdateResult WithNarrative(string message) =>
+        new() { NarrativeMessage = message };
+}
+
+public record HerdEncounterRequest(Guid HerdId, bool IsDefendingKill);
+public record PreyKillResult(Guid PreyHerdId, Animal Victim);
+```
+
+---
+
+### 3. `Actors/Animals/Behaviors/PreyBehavior.cs`
+
+State machine for prey animals (caribou, megaloceros, bison).
+
+**States:**
+
+```csharp
+public enum PreyState { Resting, Grazing, Fleeing }
+```
+
+**State diagram:**
+
+```
+┌─────────────────────────────────────────────────┐
+│                                                 │
+│   ┌──────────┐       hunger > 0.5   ┌─────────┐ │
+│   │ Resting  │ ────────────────────►│ Grazing │ │
+│   │          │◄──────────────────── │         │ │
+│   └──────────┘       hunger < 0.2   └─────────┘ │
+│        │                                 │      │
+│        │       TriggerFlee()             │      │
+│        └────────────────┬────────────────┘      │
+│                         ▼                       │
+│                   ┌───────────┐                 │
+│                   │  Fleeing  │                 │
+│                   └───────────┘                 │
+│                         │                       │
+│                         │ reached adjacent tile │
+│                         ▼                       │
+│                   ┌───────────┐                 │
+│                   │  Resting  │ (new position)  │
+│                   └───────────┘                 │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+**Implementation:**
+
+```csharp
+public class PreyBehavior : IHerdBehavior
+{
+    private const double HungerRatePerMinute = 0.002;   // ~8 hours to get hungry
+    private const double GrazeRatePerMinute = 0.005;    // ~3 hours grazing to satiate
+    
+    public HerdUpdateResult Update(Herd herd, int elapsedMinutes, HerdUpdateContext ctx)
+    {
+        var state = (PreyState)herd.State;
+        herd.StateTimeMinutes += elapsedMinutes;
+        herd.Hunger = Math.Min(1.0, herd.Hunger + elapsedMinutes * HungerRatePerMinute);
+        
+        switch (state)
+        {
+            case PreyState.Resting:
+                if (herd.Hunger > 0.5)
+                {
+                    herd.State = PreyState.Grazing;
+                    herd.StateTimeMinutes = 0;
+                }
+                break;
+                
+            case PreyState.Grazing:
+                AccumulateMovement(herd, elapsedMinutes, ctx);
+                TryMoveWithinTerritory(herd, ctx);
+                herd.Hunger = Math.Max(0, herd.Hunger - elapsedMinutes * GrazeRatePerMinute);
+                
+                if (herd.Hunger < 0.2)
+                {
+                    herd.State = PreyState.Resting;
+                    herd.StateTimeMinutes = 0;
+                }
+                break;
+                
+            case PreyState.Fleeing:
+                return ExecuteFlee(herd, ctx);
+        }
+        
+        return HerdUpdateResult.None;
+    }
+    
+    public void TriggerFlee(Herd herd, GridPosition threatSource, HerdUpdateContext ctx)
+    {
+        herd.State = PreyState.Fleeing;
+        herd.ThreatSource = threatSource;
+        herd.StateTimeMinutes = 0;
+    }
+    
+    public double GetVisibilityFactor(Herd herd)
+    {
+        var state = (PreyState)herd.State;
+        double visibility = state switch
+        {
+            PreyState.Grazing => 1.0,   // Moving, visible
+            PreyState.Resting => 0.5,   // Bedded down
+            PreyState.Fleeing => 0.1,   // Already spooked
+            _ => 1.0
+        };
+        
+        // Larger herds easier to spot
+        visibility *= 1 + (herd.Members.Count * 0.03);
+        
+        return visibility;
+    }
+    
+    private HerdUpdateResult ExecuteFlee(Herd herd, HerdUpdateContext ctx)
+    {
+        var fleeTarget = GetFleeTarget(herd, ctx);
+        
+        if (fleeTarget != null && fleeTarget != herd.Position)
+        {
+            var previousPosition = herd.Position;
+            herd.Position = fleeTarget.Value;
+            herd.State = PreyState.Resting;
+            herd.ThreatSource = null;
+            herd.StateTimeMinutes = 0;
+            herd.MovementAccumulatorMinutes = 0;
+            
+            // Narrative if player can see
+            if (ctx.PlayerPosition == previousPosition)
+            {
+                string direction = GetCardinalDirection(previousPosition, fleeTarget.Value);
+                return HerdUpdateResult.WithNarrative(
+                    $"The {herd.AnimalType.ToLower()} herd bolts {direction}.");
+            }
+        }
+        else
+        {
+            // Can't flee (surrounded?) - just go to resting
+            herd.State = PreyState.Resting;
+            herd.ThreatSource = null;
+        }
+        
+        return new HerdUpdateResult { NewPosition = herd.Position };
+    }
+    
+    private GridPosition? GetFleeTarget(Herd herd, HerdUpdateContext ctx)
+    {
+        var threatPos = herd.ThreatSource ?? ctx.PlayerPosition;
+        
+        var options = herd.Position.GetCardinalNeighbors()
+            .Where(p => ctx.Map.IsPassable(p))
+            .OrderByDescending(p => p.ManhattanDistance(threatPos))
+            .ToList();
+            
+        return options.FirstOrDefault();
+    }
+    
+    private void AccumulateMovement(Herd herd, int elapsedMinutes, HerdUpdateContext ctx)
+    {
+        herd.MovementAccumulatorMinutes += elapsedMinutes;
+    }
+    
+    private void TryMoveWithinTerritory(Herd herd, HerdUpdateContext ctx)
+    {
+        if (herd.Territory.Count == 0) return;
+        
+        // Grazing movement is slow - move every ~60 minutes
+        var fromLocation = ctx.Map.GetLocation(herd.Position);
+        var nextTile = herd.Territory[(herd.TerritoryIndex + 1) % herd.Territory.Count];
+        var toLocation = ctx.Map.GetLocation(nextTile);
+        
+        int travelTime = TravelProcessor.CalculateAnimalTraversalMinutes(
+            fromLocation, toLocation, herd.GetAverageSpeed(), herd.AnimalType);
+        
+        // Grazing is slower than direct travel
+        travelTime = (int)(travelTime * 1.5);
+        
+        if (herd.MovementAccumulatorMinutes >= travelTime)
+        {
+            herd.Position = nextTile;
+            herd.TerritoryIndex = (herd.TerritoryIndex + 1) % herd.Territory.Count;
+            herd.MovementAccumulatorMinutes = 0;
+        }
+    }
+    
+    private static string GetCardinalDirection(GridPosition from, GridPosition to)
+    {
+        int dx = to.X - from.X;
+        int dy = to.Y - from.Y;
+        
+        return (dx, dy) switch
+        {
+            ( > 0, _) => "east",
+            ( < 0, _) => "west",
+            (_, > 0) => "south",
+            (_, < 0) => "north",
+            _ => "away"
+        };
+    }
+}
+```
+
+---
+
+### 4. `Actors/Animals/Behaviors/PackPredatorBehavior.cs`
+
+State machine for pack hunters (wolves).
+
+**States:**
+
+```csharp
+public enum PackPredatorState { Resting, Patrolling, Hunting, Feeding }
+```
+
+**State diagram:**
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                                                                │
+│   ┌──────────┐       hunger > 0.6       ┌───────────┐          │
+│   │ Resting  │ ────────────────────────►│ Patrolling│◄─────┐   │
+│   │          │◄──────────────────────── │           │      │   │
+│   └──────────┘   hunger < 0.3 OR        └───────────┘      │   │
+│        ▲         patrol > 2hrs                │             │   │
+│        │                                      │             │   │
+│        │                           prey/player in tile      │   │
+│        │ sated                                │             │   │
+│        │                                      ▼             │   │
+│   ┌─────────┐                          ┌──────────┐         │   │
+│   │ Feeding │◄──── kill success ───────│ Hunting  │─────────┘   │
+│   │         │                          └──────────┘   prey      │
+│   └─────────┘                                         escaped   │
+│        ▲                                                        │
+│        │                                                        │
+│        └──── player encounter victory ──────────────────────────┤
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Implementation:**
+
+```csharp
+public class PackPredatorBehavior : IHerdBehavior
+{
+    private const double HungerRatePerMinute = 0.001;  // Slower metabolism than prey
+    private const int PatrolTimeoutMinutes = 120;
+    private const int FeedingDurationMinutes = 60;
+    
+    public HerdUpdateResult Update(Herd herd, int elapsedMinutes, HerdUpdateContext ctx)
+    {
+        var state = (PackPredatorState)herd.State;
+        herd.StateTimeMinutes += elapsedMinutes;
+        herd.Hunger = Math.Min(1.0, herd.Hunger + elapsedMinutes * HungerRatePerMinute);
+        
+        switch (state)
+        {
+            case PackPredatorState.Resting:
+                if (herd.Hunger > 0.6)
+                {
+                    herd.State = PackPredatorState.Patrolling;
+                    herd.StateTimeMinutes = 0;
+                }
+                break;
+                
+            case PackPredatorState.Patrolling:
+                return UpdatePatrolling(herd, elapsedMinutes, ctx);
+                
+            case PackPredatorState.Hunting:
+                return UpdateHunting(herd, ctx);
+                
+            case PackPredatorState.Feeding:
+                return UpdateFeeding(herd, elapsedMinutes, ctx);
+        }
+        
+        return HerdUpdateResult.None;
+    }
+    
+    public void TriggerFlee(Herd herd, GridPosition threatSource, HerdUpdateContext ctx)
+    {
+        // Predators don't flee in the same way - they disengage
+        herd.State = PackPredatorState.Patrolling;
+        herd.Target = null;
+    }
+    
+    public double GetVisibilityFactor(Herd herd) => 0.3;  // Predators stay hidden
+    
+    private HerdUpdateResult UpdatePatrolling(Herd herd, int elapsedMinutes, HerdUpdateContext ctx)
+    {
+        AccumulateMovement(herd, elapsedMinutes, ctx);
+        
+        if (TryMoveToNextTile(herd, ctx))
+        {
+            // Just arrived at new tile - check for targets
+            
+            // Player in this tile?
+            if (herd.Position == ctx.PlayerPosition)
+            {
+                // Check per-tick detection (player was already here)
+                // Movement into player tile gets immediate boldness check
+                if (ShouldEngagePlayer(herd, ctx))
+                {
+                    return HerdUpdateResult.WithEncounter(herd);
+                }
+            }
+            
+            // Prey in this tile?
+            var preyHere = ctx.GetPreyHerdsAt(herd.Position).FirstOrDefault();
+            if (preyHere != null && herd.Hunger > 0.4)
+            {
+                herd.State = PackPredatorState.Hunting;
+                herd.Target = new PreyHerdTarget(preyHere.Id, preyHere.Position);
+                herd.StateTimeMinutes = 0;
+            }
+        }
+        
+        // Patrol timeout
+        if (herd.StateTimeMinutes > PatrolTimeoutMinutes)
+        {
+            herd.State = PackPredatorState.Resting;
+            herd.StateTimeMinutes = 0;
+            ReturnToHome(herd, ctx);
+        }
+        
+        return HerdUpdateResult.None;
+    }
+    
+    private HerdUpdateResult UpdateHunting(Herd herd, HerdUpdateContext ctx)
+    {
+        var preyTarget = herd.Target as PreyHerdTarget;
+        var prey = preyTarget != null ? ctx.GetHerdById(preyTarget.HerdId) : null;
+        
+        if (prey == null || prey.Position != herd.Position)
+        {
+            // Prey already fled
+            herd.State = PackPredatorState.Patrolling;
+            herd.Target = null;
+            return HerdUpdateResult.None;
+        }
+        
+        // Resolve predator-prey encounter
+        var resolution = ResolvePredatorPreyEncounter(herd, prey, ctx);
+        
+        if (resolution == HuntResolution.PreyEscaped)
+        {
+            (prey.Behavior as PreyBehavior)?.TriggerFlee(prey, herd.Position, ctx);
+            
+            // Hungry wolves may pursue
+            if (herd.Hunger > 0.8 && Utils.RandDouble() < 0.4)
+            {
+                herd.Position = prey.Position;
+                // Will re-encounter next tick
+            }
+            else
+            {
+                herd.State = PackPredatorState.Patrolling;
+                herd.Target = null;
+            }
+            
+            return HerdUpdateResult.None;
+        }
+        
+        // Attack initiated - resolve
+        if (AttemptPreyKill(herd, prey, ctx))
+        {
+            var victim = prey.GetWeakestMember();
+            prey.RemoveMember(victim);
+            
+            // Create carcass
+            var location = ctx.Map.GetLocation(herd.Position);
+            location.AddFeature(new CarcassFeature(victim));
+            
+            herd.State = PackPredatorState.Feeding;
+            herd.Hunger = 0;
+            herd.StateTimeMinutes = 0;
+            herd.Target = null;
+            
+            // Remaining prey flees
+            if (!prey.IsEmpty)
+            {
+                (prey.Behavior as PreyBehavior)?.TriggerFlee(prey, herd.Position, ctx);
+            }
+            
+            // Narrative if player present
+            if (ctx.PlayerPosition == herd.Position)
+            {
+                return HerdUpdateResult.WithNarrative(
+                    $"Wolves bring down a {victim.Name}. They begin feeding.");
+            }
+            
+            return HerdUpdateResult.WithPreyKill(prey, victim);
+        }
+        else
+        {
+            // Chase failed
+            (prey.Behavior as PreyBehavior)?.TriggerFlee(prey, herd.Position, ctx);
+            herd.State = PackPredatorState.Patrolling;
+            herd.Target = null;
+            
+            if (ctx.PlayerPosition == herd.Position)
+            {
+                return HerdUpdateResult.WithNarrative(
+                    "Wolves chase caribou, but the herd escapes.");
+            }
+        }
+        
+        return HerdUpdateResult.None;
+    }
+    
+    private HerdUpdateResult UpdateFeeding(Herd herd, int elapsedMinutes, HerdUpdateContext ctx)
+    {
+        // Defend kill if player enters
+        if (herd.Position == ctx.PlayerPosition)
+        {
+            // Always encounter when defending
+            return HerdUpdateResult.WithEncounter(herd, isDefending: true);
+        }
+        
+        if (herd.StateTimeMinutes > FeedingDurationMinutes)
+        {
+            herd.State = PackPredatorState.Resting;
+            herd.StateTimeMinutes = 0;
+        }
+        
+        return HerdUpdateResult.None;
+    }
+    
+    private bool ShouldEngagePlayer(Herd herd, HerdUpdateContext ctx)
+    {
+        double boldness = CalculateBoldness(herd, ctx);
+        return Utils.RandDouble() < boldness;
+    }
+    
+    private double CalculateBoldness(Herd herd, HerdUpdateContext ctx)
+    {
+        double bold = 0.2;
+        
+        bold += herd.Members.Count * 0.05;
+        if (herd.Hunger > 0.7) bold += 0.2;
+        if (herd.Hunger > 0.9) bold += 0.2;
+        
+        if (ctx.PlayerState.IsBleeding) bold += 0.15;
+        if (ctx.PlayerState.CarryingMeat) bold += 0.1;
+        if (ctx.PlayerState.MovementCapacity < 0.5) bold += 0.2;
+        if (ctx.IsNight) bold += 0.1;
+        
+        return Math.Clamp(bold, 0, 0.9);
+    }
+    
+    private void AccumulateMovement(Herd herd, int elapsedMinutes, HerdUpdateContext ctx)
+    {
+        herd.MovementAccumulatorMinutes += elapsedMinutes;
+    }
+    
+    private bool TryMoveToNextTile(Herd herd, HerdUpdateContext ctx)
+    {
+        if (herd.Territory.Count == 0) return false;
+        
+        var nextTile = GetNextPatrolTarget(herd, ctx);
+        if (nextTile == null || nextTile == herd.Position) return false;
+        
+        var fromLocation = ctx.Map.GetLocation(herd.Position);
+        var toLocation = ctx.Map.GetLocation(nextTile.Value);
+        
+        int travelTime = TravelProcessor.CalculateAnimalTraversalMinutes(
+            fromLocation, toLocation, herd.GetAverageSpeed(), herd.AnimalType);
+        
+        if (herd.MovementAccumulatorMinutes >= travelTime)
+        {
+            herd.Position = nextTile.Value;
+            herd.TerritoryIndex = herd.Territory.IndexOf(nextTile.Value);
+            herd.MovementAccumulatorMinutes = 0;
+            return true;
+        }
+        
+        return false;
+    }
+    
+    private GridPosition? GetNextPatrolTarget(Herd herd, HerdUpdateContext ctx)
+    {
+        // Hungry predators bias toward player tile if signals are strong
+        if (herd.Hunger > 0.5)
+        {
+            int playerDistance = herd.Position.ManhattanDistance(ctx.PlayerPosition);
+            if (playerDistance <= 2 && herd.Territory.Contains(ctx.PlayerPosition))
+            {
+                double pullStrength = 0;
+                if (ctx.PlayerState.IsBleeding) pullStrength += 0.4;
+                if (ctx.PlayerState.CarryingMeat) pullStrength += 0.3;
+                
+                if (Utils.RandDouble() < pullStrength)
+                {
+                    return GetTileToward(herd.Position, ctx.PlayerPosition, ctx);
+                }
+            }
+        }
+        
+        // Normal patrol
+        if (herd.Territory.Count == 0) return null;
+        return herd.Territory[(herd.TerritoryIndex + 1) % herd.Territory.Count];
+    }
+    
+    private GridPosition? GetTileToward(GridPosition from, GridPosition to, HerdUpdateContext ctx)
+    {
+        int dx = Math.Sign(to.X - from.X);
+        int dy = Math.Sign(to.Y - from.Y);
+        
+        var candidates = new List<GridPosition>();
+        if (dx != 0) candidates.Add(new GridPosition(from.X + dx, from.Y));
+        if (dy != 0) candidates.Add(new GridPosition(from.X, from.Y + dy));
+        
+        return candidates.FirstOrDefault(p => ctx.Map.IsPassable(p));
+    }
+    
+    private void ReturnToHome(Herd herd, HerdUpdateContext ctx)
+    {
+        // Simplest: just teleport for now, or set position to home
+        herd.Position = herd.HomeTile;
+        herd.TerritoryIndex = 0;
+        herd.MovementAccumulatorMinutes = 0;
+    }
+}
+```
+
+**Predator-prey resolution helpers (shared):**
+
+```csharp
+public static class PredatorPreyResolver
+{
+    public enum HuntResolution { PreyEscaped, AttackInitiated }
+    
+    public static HuntResolution ResolvePredatorPreyEncounter(Herd predator, Herd prey, HerdUpdateContext ctx)
+    {
+        double preyVigilance = CalculatePreyVigilance(prey);
+        double predatorStealth = CalculatePredatorStealth(predator);
+        
+        double preyRoll = Utils.RandDouble() * preyVigilance;
+        double predatorRoll = Utils.RandDouble() * predatorStealth;
+        
+        return preyRoll > predatorRoll 
+            ? HuntResolution.PreyEscaped 
+            : HuntResolution.AttackInitiated;
+    }
+    
+    private static double CalculatePreyVigilance(Herd prey)
+    {
+        double vigilance = 0.5;
+        
+        // Herd size (logarithmic)
+        vigilance += Math.Log(prey.Members.Count + 1) * 0.25;
+        
+        // State
+        var state = (PreyState)prey.State;
+        vigilance *= state switch
+        {
+            PreyState.Grazing => 1.0,
+            PreyState.Resting => 0.6,
+            _ => 1.0
+        };
+        
+        // Recently spooked = hyper-vigilant
+        if (prey.StateTimeMinutes < 30 && prey.ThreatSource != null)
+            vigilance *= 1.4;
+        
+        return vigilance;
+    }
+    
+    private static double CalculatePredatorStealth(Herd predator)
+    {
+        double stealth = 0.5;
+        
+        stealth -= predator.Members.Count * 0.02;
+        
+        if (predator.Hunger > 0.7) stealth += 0.15;
+        if (predator.Hunger > 0.9) stealth += 0.15;
+        
+        stealth *= predator.AnimalType switch
+        {
+            "Wolf" => 1.2,
+            "Bear" => 0.7,
+            _ => 1.0
+        };
+        
+        return Math.Max(0.2, stealth);
+    }
+    
+    public static bool AttemptPreyKill(Herd predator, Herd prey, HerdUpdateContext ctx)
+    {
+        var target = prey.GetWeakestMember();
+        
+        double predatorSpeed = predator.GetAverageSpeed();
+        double targetSpeed = target.Body.GetSpeed();
+        
+        double catchChance = 0.3;
+        
+        if (predatorSpeed > targetSpeed)
+            catchChance += (predatorSpeed - targetSpeed) * 0.4;
+        else
+            catchChance -= (targetSpeed - predatorSpeed) * 0.3;
+        
+        if (target.Condition < 0.7) catchChance += 0.2;
+        if (target.Condition < 0.4) catchChance += 0.3;
+        
+        if (predator.Members.Count >= 4) catchChance += 0.15;
+        if (prey.Members.Count > 8) catchChance += 0.1;
+        
+        catchChance = Math.Clamp(catchChance, 0.1, 0.7);
+        
+        return Utils.RandDouble() < catchChance;
+    }
+}
+```
+
+---
+
+### 5. `Actors/Animals/Behaviors/SolitaryPredatorBehavior.cs`
+
+State machine for solitary predators (bears).
+
+**States:**
+
+```csharp
+public enum SolitaryPredatorState { Resting, Foraging, Patrolling, Charging, Feeding }
+```
+
+Key differences from pack predators:
+- **Foraging** state: Bears can reduce hunger without killing (omnivore)
+- **No stalking**: Bears charge directly when engaging
+- Higher threshold to engage player
+- Territorial defense around den
+
+```csharp
+public class SolitaryPredatorBehavior : IHerdBehavior
+{
+    private const double HungerRatePerMinute = 0.0008;
+    private const double ForageRatePerMinute = 0.003;
+    
+    public HerdUpdateResult Update(Herd herd, int elapsedMinutes, HerdUpdateContext ctx)
+    {
+        var state = (SolitaryPredatorState)herd.State;
+        herd.StateTimeMinutes += elapsedMinutes;
+        herd.Hunger = Math.Min(1.0, herd.Hunger + elapsedMinutes * HungerRatePerMinute);
+        
+        switch (state)
+        {
+            case SolitaryPredatorState.Resting:
+                if (herd.Hunger > 0.5)
+                {
+                    herd.State = SolitaryPredatorState.Foraging;
+                    herd.StateTimeMinutes = 0;
+                }
+                // Defend den
+                if (herd.Position == herd.HomeTile && herd.Position == ctx.PlayerPosition)
+                {
+                    if (Utils.RandDouble() < 0.7)  // High chance to defend den
+                    {
+                        return HerdUpdateResult.WithEncounter(herd, isDefending: true);
+                    }
+                }
+                break;
+                
+            case SolitaryPredatorState.Foraging:
+                herd.Hunger = Math.Max(0, herd.Hunger - elapsedMinutes * ForageRatePerMinute);
+                AccumulateMovement(herd, elapsedMinutes, ctx);
+                TryMoveWithinTerritory(herd, ctx);
+                
+                if (herd.Hunger < 0.3)
+                {
+                    herd.State = SolitaryPredatorState.Resting;
+                    herd.StateTimeMinutes = 0;
+                }
+                
+                // Check for player in tile
+                if (herd.Position == ctx.PlayerPosition)
+                {
+                    if (ShouldEngagePlayer(herd, ctx))
+                    {
+                        herd.State = SolitaryPredatorState.Charging;
+                        return HerdUpdateResult.WithEncounter(herd);
+                    }
+                }
+                break;
+                
+            case SolitaryPredatorState.Patrolling:
+                // Bears patrol less than wolves
+                AccumulateMovement(herd, elapsedMinutes, ctx);
+                TryMoveWithinTerritory(herd, ctx);
+                
+                if (herd.StateTimeMinutes > 60)
+                {
+                    herd.State = SolitaryPredatorState.Resting;
+                }
+                break;
+                
+            case SolitaryPredatorState.Charging:
+                // Immediate encounter - this state shouldn't persist
+                return HerdUpdateResult.WithEncounter(herd);
+                
+            case SolitaryPredatorState.Feeding:
+                if (herd.Position == ctx.PlayerPosition)
+                {
+                    return HerdUpdateResult.WithEncounter(herd, isDefending: true);
+                }
+                
+                if (herd.StateTimeMinutes > 90)  // Bears feed longer
+                {
+                    herd.State = SolitaryPredatorState.Resting;
+                }
+                break;
+        }
+        
+        return HerdUpdateResult.None;
+    }
+    
+    public void TriggerFlee(Herd herd, GridPosition threatSource, HerdUpdateContext ctx)
+    {
+        // Bears don't flee, they disengage
+        herd.State = SolitaryPredatorState.Patrolling;
+    }
+    
+    public double GetVisibilityFactor(Herd herd) => 0.4;
+    
+    private bool ShouldEngagePlayer(Herd herd, HerdUpdateContext ctx)
+    {
+        double aggression = 0.15;  // Lower base than wolves
+        
+        // Starving bear is dangerous
+        if (herd.Hunger > 0.8) aggression += 0.3;
+        if (herd.Hunger > 0.95) aggression += 0.3;
+        
+        // Player vulnerability
+        if (ctx.PlayerState.IsBleeding) aggression += 0.1;
+        if (ctx.PlayerState.MovementCapacity < 0.5) aggression += 0.15;
+        
+        // Territorial near den
+        if (herd.Position == herd.HomeTile) aggression += 0.2;
+        
+        return Utils.RandDouble() < aggression;
+    }
+    
+    // Movement helpers similar to PackPredatorBehavior...
+}
+```
+
+---
+
+### 6. `Actors/Animals/HerdRegistry.cs`
+
+Central management, lives on `GameContext`.
+
+```csharp
+public class HerdRegistry
+{
+    private readonly List<Herd> _herds = new();
+    
+    // Queries
+    public IEnumerable<Herd> GetAll() => _herds.AsReadOnly();
+    public Herd? GetHerdById(Guid id) => _herds.FirstOrDefault(h => h.Id == id);
+    public IEnumerable<Herd> GetHerdsAt(GridPosition pos) => _herds.Where(h => h.Position == pos);
+    public IEnumerable<Herd> GetHerdsInRange(GridPosition pos, int range) =>
+        _herds.Where(h => h.Position.ManhattanDistance(pos) <= range);
+    
+    // Mutations
+    public void AddHerd(Herd herd) => _herds.Add(herd);
+    public void RemoveHerd(Herd herd) => _herds.Remove(herd);
+    
+    public Herd SplitWounded(Herd originalHerd, Animal woundedAnimal, GridPosition fleePosition)
+    {
+        originalHerd.RemoveMember(woundedAnimal);
+        
+        var newHerd = new Herd
+        {
+            AnimalType = originalHerd.AnimalType,
+            Position = fleePosition,
+            HomeTile = fleePosition,
+            Territory = new List<GridPosition> { fleePosition },
+            State = originalHerd.State,  // Inherits state type
+            Hunger = originalHerd.Hunger,
+            Behavior = originalHerd.Behavior  // Same behavior type
+        };
+        newHerd.Members.Add(woundedAnimal);
+        
+        // Wounded animal starts fleeing
+        newHerd.Behavior.TriggerFlee(newHerd, originalHerd.Position, null!);
+        
+        AddHerd(newHerd);
+        return newHerd;
+    }
+    
+    // Main update loop
+    public List<HerdUpdateResult> Update(int elapsedMinutes, HerdUpdateContext ctx)
+    {
+        var results = new List<HerdUpdateResult>();
+        
+        foreach (var herd in _herds.ToList())  // ToList for safe iteration
+        {
+            if (herd.IsEmpty)
+            {
+                RemoveHerd(herd);
+                continue;
+            }
+            
+            var result = herd.Behavior.Update(herd, elapsedMinutes, ctx);
+            if (result.EncounterRequest != null || 
+                result.PreyKill != null || 
+                result.NarrativeMessage != null)
+            {
+                results.Add(result);
+            }
+        }
+        
+        return results;
+    }
+    
+    // For HuntStrategy integration
+    public (Herd herd, Animal target)? SearchForLargeGame(
+        GridPosition pos, 
+        int searchMinutes, 
+        HerdUpdateContext ctx)
+    {
+        var herdsHere = GetHerdsAt(pos)
+            .Where(h => h.Behavior is PreyBehavior)
+            .Where(h => !h.IsEmpty)
+            .ToList();
+        
+        if (!herdsHere.Any()) return null;
+        
+        double baseChance = searchMinutes / 45.0;  // 45 min = ~100%
+        
+        foreach (var herd in herdsHere)
+        {
+            double visibility = herd.Behavior.GetVisibilityFactor(herd);
+            
+            if (Utils.RandDouble() < baseChance * visibility)
+            {
+                var target = herd.GetRandomMember();
+                
+                // Initial distance based on herd state
+                var state = (PreyState)herd.State;
+                target.DistanceFromPlayer = state switch
+                {
+                    PreyState.Grazing => Utils.RandInt(60, 100),
+                    PreyState.Resting => Utils.RandInt(40, 70),
+                    _ => 100
+                };
+                
+                return (herd, target);
+            }
+        }
+        
+        return null;
+    }
+    
+    // Detection check for predators sharing tile with player
+    public double GetPredatorDetectionChance(
+        Herd predator, 
+        int elapsedMinutes, 
+        HerdUpdateContext ctx)
+    {
+        double baseChancePerMinute = 0.02;
+        
+        // Player activity noise
+        baseChancePerMinute *= ctx.CurrentPlayerActivity switch
+        {
+            ActivityType.Chopping => 3.0,
+            ActivityType.Hunting => 0.5,
+            ActivityType.Foraging => 1.5,
+            ActivityType.Traveling => 1.0,
+            ActivityType.Resting => 0.3,
+            _ => 1.0
+        };
+        
+        // Player signals
+        if (ctx.PlayerState.IsBleeding) baseChancePerMinute *= 2.0;
+        if (ctx.PlayerState.CarryingMeat) baseChancePerMinute *= 1.5;
+        
+        // Predator state
+        var packState = predator.State as PackPredatorState?;
+        if (packState == PackPredatorState.Resting) baseChancePerMinute *= 0.3;
+        
+        double chancePerMinute = Math.Min(0.15, baseChancePerMinute);
+        
+        // Cumulative over elapsed time
+        return 1.0 - Math.Pow(1.0 - chancePerMinute, elapsedMinutes);
+    }
+}
+```
+
+---
+
+### 7. `Actors/Animals/HerdPopulator.cs`
+
+World generation.
+
+```csharp
+public static class HerdPopulator
+{
+    public static void Populate(HerdRegistry registry, GameMap map)
+    {
+        PopulateWolves(registry, map);
+        PopulateBears(registry, map);
+        PopulateCaribou(registry, map);
+        PopulateMegaloceros(registry, map);
+    }
+    
+    private static void PopulateWolves(HerdRegistry registry, GameMap map)
+    {
+        // 1-2 packs, 3-8 wolves each
+        int packCount = Utils.RandInt(1, 2);
+        
+        for (int i = 0; i < packCount; i++)
+        {
+            var territory = FindTerritory(map, 3, 5, preferForested: true);
+            if (territory.Count == 0) continue;
+            
+            var herd = new Herd
+            {
+                AnimalType = "Wolf",
+                Position = territory[0],
+                HomeTile = territory[0],
+                Territory = territory,
+                State = PackPredatorState.Resting,
+                Hunger = Utils.RandDouble(0.3, 0.6),
+                Behavior = new PackPredatorBehavior()
+            };
+            
+            int packSize = Utils.RandInt(3, 8);
+            for (int j = 0; j < packSize; j++)
+            {
+                herd.Members.Add(AnimalFactory.CreateWolf());
+            }
+            
+            registry.AddHerd(herd);
+        }
+    }
+    
+    private static void PopulateBears(HerdRegistry registry, GameMap map)
+    {
+        // 3-5 solitary bears
+        int bearCount = Utils.RandInt(3, 5);
+        
+        for (int i = 0; i < bearCount; i++)
+        {
+            var territory = FindTerritory(map, 2, 3, preferForested: true);
+            if (territory.Count == 0) continue;
+            
+            var herd = new Herd
+            {
+                AnimalType = "Bear",
+                Position = territory[0],
+                HomeTile = territory[0],
+                Territory = territory,
+                State = SolitaryPredatorState.Resting,
+                Hunger = Utils.RandDouble(0.2, 0.5),
+                Behavior = new SolitaryPredatorBehavior()
+            };
+            
+            herd.Members.Add(AnimalFactory.CreateBear());
+            registry.AddHerd(herd);
+        }
+    }
+    
+    private static void PopulateCaribou(HerdRegistry registry, GameMap map)
+    {
+        // 1-2 herds, 5-15 each
+        int herdCount = Utils.RandInt(1, 2);
+        
+        for (int i = 0; i < herdCount; i++)
+        {
+            var territory = FindTerritory(map, 8, 12, preferOpen: true);
+            if (territory.Count == 0) continue;
+            
+            var herd = new Herd
+            {
+                AnimalType = "Caribou",
+                Position = territory[0],
+                HomeTile = territory[0],
+                Territory = territory,
+                State = PreyState.Grazing,
+                Hunger = Utils.RandDouble(0.3, 0.5),
+                Behavior = new PreyBehavior()
+            };
+            
+            int size = Utils.RandInt(5, 15);
+            for (int j = 0; j < size; j++)
+            {
+                herd.Members.Add(AnimalFactory.CreateCaribou());
+            }
+            
+            registry.AddHerd(herd);
+        }
+    }
+    
+    private static void PopulateMegaloceros(HerdRegistry registry, GameMap map)
+    {
+        // 2-4 small groups, 1-3 each
+        int groupCount = Utils.RandInt(2, 4);
+        
+        for (int i = 0; i < groupCount; i++)
+        {
+            var territory = FindTerritory(map, 1, 2, preferOpen: true);
+            if (territory.Count == 0) continue;
+            
+            var herd = new Herd
+            {
+                AnimalType = "Megaloceros",
+                Position = territory[0],
+                HomeTile = territory[0],
+                Territory = territory,
+                State = PreyState.Grazing,
+                Hunger = Utils.RandDouble(0.3, 0.5),
+                Behavior = new PreyBehavior()
+            };
+            
+            int size = Utils.RandInt(1, 3);
+            for (int j = 0; j < size; j++)
+            {
+                herd.Members.Add(AnimalFactory.CreateMegaloceros());
+            }
+            
+            registry.AddHerd(herd);
+        }
+    }
+    
+    private static List<GridPosition> FindTerritory(
+        GameMap map, 
+        int minSize, 
+        int maxSize,
+        bool preferForested = false,
+        bool preferOpen = false)
+    {
+        // Find contiguous passable tiles
+        // Implementation depends on map structure
+        // Returns list of connected tiles forming territory
+        throw new NotImplementedException();
+    }
+}
+```
+
+---
+
+## Modified Files
+
+### `Environments/TravelProcessor.cs`
+
+Add animal traversal calculation:
+
+```csharp
+public static int CalculateAnimalTraversalMinutes(
+    Location from, 
+    Location to, 
+    double animalSpeed,
+    string animalType)
+{
+    int baseTime = from.BaseTraversalMinutes + to.BaseTraversalMinutes;
+    
+    // Speed modifier
+    double speedMod = animalSpeed > 0 ? 1.0 / animalSpeed : 1.0;
+    
+    // Terrain affinity
+    double terrainMod = GetTerrainAffinity(animalType, to);
+    
+    return (int)Math.Ceiling(baseTime * speedMod * terrainMod);
+}
+
+private static double GetTerrainAffinity(string animalType, Location location)
+{
+    return (animalType, location.TerrainType) switch
+    {
+        ("Wolf", TerrainType.Forest) => 0.7,
+        ("Wolf", TerrainType.DenseForest) => 0.8,
+        ("Caribou", TerrainType.Open) => 0.7,
+        ("Caribou", TerrainType.Tundra) => 0.7,
+        ("Caribou", TerrainType.Forest) => 1.3,
+        ("Bear", TerrainType.FrozenLake) => 1.4,
+        _ => 1.0
+    };
+}
+```
+
+---
+
+### `Actions/GameContext.cs`
+
+```csharp
+// Add property
+public HerdRegistry Herds { get; set; } = new();
+
+// In CreateNewGame()
+HerdPopulator.Populate(Herds, Map);
+
+// In Update() per-minute loop, after other updates
+var herdCtx = BuildHerdUpdateContext();
+var herdResults = Herds.Update(1, herdCtx);
+ProcessHerdResults(herdResults);
+
+// Check for predator detection when player shares tile with predators
+CheckPredatorDetection(herdCtx);
+
+// Helper methods
+private HerdUpdateContext BuildHerdUpdateContext()
+{
+    return new HerdUpdateContext
+    {
+        Map = Map,
+        PlayerPosition = Map.CurrentPosition,
+        PlayerState = new PlayerState
+        {
+            IsBleeding = player.EffectRegistry.Has<BleedingEffect>(),
+            CarryingMeat = Inventory.HasMeat(),
+            MovementCapacity = player.GetCapacities().Moving,
+            RecentlyFiredWeapon = false  // Track separately if needed
+        },
+        CurrentPlayerActivity = CurrentActivity,
+        AllHerds = Herds.GetAll().ToList(),
+        GetHerdById = Herds.GetHerdById,
+        IsNight = Weather.IsNight
+    };
+}
+
+private void ProcessHerdResults(List<HerdUpdateResult> results)
+{
+    foreach (var result in results)
+    {
+        if (result.NarrativeMessage != null)
+        {
+            GameDisplay.AddNarrative(this, result.NarrativeMessage);
+        }
+        
+        if (result.EncounterRequest != null)
+        {
+            var herd = Herds.GetHerdById(result.EncounterRequest.HerdId);
+            if (herd != null)
+            {
+                QueuePredatorEncounter(herd, result.EncounterRequest.IsDefendingKill);
+            }
+        }
+    }
+}
+
+private void CheckPredatorDetection(HerdUpdateContext ctx)
+{
+    var predatorsHere = Herds.GetHerdsAt(ctx.PlayerPosition)
+        .Where(h => h.IsPredator)
+        .ToList();
+    
+    foreach (var predator in predatorsHere)
+    {
+        double detectionChance = Herds.GetPredatorDetectionChance(predator, 1, ctx);
+        
+        if (Utils.RandDouble() < detectionChance)
+        {
+            // Predator noticed player - check boldness
+            // This is handled by the behavior's next update
+            // Just mark that detection occurred
+        }
+    }
+}
+```
+
+---
+
+### `Actions/Expeditions/WorkStrategies/HuntStrategy.cs`
+
+Query registry first for large game:
+
+```csharp
+public override WorkResult Execute(Location location, int minutes, GameContext ctx)
+{
+    var herdCtx = ctx.BuildHerdUpdateContext();
+    
+    // Try persistent herds first for large game
+    var largeGameResult = ctx.Herds.SearchForLargeGame(
+        ctx.Map.CurrentPosition, 
+        minutes, 
+        herdCtx);
+    
+    if (largeGameResult != null)
+    {
+        var (herd, target) = largeGameResult.Value;
+        
+        // Run interactive hunt with herd reference
+        var (outcome, elapsed) = HuntRunner.Run(target, location, ctx, herd.Id);
+        
+        // Handle outcomes
+        if (outcome == HuntOutcome.PreyFled)
+        {
+            // Herd flees (handled in HuntRunner via TriggerFlee)
+        }
+        
+        return new WorkResult(elapsed, outcome == HuntOutcome.Success);
+    }
+    
+    // Fall back to AnimalTerritoryFeature for small game
+    var territory = location.GetFeature<AnimalTerritoryFeature>();
+    if (territory != null)
+    {
+        return territory.SearchForSmallGame(minutes, ctx);
+    }
+    
+    return new WorkResult(minutes, false);
+}
+```
+
+---
+
+### `Actions/HuntRunner.cs`
+
+Add herd integration (already partially implemented in provided code):
+
+```csharp
+// In ProcessRangedAttack, on miss with glancing hit:
+private static void SplitWoundedFromHerd(HuntState state)
+{
+    if (state.HerdId == null) return;
+    
+    var herd = state.Context.Herds.GetHerdById(state.HerdId.Value);
+    if (herd == null) return;
+    
+    var ctx = state.Context;
+    var fleeTarget = CalculateFleeTarget(herd.Position, ctx.Map.CurrentPosition, ctx.Map);
+    
+    var woundedHerd = ctx.Herds.SplitWounded(herd, state.Target, fleeTarget);
+    
+    // Create WoundedPrey tension with spatial reference
+    var tension = ActiveTension.WoundedPrey(
+        severity: woundSeverity,
+        animalName: state.Target.Name,
+        lastKnownPosition: fleeTarget,
+        herdId: woundedHerd.Id
+    );
+    ctx.Tensions.AddTension(tension);
+}
+
+// On hunt failure (prey escapes):
+private static void HandlePreyEscape(HuntState state)
+{
+    if (state.HerdId == null) return;
+    
+    var ctx = state.Context;
+    var herd = ctx.Herds.GetHerdById(state.HerdId.Value);
+    
+    if (herd?.Behavior is PreyBehavior prey)
+    {
+        var herdCtx = ctx.BuildHerdUpdateContext();
+        prey.TriggerFlee(herd, ctx.Map.CurrentPosition, herdCtx);
+    }
+}
+```
+
+---
+
+### `Environments/Features/AnimalTerritoryFeature.cs`
+
+Filter to small game only:
+
+```csharp
+private static readonly HashSet<string> SmallGameTypes = new()
+{
+    "Rabbit", "Ptarmigan", "Fox", "Squirrel", "Grouse", "Fish"
+};
+
+public Animal? SearchForGame(int searchMinutes, GameContext ctx)
+{
+    // Only returns small game now - large game handled by HerdRegistry
+    var available = GetAvailableAnimals()
+        .Where(a => SmallGameTypes.Contains(a.Name))
+        .ToList();
+    
+    if (!available.Any()) return null;
+    
+    // Existing search logic...
+}
+```
+
+---
+
+### `Actions/Tensions/ActiveTension.cs`
+
+Add optional herd binding:
+
+```csharp
+public class ActiveTension
+{
+    // Existing properties...
+    
+    public Guid? HerdId { get; init; }
+    public GridPosition? LastKnownPosition { get; init; }
+    
+    public static ActiveTension WoundedPrey(
+        double severity, 
+        string animalName, 
+        GridPosition lastKnownPosition,
+        Guid herdId)
+    {
+        return new ActiveTension
+        {
+            Type = TensionType.WoundedPrey,
+            Severity = severity,
+            Description = $"Wounded {animalName} fled {GetDirection(lastKnownPosition)}",
+            HerdId = herdId,
+            LastKnownPosition = lastKnownPosition,
+            DecayRatePerMinute = 0.004  // ~4 hour window
+        };
+    }
+    
+    public static ActiveTension Stalked(Guid herdId, string predatorType)
+    {
+        return new ActiveTension
+        {
+            Type = TensionType.Stalked,
+            Severity = 0.5,
+            Description = $"{predatorType} nearby",
+            HerdId = herdId,
+            DecayRatePerMinute = 0.01
+        };
+    }
+}
+```
+
+---
+
+### Player entering tile with predators (in `TravelRunner` or `GameContext`)
+
+```csharp
+private void OnPlayerEnteredTile(GridPosition newPos, HerdUpdateContext ctx)
+{
+    var predatorsHere = ctx.AllHerds
+        .Where(h => h.Position == newPos && h.IsPredator)
+        .ToList();
+    
+    foreach (var predator in predatorsHere)
+    {
+        // Feeding predators always defend
+        if (predator.State is PackPredatorState.Feeding or 
+            SolitaryPredatorState.Feeding)
+        {
+            QueuePredatorEncounter(predator, isDefending: true);
+            continue;
+        }
+        
+        // Others check boldness/aggression
+        // The behavior's Update will handle this on next tick
+    }
+}
+```
+
+---
+
+## Implementation Phases
+
+### Phase 1: Core Data Structures
+1. Create `Herd.cs` with properties and helpers
+2. Create `IHerdBehavior.cs` interface and context classes
+3. Create `HerdRegistry.cs` with CRUD and queries
+4. Add `Herds` property to `GameContext`
+
+### Phase 2: Prey Behavior
+5. Implement `PreyBehavior.cs` with Grazing/Resting/Fleeing
+6. Add `TravelProcessor.CalculateAnimalTraversalMinutes()`
+7. Test prey movement in isolation
+
+### Phase 3: Predator Behaviors
+8. Implement `PackPredatorBehavior.cs`
+9. Implement `SolitaryPredatorBehavior.cs`
+10. Implement `PredatorPreyResolver` helpers
+11. Test predator-prey interactions
+
+### Phase 4: World Population
+12. Create `HerdPopulator.cs`
+13. Call from `GameContext.CreateNewGame()`
+14. Verify serialization
+
+### Phase 5: Game Loop Integration
+15. Hook `Herds.Update()` into `GameContext.Update()`
+16. Implement predator detection checks
+17. Process `HerdUpdateResult` (encounters, narratives)
+
+### Phase 6: Hunt Integration
+18. Modify `HuntStrategy` to query registry first
+19. Update `HuntRunner` with herd member removal
+20. Implement `SplitWounded` flow for grazing hits
+21. Filter `AnimalTerritoryFeature` to small game
+
+### Phase 7: Tension Integration
+22. Add `HerdId` and `LastKnownPosition` to `ActiveTension`
+23. Update WoundedPrey/Stalked tension creation
+24. Test tracking wounded prey across tiles
+
+---
+
+## Herd Configurations
+
+| Type | Members | Territory | Default State | Detection (player activity) |
+|------|---------|-----------|---------------|----------------------------|
+| Wolf pack | 3-8 | 3-5 tiles | Resting | 2%/min base, ×3 chopping, ×0.5 hunting |
+| Bear | 1 | 2-3 tiles | Resting | 2%/min base, similar modifiers |
+| Caribou herd | 5-15 | 8-12 tiles | Grazing | N/A (player hunts them) |
+| Megaloceros | 1-3 | 1-2 tiles | Grazing | N/A |
+| Bison | 3-8 | 4-6 tiles | Grazing | N/A (future) |
+
+---
+
+## Key Behaviors Summary
+
+| Scenario | Resolution |
+|----------|------------|
+| Player enters tile with prey herd | Nothing until player hunts |
+| Player hunts in tile with prey | HuntStrategy queries registry → HuntRunner |
+| Hunt fails | Prey herd flees to adjacent tile |
+| Hunt wounds prey | Split wounded animal to new herd, create tension |
+| Hunt succeeds | Remove animal from herd, create CarcassFeature |
+| Player enters tile with predators | Detection chance per minute based on activity |
+| Predator detects player | Boldness check → encounter or avoidance |
+| Player enters tile with feeding predator | Always encounter (defending kill) |
+| Wolves enter tile with caribou | Predator-prey resolution → kill or escape |
+| Prey spots predator first | Prey flees before attack |
+| Successful predator kill | CarcassFeature created, predator feeds |
+| Player witnesses NPC hunt | Narrative message displayed |
