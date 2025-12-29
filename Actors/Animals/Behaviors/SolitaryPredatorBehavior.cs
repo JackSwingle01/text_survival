@@ -185,7 +185,7 @@ public class SolitaryPredatorBehavior : IHerdBehavior
                           ctx.player.EffectRegistry.GetSeverity("Bloody") > 0.3;
         if (isBleeding) aggression += 0.1;
 
-        double movementCapacity = ctx.player.Body.GetCapacities().Moving;
+        double movementCapacity = ctx.player.GetCapacities().Moving;
         if (movementCapacity < 0.5) aggression += 0.15;
 
         // Territorial near den (first tile in territory)

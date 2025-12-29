@@ -35,16 +35,16 @@ public static class PredatorPreyResolver
     /// </summary>
     public static bool AttemptPreyKill(Herd predator, Herd prey)
     {
-        // Target the weakest member
+        // Target the weakest member (slowest effective speed = base speed * condition)
         var target = prey.Members
-            .OrderBy(m => m.Body.GetSpeed())
+            .OrderBy(m => m.SpeedMps * m.Condition)
             .ThenBy(m => m.Condition)
             .FirstOrDefault();
 
         if (target == null) return false;
 
-        double predatorSpeed = predator.Members.Average(m => m.Body.GetSpeed());
-        double targetSpeed = target.Body.GetSpeed();
+        double predatorSpeed = predator.Members.Average(m => m.SpeedMps * m.Condition);
+        double targetSpeed = target.SpeedMps * target.Condition;
 
         double catchChance = 0.3;
 

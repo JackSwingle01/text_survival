@@ -149,7 +149,7 @@ public class PreyBehavior : IHerdBehavior
 
         // Get passable neighbors and sort by distance from player (furthest first)
         var options = herd.Position.GetCardinalNeighbors()
-            .Where(p => ctx.Map.IsPassable(p))
+            .Where(p => ctx.Map.GetLocationAt(p)?.IsPassable ?? false)
             .OrderByDescending(p => p.ManhattanDistance(playerPos))
             .ToList();
 
