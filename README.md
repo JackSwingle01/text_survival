@@ -4,27 +4,27 @@ A web-based survival game set in an Ice Age world where you've been separated fr
 
 ## Vision
 
-A camp-centric survival experience where fire is the anchor. Every expedition is a commitment — leave camp, do the work, return before your fire dies. Player knowledge is the only progression; the game doesn't get easier, you get better.
+An exploration-driven survival experience in a harsh Ice Age world. Cold is the constant enemy — warmth from fire, shelter, and clothing determines how far you can push. Discover locations, hunt megafauna for better gear, and prepare for the mountain crossing when the pass clears.
 
 **Inspirations:** The Long Dark, Don't Starve, RimWorld, A Dark Room
 
 ## Design Philosophy
 
-**Fire as tether.** Every decision runs through one question: can I do this and get back before my fire dies? The fire burns whether you're there or not. This single constraint makes everything matter — temperature, calories, time, distance.
+**Cold shapes every decision.** Warmth management is survival. Fire is one tool among many — shelter, clothing, body fat, activity level all contribute. The question isn't "will my fire last" but "can I stay warm long enough."
 
-**Intersecting pressures create decisions.** A wolf isn't dangerous because it's a wolf. It's dangerous because you're bleeding, limping, low on fuel, and far from camp. Single systems create problems. Intersecting systems create meaningful choices.
+**Exploration reveals the world.** The grid holds discoveries: locations, animal herds, megafauna territories, and resources. Pushing outward is both necessary (depletion) and rewarding (better hunting, rare finds).
 
-**Knowledge is progression.** No meta-progression, no unlocks, no character stats that grow. The player gets better, not the character. An experienced player survives because they understand the systems — when 10 minutes of fire is actually fine, when "abundant" doesn't mean safe, when to let a fire die on purpose.
+**Gear is progression.** Better equipment enables harder challenges. A mammoth-hide coat means you can reach the glacier. Bear-fur boots mean you can survive the exposed ridgeline. Megafauna hunts are the skill checks that gate progression.
 
-**The game decides low-stakes, the player decides high-stakes.** The interface reads game state and surfaces what matters. "Tend fire" appears prominently when fuel is low. The player chooses from 2-4 meaningful options, not exhaustive menus.
+**Intersecting pressures create decisions.** Single problems have solutions. Multiple overlapping problems force tradeoffs. A wolf isn't dangerous because it's a wolf — it's dangerous because you're cold, hungry, and far from shelter.
 
 ## Core Systems
 
-**Expeditions** — You have a camp. Everything else is an expedition. Leave camp, travel between locations, work (forage, hunt, explore), and return before your fire dies.
+**Expeditions** — You have a camp. Everything else is an expedition. Leave camp, travel between locations, work (forage, hunt, explore), and return before the cold catches up.
 
 **Survival Simulation** — Rate-based calculation per minute: energy, hydration, calories, temperature. Thresholds trigger effects. Temperature drops below 95°F, you start shivering. The simulation creates pressure, not busywork.
 
-**Fire** — Physics-based fuel consumption, fire phases (igniting → building → roaring → steady → dying → embers), heat contribution to location temperature. Fire is infrastructure that extends your expedition radius.
+**Fire** — Physics-based fuel consumption, fire phases (igniting → building → roaring → steady → dying → embers), heat contribution to location temperature. One of several warmth tools alongside shelter and clothing.
 
 **Body** — Regional body parts contributing to capacities (moving, manipulation, breathing, consciousness). Injuries attach to parts with severity. Body composition (fat, muscle) affects temperature resistance and speed.
 
