@@ -15,7 +15,7 @@ public static class CookingHandler
     private const int MeltSnowTimeMinutes = 10;
 
     // Yields
-    private const double MeltSnowWaterLiters = 0.5;
+    private const double MeltSnowWaterLiters = 1.0;
 
     public static void CookMelt(GameContext ctx)
     {

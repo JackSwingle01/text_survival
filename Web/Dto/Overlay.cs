@@ -15,12 +15,18 @@ namespace text_survival.Web.Dto;
 [JsonDerivedType(typeof(ForageOverlay), "forage")]
 [JsonDerivedType(typeof(DeathScreenOverlay), "deathScreen")]
 [JsonDerivedType(typeof(HuntOverlay), "hunt")]
+[JsonDerivedType(typeof(TransferOverlay), "transfer")]
 public abstract record Overlay;
 
 /// <summary>
 /// Inventory overlay: Shows full inventory details.
 /// </summary>
 public record InventoryOverlay(InventoryDto Data) : Overlay;
+
+/// <summary>
+/// Transfer overlay: Side-by-side inventory transfer view for camp storage.
+/// </summary>
+public record TransferOverlay(TransferDto Data) : Overlay;
 
 /// <summary>
 /// Crafting overlay: Shows crafting recipes organized by category.

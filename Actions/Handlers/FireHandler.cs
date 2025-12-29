@@ -51,6 +51,22 @@ public static class FireHandler
                 fuelMap[label] = ("tinder", FuelType.Tinder, () => inv.Pop(Resource.Tinder));
             }
 
+            // Usnea as fibrous tinder
+            if (inv.Count(Resource.Usnea) > 0 && fire.CanAddFuel(FuelType.Usnea))
+            {
+                string label = $"Add usnea ({inv.Count(Resource.Usnea)} @ {inv.Weight(Resource.Usnea):F2}kg) - good tinder";
+                fuelChoices.Add(label);
+                fuelMap[label] = ("usnea", FuelType.Usnea, () => inv.Pop(Resource.Usnea));
+            }
+
+            // Chaga as dense tinder
+            if (inv.Count(Resource.Chaga) > 0 && fire.CanAddFuel(FuelType.Chaga))
+            {
+                string label = $"Add chaga ({inv.Count(Resource.Chaga)} @ {inv.Weight(Resource.Chaga):F2}kg) - smolders well";
+                fuelChoices.Add(label);
+                fuelMap[label] = ("chaga", FuelType.Chaga, () => inv.Pop(Resource.Chaga));
+            }
+
             // Show charcoal collection option if available
             bool hasCharcoal = fire.HasCharcoal;
             if (hasCharcoal)
@@ -69,10 +85,32 @@ public static class FireHandler
                 );
             }
 
-            if (fuelChoices.Count == 0 && !hasCharcoal)
+            // Show ember carrier lighting option if fire is hot enough and player has unlit carriers
+            var unlitCarriers = inv.Tools
+                .Where(t => t.IsEmberCarrier && !t.IsEmberLit)
+                .ToList();
+            bool canLightEmber = fire.IsActive && unlitCarriers.Count > 0;
+            if (canLightEmber)
+            {
+                foreach (var carrier in unlitCarriers)
+                {
+                    string emberLabel = $"Light {carrier.Name} ({carrier.EmberBurnHoursMax:F0}h burn time)";
+                    fuelChoices.Add(emberLabel);
+                    fuelMap[emberLabel] = ("ember_carrier", FuelType.Tinder, () =>
+                    {
+                        carrier.EmberBurnHoursRemaining = carrier.EmberBurnHoursMax;
+                        GameDisplay.AddSuccess(ctx, $"You light the {carrier.Name}. It smolders gently, ready to transport fire.");
+                        return 0;
+                    });
+                }
+            }
+
+            if (fuelChoices.Count == 0 && !hasCharcoal && !canLightEmber)
             {
                 // Check if we have fuel but fire is too cold
-                bool hasFuelButTooCold = (inv.HasLogs || inv.Count(Resource.Stick) > 0) && inv.Count(Resource.Tinder) == 0;
+                bool hasAnyTinder = inv.Count(Resource.Tinder) > 0 || inv.Count(Resource.BirchBark) > 0 ||
+                    inv.Count(Resource.Usnea) > 0 || inv.Count(Resource.Chaga) > 0;
+                bool hasFuelButTooCold = (inv.HasLogs || inv.Count(Resource.Stick) > 0) && !hasAnyTinder;
                 if (hasFuelButTooCold)
                     GameDisplay.AddWarning(ctx, "The fire is too cold. You need tinder to build it up first.");
                 else
@@ -83,7 +121,8 @@ public static class FireHandler
             fuelChoices.Add("Done");
 
             GameDisplay.Render(ctx, addSeparator: false, statusText: "Tending fire.");
-            string choice = Input.Select(ctx, "Add fuel:", fuelChoices);
+            string choice = Input.Select(ctx, "Add fuel:", fuelChoices,
+                isDisabled: c => fuelMap.ContainsKey(c) && fuelMap[c].name == "disabled");
 
             if (choice == "Done")
                 return;
@@ -102,6 +141,14 @@ public static class FireHandler
             {
                 takeFunc(); // Collects charcoal and shows message
                 ctx.Update(1, ActivityType.TendingFire);
+                continue;
+            }
+
+            // Handle ember carrier lighting (already handled in takeFunc)
+            if (name == "ember_carrier")
+            {
+                takeFunc(); // Lights the carrier and shows message
+                ctx.Update(2, ActivityType.TendingFire);
                 continue;
             }
 
@@ -145,7 +192,7 @@ public static class FireHandler
         else
         {
             // Show greyed-out option explaining why it can't be added yet
-            string disabledLabel = $"[dim]Add {woodName} (fire too small)[/]";
+            string disabledLabel = $"Add {woodName} (fire too small)";
             choices.Add(disabledLabel);
             map[disabledLabel] = ("disabled", fuelType, () => 0);
         }
@@ -162,6 +209,26 @@ public static class FireHandler
         else
             GameDisplay.AddNarrative(ctx, "You prepare to start a fire.");
 
+        // Check for lit ember carrier - 100% success fire start
+        var litCarrier = inv.Tools.FirstOrDefault(t => t.IsEmberCarrier && t.IsEmberLit);
+        if (litCarrier != null)
+        {
+            // Need kindling at minimum
+            if (inv.Count(Resource.Stick) <= 0)
+            {
+                GameDisplay.AddNarrative(ctx, $"Your {litCarrier.Name} smolders with an ember, but you have no kindling to start a fire.");
+            }
+            else
+            {
+                GameDisplay.Render(ctx, statusText: "Thinking.");
+                if (Input.Confirm(ctx, $"Use your {litCarrier.Name} ({litCarrier.EmberBurnHoursRemaining:F1}h remaining) to start the fire?"))
+                {
+                    StartFireFromEmberCarrier(ctx, litCarrier, existingFire);
+                    return;
+                }
+            }
+        }
+
         // Get fire-making tools from aggregate inventory
         var fireTools = inv.Tools.Where(t =>
             t.ToolType == ToolType.FireStriker ||
@@ -174,10 +241,12 @@ public static class FireHandler
             return;
         }
 
-        bool hasTinder = inv.Count(Resource.Tinder) > 0 || inv.Count(Resource.BirchBark) > 0 || inv.Count(Resource.Amadou) > 0;
-        bool hasKindling = inv.Count(Resource.Stick) > 0;
         bool hasBirchBark = inv.Count(Resource.BirchBark) > 0;
         bool hasAmadou = inv.Count(Resource.Amadou) > 0;
+        bool hasUsnea = inv.Count(Resource.Usnea) > 0;
+        bool hasChaga = inv.Count(Resource.Chaga) > 0;
+        bool hasTinder = inv.Count(Resource.Tinder) > 0 || hasBirchBark || hasAmadou || hasUsnea || hasChaga;
+        bool hasKindling = inv.Count(Resource.Stick) > 0;
 
         if (!hasTinder)
         {
@@ -196,6 +265,8 @@ public static class FireHandler
         if (inv.Count(Resource.Tinder) > 0) tinderParts.Add($"{inv.Count(Resource.Tinder)} tinder");
         if (hasBirchBark) tinderParts.Add($"{inv.Count(Resource.BirchBark)} birch bark");
         if (hasAmadou) tinderParts.Add($"{inv.Count(Resource.Amadou)} amadou");
+        if (hasUsnea) tinderParts.Add($"{inv.Count(Resource.Usnea)} usnea");
+        if (hasChaga) tinderParts.Add($"{inv.Count(Resource.Chaga)} chaga");
         GameDisplay.AddNarrative(ctx, $"Materials: {string.Join(", ", tinderParts)}, {inv.Count(Resource.Stick)} kindling");
 
         // Build tool options with success chances
@@ -264,23 +335,37 @@ public static class FireHandler
                 finalChance -= wetness * 0.25;
 
             // Select best available tinder and get its ignition bonus
-            // Priority: Amadou (best) > BirchBark (great) > Regular Tinder
+            // Priority: BirchBark (+25%) > Amadou (+20%) > Usnea (+18%) > Chaga/Tinder (+15%)
             double tinderUsed;
             FuelType tinderType;
             string tinderName;
-            if (inv.Count(Resource.Amadou) > 0)
-            {
-                tinderUsed = inv.Pop(Resource.Amadou);
-                tinderType = FuelType.Tinder; // Amadou burns like tinder
-                tinderName = "amadou";
-                finalChance += 0.20; // Amadou is the best fire-starting material
-            }
-            else if (inv.Count(Resource.BirchBark) > 0)
+            if (inv.Count(Resource.BirchBark) > 0)
             {
                 tinderUsed = inv.Pop(Resource.BirchBark);
                 tinderType = FuelType.BirchBark;
                 tinderName = "birch bark";
                 finalChance += FuelDatabase.Get(FuelType.BirchBark).IgnitionBonus;
+            }
+            else if (inv.Count(Resource.Amadou) > 0)
+            {
+                tinderUsed = inv.Pop(Resource.Amadou);
+                tinderType = FuelType.Tinder; // Amadou burns like tinder
+                tinderName = "amadou";
+                finalChance += 0.20; // Amadou is excellent fire-starting material
+            }
+            else if (inv.Count(Resource.Usnea) > 0)
+            {
+                tinderUsed = inv.Pop(Resource.Usnea);
+                tinderType = FuelType.Usnea;
+                tinderName = "usnea";
+                finalChance += FuelDatabase.Get(FuelType.Usnea).IgnitionBonus;
+            }
+            else if (inv.Count(Resource.Chaga) > 0)
+            {
+                tinderUsed = inv.Pop(Resource.Chaga);
+                tinderType = FuelType.Chaga;
+                tinderName = "chaga";
+                finalChance += FuelDatabase.Get(FuelType.Chaga).IgnitionBonus;
             }
             else
             {
@@ -338,7 +423,9 @@ public static class FireHandler
                 ctx.player.Skills.GetSkill("Firecraft").GainExperience(1);
 
                 // Check if retry is possible with any tinder type
-                bool canRetry = (inv[Resource.Tinder].Count > 0 || inv[Resource.BirchBark].Count > 0 || inv[Resource.Amadou].Count > 0) && inv[Resource.Stick].Count > 0;
+                bool canRetry = (inv[Resource.Tinder].Count > 0 || inv[Resource.BirchBark].Count > 0 ||
+                    inv[Resource.Amadou].Count > 0 || inv[Resource.Usnea].Count > 0 ||
+                    inv[Resource.Chaga].Count > 0) && inv[Resource.Stick].Count > 0;
                 if (canRetry)
                 {
                     GameDisplay.Render(ctx, statusText: "Thinking.");
@@ -348,6 +435,40 @@ public static class FireHandler
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// Start a fire from a lit ember carrier. 100% success, consumes the carrier.
+    /// </summary>
+    private static void StartFireFromEmberCarrier(GameContext ctx, Gear carrier, HeatSourceFeature? existingFire)
+    {
+        var inv = ctx.Inventory;
+
+        // Time cost
+        GameDisplay.UpdateAndRenderProgress(ctx, "Starting fire from ember...", 5, ActivityType.TendingFire);
+
+        // Consume kindling
+        double kindlingUsed = inv.Pop(Resource.Stick);
+
+        // Consume the carrier (remove from inventory)
+        inv.Tools.Remove(carrier);
+
+        if (existingFire != null)
+        {
+            GameDisplay.AddSuccess(ctx, $"The ember from your {carrier.Name} catches the kindling. The fire springs back to life!");
+            existingFire.AddFuel(kindlingUsed, FuelType.Kindling);
+            existingFire.IgniteAll();
+        }
+        else
+        {
+            GameDisplay.AddSuccess(ctx, $"The ember from your {carrier.Name} catches the kindling. You have a fire!");
+            var newFire = new HeatSourceFeature();
+            newFire.AddFuel(kindlingUsed, FuelType.Kindling);
+            newFire.IgniteAll();
+            ctx.CurrentLocation.Features.Add(newFire);
+        }
+
+        ctx.player.Skills.GetSkill("Firecraft").GainExperience(2);
     }
 
     public static double GetToolBaseChance(Gear tool)

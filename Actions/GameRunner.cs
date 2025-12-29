@@ -124,10 +124,13 @@ public partial class GameRunner(GameContext ctx)
         if (ctx.Inventory.HasBuildingMaterials && ctx.CurrentLocation == ctx.Camp)
             choice.AddOption("Improve Camp", ImproveCamp);
 
-        var storage = ctx.Camp.GetFeature<CacheFeature>();
-        if (storage != null && (HasItems() || storage.Storage.CurrentWeightKg > 0))
+        // Inventory - always available when player has items
+        if (HasItems())
             choice.AddOption("Inventory", RunInventoryMenu);
-        if (storage != null && storage.Storage.CurrentWeightKg > 0)
+
+        // Storage - available at camp when player has items OR storage has items
+        var storage = ctx.Camp.GetFeature<CacheFeature>();
+        if (ctx.CurrentLocation == ctx.Camp && storage != null && (HasItems() || storage.Storage.CurrentWeightKg > 0))
             choice.AddOption("Storage", RunStorageMenu);
 
         var rack = ctx.Camp.GetFeature<CuringRackFeature>();
@@ -143,6 +146,9 @@ public partial class GameRunner(GameContext ctx)
 
         if (CanApplyDirectTreatment())
             choice.AddOption("Treat wounds", ApplyDirectTreatment);
+
+        if (CanApplyWaterproofing())
+            choice.AddOption("Waterproof equipment", ApplyWaterproofing);
 
         // Sleep requires bedding at current location
         if (ctx.CurrentLocation.HasFeature<BeddingFeature>())
@@ -217,10 +223,13 @@ public partial class GameRunner(GameContext ctx)
                 choice.AddOption("Improve Camp", ImproveCamp);
             }
 
+            // Inventory - always available when player has items
+            if (HasItems())
+                choice.AddOption("Inventory", RunInventoryMenu);
+
+            // Storage - available when player has items OR storage has items
             var storage = ctx.Camp.GetFeature<CacheFeature>();
             if (storage != null && (HasItems() || storage.Storage.CurrentWeightKg > 0))
-                choice.AddOption("Inventory", RunInventoryMenu);
-            if (storage != null && storage.Storage.CurrentWeightKg > 0)
                 choice.AddOption("Storage", RunStorageMenu);
 
             // Curing rack - if player has one at camp
@@ -238,6 +247,10 @@ public partial class GameRunner(GameContext ctx)
             // Direct treatments - when player has treatable conditions and materials
             if (CanApplyDirectTreatment())
                 choice.AddOption("Treat wounds", ApplyDirectTreatment);
+
+            // Waterproofing - when player has resin and treatable equipment
+            if (CanApplyWaterproofing())
+                choice.AddOption("Waterproof equipment", ApplyWaterproofing);
 
             // Sleep requires bedding at location
             if (ctx.Camp.HasFeature<BeddingFeature>())
@@ -418,7 +431,7 @@ public partial class GameRunner(GameContext ctx)
         // Check fire status before allowing sleep
         var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
         bool hasFire = fire != null && (fire.IsActive || fire.HasEmbers);
-        int fireMinutes = hasFire && fire != null ? (int)(fire.HoursRemaining * 60) : 0;
+        int fireMinutes = hasFire && fire != null ? (int)(fire.TotalHoursRemaining * 60) : 0;
 
         int hours = Input.ReadInt(ctx, "How many hours would you like to sleep?", 1, 12);
         int sleepMinutes = hours * 60;
@@ -427,10 +440,9 @@ public partial class GameRunner(GameContext ctx)
         if (hasFire && fireMinutes < sleepMinutes)
         {
             int shortfall = (sleepMinutes - fireMinutes) / 60;
-            GameDisplay.AddWarning(ctx, $"Your fire will die {shortfall} hour{(shortfall != 1 ? "s" : "")} before you wake.");
-            GameDisplay.AddWarning(ctx, "You'll freeze without it.");
+            string warning = $"Your fire will die {shortfall} hour{(shortfall != 1 ? "s" : "")} before you wake. You'll freeze without it.\n\nSleep anyway?";
 
-            if (!Input.Confirm(ctx, "Sleep anyway?"))
+            if (!Input.Confirm(ctx, warning))
             {
                 GameDisplay.AddNarrative(ctx, "You decide to stay awake.");
                 return;
@@ -438,9 +450,9 @@ public partial class GameRunner(GameContext ctx)
         }
         else if (!hasFire)
         {
-            GameDisplay.AddDanger(ctx, "There's no fire. You'll freeze to death in your sleep.");
+            string warning = "There's no fire. You'll freeze to death in your sleep.\n\nSleep without fire?";
 
-            if (!Input.Confirm(ctx, "Sleep without fire?"))
+            if (!Input.Confirm(ctx, warning))
             {
                 GameDisplay.AddNarrative(ctx, "You decide to stay awake.");
                 return;
@@ -478,19 +490,15 @@ public partial class GameRunner(GameContext ctx)
 
     private void RunInventoryMenu()
     {
-        bool atCamp = ctx.CurrentLocation == ctx.Camp;
-
-        if (!atCamp)
+        // For web UI, show inventory overlay and wait for close
+        if (ctx.SessionId != null)
         {
-            // Not at camp - just show read-only inventory view
-            GameDisplay.RenderInventoryScreen(ctx);
-            if (ctx.SessionId != null)
-                Web.WebIO.ClearInventory(ctx);
+            Web.WebIO.ShowInventoryAndWait(ctx, ctx.Inventory, "INVENTORY");
             return;
         }
 
-        // At camp - use shared transfer helper
-        InventoryTransferHelper.RunTransferMenu(ctx, ctx.Camp.GetFeature<CacheFeature>()!.Storage, "CAMP STORAGE");
+        // Console fallback - just show read-only inventory view
+        GameDisplay.RenderInventoryScreen(ctx);
     }
 
     private void RunStorageMenu()
@@ -509,4 +517,8 @@ public partial class GameRunner(GameContext ctx)
     private bool CanApplyDirectTreatment() => TreatmentHandler.CanApplyDirectTreatment(ctx);
 
     private void ApplyDirectTreatment() => TreatmentHandler.ApplyDirectTreatment(ctx);
+
+    private bool CanApplyWaterproofing() => MaintenanceHandler.CanApplyWaterproofing(ctx);
+
+    private void ApplyWaterproofing() => MaintenanceHandler.ApplyWaterproofing(ctx);
 }

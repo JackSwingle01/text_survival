@@ -20,7 +20,7 @@ public record WebFrame(
 /// <summary>
 /// A choice option with unique ID for reliable button identity.
 /// </summary>
-public record ChoiceDto(string Id, string Label);
+public record ChoiceDto(string Id, string Label, bool IsDisabled = false);
 
 /// <summary>
 /// Request for player input.
@@ -275,6 +275,147 @@ public record GearSummaryDto(
     int MedicinalCount,
     bool HasRareMaterials
 );
+
+/// <summary>
+/// A transferable item for the transfer UI. Aggregates stacks of the same resource.
+/// </summary>
+public record TransferableItemDto(
+    string Id,              // Unique ID for transfer action: "player_resource_Pine" or "storage_tool_0"
+    string Category,        // "Fuel", "Food", "Materials", "Medicinals", "Tools", "Accessories", "Water"
+    string DisplayName,     // "5 pine logs", "Flint Knife"
+    string Icon,            // Material icon name: "local_fire_department", "restaurant", etc.
+    double WeightKg,
+    int Count,              // 1 for discrete items, N for aggregated resources
+    bool IsAggregated       // True if this represents multiple stacks
+);
+
+/// <summary>
+/// Transfer screen data showing both inventories side-by-side.
+/// </summary>
+public record TransferDto(
+    string PlayerTitle,
+    double PlayerCurrentWeightKg,
+    double PlayerMaxWeightKg,
+    List<TransferableItemDto> PlayerItems,
+    string StorageTitle,
+    double StorageCurrentWeightKg,
+    double StorageMaxWeightKg,
+    List<TransferableItemDto> StorageItems
+)
+{
+    public static TransferDto FromInventories(
+        Inventory player,
+        Inventory storage,
+        string storageName)
+    {
+        return new TransferDto(
+            PlayerTitle: "CARRYING",
+            PlayerCurrentWeightKg: player.CurrentWeightKg,
+            PlayerMaxWeightKg: player.MaxWeightKg,
+            PlayerItems: ExtractTransferableItems(player, "player"),
+
+            StorageTitle: storageName.ToUpper(),
+            StorageCurrentWeightKg: storage.CurrentWeightKg,
+            StorageMaxWeightKg: storage.MaxWeightKg,
+            StorageItems: ExtractTransferableItems(storage, "storage")
+        );
+    }
+
+    private static List<TransferableItemDto> ExtractTransferableItems(Inventory source, string prefix)
+    {
+        var items = new List<TransferableItemDto>();
+
+        // Aggregate resources by type
+        foreach (Resource type in Enum.GetValues<Resource>())
+        {
+            int count = source.Count(type);
+            if (count == 0) continue;
+
+            double totalWeight = source.Weight(type);
+            string category = GetTransferCategory(type);
+            string icon = GetCategoryIcon(category);
+            string displayName = count == 1
+                ? type.ToDisplayName().ToLower()
+                : $"{count} {type.ToDisplayName().ToLower()}s";
+
+            items.Add(new TransferableItemDto(
+                Id: $"{prefix}_resource_{type}",
+                Category: category,
+                DisplayName: displayName,
+                Icon: icon,
+                WeightKg: totalWeight,
+                Count: count,
+                IsAggregated: count > 1
+            ));
+        }
+
+        // Water (aggregate as single entry)
+        if (source.WaterLiters >= 0.1)
+        {
+            items.Add(new TransferableItemDto(
+                Id: $"{prefix}_water",
+                Category: "Water",
+                DisplayName: $"{source.WaterLiters:F1}L water",
+                Icon: "water_drop",
+                WeightKg: source.WaterLiters,
+                Count: (int)(source.WaterLiters / 0.5),
+                IsAggregated: source.WaterLiters > 0.5
+            ));
+        }
+
+        // Tools (discrete)
+        for (int i = 0; i < source.Tools.Count; i++)
+        {
+            var tool = source.Tools[i];
+            items.Add(new TransferableItemDto(
+                Id: $"{prefix}_tool_{i}",
+                Category: "Tools",
+                DisplayName: tool.Name,
+                Icon: "construction",
+                WeightKg: tool.Weight,
+                Count: 1,
+                IsAggregated: false
+            ));
+        }
+
+        // Accessories (discrete)
+        for (int i = 0; i < source.Accessories.Count; i++)
+        {
+            var acc = source.Accessories[i];
+            items.Add(new TransferableItemDto(
+                Id: $"{prefix}_accessory_{i}",
+                Category: "Carrying",
+                DisplayName: $"{acc.Name} (+{acc.CapacityBonusKg}kg)",
+                Icon: "backpack",
+                WeightKg: acc.Weight,
+                Count: 1,
+                IsAggregated: false
+            ));
+        }
+
+        return items;
+    }
+
+    private static string GetTransferCategory(Resource type)
+    {
+        if (ResourceCategories.Items[ResourceCategory.Fuel].Contains(type)) return "Fuel";
+        if (ResourceCategories.Items[ResourceCategory.Food].Contains(type)) return "Food";
+        if (ResourceCategories.Items[ResourceCategory.Medicine].Contains(type)) return "Medicinals";
+        return "Materials";
+    }
+
+    private static string GetCategoryIcon(string category) => category switch
+    {
+        "Fuel" => "local_fire_department",
+        "Food" => "restaurant",
+        "Water" => "water_drop",
+        "Materials" => "category",
+        "Medicinals" => "healing",
+        "Tools" => "construction",
+        "Carrying" => "backpack",
+        _ => "inventory_2"
+    };
+}
 
 /// <summary>
 /// Full crafting data for crafting screen.

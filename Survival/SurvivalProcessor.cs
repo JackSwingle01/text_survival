@@ -464,14 +464,17 @@ public static class SurvivalProcessor
 		double wetnessDelta = 0;
 		double exposureFactor = 1 - context.OverheadCover;
 
+		// Apply waterproofing reduction (resin-treated equipment)
+		double waterproofReduction = 1 - context.WaterproofingLevel;
+
 		if (exposureFactor > 0)
 		{
 			if (context.IsRaining)
-				wetnessDelta = 0.01 * context.Precipitation * exposureFactor;
+				wetnessDelta = 0.01 * context.Precipitation * exposureFactor * waterproofReduction;
 			else if (context.IsBlizzard)
-				wetnessDelta = 0.005 * context.Precipitation * exposureFactor;
+				wetnessDelta = 0.005 * context.Precipitation * exposureFactor * waterproofReduction;
 			else if (context.IsSnowing)
-				wetnessDelta = 0.001 * context.Precipitation * exposureFactor;
+				wetnessDelta = 0.001 * context.Precipitation * exposureFactor * waterproofReduction;
 		}
 
 		// Calculate drying (reduction in wetness per minute)

@@ -16,6 +16,14 @@ public static class InventoryTransferHelper
     /// <param name="viewStorageFirst">If true, starts showing storage contents instead of player inventory.</param>
     public static void RunTransferMenu(GameContext ctx, Inventory storage, string storageName, bool viewStorageFirst = false)
     {
+        // For web sessions, use the new side-by-side transfer UI
+        if (ctx.SessionId != null)
+        {
+            Web.WebIO.RunTransferUI(ctx, storage, storageName);
+            return;
+        }
+
+        // Console fallback
         bool viewingStorage = viewStorageFirst;
 
         while (true)

@@ -14,6 +14,14 @@ namespace text_survival.IO
         }
 
         /// <summary>
+        /// Selection with game context and disabled state predicate.
+        /// </summary>
+        public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices, Func<T, bool> isDisabled) where T : notnull
+        {
+            return WebIO.Select(ctx, prompt, choices, c => c.ToString()!, isDisabled);
+        }
+
+        /// <summary>
         /// Confirmation with game context.
         /// </summary>
         public static bool Confirm(GameContext ctx, string prompt, bool defaultValue = true)

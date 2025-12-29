@@ -120,6 +120,19 @@ public class BeddingFeature : LocationFeature
     };
 
     /// <summary>
+    /// Create moss-padded bedding with sphagnum moss layers and pine boughs.
+    /// Superior ground insulation and warmth from moss's air-trapping properties.
+    /// </summary>
+    public static BeddingFeature CreateMossPaddedBedding() => new("Moss-padded bedding")
+    {
+        Description = "Layers of sphagnum moss over pine boughs. Superior ground insulation.",
+        Quality = 0.9,
+        HasWindProtection = false,
+        HasGroundInsulation = true,
+        WarmthBonus = 3.0  // +3°F from moss's insulating air pockets
+    };
+
+    /// <summary>
     /// Create sleeping bag sewn from hides.
     /// Best warmth and recovery for sleeping.
     /// </summary>

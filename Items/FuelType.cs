@@ -7,6 +7,8 @@ public enum FuelType
 {
     Tinder,     // Grass, leaves, dry bark - ignites easily, burns fast
     BirchBark,  // Excellent tinder with high ignition bonus
+    Usnea,      // Old man's beard lichen - good tinder
+    Chaga,      // Birch polypore - adequate tinder, smolders well
     Kindling,   // Small branches, twigs - builds fire
     PineWood,   // Resinous softwood - burns fast and hot, good for cooking
     BirchWood,  // Medium hardwood - balanced burn rate
@@ -84,6 +86,22 @@ public static class FuelDatabase
             minFireTemperature: 0,       // Can ignite from cold
             ignitionBonus: 0.25,         // +25% to fire-starting - birch bark is excellent tinder
             startupTimeMinutes: 2        // Catches very quickly
+        ),
+
+        [FuelType.Usnea] = new FuelProperties(
+            peakTemperature: 480,        // Similar to tinder
+            burnRateKgPerHour: 2.8,      // Burns fast, fibrous lichen
+            minFireTemperature: 0,       // Can ignite from cold
+            ignitionBonus: 0.18,         // +18% to fire-starting - good tinder option
+            startupTimeMinutes: 2        // Catches quickly
+        ),
+
+        [FuelType.Chaga] = new FuelProperties(
+            peakTemperature: 470,        // Modest heat
+            burnRateKgPerHour: 2.2,      // Burns slower than other tinders (dense)
+            minFireTemperature: 0,       // Can ignite from cold
+            ignitionBonus: 0.15,         // +15% to fire-starting - adequate but not great
+            startupTimeMinutes: 3        // Takes slightly longer
         ),
 
         [FuelType.Kindling] = new FuelProperties(

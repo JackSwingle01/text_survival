@@ -11,7 +11,7 @@ import { getGridRenderer } from './modules/grid/CanvasGridRenderer.js';
 import { getWeatherIcon, getFeatureIconLabel, getFeatureTypeIcon } from './modules/icons.js';
 
 // Actions handled elsewhere (sidebar buttons, grid clicks) - hidden from popup
-const POPUP_HIDDEN_ACTIONS = ['Inventory', 'Crafting', 'Travel'];
+const POPUP_HIDDEN_ACTIONS = ['Inventory', 'Crafting', 'Travel', 'Storage'];
 
 class GameClient {
     constructor() {
@@ -251,6 +251,9 @@ class GameClient {
             case 'hunt':
                 this.showHuntPopup(overlay.data);
                 break;
+            case 'transfer':
+                this.showTransferOverlay(overlay.data, input);
+                break;
         }
     }
 
@@ -266,6 +269,7 @@ class GameClient {
         this.hideForagePopup();
         this.hideDeathScreen();
         this.hideHuntPopup();
+        this.hideTransferOverlay();
     }
 
     /**
@@ -689,15 +693,15 @@ class GameClient {
             });
         }
 
-        // Position popup horizontally
-        popup.style.left = `${screenPos.x + 8}px`;
+        // Position popup horizontally (screenPos.x is already at tile's right edge)
+        popup.style.left = `${screenPos.x}px`;
 
         // Show popup to measure its height
         show(popup);
         const rect = popup.getBoundingClientRect();
 
-        // Calculate vertically centered position
-        const tileSize = this.gridRenderer.TILE_SIZE;
+        // Calculate vertically centered position (use visual tile size for screen positioning)
+        const tileSize = this.gridRenderer.getVisualTileSize();
         const tileCenterY = screenPos.y + (tileSize / 2);
         let topPos = tileCenterY - (rect.height / 2);
 
@@ -711,9 +715,9 @@ class GameClient {
 
         popup.style.top = `${topPos}px`;
 
-        // Adjust horizontal if popup would go off-screen
+        // Adjust horizontal if popup would go off-screen (flip to left of tile)
         if (rect.right > window.innerWidth - 10) {
-            popup.style.left = `${screenPos.x - rect.width - tileSize - 16}px`;
+            popup.style.left = `${screenPos.x - rect.width - tileSize}px`;
         }
     }
 
@@ -1780,6 +1784,11 @@ class GameClient {
         document.documentElement.style.setProperty('--bg-h', h.toFixed(1));
         document.documentElement.style.setProperty('--bg-s', s.toFixed(1) + '%');
         document.documentElement.style.setProperty('--bg-l', l.toFixed(1) + '%');
+
+        // Update canvas grid renderer with same time factor
+        if (this.gridRenderer) {
+            this.gridRenderer.setTimeFactor(t);
+        }
     }
 
     parseClockTime(clockTime) {
@@ -2196,6 +2205,159 @@ class GameClient {
 
     hideInventory() {
         hide(document.getElementById('inventoryOverlay'));
+    }
+
+    // ============================================
+    // Transfer Overlay Methods
+    // ============================================
+
+    showTransferOverlay(transfer, input) {
+        const overlay = document.getElementById('transferOverlay');
+        show(overlay);
+
+        const inputId = this.currentInputId;
+
+        // Render left side (player inventory)
+        this.renderTransferPane(
+            'transferPlayerPane',
+            transfer.playerTitle,
+            transfer.playerCurrentWeightKg,
+            transfer.playerMaxWeightKg,
+            transfer.playerItems,
+            inputId,
+            'player'
+        );
+
+        // Render right side (storage)
+        this.renderTransferPane(
+            'transferStoragePane',
+            transfer.storageTitle,
+            transfer.storageCurrentWeightKg,
+            transfer.storageMaxWeightKg,
+            transfer.storageItems,
+            inputId,
+            'storage'
+        );
+
+        // Done button
+        const doneBtn = document.getElementById('transferDoneBtn');
+        doneBtn.onclick = () => this.respond('done', inputId);
+    }
+
+    renderTransferPane(containerId, title, currentWeight, maxWeight, items, inputId, side) {
+        const pane = document.getElementById(containerId);
+        Utils.clearElement(pane);
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'transfer-pane-header';
+
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = title;
+        header.appendChild(titleEl);
+
+        const weightEl = document.createElement('span');
+        weightEl.className = 'transfer-weight';
+        if (maxWeight > 0 && maxWeight < 500) {
+            weightEl.textContent = `${currentWeight.toFixed(1)} / ${maxWeight.toFixed(0)} kg`;
+        } else {
+            weightEl.textContent = `${currentWeight.toFixed(1)} kg`;
+        }
+        header.appendChild(weightEl);
+        pane.appendChild(header);
+
+        // Items list
+        const list = document.createElement('div');
+        list.className = 'transfer-items';
+
+        // Group by category
+        const byCategory = this.groupItemsByCategory(items);
+
+        for (const [category, categoryItems] of Object.entries(byCategory)) {
+            const catHeader = document.createElement('div');
+            catHeader.className = 'transfer-category-header';
+            catHeader.textContent = category;
+            list.appendChild(catHeader);
+
+            for (const item of categoryItems) {
+                const row = document.createElement('div');
+                row.className = 'transfer-item';
+                row.onclick = () => this.sendTransfer(item.id, item.isAggregated ? item.count : 1, inputId);
+
+                // Icon
+                const icon = document.createElement('span');
+                icon.className = 'material-symbols-outlined transfer-icon';
+                icon.textContent = item.icon;
+                row.appendChild(icon);
+
+                // Name
+                const name = document.createElement('span');
+                name.className = 'transfer-item-name';
+                name.textContent = item.displayName;
+                row.appendChild(name);
+
+                // Weight
+                const weight = document.createElement('span');
+                weight.className = 'transfer-item-weight';
+                weight.textContent = item.weightKg >= 1
+                    ? `${item.weightKg.toFixed(1)}kg`
+                    : `${item.weightKg.toFixed(2)}kg`;
+                row.appendChild(weight);
+
+                // Transfer arrow indicator
+                const arrow = document.createElement('span');
+                arrow.className = 'transfer-arrow material-symbols-outlined';
+                arrow.textContent = side === 'player' ? 'arrow_forward' : 'arrow_back';
+                row.appendChild(arrow);
+
+                list.appendChild(row);
+            }
+        }
+
+        if (items.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'transfer-empty';
+            empty.textContent = 'Empty';
+            list.appendChild(empty);
+        }
+
+        pane.appendChild(list);
+    }
+
+    groupItemsByCategory(items) {
+        const groups = {};
+        const order = ['Fuel', 'Food', 'Water', 'Materials', 'Medicinals', 'Tools', 'Carrying'];
+
+        for (const item of items) {
+            if (!groups[item.category]) {
+                groups[item.category] = [];
+            }
+            groups[item.category].push(item);
+        }
+
+        // Return in specified order
+        const ordered = {};
+        for (const cat of order) {
+            if (groups[cat]) {
+                ordered[cat] = groups[cat];
+            }
+        }
+        return ordered;
+    }
+
+    sendTransfer(itemId, count, inputId) {
+        if (this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'transfer',
+                transferItemId: itemId,
+                transferCount: count,
+                inputId: inputId
+            }));
+        }
+    }
+
+    hideTransferOverlay() {
+        hide(document.getElementById('transferOverlay'));
     }
 
     showCrafting(crafting, input) {

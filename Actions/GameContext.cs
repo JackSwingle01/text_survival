@@ -297,6 +297,9 @@ public class GameContext(Player player, Location camp, Weather weather)
         bool isBlizzard = Weather.CurrentCondition == Weather.WeatherCondition.Blizzard;
         bool isSnowing = Weather.CurrentCondition == Weather.WeatherCondition.LightSnow;
 
+        // Calculate waterproofing level from resin-treated equipment
+        double waterproofingLevel = CalculateWaterproofingLevel();
+
         return new SurvivalContext
         {
             ActivityLevel = 1.5,
@@ -311,7 +314,39 @@ public class GameContext(Player player, Location camp, Weather weather)
             IsSnowing = isSnowing,
             IsBlizzard = isBlizzard,
             CurrentWetnessSeverity = currentWetness,
+            WaterproofingLevel = waterproofingLevel,
         };
+    }
+
+    /// <summary>
+    /// Calculate total waterproofing level from resin-treated equipment.
+    /// Each treated slot contributes 50% reduction weighted by slot coverage.
+    /// Returns 0-1 where 1 = full waterproofing.
+    /// </summary>
+    private double CalculateWaterproofingLevel()
+    {
+        // Slot coverage weights (how much of body each slot covers for wetness)
+        var slotWeights = new Dictionary<EquipSlot, double>
+        {
+            { EquipSlot.Head, 0.1 },
+            { EquipSlot.Chest, 0.4 },
+            { EquipSlot.Legs, 0.3 },
+            { EquipSlot.Hands, 0.1 },
+            { EquipSlot.Feet, 0.1 }
+        };
+
+        double totalWaterproofing = 0;
+        foreach (var slot in slotWeights.Keys)
+        {
+            var equipment = Inventory.GetEquipment(slot);
+            if (equipment != null && equipment.IsResinTreated)
+            {
+                // Each treated slot provides 50% wetness reduction for its coverage area
+                totalWaterproofing += slotWeights[slot] * 0.5;
+            }
+        }
+
+        return Math.Min(totalWaterproofing, 1.0);
     }
 
     /// <summary>
@@ -441,6 +476,9 @@ public class GameContext(Player player, Location camp, Weather weather)
         // Tick torch burn time and handle chaining logic
         Handlers.TorchHandler.UpdateTorchBurnTime(this, minutes, fire);
 
+        // Tick ember carrier burn time and check for wetness extinguishing
+        UpdateEmberCarriers(minutes);
+
         player.Update(minutes, context);
 
         // Update zone weather and all named locations (terrain-only don't need updates)
@@ -476,6 +514,41 @@ public class GameContext(Player player, Location camp, Weather weather)
     {
         if (!CurrentLocation.HasActiveHeatSource()) return 0;
         return configValue;
+    }
+
+    /// <summary>
+    /// Tick down lit ember carriers and extinguish if player gets too wet.
+    /// </summary>
+    private void UpdateEmberCarriers(int minutes)
+    {
+        var litCarriers = Inventory.Tools
+            .Where(t => t.IsEmberCarrier && t.IsEmberLit)
+            .ToList();
+
+        if (litCarriers.Count == 0) return;
+
+        // Check player wetness - embers extinguish if too wet
+        double wetness = player.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault()?.Severity ?? 0;
+
+        foreach (var carrier in litCarriers)
+        {
+            if (wetness > 0.5)
+            {
+                // Wetness extinguishes the ember
+                carrier.EmberBurnHoursRemaining = 0;
+                GameDisplay.AddWarning(this, $"Your {carrier.Name} hisses and goes out. Too wet to keep smoldering.");
+            }
+            else
+            {
+                // Tick down burn time (minutes to hours conversion)
+                carrier.EmberBurnHoursRemaining -= minutes / 60.0;
+                if (carrier.EmberBurnHoursRemaining <= 0)
+                {
+                    carrier.EmberBurnHoursRemaining = 0;
+                    GameDisplay.AddWarning(this, $"Your {carrier.Name} has burned out.");
+                }
+            }
+        }
     }
 
     public enum TimeOfDay

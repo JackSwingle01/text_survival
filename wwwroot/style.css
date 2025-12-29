@@ -820,10 +820,10 @@ body {
 .inventory-modal {
     background: var(--bg-panel);
     border: 1px solid var(--border-dim);
-    padding: 20px;
-    max-width: 800px;
-    width: 90%;
-    max-height: 80vh;
+    padding: 24px;
+    max-width: 1000px;
+    width: 95%;
+    max-height: 85vh;
     overflow-y: auto;
 }
 
@@ -838,50 +838,50 @@ body {
 
 .inventory-header h2 {
     font-family: 'Oswald', sans-serif;
-    font-size: 18px;
+    font-size: 22px;
     letter-spacing: 2px;
     color: var(--text-bright);
 }
 
 .inventory-weight {
-    font-size: 12px;
+    font-size: 14px;
     color: var(--text-dim);
 }
 
 .inventory-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
 }
 
 .inventory-section {
     background: var(--bg-darker);
     border: 1px solid var(--border-dim);
-    padding: 12px;
+    padding: 14px;
 }
 
 .inventory-section h3 {
     font-family: 'Oswald', sans-serif;
-    font-size: 0.7rem;
+    font-size: 0.85rem;
     letter-spacing: 2px;
     color: var(--text-faint);
     text-transform: uppercase;
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 10px;
-    padding-bottom: 6px;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
     border-bottom: 1px solid rgba(128, 128, 128, 0.15);
 }
 
 .inventory-section h3 .material-symbols-outlined {
-    font-size: 14px;
+    font-size: 18px;
     color: var(--fire-orange);
 }
 
 .inv-content {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--text-mid);
 }
 
@@ -889,17 +889,17 @@ body {
 .inv-slot {
     display: flex;
     align-items: center;
-    padding: 6px 0;
+    padding: 8px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .inv-slot .slot-label {
     font-family: 'Oswald', sans-serif;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--text-faint);
-    width: 60px;
+    width: 70px;
 }
 
 .inv-slot .slot-item {
@@ -1156,6 +1156,211 @@ body {
 }
 
 /* ============================================
+   TRANSFER OVERLAY
+   ============================================ */
+
+.transfer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(8, 10, 14, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 550;
+}
+
+.transfer-overlay.hidden {
+    display: none;
+}
+
+.transfer-modal {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-dim);
+    padding: 24px;
+    width: 95%;
+    max-width: 1200px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.transfer-header {
+    display: flex;
+    justify-content: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-dim);
+    margin-bottom: 20px;
+}
+
+.transfer-header h2 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: var(--text-bright);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.transfer-header .material-symbols-outlined {
+    font-size: 28px;
+    color: var(--fire-orange);
+}
+
+.transfer-content {
+    display: flex;
+    gap: 20px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.transfer-pane {
+    flex: 1;
+    background: var(--bg-darker);
+    border: 1px solid var(--border-dim);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.transfer-pane-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid var(--border-dim);
+}
+
+.transfer-pane-header h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    color: var(--text-bright);
+    margin: 0;
+}
+
+.transfer-weight {
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+.transfer-items {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.transfer-category-header {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-faint);
+    padding: 8px 0 4px 0;
+    margin-top: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.transfer-category-header:first-child {
+    margin-top: 0;
+}
+
+.transfer-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    margin: 4px 0;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.transfer-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--fire-orange);
+}
+
+.transfer-item:hover .transfer-arrow {
+    opacity: 1;
+    color: var(--fire-orange);
+}
+
+.transfer-icon {
+    font-size: 18px;
+    color: var(--text-dim);
+    margin-right: 12px;
+}
+
+.transfer-item-name {
+    flex: 1;
+    font-size: 14px;
+    color: var(--text-mid);
+}
+
+.transfer-item-weight {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-right: 12px;
+}
+
+.transfer-arrow {
+    font-size: 18px;
+    color: var(--text-faint);
+    opacity: 0.3;
+    transition: all 0.15s ease;
+}
+
+.transfer-empty {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+.transfer-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+}
+
+.transfer-divider .material-symbols-outlined {
+    font-size: 32px;
+    color: var(--text-faint);
+}
+
+.transfer-actions {
+    display: flex;
+    justify-content: center;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-dim);
+    margin-top: 20px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .transfer-content {
+        flex-direction: column;
+    }
+
+    .transfer-divider {
+        padding: 10px 0;
+    }
+
+    .transfer-divider .material-symbols-outlined {
+        transform: rotate(90deg);
+    }
+}
+
+/* ============================================
    SCROLLBAR STYLING
    ============================================ */
 
@@ -1387,8 +1592,8 @@ body {
 .tile-popup {
     position: fixed;
     z-index: 100;
-    min-width: 220px;
-    max-width: 300px;
+    min-width: 320px;
+    max-width: 400px;
     background: var(--bg-panel);
     border: 1px solid var(--border-bright);
     border-radius: 6px;
@@ -1401,14 +1606,14 @@ body {
 }
 
 .tile-popup-header {
-    padding: 10px 12px;
+    padding: 14px 16px;
     border-bottom: 1px solid var(--border-dim);
 }
 
 .tile-popup-name {
     display: block;
     font-family: 'Oswald', sans-serif;
-    font-size: 0.95rem;
+    font-size: 1.1rem;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -1417,19 +1622,19 @@ body {
 
 .tile-popup-terrain {
     display: block;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: var(--text-faint);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-top: 2px;
+    margin-top: 3px;
 }
 
 /* Quick Glance Bar - color-coded badges */
 .tile-popup-glance {
-    padding: 8px 10px;
+    padding: 10px 14px;
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
     border-bottom: 1px solid var(--border-dim);
 }
 
@@ -1440,17 +1645,17 @@ body {
 .glance-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
+    gap: 5px;
+    padding: 4px 10px;
     border-radius: 12px;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .glance-badge .material-symbols-outlined {
-    font-size: 14px;
+    font-size: 16px;
 }
 
 /* Badge type colors */
@@ -1490,7 +1695,7 @@ body {
 }
 
 .tile-popup-features {
-    padding: 8px 12px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--border-dim);
 }
 
@@ -1501,16 +1706,16 @@ body {
 .popup-feature {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 0;
+    gap: 10px;
+    padding: 6px 0;
     color: var(--text-dim);
-    font-size: 0.75rem;
+    font-size: 0.85rem;
 }
 
 .popup-feature .material-symbols-outlined {
-    font-size: 16px;
+    font-size: 18px;
     color: var(--text-faint);
-    width: 20px;
+    width: 22px;
     text-align: center;
 }
 
@@ -1532,13 +1737,13 @@ body {
 .popup-feature-detailed {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    padding: 6px 0;
+    gap: 10px;
+    padding: 8px 0;
 }
 
 .popup-feature-detailed .material-symbols-outlined {
-    font-size: 16px;
-    width: 20px;
+    font-size: 18px;
+    width: 22px;
     text-align: center;
     color: var(--text-faint);
     margin-top: 2px;
@@ -1547,32 +1752,32 @@ body {
 .feature-content {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
 }
 
 .feature-label {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--text-bright);
 }
 
 .feature-status {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: var(--text-dim);
 }
 
 .feature-details {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     color: var(--text-faint);
     font-style: italic;
 }
 
 .tile-popup-prompt {
-    padding: 8px 12px;
+    padding: 10px 14px;
     color: var(--text-dim);
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     border-bottom: 1px solid var(--border-dim);
     border-left: 3px solid rgba(100, 151, 177, 0.4);
-    margin: 8px 10px 0 10px;
+    margin: 10px 14px 0 14px;
 }
 
 .tile-popup-prompt.hidden {
@@ -1580,11 +1785,11 @@ body {
 }
 
 .tile-popup-actions {
-    padding: 10px;
+    padding: 14px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    max-height: 300px;
+    gap: 10px;
+    max-height: 350px;
     overflow-y: auto;
 }
 
@@ -1598,9 +1803,9 @@ body {
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 0;
     color: var(--text-dim);
-    padding: 0.5rem 0.6rem;
+    padding: 0.7rem 0.8rem;
     font-family: 'Oswald', sans-serif;
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 1px;
     text-align: center;
@@ -1626,8 +1831,8 @@ body {
     background: rgba(224, 136, 48, 0.15);
     border: 2px solid var(--fire-orange);
     color: var(--fire-orange);
-    padding: 0.7rem 1rem;
-    font-size: 0.95rem;
+    padding: 0.9rem 1.2rem;
+    font-size: 1.05rem;
     font-weight: 500;
 }
 

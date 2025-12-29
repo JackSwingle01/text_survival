@@ -528,6 +528,18 @@ public class NeedCraftingSystem
             MaterialOutputs = [new MaterialOutput("PlantFiber", 2, 0.05)] // Get 2 units of fiber per raw
         });
 
+        // Process Willow Bark: Inner bark strips → Cordage fiber (alternative to raw fiber)
+        _options.Add(new CraftOption
+        {
+            Name = "Process Willow Bark",
+            Description = "Strip and twist willow bark into cordage fiber. Alternative to raw plant fiber - sacrifices pain relief for binding materials.",
+            Category = NeedCategory.Processing,
+            CraftingTimeMinutes = 10,
+            Durability = 0,
+            Requirements = [new MaterialRequirement(Resource.WillowBark, 2)],
+            MaterialOutputs = [new MaterialOutput("PlantFiber", 2, 0.05)]
+        });
+
         // Make Rope: 3 plant fiber → 1 rope
         _options.Add(new CraftOption
         {
@@ -1083,6 +1095,50 @@ public class NeedCraftingSystem
             ],
             GearFactory = dur => Gear.Torch("Resin Torch")
         });
+
+        // Amadou Ember Carrier: 2 Amadou -> portable fire transport (starts unlit)
+        _options.Add(new CraftOption
+        {
+            Name = "Amadou Ember Carrier",
+            Description = "Prepared amadou fungus that holds a smoldering ember. Light from a fire to carry fire for 8 hours. Extinguished by getting wet.",
+            Category = NeedCategory.Lighting,
+            CraftingTimeMinutes = 10,
+            Durability = 1,  // One use when starting a fire
+            Requirements = [new MaterialRequirement(Resource.Amadou, 2)],
+            GearFactory = dur => new Gear
+            {
+                Name = "Amadou Ember Carrier",
+                Category = GearCategory.Tool,
+                ToolType = Items.ToolType.EmberCarrier,
+                Weight = 0.1,
+                Durability = dur,
+                MaxDurability = dur,
+                EmberBurnHoursMax = 8.0,
+                EmberBurnHoursRemaining = 0  // Starts unlit
+            }
+        });
+
+        // Polypore Ember Carrier: 2 BirchPolypore -> longer burn time
+        _options.Add(new CraftOption
+        {
+            Name = "Polypore Ember Carrier",
+            Description = "Dense birch polypore that smolders for hours. Light from a fire to carry fire for 12 hours. Heavier but longer lasting.",
+            Category = NeedCategory.Lighting,
+            CraftingTimeMinutes = 15,
+            Durability = 1,  // One use when starting a fire
+            Requirements = [new MaterialRequirement(Resource.BirchPolypore, 2)],
+            GearFactory = dur => new Gear
+            {
+                Name = "Polypore Ember Carrier",
+                Category = GearCategory.Tool,
+                ToolType = Items.ToolType.EmberCarrier,
+                Weight = 0.2,
+                Durability = dur,
+                MaxDurability = dur,
+                EmberBurnHoursMax = 12.0,
+                EmberBurnHoursRemaining = 0  // Starts unlit
+            }
+        });
     }
 
     #endregion
@@ -1194,6 +1250,22 @@ public class NeedCraftingSystem
                 new MaterialRequirement(Resource.Hide, 1)
             ],
             FeatureFactory = () => BeddingFeature.CreatePaddedBedding()
+        });
+
+        // 1b. Moss-Padded Bedding (Instant Improvement - superior to padded bedding)
+        _options.Add(new CraftOption
+        {
+            Name = "Moss-Padded Bedding",
+            Description = "Layers of sphagnum moss over pine boughs. Superior ground insulation from moss's air-trapping properties. +3°F warmth.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 50,
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement(Resource.SphagnumMoss, 6),
+                new MaterialRequirement(Resource.PineNeedles, 4),
+                new MaterialRequirement(Resource.Hide, 1)
+            ],
+            FeatureFactory = () => BeddingFeature.CreateMossPaddedBedding()
         });
 
         // 2. Curing Rack (Instant Improvement)

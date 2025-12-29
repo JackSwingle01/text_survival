@@ -21,6 +21,7 @@ public static class WebIO
     private static readonly Dictionary<string, string> _currentConfirm = new();
     private static readonly Dictionary<string, ForageDto> _currentForage = new();
     private static readonly Dictionary<string, HuntDto> _currentHunt = new();
+    private static readonly Dictionary<string, TransferDto> _currentTransfer = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -82,6 +83,8 @@ public static class WebIO
                 overlays.Add(new ForageOverlay(forage));
             if (_currentHunt.TryGetValue(sessionId, out var hunt))
                 overlays.Add(new HuntOverlay(hunt));
+            if (_currentTransfer.TryGetValue(sessionId, out var transfer))
+                overlays.Add(new TransferOverlay(transfer));
         }
 
         return overlays;
@@ -151,6 +154,15 @@ public static class WebIO
     }
 
     /// <summary>
+    /// Clear the current transfer display for a session.
+    /// </summary>
+    public static void ClearTransfer(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentTransfer.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
     /// Clear all overlays for a session. Used on reconnect to prevent stale overlays.
     /// </summary>
     public static void ClearAllOverlays(string sessionId)
@@ -162,6 +174,7 @@ public static class WebIO
         _currentConfirm.Remove(sessionId);
         _currentForage.Remove(sessionId);
         _currentHunt.Remove(sessionId);
+        _currentTransfer.Remove(sessionId);
     }
 
     /// <summary>
@@ -217,7 +230,7 @@ public static class WebIO
     /// <summary>
     /// Present a selection menu and wait for player choice.
     /// </summary>
-    public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices, Func<T, string> display)
+    public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices, Func<T, string> display, Func<T, bool>? isDisabled = null)
     {
         var session = GetSession(ctx);
         var list = choices.ToList();
@@ -229,7 +242,8 @@ public static class WebIO
         var choiceDtos = list.Select((item, i) => {
             var label = display(item);
             var semanticId = GenerateSemanticId(label, i);
-            return new ChoiceDto(semanticId, label);
+            var disabled = isDisabled?.Invoke(item) ?? false;
+            return new ChoiceDto(semanticId, label, disabled);
         }).ToList();
 
         // Detect continue/stop pattern (2 choices, first is Continue)
@@ -526,6 +540,32 @@ public static class WebIO
     }
 
     /// <summary>
+    /// Show inventory overlay and wait for user to close it.
+    /// </summary>
+    public static void ShowInventoryAndWait(GameContext ctx, Inventory inventory, string title)
+    {
+        var session = GetSession(ctx);
+
+        // Set inventory overlay
+        _currentInventory[ctx.SessionId!] = InventoryDto.FromInventory(inventory, title);
+
+        // Send frame with close button
+        int inputId = session.GenerateInputId();
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto(inputId, "select", "Viewing inventory", [new ChoiceDto("close", "Close")])
+        );
+
+        session.Send(frame);
+        session.WaitForResponse(inputId, ResponseTimeout);
+
+        // Clear after user closes
+        ClearInventory(ctx);
+    }
+
+    /// <summary>
     /// Set the crafting screen to display. Will be included in subsequent input frames.
     /// </summary>
     public static void RenderCrafting(GameContext ctx, NeedCraftingSystem crafting, string title = "CRAFTING")
@@ -769,5 +809,119 @@ public static class WebIO
         session.Send(frame);
         session.WaitForResponse(inputId, ResponseTimeout);
         // After response, the session loop will end and restart
+    }
+
+    /// <summary>
+    /// Run the side-by-side transfer UI for camp storage or caches.
+    /// Handles click-to-transfer with real-time updates.
+    /// </summary>
+    public static void RunTransferUI(GameContext ctx, Inventory storage, string storageName)
+    {
+        var session = GetSession(ctx);
+
+        while (true)
+        {
+            // Build transfer DTO
+            var transferData = TransferDto.FromInventories(ctx.Inventory, storage, storageName);
+            _currentTransfer[ctx.SessionId!] = transferData;
+
+            // Send frame with transfer overlay
+            var choices = new List<ChoiceDto> { new("done", "Done") };
+
+            int inputId = session.GenerateInputId();
+            var frame = new WebFrame(
+                GameStateDto.FromContext(ctx),
+                GetCurrentMode(ctx),
+                GetCurrentOverlays(ctx.SessionId),
+                new InputRequestDto(inputId, "transfer", "Click items to transfer", choices)
+            );
+
+            session.Send(frame);
+            var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+            // Handle response
+            if (response.ChoiceId == "done" || response.Type == "close")
+                break;
+
+            if (response.TransferItemId != null)
+            {
+                int count = response.TransferCount ?? 1;
+                ExecuteTransfer(ctx.Inventory, storage, response.TransferItemId, count);
+                // Loop continues to refresh UI
+            }
+        }
+
+        ClearTransfer(ctx);
+    }
+
+    /// <summary>
+    /// Execute a transfer based on item ID.
+    /// Item IDs are formatted as: "player_resource_Pine", "storage_tool_0", etc.
+    /// </summary>
+    private static void ExecuteTransfer(
+        Inventory player,
+        Inventory storage,
+        string itemId,
+        int count)
+    {
+        // Parse itemId: "player_resource_Pine", "storage_tool_0", etc.
+        var parts = itemId.Split('_', 3);
+        if (parts.Length < 3) return;
+
+        string source = parts[0];        // "player" or "storage"
+        string itemType = parts[1];      // "resource", "tool", "accessory", "water"
+        string itemKey = parts[2];       // Resource name or index
+
+        var sourceInv = source == "player" ? player : storage;
+        var targetInv = source == "player" ? storage : player;
+
+        switch (itemType)
+        {
+            case "resource":
+                if (Enum.TryParse<Resource>(itemKey, out var resource))
+                {
+                    for (int i = 0; i < count && sourceInv.Count(resource) > 0; i++)
+                    {
+                        double weight = sourceInv.Pop(resource);
+                        if (targetInv == player && !player.CanCarry(weight))
+                        {
+                            sourceInv.Add(resource, weight);  // Put back
+                            break;
+                        }
+                        targetInv.Add(resource, weight);
+                    }
+                }
+                break;
+
+            case "water":
+                double waterAmount = Math.Min(0.5 * count, sourceInv.WaterLiters);
+                if (targetInv == player && !player.CanCarry(waterAmount))
+                    break;
+                sourceInv.WaterLiters -= waterAmount;
+                targetInv.WaterLiters += waterAmount;
+                break;
+
+            case "tool":
+                if (int.TryParse(itemKey, out int toolIdx) && toolIdx < sourceInv.Tools.Count)
+                {
+                    var tool = sourceInv.Tools[toolIdx];
+                    if (targetInv == player && !player.CanCarry(tool.Weight))
+                        break;
+                    sourceInv.Tools.RemoveAt(toolIdx);
+                    targetInv.Tools.Add(tool);
+                }
+                break;
+
+            case "accessory":
+                if (int.TryParse(itemKey, out int accIdx) && accIdx < sourceInv.Accessories.Count)
+                {
+                    var acc = sourceInv.Accessories[accIdx];
+                    if (targetInv == player && !player.CanCarry(acc.Weight))
+                        break;
+                    sourceInv.Accessories.RemoveAt(accIdx);
+                    targetInv.Accessories.Add(acc);
+                }
+                break;
+        }
     }
 }

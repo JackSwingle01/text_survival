@@ -22,6 +22,9 @@ public class SurvivalContext
     public bool IsSnowing;                 // Weather condition flag (light snow)
     public bool IsBlizzard;                // Weather condition flag
     public double CurrentWetnessSeverity;  // 0-1 current wetness from effect
+
+    // Waterproofing from resin-treated equipment (0-1 scale)
+    public double WaterproofingLevel;      // Reduces wetness accumulation by this factor
 }
 
 public class Body

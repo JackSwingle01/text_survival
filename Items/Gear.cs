@@ -32,7 +32,8 @@ public enum ToolType
     Torch,      // Portable light source
     Shovel,     // Digging tool - speeds up camp setup, fire pits, snow shelters
     KnappingStone,  // Hammer stone for shaping flint, shale, and bone tools
-    Tent        // Portable shelter - can be deployed at any location
+    Tent,       // Portable shelter - can be deployed at any location
+    EmberCarrier // Portable smoldering ember for fire transport
 }
 
 /// <summary>
@@ -185,6 +186,35 @@ public class Gear
     /// </summary>
     public double Insulation => BaseInsulation * ConditionPct;
 
+    // === Waterproofing (Equipment resin treatment) ===
+    /// <summary>
+    /// Remaining uses of resin waterproofing treatment.
+    /// 0 = not treated, >0 = uses remaining before treatment wears off.
+    /// </summary>
+    public int ResinTreatmentDurability { get; set; }
+
+    /// <summary>
+    /// Whether this equipment has active resin waterproofing.
+    /// </summary>
+    public bool IsResinTreated => ResinTreatmentDurability > 0;
+
+    /// <summary>
+    /// Apply resin waterproofing treatment to this equipment.
+    /// </summary>
+    public void ApplyResinTreatment(int durability = 50)
+    {
+        ResinTreatmentDurability = durability;
+    }
+
+    /// <summary>
+    /// Tick down resin treatment durability (called when equipment is worn in wet conditions).
+    /// </summary>
+    public void TickResinTreatment()
+    {
+        if (ResinTreatmentDurability > 0)
+            ResinTreatmentDurability--;
+    }
+
     // === Accessory-Specific ===
     /// <summary>
     /// Carrying capacity bonus in kg. Only used for category=Accessory.
@@ -212,10 +242,37 @@ public class Gear
     /// </summary>
     public bool IsTent => ToolType == Items.ToolType.Tent;
 
+    // === Ember Carrier-Specific (ToolType.EmberCarrier) ===
+    /// <summary>
+    /// Maximum burn time in hours when fully lit.
+    /// </summary>
+    public double EmberBurnHoursMax { get; init; }
+
+    /// <summary>
+    /// Remaining burn time in hours. 0 = unlit or exhausted.
+    /// </summary>
+    public double EmberBurnHoursRemaining { get; set; }
+
+    /// <summary>
+    /// Whether this ember carrier is currently lit and smoldering.
+    /// </summary>
+    public bool IsEmberLit => EmberBurnHoursRemaining > 0;
+
+    /// <summary>
+    /// Whether this item is an ember carrier.
+    /// </summary>
+    public bool IsEmberCarrier => ToolType == Items.ToolType.EmberCarrier;
+
     // === Display ===
     public override string ToString()
     {
         if (IsBroken) return $"{Name} (broken)";
+        if (IsEmberCarrier)
+        {
+            if (IsEmberLit)
+                return $"{Name} (lit, {EmberBurnHoursRemaining:F1}h)";
+            return $"{Name} (unlit)";
+        }
         if (MaxDurability > 0 && Durability < MaxDurability)
             return $"{Name} ({ConditionPct:P0})";
         return Name;

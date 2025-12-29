@@ -10,7 +10,7 @@ export class CanvasGridRenderer {
         this.onTileClick = null;
 
         // Grid settings
-        this.TILE_SIZE = 100;
+        this.TILE_SIZE = 120;
         this.GAP = 3;
         this.VIEW_SIZE = 7;
 
@@ -30,6 +30,9 @@ export class CanvasGridRenderer {
         this.synchronizedPan = false;  // True when animated pan is in progress
         this.panOriginX = null;  // Origin position for player icon animation
         this.panOriginY = null;
+
+        // Time of day factor (0 = midnight, 1 = noon)
+        this.timeFactor = 0.5;
 
         // Colors
         this.COLORS = {
@@ -161,6 +164,92 @@ export class CanvasGridRenderer {
     }
 
     /**
+     * Set time of day factor for night dimming
+     * @param {number} factor - 0 = midnight (darkest), 1 = noon (brightest)
+     */
+    setTimeFactor(factor) {
+        this.timeFactor = Math.max(0, Math.min(1, factor));
+    }
+
+    /**
+     * Get the current lightness multiplier based on time of day
+     * At noon (t=1): returns 1.0 (full brightness)
+     * At midnight (t=0): returns ~0.19 (matching 5/26 ratio from background)
+     */
+    getLightnessFactor() {
+        const minFactor = 0.19;  // 5/26 ≈ 0.19 (midnight/noon ratio from background)
+        return minFactor + (1 - minFactor) * this.timeFactor;
+    }
+
+    /**
+     * Adjust a hex color's lightness based on time of day
+     * @param {string} hexColor - Hex color like '#2a4038'
+     * @returns {string} - Adjusted hex color
+     */
+    adjustHexForTime(hexColor) {
+        // Parse hex to RGB
+        const hex = hexColor.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+
+        // Convert RGB to HSL
+        const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
+        const max = Math.max(rNorm, gNorm, bNorm);
+        const min = Math.min(rNorm, gNorm, bNorm);
+        let h, s, l = (max + min) / 2;
+
+        if (max === min) {
+            h = s = 0;
+        } else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case rNorm: h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6; break;
+                case gNorm: h = ((bNorm - rNorm) / d + 2) / 6; break;
+                case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
+            }
+        }
+
+        // Adjust lightness
+        l *= this.getLightnessFactor();
+
+        // Convert HSL back to RGB
+        let rOut, gOut, bOut;
+        if (s === 0) {
+            rOut = gOut = bOut = l;
+        } else {
+            const hue2rgb = (p, q, t) => {
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1/6) return p + (q - p) * 6 * t;
+                if (t < 1/2) return q;
+                if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                return p;
+            };
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            rOut = hue2rgb(p, q, h + 1/3);
+            gOut = hue2rgb(p, q, h);
+            bOut = hue2rgb(p, q, h - 1/3);
+        }
+
+        // Convert back to hex
+        const toHex = (v) => Math.round(v * 255).toString(16).padStart(2, '0');
+        return `#${toHex(rOut)}${toHex(gOut)}${toHex(bOut)}`;
+    }
+
+    /**
+     * Get the canvas background color adjusted for time of day
+     */
+    getBackgroundColor() {
+        // Base: hsl(215, 30%, 5%) at midnight, brighter during day
+        const baseLightness = 5;
+        const adjustedLightness = baseLightness + (21 * this.timeFactor);  // 5-26% range like main bg
+        return `hsl(215, 30%, ${adjustedLightness.toFixed(1)}%)`;
+    }
+
+    /**
      * Update camera offset animation
      */
     updateCameraTransition() {
@@ -238,6 +327,16 @@ export class CanvasGridRenderer {
     }
 
     /**
+     * Get the visual (CSS-scaled) tile size in screen pixels
+     */
+    getVisualTileSize() {
+        if (!this.canvas) return this.TILE_SIZE;
+        const rect = this.canvas.getBoundingClientRect();
+        const scale = rect.width / this.canvas.width;
+        return (this.TILE_SIZE + this.GAP) * scale;
+    }
+
+    /**
      * Convert world coordinates to view coordinates
      */
     worldToView(worldX, worldY) {
@@ -283,9 +382,10 @@ export class CanvasGridRenderer {
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
 
-        // Draw dark outline for contrast
-        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
-        this.ctx.lineWidth = 3;
+        // Draw dark outline for contrast (softer at night)
+        const outlineAlpha = 0.3 + (0.3 * this.timeFactor);  // 0.3-0.6 range
+        this.ctx.strokeStyle = `rgba(0, 0, 0, ${outlineAlpha})`;
+        this.ctx.lineWidth = 2 + this.timeFactor;  // 2-3 range
         this.ctx.strokeText(icon, x, y);
 
         // Draw icon
@@ -305,8 +405,8 @@ export class CanvasGridRenderer {
         // Update camera transition animation
         this.updateCameraTransition();
 
-        // Clear canvas
-        ctx.fillStyle = this.COLORS.midnight;
+        // Clear canvas with time-adjusted background
+        ctx.fillStyle = this.getBackgroundColor();
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         if (!this.gridState) {
@@ -328,7 +428,7 @@ export class CanvasGridRenderer {
 
                 if (!tile) {
                     // Out of bounds or no tile data
-                    ctx.fillStyle = this.TERRAIN_COLORS.unexplored;
+                    ctx.fillStyle = this.adjustHexForTime(this.TERRAIN_COLORS.unexplored);
                     ctx.fillRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
                     continue;
                 }
@@ -365,7 +465,7 @@ export class CanvasGridRenderer {
 
         // Draw unexplored tiles
         if (tile.visibility === 'unexplored') {
-            ctx.fillStyle = this.TERRAIN_COLORS.unexplored;
+            ctx.fillStyle = this.adjustHexForTime(this.TERRAIN_COLORS.unexplored);
             ctx.fillRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
             ctx.lineWidth = 1;
@@ -373,9 +473,9 @@ export class CanvasGridRenderer {
             return;
         }
 
-        // Draw terrain base
-        const terrainColor = this.TERRAIN_COLORS[tile.terrain] || this.TERRAIN_COLORS.Plain;
-        ctx.fillStyle = terrainColor;
+        // Draw terrain base with time-adjusted color
+        const baseTerrainColor = this.TERRAIN_COLORS[tile.terrain] || this.TERRAIN_COLORS.Plain;
+        ctx.fillStyle = this.adjustHexForTime(baseTerrainColor);
         ctx.fillRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
 
         // Draw terrain textures for visible tiles
@@ -846,20 +946,25 @@ export class CanvasGridRenderer {
             const iconX = px + pos.ox;
             const iconY = py + pos.oy;
 
-            // Draw dark background circle for readability
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            // Check for special icon styling
+            const special = this.SPECIAL_ICONS[iconName];
+            const baseColor = special?.color || '#cccccc';
+            const glow = special?.glow || false;
+
+            // Light sources (fire, embers) don't dim - they're the light!
+            const isLightSource = iconName === 'local_fire_department' || iconName === 'fireplace';
+            const color = isLightSource ? baseColor : this.adjustHexForTime(baseColor);
+
+            // Draw dark background circle for readability (dimmer at night)
+            const bgAlpha = 0.25 + (0.15 * this.timeFactor);  // 0.25-0.4 range
+            this.ctx.fillStyle = `rgba(0, 0, 0, ${bgAlpha})`;
             this.ctx.beginPath();
             this.ctx.arc(iconX, iconY, 14, 0, Math.PI * 2);
             this.ctx.fill();
 
-            // Check for special icon styling
-            const special = this.SPECIAL_ICONS[iconName];
-            const color = special?.color || 'rgba(255, 255, 255, 0.8)';
-            const glow = special?.glow || false;
-
             if (glow) {
                 this.ctx.save();
-                this.ctx.shadowColor = color;
+                this.ctx.shadowColor = baseColor;  // Glow uses original color
                 this.ctx.shadowBlur = 6;
             }
 
@@ -877,15 +982,20 @@ export class CanvasGridRenderer {
     renderFootprints() {
         if (!this.gridState) return;
 
+        // Adjust footprint color for time of day
+        const footprintColor = this.adjustHexForTime('#60a0b0');
+
         this.playerHistory.forEach((pos, i) => {
             const { vx, vy } = this.worldToView(pos.x, pos.y);
             if (vx >= 0 && vx < this.VIEW_SIZE && vy >= 0 && vy < this.VIEW_SIZE) {
                 const { px, py } = this.getTileScreenPos(vx, vy);
                 const alpha = 0.2 - (i * 0.06);
                 if (alpha > 0) {
-                    this.ctx.fillStyle = `rgba(96, 160, 176, ${alpha})`;
+                    this.ctx.globalAlpha = alpha;
+                    this.ctx.fillStyle = footprintColor;
                     this.ctx.fillRect(px + this.TILE_SIZE/2 - 6, py + this.TILE_SIZE/2 - 2, 4, 6);
                     this.ctx.fillRect(px + this.TILE_SIZE/2 + 2, py + this.TILE_SIZE/2 - 2, 4, 6);
+                    this.ctx.globalAlpha = 1;
                 }
             }
         });
@@ -913,12 +1023,17 @@ export class CanvasGridRenderer {
      * Render vignette effect
      */
     renderVignette() {
+        // Vignette intensity varies with time - stronger at night for atmosphere
+        const baseAlpha = 0.35;
+        const nightBonus = 0.15 * (1 - this.timeFactor);  // Extra darkness at night
+        const alpha = baseAlpha + nightBonus;
+
         const vignette = this.ctx.createRadialGradient(
             this.canvas.width/2, this.canvas.height/2, this.canvas.height * 0.3,
             this.canvas.width/2, this.canvas.height/2, this.canvas.height * 0.7
         );
         vignette.addColorStop(0, 'rgba(8, 10, 14, 0)');
-        vignette.addColorStop(1, 'rgba(8, 10, 14, 0.35)');
+        vignette.addColorStop(1, `rgba(8, 10, 14, ${alpha})`);
         this.ctx.fillStyle = vignette;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
@@ -930,8 +1045,11 @@ export class CanvasGridRenderer {
         if (!this.gridState) return;
 
         const rect = this.canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
+        // Account for CSS scaling: convert screen coords to canvas coords
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        const mx = (e.clientX - rect.left) * scaleX;
+        const my = (e.clientY - rect.top) * scaleY;
         const vx = Math.floor(mx / (this.TILE_SIZE + this.GAP));
         const vy = Math.floor(my / (this.TILE_SIZE + this.GAP));
 
@@ -963,8 +1081,11 @@ export class CanvasGridRenderer {
         if (!this.gridState || !this.onTileClick) return;
 
         const rect = this.canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
+        // Account for CSS scaling: convert screen coords to canvas coords
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        const mx = (e.clientX - rect.left) * scaleX;
+        const my = (e.clientY - rect.top) * scaleY;
         const vx = Math.floor(mx / (this.TILE_SIZE + this.GAP));
         const vy = Math.floor(my / (this.TILE_SIZE + this.GAP));
 
@@ -973,9 +1094,10 @@ export class CanvasGridRenderer {
             const tile = this.findTile(worldX, worldY);
 
             if (tile && tile.visibility !== 'unexplored') {
-                // Calculate popup position (screen coordinates)
-                const tileScreenX = rect.left + vx * (this.TILE_SIZE + this.GAP) + this.TILE_SIZE;
-                const tileScreenY = rect.top + vy * (this.TILE_SIZE + this.GAP);
+                // Calculate popup position (screen coordinates, accounting for CSS scaling)
+                const cellSize = (this.TILE_SIZE + this.GAP) / scaleX;
+                const tileScreenX = rect.left + (vx + 1) * cellSize;
+                const tileScreenY = rect.top + vy * cellSize;
 
                 this.onTileClick(worldX, worldY, tile, { x: tileScreenX, y: tileScreenY });
             }
