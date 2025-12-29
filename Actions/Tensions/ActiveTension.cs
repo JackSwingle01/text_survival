@@ -19,6 +19,9 @@ public class ActiveTension
     public string? Direction { get; }
     public string? Description { get; }
 
+    /// <summary>Optional herd ID for tracking specific herds (e.g., wounded prey, stalking predator).</summary>
+    public Guid? HerdId { get; }
+
     // Decay behavior
     public double DecayPerHour { get; }
     public bool DecaysAtCamp { get; }
@@ -32,7 +35,8 @@ public class ActiveTension
         Location? sourceLocation = null,
         string? animalType = null,
         string? direction = null,
-        string? description = null)
+        string? description = null,
+        Guid? herdId = null)
     {
         Type = type;
         Severity = Math.Clamp(severity, 0.0, 1.0);
@@ -44,6 +48,7 @@ public class ActiveTension
         AnimalType = animalType;
         Direction = direction;
         Description = description;
+        HerdId = herdId;
     }
 
     // === FACTORY METHODS ===
@@ -52,13 +57,14 @@ public class ActiveTension
     /// <summary>
     /// A predator is stalking the player. Decays slowly at camp (predator loses the scent).
     /// </summary>
-    public static ActiveTension Stalked(double severity, string? animalType = null, Location? location = null) => new(
+    public static ActiveTension Stalked(double severity, string? animalType = null, Location? location = null, Guid? herdId = null) => new(
         type: "Stalked",
         severity: severity,
         decayPerHour: 0.05,
         decaysAtCamp: true,
         relevantLocation: location,
-        animalType: animalType
+        animalType: animalType,
+        herdId: herdId
     );
 
     /// <summary>
@@ -158,25 +164,28 @@ public class ActiveTension
 
     /// <summary>
     /// Player wounded prey that escaped. Trail decays as blood dries/snow covers.
+    /// HerdId tracks the specific wounded animal for tracking events.
     /// </summary>
-    public static ActiveTension WoundedPrey(double severity, string? animalType = null, Location? location = null) => new(
+    public static ActiveTension WoundedPrey(double severity, string? animalType = null, Location? location = null, Guid? herdId = null) => new(
         type: "WoundedPrey",
         severity: severity,
         decayPerHour: 0.08,
         decaysAtCamp: true,  // Trail goes cold if you return to camp
         relevantLocation: location,
-        animalType: animalType
+        animalType: animalType,
+        herdId: herdId
     );
 
     /// <summary>
     /// A pack of predators is nearby. Fire deters them; decay at camp reflects safety.
     /// </summary>
-    public static ActiveTension PackNearby(double severity, string? animalType = null) => new(
+    public static ActiveTension PackNearby(double severity, string? animalType = null, Guid? herdId = null) => new(
         type: "PackNearby",
         severity: severity,
         decayPerHour: 0.03,
         decaysAtCamp: true,
-        animalType: animalType
+        animalType: animalType,
+        herdId: herdId
     );
 
     /// <summary>
@@ -271,7 +280,8 @@ public class ActiveTension
         Location? relevantLocation = null,
         string? animalType = null,
         string? direction = null,
-        string? description = null) => new(
+        string? description = null,
+        Guid? herdId = null) => new(
         type: type,
         severity: severity,
         decayPerHour: decayPerHour,
@@ -279,6 +289,7 @@ public class ActiveTension
         relevantLocation: relevantLocation,
         animalType: animalType,
         direction: direction,
-        description: description
+        description: description,
+        herdId: herdId
     );
 }

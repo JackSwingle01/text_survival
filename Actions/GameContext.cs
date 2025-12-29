@@ -520,24 +520,33 @@ public class GameContext(Player player, Location camp, Weather weather)
         // Update herds - they move and can detect player
         if (Map != null)
         {
-            bool carryingMeat = Inventory.Count(Resource.RawMeat) > 0 || Inventory.Count(Resource.CookedMeat) > 0;
-            bool isBleeding = player.EffectRegistry.HasEffect("Bleeding") || player.EffectRegistry.GetSeverity("Bloody") > 0.3;
+            var herdResults = Herds.Update(minutes, this);
 
-            var encounterHerd = Herds.Update(minutes, Map.CurrentPosition, carryingMeat, isBleeding);
-
-            // If a predator herd initiated an encounter, queue it
-            if (encounterHerd != null && _pendingEncounter == null)
+            // Process herd update results
+            foreach (var result in herdResults)
             {
-                var predator = encounterHerd.GetRandomMember();
-                if (predator != null)
+                // Show narrative messages
+                if (result.NarrativeMessage != null)
                 {
-                    // Create encounter config from the herd's animal
-                    // (AnimalType, InitialDistance, InitialBoldness, Modifiers)
-                    _pendingEncounter = new EncounterConfig(
-                        encounterHerd.AnimalType,
-                        InitialDistance: 20, // Close - they were hunting
-                        InitialBoldness: 0.6 // Pack hunting is bold
-                    );
+                    GameDisplay.AddNarrative(this, result.NarrativeMessage);
+                }
+
+                // Queue predator encounters
+                if (result.EncounterRequest != null && _pendingEncounter == null)
+                {
+                    var encounterHerd = Herds.GetHerdById(result.EncounterRequest.HerdId);
+                    if (encounterHerd != null)
+                    {
+                        var predator = encounterHerd.GetRandomMember();
+                        if (predator != null)
+                        {
+                            _pendingEncounter = new EncounterConfig(
+                                encounterHerd.AnimalType,
+                                InitialDistance: result.EncounterRequest.IsDefendingKill ? 10 : 20,
+                                InitialBoldness: result.EncounterRequest.IsDefendingKill ? 0.8 : 0.6
+                            );
+                        }
+                    }
                 }
             }
         }

@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using text_survival.Actions;
+using text_survival.Actors.Animals.Behaviors;
 using text_survival.Environments.Grid;
 
 namespace text_survival.Actors.Animals;
@@ -24,7 +26,10 @@ public enum HerdState
     Fleeing,
 
     /// <summary>Predator response: pursuing player.</summary>
-    Hunting
+    Hunting,
+
+    /// <summary>Predators at a kill, consuming prey. Will defend aggressively.</summary>
+    Feeding
 }
 
 /// <summary>
@@ -104,6 +109,42 @@ public class Herd
 
     #endregion
 
+    #region Behavior Strategy
+
+    /// <summary>Type of behavior for serialization. Behavior is recreated from this on load.</summary>
+    [JsonInclude]
+    public HerdBehaviorType BehaviorType { get; private set; } = HerdBehaviorType.Prey;
+
+    /// <summary>The behavior strategy implementation. Not serialized - recreated on load.</summary>
+    [JsonIgnore]
+    public IHerdBehavior? Behavior { get; private set; }
+
+    /// <summary>
+    /// Recreates the behavior strategy from BehaviorType.
+    /// Called after deserialization.
+    /// </summary>
+    public void RecreateBehavior()
+    {
+        Behavior = BehaviorType switch
+        {
+            HerdBehaviorType.Prey => new PreyBehavior(),
+            HerdBehaviorType.PackPredator => new PackPredatorBehavior(),
+            HerdBehaviorType.SolitaryPredator => new SolitaryPredatorBehavior(),
+            _ => new PreyBehavior()
+        };
+    }
+
+    /// <summary>
+    /// Sets the behavior type and creates the behavior instance.
+    /// </summary>
+    public void SetBehavior(HerdBehaviorType type)
+    {
+        BehaviorType = type;
+        RecreateBehavior();
+    }
+
+    #endregion
+
     #region Derived Properties
 
     /// <summary>True if this is a predator herd (wolf, bear, etc.).</summary>
@@ -146,19 +187,31 @@ public class Herd
     /// </summary>
     public static Herd Create(string animalType, GridPosition startPosition, List<GridPosition> territory)
     {
-        return new Herd
+        var behaviorType = animalType.ToLower() switch
+        {
+            "wolf" => HerdBehaviorType.PackPredator,
+            "bear" or "cave bear" => HerdBehaviorType.SolitaryPredator,
+            _ => HerdBehaviorType.Prey
+        };
+
+        var herd = new Herd
         {
             AnimalType = animalType,
             Position = startPosition,
             HomeTerritory = territory,
             TerritoryIndex = 0,
-            State = animalType.ToLower() switch
+            BehaviorType = behaviorType,
+            State = behaviorType switch
             {
-                "wolf" or "bear" or "cave bear" => HerdState.Patrolling,
+                HerdBehaviorType.PackPredator => HerdState.Patrolling,
+                HerdBehaviorType.SolitaryPredator => HerdState.Resting,
                 _ => HerdState.Grazing
             },
             Hunger = _rng.NextDouble() * 0.3 // Start slightly hungry
         };
+
+        herd.RecreateBehavior();
+        return herd;
     }
 
     #endregion
@@ -217,6 +270,7 @@ public class Herd
     public Herd SplitOffWounded(Animal animal, GridPosition fleeDirection)
     {
         Members.Remove(animal);
+        MemberCount = Members.Count;
 
         var newHerd = new Herd
         {
@@ -224,12 +278,14 @@ public class Herd
             Position = Position,
             HomeTerritory = [Position, fleeDirection], // Small territory around where it fled
             TerritoryIndex = 0,
+            BehaviorType = BehaviorType, // Inherit behavior type from parent herd
             State = HerdState.Fleeing,
             IsWounded = true,
             WoundSeverity = animal.CurrentWoundSeverity,
             Hunger = Hunger
         };
         newHerd.AddMember(animal);
+        newHerd.RecreateBehavior();
 
         return newHerd;
     }
@@ -239,171 +295,61 @@ public class Herd
     #region State Machine Update
 
     /// <summary>
-    /// Updates the herd state machine. Called each game minute.
+    /// Updates the herd using behavior strategy. Called each game minute.
+    /// New signature takes GameContext instead of individual parameters.
     /// </summary>
     /// <param name="elapsedMinutes">Minutes elapsed since last update.</param>
-    /// <param name="playerPosition">Current player position for detection.</param>
-    /// <param name="playerCarryingMeat">Whether player is carrying meat.</param>
-    /// <param name="playerBleeding">Whether player is bleeding.</param>
+    /// <param name="ctx">Game context for behavior processing.</param>
+    /// <returns>Result containing any encounters, narratives, or carcass creations.</returns>
+    public HerdUpdateResult Update(int elapsedMinutes, GameContext ctx)
+    {
+        // Ensure behavior is initialized
+        if (Behavior == null)
+        {
+            RecreateBehavior();
+        }
+
+        // Delegate to behavior strategy
+        return Behavior!.Update(this, elapsedMinutes, ctx);
+    }
+
+    /// <summary>
+    /// Legacy Update method for compatibility. Delegates to new behavior-based Update.
+    /// </summary>
+    /// <param name="elapsedMinutes">Minutes elapsed since last update.</param>
+    /// <param name="playerPosition">Current player position (unused in new system).</param>
+    /// <param name="playerCarryingMeat">Whether player is carrying meat (unused in new system).</param>
+    /// <param name="playerBleeding">Whether player is bleeding (unused in new system).</param>
     /// <returns>True if the herd initiated an encounter with the player.</returns>
+    [Obsolete("Use Update(int, GameContext) instead. This method is kept for compatibility.")]
     public bool Update(int elapsedMinutes, GridPosition playerPosition, bool playerCarryingMeat, bool playerBleeding)
     {
+        // Legacy fallback - use inline behavior without GameContext
         StateTimeMinutes += elapsedMinutes;
 
         // Update hunger
-        double hungerRate = IsPredator ? 0.002 : 0.003; // Predators can go longer without food
+        double hungerRate = IsPredator ? 0.002 : 0.003;
         Hunger = Math.Clamp(Hunger + elapsedMinutes * hungerRate, 0, 1);
 
         // Wounded herds heal over time
         if (IsWounded)
         {
-            WoundSeverity = Math.Max(0, WoundSeverity - elapsedMinutes * 0.0002); // ~3 days to heal
+            WoundSeverity = Math.Max(0, WoundSeverity - elapsedMinutes * 0.0002);
             if (WoundSeverity <= 0)
-            {
                 IsWounded = false;
-            }
         }
 
-        // Stimulus check: can we detect the player?
-        if (State != HerdState.Fleeing)
+        // Only trigger encounter if predator is at player position
+        if (IsPredator && Position == playerPosition && State == HerdState.Patrolling)
         {
-            int detectionRange = CalculateDetectionRange(playerCarryingMeat, playerBleeding);
-            int distance = Position.ManhattanDistance(playerPosition);
-
-            if (distance <= detectionRange)
+            // Random encounter chance based on hunger
+            if (Hunger > 0.5 && new Random().NextDouble() < 0.3)
             {
-                // Detected player
-                if (State != HerdState.Alert && State != HerdState.Hunting)
-                {
-                    PreviousState = State;
-                    State = HerdState.Alert;
-                    StateTimeMinutes = 0;
-                    return false;
-                }
+                return true;
             }
-        }
-
-        // State-specific behavior
-        return ProcessState(elapsedMinutes, playerPosition);
-    }
-
-    private bool ProcessState(int elapsedMinutes, GridPosition playerPosition)
-    {
-        switch (State)
-        {
-            case HerdState.Resting:
-                // Hungry? Start grazing
-                if (Hunger > 0.5)
-                {
-                    TransitionTo(HerdState.Grazing);
-                }
-                // Predators patrol after resting
-                else if (IsPredator && StateTimeMinutes > 60)
-                {
-                    TransitionTo(HerdState.Patrolling);
-                }
-                break;
-
-            case HerdState.Grazing:
-                // Move slowly within territory
-                MoveWithinTerritory();
-                // Reduce hunger while grazing
-                Hunger = Math.Max(0, Hunger - elapsedMinutes * 0.01);
-                // Full? Rest
-                if (Hunger < 0.2)
-                {
-                    TransitionTo(HerdState.Resting);
-                }
-                break;
-
-            case HerdState.Patrolling:
-                // Move to next territory tile
-                MoveToNextTerritoryTile();
-                // Rest after patrolling for a while
-                if (StateTimeMinutes > 120)
-                {
-                    TransitionTo(HerdState.Resting);
-                }
-                break;
-
-            case HerdState.Alert:
-                // Wait a few minutes, then decide
-                if (StateTimeMinutes > 3)
-                {
-                    int distance = Position.ManhattanDistance(playerPosition);
-                    if (distance > BaseDetectionRange + 1)
-                    {
-                        // Threat gone, return to previous activity
-                        TransitionTo(PreviousState);
-                    }
-                    else if (IsPredator)
-                    {
-                        // Predators pursue
-                        TransitionTo(HerdState.Hunting);
-                    }
-                    else
-                    {
-                        // Prey flee
-                        TransitionTo(HerdState.Fleeing);
-                    }
-                }
-                break;
-
-            case HerdState.Fleeing:
-                // Move away from player
-                MoveAwayFrom(playerPosition);
-                // Safe? Rest
-                int fleeDistance = Position.ManhattanDistance(playerPosition);
-                if (fleeDistance > 3)
-                {
-                    TransitionTo(HerdState.Resting);
-                }
-                break;
-
-            case HerdState.Hunting:
-                // Move toward player
-                MoveToward(playerPosition);
-                // At player's tile? Initiate encounter
-                if (Position == playerPosition)
-                {
-                    TransitionTo(HerdState.Resting); // Reset after encounter
-                    return true; // Signal encounter
-                }
-                // Give up after a while
-                if (StateTimeMinutes > 30)
-                {
-                    TransitionTo(HerdState.Resting);
-                }
-                break;
         }
 
         return false;
-    }
-
-    private void TransitionTo(HerdState newState)
-    {
-        State = newState;
-        StateTimeMinutes = 0;
-    }
-
-    #endregion
-
-    #region Detection
-
-    /// <summary>
-    /// Calculates effective detection range considering modifiers.
-    /// </summary>
-    private int CalculateDetectionRange(bool playerCarryingMeat, bool playerBleeding)
-    {
-        int range = BaseDetectionRange;
-
-        if (playerCarryingMeat) range += 1;
-        if (playerBleeding) range += 2;
-
-        // Wounded herds are more cautious/alert
-        if (IsWounded) range += 1;
-
-        return range;
     }
 
     #endregion
@@ -518,6 +464,7 @@ public class Herd
             HerdState.Alert => "alert",
             HerdState.Fleeing => "fleeing",
             HerdState.Hunting => "hunting",
+            HerdState.Feeding => "feeding on a kill",
             _ => ""
         };
 
