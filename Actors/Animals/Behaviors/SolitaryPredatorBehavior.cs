@@ -84,6 +84,16 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         // Move within territory while foraging (faster if area is grazed)
         TryMoveWithinTerritory(herd, elapsedMinutes, ctx);
 
+        // Very hungry bear will hunt opportunistically while foraging
+        if (herd.Hunger > 0.7)
+        {
+            var huntResult = TryHuntPrey(herd, ctx);
+            if (huntResult != HerdUpdateResult.None)
+            {
+                return huntResult;
+            }
+        }
+
         // Sated? Rest
         if (herd.Hunger < 0.3)
         {
@@ -124,6 +134,16 @@ public class SolitaryPredatorBehavior : IHerdBehavior
             if (ShouldEngagePlayer(herd, ctx))
             {
                 return HerdUpdateResult.WithEncounter(herd);
+            }
+        }
+
+        // Hungry bear will hunt while patrolling
+        if (herd.Hunger > 0.6)
+        {
+            var huntResult = TryHuntPrey(herd, ctx);
+            if (huntResult != HerdUpdateResult.None)
+            {
+                return huntResult;
             }
         }
 
@@ -208,6 +228,110 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         }
 
         return _rng.NextDouble() < aggression;
+    }
+
+    private static HerdUpdateResult TryHuntPrey(Herd bear, GameContext ctx)
+    {
+        // Check for prey in this tile
+        var preyHere = ctx.Herds.GetHerdsAt(bear.Position)
+            .FirstOrDefault(h => !h.IsPredator && !h.IsEmpty);
+
+        if (preyHere == null) return HerdUpdateResult.None;
+
+        // Bears are solitary - prefer smaller/weaker prey
+        // Skip large healthy herds (bison, large caribou groups)
+        if (preyHere.Count > 5 && preyHere.AnimalType != "Megaloceros")
+        {
+            return HerdUpdateResult.None;
+        }
+
+        // Use same resolution as wolves
+        var resolution = PredatorPreyResolver.ResolvePredatorPreyEncounter(bear, preyHere);
+
+        if (resolution == PredatorPreyResolver.HuntResolution.PreyEscaped)
+        {
+            // Prey flees
+            if (preyHere.Behavior != null)
+            {
+                preyHere.Behavior.TriggerFlee(preyHere, bear.Position, ctx);
+            }
+            else
+            {
+                preyHere.State = HerdState.Fleeing;
+            }
+
+            // Bears don't pursue like wolves - they're ambush predators
+            if (ctx.Map != null && ctx.Map.CurrentPosition == bear.Position)
+            {
+                return HerdUpdateResult.WithNarrative(
+                    $"A bear charges at {preyHere.AnimalType.ToLower()}, but they scatter.");
+            }
+
+            return HerdUpdateResult.None;
+        }
+
+        // Attack initiated - bears have lower success rate solo
+        // Apply penalty for solitary hunting
+        double catchChance = 0.25; // Base 25% for solitary bear vs wolf pack's higher rate
+        if (bear.Hunger > 0.9) catchChance += 0.15; // Desperate bear
+        var weakest = preyHere.Members.OrderBy(m => m.Condition).FirstOrDefault();
+        if (weakest != null && weakest.Condition < 0.5) catchChance += 0.2; // Injured prey
+
+        if (_rng.NextDouble() < catchChance)
+        {
+            var victim = preyHere.Members.OrderBy(m => m.SpeedMps * m.Condition)
+                .ThenBy(m => m.Condition)
+                .FirstOrDefault();
+
+            if (victim != null)
+            {
+                preyHere.RemoveMember(victim);
+
+                // Create carcass
+                if (ctx.Map != null)
+                {
+                    var location = ctx.Map.GetLocationAt(bear.Position);
+                    location?.Features.Add(new CarcassFeature(victim));
+                }
+
+                bear.State = HerdState.Feeding;
+                bear.Hunger = 0;
+                bear.StateTimeMinutes = 0;
+
+                // Remaining prey flees
+                if (!preyHere.IsEmpty)
+                {
+                    if (preyHere.Behavior != null)
+                        preyHere.Behavior.TriggerFlee(preyHere, bear.Position, ctx);
+                    else
+                        preyHere.State = HerdState.Fleeing;
+                }
+
+                if (ctx.Map != null && ctx.Map.CurrentPosition == bear.Position)
+                {
+                    return HerdUpdateResult.WithNarrative(
+                        $"A bear brings down a {victim.Name}. It begins feeding.");
+                }
+
+                return HerdUpdateResult.WithPreyKill(preyHere, victim, bear.Position);
+            }
+        }
+        else
+        {
+            // Failed chase
+            if (preyHere.Behavior != null)
+                preyHere.Behavior.TriggerFlee(preyHere, bear.Position, ctx);
+            else
+                preyHere.State = HerdState.Fleeing;
+
+            if (ctx.Map != null && ctx.Map.CurrentPosition == bear.Position)
+            {
+                return HerdUpdateResult.WithNarrative(
+                    $"A bear lunges at {preyHere.AnimalType.ToLower()}, but they escape.");
+            }
+        }
+
+        return HerdUpdateResult.None;
     }
 
     private static void TryMoveWithinTerritory(Herd herd, int elapsedMinutes, GameContext ctx)

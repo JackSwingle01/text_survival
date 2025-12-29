@@ -32,10 +32,13 @@ public static class HerdPopulator
         // Caribou herds: 1-2 herds of 5-15, 8-12 tile territories
         // Large individual prey: 5-10 (megaloceros, bison)
 
-        PopulateWolves(registry, availablePositions, 1 + _rng.Next(2)); // 1-2 packs
-        PopulateBears(registry, availablePositions, 3 + _rng.Next(3)); // 3-5 bears
+        // Create prey FIRST so predators can be placed to overlap their territories
         PopulateCaribou(registry, availablePositions, 1 + _rng.Next(2)); // 1-2 herds
         PopulateLargePrey(registry, availablePositions, 5 + _rng.Next(6)); // 5-10 individuals
+
+        // Create predators AFTER prey, biasing toward prey territories
+        PopulateWolves(registry, availablePositions, 1 + _rng.Next(2)); // 1-2 packs
+        PopulateBears(registry, availablePositions, 3 + _rng.Next(3)); // 3-5 bears
 
         // Add environmental details based on territories
         AddTerritoryDetails(registry, map);
@@ -122,23 +125,39 @@ public static class HerdPopulator
     }
 
     /// <summary>
-    /// Create wolf packs with overlapping patrol territories.
+    /// Create wolf packs with territories that overlap prey ranges.
     /// </summary>
     private static void PopulateWolves(HerdRegistry registry, List<GridPosition> available, int packCount)
     {
+        // Get all prey territory tiles for biased placement
+        var preyTerritories = registry._herds
+            .Where(h => !h.IsPredator)
+            .SelectMany(h => h.HomeTerritory)
+            .Distinct()
+            .ToList();
+
         for (int i = 0; i < packCount; i++)
         {
             if (available.Count == 0) break;
 
-            // Pick a random starting position
-            var startPos = available[_rng.Next(available.Count)];
+            // 80% chance to start in prey territory if available
+            GridPosition startPos;
+            var availablePreyTiles = preyTerritories.Where(p => available.Contains(p)).ToList();
+
+            if (availablePreyTiles.Count > 0 && _rng.NextDouble() < 0.8)
+            {
+                startPos = availablePreyTiles[_rng.Next(availablePreyTiles.Count)];
+            }
+            else
+            {
+                startPos = available[_rng.Next(available.Count)];
+            }
 
             // Create territory of 3-5 adjacent tiles
             var territory = CreateContiguousTerritory(startPos, available, 3 + _rng.Next(3));
 
-            if (territory.Count < 3) continue; // Need minimum territory
+            if (territory.Count < 3) continue;
 
-            // Create pack with 3-8 wolves
             var herd = Herd.Create("Wolf", startPos, territory);
             int packSize = 3 + _rng.Next(6);
 
@@ -153,31 +172,45 @@ public static class HerdPopulator
 
             registry.AddHerd(herd);
 
-            // Remove territory from available (prevents overlapping predator territories)
-            foreach (var pos in territory)
-            {
-                available.Remove(pos);
-            }
+            // Only remove center tile to prevent wolf packs stacking on same spot
+            available.Remove(startPos);
         }
     }
 
     /// <summary>
-    /// Create solitary bears with small home ranges.
+    /// Create solitary bears with territories overlapping prey ranges.
     /// </summary>
     private static void PopulateBears(HerdRegistry registry, List<GridPosition> available, int bearCount)
     {
+        // Get all prey territory tiles for biased placement
+        var preyTerritories = registry._herds
+            .Where(h => !h.IsPredator)
+            .SelectMany(h => h.HomeTerritory)
+            .Distinct()
+            .ToList();
+
         for (int i = 0; i < bearCount; i++)
         {
             if (available.Count == 0) break;
 
-            var startPos = available[_rng.Next(available.Count)];
+            // 60% chance to start in prey territory (bears are opportunistic)
+            GridPosition startPos;
+            var availablePreyTiles = preyTerritories.Where(p => available.Contains(p)).ToList();
 
-            // Bears have moderate territories (4-8 tiles) to spread out foraging impact
+            if (availablePreyTiles.Count > 0 && _rng.NextDouble() < 0.6)
+            {
+                startPos = availablePreyTiles[_rng.Next(availablePreyTiles.Count)];
+            }
+            else
+            {
+                startPos = available[_rng.Next(available.Count)];
+            }
+
+            // Bears have moderate territories (4-8 tiles)
             var territory = CreateContiguousTerritory(startPos, available, 4 + _rng.Next(5));
 
             if (territory.Count < 3) continue;
 
-            // Create "herd" of 1 bear
             var herd = Herd.Create("Bear", startPos, territory);
 
             // 50% chance of cave bear vs regular bear
@@ -189,7 +222,7 @@ public static class HerdPopulator
 
             registry.AddHerd(herd);
 
-            // Remove only the center tile (bears can overlap with prey)
+            // Remove only the center tile
             available.Remove(startPos);
         }
     }
