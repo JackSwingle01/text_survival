@@ -4,6 +4,7 @@ using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
+using text_survival.Environments.Grid;
 using text_survival.Items;
 using text_survival.UI;
 using text_survival.Web;
@@ -31,24 +32,25 @@ internal class HuntState
     public Animal Target { get; }
     public Location Location { get; }
     public GameContext Context { get; }
+    public Guid? HerdId { get; }  // Set when animal came from persistent herd
     public int MinutesSpent { get; set; }
     public double? PreviousDistanceMeters { get; set; }
     public string? StatusMessage { get; set; }
     public bool JustApproached { get; set; }
 
-    public HuntState(Animal target, Location location, GameContext ctx)
+    public HuntState(Animal target, Location location, GameContext ctx, Guid? herdId = null)
     {
         Target = target;
         Location = location;
         Context = ctx;
+        HerdId = herdId;
         MinutesSpent = 0;
         PreviousDistanceMeters = null;
         StatusMessage = null;
         JustApproached = false;
     }
 
-    public bool IsActive => Target.IsAlive && !Target.IsEngaged &&
-                            Context.player.stealthManager.IsHunting;
+    public bool IsActive => Target != null && Target.IsAlive && !Target.IsEngaged;
 
     public bool HasSpear => Context.Inventory.Weapon?.ToolType == ToolType.Spear;
     public bool HasStones => Context.Inventory.Count(Resource.Stone) > 0;
@@ -91,8 +93,9 @@ public static class HuntRunner
     /// Run an interactive hunt against a found animal.
     /// Prompts player to stalk, then runs the approach/attack loop.
     /// </summary>
+    /// <param name="herdId">Optional ID of persistent herd this animal belongs to.</param>
     /// <returns>Outcome of the hunt and minutes elapsed</returns>
-    public static (HuntOutcome outcome, int minutesElapsed) Run(Animal target, Location location, GameContext ctx)
+    public static (HuntOutcome outcome, int minutesElapsed) Run(Animal target, Location location, GameContext ctx, Guid? herdId = null)
     {
         // Initial "Stalk?" prompt
         if (!PromptInitialStalk(target, ctx))
@@ -101,8 +104,7 @@ public static class HuntRunner
         }
 
         // Initialize hunt state
-        ctx.player.stealthManager.StartHunting(target, ctx);
-        var state = new HuntState(target, location, ctx);
+        var state = new HuntState(target, location, ctx, herdId);
 
         // Auto-equip spear if available
         var spear = ctx.Inventory.GetOrEquipWeapon(ctx, ToolType.Spear);
@@ -308,7 +310,7 @@ public static class HuntRunner
         // Store previous distance for animation
         state.PreviousDistanceMeters = target.DistanceFromPlayer;
 
-        bool success = ctx.player.stealthManager.AttemptApproach(state.Location, ctx);
+        bool success = AttemptApproach(state.Location, state.Target, ctx);
         state.MinutesSpent += 7;
         state.JustApproached = true;
 
@@ -428,11 +430,13 @@ public static class HuntRunner
         var target = state.Target;
 
         target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, BodyTarget.Heart));
-        ctx.player.stealthManager.StopHunting(ctx);
 
         // Create carcass for butchering (not immediate butcher)
         var carcass = new CarcassFeature(target);
         ctx.CurrentLocation.AddFeature(carcass);
+
+        // Remove from persistent herd if applicable
+        RemoveFromHerd(state);
 
         ctx.player.Skills.GetSkill("Hunting").GainExperience(5);
 
@@ -472,7 +476,8 @@ public static class HuntRunner
             var carcass = new CarcassFeature(target);
             ctx.CurrentLocation.AddFeature(carcass);
 
-            ctx.player.stealthManager.StopHunting(ctx, "Hunt successful.");
+            // Remove from persistent herd if applicable
+            RemoveFromHerd(state);
 
             return new HuntChoiceResult(
                 HuntEnded: true,
@@ -497,6 +502,9 @@ public static class HuntRunner
                     ? "Bright red arterial spray—you could follow the blood trail."
                     : "Dark blood, muscle wound—the animal barely slowed.";
 
+                // Split wounded animal into its own herd if from persistent herd
+                SplitWoundedFromHerd(state);
+
                 // Create WoundedPrey tension
                 var tension = Tensions.ActiveTension.WoundedPrey(
                     woundSeverity,
@@ -511,7 +519,7 @@ public static class HuntRunner
                     state.MinutesSpent += 3;
                 }
 
-                ctx.player.stealthManager.StopHunting(ctx, $"The {target.Name} escaped.");
+                GameDisplay.AddNarrative(ctx, $"The {target.Name} escaped.");
 
                 return new HuntChoiceResult(
                     HuntEnded: true,
@@ -529,7 +537,7 @@ public static class HuntRunner
                     state.MinutesSpent += 3;
                 }
 
-                ctx.player.stealthManager.StopHunting(ctx, $"The {target.Name} escaped.");
+                GameDisplay.AddNarrative(ctx, $"The {target.Name} escaped.");
 
                 return new HuntChoiceResult(
                     HuntEnded: true,
@@ -543,7 +551,7 @@ public static class HuntRunner
 
     private static HuntChoiceResult ProcessStop(HuntState state)
     {
-        state.Context.player.stealthManager.StopHunting(state.Context, "You abandon the hunt.");
+        GameDisplay.AddNarrative(state.Context, "You abandon the hunt.");
 
         return new HuntChoiceResult(
             HuntEnded: true,
@@ -627,4 +635,174 @@ public static class HuntRunner
             _ => (HuntOutcome.PreyFled, minutesSpent)
         };
     }
+
+    /// <summary>
+    /// Remove the killed animal from its persistent herd.
+    /// </summary>
+    private static void RemoveFromHerd(HuntState state)
+    {
+        if (state.HerdId == null) return;
+
+        var herd = state.Context.Herds.GetHerdById(state.HerdId.Value);
+        if (herd == null) return;
+
+        herd.RemoveMember(state.Target);
+
+        // Clean up empty herds
+        if (herd.IsEmpty)
+        {
+            state.Context.Herds.RemoveHerd(herd);
+        }
+    }
+
+    /// <summary>
+    /// Split a wounded animal off from its herd into a new herd of size 1.
+    /// The wounded animal flees away from the player.
+    /// </summary>
+    private static void SplitWoundedFromHerd(HuntState state)
+    {
+        if (state.HerdId == null) return;
+
+        var herd = state.Context.Herds.GetHerdById(state.HerdId.Value);
+        if (herd == null) return;
+
+        var ctx = state.Context;
+
+        // Calculate flee direction (away from player)
+        GridPosition fleeDirection;
+        if (ctx.Map != null)
+        {
+            var playerPos = ctx.Map.CurrentPosition;
+            var herdPos = herd.Position;
+
+            // Calculate direction away from player
+            int dx = herdPos.X - playerPos.X;
+            int dy = herdPos.Y - playerPos.Y;
+
+            // Normalize and move 1-2 tiles away
+            if (dx == 0 && dy == 0)
+            {
+                // Herd at player position - pick random direction
+                var directions = herdPos.GetCardinalNeighbors().ToList();
+                fleeDirection = directions.Count > 0
+                    ? directions[Utils.RandInt(0, directions.Count - 1)]
+                    : herdPos;
+            }
+            else
+            {
+                // Move away from player
+                int fleeX = herdPos.X + (dx != 0 ? Math.Sign(dx) : 0);
+                int fleeY = herdPos.Y + (dy != 0 ? Math.Sign(dy) : 0);
+                fleeDirection = new GridPosition(fleeX, fleeY);
+            }
+        }
+        else
+        {
+            // No map - just use herd's current position
+            fleeDirection = herd.Position;
+        }
+
+        // Split the wounded animal off
+        ctx.Herds.SplitWounded(herd, state.Target, fleeDirection);
+    }
+
+
+    /// <summary>
+    /// Attempt to approach the target animal, reducing distance and checking for detection.
+    /// </summary>
+    /// <returns>True if approach successful (not detected), false if detected</returns>
+    private static bool AttemptApproach(Location location, Animal animal, GameContext ctx)
+    {
+        if (!IsTargetValid(animal))
+            return false;
+
+        // Calculate approach distance
+        double approachDistance = HuntingCalculator.CalculateApproachDistance();
+        double newDistance = Math.Max(0, animal.DistanceFromPlayer - approachDistance);
+
+        GameDisplay.AddNarrative(ctx, $"You carefully move {approachDistance:F0}m closer...");
+
+        // Check for detection (uses traits + activity)
+        int huntingSkill = ctx.player.Skills.GetSkill("Hunting").Level;
+        double impairedMultiplier = 1.0;
+        if (AbilityCalculator.IsConsciousnessImpaired(ctx.player.GetCapacities().Consciousness))
+            impairedMultiplier *= 1.3;  // +30% detection when mentally impaired
+        if (AbilityCalculator.IsPerceptionImpaired(
+            AbilityCalculator.CalculatePerception(ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers())))
+            impairedMultiplier *= 1.3;  // +30% detection when senses are foggy
+        double detectionChance = HuntingCalculator.CalculateDetectionChanceWithTraits(
+            newDistance,
+            animal,
+            huntingSkill,
+            animal.FailedStealthChecks,
+            impairedMultiplier
+        );
+
+        double detectionRoll = Utils.RandDouble(0, 1);
+        bool detected = detectionRoll < detectionChance;
+        bool becameAlert = !detected && HuntingCalculator.ShouldBecomeAlert(detectionRoll, detectionChance);
+
+        // Update distance and activity (time passed during approach)
+        animal.DistanceFromPlayer = newDistance;
+        if (animal.CheckActivityChange(7, out var newActivity) && newActivity.HasValue)
+        {
+            GameDisplay.AddNarrative(ctx, $"The {animal.Name} shifts—now {animal.GetActivityDescription()}.");
+        }
+
+        // Handle detection results
+        if (detected)
+        {
+            animal.BecomeDetected();
+            GameDisplay.AddNarrative(ctx, $"The {animal.Name} spots you!");
+            HandleAnimalDetection(animal, location, ctx);
+            return false;
+        }
+        else if (becameAlert)
+        {
+            animal.BecomeAlert();
+            animal.FailedStealthChecks++;
+            GameDisplay.AddNarrative(ctx, $"The {animal.Name} becomes alert - it senses something nearby.");
+            GameDisplay.AddNarrative(ctx, $"New distance: {animal.DistanceFromPlayer:F0}m | State: {animal.State}");
+            return true;
+        }
+        else
+        {
+            GameDisplay.AddNarrative(ctx, $"You remain undetected.");
+            GameDisplay.AddNarrative(ctx, $"New distance: {animal.DistanceFromPlayer:F0}m | State: {animal.State}");
+            return true;
+        }
+    }
+
+    private static bool IsTargetValid(Animal? TargetAnimal)
+    {
+        if (TargetAnimal == null)
+            return false;
+
+        if (!TargetAnimal.IsAlive)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void HandleAnimalDetection(Animal animal, Location location, GameContext ctx)
+    {
+        // Check if animal should flee
+        if (animal.ShouldFlee(ctx.player))
+        {
+            GameDisplay.AddNarrative(ctx, $"The {animal.Name} flees!");
+            GameDisplay.AddNarrative(ctx, $"The {animal.Name} escaped.");
+        }
+        else
+        {
+            // Predator or cornered animal - attacks!
+            GameDisplay.AddDanger(ctx, $"The {animal.Name} attacks!");
+            ctx.player.IsEngaged = true;
+            animal.IsEngaged = true;
+            // Combat will be handled by existing combat system
+            GameDisplay.AddDanger(ctx, $"Combat initiated with {animal.Name}!");
+        }
+    }
+
 }

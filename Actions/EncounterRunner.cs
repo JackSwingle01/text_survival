@@ -21,8 +21,6 @@ public static class EncounterRunner
 {
     /// <summary>
     /// Handles a predator encounter. Returns outcome for caller to handle cleanup.
-    /// Does NOT call StealthManager - caller is responsible for that.
-    /// Expedition is nullable for reuse from events/travel.
     /// </summary>
     public static EncounterOutcome HandlePredatorEncounter(Animal predator, GameContext ctx)
     {

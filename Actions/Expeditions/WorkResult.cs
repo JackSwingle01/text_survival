@@ -12,7 +12,8 @@ public record WorkResult(
     Location? DiscoveredLocation,
     int MinutesElapsed,
     bool PlayerDied,
-    Animal? FoundAnimal = null  // Set by HuntStrategy when animal found - caller runs interactive hunt
+    Animal? FoundAnimal = null,  // Set by HuntStrategy when animal found - caller runs interactive hunt
+    Guid? FoundHerdId = null     // Set when animal came from persistent herd (for kill/wound tracking)
 )
 {
     public static WorkResult Empty(int minutes, bool died = false) =>

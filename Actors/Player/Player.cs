@@ -1,6 +1,5 @@
 using text_survival.Bodies;
 using text_survival.Effects;
-using text_survival.Items;
 using text_survival.Skills;
 using text_survival.Survival;
 
@@ -8,8 +7,6 @@ namespace text_survival.Actors.Player;
 
 public class Player : Actor
 {
-    public readonly StealthManager stealthManager;
-    public readonly HuntingManager huntingManager;
     public readonly SkillRegistry Skills;
 
     // Last survival delta and duration for UI trend display
@@ -64,8 +61,6 @@ public class Player : Actor
     public Player() : base("Player", Body.BaselinePlayerStats)
     {
         Name = "Player";
-        stealthManager = new(this);
-        huntingManager = new(this);
         Skills = new SkillRegistry();
     }
 }

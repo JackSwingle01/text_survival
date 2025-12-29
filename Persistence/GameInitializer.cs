@@ -17,6 +17,10 @@ public static class GameInitializer
         {
             Console.WriteLine($"Failed to load save: {error}");
         }
+
+        // Post-load: recreate non-serialized data
+        ctx?.Herds.RecreateAllMembers();
+
         return ctx;
     }
 

@@ -81,6 +81,10 @@ public static class SaveManager
         {
             string json = File.ReadAllText(path);
             var ctx = JsonSerializer.Deserialize<GameContext>(json, Options);
+
+            // Post-load: recreate non-serialized data
+            ctx?.Herds.RecreateAllMembers();
+
             return (ctx, null);
         }
         catch (Exception ex)
@@ -121,6 +125,9 @@ public static class SaveManager
 
         // Try deserialization too
         var deserialized = JsonSerializer.Deserialize<GameContext>(json, Options);
+
+        // Post-load: recreate non-serialized data
+        deserialized?.Herds.RecreateAllMembers();
 
         int locationCount = 0;
         if (deserialized?.Map != null)

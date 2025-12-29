@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -16,6 +17,21 @@ public class HuntStrategy : IWorkStrategy
 {
     public string? ValidateLocation(GameContext ctx, Location location)
     {
+        // Check if there are persistent herds nearby
+        if (ctx.Map != null)
+        {
+            var pos = ctx.Map.GetPosition(location);
+            if (pos.HasValue)
+            {
+                var nearbyHerds = ctx.Herds.GetHerdsInRange(pos.Value, 1);
+                if (nearbyHerds.Any(h => !h.IsPredator))
+                {
+                    return null; // Large game available
+                }
+            }
+        }
+
+        // Fall back to territory check for small game
         var territory = location.GetFeature<AnimalTerritoryFeature>();
         if (territory == null)
             return "There's no game to be found here.";
@@ -66,11 +82,36 @@ public class HuntStrategy : IWorkStrategy
 
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
-        var territory = location.GetFeature<AnimalTerritoryFeature>()!;
-
         GameDisplay.AddNarrative(ctx, "You scan the area for signs of game...");
 
-        // Search for game
+        // First, check herd registry for persistent large game
+        if (ctx.Map != null)
+        {
+            var pos = ctx.Map.GetPosition(location);
+            if (pos.HasValue)
+            {
+                var herdResult = ctx.Herds.SearchForLargeGame(pos.Value, actualTime);
+                if (herdResult.HasValue)
+                {
+                    var (herd, animal) = herdResult.Value;
+                    GameDisplay.AddNarrative(ctx, $"You spot {animal.GetTraitDescription()}.");
+                    GameDisplay.AddNarrative(ctx, $"It's {animal.GetActivityDescription()}.");
+
+                    // Return with FoundAnimal and HerdId set
+                    return new WorkResult([], null, actualTime, false, animal, herd.Id);
+                }
+            }
+        }
+
+        // Fall back to territory-based spawning for small game
+        var territory = location.GetFeature<AnimalTerritoryFeature>();
+        if (territory == null || !territory.CanHunt())
+        {
+            WebIO.ShowWorkResult(ctx, "Hunting", "You find no game. The area seems quiet.", []);
+            return WorkResult.Empty(actualTime);
+        }
+
+        // Search for small game
         var found = territory.SearchForGame(actualTime);
 
         // Perception impairment reduces effective search time by 25%
@@ -90,11 +131,11 @@ public class HuntStrategy : IWorkStrategy
             return WorkResult.Empty(actualTime);
         }
 
-        // Found an animal - no popup, hunt continues interactively
+        // Found a small animal - no popup, hunt continues interactively
         GameDisplay.AddNarrative(ctx, $"You spot {found.GetTraitDescription()}.");
         GameDisplay.AddNarrative(ctx, $"It's {found.GetActivityDescription()}.");
 
-        // Return with FoundAnimal set - caller handles interactive hunt
+        // Return with FoundAnimal set (no HerdId - spawned from territory)
         return new WorkResult([], null, actualTime, false, found);
     }
 }

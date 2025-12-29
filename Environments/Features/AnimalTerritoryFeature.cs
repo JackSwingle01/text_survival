@@ -110,14 +110,17 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     }
 
     /// <summary>
-    /// Search for game. Returns an animal if found, null otherwise.
+    /// Search for game. Returns a small game animal if found, null otherwise.
+    /// Large game (caribou, wolves, bears, etc.) come from persistent herds via HerdRegistry.
     /// Automatically consumes any temporary hunt bonus from game clues.
     /// </summary>
     /// <param name="minutesSearching">Time spent searching</param>
-    /// <returns>An Animal if found, null if search fails</returns>
+    /// <returns>A small game Animal if found, null if search fails</returns>
     public Animal? SearchForGame(int minutesSearching)
     {
-        if (_possibleAnimals.Count == 0) return null;
+        // Filter to small game only - large game comes from persistent herds
+        var smallGame = _possibleAnimals.Where(a => IsSmallGame(a.AnimalType)).ToList();
+        if (smallGame.Count == 0) return null;
 
         // Consume temporary bonus if any (from following game clues during foraging)
         double clueBonus = ConsumeHuntBonus();
@@ -130,8 +133,8 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
         if (!Utils.DetermineSuccess(searchChance))
             return null;
 
-        // Pick an animal based on spawn weights
-        var entry = SelectRandomAnimal();
+        // Pick a small game animal based on spawn weights
+        var entry = SelectRandomAnimalFrom(smallGame);
         if (entry == null) return null;
 
         return CreateAnimal(entry.AnimalType);
@@ -149,20 +152,25 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
 
     private AnimalSpawnEntry? SelectRandomAnimal()
     {
-        if (_possibleAnimals.Count == 0) return null;
+        return SelectRandomAnimalFrom(_possibleAnimals);
+    }
 
-        double totalWeight = _possibleAnimals.Sum(a => a.SpawnWeight);
+    private static AnimalSpawnEntry? SelectRandomAnimalFrom(List<AnimalSpawnEntry> animals)
+    {
+        if (animals.Count == 0) return null;
+
+        double totalWeight = animals.Sum(a => a.SpawnWeight);
         double roll = Random.Shared.NextDouble() * totalWeight;
 
         double cumulative = 0;
-        foreach (var entry in _possibleAnimals)
+        foreach (var entry in animals)
         {
             cumulative += entry.SpawnWeight;
             if (roll <= cumulative)
                 return entry;
         }
 
-        return _possibleAnimals.Last();
+        return animals.Last();
     }
 
     private static Animal? CreateAnimal(string animalType) => AnimalFactory.FromName(animalType);
@@ -373,6 +381,19 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
         return animalType.ToLower() switch
         {
             "wolf" or "bear" or "cave bear" or "hyena" => true,
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// Check if an animal type is small game (spawn-based hunting).
+    /// Large game (caribou, wolves, bears, etc.) come from persistent herds.
+    /// </summary>
+    private static bool IsSmallGame(string animalType)
+    {
+        return animalType.ToLower() switch
+        {
+            "rabbit" or "ptarmigan" or "fox" or "squirrel" or "grouse" or "fish" => true,
             _ => false
         };
     }

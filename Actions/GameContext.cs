@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Actors.Player;
 using text_survival.Actions.Tensions;
 using text_survival.Bodies;
@@ -72,6 +73,9 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     // Tension system for tracking building threats/opportunities
     public TensionRegistry Tensions { get; set; } = new();
+
+    // Herd registry for tracking persistent animals
+    public HerdRegistry Herds { get; set; } = new();
 
     /// <summary>Current activity for event condition checks.</summary>
     public ActivityType CurrentActivity { get; private set; } = ActivityType.Idle;
@@ -150,6 +154,9 @@ public class GameContext(Player player, Location camp, Weather weather)
         {
             Map.Weather = Weather;
         }
+
+        // Recreate non-serialized animal members for herds
+        Herds.RecreateAllMembers();
     }
 
     /// <summary>
@@ -188,6 +195,9 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         GameContext ctx = new GameContext(player, camp, weather);
         ctx.Map = map;
+
+        // Populate world with persistent animal herds
+        HerdPopulator.Populate(ctx.Herds, map);
 
         // Equip starting clothing
         ctx.Inventory.Equip(Gear.WornFurChestWrap());
@@ -506,6 +516,31 @@ public class GameContext(Player player, Location camp, Weather weather)
         }
 
         Tensions.Update(minutes, IsAtCamp);
+
+        // Update herds - they move and can detect player
+        if (Map != null)
+        {
+            bool carryingMeat = Inventory.Count(Resource.RawMeat) > 0 || Inventory.Count(Resource.CookedMeat) > 0;
+            bool isBleeding = player.EffectRegistry.HasEffect("Bleeding") || player.EffectRegistry.GetSeverity("Bloody") > 0.3;
+
+            var encounterHerd = Herds.Update(minutes, Map.CurrentPosition, carryingMeat, isBleeding);
+
+            // If a predator herd initiated an encounter, queue it
+            if (encounterHerd != null && _pendingEncounter == null)
+            {
+                var predator = encounterHerd.GetRandomMember();
+                if (predator != null)
+                {
+                    // Create encounter config from the herd's animal
+                    // (AnimalType, InitialDistance, InitialBoldness, Modifiers)
+                    _pendingEncounter = new EncounterConfig(
+                        encounterHerd.AnimalType,
+                        InitialDistance: 20, // Close - they were hunting
+                        InitialBoldness: 0.6 // Pack hunting is bold
+                    );
+                }
+            }
+        }
 
         // DeadlyCold auto-resolves when player reaches fire
         if (Tensions.HasTension("DeadlyCold") && Check(EventCondition.NearFire))

@@ -290,7 +290,7 @@ public partial class GameRunner(GameContext ctx)
             if (result.FoundAnimal != null)
             {
                 var (outcome, huntMinutes) = HuntRunner.Run(
-                    result.FoundAnimal, ctx.CurrentLocation, ctx);
+                    result.FoundAnimal, ctx.CurrentLocation, ctx, result.FoundHerdId);
 
                 // Time passage during hunt
                 if (huntMinutes > 0)
