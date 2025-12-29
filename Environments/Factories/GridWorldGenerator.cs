@@ -44,60 +44,55 @@ public class GridWorldGenerator
         [(0, 0), (1, 0), (2, 0), (1, 1)],            // quad_t
     ];
 
-    // Location type weights (same as ZoneGenerator)
-    private static readonly List<(Func<Weather, Location> Factory, double Weight)> LocationWeights =
+    // Location type weights with preferred terrain types
+    // null terrain means location can be placed anywhere
+    private static readonly List<(Func<Weather, Location> Factory, double Weight, TerrainType[]? PreferredTerrain)> LocationWeights =
     [
-        // Common locations
-        (LocationFactory.MakeForest, 40.0),
-        (LocationFactory.MakeClearing, 15.0),
-        (LocationFactory.MakeStoneScatter, 10.0),
-        (LocationFactory.MakeHillside, 8.0),
-        (LocationFactory.MakeRiverbank, 7.0),
-        (LocationFactory.MakePlain, 5.0),
+        // Forest locations
+        (LocationFactory.MakeForest, 40.0, [TerrainType.Forest]),
+        (LocationFactory.MakeDeadwoodGrove, 4.0, [TerrainType.Forest]),
+        (LocationFactory.MakeAncientGrove, 2.0, [TerrainType.Forest]),
+        (LocationFactory.MakeDenseThicket, 3.0, [TerrainType.Forest]),
+        (LocationFactory.MakeWolfDen, 1.5, [TerrainType.Forest]),
+        (LocationFactory.MakeBurntStand, 4.0, [TerrainType.Forest]),
 
-        // Moderate rarity
-        (LocationFactory.MakeFrozenCreek, 5.0),
-        (LocationFactory.MakeDeadwoodGrove, 4.0),
-        (LocationFactory.MakeMarsh, 4.0),
-        (LocationFactory.MakeShelteredValley, 3.0),
-        (LocationFactory.MakeOverlook, 3.0),
+        // Clearing/Plain locations
+        (LocationFactory.MakeClearing, 15.0, [TerrainType.Clearing, TerrainType.Plain]),
+        (LocationFactory.MakePlain, 5.0, [TerrainType.Plain, TerrainType.Clearing]),
+        (LocationFactory.MakeGameTrail, 4.0, [TerrainType.Clearing, TerrainType.Plain]),
+        (LocationFactory.MakeShelteredValley, 3.0, [TerrainType.Clearing, TerrainType.Forest]),
+        (LocationFactory.MakeSnowfieldHollow, 4.0, [TerrainType.Plain, TerrainType.Clearing]),
+        (LocationFactory.MakeAbandonedCamp, 0.5, [TerrainType.Clearing, TerrainType.Forest]),
+        (LocationFactory.MakeOldCampsite, 0.6, [TerrainType.Clearing, TerrainType.Forest]),
 
-        // Rare locations
-        (LocationFactory.MakeCave, 2.0),
-        (LocationFactory.MakeHotSpring, 1.5),
-        (LocationFactory.MakeWolfDen, 1.5),
-        (LocationFactory.MakeIceCrevasse, 0.5),
-        (LocationFactory.MakeAbandonedCamp, 0.5),
+        // Rock/Hills locations
+        (LocationFactory.MakeStoneScatter, 10.0, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeHillside, 8.0, [TerrainType.Hills]),
+        (LocationFactory.MakeOverlook, 3.0, [TerrainType.Hills, TerrainType.Rock]),
+        (LocationFactory.MakeCave, 2.0, [TerrainType.Rock]),
+        (LocationFactory.MakeRockOverhang, 3.0, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeGraniteOutcrop, 3.0, [TerrainType.Rock]),
+        (LocationFactory.MakeFlintSeam, 1.5, [TerrainType.Rock]),
+        (LocationFactory.MakeBoulderField, 2.5, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeRockyRidge, 1.5, [TerrainType.Hills, TerrainType.Rock]),
+        (LocationFactory.MakeBearCave, 0.5, [TerrainType.Rock]),
+        (LocationFactory.MakeTheLookout, 0.8, [TerrainType.Hills, TerrainType.Rock]),
+        (LocationFactory.MakeIceCrevasse, 0.5, [TerrainType.Rock]),
+        (LocationFactory.MakeBoneHollow, 3.5, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeWindGap, 3.5, [TerrainType.Hills]),
+        (LocationFactory.MakeSunWarmedCliff, 4.0, [TerrainType.Rock, TerrainType.Hills]),
 
-        // Tier 1 locations
-        (LocationFactory.MakeBurntStand, 4.0),
-        (LocationFactory.MakeRockOverhang, 3.0),
-        (LocationFactory.MakeGraniteOutcrop, 3.0),
-        (LocationFactory.MakeMeltwaterPool, 2.0),
+        // Water locations
+        (LocationFactory.MakeRiverbank, 7.0, [TerrainType.Water]),
+        (LocationFactory.MakeFrozenCreek, 5.0, [TerrainType.Water]),
+        (LocationFactory.MakeMeltwaterPool, 2.0, [TerrainType.Water]),
+        (LocationFactory.MakeBeaverDam, 1.0, [TerrainType.Water]),
+        (LocationFactory.MakeIceShelf, 4.0, [TerrainType.Water]),
+        (LocationFactory.MakeHotSpring, 1.5, [TerrainType.Water, TerrainType.Rock]),
 
-        // Tier 2 locations
-        (LocationFactory.MakeAncientGrove, 2.0),
-        (LocationFactory.MakeFlintSeam, 1.5),
-        (LocationFactory.MakeGameTrail, 4.0),
-        (LocationFactory.MakeDenseThicket, 3.0),
-        (LocationFactory.MakeBoulderField, 2.5),
-        (LocationFactory.MakeRockyRidge, 1.5),
-
-        // Tier 3 locations
-        (LocationFactory.MakeBearCave, 0.5),
-        (LocationFactory.MakeBeaverDam, 1.0),
-
-        // Tier 4 locations
-        (LocationFactory.MakeTheLookout, 0.8),
-        (LocationFactory.MakeOldCampsite, 0.6),
-
-        // New natural locations
-        (LocationFactory.MakePeatBog, 4.0),
-        (LocationFactory.MakeIceShelf, 4.0),
-        (LocationFactory.MakeBoneHollow, 3.5),
-        (LocationFactory.MakeWindGap, 3.5),
-        (LocationFactory.MakeSnowfieldHollow, 4.0),
-        (LocationFactory.MakeSunWarmedCliff, 4.0)
+        // Marsh locations
+        (LocationFactory.MakeMarsh, 4.0, [TerrainType.Marsh]),
+        (LocationFactory.MakePeatBog, 4.0, [TerrainType.Marsh])
     ];
 
     /// <summary>
@@ -161,47 +156,94 @@ public class GridWorldGenerator
     /// Layer 4: Hills (clusters in plains)
     /// Layer 5: Water (small clusters)
     /// Layer 6: Marsh (expands from water edges)
+    /// Rerolls if any terrain type has fewer than 10 tiles.
     /// </summary>
     private void GenerateLayeredTerrain()
     {
-        int seed = _rng.Next();
+        const int minTilesPerTerrain = 10;
+        const int maxAttempts = 20;
 
-        // Layer 1: Base terrain - Forest/Plain split using octave noise
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            int seed = _rng.Next();
+
+            // Layer 1: Base terrain - Forest/Plain split using octave noise
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    double noise = OctaveNoise(x, y, seed, scale: 8);
+                    _terrain[x, y] = noise > 0.5 ? TerrainType.Forest : TerrainType.Plain;
+                }
+            }
+
+            // Layer 2: Rock - scattered single tiles
+            int rockCount = _rng.Next(25, 41);
+            for (int i = 0; i < rockCount; i++)
+            {
+                var (x, y) = RandomPosition(avoidMountainRows: true);
+                if (_terrain[x, y] == TerrainType.Forest || _terrain[x, y] == TerrainType.Plain)
+                {
+                    _terrain[x, y] = TerrainType.Rock;
+                }
+            }
+
+            // Layer 3: Clearings - clusters placed in forest
+            int clearingClusters = _rng.Next(12, 21);
+            PlaceClusters(clearingClusters, TerrainType.Clearing, TerrainType.Forest, MediumShapes);
+
+            // Layer 4: Hills - clusters placed in plains
+            int hillClusters = _rng.Next(10, 17);
+            PlaceClusters(hillClusters, TerrainType.Hills, TerrainType.Plain, MediumShapes);
+
+            // Layer 5: Water - small clusters scattered
+            int waterFeatures = _rng.Next(10, 17);
+            PlaceClusters(waterFeatures, TerrainType.Water, null, SmallShapes,
+                allowedBase: [TerrainType.Forest, TerrainType.Plain, TerrainType.Clearing]);
+
+            // Layer 6: Marsh - expand from water edges
+            ExpandMarshFromWater();
+
+            // Validate terrain distribution
+            if (ValidateTerrainCounts(minTilesPerTerrain))
+                return; // Success - terrain is valid
+        }
+
+        // If we get here after max attempts, just use whatever we have
+    }
+
+    /// <summary>
+    /// Check that all passable terrain types have at least the minimum tile count.
+    /// </summary>
+    private bool ValidateTerrainCounts(int minCount)
+    {
+        var counts = new Dictionary<TerrainType, int>();
+
+        // Count tiles per terrain type (excluding mountain rows)
         for (int x = 0; x < Width; x++)
         {
-            for (int y = 0; y < Height; y++)
+            for (int y = MountainRows; y < Height; y++)
             {
-                double noise = OctaveNoise(x, y, seed, scale: 8);
-                _terrain[x, y] = noise > 0.5 ? TerrainType.Forest : TerrainType.Plain;
+                var terrain = _terrain[x, y];
+                if (!counts.ContainsKey(terrain))
+                    counts[terrain] = 0;
+                counts[terrain]++;
             }
         }
 
-        // Layer 2: Rock - scattered single tiles
-        int rockCount = _rng.Next(25, 41);
-        for (int i = 0; i < rockCount; i++)
+        // Check passable terrain types have minimum count
+        var requiredTypes = new[] {
+            TerrainType.Forest, TerrainType.Plain, TerrainType.Clearing,
+            TerrainType.Hills, TerrainType.Rock, TerrainType.Water, TerrainType.Marsh
+        };
+
+        foreach (var type in requiredTypes)
         {
-            var (x, y) = RandomPosition(avoidMountainRows: true);
-            if (_terrain[x, y] == TerrainType.Forest || _terrain[x, y] == TerrainType.Plain)
-            {
-                _terrain[x, y] = TerrainType.Rock;
-            }
+            if (!counts.TryGetValue(type, out int count) || count < minCount)
+                return false;
         }
 
-        // Layer 3: Clearings - clusters placed in forest
-        int clearingClusters = _rng.Next(12, 21);
-        PlaceClusters(clearingClusters, TerrainType.Clearing, TerrainType.Forest, MediumShapes);
-
-        // Layer 4: Hills - clusters placed in plains
-        int hillClusters = _rng.Next(10, 17);
-        PlaceClusters(hillClusters, TerrainType.Hills, TerrainType.Plain, MediumShapes);
-
-        // Layer 5: Water - small clusters scattered
-        int waterFeatures = _rng.Next(8, 15);
-        PlaceClusters(waterFeatures, TerrainType.Water, null, SmallShapes,
-            allowedBase: [TerrainType.Forest, TerrainType.Plain, TerrainType.Clearing]);
-
-        // Layer 6: Marsh - expand from water edges
-        ExpandMarshFromWater();
+        return true;
     }
 
     /// <summary>
@@ -492,7 +534,8 @@ public class GridWorldGenerator
     }
 
     /// <summary>
-    /// Place named locations across the map.
+    /// Place named locations across the map using terrain-aware selection.
+    /// Locations are matched to their preferred terrain types.
     /// </summary>
     private void PlaceNamedLocations(GameMap map, Weather weather, GridPosition campPos)
     {
@@ -506,7 +549,7 @@ public class GridWorldGenerator
 
             // Pick a random position
             int x = Utils.RandInt(0, Width - 1);
-            int y = Utils.RandInt(MinLocationSpacing, Height - 1);  // Avoid mountain range
+            int y = Utils.RandInt(MountainRows, Height - 1);  // Avoid mountain range
 
             var pos = new GridPosition(x, y);
             var location = map.GetLocationAt(pos);
@@ -519,11 +562,15 @@ public class GridWorldGenerator
             if (tooClose)
                 continue;
 
-            // Generate and place a location
-            var namedLocation = GenerateRandomLocation(weather);
+            // Get the terrain at this position and generate a matching location
+            var terrain = _terrain[x, y];
+            var namedLocation = GenerateLocationForTerrain(weather, terrain);
 
-            // Adjust terrain to match location type if needed
-            AdjustTerrainForLocation(namedLocation);
+            if (namedLocation == null)
+                continue; // No suitable location for this terrain
+
+            // Set the location's terrain type to match
+            namedLocation.Terrain = terrain;
 
             map.SetLocation(x, y, namedLocation);
             placedPositions.Add(pos);
@@ -531,38 +578,24 @@ public class GridWorldGenerator
     }
 
     /// <summary>
-    /// Set the location's terrain type to match its theme.
+    /// Generate a location that matches the given terrain type.
+    /// Uses weighted selection filtered to locations that prefer this terrain.
     /// </summary>
-    private void AdjustTerrainForLocation(Location location)
+    private Location? GenerateLocationForTerrain(Weather weather, TerrainType terrain)
     {
-        // Match terrain to location theme based on name/tags
-        string name = location.Name.ToLower();
-        string tags = location.Tags.ToLower();
+        // Filter to locations that prefer this terrain
+        var validLocations = LocationWeights
+            .Where(l => l.PreferredTerrain != null && l.PreferredTerrain.Contains(terrain))
+            .ToList();
 
-        if (name.Contains("creek") || name.Contains("river") || name.Contains("pool") || name.Contains("dam"))
-            location.Terrain = TerrainType.Water;
-        else if (name.Contains("marsh") || name.Contains("bog"))
-            location.Terrain = TerrainType.Marsh;
-        else if (name.Contains("cave") || name.Contains("crevasse") || name.Contains("boulder") || name.Contains("granite") || name.Contains("flint"))
-            location.Terrain = TerrainType.Rock;
-        else if (name.Contains("hill") || name.Contains("ridge") || name.Contains("overlook") || name.Contains("lookout"))
-            location.Terrain = TerrainType.Hills;
-        else if (name.Contains("clearing") || name.Contains("plain") || name.Contains("trail"))
-            location.Terrain = TerrainType.Clearing;
-        else if (tags.Contains("forest") || name.Contains("grove") || name.Contains("thicket") || name.Contains("forest"))
-            location.Terrain = TerrainType.Forest;
-    }
+        if (validLocations.Count == 0)
+            return null;
 
-    /// <summary>
-    /// Generate a random location using weighted selection.
-    /// </summary>
-    private Location GenerateRandomLocation(Weather weather)
-    {
-        double totalWeight = LocationWeights.Sum(w => w.Weight);
+        double totalWeight = validLocations.Sum(w => w.Weight);
         double roll = Utils.RandDouble(0, totalWeight);
 
         double cumulative = 0;
-        foreach (var (factory, weight) in LocationWeights)
+        foreach (var (factory, weight, _) in validLocations)
         {
             cumulative += weight;
             if (roll <= cumulative)
@@ -571,7 +604,8 @@ public class GridWorldGenerator
             }
         }
 
-        return LocationFactory.MakeForest(weather);
+        // Fallback to first valid location
+        return validLocations[0].Factory(weather);
     }
 
     /// <summary>
