@@ -32,10 +32,6 @@ public static class SurvivalProcessor
 
 	private enum TemperatureStage { Warm, Cool, Cold, Freezing, Hot }
 
-	/// <summary>
-	/// Pure function - processes survival simulation and returns result.
-	/// Does not mutate body or context.
-	/// </summary>
 	public static SurvivalProcessorResult Process(Body body, SurvivalContext context, int minutesElapsed)
 	{
 		var result = ProcessBaseNeeds(body, context, minutesElapsed);
@@ -325,10 +321,6 @@ public static class SurvivalProcessor
 
 	private const double SURVIVAL_EFFECT_THRESHOLD = 0.30;
 
-	/// <summary>
-	/// Generates Hungry, Thirsty, Tired effects when stats drop below 30%.
-	/// Severity scales from 0 at 30% to 1 at 0%.
-	/// </summary>
 	private static SurvivalProcessorResult ProcessSurvivalEffects(
 		double projectedCalories, double projectedHydration, double projectedEnergy)
 	{
@@ -427,10 +419,6 @@ public static class SurvivalProcessor
 		return TemperatureStage.Hot;
 	}
 
-	/// <summary>
-	/// Calculate hourly drying rate based on environmental conditions.
-	/// Higher values = faster drying.
-	/// </summary>
 	private static double CalculateDryingRate(SurvivalContext context)
 	{
 		double baseRate = 0;
@@ -453,10 +441,6 @@ public static class SurvivalProcessor
 		return baseRate;
 	}
 
-	/// <summary>
-	/// Process wetness accumulation and drying based on weather and context.
-	/// Returns Wet effect with updated severity.
-	/// </summary>
 	private static SurvivalProcessorResult ProcessWetness(SurvivalContext context, int minutesElapsed)
 	{
 		var result = new SurvivalProcessorResult();
@@ -496,10 +480,6 @@ public static class SurvivalProcessor
 		return result;
 	}
 
-	/// <summary>
-	/// Process bloody accumulation from bleeding.
-	/// Blood gradually soaks into clothing while actively bleeding.
-	/// </summary>
 	private static SurvivalProcessorResult ProcessBloody(SurvivalContext context, int minutesElapsed)
 	{
 		var result = new SurvivalProcessorResult();

@@ -6,15 +6,8 @@ using text_survival.Environments.Grid;
 
 namespace text_survival.Actions;
 
-/// <summary>
-/// Stateless service for checking event conditions against GameContext.
-/// Extracted from GameContext to reduce god object complexity.
-/// </summary>
 public static class ConditionChecker
 {
-    /// <summary>
-    /// Check if a specific event condition is true for the given game context.
-    /// </summary>
     public static bool Check(GameContext ctx, EventCondition condition)
     {
         return condition switch
@@ -206,9 +199,6 @@ public static class ConditionChecker
 
     // === CARCASS HELPERS ===
 
-    /// <summary>
-    /// Get the scent intensity of any carcass at the current location.
-    /// </summary>
     private static double GetCarcassScentIntensity(GameContext ctx)
     {
         var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
@@ -240,9 +230,6 @@ public static class ConditionChecker
     private static bool HasBaitedSnares(GameContext ctx) =>
         AnyLocationHasSnare(ctx, s => s.HasBaitedSnares);
 
-    /// <summary>
-    /// Determines if weather transitioned to a worse condition.
-    /// </summary>
     private static bool IsWeatherWorsening(Weather w)
     {
         if (w.PreviousCondition == null) return false;
@@ -264,9 +251,6 @@ public static class ConditionChecker
 
     // === SPATIAL HELPERS ===
 
-    /// <summary>
-    /// Get Manhattan distance from current position to camp.
-    /// </summary>
     private static int GetDistanceFromCamp(GameContext ctx)
     {
         if (ctx.Map == null) return 0;
@@ -275,9 +259,6 @@ public static class ConditionChecker
         return ctx.Map.CurrentPosition.ManhattanDistance(campPos.Value);
     }
 
-    /// <summary>
-    /// Check if any adjacent tile has the specified terrain type.
-    /// </summary>
     private static bool HasAdjacentTerrain(GameContext ctx, TerrainType terrain)
     {
         if (ctx.Map == null) return false;
@@ -289,9 +270,6 @@ public static class ConditionChecker
         return false;
     }
 
-    /// <summary>
-    /// Count adjacent tiles with the specified terrain type.
-    /// </summary>
     private static int CountAdjacentTerrain(GameContext ctx, TerrainType terrain)
     {
         if (ctx.Map == null) return 0;
@@ -304,9 +282,6 @@ public static class ConditionChecker
         return count;
     }
 
-    /// <summary>
-    /// Count passable adjacent tiles (exits from current location).
-    /// </summary>
     private static int CountPassableExits(GameContext ctx)
     {
         if (ctx.Map == null) return 4;

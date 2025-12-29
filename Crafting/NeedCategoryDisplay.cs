@@ -1,9 +1,5 @@
 namespace text_survival.Crafting;
 
-/// <summary>
-/// Single source of truth for NeedCategory display names.
-/// Used by both Web UI and console UI.
-/// </summary>
 public static class NeedCategoryDisplay
 {
     private static readonly Dictionary<NeedCategory, string> DisplayNames = new()

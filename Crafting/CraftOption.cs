@@ -2,10 +2,6 @@ using text_survival.Items;
 
 namespace text_survival.Crafting;
 
-/// <summary>
-/// Represents a single craftable option within a need category.
-/// Defines what materials are required and what tool is produced.
-/// </summary>
 public class CraftOption
 {
     public required string Name { get; init; }
@@ -14,49 +10,14 @@ public class CraftOption
     public required int CraftingTimeMinutes { get; init; }
     public required int Durability { get; init; }
 
-    /// <summary>
-    /// Material requirements as list of (MaterialName, Count).
-    /// MaterialName must match an aggregate in Inventory (e.g., "Sticks", "Stone", "Bone").
-    /// </summary>
     public required List<MaterialRequirement> Requirements { get; init; }
-
-    /// <summary>
-    /// Tool requirements - tools needed to craft this item (consume 1 durability per tool).
-    /// </summary>
     public List<ToolType> RequiredTools { get; init; } = [];
-
-    /// <summary>
-    /// Optional prerequisite check function. Returns error message if blocked, null if available.
-    /// Used for progression requirements (e.g., Stone Pit requires Mound Pit) or environmental constraints.
-    /// </summary>
     public Func<Actions.GameContext, string?>? Prerequisite { get; init; }
-
-    /// <summary>
-    /// Factory function to create the resulting gear (tools, equipment, accessories).
-    /// Receives durability value from recipe. Null if this recipe produces materials or features instead.
-    /// </summary>
     public Func<int, Gear>? GearFactory { get; init; }
-
-    /// <summary>
-    /// Factory function to create a camp feature (e.g., CuringRack).
-    /// Null if this recipe produces something else.
-    /// </summary>
     public Func<Environments.Features.LocationFeature>? FeatureFactory { get; init; }
-
-    /// <summary>
-    /// For processing recipes: materials to add to inventory instead of creating a tool.
-    /// List of (MaterialName, Count) to add.
-    /// </summary>
     public List<MaterialOutput>? MaterialOutputs { get; init; }
-
-    /// <summary>
-    /// For mending recipes: the equipment slot to repair.
-    /// </summary>
     public Items.EquipSlot? MendSlot { get; init; }
 
-    /// <summary>
-    /// Check if player has all required materials and tools.
-    /// </summary>
     public bool CanCraft(Inventory inventory)
     {
         foreach (var req in Requirements)
@@ -76,9 +37,6 @@ public class CraftOption
         return true;
     }
 
-    /// <summary>
-    /// Check requirements and return what's missing.
-    /// </summary>
     public (bool CanCraft, List<string> Missing) CheckRequirements(Inventory inventory)
     {
         var missing = new List<string>();
@@ -106,30 +64,11 @@ public class CraftOption
         return (missing.Count == 0, missing);
     }
 
-    /// <summary>
-    /// Whether this recipe produces materials instead of an item.
-    /// </summary>
     public bool ProducesMaterials => MaterialOutputs != null && MaterialOutputs.Count > 0;
-
-    /// <summary>
-    /// Whether this recipe produces gear (tools, equipment, or accessories).
-    /// </summary>
     public bool ProducesGear => GearFactory != null;
-
-    /// <summary>
-    /// Whether this recipe produces a camp feature.
-    /// </summary>
     public bool ProducesFeature => FeatureFactory != null;
-
-    /// <summary>
-    /// Whether this recipe mends equipment rather than creating items.
-    /// </summary>
     public bool IsMendingRecipe => MendSlot.HasValue;
 
-    /// <summary>
-    /// Consume materials and create the item.
-    /// Returns null if this recipe produces materials or features instead.
-    /// </summary>
     public Gear? Craft(Inventory inventory)
     {
         // Consume materials
@@ -178,10 +117,6 @@ public class CraftOption
         return GearFactory!(Durability);
     }
 
-    /// <summary>
-    /// Consume materials and create a camp feature.
-    /// Returns null if this recipe doesn't produce a feature.
-    /// </summary>
     public Environments.Features.LocationFeature? CraftFeature(Inventory inventory)
     {
         if (!ProducesFeature)
@@ -203,9 +138,6 @@ public class CraftOption
         return FeatureFactory!();
     }
 
-    /// <summary>
-    /// Add output materials to inventory based on type.
-    /// </summary>
     private static void AddMaterialToInventory(Inventory inv, MaterialOutput output)
     {
         for (int i = 0; i < output.Count; i++)
@@ -236,9 +168,6 @@ public class CraftOption
         }
     }
 
-    /// <summary>
-    /// Get a summary string for display (shows status).
-    /// </summary>
     public string GetRequirementsSummary(Inventory inventory)
     {
         var parts = new List<string>();
@@ -270,9 +199,6 @@ public class CraftOption
         return string.Join(", ", parts);
     }
 
-    /// <summary>
-    /// Get a short requirements list for display (just counts).
-    /// </summary>
     public string GetRequirementsShort()
     {
         var parts = Requirements.Select(r => $"{r.Count} {GetMaterialDisplayName(r.Material)}").ToList();
@@ -287,9 +213,6 @@ public class CraftOption
         return string.Join(", ", parts);
     }
 
-    /// <summary>
-    /// Get a description of what this recipe produces (for processing recipes).
-    /// </summary>
     public string GetOutputDescription()
     {
         if (MaterialOutputs == null || MaterialOutputs.Count == 0)
@@ -348,27 +271,14 @@ public class CraftOption
     };
 }
 
-/// <summary>
-/// Type-safe material specifier - either a specific Resource or a ResourceCategory.
-/// Prevents string matching bugs by using enum types directly.
-/// </summary>
 public abstract record MaterialSpecifier
 {
     public sealed record Specific(Resource Resource) : MaterialSpecifier;
     public sealed record Category(ResourceCategory Value) : MaterialSpecifier;
 
-    // Implicit conversions for clean recipe syntax
     public static implicit operator MaterialSpecifier(Resource r) => new Specific(r);
     public static implicit operator MaterialSpecifier(ResourceCategory c) => new Category(c);
 }
 
-/// <summary>
-/// A single material requirement for crafting.
-/// Uses type-safe MaterialSpecifier instead of strings.
-/// </summary>
 public record MaterialRequirement(MaterialSpecifier Material, int Count);
-
-/// <summary>
-/// Output material from a processing recipe.
-/// </summary>
 public record MaterialOutput(string Material, int Count, double WeightPerUnit = 0.1);
