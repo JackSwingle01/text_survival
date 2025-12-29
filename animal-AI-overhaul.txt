@@ -1623,3 +1623,169 @@ private void OnPlayerEnteredTile(GridPosition newPos, HerdUpdateContext ctx)
 | Prey spots predator first | Prey flees before attack |
 | Successful predator kill | CarcassFeature created, predator feeds |
 | Player witnesses NPC hunt | Narrative message displayed |
+
+---
+
+## Architectural Review & Refinements
+
+*Added after code review — preserves strategy pattern for extensibility.*
+
+### Design Decisions (Confirmed)
+
+1. **Feeding duration** — 90 minutes at kill before resuming behavior
+2. **HerdId in tensions** — Yes, track specific herd for narrative continuity
+3. **Bear foraging** — Yes, bears reduce hunger via foraging (omnivore behavior)
+4. **Witness narratives** — Show when player is in same tile
+
+### Serialization Strategy for IHerdBehavior
+
+The `IHerdBehavior` interface can't be serialized directly. Solution: serialize a `BehaviorType` enum and recreate behaviors from factory on load (same pattern as `Animal` members).
+
+```csharp
+// Add to Herd.cs
+public enum HerdBehaviorType { Prey, PackPredator, SolitaryPredator }
+
+[JsonInclude]
+public HerdBehaviorType BehaviorType { get; private set; }
+
+[JsonIgnore]  // Not serialized — recreated on load
+public IHerdBehavior Behavior { get; private set; }
+
+// Call after deserialization
+public void RecreateBehavior()
+{
+    Behavior = BehaviorType switch
+    {
+        HerdBehaviorType.Prey => new PreyBehavior(),
+        HerdBehaviorType.PackPredator => new PackPredatorBehavior(),
+        HerdBehaviorType.SolitaryPredator => new SolitaryPredatorBehavior(),
+        _ => throw new InvalidOperationException($"Unknown behavior type: {BehaviorType}")
+    };
+}
+```
+
+In `HerdRegistry.RecreateAllMembers()`:
+```csharp
+public void RecreateAllMembers()
+{
+    foreach (var herd in _herds)
+    {
+        herd.RecreateMembers();
+        herd.RecreateBehavior();  // NEW
+    }
+}
+```
+
+### Simplification: Skip Movement Accumulator
+
+Cut `MovementAccumulatorMinutes` — use probability-based movement instead:
+
+```csharp
+// In PreyBehavior, instead of accumulator:
+private void TryMoveWithinTerritory(Herd herd, HerdUpdateContext ctx)
+{
+    if (herd.Territory.Count == 0) return;
+
+    // Grazing: 20% chance per tick to move to next territory tile
+    if (Random.Shared.NextDouble() < 0.2)
+    {
+        herd.TerritoryIndex = (herd.TerritoryIndex + 1) % herd.Territory.Count;
+        herd.Position = herd.Territory[herd.TerritoryIndex];
+    }
+}
+```
+
+Players won't notice realistic traversal timing — herds move while player does other things.
+
+### Simplification: Skip HerdUpdateContext
+
+Pass `GameContext` directly to behaviors:
+
+```csharp
+public interface IHerdBehavior
+{
+    HerdUpdateResult Update(Herd herd, int elapsedMinutes, GameContext ctx);
+    void TriggerFlee(Herd herd, GridPosition threatSource, GameContext ctx);
+    double GetVisibilityFactor(Herd herd);
+}
+```
+
+Benefits:
+- No DTO construction every tick
+- Access full game state when needed
+- Still testable via GameContext mocking
+
+### Add HerdState.Feeding
+
+Extend existing enum for feeding predators:
+
+```csharp
+public enum HerdState
+{
+    Resting, Grazing, Patrolling, Alert, Fleeing, Hunting,
+    Feeding  // NEW: predators at a kill, 90 min duration
+}
+```
+
+### Carcass Creation Flow
+
+When predators kill prey, return result for registry to process:
+
+```csharp
+// In HerdUpdateResult
+public Animal? CarcassAnimal { get; init; }
+public GridPosition? CarcassPosition { get; init; }
+
+// In HerdRegistry.Update()
+foreach (var result in results)
+{
+    if (result.CarcassAnimal != null && result.CarcassPosition != null)
+    {
+        var location = ctx.Map.GetLocation(result.CarcassPosition.Value);
+        location.AddFeature(new CarcassFeature(result.CarcassAnimal));
+    }
+}
+```
+
+### Implementation Order (Revised)
+
+Given existing `Herd.cs`, `HerdRegistry.cs`, `HerdPopulator.cs` already exist:
+
+**Phase 1: Behavior Infrastructure**
+1. Create `IHerdBehavior.cs` interface
+2. Create `HerdUpdateResult.cs` record
+3. Add `BehaviorType` enum and property to `Herd.cs`
+4. Add `HerdState.Feeding` to enum
+
+**Phase 2: Behavior Implementations**
+5. Create `PreyBehavior.cs` (~80 lines)
+6. Create `PackPredatorBehavior.cs` (~150 lines)
+7. Create `SolitaryPredatorBehavior.cs` (~100 lines)
+8. Create `PredatorPreyResolver.cs` (~50 lines)
+
+**Phase 3: Integration**
+9. Move state machine logic from `Herd.Update()` to behaviors
+10. Update `HerdRegistry.Update()` to call `herd.Behavior.Update()`
+11. Process `HerdUpdateResult` for carcasses and narratives
+12. Add serialization support (BehaviorType + RecreateBehavior)
+
+**Phase 4: Cleanup**
+13. Remove cross-tile detection from `Herd.cs`
+14. Add per-minute same-tile detection in behaviors
+15. Update `HerdPopulator` to set `BehaviorType`
+16. Add `HerdId` to `ActiveTension`
+
+### Files Summary
+
+| File | Action |
+|------|--------|
+| `Actors/Animals/Herd.cs` | Add BehaviorType, IHerdBehavior, RecreateBehavior(), Feeding state |
+| `Actors/Animals/HerdRegistry.cs` | Call behaviors, process results, recreate behaviors on load |
+| `Actors/Animals/HerdPopulator.cs` | Set BehaviorType per species |
+| `Actions/Tensions/ActiveTension.cs` | Add HerdId, LastKnownPosition |
+| `Actors/Animals/IHerdBehavior.cs` | NEW: Interface |
+| `Actors/Animals/HerdUpdateResult.cs` | NEW: Result record |
+| `Actors/Animals/Behaviors/PreyBehavior.cs` | NEW |
+| `Actors/Animals/Behaviors/PackPredatorBehavior.cs` | NEW |
+| `Actors/Animals/Behaviors/SolitaryPredatorBehavior.cs` | NEW |
+| `Actors/Animals/PredatorPreyResolver.cs` | NEW |
