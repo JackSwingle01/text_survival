@@ -2,14 +2,7 @@ using text_survival.Bodies;
 
 namespace text_survival.Effects;
 
-/// <summary>
-/// Effects represent ongoing PROCESSES, not structural damage.
-/// - Body.Damage() for physical injuries (cuts, bruises, mauling)
-/// - Effects for processes (bleeding, infection, temperature conditions, sprains)
-///
-/// Structural injuries (cuts, bruises, mauling) are body part damage, not effects.
-/// Effects are things that happen over time: bleeding, frostbite, hypothermia, fear.
-/// </summary>
+// Use Body.Damage() for structural injuries, EffectFactory for ongoing processes.
 public static class EffectFactory
 {
     public static Effect Cold(double degreesPerHour, int durationMinutes) => new()
@@ -81,10 +74,6 @@ public static class EffectFactory
         RemovalMessage = $"The feeling is returning to your {bodyPart.ToString().ToLower()}."
     };
 
-    /// <summary>
-    /// Consolidated frostbite effect for extremities (no specific body part).
-    /// Uses escalating threshold messages instead of 4 separate effects.
-    /// </summary>
     public static Effect Frostbite(double severity) => new()
     {
         EffectKind = "Frostbite",
@@ -126,10 +115,6 @@ public static class EffectFactory
         ApplicationMessage = "Fear grips you."
     };
 
-    /// <summary>
-    /// Shaken - milder psychological effect from unsettling events.
-    /// Less severe than Fear, fades faster.
-    /// </summary>
     public static Effect Shaken(double severity) => new()
     {
         EffectKind = "Shaken",
@@ -139,10 +124,6 @@ public static class EffectFactory
         ApplicationMessage = "Your hands are trembling."
     };
 
-    /// <summary>
-    /// Exhausted - from prolonged exertion or stress.
-    /// Reduces movement and manipulation capacity.
-    /// </summary>
     public static Effect Exhausted(double severity, int durationMinutes = 60) => new()
     {
         EffectKind = "Exhausted",
@@ -154,11 +135,6 @@ public static class EffectFactory
         ApplicationMessage = "You're exhausted."
     };
 
-    /// <summary>
-    /// Nauseous - from bad food, dehydration, or stress.
-    /// Affects digestion and consciousness. At high severity, causes vomiting (hydration loss).
-    /// Mild nausea fades naturally; severe nausea (gut sickness) requires treatment.
-    /// </summary>
     public static Effect Nauseous(double severity, int durationMinutes = 60, bool fromContamination = false) => new()
     {
         EffectKind = "Nauseous",
@@ -182,15 +158,8 @@ public static class EffectFactory
         ]
     };
 
-    /// <summary>
-    /// Gut sickness variant - contaminated food/water. Worsens without treatment.
-    /// </summary>
     public static Effect GutSickness(double severity) => Nauseous(severity, fromContamination: true);
 
-    /// <summary>
-    /// Coughing - from smoke inhalation or illness.
-    /// Affects breathing capacity.
-    /// </summary>
     public static Effect Coughing(double severity, int durationMinutes = 60) => new()
     {
         EffectKind = "Coughing",
@@ -200,14 +169,6 @@ public static class EffectFactory
         ApplicationMessage = "You can't stop coughing."
     };
 
-    // AnimalAttack (Mauled) removed - this is now body part damage.
-    // Use Body.Damage() with DamageType.Sharp and high damage amount.
-    // Bleeding is triggered automatically from the damage if skin is broken.
-
-    /// <summary>
-    /// Bleeding effect - triggered automatically by sharp/pierce damage to skin.
-    /// Drains Blood via DamageType.Bleed at 3000ml/hour at full severity (~50 min to death).
-    /// </summary>
     public static Effect Bleeding(double severity) => new()
     {
         EffectKind = "Bleeding",
@@ -220,10 +181,6 @@ public static class EffectFactory
         RemovalMessage = "The bleeding has stopped."
     };
 
-    /// <summary>
-    /// Pain - triggered automatically by physical damage.
-    /// Reduces Manipulation, Consciousness, and Perception. Fades naturally.
-    /// </summary>
     public static Effect Pain(double severity) => new()
     {
         EffectKind = "Pain",
@@ -243,12 +200,6 @@ public static class EffectFactory
         ]
     };
 
-    // === SURVIVAL STAT EFFECTS ===
-
-    /// <summary>
-    /// Hungry - triggered when calories drop below 30%.
-    /// At full severity (0% calories): -35% Moving, -35% Manipulation, -15% Consciousness
-    /// </summary>
     public static Effect Hungry(double severity) => new()
     {
         EffectKind = "Hungry",
@@ -262,10 +213,6 @@ public static class EffectFactory
         RemovalMessage = "You feel better after eating."
     };
 
-    /// <summary>
-    /// Thirsty - triggered when hydration drops below 30%.
-    /// At full severity (0% hydration): -40% Moving, -25% Manipulation, -45% Consciousness
-    /// </summary>
     public static Effect Thirsty(double severity) => new()
     {
         EffectKind = "Thirsty",
@@ -279,10 +226,6 @@ public static class EffectFactory
         RemovalMessage = "Your thirst is quenched."
     };
 
-    /// <summary>
-    /// Tired - triggered when energy drops below 30%.
-    /// At full severity (0% energy): -45% Moving, -30% Manipulation, -45% Consciousness, reduced Perception
-    /// </summary>
     public static Effect Tired(double severity) => new()
     {
         EffectKind = "Tired",
@@ -298,10 +241,6 @@ public static class EffectFactory
         RemovalMessage = "You feel refreshed after resting."
     };
 
-    /// <summary>
-    /// Sore - minor muscle pain from exertion.
-    /// Mild movement penalty, fades relatively quickly.
-    /// </summary>
     public static Effect Sore(double severity, int durationMinutes = 120) => new()
     {
         EffectKind = "Sore",
@@ -311,10 +250,6 @@ public static class EffectFactory
         ApplicationMessage = "Your muscles ache."
     };
 
-    /// <summary>
-    /// Paranoid - heightened psychological stress.
-    /// More severe and longer-lasting than Fear.
-    /// </summary>
     public static Effect Paranoid(double severity) => new()
     {
         EffectKind = "Paranoid",
@@ -326,12 +261,6 @@ public static class EffectFactory
         ApplicationMessage = "You can't shake the feeling you're being watched."
     };
 
-    // === POSITIVE EFFECTS (BUFFS) ===
-
-    /// <summary>
-    /// Warmed - positive temperature effect from fire or shelter.
-    /// Helps maintain body temperature.
-    /// </summary>
     public static Effect Warmed(double severity, int durationMinutes = 30) => new()
     {
         EffectKind = "Warmed",
@@ -341,10 +270,6 @@ public static class EffectFactory
         ApplicationMessage = "You feel warm and comfortable."
     };
 
-    /// <summary>
-    /// Rested - positive effect from adequate sleep.
-    /// Reduces fatigue penalties.
-    /// </summary>
     public static Effect Rested(double severity, int durationMinutes = 120) => new()
     {
         EffectKind = "Rested",
@@ -356,10 +281,6 @@ public static class EffectFactory
         ApplicationMessage = "You feel well-rested."
     };
 
-    /// <summary>
-    /// Focused - mental clarity from successful actions.
-    /// Improves manipulation and consciousness.
-    /// </summary>
     public static Effect Focused(double severity, int durationMinutes = 60) => new()
     {
         EffectKind = "Focused",
@@ -371,10 +292,6 @@ public static class EffectFactory
         ApplicationMessage = "Your mind is sharp and focused."
     };
 
-    /// <summary>
-    /// Hardened - toughened from surviving hardship.
-    /// Minor bonus to all physical capacities.
-    /// </summary>
     public static Effect Hardened(double severity, int durationMinutes = 360) => new()
     {
         EffectKind = "Hardened",
@@ -387,9 +304,6 @@ public static class EffectFactory
         ApplicationMessage = "You feel toughened by your experiences."
     };
 
-    /// <summary>
-    /// Energized - temporary boost from quick sugar/calories (honey, dried fruit).
-    /// </summary>
     public static Effect Energized(double severity, int durationMinutes = 20) => new()
     {
         EffectKind = "Energized",
@@ -401,10 +315,6 @@ public static class EffectFactory
         ApplicationMessage = "Sugar energy courses through you."
     };
 
-    /// <summary>
-    /// Nourished - well-fed with vitamins and nutrients.
-    /// Boosts body regeneration rate. From vitamin-rich foods like rose hips.
-    /// </summary>
     public static Effect Nourished(double severity = 1.0, int durationMinutes = 180) => new()
     {
         EffectKind = "Nourished",
@@ -415,10 +325,6 @@ public static class EffectFactory
         RemovalMessage = "The nourishing warmth fades."
     };
 
-    /// <summary>
-    /// Burn - tissue damage from heat.
-    /// Causes pain and manipulation penalty. Heals slowly.
-    /// </summary>
     public static Effect Burn(double severity, int durationMinutes = 180) => new()
     {
         EffectKind = "Burn",
@@ -431,10 +337,6 @@ public static class EffectFactory
         RemovalMessage = "The burn has healed."
     };
 
-    /// <summary>
-    /// Stiff - joint and muscle stiffness from cold, strain, or old injuries.
-    /// Reduces movement speed. Common in prolonged cold exposure.
-    /// </summary>
     public static Effect Stiff(double severity, int durationMinutes = 360) => new()
     {
         EffectKind = "Stiff",
@@ -445,11 +347,6 @@ public static class EffectFactory
         RemovalMessage = "The stiffness has faded."
     };
 
-    /// <summary>
-    /// Inflamed - localized wound infection warning.
-    /// Early warning stage before fever develops. Treating now prevents fever arc.
-    /// Hot, red, swelling around wound. Mild penalties, natural decay.
-    /// </summary>
     public static Effect Inflamed(double severity, int durationMinutes = 480) => new()
     {
         EffectKind = "Inflamed",
@@ -468,11 +365,6 @@ public static class EffectFactory
         ]
     };
 
-    /// <summary>
-    /// Fever - systemic infection response.
-    /// Severe penalties to consciousness, movement, and manipulation.
-    /// Requires treatment; can be fatal if untreated.
-    /// </summary>
     public static Effect Fever(double severity) => new()
     {
         EffectKind = "Fever",
@@ -492,10 +384,6 @@ public static class EffectFactory
         ]
     };
 
-    /// <summary>
-    /// Clumsy - reduced fine motor control from cold, shaking, or other impairment.
-    /// Affects manipulation capacity.
-    /// </summary>
     public static Effect Clumsy(double severity, int durationMinutes = 60) => new()
     {
         EffectKind = "Clumsy",
@@ -505,11 +393,6 @@ public static class EffectFactory
         ApplicationMessage = "Your hands are clumsy and uncoordinated."
     };
 
-    /// <summary>
-    /// Dazed - head trauma causing disorientation and sensory impairment.
-    /// Triggered by blunt damage to head or severe impacts (falls, accidents).
-    /// Reduces perception (sight/hearing) and consciousness.
-    /// </summary>
     public static Effect Dazed(double severity) => new()
     {
         EffectKind = "Dazed",
@@ -526,12 +409,6 @@ public static class EffectFactory
         ]
     };
 
-    /// <summary>
-    /// Wet - soaked clothing and skin reduces insulation effectiveness.
-    /// Makes you more vulnerable to hypothermia and cold damage.
-    /// Severity determines insulation loss: 70% at full wetness.
-    /// Wetness accumulates from precipitation and dries based on fire, temperature, wind.
-    /// </summary>
     public static Effect Wet(double severity) => new()
     {
         EffectKind = "Wet",
@@ -547,11 +424,6 @@ public static class EffectFactory
         ]
     };
 
-    /// <summary>
-    /// Bloody - covered in blood from butchering or combat.
-    /// Attracts predators (affects boldness and event weights).
-    /// Requires washing with water to remove. Washing adds wetness.
-    /// </summary>
     public static Effect Bloody(double severity) => new()
     {
         EffectKind = "Bloody",
@@ -575,10 +447,6 @@ public static class EffectFactory
         return container;
     }
 
-    /// <summary>
-    /// Create an effect by name. Used by TreatmentHandler for buff effects.
-    /// Returns null if effect name is not recognized.
-    /// </summary>
     public static Effect? Create(string effectKind, double severity = 1.0)
     {
         return effectKind.ToLower() switch

@@ -1,18 +1,7 @@
 namespace text_survival.Items;
 
-/// <summary>
-/// Category of gear - determines storage pattern and relevant properties.
-/// </summary>
-public enum GearCategory
-{
-    Tool,       // List storage, ToolType required
-    Equipment,  // Slot storage (one per slot), insulation
-    Accessory   // List storage, capacity bonus
-}
+public enum GearCategory { Tool, Equipment, Accessory }
 
-/// <summary>
-/// Type of tool - determines functionality.
-/// </summary>
 public enum ToolType
 {
     Axe,
@@ -36,9 +25,6 @@ public enum ToolType
     EmberCarrier // Portable smoldering ember for fire transport
 }
 
-/// <summary>
-/// Equipment slot for worn gear.
-/// </summary>
 public enum EquipSlot
 {
     Head,
@@ -48,22 +34,8 @@ public enum EquipSlot
     Hands
 }
 
-/// <summary>
-/// Weapon class for combat mechanics.
-/// </summary>
-public enum WeaponClass
-{
-    Blade,      // Slashing attacks (axes, knives)
-    Blunt,      // Crushing attacks (clubs)
-    Pierce,     // Piercing attacks (spears)
-    Claw,       // Animal natural weapons
-    Unarmed     // Bare fists
-}
+public enum WeaponClass { Blade, Blunt, Pierce, Claw, Unarmed }
 
-/// <summary>
-/// Unified discrete item class. Tools, equipment, and accessories srabbit
-/// durability mechanics while maintaining category-specific properties.
-/// </summary>
 public class Gear
 {
     // === Core Properties (all items) ===
@@ -72,24 +44,12 @@ public class Gear
     public GearCategory Category { get; init; }
 
     // === Durability (all items) ===
-    /// <summary>
-    /// Uses remaining before gear breaks. -1 = infinite durability. 0 = broken.
-    /// </summary>
-    public int Durability { get; set; } = -1;
-
-    /// <summary>
-    /// Maximum durability for calculating condition percentage.
-    /// Set when crafted. -1 = infinite.
-    /// </summary>
+    public int Durability { get; set; } = -1;  // -1=infinite, 0=broken
     public int MaxDurability { get; init; } = -1;
 
     public bool IsBroken => Durability == 0;
     public bool Works => Durability != 0;
 
-    /// <summary>
-    /// Condition as 0-1 percentage. Used for insulation degradation.
-    /// Infinite durability items always return 1.0. Broken items return 0.
-    /// </summary>
     public double ConditionPct
     {
         get
@@ -100,10 +60,6 @@ public class Gear
         }
     }
 
-    /// <summary>
-    /// Use the gear once, decrementing durability.
-    /// Returns true if gear is still usable.
-    /// </summary>
     public bool Use()
     {
         if (Durability == -1) return true;  // Infinite
@@ -112,10 +68,6 @@ public class Gear
         return Durability > 0;
     }
 
-    /// <summary>
-    /// Repair the gear by the specified amount.
-    /// Cannot exceed MaxDurability.
-    /// </summary>
     public void Repair(int amount)
     {
         if (MaxDurability <= 0) return;  // Can't repair infinite durability items
@@ -123,44 +75,14 @@ public class Gear
     }
 
     // === Tool-Specific ===
-    /// <summary>
-    /// Tool type for category=Tool. Null for equipment/accessories.
-    /// </summary>
     public ToolType? ToolType { get; init; }
 
     // === Treatment-Specific (ToolType.Treatment) ===
-    /// <summary>
-    /// Effect kind this treatment targets (e.g., "Bleeding", "Pain", "Fever").
-    /// Null if not a treatment or doesn't treat an existing effect.
-    /// </summary>
     public string? TreatsEffect { get; init; }
-
-    /// <summary>
-    /// How much to reduce the target effect's severity (0-1 scale).
-    /// 0.5 = 50% reduction.
-    /// </summary>
     public double EffectReduction { get; init; }
-
-    /// <summary>
-    /// Description shown when applying this treatment.
-    /// </summary>
     public string? TreatmentDescription { get; init; }
-
-    /// <summary>
-    /// Effect to grant when consumed (e.g., "Nourished" buff).
-    /// Null if treatment only reduces existing effects.
-    /// </summary>
     public string? GrantsEffect { get; init; }
-
-    /// <summary>
-    /// Secondary effect this treatment targets (for dual-effect treatments).
-    /// Null if treatment only targets one effect.
-    /// </summary>
     public string? SecondaryTreatsEffect { get; init; }
-
-    /// <summary>
-    /// How much to reduce the secondary effect's severity (0-1 scale).
-    /// </summary>
     public double SecondaryEffectReduction { get; init; }
 
     // === Combat (optional, for weapon-tools) ===
@@ -170,58 +92,19 @@ public class Gear
     public bool IsWeapon => Damage.HasValue;
 
     // === Equipment-Specific ===
-    /// <summary>
-    /// Equipment slot for category=Equipment. Null for tools/accessories.
-    /// </summary>
     public EquipSlot? Slot { get; init; }
-
-    /// <summary>
-    /// Base insulation value (when new). Range 0-1.
-    /// </summary>
     public double BaseInsulation { get; init; }
-
-    /// <summary>
-    /// Effective insulation accounting for wear.
-    /// Degrades linearly with condition.
-    /// </summary>
     public double Insulation => BaseInsulation * ConditionPct;
 
     // === Waterproofing (Equipment) ===
-    /// <summary>
-    /// Base waterproof level from material (0-1).
-    /// Raw hide = 0.1, cured hide = 0.3, mammoth = 0.4.
-    /// </summary>
     public double BaseWaterproofLevel { get; init; }
-
-    /// <summary>
-    /// Remaining uses of resin waterproofing treatment.
-    /// 0 = not treated, >0 = uses remaining before treatment wears off.
-    /// </summary>
     public int ResinTreatmentDurability { get; set; }
-
-    /// <summary>
-    /// Whether this equipment has active resin waterproofing.
-    /// </summary>
     public bool IsResinTreated => ResinTreatmentDurability > 0;
-
-    /// <summary>
-    /// Total waterproof level including base material + treatment bonus.
-    /// Treatment adds +0.3 when active. Capped at 1.0.
-    /// </summary>
     public double TotalWaterproofLevel => Math.Min(1.0,
         BaseWaterproofLevel + (IsResinTreated ? 0.3 : 0));
 
-    /// <summary>
-    /// Apply resin waterproofing treatment to this equipment.
-    /// </summary>
-    public void ApplyResinTreatment(int durability = 50)
-    {
-        ResinTreatmentDurability = durability;
-    }
+    public void ApplyResinTreatment(int durability = 50) => ResinTreatmentDurability = durability;
 
-    /// <summary>
-    /// Tick down resin treatment durability (called when equipment is worn in wet conditions).
-    /// </summary>
     public void TickResinTreatment()
     {
         if (ResinTreatmentDurability > 0)
@@ -229,51 +112,18 @@ public class Gear
     }
 
     // === Accessory-Specific ===
-    /// <summary>
-    /// Carrying capacity bonus in kg. Only used for category=Accessory.
-    /// </summary>
     public double CapacityBonusKg { get; init; }
 
     // === Tent-Specific (ToolType.Tent) ===
-    /// <summary>
-    /// Temperature insulation provided when deployed (0-1 scale).
-    /// </summary>
     public double ShelterTempInsulation { get; init; }
-
-    /// <summary>
-    /// Overhead coverage when deployed (0-1 scale, blocks precipitation).
-    /// </summary>
     public double ShelterOverheadCoverage { get; init; }
-
-    /// <summary>
-    /// Wind coverage when deployed (0-1 scale, blocks wind chill).
-    /// </summary>
     public double ShelterWindCoverage { get; init; }
-
-    /// <summary>
-    /// Whether this item is a deployable tent.
-    /// </summary>
     public bool IsTent => ToolType == Items.ToolType.Tent;
 
     // === Ember Carrier-Specific (ToolType.EmberCarrier) ===
-    /// <summary>
-    /// Maximum burn time in hours when fully lit.
-    /// </summary>
     public double EmberBurnHoursMax { get; init; }
-
-    /// <summary>
-    /// Remaining burn time in hours. 0 = unlit or exhausted.
-    /// </summary>
     public double EmberBurnHoursRemaining { get; set; }
-
-    /// <summary>
-    /// Whether this ember carrier is currently lit and smoldering.
-    /// </summary>
     public bool IsEmberLit => EmberBurnHoursRemaining > 0;
-
-    /// <summary>
-    /// Whether this item is an ember carrier.
-    /// </summary>
     public bool IsEmberCarrier => ToolType == Items.ToolType.EmberCarrier;
 
     // === Display ===
@@ -313,7 +163,6 @@ public class Gear
 
     // === Tool Factory Methods ===
 
-    /// <summary>Stone axe - chops wood AND fights (Damage 12, Blade)</summary>
     public static Gear Axe(string name = "Stone Axe", int durability = -1) => new()
     {
         Name = name,
@@ -327,7 +176,6 @@ public class Gear
         WeaponClass = Items.WeaponClass.Blade
     };
 
-    /// <summary>Flint knife - cuts AND fights (Damage 6, Blade)</summary>
     public static Gear Knife(string name = "Flint Knife", int durability = -1) => new()
     {
         Name = name,
@@ -341,7 +189,6 @@ public class Gear
         WeaponClass = Items.WeaponClass.Blade
     };
 
-    /// <summary>Fire striker - utility only, no combat stats</summary>
     public static Gear FireStriker(string name = "Fire Striker", int durability = -1) => new()
     {
         Name = name,
@@ -352,7 +199,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    /// <summary>Hand drill - primitive friction fire-starter</summary>
     public static Gear HandDrill(string name = "Hand Drill", int durability = -1) => new()
     {
         Name = name,
@@ -363,7 +209,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    /// <summary>Bow drill - better friction fire-starter</summary>
     public static Gear BowDrill(string name = "Bow Drill", int durability = -1) => new()
     {
         Name = name,
@@ -374,7 +219,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    /// <summary>Water container - utility only, no combat stats</summary>
     public static Gear WaterContainer(string name = "Waterskin", double weight = 0.3, int durability = -1) => new()
     {
         Name = name,
@@ -385,7 +229,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    /// <summary>Wooden spear - hunting AND fighting (Damage 8, Pierce)</summary>
     public static Gear Spear(string name = "Wooden Spear", int durability = -1) => new()
     {
         Name = name,
@@ -399,7 +242,6 @@ public class Gear
         WeaponClass = Items.WeaponClass.Pierce
     };
 
-    /// <summary>Club - blunt force weapon (Damage 10, Blunt)</summary>
     public static Gear Club(string name = "Wooden Club", int durability = -1) => new()
     {
         Name = name,
@@ -413,7 +255,6 @@ public class Gear
         WeaponClass = Items.WeaponClass.Blunt
     };
 
-    /// <summary>Torch - portable light source, burns for ~1 hour, provides modest warmth</summary>
     public static Gear Torch(string name = "Torch") => new()
     {
         Name = name,
@@ -424,7 +265,6 @@ public class Gear
         MaxDurability = 1
     };
 
-    /// <summary>Shovel - digging tool that speeds up camp setup, fire pits, and snow shelters</summary>
     public static Gear Shovel(string name = "Bone Shovel", int durability = -1) => new()
     {
         Name = name,
@@ -435,7 +275,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    /// <summary>Bone needle - sewing tool for equipment crafting and mending</summary>
     public static Gear BoneNeedle(string name = "Bone Needle", int durability = 20) => new()
     {
         Name = name,
@@ -448,7 +287,6 @@ public class Gear
 
     // === Equipment Factory Methods ===
 
-    /// <summary>Fur head covering - good insulation</summary>
     public static Gear FurHood(string name = "Fur Hood", int durability = 100) => new()
     {
         Name = name,
@@ -461,7 +299,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    /// <summary>Worn fur chest wrap - moderate insulation</summary>
     public static Gear WornFurChestWrap(string name = "Worn Fur Chest Wrap", int durability = 50) => new()
     {
         Name = name,
@@ -474,7 +311,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    /// <summary>Fur chest wrap - good insulation</summary>
     public static Gear FurChestWrap(string name = "Fur Chest Wrap", int durability = 100) => new()
     {
         Name = name,
@@ -487,7 +323,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    /// <summary>Fur leg wraps - moderate insulation</summary>
     public static Gear FurLegWraps(string name = "Fur Leg Wraps", int durability = 100) => new()
     {
         Name = name,
@@ -500,7 +335,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    /// <summary>Fur boots - good foot insulation</summary>
     public static Gear FurBoots(string name = "Fur Boots", int durability = 100) => new()
     {
         Name = name,
@@ -513,7 +347,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    /// <summary>Worn hide boots - poor foot insulation</summary>
     public static Gear WornHideBoots(string name = "Worn Hide Boots", int durability = 30) => new()
     {
         Name = name,
@@ -526,7 +359,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    /// <summary>Fur mittens - hand protection</summary>
     public static Gear FurMittens(string name = "Fur Mittens", int durability = 100) => new()
     {
         Name = name,
@@ -539,7 +371,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    /// <summary>Hide handwraps - minimal hand protection</summary>
     public static Gear HideHandwraps(string name = "Hide Handwraps", int durability = 50) => new()
     {
         Name = name,
@@ -596,9 +427,6 @@ public class Gear
 
     // === Tent Factory Methods ===
 
-    /// <summary>
-    /// Portable hide tent - good all-around protection.
-    /// </summary>
     public static Gear HideTent(int durability = 50) => new()
     {
         Name = "Hide Tent",
@@ -612,9 +440,6 @@ public class Gear
         ShelterWindCoverage = 0.7
     };
 
-    /// <summary>
-    /// Mammoth hide tent - superior protection, heavier.
-    /// </summary>
     public static Gear MammothHideTent(int durability = 80) => new()
     {
         Name = "Mammoth Hide Tent",

@@ -7,9 +7,6 @@ using text_survival.Items;
 
 namespace text_survival.Environments.Features;
 
-/// <summary>
-/// Butchering mode affects time, yields, and scent.
-/// </summary>
 public enum ButcheringMode
 {
     QuickStrip,      // Fast, meat-focused, messy - more scent, less yield
@@ -17,9 +14,6 @@ public enum ButcheringMode
     FullProcessing   // Slow, maximum yield, bonus sinew
 }
 
-/// <summary>
-/// Configuration for each butchering mode.
-/// </summary>
 public record ButcheringModeConfig(
     double TimeFactor,       // Multiplier on base time
     double MeatYieldFactor,  // Multiplier on meat yield
@@ -31,11 +25,6 @@ public record ButcheringModeConfig(
     double BloodySeverity    // Bloody effect severity applied to player
 );
 
-/// <summary>
-/// Represents a dead animal carcass that can be butchered for resources.
-/// Absorbs all butchering logic from ButcherRunner.
-/// Carcasses decay over time - meat spoils but bone/hide/sinew remain.
-/// </summary>
 public class CarcassFeature : LocationFeature, IWorkableFeature
 {
     public override string? MapIcon => !IsCompletelyButchered ? "restaurant" : null;
@@ -45,13 +34,10 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     public string AnimalName { get; set; } = "";
     public double BodyWeightKg { get; set; }
 
-    // Decay tracking - two time trackers
-    /// <summary>Raw time since death (used for scent intensity).</summary>
-    public double RawHoursSinceDeath { get; set; }
-    /// <summary>Temperature-adjusted time (used for decay calculation).</summary>
-    public double EffectiveHoursSinceDeath { get; set; }
-    /// <summary>Last known temperature at this carcass location.</summary>
-    public double LastKnownTemperatureF { get; set; } = 32;  // Default to freezing
+    // Decay tracking
+    public double RawHoursSinceDeath { get; set; }  // For scent intensity
+    public double EffectiveHoursSinceDeath { get; set; }  // Temperature-adjusted, for decay
+    public double LastKnownTemperatureF { get; set; } = 32;
 
     // Butchering progress
     public double MinutesButchered { get; set; }
@@ -71,12 +57,6 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     [JsonConstructor]
     public CarcassFeature() : base("carcass") { }
 
-    /// <summary>
-    /// Create a carcass from an animal.
-    /// </summary>
-    /// <param name="animal">The animal that died</param>
-    /// <param name="harvestedPct">Portion already consumed by scavengers (0-1). 0.3 = 30% eaten.</param>
-    /// <param name="ageHours">Hours since death (for decay calculation)</param>
     public CarcassFeature(Animal animal, double harvestedPct = 0, double ageHours = 0)
         : base($"{animal.Name} carcass")
     {
@@ -87,13 +67,6 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         InitializeYieldsFromAnimal(animal, harvestedPct);
     }
 
-    /// <summary>
-    /// Create a carcass from an animal name string.
-    /// Used for events that specify animal type by name.
-    /// </summary>
-    /// <param name="animalName">Animal type name (e.g., "wolf", "caribou")</param>
-    /// <param name="harvestedPct">Portion already consumed by scavengers (0-1)</param>
-    /// <param name="ageHours">Hours since death (for decay calculation)</param>
     public static CarcassFeature FromAnimalName(string animalName, double harvestedPct = 0, double ageHours = 0)
     {
         var animal = AnimalFactory.FromName(animalName)
@@ -101,13 +74,6 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         return new CarcassFeature(animal, harvestedPct, ageHours);
     }
 
-    /// <summary>
-    /// Initialize yields from an Animal object using actual body composition.
-    /// Fat and meat yields are derived from body composition (BodyFatKG, MuscleKG).
-    /// Special yields (ivory, mammoth hide) come from Animal.SpecialYields.
-    /// </summary>
-    /// <param name="animal">The animal that died</param>
-    /// <param name="harvestedPct">Portion already consumed by scavengers (0-1)</param>
     private void InitializeYieldsFromAnimal(Animal animal, double harvestedPct = 0)
     {
         var body = animal.Body;
@@ -158,18 +124,11 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         }
     }
 
-    /// <summary>
-    /// Advance raw time (for scent intensity tracking).
-    /// Temperature-based decay is applied separately via ApplyTemperatureDecay().
-    /// </summary>
     public override void Update(int minutes)
     {
         RawHoursSinceDeath += minutes / 60.0;
     }
 
-    /// <summary>
-    /// Apply temperature-adjusted decay. Called from Location.Update() with temperature context.
-    /// </summary>
     public void ApplyTemperatureDecay(double temperatureF, int minutes)
     {
         LastKnownTemperatureF = temperatureF;
@@ -177,10 +136,6 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         EffectiveHoursSinceDeath += (minutes / 60.0) * decayMultiplier;
     }
 
-    /// <summary>
-    /// Get decay rate multiplier based on temperature.
-    /// Cold preserves meat, warmth accelerates spoilage.
-    /// </summary>
     private static double GetDecayMultiplier(double temperatureF) => temperatureF switch
     {
         < 0 => 0.1,      // Deep freeze - near-preservation
@@ -190,25 +145,10 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         _ => 2.0         // Warm - fast spoilage
     };
 
-    /// <summary>
-    /// Whether the carcass is frozen solid (makes butchering harder).
-    /// Requires cold temperature and some time to freeze through.
-    /// </summary>
     public bool IsFrozen => LastKnownTemperatureF < 15 && RawHoursSinceDeath > 2;
 
-    // === SCENT SYSTEM ===
+    public double ScentIntensityBonus { get; set; }  // From butchering activity
 
-    /// <summary>
-    /// Bonus scent from butchering activity (blood, opened carcass).
-    /// Adds to base ScentIntensity.
-    /// </summary>
-    public double ScentIntensityBonus { get; set; }
-
-    /// <summary>
-    /// How attractive this carcass is to predators (0-1).
-    /// Based on raw time since death (not temperature-adjusted).
-    /// Fresh blood is strongest, old carcasses less attractive.
-    /// </summary>
     public double ScentIntensity
     {
         get
@@ -226,12 +166,6 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         }
     }
 
-    /// <summary>
-    /// Apply scavenging losses when player was away from the carcass.
-    /// Higher scent = more loss to scavengers.
-    /// </summary>
-    /// <param name="hoursAway">Hours the player was away</param>
-    /// <param name="predatorActivityNearby">Whether predators are active in the area (tensions)</param>
     public void ProcessScavenging(double hoursAway, bool predatorActivityNearby)
     {
         if (!predatorActivityNearby || hoursAway < 0.5) return;
@@ -251,12 +185,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         }
     }
 
-    /// <summary>
-    /// Calculate decay level from temperature-adjusted hours since death.
-    /// Returns 0-1 where 0=fresh, 1=completely spoiled.
-    /// Uses EffectiveHoursSinceDeath which accounts for temperature preservation.
-    /// </summary>
-    public double DecayLevel
+    public double DecayLevel  // 0=fresh, 1=spoiled
     {
         get
         {
@@ -274,9 +203,6 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         }
     }
 
-    /// <summary>
-    /// Get human-readable decay description.
-    /// </summary>
     public string GetDecayDescription()
     {
         string baseDesc = DecayLevel switch
@@ -292,9 +218,6 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
 
     // === BUTCHERING MODES ===
 
-    /// <summary>
-    /// Get configuration for a butchering mode.
-    /// </summary>
     public static ButcheringModeConfig GetModeConfig(ButcheringMode mode) => mode switch
     {
         // QuickStrip: 50% time, 80% meat, no hide/sinew, 50% bone/fat, high scent/blood
@@ -333,35 +256,20 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         _ => GetModeConfig(ButcheringMode.Careful)
     };
 
-    /// <summary>
-    /// Get time estimate for a specific mode.
-    /// </summary>
     public int GetRemainingMinutes(ButcheringMode mode)
     {
         var config = GetModeConfig(mode);
         return (int)Math.Ceiling(GetTotalRemainingKg() * MinutesPerKgYield * config.TimeFactor);
     }
 
-    /// <summary>
-    /// Total remaining yield in kg (for time estimation).
-    /// </summary>
     public double GetTotalRemainingKg() =>
         MeatRemainingKg + BoneRemainingKg + HideRemainingKg +
         SinewRemainingKg + FatRemainingKg + IvoryRemainingKg + MammothHideRemainingKg;
 
-    /// <summary>
-    /// Estimated minutes to completely butcher remaining carcass.
-    /// </summary>
     public int GetRemainingMinutes() => (int)Math.Ceiling(GetTotalRemainingKg() * MinutesPerKgYield);
 
-    /// <summary>
-    /// Check if carcass has been completely butchered.
-    /// </summary>
     public bool IsCompletelyButchered => GetTotalRemainingKg() < 0.01;
 
-    /// <summary>
-    /// Get work options for this feature.
-    /// </summary>
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
         if (IsCompletelyButchered) yield break;
@@ -374,15 +282,6 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         );
     }
 
-    /// <summary>
-    /// Butcher the carcass for the specified time, yielding resources.
-    /// Tool availability and manipulation state affect yields.
-    /// </summary>
-    /// <param name="minutes">Minutes of work to perform</param>
-    /// <param name="hasCuttingTool">Whether player has a cutting tool</param>
-    /// <param name="manipulationImpaired">Whether player's manipulation is impaired</param>
-    /// <param name="mode">Butchering mode affecting yields and scent</param>
-    /// <returns>Inventory with harvested resources</returns>
     public Inventory Harvest(int minutes, bool hasCuttingTool, bool manipulationImpaired,
         ButcheringMode mode = ButcheringMode.Careful)
     {
@@ -604,9 +503,6 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         }
     }
 
-    /// <summary>
-    /// Returns UI display information for this feature.
-    /// </summary>
     public override FeatureUIInfo? GetUIInfo()
     {
         if (IsCompletelyButchered)

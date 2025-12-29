@@ -1,10 +1,5 @@
 namespace text_survival.Environments.Features;
 
-/// <summary>
-/// Represents a body of water - frozen by default in Ice Age setting.
-/// Water is primarily an obstacle and hazard, not a drinking source.
-/// Enables ice-specific events (fall through, foot wet) and future fishing.
-/// </summary>
 public class WaterFeature : LocationFeature
 {
     public override string? MapIcon => "water_drop";
@@ -20,30 +15,9 @@ public class WaterFeature : LocationFeature
     // Public properties backed by fields
     public string DisplayName => _displayName;
     public string Description { get; set; } = "";
-
-    /// <summary>
-    /// Whether the water is frozen. Default true (Ice Age setting).
-    /// </summary>
     public bool IsFrozen => _isFrozen;
-
-    /// <summary>
-    /// Ice thickness on 0-1 scale:
-    /// 0.0 = open water (no ice)
-    /// 0.3 = thin ice (dangerous, high fall-through risk)
-    /// 0.5 = moderate ice (crossable but risky)
-    /// 0.7 = solid ice (safe for crossing)
-    /// 1.0 = glacier-thick (extremely solid)
-    /// </summary>
-    public double IceThicknessLevel => _iceThicknessLevel;
-
-    /// <summary>
-    /// Whether an ice hole has been cut for fishing/water access.
-    /// </summary>
+    public double IceThicknessLevel => _iceThicknessLevel;  // 0=open, 0.3=thin, 0.7=solid, 1.0=glacier
     public bool HasIceHole => _hasIceHole;
-
-    /// <summary>
-    /// Progress toward ice hole refreezing (0-1). At 1.0, hole closes.
-    /// </summary>
     public double IceHoleRefreezeProgress => _iceHoleRefreezeProgress;
 
     // Hazard constants
@@ -62,10 +36,6 @@ public class WaterFeature : LocationFeature
     [System.Text.Json.Serialization.JsonConstructor]
     public WaterFeature() : base("water") { }
 
-    /// <summary>
-    /// Calculates terrain hazard contribution from frozen water.
-    /// Returns 0 if not frozen.
-    /// </summary>
     public double GetTerrainHazardContribution()
     {
         if (!IsFrozen) return 0;
@@ -81,15 +51,8 @@ public class WaterFeature : LocationFeature
         return hazard;
     }
 
-    /// <summary>
-    /// Whether this water has thin ice that risks fall-through.
-    /// </summary>
     public bool HasThinIce => _isFrozen && _iceThicknessLevel < ThinIceThreshold;
 
-    /// <summary>
-    /// Cut an ice hole for fishing/water access.
-    /// Requires IsFrozen, no existing hole, and ice not glacier-thick.
-    /// </summary>
     public bool CutIceHole()
     {
         if (!CanCutIceHole()) return false;
@@ -99,14 +62,8 @@ public class WaterFeature : LocationFeature
         return true;
     }
 
-    /// <summary>
-    /// Whether an ice hole can be cut here.
-    /// </summary>
     public bool CanCutIceHole() => _isFrozen && !_hasIceHole && _iceThicknessLevel < 1.0;
 
-    /// <summary>
-    /// Estimated minutes to cut through the ice based on thickness.
-    /// </summary>
     public int GetIceCuttingMinutes()
     {
         if (!CanCutIceHole()) return 0;
@@ -115,9 +72,6 @@ public class WaterFeature : LocationFeature
         return (int)(15 + _iceThicknessLevel * 40);
     }
 
-    /// <summary>
-    /// Close an ice hole (for refreeze completion or manual reset).
-    /// </summary>
     public void CloseIceHole()
     {
         _hasIceHole = false;
@@ -138,9 +92,6 @@ public class WaterFeature : LocationFeature
         }
     }
 
-    /// <summary>
-    /// Get a human-readable status description.
-    /// </summary>
     public string GetStatusDescription()
     {
         if (!IsFrozen)

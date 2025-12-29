@@ -5,10 +5,6 @@ using text_survival.Items;
 
 namespace text_survival.Web.Dto;
 
-/// <summary>
-/// A frame sent from server to client via WebSocket.
-/// Uses explicit Mode + Overlay model for predictable UI state.
-/// </summary>
 public record WebFrame(
     GameStateDto State,
     FrameMode Mode,
@@ -17,14 +13,8 @@ public record WebFrame(
     string? StatusText = null
 );
 
-/// <summary>
-/// A choice option with unique ID for reliable button identity.
-/// </summary>
 public record ChoiceDto(string Id, string Label, bool IsDisabled = false);
 
-/// <summary>
-/// Request for player input.
-/// </summary>
 public record InputRequestDto(
     int InputId,           // Unique ID for this input request
     string Type,           // "select", "confirm", "anykey"
@@ -32,11 +22,6 @@ public record InputRequestDto(
     List<ChoiceDto>? Choices  // null for confirm/anykey
 );
 
-// ProgressDto removed - replaced by ProgressMode
-
-/// <summary>
-/// A single resource entry for inventory display.
-/// </summary>
 public record ResourceEntryDto(
     string Key,           // Resource enum name for identification
     string DisplayName,   // "pine logs", "birch bark", etc.
@@ -45,10 +30,6 @@ public record ResourceEntryDto(
     string? CssClass      // Optional CSS class for styling
 );
 
-/// <summary>
-/// Full inventory data for inventory screen.
-/// Uses lists instead of 100+ individual properties for maintainability.
-/// </summary>
 public record InventoryDto(
     string Title,
     double CurrentWeightKg,
@@ -260,9 +241,6 @@ public record EquipmentSlotDto(string Slot, string Name, double Insulation);
 public record ToolDto(string Name, double? Damage, string Type);
 public record ToolWarningDto(string Name, int DurabilityRemaining);
 
-/// <summary>
-/// Compact gear summary for side panel display.
-/// </summary>
 public record GearSummaryDto(
     string? WeaponName,
     double? WeaponDamage,
@@ -276,9 +254,6 @@ public record GearSummaryDto(
     bool HasRareMaterials
 );
 
-/// <summary>
-/// A transferable item for the transfer UI. Aggregates stacks of the same resource.
-/// </summary>
 public record TransferableItemDto(
     string Id,              // Unique ID for transfer action: "player_resource_Pine" or "storage_tool_0"
     string Category,        // "Fuel", "Food", "Materials", "Medicinals", "Tools", "Accessories", "Water"
@@ -289,9 +264,6 @@ public record TransferableItemDto(
     bool IsAggregated       // True if this represents multiple stacks
 );
 
-/// <summary>
-/// Transfer screen data showing both inventories side-by-side.
-/// </summary>
 public record TransferDto(
     string PlayerTitle,
     double PlayerCurrentWeightKg,
@@ -417,13 +389,6 @@ public record TransferDto(
     };
 }
 
-// ============================================================================
-// Fire Management DTOs
-// ============================================================================
-
-/// <summary>
-/// A fuel item available for adding to fire.
-/// </summary>
 public record FuelItemDto(
     string Id,              // "fuel_Pine" or "fuel_Stick"
     string DisplayName,     // "5 pine logs"
@@ -435,9 +400,6 @@ public record FuelItemDto(
     int BurnTimeMinutes     // How long one unit burns
 );
 
-/// <summary>
-/// A fire-starting tool with calculated success chance.
-/// </summary>
 public record FireToolDto(
     string Id,              // "tool_0" (index in tools list)
     string DisplayName,     // "Hand Drill"
@@ -446,9 +408,6 @@ public record FireToolDto(
     bool IsSelected
 );
 
-/// <summary>
-/// A tinder option with ignition bonus.
-/// </summary>
 public record TinderDto(
     string Id,              // "tinder_BirchBark"
     string DisplayName,     // "Birch Bark"
@@ -458,9 +417,6 @@ public record TinderDto(
     bool IsSelected
 );
 
-/// <summary>
-/// Fire status panel showing current fire state.
-/// </summary>
 public record FirePanelDto(
     string Mode,            // "starting" or "tending"
     string Phase,           // "Cold", "Roaring", etc.
@@ -484,9 +440,6 @@ public record FirePanelDto(
     int FinalSuccessPercent
 );
 
-/// <summary>
-/// Combined fire management data - adapts to starting or tending mode.
-/// </summary>
 public record FireManagementDto(
     string Mode,                    // "starting" or "tending"
     List<FuelItemDto>? Fuels,       // Tending mode
@@ -756,10 +709,6 @@ public record FireManagementDto(
     }
 }
 
-/// <summary>
-/// Full crafting data for crafting screen.
-/// Organized by NeedCategory with craftable/uncraftable separation.
-/// </summary>
 public record CraftingDto(
     string Title,
     List<CategorySectionDto> Categories,
@@ -820,9 +769,6 @@ public record CraftingDto(
         NeedCategoryDisplay.GetDisplayName(category);
 }
 
-/// <summary>
-/// A category section with its recipes.
-/// </summary>
 public record CategorySectionDto(
     string CategoryName,
     string CategoryKey,
@@ -830,9 +776,6 @@ public record CategorySectionDto(
     List<RecipeDto> UncraftableRecipes
 );
 
-/// <summary>
-/// Individual recipe with all display information.
-/// </summary>
 public record RecipeDto(
     string Name,
     string Description,
@@ -925,9 +868,6 @@ public record RecipeDto(
     };
 }
 
-/// <summary>
-/// Material requirement with availability status.
-/// </summary>
 public record MaterialRequirementDto(
     string MaterialName,
     int Required,
@@ -935,9 +875,6 @@ public record MaterialRequirementDto(
     bool IsMet
 );
 
-/// <summary>
-/// Tool requirement for crafting.
-/// </summary>
 public record ToolRequirementDto(
     string ToolName,
     int Durability,
@@ -945,9 +882,6 @@ public record ToolRequirementDto(
     bool IsBroken
 );
 
-/// <summary>
-/// Player's current material inventory (compact for context).
-/// </summary>
 public record MaterialInventoryDto(
     Dictionary<string, int> Materials
 )
