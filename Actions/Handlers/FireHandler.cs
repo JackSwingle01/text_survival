@@ -7,15 +7,8 @@ using text_survival.Web;
 
 namespace text_survival.Actions.Handlers;
 
-/// <summary>
-/// Handles fire starting and tending actions.
-/// Static handler that takes GameContext and mutates state directly.
-/// </summary>
 public static class FireHandler
 {
-    /// <summary>
-    /// Unified entry point for fire management. Routes to web UI or console based on session.
-    /// </summary>
     public static void ManageFire(GameContext ctx, HeatSourceFeature? fire = null)
     {
         // Web sessions get the combined fire UI
@@ -190,10 +183,6 @@ public static class FireHandler
         }
     }
 
-    /// <summary>
-    /// Helper to add a typed wood fuel option to the TendFire menu.
-    /// Shows disabled option with reason if fire is too cold.
-    /// </summary>
     private static void AddWoodFuelOption(
         List<string> choices,
         Dictionary<string, (string name, FuelType type, Func<double> takeFunc)> map,
@@ -460,9 +449,6 @@ public static class FireHandler
         }
     }
 
-    /// <summary>
-    /// Start a fire from a lit ember carrier. 100% success, consumes the carrier.
-    /// </summary>
     private static void StartFireFromEmberCarrier(GameContext ctx, Gear carrier, HeatSourceFeature? existingFire)
     {
         var inv = ctx.Inventory;

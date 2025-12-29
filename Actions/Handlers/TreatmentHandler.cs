@@ -5,16 +5,8 @@ using text_survival.UI;
 
 namespace text_survival.Actions.Handlers;
 
-/// <summary>
-/// Handles treatment actions - both direct (raw resources) and crafted (teas, poultices).
-/// Static handler that takes GameContext and mutates state directly.
-/// </summary>
 public static class TreatmentHandler
 {
-    /// <summary>
-    /// Direct treatments: apply resources directly to wounds/conditions.
-    /// Crafted treatments (teas/poultices) are handled via Gear.TreatsEffect property.
-    /// </summary>
     private static readonly List<(Resource Resource, string EffectKind, string Description, double EffectReduction)> DirectTreatments =
     [
         // SphagnumMoss - absorbent dressing (BEST bleeding)
@@ -57,9 +49,6 @@ public static class TreatmentHandler
         (Resource.RoseHip, "Pain", "Eat rose hips for mild relief", 0.15),
     ];
 
-    /// <summary>
-    /// Abstract representation of any treatment option (direct or crafted).
-    /// </summary>
     private record TreatmentOption(
         string Label,
         string EffectKind,
