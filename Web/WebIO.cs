@@ -25,6 +25,7 @@ public static class WebIO
     private static readonly Dictionary<string, TransferDto> _currentTransfer = new();
     private static readonly Dictionary<string, FireManagementDto> _currentFire = new();
     private static readonly Dictionary<string, CookingDto> _currentCooking = new();
+    private static readonly Dictionary<string, ButcherDto> _currentButcher = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -92,6 +93,8 @@ public static class WebIO
                 overlays.Add(new FireOverlay(fire));
             if (_currentCooking.TryGetValue(sessionId, out var cooking))
                 overlays.Add(new CookingOverlay(cooking));
+            if (_currentButcher.TryGetValue(sessionId, out var butcher))
+                overlays.Add(new ButcherOverlay(butcher));
         }
 
         return overlays;
@@ -188,6 +191,15 @@ public static class WebIO
     }
 
     /// <summary>
+    /// Clear the current butcher display for a session.
+    /// </summary>
+    public static void ClearButcher(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentButcher.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
     /// Clear all overlays for a session. Used on reconnect to prevent stale overlays.
     /// </summary>
     public static void ClearAllOverlays(string sessionId)
@@ -202,6 +214,7 @@ public static class WebIO
         _currentTransfer.Remove(sessionId);
         _currentFire.Remove(sessionId);
         _currentCooking.Remove(sessionId);
+        _currentButcher.Remove(sessionId);
     }
 
     /// <summary>
@@ -786,6 +799,46 @@ public static class WebIO
             minutes = 30;
 
         return (focus, minutes);
+    }
+
+    /// <summary>
+    /// Show butcher popup and get player's mode selection.
+    /// Returns the selected mode ID, or null if cancelled.
+    /// </summary>
+    public static string? SelectButcherOptions(GameContext ctx, ButcherDto butcherData)
+    {
+        var session = GetSession(ctx);
+
+        // Set butcher as overlay
+        if (ctx.SessionId != null)
+            _currentButcher[ctx.SessionId] = butcherData;
+
+        // Build choice list from mode options
+        var choices = new List<ChoiceDto>();
+        foreach (var mode in butcherData.ModeOptions)
+        {
+            choices.Add(new ChoiceDto(mode.Id, mode.Label));
+        }
+        choices.Add(new ChoiceDto("cancel", "Cancel"));
+
+        int inputId = session.GenerateInputId();
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto(inputId, "butcher", "Choose butchering approach", choices)
+        );
+
+        session.Send(frame);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+        // Clear butcher overlay after response
+        ClearButcher(ctx);
+
+        if (response.ChoiceId == "cancel" || response.ChoiceId == null)
+            return null;
+
+        return response.ChoiceId;
     }
 
     /// <summary>

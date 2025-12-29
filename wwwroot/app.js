@@ -295,6 +295,9 @@ class GameClient {
             case 'cooking':
                 this.showCookingOverlay(overlay.data, input);
                 break;
+            case 'butcher':
+                this.showButcherPopup(overlay.data);
+                break;
         }
     }
 
@@ -313,6 +316,7 @@ class GameClient {
         this.hideTransferOverlay();
         this.hideFireOverlay();
         this.hideCookingOverlay();
+        this.hideButcherPopup();
     }
 
     /**
@@ -1349,6 +1353,116 @@ class GameClient {
     hideForagePopup() {
         hide(document.getElementById('forageOverlay'));
         this.forageSelection = null;
+    }
+
+    /**
+     * Show butcher popup overlay
+     */
+    showButcherPopup(butcherData) {
+        const overlay = document.getElementById('butcherOverlay');
+        if (!overlay) return;
+
+        show(overlay);
+
+        // Initialize selection state
+        this.butcherSelection = {
+            modeId: null
+        };
+
+        // Carcass info
+        const animalEl = document.getElementById('butcherAnimal');
+        animalEl.textContent = `${butcherData.animalName} carcass`;
+
+        const statusEl = document.getElementById('butcherStatus');
+        let statusParts = [butcherData.decayStatus];
+        if (butcherData.remainingKg > 0) {
+            statusParts.push(`~${butcherData.remainingKg.toFixed(1)}kg remaining`);
+        }
+        if (butcherData.isFrozen) {
+            statusParts.push('frozen');
+        }
+        statusEl.textContent = statusParts.join(', ');
+
+        // Warnings
+        const warningsEl = document.getElementById('butcherWarnings');
+        warningsEl.innerHTML = '';
+        if (butcherData.warnings && butcherData.warnings.length > 0) {
+            butcherData.warnings.forEach(warning => {
+                const warnEl = document.createElement('div');
+                warnEl.className = 'butcher-warning';
+                warnEl.innerHTML = `<span class="material-symbols-outlined">warning</span> ${warning}`;
+                warningsEl.appendChild(warnEl);
+            });
+            show(warningsEl);
+        } else {
+            hide(warningsEl);
+        }
+
+        // Mode options
+        const modeOptionsEl = document.getElementById('butcherModeOptions');
+        modeOptionsEl.innerHTML = '';
+        butcherData.modeOptions.forEach(mode => {
+            const btn = document.createElement('button');
+            btn.className = 'mode-btn';
+            btn.setAttribute('data-mode-id', mode.id);
+            btn.innerHTML = `
+                <div class="mode-label">${mode.label}</div>
+                <div class="mode-desc">${mode.description}</div>
+                <div class="mode-time">~${mode.estimatedMinutes} min</div>
+            `;
+            btn.onclick = () => this.selectButcherMode(mode.id);
+            modeOptionsEl.appendChild(btn);
+        });
+
+        // Set up buttons
+        document.getElementById('butcherConfirmBtn').onclick = () => {
+            if (this.butcherSelection.modeId) {
+                this.sendChoice(this.butcherSelection.modeId);
+            }
+        };
+        document.getElementById('butcherCancelBtn').onclick = () => {
+            this.sendChoice('cancel');
+        };
+    }
+
+    /**
+     * Select a mode option in butcher popup
+     */
+    selectButcherMode(modeId) {
+        this.butcherSelection.modeId = modeId;
+
+        // Update button styles
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.getAttribute('data-mode-id') === modeId);
+        });
+
+        this.updateButcherConfirmButton();
+    }
+
+    /**
+     * Update confirm button state for butcher
+     */
+    updateButcherConfirmButton() {
+        const btn = document.getElementById('butcherConfirmBtn');
+        const desc = document.getElementById('butcherConfirmDesc');
+
+        if (this.butcherSelection.modeId) {
+            btn.disabled = false;
+            const modeBtn = document.querySelector(`.mode-btn[data-mode-id="${this.butcherSelection.modeId}"]`);
+            const modeLabel = modeBtn?.querySelector('.mode-label')?.textContent || '';
+            desc.textContent = modeLabel;
+        } else {
+            btn.disabled = true;
+            desc.textContent = 'Select a method';
+        }
+    }
+
+    /**
+     * Hide butcher popup overlay
+     */
+    hideButcherPopup() {
+        hide(document.getElementById('butcherOverlay'));
+        this.butcherSelection = null;
     }
 
     /**

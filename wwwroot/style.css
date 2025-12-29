@@ -2420,6 +2420,136 @@ body {
     opacity: 0.7;
 }
 
+/* ============================================
+   BUTCHER OVERLAY
+   ============================================ */
+
+.butcher-modal {
+    max-width: 550px;
+}
+
+.butcher-info {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--bg-surface);
+    border-left: 3px solid var(--tech-cyan);
+}
+
+.butcher-animal {
+    font-size: 1rem;
+    color: var(--text-bright);
+    font-weight: 500;
+}
+
+.butcher-status {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+}
+
+.butcher-warnings {
+    margin-bottom: 16px;
+}
+
+.butcher-warning {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    background: rgba(244, 180, 62, 0.1);
+    border-left: 2px solid var(--warning-amber);
+    font-size: 0.85rem;
+    color: var(--warning-amber);
+    margin-bottom: 6px;
+}
+
+.butcher-warning .material-symbols-outlined {
+    font-size: 1rem;
+}
+
+.butcher-mode-section {
+    margin-bottom: 16px;
+}
+
+.mode-header {
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+}
+
+.mode-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mode-btn {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 14px;
+    background: var(--bg-surface);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+}
+
+.mode-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.mode-btn.selected {
+    background: rgba(80, 160, 96, 0.2);
+    border-color: var(--health-green);
+}
+
+.mode-label {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-bright);
+}
+
+.mode-desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+}
+
+.mode-time {
+    font-size: 0.75rem;
+    color: var(--tech-cyan);
+    margin-top: 6px;
+}
+
+.butcher-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-dim);
+}
+
+.butcher-confirm {
+    background: var(--bg-surface);
+    border-color: var(--health-green);
+}
+
+.butcher-confirm:hover:not(:disabled) {
+    background: rgba(80, 160, 96, 0.2);
+}
+
+.butcher-cancel {
+    opacity: 0.7;
+}
+
 /* Temperature Crisis - Integrated into existing section */
 .status-section.temp-crisis {
     background: rgba(244, 67, 54, 0.15) !important;
