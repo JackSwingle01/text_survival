@@ -4,16 +4,8 @@ using text_survival.UI;
 
 namespace text_survival.Actions;
 
-/// <summary>
-/// Shared helper for transferring items between player inventory and storage (camp or cache).
-/// Extracted from GameRunner for DRY - same UI for camp storage and remote caches.
-/// </summary>
 public static class InventoryTransferHelper
 {
-    /// <summary>
-    /// Run the full transfer menu loop - view toggle, store, retrieve.
-    /// </summary>
-    /// <param name="viewStorageFirst">If true, starts showing storage contents instead of player inventory.</param>
     public static void RunTransferMenu(GameContext ctx, Inventory storage, string storageName, bool viewStorageFirst = false)
     {
         // For web sessions, use the new side-by-side transfer UI
@@ -64,9 +56,6 @@ public static class InventoryTransferHelper
             Web.WebIO.ClearInventory(ctx);
     }
 
-    /// <summary>
-    /// Transfer items from player inventory to storage.
-    /// </summary>
     public static void StoreItems(GameContext ctx, Inventory storage, string storageName)
     {
         var playerInv = ctx.Inventory;
@@ -108,9 +97,6 @@ public static class InventoryTransferHelper
         }
     }
 
-    /// <summary>
-    /// Transfer items from storage to player inventory.
-    /// </summary>
     public static void RetrieveItems(GameContext ctx, Inventory storage, string storageName)
     {
         var playerInv = ctx.Inventory;

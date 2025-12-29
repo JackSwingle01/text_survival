@@ -1,17 +1,7 @@
 namespace text_survival.Actions;
 
-/// <summary>
-/// Configuration for activity types that defines:
-/// - Event multiplier (0 = no events, 1.0 = full event rate)
-/// - Activity level (metabolic multiplier for survival calculations)
-/// - Fire proximity (heat bonus multiplier when near fire)
-/// - Status text (displayed during activity)
-/// </summary>
 public static class ActivityConfig
 {
-    /// <summary>
-    /// Activity configuration tuple: (EventMultiplier, ActivityLevel, FireProximity, StatusText)
-    /// </summary>
     public record Config(double EventMultiplier, double ActivityLevel, double FireProximity, string StatusText);
 
     private static readonly Dictionary<ActivityType, Config> _configs = new()
@@ -39,8 +29,5 @@ public static class ActivityConfig
         [ActivityType.Butchering] = new(1.0, 1.5, 0.0, "Butchering."),
     };
 
-    /// <summary>
-    /// Get configuration for an activity type.
-    /// </summary>
     public static Config Get(ActivityType activity) => _configs[activity];
 }

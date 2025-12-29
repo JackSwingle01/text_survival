@@ -4,10 +4,6 @@ using static text_survival.Crafting.MaterialSpecifier;
 
 namespace text_survival.Crafting;
 
-/// <summary>
-/// Need-based crafting system. Players select a need category,
-/// then see what they can make from available materials.
-/// </summary>
 public class NeedCraftingSystem
 {
     private readonly List<CraftOption> _options = [];
@@ -27,10 +23,6 @@ public class NeedCraftingSystem
         InitializeMendingOptions();
     }
 
-    /// <summary>
-    /// Get all craft options for a need category.
-    /// Returns options the player can craft OR has partial materials for (unless showAll is true).
-    /// </summary>
     public List<CraftOption> GetOptionsForNeed(NeedCategory need, Inventory inventory, bool showAll = false)
     {
         var options = _options.Where(o => o.Category == need);
@@ -43,9 +35,6 @@ public class NeedCraftingSystem
             .ToList();
     }
 
-    /// <summary>
-    /// Get need categories that have at least one option available.
-    /// </summary>
     public List<NeedCategory> GetAvailableNeeds(Inventory inventory)
     {
         return Enum.GetValues<NeedCategory>()
@@ -53,9 +42,6 @@ public class NeedCraftingSystem
             .ToList();
     }
 
-    /// <summary>
-    /// Check if player has at least one material for this option.
-    /// </summary>
     private static bool HasPartialMaterials(CraftOption option, Inventory inventory)
     {
         var (_, missing) = option.CheckRequirements(inventory);

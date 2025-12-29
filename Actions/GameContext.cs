@@ -16,9 +16,6 @@ public class GameContext(Player player, Location camp, Weather weather)
 {
     public Player player { get; set; } = player;
 
-    /// <summary>
-    /// Current location. Derived from Map.CurrentLocation.
-    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public Location CurrentLocation => Map?.CurrentLocation ?? Camp;
 
@@ -39,15 +36,8 @@ public class GameContext(Player player, Location camp, Weather weather)
     // Zone and location tracking
     public Weather Weather { get; init; } = weather;
 
-    /// <summary>
-    /// The game map. Owns all locations and spatial relationships.
-    /// </summary>
     public GameMap? Map { get; set; }
 
-    /// <summary>
-    /// Pending travel target from map click.
-    /// When set, travel runner will immediately move to this location.
-    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public (int X, int Y)? PendingTravelTarget { get; set; }
 
@@ -62,9 +52,6 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     public int DaysSurvived => (int)(GameTime - new DateTime(2025, 1, 1, 9, 0, 0)).TotalDays;
 
-    /// <summary>
-    /// Call this after zone generation to set up the pass.
-    /// </summary>
     public void SetupMountainPass(List<Location> passLocations, Location winLocation)
     {
         MountainPassLocations = passLocations;
@@ -77,29 +64,19 @@ public class GameContext(Player player, Location camp, Weather weather)
     // Herd registry for tracking persistent animals
     public HerdRegistry Herds { get; set; } = new();
 
-    /// <summary>Current activity for event condition checks.</summary>
     public ActivityType CurrentActivity { get; private set; } = ActivityType.Idle;
 
-    /// <summary>Snapshot of stats before work for delta display in work results.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public (double Energy, double Calories, double Hydration, double Temp)? StatsBeforeWork { get; set; }
 
-    /// <summary>Encounter queued by an event, handled internally by Update().</summary>
     private EncounterConfig? _pendingEncounter;
 
-    /// <summary>
-    /// Queue an encounter to be spawned on the next Update tick.
-    /// Used by event outcomes that spawn predator encounters.
-    /// </summary>
     public void QueueEncounter(EncounterConfig config)
     {
         _pendingEncounter = config;
     }
 
-    /// <summary>Flag to prevent events from triggering during event handling.</summary>
     public bool IsHandlingEvent { get; set; } = false;
-
-    /// <summary>Set to true when an event was triggered during the last Update call.</summary>
     public bool EventOccurredLastUpdate { get; private set; } = false;
 
     // Tutorial message tracking
@@ -112,9 +89,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         set => _shownTutorials = value;
     }
 
-    /// <summary>
-    /// Shows a tutorial message only once per game. Uses the message itself as the key.
-    /// </summary>
     public void ShowTutorialOnce(string message)
     {
         if (_shownTutorials.Contains(message))
@@ -124,10 +98,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         GameDisplay.AddNarrative(this, message);
     }
 
-    /// <summary>
-    /// For complex tutorials with multiple messages or custom display.
-    /// Returns true if this is the first time (and marks as shown), false if already shown.
-    /// </summary>
     public bool TryShowTutorial(string key)
     {
         if (_shownTutorials.Contains(key))
@@ -143,9 +113,6 @@ public class GameContext(Player player, Location camp, Weather weather)
     {
     }
 
-    /// <summary>
-    /// Call this after deserialization to restore transient state.
-    /// </summary>
     public void RestoreAfterDeserialization()
     {
         // Map handles its own restoration via LocationData property
@@ -159,9 +126,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         Herds.RecreateAllMembers();
     }
 
-    /// <summary>
-    /// Create a new game using the map-based world.
-    /// </summary>
     public static GameContext CreateNewGame()
     {
         // Clear event cooldowns for fresh game
@@ -216,15 +180,8 @@ public class GameContext(Player player, Location camp, Weather weather)
         return ctx;
     }
 
-    /// <summary>
-    /// Check event condition. Delegates to ConditionChecker.
-    /// </summary>
     public bool Check(EventCondition condition) => ConditionChecker.Check(this, condition);
 
-    /// <summary>
-    /// Check if a location meets the requirements to establish camp.
-    /// Requires bedding and an active heat source.
-    /// </summary>
     public bool CanEstablishCampAt(Location location)
     {
         bool hasBedding = location.HasFeature<BeddingFeature>();
@@ -232,11 +189,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         return hasBedding && hasActiveFire;
     }
 
-    /// <summary>
-    /// Establish camp at the specified location.
-    /// Creates storage cache if one doesn't exist.
-    /// Updates Camp pointer and ends active expedition.
-    /// </summary>
     public void EstablishCamp(Location location)
     {
         // Only show message if actually changing camp location
@@ -249,33 +201,12 @@ public class GameContext(Player player, Location camp, Weather weather)
             GameDisplay.AddSuccess(this, $"You've established camp at {location.Name}.");
     }
 
-    // === LOCATION MANAGEMENT ===
-
-    /// <summary>
-    /// Check if there are any unexplored named locations visible.
-    /// </summary>
-    public bool HasUnrevealedLocations() =>
-        Map?.HasUnexploredVisibleLocations ?? false;
-
-    /// <summary>
-    /// Reveal a random unexplored named location within visible range.
-    /// Returns the location if found, null otherwise.
-    /// </summary>
-    public Location? RevealRandomLocation(Location fromLocation) =>
-        Map?.RevealRandomLocation();
-
-    /// <summary>
-    /// Get count of unexplored visible named locations.
-    /// </summary>
+    public bool HasUnrevealedLocations() => Map?.HasUnexploredVisibleLocations ?? false;
+    public Location? RevealRandomLocation(Location fromLocation) => Map?.RevealRandomLocation();
     public int UnrevealedCount => Map?.UnexploredVisibleCount ?? 0;
 
     public DateTime GameTime { get; set; } = new DateTime(2025, 1, 1, 9, 0, 0); // Full date/time for resource respawn tracking
 
-    /// <summary>
-    /// Get survival context for a given activity.
-    /// </summary>
-    /// <param name="isStationary">If true, structural shelter applies (resting, crafting).
-    /// If false, only environmental shelter applies (foraging, hunting, traveling).</param>
     public SurvivalContext GetSurvivalContext(bool isStationary = true)
     {
         double clothingInsulation = Inventory.TotalInsulation;
@@ -336,11 +267,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         };
     }
 
-    /// <summary>
-    /// Calculate total waterproofing level from equipment.
-    /// Each slot's waterproof level (base material + treatment) is weighted by body coverage.
-    /// Returns 0-1 where 1 = full waterproofing.
-    /// </summary>
     public double CalculateWaterproofingLevel()
     {
         // Slot coverage weights (how much of body each slot covers for wetness)
@@ -367,9 +293,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         return Math.Min(totalWaterproofing, 1.0);
     }
 
-    /// <summary>
-    /// Determine if current activity is stationary (benefits from structural shelter).
-    /// </summary>
     private static bool IsActivityStationary(ActivityType activity) => activity switch
     {
         // Stationary activities - shelter applies
@@ -393,11 +316,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         _ => true // Default to stationary
     };
 
-    /// <summary>
-    /// Main update with activity type - uses ActivityConfig defaults.
-    /// Checks for events each minute based on activity event multiplier.
-    /// Returns elapsed time.
-    /// </summary>
     public int Update(int targetMinutes, ActivityType activity, bool render = false)
     {
         EventOccurredLastUpdate = false;
@@ -467,9 +385,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         return elapsed;
     }
 
-    /// <summary>
-    /// Internal update - survival stats, zone, tensions without event checking.
-    /// </summary>
     private void UpdateInternal(int minutes, double activityLevel, double fireProximityMultiplier)
     {
         bool isStationary = IsActivityStationary(CurrentActivity);
@@ -565,18 +480,12 @@ public class GameContext(Player player, Location camp, Weather weather)
             GameDisplay.AddNarrative(this, logs);
     }
 
-    /// <summary>
-    /// Fire proximity is 0 if no active fire, otherwise config value.
-    /// </summary>
     private double GetEffectiveFireProximity(double configValue)
     {
         if (!CurrentLocation.HasActiveHeatSource()) return 0;
         return configValue;
     }
 
-    /// <summary>
-    /// Tick down lit ember carriers and extinguish if player gets too wet.
-    /// </summary>
     private void UpdateEmberCarriers(int minutes)
     {
         var litCarriers = Inventory.Tools
@@ -609,10 +518,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         }
     }
 
-    /// <summary>
-    /// Tick down resin treatment durability during precipitation exposure.
-    /// Only degrades when outdoors (exposure > 0) and it's precipitating.
-    /// </summary>
     private void UpdateWaterproofing(int minutes)
     {
         // Only tick during precipitation

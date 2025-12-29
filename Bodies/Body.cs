@@ -79,10 +79,6 @@ public class Body
         _bodyTemperature = 98.6;
     }
 
-    /// <summary>
-    /// Applies a size modifier to the body weight (for animal trait generation).
-    /// Scales base weight, fat, and muscle proportionally.
-    /// </summary>
     public void ApplySizeModifier(double modifier)
     {
         _baseWeight *= modifier;
@@ -145,10 +141,6 @@ public class Body
         }
     }
 
-    /// <summary>
-    /// Applies all mutations from a SurvivalProcessorResult.
-    /// Returns the messages for the caller to handle.
-    /// </summary>
     public void ApplyResult(SurvivalProcessorResult result)
     {
         // Stats
@@ -194,10 +186,6 @@ public class Body
     //     if (food.DamageEffect != null) Damage(food.DamageEffect);
     // }
 
-    /// <summary>
-    /// Add calories directly (from eating simple foods like berries, meat).
-    /// Calories per kg: Cooked meat ~2500, Raw meat ~1500, Berries ~500
-    /// </summary>
     public void AddCalories(double calories)
     {
         var digestion = GetDigestionCapacity();
@@ -205,25 +193,16 @@ public class Body
         _calorieStore = Math.Min(SurvivalProcessor.MAX_CALORIES, _calorieStore + calories * absorptionRate);
     }
 
-    /// <summary>
-    /// Add hydration directly (from drinking water). 1L = 1000ml hydration.
-    /// </summary>
     public void AddHydration(double ml)
     {
         _hydration = Math.Min(SurvivalProcessor.MAX_HYDRATION, _hydration + ml);
     }
 
-    /// <summary>
-    /// Drain calories directly (from vomiting, etc).
-    /// </summary>
     public void DrainCalories(double calories)
     {
         _calorieStore = Math.Max(0, _calorieStore - calories);
     }
 
-    /// <summary>
-    /// Drain hydration directly (from vomiting, blood loss, etc).
-    /// </summary>
     public void DrainHydration(double ml)
     {
         _hydration = Math.Max(0, _hydration - ml);
@@ -287,9 +266,6 @@ public class Body
 
     public double BaseColdResistance { get; } = 0;
 
-    /// <summary>
-    /// Restore body state from save data. Used by save/load system.
-    /// </summary>
     internal void Restore(double calories, double energy, double hydration,
         double temperature, double fatKg, double muscleKg, double bloodCondition)
     {
