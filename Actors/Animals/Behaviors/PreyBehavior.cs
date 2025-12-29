@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 
 namespace text_survival.Actors.Animals.Behaviors;

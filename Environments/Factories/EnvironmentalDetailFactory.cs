@@ -63,43 +63,53 @@ public static class EnvironmentalDetailFactory
     [
         EnvironmentalDetail.FallenLog,
         EnvironmentalDetail.HollowTree,
-        // Note: Animal tracks/droppings are added by HerdPopulator based on actual territories
+        EnvironmentalDetail.BentBranches,  // Generic - could be any animal
+        EnvironmentalDetail.ScatteredBones // Generic - old kills
+        // Note: Species-specific tracks/droppings are added by HerdPopulator based on actual territories
     ];
 
     private static List<Func<EnvironmentalDetail>> ClearingDetails() =>
     [
         EnvironmentalDetail.FallenLog,
-        // Note: Animal signs come from actual herd territories
+        EnvironmentalDetail.ScatteredBones
+        // Note: Species-specific signs come from actual herd territories
     ];
 
     private static List<Func<EnvironmentalDetail>> PlainDetails() =>
     [
-        EnvironmentalDetail.FrozenPuddle
-        // Note: Animal signs come from actual herd territories
+        EnvironmentalDetail.FrozenPuddle,
+        EnvironmentalDetail.ScatteredBones
+        // Note: Species-specific signs come from actual herd territories
     ];
 
     private static List<Func<EnvironmentalDetail>> HillsDetails() =>
     [
         EnvironmentalDetail.StonePile,
-        // Note: Animal signs come from actual herd territories
+        EnvironmentalDetail.BentBranches,
+        EnvironmentalDetail.ScatteredBones
+        // Note: Species-specific signs come from actual herd territories
     ];
 
     private static List<Func<EnvironmentalDetail>> RockDetails() =>
     [
         EnvironmentalDetail.StonePile,
-        EnvironmentalDetail.StonePile // Double weight for stone in rocky areas
-        // Note: Animal signs come from actual herd territories
+        EnvironmentalDetail.StonePile, // Double weight for stone in rocky areas
+        EnvironmentalDetail.ScatteredBones
+        // Note: Species-specific signs come from actual herd territories
     ];
 
     private static List<Func<EnvironmentalDetail>> MarshDetails() =>
     [
         EnvironmentalDetail.FrozenPuddle,
-        // Note: Animal signs come from actual herd territories
+        EnvironmentalDetail.BentBranches,
+        EnvironmentalDetail.ScatteredBones
+        // Note: Species-specific signs come from actual herd territories
     ];
 
     private static List<Func<EnvironmentalDetail>> WaterDetails() =>
     [
-        EnvironmentalDetail.FrozenPuddle    // Edge puddles
-        // Note: Animal signs come from actual herd territories
+        EnvironmentalDetail.FrozenPuddle,
+        EnvironmentalDetail.ScatteredBones
+        // Note: Species-specific signs come from actual herd territories
     ];
 }

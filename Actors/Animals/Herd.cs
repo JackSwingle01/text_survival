@@ -173,6 +173,14 @@ public class Herd
     [JsonIgnore]
     public bool IsEmpty => Count == 0;
 
+    /// <summary>Total mass of all herd members in kg.</summary>
+    [JsonIgnore]
+    public double TotalMassKg => Members.Sum(m => m.Body.WeightKG);
+
+    /// <summary>The diet type for this herd based on animal type.</summary>
+    [JsonIgnore]
+    public AnimalDiet Diet => AnimalDietExtensions.GetDietForAnimal(AnimalType);
+
     #endregion
 
     #region Constructor

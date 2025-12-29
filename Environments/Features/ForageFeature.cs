@@ -2,6 +2,7 @@ using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
@@ -19,7 +20,8 @@ public record ForageResource(
 public class ForageFeature : LocationFeature, IWorkableFeature
 {
     private readonly double respawnRateHours = 168.0; // Full respawn takes 1 week
-    private readonly double animalRespawnRateHours = 72.0; // Animal grazing respawns faster (3 days)
+    private readonly double grazingRespawnRateHours = 48.0; // Animal grazing respawns faster (2 days)
+    private const double GrazingRatePerKgPerHour = 0.001; // How fast animals deplete resources per kg of herd mass
     [System.Text.Json.Serialization.JsonInclude]
     private List<ForageResource> _resources = [];
     private static readonly Random rng = new();
@@ -29,16 +31,17 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     internal double HoursSinceLastForage { get; set; } = 0;
 
     /// <summary>
-    /// Tracks depletion from animal grazing (separate from player foraging).
+    /// Tracks per-resource depletion from animal grazing (0-1 scale).
+    /// Key is Resource enum, value is grazing depletion level.
     /// </summary>
     [System.Text.Json.Serialization.JsonInclude]
-    internal double AnimalGrazingHours { get; set; } = 0;
+    internal Dictionary<Resource, double> Grazed { get; set; } = [];
 
     /// <summary>
     /// Time since last animal grazing for respawn calculation.
     /// </summary>
     [System.Text.Json.Serialization.JsonInclude]
-    internal double HoursSinceAnimalGrazing { get; set; } = 0;
+    internal double HoursSinceGrazing { get; set; } = 0;
 
     /// <summary>
     /// Seed for deterministic clue generation. Changes after foraging or "keep walking".
@@ -66,37 +69,40 @@ public class ForageFeature : LocationFeature, IWorkableFeature
             HoursSinceLastForage += hours;
         }
 
-        if (AnimalGrazingHours > 0)
+        // Handle grazing respawn
+        if (Grazed.Count > 0)
         {
-            HoursSinceAnimalGrazing += hours;
+            HoursSinceGrazing += hours;
+
+            // Gradually reduce grazing depletion over time
+            double respawnAmount = hours / grazingRespawnRateHours;
+            var keysToUpdate = Grazed.Keys.ToList();
+            foreach (var key in keysToUpdate)
+            {
+                Grazed[key] = Math.Max(0, Grazed[key] - respawnAmount);
+                if (Grazed[key] <= 0)
+                {
+                    Grazed.Remove(key);
+                }
+            }
         }
     }
 
     private double ResourceDensity()
     {
-        // Calculate base depleted density from player foraging
-        double playerDepletion = NumberOfHoursForaged / (NumberOfHoursForaged + 1);
+        // Calculate base depleted density
+        double depletedDensity = BaseResourceDensity / (NumberOfHoursForaged + 1);
 
-        // Calculate animal grazing depletion (separate, less impactful per hour)
-        double animalDepletion = AnimalGrazingHours * 0.5 / (AnimalGrazingHours * 0.5 + 1);
-
-        // Calculate respawn recovery for player foraging
-        double playerRecovery = 0;
+        // Calculate respawn recovery if time has passed
         if (HasForagedBefore && NumberOfHoursForaged > 0)
         {
-            playerRecovery = Math.Min(playerDepletion, HoursSinceLastForage / respawnRateHours);
+            double amountDepleted = BaseResourceDensity - depletedDensity;
+            double respawnProgress = (HoursSinceLastForage / respawnRateHours) * amountDepleted;
+            double effectiveDensity = Math.Min(BaseResourceDensity, depletedDensity + respawnProgress);
+            return effectiveDensity;
         }
 
-        // Calculate respawn recovery for animal grazing (faster respawn)
-        double animalRecovery = 0;
-        if (AnimalGrazingHours > 0)
-        {
-            animalRecovery = Math.Min(animalDepletion, HoursSinceAnimalGrazing / animalRespawnRateHours);
-        }
-
-        // Combine depletions and recoveries
-        double totalDepletion = (playerDepletion - playerRecovery) + (animalDepletion - animalRecovery);
-        return Math.Max(0.1, BaseResourceDensity * (1 - Math.Min(0.9, totalDepletion)));
+        return depletedDensity;
     }
 
     /// <summary>
@@ -108,7 +114,13 @@ public class ForageFeature : LocationFeature, IWorkableFeature
 
         foreach (var resource in _resources)
         {
-            double baseChance = ResourceDensity() * resource.Abundance;
+            // Get grazing depletion for this specific resource
+            double grazedLevel = GetGrazedLevel(resource.ResourceType);
+
+            // Apply grazing reduction to abundance
+            double effectiveAbundance = resource.Abundance * (1 - grazedLevel);
+
+            double baseChance = ResourceDensity() * effectiveAbundance;
             double scaledChance = baseChance * hours;
 
             // Guaranteed finds from floor of scaledChance
@@ -141,6 +153,98 @@ public class ForageFeature : LocationFeature, IWorkableFeature
         ClueSeed = Random.Shared.Next();
 
         return found;
+    }
+
+    /// <summary>
+    /// Get the grazing depletion level for a specific resource (0-1).
+    /// </summary>
+    public double GetGrazedLevel(Resource resource)
+    {
+        return Grazed.TryGetValue(resource, out double level) ? level : 0;
+    }
+
+    /// <summary>
+    /// Animals graze at this location, depleting resources based on their diet.
+    /// </summary>
+    /// <param name="diet">The animal's diet type.</param>
+    /// <param name="herdMassKg">Total mass of the herd in kg.</param>
+    /// <param name="minutes">Time spent grazing.</param>
+    /// <returns>True if there was food to graze on, false if the area is depleted for this diet.</returns>
+    public bool Graze(AnimalDiet diet, double herdMassKg, int minutes)
+    {
+        if (diet == AnimalDiet.Carnivore) return false; // Carnivores don't graze
+
+        var consumedResources = diet.GetConsumedResources();
+        if (consumedResources.Length == 0) return false;
+
+        // Check if this location has any resources the animal can eat
+        var availableResources = _resources
+            .Where(r => consumedResources.Contains(r.ResourceType))
+            .ToList();
+
+        if (availableResources.Count == 0) return false;
+
+        // Calculate grazing impact based on herd mass and time
+        double hours = minutes / 60.0;
+        double grazingImpact = herdMassKg * hours * GrazingRatePerKgPerHour;
+
+        // Distribute grazing across available resources
+        double impactPerResource = grazingImpact / availableResources.Count;
+
+        bool hadFood = false;
+        foreach (var resource in availableResources)
+        {
+            double currentLevel = GetGrazedLevel(resource.ResourceType);
+
+            // Only graze if not fully depleted
+            if (currentLevel < 0.95)
+            {
+                hadFood = true;
+                Grazed[resource.ResourceType] = Math.Min(1.0, currentLevel + impactPerResource);
+            }
+        }
+
+        if (hadFood)
+        {
+            HoursSinceGrazing = 0;
+        }
+
+        return hadFood;
+    }
+
+    /// <summary>
+    /// Get the average grazing depletion level for a diet type (0-1).
+    /// Used by animal AI to decide whether to stay or move on.
+    /// </summary>
+    public double GetGrazingLevelForDiet(AnimalDiet diet)
+    {
+        if (diet == AnimalDiet.Carnivore) return 0;
+
+        var consumedResources = diet.GetConsumedResources();
+        if (consumedResources.Length == 0) return 0;
+
+        // Check which consumed resources actually exist at this location
+        var availableResources = _resources
+            .Where(r => consumedResources.Contains(r.ResourceType))
+            .Select(r => r.ResourceType)
+            .ToList();
+
+        if (availableResources.Count == 0) return 1.0; // Nothing to eat = fully depleted
+
+        // Average grazing level across available resources
+        double totalLevel = availableResources.Sum(r => GetGrazedLevel(r));
+        return totalLevel / availableResources.Count;
+    }
+
+    /// <summary>
+    /// Check if an animal with this diet would find food here.
+    /// </summary>
+    public bool HasFoodForDiet(AnimalDiet diet)
+    {
+        if (diet == AnimalDiet.Carnivore) return false;
+
+        var consumedResources = diet.GetConsumedResources();
+        return _resources.Any(r => consumedResources.Contains(r.ResourceType));
     }
 
     /// <summary>
