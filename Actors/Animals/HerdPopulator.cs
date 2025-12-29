@@ -172,10 +172,10 @@ public static class HerdPopulator
 
             var startPos = available[_rng.Next(available.Count)];
 
-            // Bears have smaller territories (2-3 tiles)
-            var territory = CreateContiguousTerritory(startPos, available, 2 + _rng.Next(2));
+            // Bears have moderate territories (4-8 tiles) to spread out foraging impact
+            var territory = CreateContiguousTerritory(startPos, available, 4 + _rng.Next(5));
 
-            if (territory.Count < 2) continue;
+            if (territory.Count < 3) continue;
 
             // Create "herd" of 1 bear
             var herd = Herd.Create("Bear", startPos, territory);
@@ -232,31 +232,70 @@ public static class HerdPopulator
     /// </summary>
     private static void PopulateLargePrey(HerdRegistry registry, List<GridPosition> available, int count)
     {
+        // Split count between types
+        int megalocerosCount = count / 2;
+        int bisonCount = count - megalocerosCount;
+
+        PopulateMegaloceros(registry, available, megalocerosCount);
+        PopulateBison(registry, available, bisonCount);
+    }
+
+    /// <summary>
+    /// Create megaloceros herds (small groups in medium territories).
+    /// </summary>
+    private static void PopulateMegaloceros(HerdRegistry registry, List<GridPosition> available, int count)
+    {
         for (int i = 0; i < count; i++)
         {
             if (available.Count == 0) break;
 
             var startPos = available[_rng.Next(available.Count)];
 
-            // Small territory (1-2 tiles)
-            var territory = CreateContiguousTerritory(startPos, available, 1 + _rng.Next(2));
+            // Megaloceros: 3-6 tile territories
+            var territory = CreateContiguousTerritory(startPos, available, 3 + _rng.Next(4));
 
-            // Alternate between megaloceros and bison
-            string animalType = i % 2 == 0 ? "Megaloceros" : "Bison";
+            if (territory.Count < 3) continue;
 
-            var herd = Herd.Create(animalType, startPos, territory);
+            var herd = Herd.Create("Megaloceros", startPos, territory);
 
-            // Small groups (1-3 for megaloceros, 3-8 for bison)
-            int groupSize = animalType == "Megaloceros"
-                ? 1 + _rng.Next(3)
-                : 3 + _rng.Next(6);
-
+            // Small groups (1-3)
+            int groupSize = 1 + _rng.Next(3);
             for (int j = 0; j < groupSize; j++)
             {
-                var animal = animalType == "Megaloceros"
-                    ? AnimalFactory.MakeMegaloceros()
-                    : AnimalFactory.MakeSteppeBison();
+                var animal = AnimalFactory.MakeMegaloceros();
+                if (animal != null)
+                {
+                    herd.AddMember(animal);
+                }
+            }
 
+            registry.AddHerd(herd);
+        }
+    }
+
+    /// <summary>
+    /// Create bison herds (larger groups needing expansive grazing territories).
+    /// </summary>
+    private static void PopulateBison(HerdRegistry registry, List<GridPosition> available, int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            if (available.Count == 0) break;
+
+            var startPos = available[_rng.Next(available.Count)];
+
+            // Bison: 15-25 tile territories (large grazers need space)
+            var territory = CreateContiguousTerritory(startPos, available, 15 + _rng.Next(11));
+
+            if (territory.Count < 3) continue;
+
+            var herd = Herd.Create("Bison", startPos, territory);
+
+            // Larger groups (3-8)
+            int groupSize = 3 + _rng.Next(6);
+            for (int j = 0; j < groupSize; j++)
+            {
+                var animal = AnimalFactory.MakeSteppeBison();
                 if (animal != null)
                 {
                     herd.AddMember(animal);

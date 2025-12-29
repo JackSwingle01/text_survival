@@ -20,8 +20,7 @@ public record ForageResource(
 public class ForageFeature : LocationFeature, IWorkableFeature
 {
     private readonly double respawnRateHours = 168.0; // Full respawn takes 1 week
-    private readonly double grazingRespawnRateHours = 48.0; // Animal grazing respawns faster (2 days)
-    private const double GrazingRatePerKgPerHour = 0.001; // How fast animals deplete resources per kg of herd mass
+    private const double BaseGrazingRatePerKgPerHour = 0.0001;
     [System.Text.Json.Serialization.JsonInclude]
     private List<ForageResource> _resources = [];
     private static readonly Random rng = new();
@@ -37,11 +36,6 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     [System.Text.Json.Serialization.JsonInclude]
     internal Dictionary<Resource, double> Grazed { get; set; } = [];
 
-    /// <summary>
-    /// Time since last animal grazing for respawn calculation.
-    /// </summary>
-    [System.Text.Json.Serialization.JsonInclude]
-    internal double HoursSinceGrazing { get; set; } = 0;
 
     /// <summary>
     /// Seed for deterministic clue generation. Changes after foraging or "keep walking".
@@ -69,13 +63,10 @@ public class ForageFeature : LocationFeature, IWorkableFeature
             HoursSinceLastForage += hours;
         }
 
-        // Handle grazing respawn
+        // Handle grazing respawn (same rate as regular foraging)
         if (Grazed.Count > 0)
         {
-            HoursSinceGrazing += hours;
-
-            // Gradually reduce grazing depletion over time
-            double respawnAmount = hours / grazingRespawnRateHours;
+            double respawnAmount = hours / respawnRateHours;
             var keysToUpdate = Grazed.Keys.ToList();
             foreach (var key in keysToUpdate)
             {
@@ -164,7 +155,18 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     }
 
     /// <summary>
+    /// Get the diet multiplier for grazing rate.
+    /// Omnivores (bears) are more efficient foragers.
+    /// </summary>
+    private static double GetDietMultiplier(AnimalDiet diet) => diet switch
+    {
+        AnimalDiet.Omnivore => 5.0,
+        _ => 1.0
+    };
+
+    /// <summary>
     /// Animals graze at this location, depleting resources based on their diet.
+    /// Uses diminishing returns - harder to deplete already-grazed areas.
     /// </summary>
     /// <param name="diet">The animal's diet type.</param>
     /// <param name="herdMassKg">Total mass of the herd in kg.</param>
@@ -184,12 +186,8 @@ public class ForageFeature : LocationFeature, IWorkableFeature
 
         if (availableResources.Count == 0) return false;
 
-        // Calculate grazing impact based on herd mass and time
         double hours = minutes / 60.0;
-        double grazingImpact = herdMassKg * hours * GrazingRatePerKgPerHour;
-
-        // Distribute grazing across available resources
-        double impactPerResource = grazingImpact / availableResources.Count;
+        double dietMultiplier = GetDietMultiplier(diet);
 
         bool hadFood = false;
         foreach (var resource in availableResources)
@@ -200,13 +198,13 @@ public class ForageFeature : LocationFeature, IWorkableFeature
             if (currentLevel < 0.95)
             {
                 hadFood = true;
-                Grazed[resource.ResourceType] = Math.Min(1.0, currentLevel + impactPerResource);
-            }
-        }
 
-        if (hadFood)
-        {
-            HoursSinceGrazing = 0;
+                // Diminishing returns: harder to deplete already-grazed areas
+                double grazedDelta = herdMassKg * hours * BaseGrazingRatePerKgPerHour
+                                   * dietMultiplier * (1 - currentLevel);
+
+                Grazed[resource.ResourceType] = Math.Min(1.0, currentLevel + grazedDelta);
+            }
         }
 
         return hadFood;
