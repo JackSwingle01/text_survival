@@ -78,8 +78,11 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         // Bears can reduce hunger by foraging (omnivore behavior)
         herd.Hunger = Math.Max(0, herd.Hunger - elapsedMinutes * ForageRatePerMinute);
 
-        // Move within territory while foraging
-        TryMoveWithinTerritory(herd);
+        // Graze at current location, depleting resources
+        GrazeAtLocation(herd, elapsedMinutes, ctx);
+
+        // Move within territory while foraging (faster if area is grazed)
+        TryMoveWithinTerritory(herd, elapsedMinutes, ctx);
 
         // Sated? Rest
         if (herd.Hunger < 0.3)
@@ -100,10 +103,20 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         return HerdUpdateResult.None;
     }
 
+    private static void GrazeAtLocation(Herd herd, int elapsedMinutes, GameContext ctx)
+    {
+        if (ctx.Map == null) return;
+
+        var location = ctx.Map.GetLocationAt(herd.Position);
+        var forage = location?.Features.OfType<ForageFeature>().FirstOrDefault();
+
+        forage?.Graze(herd.Diet, herd.TotalMassKg, elapsedMinutes);
+    }
+
     private static HerdUpdateResult UpdatePatrolling(Herd herd, int elapsedMinutes, GameContext ctx)
     {
         // Bears patrol less than wolves - mostly territory check
-        TryMoveWithinTerritory(herd);
+        TryMoveWithinTerritory(herd, elapsedMinutes, ctx);
 
         // Check for player in tile
         if (ctx.Map != null && herd.Position == ctx.Map.CurrentPosition)
@@ -197,15 +210,33 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         return _rng.NextDouble() < aggression;
     }
 
-    private static void TryMoveWithinTerritory(Herd herd)
+    private static void TryMoveWithinTerritory(Herd herd, int elapsedMinutes, GameContext ctx)
     {
         if (herd.HomeTerritory.Count == 0) return;
 
-        // 15% chance per tick to move
-        if (_rng.NextDouble() < 0.15)
+        // Get grazed level at current location to influence movement
+        double grazedLevel = GetGrazedLevelAtLocation(herd, ctx);
+
+        // Base 1% per minute, increases with grazing depletion
+        double moveChancePerMinute = 0.01 + 0.01 * grazedLevel;
+
+        // Calculate probability of moving at least once during elapsed time
+        double moveProbability = 1.0 - Math.Pow(1.0 - moveChancePerMinute, elapsedMinutes);
+
+        if (_rng.NextDouble() < moveProbability)
         {
             herd.TerritoryIndex = (herd.TerritoryIndex + 1) % herd.HomeTerritory.Count;
             herd.Position = herd.HomeTerritory[herd.TerritoryIndex];
         }
+    }
+
+    private static double GetGrazedLevelAtLocation(Herd herd, GameContext ctx)
+    {
+        if (ctx.Map == null) return 0;
+
+        var location = ctx.Map.GetLocationAt(herd.Position);
+        var forage = location?.Features.OfType<ForageFeature>().FirstOrDefault();
+
+        return forage?.GetGrazingLevelForDiet(herd.Diet) ?? 0;
     }
 }

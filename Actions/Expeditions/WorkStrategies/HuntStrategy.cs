@@ -24,9 +24,9 @@ public class HuntStrategy : IWorkStrategy
             if (pos.HasValue)
             {
                 var nearbyHerds = ctx.Herds.GetHerdsInRange(pos.Value, 1);
-                if (nearbyHerds.Any(h => !h.IsPredator))
+                if (nearbyHerds.Any(h => h.Count > 0))
                 {
-                    return null; // Large game available
+                    return null; // Game available (prey or predator)
                 }
             }
         }

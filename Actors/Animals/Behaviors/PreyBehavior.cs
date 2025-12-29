@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 
 namespace text_survival.Actors.Animals.Behaviors;
@@ -66,8 +67,11 @@ public class PreyBehavior : IHerdBehavior
         // Reduce hunger while grazing
         herd.Hunger = Math.Max(0, herd.Hunger - elapsedMinutes * GrazeRatePerMinute);
 
-        // Move slowly within territory
-        TryMoveWithinTerritory(herd, ctx);
+        // Graze at current location, depleting resources
+        GrazeAtLocation(herd, elapsedMinutes, ctx);
+
+        // Move slowly within territory (faster if area is grazed)
+        TryMoveWithinTerritory(herd, elapsedMinutes, ctx);
 
         // Full? Rest
         if (herd.Hunger < 0.2)
@@ -77,6 +81,16 @@ public class PreyBehavior : IHerdBehavior
         }
 
         return HerdUpdateResult.None;
+    }
+
+    private static void GrazeAtLocation(Herd herd, int elapsedMinutes, GameContext ctx)
+    {
+        if (ctx.Map == null) return;
+
+        var location = ctx.Map.GetLocationAt(herd.Position);
+        var forage = location?.Features.OfType<ForageFeature>().FirstOrDefault();
+
+        forage?.Graze(herd.Diet, herd.TotalMassKg, elapsedMinutes);
     }
 
     private static HerdUpdateResult UpdateAlert(Herd herd, GameContext ctx)
@@ -156,16 +170,35 @@ public class PreyBehavior : IHerdBehavior
         return options.FirstOrDefault();
     }
 
-    private static void TryMoveWithinTerritory(Herd herd, GameContext ctx)
+    private static void TryMoveWithinTerritory(Herd herd, int elapsedMinutes, GameContext ctx)
     {
         if (herd.HomeTerritory.Count == 0) return;
 
-        // Grazing: 20% chance per tick to move to next territory tile
-        if (_rng.NextDouble() < 0.20)
+        // Get grazed level at current location to influence movement
+        double grazedLevel = GetGrazedLevelAtLocation(herd, ctx);
+
+        // Base 1% per minute, increases with grazing depletion
+        // grazedLevel=0: 1% per minute (~100 min avg), grazedLevel=1: 2% per minute (~50 min avg)
+        double moveChancePerMinute = 0.01 + 0.01 * grazedLevel;
+
+        // Calculate probability of moving at least once during elapsed time
+        double moveProbability = 1.0 - Math.Pow(1.0 - moveChancePerMinute, elapsedMinutes);
+
+        if (_rng.NextDouble() < moveProbability)
         {
             herd.TerritoryIndex = (herd.TerritoryIndex + 1) % herd.HomeTerritory.Count;
             herd.Position = herd.HomeTerritory[herd.TerritoryIndex];
         }
+    }
+
+    private static double GetGrazedLevelAtLocation(Herd herd, GameContext ctx)
+    {
+        if (ctx.Map == null) return 0;
+
+        var location = ctx.Map.GetLocationAt(herd.Position);
+        var forage = location?.Features.OfType<ForageFeature>().FirstOrDefault();
+
+        return forage?.GetGrazingLevelForDiet(herd.Diet) ?? 0;
     }
 
     private static string GetCardinalDirection(GridPosition from, GridPosition to)

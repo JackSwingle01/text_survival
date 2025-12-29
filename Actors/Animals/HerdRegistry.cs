@@ -241,8 +241,8 @@ public class HerdRegistry
         // Get herds at current position and adjacent tiles
         var nearby = GetHerdsInRange(pos, 1);
 
-        // Filter to non-predator large game (predators are encountered, not hunted)
-        var huntableHerds = nearby.Where(h => !h.IsPredator && h.Count > 0).ToList();
+        // Filter to herds with animals (both prey and predators are huntable)
+        var huntableHerds = nearby.Where(h => h.Count > 0).ToList();
 
         if (huntableHerds.Count == 0)
             return null;

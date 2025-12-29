@@ -218,7 +218,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     /// </summary>
     public static EnvironmentalDetail AnimalDroppings(string animalType = "wolf")
     {
-        bool isPredator = animalType is "wolf" or "bear";
+        bool isPredator = animalType.ToLower() is "wolf" or "bear";
 
         return new EnvironmentalDetail("animal_droppings", "Animal Droppings", $"Fresh {animalType} scat.")
         {
