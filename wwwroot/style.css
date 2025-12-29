@@ -28,6 +28,10 @@
     --water-blue: #5080a0;
     --energy-yellow: #a0a050;
     --warning-amber: #c08040;
+
+    /* Font families */
+    --font-display: 'Oswald', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1508,6 +1512,42 @@ body {
     color: var(--health-green);
 }
 
+.effect-name {
+    flex-shrink: 0;
+    min-width: 70px;
+}
+
+.effect-bar-container {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    margin: 0 8px;
+    overflow: hidden;
+}
+
+.effect-bar {
+    height: 100%;
+    background: var(--text-dim);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.effect-item.worsening .effect-bar {
+    background: var(--vital-red);
+}
+
+.effect-item.improving .effect-bar {
+    background: var(--health-green);
+}
+
+.effect-trend {
+    flex-shrink: 0;
+    width: 16px;
+    text-align: center;
+    opacity: 0.8;
+}
+
 .effect-severity {
     opacity: 0.8;
     margin-left: 4px;
@@ -2759,7 +2799,14 @@ body {
 .fire-item-weight {
     font-size: 12px;
     color: var(--text-dim);
+    margin-right: 8px;
+}
+
+.fire-item-burn-time {
+    font-size: 11px;
+    color: var(--fire-orange);
     margin-right: 12px;
+    font-weight: 500;
 }
 
 .fire-item-arrow {
@@ -3030,6 +3077,48 @@ body {
     font-style: italic;
 }
 
+/* Fire progress bar (for starting animation) */
+.fire-progress {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-dim);
+    margin-top: 12px;
+    text-align: center;
+}
+
+.fire-progress-text {
+    color: var(--fire-orange);
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.fire-progress-bar-container {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.fire-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--fire-orange);
+    border-radius: 3px;
+    transition: width 0.1s linear;
+}
+
+.fire-progress-result {
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+.fire-progress-result.success {
+    color: var(--health-green);
+}
+
+.fire-progress-result.failure {
+    color: var(--vital-red);
+}
+
 .fire-actions {
     display: flex;
     justify-content: center;
@@ -3052,4 +3141,163 @@ body {
     .fire-divider .material-symbols-outlined {
         transform: rotate(90deg);
     }
+}
+
+/* ============================================
+   Cooking Overlay
+   ============================================ */
+
+.cooking-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cooking-modal {
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    padding: 24px;
+}
+
+.cooking-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.cooking-header h2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--fire-orange);
+    margin: 0;
+    font-size: 1.3rem;
+}
+
+.cooking-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.cooking-status {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+}
+
+.cooking-status-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cooking-status-item .material-symbols-outlined {
+    color: var(--text-faint);
+    font-size: 20px;
+}
+
+.cooking-status-label {
+    flex: 1;
+    color: var(--text-dim);
+}
+
+.cooking-status-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.cooking-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cooking-option-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.cooking-option-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--fire-orange);
+}
+
+.cooking-option-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.cooking-option-btn .material-symbols-outlined {
+    color: var(--fire-orange);
+    font-size: 24px;
+}
+
+.cooking-option-label {
+    flex: 1;
+    text-align: left;
+}
+
+.cooking-option-time {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+}
+
+.cooking-result {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    animation: cooking-result-fade 0.3s ease;
+}
+
+@keyframes cooking-result-fade {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.cooking-result.success {
+    background: rgba(106, 176, 76, 0.2);
+    color: var(--health-green);
+}
+
+.cooking-result.success .material-symbols-outlined {
+    color: var(--health-green);
+}
+
+.cooking-result.failure {
+    background: rgba(231, 76, 60, 0.2);
+    color: var(--vital-red);
+}
+
+.cooking-actions {
+    display: flex;
+    justify-content: center;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-dim);
+    margin-top: 20px;
 }

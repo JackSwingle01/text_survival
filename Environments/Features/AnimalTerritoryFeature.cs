@@ -270,7 +270,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
             >= 0.8 => "plentiful",
             >= 0.5 => "decent",
             >= 0.3 => "sparse",
-            _ => "overhunted"
+            _ => "barren"
         };
     }
 

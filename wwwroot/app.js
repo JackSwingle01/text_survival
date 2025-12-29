@@ -42,6 +42,7 @@ class GameClient {
         this.craftingActiveTab = null;  // Current crafting category tab
         this.currentCraftingData = null; // Stored crafting data for tab switching
         this.currentCraftingInput = null; // Stored input for crafting actions
+        this.pendingFireStart = false;   // Track fire start attempt for progress animation
 
         // Initialize FrameQueue with render callback
         FrameQueue.init((frame) => this.renderFrame(frame));
@@ -275,6 +276,9 @@ class GameClient {
             case 'fire':
                 this.showFireOverlay(overlay.data, input);
                 break;
+            case 'cooking':
+                this.showCookingOverlay(overlay.data, input);
+                break;
         }
     }
 
@@ -292,6 +296,7 @@ class GameClient {
         this.hideHuntPopup();
         this.hideTransferOverlay();
         this.hideFireOverlay();
+        this.hideCookingOverlay();
     }
 
     /**
@@ -2392,6 +2397,31 @@ class GameClient {
 
         const inputId = this.currentInputId;
 
+        // Check if we're receiving result from a fire start attempt
+        const progressEl = document.getElementById('fireProgress');
+        const progressResult = document.getElementById('fireProgressResult');
+        if (this.pendingFireStart) {
+            this.pendingFireStart = false;
+            // Show result based on whether fire is now active
+            if (fireData.fire.isActive) {
+                progressResult.textContent = 'Fire started!';
+                progressResult.className = 'fire-progress-result success';
+            } else {
+                progressResult.textContent = 'Failed to catch...';
+                progressResult.className = 'fire-progress-result failure';
+            }
+            show(progressResult);
+            // Hide result after delay and reset progress bar
+            setTimeout(() => {
+                hide(progressEl);
+                hide(progressResult);
+                document.getElementById('fireProgressBar').style.width = '0%';
+            }, 1500);
+        } else {
+            // Not a fire start result - ensure progress is hidden
+            hide(progressEl);
+        }
+
         // Set title based on mode
         const titleEl = document.getElementById('fireTitle');
         titleEl.textContent = fireData.mode === 'starting' ? 'START FIRE' : 'TEND FIRE';
@@ -2402,7 +2432,7 @@ class GameClient {
             show(document.getElementById('fireStartBtn'));
             const startBtn = document.getElementById('fireStartBtn');
             startBtn.disabled = !fireData.fire.hasKindling || !fireData.tools || fireData.tools.length === 0;
-            startBtn.onclick = () => this.respond('start_fire', inputId);
+            startBtn.onclick = () => this.startFireWithProgress(inputId);
         } else {
             this.renderFireTendingMode(fireData.fuels, fireData.fire, inputId);
             hide(document.getElementById('fireStartBtn'));
@@ -2414,6 +2444,47 @@ class GameClient {
         // Done button
         const doneBtn = document.getElementById('fireDoneBtn');
         doneBtn.onclick = () => this.respond('done', inputId);
+    }
+
+    startFireWithProgress(inputId) {
+        // Prevent duplicate responses
+        if (this.awaitingResponse) return;
+
+        this.pendingFireStart = true;
+
+        const progressEl = document.getElementById('fireProgress');
+        const progressBar = document.getElementById('fireProgressBar');
+        const progressText = document.getElementById('fireProgressText');
+        const progressResult = document.getElementById('fireProgressResult');
+
+        // Show progress bar
+        show(progressEl);
+        hide(progressResult);
+        progressText.textContent = 'Starting fire...';
+        progressBar.style.width = '0%';
+
+        // Disable buttons during animation
+        document.getElementById('fireStartBtn').disabled = true;
+        document.getElementById('fireDoneBtn').disabled = true;
+
+        // Animate progress bar (~1.5 seconds)
+        const durationMs = 1500;
+        const startTime = Date.now();
+
+        const animateProgress = () => {
+            const elapsed = Date.now() - startTime;
+            const pct = Math.min(100, Math.round((elapsed / durationMs) * 100));
+            progressBar.style.width = pct + '%';
+
+            if (pct < 100) {
+                requestAnimationFrame(animateProgress);
+            } else {
+                // Animation complete - send response to backend
+                this.respond('start_fire', inputId);
+            }
+        };
+
+        requestAnimationFrame(animateProgress);
     }
 
     renderFireStartingMode(tools, tinders, fire, inputId) {
@@ -2585,6 +2656,18 @@ class GameClient {
                     ? `${fuel.weightKg.toFixed(1)}kg`
                     : `${fuel.weightKg.toFixed(2)}kg`;
                 row.appendChild(weight);
+
+                // Burn time hint
+                const burnTime = document.createElement('span');
+                burnTime.className = 'fire-item-burn-time';
+                if (fuel.burnTimeMinutes >= 60) {
+                    const hours = Math.floor(fuel.burnTimeMinutes / 60);
+                    const mins = fuel.burnTimeMinutes % 60;
+                    burnTime.textContent = mins > 0 ? `+${hours}h${mins}m` : `+${hours}h`;
+                } else {
+                    burnTime.textContent = `+${fuel.burnTimeMinutes}m`;
+                }
+                row.appendChild(burnTime);
 
                 if (fuel.canAdd) {
                     const arrow = document.createElement('span');
@@ -2778,6 +2861,114 @@ class GameClient {
 
     hideFireOverlay() {
         hide(document.getElementById('fireOverlay'));
+    }
+
+    // ============================================
+    // Cooking Overlay Methods
+    // ============================================
+
+    showCookingOverlay(cookingData, input) {
+        const overlay = document.getElementById('cookingOverlay');
+        show(overlay);
+
+        const inputId = this.currentInputId;
+
+        // Render current status
+        const statusEl = document.getElementById('cookingStatus');
+        Utils.clearElement(statusEl);
+
+        const statusItems = [
+            { icon: 'water_drop', label: 'Water', value: `${cookingData.waterLiters.toFixed(1)}L` },
+            { icon: 'lunch_dining', label: 'Raw Meat', value: `${cookingData.rawMeatKg.toFixed(1)}kg` },
+            { icon: 'outdoor_grill', label: 'Cooked Meat', value: `${cookingData.cookedMeatKg.toFixed(1)}kg` }
+        ];
+
+        for (const item of statusItems) {
+            const row = document.createElement('div');
+            row.className = 'cooking-status-item';
+
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined';
+            icon.textContent = item.icon;
+            row.appendChild(icon);
+
+            const label = document.createElement('span');
+            label.className = 'cooking-status-label';
+            label.textContent = item.label;
+            row.appendChild(label);
+
+            const value = document.createElement('span');
+            value.className = 'cooking-status-value';
+            value.textContent = item.value;
+            row.appendChild(value);
+
+            statusEl.appendChild(row);
+        }
+
+        // Render action options
+        const optionsEl = document.getElementById('cookingOptions');
+        Utils.clearElement(optionsEl);
+
+        for (const opt of cookingData.options) {
+            const btn = document.createElement('button');
+            btn.className = 'cooking-option-btn' + (opt.isAvailable ? '' : ' disabled');
+            btn.disabled = !opt.isAvailable;
+
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'material-symbols-outlined';
+            iconSpan.textContent = opt.icon;
+            btn.appendChild(iconSpan);
+
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'cooking-option-label';
+            labelSpan.textContent = opt.label;
+            btn.appendChild(labelSpan);
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'cooking-option-time';
+            timeSpan.textContent = `${opt.timeMinutes} min`;
+            btn.appendChild(timeSpan);
+
+            if (!opt.isAvailable && opt.disabledReason) {
+                btn.title = opt.disabledReason;
+            }
+
+            btn.onclick = () => this.respond(opt.id, inputId);
+            optionsEl.appendChild(btn);
+        }
+
+        // Show result feedback if present
+        const resultEl = document.getElementById('cookingResult');
+        if (cookingData.lastResult) {
+            Utils.clearElement(resultEl);
+
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined';
+            icon.textContent = cookingData.lastResult.icon;
+            resultEl.appendChild(icon);
+
+            const msg = document.createElement('span');
+            msg.textContent = cookingData.lastResult.message;
+            resultEl.appendChild(msg);
+
+            resultEl.className = 'cooking-result ' + (cookingData.lastResult.isSuccess ? 'success' : 'failure');
+            show(resultEl);
+
+            // Auto-hide after delay
+            setTimeout(() => {
+                hide(resultEl);
+            }, 2000);
+        } else {
+            hide(resultEl);
+        }
+
+        // Done button
+        const doneBtn = document.getElementById('cookingDoneBtn');
+        doneBtn.onclick = () => this.respond('done', inputId);
+    }
+
+    hideCookingOverlay() {
+        hide(document.getElementById('cookingOverlay'));
     }
 
     showCrafting(crafting, input) {

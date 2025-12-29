@@ -43,8 +43,8 @@ public class Player : Actor
         // 2. Add effects from survival (hypothermia, etc)
         foreach (var effect in result.Effects)
         {
-            // Wet effect can both increase and decrease, so use SetEffectSeverity
-            string? msg = effect.EffectKind == "Wet"
+            // Wet and Bloody effects can both increase and decrease, so use SetEffectSeverity
+            string? msg = (effect.EffectKind == "Wet" || effect.EffectKind == "Bloody")
                 ? EffectRegistry.SetEffectSeverity(effect)
                 : EffectRegistry.AddEffect(effect);
             if (msg != null) messages.Add(msg);

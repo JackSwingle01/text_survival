@@ -108,13 +108,18 @@ public static partial class GameEventRegistry
                     new EventResult("Ignoring it was a mistake. It's getting worse.", 0.15, 0)
                         .DamageWithVariant(VariantSelector.SelectSprainVariant(ctx))
                 ])
-            .Choice("Head Back",
-                "This might be serious. Better to return to camp.",
+            .Choice("Apply Treatment",
+                "Clean and dress the wound properly.",
                 [
-                    new EventResult("You turn back, favoring the injury.", 1.0)
-                        .DamageWithVariant(variant)
-                        .Aborts()
-                ]);
+                    new EventResult("You clean and dress the wound. Should heal fine.", 0.65, 10)
+                        .Costs(ResourceType.PlantFiber, 1),
+                    new EventResult("Treatment helps, but it'll still bruise.", 0.25, 8)
+                        .Costs(ResourceType.PlantFiber, 1)
+                        .DamageWithVariant(variant with { Amount = variant.Amount / 2 }),
+                    new EventResult("Good work. Barely a scratch now.", 0.10, 12)
+                        .Costs(ResourceType.PlantFiber, 1)
+                ],
+                requires: [EventCondition.HasPlantFiber]);
     }
 
     // === DISCOVERY EVENTS ===

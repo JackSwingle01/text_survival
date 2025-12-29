@@ -17,6 +17,7 @@ namespace text_survival.Web.Dto;
 [JsonDerivedType(typeof(HuntOverlay), "hunt")]
 [JsonDerivedType(typeof(TransferOverlay), "transfer")]
 [JsonDerivedType(typeof(FireOverlay), "fire")]
+[JsonDerivedType(typeof(CookingOverlay), "cooking")]
 public abstract record Overlay;
 
 /// <summary>
@@ -33,6 +34,43 @@ public record TransferOverlay(TransferDto Data) : Overlay;
 /// Fire overlay: Combined fire starting and tending UI.
 /// </summary>
 public record FireOverlay(FireManagementDto Data) : Overlay;
+
+/// <summary>
+/// Cooking overlay: Cooking and snow melting at fire.
+/// </summary>
+public record CookingOverlay(CookingDto Data) : Overlay;
+
+/// <summary>
+/// Data for the cooking overlay.
+/// </summary>
+public record CookingDto(
+    List<CookingOptionDto> Options,
+    double WaterLiters,
+    double RawMeatKg,
+    double CookedMeatKg,
+    CookingResultDto? LastResult
+);
+
+/// <summary>
+/// A cooking action option.
+/// </summary>
+public record CookingOptionDto(
+    string Id,
+    string Label,
+    string Icon,
+    int TimeMinutes,
+    bool IsAvailable,
+    string? DisabledReason
+);
+
+/// <summary>
+/// Result of a cooking action (for feedback display).
+/// </summary>
+public record CookingResultDto(
+    string Message,
+    string Icon,
+    bool IsSuccess
+);
 
 /// <summary>
 /// Crafting overlay: Shows crafting recipes organized by category.

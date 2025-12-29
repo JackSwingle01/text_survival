@@ -196,6 +196,10 @@ public static class ConditionChecker
             EventCondition.PlayerBloody => ctx.player.EffectRegistry.HasEffect("Bloody"),
             EventCondition.PlayerBloodyHigh => ctx.player.EffectRegistry.GetSeverity("Bloody") > 0.2,
 
+            // Equipment state conditions
+            EventCondition.Waterproofed => ctx.CalculateWaterproofingLevel() >= 0.15,
+            EventCondition.FullyWaterproofed => ctx.CalculateWaterproofingLevel() >= 0.4,
+
             _ => false,
         };
     }

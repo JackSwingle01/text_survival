@@ -365,4 +365,54 @@ public static partial class GameEventRegistry
                 "You make note of the warning signs.",
                 [new EventResult("You will need to prepare.", 1.0, 0)]);
     }
+
+    /// <summary>
+    /// Positive feedback event when waterproofed gear does its job during rain.
+    /// Low weight so it doesn't spam, but reinforces the player's preparation.
+    /// </summary>
+    private static GameEvent WaterproofingPayoff(GameContext ctx)
+    {
+        return new GameEvent("Gear Holding Up",
+            "Rain drums against your treated gear. The resin coating sheds water like oil. " +
+            "Where others would be soaked through, you're merely damp.", 0.3)
+            .Requires(EventCondition.IsRaining, EventCondition.FullyWaterproofed, EventCondition.IsExpedition)
+            .Choice("Keep Moving",
+                "Your preparation is paying off.",
+                [new EventResult("The rain can't touch you.", 0.85, 0),
+                 new EventResult("A gap in your gear lets some water through, but it's manageable.", 0.15, 5)
+                     .WithEffects(EffectFactory.Wet(0.1))])
+            .Choice("Check Your Gear",
+                "Make sure everything is still sealed.",
+                [new EventResult("All sealed. The treatment is holding.", 0.70, 5),
+                 new EventResult("You notice the treatment wearing thin on your {boots}. It won't last forever.", 0.30, 5)]);
+    }
+
+    /// <summary>
+    /// Negative feedback event when player lacks waterproofing during rain.
+    /// Helps player understand the waterproofing system.
+    /// </summary>
+    private static GameEvent SoakedThrough(GameContext ctx)
+    {
+        return new GameEvent("Soaked Through",
+            "The rain finds every gap in your gear. Your clothes grow heavy with water. " +
+            "The cold seeps through the wet fabric, stealing your warmth.", 0.5)
+            .Requires(EventCondition.IsRaining, EventCondition.IsExpedition)
+            .Excludes(EventCondition.Waterproofed)  // Only fires if NOT waterproofed
+            .Choice("Find Cover",
+                "Get out of the rain before it gets worse.",
+                [new EventResult("You find a rocky overhang to shelter under.", 0.40, 15)
+                     .WithEffects(EffectFactory.Wet(0.2)),
+                 new EventResult("No good cover nearby. You keep getting wetter.", 0.45, 10)
+                     .WithEffects(EffectFactory.Wet(0.35)),
+                 new EventResult("You find a dense pine that blocks most of the rain.", 0.15, 10)
+                     .WithEffects(EffectFactory.Wet(0.15))])
+            .Choice("Push Through",
+                "You can dry off later. Keep moving.",
+                [new EventResult("By the time you finish, you're thoroughly soaked.", 0.60, 5)
+                     .WithEffects(EffectFactory.Wet(0.4)),
+                 new EventResult("The rain lets up before you're completely drenched.", 0.30, 5)
+                     .WithEffects(EffectFactory.Wet(0.2)),
+                 new EventResult("A brief break in the clouds gives you a chance to wring out your clothes.", 0.10, 10)
+                     .WithEffects(EffectFactory.Wet(0.15))]);
+    }
 }

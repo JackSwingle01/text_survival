@@ -37,99 +37,123 @@ public class ForageStrategy : IWorkStrategy
     public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
     {
         var feature = location.GetFeature<ForageFeature>()!;
-        string quality = feature.GetQualityDescription();
 
-        // Generate environmental clues
-        _clues = ClueSelector.GenerateClues(ctx, location);
-
-        // Calculate perception for clue display
-        var perception = AbilityCalculator.CalculatePerception(
-            ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers());
-        bool showHints = ClueSelector.ShouldShowHints(perception);
-
-        // Build clue DTOs
-        var clueDtos = _clues.Select((clue, i) => new ForageClueDto(
-            Id: $"clue_{i}",
-            Description: clue.Description,
-            HintText: showHints ? clue.HintText : null,
-            SuggestedFocusId: GetSuggestedFocusId(clue)
-        )).ToList();
-
-        // Build focus options - only show if resources of that type exist
-        var allFocusOptions = new List<(ForageFocus focus, ForageFocusDto dto)>
+        while (true)
         {
-            (ForageFocus.Fuel, new("fuel", "Fuel", "sticks, bark, wood")),
-            (ForageFocus.Food, new("food", "Food", "berries, roots, nuts")),
-            (ForageFocus.Medicine, new("medicine", "Medicine", "fungi, moss, bark")),
-            (ForageFocus.Materials, new("materials", "Materials", "stone, bone, fiber")),
-            (ForageFocus.General, new("general", "General", "balanced yield"))
-        };
+            string quality = feature.GetQualityDescription();
 
-        var focusOptions = allFocusOptions
-            .Where(f => feature.HasResourcesForFocus(f.focus))
-            .Select(f => f.dto)
-            .ToList();
+            // Generate environmental clues using seed for deterministic results
+            _clues = ClueSelector.GenerateClues(ctx, location, feature.ClueSeed);
 
-        // Build time options
-        var timeOptions = new List<ForageTimeDto>
-        {
-            new("15", "Quick - 15 min", 15),
-            new("30", "Standard - 30 min", 30),
-            new("60", "Thorough - 60 min", 60)
-        };
+            // Calculate perception for clue display
+            var perception = AbilityCalculator.CalculatePerception(
+                ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers());
+            bool showHints = ClueSelector.ShouldShowHints(perception);
 
-        // Build warnings
-        var warnings = new List<string>();
-        bool isDark = location.IsDark || ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;
-        if (isDark && !location.HasActiveHeatSource() && !ctx.Inventory.HasLitTorch)
-            warnings.Add("It's dark - your yield will be halved without light.");
+            // Build clue DTOs
+            var clueDtos = _clues.Select((clue, i) => new ForageClueDto(
+                Id: $"clue_{i}",
+                Description: clue.Description,
+                HintText: showHints ? clue.HintText : null,
+                SuggestedFocusId: GetSuggestedFocusId(clue)
+            )).ToList();
 
-        var axe = ctx.Inventory.GetTool(ToolType.Axe);
-        var shovel = ctx.Inventory.GetTool(ToolType.Shovel);
-        if (axe?.Works == true)
-            warnings.Add("Your axe will help gather wood.");
-        if (shovel?.Works == true)
-            warnings.Add("Your shovel will help dig up roots.");
+            // Build focus options - only show if resources of that type exist
+            // Description shows actual available resources, not generic examples
+            var focusOptions = new List<ForageFocusDto>();
 
-        if (!showHints && _clues.Count > 0)
-            warnings.Add("Your foggy senses make it hard to read the signs.");
+            if (feature.HasResourcesForFocus(ForageFocus.Fuel))
+                focusOptions.Add(new("fuel", "Fuel", feature.GetFocusDescription(ForageFocus.Fuel)));
+            if (feature.HasResourcesForFocus(ForageFocus.Food))
+                focusOptions.Add(new("food", "Food", feature.GetFocusDescription(ForageFocus.Food)));
+            if (feature.HasResourcesForFocus(ForageFocus.Medicine))
+                focusOptions.Add(new("medicine", "Medicine", feature.GetFocusDescription(ForageFocus.Medicine)));
+            if (feature.HasResourcesForFocus(ForageFocus.Materials))
+                focusOptions.Add(new("materials", "Materials", feature.GetFocusDescription(ForageFocus.Materials)));
 
-        var forageDto = new ForageDto(
-            LocationQuality: quality,
-            Clues: clueDtos,
-            FocusOptions: focusOptions,
-            TimeOptions: timeOptions,
-            Warnings: warnings
-        );
+            focusOptions.Add(new("general", "General", "balanced search"));
 
-        // Show overlay and get selection
-        var (selectedFocus, selectedMinutes) = WebIO.SelectForageOptions(ctx, forageDto);
+            // Build time options
+            var timeOptions = new List<ForageTimeDto>
+            {
+                new("15", "Quick - 15 min", 15),
+                new("30", "Standard - 30 min", 30),
+                new("60", "Thorough - 60 min", 60)
+            };
 
-        if (selectedFocus == null)
-        {
-            _cancelled = true;
-            return null; // Cancelled
+            // Build warnings
+            var warnings = new List<string>();
+            bool isDark = location.IsDark || ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;
+            if (isDark && !location.HasActiveHeatSource() && !ctx.Inventory.HasLitTorch)
+                warnings.Add("It's dark - your yield will be halved without light.");
+
+            var axe = ctx.Inventory.GetTool(ToolType.Axe);
+            var shovel = ctx.Inventory.GetTool(ToolType.Shovel);
+            if (axe?.Works == true)
+                warnings.Add("Your axe will help gather wood.");
+            if (shovel?.Works == true)
+                warnings.Add("Your shovel will help dig up roots.");
+
+            if (!showHints && _clues.Count > 0)
+                warnings.Add("Your foggy senses make it hard to read the signs.");
+
+            // Capacity warning when pack is nearly full
+            var inv = ctx.Inventory;
+            if (inv.MaxWeightKg > 0)
+            {
+                double capacityPct = inv.CurrentWeightKg / inv.MaxWeightKg;
+                if (capacityPct >= 0.8)
+                {
+                    double remaining = inv.RemainingCapacityKg;
+                    warnings.Add($"Your pack is nearly full ({remaining:F1}kg remaining).");
+                }
+            }
+
+            var forageDto = new ForageDto(
+                LocationQuality: quality,
+                Clues: clueDtos,
+                FocusOptions: focusOptions,
+                TimeOptions: timeOptions,
+                Warnings: warnings
+            );
+
+            // Show overlay and get selection
+            var (selectedFocus, selectedMinutes) = WebIO.SelectForageOptions(ctx, forageDto);
+
+            // Handle "Keep Walking" - spend time to reroll clues
+            if (selectedMinutes == -1)
+            {
+                ctx.Update(5, ActivityType.Traveling);
+                feature.RerollClues();
+                continue; // Show overlay again with new clues
+            }
+
+            if (selectedFocus == null)
+            {
+                _cancelled = true;
+                return null; // Cancelled
+            }
+
+            _focus = selectedFocus.Value;
+
+            // Check if focus matches any visible clue (implicit clue-following)
+            _followedClue = _clues.FirstOrDefault(c =>
+                (_focus == ForageFocus.Fuel && c.SuggestedResources.Any(r => r.IsFuel())) ||
+                (_focus == ForageFocus.Food && c.SuggestedResources.Any(r => r.IsFood())) ||
+                (_focus == ForageFocus.Medicine && c.SuggestedResources.Any(r => r.IsMedicine())) ||
+                (_focus == ForageFocus.Materials && c.SuggestedResources.Any(r => r.IsMaterial()))
+            );
+
+            // Tutorial for first clue experience
+            if (_clues.Count > 0)
+            {
+                ctx.ShowTutorialOnce("You've learned to read the land. Signs like these tell you what might be found nearby.");
+            }
+
+            // Store selected time - ApplyImpairments will return it
+            _selectedMinutes = selectedMinutes;
+            return null;
         }
-
-        _focus = selectedFocus.Value;
-
-        // Check if focus matches any visible clue (implicit clue-following)
-        _followedClue = _clues.FirstOrDefault(c =>
-            (_focus == ForageFocus.Fuel && c.SuggestedResources.Any(r => r.IsFuel())) ||
-            (_focus == ForageFocus.Food && c.SuggestedResources.Any(r => r.IsFood())) ||
-            (_focus == ForageFocus.Medicine && c.SuggestedResources.Any(r => r.IsMedicine())) ||
-            (_focus == ForageFocus.Materials && c.SuggestedResources.Any(r => r.IsMaterial()))
-        );
-
-        // Tutorial for first clue experience
-        if (_clues.Count > 0)
-        {
-            ctx.ShowTutorialOnce("You've learned to read the land. Signs like these tell you what might be found nearby.");
-        }
-
-        // Store selected time - ApplyImpairments will return it
-        _selectedMinutes = selectedMinutes;
-        return null;
     }
 
     private static string? GetSuggestedFocusId(ForageClue clue)

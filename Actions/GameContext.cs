@@ -274,6 +274,10 @@ public class GameContext(Player player, Location camp, Weather weather)
         var wetEffect = player.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault();
         double currentWetness = wetEffect?.Severity ?? 0;
 
+        // Get bleeding and bloody severities for bloody accumulation
+        double currentBleeding = player.EffectRegistry.GetSeverity("Bleeding");
+        double currentBloody = player.EffectRegistry.GetSeverity("Bloody");
+
         // Wetness reduces insulation effectiveness
         if (wetEffect != null)
         {
@@ -315,15 +319,19 @@ public class GameContext(Player player, Location camp, Weather weather)
             IsBlizzard = isBlizzard,
             CurrentWetnessSeverity = currentWetness,
             WaterproofingLevel = waterproofingLevel,
+
+            // Bloody accumulation context
+            CurrentBleedingSeverity = currentBleeding,
+            CurrentBloodySeverity = currentBloody,
         };
     }
 
     /// <summary>
-    /// Calculate total waterproofing level from resin-treated equipment.
-    /// Each treated slot contributes 50% reduction weighted by slot coverage.
+    /// Calculate total waterproofing level from equipment.
+    /// Each slot's waterproof level (base material + treatment) is weighted by body coverage.
     /// Returns 0-1 where 1 = full waterproofing.
     /// </summary>
-    private double CalculateWaterproofingLevel()
+    public double CalculateWaterproofingLevel()
     {
         // Slot coverage weights (how much of body each slot covers for wetness)
         var slotWeights = new Dictionary<EquipSlot, double>
@@ -339,10 +347,10 @@ public class GameContext(Player player, Location camp, Weather weather)
         foreach (var slot in slotWeights.Keys)
         {
             var equipment = Inventory.GetEquipment(slot);
-            if (equipment != null && equipment.IsResinTreated)
+            if (equipment != null)
             {
-                // Each treated slot provides 50% wetness reduction for its coverage area
-                totalWaterproofing += slotWeights[slot] * 0.5;
+                // Use gear's total waterproof level (base material + treatment bonus)
+                totalWaterproofing += slotWeights[slot] * equipment.TotalWaterproofLevel;
             }
         }
 
@@ -473,11 +481,17 @@ public class GameContext(Player player, Location camp, Weather weather)
             context.FireProximityBonus += Inventory.GetTorchHeatBonusF();
         }
 
+        // Ember carriers provide smaller warmth bonus (2-3°F vs torch's 3-5°F)
+        context.FireProximityBonus += Inventory.GetEmberCarrierHeatBonusF();
+
         // Tick torch burn time and handle chaining logic
         Handlers.TorchHandler.UpdateTorchBurnTime(this, minutes, fire);
 
         // Tick ember carrier burn time and check for wetness extinguishing
         UpdateEmberCarriers(minutes);
+
+        // Tick down waterproofing treatment during precipitation exposure
+        UpdateWaterproofing(minutes);
 
         player.Update(minutes, context);
 
@@ -548,6 +562,42 @@ public class GameContext(Player player, Location camp, Weather weather)
                     GameDisplay.AddWarning(this, $"Your {carrier.Name} has burned out.");
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Tick down resin treatment durability during precipitation exposure.
+    /// Only degrades when outdoors (exposure > 0) and it's precipitating.
+    /// </summary>
+    private void UpdateWaterproofing(int minutes)
+    {
+        // Only tick during precipitation
+        bool isPrecipitating = Weather.CurrentCondition is
+            Weather.WeatherCondition.Rainy or
+            Weather.WeatherCondition.Stormy or
+            Weather.WeatherCondition.LightSnow or
+            Weather.WeatherCondition.Blizzard;
+
+        if (!isPrecipitating) return;
+
+        // Check overhead cover - no degradation if fully covered
+        double exposure = 1 - CurrentLocation.OverheadCoverLevel;
+        if (exposure <= 0) return;
+
+        foreach (var slot in Inventory.Equipment.Keys)
+        {
+            var gear = Inventory.GetEquipment(slot);
+            if (gear == null || !gear.IsResinTreated) continue;
+
+            int oldDurability = gear.ResinTreatmentDurability;
+            for (int i = 0; i < minutes; i++)
+                gear.TickResinTreatment();
+
+            // Warnings at thresholds
+            if (oldDurability > 12 && gear.ResinTreatmentDurability <= 12)
+                GameDisplay.AddWarning(this, $"Your {gear.Name} resin treatment is wearing thin.");
+            if (oldDurability > 0 && gear.ResinTreatmentDurability == 0)
+                GameDisplay.AddWarning(this, $"The resin treatment on your {gear.Name} has worn off.");
         }
     }
 
@@ -770,4 +820,8 @@ public enum EventCondition
     // Player scent conditions
     PlayerBloody,          // Player has the Bloody effect
     PlayerBloodyHigh,      // Player has Bloody effect with severity > 0.2
+
+    // Equipment state conditions
+    Waterproofed,          // Player has some waterproof equipment (level >= 0.15)
+    FullyWaterproofed,     // Player has well-waterproofed equipment (level >= 0.4)
 }

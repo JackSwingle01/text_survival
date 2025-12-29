@@ -428,7 +428,12 @@ public partial class GameRunner(GameContext ctx)
         bool hasFire = fire != null && (fire.IsActive || fire.HasEmbers);
         int fireMinutes = hasFire && fire != null ? (int)(fire.TotalHoursRemaining * 60) : 0;
 
-        int hours = Input.ReadInt(ctx, "How many hours would you like to sleep?", 1, 12);
+        int hours = Input.ReadInt(ctx, "How many hours would you like to sleep?", 1, 8, allowCancel: true);
+        if (hours < 0)
+        {
+            GameDisplay.AddNarrative(ctx, "You decide to stay awake.");
+            return;
+        }
         int sleepMinutes = hours * 60;
 
         // Warning if fire won't last

@@ -20,7 +20,7 @@ public class HuntStrategy : IWorkStrategy
         if (territory == null)
             return "There's no game to be found here.";
         if (!territory.CanHunt())
-            return "This area has been overhunted.";
+            return "There's no game here.";
         return null;
     }
 

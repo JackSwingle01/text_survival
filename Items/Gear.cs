@@ -186,7 +186,13 @@ public class Gear
     /// </summary>
     public double Insulation => BaseInsulation * ConditionPct;
 
-    // === Waterproofing (Equipment resin treatment) ===
+    // === Waterproofing (Equipment) ===
+    /// <summary>
+    /// Base waterproof level from material (0-1).
+    /// Raw hide = 0.1, cured hide = 0.3, mammoth = 0.4.
+    /// </summary>
+    public double BaseWaterproofLevel { get; init; }
+
     /// <summary>
     /// Remaining uses of resin waterproofing treatment.
     /// 0 = not treated, >0 = uses remaining before treatment wears off.
@@ -197,6 +203,13 @@ public class Gear
     /// Whether this equipment has active resin waterproofing.
     /// </summary>
     public bool IsResinTreated => ResinTreatmentDurability > 0;
+
+    /// <summary>
+    /// Total waterproof level including base material + treatment bonus.
+    /// Treatment adds +0.3 when active. Capped at 1.0.
+    /// </summary>
+    public double TotalWaterproofLevel => Math.Min(1.0,
+        BaseWaterproofLevel + (IsResinTreated ? 0.3 : 0));
 
     /// <summary>
     /// Apply resin waterproofing treatment to this equipment.
@@ -267,14 +280,34 @@ public class Gear
     public override string ToString()
     {
         if (IsBroken) return $"{Name} (broken)";
+
         if (IsEmberCarrier)
         {
             if (IsEmberLit)
                 return $"{Name} (lit, {EmberBurnHoursRemaining:F1}h)";
             return $"{Name} (unlit)";
         }
+
+        // Equipment with condition and/or waterproofing
+        var parts = new List<string>();
+
         if (MaxDurability > 0 && Durability < MaxDurability)
-            return $"{Name} ({ConditionPct:P0})";
+            parts.Add($"{ConditionPct:P0}");
+
+        // Show waterproof status with symbols: ~ (minimal), ≈ (moderate), ≋ (excellent)
+        double waterproof = TotalWaterproofLevel;
+        if (waterproof >= 0.1)
+        {
+            string symbol = waterproof >= 0.5 ? "≋" : waterproof >= 0.25 ? "≈" : "~";
+            if (IsResinTreated && ResinTreatmentDurability <= 12)
+                parts.Add($"{symbol}:{ResinTreatmentDurability}");
+            else
+                parts.Add(symbol);
+        }
+
+        if (parts.Count > 0)
+            return $"{Name} ({string.Join(", ", parts)})";
+
         return Name;
     }
 
@@ -423,6 +456,7 @@ public class Gear
         Slot = EquipSlot.Head,
         Weight = 0.4,
         BaseInsulation = 0.15,
+        BaseWaterproofLevel = 0.1,  // Raw fur
         Durability = durability,
         MaxDurability = durability
     };
@@ -435,6 +469,7 @@ public class Gear
         Slot = EquipSlot.Chest,
         Weight = 1.5,
         BaseInsulation = 0.20,
+        BaseWaterproofLevel = 0.1,  // Raw fur
         Durability = durability,
         MaxDurability = durability
     };
@@ -447,6 +482,7 @@ public class Gear
         Slot = EquipSlot.Chest,
         Weight = 1.8,
         BaseInsulation = 0.30,
+        BaseWaterproofLevel = 0.1,  // Raw fur
         Durability = durability,
         MaxDurability = durability
     };
@@ -459,6 +495,7 @@ public class Gear
         Slot = EquipSlot.Legs,
         Weight = 1.0,
         BaseInsulation = 0.15,
+        BaseWaterproofLevel = 0.1,  // Raw fur
         Durability = durability,
         MaxDurability = durability
     };
@@ -471,6 +508,7 @@ public class Gear
         Slot = EquipSlot.Feet,
         Weight = 0.6,
         BaseInsulation = 0.10,
+        BaseWaterproofLevel = 0.1,  // Raw fur
         Durability = durability,
         MaxDurability = durability
     };
@@ -483,6 +521,7 @@ public class Gear
         Slot = EquipSlot.Feet,
         Weight = 0.4,
         BaseInsulation = 0.05,
+        BaseWaterproofLevel = 0.1,  // Raw hide
         Durability = durability,
         MaxDurability = durability
     };
@@ -495,6 +534,7 @@ public class Gear
         Slot = EquipSlot.Hands,
         Weight = 0.3,
         BaseInsulation = 0.08,
+        BaseWaterproofLevel = 0.1,  // Raw fur
         Durability = durability,
         MaxDurability = durability
     };
@@ -507,6 +547,7 @@ public class Gear
         Slot = EquipSlot.Hands,
         Weight = 0.15,
         BaseInsulation = 0.03,
+        BaseWaterproofLevel = 0.1,  // Raw hide
         Durability = durability,
         MaxDurability = durability
     };

@@ -20,20 +20,25 @@ export const EffectsDisplay = {
             div.className = `effect-item ${e.trend}`;
 
             const nameSpan = document.createElement('span');
+            nameSpan.className = 'effect-name';
             nameSpan.textContent = e.name;
             div.appendChild(nameSpan);
 
-            const rightSpan = document.createElement('span');
-            const sevSpan = document.createElement('span');
-            sevSpan.className = 'effect-severity';
-            sevSpan.textContent = `${e.severityPercent}%`;
-            rightSpan.appendChild(sevSpan);
+            // Severity bar
+            const barContainer = document.createElement('div');
+            barContainer.className = 'effect-bar-container';
+            const bar = document.createElement('div');
+            bar.className = 'effect-bar';
+            bar.style.width = `${e.severityPercent}%`;
+            barContainer.appendChild(bar);
+            div.appendChild(barContainer);
 
-            const trend = e.trend === 'worsening' ? '↑' : e.trend === 'improving' ? '↓' : '';
-            if (trend) {
-                rightSpan.appendChild(document.createTextNode(trend));
-            }
-            div.appendChild(rightSpan);
+            // Horizontal trend arrow: ← improving, → worsening, - stable
+            const trendSpan = document.createElement('span');
+            trendSpan.className = 'effect-trend';
+            const trend = e.trend === 'worsening' ? '→' : e.trend === 'improving' ? '←' : '-';
+            trendSpan.textContent = trend;
+            div.appendChild(trendSpan);
 
             // Add tooltip
             const tooltip = this.createEffectTooltip(e);

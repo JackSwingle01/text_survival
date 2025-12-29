@@ -25,6 +25,10 @@ public class SurvivalContext
 
     // Waterproofing from resin-treated equipment (0-1 scale)
     public double WaterproofingLevel;      // Reduces wetness accumulation by this factor
+
+    // Bloody accumulation from bleeding
+    public double CurrentBleedingSeverity; // 0-1 from Bleeding effect
+    public double CurrentBloodySeverity;   // 0-1 from Bloody effect
 }
 
 public class Body

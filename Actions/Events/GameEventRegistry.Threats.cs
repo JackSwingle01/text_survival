@@ -718,11 +718,11 @@ public static partial class GameEventRegistry
             .WithSituationFactor(Situations.Vulnerable, 2.0)  // Injured, slow, impaired, no weapon
             .WithConditionFactor(EventCondition.Working, 1.3)
             .Choice("Stretch and Rest",
-                "Rest for an hour. Let your body recover.",
+                "Take a break. Let your body recover.",
                 [
-                    new EventResult("The rest helps. Pain subsides.", weight: 0.70, minutes: 60)
+                    new EventResult("The rest helps. Pain subsides.", weight: 0.70, minutes: 30)
                         .WithEffects(EffectFactory.Rested(0.5, 120)),
-                    new EventResult("Takes longer than expected, but eventually loosens up.", weight: 0.30, minutes: 90)
+                    new EventResult("Takes longer than expected, but eventually loosens up.", weight: 0.30, minutes: 45)
                         .WithEffects(EffectFactory.Rested(0.3, 60))
                 ])
             .Choice("Work Through It",

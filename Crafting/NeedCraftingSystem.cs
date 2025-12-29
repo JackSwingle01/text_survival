@@ -886,6 +886,7 @@ public class NeedCraftingSystem
                 Slot = EquipSlot.Hands,
                 Weight = 0.3,
                 BaseInsulation = 0.15,
+                BaseWaterproofLevel = 0.3,  // Cured hide
                 Durability = dur,
                 MaxDurability = dur
             }
@@ -911,6 +912,7 @@ public class NeedCraftingSystem
                 Slot = EquipSlot.Head,
                 Weight = 0.25,
                 BaseInsulation = 0.12,
+                BaseWaterproofLevel = 0.3,  // Cured hide
                 Durability = dur,
                 MaxDurability = dur
             }
@@ -936,6 +938,7 @@ public class NeedCraftingSystem
                 Slot = EquipSlot.Chest,
                 Weight = 1.5,
                 BaseInsulation = 0.25,
+                BaseWaterproofLevel = 0.3,  // Cured hide
                 Durability = dur,
                 MaxDurability = dur
             }
@@ -961,6 +964,7 @@ public class NeedCraftingSystem
                 Slot = EquipSlot.Legs,
                 Weight = 1.0,
                 BaseInsulation = 0.20,
+                BaseWaterproofLevel = 0.3,  // Cured hide
                 Durability = dur,
                 MaxDurability = dur
             }
@@ -986,6 +990,7 @@ public class NeedCraftingSystem
                 Slot = EquipSlot.Feet,
                 Weight = 0.6,
                 BaseInsulation = 0.18,
+                BaseWaterproofLevel = 0.3,  // Cured hide
                 Durability = dur,
                 MaxDurability = dur
             }
@@ -1013,6 +1018,7 @@ public class NeedCraftingSystem
                 Slot = EquipSlot.Chest,
                 Weight = 4.0,
                 BaseInsulation = 0.45,  // Best chest insulation in game
+                BaseWaterproofLevel = 0.4,  // Mammoth hide - thick, naturally oily
                 Durability = dur,
                 MaxDurability = dur
             }
@@ -1038,6 +1044,7 @@ public class NeedCraftingSystem
                 Slot = EquipSlot.Head,
                 Weight = 0.8,
                 BaseInsulation = 0.22,  // Best head insulation
+                BaseWaterproofLevel = 0.4,  // Mammoth hide
                 Durability = dur,
                 MaxDurability = dur
             }

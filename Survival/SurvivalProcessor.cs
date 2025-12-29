@@ -41,6 +41,7 @@ public static class SurvivalProcessor
 		var result = ProcessBaseNeeds(body, context, minutesElapsed);
 		result.Combine(ProcessTemperature(body, context, minutesElapsed));
 		result.Combine(ProcessWetness(context, minutesElapsed));
+		result.Combine(ProcessBloody(context, minutesElapsed));
 
 		// Project stats after delta to check consequences
 		double projectedCalories = body.CalorieStore + result.StatsDelta.CalorieDelta;
@@ -490,6 +491,35 @@ public static class SurvivalProcessor
 		if (newSeverity >= 0.1)
 		{
 			result.Effects.Add(EffectFactory.Wet(newSeverity));
+		}
+
+		return result;
+	}
+
+	/// <summary>
+	/// Process bloody accumulation from bleeding.
+	/// Blood gradually soaks into clothing while actively bleeding.
+	/// </summary>
+	private static SurvivalProcessorResult ProcessBloody(SurvivalContext context, int minutesElapsed)
+	{
+		var result = new SurvivalProcessorResult();
+
+		// No bleeding = no accumulation (let natural decay handle existing bloody)
+		if (context.CurrentBleedingSeverity <= 0)
+			return result;
+
+		// Accumulation rate: +0.15/hour at full bleeding severity
+		const double ACCUMULATION_RATE_PER_HOUR = 0.15;
+		double accumulationPerMinute = ACCUMULATION_RATE_PER_HOUR / 60.0;
+		double bloodyDelta = accumulationPerMinute * context.CurrentBleedingSeverity * minutesElapsed;
+
+		// Calculate new severity
+		double newSeverity = Math.Clamp(context.CurrentBloodySeverity + bloodyDelta, 0, 1);
+
+		// Create/update effect only when bloody reaches 5%
+		if (newSeverity >= 0.05)
+		{
+			result.Effects.Add(EffectFactory.Bloody(newSeverity));
 		}
 
 		return result;

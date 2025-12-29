@@ -54,6 +54,8 @@ public static partial class GameEventRegistry
         LostInFog,
         SuddenClearing,
         MassiveStormApproaching,  // Prolonged blizzard warning
+        WaterproofingPayoff,  // Positive feedback when waterproofed gear works
+        SoakedThrough,  // Negative feedback when lacking waterproofing
 
         // Expedition events (GameEventRegistry.Expedition.cs)
         TreacherousFooting,
@@ -273,6 +275,10 @@ public static partial class GameEventRegistry
 
             // Filter: skip if required conditions not met
             if (!evt.RequiredConditions.All(ctx.Check))
+                continue;
+
+            // Filter: skip if any excluded conditions are met
+            if (evt.ExcludedConditions.Any(ctx.Check))
                 continue;
 
             // Filter: skip if required situations not met

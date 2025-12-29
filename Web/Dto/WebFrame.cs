@@ -431,7 +431,8 @@ public record FuelItemDto(
     double WeightKg,
     int Count,
     bool CanAdd,            // false if fire too cold for this fuel
-    string? DisabledReason  // "Fire too small for oak"
+    string? DisabledReason, // "Fire too small for oak"
+    int BurnTimeMinutes     // How long one unit burns
 );
 
 /// <summary>
@@ -548,17 +549,21 @@ public record FireManagementDto(
             if (count <= 0) continue;
 
             double weight = inv.Weight(resource);
+            var props = FuelDatabase.Get(fuelType);
             bool canAdd = fire.CanAddFuel(fuelType);
             string? reason = null;
 
             if (!canAdd)
             {
-                var props = FuelDatabase.Get(fuelType);
                 if (props.MinFireTemperature > 0)
                     reason = $"Fire too small (needs {props.MinFireTemperature:0}°F)";
                 else if (fire.TotalMassKg >= fire.MaxFuelCapacityKg)
                     reason = "Fire at capacity";
             }
+
+            // Calculate burn time for one unit (average weight / burn rate * 60)
+            double avgWeight = weight / count;
+            int burnTimeMinutes = (int)(avgWeight / props.BurnRateKgPerHour * 60);
 
             fuels.Add(new FuelItemDto(
                 Id: $"fuel_{resource}",
@@ -567,7 +572,8 @@ public record FireManagementDto(
                 WeightKg: weight,
                 Count: count,
                 CanAdd: canAdd,
-                DisabledReason: reason
+                DisabledReason: reason,
+                BurnTimeMinutes: burnTimeMinutes
             ));
         }
 
@@ -612,13 +618,14 @@ public record FireManagementDto(
         var tinders = new List<TinderDto>();
         var inv = ctx.Inventory;
 
+        // Generic tinder first, then specialty tinders by bonus (descending)
         var tinderTypes = new (Resource resource, FuelType fuel, string icon, string name)[]
         {
+            (Resource.Tinder, FuelType.Tinder, "grass", "Tinder"),
             (Resource.BirchBark, FuelType.BirchBark, "note", "Birch Bark"),
             (Resource.Amadou, FuelType.Tinder, "spa", "Amadou"),
             (Resource.Usnea, FuelType.Usnea, "eco", "Usnea"),
             (Resource.Chaga, FuelType.Chaga, "spa", "Chaga"),
-            (Resource.Tinder, FuelType.Tinder, "grass", "Tinder"),
         };
 
         bool hasSelection = false;

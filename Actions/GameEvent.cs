@@ -652,6 +652,7 @@ public class GameEvent(string name, string description, double weight)
     public string Name = name;
     public string Description = description;
     public readonly List<EventCondition> RequiredConditions = [];
+    public readonly List<EventCondition> ExcludedConditions = [];  // Event won't trigger if ANY of these are true
     public readonly List<Func<GameContext, bool>> RequiredSituations = [];
 
     public double BaseWeight = weight;  // Selection weight (not trigger chance)
@@ -683,6 +684,16 @@ public class GameEvent(string name, string description, double weight)
     public GameEvent Requires(params EventCondition[] conditions)
     {
         RequiredConditions.AddRange(conditions);
+        return this;
+    }
+
+    /// <summary>
+    /// Add excluded conditions. Event won't trigger if ANY of these conditions are true.
+    /// Use for conditional exclusions like "don't fire if player is waterproofed".
+    /// </summary>
+    public GameEvent Excludes(params EventCondition[] conditions)
+    {
+        ExcludedConditions.AddRange(conditions);
         return this;
     }
 

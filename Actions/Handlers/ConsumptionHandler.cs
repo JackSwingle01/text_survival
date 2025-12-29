@@ -16,9 +16,16 @@ public static class ConsumptionHandler
     private const double CookedMeatCaloriesPerKg = 2500;
     private const double RawMeatCaloriesPerKg = 1500;
     private const double BerriesCaloriesPerKg = 500;
+    private const double HoneyCaloriesPerKg = 3000;
+    private const double NutsCaloriesPerKg = 6000;
+    private const double RootsCaloriesPerKg = 400;
+    private const double DriedMeatCaloriesPerKg = 3000;
+    private const double DriedBerriesCaloriesPerKg = 2500;
 
     // Hydration values
     private const double BerriesHydrationPerKg = 200;
+    private const double RootsHydrationPerKg = 100;
+    private const double DriedMeatHydrationPerKg = -50;  // Needs water to digest
     private const double WaterHydrationPerLiter = 1000;
 
     // Hyperthermia relief from drinking
@@ -83,6 +90,88 @@ public static class ConsumptionHandler
                     body.AddCalories(cal);
                     body.AddHydration(eaten * BerriesHydrationPerKg);
                     GameDisplay.AddSuccess(ctx, $"You eat the berries. (+{cal} cal)");
+                };
+            }
+
+            if (inv.Count(Resource.Honey) > 0)
+            {
+                double w = inv.Peek(Resource.Honey);
+                int calories = (int)(w * HoneyCaloriesPerKg);
+                string opt = $"Honey ({w:F2}kg) - ~{calories} cal";
+                options.Add(opt);
+                consumeActions[opt] = () =>
+                {
+                    double eaten = inv.Pop(Resource.Honey);
+                    int cal = (int)(eaten * HoneyCaloriesPerKg);
+                    body.AddCalories(cal);
+
+                    // Honey gives a quick energy boost - severity scales with amount eaten
+                    double energySeverity = Math.Min(0.5, eaten / 0.25 * 0.3);
+                    ctx.player.EffectRegistry.AddEffect(EffectFactory.Energized(energySeverity));
+
+                    GameDisplay.AddSuccess(ctx, $"You eat the honey. Sweet energy. (+{cal} cal)");
+                };
+            }
+
+            if (inv.Count(Resource.Nuts) > 0)
+            {
+                double w = inv.Peek(Resource.Nuts);
+                int calories = (int)(w * NutsCaloriesPerKg);
+                string opt = $"Nuts ({w:F2}kg) - ~{calories} cal";
+                options.Add(opt);
+                consumeActions[opt] = () =>
+                {
+                    double eaten = inv.Pop(Resource.Nuts);
+                    int cal = (int)(eaten * NutsCaloriesPerKg);
+                    body.AddCalories(cal);
+                    GameDisplay.AddSuccess(ctx, $"You eat the nuts. Dense calories. (+{cal} cal)");
+                };
+            }
+
+            if (inv.Count(Resource.Roots) > 0)
+            {
+                double w = inv.Peek(Resource.Roots);
+                int calories = (int)(w * RootsCaloriesPerKg);
+                string opt = $"Roots ({w:F2}kg) - ~{calories} cal";
+                options.Add(opt);
+                consumeActions[opt] = () =>
+                {
+                    double eaten = inv.Pop(Resource.Roots);
+                    int cal = (int)(eaten * RootsCaloriesPerKg);
+                    body.AddCalories(cal);
+                    body.AddHydration(eaten * RootsHydrationPerKg);
+                    GameDisplay.AddSuccess(ctx, $"You eat the roots. Starchy and filling. (+{cal} cal)");
+                };
+            }
+
+            if (inv.Count(Resource.DriedMeat) > 0)
+            {
+                double w = inv.Peek(Resource.DriedMeat);
+                int calories = (int)(w * DriedMeatCaloriesPerKg);
+                string opt = $"Dried meat ({w:F2}kg) - ~{calories} cal [makes you thirsty]";
+                options.Add(opt);
+                consumeActions[opt] = () =>
+                {
+                    double eaten = inv.Pop(Resource.DriedMeat);
+                    int cal = (int)(eaten * DriedMeatCaloriesPerKg);
+                    body.AddCalories(cal);
+                    body.AddHydration(eaten * DriedMeatHydrationPerKg);
+                    GameDisplay.AddSuccess(ctx, $"You eat the dried meat. Salty and chewy. (+{cal} cal)");
+                };
+            }
+
+            if (inv.Count(Resource.DriedBerries) > 0)
+            {
+                double w = inv.Peek(Resource.DriedBerries);
+                int calories = (int)(w * DriedBerriesCaloriesPerKg);
+                string opt = $"Dried berries ({w:F2}kg) - ~{calories} cal";
+                options.Add(opt);
+                consumeActions[opt] = () =>
+                {
+                    double eaten = inv.Pop(Resource.DriedBerries);
+                    int cal = (int)(eaten * DriedBerriesCaloriesPerKg);
+                    body.AddCalories(cal);
+                    GameDisplay.AddSuccess(ctx, $"You eat the dried berries. Sweet and tangy. (+{cal} cal)");
                 };
             }
 

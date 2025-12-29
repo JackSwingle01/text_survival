@@ -248,6 +248,27 @@ public class Inventory
         return 3.0 + (2.0 * burnPct);
     }
 
+    /// <summary>
+    /// Get heat bonus from lit ember carriers.
+    /// Smaller than torch (2-3°F vs 3-5°F) but longer lasting.
+    /// </summary>
+    public double GetEmberCarrierHeatBonusF()
+    {
+        var litCarriers = Tools
+            .Where(t => t.IsEmberCarrier && t.IsEmberLit)
+            .ToList();
+
+        if (litCarriers.Count == 0) return 0;
+
+        double totalBonus = 0;
+        foreach (var carrier in litCarriers)
+        {
+            double burnPct = carrier.EmberBurnHoursRemaining / carrier.EmberBurnHoursMax;
+            totalBonus += 2.0 + (1.0 * burnPct);  // 2-3°F per carrier
+        }
+        return totalBonus;
+    }
+
     public bool LightTorch()
     {
         var torch = Tools.FirstOrDefault(t => t.ToolType == ToolType.Torch && t.Works);

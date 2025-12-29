@@ -159,25 +159,24 @@ public static class ClueLibrary
 /// </summary>
 public static class ClueSelector
 {
-    private static readonly Random _rng = new();
-
     /// <summary>
     /// Generate contextually appropriate clues for foraging.
-    /// Number of clues depends on player perception.
+    /// Uses seed for deterministic results (prevents reroll exploit).
     /// </summary>
-    public static List<ForageClue> GenerateClues(GameContext ctx, Location location)
+    public static List<ForageClue> GenerateClues(GameContext ctx, Location location, int seed)
     {
+        var rng = new Random(seed);
         var pool = BuildWeightedPool(ctx, location);
         var clues = new List<ForageClue>();
 
         // Perception affects how many clues the player notices
         var perception = AbilityCalculator.CalculatePerception(
             ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers());
-        int count = GetClueCount(perception);
+        int count = GetClueCount(perception, rng);
 
         for (int i = 0; i < count && pool.Count > 0; i++)
         {
-            var selected = SelectWeighted(pool);
+            var selected = SelectWeighted(pool, rng);
             clues.Add(selected);
             pool.RemoveAll(p => p.clue == selected);
         }
@@ -283,19 +282,23 @@ public static class ClueSelector
             }
         }
 
-        // Always include some generic clues at low weight
+        // Always include neutral generic clues at low weight
+        // But exclude "picked over" unless location is actually depleted
         foreach (var clue in ClueLibrary.GenericClues)
         {
-            pool.Add((clue, 0.3));
+            bool isPickedOverClue = clue.Description.Contains("picked over");
+            if (!isPickedOverClue)
+            {
+                pool.Add((clue, 0.3));
+            }
         }
 
-        // If depleted, boost the "picked over" clue
+        // Only show "picked over" clue when location is actually depleted
         if (forage?.IsNearlyDepleted() == true)
         {
             var pickedOver = ClueLibrary.GenericClues.FirstOrDefault(c => c.Description.Contains("picked over"));
             if (pickedOver != null)
             {
-                pool.RemoveAll(p => p.clue == pickedOver);
                 pool.Add((pickedOver, 2.0));
             }
         }
@@ -318,13 +321,13 @@ public static class ClueSelector
         return matchRatio * clue.YieldModifier;
     }
 
-    private static ForageClue SelectWeighted(List<(ForageClue clue, double weight)> pool)
+    private static ForageClue SelectWeighted(List<(ForageClue clue, double weight)> pool, Random rng)
     {
         if (pool.Count == 0)
             return ClueLibrary.GenericClues[0];
 
         double totalWeight = pool.Sum(p => p.weight);
-        double roll = _rng.NextDouble() * totalWeight;
+        double roll = rng.NextDouble() * totalWeight;
 
         double cumulative = 0;
         foreach (var (clue, weight) in pool)
@@ -341,14 +344,14 @@ public static class ClueSelector
     /// Determine clue count based on perception.
     /// Full perception: 2-3 clues, moderate impairment: 1-2, severe: 1
     /// </summary>
-    private static int GetClueCount(double perception)
+    private static int GetClueCount(double perception, Random rng)
     {
         if (perception >= 0.7)
-            return _rng.Next(2, 4);  // 2-3 clues (normal)
+            return rng.Next(2, 4);  // 2-3 clues (normal)
         else if (perception >= 0.4)
-            return _rng.Next(1, 3);  // 1-2 clues (moderate impairment)
+            return rng.Next(1, 3);  // 1-2 clues (moderate impairment)
         else
-            return 1;                 // 1 clue (severe impairment)
+            return 1;               // 1 clue (severe impairment)
     }
 
     /// <summary>

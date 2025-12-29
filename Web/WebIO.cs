@@ -24,6 +24,7 @@ public static class WebIO
     private static readonly Dictionary<string, HuntDto> _currentHunt = new();
     private static readonly Dictionary<string, TransferDto> _currentTransfer = new();
     private static readonly Dictionary<string, FireManagementDto> _currentFire = new();
+    private static readonly Dictionary<string, CookingDto> _currentCooking = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -89,6 +90,8 @@ public static class WebIO
                 overlays.Add(new TransferOverlay(transfer));
             if (_currentFire.TryGetValue(sessionId, out var fire))
                 overlays.Add(new FireOverlay(fire));
+            if (_currentCooking.TryGetValue(sessionId, out var cooking))
+                overlays.Add(new CookingOverlay(cooking));
         }
 
         return overlays;
@@ -176,6 +179,15 @@ public static class WebIO
     }
 
     /// <summary>
+    /// Clear the current cooking display for a session.
+    /// </summary>
+    public static void ClearCooking(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentCooking.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
     /// Clear all overlays for a session. Used on reconnect to prevent stale overlays.
     /// </summary>
     public static void ClearAllOverlays(string sessionId)
@@ -189,6 +201,7 @@ public static class WebIO
         _currentHunt.Remove(sessionId);
         _currentTransfer.Remove(sessionId);
         _currentFire.Remove(sessionId);
+        _currentCooking.Remove(sessionId);
     }
 
     /// <summary>
@@ -403,12 +416,16 @@ public static class WebIO
     /// Present a numeric selection and wait for player choice.
     /// Shows as buttons with the available numbers.
     /// </summary>
-    public static int ReadInt(GameContext ctx, string prompt, int min, int max)
+    public static int ReadInt(GameContext ctx, string prompt, int min, int max, bool allowCancel = false)
     {
         var session = GetSession(ctx);
 
         var numbers = Enumerable.Range(min, max - min + 1).ToList();
         var choiceDtos = numbers.Select(n => new ChoiceDto($"num_{n}", n.ToString())).ToList();
+
+        // Add cancel option if requested
+        if (allowCancel)
+            choiceDtos.Add(new ChoiceDto("cancel", "Cancel"));
 
         int inputId = session.GenerateInputId();
         var frame = new WebFrame(
@@ -420,6 +437,10 @@ public static class WebIO
 
         session.Send(frame);
         var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+        // Check for cancel
+        if (response.ChoiceId == "cancel")
+            return -1;
 
         // Parse the number from the choice ID (format: "num_X")
         if (response.ChoiceId != null && response.ChoiceId.StartsWith("num_"))
@@ -700,7 +721,7 @@ public static class WebIO
 
     /// <summary>
     /// Show forage overlay and wait for player to select focus and time.
-    /// Returns (focus, minutes) or (null, 0) if cancelled.
+    /// Returns (focus, minutes), (null, 0) if cancelled, or (null, -1) for "keep walking".
     /// </summary>
     public static (ForageFocus? focus, int minutes) SelectForageOptions(GameContext ctx, ForageDto forageData)
     {
@@ -721,6 +742,7 @@ public static class WebIO
                 choices.Add(new ChoiceDto(id, label));
             }
         }
+        choices.Add(new ChoiceDto("keep_walking", "Keep Walking (5 min)"));
         choices.Add(new ChoiceDto("cancel", "Cancel"));
 
         int inputId = session.GenerateInputId();
@@ -739,6 +761,10 @@ public static class WebIO
 
         if (response.ChoiceId == "cancel" || response.ChoiceId == null)
             return (null, 0);
+
+        // "Keep Walking" - signal to reroll clues
+        if (response.ChoiceId == "keep_walking")
+            return (null, -1);
 
         // Parse response: "fuel_30" -> (Fuel, 30)
         var parts = response.ChoiceId.Split('_');
@@ -964,6 +990,11 @@ public static class WebIO
             {
                 choices.Insert(0, new ChoiceDto("start_fire", "Start Fire"));
             }
+            // Add wait button to watch fire catch/burn (in tending mode or when fire exists)
+            if (fire.IsActive || fire.HasEmbers)
+            {
+                choices.Insert(choices.Count - 1, new ChoiceDto("wait", "Wait (2 min)"));
+            }
 
             int inputId = session.GenerateInputId();
             var frame = new WebFrame(
@@ -1008,6 +1039,11 @@ public static class WebIO
                     selectedTinderId = null;
                 }
                 // On failure, loop continues to show updated UI (may have consumed materials)
+            }
+            // Wait to watch fire
+            else if (response.ChoiceId == "wait")
+            {
+                ctx.Update(2, ActivityType.TendingFire);
             }
         }
 
@@ -1138,5 +1174,123 @@ public static class WebIO
         }
 
         return success;
+    }
+
+    // ============================================
+    // Cooking UI
+    // ============================================
+
+    private const int CookMeatTimeMinutes = 15;
+    private const int MeltSnowTimeMinutes = 10;
+    private const double MeltSnowWaterLiters = 1.0;
+
+    /// <summary>
+    /// Run the web-based cooking UI overlay.
+    /// </summary>
+    public static void RunCookingUI(GameContext ctx)
+    {
+        var session = GetSession(ctx);
+        CookingResultDto? lastResult = null;
+
+        while (true)
+        {
+            var cookingData = BuildCookingDto(ctx, lastResult);
+            _currentCooking[ctx.SessionId!] = cookingData;
+            lastResult = null; // Clear after displaying
+
+            var choices = new List<ChoiceDto>
+            {
+                new("melt_snow", "Melt Snow"),
+                new("done", "Done")
+            };
+
+            if (ctx.Inventory.Count(Resource.RawMeat) > 0)
+            {
+                choices.Insert(0, new ChoiceDto("cook_meat", "Cook Meat"));
+            }
+
+            int inputId = session.GenerateInputId();
+            var frame = new WebFrame(
+                GameStateDto.FromContext(ctx),
+                GetCurrentMode(ctx),
+                GetCurrentOverlays(ctx.SessionId),
+                new InputRequestDto(inputId, "cooking", "Cook & Melt", choices)
+            );
+
+            session.Send(frame);
+            var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+            if (response.ChoiceId == "done")
+                break;
+
+            if (response.ChoiceId == "cook_meat")
+            {
+                lastResult = ExecuteCookMeat(ctx);
+            }
+            else if (response.ChoiceId == "melt_snow")
+            {
+                lastResult = ExecuteMeltSnow(ctx);
+            }
+        }
+
+        ClearCooking(ctx);
+    }
+
+    private static CookingDto BuildCookingDto(GameContext ctx, CookingResultDto? lastResult)
+    {
+        var inv = ctx.Inventory;
+        var options = new List<CookingOptionDto>();
+
+        // Cook meat option
+        double rawMeat = inv.Weight(Resource.RawMeat);
+        bool hasMeat = rawMeat > 0;
+        options.Add(new CookingOptionDto(
+            "cook_meat",
+            $"Cook raw meat ({rawMeat:F1}kg)",
+            "outdoor_grill",
+            CookMeatTimeMinutes,
+            hasMeat,
+            hasMeat ? null : "No raw meat"
+        ));
+
+        // Melt snow option (always available)
+        options.Add(new CookingOptionDto(
+            "melt_snow",
+            $"Melt snow (+{MeltSnowWaterLiters:F1}L water)",
+            "water_drop",
+            MeltSnowTimeMinutes,
+            true,
+            null
+        ));
+
+        return new CookingDto(
+            options,
+            inv.WaterLiters,
+            inv.Weight(Resource.RawMeat),
+            inv.Weight(Resource.CookedMeat),
+            lastResult
+        );
+    }
+
+    private static CookingResultDto ExecuteCookMeat(GameContext ctx)
+    {
+        var inv = ctx.Inventory;
+        if (inv.Count(Resource.RawMeat) <= 0)
+            return new CookingResultDto("No raw meat to cook!", "error", false);
+
+        // Cook meat
+        ctx.Update(CookMeatTimeMinutes, ActivityType.Cooking);
+        double weight = inv.Pop(Resource.RawMeat);
+        inv.Add(Resource.CookedMeat, weight);
+
+        return new CookingResultDto($"+{weight:F1}kg cooked meat", "outdoor_grill", true);
+    }
+
+    private static CookingResultDto ExecuteMeltSnow(GameContext ctx)
+    {
+        ctx.Update(MeltSnowTimeMinutes, ActivityType.Cooking);
+        ctx.Inventory.WaterLiters += MeltSnowWaterLiters;
+
+        return new CookingResultDto($"+{MeltSnowWaterLiters:F1}L water", "water_drop", true);
     }
 }

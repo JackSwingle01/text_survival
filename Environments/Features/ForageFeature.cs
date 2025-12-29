@@ -27,6 +27,12 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     internal double NumberOfHoursForaged { get; set; } = 0;
     internal double HoursSinceLastForage { get; set; } = 0;
 
+    /// <summary>
+    /// Seed for deterministic clue generation. Changes after foraging or "keep walking".
+    /// </summary>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal int ClueSeed { get; private set; } = Random.Shared.Next();
+
     public ForageFeature(double resourceDensity = 1) : base("forage")
     {
         BaseResourceDensity = resourceDensity;
@@ -101,8 +107,16 @@ public class ForageFeature : LocationFeature, IWorkableFeature
             HoursSinceLastForage = 0;
         }
 
+        // Regenerate clue seed for next forage attempt
+        ClueSeed = Random.Shared.Next();
+
         return found;
     }
+
+    /// <summary>
+    /// Reroll the clue seed (used by "keep walking" option).
+    /// </summary>
+    public void RerollClues() => ClueSeed = Random.Shared.Next();
 
     private static double RandomWeight(double min, double max)
     {
@@ -130,6 +144,26 @@ public class ForageFeature : LocationFeature, IWorkableFeature
         ForageFocus.General => true,
         _ => true
     };
+
+    /// <summary>
+    /// Get a description of available resources for a focus category.
+    /// Returns comma-separated resource names (e.g., "stone, plant fiber").
+    /// </summary>
+    public string GetFocusDescription(ForageFocus focus)
+    {
+        var matchingResources = focus switch
+        {
+            ForageFocus.Fuel => _resources.Where(r => r.ResourceType.IsFuel()),
+            ForageFocus.Food => _resources.Where(r => r.ResourceType.IsFood()),
+            ForageFocus.Medicine => _resources.Where(r => r.ResourceType.IsMedicine()),
+            ForageFocus.Materials => _resources.Where(r => r.ResourceType.IsMaterial()),
+            ForageFocus.General => _resources,
+            _ => _resources
+        };
+
+        var names = matchingResources.Select(r => r.Name).Distinct().ToList();
+        return names.Count == 0 ? "" : string.Join(", ", names);
+    }
 
     // Convenience methods for common configurations
 

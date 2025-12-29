@@ -31,10 +31,11 @@ namespace text_survival.IO
 
         /// <summary>
         /// Read integer with range and game context - routes to web UI if session active.
+        /// Returns -1 if cancelled (when allowCancel is true).
         /// </summary>
-        public static int ReadInt(GameContext ctx, string prompt, int min, int max)
+        public static int ReadInt(GameContext ctx, string prompt, int min, int max, bool allowCancel = false)
         {
-            return WebIO.ReadInt(ctx, prompt, min, max);
+            return WebIO.ReadInt(ctx, prompt, min, max, allowCancel);
         }
     }
 }

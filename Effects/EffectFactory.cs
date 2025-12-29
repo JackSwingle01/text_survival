@@ -388,6 +388,20 @@ public static class EffectFactory
     };
 
     /// <summary>
+    /// Energized - temporary boost from quick sugar/calories (honey, dried fruit).
+    /// </summary>
+    public static Effect Energized(double severity, int durationMinutes = 20) => new()
+    {
+        EffectKind = "Energized",
+        Severity = severity,
+        HourlySeverityChange = -60.0 / durationMinutes,
+        CapacityModifiers = Capacities(
+            (CapacityNames.Moving, 0.1),
+            (CapacityNames.Consciousness, 0.1)),
+        ApplicationMessage = "Sugar energy courses through you."
+    };
+
+    /// <summary>
     /// Nourished - well-fed with vitamins and nutrients.
     /// Boosts body regeneration rate. From vitamin-rich foods like rose hips.
     /// </summary>
@@ -545,7 +559,12 @@ public static class EffectFactory
         HourlySeverityChange = -0.02,  // Dries very slowly
         RequiresTreatment = true,       // Only washing removes it properly
         ApplicationMessage = "Blood covers you.",
-        RemovalMessage = "You've cleaned off the blood."
+        RemovalMessage = "You've cleaned off the blood.",
+        ThresholdMessages = [
+            new Effect.ThresholdMessage(0.15, "Blood has stained your clothing.", true),
+            new Effect.ThresholdMessage(0.35, "You're covered in blood. Predators will smell this.", true),
+            new Effect.ThresholdMessage(0.60, "Blood saturates your clothes. Everything reeks of it.", true),
+        ]
     };
 
     private static CapacityModifierContainer Capacities(params (string name, double value)[] modifiers)
