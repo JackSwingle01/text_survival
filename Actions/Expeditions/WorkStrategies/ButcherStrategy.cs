@@ -6,6 +6,7 @@ using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
 using text_survival.Web;
+using text_survival.Web.Dto;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -17,6 +18,8 @@ public class ButcherStrategy : IWorkStrategy
 {
     private readonly CarcassFeature _carcass;
     private ButcheringMode? _selectedMode;
+    private int _selectedMinutes;
+    private bool _cancelled;
 
     public ButcherStrategy(CarcassFeature carcass, ButcheringMode? mode = null)
     {
@@ -34,32 +37,91 @@ public class ButcherStrategy : IWorkStrategy
 
     public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
     {
-        int remainingMinutes = _carcass.GetRemainingMinutes();
-        string decayDesc = _carcass.GetDecayDescription();
+        // Build warnings
+        var warnings = new List<string>();
 
-        var choice = new Choice<int>($"How long do you want to butcher the {_carcass.AnimalName} carcass? ({decayDesc})");
+        var capacities = ctx.player.GetCapacities();
+        var effectModifiers = ctx.player.EffectRegistry.GetCapacityModifiers();
 
-        // Offer time options based on remaining work
-        if (remainingMinutes >= 15)
-            choice.AddOption("15 minutes", 15);
-        if (remainingMinutes >= 30)
-            choice.AddOption("30 minutes", 30);
-        if (remainingMinutes >= 60)
-            choice.AddOption("1 hour", 60);
+        // Check manipulation impairment
+        if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
+        {
+            warnings.Add("Your unsteady hands will waste some yield.");
+        }
 
-        // Option to finish completely
-        if (remainingMinutes > 0 && remainingMinutes < 60)
-            choice.AddOption($"Finish completely (~{remainingMinutes} min)", remainingMinutes);
-        else if (remainingMinutes >= 60)
-            choice.AddOption($"Finish completely (~{remainingMinutes} min)", remainingMinutes);
+        // Check for cutting tool
+        if (!ctx.Inventory.HasCuttingTool)
+        {
+            warnings.Add("Without a cutting tool, you'll only get meat and bone.");
+        }
 
-        choice.AddOption("Cancel", 0);
+        // Frozen warning
+        if (_carcass.IsFrozen)
+        {
+            warnings.Add("The carcass is frozen solid. This will take longer.");
+        }
 
-        return choice;
+        // Build mode options
+        var modeOptions = new List<ButcherModeDto>
+        {
+            new(
+                "quick",
+                "Quick Strip",
+                "Fast, meat-focused, messy - more scent",
+                _carcass.GetRemainingMinutes(ButcheringMode.QuickStrip)
+            ),
+            new(
+                "careful",
+                "Careful",
+                "Full yields - meat, hide, bone, sinew, fat",
+                _carcass.GetRemainingMinutes(ButcheringMode.Careful)
+            ),
+            new(
+                "full",
+                "Full Processing",
+                "+10% meat/fat, +20% sinew, less mess",
+                _carcass.GetRemainingMinutes(ButcheringMode.FullProcessing)
+            )
+        };
+
+        var butcherDto = new ButcherDto(
+            AnimalName: _carcass.AnimalName,
+            DecayStatus: _carcass.GetDecayDescription(),
+            RemainingKg: _carcass.GetTotalRemainingKg(),
+            IsFrozen: _carcass.IsFrozen,
+            ModeOptions: modeOptions,
+            Warnings: warnings
+        );
+
+        // Show overlay and get selection
+        var selectedModeId = WebIO.SelectButcherOptions(ctx, butcherDto);
+
+        if (selectedModeId == null)
+        {
+            _cancelled = true;
+            return null;
+        }
+
+        // Parse mode selection
+        _selectedMode = selectedModeId switch
+        {
+            "quick" => ButcheringMode.QuickStrip,
+            "careful" => ButcheringMode.Careful,
+            "full" => ButcheringMode.FullProcessing,
+            _ => ButcheringMode.Careful
+        };
+
+        // Store selected time based on mode
+        _selectedMinutes = _carcass.GetRemainingMinutes(_selectedMode.Value);
+
+        return null; // Time already selected via overlay
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
     {
+        // Use pre-selected time from overlay (baseTime will be 0 since GetTimeOptions returns null)
+        int workTime = _selectedMinutes;
+
         var capacities = ctx.player.GetCapacities();
         var effectModifiers = ctx.player.EffectRegistry.GetCapacityModifiers();
 
@@ -76,10 +138,10 @@ public class ButcherStrategy : IWorkStrategy
         if (_carcass.IsFrozen)
         {
             timeFactor *= 1.5;
-            warnings.Add("The carcass is frozen solid. This will take longer.");
+            // Warning already shown in overlay, don't duplicate
         }
 
-        return ((int)(baseTime * timeFactor), warnings);
+        return ((int)(workTime * timeFactor), warnings);
     }
 
     public ActivityType GetActivityType() => ActivityType.Butchering;
@@ -90,9 +152,11 @@ public class ButcherStrategy : IWorkStrategy
 
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
-        // Select butchering mode if not already chosen
-        var mode = _selectedMode ?? SelectMode(ctx);
-        _selectedMode = mode;
+        // Early return if user cancelled
+        if (_cancelled)
+            return new WorkResult([], null, 0, false);
+
+        var mode = _selectedMode ?? ButcheringMode.Careful;
         var modeConfig = CarcassFeature.GetModeConfig(mode);
 
         // Determine tool and impairment status
@@ -162,28 +226,5 @@ public class ButcherStrategy : IWorkStrategy
         WebIO.ShowWorkResult(ctx, "Butchering", resultMessage, collected);
 
         return new WorkResult(collected, null, actualTime, false);
-    }
-
-    /// <summary>
-    /// Prompt player to select butchering mode.
-    /// </summary>
-    private ButcheringMode SelectMode(GameContext ctx)
-    {
-        var choice = new Choice<ButcheringMode>("How do you want to butcher?");
-
-        // Quick strip - for when you need to grab and go
-        int quickTime = _carcass.GetRemainingMinutes(ButcheringMode.QuickStrip);
-        choice.AddOption($"Quick strip (~{quickTime} min) - fast, meat only, messy", ButcheringMode.QuickStrip);
-
-        // Careful - balanced approach (recommended)
-        int carefulTime = _carcass.GetRemainingMinutes(ButcheringMode.Careful);
-        choice.AddOption($"Careful (~{carefulTime} min) - full yields (Recommended)", ButcheringMode.Careful);
-
-        // Full processing - for when you have time and want maximum value
-        int fullTime = _carcass.GetRemainingMinutes(ButcheringMode.FullProcessing);
-        choice.AddOption($"Full processing (~{fullTime} min) - +10% meat/fat, +20% sinew, less mess",
-            ButcheringMode.FullProcessing);
-
-        return choice.GetPlayerChoice(ctx);
     }
 }

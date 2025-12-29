@@ -443,6 +443,41 @@
         </div>
     </div>
 
+    <!-- Butcher Overlay -->
+    <div class="event-overlay hidden" id="butcherOverlay">
+        <div class="event-modal butcher-modal">
+            <div class="event-header">
+                <h2><span class="material-symbols-outlined">restaurant</span> Butchering</h2>
+            </div>
+
+            <!-- Carcass info -->
+            <div class="butcher-info">
+                <div class="butcher-animal" id="butcherAnimal">Caribou carcass</div>
+                <div class="butcher-status" id="butcherStatus">fresh, ~25kg remaining</div>
+            </div>
+
+            <!-- Warnings -->
+            <div class="butcher-warnings" id="butcherWarnings"></div>
+
+            <!-- Mode selection -->
+            <div class="butcher-mode-section">
+                <div class="mode-header">How do you want to butcher?</div>
+                <div class="mode-options" id="butcherModeOptions"></div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="butcher-actions" id="butcherActions">
+                <button class="event-choice-btn butcher-confirm" id="butcherConfirmBtn" disabled>
+                    <span class="choice-label">Start</span>
+                    <span class="choice-desc" id="butcherConfirmDesc">Select a method</span>
+                </button>
+                <button class="event-choice-btn butcher-cancel" id="butcherCancelBtn">
+                    <span class="choice-label">Cancel</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Hunt Overlay -->
     <div class="event-overlay hidden" id="huntOverlay">
         <div class="event-modal hunt-modal">
