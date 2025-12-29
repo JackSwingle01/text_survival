@@ -1,5 +1,6 @@
 using text_survival.Actions.Tensions;
 using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -28,6 +29,15 @@ public record ResourceCost(ResourceType Type, int Amount);
 /// <param name="HarvestedPct">Portion already consumed by scavengers (0-1)</param>
 /// <param name="AgeHours">Hours since death (for decay calculation)</param>
 public record CarcassCreation(string? AnimalType, double HarvestedPct = 0, double AgeHours = 0);
+
+/// <summary>
+/// Configuration for spawning a herd at the current location.
+/// Used by discovery events to spawn herds the player didn't know about.
+/// </summary>
+/// <param name="AnimalType">Animal type name (Wolf, Bear, Caribou, etc.)</param>
+/// <param name="Count">Number of animals (1 for lone predator)</param>
+/// <param name="TerritoryRadius">Radius for home territory generation</param>
+public record HerdCreation(string AnimalType, int Count = 1, int TerritoryRadius = 2);
 
 public class EventResult(string message, double weight = 1, int minutes = 0)
 {
@@ -72,6 +82,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     // Carcass modification (scavenger loss as percentage, e.g. 0.5 = 50% loss)
     public double? CarcassScavengerLoss;
+
+    // Herd creation (for discovery events that spawn new herds)
+    public HerdCreation? HerdCreation;
 
     // === Fluent builder methods ===
 
@@ -176,6 +189,13 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         return this;
     }
 
+    // Herd spawning
+    public EventResult SpawnsHerd(string animalType, int count = 1, int territoryRadius = 2)
+    {
+        HerdCreation = new HerdCreation(animalType, count, territoryRadius);
+        return this;
+    }
+
     // === Outcome Application ===
 
     /// <summary>
@@ -197,6 +217,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         ApplyEquipmentDamage(ctx, summary);
         ApplyFeatureModifications(ctx);
         ApplyCarcassCreation(ctx, summary);
+        ApplyHerdCreation(ctx, summary);
         DisplaySummary(ctx, summary);
 
         return new EventOutcomeDto(
@@ -493,6 +514,36 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
         GameDisplay.AddSuccess(ctx, $"  + Found a {animalType.ToLower()} carcass");
         summary.ItemsGained.Add($"{animalType} carcass");
+    }
+
+    private void ApplyHerdCreation(GameContext ctx, OutcomeSummary summary)
+    {
+        if (HerdCreation is null) return;
+        if (ctx.Map == null) return;
+
+        var pos = ctx.Map.CurrentPosition;
+
+        // Skip if a herd of this type already exists in this territory
+        var existingHerds = ctx.Herds.GetHerdsByType(HerdCreation.AnimalType);
+        if (existingHerds.Any(h => h.HomeTerritory.Contains(pos)))
+        {
+            return;
+        }
+
+        // Spawn the new herd
+        var herd = HerdPopulator.SpawnHerdAt(
+            ctx,
+            HerdCreation.AnimalType,
+            HerdCreation.Count,
+            pos,
+            HerdCreation.TerritoryRadius
+        );
+
+        if (herd != null)
+        {
+            string countDesc = HerdCreation.Count == 1 ? "a lone" : $"a group of {HerdCreation.Count}";
+            GameDisplay.AddNarrative(ctx, $"You've discovered {countDesc} {HerdCreation.AnimalType.ToLower()}.");
+        }
     }
 
     /// <summary>

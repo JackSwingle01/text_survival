@@ -1,8 +1,6 @@
 using text_survival.Actions.Variants;
-using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
-using text_survival.Items;
 
 namespace text_survival.Actions;
 
@@ -28,6 +26,7 @@ public static partial class GameEventRegistry
         return new GameEvent("The Find",
             $"{denDesc} But there are signs — tracks, scat, the smell of animal.", 0.6)
             .Requires(EventCondition.IsExpedition, EventCondition.NoShelter)
+            .RequiresSituation(Situations.SolitaryPredatorInTerritory)  // Requires solitary predator herd present
             .WithConditionFactor(EventCondition.ShelterWeakened, 3.0)
             .WithSituationFactor(Situations.ExtremeColdCrisis, 2.0)  // ExtremelyCold, IsBlizzard + LowOnFuel
             .Choice("Investigate Carefully",

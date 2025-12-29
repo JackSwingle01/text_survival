@@ -1,4 +1,5 @@
 using System.Linq;
+using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
 using text_survival.Items;
 
@@ -713,5 +714,87 @@ public static class Situations
                 worst = tool;
         }
         return worst != null ? (worst, worst.ConditionPct) : null;
+    }
+
+    // === HERD PRESENCE ===
+
+    /// <summary>
+    /// Any predator herd has this tile in its territory.
+    /// </summary>
+    public static bool PredatorInTerritory(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+        var pos = ctx.Map.CurrentPosition;
+        return ctx.Herds.GetPredatorHerds()
+            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
+    }
+
+    /// <summary>
+    /// Any prey herd has this tile in its territory.
+    /// </summary>
+    public static bool PreyInTerritory(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+        var pos = ctx.Map.CurrentPosition;
+        return ctx.Herds.GetPreyHerds()
+            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
+    }
+
+    /// <summary>
+    /// Pack predator (wolf) has this tile in territory.
+    /// </summary>
+    public static bool PackPredatorInTerritory(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+        var pos = ctx.Map.CurrentPosition;
+        return ctx.Herds.GetPredatorHerds()
+            .Any(h => h.BehaviorType == HerdBehaviorType.PackPredator
+                  && h.HomeTerritory.Contains(pos) && h.Count > 0);
+    }
+
+    /// <summary>
+    /// Solitary predator (bear) has this tile in territory.
+    /// </summary>
+    public static bool SolitaryPredatorInTerritory(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+        var pos = ctx.Map.CurrentPosition;
+        return ctx.Herds.GetPredatorHerds()
+            .Any(h => h.BehaviorType == HerdBehaviorType.SolitaryPredator
+                  && h.HomeTerritory.Contains(pos) && h.Count > 0);
+    }
+
+    /// <summary>
+    /// Graduated predator presence (0-1) for weight factors.
+    /// Higher when predator is on tile, lower when just in territory.
+    /// </summary>
+    public static double PredatorPresenceLevel(GameContext ctx)
+    {
+        if (ctx.Map == null) return 0;
+        var pos = ctx.Map.CurrentPosition;
+        var predators = ctx.Herds.GetPredatorHerds().Where(h => h.Count > 0).ToList();
+
+        // On tile = maximum presence
+        if (predators.Any(h => h.Position == pos)) return 1.0;
+
+        // In territory = partial presence
+        if (predators.Any(h => h.HomeTerritory.Contains(pos))) return 0.5;
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Graduated prey presence (0-1) for weight factors.
+    /// </summary>
+    public static double PreyPresenceLevel(GameContext ctx)
+    {
+        if (ctx.Map == null) return 0;
+        var pos = ctx.Map.CurrentPosition;
+        var prey = ctx.Herds.GetPreyHerds().Where(h => h.Count > 0).ToList();
+
+        if (prey.Any(h => h.Position == pos)) return 1.0;
+        if (prey.Any(h => h.HomeTerritory.Contains(pos))) return 0.5;
+
+        return 0;
     }
 }

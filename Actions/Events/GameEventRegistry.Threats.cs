@@ -19,6 +19,7 @@ public static partial class GameEventRegistry
             "Fresh Carcass",
             $"Something killed a {animal.ToLower()} recently. The meat's still good, but you didn't make this kill.", 0.5)
             .Requires(EventCondition.Working, EventCondition.InAnimalTerritory)
+            .WithSituationFactor(Situations.PredatorInTerritory, 2.0)  // More likely in predator territory
             .Choice("Scavenge Quickly", "Grab what you can and get out before whatever killed this returns.",
                 [
                     new EventResult("You cut away some meat and leave.", weight: 0.7f, minutes:8)
@@ -51,26 +52,35 @@ public static partial class GameEventRegistry
 
     private static GameEvent Tracks(GameContext ctx)
     {
+        // Determine animal type - prefer herd data over territory feature
+        var pos = ctx.Map?.CurrentPosition ?? default;
+        var herdInTerritory = ctx.Herds._herds
+            .FirstOrDefault(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animal = territory?.GetRandomAnimalName() ?? "animal";
+        var animal = herdInTerritory?.AnimalType ?? territory?.GetRandomAnimalName() ?? "animal";
+        bool isPredator = herdInTerritory != null
+            ? herdInTerritory.IsPredator
+            : (territory?.HasPredators() ?? false);
 
         return new GameEvent(
             "Tracks",
-            $"Fresh {animal.ToLower()} tracks cross your path. They're recent.", 1.2)
+            $"Fresh {animal.ToLower()} tracks cross your path. They're recent.", 0.3)
             .Requires(EventCondition.IsExpedition, EventCondition.InAnimalTerritory)
             .WithConditionFactor(EventCondition.HighVisibility, 1.5) // Easier to see tracks in open terrain
+            .WithSituationFactor(Situations.PredatorInTerritory, 5.0) // Very common when predator herd present
+            .WithSituationFactor(Situations.PreyInTerritory, 5.0) // Very common when prey herd present
             .Choice("Follow Them",
                 "The trail is clear. You could track this animal.",
                 [
-                    new EventResult("The tracks lead nowhere. You lose the trail.", weight: 0.4f, minutes: 20)
+                    new EventResult("The tracks lead nowhere. You lose the trail.", weight: 0.35f, minutes: 20)
                         .CreateTension("FreshTrail", 0.1, description: "faint sign of game"),
-                    new EventResult("You spot the animal in the distance but can't get close.", weight: 0.35f, minutes: 25)
-                        .CreateTension("FreshTrail", 0.2, description: "sighting of game"),
+                    new EventResult($"You follow the tracks and find signs of {animal.ToLower()} activity.", weight: 0.35f, minutes: 25)
+                        .FollowsTracks(animal, isPredator, isPredator ? 1 : 3),
                     new EventResult("You find a game trail — good hunting ground.", weight: 0.15f, minutes: 30)
                         .FindsGameTrail(),
-                    new EventResult("You were so focused on the tracks, you didn't notice what was tracking YOU. It lunges.", weight: 0.1f, minutes: 15)
+                    new EventResult("You were so focused on the tracks, you didn't notice what was tracking YOU. It lunges.", weight: 0.15f, minutes: 15)
                         .AnimalAttack()
-                        .BecomeStalked(0.4, animal)
+                        .DiscoversPredator(isPredator ? animal : "Wolf", 0.4)
                         .Aborts()
                 ])
             .Choice("Note Direction",
@@ -78,6 +88,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You file the information away and continue.", minutes: 2)
                         .CreateTension("FreshTrail", 0.15, description: "noted animal direction")
+                        .MarksAnimalSign(animal, 0.3)
                 ])
             .Choice("Avoid the Area",
                 "Best not to cross paths with whatever made these.",
@@ -88,8 +99,11 @@ public static partial class GameEventRegistry
 
     private static GameEvent SomethingWatching(GameContext ctx)
     {
+        // Prefer herd data for predator type
+        var predatorHerd = ctx.Herds.GetPredatorHerds()
+            .FirstOrDefault(h => h.HomeTerritory.Contains(ctx.Map?.CurrentPosition ?? default) && h.Count > 0);
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+        var predator = predatorHerd?.AnimalType ?? territory?.GetRandomPredatorName() ?? "Wolf";
         var variant = AnimalSelector.GetVariant(predator);
 
         // Noise effectiveness varies by animal - skittish animals flee, others may be provoked
@@ -97,8 +111,9 @@ public static partial class GameEventRegistry
         double noiseProvokeWeight = 0.05 + (1 - variant.NoiseEffectiveness) * 0.10;  // 0.05-0.15
 
         return new GameEvent("Something Watching",
-            $"The hair on your neck stands up. Something is watching. You catch a glimpse of movement — {predator.ToLower()}?", 0.8)
+            $"The hair on your neck stands up. Something is watching. You catch a glimpse of movement — {predator.ToLower()}?", 0.2)
             .Requires(EventCondition.Working, EventCondition.HasPredators)
+            .WithSituationFactor(Situations.PredatorInTerritory, 5.0)    // Very common when predator herd present
             .WithSituationFactor(Situations.AttractiveToPredators, 3.0)  // Meat, bleeding, food scent
             .WithSituationFactor(Situations.Vulnerable, 2.0)             // Injured, slow, no weapon
             .WithSituationFactor(Situations.IsFollowingAnimalSigns, 2.5) // Following tracks/scat clues
@@ -111,9 +126,10 @@ public static partial class GameEventRegistry
                     new EventResult("Whatever it was slinks away. You're not worth the trouble.", weight: noiseFleeWeight, minutes: 5),
                     new EventResult("It doesn't retreat. It's testing you. You back away slowly.", weight: 0.30 - noiseFleeWeight * 0.2, minutes: 10)
                         .Unsettling()
-                        .BecomeStalked(0.3, predator),
+                        .DiscoversPredator(predator, 0.3),
                     new EventResult("Your noise provokes it. It attacks.", weight: noiseProvokeWeight, minutes: 5)
                         .Damage(12, DamageType.Sharp)
+                        .DiscoversPredator(predator, 0.5)
                         .Aborts(),
                     new EventResult("Nothing there. Just paranoia.", weight: 0.05, minutes: 3)
                         .Shaken()
@@ -130,13 +146,14 @@ public static partial class GameEventRegistry
                     new EventResult("Just a fox. It watches you work but keeps its distance.", weight: 0.40, minutes: 8),
                     new EventResult("You see it now — keeping its distance. It's not attacking yet.", weight: 0.35, minutes: 10)
                         .WithEffects(EffectFactory.Fear(0.15))
-                        .BecomeStalked(0.25, predator),
+                        .DiscoversPredator(predator, 0.25),
                     new EventResult($"You make eye contact. {(variant.AmbushChance > 0.3 ? "It lunges." : "It retreats, but remembers you.")}", weight: 0.15, minutes: 5)
                         .AnimalAttack()
+                        .DiscoversPredator(predator, 0.4)
                         .Aborts(),
                     new EventResult("Can't see it but you KNOW it's there.", weight: 0.10, minutes: 10)
                         .Frightening()
-                        .BecomeStalked(0.4, predator)
+                        .DiscoversPredator(predator, 0.4)
                 ]);
     }
 
@@ -815,6 +832,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Distant Carcass Stench",
             $"The wind brings a smell — death, recent. Something died nearby, or something killed nearby.", 0.6)
             .Requires(EventCondition.IsExpedition, EventCondition.InAnimalTerritory)
+            .WithSituationFactor(Situations.PredatorInTerritory, 2.0)  // More likely in predator territory
             .Choice("Scout Toward It",
                 "Follow the smell. Could be free meat.",
                 [

@@ -19,6 +19,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Distant Thunder",
             "The ground trembles. A sound like thunder, but rhythmic. A herd is moving through — hundreds of animals.", 0.5)
             .Requires(EventCondition.OnExpedition)
+            .RequiresSituation(Situations.PreyInTerritory)  // Requires prey herd present
             // SupplyPressure: low food, fuel, or water - more driven to pursue food opportunity
             .WithSituationFactor(Situations.SupplyPressure, 2.0)
             .Choice("Track Them",

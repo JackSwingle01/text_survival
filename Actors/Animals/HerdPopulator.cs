@@ -1,3 +1,4 @@
+using text_survival.Actions;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 
@@ -338,4 +339,76 @@ public static class HerdPopulator
 
         return territory;
     }
+
+    /// <summary>
+    /// Spawn a herd at a specific location. Used by discovery events.
+    /// </summary>
+    /// <param name="ctx">Game context</param>
+    /// <param name="animalType">Animal type name (Wolf, Bear, Caribou, etc.)</param>
+    /// <param name="count">Number of animals</param>
+    /// <param name="position">Position to spawn at</param>
+    /// <param name="territoryRadius">Approximate radius for territory</param>
+    /// <returns>The created herd, or null if creation failed</returns>
+    public static Herd? SpawnHerdAt(GameContext ctx, string animalType, int count, GridPosition position, int territoryRadius)
+    {
+        if (ctx.Map == null) return null;
+
+        // Get available positions for territory (passable tiles within radius)
+        var available = GetPositionsInRadius(ctx.Map, position, territoryRadius + 2);
+
+        // Create territory
+        int targetSize = Math.Max(2, territoryRadius * 2);
+        var territory = CreateContiguousTerritory(position, available, targetSize);
+
+        if (territory.Count == 0)
+        {
+            territory = [position]; // Fallback to just the spawn position
+        }
+
+        // Create herd
+        var herd = Herd.Create(animalType, position, territory);
+
+        // Add members
+        for (int i = 0; i < count; i++)
+        {
+            var animal = AnimalFactory.FromName(animalType);
+            if (animal != null)
+            {
+                herd.AddMember(animal);
+            }
+        }
+
+        // Only add if we have at least one member
+        if (herd.Count > 0)
+        {
+            ctx.Herds.AddHerd(herd);
+            return herd;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Get passable positions within a radius of a center point.
+    /// </summary>
+    private static List<GridPosition> GetPositionsInRadius(GameMap map, GridPosition center, int radius)
+    {
+        var positions = new List<GridPosition>();
+
+        for (int dx = -radius; dx <= radius; dx++)
+        {
+            for (int dy = -radius; dy <= radius; dy++)
+            {
+                var pos = new GridPosition(center.X + dx, center.Y + dy);
+                var loc = map.GetLocationAt(pos);
+                if (loc != null && loc.IsPassable)
+                {
+                    positions.Add(pos);
+                }
+            }
+        }
+
+        return positions;
+    }
+
 }

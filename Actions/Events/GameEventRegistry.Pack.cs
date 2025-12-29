@@ -28,6 +28,7 @@ public static partial class GameEventRegistry
             $"Multiple tracks, recent. {(isPackAnimal ? "Coordinated movement patterns." : "Scattered, but recent.")} This isn't a lone hunter — it's a pack of {predator.ToLower()}s.", 0.8)
             .Requires(EventCondition.InAnimalTerritory, EventCondition.HasPredators)
             .Requires(EventCondition.OnExpedition)
+            .RequiresSituation(Situations.PackPredatorInTerritory)  // Requires pack predator herd present
             .WithSituationFactor(Situations.AttractiveToPredators, 2.0)  // Meat, bleeding, food scent
             .Choice("Move Carefully, Watch Flanks",
                 "Slow down. Stay alert. Don't let them get behind you.",

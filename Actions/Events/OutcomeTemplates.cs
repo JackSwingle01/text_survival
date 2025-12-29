@@ -356,4 +356,36 @@ public static class OutcomeTemplates
     /// <summary>Proper repair - significant durability restoration.</summary>
     public static EventResult ProperRepair(this EventResult r, EquipSlot slot)
         => r.RepairsEquipment(slot, 10);
+
+    // === HERD DISCOVERY ===
+
+    /// <summary>
+    /// Discover a lone predator - spawns herd of 1 + creates Stalked tension.
+    /// </summary>
+    public static EventResult DiscoversPredator(this EventResult r, string animal, double stalkSeverity = 0.3)
+        => r.SpawnsHerd(animal, 1, 2).BecomeStalked(stalkSeverity, animal);
+
+    /// <summary>
+    /// Discover a predator pack - spawns pack + creates PackNearby tension.
+    /// </summary>
+    public static EventResult DiscoversPack(this EventResult r, string animal, int count = 4, double severity = 0.4)
+        => r.SpawnsHerd(animal, count, 3).CreateTension("PackNearby", severity, animalType: animal);
+
+    /// <summary>
+    /// Discover a prey herd - spawns herd + creates HerdNearby tension.
+    /// </summary>
+    public static EventResult DiscoversPreyHerd(this EventResult r, string animal, int count = 8, double severity = 0.5)
+        => r.SpawnsHerd(animal, count, 4).CreateTension("HerdNearby", severity, animalType: animal);
+
+    /// <summary>
+    /// Follow tracks to discover animals - spawns herd if none exists.
+    /// Creates appropriate tension based on predator/prey.
+    /// </summary>
+    public static EventResult FollowsTracks(this EventResult r, string animal, bool isPredator, int count = 1)
+    {
+        r.SpawnsHerd(animal, count, isPredator ? 2 : 4);
+        return isPredator
+            ? r.BecomeStalked(0.2, animal)
+            : r.CreateTension("HerdNearby", 0.4, animalType: animal);
+    }
 }
