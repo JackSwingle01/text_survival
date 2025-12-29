@@ -1,3 +1,4 @@
+using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 
 namespace text_survival.Actors.Animals;
@@ -35,6 +36,69 @@ public static class HerdPopulator
         PopulateBears(registry, availablePositions, 3 + _rng.Next(3)); // 3-5 bears
         PopulateCaribou(registry, availablePositions, 1 + _rng.Next(2)); // 1-2 herds
         PopulateLargePrey(registry, availablePositions, 5 + _rng.Next(6)); // 5-10 individuals
+
+        // Add environmental details based on territories
+        AddTerritoryDetails(registry, map);
+    }
+
+    /// <summary>
+    /// Adds environmental details to tiles within herd territories.
+    /// Gives players hints about animal presence through tracks, droppings, etc.
+    /// </summary>
+    private static void AddTerritoryDetails(HerdRegistry registry, GameMap map)
+    {
+        foreach (var herd in registry._herds)
+        {
+            // Skip empty herds
+            if (herd.IsEmpty) continue;
+
+            // Add details to territory tiles (but not all - sparse placement)
+            foreach (var pos in herd.HomeTerritory)
+            {
+                // 30% chance per territory tile to add a detail
+                if (_rng.NextDouble() > 0.30) continue;
+
+                var location = map.GetLocationAt(pos);
+                if (location == null) continue;
+
+                // Create appropriate detail based on animal type
+                var detail = CreateTerritoryDetail(herd.AnimalType, herd.IsPredator);
+                if (detail != null)
+                {
+                    location.Features.Add(detail);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Creates an environmental detail appropriate for an animal's territory.
+    /// </summary>
+    private static EnvironmentalDetail? CreateTerritoryDetail(string animalType, bool isPredator)
+    {
+        // Vary the type of detail
+        double roll = _rng.NextDouble();
+
+        if (roll < 0.5)
+        {
+            // Tracks are most common
+            return EnvironmentalDetail.AnimalTracks(animalType.ToLower());
+        }
+        else if (roll < 0.8)
+        {
+            // Droppings are moderately common
+            return EnvironmentalDetail.AnimalDroppings(animalType.ToLower());
+        }
+        else if (isPredator)
+        {
+            // Predator territories have scattered bones from kills
+            return EnvironmentalDetail.ScatteredBones();
+        }
+        else
+        {
+            // Prey territories have bent branches from browsing
+            return EnvironmentalDetail.BentBranches();
+        }
     }
 
     /// <summary>

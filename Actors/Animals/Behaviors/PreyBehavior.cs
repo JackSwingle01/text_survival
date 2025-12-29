@@ -160,8 +160,8 @@ public class PreyBehavior : IHerdBehavior
     {
         if (herd.HomeTerritory.Count == 0) return;
 
-        // Grazing: 20% chance per tick to move to next territory tile
-        if (_rng.NextDouble() < 0.20)
+        // Grazing: 3% chance per tick to move to next territory tile (~33 min average)
+        if (_rng.NextDouble() < 0.03)
         {
             herd.TerritoryIndex = (herd.TerritoryIndex + 1) % herd.HomeTerritory.Count;
             herd.Position = herd.HomeTerritory[herd.TerritoryIndex];

@@ -201,8 +201,8 @@ public class SolitaryPredatorBehavior : IHerdBehavior
     {
         if (herd.HomeTerritory.Count == 0) return;
 
-        // 15% chance per tick to move
-        if (_rng.NextDouble() < 0.15)
+        // 3% chance per tick to move (~33 min average)
+        if (_rng.NextDouble() < 0.03)
         {
             herd.TerritoryIndex = (herd.TerritoryIndex + 1) % herd.HomeTerritory.Count;
             herd.Position = herd.HomeTerritory[herd.TerritoryIndex];

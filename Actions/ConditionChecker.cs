@@ -111,6 +111,7 @@ public static class ConditionChecker
 
             EventCondition.HerdNearby => ctx.Tensions.HasTension("HerdNearby"),
             EventCondition.HerdNearbyUrgent => ctx.Tensions.HasTensionAbove("HerdNearby", 0.6),
+            EventCondition.HerdOnTile => HasPreyHerdOnTile(ctx),
 
             EventCondition.DeadlyCold => ctx.Tensions.HasTension("DeadlyCold"),
             EventCondition.DeadlyColdCritical => ctx.Tensions.HasTensionAbove("DeadlyCold", 0.6),
@@ -260,6 +261,18 @@ public static class ConditionChecker
             (Weather.WeatherCondition.Rainy, Weather.WeatherCondition.Stormy) => true,
             _ => false
         };
+    }
+
+    // === HERD HELPERS ===
+
+    /// <summary>
+    /// Check if a prey herd is on the player's current tile.
+    /// </summary>
+    private static bool HasPreyHerdOnTile(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+        var herds = ctx.Herds.GetHerdsAt(ctx.Map.CurrentPosition);
+        return herds.Any(h => !h.IsPredator && h.Count > 0);
     }
 
     // === SPATIAL HELPERS ===

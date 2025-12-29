@@ -772,6 +772,7 @@ public enum EventCondition
     // Herd arc
     HerdNearby,            // Any HerdNearby tension exists
     HerdNearbyUrgent,      // HerdNearby severity > 0.6 (window closing)
+    HerdOnTile,            // A prey herd is on the player's current tile
 
     // Cold Snap arc
     DeadlyCold,            // Any DeadlyCold tension exists

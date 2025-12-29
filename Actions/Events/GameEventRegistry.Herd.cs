@@ -142,6 +142,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Stampede",
             $"They've spooked. {description}", 3.0)
             .Requires(EventCondition.HerdNearbyUrgent)
+            .Requires(EventCondition.HerdOnTile)
             .Choice("Run Perpendicular",
                 "Sprint at a right angle. Get out of their path.",
                 [
