@@ -179,9 +179,9 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     /// Animal tracks indicating nearby game.
     /// Prey tracks create FreshTrail tension, predator tracks create weak Stalked tension.
     /// </summary>
-    public static EnvironmentalDetail AnimalTracks(string animalType = "deer")
+    public static EnvironmentalDetail AnimalTracks(string animalType = "caribou")
     {
-        bool isPredator = animalType is "wolf" or "bear";
+        bool isPredator = animalType is "wolf" or "bear" or "hyena";
 
         return new EnvironmentalDetail("animal_tracks", "Animal Tracks", $"Fresh {animalType} tracks in the snow.")
         {

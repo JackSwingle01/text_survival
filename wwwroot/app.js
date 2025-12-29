@@ -1181,13 +1181,6 @@ class GameClient {
                 descEl.textContent = clue.description;
                 clueEl.appendChild(descEl);
 
-                if (clue.hintText) {
-                    const hintEl = document.createElement('span');
-                    hintEl.className = 'clue-hint';
-                    hintEl.textContent = ` ${clue.hintText}`;
-                    clueEl.appendChild(hintEl);
-                }
-
                 // Click handler to select matching focus
                 if (clue.suggestedFocusId) {
                     clueEl.onclick = () => this.selectForageFocus(clue.suggestedFocusId);
@@ -2873,9 +2866,21 @@ class GameClient {
 
         const inputId = this.currentInputId;
 
-        // Render current status
+        // Render left pane: current supplies
         const statusEl = document.getElementById('cookingStatus');
         Utils.clearElement(statusEl);
+
+        // Left pane header
+        const leftHeader = document.createElement('div');
+        leftHeader.className = 'cooking-pane-header';
+        const leftH3 = document.createElement('h3');
+        const leftIcon = document.createElement('span');
+        leftIcon.className = 'material-symbols-outlined';
+        leftIcon.textContent = 'inventory_2';
+        leftH3.appendChild(leftIcon);
+        leftH3.appendChild(document.createTextNode('Supplies'));
+        leftHeader.appendChild(leftH3);
+        statusEl.appendChild(leftHeader);
 
         const statusItems = [
             { icon: 'water_drop', label: 'Water', value: `${cookingData.waterLiters.toFixed(1)}L` },
@@ -2905,9 +2910,21 @@ class GameClient {
             statusEl.appendChild(row);
         }
 
-        // Render action options
+        // Render right pane: action options
         const optionsEl = document.getElementById('cookingOptions');
         Utils.clearElement(optionsEl);
+
+        // Right pane header
+        const rightHeader = document.createElement('div');
+        rightHeader.className = 'cooking-pane-header';
+        const rightH3 = document.createElement('h3');
+        const rightIcon = document.createElement('span');
+        rightIcon.className = 'material-symbols-outlined';
+        rightIcon.textContent = 'skillet';
+        rightH3.appendChild(rightIcon);
+        rightH3.appendChild(document.createTextNode('Actions'));
+        rightHeader.appendChild(rightH3);
+        optionsEl.appendChild(rightHeader);
 
         for (const opt of cookingData.options) {
             const btn = document.createElement('button');

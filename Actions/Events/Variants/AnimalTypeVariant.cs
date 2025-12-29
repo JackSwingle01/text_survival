@@ -72,21 +72,6 @@ public static class AnimalVariants
         CirclingDescription: "The fox darts between cover, watching."
     );
 
-    public static readonly AnimalTypeVariant Lynx = new(
-        "Lynx",
-        "Lynx. Solitary. Fire works. Will avoid confrontation if possible.",
-        "Wait. Lynx prefer to slip away unseen.",
-        FireEffectiveness: 0.75,
-        NoiseEffectiveness: 0.6,
-        AmbushChance: 0.4,
-        IsDiurnal: false,
-        PackBonus: 1.0,
-        StalkingPersistence: 0.5,   // Patient but not obsessive
-        ChaseThreshold: 0.3,        // Prefers ambush to chase
-        PackCoordination: 0.0,      // Solitary
-        CirclingDescription: "The lynx paces at the edge of visibility, patient."
-    );
-
     /// <summary>
     /// Default for unknown animals - cautious approach.
     /// </summary>
@@ -199,9 +184,8 @@ public static class AnimalSelector
             var t when t.Contains("wolf") => AnimalVariants.Wolf,
             var t when t.Contains("bear") => AnimalVariants.Bear,
             var t when t.Contains("fox") => AnimalVariants.Fox,
-            var t when t.Contains("lynx") => AnimalVariants.Lynx,
             // Small game
-            var t when t.Contains("rabbit") || t.Contains("hare") => AnimalVariants.Rabbit,
+            var t when t.Contains("rabbit") || t.Contains("rabbit") => AnimalVariants.Rabbit,
             var t when t.Contains("ptarmigan") => AnimalVariants.Ptarmigan,
             var t when t.Contains("squirrel") => AnimalVariants.Squirrel,
             var t when t.Contains("fish") => AnimalVariants.Fish,

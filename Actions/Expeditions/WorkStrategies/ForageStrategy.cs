@@ -45,16 +45,10 @@ public class ForageStrategy : IWorkStrategy
             // Generate environmental clues using seed for deterministic results
             _clues = ClueSelector.GenerateClues(ctx, location, feature.ClueSeed);
 
-            // Calculate perception for clue display
-            var perception = AbilityCalculator.CalculatePerception(
-                ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers());
-            bool showHints = ClueSelector.ShouldShowHints(perception);
-
-            // Build clue DTOs
+            // Build clue DTOs - only Resource clues suggest a focus
             var clueDtos = _clues.Select((clue, i) => new ForageClueDto(
                 Id: $"clue_{i}",
                 Description: clue.Description,
-                HintText: showHints ? clue.HintText : null,
                 SuggestedFocusId: GetSuggestedFocusId(clue)
             )).ToList();
 
@@ -93,9 +87,6 @@ public class ForageStrategy : IWorkStrategy
                 warnings.Add("Your axe will help gather wood.");
             if (shovel?.Works == true)
                 warnings.Add("Your shovel will help dig up roots.");
-
-            if (!showHints && _clues.Count > 0)
-                warnings.Add("Your foggy senses make it hard to read the signs.");
 
             // Capacity warning when pack is nearly full
             var inv = ctx.Inventory;
@@ -136,13 +127,23 @@ public class ForageStrategy : IWorkStrategy
 
             _focus = selectedFocus.Value;
 
-            // Check if focus matches any visible clue (implicit clue-following)
+            // Check if focus matches any visible Resource clue (implicit clue-following)
             _followedClue = _clues.FirstOrDefault(c =>
-                (_focus == ForageFocus.Fuel && c.SuggestedResources.Any(r => r.IsFuel())) ||
-                (_focus == ForageFocus.Food && c.SuggestedResources.Any(r => r.IsFood())) ||
-                (_focus == ForageFocus.Medicine && c.SuggestedResources.Any(r => r.IsMedicine())) ||
-                (_focus == ForageFocus.Materials && c.SuggestedResources.Any(r => r.IsMaterial()))
-            );
+                c.Category == ClueCategory.Resource && (
+                    (_focus == ForageFocus.Fuel && c.SuggestedResources.Any(r => r.IsFuel())) ||
+                    (_focus == ForageFocus.Food && c.SuggestedResources.Any(r => r.IsFood())) ||
+                    (_focus == ForageFocus.Medicine && c.SuggestedResources.Any(r => r.IsMedicine())) ||
+                    (_focus == ForageFocus.Materials && c.SuggestedResources.Any(r => r.IsMaterial()))
+                ));
+
+            // Also track if player is following a Game or Scavenge clue
+            // (These don't match focus but affect results)
+            var gameClue = _clues.FirstOrDefault(c => c.Category == ClueCategory.Game);
+            var scavengeClue = _clues.FirstOrDefault(c => c.Category == ClueCategory.Scavenge);
+
+            // Store for Execute() processing
+            _gameClue = gameClue;
+            _scavengeClue = scavengeClue;
 
             // Tutorial for first clue experience
             if (_clues.Count > 0)
@@ -156,8 +157,16 @@ public class ForageStrategy : IWorkStrategy
         }
     }
 
+    // Additional clue storage for Execute()
+    private ForageClue? _gameClue;
+    private ForageClue? _scavengeClue;
+
     private static string? GetSuggestedFocusId(ForageClue clue)
     {
+        // Only Resource clues suggest a focus category
+        if (clue.Category != ClueCategory.Resource)
+            return null;
+
         if (clue.SuggestedResources.Any(r => r.IsFuel()))
             return "fuel";
         if (clue.SuggestedResources.Any(r => r.IsFood()))
@@ -192,8 +201,7 @@ public class ForageStrategy : IWorkStrategy
         FollowingAnimalSigns() ? ActivityType.Tracking : ActivityType.Foraging;
 
     private bool FollowingAnimalSigns() =>
-        _followedClue?.SuggestedResources.Any(r =>
-            r == Resource.Bone || r == Resource.RawMeat) == true;
+        _gameClue != null || _scavengeClue != null;
 
     public string GetActivityName() => "foraging";
 
@@ -207,8 +215,16 @@ public class ForageStrategy : IWorkStrategy
 
         var feature = location.GetFeature<ForageFeature>()!;
 
-        // Narrative based on focus
-        if (_followedClue != null)
+        // Narrative based on clue types or focus
+        if (_gameClue != null)
+        {
+            GameDisplay.AddNarrative(ctx, $"You follow the signs... {_gameClue.Description.ToLower()}");
+        }
+        else if (_scavengeClue != null)
+        {
+            GameDisplay.AddNarrative(ctx, $"You investigate... {_scavengeClue.Description.ToLower()}");
+        }
+        else if (_followedClue != null)
         {
             GameDisplay.AddNarrative(ctx, $"You follow the signs... {_followedClue.Description.ToLower()}");
         }
@@ -225,6 +241,13 @@ public class ForageStrategy : IWorkStrategy
 
         // Apply focus to results (self-contained in FocusProcessor)
         FocusProcessor.ApplyFocus(found, _focus, _followedClue);
+
+        // Apply negative clue yield modifier
+        var negativeClue = _clues?.FirstOrDefault(c => c.Category == ClueCategory.Negative);
+        if (negativeClue != null)
+        {
+            found.ApplyMultiplier(negativeClue.YieldModifier);
+        }
 
         // Darkness penalty: limited visibility reduces yield (-50%)
         bool isDark = location.IsDark || ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;
@@ -287,6 +310,48 @@ public class ForageStrategy : IWorkStrategy
                 : "You gather what you can find.";
         }
 
+        // Handle Game clues - apply hunt bonus to territory
+        if (_gameClue != null)
+        {
+            var territory = location.GetFeature<AnimalTerritoryFeature>();
+            if (territory != null)
+            {
+                territory.ApplyHuntBonus(_gameClue.HuntBonus);
+                GameDisplay.AddNarrative(ctx, "You've spotted signs of game. Hunting here might be more fruitful.");
+            }
+        }
+
+        // Handle Scavenge clues - spawn carcass with potential encounter
+        if (_scavengeClue != null)
+        {
+            var (carcassName, carcassDescription) = GetCarcassForSize(_scavengeClue.CarcassSize);
+            if (carcassName != null)
+            {
+                // Special case: bones-only scavenge (raptor pellets)
+                if (_scavengeClue.CarcassSize == "bones")
+                {
+                    // Just add some bones directly
+                    ctx.Inventory.Add(Resource.Bone, 0.1 + Random.Shared.NextDouble() * 0.2);
+                    collected.Add("bone scraps");
+                    GameDisplay.AddNarrative(ctx, "You find some bone fragments in the pellets.");
+                }
+                else
+                {
+                    // Add carcass feature to location
+                    location.AddFeature(CarcassFeature.FromAnimalName(carcassName));
+                    collected.Add(carcassDescription);
+                    GameDisplay.AddNarrative(ctx, $"You find a {carcassDescription}. It could be butchered for resources.");
+
+                    // Roll for predator encounter
+                    if (_scavengeClue.EncounterChance > 0 && Utils.DetermineSuccess(_scavengeClue.EncounterChance))
+                    {
+                        ctx.QueueEncounter(new EncounterConfig("Wolf", 30, 0.6));
+                        GameDisplay.AddWarning(ctx, "Something is watching from the brush...");
+                    }
+                }
+            }
+        }
+
         // Show results in popup overlay
         WebIO.ShowWorkResult(ctx, activityHeader, resultMessage, collected);
 
@@ -304,4 +369,18 @@ public class ForageStrategy : IWorkStrategy
 
         return new WorkResult(collected, null, actualTime, false);
     }
+
+    /// <summary>
+    /// Get appropriate carcass type for scavenge size category.
+    /// </summary>
+    private static readonly string[] SmallGameCarcasses = ["Hare", "Grouse"];
+
+    private static (string? name, string description) GetCarcassForSize(string? size) => size switch
+    {
+        "small" => (Utils.GetRandomFromList(SmallGameCarcasses.ToList()), "small carcass"),
+        "medium" => ("Caribou", "partial caribou carcass"),
+        "large" => ("Caribou", "fresh caribou carcass"),
+        "bones" => (null, "bone scraps"),
+        _ => (null, "")
+    };
 }

@@ -24,7 +24,10 @@ public record ResourceCost(ResourceType Type, int Amount);
 /// Configuration for creating a carcass at the current location.
 /// If AnimalType is null, uses territory-based selection.
 /// </summary>
-public record CarcassCreation(string? AnimalType, double? WeightKg);
+/// <param name="AnimalType">Animal type name, or null for territory-based selection</param>
+/// <param name="HarvestedPct">Portion already consumed by scavengers (0-1)</param>
+/// <param name="AgeHours">Hours since death (for decay calculation)</param>
+public record CarcassCreation(string? AnimalType, double HarvestedPct = 0, double AgeHours = 0);
 
 public class EventResult(string message, double weight = 1, int minutes = 0)
 {
@@ -480,9 +483,12 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         if (CarcassCreation is null) return;
 
         string animalType = CarcassCreation.AnimalType ?? GetTerritoryAnimal(ctx);
-        double weightKg = CarcassCreation.WeightKg ?? CarcassFeature.GetDefaultWeight(animalType);
 
-        var carcass = new CarcassFeature(animalType, weightKg);
+        var carcass = CarcassFeature.FromAnimalName(
+            animalType,
+            CarcassCreation.HarvestedPct,
+            CarcassCreation.AgeHours
+        );
         ctx.CurrentLocation.AddFeature(carcass);
 
         GameDisplay.AddSuccess(ctx, $"  + Found a {animalType.ToLower()} carcass");
@@ -491,7 +497,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     /// <summary>
     /// Get a random animal type from the current location's territory feature.
-    /// Falls back to "deer" if no territory feature exists.
+    /// Falls back to "caribou" if no territory feature exists.
     /// </summary>
     private static string GetTerritoryAnimal(GameContext ctx)
     {
@@ -505,7 +511,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         }
 
         // Default fallback
-        return "Deer";
+        return "Caribou";
     }
 
     private void DisplaySummary(GameContext ctx, OutcomeSummary summary)

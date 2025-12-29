@@ -12,144 +12,190 @@ public enum ForageFocus
 {
     General,    // No focus, balanced yield
     Fuel,       // Sticks, bark, deadwood
-    Food,       // Berries, roots, nuts, small game
+    Food,       // Berries, roots, nuts
     Medicine,   // Fungi, moss, medicinal bark
-    Materials,  // Stone, bone, fiber, crafting supplies
-    FollowClue  // Investigate a specific clue
+    Materials   // Stone, bone, fiber, crafting supplies
 }
 
 /// <summary>
-/// Represents an environmental clue that hints at available forage resources.
-/// Players learn to read these clues to make better foraging decisions.
+/// Categories of clues that drive different outcomes.
+/// </summary>
+public enum ClueCategory
+{
+    Resource,   // Boosts forage yield for specific resources
+    Game,       // Provides hunt bonus at this location
+    Scavenge,   // Leads to carcass discovery with predator risk
+    Negative    // Reduces overall forage yield
+}
+
+/// <summary>
+/// Represents an environmental clue that hints at foraging opportunities.
+/// Players learn to read these clues through experience.
 /// </summary>
 public record ForageClue(
-    string Description,           // What the player observes: "Woodpecker holes in dead birch"
-    string HintText,              // Subtle hint for new players: "(bark, insects)"
-    Resource[] SuggestedResources, // Resources this clue suggests
-    double YieldModifier = 1.0    // Multiplier if player follows this clue
+    string Description,                        // What the player observes
+    ClueCategory Category,                     // What type of clue this is
+    Resource[] SuggestedResources,             // Resources this clue suggests (Resource clues)
+    double YieldModifier = 1.0,                // Multiplier for Resource/Negative clues
+    string? GameAnimalType = null,             // For Game clues: "rabbit", "deer", etc.
+    double HuntBonus = 0,                      // For Game clues: additive density bonus
+    string? CarcassSize = null,                // For Scavenge: "small", "medium", "large"
+    double EncounterChance = 0                 // For Scavenge: predator risk (0-1)
 );
 
 /// <summary>
-/// Predefined clue pools organized by what triggers them.
-/// Each clue connects an observable sign to likely resources.
+/// Predefined clue pools organized by category and context.
+/// Resource clues boost forage yield; Game clues boost hunting; Scavenge clues lead to carcasses.
 /// </summary>
 public static class ClueLibrary
 {
-    // Forest clues - triggered by forest terrain or wooded features
-    public static readonly ForageClue[] ForestClues =
+    // ============ RESOURCE CLUES ============
+    // Boost yield for specific resources when followed
+
+    public static readonly ForageClue[] ForestResourceClues =
     [
-        new("Woodpecker holes in dead birch", "(bark, tinder)",
+        new("Woodpecker holes in dead birch", ClueCategory.Resource,
             [Resource.BirchBark, Resource.Amadou, Resource.Chaga], 1.2),
 
-        new("Fresh deadfall from the wind", "(fuel)",
+        new("Fresh deadfall from the wind", ClueCategory.Resource,
             [Resource.Stick, Resource.Pine, Resource.Birch], 1.3),
 
-        new("Mushrooms growing on fallen logs", "(medicine)",
-            [Resource.BirchPolypore, Resource.Chaga, Resource.Amadou], 1.2),
+        new("Shelf fungus on fallen logs", ClueCategory.Resource,
+            [Resource.BirchPolypore, Resource.Amadou], 1.2),
 
-        new("Animal trails through the underbrush", "(game signs)",
-            [Resource.Bone, Resource.RawMeat], 1.1),
+        new("Resin bleeding from pine bark", ClueCategory.Resource,
+            [Resource.PineResin, Resource.PineNeedles], 1.2),
 
-        new("Resin bleeding from pine bark", "(pitch, tinder)",
-            [Resource.PineResin, Resource.PineNeedles, Resource.Pine], 1.2),
-
-        new("Lichen hanging from branches", "(medicine)",
+        new("Lichen hanging from branches", ClueCategory.Resource,
             [Resource.Usnea], 1.3),
 
-        new("Nuts scattered beneath the trees", "(food)",
-            [Resource.Nuts, Resource.Berries], 1.2),
+        new("Nuts scattered beneath the trees", ClueCategory.Resource,
+            [Resource.Nuts], 1.2),
 
-        new("Dry leaves gathered in hollows", "(tinder)",
+        new("Dry leaves gathered in hollows", ClueCategory.Resource,
             [Resource.Tinder, Resource.PlantFiber], 1.2),
     ];
 
-    // Rocky clues - triggered by rocky terrain or high hazard areas
-    public static readonly ForageClue[] RockyClues =
+    public static readonly ForageClue[] RockyResourceClues =
     [
-        new("Shale fragments along the cliff base", "(stone, flint)",
+        new("Shale fragments along the cliff base", ClueCategory.Resource,
             [Resource.Shale, Resource.Flint, Resource.Stone], 1.3),
 
-        new("Lichen crusting north-facing rocks", "(medicine)",
-            [Resource.Usnea], 1.2),
-
-        new("Raptor pellets below a ledge", "(bones)",
-            [Resource.Bone], 1.4),
-
-        new("Wind-scoured scrub growth", "(tough fibers)",
-            [Resource.PlantFiber, Resource.RawFiber], 1.2),
-
-        new("Pyrite glinting in exposed rock", "(firestarter)",
+        new("Pyrite glinting in exposed rock", ClueCategory.Resource,
             [Resource.Pyrite, Resource.Flint], 1.5),
 
-        new("Exposed roots in eroded soil", "(food)",
+        new("Exposed roots in eroded soil", ClueCategory.Resource,
             [Resource.Roots], 1.3),
+
+        new("Wind-scoured scrub growth", ClueCategory.Resource,
+            [Resource.PlantFiber, Resource.RawFiber], 1.2),
     ];
 
-    // Water clues - triggered by water features
-    public static readonly ForageClue[] WaterClues =
+    public static readonly ForageClue[] WaterResourceClues =
     [
-        new("Thick moss along the water's edge", "(medicine, tinder)",
-            [Resource.SphagnumMoss, Resource.Usnea], 1.3),
+        new("Thick sphagnum at the water's edge", ClueCategory.Resource,
+            [Resource.SphagnumMoss], 1.3),
 
-        new("Animal tracks in the mud", "(game signs)",
-            [Resource.Bone, Resource.RawMeat], 1.2),
-
-        new("Reeds and fibrous plants", "(materials)",
+        new("Reeds and fibrous plants", ClueCategory.Resource,
             [Resource.PlantFiber, Resource.RawFiber], 1.3),
 
-        new("Willow growing near the bank", "(medicine)",
+        new("Willow growing near the bank", ClueCategory.Resource,
             [Resource.WillowBark], 1.4),
 
-        new("Berry bushes along the shore", "(food)",
-            [Resource.Berries, Resource.RoseHip, Resource.JuniperBerry], 1.2),
+        new("Berry bushes along the shore", ClueCategory.Resource,
+            [Resource.Berries, Resource.RoseHip], 1.2),
     ];
 
-    // Storm/weather clues - triggered by weather conditions
-    public static readonly ForageClue[] StormClues =
+    public static readonly ForageClue[] StormResourceClues =
     [
-        new("Branches torn down by recent wind", "(abundant fuel)",
+        new("Branches torn down by recent wind", ClueCategory.Resource,
             [Resource.Stick, Resource.Pine, Resource.Birch, Resource.Oak], 1.5),
-
-        new("Debris washed up from the storm", "(mixed finds)",
-            [Resource.Stick, Resource.Bone, Resource.PlantFiber], 1.3),
     ];
 
-    public static readonly ForageClue[] RainClues =
+    public static readonly ForageClue[] RainResourceClues =
     [
-        new("Fungi pushing up after the wet", "(medicine, tinder)",
-            [Resource.BirchPolypore, Resource.Chaga, Resource.Amadou], 1.4),
-
-        new("Saturated moss everywhere", "(medicine)",
-            [Resource.SphagnumMoss], 1.3),
+        new("Bracket fungi swollen after the rain", ClueCategory.Resource,
+            [Resource.BirchPolypore, Resource.Amadou], 1.4),
     ];
 
-    public static readonly ForageClue[] SnowClues =
+    // ============ GAME CLUES ============
+    // Boost next hunt at this location
+
+    public static readonly ForageClue[] SnowGameClues =
     [
-        new("Fresh tracks in the snow", "(game signs)",
-            [Resource.Bone, Resource.RawMeat], 1.3),
+        new("Fresh tracks in the snow", ClueCategory.Game,
+            [], 1.0, GameAnimalType: "caribou", HuntBonus: 0.20),
 
-        new("Scat visible against the white", "(territory signs)",
-            [Resource.Bone], 1.2),
+        new("Scat visible against the white", ClueCategory.Game,
+            [], 1.0, GameAnimalType: "rabbit", HuntBonus: 0.10),
     ];
 
-    // Time of day clues
-    public static readonly ForageClue[] DawnDuskClues =
+    public static readonly ForageClue[] ForestGameClues =
     [
-        new("Fresh feeding marks in the bark", "(active game)",
-            [Resource.RawMeat, Resource.Bone], 1.2),
-
-        new("Movement in the underbrush", "(small game)",
-            [Resource.RawMeat], 1.3),
+        new("Animal trails through the brush", ClueCategory.Game,
+            [], 1.0, GameAnimalType: "caribou", HuntBonus: 0.15),
     ];
 
-    // Generic fallback clues
+    public static readonly ForageClue[] DawnDuskGameClues =
+    [
+        new("Fresh feeding marks in the bark", ClueCategory.Game,
+            [], 1.0, GameAnimalType: "caribou", HuntBonus: 0.15),
+
+        new("Movement in the underbrush", ClueCategory.Game,
+            [], 1.0, GameAnimalType: "rabbit", HuntBonus: 0.10),
+    ];
+
+    // ============ SCAVENGE CLUES ============
+    // Lead to carcass discoveries with predator risk
+
+    public static readonly ForageClue[] ScavengeClues =
+    [
+        new("Blood trail into the brush", ClueCategory.Scavenge,
+            [], 1.0, CarcassSize: "small", EncounterChance: 0.05),
+
+        new("Scattered feathers and blood", ClueCategory.Scavenge,
+            [], 1.0, CarcassSize: "small", EncounterChance: 0.03),
+
+        new("Drag marks through the snow", ClueCategory.Scavenge,
+            [], 1.0, CarcassSize: "medium", EncounterChance: 0.08),
+
+        new("Circling ravens ahead", ClueCategory.Scavenge,
+            [], 1.0, CarcassSize: "medium", EncounterChance: 0.10),
+
+        new("Fresh kill, still warm", ClueCategory.Scavenge,
+            [], 1.0, CarcassSize: "large", EncounterChance: 0.15),
+
+        new("Raptor pellets below a ledge", ClueCategory.Scavenge,
+            [Resource.Bone], 1.0, CarcassSize: "bones", EncounterChance: 0),
+    ];
+
+    // ============ NEGATIVE CLUES ============
+    // Reduce overall forage yield
+
+    public static readonly ForageClue[] NegativeClues =
+    [
+        new("The ground looks picked over", ClueCategory.Negative,
+            [], 0.8),
+
+        new("Everything frozen solid", ClueCategory.Negative,
+            [], 0.7),
+
+        new("Trampled and grazed bare", ClueCategory.Negative,
+            [], 0.7),
+
+        new("Signs of recent fire damage", ClueCategory.Negative,
+            [], 0.6),
+
+        new("Saturated and rotting", ClueCategory.Negative,
+            [], 0.7),
+    ];
+
+    // ============ GENERIC FALLBACK ============
+
     public static readonly ForageClue[] GenericClues =
     [
-        new("Signs of past foraging here", "(mixed)",
+        new("Signs of past foraging here", ClueCategory.Resource,
             [Resource.Stick, Resource.Stone, Resource.PlantFiber], 1.0),
-
-        new("The ground looks picked over", "(sparse)",
-            [], 0.8),
     ];
 }
 
@@ -194,8 +240,10 @@ public static class ClueSelector
     {
         var pool = new List<(ForageClue clue, double weight)>();
         var forage = location.GetFeature<ForageFeature>();
+        var territory = location.GetFeature<AnimalTerritoryFeature>();
         var availableResources = forage?.Resources.Select(r => r.ResourceType).ToHashSet()
             ?? new HashSet<Resource>();
+        bool hasHuntableGame = territory != null;
 
         // Forest clues - check for wooded features or forest tags
         bool isForested = location.HasFeature<WoodedAreaFeature>() ||
@@ -205,10 +253,15 @@ public static class ClueSelector
                           location.Tags.Contains("wood");
         if (isForested)
         {
-            foreach (var clue in ClueLibrary.ForestClues)
+            foreach (var clue in ClueLibrary.ForestResourceClues)
             {
                 double weight = CalculateClueWeight(clue, availableResources);
                 if (weight > 0) pool.Add((clue, weight * 1.5));
+            }
+            if (hasHuntableGame)
+            {
+                foreach (var clue in ClueLibrary.ForestGameClues)
+                    pool.Add((clue, 0.8));
             }
         }
 
@@ -220,7 +273,7 @@ public static class ClueSelector
                        location.IsVantagePoint;
         if (isRocky)
         {
-            foreach (var clue in ClueLibrary.RockyClues)
+            foreach (var clue in ClueLibrary.RockyResourceClues)
             {
                 double weight = CalculateClueWeight(clue, availableResources);
                 if (weight > 0) pool.Add((clue, weight * 1.5));
@@ -235,7 +288,7 @@ public static class ClueSelector
                         location.Tags.Contains("lake");
         if (hasWater)
         {
-            foreach (var clue in ClueLibrary.WaterClues)
+            foreach (var clue in ClueLibrary.WaterResourceClues)
             {
                 double weight = CalculateClueWeight(clue, availableResources);
                 if (weight > 0) pool.Add((clue, weight * 1.5));
@@ -246,7 +299,7 @@ public static class ClueSelector
         var weather = ctx.Weather;
         if (weather.WindSpeed > 0.5)
         {
-            foreach (var clue in ClueLibrary.StormClues)
+            foreach (var clue in ClueLibrary.StormResourceClues)
             {
                 double weight = CalculateClueWeight(clue, availableResources);
                 if (weight > 0) pool.Add((clue, weight * 1.3));
@@ -255,52 +308,68 @@ public static class ClueSelector
 
         if (weather.Precipitation > 0.3)
         {
-            foreach (var clue in ClueLibrary.RainClues)
+            foreach (var clue in ClueLibrary.RainResourceClues)
             {
                 double weight = CalculateClueWeight(clue, availableResources);
                 if (weight > 0) pool.Add((clue, weight * 1.4));
             }
         }
 
+        // Snow clues - game clues when cold enough
         if (weather.TemperatureInFahrenheit < 32)
         {
-            foreach (var clue in ClueLibrary.SnowClues)
+            if (hasHuntableGame)
             {
-                double weight = CalculateClueWeight(clue, availableResources);
-                if (weight > 0) pool.Add((clue, weight * 1.2));
+                foreach (var clue in ClueLibrary.SnowGameClues)
+                    pool.Add((clue, 1.0));
+            }
+            // Snow-specific scavenge clues
+            foreach (var clue in ClueLibrary.ScavengeClues.Where(c =>
+                c.Description.Contains("snow") || c.Description.Contains("drag")))
+            {
+                pool.Add((clue, 0.5));
             }
         }
 
-        // Time of day clues
+        // Time of day clues - game activity at dawn/dusk
         var timeOfDay = ctx.GetTimeOfDay();
         if (timeOfDay == GameContext.TimeOfDay.Dawn || timeOfDay == GameContext.TimeOfDay.Dusk)
         {
-            foreach (var clue in ClueLibrary.DawnDuskClues)
+            if (hasHuntableGame)
             {
-                double weight = CalculateClueWeight(clue, availableResources);
-                if (weight > 0) pool.Add((clue, weight * 1.2));
+                foreach (var clue in ClueLibrary.DawnDuskGameClues)
+                    pool.Add((clue, 1.0));
             }
+        }
+
+        // Scavenge clues - always possible at low weight (non-snow specific)
+        foreach (var clue in ClueLibrary.ScavengeClues.Where(c =>
+            !c.Description.Contains("snow") && !c.Description.Contains("drag")))
+        {
+            pool.Add((clue, 0.3));
+        }
+
+        // Negative clues - context-specific
+        if (forage?.IsNearlyDepleted() == true)
+        {
+            var pickedOver = ClueLibrary.NegativeClues.First(c => c.Description.Contains("picked over"));
+            pool.Add((pickedOver, 2.0));
+        }
+        if (weather.TemperatureInFahrenheit < 10)
+        {
+            var frozen = ClueLibrary.NegativeClues.FirstOrDefault(c => c.Description.Contains("frozen"));
+            if (frozen != null) pool.Add((frozen, 1.5));
+        }
+        if (weather.Precipitation > 0.6)
+        {
+            var saturated = ClueLibrary.NegativeClues.FirstOrDefault(c => c.Description.Contains("Saturated"));
+            if (saturated != null) pool.Add((saturated, 1.2));
         }
 
         // Always include neutral generic clues at low weight
-        // But exclude "picked over" unless location is actually depleted
         foreach (var clue in ClueLibrary.GenericClues)
         {
-            bool isPickedOverClue = clue.Description.Contains("picked over");
-            if (!isPickedOverClue)
-            {
-                pool.Add((clue, 0.3));
-            }
-        }
-
-        // Only show "picked over" clue when location is actually depleted
-        if (forage?.IsNearlyDepleted() == true)
-        {
-            var pickedOver = ClueLibrary.GenericClues.FirstOrDefault(c => c.Description.Contains("picked over"));
-            if (pickedOver != null)
-            {
-                pool.Add((pickedOver, 2.0));
-            }
+            pool.Add((clue, 0.3));
         }
 
         return pool;
@@ -354,11 +423,6 @@ public static class ClueSelector
             return 1;               // 1 clue (severe impairment)
     }
 
-    /// <summary>
-    /// Check if hint text should be shown based on perception.
-    /// Impaired perception hides subtle hints, forcing players to learn clue meanings.
-    /// </summary>
-    public static bool ShouldShowHints(double perception) => perception >= 0.5;
 }
 
 /// <summary>
@@ -373,7 +437,7 @@ public static class FocusProcessor
     /// Apply focus to forage results by filtering/adjusting the inventory.
     /// - Focused category: keep all (100%)
     /// - Other categories: randomly drop ~50% of items
-    /// - Follow clue: keep clue resources, drop ~60% of others
+    /// - If following a Resource clue, apply its yield modifier
     /// </summary>
     public static void ApplyFocus(Inventory results, ForageFocus focus, ForageClue? followedClue = null)
     {
@@ -396,40 +460,21 @@ public static class FocusProcessor
             var stack = results[resourceType];
             if (stack.Count == 0) continue;
 
-            bool shouldKeep = ShouldKeepResource(resourceType, focus, targetCategory, followedClue);
+            bool isTargetCategory = targetCategory != null &&
+                ResourceCategories.Items[targetCategory.Value].Contains(resourceType);
 
-            if (!shouldKeep)
+            if (!isTargetCategory)
             {
                 // Randomly drop items from this stack (keep ~40-50%)
                 ReduceStack(stack, 0.4 + _rng.NextDouble() * 0.2);
             }
-            // Apply yield multiplier for resources matching the followed clue
-            else if (followedClue != null && followedClue.SuggestedResources.Contains(resourceType))
+            // Apply yield multiplier for resources matching the followed Resource clue
+            else if (followedClue?.Category == ClueCategory.Resource &&
+                     followedClue.SuggestedResources.Contains(resourceType))
             {
                 MultiplyStack(stack, followedClue.YieldModifier);
             }
         }
-    }
-
-    private static bool ShouldKeepResource(
-        Resource resource,
-        ForageFocus focus,
-        ResourceCategory? targetCategory,
-        ForageClue? followedClue)
-    {
-        // Follow clue: keep resources suggested by the clue
-        if (focus == ForageFocus.FollowClue && followedClue != null)
-        {
-            return followedClue.SuggestedResources.Contains(resource);
-        }
-
-        // Category focus: keep resources in target category
-        if (targetCategory != null)
-        {
-            return ResourceCategories.Items[targetCategory.Value].Contains(resource);
-        }
-
-        return true;
     }
 
     /// <summary>
@@ -478,7 +523,6 @@ public static class FocusProcessor
         ForageFocus.Food => "Focus on food",
         ForageFocus.Medicine => "Focus on medicine",
         ForageFocus.Materials => "Focus on materials",
-        ForageFocus.FollowClue => "Follow the clue",
         _ => focus.ToString()
     };
 
@@ -492,7 +536,6 @@ public static class FocusProcessor
         ForageFocus.Food => "berries, roots, nuts",
         ForageFocus.Medicine => "fungi, moss, bark",
         ForageFocus.Materials => "stone, bone, fiber",
-        ForageFocus.FollowClue => "+10 min, better odds",
         _ => ""
     };
 }

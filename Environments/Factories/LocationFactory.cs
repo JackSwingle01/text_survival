@@ -470,6 +470,14 @@ public static class LocationFactory
         location.Features.Add(CacheFeature.CreateRockCache());
         location.Features.Add(new WoodedAreaFeature("Hardwood Stand", Resource.Oak, 180));
 
+        // Saber-tooth drawn by abundant prey
+        location.Features.Add(new MegafaunaPresenceFeature
+        {
+            MegafaunaType = "SaberTooth",
+            ActivityLevel = 0.45,    // More active where prey gathers
+            RespawnHours = 480
+        });
+
         return location;
     }
 
@@ -651,6 +659,14 @@ public static class LocationFactory
         location.Features.Add(FeatureFactory.CreateOpenForage(density: 0.6));
         location.Features.Add(FeatureFactory.CreateGameTrailAnimals(density: 0.6));
 
+        // Saber-tooth ambush territory - stalks prey along the trail
+        location.Features.Add(new MegafaunaPresenceFeature
+        {
+            MegafaunaType = "SaberTooth",
+            ActivityLevel = 0.4,
+            RespawnHours = 480
+        });
+
         return location;
     }
 
@@ -727,6 +743,14 @@ public static class LocationFactory
         };
 
         location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.3));
+
+        // Saber-tooth hunting ground - commands view of prey below
+        location.Features.Add(new MegafaunaPresenceFeature
+        {
+            MegafaunaType = "SaberTooth",
+            ActivityLevel = 0.35,    // Elusive apex predator
+            RespawnHours = 480       // 20 days between encounters
+        });
 
         return location;
     }

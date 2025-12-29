@@ -281,9 +281,14 @@ public static class OutcomeTemplates
     /// Create a carcass at the current location.
     /// If no animal specified, uses territory-based selection.
     /// </summary>
-    public static EventResult CreatesCarcass(this EventResult r, string? animalType = null, double? weightKg = null)
+    /// <param name="r">The event result to modify</param>
+    /// <param name="animalType">Animal type name, or null for territory-based selection</param>
+    /// <param name="harvestedPct">Portion already consumed by scavengers (0-1)</param>
+    /// <param name="ageHours">Hours since death (for decay calculation)</param>
+    public static EventResult CreatesCarcass(this EventResult r, string? animalType = null,
+        double harvestedPct = 0, double ageHours = 0)
     {
-        r.CarcassCreation = new CarcassCreation(animalType, weightKg);
+        r.CarcassCreation = new CarcassCreation(animalType, harvestedPct, ageHours);
         return r;
     }
 

@@ -392,17 +392,14 @@ public static partial class GameEventRegistry
     private static GameEvent FreshTracks(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animal = territory?.GetRandomAnimalName() ?? "deer";
+        var animal = territory?.GetRandomAnimalName() ?? "caribou";
         var animalLower = animal.ToLower();
         var trackDesc = animalLower switch
         {
-            "deer" => "Hoofprints in the snow",
-            "elk" => "Hoofprints in the snow",
-            "moose" => "Hoofprints in the snow",
+            "caribou" => "Hoofprints in the snow",
+            "megaloceros" => "Massive hoofprints with antler drag marks",
+            "bison" => "Deep cloven tracks churning the snow",
             "rabbit" => "Small paw prints, close together",
-            "hare" => "Small paw prints, close together",
-            "boar" => "Deep cloven tracks and rooted earth",
-            "pig" => "Deep cloven tracks and rooted earth",
             _ => "Fresh tracks"
         };
 

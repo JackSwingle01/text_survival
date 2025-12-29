@@ -32,6 +32,12 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     public (int Start, int End)? _peakHours;
     public double _peakMultiplier = 1.0;
 
+    // Temporary bonus from following game clues during foraging
+    [System.Text.Json.Serialization.JsonInclude]
+    public double _temporaryHuntBonus;
+    [System.Text.Json.Serialization.JsonInclude]
+    public double _huntBonusDecayMinutes;  // Time remaining before bonus expires
+
     // Public properties backed by private fields
     internal double BaseGameDensity => _baseGameDensity;
     internal double GameDensity => _gameDensity;
@@ -39,6 +45,11 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     internal double HoursSinceLastHunt => _hoursSinceLastHunt;
     internal (int Start, int End)? PeakHours => _peakHours;
     internal double PeakMultiplier => _peakMultiplier;
+
+    /// <summary>
+    /// Temporary hunt bonus from following game clues. Consumed on next hunt.
+    /// </summary>
+    internal double TemporaryHuntBonus => _temporaryHuntBonus;
 
     // Derived from GameDensity - no need to track separately
     private bool HasBeenHunted => _gameDensity < _baseGameDensity;
@@ -61,10 +72,46 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
             double respawnProgress = Math.Min(1.0, _hoursSinceLastHunt / _respawnRateHours);
             _gameDensity = _initialDepletedDensity + (depletedAmount * respawnProgress);
         }
+
+        // Decay temporary hunt bonus over 2 hours
+        if (_temporaryHuntBonus > 0 && _huntBonusDecayMinutes > 0)
+        {
+            _huntBonusDecayMinutes -= minutes;
+            if (_huntBonusDecayMinutes <= 0)
+            {
+                _temporaryHuntBonus = 0;
+                _huntBonusDecayMinutes = 0;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Apply a temporary hunt bonus from following game clues.
+    /// Takes the highest bonus if multiple applied.
+    /// </summary>
+    public void ApplyHuntBonus(double bonus)
+    {
+        if (bonus > _temporaryHuntBonus)
+        {
+            _temporaryHuntBonus = bonus;
+            _huntBonusDecayMinutes = 120; // 2 hours
+        }
+    }
+
+    /// <summary>
+    /// Consume and return the temporary hunt bonus.
+    /// </summary>
+    public double ConsumeHuntBonus()
+    {
+        double bonus = _temporaryHuntBonus;
+        _temporaryHuntBonus = 0;
+        _huntBonusDecayMinutes = 0;
+        return bonus;
     }
 
     /// <summary>
     /// Search for game. Returns an animal if found, null otherwise.
+    /// Automatically consumes any temporary hunt bonus from game clues.
     /// </summary>
     /// <param name="minutesSearching">Time spent searching</param>
     /// <returns>An Animal if found, null if search fails</returns>
@@ -72,9 +119,12 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     {
         if (_possibleAnimals.Count == 0) return null;
 
+        // Consume temporary bonus if any (from following game clues during foraging)
+        double clueBonus = ConsumeHuntBonus();
+
         // Base chance scales with time spent and current density
         // 15 minutes of searching at full density = ~50% chance
-        double baseChance = (minutesSearching / 30.0) * _gameDensity;
+        double baseChance = (minutesSearching / 30.0) * (_gameDensity + clueBonus);
         double searchChance = Math.Min(0.9, baseChance); // Cap at 90%
 
         if (!Utils.DetermineSuccess(searchChance))
@@ -115,21 +165,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
         return _possibleAnimals.Last();
     }
 
-    private static Animal? CreateAnimal(string animalType)
-    {
-        return animalType.ToLower() switch
-        {
-            "deer" => AnimalFactory.MakeDeer(),
-            "rabbit" => AnimalFactory.MakeRabbit(),
-            "ptarmigan" => AnimalFactory.MakePtarmigan(),
-            "fox" => AnimalFactory.MakeFox(),
-            "wolf" => AnimalFactory.MakeWolf(),
-            "bear" => AnimalFactory.MakeBear(),
-            "cave bear" => AnimalFactory.MakeCaveBear(),
-            "rat" => AnimalFactory.MakeRat(),
-            _ => null
-        };
-    }
+    private static Animal? CreateAnimal(string animalType) => AnimalFactory.FromName(animalType);
 
     /// <summary>
     /// Get work options for this feature.
@@ -183,12 +219,15 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
 
     // Convenience methods for common configurations
 
-    public AnimalTerritoryFeature AddDeer(double weight = 1.0) => AddAnimal("deer", weight);
+    public AnimalTerritoryFeature AddCaribou(double weight = 1.0) => AddAnimal("caribou", weight);
     public AnimalTerritoryFeature AddRabbit(double weight = 1.0) => AddAnimal("rabbit", weight);
     public AnimalTerritoryFeature AddPtarmigan(double weight = 1.0) => AddAnimal("ptarmigan", weight);
     public AnimalTerritoryFeature AddFox(double weight = 0.5) => AddAnimal("fox", weight);
     public AnimalTerritoryFeature AddWolf(double weight = 0.3) => AddAnimal("wolf", weight);
     public AnimalTerritoryFeature AddBear(double weight = 0.2) => AddAnimal("bear", weight);
+    public AnimalTerritoryFeature AddMegaloceros(double weight = 0.3) => AddAnimal("megaloceros", weight);
+    public AnimalTerritoryFeature AddBison(double weight = 0.4) => AddAnimal("bison", weight);
+    public AnimalTerritoryFeature AddHyena(double weight = 0.3) => AddAnimal("hyena", weight);
 
     /// <summary>
     /// Set peak activity hours when game is more likely to be found.
@@ -278,7 +317,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     {
         return animalType.ToLower() switch
         {
-            "deer" => 80,
+            "caribou" => 120,
             "rabbit" => 2,
             "ptarmigan" => 0.5,
             "fox" => 6,
@@ -286,6 +325,9 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
             "bear" => 250,
             "cave bear" => 350,
             "rat" => 2,
+            "megaloceros" => 600,
+            "bison" => 800,
+            "hyena" => 70,
             _ => 10
         };
     }
@@ -330,7 +372,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     {
         return animalType.ToLower() switch
         {
-            "wolf" or "bear" or "cave bear" => true,
+            "wolf" or "bear" or "cave bear" or "hyena" => true,
             _ => false
         };
     }
@@ -362,7 +404,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     public static AnimalTerritoryFeature CreateMixedTerritory(double gameDensity = 0.8)
     {
         return new AnimalTerritoryFeature(gameDensity)
-            .AddDeer(1.0)
+            .AddCaribou(1.0)
             .AddRabbit(1.5)
             .AddPtarmigan(1.0)
             .AddWolf(0.3);
@@ -385,7 +427,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     public static AnimalTerritoryFeature CreatePredatorTerritory(double gameDensity = 0.6)
     {
         return new AnimalTerritoryFeature(gameDensity)
-            .AddDeer(0.5)
+            .AddCaribou(0.5)
             .AddWolf(1.0)
             .AddBear(0.4);
     }

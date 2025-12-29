@@ -196,13 +196,13 @@ public static class FeatureFactory
     #region AnimalTerritoryFeature Factories
 
     /// <summary>
-    /// Mixed prey animals - deer + small game.
+    /// Mixed prey animals - caribou + small game.
     /// Used by: Forest (1.2), Clearing (1.0), Sheltered Valley (1.3), Ancient Grove (0.5), Hot Spring (0.6)
     /// </summary>
     public static AnimalTerritoryFeature CreateMixedPreyAnimals(double density = 1.0)
     {
         return new AnimalTerritoryFeature(density)
-            .AddDeer(1.0)
+            .AddCaribou(1.0)
             .AddRabbit(0.6)
             .AddFox(0.3);
     }
@@ -214,10 +214,34 @@ public static class FeatureFactory
     public static AnimalTerritoryFeature CreateGameTrailAnimals(double density = 0.6)
     {
         return new AnimalTerritoryFeature(density)
-            .AddDeer(1.5)
+            .AddCaribou(1.5)
+            .AddMegaloceros(0.3)
             .AddRabbit(1.0)
             .AddFox(0.3)
             .WithPeakHours(5, 8, 2.5);
+    }
+
+    /// <summary>
+    /// Grazing herd animals - bison, caribou, and megaloceros.
+    /// Used by: Open plains, valleys, grasslands
+    /// </summary>
+    public static AnimalTerritoryFeature CreateGrazingHerdAnimals(double density = 0.8)
+    {
+        return new AnimalTerritoryFeature(density)
+            .AddBison(1.0)
+            .AddCaribou(0.8)
+            .AddMegaloceros(0.3);
+    }
+
+    /// <summary>
+    /// Scavenger territory - hyenas and foxes.
+    /// Used by: Areas near carcass-rich zones, old kills
+    /// </summary>
+    public static AnimalTerritoryFeature CreateScavengerTerritory(double density = 0.6)
+    {
+        return new AnimalTerritoryFeature(density)
+            .AddHyena(1.0)
+            .AddFox(0.5);
     }
 
     /// <summary>

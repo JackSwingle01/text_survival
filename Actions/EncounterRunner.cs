@@ -155,7 +155,7 @@ public static class EncounterRunner
         // Victory - create carcass for butchering
         GameDisplay.AddNarrative(ctx, $"The {predator.Name} falls! Its carcass awaits butchering.");
 
-        var carcass = new CarcassFeature(predator.Name, predator.Body.WeightKG);
+        var carcass = new CarcassFeature(predator);
         ctx.CurrentLocation.AddFeature(carcass);
 
         return EncounterOutcome.CombatVictory;
@@ -174,6 +174,11 @@ public static class EncounterRunner
             "cave bear" => AnimalFactory.MakeCaveBear(),
             "mammoth" => AnimalFactory.MakeWoollyMammoth(),
             "fox" => AnimalFactory.MakeFox(),
+            "caribou" => AnimalFactory.MakeCaribou(),
+            "megaloceros" => AnimalFactory.MakeMegaloceros(),
+            "bison" => AnimalFactory.MakeSteppeBison(),
+            "hyena" => AnimalFactory.MakeCaveHyena(),
+            "sabertooth" => AnimalFactory.MakeSaberToothTiger(),
             _ => null
         };
 

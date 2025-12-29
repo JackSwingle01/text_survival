@@ -159,7 +159,6 @@ public record ForageDto(
 public record ForageClueDto(
     string Id,
     string Description,
-    string? HintText,
     string? SuggestedFocusId
 );
 

@@ -146,8 +146,46 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     };
 
     /// <summary>
+    /// Map individual resources to sub-category names for cleaner UI display.
+    /// </summary>
+    private static string GetSubCategory(Resource resource) => resource switch
+    {
+        // Medicine
+        Resource.BirchPolypore or Resource.Chaga or Resource.Amadou => "fungi",
+        Resource.WillowBark => "bark",
+        Resource.RoseHip or Resource.JuniperBerry => "berries",
+        Resource.PineResin => "tree resin",
+        Resource.Usnea => "lichen",
+        Resource.SphagnumMoss => "moss",
+        Resource.PineNeedles => "needles",
+
+        // Materials
+        Resource.Stone or Resource.Shale or Resource.Flint or Resource.Pyrite => "stone",
+        Resource.PlantFiber or Resource.RawFiber or Resource.Rope => "fiber",
+        Resource.Bone or Resource.Hide or Resource.ScrapedHide or Resource.CuredHide
+            or Resource.Sinew or Resource.RawFat or Resource.Tallow
+            or Resource.Ivory or Resource.MammothHide => "animal parts",
+        Resource.Charcoal => "charcoal",
+
+        // Food
+        Resource.RawMeat or Resource.CookedMeat or Resource.DriedMeat => "meat",
+        Resource.Berries or Resource.DriedBerries => "berries",
+        Resource.Nuts => "nuts",
+        Resource.Roots => "roots",
+        Resource.Honey => "honey",
+
+        // Fuel
+        Resource.Stick or Resource.Tinder => "kindling",
+        Resource.Pine or Resource.Birch or Resource.Oak => "wood",
+        Resource.BirchBark => "bark",
+        Resource.Peat => "peat",
+
+        _ => resource.ToString().ToLower()
+    };
+
+    /// <summary>
     /// Get a description of available resources for a focus category.
-    /// Returns comma-separated resource names (e.g., "stone, plant fiber").
+    /// Returns comma-separated sub-category names (e.g., "stone, fiber").
     /// </summary>
     public string GetFocusDescription(ForageFocus focus)
     {
@@ -161,8 +199,12 @@ public class ForageFeature : LocationFeature, IWorkableFeature
             _ => _resources
         };
 
-        var names = matchingResources.Select(r => r.Name).Distinct().ToList();
-        return names.Count == 0 ? "" : string.Join(", ", names);
+        var subCategories = matchingResources
+            .Select(r => GetSubCategory(r.ResourceType))
+            .Distinct()
+            .ToList();
+
+        return subCategories.Count == 0 ? "" : string.Join(", ", subCategories);
     }
 
     // Convenience methods for common configurations

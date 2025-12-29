@@ -39,7 +39,7 @@
 body {
     background: hsl(var(--bg-h), var(--bg-s), var(--bg-l));
     color: var(--text-bright);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     height: 100vh;
     overflow: hidden;
     transition: background-color 0.5s ease;
@@ -84,7 +84,7 @@ body {
 }
 
 .status-title {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     color: var(--text-faint);
     font-size: 0.7rem;
     text-transform: uppercase;
@@ -109,7 +109,7 @@ body {
 }
 
 .status-label {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     text-transform: uppercase;
     letter-spacing: 1px;
     font-size: 0.75rem;
@@ -125,6 +125,7 @@ body {
 }
 
 .status-value {
+    font-family: var(--font-mono);
     color: var(--text-mid);
 }
 
@@ -295,7 +296,7 @@ body {
     border: 1px solid var(--border-bright);
     white-space: nowrap;
     z-index: 100;
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.75rem;
     letter-spacing: 1px;
 }
@@ -345,7 +346,7 @@ body {
 }
 
 .gear-label {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     text-transform: uppercase;
     letter-spacing: 1px;
     font-size: 0.75rem;
@@ -372,7 +373,7 @@ body {
 }
 
 .tool-pill {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -443,7 +444,7 @@ body {
 }
 
 .badge-value {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-mono);
     font-size: 1.3rem;
     font-weight: 600;
     letter-spacing: 1px;
@@ -452,7 +453,7 @@ body {
 }
 
 .badge-label {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -494,7 +495,7 @@ body {
 }
 
 .day-display {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-mono);
     font-size: 12px;
     letter-spacing: 1px;
     color: var(--fire-orange);
@@ -507,12 +508,13 @@ body {
 }
 
 .time-display {
+    font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-mid);
 }
 
 .location-name {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 22px;
     letter-spacing: 2px;
     color: var(--text-bright);
@@ -627,7 +629,7 @@ body {
     border-radius: 0;
     color: inherit;
     padding: 0.75rem 1rem;
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -678,7 +680,7 @@ body {
     font-size: 8px;
     color: var(--text-dim);
     margin-left: 6px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
 }
 
 /* ============================================
@@ -764,6 +766,7 @@ body {
 }
 
 .log-entry .timestamp {
+    font-family: var(--font-mono);
     font-size: 10px;
     color: var(--text-dim);
     margin-right: 8px;
@@ -793,7 +796,7 @@ body {
 }
 
 .connection-message {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 18px;
     letter-spacing: 2px;
     color: var(--text-dim);
@@ -841,7 +844,7 @@ body {
 }
 
 .inventory-header h2 {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 22px;
     letter-spacing: 2px;
     color: var(--text-bright);
@@ -866,7 +869,7 @@ body {
 }
 
 .inventory-section h3 {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.85rem;
     letter-spacing: 2px;
     color: var(--text-faint);
@@ -901,7 +904,7 @@ body {
 }
 
 .inv-slot .slot-label {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -920,7 +923,7 @@ body {
 }
 
 .inv-slot .slot-stat {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-mono);
     font-size: 0.85rem;
 }
 
@@ -954,7 +957,7 @@ body {
 }
 
 .inv-tool .tool-warning {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.75rem;
     color: #a86;
     margin-left: 8px;
@@ -975,7 +978,7 @@ body {
 }
 
 .inv-total .total-value {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-mono);
     font-weight: 700;
     color: #6aa;
 }
@@ -1019,7 +1022,7 @@ body {
     border: 1px solid var(--border-dim);
     border-radius: 4px;
     cursor: pointer;
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.8rem;
     letter-spacing: 1px;
     text-transform: uppercase;
@@ -1069,7 +1072,7 @@ body {
 }
 
 .uncraftable-separator {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -1101,7 +1104,7 @@ body {
     margin: 0 0 16px 0;
     font-size: 18px;
     color: var(--text-bright);
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     text-transform: uppercase;
     letter-spacing: 1px;
 }
@@ -1141,7 +1144,7 @@ body {
 }
 
 .recipe-name {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 16px;
     color: var(--text-bright);
     font-weight: 600;
@@ -1210,7 +1213,7 @@ body {
     color: hsl(var(--bg-h), var(--bg-s), var(--bg-l));
     border: none;
     border-radius: 3px;
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-weight: 600;
     font-size: 14px;
     cursor: pointer;
@@ -1285,7 +1288,7 @@ body {
 }
 
 .transfer-header h2 {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 22px;
     letter-spacing: 3px;
     color: var(--text-bright);
@@ -1327,7 +1330,7 @@ body {
 }
 
 .transfer-pane-header h3 {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 16px;
     letter-spacing: 2px;
     color: var(--text-bright);
@@ -1349,7 +1352,7 @@ body {
 }
 
 .transfer-category-header {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -1483,7 +1486,7 @@ body {
 }
 
 .hazard-title {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 12px;
     letter-spacing: 1px;
     color: var(--warning-amber);
@@ -1679,7 +1682,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 4px;
     color: var(--text-dim);
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -1738,7 +1741,7 @@ body {
 
 .tile-popup-name {
     display: block;
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 1.1rem;
     font-weight: 500;
     text-transform: uppercase;
@@ -1935,7 +1938,7 @@ body {
     border-radius: 0;
     color: var(--text-dim);
     padding: 0.7rem 0.8rem;
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -2010,7 +2013,7 @@ body {
 }
 
 .event-header h2 {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 1.4rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -2060,7 +2063,7 @@ body {
 }
 
 .event-choice-btn .choice-label {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 1rem;
     font-weight: 500;
     text-transform: uppercase;
@@ -2201,7 +2204,7 @@ body {
     background: transparent;
     border: 2px solid rgba(255, 255, 255, 0.3);
     color: var(--text-bright);
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 1rem;
     font-weight: 500;
     text-transform: uppercase;
@@ -2238,7 +2241,7 @@ body {
 }
 
 .clues-header {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -2315,7 +2318,7 @@ body {
 
 .focus-header,
 .time-header {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -2352,7 +2355,7 @@ body {
 }
 
 .focus-label {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.95rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -2377,7 +2380,7 @@ body {
     border: 2px solid rgba(255, 255, 255, 0.15);
     border-radius: 0;
     cursor: pointer;
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -2458,7 +2461,7 @@ body {
 
 .hunt-animal-name {
     display: block;
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 1.3em;
     font-weight: 600;
     color: var(--text-bright);
@@ -2488,7 +2491,7 @@ body {
 }
 
 .hunt-distance-value {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-weight: 600;
     color: var(--text-bright);
 }
@@ -2565,13 +2568,13 @@ body {
 }
 
 .hunt-time {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     color: var(--text-dim);
     font-size: 0.85em;
 }
 
 .hunt-state {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-weight: 600;
     text-transform: uppercase;
     font-size: 0.85rem;
@@ -2661,7 +2664,7 @@ body {
 }
 
 .fire-header h2 {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 22px;
     letter-spacing: 3px;
     color: var(--text-bright);
@@ -2703,7 +2706,7 @@ body {
 }
 
 .fire-pane-header h3 {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 16px;
     letter-spacing: 2px;
     color: var(--text-bright);
@@ -2725,7 +2728,7 @@ body {
 }
 
 .fire-section-header {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -2955,7 +2958,7 @@ body {
 .fire-phase-icon.embers { color: #603010; }
 
 .fire-phase-name {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 22px;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -3058,7 +3061,7 @@ body {
 }
 
 .fire-success-value {
-    font-family: 'Oswald', sans-serif;
+    font-family: var(--font-display);
     font-size: 36px;
     font-weight: 700;
     color: var(--health-green);
@@ -3144,65 +3147,68 @@ body {
 }
 
 /* ============================================
-   Cooking Overlay
+   Cooking Overlay (uses fire-overlay base styles)
    ============================================ */
 
-.cooking-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .cooking-modal {
-    background: var(--bg-dark);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    width: 90%;
-    max-width: 400px;
-    padding: 24px;
-}
-
-.cooking-header {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.cooking-header h2 {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    color: var(--fire-orange);
-    margin: 0;
-    font-size: 1.3rem;
+    max-width: 700px;
 }
 
 .cooking-content {
     display: flex;
-    flex-direction: column;
     gap: 20px;
+    flex: 1;
+    min-height: 0;
 }
 
-.cooking-status {
+.cooking-left-pane {
+    flex: 1;
+    background: var(--bg-darker);
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
+}
+
+.cooking-right-pane {
+    flex: 1;
+    background: var(--bg-darker);
     padding: 16px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cooking-pane-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-dim);
+    margin-bottom: 6px;
+}
+
+.cooking-pane-header h3 {
+    font-family: var(--font-display);
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cooking-pane-header .material-symbols-outlined {
+    font-size: 18px;
+    color: var(--fire-orange);
 }
 
 .cooking-status-item {
     display: flex;
     align-items: center;
     gap: 10px;
+    padding: 8px 0;
 }
 
 .cooking-status-item .material-symbols-outlined {
@@ -3218,29 +3224,23 @@ body {
 .cooking-status-value {
     color: var(--text-primary);
     font-weight: 500;
-}
-
-.cooking-options {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    font-size: 15px;
 }
 
 .cooking-option-btn {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 14px 16px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
+    padding: 12px 14px;
+    background: transparent;
+    border: 1px solid var(--border-dim);
     color: var(--text-primary);
     cursor: pointer;
     transition: all 0.15s ease;
 }
 
 .cooking-option-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
     border-color: var(--fire-orange);
 }
 
@@ -3251,7 +3251,7 @@ body {
 
 .cooking-option-btn .material-symbols-outlined {
     color: var(--fire-orange);
-    font-size: 24px;
+    font-size: 22px;
 }
 
 .cooking-option-label {
@@ -3260,8 +3260,8 @@ body {
 }
 
 .cooking-option-time {
-    color: var(--text-dim);
-    font-size: 0.9rem;
+    color: var(--text-faint);
+    font-size: 0.85rem;
 }
 
 .cooking-result {
@@ -3269,8 +3269,8 @@ body {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    padding: 16px;
-    border-radius: 6px;
+    padding: 14px;
+    margin-top: 12px;
     font-weight: 500;
     animation: cooking-result-fade 0.3s ease;
 }
@@ -3281,7 +3281,7 @@ body {
 }
 
 .cooking-result.success {
-    background: rgba(106, 176, 76, 0.2);
+    background: rgba(106, 176, 76, 0.15);
     color: var(--health-green);
 }
 
@@ -3290,14 +3290,13 @@ body {
 }
 
 .cooking-result.failure {
-    background: rgba(231, 76, 60, 0.2);
+    background: rgba(231, 76, 60, 0.15);
     color: var(--vital-red);
 }
 
-.cooking-actions {
-    display: flex;
-    justify-content: center;
-    padding-top: 20px;
-    border-top: 1px solid var(--border-dim);
-    margin-top: 20px;
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .cooking-content {
+        flex-direction: column;
+    }
 }

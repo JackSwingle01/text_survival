@@ -61,7 +61,7 @@ public enum WeaponClass
 }
 
 /// <summary>
-/// Unified discrete item class. Tools, equipment, and accessories share
+/// Unified discrete item class. Tools, equipment, and accessories srabbit
 /// durability mechanics while maintaining category-specific properties.
 /// </summary>
 public class Gear

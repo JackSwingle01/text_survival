@@ -69,7 +69,7 @@ public static partial class GameEventRegistry
     private static GameEvent TheDyingAnimal(GameContext ctx)
     {
         var woundedTension = ctx.Tensions.GetTension("WoundedPrey");
-        var animal = woundedTension?.AnimalType ?? "deer";
+        var animal = woundedTension?.AnimalType ?? "caribou";
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
 
         // Scavenger type affects options
@@ -146,7 +146,7 @@ public static partial class GameEventRegistry
     private static GameEvent ScavengersConverge(GameContext ctx)
     {
         var woundedTension = ctx.Tensions.GetTension("WoundedPrey");
-        var animal = woundedTension?.AnimalType ?? "deer";
+        var animal = woundedTension?.AnimalType ?? "caribou";
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
         var predator = territory?.GetRandomPredatorName() ?? "Wolf";
 

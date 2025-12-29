@@ -1,4 +1,4 @@
-﻿using text_survival.Bodies;
+using text_survival.Bodies;
 using text_survival.Items;
 
 namespace text_survival.Actors.Animals
@@ -111,6 +111,18 @@ namespace text_survival.Actors.Animals
         /// How long this animal will chase before giving up (seconds).
         /// </summary>
         public double PursuitCommitmentSeconds { get; }
+
+        /// <summary>
+        /// Special materials this animal yields beyond standard meat/bone/hide.
+        /// Set during construction for animals with trophy materials (ivory, mammoth hide, etc.).
+        /// </summary>
+        public List<(Resource resource, double kgYield)> SpecialYields { get; init; } = [];
+
+        /// <summary>
+        /// Megafauna flag - affects yield scaling and capping during butchering.
+        /// Large body weight (>500kg) indicates megafauna.
+        /// </summary>
+        public bool IsMegafauna => Body.WeightKG > 500;
 
         #endregion
 

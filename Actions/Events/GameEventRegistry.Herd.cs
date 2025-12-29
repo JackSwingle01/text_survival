@@ -57,7 +57,7 @@ public static partial class GameEventRegistry
     private static GameEvent EdgeOfHerd(GameContext ctx)
     {
         var herdTension = ctx.Tensions.GetTension("HerdNearby");
-        var animal = herdTension?.AnimalType ?? "deer";
+        var animal = herdTension?.AnimalType ?? "caribou";
         var stampedeVariant = VariantSelector.SelectStampedeVariant(ctx);
 
         var isLargeAnimal = animal.ToLower() == "bison";
@@ -132,7 +132,7 @@ public static partial class GameEventRegistry
     private static GameEvent Stampede(GameContext ctx)
     {
         var herdTension = ctx.Tensions.GetTension("HerdNearby");
-        var animal = herdTension?.AnimalType ?? "deer";
+        var animal = herdTension?.AnimalType ?? "caribou";
 
         var isLargeAnimal = animal.ToLower() == "bison";
         var description = isLargeAnimal

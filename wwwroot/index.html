@@ -316,23 +316,24 @@
     </div>
 
     <!-- Cooking Overlay -->
-    <div class="cooking-overlay hidden" id="cookingOverlay">
-        <div class="cooking-modal">
-            <div class="cooking-header">
-                <h2><span class="material-symbols-outlined">outdoor_grill</span> COOK & MELT</h2>
+    <div class="fire-overlay hidden" id="cookingOverlay">
+        <div class="fire-modal cooking-modal">
+            <div class="fire-header">
+                <h2><span class="material-symbols-outlined">outdoor_grill</span>
+                    <span>COOK & MELT</span>
+                </h2>
             </div>
             <div class="cooking-content">
-                <div class="cooking-status" id="cookingStatus">
-                    <!-- Current food/water status -->
+                <!-- Left pane: current supplies -->
+                <div class="cooking-left-pane" id="cookingStatus"></div>
+                <div class="fire-divider">
+                    <span class="material-symbols-outlined">arrow_forward</span>
                 </div>
-                <div class="cooking-options" id="cookingOptions">
-                    <!-- Action buttons -->
-                </div>
-                <div class="cooking-result hidden" id="cookingResult">
-                    <!-- Feedback after action -->
-                </div>
+                <!-- Right pane: actions -->
+                <div class="cooking-right-pane" id="cookingOptions"></div>
             </div>
-            <div class="cooking-actions">
+            <div class="cooking-result hidden" id="cookingResult"></div>
+            <div class="fire-actions">
                 <button class="action-btn" id="cookingDoneBtn">Done</button>
             </div>
         </div>

@@ -13,7 +13,7 @@ namespace text_survival.Actors.Animals
         Small,
 
         /// <summary>
-        /// Large animals like deer, wolves, and bears.
+        /// Large animals like caribou, wolves, bears, and megafauna.
         /// Require spears to kill. Stones are ineffective.
         /// </summary>
         Large

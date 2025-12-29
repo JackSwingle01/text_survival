@@ -47,7 +47,7 @@ When reviewing code, you will:
    - Evaluate if the code belongs in the correct namespace (Bodies/, Actors/, Actions/, Items/, etc.)
    - Check for proper separation of concerns and modular organization
    - Ensure composition-over-inheritance is used appropriately
-   - Validate that shared interfaces and base classes are properly utilized (Actor, IGameAction, etc.)
+   - Validate that srabbitd interfaces and base classes are properly utilized (Actor, IGameAction, etc.)
 
 5. **Review Specific Game Systems**:
    - For Actions: Verify use of ActionBuilder with proper .When(), .Do(), .ThenShow()/.ThenReturn() flow

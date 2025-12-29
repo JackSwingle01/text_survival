@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Expeditions.WorkStrategies;
+using text_survival.Actors.Animals;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
@@ -64,76 +65,96 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     public double IvoryRemainingKg { get; set; }  // Mammoth only
     public double MammothHideRemainingKg { get; set; }  // Mammoth only
 
-    // Yield percentages (normal animals)
-    private const double MeatPct = 0.40;
-    private const double BonePct = 0.15;
-    private const double HidePct = 0.10;
-    private const double SinewPct = 0.05;
-    private const double FatPct = 0.08;
-
     // Time estimation: ~2 minutes per kg of total yield
     private const double MinutesPerKgYield = 2.0;
 
     [JsonConstructor]
     public CarcassFeature() : base("carcass") { }
 
-    public CarcassFeature(string animalName, double bodyWeightKg) : base($"{animalName} carcass")
+    /// <summary>
+    /// Create a carcass from an animal.
+    /// </summary>
+    /// <param name="animal">The animal that died</param>
+    /// <param name="harvestedPct">Portion already consumed by scavengers (0-1). 0.3 = 30% eaten.</param>
+    /// <param name="ageHours">Hours since death (for decay calculation)</param>
+    public CarcassFeature(Animal animal, double harvestedPct = 0, double ageHours = 0)
+        : base($"{animal.Name} carcass")
     {
-        AnimalName = animalName;
-        BodyWeightKg = bodyWeightKg;
-        InitializeYields();
+        AnimalName = animal.Name;
+        BodyWeightKg = animal.Body.WeightKG;
+        RawHoursSinceDeath = ageHours;
+        EffectiveHoursSinceDeath = ageHours;  // Assume average temp for found carcasses
+        InitializeYieldsFromAnimal(animal, harvestedPct);
     }
 
     /// <summary>
-    /// Create a carcass from a territory-based animal selection.
-    /// Uses default weight for the animal type.
+    /// Create a carcass from an animal name string.
+    /// Used for events that specify animal type by name.
     /// </summary>
-    public static CarcassFeature FromAnimalName(string animalName)
+    /// <param name="animalName">Animal type name (e.g., "wolf", "caribou")</param>
+    /// <param name="harvestedPct">Portion already consumed by scavengers (0-1)</param>
+    /// <param name="ageHours">Hours since death (for decay calculation)</param>
+    public static CarcassFeature FromAnimalName(string animalName, double harvestedPct = 0, double ageHours = 0)
     {
-        return new CarcassFeature(animalName, GetDefaultWeight(animalName));
+        var animal = AnimalFactory.FromName(animalName)
+            ?? throw new ArgumentException($"Unknown animal type: {animalName}");
+        return new CarcassFeature(animal, harvestedPct, ageHours);
     }
 
     /// <summary>
-    /// Get default body weight for common animal types.
+    /// Initialize yields from an Animal object using actual body composition.
+    /// Fat and meat yields are derived from body composition (BodyFatKG, MuscleKG).
+    /// Special yields (ivory, mammoth hide) come from Animal.SpecialYields.
     /// </summary>
-    public static double GetDefaultWeight(string animalName) => animalName.ToLower() switch
+    /// <param name="animal">The animal that died</param>
+    /// <param name="harvestedPct">Portion already consumed by scavengers (0-1)</param>
+    private void InitializeYieldsFromAnimal(Animal animal, double harvestedPct = 0)
     {
-        "deer" => 80,
-        "rabbit" => 2,
-        "wolf" => 40,
-        "fox" => 6,
-        "ptarmigan" => 0.5,
-        "bear" => 200,
-        "cave bear" => 400,
-        "rat" => 0.3,
-        "mammoth" or "woolly mammoth" => 4000,
-        "saber-tooth tiger" or "saber-tooth" => 200,
-        _ => 30  // Default to medium-sized animal
-    };
+        var body = animal.Body;
 
-    private void InitializeYields()
-    {
-        string name = AnimalName.ToLower();
-
-        // Special handling for megafauna - fixed trophy yields
-        if (name.Contains("mammoth"))
+        // Process special yields (ivory, mammoth hide, etc.)
+        bool hasSpecialHide = false;
+        foreach (var (resource, kgYield) in animal.SpecialYields)
         {
-            MeatRemainingKg = 50;  // Multiple trips or caching required
-            BoneRemainingKg = 4;
-            IvoryRemainingKg = 4;  // 2 tusks
-            MammothHideRemainingKg = 15;
-            SinewRemainingKg = 4;
-            FatRemainingKg = 6;
-            HideRemainingKg = 0;  // Uses MammothHide instead
+            if (resource == Resource.Ivory)
+                IvoryRemainingKg = kgYield;
+            else if (resource == Resource.MammothHide)
+            {
+                MammothHideRemainingKg = kgYield;
+                hasSpecialHide = true;
+            }
+            // Extensible for future special materials
         }
-        else
+
+        // Composition-based yields
+        MeatRemainingKg = body.MuscleKG * 0.65;   // ~65% of muscle is usable meat
+        FatRemainingKg = body.BodyFatKG * 0.6;    // ~60% recoverable as rendered fat
+
+        // Still percentage-based (not tracked in body composition)
+        double baseWeight = body.WeightKG - body.MuscleKG - body.BodyFatKG;
+        BoneRemainingKg = baseWeight * 0.25;
+        HideRemainingKg = hasSpecialHide ? 0 : BodyWeightKg * 0.10;  // No regular hide if special
+        SinewRemainingKg = BodyWeightKg * 0.05;
+
+        // Cap megafauna yields for gameplay balance
+        if (animal.IsMegafauna)
         {
-            // Normal animals: yields proportional to body weight
-            MeatRemainingKg = BodyWeightKg * MeatPct;
-            BoneRemainingKg = BodyWeightKg * BonePct;
-            HideRemainingKg = BodyWeightKg * HidePct;
-            SinewRemainingKg = BodyWeightKg * SinewPct;
-            FatRemainingKg = BodyWeightKg * FatPct;
+            MeatRemainingKg = Math.Min(MeatRemainingKg, 80);
+            FatRemainingKg = Math.Min(FatRemainingKg, 15);
+            BoneRemainingKg = Math.Min(BoneRemainingKg, 8);
+            HideRemainingKg = Math.Min(HideRemainingKg, 12);
+        }
+
+        // Apply pre-harvesting (scavenger consumption)
+        if (harvestedPct > 0)
+        {
+            double remaining = 1 - harvestedPct;
+            MeatRemainingKg *= remaining;
+            FatRemainingKg *= remaining;
+            // Bone/hide/sinew less affected (scavengers go for meat first)
+            BoneRemainingKg *= Math.Max(0.7, remaining);
+            HideRemainingKg *= Math.Max(0.5, remaining);  // More damage from tearing
+            SinewRemainingKg *= Math.Max(0.8, remaining);
         }
     }
 

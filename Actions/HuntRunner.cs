@@ -431,7 +431,7 @@ public static class HuntRunner
         ctx.player.stealthManager.StopHunting(ctx);
 
         // Create carcass for butchering (not immediate butcher)
-        var carcass = new CarcassFeature(target.Name, target.Body.WeightKG);
+        var carcass = new CarcassFeature(target);
         ctx.CurrentLocation.AddFeature(carcass);
 
         ctx.player.Skills.GetSkill("Hunting").GainExperience(5);
@@ -469,7 +469,7 @@ public static class HuntRunner
             target.Body.Damage(new DamageInfo(1000, DamageType.Pierce, BodyTarget.Heart));
 
             // Create carcass for butchering (not immediate butcher)
-            var carcass = new CarcassFeature(target.Name, target.Body.WeightKG);
+            var carcass = new CarcassFeature(target);
             ctx.CurrentLocation.AddFeature(carcass);
 
             ctx.player.stealthManager.StopHunting(ctx, "Hunt successful.");

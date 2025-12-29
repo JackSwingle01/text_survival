@@ -1,9 +1,35 @@
-﻿using text_survival.Bodies;
+using text_survival.Bodies;
+using text_survival.Items;
 
 namespace text_survival.Actors.Animals;
 
 public static class AnimalFactory
 {
+    /// <summary>
+    /// Create an animal from a name string.
+    /// Used for territories and event-based carcass creation.
+    /// </summary>
+    public static Animal? FromName(string animalName)
+    {
+        return animalName.ToLower() switch
+        {
+            "caribou" => MakeCaribou(),
+            "rabbit" => MakeRabbit(),
+            "ptarmigan" => MakePtarmigan(),
+            "fox" => MakeFox(),
+            "wolf" => MakeWolf(),
+            "bear" => MakeBear(),
+            "cave bear" => MakeCaveBear(),
+            "hyena" or "cave hyena" => MakeCaveHyena(),
+            "mammoth" or "woolly mammoth" => MakeWoollyMammoth(),
+            "saber-tooth" or "saber-tooth tiger" or "sabertooth" => MakeSaberToothTiger(),
+            "megaloceros" => MakeMegaloceros(),
+            "bison" or "steppe bison" => MakeSteppeBison(),
+            "rat" => MakeRat(),
+            _ => null
+        };
+    }
+
     public static Animal MakeRat()
     {
         var bodyStats = new BodyCreationInfo
@@ -63,63 +89,6 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeSnake()
-    {
-        var bodyStats = new BodyCreationInfo
-        {
-            type = BodyTypes.Serpentine,
-            overallWeight = 5,
-            fatPercent = 0.10,
-            musclePercent = 0.80
-        };
-
-        var animal = new Animal("Snake", bodyStats, AnimalBehaviorType.Predator, AnimalSize.Small,
-            attackDamage: 10, attackName: "venomous fangs", attackType: DamageType.Pierce)
-        {
-            TrackingDifficulty = 7
-        };
-        animal.GenerateTraits();
-        return animal;
-    }
-
-    public static Animal MakeBat()
-    {
-        var bodyStats = new BodyCreationInfo
-        {
-            type = BodyTypes.Flying,
-            overallWeight = 0.2,
-            fatPercent = 0.20,
-            musclePercent = 0.65
-        };
-
-        var animal = new Animal("Bat", bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small,
-            attackDamage: 2, attackName: "tiny teeth", attackType: DamageType.Pierce)
-        {
-            TrackingDifficulty = 8
-        };
-        animal.GenerateTraits();
-        return animal;
-    }
-
-    public static Animal MakeSpider()
-    {
-        var bodyStats = new BodyCreationInfo
-        {
-            type = BodyTypes.Arachnid,
-            overallWeight = 0.1,
-            fatPercent = 0.05,
-            musclePercent = 0.45
-        };
-
-        var animal = new Animal("Spider", bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small,
-            attackDamage: 5, attackName: "venomous mandibles", attackType: DamageType.Pierce)
-        {
-            TrackingDifficulty = 7
-        };
-        animal.GenerateTraits();
-        return animal;
-    }
-
     public static Animal MakeCaveBear()
     {
         var bodyStats = new BodyCreationInfo
@@ -153,7 +122,12 @@ public static class AnimalFactory
         var animal = new Animal("Woolly Mammoth", bodyStats, AnimalBehaviorType.DangerousPrey, AnimalSize.Large,
             attackDamage: 35, attackName: "tusks", attackType: DamageType.Pierce)
         {
-            TrackingDifficulty = 2
+            TrackingDifficulty = 2,
+            SpecialYields =
+            [
+                (Resource.Ivory, 4),        // 2 tusks
+                (Resource.MammothHide, 15)  // Special thick hide
+            ]
         };
         animal.GenerateTraits();
         return animal;
@@ -179,18 +153,18 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeDeer()
+    public static Animal MakeCaribou()
     {
         var bodyStats = new BodyCreationInfo
         {
             type = BodyTypes.Quadruped,
-            overallWeight = 80,
-            fatPercent = 0.10,
-            musclePercent = 0.65
+            overallWeight = 120,
+            fatPercent = 0.15,
+            musclePercent = 0.60
         };
 
-        var animal = new Animal("Deer", bodyStats, AnimalBehaviorType.Prey, AnimalSize.Large,
-            attackDamage: 5, attackName: "antlers", attackType: DamageType.Blunt,
+        var animal = new Animal("Caribou", bodyStats, AnimalBehaviorType.Prey, AnimalSize.Large,
+            attackDamage: 6, attackName: "antlers", attackType: DamageType.Blunt,
             isHostile: false)
         {
             TrackingDifficulty = 4
@@ -254,6 +228,68 @@ public static class AnimalFactory
             isHostile: false)
         {
             TrackingDifficulty = 6
+        };
+        animal.GenerateTraits();
+        return animal;
+    }
+
+    public static Animal MakeMegaloceros()
+    {
+        var bodyStats = new BodyCreationInfo
+        {
+            type = BodyTypes.Quadruped,
+            overallWeight = 600,
+            fatPercent = 0.15,
+            musclePercent = 0.60
+        };
+
+        var animal = new Animal("Megaloceros", bodyStats, AnimalBehaviorType.DangerousPrey, AnimalSize.Large,
+            attackDamage: 15, attackName: "massive antlers", attackType: DamageType.Blunt,
+            speedMps: 7.0, pursuitCommitment: 20.0,
+            isHostile: false)
+        {
+            TrackingDifficulty = 3
+        };
+        animal.GenerateTraits();
+        return animal;
+    }
+
+    public static Animal MakeSteppeBison()
+    {
+        var bodyStats = new BodyCreationInfo
+        {
+            type = BodyTypes.Quadruped,
+            overallWeight = 800,
+            fatPercent = 0.20,
+            musclePercent = 0.55
+        };
+
+        var animal = new Animal("Steppe Bison", bodyStats, AnimalBehaviorType.DangerousPrey, AnimalSize.Large,
+            attackDamage: 20, attackName: "horns", attackType: DamageType.Pierce,
+            speedMps: 6.5, pursuitCommitment: 25.0,
+            isHostile: false)
+        {
+            TrackingDifficulty = 2
+        };
+        animal.GenerateTraits();
+        return animal;
+    }
+
+    public static Animal MakeCaveHyena()
+    {
+        var bodyStats = new BodyCreationInfo
+        {
+            type = BodyTypes.Quadruped,
+            overallWeight = 70,
+            fatPercent = 0.15,
+            musclePercent = 0.65
+        };
+
+        var animal = new Animal("Cave Hyena", bodyStats, AnimalBehaviorType.Scavenger, AnimalSize.Large,
+            attackDamage: 12, attackName: "crushing jaws", attackType: DamageType.Blunt,
+            speedMps: 7.5, pursuitCommitment: 50.0)
+        {
+            TrackingDifficulty = 5
         };
         animal.GenerateTraits();
         return animal;

@@ -64,7 +64,7 @@ public static class EnvironmentalDetailFactory
         EnvironmentalDetail.FallenLog,
         EnvironmentalDetail.HollowTree,
         EnvironmentalDetail.BentBranches,
-        () => EnvironmentalDetail.AnimalTracks("deer"),
+        () => EnvironmentalDetail.AnimalTracks("caribou"),
         () => EnvironmentalDetail.AnimalTracks("wolf"),
         () => EnvironmentalDetail.AnimalDroppings("wolf"),
         EnvironmentalDetail.ScatteredBones
@@ -73,14 +73,14 @@ public static class EnvironmentalDetailFactory
     private static List<Func<EnvironmentalDetail>> ClearingDetails() =>
     [
         EnvironmentalDetail.FallenLog,
-        () => EnvironmentalDetail.AnimalTracks("deer"),
+        () => EnvironmentalDetail.AnimalTracks("caribou"),
         () => EnvironmentalDetail.AnimalTracks("rabbit"),
         EnvironmentalDetail.ScatteredBones
     ];
 
     private static List<Func<EnvironmentalDetail>> PlainDetails() =>
     [
-        () => EnvironmentalDetail.AnimalTracks("deer"),
+        () => EnvironmentalDetail.AnimalTracks("caribou"),
         () => EnvironmentalDetail.AnimalTracks("wolf"),
         EnvironmentalDetail.ScatteredBones,
         EnvironmentalDetail.FrozenPuddle
@@ -91,7 +91,7 @@ public static class EnvironmentalDetailFactory
         EnvironmentalDetail.StonePile,
         EnvironmentalDetail.BentBranches,
         () => EnvironmentalDetail.AnimalDroppings("bear"),
-        () => EnvironmentalDetail.AnimalTracks("deer"),
+        () => EnvironmentalDetail.AnimalTracks("caribou"),
         EnvironmentalDetail.ScatteredBones
     ];
 
@@ -106,14 +106,14 @@ public static class EnvironmentalDetailFactory
     private static List<Func<EnvironmentalDetail>> MarshDetails() =>
     [
         EnvironmentalDetail.FrozenPuddle,
-        () => EnvironmentalDetail.AnimalTracks("deer"),
+        () => EnvironmentalDetail.AnimalTracks("caribou"),
         EnvironmentalDetail.BentBranches,
         EnvironmentalDetail.ScatteredBones
     ];
 
     private static List<Func<EnvironmentalDetail>> WaterDetails() =>
     [
-        () => EnvironmentalDetail.AnimalTracks("deer"),
+        () => EnvironmentalDetail.AnimalTracks("caribou"),
         EnvironmentalDetail.ScatteredBones, // Something fell through?
         EnvironmentalDetail.FrozenPuddle    // Edge puddles
     ];
