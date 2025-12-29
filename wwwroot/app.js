@@ -43,6 +43,7 @@ class GameClient {
         this.currentCraftingData = null; // Stored crafting data for tab switching
         this.currentCraftingInput = null; // Stored input for crafting actions
         this.pendingFireStart = false;   // Track fire start attempt for progress animation
+        this.resumeBlockUntil = 0;       // Timestamp until which clicks are blocked after page resume
 
         // Initialize FrameQueue with render callback
         FrameQueue.init((frame) => this.renderFrame(frame));
@@ -50,6 +51,7 @@ class GameClient {
         this.connect();
         this.initQuickActions();
         this.initTilePopup();
+        this.initVisibilityHandler();
     }
 
     /**
@@ -84,6 +86,20 @@ class GameClient {
                 if (!canvas || !canvas.contains(e.target)) {
                     this.hideTilePopup();
                 }
+            }
+        });
+    }
+
+    /**
+     * Initialize visibility change handler to prevent accidental clicks when page resumes from idle.
+     * When a browser tab is hidden and becomes visible again, spurious events can sometimes occur.
+     * This blocks input briefly after page resume to prevent unintended selections.
+     */
+    initVisibilityHandler() {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                // Page just became visible - block clicks briefly to prevent accidental selection
+                this.resumeBlockUntil = Date.now() + 200;  // Block for 200ms after resume
             }
         });
     }
@@ -943,6 +959,7 @@ class GameClient {
      */
     handleTravelToRequest(x, y) {
         if (this.awaitingResponse) return;
+        if (Date.now() < this.resumeBlockUntil) return;  // Block clicks briefly after page resume
         this.awaitingResponse = true;
 
         // Record move for footprint history
@@ -1587,6 +1604,7 @@ class GameClient {
      */
     respondHazardChoice(quickTravel) {
         if (this.awaitingResponse) return;
+        if (Date.now() < this.resumeBlockUntil) return;  // Block clicks briefly after page resume
         this.awaitingResponse = true;
 
         if (this.socket.readyState === WebSocket.OPEN) {
@@ -1610,6 +1628,7 @@ class GameClient {
      */
     requestAction(action) {
         if (this.awaitingResponse) return;
+        if (Date.now() < this.resumeBlockUntil) return;  // Block clicks briefly after page resume
         this.awaitingResponse = true;
 
         if (this.socket.readyState === WebSocket.OPEN) {
@@ -1942,6 +1961,7 @@ class GameClient {
 
     respondStopTravel() {
         if (this.awaitingResponse) return;
+        if (Date.now() < this.resumeBlockUntil) return;  // Block clicks briefly after page resume
         this.awaitingResponse = true;
 
         if (this.socket.readyState === WebSocket.OPEN) {
@@ -1961,6 +1981,11 @@ class GameClient {
     respond(choiceId, inputId) {
         // Prevent duplicate responses or responses to stale buttons
         if (this.awaitingResponse) {
+            return;
+        }
+
+        // Block clicks briefly after page resumes from idle to prevent accidental selection
+        if (Date.now() < this.resumeBlockUntil) {
             return;
         }
 
