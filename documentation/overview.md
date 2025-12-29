@@ -263,82 +263,74 @@ Effects interact with: body system (damage triggers effects), survival simulatio
 
 Events trigger during expeditions based on context — location, player activity, player state, time, weather, and active tensions. Events aren't random encounters — they're contextual interrupts that create decisions.
 
-Architecture: `GameEvent` is a class containing `EventChoice` objects, each with `EventResult` outcomes. `GameEventRegistry` (a partial class split across ~19 files) contains factory methods that build events with context-aware descriptions. Two-stage triggering: base roll per minute → weighted selection from eligible events.
+Architecture: `GameEvent` contains `EventChoice` objects with `EventResult` outcomes. `GameEventRegistry` (partial class across ~19 files) builds events with context-aware descriptions. Two-stage triggering: base roll per minute → weighted selection from eligible events.
 
-Event organization — organized into narrative arcs:
-- Weather events (storms, whiteouts, cold snaps)
-- Expedition events (terrain hazards, discoveries, accidents)
-- Camp events (vermin raids, shelter damage, smoke issues)
-- Threat events (predator signs, stalking progression)
-- Herd events (migration encounters)
-- Multi-stage arcs (Cold Snap, Wound/Infection, Disturbed trauma, Den claim, Pack hunting, Fever progression)
-- Trapping events
-- Location-specific events
+**Modular building blocks** — Three abstractions enable extensible event authoring:
+- **Situations** — Compound predicates for *when* events trigger
+- **Variants** — Text bundles that match *descriptions* to mechanics
+- **Outcome Templates** — Reusable patterns for *what happens*
 
-Outcomes can:
-- Add time to expeditions
-- Apply effects or injuries
-- Grant rewards via RewardPools
-- Consume resources as costs
-- Create, escalate, or resolve tensions
-- Spawn predator encounters
-- Damage tools or clothing
-- Discover new locations
-- Add, modify, or remove features
-- Chain into follow-up events
+Adding a new system (e.g., wetness) means updating Situations once — all events using that situation automatically respond. New injury types get one variant pool — all accident events can use it. Common outcome patterns get one template — consistent behavior across events.
+
+Event organization — narrative arcs: Weather, Expedition, Camp, Threat, Herd, Trapping, Location-specific, and multi-stage arcs (Cold Snap, Wound/Infection, Disturbed, Den claim, Pack hunting, Fever).
+
+### Situations
+
+Compound predicates that encapsulate complex game state checks. Events use semantic predicates instead of raw condition checks.
+
+```csharp
+if (Situations.Vulnerable(ctx) && Situations.UnderThreat(ctx))  // Crisis
+if (Situations.AttractiveToPredators(ctx))  // Meat, bleeding, scent
+```
+
+Categories:
+- **Predator attraction** — `AttractiveToPredators`, `PredatorAttractionLevel` (meat, bleeding, bloody, scent)
+- **Vulnerability** — `Vulnerable`, `VulnerabilityLevel` (injured, slow, impaired, no weapon, blood loss)
+- **Resource pressure** — `SupplyPressure`, `ResourceScarcity` (low fuel/food/water, depleted locations)
+- **Exposure** — `Exposed`, `HarshConditions`, `ExtremeColdCrisis` (weather + shelter state)
+- **Danger** — `UnderThreat`, `InCrisis`, `PackThreat` (tension-based compound states)
+- **Favorable** — `FavorableConditions`, `WellEquipped`, `HuntingAdvantage`, `GoodForStealth`
+
+Graduated levels (0-1) enable weight multipliers: `PredatorAttractionLevel(ctx) * 0.5` for event weighting.
+
+### Variants
+
+Ensure event text matches mechanics. Three variant types bundle descriptions with their mechanical effects.
+
+**Injury Variants** — Text + body target + damage type. "Your foot catches" only plays when damage targets legs.
+
+Pools: TripStumble, SharpHazards, IceSlip, RockyTerrain, ClimbingFall, FallImpact, Sprains, DarknessStumble, DebrisCuts, VerminBites, CollapseInjuries, EmberBurns. `VariantSelector` weights by context.
+
+**Discovery Variants** — Text + reward pool. Generic descriptions match generic pools.
+
+Pools: SupplyFinds, TinderFinds, MaterialFinds, BoneFinds, CampFinds, CacheFinds, SmallGameFinds, HideFinds.
+
+**Illness Variants** — Symptoms tied to causes for player learning. Onset pools by cause (WoundOnset, ExposureOnset, ContaminationOnset, ExhaustionOnset). Hallucination pools weight toward real threats — sometimes the fever dream is real.
+
+### Outcome Templates
+
+Extension methods on `EventResult` for fluent chaining. Encode common patterns once.
+
+```csharp
+new EventResult("description", 0.5, 10)
+    .ModerateCold()           // -12°C for 45 min
+    .Frightening()            // Fear 0.3
+    .BecomeStalked(0.4)       // Creates tension
+```
+
+Categories:
+- **Cold/Weather** — `MinorCold`, `SevereCold`, `StormExposure`, `SoakedAndCold`, `FellThroughIce`
+- **Fear** — `Unsettling`, `Frightening`, `Terrifying`, `Panicking`, `Shaken`
+- **Damage** — `MinorFall`, `MinorBite`, `AnimalAttack`, `Mauled`, `MinorFrostbite`
+- **Scent** — `MinorBloody`, `ModerateBloody`, `HeavilyBloody`
+- **Costs/Rewards** — `StartsFire`, `BurnsFuel`, `FindsSupplies`, `FindsMeat`, `FindsCache`
+- **Tensions** — `BecomeStalked`, `EscalatesStalking`, `ResolvesStalking`, `MarksDiscovery`
+- **Compound** — `EscapeToCamp`, `FireScaresPredator`, `ColdAndFear`, `InjuredRetreat`
+- **Equipment** — `DamagesEquipment`, `MinorEquipmentWear`, `FieldRepair`
 
 Events interact with: tensions (create/escalate/resolve), locations (triggers and discovery), effects (outcomes apply them), predator encounters (can spawn them), inventory (costs and rewards), features (can modify).
 
-### Event Variants
-
-Variants ensure event text matches mechanics. Three variant types handle different event categories: injuries (body targeting), discoveries (reward pools), and illness (cause-specific symptoms).
-
-**Injury Variants** — The problem: "Your foot catches on something" shouldn't play when damage lands on the player's arm. `InjuryVariant` bundles description text with `BodyTarget`, damage type, and optional effects.
-
-```csharp
-var variant = VariantSelector.SelectAccidentVariant(ctx);
-return new GameEvent("Minor Accident", variant.Description, 0.8)
-    .Choice("Push On", ...,
-        [new EventResult("You ignore it.", 0.5, 0).DamageWithVariant(variant)])
-```
-
-Terrain accident pools:
-- **TripStumble**, **SharpHazards**, **IceSlip**, **RockyTerrain** — common terrain hazards
-- **ClimbingFall**, **FallImpact**, **Sprains**, **DarknessStumble** — serious injuries with effects
-
-Work mishap pools:
-- **DebrisCuts** — searching ash piles, collapsed structures
-- **VerminBites** — rodent/pest encounters
-- **CollapseInjuries** — shelter/structure failure (with Dazed, SprainedAnkle)
-- **EmberBurns** — fire-tending mishaps
-
-`VariantSelector` weights pools by context — ice variants weight higher near frozen water, rocky variants on hazardous terrain.
-
-**Discovery Variants** — Bundle find descriptions with `RewardPool`. Descriptions are generic to match generic pools — variety comes from *how* you find things, not what specific item appears.
-
-```csharp
-var discovery = DiscoverySelector.SelectGeneralDiscovery(ctx);
-new EventResult(discovery.Description, 0.4, 8).WithDiscovery(discovery)
-```
-
-Pools: **SupplyFinds**, **TinderFinds**, **MaterialFinds**, **BoneFinds**, **CampFinds**, **CacheFinds**, **SmallGameFinds**, **HideFinds**
-
-**Illness Variants** — Connect symptoms to underlying causes for player learning.
-
-```csharp
-var onset = IllnessSelector.SelectOnsetVariant(ctx);  // Picks based on wounds, temp, etc.
-new EventResult(onset.Description, 1.0).WithIllnessOnset(onset)
-
-var hallucination = IllnessSelector.SelectHallucinationVariant(ctx);
-bool isReal = IllnessSelector.IsHallucinationReal(hallucination, ctx);  // 10-25% chance
-```
-
-Onset pools: **WoundOnset**, **ExposureOnset**, **ContaminationOnset**, **ExhaustionOnset**
-Hallucination pools: **FireHallucinations**, **PredatorHallucinations**, **MovementHallucinations**, **IntruderHallucinations**
-
-Hallucinations weight toward real threats (fire hallucinations more likely when fire is actually low) and have reality checks — sometimes the fever dream is real.
-
-**Files**: `Actions/Events/Variants/` (InjuryVariant.cs, AccidentVariants.cs, DiscoveryVariant.cs, IllnessVariant.cs), `Actions/GameEvent.cs`
+**Files**: `Actions/Events/Situations.cs`, `Actions/Events/Variants/`, `Actions/Events/OutcomeTemplates.cs`, `Actions/GameEvent.cs`
 
 ---
 
@@ -386,6 +378,25 @@ The encounter emerges from intersecting state: player carrying meat + injury slo
 Combat is simple turn-based when it occurs: attack with equipped weapon, predator attacks back.
 
 Predator encounters interact with: events (can spawn encounters), body system (injuries affect options), inventory (carrying meat affects boldness, weapons affect combat), effects (fear, injuries from attacks).
+
+---
+
+## Herds
+
+Animal groups that move as unified entities within home territories. Creates a living world where animals graze, patrol, and hunt each other.
+
+Three behavior types (strategy pattern):
+- **Prey** (caribou, bison, megaloceros) — Graze when hungry, rest when satiated, flee from threats
+- **Pack predators** (wolves) — Patrol territory, hunt NPC prey, engage player based on boldness
+- **Solitary predators** (bears) — Forage as omnivores, highly territorial near den
+
+Hunger drives behavior transitions: Resting → Grazing/Patrolling → Hunting/Feeding. Grazing depletes ForageFeature resources based on diet (browsers eat lichens, grazers eat grass, omnivores eat berries/fungi). Herds leave depleted areas faster — competing with player for forage.
+
+Wounded animals split into trackable single-animal herds. NPC predator-prey resolved via `PredatorPreyResolver` — successful kills create CarcassFeature that predators defend.
+
+Herds interact with: locations (territory spans tiles), features (grazing depletes ForageFeature), hunting (HuntStrategy searches herds), events (herd arc triggers), tensions (HerdNearby, WoundedPrey), encounters (predators engage player).
+
+**Files**: `Actors/Animals/Herd.cs`, `Actors/Animals/HerdRegistry.cs`, `Actors/Animals/Behaviors/`
 
 ---
 
