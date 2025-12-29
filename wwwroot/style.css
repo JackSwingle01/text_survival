@@ -421,7 +421,7 @@ body {
     align-items: center;
     gap: 10px;
     padding: 10px 16px;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--bg-surface);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 8px;
     min-width: 120px;
@@ -993,6 +993,7 @@ body {
 /* Crafting specific */
 .crafting-modal {
     max-width: 1000px;
+    border-radius: 8px;
 }
 
 /* Crafting tab bar */
@@ -1002,6 +1003,7 @@ body {
     gap: 6px;
     padding: 12px 16px;
     background: var(--bg-darker);
+    border-bottom: 1px solid var(--border-dim);
 }
 
 .craft-tab {
@@ -1011,7 +1013,7 @@ body {
     padding: 10px 14px;
     background: var(--bg-surface);
     border: 1px solid var(--border-dim);
-    border-radius: 4px 4px 0 0;
+    border-radius: 4px;
     cursor: pointer;
     font-family: 'Oswald', sans-serif;
     font-size: 0.8rem;
@@ -1019,7 +1021,6 @@ body {
     text-transform: uppercase;
     color: var(--text-faint);
     transition: color 0.2s, background 0.2s, border-color 0.2s;
-    position: relative;
 }
 
 .craft-tab .material-symbols-outlined {
@@ -1036,9 +1037,6 @@ body {
     color: var(--fire-orange);
     background: var(--bg-panel);
     border-color: var(--fire-orange);
-    border-bottom-color: var(--bg-panel);
-    margin-bottom: -1px;
-    z-index: 1;
 }
 
 .craft-tab.active .material-symbols-outlined {

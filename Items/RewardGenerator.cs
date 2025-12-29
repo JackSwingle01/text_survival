@@ -11,6 +11,8 @@ public enum RewardPool
     MassiveMeat,        // Megafauna kill (mammoth, cave bear - huge yield)
     GameTrailDiscovery, // Minor supplies (info reward placeholder)
     SquirrelCache,      // Nuts, dried berries - rodent food stores
+    HoneyHarvest,       // Honey from beehives
+    MedicinalForage,    // Medicinal plants and fungi
 
     // Extended pools
     CraftingMaterials,  // Stone, bone, plant fiber
@@ -36,11 +38,13 @@ public static class RewardGenerator
             RewardPool.MassiveMeat => GenerateMassiveMeat(),
             RewardPool.GameTrailDiscovery => GenerateGameTrailDiscovery(),
             RewardPool.SquirrelCache => GenerateSquirrelCache(densityFactor),
+            RewardPool.HoneyHarvest => GenerateHoneyHarvest(densityFactor),
+            RewardPool.MedicinalForage => GenerateMedicinalForage(densityFactor),
             RewardPool.CraftingMaterials => GenerateCraftingMaterials(),
             RewardPool.ScrapTool => GenerateScrapTool(),
             RewardPool.WaterSource => GenerateWaterSource(),
             RewardPool.TinderBundle => GenerateTinderBundle(),
-            RewardPool.BoneHarvest => GenerateBoneHarvest(),
+            RewardPool.BoneHarvest => GenerateBoneHarvest(densityFactor),
             RewardPool.SmallGame => GenerateSmallGame(),
             RewardPool.HideScrap => GenerateHideScrap(),
             _ => new Inventory()
@@ -186,6 +190,40 @@ public static class RewardGenerator
         return resources;
     }
 
+    private static Inventory GenerateHoneyHarvest(double densityFactor)
+    {
+        var resources = new Inventory();
+
+        // Honey is dense calories - scale by density
+        resources.Add(Resource.Honey, RandomWeight(0.2, 0.4) * densityFactor);
+
+        return resources;
+    }
+
+    private static Inventory GenerateMedicinalForage(double densityFactor)
+    {
+        var resources = new Inventory();
+
+        // Scale item count by density
+        int baseItems = Random.Shared.Next(1, 3);
+        int itemCount = (int)Math.Ceiling(baseItems * densityFactor);
+
+        var options = new List<Action>
+        {
+            () => resources.Add(Resource.BirchPolypore, RandomWeight(0.05, 0.1) * densityFactor),
+            () => resources.Add(Resource.Chaga, RandomWeight(0.05, 0.1) * densityFactor),
+            () => resources.Add(Resource.Amadou, RandomWeight(0.03, 0.08) * densityFactor),
+            () => resources.Add(Resource.RoseHip, RandomWeight(0.05, 0.1) * densityFactor),
+            () => resources.Add(Resource.WillowBark, RandomWeight(0.05, 0.1) * densityFactor),
+            () => resources.Add(Resource.Usnea, RandomWeight(0.03, 0.08) * densityFactor)
+        };
+
+        var shuffled = options.OrderBy(_ => Random.Shared.Next()).Take(itemCount);
+        foreach (var add in shuffled) add();
+
+        return resources;
+    }
+
     private static double RandomWeight(double min, double max)
     {
         return min + Random.Shared.NextDouble() * (max - min);
@@ -256,13 +294,14 @@ public static class RewardGenerator
         return resources;
     }
 
-    private static Inventory GenerateBoneHarvest()
+    private static Inventory GenerateBoneHarvest(double densityFactor)
     {
         var resources = new Inventory();
-        int boneCount = Random.Shared.Next(1, 4); // 1-3 bones
+        int baseBones = Random.Shared.Next(1, 4); // 1-3 bones
+        int boneCount = (int)Math.Ceiling(baseBones * densityFactor);
         for (int i = 0; i < boneCount; i++)
         {
-            resources.Add(Resource.Bone, RandomWeight(0.2, 0.5));
+            resources.Add(Resource.Bone, RandomWeight(0.2, 0.5) * densityFactor);
         }
         return resources;
     }

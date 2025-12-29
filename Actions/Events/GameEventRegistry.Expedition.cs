@@ -128,7 +128,7 @@ public static partial class GameEventRegistry
                 "Probe through the ashes slowly.",
                 [
                     new EventResult("A usable stone tool, fire-hardened.", 0.65, 5)
-                        .Rewards(RewardPool.CraftingMaterials),
+                        .Rewards(RewardPool.ScrapTool),
                     new EventResult("Bone fragment. Useful for crafting.", 0.20, 5)
                         .Rewards(RewardPool.BoneHarvest),
                     new EventResult("Nothing but charred debris.", 0.10, 5),
@@ -289,7 +289,7 @@ public static partial class GameEventRegistry
                     new EventResult("Old scat, scattered bones. Nothing fresh.", 0.25, 12)
                         .FindsSupplies(),
                     new EventResult("You find a small cache — something was storing food here.", 0.15, 20)
-                        .Rewards(RewardPool.SmallGame)
+                        .Rewards(RewardPool.SquirrelCache)
                 ])
             .Choice("Move On",
                 "Don't waste more time on dead ends.",

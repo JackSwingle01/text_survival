@@ -21,7 +21,7 @@ public enum Resource
     Tinder, BirchBark,
 
     // Food
-    CookedMeat, RawMeat, Berries, Nuts, Roots, DriedMeat, DriedBerries,
+    CookedMeat, RawMeat, Berries, Nuts, Roots, DriedMeat, DriedBerries, Honey,
 
     // Materials
     Stone, Bone, Hide, PlantFiber, Sinew, Shale, Flint, Pyrite,
@@ -56,7 +56,7 @@ public static class ResourceCategories
         [ResourceCategory.Food] = new()
         {
             Resource.CookedMeat, Resource.RawMeat, Resource.Berries,
-            Resource.Nuts, Resource.Roots, Resource.DriedMeat, Resource.DriedBerries
+            Resource.Nuts, Resource.Roots, Resource.DriedMeat, Resource.DriedBerries, Resource.Honey
         },
 
         [ResourceCategory.Medicine] = new()

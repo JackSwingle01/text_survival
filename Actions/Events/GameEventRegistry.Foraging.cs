@@ -24,15 +24,14 @@ public static partial class GameEventRegistry
                 "Gather only the mushrooms you recognize.",
                 [
                     new EventResult("You carefully select the familiar fungi. Birch polypore and amadou - useful medicine.", 0.70, 8)
-                        .Rewards(RewardPool.TinderBundle),
+                        .Rewards(RewardPool.MedicinalForage, 0.8),
                     new EventResult("Slim pickings. Most of these are varieties you don't recognize.", 0.30, 5)
                 ])
             .Choice("Risk the Red Ones",
                 "The unusual ones might be valuable... or dangerous.",
                 [
                     new EventResult("Your gamble pays off. These are potent medicinal mushrooms.", 0.25, 10)
-                        .Rewards(RewardPool.TinderBundle)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .Rewards(RewardPool.MedicinalForage, 1.5),
                     new EventResult("You gather them, but something feels off. Best not to eat these.", 0.35, 8),
                     new EventResult("You nibble a small piece to test. Your stomach cramps almost immediately.", 0.30, 5)
                         .WithEffects(EffectFactory.Nauseous(0.4, 60)),
@@ -44,10 +43,9 @@ public static partial class GameEventRegistry
                 "Spend extra time examining and sorting everything.",
                 [
                     new EventResult("Patience rewarded. You identify several useful varieties and avoid the toxic ones.", 0.60, 20)
-                        .Rewards(RewardPool.TinderBundle)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .Rewards(RewardPool.MedicinalForage, 1.2),
                     new EventResult("You gather what you can identify, leaving the questionable ones.", 0.30, 15)
-                        .Rewards(RewardPool.TinderBundle),
+                        .Rewards(RewardPool.MedicinalForage, 0.7),
                     new EventResult("Despite your care, you're not certain about any of them. Better safe than sorry.", 0.10, 15)
                 ]);
     }
@@ -108,12 +106,11 @@ public static partial class GameEventRegistry
                 hasTorch ?
                 [
                     new EventResult("The smoke calms the bees. You harvest honey and beeswax without trouble.", 0.75, 15)
-                        .Rewards(RewardPool.BasicSupplies)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .Rewards(RewardPool.HoneyHarvest, 1.5),
                     new EventResult("Good yield. The bees are sluggish from the smoke.", 0.20, 12)
-                        .Rewards(RewardPool.BasicSupplies),
+                        .Rewards(RewardPool.HoneyHarvest),
                     new EventResult("The hive is smaller than expected, but still worth the effort.", 0.05, 10)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .Rewards(RewardPool.HoneyHarvest, 0.6)
                 ] :
                 [
                     new EventResult("You have nothing to make smoke with. The bees would swarm you.", 1.0, 0)
@@ -122,11 +119,11 @@ public static partial class GameEventRegistry
                 "Quick hands. Accept some stings for quick rewards.",
                 [
                     new EventResult("You snatch a comb and run. Stings burn, but you got honey.", 0.50, 5)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .Rewards(RewardPool.HoneyHarvest, 0.7)
                         .Damage(3, DamageType.Pierce, BodyTarget.AnyArm)
                         .WithEffects(EffectFactory.Pain(0.2)),
                     new EventResult("The bees are angry. You escape with honey and a face full of stings.", 0.30, 3)
-                        .Rewards(RewardPool.BasicSupplies)
+                        .Rewards(RewardPool.HoneyHarvest, 0.5)
                         .Damage(5, DamageType.Pierce, BodyTarget.Head)
                         .WithEffects(EffectFactory.Pain(0.4)),
                     new EventResult("They swarm before you can react. You flee empty-handed.", 0.15, 2)

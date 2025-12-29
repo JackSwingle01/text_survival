@@ -327,8 +327,8 @@ public static partial class GameEventRegistry
                     new EventResult("You drop something. Minor setback.", weight: 0.35, minutes: 5)
                         .WithEffects(EffectFactory.Shaken(0.3)),
                     new EventResult("Can't function. Forced rest.", weight: 0.15, minutes: 30),
-                    new EventResult("You push through and acclimate.", weight: 0.10)
-                        .WithEffects(EffectFactory.Hardened(0.2, 120))
+                    new EventResult("You push through and acclimate.", weight: 0.25)
+                        .WithEffects(EffectFactory.Hardened(0.4, 120))
                 ]);
     }
 
@@ -352,8 +352,8 @@ public static partial class GameEventRegistry
                     new EventResult("Worse than expected. You're really sick.", weight: 0.30, minutes: 20)
                         .WithEffects(EffectFactory.Nauseous(0.6, 180))
                         .Damage(3, DamageType.Internal),
-                    new EventResult("Your body handles it. You feel tougher for it.", weight: 0.20, minutes: 10)
-                        .WithEffects(EffectFactory.Hardened(0.15, 240)),
+                    new EventResult("Your body handles it. You feel tougher for it.", weight: 0.30, minutes: 10)
+                        .WithEffects(EffectFactory.Hardened(0.35, 180)),
                     new EventResult("Serious food poisoning. This is bad.", weight: 0.10, minutes: 30)
                         .WithEffects(EffectFactory.Nauseous(0.8, 240))
                         .Damage(8, DamageType.Internal)

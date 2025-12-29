@@ -127,6 +127,8 @@ public class RewardGeneratorTests
     [InlineData(RewardPool.LargeMeat)]
     [InlineData(RewardPool.GameTrailDiscovery)]
     [InlineData(RewardPool.SquirrelCache)]
+    [InlineData(RewardPool.HoneyHarvest)]
+    [InlineData(RewardPool.MedicinalForage)]
     [InlineData(RewardPool.CraftingMaterials)]
     [InlineData(RewardPool.ScrapTool)]
     [InlineData(RewardPool.WaterSource)]

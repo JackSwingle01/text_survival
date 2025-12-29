@@ -204,8 +204,8 @@ public static partial class GameEventRegistry
             .Choice("Harvest what you can",
                 "This is a windfall. Don't waste it.",
                 [
-                    new EventResult("You work until your arms ache. Bone, ivory, marrow. A fortune in materials.", weight: 1.0, minutes: 30)
-                        .Rewards(Items.RewardPool.BoneHarvest)
+                    new EventResult("You work until your arms ache. Bone and marrow — quality materials.", weight: 1.0, minutes: 30)
+                        .Rewards(Items.RewardPool.BoneHarvest, 3.0)
                 ]);
     }
 

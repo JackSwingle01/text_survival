@@ -377,9 +377,9 @@ public static partial class GameEventRegistry
                     new EventResult("You can't do this forever. Your nerves are shot.", 0.35, 45)
                         .WithEffects(EffectFactory.Paranoid(0.3))
                         .Escalate("Disturbed", 0.1),
-                    new EventResult("Somehow, sitting with the fear helps. You feel stronger.", 0.15, 30)
+                    new EventResult("Somehow, sitting with the fear helps. You feel stronger.", 0.15, 15)
                         .Escalate("Disturbed", -0.15)
-                        .WithEffects(EffectFactory.Hardened(0.1, 120))
+                        .WithEffects(EffectFactory.Hardened(0.3, 120))
                 ]);
     }
 
@@ -399,9 +399,9 @@ public static partial class GameEventRegistry
                     new EventResult("It's painful. But when you're done, something has shifted.", 0.50, 45)
                         .Escalate("Disturbed", -0.25)
                         .WithEffects(EffectFactory.Exhausted(0.2, 60)),
-                    new EventResult("You think about it until the fire burns low. Somehow, that helps.", 0.30, 60)
+                    new EventResult("You think about it until the fire burns low. Somehow, that helps.", 0.30, 20)
                         .Escalate("Disturbed", -0.35)
-                        .WithEffects(EffectFactory.Rested(0.4, 30)),
+                        .WithEffects(EffectFactory.Rested(0.6, 60)),
                     new EventResult("Too much. You have to stop. But you made progress.", 0.15, 30)
                         .Escalate("Disturbed", -0.1)
                         .WithEffects(EffectFactory.Shaken(0.2)),

@@ -32,10 +32,10 @@ public static partial class GameEventRegistry
             .Choice("Sit and Think",
                 "Rest until your head clears.",
                 [
-                    new EventResult("You sit down, close your eyes, breathe. When you open them, you know exactly where you are.", 0.7, 15)
-                        .WithEffects(EffectFactory.Focused(0.5, 30)),
-                    new EventResult("The rest helps more than expected. Your mind sharpens.", 0.3, 15)
-                        .WithEffects(EffectFactory.Focused(0.7, 45))
+                    new EventResult("You sit down, close your eyes, breathe. When you open them, you know exactly where you are.", 0.7, 8)
+                        .WithEffects(EffectFactory.Focused(0.5, 45)),
+                    new EventResult("The rest helps more than expected. Your mind sharpens.", 0.3, 8)
+                        .WithEffects(EffectFactory.Focused(0.7, 60))
                 ]);
     }
 }
