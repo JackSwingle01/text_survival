@@ -3,6 +3,29 @@ using System.Text.Json.Serialization;
 namespace text_survival.Environments.Features;
 
 /// <summary>
+/// Context passed to features during the update loop.
+/// Provides environmental information without features needing to reach back to Location.
+/// </summary>
+public class FeatureUpdateContext
+{
+    /// <summary>
+    /// Temperature at the location in Fahrenheit.
+    /// </summary>
+    public double TemperatureF { get; init; }
+
+    /// <summary>
+    /// Minutes elapsed since last update.
+    /// </summary>
+    public int Minutes { get; init; }
+
+    public FeatureUpdateContext(int minutes, double temperatureF)
+    {
+        Minutes = minutes;
+        TemperatureF = temperatureF;
+    }
+}
+
+/// <summary>
 /// UI-agnostic feature information for display.
 /// Keeps domain code independent of web DTOs.
 /// </summary>
@@ -49,7 +72,12 @@ public abstract class LocationFeature
         Name = name;
     }
     public LocationFeature() { } // Parameterless constructor for deserialization
-    public virtual void Update(int minutes) {}
+
+    /// <summary>
+    /// Update feature state for elapsed time with environmental context.
+    /// </summary>
+    /// <param name="ctx">Context containing elapsed time and environmental data.</param>
+    public virtual void Update(FeatureUpdateContext ctx) {}
 
     /// <summary>
     /// Returns UI display information for this feature.

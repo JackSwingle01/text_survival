@@ -63,11 +63,11 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     [System.Text.Json.Serialization.JsonConstructor]
     public AnimalTerritoryFeature() : base("animal_territory") { }
 
-    public override void Update(int minutes)
+    public override void Update(FeatureUpdateContext ctx)
     {
         if (HasBeenHunted && _gameDensity < _baseGameDensity)
         {
-            _hoursSinceLastHunt += minutes / 60.0;
+            _hoursSinceLastHunt += ctx.Minutes / 60.0;
             double depletedAmount = _baseGameDensity - _initialDepletedDensity;
             double respawnProgress = Math.Min(1.0, _hoursSinceLastHunt / _respawnRateHours);
             _gameDensity = _initialDepletedDensity + (depletedAmount * respawnProgress);
@@ -76,7 +76,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
         // Decay temporary hunt bonus over 2 hours
         if (_temporaryHuntBonus > 0 && _huntBonusDecayMinutes > 0)
         {
-            _huntBonusDecayMinutes -= minutes;
+            _huntBonusDecayMinutes -= ctx.Minutes;
             if (_huntBonusDecayMinutes <= 0)
             {
                 _temporaryHuntBonus = 0;

@@ -250,7 +250,7 @@ public class WoodedAreaFeatureTests
         };
 
         // Act - simulate 24 hours passing (1440 minutes)
-        feature.Update(1440);
+        feature.Update(new FeatureUpdateContext(1440, 32));
 
         // Assert
         Assert.Equal(1, feature.TreesAvailable);
@@ -267,7 +267,7 @@ public class WoodedAreaFeatureTests
         };
 
         // Act
-        feature.Update(1440);
+        feature.Update(new FeatureUpdateContext(1440, 32));
 
         // Assert - should stay at 2, not increase
         Assert.Equal(2, feature.TreesAvailable);
@@ -283,7 +283,7 @@ public class WoodedAreaFeatureTests
         };
 
         // Act
-        feature.Update(1440);
+        feature.Update(new FeatureUpdateContext(1440, 32));
 
         // Assert
         Assert.Null(feature.TreesAvailable);

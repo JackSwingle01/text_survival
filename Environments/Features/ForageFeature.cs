@@ -44,11 +44,11 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     // Derived from NumberOfHoursForaged - no need to track separately
     private bool HasForagedBefore => NumberOfHoursForaged > 0;
 
-    public override void Update(int minutes)
+    public override void Update(FeatureUpdateContext ctx)
     {
         if (HasForagedBefore)
         {
-            HoursSinceLastForage += minutes / 60.0;
+            HoursSinceLastForage += ctx.Minutes / 60.0;
         }
     }
 

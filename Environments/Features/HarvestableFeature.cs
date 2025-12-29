@@ -68,9 +68,9 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
     /// <summary>
     /// Advance respawn timers for all depleted resources.
     /// </summary>
-    public override void Update(int minutes)
+    public override void Update(FeatureUpdateContext ctx)
     {
-        double hours = minutes / 60.0;
+        double hours = ctx.Minutes / 60.0;
 
         foreach (var resource in _resources)
         {

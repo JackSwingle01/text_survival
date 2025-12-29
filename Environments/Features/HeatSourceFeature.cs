@@ -371,9 +371,9 @@ public class HeatSourceFeature : LocationFeature
     /// <summary>
     /// Update fire state based on time elapsed
     /// </summary>
-    public override void Update(int minutes)
+    public override void Update(FeatureUpdateContext ctx)
     {
-        double minutesElapsed = minutes;
+        double minutesElapsed = ctx.Minutes;
 
         if (_burningMassKg > 0)
         {

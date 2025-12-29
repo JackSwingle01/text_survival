@@ -124,12 +124,12 @@ public class WaterFeature : LocationFeature
         _iceHoleRefreezeProgress = 0;
     }
 
-    public override void Update(int minutes)
+    public override void Update(FeatureUpdateContext ctx)
     {
         if (!_hasIceHole || !_isFrozen) return;
 
         // Ice holes slowly refreeze
-        double hours = minutes / 60.0;
+        double hours = ctx.Minutes / 60.0;
         _iceHoleRefreezeProgress += RefreezeRatePerHour * hours;
 
         if (_iceHoleRefreezeProgress >= 1.0)

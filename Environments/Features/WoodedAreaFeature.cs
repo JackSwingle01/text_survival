@@ -159,13 +159,13 @@ public class WoodedAreaFeature : LocationFeature, IWorkableFeature
     /// <summary>
     /// Update respawn timer for limited tree counts.
     /// </summary>
-    public override void Update(int minutes)
+    public override void Update(FeatureUpdateContext ctx)
     {
         // Only respawn if we have a limited tree count and are depleted
         if (TreesAvailable == null || TreesAvailable > 0)
             return;
 
-        _respawnAccumulator += minutes / 60.0;
+        _respawnAccumulator += ctx.Minutes / 60.0;
 
         if (_respawnAccumulator >= RespawnHoursPerTree)
         {

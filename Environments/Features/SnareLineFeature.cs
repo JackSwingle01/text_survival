@@ -154,13 +154,13 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
     /// <summary>
     /// Update all snares for elapsed time.
     /// </summary>
-    public override void Update(int minutes)
+    public override void Update(FeatureUpdateContext ctx)
     {
         var smallGame = GetSmallGameList();
 
         foreach (var snare in _snares.Where(s => s.IsUsable))
         {
-            snare.Update(minutes, GetGameDensity(), smallGame);
+            snare.Update(ctx.Minutes, GetGameDensity(), smallGame);
         }
 
         // Remove broken snares

@@ -159,22 +159,18 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     }
 
     /// <summary>
-    /// Advance raw time (for scent intensity tracking).
-    /// Temperature-based decay is applied separately via ApplyTemperatureDecay().
+    /// Update carcass decay based on elapsed time and temperature.
+    /// Raw time advances for scent tracking; effective time is temperature-adjusted for decay.
     /// </summary>
-    public override void Update(int minutes)
+    public override void Update(FeatureUpdateContext ctx)
     {
-        RawHoursSinceDeath += minutes / 60.0;
-    }
+        // Raw time for scent intensity (not temperature-adjusted)
+        RawHoursSinceDeath += ctx.Minutes / 60.0;
 
-    /// <summary>
-    /// Apply temperature-adjusted decay. Called from Location.Update() with temperature context.
-    /// </summary>
-    public void ApplyTemperatureDecay(double temperatureF, int minutes)
-    {
-        LastKnownTemperatureF = temperatureF;
-        double decayMultiplier = GetDecayMultiplier(temperatureF);
-        EffectiveHoursSinceDeath += (minutes / 60.0) * decayMultiplier;
+        // Temperature-adjusted time for meat decay
+        LastKnownTemperatureF = ctx.TemperatureF;
+        double decayMultiplier = GetDecayMultiplier(ctx.TemperatureF);
+        EffectiveHoursSinceDeath += (ctx.Minutes / 60.0) * decayMultiplier;
     }
 
     /// <summary>

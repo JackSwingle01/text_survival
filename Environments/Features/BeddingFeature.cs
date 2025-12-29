@@ -46,7 +46,7 @@ public class BeddingFeature : LocationFeature
     /// <summary>
     /// Bedding doesn't decay over time.
     /// </summary>
-    public override void Update(int minutes) { }
+    public override void Update(FeatureUpdateContext ctx) { }
 
     /// <summary>
     /// Get a description of the bedding status.

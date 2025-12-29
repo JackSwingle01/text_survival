@@ -40,33 +40,18 @@ public class ShelterFeature : LocationFeature
     /// <summary>
     /// Update shelter state. Snow shelters degrade in warm temperatures.
     /// </summary>
-    public override void Update(int minutes)
+    public override void Update(FeatureUpdateContext ctx)
     {
         // Snow shelters melt when temperature rises above freezing
-        if (IsSnowShelter)
+        if (IsSnowShelter && ctx.TemperatureF > 40)
         {
-            // Note: We don't have direct access to location temperature here.
-            // This will need to be called from Location.Update() with temp info,
-            // or we check later during gameplay.
-            // For now, we'll add the logic structure and integrate it properly later.
+            // Degrade based on how warm it is and time elapsed
+            double warmthDelta = ctx.TemperatureF - 40;
+            double degradeRate = 0.01 * (warmthDelta / 20.0);  // Faster degradation in warmer temps
+            double damageAmount = degradeRate * (ctx.Minutes / 60.0);
+
+            Damage(damageAmount);
         }
-    }
-
-    /// <summary>
-    /// Degrade snow shelter when temperature is above freezing.
-    /// Called from location with temperature context.
-    /// </summary>
-    public void DegradeFromWarmth(double locationTempF, int minutes)
-    {
-        if (!IsSnowShelter) return;
-        if (locationTempF <= 40) return;  // Snow stable below 40°F
-
-        // Degrade based on how warm it is and time elapsed
-        double warmthDelta = locationTempF - 40;
-        double degradeRate = 0.01 * (warmthDelta / 20.0);  // Faster degradation in warmer temps
-        double damageAmount = degradeRate * (minutes / 60.0);
-
-        Damage(damageAmount);
     }
 
     /// <summary>

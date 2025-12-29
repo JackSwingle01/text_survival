@@ -48,11 +48,11 @@ public class CuringRackFeature : LocationFeature
     /// <summary>
     /// Advance curing time for all items.
     /// </summary>
-    public override void Update(int minutes)
+    public override void Update(FeatureUpdateContext ctx)
     {
         foreach (var item in _items)
         {
-            item.MinutesCured += minutes;
+            item.MinutesCured += ctx.Minutes;
         }
     }
 
