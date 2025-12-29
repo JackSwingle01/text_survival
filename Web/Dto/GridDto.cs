@@ -58,6 +58,7 @@ public record TileDto(
     string? LocationName,
     string? LocationTags,
     List<string> FeatureIcons,
+    List<string> AnimalIcons,  // Emojis for herds at this tile
     bool HasFire,
     bool IsHazardous,
     bool IsPassable,
@@ -129,6 +130,7 @@ public record TileDto(
             LocationName: locationName,
             LocationTags: locationTags,
             FeatureIcons: GetFeatureIcons(location),
+            AnimalIcons: GetAnimalIcons(x, y, location, ctx),
             HasFire: location.HasActiveHeatSource(),
             IsHazardous: TravelProcessor.IsHazardousTerrain(location),
             IsPassable: location.IsPassable,
@@ -178,6 +180,36 @@ public record TileDto(
             .Where(info => info != null)
             .Select(info => new FeatureDetailDto(info!.Type, info.Label, info.Status, info.Details))
             .ToList();
+    }
+
+    private static List<string> GetAnimalIcons(int x, int y, Location location, GameContext ctx)
+    {
+        // Only show animal icons for visible tiles
+        if (location.Visibility != TileVisibility.Visible) return [];
+
+        var herds = ctx.Herds.GetHerdsAt(new GridPosition(x, y));
+        if (herds.Count == 0) return [];
+
+        return herds
+            .Take(4)  // Max 4 positions available
+            .Select(h => GetAnimalEmoji(h.AnimalType))
+            .ToList();
+    }
+
+    private static string GetAnimalEmoji(string animalType)
+    {
+        return animalType.ToLower() switch
+        {
+            "deer" => "🦌",
+            "caribou" => "🦌",
+            "wolf" => "🐺",
+            "bear" => "🐻",
+            "bison" => "🦬",
+            "rabbit" => "🐇",
+            "elk" => "🦌",
+            "moose" => "🫎",
+            _ => "🐾"
+        };
     }
 }
 

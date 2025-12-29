@@ -567,6 +567,11 @@ export class CanvasGridRenderer {
             this.renderFeatureIcons(tile.featureIcons, px, py, tile.hasFire);
         }
 
+        // Draw animal icons
+        if (isVisible && tile.animalIcons && tile.animalIcons.length > 0) {
+            this.renderAnimalIcons(tile.animalIcons, px, py);
+        }
+
         // Draw fire glow
         if (tile.hasFire && isVisible) {
             const gradient = ctx.createRadialGradient(
@@ -973,6 +978,41 @@ export class CanvasGridRenderer {
             if (glow) {
                 this.ctx.restore();
             }
+        });
+    }
+
+    /**
+     * Render animal icons (emojis) on a tile
+     * Positioned on cardinal edges: top, left, right, bottom
+     */
+    renderAnimalIcons(icons, px, py) {
+        // Cardinal positions around center (avoiding player icon area)
+        const animalPositions = [
+            { ox: this.TILE_SIZE * 0.50, oy: this.TILE_SIZE * 0.30 },  // top
+            { ox: this.TILE_SIZE * 0.25, oy: this.TILE_SIZE * 0.50 },  // left
+            { ox: this.TILE_SIZE * 0.75, oy: this.TILE_SIZE * 0.50 },  // right
+            { ox: this.TILE_SIZE * 0.50, oy: this.TILE_SIZE * 0.70 }   // bottom
+        ];
+
+        icons.slice(0, 4).forEach((emoji, i) => {
+            if (!emoji) return;
+
+            const pos = animalPositions[i];
+            const iconX = px + pos.ox;
+            const iconY = py + pos.oy;
+
+            // Draw dark background circle for readability
+            const bgAlpha = 0.25 + (0.15 * this.timeFactor);
+            this.ctx.fillStyle = `rgba(0, 0, 0, ${bgAlpha})`;
+            this.ctx.beginPath();
+            this.ctx.arc(iconX, iconY, 12, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Draw emoji
+            this.ctx.font = '18px sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(emoji, iconX, iconY);
         });
     }
 
