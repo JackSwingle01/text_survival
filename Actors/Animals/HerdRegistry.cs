@@ -1,4 +1,7 @@
 using System.Text.Json.Serialization;
+using text_survival.Actions;
+using text_survival.Actors.Animals.Behaviors;
+using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 
 namespace text_survival.Actors.Animals;
@@ -138,14 +141,15 @@ public class HerdRegistry
     #region Post-Load
 
     /// <summary>
-    /// Recreates animal members for all herds after deserialization.
-    /// Called from GameContext.PostLoad().
+    /// Recreates animal members and behaviors for all herds after deserialization.
+    /// Called from GameContext.RestoreAfterDeserialization().
     /// </summary>
     public void RecreateAllMembers()
     {
         foreach (var herd in _herds)
         {
             herd.RecreateMembers();
+            herd.RecreateBehavior();
         }
     }
 
@@ -154,20 +158,63 @@ public class HerdRegistry
     #region Update
 
     /// <summary>
-    /// Updates all herds. Called each game minute from GameContext.Update().
+    /// Updates all herds using behavior strategies. Called each game minute from GameContext.Update().
     /// </summary>
     /// <param name="elapsedMinutes">Minutes elapsed.</param>
-    /// <param name="playerPosition">Current player position.</param>
-    /// <param name="playerCarryingMeat">Whether player has meat.</param>
-    /// <param name="playerBleeding">Whether player is bleeding.</param>
-    /// <returns>Herd that initiated an encounter, or null.</returns>
+    /// <param name="ctx">Game context.</param>
+    /// <returns>List of update results with encounters, narratives, and carcass creations.</returns>
+    public List<HerdUpdateResult> Update(int elapsedMinutes, GameContext ctx)
+    {
+        var results = new List<HerdUpdateResult>();
+
+        foreach (var herd in _herds.ToList()) // ToList to allow modification during iteration
+        {
+            if (herd.IsEmpty)
+            {
+                RemoveHerd(herd);
+                continue;
+            }
+
+            var result = herd.Update(elapsedMinutes, ctx);
+
+            // Collect meaningful results
+            if (result.EncounterRequest != null ||
+                result.PreyKill != null ||
+                result.NarrativeMessage != null)
+            {
+                results.Add(result);
+            }
+
+            // Handle prey kills - create carcass
+            if (result.PreyKill != null)
+            {
+                var location = ctx.Map?.GetLocationAt(result.PreyKill.Position);
+                if (location != null)
+                {
+                    location.Features.Add(new CarcassFeature(result.PreyKill.Victim));
+                }
+            }
+        }
+
+        // Cleanup any empty herds
+        CleanupEmptyHerds();
+
+        return results;
+    }
+
+    /// <summary>
+    /// Legacy Update method for compatibility.
+    /// </summary>
+    [System.Obsolete("Use Update(int, GameContext) instead.")]
     public Herd? Update(int elapsedMinutes, GridPosition playerPosition, bool playerCarryingMeat, bool playerBleeding)
     {
         Herd? encounterHerd = null;
 
-        foreach (var herd in _herds.ToList()) // ToList to allow modification during iteration
+        foreach (var herd in _herds.ToList())
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             bool initiatedEncounter = herd.Update(elapsedMinutes, playerPosition, playerCarryingMeat, playerBleeding);
+#pragma warning restore CS0618
 
             if (initiatedEncounter && encounterHerd == null)
             {
@@ -175,9 +222,7 @@ public class HerdRegistry
             }
         }
 
-        // Cleanup any empty herds
         CleanupEmptyHerds();
-
         return encounterHerd;
     }
 
