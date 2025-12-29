@@ -1,6 +1,6 @@
 # Text Survival
 
-A text-based survival game set in an Ice Age world. The text-only format enables deep, interconnected survival systems without graphical overhead.
+A web-based survival game set in an Ice Age world where you've been separated from your tribe during the mountain crossing. Survive until midsummer when the pass clears.
 
 ## Vision
 
@@ -26,7 +26,13 @@ A camp-centric survival experience where fire is the anchor. Every expedition is
 
 **Fire** — Physics-based fuel consumption, fire phases (igniting → building → roaring → steady → dying → embers), heat contribution to location temperature. Fire is infrastructure that extends your expedition radius.
 
-**Body** — Hierarchical body parts contributing to capacities (moving, manipulation, breathing, consciousness). Injuries attach to parts with severity. Body composition (fat, muscle) affects temperature resistance and speed.
+**Body** — Regional body parts contributing to capacities (moving, manipulation, breathing, consciousness). Injuries attach to parts with severity. Body composition (fat, muscle) affects temperature resistance and speed.
+
+**Hunting & Herds** — Persistent animal populations that migrate and behave. Stalking, ranged attacks, and multi-session megafauna hunts. Carcasses decay over time, creating pressure to butcher before spoilage.
+
+**Events & Tensions** — Contextual events based on player state, weather, location, and active tensions. Tensions are unresolved narrative threads that escalate until confrontation or resolution.
+
+**Crafting** — Need-based system. Express what you need, see what's craftable from available materials. Tools, equipment, treatments, and camp improvements.
 
 **Depletion** — Areas run out. The nearby grove is plentiful on day one, sparse by day three, picked over by day five. The game pushes you outward — range further or move camp.
 
@@ -34,28 +40,31 @@ A camp-centric survival experience where fire is the anchor. Every expedition is
 
 ```bash
 dotnet build
-dotnet run
+dotnet run                  # Starts web server on port 5000
+dotnet run --port=8080      # Custom port
 ```
 
-Requires .NET 9.0.
+Then open http://localhost:5000 in a browser. Requires .NET 9.0.
 
 ## Project Structure
 
 ```
 text_survival/
-├── Core/           # Program.cs, Config.cs
-├── Actions/        # GameRunner, ExpeditionRunner, WorkRunner, events
-├── Actors/         # Player, Camp, Animals
+├── Actions/        # Runners, handlers, events, expeditions, tensions
+├── Actors/         # Player, Camp, Animals, Herds
 ├── Bodies/         # Body parts, damage, capacities
-├── Survival/       # SurvivalProcessor (stateless)
-├── Effects/        # EffectRegistry, conditions
-├── Environments/   # Zones, locations, features, weather
-├── Items/          # Tools, fuel, food, inventory
-├── Crafting/       # Need-based crafting
-├── IO/             # Output.cs, Input.cs
-└── UI/             # GameDisplay rendering
+├── Combat/         # Combat manager and narration
+├── Config/         # Activity configuration
+├── Crafting/       # Need-based crafting system
+├── Effects/        # Effect registry, conditions
+├── Environments/   # Grid, locations, features, weather
+├── Items/          # Gear (tools, equipment), inventory, rewards
+├── Persistence/    # Save/load, game initialization
+├── Survival/       # Stateless survival calculations
+├── Web/            # WebSocket server, DTOs, web UI backend
+└── wwwroot/        # Browser frontend (HTML, JS, CSS)
 ```
 
 ## Status
 
-Core systems functional: camp-centric loop, fire management, flexible expeditions, hunting with stalking/ranged attacks, foraging with depletion, survival stats, body/damage, contextual events, need-based crafting. Current focus: balance tuning and content expansion.
+Core systems functional: fire-tethered expeditions, grid-based world with location discovery, hunting with stalking and megafauna hunts, herd system with persistent animal populations, foraging with depletion and environmental clues, carcass butchering with decay timing, body/damage with regional injuries, contextual events with tensions, need-based crafting, equipment wear and waterproofing. Current focus: balance tuning and content expansion.
