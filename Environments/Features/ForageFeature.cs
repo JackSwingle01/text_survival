@@ -19,6 +19,7 @@ public record ForageResource(
 public class ForageFeature : LocationFeature, IWorkableFeature
 {
     private readonly double respawnRateHours = 168.0; // Full respawn takes 1 week
+    private readonly double animalRespawnRateHours = 72.0; // Animal grazing respawns faster (3 days)
     [System.Text.Json.Serialization.JsonInclude]
     private List<ForageResource> _resources = [];
     private static readonly Random rng = new();
@@ -26,6 +27,18 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     internal double BaseResourceDensity { get; set; } = 1;
     internal double NumberOfHoursForaged { get; set; } = 0;
     internal double HoursSinceLastForage { get; set; } = 0;
+
+    /// <summary>
+    /// Tracks depletion from animal grazing (separate from player foraging).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal double AnimalGrazingHours { get; set; } = 0;
+
+    /// <summary>
+    /// Time since last animal grazing for respawn calculation.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal double HoursSinceAnimalGrazing { get; set; } = 0;
 
     /// <summary>
     /// Seed for deterministic clue generation. Changes after foraging or "keep walking".
@@ -46,27 +59,44 @@ public class ForageFeature : LocationFeature, IWorkableFeature
 
     public override void Update(int minutes)
     {
+        double hours = minutes / 60.0;
+
         if (HasForagedBefore)
         {
-            HoursSinceLastForage += minutes / 60.0;
+            HoursSinceLastForage += hours;
+        }
+
+        if (AnimalGrazingHours > 0)
+        {
+            HoursSinceAnimalGrazing += hours;
         }
     }
 
     private double ResourceDensity()
     {
-        // Calculate base depleted density
-        double depletedDensity = BaseResourceDensity / (NumberOfHoursForaged + 1);
+        // Calculate base depleted density from player foraging
+        double playerDepletion = NumberOfHoursForaged / (NumberOfHoursForaged + 1);
 
-        // Calculate respawn recovery if time has passed
+        // Calculate animal grazing depletion (separate, less impactful per hour)
+        double animalDepletion = AnimalGrazingHours * 0.5 / (AnimalGrazingHours * 0.5 + 1);
+
+        // Calculate respawn recovery for player foraging
+        double playerRecovery = 0;
         if (HasForagedBefore && NumberOfHoursForaged > 0)
         {
-            double amountDepleted = BaseResourceDensity - depletedDensity;
-            double respawnProgress = (HoursSinceLastForage / respawnRateHours) * amountDepleted;
-            double effectiveDensity = Math.Min(BaseResourceDensity, depletedDensity + respawnProgress);
-            return effectiveDensity;
+            playerRecovery = Math.Min(playerDepletion, HoursSinceLastForage / respawnRateHours);
         }
 
-        return depletedDensity;
+        // Calculate respawn recovery for animal grazing (faster respawn)
+        double animalRecovery = 0;
+        if (AnimalGrazingHours > 0)
+        {
+            animalRecovery = Math.Min(animalDepletion, HoursSinceAnimalGrazing / animalRespawnRateHours);
+        }
+
+        // Combine depletions and recoveries
+        double totalDepletion = (playerDepletion - playerRecovery) + (animalDepletion - animalRecovery);
+        return Math.Max(0.1, BaseResourceDensity * (1 - Math.Min(0.9, totalDepletion)));
     }
 
     /// <summary>
