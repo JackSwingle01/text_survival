@@ -2,26 +2,23 @@
 
 This plan implements directional edge features between adjacent tiles (rivers, cliffs, game trails, player-cut trails).
 
-## Design Review Against Codebase
+## Core Insight
 
-### Issues Found in Original Design
+**Edges own events.** Instead of:
+- `ClimbRiskFactor` on tiles + hazard inference + probabilistic events
+- `WaterCrossing` event triggering on `NearWater` condition
 
-1. **HazardType enum duplicates existing system** - The codebase already calculates hazard through `TravelProcessor.GetInjuryRisk()` using `Location.TerrainHazardLevel` and `Location.ClimbRiskFactor`. The `VariantSelector.SelectTravelInjuryVariant()` already handles contextual injury selection (ice, climbing, terrain severity). A new `HazardType` enum creates parallel mechanics.
+We get:
+- Climb edges with climb events attached
+- River edges with crossing events attached
+- Events fire when you actually cross the edge, not probabilistically while "near" something
 
-2. **EdgeCrossingResult is over-engineered** - The existing injury flow is:
-   - `TravelRunner.PromptForSpeed()` → player chooses quick/careful
-   - `TravelProcessor.GetInjuryRisk()` → calculates probability
-   - `TravelHandler.ApplyTravelInjury()` → applies damage via `VariantSelector`
+## Migration Path
 
-   Edges should feed into this existing flow, not create a separate injury resolution system.
-
-3. **GameState doesn't exist** - The codebase uses `GameContext`.
-
-4. **IAction interface doesn't match** - Player activities use `IWorkStrategy` for expedition work or handlers for camp actions. Trail marking should be a work strategy.
-
-5. **Season is nested** - Should reference `Weather.Season`, not a standalone enum.
-
-6. **Direction enum missing** - `GridPosition.GetCardinalNeighbors()` returns positions but there's no Direction enum.
+1. **Remove `Location.ClimbRiskFactor`** - Replaced by Climb edges
+2. **Move `WaterCrossing` event** - From expedition pool to River edge events
+3. **Named locations specify edges** - Boulder Field declares "Climb on all sides"
+4. **Generated edges get events** - Rivers get crossing events, climbs get fall events
 
 ---
 
@@ -96,9 +93,9 @@ namespace text_survival.Environments.Grid;
 public enum EdgeType
 {
     // Natural (generated during map creation)
-    River,          // Crossing penalty, provides water access
+    River,          // Crossing penalty, water access, crossing events
     Cliff,          // Impassable upward, one-way down
-    Climb,          // Passable but slow and risky (uses existing climb hazard system)
+    Climb,          // Passable but slow and risky, fall events
     GameTrail,      // Animal highways - faster traversal
 
     // Player-created
@@ -107,8 +104,37 @@ public enum EdgeType
 }
 
 /// <summary>
+/// An event that can trigger when crossing an edge.
+/// </summary>
+public class EdgeEvent
+{
+    /// <summary>
+    /// Probability of triggering (0-1). 1.0 = always triggers.
+    /// </summary>
+    public double TriggerChance { get; set; }
+
+    /// <summary>
+    /// Factory function to create the event. Receives context for dynamic content.
+    /// </summary>
+    public Func<GameContext, GameEvent?> CreateEvent { get; set; } = null!;
+
+    /// <summary>
+    /// Optional: only trigger in certain seasons.
+    /// </summary>
+    public Weather.Season? RequiredSeason { get; set; } = null;
+
+    public EdgeEvent() { }
+
+    public EdgeEvent(double triggerChance, Func<GameContext, GameEvent?> createEvent)
+    {
+        TriggerChance = triggerChance;
+        CreateEvent = createEvent;
+    }
+}
+
+/// <summary>
 /// An edge feature between two adjacent tiles.
-/// Edges modify traversal time, risk, and passability.
+/// Edges modify traversal time, risk, passability, and can trigger events.
 /// </summary>
 public class TileEdge
 {
@@ -131,16 +157,17 @@ public class TileEdge
     public bool Impassable { get; set; } = false;
 
     /// <summary>
-    /// Additional hazard contribution (0-1). Adds to location hazard level.
-    /// Uses existing TravelProcessor injury system.
-    /// </summary>
-    public double HazardContribution { get; set; } = 0;
-
-    /// <summary>
     /// Season when this edge is blocked. Null = never blocked.
     /// Example: River blocked in Spring (flooding).
     /// </summary>
     public Weather.Season? BlockedSeason { get; set; } = null;
+
+    /// <summary>
+    /// Events that can trigger when crossing this edge.
+    /// Checked in order; first triggered event is used.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public List<EdgeEvent> Events { get; set; } = [];
 
     public TileEdge() { }
 
@@ -152,27 +179,288 @@ public class TileEdge
 
     private void ApplyDefaults()
     {
-        (TraversalModifierMinutes, Bidirectional, Impassable, HazardContribution, BlockedSeason) = Type switch
+        (TraversalModifierMinutes, Bidirectional, Impassable, BlockedSeason) = Type switch
         {
-            EdgeType.River      => (20, true, false, 0.15, null),       // +20 min, slight hazard
-            EdgeType.Cliff      => (0, false, true, 0, null),            // One-way down, blocks up
-            EdgeType.Climb      => (30, true, false, 0.35, null),        // +30 min, triggers hazard system
-            EdgeType.GameTrail  => (-5, true, false, 0, null),           // -5 min, animals keep it clear
-            EdgeType.TrailMarker => (-3, true, false, 0, null),          // -3 min, easier navigation
-            EdgeType.CutTrail   => (-8, true, false, 0, null),           // -8 min, cleared brush
-            _ => (0, true, false, 0, null)
+            EdgeType.River      => (20, true, false, null),    // +20 min to ford
+            EdgeType.Cliff      => (0, false, true, null),     // One-way down, blocks up
+            EdgeType.Climb      => (30, true, false, null),    // +30 min, risky
+            EdgeType.GameTrail  => (-5, true, false, null),    // -5 min, animals keep it clear
+            EdgeType.TrailMarker => (-3, true, false, null),   // -3 min, easier navigation
+            EdgeType.CutTrail   => (-8, true, false, null),    // -8 min, cleared brush
+            _ => (0, true, false, null)
         };
+
+        // Attach default events based on type
+        Events = GetDefaultEvents(Type);
     }
+
+    /// <summary>
+    /// Get default events for an edge type.
+    /// </summary>
+    private static List<EdgeEvent> GetDefaultEvents(EdgeType type) => type switch
+    {
+        EdgeType.River => [
+            new EdgeEvent(0.6, EdgeEvents.WaterCrossing)  // 60% chance of crossing event
+        ],
+        EdgeType.Climb => [
+            new EdgeEvent(0.4, EdgeEvents.ClimbingHazard) // 40% chance of climb event
+        ],
+        _ => []
+    };
 
     /// <summary>
     /// Check if blocked in the given season.
     /// </summary>
     public bool IsBlockedIn(Weather.Season season) =>
         Impassable || BlockedSeason == season;
+
+    /// <summary>
+    /// Roll for edge event. Returns event if one triggers, null otherwise.
+    /// </summary>
+    public GameEvent? TryTriggerEvent(GameContext ctx)
+    {
+        foreach (var edgeEvent in Events)
+        {
+            // Check season requirement
+            if (edgeEvent.RequiredSeason.HasValue &&
+                ctx.Weather.CurrentSeason != edgeEvent.RequiredSeason)
+                continue;
+
+            // Roll for trigger
+            if (Random.Shared.NextDouble() < edgeEvent.TriggerChance)
+            {
+                return edgeEvent.CreateEvent(ctx);
+            }
+        }
+        return null;
+    }
 }
 ```
 
-### 3. Edge Storage in GameMap
+### 3. Edge Events (moved from GameEventRegistry)
+
+Add to `Actions/Events/EdgeEvents.cs`:
+
+```csharp
+namespace text_survival.Actions.Events;
+
+/// <summary>
+/// Events that trigger when crossing edges.
+/// Migrated from GameEventRegistry.Expedition.cs
+/// </summary>
+public static class EdgeEvents
+{
+    /// <summary>
+    /// Water crossing event - moved from WaterCrossing in expedition events.
+    /// Now triggers when crossing a River edge, not probabilistically "near water".
+    /// </summary>
+    public static GameEvent? WaterCrossing(GameContext ctx)
+    {
+        var slipVariant = VariantSelector.SelectSlipVariant(ctx);
+
+        return new GameEvent("Water Crossing",
+            "Water blocks your path. Moving water, or still water with thin ice at the edges.", 0.8)
+            .Choice("Wade Across",
+                "Straight through. Get wet, get it over with.",
+                [
+                    new EventResult("Cold but quick. You're through.", 0.50, 8)
+                        .WithEffects(EffectFactory.Wet(0.5), EffectFactory.Cold(-10, 30)),
+                    new EventResult("Deeper than expected. Soaked to the waist.", 0.30, 12)
+                        .WithEffects(EffectFactory.Wet(0.8), EffectFactory.Cold(-15, 45)),
+                    new EventResult("Current stronger than it looked.", 0.15, 15)
+                        .WithEffects(EffectFactory.Wet(0.9), EffectFactory.Cold(-18, 60)),
+                    new EventResult("You slip. Water closes over your head.", 0.05, 18)
+                        .DamageWithVariant(slipVariant)
+                        .WithEffects(EffectFactory.Wet(1.0), EffectFactory.Cold(-25, 90))
+                ])
+            .Choice("Find Another Route",
+                "Look for a better crossing point.",
+                [
+                    new EventResult("You find a narrow point. Easy crossing.", 0.40, 20),
+                    new EventResult("Long detour but you stay dry.", 0.35, 30),
+                    new EventResult("No good options. You cross anyway.", 0.20, 25)
+                        .WithEffects(EffectFactory.Wet(0.5), EffectFactory.Cold(-10, 30))
+                ])
+            .Choice("Drink First",
+                "You're here. Might as well hydrate.",
+                [
+                    new EventResult("Fresh and cold. You drink your fill.", 0.85, 10)
+                        .Rewards(RewardPool.WaterSource),
+                    new EventResult("Ice breaks. You're in the water.", 0.15, 15)
+                        .DamageWithVariant(slipVariant)
+                        .WithEffects(EffectFactory.Wet(0.9))
+                ]);
+    }
+
+    /// <summary>
+    /// Climbing hazard event - triggers when crossing a Climb edge.
+    /// Uses existing ClimbingFall variants.
+    /// </summary>
+    public static GameEvent? ClimbingHazard(GameContext ctx)
+    {
+        var fallVariant = AccidentVariants.ClimbingFall[
+            Random.Shared.Next(AccidentVariants.ClimbingFall.Length)];
+
+        return new GameEvent("Difficult Terrain",
+            "The way forward requires scrambling over rough ground.", 0.9)
+            .Choice("Move Carefully",
+                "Take your time. Test each handhold.",
+                [
+                    new EventResult("Slow but safe. You make it.", 0.70, 20),
+                    new EventResult("A handhold crumbles. You recover.", 0.25, 25)
+                        .WithEffects(EffectFactory.Shaken(0.2, 30)),
+                    new EventResult(fallVariant.Description, 0.05, 15)
+                        .DamageWithVariant(fallVariant)
+                ])
+            .Choice("Move Quickly",
+                "Speed over caution. Get it done.",
+                [
+                    new EventResult("Momentum carries you through.", 0.50, 10),
+                    new EventResult(fallVariant.Description, 0.35, 12)
+                        .DamageWithVariant(fallVariant),
+                    new EventResult("Bad fall. You tumble hard.", 0.15, 15)
+                        .DamageWithVariant(fallVariant)
+                        .WithEffects(EffectFactory.Dazed(0.3))
+                ])
+            .Choice("Find Another Way",
+                "There might be an easier route.",
+                [
+                    new EventResult("You find a gentler path.", 0.40, 25),
+                    new EventResult("Long way around, but safer.", 0.40, 35),
+                    new EventResult("No good options. You climb.", 0.20, 20)
+                ]);
+    }
+
+    /// <summary>
+    /// First-time climb event for named locations (100% trigger).
+    /// More narrative than the generic hazard.
+    /// </summary>
+    public static Func<GameContext, GameEvent?> FirstClimb(string locationName, string description)
+    {
+        return ctx =>
+        {
+            var fallVariant = AccidentVariants.ClimbingFall[
+                Random.Shared.Next(AccidentVariants.ClimbingFall.Length)];
+
+            return new GameEvent($"The Approach to {locationName}", description, 1.0)
+                .Choice("Make the Climb",
+                    "Commit. Find your route.",
+                    [
+                        new EventResult("Challenging but doable. You reach the top.", 0.60, 25),
+                        new EventResult("Harder than it looked. You're breathing hard at the top.", 0.30, 35)
+                            .WithEffects(EffectFactory.Exhausted(0.2, 30)),
+                        new EventResult(fallVariant.Description, 0.10, 20)
+                            .DamageWithVariant(fallVariant)
+                    ])
+                .Choice("Look for Another Way",
+                    "Circle the approach. There might be an easier route.",
+                    [
+                        new EventResult("You find a gentler slope.", 0.50, 30),
+                        new EventResult("No luck. You climb anyway.", 0.50, 25)
+                    ]);
+        };
+    }
+}
+```
+
+### 4. Location Edge Specification
+
+Locations can specify what edges they create when placed on the map.
+
+Add to `Environments/Location.cs`:
+
+```csharp
+/// <summary>
+/// Edge specifications for this location. Applied when location is placed on map.
+/// Key = direction, Value = edge to create on that side.
+/// Null means no special edge (use terrain-based generation).
+/// </summary>
+[System.Text.Json.Serialization.JsonIgnore]
+public Dictionary<Direction, TileEdge>? EdgeOverrides { get; set; }
+
+/// <summary>
+/// Apply the same edge type on all sides. Convenience for locations like Boulder Field.
+/// </summary>
+public Location WithEdgesOnAllSides(EdgeType type, List<EdgeEvent>? customEvents = null)
+{
+    EdgeOverrides = new()
+    {
+        [Direction.North] = new TileEdge(type) { Events = customEvents ?? [] },
+        [Direction.East] = new TileEdge(type) { Events = customEvents ?? [] },
+        [Direction.South] = new TileEdge(type) { Events = customEvents ?? [] },
+        [Direction.West] = new TileEdge(type) { Events = customEvents ?? [] },
+    };
+    return this;
+}
+
+/// <summary>
+/// Set a specific edge on one side.
+/// </summary>
+public Location WithEdge(Direction dir, EdgeType type, List<EdgeEvent>? customEvents = null)
+{
+    EdgeOverrides ??= new();
+    EdgeOverrides[dir] = new TileEdge(type) { Events = customEvents ?? [] };
+    return this;
+}
+```
+
+**Remove from Location.cs:**
+```csharp
+// DELETE THIS:
+public double ClimbRiskFactor { get; set; } = 0;
+```
+
+### 5. Update LocationFactory
+
+Update locations that currently use `ClimbRiskFactor`:
+
+```csharp
+// Boulder Field - climb on all sides
+public static Location MakeBoulderField(Weather weather)
+{
+    var location = new Location(...)
+    {
+        // ... existing properties ...
+        // REMOVE: ClimbRiskFactor = 0.3
+    }
+    .WithEdgesOnAllSides(EdgeType.Climb);  // NEW
+
+    return location;
+}
+
+// Rocky Ridge - climb with first-visit event
+public static Location MakeRockyRidge(Weather weather)
+{
+    var location = new Location(...)
+    {
+        // ... existing properties ...
+        // REMOVE: ClimbRiskFactor = 0.4
+    }
+    .WithEdgesOnAllSides(EdgeType.Climb, [
+        new EdgeEvent(1.0, EdgeEvents.FirstClimb("Rocky Ridge",
+            "The ridge rises sharply. Broken stone and loose scree. " +
+            "Good handholds if you pick your route."))
+    ]);
+
+    return location;
+}
+
+// The Lookout - tree climb is different (keep as feature/event)
+// The tree climbing is a CHOICE at the location, not an approach hazard
+public static Location MakeTheLookout(Weather weather)
+{
+    var location = new Location(...)
+    {
+        // ... existing properties ...
+        // REMOVE: ClimbRiskFactor = 0.25
+        // Tree climbing stays as FirstVisitEvent - it's optional, not forced
+    };
+    // No edge overrides - normal terrain approach
+    return location;
+}
+```
+
+### 6. Edge Storage in GameMap
 
 Add to `Environments/Grid/GameMap.cs`:
 
@@ -262,6 +550,21 @@ public void RemoveEdge(GridPosition a, GridPosition b, EdgeType type)
 }
 
 /// <summary>
+/// Try to trigger an edge event when crossing between positions.
+/// Returns the first event that triggers, or null if none.
+/// </summary>
+public GameEvent? TryTriggerEdgeEvent(GridPosition from, GridPosition to, GameContext ctx)
+{
+    var edges = GetEdgesBetween(from, to);
+    foreach (var edge in edges)
+    {
+        var evt = edge.TryTriggerEvent(ctx);
+        if (evt != null) return evt;
+    }
+    return null;
+}
+
+/// <summary>
 /// Canonicalize edge storage. Store from top-left position.
 /// Returns (canonical position, direction, whether input was reversed).
 /// </summary>
@@ -317,15 +620,15 @@ public List<EdgeData> EdgeData
 }
 ```
 
-### 4. Integrate with Travel System
+### 8. Integrate with Travel System
 
 **In `TravelProcessor.cs`:**
 
-Update `CalculateSegmentTime` to accept edge modifier:
+Update `GetTraversalMinutes` to accept edge modifier:
 
 ```csharp
 /// <summary>
-/// Calculate traversal time including edge modifiers.
+/// Get total traversal time including edge modifiers.
 /// </summary>
 public static int GetTraversalMinutes(
     Location origin,
@@ -341,29 +644,20 @@ public static int GetTraversalMinutes(
     int total = exitTime + entryTime + edgeModifierMinutes;
     return Math.Max(5, total);  // Minimum 5 minutes
 }
-
-/// <summary>
-/// Get effective hazard for travel, including edge contribution.
-/// </summary>
-public static double GetEffectiveHazard(Location location, double edgeHazard)
-{
-    return Math.Max(location.GetEffectiveTerrainHazard(), edgeHazard);
-}
 ```
 
 **In `TravelRunner.cs`:**
 
-Update `TravelToLocation` to check edge blocking and include edge modifiers:
+Update `TravelToLocation` to check edge events:
 
 ```csharp
 internal bool TravelToLocation(Location destination)
 {
     Location origin = _ctx.CurrentLocation;
-
-    // Check for blocked edges
     var originPos = _ctx.Map!.CurrentPosition;
     var destPos = _ctx.Map.GetPosition(destination);
 
+    // Check for blocked edges
     if (destPos.HasValue)
     {
         var season = _ctx.Weather.CurrentSeason;
@@ -374,22 +668,37 @@ internal bool TravelToLocation(Location destination)
         }
     }
 
-    // Get edge modifiers
+    // Check for edge events BEFORE travel
+    if (destPos.HasValue)
+    {
+        var edgeEvent = _ctx.Map.TryTriggerEdgeEvent(originPos, destPos.Value, _ctx);
+        if (edgeEvent != null)
+        {
+            // Handle the edge event - player might turn back
+            var result = GameEventRegistry.HandleEvent(_ctx, edgeEvent);
+
+            // Check if player chose to turn back (event can set this flag)
+            if (result.TurnedBack)
+            {
+                GameDisplay.AddNarrative(_ctx, "You decide not to proceed.");
+                return true;  // Didn't travel, but not dead
+            }
+
+            if (!_ctx.player.IsAlive) return false;
+        }
+    }
+
+    // Get edge time modifier
     int edgeModifier = destPos.HasValue
         ? _ctx.Map.GetEdgeTraversalModifier(originPos, destPos.Value)
         : 0;
-    double edgeHazard = destPos.HasValue
-        ? _ctx.Map.GetEdgeHazardContribution(originPos, destPos.Value)
-        : 0;
 
-    // Calculate segment times (existing code)
+    // Calculate segment times
     int exitTime = TravelProcessor.CalculateSegmentTime(origin, _ctx.player, _ctx.Inventory);
     int entryTime = TravelProcessor.CalculateSegmentTime(destination, _ctx.player, _ctx.Inventory);
+    int totalTime = exitTime + entryTime + edgeModifier;
 
-    // Apply edge modifier to total
-    int totalBase = exitTime + entryTime + edgeModifier;
-
-    // ... rest of existing hazard prompt logic, using edgeHazard for threshold checks
+    // ... rest of existing travel logic (progress bar, arrival, etc.)
 }
 
 private string GetBlockedMessage(GridPosition from, GridPosition to)
@@ -407,31 +716,31 @@ private string GetBlockedMessage(GridPosition from, GridPosition to)
 }
 ```
 
-Update `GetHazardDescription` to include edge-based hazards:
-
+**Remove from TravelRunner.cs:**
 ```csharp
-private string GetHazardDescription(Location location, double edgeHazard)
+// DELETE - hazard type is now determined by edges, not inferred:
+private static string GetHazardDescription(Location location)
 {
-    // Edge hazard takes priority for description
-    if (edgeHazard >= 0.3)
-    {
-        var edges = GetCurrentEdges();
-        if (edges.Any(e => e.Type == EdgeType.Climb))
-            return "climb";
-        if (edges.Any(e => e.Type == EdgeType.River))
-            return "crossing";
-    }
-
-    // Existing location-based checks
-    if (location.ClimbRiskFactor > 0)
+    if (location.ClimbRiskFactor > 0)  // ClimbRiskFactor no longer exists
         return "climb";
-
-    var water = location.GetFeature<WaterFeature>();
-    if (water != null && water.GetTerrainHazardContribution() > 0)
-        return "ice";
-
-    return "terrain";
+    // ...
 }
+```
+
+**Remove from GameEventRegistry.Expedition.cs:**
+```csharp
+// DELETE - moved to EdgeEvents.cs and triggered by River edges:
+private static GameEvent WaterCrossing(GameContext ctx) { ... }
+
+// Also remove from event registration:
+// (WaterCrossing, 3.0, [EventCondition.NearWater, EventCondition.Traveling])
+```
+
+**Remove from VariantSelector.cs:**
+```csharp
+// DELETE - climb risk no longer on location:
+bool hasClimbRisk = location.ClimbRiskFactor > 0;
+if (hasClimbRisk) { ... }
 ```
 
 ### 5. Extend GetTravelOptions for Blocking
@@ -604,34 +913,62 @@ LAYER: GAME TRAILS
 | Component | Change |
 |-----------|--------|
 | `Direction.cs` | New file - Direction enum + extensions |
-| `TileEdge.cs` | New file - EdgeType enum + TileEdge class |
-| `GameMap.cs` | Add edge storage + query methods + serialization |
-| `TravelProcessor.cs` | Accept edge modifiers in time/hazard calculations |
-| `TravelRunner.cs` | Check edge blocking, include edge modifiers |
-| `TrailMarkingStrategy.cs` | New work strategy for player trail creation |
+| `TileEdge.cs` | New file - EdgeType enum + TileEdge + EdgeEvent classes |
+| `EdgeEvents.cs` | New file - WaterCrossing, ClimbingHazard events |
+| `GameMap.cs` | Add edge storage + query methods + event triggering |
+| `Location.cs` | Add `EdgeOverrides`, remove `ClimbRiskFactor` |
+| `LocationFactory.cs` | Replace `ClimbRiskFactor` with `.WithEdgesOnAllSides()` |
+| `TravelRunner.cs` | Check edge events before travel, handle turn-back |
+| `TravelProcessor.cs` | Accept edge time modifiers |
+| `GameEventRegistry.Expedition.cs` | Remove `WaterCrossing` (moved to edges) |
+| `VariantSelector.cs` | Remove `ClimbRiskFactor` checks |
+| `TrailMarkingStrategy.cs` | New work strategy for player trails |
 | Map generator | Add edge generation layers |
 
 ## Edge Type Summary
 
-| Edge Type | Traversal | Direction | Hazard | Created By |
+| Edge Type | Traversal | Direction | Events | Created By |
 |-----------|-----------|-----------|--------|------------|
-| River | +20 min | Both | 0.15 | Generated |
+| River | +20 min | Both | WaterCrossing (60%) | Generated |
 | Cliff | Blocked | Down only | — | Generated |
-| Climb | +30 min | Both | 0.35 | Generated |
+| Climb | +30 min | Both | ClimbingHazard (40%) | Generated / Location |
 | Game Trail | -5 min | Both | — | Generated |
 | Trail Marker | -3 min | Both | — | Player (15 min) |
 | Cut Trail | -8 min | Both | — | Player (60 min) |
 
+## Locations to Migrate
+
+| Location | Current | New |
+|----------|---------|-----|
+| Boulder Field | `ClimbRiskFactor = 0.3` | `.WithEdgesOnAllSides(EdgeType.Climb)` |
+| Rocky Ridge | `ClimbRiskFactor = 0.4` | `.WithEdgesOnAllSides(EdgeType.Climb, [100% first-climb event])` |
+| The Lookout | `ClimbRiskFactor = 0.25` | Remove (tree climb is a choice, not approach) |
+| Ice Shelf | `ClimbRiskFactor = 0.35` | `.WithEdgesOnAllSides(EdgeType.Climb)` |
+| Bone Hollow | `ClimbRiskFactor = 0.15` | `.WithEdge(Direction.North, EdgeType.Climb)` or remove |
+| Sun-Warmed Cliff | `ClimbRiskFactor = 0.2` | `.WithEdgesOnAllSides(EdgeType.Climb)` |
+
 ## Key Design Decisions
 
-1. **No new HazardType enum** - Edge hazard contribution feeds into existing `TravelProcessor.GetInjuryRisk()` which already handles injury selection via `VariantSelector`.
+1. **Edges own events** - Events trigger when you cross an edge, not probabilistically while "near" something. This makes events contextual and deterministic.
 
-2. **Extends existing systems** - Edge modifiers add to, don't replace, the existing travel time and hazard calculations.
+2. **Locations specify their edges** - Named locations like Boulder Field declare "Climb on all sides" instead of having a `ClimbRiskFactor` property that gets inferred.
 
-3. **Trail marking is a work strategy** - Follows existing pattern of `IWorkStrategy` implementations.
+3. **Events moved, not duplicated** - `WaterCrossing` moves from expedition pool to River edges. Same event, proper trigger.
 
-4. **Cliff = one-way, Climb = risky** - Cliffs are impassable upward (find another way), climbs are hazardous both ways (risk it or use the pass).
+4. **First-time events can be 100%** - Named locations can set trigger chance to 1.0 for guaranteed narrative moments on first approach.
 
-5. **Rivers can flood** - `BlockedSeason` allows Spring floods to make rivers impassable.
+5. **Turn-back as event outcome** - "Find Another Way" choices in edge events can result in not traveling, handled cleanly in TravelRunner.
 
-6. **Edges stack** - A river + game trail means the trail follows the river (faster crossing, animals drink there).
+6. **Trail marking is a work strategy** - Follows existing `IWorkStrategy` pattern.
+
+7. **Edges stack** - A river + game trail means the trail follows the river (faster crossing point, animals drink there).
+
+## Code Removal Checklist
+
+- [ ] `Location.ClimbRiskFactor` property
+- [ ] `TravelRunner.GetHazardDescription()` method
+- [ ] `GameEventRegistry.WaterCrossing()` method
+- [ ] `WaterCrossing` from event registration
+- [ ] `VariantSelector.SelectTravelInjuryVariant()` climb risk logic
+- [ ] `EventCondition.NearWater` checks (verify other uses first)
+- [ ] UI references to `climbRiskFactor` in `app.js:792` and `GridDto.cs:76`
