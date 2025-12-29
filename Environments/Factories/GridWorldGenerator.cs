@@ -11,7 +11,7 @@ public class GridWorldGenerator
     public int Width { get; set; } = 16;
     public int Height { get; set; } = 16;
     public int TargetNamedLocations { get; set; } = 40;
-    public int MinLocationSpacing { get; set; } = 3;  // Minimum tiles between named locations
+    public int MinLocationSpacing { get; set; } = 2;  // Minimum tiles between named locations
 
     // Terrain matrix used during generation
     private TerrainType[,] _terrain = null!;
