@@ -117,7 +117,7 @@ public class TravelRunner(GameContext ctx)
                 var result = GameEventRegistry.HandleEvent(_ctx, edgeEvent);
 
                 // Check if the chosen outcome aborted the travel
-                if (result.AbortsExpedition)
+                if (result.AbortsAction)
                 {
                     GameDisplay.AddNarrative(_ctx, "You decide not to proceed.");
                     return true;  // Didn't travel, but not dead

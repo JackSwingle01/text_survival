@@ -38,6 +38,11 @@ public static class HerdPopulator
         PopulateCaribou(registry, availablePositions, 1 + _rng.Next(2)); // 1-2 herds
         PopulateLargePrey(registry, availablePositions, 5 + _rng.Next(6)); // 5-10 individuals
 
+        // New animals
+        PopulateSaberTooths(registry, availablePositions, 1 + _rng.Next(2)); // 1-2 apex predators
+        PopulateHyenas(registry, availablePositions, 1 + _rng.Next(2)); // 1-2 packs
+        PopulateMammoths(registry, map); // Single herd centered on Bone Hollow
+
         // Add environmental details based on territories
         AddTerritoryDetails(registry, map);
     }
@@ -409,6 +414,159 @@ public static class HerdPopulator
         }
 
         return positions;
+    }
+
+    /// <summary>
+    /// Create solitary saber-tooth tigers (rare apex predators).
+    /// </summary>
+    private static void PopulateSaberTooths(HerdRegistry registry, List<GridPosition> available, int count)
+    {
+        // Get wolf territories to avoid overlap
+        var wolfTerritories = registry._herds
+            .Where(h => h.AnimalType.ToLower() == "wolf")
+            .SelectMany(h => h.HomeTerritory)
+            .ToHashSet();
+
+        for (int i = 0; i < count; i++)
+        {
+            if (available.Count == 0) break;
+
+            // Find positions not in wolf territories (apex predators don't share)
+            var validPositions = available.Where(p => !wolfTerritories.Contains(p)).ToList();
+            if (validPositions.Count == 0) validPositions = available;
+
+            var startPos = validPositions[_rng.Next(validPositions.Count)];
+
+            // Saber-tooths have large territories (6-10 tiles)
+            var territory = CreateContiguousTerritory(startPos, available, 6 + _rng.Next(5));
+
+            if (territory.Count < 4) continue;
+
+            // Create "herd" of 1 saber-tooth
+            var herd = Herd.Create("Saber-Tooth", startPos, territory);
+            var cat = AnimalFactory.MakeSaberToothTiger();
+            if (cat != null)
+            {
+                herd.AddMember(cat);
+            }
+
+            registry.AddHerd(herd);
+
+            // Remove territory from available (apex predator)
+            foreach (var pos in territory)
+            {
+                available.Remove(pos);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Create hyena packs near wolf territories (scavengers follow predators).
+    /// </summary>
+    private static void PopulateHyenas(HerdRegistry registry, List<GridPosition> available, int packCount)
+    {
+        // Get wolf territories to spawn hyenas nearby
+        var wolfTerritories = registry._herds
+            .Where(h => h.AnimalType.ToLower() == "wolf")
+            .SelectMany(h => h.HomeTerritory)
+            .ToHashSet();
+
+        // Find positions adjacent to wolf territories but not inside
+        var hyenaSpawnZone = available
+            .Where(p => !wolfTerritories.Contains(p) &&
+                        p.GetCardinalNeighbors().Any(n => wolfTerritories.Contains(n)))
+            .ToList();
+
+        // Fallback to any available if no adjacent positions
+        if (hyenaSpawnZone.Count < 3) hyenaSpawnZone = available;
+
+        for (int i = 0; i < packCount; i++)
+        {
+            if (hyenaSpawnZone.Count == 0) break;
+
+            var startPos = hyenaSpawnZone[_rng.Next(hyenaSpawnZone.Count)];
+
+            // Hyena territories: 4-7 tiles
+            var territory = CreateContiguousTerritory(startPos, available, 4 + _rng.Next(4));
+
+            if (territory.Count < 3) continue;
+
+            var herd = Herd.Create("Hyena", startPos, territory);
+
+            // Pack size: 3-6
+            int packSize = 3 + _rng.Next(4);
+            for (int j = 0; j < packSize; j++)
+            {
+                var hyena = AnimalFactory.MakeCaveHyena();
+                if (hyena != null)
+                {
+                    herd.AddMember(hyena);
+                }
+            }
+
+            registry.AddHerd(herd);
+
+            // Remove spawn zone positions used
+            foreach (var pos in territory)
+            {
+                hyenaSpawnZone.Remove(pos);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Create mammoth herd centered on Bone Hollow location.
+    /// </summary>
+    private static void PopulateMammoths(HerdRegistry registry, GameMap map)
+    {
+        // Find Bone Hollow by name
+        GridPosition? boneHollowPos = null;
+        for (int x = 0; x < map.Width; x++)
+        {
+            for (int y = 0; y < map.Height; y++)
+            {
+                var loc = map.GetLocationAt(x, y);
+                if (loc?.Name == "Bone Hollow")
+                {
+                    boneHollowPos = new GridPosition(x, y);
+                    break;
+                }
+            }
+            if (boneHollowPos != null) break;
+        }
+
+        if (boneHollowPos == null)
+        {
+            // Bone Hollow not found - skip mammoth population
+            return;
+        }
+
+        // Get available positions around Bone Hollow
+        var available = GetPositionsInRadius(map, boneHollowPos.Value, 10);
+
+        // Create large territory centered on Bone Hollow (12-18 tiles)
+        var territory = CreateContiguousTerritory(boneHollowPos.Value, available, 12 + _rng.Next(7));
+
+        if (territory.Count < 8)
+        {
+            // Not enough space - minimal territory
+            territory = [boneHollowPos.Value];
+        }
+
+        var herd = Herd.Create("Woolly Mammoth", boneHollowPos.Value, territory);
+
+        // Herd size: 8-12 (realistic matriarchal family group)
+        int herdSize = 8 + _rng.Next(5);
+        for (int i = 0; i < herdSize; i++)
+        {
+            var mammoth = AnimalFactory.MakeWoollyMammoth();
+            if (mammoth != null)
+            {
+                herd.AddMember(mammoth);
+            }
+        }
+
+        registry.AddHerd(herd);
     }
 
 }

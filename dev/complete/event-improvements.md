@@ -95,7 +95,7 @@ EventResult
 │   ├── Message: string
 │   ├── Weight: double
 │   ├── TimeAddedMinutes: int
-│   ├── AbortsExpedition: bool
+│   ├── AbortsAction: bool
 │   ├── NewEffect: Effect?
 │   ├── NewDamage: DamageInfo?
 │   ├── RewardPool: RewardPool
@@ -265,7 +265,7 @@ HandleOutcome(ctx, outcome):
         return
     
     // 9. Expedition abort (checked last)
-    if outcome.AbortsExpedition:
+    if outcome.AbortsAction:
         ctx.Expedition?.Abort()
 ```
 

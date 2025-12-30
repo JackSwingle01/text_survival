@@ -437,6 +437,9 @@ export class CanvasGridRenderer {
             }
         }
 
+        // Render edges (after tiles, before player)
+        this.renderEdges();
+
         // Render player icon (after tiles so it's always on top)
         this.renderPlayer();
 
@@ -1142,6 +1145,460 @@ export class CanvasGridRenderer {
                 this.onTileClick(worldX, worldY, tile, { x: tileScreenX, y: tileScreenY });
             }
         }
+    }
+
+    // ========================================
+    // EDGE RENDERING
+    // ========================================
+
+    /**
+     * Render all visible edges
+     */
+    renderEdges() {
+        if (!this.gridState?.edges) return;
+
+        // Render trails first (they go under boundary edges)
+        for (const edge of this.gridState.edges) {
+            if (['GameTrail', 'TrailMarker', 'CutTrail'].includes(edge.edgeType)) {
+                this.renderEdge(edge);
+            }
+        }
+
+        // Then render boundary edges (rivers, cliffs, climbs)
+        for (const edge of this.gridState.edges) {
+            if (!['GameTrail', 'TrailMarker', 'CutTrail'].includes(edge.edgeType)) {
+                this.renderEdge(edge);
+            }
+        }
+    }
+
+    /**
+     * Render a single edge - dispatch to type-specific renderer
+     */
+    renderEdge(edge) {
+        // Convert world coords to view coords
+        const { vx: vx1, vy: vy1 } = this.worldToView(edge.x, edge.y);
+
+        // Calculate neighbor position based on direction
+        const dx = edge.direction === 'East' ? 1 : 0;
+        const dy = edge.direction === 'South' ? 1 : 0;
+        const { vx: vx2, vy: vy2 } = this.worldToView(edge.x + dx, edge.y + dy);
+
+        // Skip if both tiles are off-screen
+        const offScreen = (vx, vy) => vx < -1 || vx > this.VIEW_SIZE || vy < -1 || vy > this.VIEW_SIZE;
+        if (offScreen(vx1, vy1) && offScreen(vx2, vy2)) return;
+
+        // Check fog of war - dim if neither tile is currently visible
+        const tile1 = this.findTile(edge.x, edge.y);
+        const tile2 = this.findTile(edge.x + dx, edge.y + dy);
+        const fullyVisible = tile1?.visibility === 'visible' || tile2?.visibility === 'visible';
+
+        this.ctx.save();
+        if (!fullyVisible) {
+            this.ctx.globalAlpha = 0.5;
+        }
+
+        // Dispatch to type-specific renderer
+        switch (edge.edgeType) {
+            case 'River':
+                this.renderRiverEdge(vx1, vy1, vx2, vy2, edge.direction);
+                break;
+            case 'Cliff':
+                this.renderCliffEdge(vx1, vy1, vx2, vy2, edge.direction);
+                break;
+            case 'Climb':
+                this.renderClimbEdge(vx1, vy1, vx2, vy2, edge.direction);
+                break;
+            case 'GameTrail':
+            case 'TrailMarker':
+            case 'CutTrail':
+                this.renderTrailEdge(vx1, vy1, vx2, vy2, edge.edgeType);
+                break;
+        }
+
+        this.ctx.restore();
+    }
+
+    /**
+     * Render a river edge - wavy icy-blue line along tile boundary
+     */
+    renderRiverEdge(vx1, vy1, vx2, vy2, direction) {
+        const ctx = this.ctx;
+        const { px: px1, py: py1 } = this.getTileScreenPos(vx1, vy1);
+
+        // River colors (icy blue)
+        const riverColor = this.adjustHexForTime('#90b0c8');
+        const riverDark = this.adjustHexForTime('#6090b0');
+        const riverHighlight = 'rgba(255, 255, 255, 0.3)';
+
+        ctx.save();
+
+        // Determine start/end points based on direction
+        let startX, startY, endX, endY;
+        if (direction === 'East') {
+            // Vertical line between tiles (right edge of tile 1)
+            startX = px1 + this.TILE_SIZE + this.GAP / 2;
+            startY = py1 - 5;
+            endX = startX;
+            endY = py1 + this.TILE_SIZE + 5;
+        } else {
+            // Horizontal line between tiles (bottom edge of tile 1)
+            startX = px1 - 5;
+            startY = py1 + this.TILE_SIZE + this.GAP / 2;
+            endX = px1 + this.TILE_SIZE + 5;
+            endY = startY;
+        }
+
+        const amplitude = 4;
+        const frequency = 0.08;
+        const vertical = direction === 'East';
+
+        // Dark shadow/depth
+        ctx.strokeStyle = riverDark;
+        ctx.lineWidth = 10;
+        ctx.lineCap = 'round';
+        this.drawWavyLine(startX + 1, startY + 1, endX + 1, endY + 1, amplitude, frequency, vertical);
+
+        // Main river line
+        ctx.strokeStyle = riverColor;
+        ctx.lineWidth = 8;
+        this.drawWavyLine(startX, startY, endX, endY, amplitude, frequency, vertical);
+
+        // Highlight/ice shine
+        ctx.strokeStyle = riverHighlight;
+        ctx.lineWidth = 2;
+        this.drawWavyLine(startX - 1, startY - 1, endX - 1, endY - 1, amplitude * 0.6, frequency, vertical);
+
+        ctx.restore();
+    }
+
+    /**
+     * Draw a wavy line (for rivers)
+     */
+    drawWavyLine(x1, y1, x2, y2, amplitude, frequency, vertical) {
+        const ctx = this.ctx;
+        ctx.beginPath();
+
+        const length = vertical ? (y2 - y1) : (x2 - x1);
+        const steps = Math.ceil(Math.abs(length) / 3);
+
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const wave = Math.sin(i * frequency * Math.PI * 2) * amplitude;
+
+            let x, y;
+            if (vertical) {
+                x = x1 + wave;
+                y = y1 + t * length;
+            } else {
+                x = x1 + t * length;
+                y = y1 + wave;
+            }
+
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+
+        ctx.stroke();
+    }
+
+    /**
+     * Render a cliff edge - rocky cliff face texture on the blocked side
+     */
+    renderCliffEdge(vx1, vy1, vx2, vy2, direction) {
+        const ctx = this.ctx;
+        const { px: px1, py: py1 } = this.getTileScreenPos(vx1, vy1);
+
+        const cliffColor = this.adjustHexForTime('#404048');
+        const cliffHighlight = this.adjustHexForTime('#606068');
+        const cliffShadow = this.adjustHexForTime('#252530');
+
+        ctx.save();
+
+        const cliffDepth = 15;
+
+        if (direction === 'East') {
+            // Vertical cliff - tile 1 is higher
+            const cliffX = px1 + this.TILE_SIZE - cliffDepth;
+            const cliffWidth = cliffDepth + this.GAP + 3;
+
+            // Cliff face base
+            ctx.fillStyle = cliffColor;
+            ctx.fillRect(cliffX, py1, cliffWidth, this.TILE_SIZE);
+
+            // Jagged edge on the cliff top
+            this.drawCliffJaggedEdge(cliffX, py1, this.TILE_SIZE, true, cliffHighlight);
+
+            // Rock texture
+            this.drawRockTexture(cliffX, py1, cliffWidth, this.TILE_SIZE, cliffShadow);
+
+            // Descent arrow
+            this.drawDescentArrow(px1 + this.TILE_SIZE + this.GAP / 2, py1 + this.TILE_SIZE / 2, 'east');
+        } else {
+            // Horizontal cliff - tile 1 is higher
+            const cliffY = py1 + this.TILE_SIZE - cliffDepth;
+            const cliffHeight = cliffDepth + this.GAP + 3;
+
+            ctx.fillStyle = cliffColor;
+            ctx.fillRect(px1, cliffY, this.TILE_SIZE, cliffHeight);
+
+            this.drawCliffJaggedEdge(px1, cliffY, this.TILE_SIZE, false, cliffHighlight);
+            this.drawRockTexture(px1, cliffY, this.TILE_SIZE, cliffHeight, cliffShadow);
+            this.drawDescentArrow(px1 + this.TILE_SIZE / 2, py1 + this.TILE_SIZE + this.GAP / 2, 'south');
+        }
+
+        ctx.restore();
+    }
+
+    /**
+     * Draw jagged cliff edge
+     */
+    drawCliffJaggedEdge(x, y, length, vertical, color) {
+        const ctx = this.ctx;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        const jagCount = Math.floor(length / 12);
+        for (let i = 0; i <= jagCount; i++) {
+            const t = (i / jagCount) * length;
+            const jag = (i % 2 === 0) ? 0 : (3 + this.seededRandom(x, y, i) * 4);
+
+            if (vertical) {
+                const px = x + jag;
+                const py = y + t;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            } else {
+                const px = x + t;
+                const py = y + jag;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+        }
+        ctx.stroke();
+    }
+
+    /**
+     * Draw rock texture (cracks/shadows)
+     */
+    drawRockTexture(x, y, width, height, shadowColor) {
+        const ctx = this.ctx;
+        ctx.strokeStyle = shadowColor;
+        ctx.lineWidth = 1;
+
+        for (let i = 0; i < 5; i++) {
+            ctx.beginPath();
+            const startX = x + this.seededRandom(x, y, i * 2) * width;
+            const startY = y + this.seededRandom(x, y, i * 2 + 1) * height;
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(
+                startX + (this.seededRandom(x, y, i * 3) - 0.5) * 15,
+                startY + (this.seededRandom(x, y, i * 3 + 1) - 0.5) * 15
+            );
+            ctx.stroke();
+        }
+    }
+
+    /**
+     * Draw descent arrow for cliffs
+     */
+    drawDescentArrow(x, y, direction) {
+        const ctx = this.ctx;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.beginPath();
+
+        const size = 10;
+        if (direction === 'east') {
+            ctx.moveTo(x - size / 2, y - size / 2);
+            ctx.lineTo(x + size / 2, y);
+            ctx.lineTo(x - size / 2, y + size / 2);
+        } else {
+            ctx.moveTo(x - size / 2, y - size / 2);
+            ctx.lineTo(x, y + size / 2);
+            ctx.lineTo(x + size / 2, y - size / 2);
+        }
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    /**
+     * Render a climb edge - rough terrain with hazard stripes
+     */
+    renderClimbEdge(vx1, vy1, vx2, vy2, direction) {
+        const ctx = this.ctx;
+        const { px: px1, py: py1 } = this.getTileScreenPos(vx1, vy1);
+
+        const climbColor = this.adjustHexForTime('#707078');
+        const hazardColor = 'rgba(184, 115, 51, 0.5)';
+
+        ctx.save();
+
+        const climbWidth = 10;
+
+        if (direction === 'East') {
+            const x = px1 + this.TILE_SIZE - 3;
+
+            ctx.fillStyle = climbColor;
+            ctx.fillRect(x, py1, climbWidth + this.GAP, this.TILE_SIZE);
+
+            this.drawHazardStripes(x, py1, climbWidth + this.GAP, this.TILE_SIZE, hazardColor, true);
+            this.drawRoughEdge(x, py1, this.TILE_SIZE, true);
+        } else {
+            const y = py1 + this.TILE_SIZE - 3;
+
+            ctx.fillStyle = climbColor;
+            ctx.fillRect(px1, y, this.TILE_SIZE, climbWidth + this.GAP);
+
+            this.drawHazardStripes(px1, y, this.TILE_SIZE, climbWidth + this.GAP, hazardColor, false);
+            this.drawRoughEdge(px1, y, this.TILE_SIZE, false);
+        }
+
+        ctx.restore();
+    }
+
+    /**
+     * Draw diagonal hazard stripes
+     */
+    drawHazardStripes(x, y, width, height, color, vertical) {
+        const ctx = this.ctx;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+
+        const spacing = 8;
+        const stripes = vertical ? Math.ceil(height / spacing) : Math.ceil(width / spacing);
+
+        for (let i = 0; i < stripes; i++) {
+            ctx.beginPath();
+            if (vertical) {
+                ctx.moveTo(x, y + i * spacing);
+                ctx.lineTo(x + width, y + i * spacing + spacing / 2);
+            } else {
+                ctx.moveTo(x + i * spacing, y);
+                ctx.lineTo(x + i * spacing + spacing / 2, y + height);
+            }
+            ctx.stroke();
+        }
+    }
+
+    /**
+     * Draw rough/rocky edge pattern
+     */
+    drawRoughEdge(x, y, length, vertical) {
+        const ctx = this.ctx;
+        ctx.fillStyle = this.adjustHexForTime('#505058');
+
+        for (let i = 0; i < length; i += 15) {
+            const size = 3 + this.seededRandom(x, y, i) * 4;
+            if (vertical) {
+                ctx.beginPath();
+                ctx.arc(x + this.seededRandom(x, y, i + 1) * 6, y + i, size, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.arc(x + i, y + this.seededRandom(x, y, i + 1) * 6, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    /**
+     * Render a trail edge - worn dirt path connecting tile centers
+     */
+    renderTrailEdge(vx1, vy1, vx2, vy2, trailType) {
+        const ctx = this.ctx;
+        const { px: px1, py: py1 } = this.getTileScreenPos(vx1, vy1);
+        const { px: px2, py: py2 } = this.getTileScreenPos(vx2, vy2);
+
+        // Trail colors by type (earth tones)
+        const colors = {
+            'GameTrail': { main: '#8b7355', edge: '#6b5335' },
+            'TrailMarker': { main: '#9b8365', edge: '#7b6345' },
+            'CutTrail': { main: '#a08060', edge: '#806040' }
+        };
+
+        const color = colors[trailType] || colors.GameTrail;
+        const mainColor = this.adjustHexForTime(color.main);
+        const edgeColor = this.adjustHexForTime(color.edge);
+
+        // Trail width by type
+        const widths = { 'GameTrail': 8, 'TrailMarker': 10, 'CutTrail': 14 };
+        const width = widths[trailType] || 8;
+
+        // Calculate center points
+        const center1X = px1 + this.TILE_SIZE / 2;
+        const center1Y = py1 + this.TILE_SIZE / 2;
+        const center2X = px2 + this.TILE_SIZE / 2;
+        const center2Y = py2 + this.TILE_SIZE / 2;
+
+        ctx.save();
+
+        // Draw trail edge/shadow
+        ctx.strokeStyle = edgeColor;
+        ctx.lineWidth = width + 2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(center1X, center1Y);
+        ctx.lineTo(center2X, center2Y);
+        ctx.stroke();
+
+        // Main trail
+        ctx.strokeStyle = mainColor;
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.moveTo(center1X, center1Y);
+        ctx.lineTo(center2X, center2Y);
+        ctx.stroke();
+
+        // Wear marks along trail
+        this.drawTrailWear(center1X, center1Y, center2X, center2Y, trailType);
+
+        // Trail blazes for marked trails
+        if (trailType === 'TrailMarker') {
+            this.drawTrailBlazes(center1X, center1Y, center2X, center2Y);
+        }
+
+        ctx.restore();
+    }
+
+    /**
+     * Draw wear marks along trail (footprints/packed dirt)
+     */
+    drawTrailWear(x1, y1, x2, y2, trailType) {
+        const ctx = this.ctx;
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const markCount = trailType === 'GameTrail' ? 3 : (trailType === 'CutTrail' ? 5 : 4);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+
+        for (let i = 1; i < markCount; i++) {
+            const t = i / markCount;
+            const x = x1 + dx * t + (this.seededRandom(x1, y1, i) - 0.5) * 4;
+            const y = y1 + dy * t + (this.seededRandom(x1, y1, i + 10) - 0.5) * 4;
+
+            ctx.beginPath();
+            ctx.ellipse(x, y, 3, 2, Math.atan2(dy, dx), 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    /**
+     * Draw trail blazes (marks on trees) for TrailMarker
+     */
+    drawTrailBlazes(x1, y1, x2, y2) {
+        const ctx = this.ctx;
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+
+        // White blaze mark
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.fillRect(midX - 3, midY - 6, 6, 12);
+
+        // Dark outline
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(midX - 3, midY - 6, 6, 12);
     }
 
     /**

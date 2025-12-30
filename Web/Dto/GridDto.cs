@@ -13,7 +13,8 @@ public record GridStateDto(
     int Height,
     int PlayerX,
     int PlayerY,
-    List<TileDto> Tiles  // Only explored/visible tiles
+    List<TileDto> Tiles,  // Only explored/visible tiles
+    List<EdgeDto> Edges   // Edges between explored/visible tiles
 )
 {
     public static GridStateDto FromContext(GameContext ctx)
@@ -37,12 +38,45 @@ public record GridStateDto(
             }
         }
 
+        // Build edge list - include edges where EITHER tile is explored
+        var edges = new List<EdgeDto>();
+        foreach (var edgeData in map.Edges)
+        {
+            var pos = new GridPosition(edgeData.X, edgeData.Y);
+            var neighborPos = edgeData.Direction switch
+            {
+                Direction.East => new GridPosition(edgeData.X + 1, edgeData.Y),
+                Direction.South => new GridPosition(edgeData.X, edgeData.Y + 1),
+                _ => pos
+            };
+
+            var tile1 = map.GetLocationAt(pos);
+            var tile2 = map.GetLocationAt(neighborPos);
+
+            // Edge visible if either tile is at least explored
+            bool visible = (tile1?.Visibility != TileVisibility.Unexplored) ||
+                          (tile2?.Visibility != TileVisibility.Unexplored);
+
+            if (visible)
+            {
+                edges.Add(new EdgeDto(
+                    X: edgeData.X,
+                    Y: edgeData.Y,
+                    Direction: edgeData.Direction.ToString(),
+                    EdgeType: edgeData.Edge.Type.ToString(),
+                    Bidirectional: edgeData.Edge.Bidirectional,
+                    TraversalModifier: edgeData.Edge.TraversalModifierMinutes
+                ));
+            }
+        }
+
         return new GridStateDto(
             Width: map.Width,
             Height: map.Height,
             PlayerX: map.CurrentPosition.X,
             PlayerY: map.CurrentPosition.Y,
-            Tiles: tiles
+            Tiles: tiles,
+            Edges: edges
         );
     }
 }
@@ -250,4 +284,17 @@ public record FeatureDetailDto(
     string Label,          // Display name
     string? Status,        // e.g., "75% insulation", "abundant"
     List<string>? Details  // Additional details like resource types
+);
+
+/// <summary>
+/// Edge data for rendering between tiles.
+/// Uses canonical storage: from lower position toward higher (East/South only).
+/// </summary>
+public record EdgeDto(
+    int X,                  // Canonical position X
+    int Y,                  // Canonical position Y
+    string Direction,       // "East" or "South" (canonical directions only)
+    string EdgeType,        // "River", "Cliff", "Climb", "GameTrail", "TrailMarker", "CutTrail"
+    bool Bidirectional,     // False for cliffs (one-way descent)
+    int TraversalModifier   // Time modifier in minutes (negative = faster)
 );

@@ -86,7 +86,7 @@ public class EventResult(string message, double weight = 1)
     public string Message;
     public double Weight;
     public int TimeAddedMinutes;
-    public bool AbortsExpedition;
+    public bool AbortsAction;
 
     // Effects and damage
     public Effect? NewEffect;
@@ -524,13 +524,13 @@ private static GameEvent StalkerCircling(GameContext ctx)
         "Head back now. Fire deters predators.",
         [
             new EventResult("You make it back. Fire deters it.", weight: 0.60)
-            { ResolvesTension = "Stalked", AbortsExpedition = true },
+            { ResolvesTension = "Stalked", AbortsAction = true },
             new EventResult("It follows to camp perimeter but won't approach fire.", weight: 0.25)
-            { ResolvesTension = "Stalked", AbortsExpedition = true, NewEffect = EffectFactory.Fear(0.2) },
+            { ResolvesTension = "Stalked", AbortsAction = true, NewEffect = EffectFactory.Fear(0.2) },
             new EventResult("It's bolder than you thought. Attacks before you reach safety.", weight: 0.15)
             {
                 TimeAddedMinutes = 5,
-                AbortsExpedition = true,
+                AbortsAction = true,
                 ResolvesTension = "Stalked",
                 SpawnEncounter = new EncounterConfig(predator, 10, 0.8)
             }

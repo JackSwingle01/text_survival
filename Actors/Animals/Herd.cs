@@ -130,6 +130,7 @@ public class Herd
             HerdBehaviorType.Prey => new PreyBehavior(),
             HerdBehaviorType.PackPredator => new PackPredatorBehavior(),
             HerdBehaviorType.SolitaryPredator => new SolitaryPredatorBehavior(),
+            HerdBehaviorType.Scavenger => new ScavengerBehavior(),
             _ => new PreyBehavior()
         };
     }
@@ -161,6 +162,9 @@ public class Herd
     {
         "wolf" => 3,
         "bear" or "cave bear" => 2,
+        "saber-tooth" or "saber-tooth tiger" => 3,  // Stealthy ambush hunter
+        "hyena" or "cave hyena" => 2,
+        "mammoth" or "woolly mammoth" => 2,
         "caribou" or "megaloceros" or "bison" => 2,
         _ => 2
     };
@@ -199,6 +203,8 @@ public class Herd
         {
             "wolf" => HerdBehaviorType.PackPredator,
             "bear" or "cave bear" => HerdBehaviorType.SolitaryPredator,
+            "saber-tooth" or "saber-tooth tiger" => HerdBehaviorType.SolitaryPredator,
+            "hyena" or "cave hyena" => HerdBehaviorType.Scavenger,
             _ => HerdBehaviorType.Prey
         };
 
@@ -213,6 +219,7 @@ public class Herd
             {
                 HerdBehaviorType.PackPredator => HerdState.Patrolling,
                 HerdBehaviorType.SolitaryPredator => HerdState.Resting,
+                HerdBehaviorType.Scavenger => HerdState.Patrolling,  // Always searching
                 _ => HerdState.Grazing
             },
             Hunger = _rng.NextDouble() * 0.3 // Start slightly hungry

@@ -163,6 +163,10 @@ public class WorkRunner(GameContext ctx)
             // Check if an event interrupted us
             if (_ctx.EventOccurredLastUpdate && totalElapsed < workMinutes)
             {
+                // If event aborted, stop immediately without prompting
+                if (_ctx.LastEventAborted)
+                    break;
+
                 int remainingAfterEvent = workMinutes - totalElapsed;
                 GameDisplay.Render(_ctx, statusText: "Interrupted");
 

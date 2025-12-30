@@ -90,8 +90,11 @@ public static class AnimalDietExtensions
         {
             "bear" or "cave bear" => AnimalDiet.Omnivore,
             "caribou" or "megaloceros" => AnimalDiet.Browser,
+            "mammoth" or "woolly mammoth" => AnimalDiet.Browser,  // Mammoths browse trees/shrubs
             "bison" or "steppe bison" => AnimalDiet.Grazer,
             "wolf" => AnimalDiet.Carnivore,
+            "hyena" or "cave hyena" => AnimalDiet.Carnivore,
+            "saber-tooth" or "saber-tooth tiger" => AnimalDiet.Carnivore,
             _ => AnimalDiet.Carnivore // Default to no foraging competition
         };
     }

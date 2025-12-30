@@ -110,9 +110,10 @@ public static class PredatorPreyResolver
         // Animal type affects stealth
         stealth *= predator.AnimalType.ToLower() switch
         {
-            "wolf" => 1.2,      // Wolves are skilled stalkers
-            "bear" => 0.7,      // Bears are less stealthy
-            "saber-tooth" => 1.3, // Ambush predator
+            "wolf" => 1.2,                          // Wolves are skilled stalkers
+            "bear" or "cave bear" => 0.7,           // Bears are less stealthy
+            "saber-tooth" or "saber-tooth tiger" => 1.3,  // Ambush predator
+            "hyena" or "cave hyena" => 0.8,         // Noisy scavengers
             _ => 1.0
         };
 

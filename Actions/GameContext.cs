@@ -78,6 +78,7 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     public bool IsHandlingEvent { get; set; } = false;
     public bool EventOccurredLastUpdate { get; private set; } = false;
+    public bool LastEventAborted { get; private set; } = false;
 
     // Tutorial message tracking
     private HashSet<string> _shownTutorials = new();
@@ -319,6 +320,7 @@ public class GameContext(Player player, Location camp, Weather weather)
     public int Update(int targetMinutes, ActivityType activity, bool render = false)
     {
         EventOccurredLastUpdate = false;
+        LastEventAborted = false;
         CurrentActivity = activity;
         var config = ActivityConfig.Get(activity);
 
@@ -351,7 +353,8 @@ public class GameContext(Player player, Location camp, Weather weather)
         if (evt is not null)
         {
             EventOccurredLastUpdate = true;
-            GameEventRegistry.HandleEvent(this, evt);
+            var result = GameEventRegistry.HandleEvent(this, evt);
+            LastEventAborted = result.AbortsAction;
         }
 
         // Clear visibility reveal flag after event check (transient state, resets each update)

@@ -44,7 +44,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public string Message = message;
     public double Weight = weight;
     public int TimeAddedMinutes = minutes;
-    public bool AbortsExpedition;
+    public bool AbortsAction;
     public List<Effect> Effects = [];
     public DamageInfo? NewDamage;
     public RewardPool RewardPool = RewardPool.None;
@@ -88,7 +88,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     // === Fluent builder methods ===
 
-    public EventResult Aborts() { AbortsExpedition = true; return this; }
+    public EventResult Aborts() { AbortsAction = true; return this; }
     public EventResult Rewards(RewardPool pool, double density = 1.0)
     {
         RewardPool = pool;

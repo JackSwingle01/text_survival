@@ -11,6 +11,9 @@ public enum HerdBehaviorType
     /// <summary>Pack predators: wolves. Patrol territory, hunt cooperatively.</summary>
     PackPredator,
 
-    /// <summary>Solitary predators: bears. Forage, patrol, defend territory.</summary>
-    SolitaryPredator
+    /// <summary>Solitary predators: bears, saber-tooth tigers. Forage, patrol, defend territory.</summary>
+    SolitaryPredator,
+
+    /// <summary>Scavengers: hyenas. Patrol for carcasses, follow predator kills, opportunistic.</summary>
+    Scavenger
 }
