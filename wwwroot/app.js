@@ -296,7 +296,7 @@ class GameClient {
                 this.showCookingOverlay(overlay.data, input);
                 break;
             case 'butcher':
-                this.showButcherPopup(overlay.data);
+                this.showButcherPopup(overlay.data, input);
                 break;
         }
     }
@@ -597,7 +597,7 @@ class GameClient {
             this.gridRenderer = getGridRenderer();
             this.gridRenderer.init('gridCanvas', (x, y, tileData, screenPos) => {
                 this.handleTileClick(x, y, tileData, screenPos);
-            });
+            }, 'gridViewport');
             this.gridInitialized = true;
         }
 
@@ -660,9 +660,10 @@ class GameClient {
         if (isExplored && tileData.featureDetails && tileData.featureDetails.length > 0) {
             this.buildDetailedFeatures(featuresEl, tileData.featureDetails);
         } else if (tileData.featureIcons && tileData.featureIcons.length > 0) {
+            // Unexplored tiles: show icons only (no labels - those come from featureDetails on explored tiles)
             tileData.featureIcons.forEach(icon => {
                 const featureEl = document.createElement('div');
-                featureEl.className = 'popup-feature';
+                featureEl.className = 'popup-feature icon-only';
 
                 // Add special classes for certain icons
                 if (icon === 'local_fire_department' || icon === 'fireplace') {
@@ -677,10 +678,6 @@ class GameClient {
                 iconEl.className = ICON_CLASS;
                 iconEl.textContent = icon;
                 featureEl.appendChild(iconEl);
-
-                const labelEl = document.createElement('span');
-                labelEl.textContent = this.getIconLabel(icon);
-                featureEl.appendChild(labelEl);
 
                 featuresEl.appendChild(featureEl);
             });
@@ -854,8 +851,14 @@ class GameClient {
             featureEl.className = 'popup-feature-detailed';
 
             const iconEl = document.createElement('span');
-            iconEl.className = ICON_CLASS;
-            iconEl.textContent = getFeatureTypeIcon(feature.type);
+            // Herds use emoji from details[0], others use Material Icons
+            if (feature.type === 'herd' && feature.details && feature.details.length > 0) {
+                iconEl.className = 'feature-emoji';
+                iconEl.textContent = feature.details[0];
+            } else {
+                iconEl.className = ICON_CLASS;
+                iconEl.textContent = getFeatureTypeIcon(feature.type);
+            }
             featureEl.appendChild(iconEl);
 
             const contentEl = document.createElement('div');
@@ -873,7 +876,8 @@ class GameClient {
                 contentEl.appendChild(statusEl);
             }
 
-            if (feature.details && feature.details.length > 0) {
+            // Don't show details for herds (emoji is in details[0])
+            if (feature.details && feature.details.length > 0 && feature.type !== 'herd') {
                 const detailsEl = document.createElement('span');
                 detailsEl.className = 'feature-details';
                 detailsEl.textContent = feature.details.slice(0, 3).join(', ');
@@ -1011,7 +1015,7 @@ class GameClient {
 
         const quickDesc = document.createElement('span');
         quickDesc.className = 'choice-desc';
-        quickDesc.textContent = `${hazardPrompt.quickTimeMinutes} min • ${hazardPrompt.injuryRiskPercent.toFixed(0)}% injury risk`;
+        quickDesc.textContent = `${hazardPrompt.quickTimeMinutes} min • ${(hazardPrompt.injuryRisk * 100).toFixed(0)}% injury risk`;
         quickBtn.appendChild(quickDesc);
 
         quickBtn.onclick = () => {
@@ -1358,11 +1362,13 @@ class GameClient {
     /**
      * Show butcher popup overlay
      */
-    showButcherPopup(butcherData) {
+    showButcherPopup(butcherData, input) {
         const overlay = document.getElementById('butcherOverlay');
         if (!overlay) return;
 
         show(overlay);
+
+        const inputId = this.currentInputId;
 
         // Initialize selection state
         this.butcherSelection = {
@@ -1417,11 +1423,11 @@ class GameClient {
         // Set up buttons
         document.getElementById('butcherConfirmBtn').onclick = () => {
             if (this.butcherSelection.modeId) {
-                this.sendChoice(this.butcherSelection.modeId);
+                this.respond(this.butcherSelection.modeId, inputId);
             }
         };
         document.getElementById('butcherCancelBtn').onclick = () => {
-            this.sendChoice('cancel');
+            this.respond('cancel', inputId);
         };
     }
 

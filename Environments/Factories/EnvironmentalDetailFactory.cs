@@ -63,53 +63,55 @@ public static class EnvironmentalDetailFactory
     [
         EnvironmentalDetail.FallenLog,
         EnvironmentalDetail.HollowTree,
-        EnvironmentalDetail.BentBranches,  // Generic - could be any animal
-        EnvironmentalDetail.ScatteredBones // Generic - old kills
-        // Note: Species-specific tracks/droppings are added by HerdPopulator based on actual territories
+        EnvironmentalDetail.BentBranches,
+        EnvironmentalDetail.OldNest,
+        EnvironmentalDetail.ScatteredBones,  // Keep bones in forest - natural die-offs
+        EnvironmentalDetail.ForestPuddle
     ];
 
     private static List<Func<EnvironmentalDetail>> ClearingDetails() =>
     [
         EnvironmentalDetail.FallenLog,
-        EnvironmentalDetail.ScatteredBones
-        // Note: Species-specific signs come from actual herd territories
+        EnvironmentalDetail.OldNest,
+        EnvironmentalDetail.DryGrassTussock,
+        EnvironmentalDetail.BentBranches,
+        EnvironmentalDetail.ForestPuddle
     ];
 
     private static List<Func<EnvironmentalDetail>> PlainDetails() =>
     [
         EnvironmentalDetail.FrozenPuddle,
-        EnvironmentalDetail.ScatteredBones
-        // Note: Species-specific signs come from actual herd territories
+        EnvironmentalDetail.DryGrassTussock,
+        EnvironmentalDetail.WindsweptSnow,
+        EnvironmentalDetail.AnimalBurrow
     ];
 
     private static List<Func<EnvironmentalDetail>> HillsDetails() =>
     [
         EnvironmentalDetail.StonePile,
         EnvironmentalDetail.BentBranches,
-        EnvironmentalDetail.ScatteredBones
-        // Note: Species-specific signs come from actual herd territories
+        EnvironmentalDetail.LichenRocks,
+        EnvironmentalDetail.AnimalBurrow
     ];
 
     private static List<Func<EnvironmentalDetail>> RockDetails() =>
     [
         EnvironmentalDetail.StonePile,
-        EnvironmentalDetail.StonePile, // Double weight for stone in rocky areas
-        EnvironmentalDetail.ScatteredBones
-        // Note: Species-specific signs come from actual herd territories
+        EnvironmentalDetail.StonePile,  // Double weight for stone in rocky areas
+        EnvironmentalDetail.LichenRocks
     ];
 
     private static List<Func<EnvironmentalDetail>> MarshDetails() =>
     [
         EnvironmentalDetail.FrozenPuddle,
-        EnvironmentalDetail.BentBranches,
-        EnvironmentalDetail.ScatteredBones
-        // Note: Species-specific signs come from actual herd territories
+        EnvironmentalDetail.DeadReeds,
+        EnvironmentalDetail.BentBranches
     ];
 
     private static List<Func<EnvironmentalDetail>> WaterDetails() =>
     [
         EnvironmentalDetail.FrozenPuddle,
-        EnvironmentalDetail.ScatteredBones
-        // Note: Species-specific signs come from actual herd territories
+        EnvironmentalDetail.DeadReeds,
+        EnvironmentalDetail.IceFormation
     ];
 }

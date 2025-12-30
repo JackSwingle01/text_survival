@@ -6,28 +6,40 @@ namespace text_survival.Actors.Animals;
 public static class AnimalFactory
 {
     /// <summary>
+    /// Create an animal from an AnimalType enum.
+    /// </summary>
+    public static Animal? FromType(AnimalType animalType)
+    {
+        return animalType switch
+        {
+            AnimalType.Caribou => MakeCaribou(),
+            AnimalType.Rabbit => MakeRabbit(),
+            AnimalType.Ptarmigan => MakePtarmigan(),
+            AnimalType.Fox => MakeFox(),
+            AnimalType.Wolf => MakeWolf(),
+            AnimalType.Bear => MakeBear(),
+            AnimalType.CaveBear => MakeCaveBear(),
+            AnimalType.Hyena => MakeCaveHyena(),
+            AnimalType.Mammoth => MakeWoollyMammoth(),
+            AnimalType.SaberTooth => MakeSaberToothTiger(),
+            AnimalType.Megaloceros => MakeMegaloceros(),
+            AnimalType.Bison => MakeSteppeBison(),
+            AnimalType.Rat => MakeRat(),
+            AnimalType.Squirrel => MakeRat(),  // Placeholder - similar small game
+            AnimalType.Grouse => MakePtarmigan(),  // Placeholder - similar bird
+            AnimalType.Fish => null,  // Fish don't have combat stats
+            _ => null
+        };
+    }
+
+    /// <summary>
     /// Create an animal from a name string.
     /// Used for territories and event-based carcass creation.
     /// </summary>
     public static Animal? FromName(string animalName)
     {
-        return animalName.ToLower() switch
-        {
-            "caribou" => MakeCaribou(),
-            "rabbit" => MakeRabbit(),
-            "ptarmigan" => MakePtarmigan(),
-            "fox" => MakeFox(),
-            "wolf" => MakeWolf(),
-            "bear" => MakeBear(),
-            "cave bear" => MakeCaveBear(),
-            "hyena" or "cave hyena" => MakeCaveHyena(),
-            "mammoth" or "woolly mammoth" => MakeWoollyMammoth(),
-            "saber-tooth" or "saber-tooth tiger" or "sabertooth" => MakeSaberToothTiger(),
-            "megaloceros" => MakeMegaloceros(),
-            "bison" or "steppe bison" => MakeSteppeBison(),
-            "rat" => MakeRat(),
-            _ => null
-        };
+        var animalType = AnimalTypes.Parse(animalName);
+        return animalType.HasValue ? FromType(animalType.Value) : null;
     }
 
     public static Animal MakeRat()

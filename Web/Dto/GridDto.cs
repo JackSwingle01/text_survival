@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Actors.Animals;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Environments.Features;
@@ -186,7 +187,7 @@ public record TileDto(
             IsDark: isExplored ? location.IsDark : null,
 
             // Feature details
-            FeatureDetails: isExplored ? GetFeatureDetails(location) : null
+            FeatureDetails: isExplored ? GetFeatureDetails(location, x, y, ctx) : null
         );
     }
 
@@ -204,14 +205,52 @@ public record TileDto(
             .ToList();
     }
 
-    private static List<FeatureDetailDto> GetFeatureDetails(Location location)
+    private static List<FeatureDetailDto> GetFeatureDetails(Location location, int x, int y, GameContext ctx)
     {
         // Features are self-describing - each feature knows how to represent itself for UI
-        return location.Features
+        var details = location.Features
             .Select(f => f.GetUIInfo())
             .Where(info => info != null)
             .Select(info => new FeatureDetailDto(info!.Type, info.Label, info.Status, info.Details))
             .ToList();
+
+        // Add herd information for visible tiles
+        if (location.Visibility == TileVisibility.Visible)
+        {
+            var herds = ctx.Herds.GetHerdsAt(new GridPosition(x, y));
+            foreach (var herd in herds)
+            {
+                var countDesc = herd.Count switch
+                {
+                    1 => "lone",
+                    2 => "pair",
+                    <= 4 => "small group",
+                    <= 8 => "group",
+                    _ => "large herd"
+                };
+
+                var stateDesc = herd.State switch
+                {
+                    HerdState.Resting => "resting",
+                    HerdState.Grazing => "grazing",
+                    HerdState.Patrolling => "patrolling",
+                    HerdState.Alert => "alert",
+                    HerdState.Fleeing => "fleeing",
+                    HerdState.Hunting => "hunting",
+                    HerdState.Feeding => "feeding",
+                    _ => ""
+                };
+
+                var displayName = herd.AnimalType.DisplayName();
+                var label = herd.Count == 1 ? displayName : displayName + "s";
+                var status = $"{countDesc}, {stateDesc}";
+                var emoji = herd.AnimalType.Emoji();
+
+                details.Add(new FeatureDetailDto("herd", label, status, [emoji]));
+            }
+        }
+
+        return details;
     }
 
     private static List<string> GetAnimalIcons(int x, int y, Location location, GameContext ctx)
@@ -224,24 +263,8 @@ public record TileDto(
 
         return herds
             .Take(4)  // Max 4 positions available
-            .Select(h => GetAnimalEmoji(h.AnimalType))
+            .Select(h => h.AnimalType.Emoji())
             .ToList();
-    }
-
-    private static string GetAnimalEmoji(string animalType)
-    {
-        return animalType.ToLower() switch
-        {
-            "deer" => "🦌",
-            "caribou" => "🦌",
-            "wolf" => "🐺",
-            "bear" => "🐻",
-            "bison" => "🦬",
-            "rabbit" => "🐇",
-            "elk" => "🦌",
-            "moose" => "🫎",
-            _ => "🐾"
-        };
     }
 }
 
@@ -262,7 +285,7 @@ public record HazardPromptDto(
     string HazardDescription,
     int QuickTimeMinutes,
     int CarefulTimeMinutes,
-    double InjuryRiskPercent  // 0-50
+    double InjuryRisk  // 0-1
 );
 
 /// <summary>

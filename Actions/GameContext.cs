@@ -459,7 +459,7 @@ public class GameContext(Player player, Location camp, Weather weather)
                         if (predator != null)
                         {
                             _pendingEncounter = new EncounterConfig(
-                                encounterHerd.AnimalType,
+                                encounterHerd.AnimalType.DisplayName(),
                                 InitialDistance: result.EncounterRequest.IsDefendingKill ? 10 : 20,
                                 InitialBoldness: result.EncounterRequest.IsDefendingKill ? 0.8 : 0.6
                             );
@@ -777,4 +777,20 @@ public enum EventCondition
     // Equipment state conditions
     Waterproofed,          // Player has some waterproof equipment (level >= 0.15)
     FullyWaterproofed,     // Player has well-waterproofed equipment (level >= 0.4)
+
+    // Equipment possession
+    HasWeapon,             // Player has a weapon equipped
+    HasFirestarter,        // Player has a fire-starting tool
+
+    // Saber-tooth arc
+    SaberToothStalked,     // Being stalked by a saber-tooth
+
+    // Terrain escape options
+    HasEscapeTerrain,      // Location has terrain suitable for escape (trees, rocks)
+
+    // Butchering activity
+    IsButchering,          // Player is actively butchering a carcass
+
+    // Visibility (aliases)
+    GoodVisibility,        // Alias for HighVisibility - open terrain with clear sightlines
 }

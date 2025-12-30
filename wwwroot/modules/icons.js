@@ -21,6 +21,7 @@ export function getWeatherIcon(condition) {
 }
 
 // Feature type to icon mapping (for popup detailed features)
+// Note: 'herd' type uses emoji from details[0] instead of Material Icon
 export const FEATURE_TYPE_ICONS = {
     'shelter': 'cabin',
     'forage': 'eco',
@@ -66,7 +67,7 @@ export const FEATURE_ICON_LABELS = {
     'done_all': 'Curing complete!',
     'construction': 'Construction project',
 
-    // Environmental details
+    // Environmental details (used by explored tile popups via featureDetails, not icon labels)
     'footprint': 'Animal tracks',
     'scatter_plot': 'Animal droppings',
     'call_split': 'Bent branches',

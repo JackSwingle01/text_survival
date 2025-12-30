@@ -388,6 +388,11 @@ public class Inventory
 
     public bool HasWeapon => Weapon != null;
 
+    public bool HasFirestarter =>
+        Tools.Any(t => t.ToolType == ToolType.FireStriker ||
+                       t.ToolType == ToolType.HandDrill ||
+                       t.ToolType == ToolType.BowDrill);
+
     public bool HasCuttingTool =>
         (Weapon != null && (Weapon.ToolType == ToolType.Knife || Weapon.ToolType == ToolType.Axe)) ||
         Tools.Any(t => t.ToolType == ToolType.Knife || t.ToolType == ToolType.Axe);

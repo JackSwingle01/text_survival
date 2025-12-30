@@ -296,6 +296,10 @@ public class Weather
                     WindSpeed = Utils.RandDouble(0.7, 1.0);     // 70-100% of max wind
                     CloudCover = Utils.RandDouble(0.9, 1.0);    // 90-100% cloud cover
                     _weatherDuration = GenerateRandomWeatherDuration(4); // 1-7 hours
+
+                    // Blizzards only occur in cold conditions - clamp to lower 40% of range
+                    double coldHalfMax = minTemp + (temperatureRange * 0.4);
+                    BaseTemperature = Math.Min(BaseTemperature, coldHalfMax);
                 }
                 else
                 {

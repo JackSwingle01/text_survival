@@ -10,33 +10,43 @@ namespace text_survival.Actions;
 public static partial class GameEventRegistry
 {
     // === MEGAFAUNA HUNT ARC EVENTS ===
+    // These events integrate with the persistent mammoth herd system.
 
     /// <summary>
-    /// Stage 1: Discovery - Player scouts and finds mammoth signs.
-    /// Creates initial MammothTracked tension. Low risk, creates opportunity.
+    /// Stage 1: Discovery - Player hears mammoth calls near the herd territory.
+    /// Creates initial MammothTracked tension. Now territory-aware.
     /// </summary>
     private static GameEvent DistantTrumpeting(GameContext ctx)
     {
+        var herd = Situations.GetMammothHerd(ctx);
+        var herdDesc = herd?.State switch
+        {
+            HerdState.Grazing => "The calls have the rhythm of content feeding.",
+            HerdState.Alert => "The calls sound agitated. Something has spooked them.",
+            HerdState.Fleeing => "Urgent trumpeting. The herd is on the move, fast.",
+            _ => "The sound is distant but unmistakable."
+        };
+
         return new GameEvent("Distant Trumpeting",
-            "A deep, resonant call echoes across the valley. Mammoth. " +
-            "The sound is distant but unmistakable—a bull, likely separated from the herd. " +
+            $"A deep, resonant call echoes across the valley. Mammoth. {herdDesc} " +
             "Following it means committing time, resources. But the rewards...", 1.0)
-            .WithSituationFactor(Situations.SupplyPressure, 1.5)  // More likely when desperate
+            .RequiresSituation(ctx => Situations.NearMammothHerd(ctx) || Situations.InMammothTerritory(ctx))
+            .WithSituationFactor(Situations.SupplyPressure, 1.5)
             .Choice("Follow the Sound",
                 "Track it down now while the trail is fresh.",
                 [
                     new EventResult("You find fresh tracks. Massive. The snow tells a story of where it went.", weight: 0.55, minutes: 30)
-                        .CreateTension("MammothTracked", 0.4),
+                        .MammothTracked(0.4),
                     new EventResult("The tracks lead toward rocky ground. Harder to follow, but you mark the direction.", weight: 0.30, minutes: 35)
-                        .CreateTension("MammothTracked", 0.3),
+                        .MammothTracked(0.3),
                     new EventResult("Another call, closer now. You catch a glimpse of dark fur through the trees.", weight: 0.15, minutes: 25)
-                        .CreateTension("MammothTracked", 0.5)
+                        .MammothTracked(0.5)
                 ])
             .Choice("Mark It for Later",
                 "Note the direction. Return when better prepared.",
                 [
                     new EventResult("You mark the treeline with a blaze. The mammoth was heading northeast.", weight: 1.0, minutes: 10)
-                        .CreateTension("MammothTracked", 0.2)
+                        .MammothTracked(0.2)
                 ])
             .Choice("Too Risky Now",
                 "Mammoths are dangerous. Not worth it yet.",
@@ -244,6 +254,220 @@ public static partial class GameEventRegistry
                     new EventResult("There are too many. They swarm. You fight them off the carcass.", weight: 0.25)
                         .FindsMeat()
                         .Encounter("Wolf", distance: 15, boldness: 0.7)
+                ]);
+    }
+
+    // === PERSISTENT HERD INTEGRATION ===
+
+    /// <summary>
+    /// Peaceful sighting - the mammoth herd is grazing/resting and player observes.
+    /// Creates opportunity without immediate danger.
+    /// </summary>
+    private static GameEvent TheHerd(GameContext ctx)
+    {
+        var herd = Situations.GetMammothHerd(ctx);
+        int count = herd?.Count ?? 8;
+        var countDesc = count switch
+        {
+            <= 4 => "a small family group",
+            <= 8 => "a full family",
+            <= 12 => "a large family group",
+            _ => "a massive gathering"
+        };
+
+        return new GameEvent("The Herd",
+            $"You crest a rise and freeze. Below: {countDesc} of woolly mammoths. " +
+            "Adults, young, a matriarch with tusks curved like twin moons. " +
+            "They haven't seen you. The wind is in your favor.", 0.8)
+            .Requires(EventCondition.OnExpedition)
+            .RequiresSituation(Situations.MammothHerdPresent)
+            .RequiresSituation(ctx => {
+                var h = Situations.GetMammothHerd(ctx);
+                return h != null && (h.State == HerdState.Grazing || h.State == HerdState.Resting);
+            })
+            .WithConditionFactor(EventCondition.GoodVisibility, 1.5)
+            .Choice("Scout from Cover",
+                "Watch. Learn their patterns. Stay hidden.",
+                [
+                    new EventResult("You observe for hours. Their routes, their habits. Knowledge for the hunt.", weight: 0.6, minutes: 60)
+                        .MammothTracked(0.5)
+                        .MarksDiscovery("Mammoth grazing patterns", 0.6),
+                    new EventResult("A young one wanders close. The matriarch watches, but you stay still.", weight: 0.3, minutes: 45)
+                        .MammothTracked(0.6)
+                        .AlertsHerd(0.3),
+                    new EventResult("Something alerts them. They don't flee, but now they're watchful.", weight: 0.1, minutes: 30)
+                        .MammothTracked(0.4)
+                        .AlertsHerd(0.6)
+                ])
+            .Choice("Approach Slowly",
+                "Get closer. Risk detection for better information.",
+                [
+                    new EventResult("Step by careful step. You're close enough to see their breath.", weight: 0.4, minutes: 30)
+                        .MammothTracked(0.6)
+                        .AlertsHerd(0.4),
+                    new EventResult("The matriarch spots you. She raises her trunk, testing the air.", weight: 0.4, minutes: 25)
+                        .MammothTracked(0.5)
+                        .AlertsHerd(0.7)
+                        .Frightening(),
+                    new EventResult("You step on a branch. The CRACK echoes. Every head turns.", weight: 0.2, minutes: 20)
+                        .AlertsHerd(0.9)
+                        .Unsettling()
+                ])
+            .Choice("Mark Location and Leave",
+                "You've found them. That's enough for today.",
+                [
+                    new EventResult("You note the terrain, the approaches. A hunt begins in the mind.", weight: 1.0, minutes: 10)
+                        .MammothTracked(0.3)
+                        .MarksDiscovery("Mammoth herd location", 0.5)
+                ]);
+    }
+
+    /// <summary>
+    /// Matriarch's warning - the herd is alert and player is detected.
+    /// Standoff where player chooses confrontation or retreat.
+    /// </summary>
+    private static GameEvent TheMatriarchsWarning(GameContext ctx)
+    {
+        return new GameEvent("The Matriarch's Warning",
+            "The matriarch faces you directly. Ears spread wide. Trunk raised, testing. " +
+            "The message is clear: you've been noticed. " +
+            "Behind her, the herd shifts uneasily. Waiting for her signal.", 1.5)
+            .Requires(EventCondition.OnExpedition)
+            .RequiresSituation(Situations.MammothHerdPresent)
+            .RequiresSituation(Situations.MammothHerdAggravated)
+            .Choice("Back Away Slowly",
+                "Show submission. Leave their space.",
+                [
+                    new EventResult("Step by careful step, you retreat. The matriarch watches but doesn't pursue.", weight: 0.7, minutes: 10)
+                        .ResolvesMammothTracking(),
+                    new EventResult("As you move back, she trumpets once. Warning to stay away.", weight: 0.25, minutes: 8)
+                        .ResolvesMammothTracking()
+                        .Unsettling(),
+                    new EventResult("A young bull stamps forward. The matriarch stops him with a touch. Close call.", weight: 0.05, minutes: 5)
+                        .ResolvesMammothTracking()
+                        .Frightening()
+                ])
+            .Choice("Hold Your Ground",
+                "Don't advance, don't retreat. Assert yourself.",
+                [
+                    new EventResult("A frozen moment. You stare each other down. Finally, she turns away.", weight: 0.4, minutes: 5)
+                        .EscalatesMammothTracking(0.1),
+                    new EventResult("She takes a step toward you. Testing. You don't flinch.", weight: 0.35, minutes: 5)
+                        .EscalatesMammothTracking(0.15)
+                        .Frightening(),
+                    new EventResult("Your stance provokes her. She charges.", weight: 0.25, minutes: 2)
+                        .MammothCharge()
+                ])
+            .Choice("Use Fire or Torch",
+                "Fire impresses all animals. Even these.",
+                [
+                    new EventResult("The flames make her pause. She trumpets and the herd withdraws.", weight: 0.6, minutes: 5)
+                        .Costs(ResourceType.Fuel, 1)
+                        .TriggersHerdFlee(),
+                    new EventResult("She's wary of the fire but doesn't flee. Standoff continues.", weight: 0.3, minutes: 5)
+                        .Costs(ResourceType.Fuel, 1),
+                    new EventResult("Fire means nothing to a matriarch protecting her herd. She comes anyway.", weight: 0.1, minutes: 2)
+                        .Costs(ResourceType.Fuel, 1)
+                        .MammothCharge()
+                ],
+                [EventCondition.HasFuel, EventCondition.HasFirestarter]);
+    }
+
+    /// <summary>
+    /// The herd is moving - migration or relocation.
+    /// Player can follow or let them go.
+    /// </summary>
+    private static GameEvent TheHerdMoves(GameContext ctx)
+    {
+        var herd = Situations.GetMammothHerd(ctx);
+        var direction = herd?.Position.X < (ctx.Map?.CurrentPosition.X ?? 0) ? "west" : "east";
+
+        return new GameEvent("The Herd Moves",
+            $"Dust rises in the distance. The mammoth herd is moving, heading {direction}. " +
+            "The matriarch leads, calves in the center, bulls on the flanks. " +
+            "They're covering ground fast. If you want to follow, you need to decide now.", 0.5)
+            .Requires(EventCondition.OnExpedition)
+            .RequiresSituation(Situations.NearMammothHerd)
+            .RequiresSituation(ctx => !Situations.MammothHerdPresent(ctx))  // Nearby but not on tile
+            .WithConditionFactor(EventCondition.GoodVisibility, 2.0)
+            .Choice("Follow from a Distance",
+                "Track them. Stay far enough back to avoid detection.",
+                [
+                    new EventResult("You match their pace, staying in cover. Their destination becomes clear.", weight: 0.5, minutes: 45)
+                        .MammothTracked(0.5)
+                        .WithEffects(EffectFactory.Exhausted(0.15, 30)),
+                    new EventResult("Hard to keep up without being seen. You lose them in rough terrain.", weight: 0.3, minutes: 50)
+                        .MammothTracked(0.3)
+                        .WithEffects(EffectFactory.Exhausted(0.2, 35)),
+                    new EventResult("Perfect tracking. You find their new grazing ground.", weight: 0.2, minutes: 40)
+                        .MammothTracked(0.6)
+                        .MarksDiscovery("Mammoth migration route", 0.5)
+                ])
+            .Choice("Let Them Go",
+                "They'll return. Or you'll find them again.",
+                [
+                    new EventResult("The herd disappears over the horizon. You note their heading.", weight: 1.0, minutes: 5)
+                        .MarksDiscovery("Mammoth migration direction", 0.3)
+                ]);
+    }
+
+    /// <summary>
+    /// The mammoth charges - defensive attack by the herd.
+    /// This is triggered when player provokes the alert herd.
+    /// </summary>
+    private static GameEvent TheCharge(GameContext ctx)
+    {
+        return new GameEvent("The Charge",
+            "A sound like thunder. Tusks gleaming. Thousands of pounds of muscle and fury. " +
+            "The mammoth is charging.", 3.0)
+            .Requires(EventCondition.OnExpedition)
+            .RequiresSituation(Situations.MammothHerdPresent)
+            .RequiresSituation(Situations.MammothHerdAggravated)
+            .WithSituationFactor(Situations.Vulnerable, 2.0)
+            .Choice("Dodge and Strike",
+                "Use its momentum against it. Get a hit in as it passes.",
+                [
+                    new EventResult("You dive left. Your spear bites deep into its flank as it thunders past.", weight: 0.35, minutes: 3)
+                        .KillsMammoth()
+                        .Damage(8, DamageType.Blunt),
+                    new EventResult("Glancing blow. It staggers but keeps going. The herd flees.", weight: 0.35, minutes: 3)
+                        .TriggersHerdFlee()
+                        .MammothTracked(0.7)
+                        .Damage(6, DamageType.Blunt),
+                    new EventResult("You're not fast enough. Impact.", weight: 0.20, minutes: 2)
+                        .Damage(18, DamageType.Blunt)
+                        .TriggersHerdFlee()
+                        .Panicking(),
+                    new EventResult("Perfect timing. Your weapon finds a vital spot. It goes down.", weight: 0.10, minutes: 3)
+                        .KillsMammoth()
+                ],
+                [EventCondition.HasWeapon])
+            .Choice("Dive Behind Cover",
+                "Find something solid. Put it between you and the mammoth.",
+                [
+                    new EventResult("Behind a boulder. The impact shakes the ground. But you're safe.", weight: 0.5, minutes: 3)
+                        .TriggersHerdFlee()
+                        .Frightening(),
+                    new EventResult("Not enough cover. It clips you as it passes.", weight: 0.35, minutes: 3)
+                        .Damage(10, DamageType.Blunt)
+                        .TriggersHerdFlee(),
+                    new EventResult("The cover holds. You hear the herd retreating.", weight: 0.15, minutes: 3)
+                        .TriggersHerdFlee()
+                ])
+            .Choice("Stand and Yell",
+                "Don't flinch. Bluff charges can be stopped.",
+                [
+                    new EventResult("It pulls up short. Ears spread. Then turns and leads the herd away.", weight: 0.3, minutes: 2)
+                        .TriggersHerdFlee()
+                        .Terrifying(),
+                    new EventResult("Not a bluff. It keeps coming.", weight: 0.5, minutes: 2)
+                        .Damage(15, DamageType.Blunt)
+                        .TriggersHerdFlee()
+                        .Panicking(),
+                    new EventResult("Your courage impresses even a mammoth. It stops, snorts, retreats.", weight: 0.2, minutes: 2)
+                        .TriggersHerdFlee()
+                        .Frightening()
+                        .MarksDiscovery("Survived mammoth charge", 0.7)
                 ]);
     }
 }

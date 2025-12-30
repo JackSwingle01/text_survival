@@ -659,7 +659,7 @@ public static class WebIO
     /// Render grid with hazard prompt (quick vs careful choice).
     /// </summary>
     public static bool PromptHazardChoice(GameContext ctx, Location targetLocation, int targetX, int targetY,
-        string hazardDescription, int quickTimeMinutes, int carefulTimeMinutes, double injuryRiskPercent)
+        string hazardDescription, int quickTimeMinutes, int carefulTimeMinutes, double injuryRisk)
     {
         if (ctx.Map == null)
             throw new InvalidOperationException("PromptHazardChoice requires a map");
@@ -673,7 +673,7 @@ public static class WebIO
             hazardDescription,
             quickTimeMinutes,
             carefulTimeMinutes,
-            injuryRiskPercent
+            injuryRisk
         );
 
         if (ctx.SessionId != null)

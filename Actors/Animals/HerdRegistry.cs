@@ -63,9 +63,26 @@ public class HerdRegistry
     /// <summary>
     /// Gets all herds of a specific animal type.
     /// </summary>
-    public IReadOnlyList<Herd> GetHerdsByType(string animalType)
+    public IReadOnlyList<Herd> GetHerdsByType(AnimalType animalType)
     {
-        return _herds.Where(h => h.AnimalType.Equals(animalType, StringComparison.OrdinalIgnoreCase)).ToList();
+        return _herds.Where(h => h.AnimalType == animalType).ToList();
+    }
+
+    /// <summary>
+    /// Gets all herds of a specific animal type (string overload for legacy code).
+    /// </summary>
+    public IReadOnlyList<Herd> GetHerdsByType(string animalTypeName)
+    {
+        var animalType = AnimalTypes.Parse(animalTypeName);
+        return animalType.HasValue ? GetHerdsByType(animalType.Value) : [];
+    }
+
+    /// <summary>
+    /// Gets all herds with a specific behavior type.
+    /// </summary>
+    public IReadOnlyList<Herd> GetHerdsByBehavior(HerdBehaviorType behaviorType)
+    {
+        return _herds.Where(h => h.BehaviorType == behaviorType).ToList();
     }
 
     /// <summary>
@@ -311,7 +328,7 @@ public class HerdRegistry
             if (nearbyHerds.Count > 0)
             {
                 var closest = nearbyHerds[0];
-                return $"Fresh {closest.AnimalType.ToLower()} tracks lead away from here.";
+                return $"Fresh {closest.AnimalType.DisplayName().ToLower()} tracks lead away from here.";
             }
             return null;
         }

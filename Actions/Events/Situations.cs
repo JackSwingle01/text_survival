@@ -797,4 +797,234 @@ public static class Situations
 
         return 0;
     }
+
+    // === SCAVENGER DYNAMICS ===
+
+    /// <summary>
+    /// Scavenger (hyena) herd has this tile in territory.
+    /// </summary>
+    public static bool ScavengerInTerritory(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+        var pos = ctx.Map.CurrentPosition;
+        return ctx.Herds.GetHerdsByBehavior(HerdBehaviorType.Scavenger)
+            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
+    }
+
+    /// <summary>
+    /// Scavenger is on player's current tile.
+    /// </summary>
+    public static bool ScavengerPresent(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+        var pos = ctx.Map.CurrentPosition;
+        return ctx.Herds.GetHerdsByBehavior(HerdBehaviorType.Scavenger)
+            .Any(h => h.Position == pos && h.Count > 0);
+    }
+
+    /// <summary>
+    /// Both wolves and hyenas are active in this area.
+    /// Creates three-way competition dynamics.
+    /// </summary>
+    public static bool ScavengerWolfDynamics(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+        var pos = ctx.Map.CurrentPosition;
+
+        bool hasScavengers = ctx.Herds.GetHerdsByBehavior(HerdBehaviorType.Scavenger)
+            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
+        bool hasWolves = ctx.Herds.GetHerdsByType("Wolf")
+            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
+
+        return hasScavengers && hasWolves;
+    }
+
+    /// <summary>
+    /// Graduated scavenger threat level (0-1).
+    /// Higher when scavengers are present, player is vulnerable, or carrying meat.
+    /// </summary>
+    public static double ScavengerThreatLevel(GameContext ctx)
+    {
+        if (ctx.Map == null) return 0;
+        var pos = ctx.Map.CurrentPosition;
+
+        double level = 0;
+
+        // Direct presence
+        if (ctx.Herds.GetHerdsByBehavior(HerdBehaviorType.Scavenger)
+            .Any(h => h.Position == pos && h.Count > 0))
+        {
+            level += 0.5;
+        }
+        // In territory
+        else if (ScavengerInTerritory(ctx))
+        {
+            level += 0.2;
+        }
+
+        // Carrying meat attracts scavengers
+        if (ctx.Inventory.HasMeat) level += 0.2;
+
+        // Vulnerability emboldens scavengers
+        level += VulnerabilityLevel(ctx) * 0.2;
+
+        // Night makes hyenas bolder
+        if (ctx.Check(EventCondition.Night)) level += 0.1;
+
+        return Math.Min(1.0, level);
+    }
+
+    // === SABER-TOOTH DYNAMICS ===
+
+    /// <summary>
+    /// Saber-tooth tiger has this tile in territory.
+    /// </summary>
+    public static bool InSaberToothTerritory(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+        var pos = ctx.Map.CurrentPosition;
+        return ctx.Herds.GetHerdsByType("Saber-Tooth")
+            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
+    }
+
+    /// <summary>
+    /// Player has active saber-tooth stalking tension.
+    /// </summary>
+    public static bool SaberToothThreat(GameContext ctx) =>
+        ctx.Tensions.HasTension("SaberToothStalked");
+
+    /// <summary>
+    /// Saber-tooth tension is at critical level (> 0.6).
+    /// Ambush imminent.
+    /// </summary>
+    public static bool SaberToothCritical(GameContext ctx) =>
+        ctx.Tensions.HasTensionAbove("SaberToothStalked", 0.6);
+
+    /// <summary>
+    /// Graduated saber-tooth threat level (0-1).
+    /// Based on tension severity and visibility conditions.
+    /// </summary>
+    public static double SaberToothThreatLevel(GameContext ctx)
+    {
+        var tension = ctx.Tensions.GetTension("SaberToothStalked");
+        if (tension == null) return InSaberToothTerritory(ctx) ? 0.1 : 0;
+
+        double level = tension.Severity;
+
+        // Low visibility favors ambush predator
+        if (ctx.Check(EventCondition.LowVisibility)) level += 0.15;
+
+        // Working or distracted = vulnerable
+        if (ctx.CurrentActivity != ActivityType.Traveling &&
+            ctx.CurrentActivity != ActivityType.Resting)
+        {
+            level += 0.1;
+        }
+
+        return Math.Min(1.0, level);
+    }
+
+    // === MAMMOTH DYNAMICS ===
+
+    /// <summary>
+    /// Player is in mammoth herd's territory.
+    /// </summary>
+    public static bool InMammothTerritory(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+        var pos = ctx.Map.CurrentPosition;
+        return ctx.Herds.GetHerdsByType("Woolly Mammoth")
+            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
+    }
+
+    /// <summary>
+    /// Player is near mammoth herd (1-2 tiles away).
+    /// </summary>
+    public static bool NearMammothHerd(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+        var pos = ctx.Map.CurrentPosition;
+        return ctx.Herds.GetHerdsByType("Woolly Mammoth")
+            .Any(h => h.Count > 0 && h.Position.ManhattanDistance(pos) <= 2);
+    }
+
+    /// <summary>
+    /// Mammoth herd is on player's current tile.
+    /// </summary>
+    public static bool MammothHerdPresent(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+        var pos = ctx.Map.CurrentPosition;
+        return ctx.Herds.GetHerdsByType("Woolly Mammoth")
+            .Any(h => h.Position == pos && h.Count > 0);
+    }
+
+    /// <summary>
+    /// Get the mammoth herd if present or nearby.
+    /// Returns null if no mammoth herd exists.
+    /// </summary>
+    public static Herd? GetMammothHerd(GameContext ctx)
+    {
+        return ctx.Herds.GetHerdsByType("Woolly Mammoth")
+            .FirstOrDefault(h => h.Count > 0);
+    }
+
+    /// <summary>
+    /// Graduated mammoth proximity level (0-1).
+    /// 1.0 = on tile, 0.5 = adjacent, 0.3 = 2 tiles away, 0.1 = in territory.
+    /// </summary>
+    public static double MammothProximityLevel(GameContext ctx)
+    {
+        if (ctx.Map == null) return 0;
+        var pos = ctx.Map.CurrentPosition;
+
+        var mammothHerd = GetMammothHerd(ctx);
+        if (mammothHerd == null) return 0;
+
+        int distance = mammothHerd.Position.ManhattanDistance(pos);
+        if (distance == 0) return 1.0;
+        if (distance == 1) return 0.5;
+        if (distance == 2) return 0.3;
+        if (mammothHerd.HomeTerritory.Contains(pos)) return 0.1;
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Mammoth herd is alert or fleeing (dangerous to approach).
+    /// </summary>
+    public static bool MammothHerdAggravated(GameContext ctx)
+    {
+        var herd = GetMammothHerd(ctx);
+        return herd != null && (herd.State == HerdState.Alert || herd.State == HerdState.Fleeing);
+    }
+
+    // === CARCASS DYNAMICS ===
+
+    /// <summary>
+    /// There is a carcass at the current location.
+    /// </summary>
+    public static bool CarcassPresent(GameContext ctx)
+    {
+        var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
+        return carcass != null && carcass.GetTotalRemainingKg() > 0;
+    }
+
+    /// <summary>
+    /// There is a fresh carcass (low decay) at the current location.
+    /// </summary>
+    public static bool FreshCarcassPresent(GameContext ctx)
+    {
+        var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
+        return carcass != null &&
+               carcass.GetTotalRemainingKg() > 0 &&
+               carcass.DecayLevel < 0.5; // Fresh or good condition
+    }
+
+    /// <summary>
+    /// Carcass is being contested - scavengers are waiting.
+    /// </summary>
+    public static bool CarcassContested(GameContext ctx) =>
+        CarcassPresent(ctx) &&
+        (ctx.Tensions.HasTension("ScavengersWaiting") || ScavengerPresent(ctx));
 }

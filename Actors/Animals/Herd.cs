@@ -3,6 +3,9 @@ using text_survival.Actions;
 using text_survival.Actors.Animals.Behaviors;
 using text_survival.Environments.Grid;
 
+// Avoid ambiguity between Herd.AnimalType property and AnimalType enum
+using AnimalTypeEnum = text_survival.Actors.Animals.AnimalType;
+
 namespace text_survival.Actors.Animals;
 
 /// <summary>
@@ -48,7 +51,8 @@ public class Herd
 
     /// <summary>Type of animals in this herd (Wolf, Bear, Caribou, etc.).</summary>
     [JsonInclude]
-    public string AnimalType { get; private set; } = "";
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public AnimalTypeEnum AnimalType { get; private set; }
 
     /// <summary>The animals in this herd. Reuses existing Animal class for combat stats.</summary>
     /// <remarks>Not serialized - recreated on load from MemberCount and AnimalType.</remarks>
@@ -150,24 +154,11 @@ public class Herd
 
     /// <summary>True if this is a predator herd (wolf, bear, etc.).</summary>
     [JsonIgnore]
-    public bool IsPredator => AnimalType.ToLower() switch
-    {
-        "wolf" or "bear" or "cave bear" or "saber-tooth" or "hyena" => true,
-        _ => false
-    };
+    public bool IsPredator => AnimalType.IsPredator();
 
     /// <summary>Detection range in tiles based on animal type.</summary>
     [JsonIgnore]
-    public int BaseDetectionRange => AnimalType.ToLower() switch
-    {
-        "wolf" => 3,
-        "bear" or "cave bear" => 2,
-        "saber-tooth" or "saber-tooth tiger" => 3,  // Stealthy ambush hunter
-        "hyena" or "cave hyena" => 2,
-        "mammoth" or "woolly mammoth" => 2,
-        "caribou" or "megaloceros" or "bison" => 2,
-        _ => 2
-    };
+    public int BaseDetectionRange => AnimalType.BaseDetectionRange();
 
     /// <summary>Number of animals in the herd.</summary>
     [JsonIgnore]
@@ -183,7 +174,7 @@ public class Herd
 
     /// <summary>The diet type for this herd based on animal type.</summary>
     [JsonIgnore]
-    public AnimalDiet Diet => AnimalDietExtensions.GetDietForAnimal(AnimalType);
+    public AnimalDiet Diet => AnimalType.GetDiet();
 
     #endregion
 
@@ -197,16 +188,9 @@ public class Herd
     /// <summary>
     /// Creates a herd with specified type and starting position.
     /// </summary>
-    public static Herd Create(string animalType, GridPosition startPosition, List<GridPosition> territory)
+    public static Herd Create(AnimalTypeEnum animalType, GridPosition startPosition, List<GridPosition> territory)
     {
-        var behaviorType = animalType.ToLower() switch
-        {
-            "wolf" => HerdBehaviorType.PackPredator,
-            "bear" or "cave bear" => HerdBehaviorType.SolitaryPredator,
-            "saber-tooth" or "saber-tooth tiger" => HerdBehaviorType.SolitaryPredator,
-            "hyena" or "cave hyena" => HerdBehaviorType.Scavenger,
-            _ => HerdBehaviorType.Prey
-        };
+        var behaviorType = animalType.GetBehaviorType();
 
         var herd = new Herd
         {
@@ -227,6 +211,15 @@ public class Herd
 
         herd.RecreateBehavior();
         return herd;
+    }
+
+    /// <summary>
+    /// Creates a herd from a string animal type (for legacy code/events).
+    /// </summary>
+    public static Herd Create(string animalTypeName, GridPosition startPosition, List<GridPosition> territory)
+    {
+        var animalType = AnimalTypes.ParseRequired(animalTypeName);
+        return Create(animalType, startPosition, territory);
     }
 
     #endregion
@@ -261,7 +254,7 @@ public class Herd
 
         for (int i = 0; i < MemberCount; i++)
         {
-            var animal = AnimalFactory.FromName(AnimalType);
+            var animal = AnimalFactory.FromType(AnimalType);
             if (animal != null)
             {
                 Members.Add(animal);
@@ -469,7 +462,8 @@ public class Herd
             _ => "a large herd of"
         };
 
-        string animalName = Count == 1 ? AnimalType.ToLower() : AnimalType.ToLower() + "s";
+        var displayName = AnimalType.DisplayName().ToLower();
+        string animalName = Count == 1 ? displayName : displayName + "s";
 
         string stateDesc = State switch
         {
@@ -491,14 +485,17 @@ public class Herd
     /// </summary>
     public string GetTrackDescription()
     {
-        return AnimalType.ToLower() switch
+        return AnimalType switch
         {
-            "wolf" => "wolf tracks, moving in a pack",
-            "bear" => "large bear prints, deep in the snow",
-            "caribou" => "caribou tracks, many hooves",
-            "megaloceros" => "massive deer tracks",
-            "bison" => "heavy bison tracks",
-            _ => $"fresh {AnimalType.ToLower()} tracks"
+            AnimalTypeEnum.Wolf => "wolf tracks, moving in a pack",
+            AnimalTypeEnum.Bear or AnimalTypeEnum.CaveBear => "large bear prints, deep in the snow",
+            AnimalTypeEnum.Caribou => "caribou tracks, many hooves",
+            AnimalTypeEnum.Megaloceros => "massive deer tracks",
+            AnimalTypeEnum.Bison => "heavy bison tracks",
+            AnimalTypeEnum.Mammoth => "enormous mammoth tracks",
+            AnimalTypeEnum.SaberTooth => "large cat prints",
+            AnimalTypeEnum.Hyena => "hyena tracks, scattered",
+            _ => $"fresh {AnimalType.DisplayName().ToLower()} tracks"
         };
     }
 

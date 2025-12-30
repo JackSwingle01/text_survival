@@ -76,8 +76,8 @@ public static class LocationFactory
     private static HarvestableFeature? GetTerrainHarvestable(TerrainType terrain) => terrain switch
     {
         TerrainType.Forest => Utils.FlipCoin() ? FeatureFactory.CreateBerryBush() : FeatureFactory.CreateMixedDeadfall(),
-        TerrainType.Clearing => Utils.FlipCoin() ? FeatureFactory.CreateBerryBush() : FeatureFactory.CreateForestPuddle(),
-        TerrainType.Plain => FeatureFactory.CreateMeltwaterPuddle(),
+        TerrainType.Clearing => FeatureFactory.CreateBerryBush(),
+        TerrainType.Plain => null, // Water via EnvironmentalDetail
         TerrainType.Marsh => Utils.FlipCoin() ? FeatureFactory.CreateCattails() : FeatureFactory.CreateMarshWater(),
         TerrainType.Water => FeatureFactory.CreateIceSource(),
         _ => null
@@ -147,9 +147,6 @@ public static class LocationFactory
 
         location.Features.Add(new WoodedAreaFeature("Standing Timber", null, 150));
 
-        if (Utils.DetermineSuccess(0.25))
-            location.Features.Add(FeatureFactory.CreateForestPuddle());
-
         return location;
     }
 
@@ -205,9 +202,6 @@ public static class LocationFactory
 
         location.Features.Add(FeatureFactory.CreateOpenForage(density: 0.5));
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.8));
-
-        if (Utils.DetermineSuccess(0.2))
-            location.Features.Add(FeatureFactory.CreateMeltwaterPuddle());
 
         return location;
     }

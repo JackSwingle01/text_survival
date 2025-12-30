@@ -315,28 +315,6 @@ public static class FeatureFactory
         return river;
     }
 
-    public static HarvestableFeature CreateForestPuddle()
-    {
-        var puddle = new HarvestableFeature("puddle", "Forest Puddle")
-        {
-            Description = "A shallow puddle fed by melting snow.",
-            MinutesToHarvest = 2
-        };
-        puddle.AddWater("water", maxQuantity: 3, litersPerUnit: 0.5, respawnHoursPerUnit: 12.0);
-        return puddle;
-    }
-
-    public static HarvestableFeature CreateMeltwaterPuddle()
-    {
-        var puddle = new HarvestableFeature("puddle", "Meltwater Puddle")
-        {
-            Description = "A shallow depression with fresh meltwater. Frozen at edges.",
-            MinutesToHarvest = 2
-        };
-        puddle.AddWater("water", maxQuantity: 2, litersPerUnit: 0.5, respawnHoursPerUnit: 24.0);
-        return puddle;
-    }
-
     public static HarvestableFeature CreateIceSource()
     {
         var ice = new HarvestableFeature("ice", "Creek Ice")

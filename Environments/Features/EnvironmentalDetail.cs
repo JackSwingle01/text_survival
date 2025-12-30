@@ -3,6 +3,7 @@ using text_survival.Actions.Expeditions;
 using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Actions.Tensions;
 using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;
@@ -179,19 +180,20 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     /// Animal tracks indicating nearby game.
     /// Prey tracks create FreshTrail tension, predator tracks create weak Stalked tension.
     /// </summary>
-    public static EnvironmentalDetail AnimalTracks(string animalType = "caribou")
+    public static EnvironmentalDetail AnimalTracks(AnimalType animalType = AnimalType.Caribou)
     {
-        bool isPredator = animalType is "wolf" or "bear" or "hyena";
+        bool isPredator = animalType.IsPredator();
+        var displayName = animalType.DisplayName().ToLower();
 
-        return new EnvironmentalDetail("animal_tracks", "Animal Tracks", $"Fresh {animalType} tracks in the snow.")
+        return new EnvironmentalDetail("animal_tracks", "Animal Tracks", $"Fresh {displayName} tracks in the snow.")
         {
             _mapIcon = "pets",
             InteractionHint = "examine the tracks",
             InteractionMinutes = 1,
             ExaminationPool = ExaminationVariants.TrackExaminations,
             TensionOnInteract = isPredator
-                ? () => ActiveTension.Stalked(0.2, animalType)
-                : () => ActiveTension.FreshTrail(0.4, animalType)
+                ? () => ActiveTension.Stalked(0.2, displayName)
+                : () => ActiveTension.FreshTrail(0.4, displayName)
         };
     }
 
@@ -213,22 +215,40 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     }
 
     /// <summary>
+    /// A sheltered puddle in forested areas with a small amount of water.
+    /// </summary>
+    public static EnvironmentalDetail ForestPuddle()
+    {
+        var loot = new Inventory();
+        loot.WaterLiters = 0.3 + Random.Shared.NextDouble() * 0.4;
+
+        return new EnvironmentalDetail("forest_puddle", "Forest Puddle", "A shallow puddle fed by melting snow, sheltered by the trees.")
+        {
+            _mapIcon = "water_drop",
+            Loot = loot,
+            InteractionHint = "collect water",
+            InteractionMinutes = 3
+        };
+    }
+
+    /// <summary>
     /// Animal droppings indicating territory.
     /// Prey droppings create FreshTrail tension, predator droppings create weak Stalked tension.
     /// </summary>
-    public static EnvironmentalDetail AnimalDroppings(string animalType = "wolf")
+    public static EnvironmentalDetail AnimalDroppings(AnimalType animalType = AnimalType.Wolf)
     {
-        bool isPredator = animalType.ToLower() is "wolf" or "bear";
+        bool isPredator = animalType.IsPredator();
+        var displayName = animalType.DisplayName().ToLower();
 
-        return new EnvironmentalDetail("animal_droppings", "Animal Droppings", $"Fresh {animalType} scat.")
+        return new EnvironmentalDetail("animal_droppings", "Animal Droppings", $"Fresh {displayName} scat.")
         {
             _mapIcon = "scatter_plot",
             InteractionHint = "examine the scat",
             InteractionMinutes = 1,
             ExaminationPool = ExaminationVariants.DroppingExaminations,
             TensionOnInteract = isPredator
-                ? () => ActiveTension.Stalked(0.15, animalType)
-                : () => ActiveTension.FreshTrail(0.3, animalType)
+                ? () => ActiveTension.Stalked(0.15, displayName)
+                : () => ActiveTension.FreshTrail(0.3, displayName)
         };
     }
 
@@ -331,6 +351,149 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
             Loot = loot,
             InteractionHint = "collect bones",
             InteractionMinutes = 3
+        };
+    }
+
+    /// <summary>
+    /// Dry grass tussock with some plant fiber.
+    /// </summary>
+    public static EnvironmentalDetail DryGrassTussock()
+    {
+        var loot = new Inventory();
+        int fiberCount = Random.Shared.Next(1, 3);
+        for (int i = 0; i < fiberCount; i++)
+        {
+            loot.Add(Resource.PlantFiber, 0.03 + Random.Shared.NextDouble() * 0.04);
+        }
+
+        return new EnvironmentalDetail("dry_grass", "Dry Grass Tussock", "A clump of dead grass, dry and brittle.")
+        {
+            _mapIcon = "grass",
+            Loot = loot,
+            InteractionHint = "gather fiber",
+            InteractionMinutes = 2
+        };
+    }
+
+    /// <summary>
+    /// Animal burrow suggesting small game presence.
+    /// </summary>
+    public static EnvironmentalDetail AnimalBurrow()
+    {
+        return new EnvironmentalDetail("animal_burrow", "Animal Burrow", "A small hole in the ground. Something lives here.")
+        {
+            _mapIcon = "circle",
+            InteractionHint = "examine the burrow",
+            InteractionMinutes = 1,
+            ExaminationPool =
+            [
+                new ExaminationVariant("Fresh digging at the entrance. The occupant is nearby."),
+                new ExaminationVariant("Tracks around the opening. Rabbit, most likely."),
+                new ExaminationVariant("The burrow goes deep. You can hear movement below."),
+                new ExaminationVariant("Fur caught on roots at the entrance. Recent activity.")
+            ],
+            TensionOnInteract = () => ActiveTension.FreshTrail(0.2, "rabbit")
+        };
+    }
+
+    /// <summary>
+    /// Wind-swept snow depression. Visual only.
+    /// </summary>
+    public static EnvironmentalDetail WindsweptSnow()
+    {
+        return new EnvironmentalDetail("windswept_snow", "Windswept Depression", "A shallow hollow where wind has scoured the snow thin.")
+        {
+            _mapIcon = "air",
+            InteractionHint = "examine the area",
+            InteractionMinutes = 1,
+            ExaminationPool =
+            [
+                new ExaminationVariant("Hard-packed snow. The wind keeps it clear."),
+                new ExaminationVariant("Bare ground visible in patches. Nothing of use."),
+                new ExaminationVariant("Ice crystals glint in the exposed surface.")
+            ]
+        };
+    }
+
+    /// <summary>
+    /// Old bird nest with potential tinder/fiber.
+    /// </summary>
+    public static EnvironmentalDetail OldNest()
+    {
+        var loot = new Inventory();
+        // Mix of tinder and plant fiber
+        if (Random.Shared.NextDouble() < 0.6)
+        {
+            loot.Add(Resource.Tinder, 0.01 + Random.Shared.NextDouble() * 0.02);
+        }
+        loot.Add(Resource.PlantFiber, 0.02 + Random.Shared.NextDouble() * 0.03);
+
+        return new EnvironmentalDetail("old_nest", "Old Nest", "An abandoned bird nest, woven from grass and twigs.")
+        {
+            _mapIcon = "nest_eco",
+            Loot = loot,
+            InteractionHint = "gather nesting material",
+            InteractionMinutes = 2
+        };
+    }
+
+    /// <summary>
+    /// Lichen-covered rocks. Visual detail for rocky terrain.
+    /// </summary>
+    public static EnvironmentalDetail LichenRocks()
+    {
+        return new EnvironmentalDetail("lichen_rocks", "Lichen-Covered Rocks", "Pale green and orange lichens crust the stone.")
+        {
+            _mapIcon = "texture",
+            InteractionHint = "examine the lichens",
+            InteractionMinutes = 1,
+            ExaminationPool =
+            [
+                new ExaminationVariant("The lichens are old. This rock hasn't moved in centuries."),
+                new ExaminationVariant("Crusty growth patterns. The north-facing side is thickest."),
+                new ExaminationVariant("Brittle and dry. Not edible, but the rock beneath is solid.")
+            ]
+        };
+    }
+
+    /// <summary>
+    /// Dead reeds in marsh or water areas. Minor plant fiber.
+    /// </summary>
+    public static EnvironmentalDetail DeadReeds()
+    {
+        var loot = new Inventory();
+        int reedCount = Random.Shared.Next(2, 4);
+        for (int i = 0; i < reedCount; i++)
+        {
+            loot.Add(Resource.PlantFiber, 0.02 + Random.Shared.NextDouble() * 0.03);
+        }
+
+        return new EnvironmentalDetail("dead_reeds", "Dead Reeds", "Brown stalks of last season's growth, dry and hollow.")
+        {
+            _mapIcon = "grass",
+            Loot = loot,
+            InteractionHint = "gather reeds",
+            InteractionMinutes = 3
+        };
+    }
+
+    /// <summary>
+    /// Interesting ice formation. Visual detail for frozen water.
+    /// </summary>
+    public static EnvironmentalDetail IceFormation()
+    {
+        return new EnvironmentalDetail("ice_formation", "Ice Formation", "Strange shapes in the frozen surface.")
+        {
+            _mapIcon = "ac_unit",
+            InteractionHint = "examine the ice",
+            InteractionMinutes = 1,
+            ExaminationPool =
+            [
+                new ExaminationVariant("Bubbles frozen mid-rise. The ice formed quickly here."),
+                new ExaminationVariant("Cracks radiating from a pressure point. The ice groans."),
+                new ExaminationVariant("Clear as glass in places. Dark water visible below."),
+                new ExaminationVariant("Frost flowers cluster on the surface. Delicate and beautiful.")
+            ]
         };
     }
 }

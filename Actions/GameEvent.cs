@@ -86,6 +86,11 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     // Herd creation (for discovery events that spawn new herds)
     public HerdCreation? HerdCreation;
 
+    // Herd effects (for mammoth integration)
+    public double? HerdAlertLevel;  // Alert level to set on nearby herd (0-1)
+    public bool HerdFlees;          // Trigger herd to flee
+    public bool MammothKilled;      // Player killed a mammoth from persistent herd
+
     // === Fluent builder methods ===
 
     public EventResult Aborts() { AbortsAction = true; return this; }
@@ -218,6 +223,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         ApplyFeatureModifications(ctx);
         ApplyCarcassCreation(ctx, summary);
         ApplyHerdCreation(ctx, summary);
+        ApplyHerdEffects(ctx, summary);
         DisplaySummary(ctx, summary);
 
         return new EventOutcomeDto(
@@ -546,6 +552,56 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         }
     }
 
+    private void ApplyHerdEffects(GameContext ctx, OutcomeSummary summary)
+    {
+        if (ctx.Map == null) return;
+        var pos = ctx.Map.CurrentPosition;
+
+        // Find mammoths for herd effects (these specifically target the mammoth herd)
+        var mammothHerd = ctx.Herds.GetHerdsByType("Woolly Mammoth")
+            .FirstOrDefault(h => h.Count > 0 && h.Position.ManhattanDistance(pos) <= 2);
+
+        // Alert herd if alert level set
+        if (HerdAlertLevel.HasValue && mammothHerd != null)
+        {
+            if (HerdAlertLevel.Value > 0.5 && mammothHerd.State != HerdState.Fleeing)
+            {
+                mammothHerd.State = HerdState.Alert;
+                mammothHerd.StateTimeMinutes = 0;
+                GameDisplay.AddWarning(ctx, "The herd becomes alert to your presence.");
+            }
+        }
+
+        // Trigger herd flee
+        if (HerdFlees && mammothHerd != null)
+        {
+            if (mammothHerd.Behavior != null)
+            {
+                mammothHerd.Behavior.TriggerFlee(mammothHerd, pos, ctx);
+            }
+            else
+            {
+                mammothHerd.State = HerdState.Fleeing;
+                mammothHerd.StateTimeMinutes = 0;
+            }
+            GameDisplay.AddNarrative(ctx, "The mammoths flee, their trumpeting echoing across the tundra.");
+        }
+
+        // Mammoth kill - remove from persistent herd
+        if (MammothKilled && mammothHerd != null && mammothHerd.Count > 0)
+        {
+            var victim = mammothHerd.GetRandomMember();
+            if (victim != null)
+            {
+                mammothHerd.RemoveMember(victim);
+                GameDisplay.AddSuccess(ctx, $"You have slain a mammoth! The rest of the herd flees.");
+                summary.ItemsGained.Add("Mammoth kill");
+
+                // If herd is now empty, it will be cleaned up in next registry update
+            }
+        }
+    }
+
     /// <summary>
     /// Get a random animal type from the current location's territory feature.
     /// Falls back to "caribou" if no territory feature exists.
@@ -604,6 +660,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
             "DeadlyCold" => ActiveTension.DeadlyCold(tc.Severity),
             "FeverRising" => ActiveTension.FeverRising(tc.Severity, tc.Description),
             "TrapLineActive" => ActiveTension.TrapLineActive(tc.Severity, tc.RelevantLocation),
+            "MammothTracked" => ActiveTension.MammothTracked(tc.Severity, tc.RelevantLocation),
+            "ScavengersWaiting" => ActiveTension.ScavengersWaiting(tc.Severity),
+            "SaberToothStalked" => ActiveTension.SaberToothStalked(tc.Severity, tc.RelevantLocation),
             _ => ActiveTension.Custom(tc.Type, tc.Severity, 0.05, true, tc.RelevantLocation, tc.AnimalType, tc.Direction, tc.Description)
         };
     }

@@ -50,14 +50,15 @@ body {
    ============================================ */
 
 .game-container {
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 240px 1fr 280px;
+    grid-template-columns: 240px auto 280px;
+    justify-content: center;
     grid-template-rows: 1fr;
     height: 100vh;
-    gap: 20px;
-    padding: 20px;
+    gap: 6px;
+    padding: 6px;
 }
 
 /* ============================================
@@ -68,10 +69,9 @@ body {
     grid-row: 1;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    justify-content: center;
+    gap: 10px;
     overflow-y: auto;
-    padding-right: 20px;
-    padding-top: 60px;
     font-size: 0.9em;
 }
 
@@ -392,14 +392,22 @@ body {
     grid-row: 1;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    gap: 0;  /* Overlays handle spacing */
     overflow: hidden;
+    position: relative;  /* For absolute positioned overlays */
 }
 
-/* Location Header with integrated Weather */
+/* Location Header with integrated Weather - overlaid on canvas */
 .location-header {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    z-index: 10;
     text-align: center;
-    flex-shrink: 0;
+    pointer-events: none;  /* Allow clicks through to canvas */
 }
 
 /* Header row - badges flanking location name */
@@ -407,18 +415,25 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 24px;
-    margin-bottom: 8px;
+    gap: 12px;
+    margin-bottom: 0;
+    pointer-events: auto;  /* Re-enable for interactive elements */
 }
 
 .header-row .info-badge {
     flex: 0 0 auto;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .location-center {
-    flex: 1;
+    flex: 0 1 auto;
     text-align: center;
     max-width: 300px;
+    background: var(--bg-surface);
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .info-badge {
@@ -564,12 +579,10 @@ body {
     background: var(--bg-surface);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 6px;
-    padding: 4px;
-    flex: 1;
-    display: flex;
+    padding: 6px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 0;
 }
 
 #gridCanvas {
@@ -579,16 +592,22 @@ body {
     max-height: 100%;
 }
 
-/* Progress Bar */
+/* Progress Bar - overlaid at bottom of canvas, width synced to canvas */
 .progress-bar-container {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 12px;
+    padding: 6px 12px;
     background: var(--bg-surface);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 6px;
-    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    box-sizing: border-box;
 }
 
 .progress-bar-container .material-symbols-outlined {
@@ -692,8 +711,6 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding-left: 20px;
-    padding-top: 60px;
 }
 
 /* Narrative Log - full height */
@@ -1653,8 +1670,7 @@ body {
 
 /* Travel Mode - show map, minimal buttons at bottom */
 .center-area.travel-mode .grid-viewport {
-    display: flex;
-    flex: 1;
+    display: inline-flex;
 }
 
 .center-area.travel-mode .actions-area {
@@ -1880,6 +1896,13 @@ body {
     width: 22px;
     text-align: center;
     color: var(--text-faint);
+    margin-top: 2px;
+}
+
+.popup-feature-detailed .feature-emoji {
+    font-size: 16px;
+    width: 22px;
+    text-align: center;
     margin-top: 2px;
 }
 

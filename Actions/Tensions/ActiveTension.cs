@@ -198,6 +198,35 @@ public class ActiveTension
         animalType: animalType
     );
 
+    /// <summary>
+    /// Scavengers (hyenas) are waiting nearby for an opportunity.
+    /// They're patient and bold when player is vulnerable.
+    /// Slower decay than other threats - hyenas wait.
+    /// Fire at camp deters them (faster decay at camp).
+    /// </summary>
+    public static ActiveTension ScavengersWaiting(double severity, Guid? herdId = null) => new(
+        type: "ScavengersWaiting",
+        severity: severity,
+        decayPerHour: 0.05,  // Very patient - slow decay
+        decaysAtCamp: true,  // Fire and activity at camp deter them
+        herdId: herdId
+    );
+
+    /// <summary>
+    /// A saber-tooth tiger is stalking you.
+    /// Unique threat: fire doesn't deter it, noise draws it in.
+    /// Tension does NOT decay at camp - only resolves by confrontation or leaving territory.
+    /// </summary>
+    public static ActiveTension SaberToothStalked(double severity, Location? location = null, Guid? herdId = null) => new(
+        type: "SaberToothStalked",
+        severity: severity,
+        decayPerHour: 0.02,  // Extremely patient - very slow decay
+        decaysAtCamp: false,  // Fire doesn't work! Unique threat profile.
+        relevantLocation: location,
+        animalType: "Saber-Tooth",
+        herdId: herdId
+    );
+
     public static ActiveTension Custom(
         string type,
         double severity,

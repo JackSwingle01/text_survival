@@ -80,7 +80,7 @@ public static class HerdPopulator
     /// <summary>
     /// Creates an environmental detail appropriate for an animal's territory.
     /// </summary>
-    private static EnvironmentalDetail? CreateTerritoryDetail(string animalType, bool isPredator)
+    private static EnvironmentalDetail? CreateTerritoryDetail(AnimalType animalType, bool isPredator)
     {
         // Vary the type of detail
         double roll = _rng.NextDouble();
@@ -88,12 +88,12 @@ public static class HerdPopulator
         if (roll < 0.5)
         {
             // Tracks are most common
-            return EnvironmentalDetail.AnimalTracks(animalType.ToLower());
+            return EnvironmentalDetail.AnimalTracks(animalType);
         }
         else if (roll < 0.8)
         {
             // Droppings are moderately common
-            return EnvironmentalDetail.AnimalDroppings(animalType.ToLower());
+            return EnvironmentalDetail.AnimalDroppings(animalType);
         }
         else if (isPredator)
         {
@@ -423,7 +423,7 @@ public static class HerdPopulator
     {
         // Get wolf territories to avoid overlap
         var wolfTerritories = registry._herds
-            .Where(h => h.AnimalType.ToLower() == "wolf")
+            .Where(h => h.AnimalType == AnimalType.Wolf)
             .SelectMany(h => h.HomeTerritory)
             .ToHashSet();
 
@@ -467,7 +467,7 @@ public static class HerdPopulator
     {
         // Get wolf territories to spawn hyenas nearby
         var wolfTerritories = registry._herds
-            .Where(h => h.AnimalType.ToLower() == "wolf")
+            .Where(h => h.AnimalType == AnimalType.Wolf)
             .SelectMany(h => h.HomeTerritory)
             .ToHashSet();
 

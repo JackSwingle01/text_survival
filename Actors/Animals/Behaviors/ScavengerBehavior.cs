@@ -137,7 +137,7 @@ public class ScavengerBehavior : IHerdBehavior
             // Flee from the larger predator
             TriggerFlee(herd, threatHere.Position, ctx);
             return HerdUpdateResult.WithNarrative(
-                $"Hyenas scatter as a {threatHere.AnimalType.ToLower()} approaches.");
+                $"Hyenas scatter as a {threatHere.AnimalType.DisplayName().ToLower()} approaches.");
         }
 
         // Consume carcass
@@ -290,8 +290,7 @@ public class ScavengerBehavior : IHerdBehavior
 
     private static bool IsLargerPredator(Herd h)
     {
-        var type = h.AnimalType.ToLower();
-        return type is "wolf" or "bear" or "cave bear" or "saber-tooth" or "saber-tooth tiger";
+        return h.AnimalType is AnimalType.Wolf or AnimalType.Bear or AnimalType.CaveBear or AnimalType.SaberTooth;
     }
 
     #endregion

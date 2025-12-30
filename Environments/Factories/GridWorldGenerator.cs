@@ -168,12 +168,32 @@ public class GridWorldGenerator
             int seed = _rng.Next();
 
             // Layer 1: Base terrain - Forest/Plain split using octave noise
+            // Two-pass approach: collect noise values, find median, then apply threshold
+            var noiseGrid = new double[Width, Height];
+            var noiseValues = new List<double>();
+
+            // First pass: generate noise values
             for (int x = 0; x < Width; x++)
             {
                 for (int y = 0; y < Height; y++)
                 {
                     double noise = OctaveNoise(x, y, seed, scale: 8);
-                    _terrain[x, y] = noise > 0.5 ? TerrainType.Forest : TerrainType.Plain;
+                    noiseGrid[x, y] = noise;
+                    if (y >= MountainRows)
+                        noiseValues.Add(noise);
+                }
+            }
+
+            // Find median to guarantee 50/50 split
+            noiseValues.Sort();
+            double median = noiseValues[noiseValues.Count / 2];
+
+            // Second pass: apply threshold using median
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    _terrain[x, y] = noiseGrid[x, y] > median ? TerrainType.Forest : TerrainType.Plain;
                 }
             }
 

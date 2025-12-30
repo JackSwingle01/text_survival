@@ -117,7 +117,7 @@ public class PreyBehavior : IHerdBehavior
             {
                 string direction = GetCardinalDirection(previousPosition, fleeTarget.Value);
                 return HerdUpdateResult.WithNarrative(
-                    $"The {herd.AnimalType.ToLower()} herd bolts {direction}.");
+                    $"The {herd.AnimalType.DisplayName().ToLower()} herd bolts {direction}.");
             }
 
             return new HerdUpdateResult { NewPosition = herd.Position };

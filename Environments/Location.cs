@@ -293,7 +293,7 @@ public class Location
         if (Weather.WindSpeed > 0.1) // Only significant wind
         {
             effectiveWindSpeed = Weather.WindSpeed * WindFactor;
-            double windSpeedMph = effectiveWindSpeed * 30; // Scale 0-1 to approx mph
+            double windSpeedMph = effectiveWindSpeed * 45; // Scale 0-1 to approx mph
             locationTemp = CalculateWindChillNWS(locationTemp, windSpeedMph);
         }
 

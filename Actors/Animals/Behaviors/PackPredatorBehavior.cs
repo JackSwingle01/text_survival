@@ -191,7 +191,7 @@ public class PackPredatorBehavior : IHerdBehavior
             if (ctx.Map != null && ctx.Map.CurrentPosition == predator.Position)
             {
                 return HerdUpdateResult.WithNarrative(
-                    $"Wolves chase {prey.AnimalType.ToLower()}, but they escape.");
+                    $"Wolves chase {prey.AnimalType.DisplayName().ToLower()}, but they escape.");
             }
 
             return HerdUpdateResult.None;
@@ -251,7 +251,7 @@ public class PackPredatorBehavior : IHerdBehavior
             if (ctx.Map != null && ctx.Map.CurrentPosition == predator.Position)
             {
                 return HerdUpdateResult.WithNarrative(
-                    $"Wolves chase {prey.AnimalType.ToLower()}, but the herd escapes.");
+                    $"Wolves chase {prey.AnimalType.DisplayName().ToLower()}, but the herd escapes.");
             }
         }
 

@@ -388,4 +388,114 @@ public static class OutcomeTemplates
             ? r.BecomeStalked(0.2, animal)
             : r.CreateTension("HerdNearby", 0.4, animalType: animal);
     }
+
+    // === SCAVENGER DYNAMICS ===
+
+    /// <summary>
+    /// Scavengers waiting nearby - patient opportunists.
+    /// </summary>
+    public static EventResult ScavengersWaiting(this EventResult r, double severity = 0.4)
+        => r.CreateTension("ScavengersWaiting", severity);
+
+    /// <summary>
+    /// Increase scavenger tension (they grow bolder).
+    /// </summary>
+    public static EventResult EscalatesScavengers(this EventResult r, double amount = 0.15)
+        => r.Escalate("ScavengersWaiting", amount);
+
+    /// <summary>
+    /// Resolve scavenger tension (drove them off or left area).
+    /// </summary>
+    public static EventResult ResolvesScavengers(this EventResult r)
+        => r.ResolveTension("ScavengersWaiting");
+
+    /// <summary>
+    /// Confront scavengers directly.
+    /// </summary>
+    public static EventResult ConfrontScavengers(this EventResult r, int distance, double boldness)
+        => r.ResolveTension("ScavengersWaiting").Encounter("Cave Hyena", distance, boldness);
+
+    // === SABER-TOOTH DYNAMICS ===
+
+    /// <summary>
+    /// Begin being stalked by a saber-tooth. Unique threat profile.
+    /// </summary>
+    public static EventResult BecomeSaberToothStalked(this EventResult r, double severity)
+        => r.CreateTension("SaberToothStalked", severity);
+
+    /// <summary>
+    /// Increase saber-tooth tension (it grows closer).
+    /// </summary>
+    public static EventResult EscalatesSaberTooth(this EventResult r, double amount = 0.2)
+        => r.Escalate("SaberToothStalked", amount);
+
+    /// <summary>
+    /// Resolve saber-tooth tension (confrontation or escape).
+    /// </summary>
+    public static EventResult ResolvesSaberTooth(this EventResult r)
+        => r.ResolveTension("SaberToothStalked");
+
+    /// <summary>
+    /// Confront the saber-tooth directly. This is the primary way to resolve the threat.
+    /// </summary>
+    public static EventResult ConfrontSaberTooth(this EventResult r, int distance, double boldness)
+        => r.ResolveTension("SaberToothStalked").Encounter("Saber-Tooth", distance, boldness);
+
+    // === MAMMOTH DYNAMICS ===
+
+    /// <summary>
+    /// Discover/track mammoth herd.
+    /// </summary>
+    public static EventResult MammothTracked(this EventResult r, double severity = 0.5)
+        => r.CreateTension("MammothTracked", severity);
+
+    /// <summary>
+    /// Increase mammoth tracking tension (closer to herd).
+    /// </summary>
+    public static EventResult EscalatesMammothTracking(this EventResult r, double amount = 0.2)
+        => r.Escalate("MammothTracked", amount);
+
+    /// <summary>
+    /// Resolve mammoth tracking (lost trail or confrontation).
+    /// </summary>
+    public static EventResult ResolvesMammothTracking(this EventResult r)
+        => r.ResolveTension("MammothTracked");
+
+    /// <summary>
+    /// Player alerts the mammoth herd. Sets HerdAlert flag for event processing.
+    /// Note: Actual herd state change happens in event result processing.
+    /// </summary>
+    public static EventResult AlertsHerd(this EventResult r, double alertLevel = 0.5)
+    {
+        r.HerdAlertLevel = alertLevel;
+        return r;
+    }
+
+    /// <summary>
+    /// Triggers herd to flee. Sets HerdFlee flag for event processing.
+    /// </summary>
+    public static EventResult TriggersHerdFlee(this EventResult r)
+    {
+        r.HerdFlees = true;
+        return r;
+    }
+
+    /// <summary>
+    /// Player successfully kills a mammoth. Creates massive carcass and affects herd.
+    /// </summary>
+    public static EventResult KillsMammoth(this EventResult r)
+    {
+        r.MammothKilled = true;
+        return r.CreatesCarcass("Woolly Mammoth")
+               .CreateTension("FoodScentStrong", 0.8)
+               .TriggersHerdFlee();
+    }
+
+    /// <summary>
+    /// Mammoth charges - dangerous prey that fights back.
+    /// </summary>
+    public static EventResult MammothCharge(this EventResult r)
+        => r.Damage(12, Bodies.DamageType.Blunt)
+           .Frightening()
+           .TriggersHerdFlee();
 }

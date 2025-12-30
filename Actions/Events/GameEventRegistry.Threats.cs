@@ -1,4 +1,5 @@
 using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -57,7 +58,7 @@ public static partial class GameEventRegistry
         var herdInTerritory = ctx.Herds._herds
             .FirstOrDefault(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animal = herdInTerritory?.AnimalType ?? territory?.GetRandomAnimalName() ?? "animal";
+        var animal = herdInTerritory?.AnimalType.DisplayName() ?? territory?.GetRandomAnimalName() ?? "animal";
         bool isPredator = herdInTerritory != null
             ? herdInTerritory.IsPredator
             : (territory?.HasPredators() ?? false);
@@ -103,7 +104,7 @@ public static partial class GameEventRegistry
         var predatorHerd = ctx.Herds.GetPredatorHerds()
             .FirstOrDefault(h => h.HomeTerritory.Contains(ctx.Map?.CurrentPosition ?? default) && h.Count > 0);
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = predatorHerd?.AnimalType ?? territory?.GetRandomPredatorName() ?? "Wolf";
+        var predator = predatorHerd?.AnimalType.DisplayName() ?? territory?.GetRandomPredatorName() ?? "Wolf";
         var variant = AnimalSelector.GetVariant(predator);
 
         // Noise effectiveness varies by animal - skittish animals flee, others may be provoked

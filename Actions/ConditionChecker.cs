@@ -194,6 +194,24 @@ public static class ConditionChecker
             EventCondition.Waterproofed => ctx.CalculateWaterproofingLevel() >= 0.15,
             EventCondition.FullyWaterproofed => ctx.CalculateWaterproofingLevel() >= 0.4,
 
+            // Equipment possession
+            EventCondition.HasWeapon => ctx.Inventory.HasWeapon,
+            EventCondition.HasFirestarter => ctx.Inventory.HasFirestarter,
+
+            // Saber-tooth arc
+            EventCondition.SaberToothStalked => ctx.Tensions.HasTension("SaberToothStalked"),
+
+            // Terrain escape options - trees or rocky terrain provide escape routes
+            EventCondition.HasEscapeTerrain => ctx.CurrentLocation.Terrain == TerrainType.Forest
+                                            || ctx.CurrentLocation.Terrain == TerrainType.Mountain
+                                            || ctx.CurrentLocation.Terrain == TerrainType.Hills,
+
+            // Butchering activity
+            EventCondition.IsButchering => ctx.CurrentActivity == ActivityType.Butchering,
+
+            // Visibility alias
+            EventCondition.GoodVisibility => ctx.CurrentLocation.VisibilityFactor > 0.7,
+
             _ => false,
         };
     }
