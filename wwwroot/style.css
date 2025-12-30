@@ -557,6 +557,64 @@ body {
     color: var(--fire-orange);
 }
 
+/* Pane header (for overlay panes like fire/transfer) */
+.pane-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    background: var(--surface-darker);
+    border-bottom: 1px solid var(--border-dim);
+}
+
+.pane-header__title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    letter-spacing: 2px;
+    color: var(--text-bright);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.pane-header__title .material-symbols-outlined {
+    font-size: 18px;
+    color: var(--fire-orange);
+}
+
+.pane-header__meta {
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+/* Radio button indicator for selection items */
+.list-item__radio {
+    font-size: 18px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+}
+
+.list-item--selected .list-item__radio {
+    color: var(--fire-orange);
+}
+
+/* Empty state message */
+.list-empty {
+    padding: var(--space-3);
+    text-align: center;
+    color: var(--text-dim);
+    font-size: var(--text-sm);
+}
+
+/* Disabled reason text (wraps to new line) */
+.list-item__reason {
+    flex-basis: 100%;
+    margin-top: var(--space-1);
+    font-size: var(--text-xs);
+    color: var(--color-error-bright);
+}
+
 /* ============================================
    STAT ROWS
    ============================================ */
@@ -1900,25 +1958,6 @@ body {
     margin-bottom: var(--space-5);
 }
 
-.inventory-section h3 {
-    font-family: var(--font-display);
-    font-size: 0.85rem;
-    letter-spacing: 2px;
-    color: var(--text-faint);
-    text-transform: uppercase;
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin-bottom: var(--space-3);
-    padding-bottom: var(--space-2);
-    border-bottom: 1px solid rgba(128, 128, 128, 0.15);
-}
-
-.inventory-section h3 .material-symbols-outlined {
-    font-size: 18px;
-    color: var(--fire-orange);
-}
-
 .inventory-actions {
     display: flex;
     gap: var(--space-2);
@@ -1927,10 +1966,10 @@ body {
     border-top: 1px solid var(--border-dim);
 }
 
-/* 
-   CRAFTING
+/*
+   TABS (General Component)
 */
-.craft-tab-bar {
+.tab-bar {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
@@ -1939,7 +1978,7 @@ body {
     border-bottom: 1px solid var(--border-dim);
 }
 
-.craft-tab {
+.tab {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1956,119 +1995,34 @@ body {
     transition: var(--transition-base);
 }
 
-.craft-tab .material-symbols-outlined {
+.tab .material-symbols-outlined {
     font-size: 18px;
 }
 
-.craft-tab:hover {
+.tab:hover {
     color: var(--text-dim);
     background: var(--bg-panel);
     border-color: var(--border-dim);
 }
 
-.craft-tab.active {
+.tab--active {
     color: var(--fire-orange);
     background: var(--bg-panel);
     border-color: var(--fire-orange);
 }
 
-.craft-tab.active .material-symbols-outlined {
+.tab--active .material-symbols-outlined {
     color: var(--fire-orange);
 }
 
-.craft-tab-badge {
-    background: var(--health-green);
-    color: var(--bg-primary);
-    font-size: 0.7rem;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 10px;
-    margin-left: var(--space-1);
-}
-
-.craft-tab-content {
+.tab-content {
     padding: var(--space-4);
     max-height: 55vh;
     overflow-y: auto;
     background: var(--bg-panel);
-    border-top: 1px solid var(--fire-orange);
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
-.empty-category {
-    text-align: center;
-    color: var(--text-faint);
-    font-style: italic;
-    padding: var(--space-10) var(--space-5);
-    background: var(--bg-surface);
-}
-
-.category-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin: 0 0 var(--space-4) 0;
-    font-size: 18px;
-    color: var(--text-bright);
-    font-family: var(--font-display);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.recipe-row.craftable {
-    border-color: rgba(100, 200, 100, 0.3);
-    background: var(--bg-surface);
-}
-
-.recipe-row.uncraftable {
-    opacity: 0.6;
-    border-color: var(--hover-bg-subtle);
-}
-
-.requirement.met {
-    color: #90c090;
-    border: 1px solid rgba(100, 200, 100, 0.3);
-}
-
-.requirement.unmet {
-    color: #c09090;
-    border: 1px solid rgba(200, 100, 100, 0.3);
-}
-
-.recipe-tool-requirements {
-    font-size: 12px;
-    color: var(--text-dim);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: var(--space-1);
-}
-
-.tool-requirement {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-}
-
-.tool-requirement .material-symbols-outlined {
-    font-size: 14px;
-}
-
-.tool-requirement.available {
-    color: var(--health-green);
-}
-
-.tool-requirement.missing,
-.tool-requirement.broken {
-    color: var(--vital-red);
-}
-
-.recipe-time {
-    font-size: 12px;
-    color: var(--text-dim);
-}
-
-/* 
+/*
    TRANSFER MODAL (uses pane system)
 */
 .transfer-category-header {

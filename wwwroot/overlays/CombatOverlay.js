@@ -1,13 +1,16 @@
 import { OverlayManager } from '../core/OverlayManager.js';
+import { Animator } from '../core/Animator.js';
 import { Utils, show, hide } from '../modules/utils.js';
 
 /**
- * CombatOverlay - Combat interface with distance zones and action groups
+ * CombatOverlay - Multi-phase combat interface
+ * Handles both predator approach (encounter) and active combat phases
  */
 export class CombatOverlay extends OverlayManager {
     constructor(inputHandler) {
         super('combatOverlay', inputHandler);
 
+        // Combat phase elements
         this.animalNameEl = document.getElementById('combatAnimalName');
         this.distanceMetersEl = document.getElementById('combatDistanceMeters');
         this.behaviorStateEl = document.getElementById('combatBehaviorState');
@@ -20,10 +23,92 @@ export class CombatOverlay extends OverlayManager {
         this.outcomeEl = document.getElementById('combatOutcome');
         this.outcomeMessageEl = document.getElementById('combatOutcomeMessage');
         this.rewardsEl = document.getElementById('combatRewards');
+
+        // Approach phase elements (from EncounterOverlay)
+        this.encounterTargetEl = document.getElementById('encounterTarget');
+        this.encounterDistanceMask = document.getElementById('encounterDistanceMask');
+        this.encounterDistanceValue = document.getElementById('encounterDistanceValue');
+        this.encounterBoldnessDescriptor = document.getElementById('encounterBoldnessDescriptor');
+        this.encounterBoldnessFill = document.getElementById('encounterBoldnessFill');
+        this.encounterFactorsEl = document.getElementById('encounterFactors');
+        this.encounterMessageEl = document.getElementById('encounterMessage');
+        this.encounterChoicesEl = document.getElementById('encounterChoices');
+        this.encounterOutcomeEl = document.getElementById('encounterOutcome');
+        this.encounterOutcomeMessageEl = document.getElementById('encounterOutcomeMessage');
     }
 
     render(combatData, inputId) {
         this.show(inputId);
+
+        // Phase detection: Check for approach phase properties
+        const isApproachPhase = combatData.boldnessLevel !== undefined || combatData.choices !== undefined;
+        const isOutcomePhase = combatData.outcome != null;  // Check for both null and undefined
+
+        if (isApproachPhase && !isOutcomePhase) {
+            this.renderApproachPhase(combatData, inputId);
+        } else if (isOutcomePhase) {
+            // Outcome phase - check which type
+            if (isApproachPhase) {
+                this.showApproachOutcome(combatData);
+            } else {
+                this.showCombatOutcome(combatData);
+            }
+        } else {
+            this.renderCombatPhase(combatData, inputId);
+        }
+    }
+
+    /**
+     * Render approach phase (predator encounter before combat)
+     */
+    renderApproachPhase(encounterData, inputId) {
+        // Hide combat-specific elements
+        hide(document.querySelector('.combat-zones'));
+        hide(document.querySelector('.combat-behavior'));
+        hide(this.actionMessageEl);
+        hide(this.playerBracedEl);
+        hide(this.outcomeEl);
+        hide(this.actionsEl);
+
+        // Show encounter-specific elements
+        show(document.getElementById('encounterOverlay'));
+
+        // Predator name
+        if (this.encounterTargetEl) {
+            this.encounterTargetEl.textContent = encounterData.predatorName || encounterData.animalName;
+        }
+
+        // Distance bar with animation
+        this.updateApproachDistanceBar(encounterData);
+
+        // Boldness gauge
+        this.updateBoldness(encounterData);
+
+        // Threat factors (using shared implementation)
+        this.updateApproachThreatFactors(encounterData.threatFactors || []);
+
+        // Status message
+        if (encounterData.statusMessage) {
+            this.encounterMessageEl.textContent = encounterData.statusMessage;
+            show(this.encounterMessageEl);
+        } else {
+            hide(this.encounterMessageEl);
+        }
+
+        // Choices (approach phase actions)
+        this.showApproachChoices(encounterData);
+    }
+
+    /**
+     * Render combat phase (active fighting)
+     */
+    renderCombatPhase(combatData, inputId) {
+        // Hide encounter-specific elements
+        hide(document.getElementById('encounterOverlay'));
+
+        // Show combat-specific elements
+        show(document.querySelector('.combat-zones'));
+        show(document.querySelector('.combat-behavior'));
 
         // Update distance zone indicator
         this.updateDistance(combatData);
@@ -49,12 +134,8 @@ export class CombatOverlay extends OverlayManager {
             hide(this.playerBracedEl);
         }
 
-        // Check if outcome phase
-        if (combatData.outcome) {
-            this.showOutcome(combatData);
-        } else {
-            this.showActions(combatData);
-        }
+        // Combat actions
+        this.showActions(combatData);
     }
 
     updateDistance(combatData) {
@@ -93,19 +174,9 @@ export class CombatOverlay extends OverlayManager {
 
         const factors = combatData.threatFactors || [];
         factors.forEach(factor => {
-            const factorEl = document.createElement('div');
             const isDanger = ['meat', 'weakness', 'blood', 'bleeding'].includes(factor.id);
-            factorEl.className = 'threat-factor ' + (isDanger ? 'danger' : 'advantage');
-
-            const iconEl = document.createElement('span');
-            iconEl.className = 'material-symbols-outlined';
-            iconEl.textContent = factor.icon || 'info';
-            factorEl.appendChild(iconEl);
-
-            const labelEl = document.createElement('span');
-            labelEl.textContent = factor.description;
-            factorEl.appendChild(labelEl);
-
+            const className = 'threat-factor ' + (isDanger ? 'danger' : 'advantage');
+            const factorEl = this.createIconText(factor.icon || 'info', factor.description, className);
             this.threatFactorsEl.appendChild(factorEl);
         });
     }
@@ -114,76 +185,27 @@ export class CombatOverlay extends OverlayManager {
         hide(this.outcomeEl);
         show(this.actionsEl);
 
-        this.clear(this.actionsEl);
-
-        const actions = combatData.actions || [];
-
-        // Group actions by category
-        const categories = ['offensive', 'defensive', 'movement', 'special'];
-        const groupedActions = {};
-        categories.forEach(cat => groupedActions[cat] = []);
-
-        actions.forEach(action => {
-            const cat = action.category || 'special';
-            if (groupedActions[cat]) {
-                groupedActions[cat].push(action);
-            } else {
-                groupedActions['special'].push(action);
-            }
-        });
-
-        // Render each category group
-        categories.forEach(category => {
-            const catActions = groupedActions[category];
-            if (catActions.length === 0) return;
-
-            const groupEl = document.createElement('div');
-            groupEl.className = 'combat-action-group';
-
-            catActions.forEach(action => {
-                const btn = document.createElement('button');
-                btn.className = `combat-action ${action.category || 'special'}`;
-                btn.disabled = !action.isAvailable;
-
-                const nameEl = document.createElement('div');
-                nameEl.className = 'combat-action-name';
-                nameEl.textContent = action.label;
-                btn.appendChild(nameEl);
-
-                if (!action.isAvailable && action.disabledReason) {
-                    const reasonEl = document.createElement('div');
-                    reasonEl.className = 'combat-action-disabled';
-                    reasonEl.textContent = action.disabledReason;
-                    btn.appendChild(reasonEl);
-                } else {
-                    if (action.description) {
-                        const hintEl = document.createElement('div');
-                        hintEl.className = 'combat-action-hint';
-                        hintEl.textContent = action.description;
-                        btn.appendChild(hintEl);
-                    }
-
-                    if (action.hitChance) {
-                        const statEl = document.createElement('div');
-                        statEl.className = 'combat-action-stat';
-                        statEl.textContent = action.hitChance;
-                        btn.appendChild(statEl);
-                    }
-                }
-
-                btn.onclick = () => this.respond(action.id);
-                groupEl.appendChild(btn);
-            });
-
-            this.actionsEl.appendChild(groupEl);
-        });
+        this.setChoices(combatData.actions, '#combatActions');
     }
 
     showOutcome(combatData) {
+        // Delegate to appropriate outcome handler
+        if (combatData.boldnessLevel !== undefined || combatData.choices !== undefined) {
+            this.showApproachOutcome(combatData);
+        } else {
+            this.showCombatOutcome(combatData);
+        }
+    }
+
+    showCombatOutcome(combatData) {
         hide(this.actionsEl);
+        hide(this.actionMessageEl);
+        hide(document.getElementById('encounterOverlay'));
         show(this.outcomeEl);
 
         const outcome = combatData.outcome;
+        if (!outcome) return;
+
         this.outcomeEl.className = 'combat-outcome ' + (outcome.result || '').toLowerCase();
         this.outcomeMessageEl.textContent = outcome.message;
 
@@ -209,9 +231,109 @@ export class CombatOverlay extends OverlayManager {
         this.outcomeEl.appendChild(continueBtn);
     }
 
+    /**
+     * Approach phase: Update distance bar with animation
+     * Reversed from hunt - red is close (danger), green is far
+     */
+    updateApproachDistanceBar(encounterData) {
+        const maxDistance = 100;
+
+        if (encounterData.isAnimatingDistance && encounterData.previousDistanceMeters != null) {
+            Animator.distanceMask(this.encounterDistanceMask, encounterData.previousDistanceMeters, encounterData.currentDistanceMeters, maxDistance);
+            Animator.distance(this.encounterDistanceValue, encounterData.previousDistanceMeters, encounterData.currentDistanceMeters);
+        } else {
+            const targetPct = Math.max(0, Math.min(100, encounterData.currentDistanceMeters / maxDistance * 100));
+            this.encounterDistanceMask.style.transition = 'none';
+            this.encounterDistanceMask.style.width = targetPct + '%';
+            this.encounterDistanceValue.textContent = `${Math.round(encounterData.currentDistanceMeters)}m`;
+        }
+    }
+
+    /**
+     * Approach phase: Update boldness gauge
+     */
+    updateBoldness(encounterData) {
+        const boldness = encounterData.boldnessLevel || 0;
+        const descriptor = encounterData.boldnessDescriptor || 'wary';
+
+        // Update descriptor text and class
+        this.encounterBoldnessDescriptor.textContent = descriptor;
+        this.encounterBoldnessDescriptor.className = 'encounter-boldness-descriptor ' + descriptor;
+
+        // Update fill bar
+        this.encounterBoldnessFill.style.width = (boldness * 100) + '%';
+        this.encounterBoldnessFill.className = 'encounter-boldness-fill ' + descriptor;
+    }
+
+    /**
+     * Approach phase: Update threat factors
+     */
+    updateApproachThreatFactors(factors) {
+        this.clear(this.encounterFactorsEl);
+
+        if (!factors || factors.length === 0) {
+            hide(this.encounterFactorsEl);
+            return;
+        }
+
+        show(this.encounterFactorsEl);
+        factors.forEach(factor => {
+            const factorEl = this.createIconText(factor.icon || 'warning', factor.description, 'encounter-factor');
+            this.encounterFactorsEl.appendChild(factorEl);
+        });
+    }
+
+    /**
+     * Approach phase: Show choices (stand/back/run/fight/drop)
+     */
+    showApproachChoices(encounterData) {
+        hide(this.encounterOutcomeEl);
+        show(this.encounterChoicesEl);
+
+        this.clear(this.encounterChoicesEl);
+
+        encounterData.choices.forEach(choice => {
+            const btn = this.createOptionButton({
+                label: choice.label,
+                description: choice.description,
+                disabled: !choice.isAvailable,
+                disabledReason: choice.disabledReason,
+                onClick: () => this.respond(choice.id)
+            });
+            this.encounterChoicesEl.appendChild(btn);
+        });
+    }
+
+    /**
+     * Approach phase: Show outcome
+     */
+    showApproachOutcome(encounterData) {
+        hide(this.encounterChoicesEl);
+        show(this.encounterOutcomeEl);
+
+        const outcome = encounterData.outcome;
+        if (!outcome) return;
+
+        this.encounterOutcomeEl.className = 'encounter-outcome ' + (outcome.result || '').toLowerCase();
+        this.encounterOutcomeMessageEl.textContent = outcome.message;
+
+        // Add continue button
+        this.clear(this.encounterOutcomeEl);
+        this.encounterOutcomeEl.appendChild(this.encounterOutcomeMessageEl);
+
+        const continueBtn = document.createElement('button');
+        continueBtn.className = 'event-continue-btn';
+        continueBtn.textContent = outcome.result === 'fight' ? 'Fight!' : 'Continue';
+        continueBtn.onclick = () => this.respond('continue');
+        this.encounterOutcomeEl.appendChild(continueBtn);
+    }
+
     cleanup() {
         this.clear(this.actionsEl);
         this.clear(this.rewardsEl);
         this.clear(this.threatFactorsEl);
+        this.clear(this.encounterChoicesEl);
+        this.clear(this.encounterFactorsEl);
+        this.clear(this.encounterOutcomeEl);
     }
 }

@@ -1,5 +1,5 @@
 // modules/overlays/OverlayManager.js
-import { Utils, show, hide } from '../modules/utils.js';
+import { Utils, show, hide, ICON_CLASS } from '../modules/utils.js';
 
 /**
  * Base class for overlay management
@@ -80,11 +80,12 @@ export class OverlayManager {
      * @param {boolean} [config.disabled] - Whether button is disabled
      * @param {string} [config.disabledReason] - Reason shown when disabled
      * @param {Function} [config.onClick] - Optional click handler
+     * @param {string} [config.className='option-btn'] - Custom CSS class name
      * @returns {HTMLButtonElement} The created button element
      */
     createOptionButton(config) {
         const btn = document.createElement('button');
-        btn.className = 'option-btn';
+        btn.className = config.className || 'option-btn';
 
         if (config.datasetKey && config.datasetValue) {
             btn.dataset[config.datasetKey] = config.datasetValue;
@@ -133,6 +134,43 @@ export class OverlayManager {
     }
 
     /**
+     * Render a list of choices into a container
+     * @param {HTMLElement} container - Target container
+     * @param {Array} choices - Array of choice objects
+     */
+    renderChoices(container, choices) {
+        choices.forEach(choice => {
+            const btn = this.createOptionButton({
+                label: choice.label,
+                description: choice.description,
+                meta: choice.hitChance || choice.cost,
+                disabled: !choice.isAvailable,
+                disabledReason: choice.disabledReason,
+                onClick: () => this.respond(choice.id)
+            });
+            container.appendChild(btn);
+        });
+    }
+
+    /**
+     * Set choices and auto-render them
+     * @param {Array} choices - Choice objects
+     * @param {string} containerSelector - CSS selector for container
+     */
+    setChoices(choices, containerSelector) {
+        const container = this.$(containerSelector);
+
+        if (!container) {
+            console.warn(`Choices container not found: ${containerSelector}`);
+            return;
+        }
+
+        this.clear(container);
+        container.className = 'event-choices';
+        this.renderChoices(container, choices);
+    }
+
+    /**
      * Create an icon + text element
      * @param {string} iconName - Material icon name
      * @param {string} text - Text content
@@ -173,25 +211,27 @@ export class OverlayManager {
      * @param {string} [options.icon] - Optional icon for label
      * @param {boolean} [options.background] - Add background styling
      * @param {string} [options.valueClass] - Additional CSS class for value
+     * @param {string} [options.classPrefix='stat'] - Class prefix (e.g., 'fire-stat' for fire-stat-row)
      * @returns {HTMLDivElement} The created stat row
      */
     createStatRow(label, value, options = {}) {
+        const prefix = options.classPrefix || 'stat';
         const row = document.createElement('div');
-        row.className = 'stat-row' + (options.background ? ' stat-row--bg' : '');
+        row.className = `${prefix}-row` + (options.background ? ` ${prefix}-row--bg` : '');
 
         if (options.icon) {
             const labelContainer = this.createIconText(options.icon, label);
-            labelContainer.className = 'stat-row__label';
+            labelContainer.className = `${prefix}-label`;
             row.appendChild(labelContainer);
         } else {
             const labelEl = document.createElement('div');
-            labelEl.className = 'stat-row__label';
+            labelEl.className = `${prefix}-label`;
             labelEl.textContent = label;
             row.appendChild(labelEl);
         }
 
         const valueEl = document.createElement('div');
-        valueEl.className = 'stat-row__value';
+        valueEl.className = `${prefix}-value`;
         if (options.valueClass) valueEl.classList.add(options.valueClass);
         valueEl.textContent = value;
         row.appendChild(valueEl);

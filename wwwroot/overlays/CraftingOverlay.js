@@ -1,5 +1,6 @@
 import { OverlayManager } from '../core/OverlayManager.js';
 import { DOMBuilder } from '../core/DOMBuilder.js';
+import { CraftingComponents } from '../components/CraftingComponents.js';
 import { Utils, ICON_CLASS, show, hide } from '../modules/utils.js';
 
 const CRAFT_CATEGORY_ICONS = {
@@ -86,30 +87,20 @@ export class CraftingOverlay extends OverlayManager {
         this.clear(this.tabBar);
 
         categories.forEach(cat => {
-            const tab = document.createElement('button');
-            tab.className = 'craft-tab';
+            const shortName = this.getShortCategoryName(cat.categoryName);
+            const icon = CRAFT_CATEGORY_ICONS[cat.categoryKey] || 'category';
+            const count = cat.craftableRecipes ? cat.craftableRecipes.length : 0;
+            const isActive = this.activeTab === cat.categoryKey;
+
+            const tab = CraftingComponents.tab(
+                shortName,
+                icon,
+                count,
+                isActive,
+                () => this.setTab(cat.categoryKey)
+            );
+
             tab.dataset.category = cat.categoryKey;
-
-            // Icon
-            const icon = document.createElement('span');
-            icon.className = ICON_CLASS;
-            icon.textContent = CRAFT_CATEGORY_ICONS[cat.categoryKey] || 'category';
-            tab.appendChild(icon);
-
-            // Short label
-            const label = document.createElement('span');
-            label.textContent = this.getShortCategoryName(cat.categoryName);
-            tab.appendChild(label);
-
-            // Badge if has craftable recipes
-            if (cat.craftableRecipes && cat.craftableRecipes.length > 0) {
-                const badge = document.createElement('span');
-                badge.className = 'craft-tab-badge';
-                badge.textContent = cat.craftableRecipes.length;
-                tab.appendChild(badge);
-            }
-
-            tab.onclick = () => this.setTab(cat.categoryKey);
             this.tabBar.appendChild(tab);
         });
     }
@@ -122,8 +113,12 @@ export class CraftingOverlay extends OverlayManager {
         this.activeTab = categoryKey;
 
         // Update tab active states
-        document.querySelectorAll('.craft-tab').forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.category === categoryKey);
+        document.querySelectorAll('.tab').forEach(tab => {
+            if (tab.dataset.category === categoryKey) {
+                tab.classList.add('tab--active');
+            } else {
+                tab.classList.remove('tab--active');
+            }
         });
 
         // Find category data and render
@@ -148,9 +143,9 @@ export class CraftingOverlay extends OverlayManager {
 
         // Uncraftable recipes
         if (category.uncraftableRecipes && category.uncraftableRecipes.length > 0) {
-            const separator = document.createElement('div');
-            separator.className = 'uncraftable-separator';
-            separator.textContent = 'Needs materials:';
+            const separator = DOMBuilder.div('section-header')
+                .text('Needs materials:')
+                .build();
             this.categoriesEl.appendChild(separator);
 
             category.uncraftableRecipes.forEach(recipe => {
@@ -162,108 +157,90 @@ export class CraftingOverlay extends OverlayManager {
         // Empty state
         if ((!category.craftableRecipes || category.craftableRecipes.length === 0) &&
             (!category.uncraftableRecipes || category.uncraftableRecipes.length === 0)) {
-            const empty = document.createElement('div');
-            empty.className = 'empty-category';
-            empty.textContent = 'No recipes in this category.';
+            const empty = DOMBuilder.div('empty-state')
+                .text('No recipes in this category.')
+                .build();
             this.categoriesEl.appendChild(empty);
         }
     }
 
     createRecipeRow(recipe, isCraftable) {
-        const row = document.createElement('div');
-        row.className = `recipe-row ${isCraftable ? 'craftable' : 'uncraftable'}`;
+        const classes = isCraftable ? 'list-item' : 'list-item list-item--disabled';
 
-        const info = document.createElement('div');
-        info.className = 'recipe-info';
-
-        // Name
-        const name = document.createElement('div');
-        name.className = 'recipe-name';
-        name.textContent = recipe.name;
-        info.appendChild(name);
-
-        // Requirements
-        const requirements = document.createElement('div');
-        requirements.className = 'recipe-requirements';
-
-        recipe.requirements.forEach((req, i) => {
-            const reqSpan = document.createElement('span');
-            reqSpan.className = `requirement ${req.isMet ? 'met' : 'unmet'}`;
-            reqSpan.textContent = `${req.materialName}: ${req.available}/${req.required}`;
-            requirements.appendChild(reqSpan);
-
-            if (i < recipe.requirements.length - 1) {
-                requirements.appendChild(document.createTextNode(', '));
-            }
+        // Build material requirements
+        const requirementElements = recipe.requirements.map((req, i) => {
+            const element = CraftingComponents.requirement(
+                req.materialName,
+                req.available,
+                req.required,
+                req.isMet
+            );
+            return element;
         });
-        info.appendChild(requirements);
 
-        // Tool requirements (if any)
-        if (recipe.toolRequirements && recipe.toolRequirements.length > 0) {
-            const toolReqs = document.createElement('div');
-            toolReqs.className = 'recipe-tool-requirements';
+        // Build tool requirements (if any)
+        const toolElements = recipe.toolRequirements
+            ? recipe.toolRequirements.map(tool => {
+                return CraftingComponents.toolRequirement(
+                    tool.toolName,
+                    tool.isAvailable,
+                    tool.isBroken,
+                    tool.durability
+                );
+            })
+            : [];
 
-            recipe.toolRequirements.forEach((tool, i) => {
-                const toolSpan = document.createElement('span');
-                const icon = document.createElement('span');
-                icon.className = ICON_CLASS;
+        // Build the row content
+        const contentDiv = DOMBuilder.div('list-item__content')
+            .append(
+                DOMBuilder.div('section-header').text(recipe.name),
+                // Requirements with comma separators
+                DOMBuilder.div('flex gap-1')
+                    .append(
+                        ...requirementElements.flatMap((el, i) =>
+                            i < requirementElements.length - 1
+                                ? [el, document.createTextNode(', ')]
+                                : [el]
+                        )
+                    )
+                    .build()
+            );
 
-                if (!tool.isAvailable) {
-                    toolSpan.className = 'tool-requirement missing';
-                    icon.textContent = 'close';
-                    toolSpan.appendChild(icon);
-                    toolSpan.appendChild(document.createTextNode(`${tool.toolName} (required)`));
-                } else if (tool.isBroken) {
-                    toolSpan.className = 'tool-requirement broken';
-                    icon.textContent = 'close';
-                    toolSpan.appendChild(icon);
-                    toolSpan.appendChild(document.createTextNode(`${tool.toolName} (broken)`));
-                } else {
-                    toolSpan.className = 'tool-requirement available';
-                    icon.textContent = 'check';
-                    toolSpan.appendChild(icon);
-                    toolSpan.appendChild(document.createTextNode(`${tool.toolName} (${tool.durability} uses left)`));
-                }
-
-                toolReqs.appendChild(toolSpan);
-
-                if (i < recipe.toolRequirements.length - 1) {
-                    toolReqs.appendChild(document.createTextNode(', '));
-                }
-            });
-
-            info.appendChild(toolReqs);
+        // Add tool requirements if any
+        if (toolElements.length > 0) {
+            const toolContainer = DOMBuilder.div('flex gap-2')
+                .append(...toolElements);
+            contentDiv.append(toolContainer.build());
         }
 
-        // Time
-        const time = document.createElement('div');
-        time.className = 'recipe-time';
-        time.textContent = recipe.craftingTimeDisplay;
-        info.appendChild(time);
+        // Add time
+        contentDiv.append(
+            DOMBuilder.div('text-dim text-sm')
+                .text(recipe.craftingTimeDisplay)
+                .build()
+        );
 
-        row.appendChild(info);
+        // Build main row
+        const row = DOMBuilder.div(classes)
+            .append(contentDiv.build());
 
         // Add CRAFT button if craftable
         if (isCraftable && this.craftingInput && this.craftingInput.type === 'select') {
-            const craftBtn = document.createElement('button');
-            craftBtn.className = 'btn btn--success';
-            craftBtn.textContent = 'CRAFT';
-
             // Find the matching choice by recipe name
             const matchingChoice = this.craftingInput.choices.find(choice =>
                 choice.label.includes(recipe.name)
             );
 
             if (matchingChoice) {
-                craftBtn.onclick = () => this.respond(matchingChoice.id);
-            } else {
-                craftBtn.disabled = true;
+                const craftBtn = DOMBuilder.button('btn btn--success')
+                    .text('CRAFT')
+                    .onClick(() => this.respond(matchingChoice.id))
+                    .build();
+                row.append(craftBtn);
             }
-
-            row.appendChild(craftBtn);
         }
 
-        return row;
+        return row.build();
     }
 
     cleanup() {

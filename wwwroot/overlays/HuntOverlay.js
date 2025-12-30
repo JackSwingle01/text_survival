@@ -163,18 +163,7 @@ export class HuntOverlay extends OverlayManager {
     }
 
     addOutcomeItem(icon, text, styleClass) {
-        const item = document.createElement('div');
-        item.className = 'outcome-item ' + styleClass;
-
-        const iconEl = document.createElement('span');
-        iconEl.className = 'material-symbols-outlined';
-        iconEl.textContent = icon;
-        item.appendChild(iconEl);
-
-        const textEl = document.createElement('span');
-        textEl.textContent = text;
-        item.appendChild(textEl);
-
+        const item = this.createIconText(icon, text, 'outcome-item ' + styleClass);
         this.outcomeSummaryEl.appendChild(item);
     }
 

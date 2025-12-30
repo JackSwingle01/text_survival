@@ -96,3 +96,24 @@ export class DOMBuilder {
 export function icon(name, className = '') {
     return DOMBuilder.span(`material-symbols-outlined ${className}`.trim()).text(name);
 }
+
+// Pane header helper (for overlay panes)
+export function paneHeader(config) {
+    const header = DOMBuilder.div('pane-header');
+
+    // Title (h3 with optional icon)
+    const title = DOMBuilder.create('h3').class('pane-header__title');
+    if (config.icon) {
+        title.append(icon(config.icon));
+    }
+    title.append(config.title);
+    header.append(title);
+
+    // Optional metadata (e.g., weight display)
+    if (config.meta) {
+        const meta = DOMBuilder.span('pane-header__meta').text(config.meta);
+        header.append(meta);
+    }
+
+    return header;
+}

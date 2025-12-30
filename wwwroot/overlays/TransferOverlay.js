@@ -1,6 +1,8 @@
 import { OverlayManager } from '../core/OverlayManager.js';
-import { DOMBuilder } from '../core/DOMBuilder.js';
+import { DOMBuilder, paneHeader } from '../core/DOMBuilder.js';
 import { Utils, ICON_CLASS } from '../modules/utils.js';
+import { ItemList } from '../components/ItemList.js';
+import { TransferRowBuilder } from '../components/rowBuilders.js';
 
 /**
  * TransferOverlay - Bidirectional item transfer between player/storage
@@ -44,85 +46,51 @@ export class TransferOverlay extends OverlayManager {
     renderPane(pane, title, currentWeight, maxWeight, items, side) {
         this.clear(pane);
 
-        // Header
-        const header = document.createElement('div');
-        header.className = 'transfer-pane-header';
+        // Header using paneHeader helper
+        const weightText = maxWeight > 0 && maxWeight < 500
+            ? `${currentWeight.toFixed(1)} / ${maxWeight.toFixed(0)} kg`
+            : `${currentWeight.toFixed(1)} kg`;
 
-        const titleEl = document.createElement('h3');
-        titleEl.textContent = title;
-        header.appendChild(titleEl);
-
-        const weightEl = document.createElement('span');
-        weightEl.className = 'transfer-weight';
-        if (maxWeight > 0 && maxWeight < 500) {
-            weightEl.textContent = `${currentWeight.toFixed(1)} / ${maxWeight.toFixed(0)} kg`;
-        } else {
-            weightEl.textContent = `${currentWeight.toFixed(1)} kg`;
-        }
-        header.appendChild(weightEl);
-        pane.appendChild(header);
+        const header = paneHeader({
+            title: title,
+            meta: weightText
+        });
+        pane.appendChild(header.build());
 
         // Items list
         const list = document.createElement('div');
         list.className = 'transfer-items';
 
-        if (items.length > 0) {
-            // Group by category
-            const byCategory = this.groupItemsByCategory(items);
+        // Configure row builder with arrow direction based on side
+        const builder = {
+            ...TransferRowBuilder,
+            arrow: { icon: side === 'player' ? 'arrow_forward' : 'arrow_back' }
+        };
 
-            for (const [category, categoryItems] of Object.entries(byCategory)) {
-                const catHeader = document.createElement('div');
-                catHeader.className = 'transfer-category-header';
-                catHeader.textContent = category;
-                list.appendChild(catHeader);
+        // Use ItemList for rendering
+        const itemList = new ItemList({
+            container: list,
+            onItemClick: (item) => this.sendTransfer(item.id, item.isAggregated ? item.count : 1),
+            rowBuilder: builder
+        });
 
-                for (const item of categoryItems) {
-                    const row = this.createItemRow(item, side);
-                    list.appendChild(row);
-                }
-            }
-        } else {
-            const empty = document.createElement('div');
-            empty.className = 'transfer-empty';
-            empty.textContent = 'Empty';
-            list.appendChild(empty);
-        }
+        // Build sections from categorized items
+        const sections = this.buildCategorySections(items);
+        itemList.render(sections);
 
         pane.appendChild(list);
     }
 
-    createItemRow(item, side) {
-        const row = document.createElement('div');
-        row.className = 'transfer-item';
-        row.onclick = () => this.sendTransfer(item.id, item.isAggregated ? item.count : 1);
+    buildCategorySections(items) {
+        if (!items || items.length === 0) {
+            return [{ emptyMessage: 'Empty' }];
+        }
 
-        // Icon
-        const icon = document.createElement('span');
-        icon.className = `${ICON_CLASS} transfer-icon`;
-        icon.textContent = item.icon;
-        row.appendChild(icon);
-
-        // Name
-        const name = document.createElement('span');
-        name.className = 'transfer-item-name';
-        name.textContent = item.displayName;
-        row.appendChild(name);
-
-        // Weight
-        const weight = document.createElement('span');
-        weight.className = 'transfer-item-weight';
-        weight.textContent = item.weightKg >= 1
-            ? `${item.weightKg.toFixed(1)}kg`
-            : `${item.weightKg.toFixed(2)}kg`;
-        row.appendChild(weight);
-
-        // Transfer arrow indicator
-        const arrow = document.createElement('span');
-        arrow.className = `transfer-arrow ${ICON_CLASS}`;
-        arrow.textContent = side === 'player' ? 'arrow_forward' : 'arrow_back';
-        row.appendChild(arrow);
-
-        return row;
+        const byCategory = this.groupItemsByCategory(items);
+        return Object.entries(byCategory).map(([category, categoryItems]) => ({
+            header: { text: category },
+            items: categoryItems
+        }));
     }
 
     groupItemsByCategory(items) {

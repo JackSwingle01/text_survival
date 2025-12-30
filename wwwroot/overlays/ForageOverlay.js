@@ -113,21 +113,10 @@ export class ForageOverlay extends OverlayManager {
     }
 
     createWarning(warning) {
-        const warnEl = document.createElement('div');
-        warnEl.className = 'forage-warning';
-
-        const iconEl = document.createElement('span');
-        iconEl.className = ICON_CLASS;
-        iconEl.textContent = warning.includes('dark') ? 'dark_mode' :
-                            warning.includes('axe') ? 'carpenter' :
-                            warning.includes('shovel') ? 'agriculture' : 'info';
-        warnEl.appendChild(iconEl);
-
-        const textEl = document.createElement('span');
-        textEl.textContent = warning;
-        warnEl.appendChild(textEl);
-
-        return warnEl;
+        const iconName = warning.includes('dark') ? 'dark_mode' :
+                        warning.includes('axe') ? 'carpenter' :
+                        warning.includes('shovel') ? 'agriculture' : 'info';
+        return this.createIconText(iconName, warning, 'forage-warning');
     }
 
     createFocusButton(focus) {

@@ -72,18 +72,7 @@ export class ButcherOverlay extends OverlayManager {
     }
 
     createWarning(warning) {
-        const warnEl = document.createElement('div');
-        warnEl.className = 'butcher-warning';
-
-        const iconEl = document.createElement('span');
-        iconEl.className = ICON_CLASS;
-        iconEl.textContent = 'warning';
-        warnEl.appendChild(iconEl);
-
-        const textEl = document.createTextNode(` ${warning}`);
-        warnEl.appendChild(textEl);
-
-        return warnEl;
+        return this.createIconText('warning', warning, 'butcher-warning');
     }
 
     createModeButton(mode) {

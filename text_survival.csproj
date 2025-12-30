@@ -26,4 +26,26 @@
     <Content Include="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Frontend Validation Target -->
+  <Target Name="ValidateFrontend" BeforeTargets="BeforeBuild" Condition="'$(SkipFrontendValidation)' != 'true'">
+    <Message Text="Running frontend validation..." Importance="high" />
+
+    <!-- Check if Node.js is available -->
+    <Exec Command="node --version"
+          IgnoreExitCode="true"
+          ConsoleToMSBuild="true"
+          ContinueOnError="WarnAndContinue">
+      <Output TaskParameter="ExitCode" PropertyName="NodeExitCode" />
+    </Exec>
+
+    <!-- Warn if Node.js not found -->
+    <Warning Text="Node.js not found - skipping frontend validation. Install Node.js or set SkipFrontendValidation=true"
+             Condition="'$(NodeExitCode)' != '0'" />
+
+    <!-- Run validation script -->
+    <Exec Command="node wwwroot/build-tools/validate-frontend.js"
+          WorkingDirectory="$(ProjectDir)"
+          Condition="'$(NodeExitCode)' == '0'" />
+  </Target>
+
 </Project>

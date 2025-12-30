@@ -268,6 +268,20 @@ public static class CombatRunner
             // End turn - update animal behavior
             state.EndTurn();
 
+            // Add transition message if behavior changed
+            if (state.PreviousBehavior.HasValue &&
+                state.PreviousBehavior.Value != state.Behavior.CurrentBehavior)
+            {
+                string transitionMsg = GetBehaviorTransitionMessage(
+                    state.Animal.Name,
+                    state.PreviousBehavior.Value,
+                    state.Behavior.CurrentBehavior);
+                if (!string.IsNullOrEmpty(transitionMsg))
+                {
+                    lastActionMessage += " " + transitionMsg;
+                }
+            }
+
             // Check for combat end
             var outcome = state.CheckForEnd(ctx);
             if (outcome.HasValue)
@@ -599,7 +613,7 @@ public static class CombatRunner
         {
             // Animal gets free attack during retrieval
             double damage = state.Animal.AttackDamage * 0.7; // Glancing blow while you grab weapon
-            ApplyDamageToPlayer(ctx, state.Animal, damage);
+            ApplyDamageToPlayer(ctx, state, state.Animal, damage);
             narrative = $"You dive for your weapon! The {state.Animal.Name} catches you as you grab it.";
         }
         else
@@ -652,7 +666,7 @@ public static class CombatRunner
         {
             // Failed grapple - you take damage
             double damage = state.Animal.AttackDamage * 0.5;
-            ApplyDamageToPlayer(ctx, state.Animal, damage);
+            ApplyDamageToPlayer(ctx, state, state.Animal, damage);
 
             string narrative = $"The {state.Animal.Name} slips free and bites you in the struggle!";
             return new ActionResult(narrative, null, CombatPlayerAction.Grapple);
@@ -797,7 +811,7 @@ public static class CombatRunner
         {
             // Failed escape - animal gets free attack
             double damage = state.Animal.AttackDamage;
-            ApplyDamageToPlayer(ctx, state.Animal, damage);
+            ApplyDamageToPlayer(ctx, state, state.Animal, damage);
 
             return new ActionResult(
                 $"You try to run but can't escape! The {state.Animal.Name} catches you!",
@@ -843,7 +857,7 @@ public static class CombatRunner
         {
             // Didn't work - animal attacks
             double damage = state.Animal.AttackDamage * 1.5; // Vulnerable position
-            ApplyDamageToPlayer(ctx, state.Animal, damage);
+            ApplyDamageToPlayer(ctx, state, state.Animal, damage);
 
             return new ActionResult(
                 $"You go down, but the {state.Animal.Name} isn't fooled. It attacks!",
@@ -916,7 +930,7 @@ public static class CombatRunner
             double playerDamage = baseDamage * (1 - braceResult.DamageReduction);
             if (playerDamage > 0)
             {
-                ApplyDamageToPlayer(ctx, state.Animal, playerDamage);
+                ApplyDamageToPlayer(ctx, state, state.Animal, playerDamage);
             }
 
             state.PlayerBraced = false;
@@ -938,14 +952,14 @@ public static class CombatRunner
                 }
                 else
                 {
-                    ApplyDamageToPlayer(ctx, state.Animal, baseDamage);
+                    ApplyDamageToPlayer(ctx, state, state.Animal, baseDamage);
                     return dodgeResult.Narrative;
                 }
 
             case CombatPlayerAction.Block:
                 var blockResult = DefensiveActions.AttemptBlock(ctx, state, baseDamage);
                 double blockedDamage = baseDamage * (1 - blockResult.DamageReduction);
-                ApplyDamageToPlayer(ctx, state.Animal, blockedDamage);
+                ApplyDamageToPlayer(ctx, state, state.Animal, blockedDamage);
                 return blockResult.Narrative;
 
             case CombatPlayerAction.GiveGround:
@@ -955,12 +969,12 @@ public static class CombatRunner
                     state.SetToZone(giveGroundResult.NewZone.Value);
                 }
                 double avoidedDamage = baseDamage * (1 - giveGroundResult.DamageReduction);
-                ApplyDamageToPlayer(ctx, state.Animal, avoidedDamage);
+                ApplyDamageToPlayer(ctx, state, state.Animal, avoidedDamage);
                 return giveGroundResult.Narrative;
 
             default:
                 // No defense chosen - take full damage
-                ApplyDamageToPlayer(ctx, state.Animal, baseDamage);
+                ApplyDamageToPlayer(ctx, state, state.Animal, baseDamage);
                 narrative = GetAnimalAttackNarrative(state.Animal);
                 return narrative;
         }
@@ -1030,8 +1044,11 @@ public static class CombatRunner
         }
     }
 
-    private static void ApplyDamageToPlayer(GameContext ctx, Animal attacker, double damage)
+    private static void ApplyDamageToPlayer(GameContext ctx, CombatState state, Animal attacker, double damage)
     {
+        // Mark that animal has attacked
+        state.RecordAnimalAttack();
+
         var damageInfo = new DamageInfo(damage, attacker.AttackType)
         {
             ArmorCushioning = ctx.Inventory.TotalCushioning,
@@ -1108,7 +1125,7 @@ public static class CombatRunner
 
             case CombatResult.AnimalDisengaged:
                 outcomeType = "disengaged";
-                message = lastMessage ?? GetDisengageMessage(state.Animal);
+                message = GetDisengageMessage(state.Animal);
                 break;
 
             case CombatResult.DistractedWithMeat:
@@ -1141,6 +1158,32 @@ public static class CombatRunner
             $"Your stillness convinces the {enemy.Name} the fight is over. It leaves."
         };
         return messages[_rng.Next(messages.Length)];
+    }
+
+    private static string GetBehaviorTransitionMessage(
+        string animalName,
+        CombatBehavior from,
+        CombatBehavior to)
+    {
+        return (from, to) switch
+        {
+            (CombatBehavior.Circling, CombatBehavior.Retreating) =>
+                $"The {animalName}'s nerve wavers - it begins backing away.",
+
+            (CombatBehavior.Threatening, CombatBehavior.Retreating) =>
+                $"The {animalName} breaks off its threat display and retreats.",
+
+            (CombatBehavior.Circling, CombatBehavior.Threatening) =>
+                $"The {animalName} stops circling and moves to attack.",
+
+            (CombatBehavior.Threatening, CombatBehavior.Charging) =>
+                $"The {animalName} commits to the attack!",
+
+            (CombatBehavior.Retreating, CombatBehavior.Circling) =>
+                $"The {animalName} regains its nerve and circles back.",
+
+            _ => "" // No message for other transitions
+        };
     }
 
     #endregion

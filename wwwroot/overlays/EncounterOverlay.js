@@ -100,18 +100,7 @@ export class EncounterOverlay extends OverlayManager {
 
         show(this.factorsEl);
         factors.forEach(factor => {
-            const factorEl = document.createElement('div');
-            factorEl.className = 'encounter-factor';
-
-            const icon = document.createElement('span');
-            icon.className = ICON_CLASS;
-            icon.textContent = factor.icon || 'warning';
-            factorEl.appendChild(icon);
-
-            const text = document.createElement('span');
-            text.textContent = factor.description;
-            factorEl.appendChild(text);
-
+            const factorEl = this.createIconText(factor.icon || 'warning', factor.description, 'encounter-factor');
             this.factorsEl.appendChild(factorEl);
         });
     }

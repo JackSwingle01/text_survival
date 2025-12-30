@@ -56,11 +56,17 @@ public class CombatState
     /// <summary>Animal behavior state machine.</summary>
     public AnimalCombatBehaviorManager Behavior { get; }
 
+    /// <summary>Previous behavior state (for detecting transitions).</summary>
+    public CombatBehavior? PreviousBehavior { get; private set; }
+
     /// <summary>Number of turns elapsed in this combat.</summary>
     public int TurnCount { get; private set; } = 0;
 
     /// <summary>Whether player has set a brace (spear ready for charge).</summary>
     public bool PlayerBraced { get; set; } = false;
+
+    /// <summary>Whether the animal has attacked and dealt damage this combat.</summary>
+    public bool AnimalHasAttacked { get; private set; } = false;
 
     /// <summary>Last action the player took (affects animal behavior).</summary>
     public CombatPlayerAction LastPlayerAction { get; private set; } = CombatPlayerAction.None;
@@ -287,10 +293,21 @@ public class CombatState
     }
 
     /// <summary>
+    /// Marks that the animal has attacked the player this combat.
+    /// </summary>
+    public void RecordAnimalAttack()
+    {
+        AnimalHasAttacked = true;
+    }
+
+    /// <summary>
     /// Called at the end of each turn to update animal behavior.
     /// </summary>
     public void EndTurn()
     {
+        // Capture previous behavior before update (for transition messaging)
+        PreviousBehavior = Behavior.CurrentBehavior;
+
         Behavior.UpdateBehavior(LastPlayerAction, Zone, Animal.Vitality);
 
         // Sync distance back to animal for other systems
@@ -348,6 +365,9 @@ public class CombatState
     /// </summary>
     private bool ShouldAnimalDisengage(GameContext ctx)
     {
+        // Only disengage after the animal has attacked (mauled the player)
+        if (!AnimalHasAttacked) return false;
+
         var capacities = ctx.player.GetCapacities();
 
         // Only consider disengage if player is incapacitated

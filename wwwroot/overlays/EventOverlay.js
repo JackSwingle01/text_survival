@@ -1,7 +1,6 @@
 // modules/overlays/EventOverlay.js
 import { OverlayManager } from '../core/OverlayManager.js';
 import { DOMBuilder, icon } from '../core/DOMBuilder.js';
-import { ChoiceButton } from '../components/ChoiceButton.js';
 import { StatRow } from '../components/StatRow.js';
 import { Animator } from '../core/Animator.js';
 import { Utils, show, hide } from '../modules/utils.js';
@@ -24,15 +23,8 @@ export class EventOverlay extends OverlayManager {
     }
 
     renderChoices(eventData) {
-        const descEl = this.$('#eventDescription');
-        const choicesEl = this.$('#eventChoices');
-
-        descEl.textContent = eventData.description;
-        this.clear(choicesEl);
-
-        ChoiceButton.renderChoices(choicesEl, eventData.choices, 
-            (id) => this.respond(id)
-        );
+        this.$('#eventDescription').textContent = eventData.description;
+        this.setChoices(eventData.choices, '#eventChoices');
     }
 
     renderOutcome(eventData) {
@@ -150,9 +142,11 @@ export class EventOverlay extends OverlayManager {
         }
 
         // Continue button
-        choicesEl.appendChild(
-            ChoiceButton.continue(() => this.respond('continue'))
-        );
+        const continueBtn = document.createElement('button');
+        continueBtn.className = 'event-continue-btn';
+        continueBtn.textContent = 'Continue';
+        continueBtn.onclick = () => this.respond('continue');
+        choicesEl.appendChild(continueBtn);
     }
 
     cleanup() {

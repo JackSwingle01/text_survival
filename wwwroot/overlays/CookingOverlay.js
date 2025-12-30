@@ -63,24 +63,10 @@ export class CookingOverlay extends OverlayManager {
         ];
 
         for (const item of statusItems) {
-            const row = document.createElement('div');
-            row.className = 'stat-row stat-row--bg';
-
-            const iconSpan = document.createElement('span');
-            iconSpan.className = ICON_CLASS;
-            iconSpan.textContent = item.icon;
-            row.appendChild(iconSpan);
-
-            const label = document.createElement('span');
-            label.className = 'stat-row__label';
-            label.textContent = item.label;
-            row.appendChild(label);
-
-            const value = document.createElement('span');
-            value.className = 'stat-row__value';
-            value.textContent = item.value;
-            row.appendChild(value);
-
+            const row = this.createStatRow(item.label, item.value, {
+                icon: item.icon,
+                background: true
+            });
             this.statusEl.appendChild(row);
         }
     }
@@ -140,14 +126,8 @@ export class CookingOverlay extends OverlayManager {
         if (lastResult) {
             this.clear(this.resultEl);
 
-            const icon = document.createElement('span');
-            icon.className = ICON_CLASS;
-            icon.textContent = lastResult.icon;
-            this.resultEl.appendChild(icon);
-
-            const msg = document.createElement('span');
-            msg.textContent = lastResult.message;
-            this.resultEl.appendChild(msg);
+            const resultContent = this.createIconText(lastResult.icon, lastResult.message);
+            this.resultEl.appendChild(resultContent);
 
             this.resultEl.className = 'cooking-result ' + (lastResult.isSuccess ? 'success' : 'failure');
             show(this.resultEl);

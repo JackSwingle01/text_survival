@@ -12,7 +12,6 @@ import { ButcherOverlay } from './overlays/ButcherOverlay.js';
 import { TransferOverlay } from './overlays/TransferOverlay.js';
 import { CookingOverlay } from './overlays/CookingOverlay.js';
 import { CraftingOverlay } from './overlays/CraftingOverlay.js';
-import { EncounterOverlay } from './overlays/EncounterOverlay.js';
 import { FireOverlay } from './overlays/FireOverlay.js';
 import { ConnectionOverlay } from './modules/connection.js';
 import { Utils, ICON_CLASS, createIcon, show, hide } from './modules/utils.js';
@@ -48,18 +47,21 @@ class GameClient {
             () => this.currentInputId
         );
 
+        // Create unified combat overlay (handles both encounter and combat phases)
+        const combatOverlay = new CombatOverlay(this.inputHandler);
+
         // Overlay registry
         this.overlays = {
             event: new EventOverlay(this.inputHandler),
             hunt: new HuntOverlay(this.inputHandler),
-            combat: new CombatOverlay(this.inputHandler),
+            combat: combatOverlay,
             inventory: new InventoryOverlay(this.inputHandler),
             crafting: new CraftingOverlay(this.inputHandler),
             fire: new FireOverlay(this.inputHandler),
             transfer: new TransferOverlay(this.inputHandler),
             forage: new ForageOverlay(this.inputHandler),
             butcher: new ButcherOverlay(this.inputHandler),
-            encounter: new EncounterOverlay(this.inputHandler),
+            encounter: combatOverlay,  // Route encounter to combat overlay
             hazard: new HazardOverlay(this.inputHandler),
             confirm: new ConfirmOverlay(this.inputHandler),
             deathScreen: new DeathOverlay(this.inputHandler),
@@ -613,18 +615,20 @@ class GameClient {
         if (isExplored && tileData.featureDetails && tileData.featureDetails.length > 0) {
             this.buildDetailedFeatures(featuresEl, tileData.featureDetails);
         } else if (tileData.featureIcons && tileData.featureIcons.length > 0) {
-            // Unexplored tiles: show icons only (no labels - those come from featureDetails on explored tiles)
+            // Unexplored tiles: show icon-only badges in glance section
             tileData.featureIcons.forEach(icon => {
-                const featureEl = document.createElement('div');
-                featureEl.className = 'popup-feature icon-only';
+                const featureEl = document.createElement('span');
+                featureEl.className = 'badge';
 
-                // Add special classes for certain icons
+                // Add badge type classes for certain icons
                 if (icon === 'local_fire_department' || icon === 'fireplace') {
-                    featureEl.classList.add('fire');
+                    featureEl.classList.add('badge--fire');
                 } else if (icon === 'water_drop') {
-                    featureEl.classList.add('water');
+                    featureEl.classList.add('badge--water');
                 } else if (icon === 'catching_pokemon' || icon === 'done_all') {
-                    featureEl.classList.add('urgent');
+                    featureEl.classList.add('badge--warning');
+                } else {
+                    featureEl.classList.add('badge--neutral');
                 }
 
                 const iconEl = document.createElement('span');
@@ -632,7 +636,7 @@ class GameClient {
                 iconEl.textContent = icon;
                 featureEl.appendChild(iconEl);
 
-                featuresEl.appendChild(featureEl);
+                glanceEl.appendChild(featureEl);
             });
         }
 
@@ -772,7 +776,7 @@ class GameClient {
         // Render badges (limit to 4 most important)
         badges.slice(0, 4).forEach(badge => {
             const badgeEl = document.createElement('span');
-            badgeEl.className = `glance-badge ${badge.type}`;
+            badgeEl.className = `badge badge--${badge.type}`;
 
             const iconEl = document.createElement('span');
             iconEl.className = ICON_CLASS;

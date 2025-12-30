@@ -38,31 +38,20 @@ export class HazardOverlay extends OverlayManager {
     }
 
     createHazardButton(label, description, isQuick) {
-        const btn = document.createElement('button');
-        btn.className = 'option-btn';
-
-        const labelSpan = document.createElement('span');
-        labelSpan.className = 'option-btn__label';
-        labelSpan.textContent = label;
-        btn.appendChild(labelSpan);
-
-        const descSpan = document.createElement('span');
-        descSpan.className = 'option-btn__desc';
-        descSpan.textContent = description;
-        btn.appendChild(descSpan);
-
-        btn.onclick = () => {
-            this.inputHandler.sendAction(
-                'hazard_choice',
-                {
-                    quickTravel: isQuick,
-                    choiceId: isQuick ? 'quick' : 'careful'
-                },
-                this.inputId
-            );
-        };
-
-        return btn;
+        return this.createOptionButton({
+            label: label,
+            description: description,
+            onClick: () => {
+                this.inputHandler.sendAction(
+                    'hazard_choice',
+                    {
+                        quickTravel: isQuick,
+                        choiceId: isQuick ? 'quick' : 'careful'
+                    },
+                    this.inputId
+                );
+            }
+        });
     }
 
     cleanup() {
