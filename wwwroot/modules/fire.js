@@ -4,7 +4,7 @@ import { getFirePhaseLabel } from './icons.js';
 export const FireDisplay = {
     render(fire) {
         const statusEl = document.getElementById('fireStatus');
-        const section = statusEl?.closest('.status-section');
+        const section = statusEl?.closest('.panel');
 
         // Hide entire section if no fire pit
         if (!fire) {
@@ -54,10 +54,10 @@ export const FireDisplay = {
         // Heat output
         if (fire.heatOutput > 0) {
             heatEl.textContent = `+${fire.heatOutput.toFixed(0)}°F`;
-            heatEl.className = 'status-value good';
+            heatEl.className = 'stat-row__value stat-row__value--good';
         } else {
             heatEl.textContent = '--';
-            heatEl.className = 'status-value';
+            heatEl.className = 'stat-row__value';
         }
     }
 };

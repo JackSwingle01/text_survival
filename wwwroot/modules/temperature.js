@@ -51,7 +51,7 @@ export const TemperatureDisplay = {
         }
 
         // Temperature crisis - make section red and show warning
-        const tempSection = document.querySelector('.status-section:has([data-stat="body-temp"])');
+        const tempSection = document.querySelector('.panel:has([data-stat="body-temp"])');
         let crisisWarning = document.getElementById('tempCrisisWarning');
 
         if (state.temperatureCrisis) {

@@ -3,7 +3,7 @@ import { Utils, show, hide } from './utils.js';
 export const EffectsDisplay = {
     render(effects) {
         const container = document.getElementById('effectsList');
-        const section = container?.closest('.status-section');
+        const section = container?.closest('.panel');
 
         // Hide entire section if no effects
         if (!effects || effects.length === 0) {
@@ -105,7 +105,7 @@ export const EffectsDisplay = {
 
     renderInjuries(injuries, bloodPercent) {
         const container = document.getElementById('injuriesList');
-        const section = container?.closest('.status-section');
+        const section = container?.closest('.panel');
 
         const hasBloodLoss = bloodPercent && bloodPercent < 95;
         const hasInjuries = injuries && injuries.length > 0;

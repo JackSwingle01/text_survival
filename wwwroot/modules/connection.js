@@ -13,7 +13,7 @@ export const ConnectionOverlay = {
         hideEl(document.getElementById('connectionOverlay'));
 
         // Clear any stale button states from before disconnect
-        document.querySelectorAll('.action-btn').forEach(btn => {
+        document.querySelectorAll('.btn').forEach(btn => {
             btn.disabled = false;
         });
     }

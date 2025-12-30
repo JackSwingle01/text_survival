@@ -779,7 +779,21 @@ public static class WebIO
         );
 
         session.Send(frame);
-        session.WaitForResponse(inputId, ResponseTimeout);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+        // Validate response - FAIL LOUDLY if invalid
+        if (response.ChoiceId != "close" && response.ChoiceId != "continue")
+        {
+            // Log error with full context - this should never happen
+            Console.WriteLine($"[WebIO] ERROR: ShowInventoryAndWait received INVALID choiceId: '{response.ChoiceId}'");
+            Console.WriteLine($"[WebIO] Expected: 'close' or 'continue'");
+            Console.WriteLine($"[WebIO] InputId: {inputId}, Type: {response.Type}, Action: {response.Action}");
+
+            // Throw exception instead of silently continuing - this is a bug
+            throw new InvalidOperationException(
+                $"ShowInventoryAndWait received invalid choiceId: '{response.ChoiceId}'. " +
+                $"Expected 'close' or 'continue'. This indicates a frontend/backend sync issue.");
+        }
 
         // Clear after user closes
         ClearInventory(ctx);
