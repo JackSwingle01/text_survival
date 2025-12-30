@@ -385,14 +385,24 @@ public static class WebIO
             response = session.WaitForResponse(inputId, ResponseTimeout);
         }
 
-        // Match by choice ID
+        // Match by choice ID - if unknown, resend frame and wait for valid response
         var matchIndex = choiceDtos.FindIndex(c => c.Id == response.ChoiceId);
-        if (matchIndex < 0)
+        while (matchIndex < 0)
         {
-            // Log mismatch for debugging - this indicates a frontend/backend sync issue
+            // Log mismatch for debugging - this indicates a frontend/backend sync issue (stale button click)
             Console.WriteLine($"[WebIO] WARNING: Unknown choice ID '{response.ChoiceId}', " +
-                              $"available: [{string.Join(", ", choiceDtos.Select(c => c.Id))}]. Defaulting to first option.");
-            matchIndex = 0;
+                              $"available: [{string.Join(", ", choiceDtos.Select(c => c.Id))}]. Waiting for valid response.");
+
+            // Resend frame with same inputId and wait for a valid response
+            frame = new WebFrame(
+                GameStateDto.FromContext(ctx),
+                GetCurrentMode(ctx),
+                GetCurrentOverlays(ctx.SessionId),
+                new InputRequestDto(inputId, "select", prompt, choiceDtos)
+            );
+            session.Send(frame);
+            response = session.WaitForResponse(inputId, ResponseTimeout);
+            matchIndex = choiceDtos.FindIndex(c => c.Id == response.ChoiceId);
         }
         return list[matchIndex];
     }
@@ -1039,7 +1049,8 @@ public static class WebIO
 
             // Build choices based on mode
             var choices = new List<ChoiceDto> { new("done", "Done") };
-            if (fireData.Mode == "starting" && fireData.Fire.HasKindling && (fireData.Tools?.Count ?? 0) > 0)
+            if (fireData.Mode == "starting" && fireData.Fire.HasKindling &&
+                (fireData.Tools?.Count ?? 0) > 0 && (fireData.Tinders?.Count ?? 0) > 0)
             {
                 choices.Insert(0, new ChoiceDto("start_fire", "Start Fire"));
             }

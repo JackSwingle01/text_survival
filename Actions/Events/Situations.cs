@@ -263,6 +263,26 @@ public static class Situations
         ctx.Check(EventCondition.Night) ||
         ctx.Check(EventCondition.InDarkness);
 
+    /// <summary>
+    /// Conditions where a "dark passage" makes narrative sense.
+    /// Requires: (Night OR Location.IsDark OR LowVisibility)
+    /// AND some form of overhead cover/obstruction (Forest, HighOverheadCover, or LowVisibility).
+    /// </summary>
+    public static bool DarkPassageConditions(GameContext ctx)
+    {
+        // Must have a reason for darkness
+        bool hasDarkness = ctx.Check(EventCondition.Night)
+                        || ctx.Check(EventCondition.InDarkness)
+                        || ctx.Check(EventCondition.LowVisibility);
+
+        // Must have terrain that can create a "passage" (cover/obstruction)
+        bool hasObstruction = ctx.Check(EventCondition.IsForest)
+                           || ctx.Check(EventCondition.HighOverheadCover)
+                           || ctx.Check(EventCondition.LowVisibility);
+
+        return hasDarkness && hasObstruction;
+    }
+
     // === NUTRITIONAL DEPLETION ===
 
     /// <summary>
@@ -458,6 +478,20 @@ public static class Situations
     public static bool TrappedByTerrain(GameContext ctx) =>
         ctx.Check(EventCondition.Cornered) ||
         ctx.Check(EventCondition.AtTerrainBottleneck);
+
+    /// <summary>
+    /// Compute event weight scaled by terrain hazard level.
+    /// Use as the base weight in event constructors for terrain-dependent events.
+    /// </summary>
+    /// <param name="ctx">Game context</param>
+    /// <param name="baseWeight">Weight when hazard = 0 (default 0.1 = rare)</param>
+    /// <param name="scale">How much hazard increases weight (default 3.0)</param>
+    /// <returns>Weight value for event constructor</returns>
+    public static double TerrainHazardWeight(GameContext ctx, double baseWeight = 0.1, double scale = 3.0)
+    {
+        double hazard = ctx.CurrentLocation.GetEffectiveTerrainHazard();
+        return baseWeight + hazard * scale;
+    }
 
     // === ICE/WATER HAZARDS ===
 

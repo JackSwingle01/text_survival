@@ -57,7 +57,7 @@ public class GridWorldGenerator
         (LocationFactory.MakeBurntStand, 4.0, [TerrainType.Forest]),
 
         // Clearing/Plain locations
-        (LocationFactory.MakeClearing, 15.0, [TerrainType.Clearing, TerrainType.Plain]),
+        (LocationFactory.MakeClearing, 15.0, [TerrainType.Clearing]),
         (LocationFactory.MakePlain, 5.0, [TerrainType.Plain, TerrainType.Clearing]),
         (LocationFactory.MakeGameTrail, 4.0, [TerrainType.Clearing, TerrainType.Plain]),
         (LocationFactory.MakeShelteredValley, 3.0, [TerrainType.Clearing, TerrainType.Forest]),

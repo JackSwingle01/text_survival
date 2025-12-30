@@ -411,16 +411,37 @@ public static class ClueSelector
 
     /// <summary>
     /// Determine clue count based on perception.
-    /// Full perception: 2-3 clues, moderate impairment: 1-2, severe: 1
+    /// 0-2 clues max, 1 is most common. Better perception = higher chance of 2.
+    /// Perception: 1.0 = healthy, 0.5 = half blind
     /// </summary>
     private static int GetClueCount(double perception, Random rng)
     {
-        if (perception >= 0.7)
-            return rng.Next(2, 4);  // 2-3 clues (normal)
-        else if (perception >= 0.4)
-            return rng.Next(1, 3);  // 1-2 clues (moderate impairment)
+        double roll = rng.NextDouble();
+
+        if (perception >= 0.9)
+        {
+            // Full perception: 70% → 1, 15% → 0, 15% → 2
+            if (roll < 0.15) return 0;
+            if (roll < 0.85) return 1;
+            return 2;
+        }
+        else if (perception >= 0.7)
+        {
+            // Slight impairment: 80% → 1, 15% → 0, 5% → 2
+            if (roll < 0.15) return 0;
+            if (roll < 0.95) return 1;
+            return 2;
+        }
+        else if (perception >= 0.5)
+        {
+            // Moderate impairment: 70% → 1, 30% → 0
+            return roll < 0.30 ? 0 : 1;
+        }
         else
-            return 1;               // 1 clue (severe impairment)
+        {
+            // Severe impairment (half blind or worse): 80% → 0, 20% → 1
+            return roll < 0.80 ? 0 : 1;
+        }
     }
 
 }

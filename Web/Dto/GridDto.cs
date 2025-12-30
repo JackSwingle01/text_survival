@@ -92,6 +92,7 @@ public record TileDto(
     string Visibility,  // "unexplored", "explored", "visible"
     string? LocationName,
     string? LocationTags,
+    bool HasNamedLocation,  // True if this tile has a named location (even if unexplored)
     List<string> FeatureIcons,
     List<string> AnimalIcons,  // Emojis for herds at this tile
     bool HasFire,
@@ -163,6 +164,7 @@ public record TileDto(
             Visibility: location.Visibility.ToString().ToLower(),
             LocationName: locationName,
             LocationTags: locationTags,
+            HasNamedLocation: !location.IsTerrainOnly,
             FeatureIcons: GetFeatureIcons(location),
             AnimalIcons: GetAnimalIcons(x, y, location, ctx),
             HasFire: location.HasActiveHeatSource(),

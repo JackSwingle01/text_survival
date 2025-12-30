@@ -629,7 +629,12 @@ export class CanvasGridRenderer {
         ctx.fillRect(px + this.TILE_SIZE - 3, py + this.TILE_SIZE - 5, 1, 3);
 
         // Draw location name with badge background (matches event choice button theme)
-        if (isVisible && tile.locationName) {
+        // For explored named locations, show the actual name
+        // For unexplored named locations, show a "?" indicator
+        const hasRealName = tile.locationName && tile.locationName !== '???';
+        const isUnexploredNamed = tile.hasNamedLocation && tile.locationName === '???';
+
+        if (isVisible && hasRealName) {
             const nameText = tile.locationName.toUpperCase();
             const nameFontSize = Math.round(this.TILE_SIZE * 0.083);
             ctx.font = `500 ${nameFontSize}px 'Oswald', sans-serif`;
@@ -659,6 +664,32 @@ export class CanvasGridRenderer {
             ctx.textBaseline = 'middle';
             ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
             ctx.fillText(nameText, badgeX + badgePaddingX, badgeY + badgeHeight / 2);
+        }
+
+        // Draw "?" indicator for unexplored named locations
+        if (isVisible && isUnexploredNamed) {
+            const size = Math.round(this.TILE_SIZE * 0.25);
+            const x = px + Math.round(this.TILE_SIZE * 0.033);
+            const y = py + Math.round(this.TILE_SIZE * 0.033);
+
+            // Draw circular background
+            ctx.fillStyle = 'rgb(31, 39, 51)';
+            ctx.beginPath();
+            ctx.arc(x + size/2, y + size/2, size/2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw border
+            ctx.strokeStyle = 'rgba(96, 160, 176, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw "?"
+            const fontSize = Math.round(size * 0.7);
+            ctx.font = `bold ${fontSize}px 'Oswald', sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(96, 160, 176, 0.9)';
+            ctx.fillText('?', x + size/2, y + size/2 + 1);
         }
 
         // Draw feature icons
@@ -812,52 +843,84 @@ export class CanvasGridRenderer {
     }
 
     /**
-     * Water/Ice - frozen surface with cracks
+     * Water/Ice - frozen surface with concentric pressure rings
      */
     renderWaterTexture(ctx, px, py, worldX, worldY, isDeep) {
         const size = this.TILE_SIZE;
+        const centerX = px + size * (0.4 + this.seededRandom(worldX, worldY, 1) * 0.2);
+        const centerY = py + size * (0.4 + this.seededRandom(worldX, worldY, 2) * 0.2);
 
-        // Ice cracks - multiple branching lines
-        ctx.strokeStyle = isDeep ? 'rgba(40, 70, 100, 0.5)' : 'rgba(60, 100, 130, 0.4)';
+        // Concentric pressure rings (arcs, not full circles)
+        const ringColor = isDeep ? 'rgba(40, 70, 100, 0.4)' : 'rgba(60, 100, 130, 0.35)';
+        ctx.strokeStyle = ringColor;
+        ctx.lineWidth = 2;
+
+        for (let i = 0; i < 3; i++) {
+            const radius = size * (0.15 + i * 0.12);
+            const startAngle = this.seededRandom(worldX, worldY, i + 10) * Math.PI * 0.5;
+            const arcLength = Math.PI * (0.6 + this.seededRandom(worldX, worldY, i + 11) * 0.8);
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, startAngle, startAngle + arcLength);
+            ctx.stroke();
+        }
+
+        // Central snow patch (distinctive frozen lake feature)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.beginPath();
+        const snowRadius = size * 0.12;
+        // Irregular blob shape
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const r = snowRadius * (0.7 + this.seededRandom(worldX, worldY, i + 20) * 0.5);
+            const x = centerX + Math.cos(angle) * r;
+            const y = centerY + Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // Radiating cracks from pressure points
+        ctx.strokeStyle = isDeep ? 'rgba(30, 55, 80, 0.45)' : 'rgba(50, 80, 110, 0.35)';
         ctx.lineWidth = 1;
+        const crackCount = 2 + Math.floor(this.seededRandom(worldX, worldY, 30) * 2);
+        for (let i = 0; i < crackCount; i++) {
+            const angle = this.seededRandom(worldX, worldY, i + 31) * Math.PI * 2;
+            const len = size * (0.25 + this.seededRandom(worldX, worldY, i + 32) * 0.2);
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(
+                centerX + Math.cos(angle) * len,
+                centerY + Math.sin(angle) * len
+            );
+            ctx.stroke();
+        }
 
-        // Main crack
-        const startX = px + size * (0.1 + this.seededRandom(worldX, worldY, 1) * 0.3);
-        const startY = py + size * (0.1 + this.seededRandom(worldX, worldY, 2) * 0.3);
+        // Subtle ice shimmer patches
+        ctx.fillStyle = 'rgba(200, 220, 240, 0.12)';
+        for (let i = 0; i < 3; i++) {
+            const shimmerX = px + size * (0.1 + this.seededRandom(worldX, worldY, i + 40) * 0.8);
+            const shimmerY = py + size * (0.1 + this.seededRandom(worldX, worldY, i + 41) * 0.8);
+            ctx.beginPath();
+            ctx.ellipse(shimmerX, shimmerY, 10, 6, this.seededRandom(worldX, worldY, i + 42) * Math.PI, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Additional jagged ice cracks (original detail)
+        ctx.strokeStyle = isDeep ? 'rgba(40, 70, 100, 0.35)' : 'rgba(60, 100, 130, 0.3)';
+        ctx.lineWidth = 1;
+        const startX = px + size * (0.1 + this.seededRandom(worldX, worldY, 50) * 0.3);
+        const startY = py + size * (0.6 + this.seededRandom(worldX, worldY, 51) * 0.3);
         ctx.beginPath();
         ctx.moveTo(startX, startY);
-
-        // Jagged crack path
         let cx = startX, cy = startY;
-        for (let i = 0; i < 4; i++) {
-            cx += size * (0.15 + this.seededRandom(worldX, worldY, i + 10) * 0.15);
-            cy += size * (0.1 + this.seededRandom(worldX, worldY, i + 11) * 0.15);
+        for (let i = 0; i < 3; i++) {
+            cx += size * (0.12 + this.seededRandom(worldX, worldY, i + 52) * 0.1);
+            cy -= size * (0.05 + this.seededRandom(worldX, worldY, i + 53) * 0.08);
             ctx.lineTo(cx, cy);
         }
         ctx.stroke();
-
-        // Secondary crack branching off
-        const branchPoint = 1 + Math.floor(this.seededRandom(worldX, worldY, 20) * 2);
-        ctx.beginPath();
-        ctx.moveTo(
-            startX + size * 0.2 * branchPoint,
-            startY + size * 0.15 * branchPoint
-        );
-        ctx.lineTo(
-            px + size * (0.5 + this.seededRandom(worldX, worldY, 21) * 0.4),
-            py + size * (0.6 + this.seededRandom(worldX, worldY, 22) * 0.3)
-        );
-        ctx.stroke();
-
-        // Ice surface variation - lighter patches
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-        for (let i = 0; i < 2; i++) {
-            const patchX = px + size * (0.2 + this.seededRandom(worldX, worldY, i + 30) * 0.6);
-            const patchY = py + size * (0.3 + this.seededRandom(worldX, worldY, i + 31) * 0.5);
-            ctx.beginPath();
-            ctx.ellipse(patchX, patchY, 12, 8, this.seededRandom(worldX, worldY, i + 32) * Math.PI, 0, Math.PI * 2);
-            ctx.fill();
-        }
     }
 
     /**
@@ -927,7 +990,7 @@ export class CanvasGridRenderer {
             }
         }
 
-        // Low shrubs - branching twigs (2x size)
+        // Low shrubs - branching twigs
         ctx.strokeStyle = 'rgba(60, 50, 40, 0.45)';
         ctx.lineWidth = 1.5;
         const shrubCount = 1 + Math.floor(this.seededRandom(worldX, worldY, 60) * 2);
@@ -1065,7 +1128,7 @@ export class CanvasGridRenderer {
             ctx.fillRect(tx - 3, ty - treeHeight * 0.6, 6, 2);
         }
 
-        // Edge tree hints - partial triangles at tile edges suggesting surrounding forest
+        // Edge tree hints - subtle partial triangles suggesting surrounding forest
         ctx.fillStyle = 'rgba(30, 50, 40, 0.25)';
         const edgeCount = 2 + Math.floor(this.seededRandom(worldX, worldY, 120) * 2);
         for (let i = 0; i < edgeCount; i++) {
@@ -1100,104 +1163,233 @@ export class CanvasGridRenderer {
     }
 
     /**
-     * Hills - contour lines suggesting elevation
+     * Hills - stacked rounded mounds with snow caps
      */
     renderHillsTexture(ctx, px, py, worldX, worldY) {
         const size = this.TILE_SIZE;
 
-        // Contour lines
-        ctx.strokeStyle = 'rgba(60, 80, 100, 0.25)';
-        ctx.lineWidth = 1;
+        // Three stacked hill mounds (back to front for depth)
+        const hills = [
+            { cx: 0.7, baseY: 0.55, width: 0.5, height: 0.4, color: 'rgba(55, 65, 80, 0.45)' },   // Back hill
+            { cx: 0.25, baseY: 0.65, width: 0.45, height: 0.35, color: 'rgba(65, 75, 90, 0.4)' }, // Middle hill
+            { cx: 0.55, baseY: 0.85, width: 0.6, height: 0.45, color: 'rgba(75, 85, 100, 0.35)' } // Front hill
+        ];
 
-        for (let i = 0; i < 3; i++) {
-            const baseY = py + size * (0.25 + i * 0.25);
+        for (let i = 0; i < hills.length; i++) {
+            const hill = hills[i];
+            const cx = px + size * hill.cx;
+            const baseY = py + size * hill.baseY;
+            const halfWidth = size * hill.width / 2;
+            const peakHeight = size * hill.height;
+
+            // Hill shadow (underneath)
+            ctx.fillStyle = 'rgba(40, 50, 60, 0.25)';
             ctx.beginPath();
-            ctx.moveTo(px + 8, baseY);
+            ctx.moveTo(cx - halfWidth, baseY + 4);
+            ctx.quadraticCurveTo(cx, baseY - peakHeight + 8, cx + halfWidth, baseY + 4);
+            ctx.lineTo(cx - halfWidth, baseY + 4);
+            ctx.fill();
 
-            // Curved contour
-            ctx.bezierCurveTo(
-                px + size * 0.35, baseY - 8 - this.seededRandom(worldX, worldY, i) * 6,
-                px + size * 0.65, baseY - 5 - this.seededRandom(worldX, worldY, i + 1) * 8,
-                px + size - 8, baseY + this.seededRandom(worldX, worldY, i + 2) * 4
-            );
-            ctx.stroke();
+            // Hill body (arc/mound shape)
+            ctx.fillStyle = hill.color;
+            ctx.beginPath();
+            ctx.moveTo(cx - halfWidth, baseY);
+            ctx.quadraticCurveTo(cx, baseY - peakHeight, cx + halfWidth, baseY);
+            ctx.lineTo(cx - halfWidth, baseY);
+            ctx.fill();
+
+            // Snow cap on top
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            const capWidth = halfWidth * 0.6;
+            const capTop = baseY - peakHeight;
+            ctx.moveTo(cx - capWidth, capTop + peakHeight * 0.25);
+            ctx.quadraticCurveTo(cx, capTop - 2, cx + capWidth, capTop + peakHeight * 0.25);
+            ctx.lineTo(cx - capWidth, capTop + peakHeight * 0.25);
+            ctx.fill();
         }
 
-        // Exposed rock patches
+        // Exposed rock patches on slopes
         ctx.fillStyle = 'rgba(70, 80, 90, 0.4)';
         for (let i = 0; i < 2; i++) {
             const rx = px + size * (0.2 + this.seededRandom(worldX, worldY, i + 20) * 0.6);
-            const ry = py + size * (0.3 + this.seededRandom(worldX, worldY, i + 21) * 0.5);
+            const ry = py + size * (0.35 + this.seededRandom(worldX, worldY, i + 21) * 0.35);
             ctx.beginPath();
             ctx.ellipse(rx, ry, 8, 5, this.seededRandom(worldX, worldY, i + 22) * Math.PI, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        // Snow on high points
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-        ctx.fillRect(px + size * 0.3, py + 8, size * 0.4, 3);
+        // Sparse grass on lower slopes
+        ctx.strokeStyle = 'rgba(90, 100, 80, 0.35)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+            const gx = px + size * (0.1 + this.seededRandom(worldX, worldY, i + 30) * 0.8);
+            const gy = py + size * (0.65 + this.seededRandom(worldX, worldY, i + 31) * 0.25);
+            ctx.beginPath();
+            ctx.moveTo(gx - 2, gy);
+            ctx.lineTo(gx, gy - 5);
+            ctx.lineTo(gx + 2, gy);
+            ctx.stroke();
+        }
+
+        // Subtle contour hints
+        ctx.strokeStyle = 'rgba(60, 80, 100, 0.15)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 2; i++) {
+            const baseY = py + size * (0.35 + i * 0.25);
+            ctx.beginPath();
+            ctx.moveTo(px + 10, baseY);
+            ctx.bezierCurveTo(
+                px + size * 0.35, baseY - 5 - this.seededRandom(worldX, worldY, i + 40) * 4,
+                px + size * 0.65, baseY - 3 - this.seededRandom(worldX, worldY, i + 41) * 5,
+                px + size - 10, baseY + this.seededRandom(worldX, worldY, i + 42) * 3
+            );
+            ctx.stroke();
+        }
     }
 
     /**
-     * Rock/Mountain - angular stone shapes
+     * Rock/Mountain - stacked boulders or mountain peak silhouette
      */
     renderRockTexture(ctx, px, py, worldX, worldY, isMountain) {
         const size = this.TILE_SIZE;
 
-        // Angular rock shapes
-        ctx.fillStyle = isMountain ? 'rgba(30, 35, 40, 0.5)' : 'rgba(80, 85, 90, 0.4)';
-
-        const rockCount = isMountain ? 5 : 4;
-        for (let i = 0; i < rockCount; i++) {
-            const rx = px + size * (0.1 + this.seededRandom(worldX, worldY, i * 5) * 0.8);
-            const ry = py + size * (0.1 + this.seededRandom(worldX, worldY, i * 5 + 1) * 0.8);
-            const rockSize = 8 + this.seededRandom(worldX, worldY, i * 5 + 2) * 12;
-
-            // Draw angular polygon
-            ctx.beginPath();
-            const points = 4 + Math.floor(this.seededRandom(worldX, worldY, i * 5 + 3) * 2);
-            for (let j = 0; j < points; j++) {
-                const angle = (j / points) * Math.PI * 2;
-                const dist = rockSize * (0.6 + this.seededRandom(worldX, worldY, i * 5 + j + 10) * 0.4);
-                const ptX = rx + Math.cos(angle) * dist;
-                const ptY = ry + Math.sin(angle) * dist * 0.7;
-                if (j === 0) ctx.moveTo(ptX, ptY);
-                else ctx.lineTo(ptX, ptY);
-            }
-            ctx.closePath();
-            ctx.fill();
-        }
-
-        // Crack lines between stones
-        ctx.strokeStyle = 'rgba(20, 25, 30, 0.4)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 3; i++) {
-            ctx.beginPath();
-            ctx.moveTo(
-                px + size * this.seededRandom(worldX, worldY, i + 50),
-                py + size * this.seededRandom(worldX, worldY, i + 51)
-            );
-            ctx.lineTo(
-                px + size * this.seededRandom(worldX, worldY, i + 52),
-                py + size * this.seededRandom(worldX, worldY, i + 53)
-            );
-            ctx.stroke();
-        }
-
-        // Mountain: snow on peaks
         if (isMountain) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+            // MOUNTAIN: Large triangular peak silhouette
+
+            // Secondary peak (behind, left)
+            ctx.fillStyle = 'rgba(45, 50, 55, 0.5)';
             ctx.beginPath();
-            ctx.moveTo(px + size * 0.3, py + 5);
-            ctx.lineTo(px + size * 0.5, py + 15);
-            ctx.lineTo(px + size * 0.7, py + 5);
+            ctx.moveTo(px + size * 0.05, py + size);
+            ctx.lineTo(px + size * 0.25, py + size * 0.25);
+            ctx.lineTo(px + size * 0.5, py + size);
             ctx.closePath();
             ctx.fill();
+
+            // Main peak (dominant center-right)
+            ctx.fillStyle = 'rgba(35, 40, 45, 0.65)';
+            ctx.beginPath();
+            ctx.moveTo(px + size * 0.2, py + size);
+            ctx.lineTo(px + size * 0.55, py + size * 0.08);
+            ctx.lineTo(px + size * 0.95, py + size);
+            ctx.closePath();
+            ctx.fill();
+
+            // Snow cap on main peak
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.beginPath();
+            ctx.moveTo(px + size * 0.4, py + size * 0.35);
+            ctx.lineTo(px + size * 0.55, py + size * 0.08);
+            ctx.lineTo(px + size * 0.72, py + size * 0.35);
+            ctx.closePath();
+            ctx.fill();
+
+            // Ridge line detail
+            ctx.strokeStyle = 'rgba(25, 30, 35, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(px + size * 0.55, py + size * 0.08);
+            ctx.lineTo(px + size * 0.75, py + size * 0.5);
+            ctx.stroke();
+
+        } else {
+            // ROCK: Stacked angular boulders
+            const boulders = [
+                { x: 0.25, y: 0.45, w: 0.35, h: 0.25 },
+                { x: 0.6, y: 0.35, w: 0.3, h: 0.22 },
+                { x: 0.45, y: 0.7, w: 0.4, h: 0.28 },
+                { x: 0.15, y: 0.75, w: 0.25, h: 0.2 }
+            ];
+
+            for (let i = 0; i < boulders.length; i++) {
+                const b = boulders[i];
+                const bx = px + size * b.x;
+                const by = py + size * b.y;
+                const bw = size * b.w;
+                const bh = size * b.h;
+
+                // Boulder shadow
+                ctx.fillStyle = 'rgba(30, 35, 40, 0.35)';
+                ctx.beginPath();
+                ctx.moveTo(bx, by + bh * 0.3);
+                ctx.lineTo(bx + bw * 0.15, by + bh);
+                ctx.lineTo(bx + bw * 0.9, by + bh);
+                ctx.lineTo(bx + bw, by + bh * 0.4);
+                ctx.closePath();
+                ctx.fill();
+
+                // Boulder side (darker)
+                ctx.fillStyle = 'rgba(55, 60, 65, 0.5)';
+                ctx.beginPath();
+                ctx.moveTo(bx + bw * 0.5, by);
+                ctx.lineTo(bx + bw, by + bh * 0.4);
+                ctx.lineTo(bx + bw * 0.9, by + bh);
+                ctx.lineTo(bx + bw * 0.4, by + bh * 0.7);
+                ctx.closePath();
+                ctx.fill();
+
+                // Boulder top (with snow)
+                ctx.fillStyle = 'rgba(85, 90, 95, 0.5)';
+                ctx.beginPath();
+                ctx.moveTo(bx, by + bh * 0.3);
+                ctx.lineTo(bx + bw * 0.5, by);
+                ctx.lineTo(bx + bw, by + bh * 0.4);
+                ctx.lineTo(bx + bw * 0.4, by + bh * 0.7);
+                ctx.closePath();
+                ctx.fill();
+
+                // Snow on top
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+                ctx.beginPath();
+                ctx.moveTo(bx + bw * 0.1, by + bh * 0.25);
+                ctx.lineTo(bx + bw * 0.5, by + bh * 0.05);
+                ctx.lineTo(bx + bw * 0.85, by + bh * 0.35);
+                ctx.lineTo(bx + bw * 0.4, by + bh * 0.5);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Cracks between boulders
+            ctx.strokeStyle = 'rgba(25, 30, 35, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(px + size * 0.35, py + size * 0.5);
+            ctx.lineTo(px + size * 0.5, py + size * 0.65);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(px + size * 0.55, py + size * 0.55);
+            ctx.lineTo(px + size * 0.65, py + size * 0.72);
+            ctx.stroke();
+
+            // Additional crack lines for detail
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(
+                    px + size * this.seededRandom(worldX, worldY, i + 60),
+                    py + size * this.seededRandom(worldX, worldY, i + 61)
+                );
+                ctx.lineTo(
+                    px + size * this.seededRandom(worldX, worldY, i + 62),
+                    py + size * this.seededRandom(worldX, worldY, i + 63)
+                );
+                ctx.stroke();
+            }
+
+            // Gravel scatter around boulders
+            ctx.fillStyle = 'rgba(70, 75, 80, 0.35)';
+            for (let i = 0; i < 5; i++) {
+                const gx = px + size * (0.1 + this.seededRandom(worldX, worldY, i + 70) * 0.8);
+                const gy = py + size * (0.1 + this.seededRandom(worldX, worldY, i + 71) * 0.8);
+                const gs = 2 + this.seededRandom(worldX, worldY, i + 72) * 2;
+                ctx.beginPath();
+                ctx.arc(gx, gy, gs, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
     }
 
     /**
-     * Marsh - reeds and murky frozen wetland
+     * Marsh - cattail clusters in frozen wetland
      */
     renderMarshTexture(ctx, px, py, worldX, worldY) {
         const size = this.TILE_SIZE;
@@ -1212,30 +1404,59 @@ export class CanvasGridRenderer {
             ctx.fill();
         }
 
-        // Dead reeds/cattails poking through
-        ctx.strokeStyle = 'rgba(80, 90, 70, 0.6)';
-        ctx.lineWidth = 1.5;
+        // Cattail clusters - smaller, more subtle (3-4 clusters)
+        const clusterCount = 3 + Math.floor(this.seededRandom(worldX, worldY, 10) * 2);
+        const clusterPositions = [
+            { x: 0.2, y: 0.6 },
+            { x: 0.55, y: 0.5 },
+            { x: 0.8, y: 0.65 },
+            { x: 0.35, y: 0.75 },
+            { x: 0.7, y: 0.4 }
+        ];
 
-        const reedCount = 6 + Math.floor(this.seededRandom(worldX, worldY, 10) * 3);
+        for (let c = 0; c < clusterCount; c++) {
+            const cluster = clusterPositions[c];
+            const baseX = px + size * cluster.x;
+            const baseY = py + size * cluster.y;
+
+            // Each cluster has 2-3 stalks (smaller)
+            const stalkCount = 2 + Math.floor(this.seededRandom(worldX, worldY, c + 20) * 2);
+            for (let i = 0; i < stalkCount; i++) {
+                const stalkX = baseX + (this.seededRandom(worldX, worldY, c * 10 + i + 30) - 0.5) * 6;
+                const stalkHeight = size * (0.12 + this.seededRandom(worldX, worldY, c * 10 + i + 31) * 0.08);
+                const lean = (this.seededRandom(worldX, worldY, c * 10 + i + 32) - 0.5) * 3;
+
+                // Stalk (thinner)
+                ctx.strokeStyle = 'rgba(80, 90, 70, 0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(stalkX, baseY);
+                ctx.lineTo(stalkX + lean, baseY - stalkHeight);
+                ctx.stroke();
+
+                // Cattail head (smaller sausage)
+                ctx.fillStyle = 'rgba(60, 50, 40, 0.7)';
+                ctx.beginPath();
+                const headX = stalkX + lean;
+                const headY = baseY - stalkHeight - 2;
+                ctx.ellipse(headX, headY, 2, 4, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Dead reeds/grass scattered around
+        ctx.strokeStyle = 'rgba(80, 90, 70, 0.5)';
+        ctx.lineWidth = 1;
+        const reedCount = 4 + Math.floor(this.seededRandom(worldX, worldY, 50) * 3);
         for (let i = 0; i < reedCount; i++) {
-            const rx = px + size * (0.1 + this.seededRandom(worldX, worldY, i + 20) * 0.8);
-            const ry = py + size * (0.4 + this.seededRandom(worldX, worldY, i + 21) * 0.5);
-            const height = 15 + this.seededRandom(worldX, worldY, i + 22) * 15;
-            const lean = (this.seededRandom(worldX, worldY, i + 23) - 0.5) * 6;
-
+            const rx = px + size * (0.1 + this.seededRandom(worldX, worldY, i + 51) * 0.8);
+            const ry = py + size * (0.4 + this.seededRandom(worldX, worldY, i + 52) * 0.5);
+            const height = 8 + this.seededRandom(worldX, worldY, i + 53) * 8;
+            const lean = (this.seededRandom(worldX, worldY, i + 54) - 0.5) * 4;
             ctx.beginPath();
             ctx.moveTo(rx, ry);
             ctx.lineTo(rx + lean, ry - height);
             ctx.stroke();
-
-            // Cattail head on some reeds
-            if (this.seededRandom(worldX, worldY, i + 24) > 0.6) {
-                ctx.fillStyle = 'rgba(60, 50, 40, 0.7)';
-                ctx.beginPath();
-                ctx.ellipse(rx + lean, ry - height - 3, 2, 5, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(80, 90, 70, 0.6)';
-            }
         }
 
         // Ice crack

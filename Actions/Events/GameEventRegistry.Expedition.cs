@@ -18,8 +18,9 @@ public static partial class GameEventRegistry
         var sprainVariant = VariantSelector.SelectSprainVariant(ctx);
 
         return new GameEvent("Treacherous Footing",
-            "The ground ahead looks unstable — ice beneath the snow, or loose rocks hidden by debris.", 1.0)
-            .Requires(EventCondition.Traveling, EventCondition.HazardousTerrain) // Only triggers on hazardous terrain
+            "The ground ahead looks unstable — ice beneath the snow, or loose rocks hidden by debris.",
+            Situations.TerrainHazardWeight(ctx))
+            .Requires(EventCondition.Traveling)
             // Vulnerable: injured, slow, impaired, or unarmed - physical compromise makes hazards worse
             .WithSituationFactor(Situations.Vulnerable, 1.5)
             .Choice("Test Carefully",
@@ -84,11 +85,11 @@ public static partial class GameEventRegistry
         var variant = VariantSelector.SelectAccidentVariant(ctx);
         var partName = BodyTargetResolver.GetDisplayName(variant.Target);
 
-        return new GameEvent("Minor Accident", variant.Description, 0.8)
+        return new GameEvent("Minor Accident", variant.Description,
+            Situations.TerrainHazardWeight(ctx, 0.3, 2.0))
             .Requires(EventCondition.IsExpedition)
             // Vulnerable: injured, slow, impaired, or unarmed - compromised physical state leads to more accidents
             .WithSituationFactor(Situations.Vulnerable, 1.5)
-            .WithConditionFactor(EventCondition.HazardousTerrain, 1.5) // More accidents on bad terrain
             .Choice("Stop and Assess",
                 "You take a moment to examine the injury and tend to it properly.",
                 [
@@ -574,6 +575,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Dark Passage",
             "The path ahead disappears into darkness. Without light, every step is a gamble.", 0.9)
             .Requires(EventCondition.Traveling)
+            .RequiresSituation(Situations.DarkPassageConditions)
             // InDarkness: night or lack of light source - darkness removes visual control
             .WithSituationFactor(Situations.InDarkness, 2.0)
             .Choice("Proceed Carefully",
@@ -665,8 +667,9 @@ public static partial class GameEventRegistry
         var partName = BodyTargetResolver.GetDisplayName(sharpVariant.Target);
 
         return new GameEvent("Exposed on the Ridge",
-            "The terrain opens up. You can see for miles — which means anything for miles can see you.", 1.0)
-            .Requires(EventCondition.HighVisibility, EventCondition.HazardousTerrain)
+            "The terrain opens up. You can see for miles — which means anything for miles can see you.",
+            Situations.TerrainHazardWeight(ctx))
+            .Requires(EventCondition.HighVisibility)
             .WithConditionFactor(EventCondition.HighWind, 1.5)
             .WithSituationFactor(Situations.RemoteAndVulnerable, 1.5)  // Far + weak = worse exposure
             .Choice("Move Fast",

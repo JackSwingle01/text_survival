@@ -47,10 +47,10 @@ public class Location
     }
 
     /// <summary>
-    /// Whether this is a terrain-only location (no features, just traversal).
+    /// Whether this is a terrain-only location (procedural terrain tile, not a named location).
+    /// Set at construction by factory methods.
     /// </summary>
-    [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsTerrainOnly => Features.Count == 0;
+    public bool IsTerrainOnly { get; init; } = false;
 
     public Weather Weather { get; init; } = null!;
 

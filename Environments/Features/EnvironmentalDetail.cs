@@ -430,7 +430,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 
         return new EnvironmentalDetail("old_nest", "Old Nest", "An abandoned bird nest, woven from grass and twigs.")
         {
-            _mapIcon = "nest_eco",
+            _mapIcon = "egg",
             Loot = loot,
             InteractionHint = "gather nesting material",
             InteractionMinutes = 2

@@ -83,8 +83,9 @@ public static partial class GameEventRegistry
     private static GameEvent LogShifts(GameContext ctx)
     {
         return new GameEvent("Shifting Logs",
-            "The log beneath you groans and shifts. The whole tangle is unstable.", 0.6)
-            .Requires(EventCondition.Working, EventCondition.HazardousTerrain)
+            "The log beneath you groans and shifts. The whole tangle is unstable.",
+            Situations.TerrainHazardWeight(ctx, 0.1, 2.0))
+            .Requires(EventCondition.Working)
             .WithCooldown(1)
             .Choice("Jump Clear",
                 "React fast. Get off the moving log.",

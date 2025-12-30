@@ -25,7 +25,8 @@ public static class LocationFactory
             overheadCoverLevel: terrain.BaseOverheadCover(),
             visibilityFactor: terrain.BaseVisibility())
         {
-            Terrain = terrain
+            Terrain = terrain,
+            IsTerrainOnly = true
         };
 
         // Generate random ±20% modifier for variation (if position seed provided)
@@ -128,7 +129,7 @@ public static class LocationFactory
     public static Location MakeForest(Weather weather)
     {
         var location = new Location(
-            name: "Forest",
+            name: "Deep Woods",
             tags: "[Shaded] [Resource-Dense]",
             weather: weather,
             terrainHazardLevel: .2,
@@ -192,7 +193,7 @@ public static class LocationFactory
     public static Location MakePlain(Weather weather)
     {
         var location = new Location(
-            name: "Plain",
+            name: "Windswept Flats",
             tags: "[Exposed] [Open]",
             weather: weather,
             terrainHazardLevel: 0.1,
@@ -225,7 +226,7 @@ public static class LocationFactory
     public static Location MakeClearing(Weather weather)
     {
         var location = new Location(
-            name: "Clearing",
+            name: "Sheltered Glade",
             tags: "[Sheltered] [Clearing]",
             weather: weather,
             terrainHazardLevel: 0.1,
@@ -346,7 +347,7 @@ public static class LocationFactory
     public static Location MakeMarsh(Weather weather)
     {
         var location = new Location(
-            name: "Marsh",
+            name: "Frozen Muskeg",
             tags: "[Water] [Treacherous] [Plants]",
             weather: weather,
             terrainHazardLevel: 0.4,

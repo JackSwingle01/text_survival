@@ -1291,6 +1291,10 @@ class GameClient {
             this.respond('cancel', inputId);
         };
 
+        document.getElementById('forageKeepWalkingBtn').onclick = () => {
+            this.respond('keep_walking', inputId);
+        };
+
         this.updateForageConfirmButton();
     }
 
@@ -2116,12 +2120,14 @@ class GameClient {
         }
 
         // Verify this click is for the current input set (prevents stale button clicks)
-        if (inputId !== undefined && inputId !== this.currentInputId) {
+        // Reject if inputId is missing/invalid OR doesn't match current
+        if (!inputId || inputId <= 0 || inputId !== this.currentInputId) {
+            console.log(`[respond] Rejecting stale click: button inputId=${inputId}, current=${this.currentInputId}`);
+            this.awaitingResponse = false;
             return;
         }
 
-        // Use current input ID if parameter is invalid
-        const validInputId = (inputId !== undefined && inputId > 0) ? inputId : this.currentInputId;
+        const validInputId = inputId;
 
         // Don't send if we don't have a valid input ID yet
         if (!validInputId || validInputId <= 0) {
@@ -2556,8 +2562,15 @@ class GameClient {
                 document.getElementById('fireProgressBar').style.width = '0%';
             }, 1500);
         } else {
-            // Not a fire start result - ensure progress is hidden
-            hide(progressEl);
+            // Show progress bar (empty) in starting mode to prevent layout jump, hide in tending mode
+            if (fireData.mode === 'starting') {
+                show(progressEl);
+                document.getElementById('fireProgressBar').style.width = '0%';
+                document.getElementById('fireProgressText').textContent = '';
+                hide(progressResult);
+            } else {
+                hide(progressEl);
+            }
         }
 
         // Set title based on mode
@@ -2569,7 +2582,9 @@ class GameClient {
             this.renderFireStartingMode(fireData.tools, fireData.tinders, fireData.fire, inputId);
             show(document.getElementById('fireStartBtn'));
             const startBtn = document.getElementById('fireStartBtn');
-            startBtn.disabled = !fireData.fire.hasKindling || !fireData.tools || fireData.tools.length === 0;
+            const hasTinder = fireData.tinders && fireData.tinders.length > 0;
+            startBtn.disabled = !fireData.fire.hasKindling || !fireData.tools ||
+                                fireData.tools.length === 0 || !hasTinder;
             startBtn.onclick = () => this.startFireWithProgress(inputId);
         } else {
             this.renderFireTendingMode(fireData.fuels, fireData.fire, inputId);

@@ -2443,6 +2443,14 @@ body {
     opacity: 0.7;
 }
 
+.forage-keep-walking {
+    border-color: var(--text-dim);
+}
+
+.forage-keep-walking:hover {
+    border-color: var(--text-muted);
+}
+
 /* ============================================
    BUTCHER OVERLAY
    ============================================ */
