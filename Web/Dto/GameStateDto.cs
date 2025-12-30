@@ -354,6 +354,9 @@ public record GameStateDto
     {
         var injuries = new List<InjuryDto>();
 
+        // Get base capacities (without effect modifiers) for current damaged state
+        var currentCapacities = CapacityCalculator.GetCapacities(body, new CapacityModifierContainer());
+
         // Organ damage
         var damagedOrgans = body.Parts
             .SelectMany(p => p.Organs)
@@ -363,16 +366,13 @@ public record GameStateDto
 
         foreach (var organ in damagedOrgans)
         {
-            // Get capacities this organ contributes to
-            var affectedCapacities = CapacityNames.All
-                .Where(c => organ._baseCapacities.GetCapacity(c) > 0)
-                .ToList();
-
+            var capacityImpacts = CalculateOrganImpact(body, organ, currentCapacities);
             injuries.Add(new InjuryDto(
                 PartName: organ.Name,
                 ConditionPercent: (int)(organ.Condition * 100),
+                DamagePercent: (int)((1 - organ.Condition) * 100),
                 IsOrgan: true,
-                AffectedCapacities: affectedCapacities
+                CapacityImpacts: capacityImpacts
             ));
         }
 
@@ -384,15 +384,94 @@ public record GameStateDto
 
         foreach (var part in damagedParts)
         {
+            var capacityImpacts = CalculateRegionImpact(body, part, currentCapacities);
             injuries.Add(new InjuryDto(
                 PartName: part.Name,
                 ConditionPercent: (int)(part.Condition * 100),
+                DamagePercent: (int)((1 - part.Condition) * 100),
                 IsOrgan: false,
-                AffectedCapacities: [CapacityNames.Moving, CapacityNames.Manipulation]
+                CapacityImpacts: capacityImpacts
             ));
         }
 
         return injuries;
+    }
+
+    private static Dictionary<string, int> CalculateOrganImpact(
+        Body body, Organ organ, CapacityContainer currentCapacities)
+    {
+        var impacts = new Dictionary<string, int>();
+
+        // Store and temporarily heal
+        double originalCondition = organ.Condition;
+        organ.Condition = 1.0;
+
+        // Calculate capacities with healed organ
+        var healedCapacities = CapacityCalculator.GetCapacities(body, new CapacityModifierContainer());
+
+        // Restore
+        organ.Condition = originalCondition;
+
+        // Calculate impact for each capacity this organ affects
+        foreach (var capacityName in CapacityNames.All)
+        {
+            double current = currentCapacities.GetCapacity(capacityName);
+            double healed = healedCapacities.GetCapacity(capacityName);
+
+            if (healed > 0 && Math.Abs(healed - current) > 0.001)
+            {
+                // Impact as percentage reduction from healed state
+                int impact = (int)Math.Round((current - healed) / healed * 100);
+                if (impact != 0)
+                {
+                    impacts[capacityName] = impact;
+                }
+            }
+        }
+
+        return impacts;
+    }
+
+    private static Dictionary<string, int> CalculateRegionImpact(
+        Body body, BodyRegion region, CapacityContainer currentCapacities)
+    {
+        var impacts = new Dictionary<string, int>();
+
+        // Store original tissue conditions
+        double skinCondition = region.Skin.Condition;
+        double muscleCondition = region.Muscle.Condition;
+        double boneCondition = region.Bone.Condition;
+
+        // Temporarily heal all tissues
+        region.Skin.Condition = 1.0;
+        region.Muscle.Condition = 1.0;
+        region.Bone.Condition = 1.0;
+
+        // Calculate capacities with healed region
+        var healedCapacities = CapacityCalculator.GetCapacities(body, new CapacityModifierContainer());
+
+        // Restore
+        region.Skin.Condition = skinCondition;
+        region.Muscle.Condition = muscleCondition;
+        region.Bone.Condition = boneCondition;
+
+        // Calculate impact for relevant capacities (Moving and Manipulation for regions)
+        foreach (var capacityName in new[] { CapacityNames.Moving, CapacityNames.Manipulation })
+        {
+            double current = currentCapacities.GetCapacity(capacityName);
+            double healed = healedCapacities.GetCapacity(capacityName);
+
+            if (healed > 0 && Math.Abs(healed - current) > 0.001)
+            {
+                int impact = (int)Math.Round((current - healed) / healed * 100);
+                if (impact != 0)
+                {
+                    impacts[capacityName] = impact;
+                }
+            }
+        }
+
+        return impacts;
     }
 
     private static string GetTemperatureStatus(double temp) => temp switch
@@ -503,8 +582,9 @@ public record EffectStatsDto(
 public record InjuryDto(
     string PartName,
     int ConditionPercent,
+    int DamagePercent,
     bool IsOrgan,
-    List<string> AffectedCapacities
+    Dictionary<string, int> CapacityImpacts
 );
 
 public record LogEntryDto(string Text, string Level, string Timestamp);

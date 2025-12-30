@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using text_survival.Actions;
 using text_survival.Actions.Expeditions;
+using text_survival.Effects;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.Persistence;
@@ -459,6 +460,39 @@ public class SerializationTests
             Assert.Equal(3, stack.Peek());
             Assert.Equal(3, stack.Count);
         }
+    }
+
+    [Fact]
+    public void SerializeDeserialize_PlayerEffects_PreserveState()
+    {
+        // Arrange - Create game with player effects
+        var ctx = GameContext.CreateNewGame();
+
+        // Add multiple effect types
+        ctx.player.EffectRegistry.AddEffect(EffectFactory.Pain(0.5));
+        ctx.player.EffectRegistry.AddEffect(EffectFactory.Fear(0.7));
+        ctx.player.EffectRegistry.AddEffect(EffectFactory.Bleeding(0.3));
+
+        int originalEffectCount = ctx.player.EffectRegistry.GetAll().Count;
+        Assert.True(originalEffectCount >= 3, "Should have at least 3 effects");
+
+        // Act
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert - Effects preserved
+        Assert.NotNull(deserialized);
+        var deserializedEffects = deserialized.player.EffectRegistry.GetAll();
+        Assert.Equal(originalEffectCount, deserializedEffects.Count);
+
+        // Verify specific effects exist with correct state
+        Assert.True(deserialized.player.EffectRegistry.HasEffect("Pain"), "Pain effect should survive serialization");
+        Assert.True(deserialized.player.EffectRegistry.HasEffect("Fear"), "Fear effect should survive serialization");
+        Assert.True(deserialized.player.EffectRegistry.HasEffect("Bleeding"), "Bleeding effect should survive serialization");
+
+        // Verify severity preserved
+        var painSeverity = deserialized.player.EffectRegistry.GetSeverity("Pain");
+        Assert.True(painSeverity > 0.4, $"Pain severity should be ~0.5, got {painSeverity}");
     }
 
     private static JsonSerializerOptions GetSerializerOptions()

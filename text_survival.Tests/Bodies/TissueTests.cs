@@ -66,8 +66,8 @@ public class TissueTests
         // Act
         double absorption = heart.GetNaturalAbsorption(DamageType.Blunt);
 
-        // Assert
-        Assert.Equal(8.0, absorption, precision: 2); // Heart has threshold of 8
+        // Assert - 0-1 scale: Heart absorbs 0.08 damage
+        Assert.Equal(0.08, absorption, precision: 2);
     }
 
     [Fact]
@@ -79,8 +79,8 @@ public class TissueTests
         // Act
         double absorption = brain.GetNaturalAbsorption(DamageType.Blunt);
 
-        // Assert
-        Assert.Equal(6.0, absorption, precision: 2); // Brain has threshold of 6
+        // Assert - 0-1 scale: Brain absorbs 0.06 damage
+        Assert.Equal(0.06, absorption, precision: 2);
     }
 
     [Fact]
@@ -92,8 +92,8 @@ public class TissueTests
         // Act
         double absorption = lung.GetNaturalAbsorption(DamageType.Blunt);
 
-        // Assert
-        Assert.Equal(10.0, absorption, precision: 2); // Lungs have threshold of 10
+        // Assert - 0-1 scale: Lungs absorb 0.10 damage
+        Assert.Equal(0.10, absorption, precision: 2);
     }
 
     [Fact]
@@ -105,9 +105,8 @@ public class TissueTests
         // Act
         double absorption = heart.GetNaturalAbsorption(DamageType.Sharp);
 
-        // Assert
-        // Sharp damage: threshold * 0.4 = 8 * 0.4 = 3.2
-        Assert.Equal(3.2, absorption, precision: 2);
+        // Assert - Sharp damage: threshold * 0.4 = 0.08 * 0.4 = 0.032
+        Assert.Equal(0.032, absorption, precision: 3);
     }
 
     [Fact]
@@ -119,9 +118,8 @@ public class TissueTests
         // Act
         double absorption = heart.GetNaturalAbsorption(DamageType.Pierce);
 
-        // Assert
-        // Pierce damage: threshold * 0.2 = 8 * 0.2 = 1.6
-        Assert.Equal(1.6, absorption, precision: 2);
+        // Assert - Pierce damage: threshold * 0.2 = 0.08 * 0.2 = 0.016
+        Assert.Equal(0.016, absorption, precision: 3);
     }
 
     [Fact]
@@ -133,8 +131,7 @@ public class TissueTests
         // Act
         double absorption = muscle.GetNaturalAbsorption(DamageType.Blunt);
 
-        // Assert
-        // Generic tissues have threshold of 1
-        Assert.Equal(1.0, absorption, precision: 2);
+        // Assert - 0-1 scale: Generic tissues absorb 0.01 damage
+        Assert.Equal(0.01, absorption, precision: 2);
     }
 }

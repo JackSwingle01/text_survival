@@ -96,6 +96,14 @@ public class Gear
     public double BaseInsulation { get; init; }
     public double Insulation => BaseInsulation * ConditionPct;
 
+    // === Armor Properties (Equipment) ===
+    // Cushioning: Absorbs impact damage (vs Blunt), range 0-1
+    // Toughness: Resists cutting damage (vs Sharp, partially vs Pierce), range 0-1
+    public double BaseCushioning { get; init; }
+    public double BaseToughness { get; init; }
+    public double Cushioning => BaseCushioning * ConditionPct;
+    public double Toughness => BaseToughness * ConditionPct;
+
     // === Waterproofing (Equipment) ===
     public double BaseWaterproofLevel { get; init; }
     public int ResinTreatmentDurability { get; set; }
@@ -295,6 +303,8 @@ public class Gear
         Weight = 0.4,
         BaseInsulation = 0.15,
         BaseWaterproofLevel = 0.1,  // Raw fur
+        BaseCushioning = 0.15,  // Fur is good padding
+        BaseToughness = 0.05,   // Minimal cut resistance
         Durability = durability,
         MaxDurability = durability
     };
@@ -307,6 +317,8 @@ public class Gear
         Weight = 1.5,
         BaseInsulation = 0.20,
         BaseWaterproofLevel = 0.1,  // Raw fur
+        BaseCushioning = 0.12,  // Worn fur, less padding
+        BaseToughness = 0.04,   // Minimal cut resistance
         Durability = durability,
         MaxDurability = durability
     };
@@ -319,6 +331,8 @@ public class Gear
         Weight = 1.8,
         BaseInsulation = 0.30,
         BaseWaterproofLevel = 0.1,  // Raw fur
+        BaseCushioning = 0.20,  // Good fur padding (chest is key protection)
+        BaseToughness = 0.08,   // Some cut resistance
         Durability = durability,
         MaxDurability = durability
     };
@@ -331,6 +345,8 @@ public class Gear
         Weight = 1.0,
         BaseInsulation = 0.15,
         BaseWaterproofLevel = 0.1,  // Raw fur
+        BaseCushioning = 0.15,  // Fur padding
+        BaseToughness = 0.06,   // Minimal cut resistance
         Durability = durability,
         MaxDurability = durability
     };
@@ -343,6 +359,8 @@ public class Gear
         Weight = 0.6,
         BaseInsulation = 0.10,
         BaseWaterproofLevel = 0.1,  // Raw fur
+        BaseCushioning = 0.10,  // Some padding
+        BaseToughness = 0.05,   // Minimal cut resistance
         Durability = durability,
         MaxDurability = durability
     };
@@ -355,6 +373,8 @@ public class Gear
         Weight = 0.4,
         BaseInsulation = 0.05,
         BaseWaterproofLevel = 0.1,  // Raw hide
+        BaseCushioning = 0.06,  // Less padding than fur
+        BaseToughness = 0.08,   // Hide provides some cut resistance
         Durability = durability,
         MaxDurability = durability
     };
@@ -367,6 +387,8 @@ public class Gear
         Weight = 0.3,
         BaseInsulation = 0.08,
         BaseWaterproofLevel = 0.1,  // Raw fur
+        BaseCushioning = 0.12,  // Fur padding
+        BaseToughness = 0.04,   // Minimal cut resistance
         Durability = durability,
         MaxDurability = durability
     };
@@ -379,6 +401,66 @@ public class Gear
         Weight = 0.15,
         BaseInsulation = 0.03,
         BaseWaterproofLevel = 0.1,  // Raw hide
+        BaseCushioning = 0.05,  // Minimal padding
+        BaseToughness = 0.10,   // Hide provides cut resistance
+        Durability = durability,
+        MaxDurability = durability
+    };
+
+    // === High-Tier Equipment (Heavy Hide Armor) ===
+
+    public static Gear BearHideChest(string name = "Bear Hide Chest", int durability = 150) => new()
+    {
+        Name = name,
+        Category = GearCategory.Equipment,
+        Slot = EquipSlot.Chest,
+        Weight = 3.0,
+        BaseInsulation = 0.35,
+        BaseWaterproofLevel = 0.2,  // Thick hide
+        BaseCushioning = 0.18,  // Good padding from thick hide
+        BaseToughness = 0.30,   // Excellent cut resistance
+        Durability = durability,
+        MaxDurability = durability
+    };
+
+    public static Gear MammothHideChest(string name = "Mammoth Hide Chest", int durability = 200) => new()
+    {
+        Name = name,
+        Category = GearCategory.Equipment,
+        Slot = EquipSlot.Chest,
+        Weight = 4.5,
+        BaseInsulation = 0.45,
+        BaseWaterproofLevel = 0.25,  // Very thick hide
+        BaseCushioning = 0.25,  // Excellent padding from massive hide
+        BaseToughness = 0.38,   // Best cut resistance
+        Durability = durability,
+        MaxDurability = durability
+    };
+
+    public static Gear MammothHideLegs(string name = "Mammoth Hide Legs", int durability = 200) => new()
+    {
+        Name = name,
+        Category = GearCategory.Equipment,
+        Slot = EquipSlot.Legs,
+        Weight = 2.5,
+        BaseInsulation = 0.30,
+        BaseWaterproofLevel = 0.25,
+        BaseCushioning = 0.22,
+        BaseToughness = 0.35,
+        Durability = durability,
+        MaxDurability = durability
+    };
+
+    public static Gear CuredHideChest(string name = "Cured Hide Chest", int durability = 120) => new()
+    {
+        Name = name,
+        Category = GearCategory.Equipment,
+        Slot = EquipSlot.Chest,
+        Weight = 2.0,
+        BaseInsulation = 0.25,
+        BaseWaterproofLevel = 0.35,  // Cured hide is waterproof
+        BaseCushioning = 0.12,  // Less padding (hardened)
+        BaseToughness = 0.22,   // Good cut resistance (cured)
         Durability = durability,
         MaxDurability = durability
     };

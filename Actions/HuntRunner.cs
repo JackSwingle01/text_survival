@@ -1,5 +1,6 @@
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Handlers;
+using text_survival.Actions.Variants;
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
@@ -131,11 +132,11 @@ public static class HuntRunner
                 var transitionDto = BuildHuntDto(state);
                 WebIO.RenderHunt(ctx, transitionDto);
 
-                // Hand off to encounter runner
-                var encounterResult = EncounterRunner.HandlePredatorEncounter(target, ctx);
+                // Hand off to combat runner
+                var combatResult = CombatRunner.RunCombat(ctx, target);
                 WebIO.ClearHunt(ctx);
 
-                return TranslateEncounterResult(encounterResult, state.MinutesSpent);
+                return TranslateCombatResult(combatResult, state.MinutesSpent);
             }
 
             if (result.HuntEnded)
@@ -175,11 +176,19 @@ public static class HuntRunner
     /// </summary>
     private static bool PromptInitialStalk(Animal target, GameContext ctx)
     {
+        // Select a sighting variant based on animal behavior
+        var sighting = HuntingSightingSelector.SelectForAnimal(target, ctx);
+        var behavior = HuntingSightingSelector.MapActivityToBehavior(target);
+        string behaviorHint = HuntingSightingSelector.GetBehaviorHint(behavior);
+
         var choices = new List<HuntChoiceDto>
         {
             new("stalk", $"Stalk the {target.Name}", null, true, null),
             new("leave", "Let it go", null, true, null)
         };
+
+        // Use sighting description for richer flavor
+        string statusMessage = $"You spot game. {sighting.Description}. {behaviorHint}";
 
         var huntDto = new HuntDto(
             AnimalName: target.Name,
@@ -190,7 +199,7 @@ public static class HuntRunner
             PreviousDistanceMeters: null,
             IsAnimatingDistance: false,
             MinutesSpent: 0,
-            StatusMessage: "You spot game.",
+            StatusMessage: statusMessage,
             Choices: choices,
             Outcome: null
         );
@@ -622,16 +631,18 @@ public static class HuntRunner
     }
 
     /// <summary>
-    /// Translate encounter result to hunt outcome.
+    /// Translate combat result to hunt outcome.
     /// </summary>
-    private static (HuntOutcome, int) TranslateEncounterResult(EncounterOutcome encounterResult, int minutesSpent)
+    private static (HuntOutcome, int) TranslateCombatResult(CombatResult combatResult, int minutesSpent)
     {
-        return encounterResult switch
+        return combatResult switch
         {
-            EncounterOutcome.PredatorRetreated => (HuntOutcome.PreyFled, minutesSpent),
-            EncounterOutcome.PlayerEscaped => (HuntOutcome.PreyFled, minutesSpent),
-            EncounterOutcome.CombatVictory => (HuntOutcome.Success, minutesSpent),
-            EncounterOutcome.PlayerDied => (HuntOutcome.PlayerDied, minutesSpent),
+            CombatResult.Victory => (HuntOutcome.Success, minutesSpent),
+            CombatResult.Defeat => (HuntOutcome.PlayerDied, minutesSpent),
+            CombatResult.Fled => (HuntOutcome.PreyFled, minutesSpent),
+            CombatResult.AnimalFled => (HuntOutcome.PreyFled, minutesSpent),
+            CombatResult.AnimalDisengaged => (HuntOutcome.PreyFled, minutesSpent),
+            CombatResult.DistractedWithMeat => (HuntOutcome.PreyFled, minutesSpent),
             _ => (HuntOutcome.PreyFled, minutesSpent)
         };
     }

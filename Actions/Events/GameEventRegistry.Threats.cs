@@ -129,7 +129,7 @@ public static partial class GameEventRegistry
                         .Unsettling()
                         .DiscoversPredator(predator, 0.3),
                     new EventResult("Your noise provokes it. It attacks.", weight: noiseProvokeWeight, minutes: 5)
-                        .Damage(12, DamageType.Sharp)
+                        .Damage(0.35, DamageType.Sharp)
                         .DiscoversPredator(predator, 0.5)
                         .Aborts(),
                     new EventResult("Nothing there. Just paranoia.", weight: 0.05, minutes: 3)
@@ -160,6 +160,9 @@ public static partial class GameEventRegistry
 
     private static GameEvent RavenCall(GameContext ctx)
     {
+        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
+        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+
         return new GameEvent("Raven Call",
             "Ravens circling overhead. They've spotted something — or someone. They're watching you.", 0.6)
             .Requires(EventCondition.Outside)
@@ -175,7 +178,7 @@ public static partial class GameEventRegistry
                         .CreatesCarcass()
                         .BecomeStalked(0.4),
                     new EventResult("They lead you somewhere dangerous.", weight: 0.10, minutes: 20)
-                        .Encounter("Wolf", 25, 0.5),
+                        .Encounter(predator, 25, 0.5),
                     new EventResult("They lead you to something unexpected.", weight: 0.10, minutes: 30)
                         .FindsCache()
                 ])
@@ -194,15 +197,22 @@ public static partial class GameEventRegistry
         var predator = stalkedTension?.AnimalType ?? "Wolf";
         var variant = AnimalSelector.GetVariant(predator);
 
+        // Select terrain-aware escape scenario
+        var escapeScenario = EscapeScenarioSelector.SelectForLocation(ctx);
+        var availableMethods = EscapeScenarioSelector.GetAvailableMethods(escapeScenario, predator, ctx);
+        var primaryEscape = availableMethods.FirstOrDefault();
+
         // Calculate weights based on animal behavior
-        double loseTrailWeight = AnimalSelector.LoseTrailSuccessWeight(variant) * 0.5 + 0.15;  // 0.15-0.65
-        double staysWithYouWeight = variant.StalkingPersistence * 0.5;  // 0.0-0.50
         double chaseOnRetreatWeight = variant.ChaseThreshold * 0.25;  // 0.0-0.25
 
         // Darkness affects differently based on whether animal is nocturnal
         double darknessFactor = variant.IsDiurnal ? 0.8 : 1.5;
 
-        return new GameEvent("Stalker Circling",
+        // Terrain-aware escape description
+        string escapeHint = EscapeScenarioSelector.GetPredatorHint(predator);
+        string terrainDesc = $"{escapeScenario.SetupDescription}. {escapeHint}";
+
+        var evt = new GameEvent("Stalker Circling",
             $"You catch movement in your peripheral vision. Again. {variant.CirclingDescription}", 1.5)
             .Requires(EventCondition.Stalked, EventCondition.IsExpedition)
             .WithSituationFactor(Situations.InDarkness, darknessFactor)
@@ -211,43 +221,96 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You spin to face it. The confrontation is now.", weight: 1.0, minutes: 5)
                         .ConfrontStalker(predator, 20, stalkedTension?.Severity ?? 0.5)
-                ])
-            .Choice("Try to Lose It",
-                $"Double back, cross water, break your trail. {(variant.StalkingPersistence > 0.5 ? "Difficult with this one." : "Worth a shot.")}",
-                [
-                    new EventResult("You double back, cross water, break your trail. It works.", weight: loseTrailWeight, minutes: 25)
-                        .ResolvesStalking(),
-                    new EventResult("It stays with you. You've wasted time and energy.", weight: staysWithYouWeight, minutes: 20)
-                        .EscalatesStalking(0.2),
-                    new EventResult("You get turned around trying to lose it.", weight: 0.15, minutes: 35)
-                        .WithEffects(EffectFactory.Cold(-8, 30), EffectFactory.Shaken(0.2)),
-                    new EventResult("Your evasion leads you somewhere unexpected.", weight: 0.10, minutes: 30)
-                ])
-            .Choice("Keep Moving, Stay Alert",
-                "Maintain distance. Don't show weakness.",
-                [
-                    new EventResult("You maintain distance. Exhausting but stable.", weight: 0.40, minutes: 10),
-                    new EventResult("It's getting bolder.", weight: 0.25 + variant.StalkingPersistence * 0.1, minutes: 8)
-                        .EscalatesStalking(),
-                    new EventResult("It backs off. Maybe lost interest.", weight: 0.25 - variant.StalkingPersistence * 0.1, minutes: 5)
-                        .EscalatesStalking(-0.1),
-                    new EventResult("It commits.", weight: 0.10, minutes: 5)
-                        .ConfrontStalker(predator, 15, 0.6)
-                ])
-            .Choice("Return to Camp",
-                $"Head back now. {(variant.FireEffectiveness > 0.6 ? "Fire should deter it." : "Risky — fire may not work.")}",
-                [
-                    new EventResult("You make it back. Fire deters it.", weight: 0.40 + variant.FireEffectiveness * 0.3)
-                        .ResolvesStalking()
-                        .Aborts(),
-                    new EventResult("It follows to camp perimeter but won't approach fire.", weight: 0.20 + variant.FireEffectiveness * 0.1)
-                        .ResolvesStalking()
-                        .Unsettling()
-                        .Aborts(),
-                    new EventResult($"It's bolder than you thought. {(variant.ChaseThreshold > 0.5 ? "Attacks as you flee." : "Cuts you off.")}", weight: chaseOnRetreatWeight + 0.10, minutes: 5)
-                        .ConfrontStalker(predator, 10, 0.8)
-                        .Aborts()
                 ]);
+
+        // Add terrain-aware escape choice if we have a method
+        if (primaryEscape != null)
+        {
+            double escapeChance = EscapeScenarioSelector.CalculateEscapeChance(
+                primaryEscape, escapeScenario, ctx, predator);
+            double failWeight = 1.0 - escapeChance;
+
+            var escapeResults = new List<EventResult>
+            {
+                new EventResult(primaryEscape.SuccessText, escapeChance, primaryEscape.TimeCost)
+                    .ResolvesStalking()
+            };
+
+            // Add injury chance on success if applicable
+            if (primaryEscape.InjuryChance > 0)
+            {
+                escapeResults[0] = escapeResults[0].Damage(0.08, DamageType.Sharp);
+            }
+
+            // Failure results
+            escapeResults.Add(new EventResult(primaryEscape.FailureText, failWeight * 0.6, primaryEscape.TimeCost)
+                .EscalatesStalking(0.2));
+            escapeResults.Add(new EventResult($"The {predator.ToLower()} cuts you off. No escape.",
+                    failWeight * 0.3, primaryEscape.TimeCost)
+                .ConfrontStalker(predator, 10, 0.7));
+            escapeResults.Add(new EventResult("You get turned around trying to escape.",
+                    failWeight * 0.1, primaryEscape.TimeCost + 10)
+                .WithEffects(EffectFactory.Cold(-8, 30), EffectFactory.Shaken(0.2)));
+
+            evt.Choice(primaryEscape.Name,
+                $"{primaryEscape.ActionText}. {terrainDesc}",
+                escapeResults);
+        }
+
+        evt.Choice("Keep Moving, Stay Alert",
+            "Maintain distance. Don't show weakness.",
+            [
+                new EventResult("You maintain distance. Exhausting but stable.", weight: 0.40, minutes: 10),
+                new EventResult("It's getting bolder.", weight: 0.25 + variant.StalkingPersistence * 0.1, minutes: 8)
+                    .EscalatesStalking(),
+                new EventResult("It backs off. Maybe lost interest.", weight: 0.25 - variant.StalkingPersistence * 0.1, minutes: 5)
+                    .EscalatesStalking(-0.1),
+                new EventResult("It commits.", weight: 0.10, minutes: 5)
+                    .ConfrontStalker(predator, 15, 0.6)
+            ])
+        .Choice("Return to Camp",
+            $"Head back now. {(variant.FireEffectiveness > 0.6 ? "Fire should deter it." : "Risky — fire may not work.")}",
+            [
+                new EventResult("You make it back. Fire deters it.", weight: 0.40 + variant.FireEffectiveness * 0.3)
+                    .ResolvesStalking()
+                    .Aborts(),
+                new EventResult("It follows to camp perimeter but won't approach fire.", weight: 0.20 + variant.FireEffectiveness * 0.1)
+                    .ResolvesStalking()
+                    .Unsettling()
+                    .Aborts(),
+                new EventResult($"It's bolder than you thought. {(variant.ChaseThreshold > 0.5 ? "Attacks as you flee." : "Cuts you off.")}", weight: chaseOnRetreatWeight + 0.10, minutes: 5)
+                    .ConfrontStalker(predator, 10, 0.8)
+                    .Aborts()
+            ])
+        .Choice("Light a Fire",
+            "Most animals fear flame. Stop and build one. You'll be exposed while you work.",
+            [
+                new EventResult("Fire catches. The predator backs off, circling wide.", weight: 0.35 * variant.FireEffectiveness + 0.15, minutes: 12)
+                    .Costs(ResourceType.Tinder, 1)
+                    .BurnsFuel(2)
+                    .ResolvesStalking(),
+                new EventResult("The flame drives it back but it doesn't leave. You'll have to move.", weight: 0.25, minutes: 15)
+                    .Costs(ResourceType.Tinder, 1)
+                    .BurnsFuel(2)
+                    .EscalatesStalking(-0.2),
+                new EventResult("It watches you work. As you crouch over tinder, it creeps closer.", weight: 0.20, minutes: 10)
+                    .Costs(ResourceType.Tinder, 1)
+                    .BurnsFuel(2)
+                    .EscalatesStalking(0.15)
+                    .Unsettling(),
+                new EventResult("Smoke gets in your eyes. When you look up, it's gone. Or closer.", weight: 0.15, minutes: 8)
+                    .Costs(ResourceType.Tinder, 1)
+                    .BurnsFuel(2)
+                    .Frightening()
+                    .EscalatesStalking(0.1),
+                new EventResult("It lunges while you're distracted with the tinder.", weight: 0.05 + (1 - variant.FireEffectiveness) * 0.1, minutes: 5)
+                    .Costs(ResourceType.Tinder, 1)
+                    .BurnsFuel(2)
+                    .ConfrontStalker(predator, 5, 0.8)
+            ],
+            requires: [EventCondition.HasTinder, EventCondition.HasFuel]);
+
+        return evt;
     }
 
     private static GameEvent PredatorRevealed(GameContext ctx)
@@ -369,27 +432,27 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Nauseous(0.4, 120)),
                     new EventResult("Worse than expected. You're really sick.", weight: 0.30, minutes: 20)
                         .WithEffects(EffectFactory.Nauseous(0.6, 180))
-                        .Damage(3, DamageType.Internal),
+                        .Damage(0.08, DamageType.Internal),
                     new EventResult("Your body handles it. You feel tougher for it.", weight: 0.30, minutes: 10)
                         .WithEffects(EffectFactory.Hardened(0.35, 180)),
                     new EventResult("Serious food poisoning. This is bad.", weight: 0.10, minutes: 30)
                         .WithEffects(EffectFactory.Nauseous(0.8, 240))
-                        .Damage(8, DamageType.Internal)
+                        .Damage(0.20, DamageType.Internal)
                 ])
             .Choice("Herbal Treatment",
-                "Use plant fiber to settle your stomach.",
+                "Use medicine to settle your stomach.",
                 [
                     new EventResult("Settles your stomach. Mild discomfort only.", weight: 0.70, minutes: 15)
-                        .Costs(ResourceType.PlantFiber, 1)
+                        .Costs(ResourceType.Medicine, 1)
                         .WithEffects(EffectFactory.Nauseous(0.2, 30)),
                     new EventResult("Doesn't help much.", weight: 0.20, minutes: 15)
-                        .Costs(ResourceType.PlantFiber, 1)
+                        .Costs(ResourceType.Medicine, 1)
                         .WithEffects(EffectFactory.Nauseous(0.4, 90)),
                     new EventResult("Makes it worse somehow.", weight: 0.10, minutes: 15)
-                        .Costs(ResourceType.PlantFiber, 1)
+                        .Costs(ResourceType.Medicine, 1)
                         .WithEffects(EffectFactory.Nauseous(0.5, 120))
                 ],
-                [EventCondition.HasPlantFiber]);
+                [EventCondition.HasMedicine]);
     }
 
     private static GameEvent MuscleCramp(GameContext ctx)
@@ -449,7 +512,7 @@ public static partial class GameEventRegistry
                     new EventResult("Heat loosens it. Cramp releases smoothly.", weight: 0.80, minutes: 10),
                     new EventResult("Takes a while but warmth helps.", weight: 0.15, minutes: 18),
                     new EventResult("Too close. Minor burn, but cramp's gone.", weight: 0.05, minutes: 12)
-                        .Damage(2, DamageType.Burn)
+                        .Damage(0.05, DamageType.Burn)
                         .WithEffects(EffectFactory.Burn(0.15, 45))
                 ],
                 [EventCondition.NearFire]);
@@ -469,7 +532,7 @@ public static partial class GameEventRegistry
                     new EventResult("Doesn't help. Getting worse.", weight: 0.30)
                         .WithEffects(EffectFactory.Shaken(0.4)),
                     new EventResult("Made it worse. Eyes burning now.", weight: 0.20)
-                        .Damage(2, DamageType.Internal)
+                        .Damage(0.05, DamageType.Internal)
                         .WithEffects(EffectFactory.Shaken(0.3))
                 ])
             .Choice("Rest Eyes",
@@ -502,6 +565,9 @@ public static partial class GameEventRegistry
 
     private static GameEvent ParanoiaEvent(GameContext ctx)
     {
+        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
+        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+
         return new GameEvent("Paranoia",
             "You are certain — absolutely certain — you see eyes reflecting at the edge of the firelight.", 0.5)
             .Requires(EventCondition.AtCamp, EventCondition.Night, EventCondition.Awake)
@@ -523,7 +589,7 @@ public static partial class GameEventRegistry
                     new EventResult("Something might have been there. Hard to tell.", weight: 0.20, minutes: 10)
                         .BecomeStalked(0.2),
                     new EventResult("Something is there.", weight: 0.25, minutes: 5)
-                        .Encounter("Wolf", 20, 0.4)
+                        .Encounter(predator, 20, 0.4)
                 ])
             .Choice("Huddle by Fire",
                 "Stay close. Wait it out.",
@@ -589,32 +655,32 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Brutal but effective. Wound sealed.", weight: 0.60, minutes: 10)
                         .ResolveTension("WoundUntreated")
-                        .Damage(5, DamageType.Burn)
+                        .Damage(0.15, DamageType.Burn)
                         .WithEffects(EffectFactory.Burn(0.4, 120)),
                     new EventResult("Effective but traumatic. You won't forget this.", weight: 0.25, minutes: 10)
                         .ResolveTension("WoundUntreated")
-                        .Damage(5, DamageType.Burn)
+                        .Damage(0.15, DamageType.Burn)
                         .WithEffects(EffectFactory.Fear(0.3), EffectFactory.Burn(0.4, 120)),
                     new EventResult("Not thorough enough. Still infected.", weight: 0.10, minutes: 10)
-                        .Damage(3, DamageType.Burn)
+                        .Damage(0.08, DamageType.Burn)
                         .WithEffects(EffectFactory.Burn(0.3, 90))
                         .Escalate("WoundUntreated", 0.1),
                     new EventResult("You can't do it. The pain stops you.", weight: 0.05, minutes: 5)
                 ],
                 [EventCondition.NearFire])
             .Choice("Herbal Treatment",
-                "Use plant fiber as a poultice.",
+                "Apply a medicinal poultice.",
                 [
                     new EventResult("Poultice draws out infection.", weight: 0.65, minutes: 20)
-                        .Costs(ResourceType.PlantFiber, 2)
+                        .Costs(ResourceType.Medicine, 2)
                         .ResolveTension("WoundUntreated"),
                     new EventResult("Helps but slow. Still needs watching.", weight: 0.25, minutes: 20)
-                        .Costs(ResourceType.PlantFiber, 2)
+                        .Costs(ResourceType.Medicine, 2)
                         .Escalate("WoundUntreated", -0.2),
                     new EventResult("Not effective. Infection continues.", weight: 0.10, minutes: 20)
-                        .Costs(ResourceType.PlantFiber, 2)
+                        .Costs(ResourceType.Medicine, 2)
                 ],
-                [EventCondition.HasPlantFiber])
+                [EventCondition.HasMedicine])
             .Choice("Ignore It",
                 "You'll deal with it later.",
                 [
@@ -656,7 +722,7 @@ public static partial class GameEventRegistry
                     new EventResult("Body loses. Infection spreading. Condition critical.", weight: 0.25, minutes: 120)
                         .WithEffects(EffectFactory.Fever(0.8))
                         .Escalate("WoundUntreated", 0.3)
-                        .Damage(10, DamageType.Internal)
+                        .Damage(0.25, DamageType.Internal)
                 ])
             .Choice("Keep Working",
                 "Deny the fever. Push on.",
@@ -668,7 +734,7 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Fever(0.6), EffectFactory.Exhausted(0.5, 120)),
                     new EventResult("The fever wins. You go down.", weight: 0.20, minutes: 90)
                         .WithEffects(EffectFactory.Fever(0.75))
-                        .Damage(8, DamageType.Internal)
+                        .Damage(0.20, DamageType.Internal)
                         .Aborts()
                 ]);
     }
@@ -782,22 +848,22 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Tooth cracked but holding. Pain lingers.", weight: 0.60, minutes: 3)
                         .WithEffects(EffectFactory.Pain(0.3))
-                        .Damage(2, DamageType.Internal),
+                        .Damage(0.05, DamageType.Internal),
                     new EventResult("Tooth fine, just cut your gum. Minor.", weight: 0.30, minutes: 2)
-                        .Damage(1, DamageType.Sharp),
+                        .Damage(0.02, DamageType.Sharp),
                     new EventResult("Tooth broken. This will be a problem.", weight: 0.10, minutes: 5)
                         .WithEffects(EffectFactory.Pain(0.5))
-                        .Damage(5, DamageType.Internal)
+                        .Damage(0.12, DamageType.Internal)
                 ])
             .Choice("Check Carefully",
                 "Take time to examine the damage.",
                 [
                     new EventResult("Just the food. Your teeth are fine.", weight: 0.50, minutes: 5),
                     new EventResult("Small chip. Painful but not serious.", weight: 0.35, minutes: 5)
-                        .Damage(1, DamageType.Internal),
+                        .Damage(0.02, DamageType.Internal),
                     new EventResult("Cracked tooth. Needs attention.", weight: 0.15, minutes: 5)
                         .WithEffects(EffectFactory.Pain(0.25))
-                        .Damage(3, DamageType.Internal)
+                        .Damage(0.08, DamageType.Internal)
                 ]);
     }
 
@@ -1115,6 +1181,9 @@ public static partial class GameEventRegistry
         var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
         if (carcass == null) return new GameEvent("Empty", "", 0).Requires(EventCondition.Cornered);  // Invalid
 
+        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
+        var scavenger = territory?.GetRandomPredatorName() ?? "Wolf";
+
         string animal = carcass.AnimalName;
         double lossPercent = Random.Shared.NextDouble() * 0.5 + 0.3;  // 30-80% loss
         double remainingKg = carcass.MeatRemainingKg * (1 - lossPercent);
@@ -1139,7 +1208,7 @@ public static partial class GameEventRegistry
                     new EventResult("The tracks lead into thick brush. They're watching you.", 0.5, 15)
                         .BecomeStalked(0.3),
                     new EventResult("You find them. A standoff at their cache.", 0.3, 20)
-                        .Encounter("wolf", 20, 0.4),
+                        .Encounter(scavenger, 20, 0.4),
                     new EventResult("The trail goes cold. They know this territory better than you.", 0.2, 25)
                 ])
             .Choice("Leave it",

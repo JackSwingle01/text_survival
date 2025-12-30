@@ -38,7 +38,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You reset the snare quickly and continue.", 0.70, 5),
                     new EventResult("In your haste, you cut your finger on the mechanism.", 0.20, 5)
-                        .Damage(2, DamageType.Sharp),
+                        .Damage(0.05, DamageType.Sharp),
                     new EventResult("The snare is damaged beyond quick repair. You'll need to replace it.", 0.10, 5)
                         .DestroysSnare()
                 ])
@@ -136,6 +136,9 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent TrapLinePlundered(GameContext ctx)
     {
+        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
+        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+
         return new GameEvent("Trap Line Plundered",
             "Your snares have been hit. The snow is churned up, feathers and fur scattered. Something got here first.", 0.7)
             .Requires(EventCondition.TrapLineActive, EventCondition.OnExpedition)
@@ -161,9 +164,9 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.SmallGame),
                     new EventResult("You find the scavenger — a fox, still eating. Easy target.", 0.20, 25)
                         .Rewards(RewardPool.SmallGame),
-                    new EventResult("You find the 'scavenger' — a wolf. It sees you too.", 0.10, 15)
+                    new EventResult($"You find the 'scavenger' — a {predator.ToLower()}. It sees you too.", 0.10, 15)
                         .Frightening()
-                        .Encounter("wolf", 20, 0.4)
+                        .Encounter(predator, 20, 0.4)
                 ],
                 requires: [EventCondition.IsDaytime])
             .Choice("Reset and Accept the Loss",
@@ -193,23 +196,38 @@ public static partial class GameEventRegistry
                     new EventResult("Just a pinch. Hurts but no real damage.", 0.50, 2)
                         .WithEffects(EffectFactory.Pain(0.1)),
                     new EventResult("Deep bruise forming. Your grip will be weak for a while.", 0.30, 5)
-                        .Damage(3, DamageType.Blunt),
+                        .Damage(0.08, DamageType.Blunt),
                     new EventResult("It caught your finger badly. Bleeding, swelling fast.", 0.15, 5)
-                        .Damage(5, DamageType.Sharp)
+                        .Damage(0.12, DamageType.Sharp)
                         .WithEffects(EffectFactory.Bleeding(0.2)),
                     new EventResult("Something snapped. Not the snare — your finger.", 0.05, 5)
-                        .Damage(10, DamageType.Blunt)
+                        .Damage(0.25, DamageType.Blunt)
                         .WithEffects(EffectFactory.Pain(0.5))
                 ])
             .Choice("Shake It Off",
                 "Keep working. You've had worse.",
                 [
                     new EventResult("You flex your hand and continue. It'll bruise.", 0.70, 0)
-                        .Damage(2, DamageType.Blunt),
+                        .Damage(0.05, DamageType.Blunt),
                     new EventResult("Pushing through makes it worse. Should have stopped.", 0.30, 0)
-                        .Damage(5, DamageType.Blunt)
+                        .Damage(0.12, DamageType.Blunt)
                         .WithEffects(EffectFactory.Pain(0.2))
-                ]);
+                ])
+            .Choice("Treat It Properly",
+                "Stop the bleeding. Bind it. Don't let it fester.",
+                [
+                    new EventResult("You clean the wound and bind it tight. Stings, but it'll heal clean.", 0.55, 10)
+                        .Costs(ResourceType.Medicine, 1),
+                    new EventResult("Treated, but the damage is done. You'll bruise, but no infection.", 0.25, 12)
+                        .Costs(ResourceType.Medicine, 1)
+                        .Damage(0.05, DamageType.Blunt, BodyTarget.AnyArm),
+                    new EventResult("Quick work. The snare didn't get deep.", 0.15, 8)
+                        .Costs(ResourceType.Medicine, 1)
+                        .WithEffects(EffectFactory.Focused(0.1, 30)),
+                    new EventResult("You fumble the treatment — cold fingers. Uses more supplies.", 0.05, 15)
+                        .Costs(ResourceType.Medicine, 2)
+                ],
+                requires: [EventCondition.HasMedicine]);
     }
 
     /// <summary>

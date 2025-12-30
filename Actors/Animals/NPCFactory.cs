@@ -52,8 +52,9 @@ public static class AnimalFactory
             musclePercent = 0.40
         };
 
+        // 0-1 damage scale: 0.05 = scratches, negligible
         var animal = new Animal("Rat", bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small,
-            attackDamage: 2, attackName: "teeth", attackType: DamageType.Pierce)
+            attackDamage: 0.05, attackName: "teeth", attackType: DamageType.Pierce)
         {
             TrackingDifficulty = 3
         };
@@ -71,9 +72,11 @@ public static class AnimalFactory
             musclePercent = 0.60
         };
 
+        // 0-1 damage scale: 0.45 = 2 hits cripples limb, very dangerous
         var animal = new Animal("Wolf", bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
-            attackDamage: 10, attackName: "fangs", attackType: DamageType.Pierce,
-            speedMps: 8.0, pursuitCommitment: 60.0)
+            attackDamage: 0.45, attackName: "fangs", attackType: DamageType.Pierce,
+            speedMps: 8.0, pursuitCommitment: 60.0,
+            disengageAfterMaul: 0.2)  // Pack hunters tend to finish prey
         {
             TrackingDifficulty = 6
         };
@@ -91,9 +94,11 @@ public static class AnimalFactory
             musclePercent = 0.55
         };
 
+        // 0-1 damage scale: 0.60 = 1-2 hits cripples limb, large predator
         var animal = new Animal("Bear", bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
-            attackDamage: 20, attackName: "claws", attackType: DamageType.Sharp,
-            speedMps: 5.0, pursuitCommitment: 30.0)
+            attackDamage: 0.60, attackName: "claws", attackType: DamageType.Sharp,
+            speedMps: 5.0, pursuitCommitment: 30.0,
+            disengageAfterMaul: 0.5)  // Often leaves after incapacitating (territorial defense)
         {
             TrackingDifficulty = 5
         };
@@ -111,9 +116,11 @@ public static class AnimalFactory
             musclePercent = 0.55
         };
 
+        // 0-1 damage scale: 0.80 = 1 hit major wound, terrifying
         var animal = new Animal("Cave Bear", bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
-            attackDamage: 25, attackName: "massive claws", attackType: DamageType.Sharp,
-            speedMps: 4.5, pursuitCommitment: 25.0)
+            attackDamage: 0.80, attackName: "massive claws", attackType: DamageType.Sharp,
+            speedMps: 4.5, pursuitCommitment: 25.0,
+            disengageAfterMaul: 0.5)  // Often leaves after incapacitating (territorial defense)
         {
             TrackingDifficulty = 4
         };
@@ -131,8 +138,10 @@ public static class AnimalFactory
             musclePercent = 0.50
         };
 
+        // 0-1 damage scale: 1.2 = 1 hit destroys limb, run or die
         var animal = new Animal("Woolly Mammoth", bodyStats, AnimalBehaviorType.DangerousPrey, AnimalSize.Large,
-            attackDamage: 35, attackName: "tusks", attackType: DamageType.Pierce)
+            attackDamage: 1.2, attackName: "tusks", attackType: DamageType.Pierce,
+            disengageAfterMaul: 0.7)  // Defensive - just wants you to go away
         {
             TrackingDifficulty = 2,
             SpecialYields =
@@ -155,9 +164,11 @@ public static class AnimalFactory
             musclePercent = 0.70
         };
 
+        // 0-1 damage scale: 0.90 = 1 hit cripples/dying, apex predator
         var animal = new Animal("Saber-Tooth Tiger", bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
-            attackDamage: 30, attackName: "massive fangs", attackType: DamageType.Pierce,
-            speedMps: 9.0, pursuitCommitment: 45.0)
+            attackDamage: 0.90, attackName: "massive fangs", attackType: DamageType.Pierce,
+            speedMps: 9.0, pursuitCommitment: 45.0,
+            disengageAfterMaul: 0.15)  // Big cat, likely to finish kill
         {
             TrackingDifficulty = 7
         };
@@ -175,8 +186,9 @@ public static class AnimalFactory
             musclePercent = 0.60
         };
 
+        // 0-1 damage scale: 0.25 = defensive bruising/gash
         var animal = new Animal("Caribou", bodyStats, AnimalBehaviorType.Prey, AnimalSize.Large,
-            attackDamage: 6, attackName: "antlers", attackType: DamageType.Blunt,
+            attackDamage: 0.25, attackName: "antlers", attackType: DamageType.Blunt,
             isHostile: false)
         {
             TrackingDifficulty = 4
@@ -195,8 +207,9 @@ public static class AnimalFactory
             musclePercent = 0.50
         };
 
+        // 0-1 damage scale: 0.02 = negligible, prey animal
         var animal = new Animal("Rabbit", bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small,
-            attackDamage: 1, attackName: "teeth", attackType: DamageType.Blunt,
+            attackDamage: 0.02, attackName: "teeth", attackType: DamageType.Blunt,
             isHostile: false)
         {
             TrackingDifficulty = 6
@@ -215,8 +228,9 @@ public static class AnimalFactory
             musclePercent = 0.60
         };
 
+        // 0-1 damage scale: 0.02 = negligible, prey bird
         var animal = new Animal("Ptarmigan", bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small,
-            attackDamage: 1, attackName: "beak", attackType: DamageType.Blunt,
+            attackDamage: 0.02, attackName: "beak", attackType: DamageType.Blunt,
             isHostile: false)
         {
             TrackingDifficulty = 7
@@ -235,8 +249,9 @@ public static class AnimalFactory
             musclePercent = 0.55
         };
 
+        // 0-1 damage scale: 0.12 = minor wound, small predator
         var animal = new Animal("Fox", bodyStats, AnimalBehaviorType.Scavenger, AnimalSize.Small,
-            attackDamage: 4, attackName: "sharp teeth", attackType: DamageType.Pierce,
+            attackDamage: 0.12, attackName: "sharp teeth", attackType: DamageType.Pierce,
             isHostile: false)
         {
             TrackingDifficulty = 6
@@ -255,10 +270,12 @@ public static class AnimalFactory
             musclePercent = 0.60
         };
 
+        // 0-1 damage scale: 0.50 = gored/trampled, massive antlers
         var animal = new Animal("Megaloceros", bodyStats, AnimalBehaviorType.DangerousPrey, AnimalSize.Large,
-            attackDamage: 15, attackName: "massive antlers", attackType: DamageType.Blunt,
+            attackDamage: 0.50, attackName: "massive antlers", attackType: DamageType.Blunt,
             speedMps: 7.0, pursuitCommitment: 20.0,
-            isHostile: false)
+            isHostile: false,
+            disengageAfterMaul: 0.6)  // Defensive - leaves once threat neutralized
         {
             TrackingDifficulty = 3
         };
@@ -276,10 +293,12 @@ public static class AnimalFactory
             musclePercent = 0.55
         };
 
+        // 0-1 damage scale: 0.55 = gored, dangerous prey
         var animal = new Animal("Steppe Bison", bodyStats, AnimalBehaviorType.DangerousPrey, AnimalSize.Large,
-            attackDamage: 20, attackName: "horns", attackType: DamageType.Pierce,
+            attackDamage: 0.55, attackName: "horns", attackType: DamageType.Pierce,
             speedMps: 6.5, pursuitCommitment: 25.0,
-            isHostile: false)
+            isHostile: false,
+            disengageAfterMaul: 0.6)  // Defensive - leaves once threat neutralized
         {
             TrackingDifficulty = 2
         };
@@ -297,9 +316,11 @@ public static class AnimalFactory
             musclePercent = 0.65
         };
 
+        // 0-1 damage scale: 0.40 = crushing bite, bone-crushing jaws
         var animal = new Animal("Cave Hyena", bodyStats, AnimalBehaviorType.Scavenger, AnimalSize.Large,
-            attackDamage: 12, attackName: "crushing jaws", attackType: DamageType.Blunt,
-            speedMps: 7.5, pursuitCommitment: 50.0)
+            attackDamage: 0.40, attackName: "crushing jaws", attackType: DamageType.Blunt,
+            speedMps: 7.5, pursuitCommitment: 50.0,
+            disengageAfterMaul: 0.3)  // Scavenger, may leave if prey plays dead
         {
             TrackingDifficulty = 5
         };

@@ -39,8 +39,7 @@ public record ForageClue(
     double YieldModifier = 1.0,                // Multiplier for Resource/Negative clues
     string? GameAnimalType = null,             // For Game clues: "rabbit", "deer", etc.
     double HuntBonus = 0,                      // For Game clues: additive density bonus
-    string? CarcassSize = null,                // For Scavenge: "small", "medium", "large"
-    double EncounterChance = 0                 // For Scavenge: predator risk (0-1)
+    ScavengeScenario? Scenario = null          // For Scavenge: scenario with animal/predator pools
 );
 
 /// <summary>
@@ -146,28 +145,7 @@ public static class ClueLibrary
     ];
 
     // ============ SCAVENGE CLUES ============
-    // Lead to carcass discoveries with predator risk
-
-    public static readonly ForageClue[] ScavengeClues =
-    [
-        new("Blood trail into the brush", ClueCategory.Scavenge,
-            [], 1.0, CarcassSize: "small", EncounterChance: 0.05),
-
-        new("Scattered feathers and blood", ClueCategory.Scavenge,
-            [], 1.0, CarcassSize: "small", EncounterChance: 0.03),
-
-        new("Drag marks through the snow", ClueCategory.Scavenge,
-            [], 1.0, CarcassSize: "medium", EncounterChance: 0.08),
-
-        new("Circling ravens ahead", ClueCategory.Scavenge,
-            [], 1.0, CarcassSize: "medium", EncounterChance: 0.10),
-
-        new("Fresh kill, still warm", ClueCategory.Scavenge,
-            [], 1.0, CarcassSize: "large", EncounterChance: 0.15),
-
-        new("Raptor pellets below a ledge", ClueCategory.Scavenge,
-            [Resource.Bone], 1.0, CarcassSize: "bones", EncounterChance: 0),
-    ];
+    // Now handled by ScavengeScenarioSelector - see ScavengeScenarioVariant.cs
 
     // ============ NEGATIVE CLUES ============
     // Reduce overall forage yield
@@ -316,18 +294,13 @@ public static class ClueSelector
         }
 
         // Snow clues - game clues when cold enough
-        if (weather.TemperatureInFahrenheit < 32)
+        bool isSnowy = weather.TemperatureInFahrenheit < 32;
+        if (isSnowy)
         {
             if (hasHuntableGame)
             {
                 foreach (var clue in ClueLibrary.SnowGameClues)
                     pool.Add((clue, 1.0));
-            }
-            // Snow-specific scavenge clues
-            foreach (var clue in ClueLibrary.ScavengeClues.Where(c =>
-                c.Description.Contains("snow") || c.Description.Contains("drag")))
-            {
-                pool.Add((clue, 0.5));
             }
         }
 
@@ -342,11 +315,23 @@ public static class ClueSelector
             }
         }
 
-        // Scavenge clues - always possible at low weight (non-snow specific)
-        foreach (var clue in ClueLibrary.ScavengeClues.Where(c =>
-            !c.Description.Contains("snow") && !c.Description.Contains("drag")))
+        // Scavenge scenarios - context-aware carcass discovery
+        bool isPredatorTerritory = territory?.HasPredators() == true;
+        bool isBearTerritory = territory?._possibleAnimals.Any(a =>
+            a.AnimalType.Contains("bear", StringComparison.OrdinalIgnoreCase)) == true;
+
+        var scavengePool = ScavengeScenarioSelector.BuildWeightedPool(
+            ctx, isSnowy, isPredatorTerritory, isBearTerritory);
+
+        foreach (var (scenario, weight) in scavengePool)
         {
-            pool.Add((clue, 0.3));
+            var clue = new ForageClue(
+                scenario.ClueText,
+                ClueCategory.Scavenge,
+                [],
+                Scenario: scenario
+            );
+            pool.Add((clue, weight));
         }
 
         // Negative clues - context-specific

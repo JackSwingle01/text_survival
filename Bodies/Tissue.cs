@@ -66,15 +66,21 @@ public class Tissue
         };
     }
 
+    /// <summary>
+    /// Natural damage absorption before condition loss.
+    /// Values scaled for 0-1 damage system where 1.0 = destroys tissue layer.
+    /// </summary>
     public virtual double GetNaturalAbsorption(DamageType damageType)
     {
+        // Organs have higher absorption (protected by being internal)
+        // Tissues have minimal absorption (scratches don't wound)
         double baseThreshold = Name switch
         {
-            OrganNames.Heart => 8,
-            OrganNames.Brain => 6,
-            OrganNames.LeftLung or OrganNames.RightLung => 10,
-            OrganNames.Liver => 5,
-            _ => 1
+            OrganNames.Heart => 0.08,
+            OrganNames.Brain => 0.06,
+            OrganNames.LeftLung or OrganNames.RightLung => 0.10,
+            OrganNames.Liver => 0.05,
+            _ => 0.01  // Skin/muscle - only absorbs tiny scratches
         };
 
         return damageType switch
@@ -133,8 +139,8 @@ class Bone : Tissue
     {
     }
 
-    // Normal constructor
-    public Bone(string name) : base(name, 10)
+    // Normal constructor - toughness 3.0 provides protection but isn't invulnerable
+    public Bone(string name) : base(name, 3)
     {
     }
 

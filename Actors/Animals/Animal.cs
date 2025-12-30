@@ -113,6 +113,12 @@ namespace text_survival.Actors.Animals
         public double PursuitCommitmentSeconds { get; }
 
         /// <summary>
+        /// Base chance (0-1) that this animal disengages after incapacitating prey.
+        /// Bears often leave after mauling (0.5), wolves tend to finish kills (0.2).
+        /// </summary>
+        public double DisengageAfterMaul { get; set; }
+
+        /// <summary>
         /// Special materials this animal yields beyond standard meat/bone/hide.
         /// Set during construction for animals with trophy materials (ivory, mammoth hide, etc.).
         /// </summary>
@@ -176,7 +182,8 @@ namespace text_survival.Actors.Animals
             double speedMps = 6.0,
             double pursuitCommitment = 45.0,
             bool isHostile = true,
-            double blockChance = 0.01)
+            double blockChance = 0.01,
+            double disengageAfterMaul = 0.1)
             : base(name, bodyStats)
         {
             // Combat stats
@@ -191,6 +198,7 @@ namespace text_survival.Actors.Animals
             IsHostile = isHostile;
             SpeedMps = speedMps;
             PursuitCommitmentSeconds = pursuitCommitment;
+            DisengageAfterMaul = disengageAfterMaul;
 
             // Defaults
             State = AnimalState.Idle;

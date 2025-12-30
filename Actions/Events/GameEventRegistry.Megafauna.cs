@@ -82,7 +82,7 @@ public static partial class GameEventRegistry
                         .Escalate("MammothTracked", 0.3),
                     new EventResult("The tracks lead into dense forest. You push through, driven.", weight: 0.30, minutes: 40)
                         .Escalate("MammothTracked", 0.25)
-                        .Damage(4, DamageType.Sharp),  // Thorns/branches
+                        .Damage(0.10, DamageType.Sharp),  // Thorns/branches
                     new EventResult("Fresh dung, still warm. It was here minutes ago. You're very close now.", weight: 0.20, minutes: 30)
                         .Escalate("MammothTracked", 0.4)
                 ])
@@ -210,7 +210,7 @@ public static partial class GameEventRegistry
                         .Escalate("MammothTracked", 0.1),
                     new EventResult("Your fingers go numb. Your body screams at you. But you don't stop.", weight: 0.30, minutes: 20)
                         .WithEffects(EffectFactory.Shivering(0.8))
-                        .Damage(5, DamageType.Internal),
+                        .Damage(0.12, DamageType.Internal),
                     new EventResult("Too cold. You can't feel your extremities anymore. This was a mistake.", weight: 0.20, minutes: 10)
                         .WithEffects(EffectFactory.Hypothermia(0.5))
                         .CreateTension("DeadlyCold", 0.6)
@@ -235,7 +235,7 @@ public static partial class GameEventRegistry
                         .BecomeStalked(0.4, "Wolf"),
                     new EventResult("Knife slips in your haste—you cut yourself. But you get clear.", weight: 0.25, minutes: 10)
                         .FindsMeat()
-                        .Damage(6, DamageType.Sharp)
+                        .Damage(0.15, DamageType.Sharp)
                         .WithEffects(EffectFactory.Bleeding(0.3))
                         .BecomeStalked(0.5, "Wolf"),
                     new EventResult("Too slow. They're here. You drop everything and run.", weight: 0.15, minutes: 5)
@@ -429,13 +429,13 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You dive left. Your spear bites deep into its flank as it thunders past.", weight: 0.35, minutes: 3)
                         .KillsMammoth()
-                        .Damage(8, DamageType.Blunt),
+                        .Damage(0.20, DamageType.Blunt),
                     new EventResult("Glancing blow. It staggers but keeps going. The herd flees.", weight: 0.35, minutes: 3)
                         .TriggersHerdFlee()
                         .MammothTracked(0.7)
-                        .Damage(6, DamageType.Blunt),
+                        .Damage(0.15, DamageType.Blunt),
                     new EventResult("You're not fast enough. Impact.", weight: 0.20, minutes: 2)
-                        .Damage(18, DamageType.Blunt)
+                        .Damage(0.45, DamageType.Blunt)
                         .TriggersHerdFlee()
                         .Panicking(),
                     new EventResult("Perfect timing. Your weapon finds a vital spot. It goes down.", weight: 0.10, minutes: 3)
@@ -449,7 +449,7 @@ public static partial class GameEventRegistry
                         .TriggersHerdFlee()
                         .Frightening(),
                     new EventResult("Not enough cover. It clips you as it passes.", weight: 0.35, minutes: 3)
-                        .Damage(10, DamageType.Blunt)
+                        .Damage(0.25, DamageType.Blunt)
                         .TriggersHerdFlee(),
                     new EventResult("The cover holds. You hear the herd retreating.", weight: 0.15, minutes: 3)
                         .TriggersHerdFlee()
@@ -461,7 +461,7 @@ public static partial class GameEventRegistry
                         .TriggersHerdFlee()
                         .Terrifying(),
                     new EventResult("Not a bluff. It keeps coming.", weight: 0.5, minutes: 2)
-                        .Damage(15, DamageType.Blunt)
+                        .Damage(0.40, DamageType.Blunt)
                         .TriggersHerdFlee()
                         .Panicking(),
                     new EventResult("Your courage impresses even a mammoth. It stops, snorts, retreats.", weight: 0.2, minutes: 2)

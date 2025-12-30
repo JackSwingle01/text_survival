@@ -76,7 +76,7 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.SquirrelCache, 0.5),
                     new EventResult("Quick work. Not much, but better than nothing.", 0.25, 2),
                     new EventResult("The little beast bites your hand as you reach in!", 0.05, 2)
-                        .Damage(1, DamageType.Pierce, BodyTarget.AnyArm)
+                        .Damage(0.02, DamageType.Pierce, BodyTarget.AnyArm)
                 ])
             .Choice("Leave It",
                 "It's the squirrel's food. Winter's hard for everyone.",
@@ -120,17 +120,17 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You snatch a comb and run. Stings burn, but you got honey.", 0.50, 5)
                         .Rewards(RewardPool.HoneyHarvest, 0.7)
-                        .Damage(3, DamageType.Pierce, BodyTarget.AnyArm)
+                        .Damage(0.08, DamageType.Pierce, BodyTarget.AnyArm)
                         .WithEffects(EffectFactory.Pain(0.2)),
                     new EventResult("The bees are angry. You escape with honey and a face full of stings.", 0.30, 3)
                         .Rewards(RewardPool.HoneyHarvest, 0.5)
-                        .Damage(5, DamageType.Pierce, BodyTarget.Head)
+                        .Damage(0.12, DamageType.Pierce, BodyTarget.Head)
                         .WithEffects(EffectFactory.Pain(0.4)),
                     new EventResult("They swarm before you can react. You flee empty-handed.", 0.15, 2)
-                        .Damage(8, DamageType.Pierce, BodyTarget.Chest)
+                        .Damage(0.20, DamageType.Pierce, BodyTarget.Chest)
                         .WithEffects(EffectFactory.Pain(0.5)),
                     new EventResult("Bad reaction to the stings. Your throat tightens.", 0.05, 5)
-                        .Damage(10, DamageType.Pierce, BodyTarget.Head)
+                        .Damage(0.25, DamageType.Pierce, BodyTarget.Head)
                         .WithEffects(EffectFactory.Nauseous(0.6, 120))
                         .DrainsStats(calories: 300)
                 ])
@@ -140,7 +140,7 @@ public static partial class GameEventRegistry
                     new EventResult("You memorize the tree's location. Return with fire and this will be easy.", 0.90, 2)
                         .CreateTension("MarkedDiscovery", 0.4, description: "Beehive location"),
                     new EventResult("You get too close looking for landmarks. A few guard bees find you.", 0.10, 3)
-                        .Damage(2, DamageType.Pierce, BodyTarget.AnyArm)
+                        .Damage(0.05, DamageType.Pierce, BodyTarget.AnyArm)
                         .CreateTension("MarkedDiscovery", 0.4, description: "Beehive location")
                 ]);
     }

@@ -106,8 +106,12 @@ public static class GameDisplay
         // Process time first so frame contains updated state for animation deltas
         int elapsed = updateTime ? ctx.Update(minutes, activity) : minutes;
 
-        // Send frame with actual elapsed time for accurate animation duration
-        Web.WebIO.RenderWithDuration(ctx, statusText, elapsed);
+        // Skip progress animation if work was aborted by an event/encounter.
+        // User's attention was on the event, not watching work progress.
+        if (!ctx.LastEventAborted)
+        {
+            Web.WebIO.RenderWithDuration(ctx, statusText, elapsed);
+        }
 
         return (elapsed, ctx.EventOccurredLastUpdate);
     }

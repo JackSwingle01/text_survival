@@ -4,11 +4,16 @@ public static class CapacityCalculator
 {
     public static CapacityContainer GetCapacities(Body body, CapacityModifierContainer effectModifiers)
     {
-        CapacityContainer baseCapacities = new();
+        // Collect per-region capacities
+        var regionCapacities = new Dictionary<string, CapacityContainer>();
         foreach (var part in body.Parts)
         {
-            baseCapacities += GetRegionCapacities(part);
+            regionCapacities[part.Name] = GetRegionCapacities(part);
         }
+
+        // Weighted combination for limb-dependent capacities
+        var baseCapacities = CombineRegionCapacities(regionCapacities);
+
         // Apply effect modifiers (includes survival stat effects like Hungry, Thirsty, Tired)
         var withEffects = baseCapacities.ApplyModifier(effectModifiers);
 
@@ -17,6 +22,62 @@ public static class CapacityCalculator
 
         // Apply cascading effects (pass blood condition for circulation cascade)
         return ApplyCascadingEffects(withEffects, body.Blood.Condition);
+    }
+
+    private static CapacityContainer CombineRegionCapacities(Dictionary<string, CapacityContainer> regions)
+    {
+        var result = new CapacityContainer();
+
+        // Weight constants: primary limbs contribute 90%, others contribute 10%
+        const double primaryLimbWeight = 0.45;  // per limb (2 limbs = 90%)
+        const double otherWeight = 0.02;        // split remaining 10% among 5 other regions
+
+        // Moving: 90% legs, 10% other (destroyed legs = can only crawl/drag)
+        result.Moving = WeightedCapacity(regions, CapacityNames.Moving,
+            (BodyRegionNames.LeftLeg, primaryLimbWeight),
+            (BodyRegionNames.RightLeg, primaryLimbWeight),
+            (BodyRegionNames.Head, otherWeight),
+            (BodyRegionNames.Chest, otherWeight),
+            (BodyRegionNames.Abdomen, otherWeight),
+            (BodyRegionNames.LeftArm, otherWeight),
+            (BodyRegionNames.RightArm, otherWeight));
+
+        // Manipulation: 90% arms, 10% other
+        result.Manipulation = WeightedCapacity(regions, CapacityNames.Manipulation,
+            (BodyRegionNames.LeftArm, primaryLimbWeight),
+            (BodyRegionNames.RightArm, primaryLimbWeight),
+            (BodyRegionNames.Head, otherWeight),
+            (BodyRegionNames.Chest, otherWeight),
+            (BodyRegionNames.Abdomen, otherWeight),
+            (BodyRegionNames.LeftLeg, otherWeight),
+            (BodyRegionNames.RightLeg, otherWeight));
+
+        // Other capacities: simple sum (existing behavior)
+        foreach (var region in regions.Values)
+        {
+            result.Breathing += region.Breathing;
+            result.Consciousness += region.Consciousness;
+            result.BloodPumping += region.BloodPumping;
+            result.Sight += region.Sight;
+            result.Hearing += region.Hearing;
+            result.Digestion += region.Digestion;
+        }
+
+        return result;
+    }
+
+    private static double WeightedCapacity(
+        Dictionary<string, CapacityContainer> regions,
+        string capacityName,
+        params (string region, double weight)[] weights)
+    {
+        double total = 0;
+        foreach (var (region, weight) in weights)
+        {
+            if (regions.TryGetValue(region, out var caps))
+                total += caps.GetCapacity(capacityName) * weight;
+        }
+        return total;
     }
 
 

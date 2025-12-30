@@ -19,8 +19,49 @@ public class DamageResult
 
 public static class DamageProcessor
 {
+    /// <summary>
+    /// Applies armor reduction to incoming damage before body processing.
+    /// Cushioning absorbs Blunt damage, Toughness resists Sharp/Pierce.
+    /// Internal, Bleed, Burn, and Poison damage bypass armor.
+    /// </summary>
+    private static void ApplyArmorReduction(DamageInfo damageInfo)
+    {
+        // Skip armor for damage types that bypass it
+        if (damageInfo.Type == DamageType.Internal ||
+            damageInfo.Type == DamageType.Bleed ||
+            damageInfo.Type == DamageType.Burn ||
+            damageInfo.Type == DamageType.Poison)
+        {
+            return;
+        }
+
+        // No armor equipped - skip calculation
+        if (damageInfo.ArmorCushioning <= 0 && damageInfo.ArmorToughness <= 0)
+        {
+            return;
+        }
+
+        // Calculate armor reduction based on damage type
+        double armorReduction = damageInfo.Type switch
+        {
+            DamageType.Blunt => damageInfo.ArmorCushioning,                    // Pure cushioning
+            DamageType.Sharp => damageInfo.ArmorToughness,                     // Pure toughness
+            DamageType.Pierce => damageInfo.ArmorToughness * 0.7,              // Mostly toughness (penetrates padding)
+            _ => (damageInfo.ArmorCushioning + damageInfo.ArmorToughness) / 2  // Average for other types
+        };
+
+        // Clamp reduction to 0-0.8 (max 80% damage reduction from armor)
+        armorReduction = Math.Clamp(armorReduction, 0, 0.8);
+
+        // Apply reduction
+        damageInfo.Amount *= (1 - armorReduction);
+    }
+
     public static DamageResult DamageBody(DamageInfo damageInfo, Body body)
     {
+        // Apply armor reduction before any damage processing
+        ApplyArmorReduction(damageInfo);
+
         // Resolve enum to actual part name
         damageInfo.TargetPartName = BodyTargetResolver.ResolveTargetName(damageInfo.Target, body);
 
@@ -88,30 +129,53 @@ public static class DamageProcessor
         result.HitPartHealthAfter = hitPart.Condition;
 
         // Check for bleeding trigger - sharp/pierce damage that broke skin
+        // Threshold: 3% of skin condition lost triggers bleeding
         if ((damageInfo.Type == DamageType.Sharp || damageInfo.Type == DamageType.Pierce)
-            && result.TissuesDamaged.Any(t => t.TissueName == "Skin" && t.DamageTaken > 0.05))
+            && result.TissuesDamaged.Any(t => t.TissueName == "Skin" && t.DamageTaken > 0.03))
         {
-            double bleedSeverity = Math.Clamp(result.TotalDamageDealt * 0.05, 0.1, 0.6);
+            double bleedSeverity = Math.Clamp(result.TotalDamageDealt * 0.5, 0.15, 1.0);
             result.TriggeredEffects.Add(EffectFactory.Bleeding(bleedSeverity));
         }
 
+        // Blunt trauma causing internal bleeding (severe muscle/bone damage)
+        // Threshold: 20% total tissue damage triggers internal bleeding
+        if (damageInfo.Type == DamageType.Blunt)
+        {
+            double totalTissueDamage = result.TissuesDamaged.Sum(t => t.DamageTaken);
+            if (totalTissueDamage > 0.20)
+            {
+                double bleedSeverity = Math.Clamp(totalTissueDamage * 1.5, 0.2, 0.8);
+                result.TriggeredEffects.Add(EffectFactory.Bleeding(bleedSeverity));
+            }
+        }
+
+        // Shock from massive trauma
+        // Threshold: 25% of a limb's worth of damage triggers shock
+        if (result.TotalDamageDealt > 0.25)
+        {
+            double shockSeverity = Math.Clamp((result.TotalDamageDealt - 0.25) * 2.0, 0.2, 0.8);
+            result.TriggeredEffects.Add(EffectFactory.Shock(shockSeverity));
+        }
+
         // Check for pain trigger - any external damage type
+        // Threshold: 2% damage triggers pain
         if ((damageInfo.Type == DamageType.Blunt ||
              damageInfo.Type == DamageType.Sharp ||
              damageInfo.Type == DamageType.Pierce ||
              damageInfo.Type == DamageType.Burn)
-            && result.TotalDamageDealt > 0.01)
+            && result.TotalDamageDealt > 0.02)
         {
-            double painSeverity = Math.Clamp(result.TotalDamageDealt * 0.08, 0.1, 0.8);
+            double painSeverity = Math.Clamp(result.TotalDamageDealt * 1.0, 0.1, 0.8);
             result.TriggeredEffects.Add(EffectFactory.Pain(painSeverity));
         }
 
         // Check for dazed trigger - blunt damage to head
+        // Threshold: 8% damage to head triggers dazed
         if (damageInfo.Type == DamageType.Blunt
             && result.HitPartName.Equals("Head", StringComparison.OrdinalIgnoreCase)
-            && result.TotalDamageDealt > 0.05)
+            && result.TotalDamageDealt > 0.08)
         {
-            double dazedSeverity = Math.Clamp(result.TotalDamageDealt * 0.15, 0.2, 0.8);
+            double dazedSeverity = Math.Clamp(result.TotalDamageDealt * 1.5, 0.2, 0.8);
             result.TriggeredEffects.Add(EffectFactory.Dazed(dazedSeverity));
         }
 

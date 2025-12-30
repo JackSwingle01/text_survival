@@ -1593,6 +1593,44 @@ body {
     opacity: 0.7;
 }
 
+/* Injury bars (matching effect bars) */
+.injury-name {
+    flex-shrink: 0;
+    min-width: 70px;
+}
+
+.injury-bar-container {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    margin: 0 8px;
+    overflow: hidden;
+}
+
+.injury-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+/* Injury bar colors based on severity */
+.injury-item.critical .injury-bar {
+    background: var(--vital-red);
+}
+
+.injury-item.severe .injury-bar {
+    background: var(--vital-red);
+}
+
+.injury-item.moderate .injury-bar {
+    background: var(--warning-amber);
+}
+
+.injury-item.minor .injury-bar {
+    background: var(--text-dim);
+}
+
 /* Effect tooltips */
 .effect-item.has-tooltip,
 .injury-item.has-tooltip {
@@ -1608,7 +1646,7 @@ body {
     transform: translateX(-50%);
     margin-bottom: 4px;
     padding: 8px;
-    background: var(--bg-midnight);
+    background: #0d1218;
     border: 1px solid var(--border-bright);
     font-size: 10px;
     color: var(--text-mid);
@@ -2030,6 +2068,9 @@ body {
 }
 
 .event-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border-dim);
     margin-bottom: 16px;
@@ -2098,6 +2139,17 @@ body {
     font-size: 0.8rem;
     color: var(--text-dim);
     margin-top: 4px;
+}
+
+.event-choice-btn .choice-cost {
+    font-size: 0.75rem;
+    color: var(--warning-color);
+    margin-top: 6px;
+    font-style: italic;
+}
+
+.event-choice-btn:disabled .choice-cost {
+    color: var(--danger-color);
 }
 
 /* Event Progress Bar (embedded in popup) */
@@ -2784,6 +2836,545 @@ body {
     gap: 6px;
     align-items: center;
 }
+
+/* ============================================
+   ENCOUNTER OVERLAY
+   ============================================ */
+
+.encounter-modal {
+    max-width: 450px;
+}
+
+.encounter-header {
+    border-bottom-color: var(--danger);
+}
+
+.encounter-header .material-symbols-outlined {
+    color: var(--danger);
+}
+
+.encounter-target {
+    font-family: var(--font-display);
+    font-size: 1.4em;
+    font-weight: 700;
+    color: var(--danger);
+    text-align: center;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 10px 20px;
+    background: var(--bg-surface);
+    border-radius: 6px;
+    border-left: 3px solid var(--danger);
+}
+
+/* Distance bar (reversed gradient - red is close) */
+.encounter-distance {
+    margin-bottom: 12px;
+    padding: 12px;
+    background: var(--bg-surface);
+    border-radius: 6px;
+}
+
+.encounter-distance-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+.encounter-distance-value {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.encounter-distance-bar-container {
+    position: relative;
+    height: 12px;
+    background: linear-gradient(to right,
+        var(--danger) 0%,
+        var(--warning) 40%,
+        var(--success) 100%);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.encounter-distance-mask {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    background: var(--panel-bg);
+    transition: width 0.3s ease-out;
+}
+
+/* Boldness gauge */
+.encounter-boldness {
+    margin-bottom: 12px;
+    padding: 12px;
+    background: var(--bg-surface);
+    border-radius: 6px;
+}
+
+.encounter-boldness-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+.encounter-boldness-descriptor {
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.encounter-boldness-descriptor.aggressive {
+    color: var(--danger);
+}
+
+.encounter-boldness-descriptor.wary {
+    color: var(--warning);
+}
+
+.encounter-boldness-descriptor.hesitant {
+    color: var(--success);
+}
+
+.encounter-boldness-bar-container {
+    height: 10px;
+    background: var(--panel-bg-dark);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.encounter-boldness-fill {
+    height: 100%;
+    background: var(--warning);
+    border-radius: 5px;
+    transition: width 0.3s ease-out, background-color 0.3s ease;
+}
+
+.encounter-boldness-fill.aggressive {
+    background: var(--danger);
+}
+
+.encounter-boldness-fill.wary {
+    background: var(--warning);
+}
+
+.encounter-boldness-fill.hesitant {
+    background: var(--success);
+}
+
+/* Threat factors */
+.encounter-factors {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.encounter-factor {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 6px;
+    font-size: 0.85em;
+    color: var(--danger-light);
+}
+
+.encounter-factor .material-symbols-outlined {
+    font-size: 16px;
+    color: var(--danger);
+}
+
+/* Status message */
+.encounter-message {
+    text-align: center;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    min-height: 1.4em;
+    font-style: italic;
+}
+
+/* Outcome */
+.encounter-outcome {
+    text-align: center;
+    padding: 16px;
+    background: var(--panel-bg-dark);
+    border-radius: 8px;
+    margin-top: 12px;
+}
+
+.encounter-outcome-message {
+    font-size: 1.1em;
+    line-height: 1.5;
+}
+
+.encounter-outcome.retreated .encounter-outcome-message {
+    color: var(--success);
+}
+
+.encounter-outcome.escaped .encounter-outcome-message {
+    color: var(--info);
+}
+
+.encounter-outcome.fight .encounter-outcome-message {
+    color: var(--warning);
+}
+
+.encounter-outcome.died .encounter-outcome-message {
+    color: var(--danger);
+}
+
+/* ============================================
+   COMBAT OVERLAY
+   ============================================ */
+
+.combat-modal {
+    max-width: 450px;
+}
+
+.combat-header {
+    border-bottom-color: var(--danger);
+}
+
+.combat-header .material-symbols-outlined {
+    color: var(--danger);
+}
+
+/* Distance zone display */
+.combat-distance {
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.combat-distance-zones {
+    display: flex;
+    justify-content: stretch;
+    gap: 2px;
+    margin-bottom: 4px;
+}
+
+.combat-zone {
+    flex: 1;
+    padding: 6px 8px;
+    background: var(--panel-bg-dark);
+    color: var(--text-muted);
+    font-size: 0.75em;
+    font-weight: 600;
+    text-align: center;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.combat-zone.active {
+    background: var(--danger);
+    color: var(--text-primary);
+}
+
+.combat-zone[data-zone="far"].active {
+    background: var(--success);
+}
+
+.combat-zone[data-zone="mid"].active {
+    background: var(--warning);
+}
+
+.combat-zone[data-zone="close"].active {
+    background: var(--fire-orange);
+}
+
+.combat-zone[data-zone="melee"].active {
+    background: var(--danger);
+}
+
+.combat-distance-meters {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+
+/* Animal status */
+.combat-animal-status {
+    background: var(--panel-bg-dark);
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border-left: 3px solid var(--danger);
+}
+
+.combat-animal-name {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--danger);
+    text-transform: capitalize;
+    margin-bottom: 6px;
+}
+
+.combat-animal-behavior {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.behavior-state {
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    background: var(--warning);
+    color: var(--bg-primary);
+}
+
+.behavior-state.charging {
+    background: var(--danger);
+    color: var(--text-primary);
+    animation: chargePulse 0.5s ease-in-out infinite alternate;
+}
+
+.behavior-state.recovering {
+    background: var(--success);
+    color: var(--bg-primary);
+}
+
+.behavior-state.retreating {
+    background: var(--info);
+    color: var(--bg-primary);
+}
+
+@keyframes chargePulse {
+    from { opacity: 0.8; transform: scale(1); }
+    to { opacity: 1; transform: scale(1.05); }
+}
+
+.behavior-desc {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.combat-animal-health {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* Threat factors */
+.combat-threat-factors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.combat-threat-factors:empty {
+    display: none;
+}
+
+.threat-factor {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    background: var(--panel-bg-dark);
+}
+
+.threat-factor .material-symbols-outlined {
+    font-size: 14px;
+}
+
+.threat-factor.danger {
+    background: rgba(231, 76, 60, 0.2);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+}
+
+.threat-factor.advantage {
+    background: rgba(46, 204, 113, 0.2);
+    color: var(--success);
+    border: 1px solid var(--success);
+}
+
+/* Action message */
+.combat-action-message {
+    text-align: center;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    min-height: 2.4em;
+    padding: 10px;
+    background: var(--bg-surface);
+    border-radius: 6px;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+.combat-action-message:empty {
+    display: none;
+}
+
+/* Player status */
+.combat-player-status {
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.player-braced {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--success);
+    color: var(--bg-primary);
+    font-weight: 600;
+    font-size: 0.85em;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+/* Combat actions */
+.combat-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.combat-action-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.combat-action {
+    flex: 1 1 calc(50% - 3px);
+    min-width: 120px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--panel-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+}
+
+.combat-action:hover:not(:disabled) {
+    border-color: var(--text-primary);
+    background: var(--bg-surface);
+}
+
+.combat-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.combat-action-name {
+    font-weight: 600;
+    font-size: 0.95em;
+    margin-bottom: 2px;
+}
+
+.combat-action-hint {
+    font-size: 0.8em;
+    color: var(--text-muted);
+}
+
+.combat-action-stat {
+    font-size: 0.75em;
+    color: var(--info);
+    font-weight: 600;
+}
+
+/* Action categories */
+.combat-action.offensive {
+    border-left: 3px solid var(--danger);
+}
+
+.combat-action.defensive {
+    border-left: 3px solid var(--info);
+}
+
+.combat-action.movement {
+    border-left: 3px solid var(--warning);
+}
+
+.combat-action.special {
+    border-left: 3px solid var(--success);
+}
+
+/* Outcome */
+.combat-outcome {
+    text-align: center;
+    padding: 16px;
+    background: var(--panel-bg-dark);
+    border-radius: 8px;
+    margin-top: 12px;
+}
+
+.combat-outcome-message {
+    font-size: 1.1em;
+    line-height: 1.5;
+    margin-bottom: 8px;
+}
+
+.combat-outcome.victory .combat-outcome-message {
+    color: var(--success);
+}
+
+.combat-outcome.defeat .combat-outcome-message {
+    color: var(--danger);
+}
+
+.combat-outcome.fled .combat-outcome-message,
+.combat-outcome.animal_fled .combat-outcome-message,
+.combat-outcome.disengaged .combat-outcome-message,
+.combat-outcome.distracted .combat-outcome-message {
+    color: var(--info);
+}
+
+.combat-rewards {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+}
+
+.combat-reward-item {
+    color: var(--success);
+}
+
+/* Targeting options (two-stage combat menu) */
+.targeting-prompt {
+    text-align: center;
+    margin-bottom: 12px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.targeting-options {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.targeting-btn {
+    padding: 12px 20px;
+    border-left: 3px solid var(--danger);
+    min-width: 100px;
+}
+
 /* ============================================
    FIRE OVERLAY
    ============================================ */

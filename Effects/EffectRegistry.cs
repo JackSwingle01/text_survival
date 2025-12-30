@@ -7,7 +7,8 @@ namespace text_survival.Effects;
 
 public class EffectRegistry
 {
-    private List<Effect> _effects = [];
+    // Must be public for System.Text.Json IncludeFields serialization
+    public List<Effect> _effects = [];
 
     public EffectRegistry()
     {
@@ -202,25 +203,4 @@ public class EffectRegistry
         }
         return total;
     }
-
-    #region Save/Load Support
-
-    /// <summary>
-    /// Add an effect directly without triggering messages (for save/load).
-    /// </summary>
-    internal void AddRestoredEffect(Effect effect)
-    {
-        _effects.Add(effect);
-        effect.IsActive = true;
-    }
-
-    /// <summary>
-    /// Clear all effects (for save/load restoration).
-    /// </summary>
-    internal void ClearEffects()
-    {
-        _effects.Clear();
-    }
-
-    #endregion
 }

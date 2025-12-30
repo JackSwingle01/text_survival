@@ -121,18 +121,29 @@ export const EffectsDisplay = {
         Utils.clearElement(container);
 
         if (hasBloodLoss) {
+            const bloodLossPercent = 100 - bloodPercent;
             const div = document.createElement('div');
             div.className = `injury-item ${this.getInjurySeverityClass(bloodPercent)} has-tooltip`;
-            div.textContent = 'Blood loss ';
-            const pctSpan = document.createElement('span');
-            pctSpan.className = 'injury-pct';
-            pctSpan.textContent = `(${100 - bloodPercent}%)`;
-            div.appendChild(pctSpan);
 
-            // Blood loss tooltip
+            // Name
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'injury-name';
+            nameSpan.textContent = 'Blood loss';
+            div.appendChild(nameSpan);
+
+            // Bar
+            const barContainer = document.createElement('div');
+            barContainer.className = 'injury-bar-container';
+            const bar = document.createElement('div');
+            bar.className = 'injury-bar';
+            bar.style.width = `${bloodLossPercent}%`;
+            barContainer.appendChild(bar);
+            div.appendChild(barContainer);
+
+            // Tooltip - blood loss affects consciousness, moving, manipulation
             const tooltip = document.createElement('div');
             tooltip.className = 'effect-tooltip';
-            tooltip.textContent = 'Affects: Consciousness, Moving, Manipulation';
+            tooltip.textContent = 'Consciousness, Moving, Manipulation';
             div.appendChild(tooltip);
 
             container.appendChild(div);
@@ -142,18 +153,25 @@ export const EffectsDisplay = {
             injuries.forEach(i => {
                 const div = document.createElement('div');
                 div.className = `injury-item ${this.getInjurySeverityClass(i.conditionPercent)}`;
-                const label = i.isOrgan ? `${i.partName} (organ) ` : `${i.partName} `;
-                div.textContent = label;
-                const pctSpan = document.createElement('span');
-                pctSpan.className = 'injury-pct';
-                pctSpan.textContent = `(${100 - i.conditionPercent}%)`;
-                div.appendChild(pctSpan);
 
-                // Add tooltip for affected capacities
-                if (i.affectedCapacities && i.affectedCapacities.length > 0) {
-                    const tooltip = document.createElement('div');
-                    tooltip.className = 'effect-tooltip';
-                    tooltip.textContent = `Affects: ${i.affectedCapacities.join(', ')}`;
+                // Name
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'injury-name';
+                nameSpan.textContent = i.isOrgan ? `${i.partName} (organ)` : i.partName;
+                div.appendChild(nameSpan);
+
+                // Bar (using damagePercent)
+                const barContainer = document.createElement('div');
+                barContainer.className = 'injury-bar-container';
+                const bar = document.createElement('div');
+                bar.className = 'injury-bar';
+                bar.style.width = `${i.damagePercent}%`;
+                barContainer.appendChild(bar);
+                div.appendChild(barContainer);
+
+                // Tooltip with capacity impacts
+                const tooltip = this.createInjuryTooltip(i);
+                if (tooltip) {
                     div.appendChild(tooltip);
                     div.classList.add('has-tooltip');
                 }
@@ -161,6 +179,30 @@ export const EffectsDisplay = {
                 container.appendChild(div);
             });
         }
+    },
+
+    createInjuryTooltip(injury) {
+        const lines = [];
+
+        // Capacity impacts (same format as effects)
+        if (injury.capacityImpacts) {
+            for (const [cap, impact] of Object.entries(injury.capacityImpacts)) {
+                if (impact !== 0) {
+                    const sign = impact > 0 ? '+' : '';
+                    lines.push(`${cap}: ${sign}${impact}%`);
+                }
+            }
+        }
+
+        if (lines.length === 0) return null;
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'effect-tooltip';
+        lines.forEach((line, i) => {
+            if (i > 0) tooltip.appendChild(document.createElement('br'));
+            tooltip.appendChild(document.createTextNode(line));
+        });
+        return tooltip;
     },
 
     getInjurySeverityClass(percent) {

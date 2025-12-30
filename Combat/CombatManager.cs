@@ -7,6 +7,15 @@ using text_survival.UI;
 
 namespace text_survival.Combat;
 
+/// <summary>
+/// Result of an attack, returned by CombatManager.Attack().
+/// </summary>
+public record AttackResult(
+    bool Hit,
+    double DamageDealt,
+    List<string> Narratives
+);
+
 public class CombatManager
 {
     private const double MELEE_HIT_RATE = 0.90;
@@ -47,31 +56,19 @@ public class CombatManager
         return Math.Clamp(chance, 0, .95);
     }
 
-    public bool DetermineDodge(Actor target, GameContext? ctx)
+    public bool DetermineDodge(Actor target)
     {
         double dodgeChance = DetermineDodgeChance(target);
-        if (Utils.DetermineSuccess(dodgeChance))
-        {
-            if (ctx != null)
-                GameDisplay.AddNarrative(ctx, $"{Owner} dodged the attack!");
-            return true;
-        }
-        return false;
+        return Utils.DetermineSuccess(dodgeChance);
     }
 
-    public bool DetermineHit(GameContext? ctx)
+    public bool DetermineHit()
     {
         // Flat 90% hit rate for melee
-        if (!Utils.DetermineSuccess(MELEE_HIT_RATE))
-        {
-            if (ctx != null)
-                GameDisplay.AddNarrative(ctx, $"{Owner} missed!");
-            return false;
-        }
-        return true;
+        return Utils.DetermineSuccess(MELEE_HIT_RATE);
     }
 
-    public bool DetermineBlock(Actor target, GameContext? ctx)
+    public bool DetermineBlock(Actor target)
     {
         double blockLevel = 0;
         if (target is Player player)
@@ -80,49 +77,41 @@ public class CombatManager
         double skillBonus = blockLevel / 100;
         double blockChance = target.BlockChance + (target.Strength / 2) + skillBonus;
 
-        if (Utils.DetermineSuccess(blockChance))
-        {
-            if (ctx != null)
-                GameDisplay.AddNarrative(ctx, $"{target} blocked the attack!");
-            return true;
-        }
-        return false;
+        return Utils.DetermineSuccess(blockChance);
     }
 
-    public void Attack(Actor target, Gear? weapon = null, string? targetedPart = null, GameContext? ctx = null)
+    public AttackResult Attack(Actor target, Gear? weapon = null, string? targetedPart = null, GameContext? ctx = null)
     {
+        var narratives = new List<string>();
+
         // Get attack stats from weapon if provided, otherwise from attacker's properties
         double baseDamage = weapon?.Damage ?? Owner.AttackDamage;
-        string attackName = weapon?.Name ?? Owner.AttackName;
         DamageType damageType = weapon != null
             ? GetDamageType(weapon.WeaponClass)
             : Owner.AttackType;
 
-        bool isDodged = DetermineDodge(target, ctx);
+        bool isDodged = DetermineDodge(target);
         if (isDodged)
         {
             string description = CombatNarrator.DescribeAttack(Owner, target, null, false, true, false);
-            if (ctx != null)
-                GameDisplay.AddNarrative(ctx, description);
-            return;
+            narratives.Add(description);
+            return new AttackResult(Hit: false, DamageDealt: 0, Narratives: narratives);
         }
 
-        bool isHit = DetermineHit(ctx);
+        bool isHit = DetermineHit();
         if (!isHit)
         {
             string description = CombatNarrator.DescribeAttack(Owner, target, null, false, false, false);
-            if (ctx != null)
-                GameDisplay.AddNarrative(ctx, description);
-            return;
+            narratives.Add(description);
+            return new AttackResult(Hit: false, DamageDealt: 0, Narratives: narratives);
         }
 
-        bool isBlocked = DetermineBlock(target, ctx);
+        bool isBlocked = DetermineBlock(target);
         if (isBlocked)
         {
             string description = CombatNarrator.DescribeAttack(Owner, target, null, true, false, true);
-            if (ctx != null)
-                GameDisplay.AddNarrative(ctx, description);
-            return;
+            narratives.Add(description);
+            return new AttackResult(Hit: false, DamageDealt: 0, Narratives: narratives);
         }
 
         double damage = DetermineDamage(baseDamage);
@@ -136,6 +125,13 @@ public class CombatManager
         if (targetedPart != null)
             damageInfo.TargetPartName = targetedPart;
 
+        // Set armor values if attacking the player (who has equipment)
+        if (target is Player && ctx != null)
+        {
+            damageInfo.ArmorCushioning = ctx.Inventory.TotalCushioning;
+            damageInfo.ArmorToughness = ctx.Inventory.TotalToughness;
+        }
+
         DamageResult damageResult = DamageProcessor.DamageBody(damageInfo, target.Body);
 
         // Apply triggered effects (bleeding, pain, etc.)
@@ -145,13 +141,13 @@ public class CombatManager
         }
 
         string attackDescription = CombatNarrator.DescribeAttack(Owner, target, damageResult, true, false, false);
-        if (ctx != null)
-            GameDisplay.AddNarrative(ctx, attackDescription);
+        narratives.Add(attackDescription);
 
         // Add damage effect descriptions
-        if (damageResult.TotalDamageDealt > 0)
+        string? damageEffectNarrative = GetDamageEffectDescription(damageType, damageResult.TotalDamageDealt);
+        if (damageEffectNarrative != null)
         {
-            AddDamageEffectDescription(damageType, damageResult.TotalDamageDealt, ctx);
+            narratives.Add(damageEffectNarrative);
         }
 
         if (Owner is Player player)
@@ -160,6 +156,8 @@ public class CombatManager
         }
 
         Thread.Sleep(1000);
+
+        return new AttackResult(Hit: true, DamageDealt: damageResult.TotalDamageDealt, Narratives: narratives);
     }
 
     private static DamageType GetDamageType(WeaponClass? weaponClass)
@@ -172,22 +170,15 @@ public class CombatManager
         };
     }
 
-    private static void AddDamageEffectDescription(DamageType damageType, double damage, GameContext? ctx)
+    private static string? GetDamageEffectDescription(DamageType damageType, double damage)
     {
-        if (ctx == null) return;
-
         if (damageType == DamageType.Sharp && damage > 10)
-        {
-            GameDisplay.AddDanger(ctx, "Blood sprays from the wound!");
-        }
-        else if (damageType == DamageType.Blunt && damage > 12)
-        {
-            GameDisplay.AddDanger(ctx, "You hear a sickening crack!");
-        }
-        else if (damageType == DamageType.Pierce && damage > 15)
-        {
-            GameDisplay.AddDanger(ctx, "The attack pierces deep into the flesh!");
-        }
+            return "Blood sprays from the wound!";
+        if (damageType == DamageType.Blunt && damage > 12)
+            return "You hear a sickening crack!";
+        if (damageType == DamageType.Pierce && damage > 15)
+            return "The attack pierces deep into the flesh!";
+        return null;
     }
 
     public Actor Owner { get; }

@@ -129,6 +129,7 @@ public static class ConditionChecker
             // Additional resource conditions
             EventCondition.HasWater => ctx.Inventory.HasWater,
             EventCondition.HasPlantFiber => ctx.Inventory.Count(Resource.PlantFiber) > 0,
+            EventCondition.HasMedicine => ctx.Inventory.GetCount(ResourceCategory.Medicine) > 0,
             EventCondition.HasSticks => ctx.Inventory.Count(Resource.Stick) > 0,
             EventCondition.HasCookedMeat => ctx.Inventory.Count(Resource.CookedMeat) > 0,
 

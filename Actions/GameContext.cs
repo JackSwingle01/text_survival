@@ -362,13 +362,17 @@ public class GameContext(Player player, Location camp, Weather weather)
             Map.RevealedNewLocations = false;
 
         // Spawn predator encounter if event outcome requested it
-        if (_pendingEncounter != null)
+        // Use same gate as events: activities with EventMultiplier == 0 block interruptions
+        var activityConfig = ActivityConfig.Get(CurrentActivity);
+        if (_pendingEncounter != null && activityConfig.EventMultiplier > 0)
         {
-            var predator = EncounterRunner.CreateAnimalFromConfig(_pendingEncounter);
+            var predator = CombatRunner.CreateAnimalFromConfig(_pendingEncounter);
             _pendingEncounter = null;
             if (predator != null)
             {
-                EncounterRunner.HandlePredatorEncounter(predator, this);
+                // Use unified combat system - starts at encounter distance
+                CombatRunner.RunCombat(this, predator);
+                LastEventAborted = true;  // Encounters abort the current action
             }
         }
 
@@ -708,6 +712,7 @@ public enum EventCondition
     // Additional resource conditions
     HasWater,           // Has any water
     HasPlantFiber,      // Has plant fiber for crafting/traps
+    HasMedicine,        // Has any medicine for treatment
     HasSticks,          // Has sticks for building/fire
     HasCookedMeat,      // Has cooked meat for bait/food
 

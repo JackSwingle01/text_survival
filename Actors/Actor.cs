@@ -17,7 +17,7 @@ public abstract class Actor
     public abstract string AttackName { get; }
     public abstract DamageType AttackType { get; }
 
-    public virtual void Attack(Actor target, Gear? weapon = null, string? bodyPart = null, GameContext? ctx = null)
+    public virtual AttackResult Attack(Actor target, Gear? weapon = null, string? bodyPart = null, GameContext? ctx = null)
         => combatManager.Attack(target, weapon, bodyPart, ctx);
 
     public bool IsEngaged { get; set; }

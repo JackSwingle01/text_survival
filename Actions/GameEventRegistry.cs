@@ -74,6 +74,8 @@ public static partial class GameEventRegistry
         WaterCrossing,
         ExposedOnRidge,
         AmbushOpportunity,
+        // Environmental signs
+        TrailSignEvent,
         // Spatial discovery events
         DistantSmoke,
         EdgeOfTheIce,
@@ -350,7 +352,7 @@ public static partial class GameEventRegistry
                 evt.Name,
                 evt.Description,
                 evt.GetAvailableChoices(ctx)
-                    .Select((c, i) => new EventChoiceDto(WebIO.GenerateSemanticId(c.Label, i), c.Label, c.Description, true))
+                    .Select((c, i) => BuildChoiceDto(ctx, c, i))
                     .ToList()
             );
             WebIO.RenderEvent(ctx, eventDto);
@@ -373,11 +375,19 @@ public static partial class GameEventRegistry
 
             // Clear event overlay after user acknowledges
             WebIO.ClearEvent(ctx);
-            GameDisplay.Render(ctx);
 
-            // Queue encounter for GameContext.Update() to handle
+            // Queue encounter if needed
             if (outcome.SpawnEncounter != null)
+            {
                 ctx.QueueEncounter(outcome.SpawnEncounter);
+                // Skip Render() - encounter spawns immediately after HandleEvent returns
+                // and will send its own frames via WaitForEncounterChoice
+            }
+            else
+            {
+                // Only render if no encounter pending
+                GameDisplay.Render(ctx);
+            }
 
             // Chain to follow-up event if specified
             if (outcome.ChainEvent != null)
@@ -401,5 +411,58 @@ public static partial class GameEventRegistry
     public static EventOutcomeDto HandleOutcome(GameContext ctx, EventResult outcome)
     {
         return outcome.Apply(ctx);
+    }
+
+    /// <summary>
+    /// Build a choice DTO with cost display and availability validation.
+    /// </summary>
+    private static EventChoiceDto BuildChoiceDto(GameContext ctx, EventChoice choice, int index)
+    {
+        var maxCost = choice.GetMaxCost();
+        var costString = maxCost != null ? FormatCost(maxCost) : null;
+        var hasResources = maxCost == null || HasSufficientResources(ctx.Inventory, maxCost);
+
+        return new EventChoiceDto(
+            WebIO.GenerateSemanticId(choice.Label, index),
+            choice.Label,
+            choice.Description,
+            hasResources,
+            costString
+        );
+    }
+
+    /// <summary>
+    /// Format a resource cost for display.
+    /// </summary>
+    private static string FormatCost(ResourceCost cost)
+    {
+        var typeName = cost.Type switch
+        {
+            ResourceType.Fuel => "fuel",
+            ResourceType.Tinder => "tinder",
+            ResourceType.Food => "food",
+            ResourceType.Water => "water",
+            ResourceType.PlantFiber => "plant fiber",
+            ResourceType.Medicine => "medicine",
+            _ => cost.Type.ToString().ToLower()
+        };
+        return $"{cost.Amount} {typeName}";
+    }
+
+    /// <summary>
+    /// Check if inventory has sufficient resources for a cost.
+    /// </summary>
+    private static bool HasSufficientResources(Inventory inv, ResourceCost cost)
+    {
+        return cost.Type switch
+        {
+            ResourceType.Fuel => inv.GetCount(ResourceCategory.Fuel) >= cost.Amount,
+            ResourceType.Tinder => inv.GetCount(ResourceCategory.Tinder) >= cost.Amount,
+            ResourceType.Food => inv.GetCount(ResourceCategory.Food) >= cost.Amount,
+            ResourceType.Water => inv.WaterLiters >= cost.Amount * 0.25,
+            ResourceType.PlantFiber => inv.Count(Resource.PlantFiber) >= cost.Amount,
+            ResourceType.Medicine => inv.GetCount(ResourceCategory.Medicine) >= cost.Amount,
+            _ => true
+        };
     }
 }

@@ -14,7 +14,7 @@ namespace text_survival.Actions;
 /// Resource types that can be consumed by event outcomes.
 /// Maps to high-level inventory categories.
 /// </summary>
-public enum ResourceType { Fuel, Tinder, Food, Water, PlantFiber }
+public enum ResourceType { Fuel, Tinder, Food, Water, PlantFiber, Medicine }
 
 /// <summary>
 /// Represents resources consumed by an event outcome.
@@ -103,7 +103,10 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public EventResult Costs(ResourceType type, int amount) { Cost = new ResourceCost(type, amount); return this; }
 
     public EventResult WithEffects(params Effect[] effects) { Effects.AddRange(effects); return this; }
-    public EventResult Damage(int amount, DamageType type, BodyTarget target = BodyTarget.Random)
+    /// <summary>
+    /// Apply damage using 0-1 scale where 1.0 = destroys tissue layer.
+    /// </summary>
+    public EventResult Damage(double amount, DamageType type, BodyTarget target = BodyTarget.Random)
     {
         NewDamage = new DamageInfo(amount, type, target);
         return this;
@@ -263,6 +266,10 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     {
         if (NewDamage is not null)
         {
+            // Set armor values from equipped gear
+            NewDamage.ArmorCushioning = ctx.Inventory.TotalCushioning;
+            NewDamage.ArmorToughness = ctx.Inventory.TotalToughness;
+
             var dmgResult = ctx.player.Body.Damage(NewDamage);
 
             // Track damage taken
@@ -738,6 +745,30 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
                 case ResourceType.PlantFiber:
                     inv.Pop(Resource.PlantFiber);
                     break;
+
+                case ResourceType.Medicine:
+                    // Prefer common/abundant medicines first, save valuable ones
+                    if (inv.Count(Resource.RoseHip) > 0)
+                        inv.Pop(Resource.RoseHip);
+                    else if (inv.Count(Resource.JuniperBerry) > 0)
+                        inv.Pop(Resource.JuniperBerry);
+                    else if (inv.Count(Resource.PineNeedles) > 0)
+                        inv.Pop(Resource.PineNeedles);
+                    else if (inv.Count(Resource.SphagnumMoss) > 0)
+                        inv.Pop(Resource.SphagnumMoss);
+                    else if (inv.Count(Resource.Usnea) > 0)
+                        inv.Pop(Resource.Usnea);
+                    else if (inv.Count(Resource.BirchPolypore) > 0)
+                        inv.Pop(Resource.BirchPolypore);
+                    else if (inv.Count(Resource.WillowBark) > 0)
+                        inv.Pop(Resource.WillowBark);
+                    else if (inv.Count(Resource.Chaga) > 0)
+                        inv.Pop(Resource.Chaga);
+                    else if (inv.Count(Resource.PineResin) > 0)
+                        inv.Pop(Resource.PineResin);
+                    else if (inv.Count(Resource.Amadou) > 0)
+                        inv.Pop(Resource.Amadou);
+                    break;
             }
         }
     }
@@ -761,6 +792,17 @@ public class EventChoice(string label, string description, List<EventResult> res
     public readonly List<EventCondition> RequiredConditions = conditions ?? [];
     public List<EventResult> Result = results;
     public EventResult DetermineResult() => Utils.GetRandomWeighted(Result.ToDictionary(x => x, x => x.Weight));
+
+    /// <summary>
+    /// Gets the maximum cost among all possible outcomes for this choice.
+    /// Returns null if no outcomes have costs.
+    /// </summary>
+    public ResourceCost? GetMaxCost() =>
+        Result
+            .Where(r => r.Cost != null)
+            .GroupBy(r => r.Cost!.Type)
+            .Select(g => new ResourceCost(g.Key, g.Max(r => r.Cost!.Amount)))
+            .MaxBy(c => c.Amount);
 }
 
 public class GameEvent(string name, string description, double weight)

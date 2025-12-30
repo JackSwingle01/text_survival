@@ -130,11 +130,13 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Smoke fills the hole. A rabbit bolts out — you grab it.", weight: 0.60, minutes: 15)
                         .Costs(ResourceType.Tinder, 1)
+                        .Costs(ResourceType.Fuel, 1)
                         .Rewards(RewardPool.SmallGame),
                     new EventResult("Nothing emerges. Maybe already abandoned.", weight: 0.40, minutes: 12)
                         .Costs(ResourceType.Tinder, 1)
+                        .Costs(ResourceType.Fuel, 1)
                 ],
-                [EventCondition.HasTinder])
+                [EventCondition.HasTinder, EventCondition.HasFuel])
             .Choice("Leave It",
                 "Not worth the risk.",
                 [
@@ -724,12 +726,15 @@ public static partial class GameEventRegistry
             .OnlyAt("Beaver Dam")
             .WithCooldown(24)
             .Choice("Shore It Up",
-                "Pack mud into the gaps. Buy time.",
+                "Pack mud and branches into the gaps. Buy time.",
                 [
-                    new EventResult("You work frantically, packing debris into the holes. It holds — for now.", weight: 0.60, minutes: 30),
+                    new EventResult("You work frantically, packing debris into the holes. It holds — for now.", weight: 0.60, minutes: 30)
+                        .Costs(ResourceType.Fuel, 1),
                     new EventResult("Too much damage. Water bursts through as you watch.", weight: 0.40, minutes: 15)
+                        .Costs(ResourceType.Fuel, 1)
                         .CreateTension("DamCollapsed", 0.8, location: ctx.CurrentLocation)
-                ])
+                ],
+                requires: [EventCondition.HasFuel])
             .Choice("Let It Go",
                 "You needed the fuel. Accept the consequences.",
                 [
@@ -995,8 +1000,11 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent WhatKilledThem(GameContext ctx)
     {
-        var territory = ctx.Tensions.GetTension("PredatorTerritory");
-        if (territory == null) return new GameEvent("WhatKilledThem", "", 0);
+        var tensionCheck = ctx.Tensions.GetTension("PredatorTerritory");
+        if (tensionCheck == null) return new GameEvent("WhatKilledThem", "", 0);
+
+        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
+        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
 
         return new GameEvent("Still Here",
             "A sound in the brush. The same thing that ended the last occupant might still be around.", 0.8)
@@ -1006,12 +1014,12 @@ public static partial class GameEventRegistry
             .Choice("Face It",
                 "Better to know what's hunting you.",
                 [
-                    new EventResult("A wolf emerges from the trees. It's been watching. It knows this place.", weight: 0.50, minutes: 5)
-                        .Encounter("Wolf", 15, 0.6),
+                    new EventResult($"A {predator.ToLower()} emerges from the trees. It's been watching. It knows this place.", weight: 0.50, minutes: 5)
+                        .Encounter(predator, 15, 0.6),
                     new EventResult("Nothing. Wind in the branches. Your nerves are shot.", weight: 0.35, minutes: 8)
                         .ResolveTension("PredatorTerritory"),
                     new EventResult("Eyes in the darkness, then gone. It's not ready to confront you. Yet.", weight: 0.15, minutes: 3)
-                        .BecomeStalked(0.4, "Wolf")
+                        .BecomeStalked(0.4, predator)
                 ])
             .Choice("Leave Immediately",
                 "Don't become the next victim.",
@@ -1020,7 +1028,7 @@ public static partial class GameEventRegistry
                         .ResolveTension("PredatorTerritory"),
                     new EventResult("You hear it following as you leave. Not attacking — just watching.", weight: 0.20, minutes: 8)
                         .ResolveTension("PredatorTerritory")
-                        .BecomeStalked(0.3, "Wolf")
+                        .BecomeStalked(0.3, predator)
                 ]);
     }
 
@@ -1039,13 +1047,17 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Hours of labor. You shore up the frame, patch the gaps. It's crude, but it's shelter.", weight: 0.70, minutes: 90)
                         .Costs(ResourceType.Fuel, 1)
+                        .Costs(ResourceType.PlantFiber, 1)
                         .AddsShelter(temp: 0.3, overhead: 0.5, wind: 0.5),
                     new EventResult("The frame is too rotted. It collapses as you work. Time wasted.", weight: 0.20, minutes: 45)
+                        .Costs(ResourceType.PlantFiber, 1)
                         .WithEffects(Effects.EffectFactory.Exhausted(0.3, 30)),
                     new EventResult("Structural failure. Part of the frame falls on you.", weight: 0.10, minutes: 30)
+                        .Costs(ResourceType.PlantFiber, 1)
                         .WithEffects(Effects.EffectFactory.Exhausted(0.2, 20))
                         .WithEffects(Effects.EffectFactory.Bleeding(0.15))
-                ])
+                ],
+                requires: [EventCondition.HasFuel, EventCondition.HasPlantFiber])
             .Choice("Salvage for Materials",
                 "The frame has good wood.",
                 [

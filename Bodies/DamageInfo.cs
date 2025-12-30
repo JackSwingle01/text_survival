@@ -31,6 +31,11 @@ public class DamageInfo
     public DamageType Type { get; set; } = DamageType.Blunt;
     public BodyTarget Target { get; set; } = BodyTarget.Random;
 
+    // Armor values (0-1 scale, set by caller from equipped gear)
+    // Cushioning absorbs Blunt damage, Toughness resists Sharp/Pierce
+    public double ArmorCushioning { get; set; }
+    public double ArmorToughness { get; set; }
+
     // Internal - used only by DamageCalculator for resolution
     internal string? TargetPartName { get; set; }
 }

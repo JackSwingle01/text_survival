@@ -92,6 +92,9 @@ public static class WebServer
                 // Run game on current thread (blocking)
                 await Task.Run(() => RunGame(sessionId));
 
+                // Game ended (player died) - cancel session to trigger client reconnect
+                session.Cancel();
+
                 // Wait for receive to finish
                 await receiveTask;
             }

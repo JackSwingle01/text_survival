@@ -26,6 +26,8 @@ public static class WebIO
     private static readonly Dictionary<string, FireManagementDto> _currentFire = new();
     private static readonly Dictionary<string, CookingDto> _currentCooking = new();
     private static readonly Dictionary<string, ButcherDto> _currentButcher = new();
+    private static readonly Dictionary<string, EncounterDto> _currentEncounter = new();
+    private static readonly Dictionary<string, CombatDto> _currentCombat = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -95,6 +97,10 @@ public static class WebIO
                 overlays.Add(new CookingOverlay(cooking));
             if (_currentButcher.TryGetValue(sessionId, out var butcher))
                 overlays.Add(new ButcherOverlay(butcher));
+            if (_currentEncounter.TryGetValue(sessionId, out var encounter))
+                overlays.Add(new EncounterOverlay(encounter));
+            if (_currentCombat.TryGetValue(sessionId, out var combat))
+                overlays.Add(new CombatOverlay(combat));
         }
 
         return overlays;
@@ -200,6 +206,24 @@ public static class WebIO
     }
 
     /// <summary>
+    /// Clear the current encounter display for a session.
+    /// </summary>
+    public static void ClearEncounter(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentEncounter.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
+    /// Clear the current combat display for a session.
+    /// </summary>
+    public static void ClearCombat(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentCombat.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
     /// Clear all overlays for a session. Used on reconnect to prevent stale overlays.
     /// </summary>
     public static void ClearAllOverlays(string sessionId)
@@ -215,6 +239,8 @@ public static class WebIO
         _currentFire.Remove(sessionId);
         _currentCooking.Remove(sessionId);
         _currentButcher.Remove(sessionId);
+        _currentEncounter.Remove(sessionId);
+        _currentCombat.Remove(sessionId);
     }
 
     /// <summary>
@@ -265,6 +291,142 @@ public static class WebIO
     {
         WaitForEventContinue(ctx);
         ClearHunt(ctx);
+    }
+
+    // ========================================================================
+    // Encounter Overlay Methods
+    // ========================================================================
+
+    /// <summary>
+    /// Set the encounter overlay data. Will be included in subsequent frames.
+    /// </summary>
+    public static void RenderEncounter(GameContext ctx, EncounterDto encounterData)
+    {
+        if (ctx.SessionId != null)
+            _currentEncounter[ctx.SessionId] = encounterData;
+    }
+
+    /// <summary>
+    /// Render encounter overlay and wait for player choice.
+    /// Returns the choice ID selected by the player.
+    /// </summary>
+    public static string WaitForEncounterChoice(GameContext ctx, EncounterDto encounterData)
+    {
+        var session = GetSession(ctx);
+
+        // Set encounter overlay
+        RenderEncounter(ctx, encounterData);
+
+        // Build choice list from available encounter choices
+        var choices = encounterData.Choices
+            .Where(c => c.IsAvailable)
+            .Select(c => new ChoiceDto(c.Id, c.Label))
+            .ToList();
+
+        int inputId = session.GenerateInputId();
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto(inputId, "encounter", "What do you do?", choices)
+        );
+
+        session.Send(frame);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+        return response.ChoiceId ?? "back";
+    }
+
+    /// <summary>
+    /// Wait for user to acknowledge the encounter outcome (Continue button).
+    /// The encounter overlay must already be set via RenderEncounter with an outcome.
+    /// </summary>
+    public static void WaitForEncounterContinue(GameContext ctx)
+    {
+        WaitForEventContinue(ctx);
+        ClearEncounter(ctx);
+    }
+
+    // ========================================================================
+    // Combat Overlay Methods (Reusable)
+    // ========================================================================
+
+    /// <summary>
+    /// Set the combat overlay data. Will be included in subsequent frames.
+    /// </summary>
+    public static void RenderCombat(GameContext ctx, CombatDto combatData)
+    {
+        if (ctx.SessionId != null)
+            _currentCombat[ctx.SessionId] = combatData;
+    }
+
+    /// <summary>
+    /// Render combat overlay and wait for player choice.
+    /// Returns the choice ID selected by the player.
+    /// </summary>
+    public static string WaitForCombatChoice(GameContext ctx, CombatDto combatData)
+    {
+        var session = GetSession(ctx);
+
+        // Set combat overlay
+        RenderCombat(ctx, combatData);
+
+        // Build choice list from available combat actions
+        var choices = combatData.Actions
+            .Where(a => a.IsAvailable)
+            .Select(a => new ChoiceDto(a.Id, a.Label))
+            .ToList();
+
+        int inputId = session.GenerateInputId();
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto(inputId, "combat", "Your move:", choices)
+        );
+
+        session.Send(frame);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+        return response.ChoiceId ?? "hold_ground";
+    }
+
+    /// <summary>
+    /// Wait for player to select a target (two-stage targeting for Close range attacks).
+    /// Returns the target ID selected by the player.
+    /// </summary>
+    public static string WaitForTargetChoice(GameContext ctx, List<CombatActionDto> targetingOptions, string animalName)
+    {
+        var session = GetSession(ctx);
+
+        // Build choice list from targeting options
+        var choices = targetingOptions
+            .Where(t => t.IsAvailable)
+            .Select(t => new ChoiceDto(t.Id, $"{t.Label} ({t.HitChance})"))
+            .ToList();
+
+        int inputId = session.GenerateInputId();
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto(inputId, "targeting", $"Where on the {animalName}?", choices)
+        );
+
+        session.Send(frame);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+        return response.ChoiceId ?? "target_torso";
+    }
+
+    /// <summary>
+    /// Wait for user to acknowledge the combat outcome (Continue button).
+    /// The combat overlay must already be set via RenderCombat with an outcome.
+    /// </summary>
+    public static void WaitForCombatContinue(GameContext ctx)
+    {
+        WaitForEventContinue(ctx);
+        ClearCombat(ctx);
     }
 
     /// <summary>

@@ -321,32 +321,47 @@ public class ForageStrategy : IWorkStrategy
             }
         }
 
-        // Handle Scavenge clues - spawn carcass with potential encounter
-        if (_scavengeClue != null)
+        // Handle Scavenge scenarios - spawn carcass with potential encounter
+        if (_scavengeClue?.Scenario != null)
         {
-            var (carcassName, carcassDescription) = GetCarcassForSize(_scavengeClue.CarcassSize);
-            if (carcassName != null)
-            {
-                // Special case: bones-only scavenge (raptor pellets)
-                if (_scavengeClue.CarcassSize == "bones")
-                {
-                    // Just add some bones directly
-                    ctx.Inventory.Add(Resource.Bone, 0.1 + Random.Shared.NextDouble() * 0.2);
-                    collected.Add("bone scraps");
-                    GameDisplay.AddNarrative(ctx, "You find some bone fragments in the pellets.");
-                }
-                else
-                {
-                    // Add carcass feature to location
-                    location.AddFeature(CarcassFeature.FromAnimalName(carcassName));
-                    collected.Add(carcassDescription);
-                    GameDisplay.AddNarrative(ctx, $"You find a {carcassDescription}. It could be butchered for resources.");
+            var scenario = _scavengeClue.Scenario;
 
-                    // Roll for predator encounter
-                    if (_scavengeClue.EncounterChance > 0 && Utils.DetermineSuccess(_scavengeClue.EncounterChance))
+            // Bones-only scenario (raptor pellets, old bones)
+            if (scenario.Freshness == FreshnessCategory.BonesOnly &&
+                scenario.Animals.Animals.Length == 0)
+            {
+                ctx.Inventory.Add(Resource.Bone, 0.1 + Random.Shared.NextDouble() * 0.2);
+                collected.Add("bone scraps");
+                GameDisplay.AddNarrative(ctx, "You find some bone fragments.");
+            }
+            else
+            {
+                // Select animal from weighted pool
+                string animalName = scenario.Animals.Select();
+                if (!string.IsNullOrEmpty(animalName))
+                {
+                    // Roll freshness and create carcass with appropriate harvestedPct
+                    double harvestedPct = FreshnessHelper.RollHarvestedPct(scenario.Freshness);
+                    var carcass = CarcassFeature.FromAnimalName(animalName, harvestedPct);
+                    location.AddFeature(carcass);
+
+                    string description = $"{FreshnessHelper.GetDescription(scenario.Freshness)} - {animalName.ToLower()}";
+                    collected.Add(description);
+                    GameDisplay.AddNarrative(ctx, $"You find a {description}. It could be butchered for resources.");
+
+                    // Roll for predator encounter with freshness modifier
+                    double riskMod = FreshnessHelper.GetRiskModifier(scenario.Freshness);
+                    double encounterChance = scenario.BaseEncounterChance * riskMod;
+
+                    if (encounterChance > 0 && Utils.DetermineSuccess(encounterChance))
                     {
-                        ctx.QueueEncounter(new EncounterConfig("Wolf", 30, 0.6));
-                        GameDisplay.AddWarning(ctx, "Something is watching from the brush...");
+                        string? predator = scenario.Predators.Select();
+                        if (predator != null)
+                        {
+                            double boldness = FreshnessHelper.GetBoldness(scenario.Freshness);
+                            ctx.QueueEncounter(new EncounterConfig(predator, 30, boldness));
+                            GameDisplay.AddWarning(ctx, "Something is watching from the brush...");
+                        }
                     }
                 }
             }
@@ -369,18 +384,4 @@ public class ForageStrategy : IWorkStrategy
 
         return new WorkResult(collected, null, actualTime, false);
     }
-
-    /// <summary>
-    /// Get appropriate carcass type for scavenge size category.
-    /// </summary>
-    private static readonly string[] SmallGameCarcasses = ["Hare", "Grouse"];
-
-    private static (string? name, string description) GetCarcassForSize(string? size) => size switch
-    {
-        "small" => (Utils.GetRandomFromList(SmallGameCarcasses.ToList()), "small carcass"),
-        "medium" => ("Caribou", "partial caribou carcass"),
-        "large" => ("Caribou", "fresh caribou carcass"),
-        "bones" => (null, "bone scraps"),
-        _ => (null, "")
-    };
 }

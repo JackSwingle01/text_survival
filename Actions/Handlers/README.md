@@ -17,7 +17,6 @@ This document explains the architectural distinction between **Handlers** and **
 - `FireHandler.StartFire()` - handles fire starting logic with one attempt/retry loop
 - `FireHandler.TendFire()` - handles adding fuel to fire
 - `TravelHandler.ApplyTravelInjury()` - calculates and applies injury from travel
-- `CombatHandler.ResolveCombat()` - executes one round of combat
 - `ConsumptionHandler.Eat()` - handles food consumption
 - `TreatmentHandler.TreatInjury()` - applies medical treatment
 
@@ -52,7 +51,8 @@ public static class SomeHandler
 - `WorkRunner` - handles foraging, hunting, exploring loops
 - `CraftingRunner` - multi-step crafting interface
 - `HuntRunner` - interactive hunting (creates CarcassFeature on kill)
-- `EncounterRunner` - predator encounter with turn-by-turn decisions (creates CarcassFeature on victory)
+- `EncounterRunner` - predator encounter with turn-by-turn decisions
+- `CombatRunner` - reusable combat module, can be called from encounters, events, hunts (creates CarcassFeature on victory)
 
 ### Pattern:
 ```csharp

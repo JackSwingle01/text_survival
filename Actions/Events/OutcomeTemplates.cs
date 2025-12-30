@@ -63,56 +63,57 @@ public static class OutcomeTemplates
         => r.WithEffects(EffectFactory.Shaken(0.15));
 
     // === DAMAGE PATTERNS ===
+    // Damage uses 0-1 scale where 1.0 = destroys tissue layer
 
-    /// <summary>Minor fall damage. 3-4 blunt.</summary>
+    /// <summary>Minor fall damage. Bruised.</summary>
     public static EventResult MinorFall(this EventResult r)
-        => r.Damage(3, DamageType.Blunt);
+        => r.Damage(0.08, DamageType.Blunt);
 
-    /// <summary>Moderate fall damage. 5-6 blunt.</summary>
+    /// <summary>Moderate fall damage. Painful.</summary>
     public static EventResult ModerateFall(this EventResult r)
-        => r.Damage(6, DamageType.Blunt);
+        => r.Damage(0.15, DamageType.Blunt);
 
-    /// <summary>Serious fall damage. 8 blunt.</summary>
+    /// <summary>Serious fall damage. Potentially sprains.</summary>
     public static EventResult SeriousFall(this EventResult r)
-        => r.Damage(8, DamageType.Blunt);
+        => r.Damage(0.25, DamageType.Blunt);
 
-    /// <summary>Minor frostbite. 3-5 internal damage.</summary>
+    /// <summary>Minor frostbite. Numbness, minor damage.</summary>
     public static EventResult MinorFrostbite(this EventResult r)
-        => r.Damage(4, DamageType.Internal);
+        => r.Damage(0.12, DamageType.Internal);
 
-    /// <summary>Moderate frostbite. 6-8 internal damage.</summary>
+    /// <summary>Moderate frostbite. Tissue damage.</summary>
     public static EventResult ModerateFrostbite(this EventResult r)
-        => r.Damage(8, DamageType.Internal);
+        => r.Damage(0.25, DamageType.Internal);
 
-    /// <summary>Severe frostbite. 10-12 internal damage.</summary>
+    /// <summary>Severe frostbite. Serious, lasting damage.</summary>
     public static EventResult SevereFrostbite(this EventResult r)
-        => r.Damage(12, DamageType.Internal);
+        => r.Damage(0.40, DamageType.Internal);
 
-    /// <summary>Minor animal bite. 6-8 sharp damage + fear.</summary>
+    /// <summary>Minor animal bite. Small animal nip + fear.</summary>
     public static EventResult MinorBite(this EventResult r)
-        => r.Damage(6, DamageType.Sharp)
+        => r.Damage(0.15, DamageType.Sharp)
            .WithEffects(EffectFactory.Fear(0.3));
 
-    /// <summary>Serious animal attack. 10-12 sharp damage + fear.</summary>
+    /// <summary>Serious animal attack. Generic predator + fear.</summary>
     public static EventResult AnimalAttack(this EventResult r)
-        => r.Damage(10, DamageType.Sharp)
+        => r.Damage(0.35, DamageType.Sharp)
            .WithEffects(EffectFactory.Fear(0.4));
 
-    /// <summary>Severe mauling. 15+ sharp damage + strong fear.</summary>
+    /// <summary>Severe mauling. Serious attack + strong fear.</summary>
     public static EventResult Mauled(this EventResult r)
-        => r.Damage(15, DamageType.Sharp)
+        => r.Damage(0.55, DamageType.Sharp)
            .WithEffects(EffectFactory.Fear(0.5));
 
     /// <summary>Debris damage (from collapsing shelter, falling branches).</summary>
-    public static EventResult DebrisDamage(this EventResult r, int amount = 5)
+    public static EventResult DebrisDamage(this EventResult r, double amount = 0.12)
         => r.Damage(amount, DamageType.Blunt);
 
     /// <summary>Cold exposure damage (internal from hypothermia).</summary>
-    public static EventResult ExposureDamage(this EventResult r, int amount = 3)
+    public static EventResult ExposureDamage(this EventResult r, double amount = 0.10)
         => r.Damage(amount, DamageType.Internal);
 
     /// <summary>Predator attack damage (generic).</summary>
-    public static EventResult PredatorAttack(this EventResult r, int amount = 10)
+    public static EventResult PredatorAttack(this EventResult r, double amount = 0.35)
         => r.Damage(amount, DamageType.Sharp);
 
     // === SCENT / BLOODY ===
@@ -232,11 +233,11 @@ public static class OutcomeTemplates
         => r.WithEffects(EffectFactory.Cold(coldDegrees, coldMinutes), EffectFactory.Fear(fear));
 
     /// <summary>Minor injury + abort expedition.</summary>
-    public static EventResult InjuredRetreat(this EventResult r, int damage = 4)
+    public static EventResult InjuredRetreat(this EventResult r, double damage = 0.10)
         => r.Damage(damage, DamageType.Blunt).Aborts();
 
     /// <summary>Frostbite damage with frostbite effect.</summary>
-    public static EventResult WithFrostbite(this EventResult r, int damage, double effectSeverity)
+    public static EventResult WithFrostbite(this EventResult r, double damage, double effectSeverity)
         => r.Damage(damage, DamageType.Internal)
            .WithEffects(EffectFactory.Frostbite(effectSeverity));
 
@@ -493,9 +494,10 @@ public static class OutcomeTemplates
 
     /// <summary>
     /// Mammoth charges - dangerous prey that fights back.
+    /// Devastating blunt damage from trampling.
     /// </summary>
     public static EventResult MammothCharge(this EventResult r)
-        => r.Damage(12, Bodies.DamageType.Blunt)
+        => r.Damage(0.80, Bodies.DamageType.Blunt)
            .Frightening()
            .TriggersHerdFlee();
 }

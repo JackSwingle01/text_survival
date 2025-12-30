@@ -19,6 +19,8 @@ namespace text_survival.Web.Dto;
 [JsonDerivedType(typeof(FireOverlay), "fire")]
 [JsonDerivedType(typeof(CookingOverlay), "cooking")]
 [JsonDerivedType(typeof(ButcherOverlay), "butcher")]
+[JsonDerivedType(typeof(EncounterOverlay), "encounter")]
+[JsonDerivedType(typeof(CombatOverlay), "combat")]
 public abstract record Overlay;
 
 /// <summary>
@@ -135,7 +137,8 @@ public record EventChoiceDto(
     string Id,
     string Label,
     string Description,
-    bool IsAvailable
+    bool IsAvailable,
+    string? Cost = null  // e.g., "2 medicine" or null if free
 );
 
 /// <summary>
@@ -260,4 +263,134 @@ public record ButcherModeDto(
     string Label,
     string Description,
     int EstimatedMinutes
+);
+
+// ============================================
+// ENCOUNTER OVERLAY
+// ============================================
+
+/// <summary>
+/// Encounter overlay: Predator encounter popup with distance and boldness tracking.
+/// </summary>
+public record EncounterOverlay(EncounterDto Data) : Overlay;
+
+/// <summary>
+/// Encounter state data for the predator encounter overlay popup.
+/// </summary>
+public record EncounterDto(
+    string PredatorName,
+    double CurrentDistanceMeters,
+    double? PreviousDistanceMeters,      // For animation (null on first frame)
+    bool IsAnimatingDistance,
+    double BoldnessLevel,                 // 0-1
+    string BoldnessDescriptor,            // "aggressive", "wary", "hesitant"
+    List<ThreatFactorDto> ThreatFactors,  // Observable factors making predator bold
+    string? StatusMessage,
+    List<EncounterChoiceDto> Choices,
+    EncounterOutcomeDto? Outcome          // null during choice phase
+);
+
+/// <summary>
+/// An observable factor affecting predator boldness (shown to player).
+/// </summary>
+public record ThreatFactorDto(
+    string Id,                            // "meat", "weakness", "blood"
+    string Description,
+    string Icon                           // Material icon name
+);
+
+/// <summary>
+/// A choice option in the encounter overlay.
+/// </summary>
+public record EncounterChoiceDto(
+    string Id,                            // "stand", "back", "run", "fight", "drop_meat"
+    string Label,
+    string? Description,
+    bool IsAvailable,
+    string? DisabledReason
+);
+
+/// <summary>
+/// Encounter outcome when the encounter concludes (before combat if fight chosen).
+/// </summary>
+public record EncounterOutcomeDto(
+    string Result,                        // "retreated", "escaped", "fight", "died"
+    string Message
+);
+
+// ============================================
+// COMBAT OVERLAY (Distance-Based Strategic Combat)
+// ============================================
+
+/// <summary>
+/// Combat overlay: Distance-based strategic combat with defensive options and readable tells.
+/// Unified system that handles both pre-combat (encounter) and active combat phases.
+/// </summary>
+public record CombatOverlay(CombatDto Data) : Overlay;
+
+/// <summary>
+/// Combat state data for the strategic combat overlay.
+/// Uses distance zones, animal behavior states, and descriptive health (no HP bars).
+/// </summary>
+public record CombatDto(
+    // Animal info
+    string AnimalName,
+    string AnimalHealthDescription,       // "wounded", "badly hurt", "staggering" (no HP bar)
+    string AnimalConditionNarrative,      // "Blood mats the wolf's fur."
+
+    // Distance and positioning
+    string DistanceZone,                  // "Melee", "Close", "Mid", "Far"
+    double DistanceMeters,
+    double? PreviousDistanceMeters,       // For animation
+
+    // Animal behavior (readable tells)
+    string BehaviorState,                 // "Circling", "Threatening", "CHARGING!", etc.
+    string BehaviorDescription,           // The readable tell text
+
+    // Player state (for UI display)
+    double PlayerVitality,                // Still 0-1 for player's own HP display
+    double PlayerEnergy,                  // 0-1, affects action effectiveness
+    bool PlayerBraced,                    // Whether player has set a brace
+
+    // Turn info
+    string? LastActionMessage,            // Combat narrative from last turn
+    List<CombatActionDto> Actions,        // Available actions this turn (zone-dependent)
+
+    // Threat factors (carried over from encounter, shown to player)
+    List<ThreatFactorDto> ThreatFactors,
+
+    // Outcome (null during combat)
+    CombatOutcomeDto? Outcome
+);
+
+/// <summary>
+/// An action available during combat. Actions vary by distance zone.
+/// </summary>
+public record CombatActionDto(
+    string Id,                            // "strike", "thrust", "dodge", "hold_ground", etc.
+    string Label,
+    string? Description,                  // Hover text / additional info
+    string Category,                      // "offensive", "defensive", "movement", "special"
+    bool IsAvailable,
+    string? DisabledReason,
+    string? HitChance                     // e.g., "65% hit" for attacks, null for non-attacks
+);
+
+/// <summary>
+/// A choice option in the combat overlay (legacy compatibility).
+/// </summary>
+public record CombatChoiceDto(
+    string Id,                            // "attack", "flee"
+    string Label,
+    bool IsAvailable,
+    string? DisabledReason
+);
+
+/// <summary>
+/// Combat outcome when combat concludes.
+/// </summary>
+public record CombatOutcomeDto(
+    string Result,                        // "victory", "defeat", "fled", "animal_fled", "disengaged"
+    string Message,
+    List<string>? Rewards                 // Items gained on victory
 );

@@ -55,12 +55,12 @@ public static partial class GameEventRegistry
                 "Address whatever's causing this.",
                 [
                     new EventResult("Herbal treatment. The sickness retreats.", weight: 0.70, minutes: 30)
-                        .Costs(ResourceType.PlantFiber, 2),
+                        .Costs(ResourceType.Medicine, 2),
                     new EventResult("Treatment helps but it's not enough.", weight: 0.30, minutes: 25)
-                        .Costs(ResourceType.PlantFiber, 2)
+                        .Costs(ResourceType.Medicine, 2)
                         .CreateTension("FeverRising", 0.15)
                 ],
-                [EventCondition.HasPlantFiber]);
+                [EventCondition.HasMedicine]);
     }
 
     /// <summary>
@@ -262,7 +262,7 @@ public static partial class GameEventRegistry
                             .WithEffects(EffectFactory.Exhausted(0.8, 300), EffectFactory.Fever(0.2)),
                         new EventResult("Touch and go. But you survive. Barely.", weight: 0.10, minutes: 300)
                             .ResolveTension("FeverRising")
-                            .Damage(5, DamageType.Internal)
+                            .Damage(0.12, DamageType.Internal)
                             .WithEffects(EffectFactory.Exhausted(0.9, 360))
                     ]
                     : [
@@ -271,9 +271,9 @@ public static partial class GameEventRegistry
                             .WithEffects(EffectFactory.Exhausted(0.8, 300)),
                         new EventResult("Fever holds. You're in trouble.", weight: 0.40, minutes: 180)
                             .WithEffects(EffectFactory.Fever(0.7))
-                            .Damage(8, DamageType.Internal),
+                            .Damage(0.20, DamageType.Internal),
                         new EventResult("Critical. Your body is failing.", weight: 0.30, minutes: 120)
-                            .Damage(15, DamageType.Internal)
+                            .Damage(0.40, DamageType.Internal)
                             .WithEffects(EffectFactory.Fever(0.8))
                     ])
             .Choice("Herbal Treatment",
@@ -281,18 +281,18 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("The herbs work. Fever breaks cleanly. Full recovery.", weight: 0.60, minutes: 120)
                         .ResolveTension("FeverRising")
-                        .Costs(ResourceType.PlantFiber, 3)
+                        .Costs(ResourceType.Medicine, 3)
                         .WithEffects(EffectFactory.Exhausted(0.5, 180)),
                     new EventResult("Herbs help. Fever drops but lingers.", weight: 0.30, minutes: 150)
                         .Escalate("FeverRising", -0.4)
-                        .Costs(ResourceType.PlantFiber, 3)
+                        .Costs(ResourceType.Medicine, 3)
                         .WithEffects(EffectFactory.Fever(0.3), EffectFactory.Exhausted(0.4, 120)),
                     new EventResult("Not enough. But every bit helps.", weight: 0.10, minutes: 90)
                         .Escalate("FeverRising", -0.2)
-                        .Costs(ResourceType.PlantFiber, 2)
+                        .Costs(ResourceType.Medicine, 2)
                         .WithEffects(EffectFactory.Fever(0.5))
                 ],
-                [EventCondition.HasPlantFiber])
+                [EventCondition.HasMedicine])
             .Choice("Accept Fate",
                 "Too weak to fight. Let it take you or let it pass.",
                 [
@@ -301,10 +301,10 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Exhausted(0.9, 480)),
                     new EventResult("Darkness. Cold. Then warmth. You survive. Barely.", weight: 0.35, minutes: 300)
                         .ResolveTension("FeverRising")
-                        .Damage(10, DamageType.Internal)
+                        .Damage(0.25, DamageType.Internal)
                         .WithEffects(EffectFactory.Exhausted(0.95, 420)),
                     new EventResult("The darkness takes you. Is this the end?", weight: 0.25, minutes: 240)
-                        .Damage(20, DamageType.Internal)
+                        .Damage(0.50, DamageType.Internal)
                         .WithEffects(EffectFactory.Fever(0.9))
                 ]);
     }

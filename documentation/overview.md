@@ -480,8 +480,10 @@ Handlers — Activity-specific execution logic (static classes)
 - CampHandler: sleep, rest, camp improvements
 - TravelHandler: movement between locations
 - HuntHandler: hunting sequences
-- CombatHandler: predator combat
 - CuringRackHandler: hide/meat preservation
+
+Runners — Control flow, player decisions, display UI also includes:
+- CombatRunner: reusable combat module (can be called from encounters, events, hunts)
 
 Handlers take `GameContext`, mutate state directly, handle player choices via `Input`. Runners orchestrate flow; handlers execute specific actions.
 

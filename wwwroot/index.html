@@ -532,6 +532,106 @@
         </div>
     </div>
 
+    <!-- Encounter Overlay -->
+    <div class="event-overlay hidden" id="encounterOverlay">
+        <div class="event-modal encounter-modal">
+            <div class="event-header encounter-header">
+                <span class="material-symbols-outlined">warning</span>
+                <span class="event-title">Predator Encounter</span>
+            </div>
+
+            <!-- Predator name -->
+            <div class="encounter-target" id="encounterTarget">Wolf</div>
+
+            <!-- Distance bar (reversed from hunt - red is close/danger) -->
+            <div class="encounter-distance">
+                <div class="encounter-distance-label">
+                    <span>Distance</span>
+                    <span class="encounter-distance-value" id="encounterDistanceValue">50m</span>
+                </div>
+                <div class="encounter-distance-bar-container">
+                    <div class="encounter-distance-mask" id="encounterDistanceMask"></div>
+                </div>
+            </div>
+
+            <!-- Boldness gauge -->
+            <div class="encounter-boldness">
+                <div class="encounter-boldness-label">
+                    <span>Boldness</span>
+                    <span class="encounter-boldness-descriptor" id="encounterBoldnessDescriptor">wary</span>
+                </div>
+                <div class="encounter-boldness-bar-container">
+                    <div class="encounter-boldness-fill" id="encounterBoldnessFill"></div>
+                </div>
+            </div>
+
+            <!-- Threat factors -->
+            <div class="encounter-factors" id="encounterFactors"></div>
+
+            <!-- Status message -->
+            <div class="encounter-message" id="encounterMessage"></div>
+
+            <!-- Choices (hidden during outcome) -->
+            <div class="event-choices" id="encounterChoices"></div>
+
+            <!-- Outcome section (hidden during choice phase) -->
+            <div class="encounter-outcome hidden" id="encounterOutcome">
+                <div class="encounter-outcome-message" id="encounterOutcomeMessage"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Combat Overlay -->
+    <div class="event-overlay hidden" id="combatOverlay">
+        <div class="event-modal combat-modal">
+            <div class="event-header combat-header">
+                <span class="material-symbols-outlined">swords</span>
+                <span class="event-title">Combat</span>
+            </div>
+
+            <!-- Distance zone display -->
+            <div class="combat-distance" id="combatDistance">
+                <div class="combat-distance-zones">
+                    <div class="combat-zone" data-zone="far">FAR</div>
+                    <div class="combat-zone" data-zone="mid">MID</div>
+                    <div class="combat-zone" data-zone="close">CLOSE</div>
+                    <div class="combat-zone" data-zone="melee">MELEE</div>
+                </div>
+                <div class="combat-distance-meters" id="combatDistanceMeters">12m</div>
+            </div>
+
+            <!-- Animal status -->
+            <div class="combat-animal-status">
+                <div class="combat-animal-name" id="combatAnimalName">Wolf</div>
+                <div class="combat-animal-behavior" id="combatAnimalBehavior">
+                    <span class="behavior-state" id="combatBehaviorState">Circling</span>
+                    <span class="behavior-desc" id="combatBehaviorDesc">Looking for an opening</span>
+                </div>
+                <div class="combat-animal-health" id="combatAnimalHealth">The wolf appears unhurt.</div>
+            </div>
+
+            <!-- Threat factors -->
+            <div class="combat-threat-factors" id="combatThreatFactors"></div>
+
+            <!-- Last action message -->
+            <div class="combat-action-message" id="combatActionMessage"></div>
+
+            <!-- Player status -->
+            <div class="combat-player-status" id="combatPlayerStatus">
+                <span class="player-braced hidden" id="combatPlayerBraced">BRACED</span>
+            </div>
+
+            <!-- Actions (hidden during outcome) -->
+            <div class="combat-actions" id="combatActions"></div>
+
+            <!-- Outcome section (hidden during combat) -->
+            <div class="combat-outcome hidden" id="combatOutcome">
+                <div class="combat-outcome-message" id="combatOutcomeMessage"></div>
+                <div class="combat-rewards" id="combatRewards"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Tile Popup -->
     <div class="tile-popup hidden" id="tilePopup">
         <div class="tile-popup-header">

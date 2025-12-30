@@ -409,6 +409,24 @@ public static class EffectFactory
         ]
     };
 
+    public static Effect Shock(double severity) => new()
+    {
+        EffectKind = "Shock",
+        Severity = severity,
+        HourlySeverityChange = -0.05,  // Slow recovery without treatment
+        RequiresTreatment = severity > 0.5,  // Severe shock needs treatment
+        CapacityModifiers = Capacities(
+            (CapacityNames.Consciousness, -0.4),
+            (CapacityNames.BloodPumping, -0.3),
+            (CapacityNames.Moving, -0.2)),
+        ApplicationMessage = "Your body is going into shock.",
+        RemovalMessage = "The shock is subsiding.",
+        ThresholdMessages = [
+            new Effect.ThresholdMessage(0.5, "Cold sweat. Your heartbeat feels distant.", true),
+            new Effect.ThresholdMessage(0.75, "Everything is fading. Stay awake...", true),
+        ]
+    };
+
     public static Effect Wet(double severity) => new()
     {
         EffectKind = "Wet",

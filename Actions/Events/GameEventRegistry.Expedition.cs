@@ -113,14 +113,14 @@ public static partial class GameEventRegistry
                 "Clean and dress the wound properly.",
                 [
                     new EventResult("You clean and dress the wound. Should heal fine.", 0.65, 10)
-                        .Costs(ResourceType.PlantFiber, 1),
+                        .Costs(ResourceType.Medicine, 1),
                     new EventResult("Treatment helps, but it'll still bruise.", 0.25, 8)
-                        .Costs(ResourceType.PlantFiber, 1)
+                        .Costs(ResourceType.Medicine, 1)
                         .DamageWithVariant(variant with { Amount = variant.Amount / 2 }),
                     new EventResult("Good work. Barely a scratch now.", 0.10, 12)
-                        .Costs(ResourceType.PlantFiber, 1)
+                        .Costs(ResourceType.Medicine, 1)
                 ],
-                requires: [EventCondition.HasPlantFiber]);
+                requires: [EventCondition.HasMedicine]);
     }
 
     // === DISCOVERY EVENTS ===
@@ -139,7 +139,7 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.BoneHarvest),
                     new EventResult("Nothing but charred debris.", 0.10, 5),
                     new EventResult("Cut yourself on something sharp.", 0.05, 5)
-                        .Damage(3, DamageType.Sharp)
+                        .Damage(0.08, DamageType.Sharp)
                 ])
             .Choice("Stir the Ashes",
                 "Quick search, less careful.",
@@ -148,7 +148,7 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.TinderBundle),
                     new EventResult("Nothing useful.", 0.40, 3),
                     new EventResult("Scatter embers. Minor hazard.", 0.15, 5)
-                        .Damage(1, DamageType.Burn)
+                        .Damage(0.02, DamageType.Burn)
                         .WithEffects(EffectFactory.Burn(0.1, 30))
                 ])
             .Choice("Ignore",
@@ -196,7 +196,7 @@ public static partial class GameEventRegistry
                     new EventResult("A few sticks they left stacked.", 0.20, 10)
                         .FindsSupplies(),
                     new EventResult("Cut yourself on hidden debris.", 0.05, 8)
-                        .Damage(4, DamageType.Sharp)
+                        .Damage(0.10, DamageType.Sharp)
                         .CreateTension("WoundUntreated", 0.2, description: "hand")
                 ])
             .Choice("Keep Distance",
@@ -318,7 +318,7 @@ public static partial class GameEventRegistry
                     new EventResult("Longer than expected. Wind brutal.", 0.30, 10)
                         .WithCold(-15, 30),
                     new EventResult("Stumble in wind. Fall.", 0.15, 8)
-                        .Damage(4, DamageType.Blunt)
+                        .Damage(0.10, DamageType.Blunt)
                         .ModerateCold(),
                     new EventResult("Wind knocks you down. Disoriented.", 0.10, 15)
                         .ModerateFall()
@@ -340,19 +340,23 @@ public static partial class GameEventRegistry
                 "Stop and make a fire. Desperate but might work.",
                 [
                     new EventResult("Fire catches. Warmth floods back.", 0.45, 15)
+                        .Costs(ResourceType.Tinder, 1)
                         .BurnsFuel(2),
                     new EventResult("Wind makes it hard. Uses more fuel.", 0.30, 20)
+                        .Costs(ResourceType.Tinder, 1)
                         .BurnsFuel(3)
                         .MinorCold(),
                     new EventResult("Won't catch. Wasted fuel.", 0.15, 12)
+                        .Costs(ResourceType.Tinder, 1)
                         .BurnsFuel(2)
                         .ModerateCold(),
                     new EventResult("Sparks in wind. Burn yourself.", 0.10, 10)
+                        .Costs(ResourceType.Tinder, 1)
                         .BurnsFuel(2)
-                        .Damage(3, DamageType.Burn)
+                        .Damage(0.08, DamageType.Burn)
                         .WithEffects(EffectFactory.Burn(0.2, 45))
                 ],
-                requires: [EventCondition.HasFuelPlenty])
+                requires: [EventCondition.HasFuelPlenty, EventCondition.HasTinder])
             .Choice("Turn Back",
                 "Retreat the way you came.",
                 [
@@ -374,22 +378,26 @@ public static partial class GameEventRegistry
                 "Spend time making this usable shelter.",
                 [
                     new EventResult("Solid work. This is shelter now.", 0.60, 45)
+                        .Costs(ResourceType.PlantFiber, 2)
                         .BurnsFuel(3)
                         .WithEffects(EffectFactory.Focused(0.15, 60))
                         .AddsShelter(temp: 0.4, overhead: 0.5, wind: 0.6),
                     new EventResult("Takes longer but done right.", 0.25, 60)
+                        .Costs(ResourceType.PlantFiber, 2)
                         .BurnsFuel(4)
                         .WithEffects(EffectFactory.Exhausted(0.2, 60))
                         .AddsShelter(temp: 0.5, overhead: 0.6, wind: 0.7),
                     new EventResult("Not as good as hoped. Partial shelter.", 0.10, 40)
+                        .Costs(ResourceType.PlantFiber, 2)
                         .BurnsFuel(2)
                         .AddsShelter(temp: 0.2, overhead: 0.3, wind: 0.4),
                     new EventResult("Collapses during construction. Wasted effort.", 0.05, 30)
+                        .Costs(ResourceType.PlantFiber, 2)
                         .BurnsFuel(3)
                         .MinorFall()
                         .Shaken()
                 ],
-                requires: [EventCondition.HasFuel])
+                requires: [EventCondition.HasFuel, EventCondition.HasPlantFiber])
             .Choice("Note for Later",
                 "Mark the location mentally. Could develop it later.",
                 [
@@ -534,6 +542,23 @@ public static partial class GameEventRegistry
                     new EventResult("Halfway through, you have to stop. Can't do this.", 0.05, 30)
                         .Frightening()
                 ])
+            .Choice("Proper Burial",
+                "Take the time to do this right. Build a cairn. Say the words.",
+                [
+                    new EventResult("Stone by stone, you build the cairn. When you speak the words, the weight lifts.", 0.50, 90)
+                        .ResolveTension("Disturbed")
+                        .WithEffects(EffectFactory.Hardened(0.25, 240), EffectFactory.Exhausted(0.3, 90)),
+                    new EventResult("You work until your hands bleed. The cairn stands. You feel... stronger.", 0.25, 75)
+                        .ResolveTension("Disturbed")
+                        .WithEffects(EffectFactory.Focused(0.3, 180))
+                        .Damage(0.05, DamageType.Blunt, BodyTarget.AnyArm),
+                    new EventResult("You try. The ritual feels hollow. But you did something.", 0.15, 60)
+                        .Escalate("Disturbed", -0.5)
+                        .Shaken(),
+                    new EventResult("Halfway through, you break. Weeping over stones.", 0.10, 45)
+                        .Escalate("Disturbed", -0.2)
+                        .WithEffects(EffectFactory.Exhausted(0.4, 120))
+                ])
             .Choice("Search for Answers",
                 "Understand what happened. Knowledge might help.",
                 [
@@ -656,7 +681,28 @@ public static partial class GameEventRegistry
                         .DamageWithVariant(slipVariant)
                         .WithEffects(EffectFactory.Wet(0.9))
                         .SevereCold()
-                ]);
+                ])
+            .Choice("Improvise a Crossing",
+                "Use what's here. Branches, stones, rope to lash it together.",
+                [
+                    new EventResult("You lash branches together. Crude but solid. You cross dry.", 0.45, 25)
+                        .Costs(ResourceType.PlantFiber, 2),
+                    new EventResult("Takes longer than expected. Good crossing though.", 0.25, 35)
+                        .Costs(ResourceType.PlantFiber, 2)
+                        .WithEffects(EffectFactory.Exhausted(0.15, 45)),
+                    new EventResult("Halfway across, a lashing slips. You scramble to safety, partially soaked.", 0.15, 20)
+                        .Costs(ResourceType.PlantFiber, 2)
+                        .WithEffects(EffectFactory.Wet(0.4), EffectFactory.Cold(-8, 25)),
+                    new EventResult("The crossing holds. You notice game tracks on the other side.", 0.10, 30)
+                        .Costs(ResourceType.PlantFiber, 2)
+                        .FindsSupplies(),
+                    new EventResult("A branch gives way. You catch yourself but your foot plunges in.", 0.05, 15)
+                        .Costs(ResourceType.PlantFiber, 2)
+                        .WithEffects(EffectFactory.Wet(0.6))
+                        .ModerateCold()
+                        .Damage(0.08, DamageType.Blunt)
+                ],
+                requires: [EventCondition.HasPlantFiber]);
     }
 
     private static GameEvent ExposedOnRidge(GameContext ctx)
@@ -745,7 +791,7 @@ public static partial class GameEventRegistry
                         .BecomeStalked(0.2),
                     new EventResult("The undergrowth scratches and tears. Minor wounds.", 0.15, 22)
                         .FindsSupplies()
-                        .Damage(2, DamageType.Sharp),
+                        .Damage(0.05, DamageType.Sharp),
                     new EventResult("You disturb a nest. Something angry emerges.", 0.10, 15)
                         .Encounter(territory?.GetRandomAnimalName() ?? "Fox", 15, 0.4)
                 ])
@@ -802,9 +848,210 @@ public static partial class GameEventRegistry
                     new EventResult("Halfway across, you hear cracks. You freeze. The ice holds... barely.", 0.3, 12)
                         .WithEffects(EffectFactory.Shaken(0.3)),
                     new EventResult("The ice gives way. You plunge into freezing water.", 0.2, 5)
-                        .Damage(8, DamageType.Blunt)  // Impact from fall
+                        .Damage(0.20, DamageType.Blunt)  // Impact from fall
                         .WithEffects(EffectFactory.Wet(0.8), EffectFactory.Cold(-12, 30))  // Completely soaked, severe cold
                         .Aborts()
                 ]);
+    }
+
+    // === TRAIL SIGN EVENT ===
+
+    private static GameEvent TrailSignEvent(GameContext ctx)
+    {
+        var sign = TrailSignSelector.SelectForContext(ctx);
+        if (sign == null)
+        {
+            // Fallback if no sign selected
+            return new GameEvent("Nothing", "", 0).Requires(EventCondition.Cornered);
+        }
+
+        string ageDesc = sign.Age switch
+        {
+            SignAge.Fresh => "fresh",
+            SignAge.Recent => "recent",
+            SignAge.Old => "old",
+            SignAge.Ancient => "ancient",
+            _ => ""
+        };
+
+        string hintText = sign.FollowUpHint != null ? $" {sign.FollowUpHint}." : "";
+        string fullDesc = $"{sign.Description}.{hintText}";
+
+        var evt = new GameEvent("Reading the Land", fullDesc, 0.8)
+            .Requires(EventCondition.IsExpedition)
+            .WithConditionFactor(EventCondition.HighVisibility, 1.3)  // Easier to spot signs in open terrain
+            .WithSituationFactor(Situations.IsFollowingAnimalSigns, 1.5);  // More signs when tracking
+
+        // Choices vary by sign category
+        switch (sign.Category)
+        {
+            case SignCategory.Predator:
+                evt.Choice("Study the Sign",
+                    "Learn what you can from this.",
+                    BuildPredatorSignResults(sign, ageDesc).ToList())
+                   .Choice("Mark and Move On",
+                    "Note it mentally. Stay alert.",
+                    [
+                        new EventResult("You file the warning away and continue more carefully.", 0.7, 3)
+                            .WithEffects(EffectFactory.Focused(0.1, 30)),
+                        new EventResult("Your caution pays off — you spot more signs ahead.", 0.3, 5)
+                            .CreateTension(sign.TensionToCreate ?? "Stalked", Math.Max(0.1, sign.TensionSeverity - 0.1))
+                    ])
+                   .Choice("Leave the Area",
+                    "This isn't worth the risk.",
+                    [
+                        new EventResult("You detour around. Time lost, but safer.", 1.0, 12)
+                    ]);
+                break;
+
+            case SignCategory.Prey:
+                evt.Choice("Follow the Trail",
+                    "Fresh sign means game nearby.",
+                    BuildPreySignResults(sign, ageDesc).ToList())
+                   .Choice("Note for Later",
+                    "Good hunting ground. Remember this.",
+                    [
+                        new EventResult("You mark the location mentally. Could be productive.", 1.0, 2)
+                            .CreateTension("FreshTrail", 0.15, description: "noted game sign")
+                    ])
+                   .Choice("Continue Working",
+                    "You have other priorities.",
+                    [
+                        new EventResult("You push on with your task.", 1.0, 0)
+                    ]);
+                break;
+
+            case SignCategory.Human:
+                evt.Choice("Investigate",
+                    "Signs of others. Worth exploring.",
+                    BuildHumanSignResults(sign, ageDesc).ToList())
+                   .Choice("Keep Distance",
+                    "Not everything from the past is friendly.",
+                    [
+                        new EventResult("You skirt the area. Some things are best left alone.", 0.8, 5),
+                        new EventResult("As you leave, something catches your eye. You pocket it.", 0.2, 8)
+                            .Rewards(RewardPool.CraftingMaterials)
+                    ]);
+                break;
+
+            case SignCategory.Weather:
+                evt.Choice("Read the Signs",
+                    "The land tells you what's coming.",
+                    [
+                        new EventResult("You understand the pattern. This knowledge may help later.", 0.7, 3)
+                            .WithEffects(EffectFactory.Focused(0.1, 45)),
+                        new EventResult("The signs suggest changing conditions. You adjust your plans.", 0.3, 5)
+                    ])
+                   .Choice("Note and Continue",
+                    "Weather changes. So will you.",
+                    [
+                        new EventResult("You observe and move on.", 1.0, 1)
+                    ]);
+                break;
+
+            case SignCategory.Danger:
+                evt.Choice("Proceed Carefully",
+                    "Forewarned is forearmed.",
+                    [
+                        new EventResult("Your caution pays off. You navigate the hazard safely.", 0.75, 8),
+                        new EventResult("Despite care, you slip. Minor.", 0.20, 10)
+                            .Damage(0.08, DamageType.Blunt),
+                        new EventResult("The warning saved you from something worse.", 0.05, 5)
+                            .WithEffects(EffectFactory.Focused(0.15, 60))
+                    ])
+                   .Choice("Find Another Way",
+                    "Not worth the risk.",
+                    [
+                        new EventResult("You backtrack and find a safer route.", 1.0, 15)
+                    ]);
+                break;
+        }
+
+        return evt;
+    }
+
+    private static List<EventResult> BuildPredatorSignResults(TrailSign sign, string ageDesc)
+    {
+        var results = new List<EventResult>();
+
+        if (sign.Age == SignAge.Fresh)
+        {
+            results.Add(new EventResult($"The sign is {ageDesc}. Whatever left this is close.", 0.5, 8)
+                .CreateTension(sign.TensionToCreate ?? "Stalked", sign.TensionSeverity)
+                .Unsettling());
+            results.Add(new EventResult("You study the sign. Knowledge is survival.", 0.35, 10)
+                .CreateTension(sign.TensionToCreate ?? "Stalked", Math.Max(0.1, sign.TensionSeverity - 0.1))
+                .WithEffects(EffectFactory.Focused(0.1, 30)));
+            results.Add(new EventResult("As you crouch to examine it, movement in your peripheral vision.", 0.15, 5)
+                .CreateTension(sign.TensionToCreate ?? "Stalked", sign.TensionSeverity + 0.1)
+                .Frightening());
+        }
+        else
+        {
+            results.Add(new EventResult($"The sign is {ageDesc}. Older, but worth noting.", 0.6, 5)
+                .WithEffects(EffectFactory.Focused(0.05, 20)));
+            results.Add(new EventResult("You learn something about what lives here.", 0.3, 8));
+            results.Add(new EventResult($"The {ageDesc} sign tells a story. Predators use this route.", 0.1, 10)
+                .CreateTension(sign.TensionToCreate ?? "Stalked", Math.Max(0.1, sign.TensionSeverity - 0.15)));
+        }
+
+        return results;
+    }
+
+    private static List<EventResult> BuildPreySignResults(TrailSign sign, string ageDesc)
+    {
+        var results = new List<EventResult>();
+
+        if (sign.TensionToCreate == "WoundedPrey")
+        {
+            results.Add(new EventResult("Blood trail leads away. Easy target if you can find it.", 0.5, 15)
+                .CreateTension("WoundedPrey", sign.TensionSeverity, description: "blood trail"));
+            results.Add(new EventResult("You follow the sign. The trail is clear.", 0.35, 20)
+                .CreateTension("FreshTrail", 0.4, description: "wounded animal"));
+            results.Add(new EventResult("The trail leads... somewhere dangerous. Predators followed too.", 0.15, 12)
+                .CreateTension("WoundedPrey", sign.TensionSeverity)
+                .BecomeStalked(0.25));
+        }
+        else
+        {
+            results.Add(new EventResult($"The {ageDesc} sign confirms game in the area.", 0.5, 10)
+                .CreateTension("FreshTrail", sign.TensionSeverity, description: "game sign"));
+            results.Add(new EventResult("You track the sign. Promising.", 0.35, 15)
+                .CreateTension("FreshTrail", sign.TensionSeverity + 0.1));
+            results.Add(new EventResult("Following the trail reveals a well-used game path.", 0.15, 20)
+                .FindsGameTrail());
+        }
+
+        return results;
+    }
+
+    private static List<EventResult> BuildHumanSignResults(TrailSign sign, string ageDesc)
+    {
+        var results = new List<EventResult>();
+
+        if (sign.TensionToCreate == "Disturbed")
+        {
+            results.Add(new EventResult("Recent human sign. You're not alone out here.", 0.4, 10)
+                .CreateTension("Disturbed", sign.TensionSeverity, description: "human presence")
+                .Unsettling());
+            results.Add(new EventResult("You find traces of activity. Someone passed through.", 0.4, 12)
+                .WithEffects(EffectFactory.Paranoid(0.15)));
+            results.Add(new EventResult("The signs are clear. Someone survived. Whether they still do...", 0.2, 15)
+                .CreateTension("Disturbed", sign.TensionSeverity)
+                .Shaken());
+        }
+        else
+        {
+            results.Add(new EventResult($"The {ageDesc} site holds useful materials.", 0.4, 15)
+                .CreateTension(sign.TensionToCreate ?? "MarkedDiscovery", sign.TensionSeverity)
+                .FindsSupplies());
+            results.Add(new EventResult("You search the area. Worth the time.", 0.35, 20)
+                .CreateTension(sign.TensionToCreate ?? "MarkedDiscovery", sign.TensionSeverity)
+                .Rewards(RewardPool.AbandonedCamp));
+            results.Add(new EventResult("Old sign. You piece together what happened here.", 0.25, 12)
+                .CreateTension(sign.TensionToCreate ?? "MarkedDiscovery", sign.TensionSeverity));
+        }
+
+        return results;
     }
 }

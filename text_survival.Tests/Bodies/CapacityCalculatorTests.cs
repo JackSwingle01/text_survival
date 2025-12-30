@@ -218,4 +218,52 @@ public class CapacityCalculatorTests
         Assert.True(capacitiesWithPenalty.Moving < capacitiesNoEffects.Moving,
             $"Effect modifier should reduce moving. Without: {capacitiesNoEffects.Moving}, With: {capacitiesWithPenalty.Moving}");
     }
+
+    [Fact]
+    public void GetCapacities_DestroyedLegs_SeverelyReducesMoving()
+    {
+        // Arrange
+        var body = TestFixtures.CreateBaselineHumanBody();
+        var leftLeg = body.Parts.First(p => p.Name == BodyRegionNames.LeftLeg);
+        var rightLeg = body.Parts.First(p => p.Name == BodyRegionNames.RightLeg);
+
+        // Destroy both legs (all tissues)
+        leftLeg.Skin.Condition = 0.0;
+        leftLeg.Muscle.Condition = 0.0;
+        leftLeg.Bone.Condition = 0.0;
+        rightLeg.Skin.Condition = 0.0;
+        rightLeg.Muscle.Condition = 0.0;
+        rightLeg.Bone.Condition = 0.0;
+
+        // Act
+        var capacities = CapacityCalculator.GetCapacities(body, new CapacityModifierContainer());
+
+        // Assert - destroyed legs should severely reduce moving (only ~10% from other regions)
+        Assert.True(capacities.Moving < 0.15,
+            $"Destroyed legs should reduce Moving to ~0.1. Actual: {capacities.Moving}");
+    }
+
+    [Fact]
+    public void GetCapacities_DestroyedArms_SeverelyReducesManipulation()
+    {
+        // Arrange
+        var body = TestFixtures.CreateBaselineHumanBody();
+        var leftArm = body.Parts.First(p => p.Name == BodyRegionNames.LeftArm);
+        var rightArm = body.Parts.First(p => p.Name == BodyRegionNames.RightArm);
+
+        // Destroy both arms (all tissues)
+        leftArm.Skin.Condition = 0.0;
+        leftArm.Muscle.Condition = 0.0;
+        leftArm.Bone.Condition = 0.0;
+        rightArm.Skin.Condition = 0.0;
+        rightArm.Muscle.Condition = 0.0;
+        rightArm.Bone.Condition = 0.0;
+
+        // Act
+        var capacities = CapacityCalculator.GetCapacities(body, new CapacityModifierContainer());
+
+        // Assert - destroyed arms should severely reduce manipulation (only ~10% from other regions)
+        Assert.True(capacities.Manipulation < 0.15,
+            $"Destroyed arms should reduce Manipulation to ~0.1. Actual: {capacities.Manipulation}");
+    }
 }

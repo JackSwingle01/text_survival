@@ -6,12 +6,13 @@ namespace text_survival.Actions.Variants;
 /// <summary>
 /// Bundles coherent injury text with matched mechanics.
 /// Ensures the event description matches where damage actually lands.
+/// Amount uses 0-1 scale where 1.0 = destroys tissue layer.
 /// </summary>
 public record InjuryVariant(
     BodyTarget Target,          // Where damage goes
     string Description,         // What player sees: "Your ankle twists on a hidden rock"
     DamageType Type,
-    int Amount,
+    double Amount,              // 0-1 scale: 1.0 = destroys tissue layer
     Effect[]? Effects = null    // Optional auto-applied effects (e.g., SprainedAnkle, Dazed)
 )
 {

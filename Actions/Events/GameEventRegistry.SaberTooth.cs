@@ -176,11 +176,11 @@ public static partial class GameEventRegistry
                     new EventResult("Its lunge passes over you. You scramble up, weapon ready.", weight: 0.4, minutes: 2)
                         .ConfrontSaberTooth(8, 0.4),
                     new EventResult("Claws rake your back as you dive. Close. Too close.", weight: 0.3, minutes: 2)
-                        .Damage(8, DamageType.Sharp, BodyTarget.Chest)
+                        .Damage(0.20, DamageType.Sharp, BodyTarget.Chest)
                         .EscalatesSaberTooth(-0.2)
                         .Terrifying(),
                     new EventResult("It adjusts mid-leap. Teeth find flesh.", weight: 0.2, minutes: 2)
-                        .Damage(15, DamageType.Sharp)
+                        .Damage(0.40, DamageType.Sharp)
                         .EscalatesSaberTooth(-0.1)
                         .Panicking(),
                     new EventResult("Your movement confuses it. The attack becomes a pass. Now you're both standing.", weight: 0.1, minutes: 2)
@@ -197,7 +197,7 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Exhausted(0.15, 25)),
                     new EventResult("The ground gives way. You slide, but it loses you in the debris.", weight: 0.2, minutes: 5)
                         .EscalatesSaberTooth(-0.3)
-                        .Damage(5, DamageType.Blunt),
+                        .Damage(0.12, DamageType.Blunt),
                     new EventResult("No terrain to use. Open ground. You have to face it.", weight: 0.1, minutes: 1)
                         .ConfrontSaberTooth(6, 0.55)
                 ],
@@ -207,14 +207,14 @@ public static partial class GameEventRegistry
                 [
                     // WRONG CHOICE - running triggers the kill
                     new EventResult("Running was what it wanted. The pursuit is short.", weight: 0.6, minutes: 1)
-                        .Damage(20, DamageType.Sharp)
+                        .Damage(0.50, DamageType.Sharp)
                         .ConfrontSaberTooth(2, 0.8),
                     new EventResult("It brings you down. Teeth at your throat.", weight: 0.3, minutes: 1)
-                        .Damage(25, DamageType.Sharp)
+                        .Damage(0.60, DamageType.Sharp)
                         .Panicking()
                         .ResolvesSaberTooth(),
                     new EventResult("Somehow you get through. Bleeding, terrified, but alive.", weight: 0.1, minutes: 3)
-                        .Damage(12, DamageType.Sharp)
+                        .Damage(0.30, DamageType.Sharp)
                         .ResolvesSaberTooth()
                         .Panicking()
                         .Aborts()

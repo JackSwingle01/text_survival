@@ -231,6 +231,14 @@ public class Inventory
     public double TotalInsulation =>
         _equipment.Values.Sum(e => e?.Insulation ?? 0);
 
+    // Armor: Cushioning absorbs Blunt, Toughness resists Sharp/Pierce
+    // Values stack from all equipped gear
+    public double TotalCushioning =>
+        _equipment.Values.Sum(e => e?.Cushioning ?? 0);
+
+    public double TotalToughness =>
+        _equipment.Values.Sum(e => e?.Toughness ?? 0);
+
     public bool CanCarry(double additionalKg) =>
         MaxWeightKg < 0 || CurrentWeightKg + additionalKg <= MaxWeightKg;
 

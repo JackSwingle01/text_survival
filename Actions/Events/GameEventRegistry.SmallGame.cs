@@ -164,17 +164,21 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("It flees. The cache is yours.", 0.50, 15)
                         .Costs(ResourceType.Tinder, 1)
+                        .Costs(ResourceType.Fuel, 1)
                         .Rewards(RewardPool.SquirrelCache, 1.3),
                     new EventResult("The smoke doesn't reach. Waste of tinder.", 0.25, 12)
-                        .Costs(ResourceType.Tinder, 1),
+                        .Costs(ResourceType.Tinder, 1)
+                        .Costs(ResourceType.Fuel, 1),
                     new EventResult("Success, but the hollow catches fire. Nothing salvageable.", 0.15, 10)
-                        .Costs(ResourceType.Tinder, 1),
+                        .Costs(ResourceType.Tinder, 1)
+                        .Costs(ResourceType.Fuel, 1),
                     new EventResult("Perfect execution. Nuts, seeds, and a very angry but displaced squirrel.", 0.10, 18)
                         .Costs(ResourceType.Tinder, 1)
+                        .Costs(ResourceType.Fuel, 1)
                         .Rewards(RewardPool.SquirrelCache, 1.5)
                         .Rewards(RewardPool.SmallGame)
                 ],
-                requires: [EventCondition.HasTinder])
+                requires: [EventCondition.HasTinder, EventCondition.HasFuel])
             .Choice("Watch Where It Goes",
                 "Follow from a distance. It might lead to a better cache.",
                 [
