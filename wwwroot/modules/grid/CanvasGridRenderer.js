@@ -866,50 +866,23 @@ export class CanvasGridRenderer {
     renderPlainTexture(ctx, px, py, worldX, worldY) {
         const size = this.TILE_SIZE;
 
-        // Dirt patches - jagged irregular polygons
-        ctx.fillStyle = 'rgba(90, 70, 50, 0.45)';
-        const dirtCount = 1 + Math.floor(this.seededRandom(worldX, worldY, 40) * 2);
-        for (let i = 0; i < dirtCount; i++) {
-            const cx = px + size * (0.2 + this.seededRandom(worldX, worldY, i + 41) * 0.6);
-            const cy = py + size * (0.2 + this.seededRandom(worldX, worldY, i + 42) * 0.6);
-            const baseRadius = 18 + this.seededRandom(worldX, worldY, i + 43) * 20;
-
-            // Draw very jagged polygon with 8-12 vertices
-            const vertices = 8 + Math.floor(this.seededRandom(worldX, worldY, i + 44) * 5);
-            ctx.beginPath();
-            for (let v = 0; v < vertices; v++) {
-                const angle = (v / vertices) * Math.PI * 2 + (this.seededRandom(worldX, worldY, i * 20 + v) - 0.5) * 0.3;
-                const radius = baseRadius * (0.3 + this.seededRandom(worldX, worldY, i * 20 + v + 45) * 1.0);
-                const vx = cx + Math.cos(angle) * radius;
-                const vy = cy + Math.sin(angle) * radius * 0.65;
-                if (v === 0) ctx.moveTo(vx, vy);
-                else ctx.lineTo(vx, vy);
-            }
-            ctx.closePath();
-            ctx.fill();
-        }
-
-        // Lichen patches - jagged olive-green shapes
-        ctx.fillStyle = 'rgba(90, 100, 70, 0.35)';
+        // Lichen patches - clusters of small squares
         const lichenCount = 1 + Math.floor(this.seededRandom(worldX, worldY, 50) * 2);
         for (let i = 0; i < lichenCount; i++) {
             const cx = px + size * (0.15 + this.seededRandom(worldX, worldY, i + 51) * 0.7);
             const cy = py + size * (0.15 + this.seededRandom(worldX, worldY, i + 52) * 0.7);
-            const baseRadius = 8 + this.seededRandom(worldX, worldY, i + 53) * 10;
 
-            // Jagged polygon for lichen too
-            const vertices = 7 + Math.floor(this.seededRandom(worldX, worldY, i + 54) * 4);
-            ctx.beginPath();
-            for (let v = 0; v < vertices; v++) {
-                const angle = (v / vertices) * Math.PI * 2 + (this.seededRandom(worldX, worldY, i * 15 + v + 55) - 0.5) * 0.4;
-                const radius = baseRadius * (0.4 + this.seededRandom(worldX, worldY, i * 15 + v + 56) * 0.9);
-                const vx = cx + Math.cos(angle) * radius;
-                const vy = cy + Math.sin(angle) * radius * 0.8;
-                if (v === 0) ctx.moveTo(vx, vy);
-                else ctx.lineTo(vx, vy);
+            // Cluster of small spots
+            const spotCount = 4 + Math.floor(this.seededRandom(worldX, worldY, i + 53) * 4);
+            for (let j = 0; j < spotCount; j++) {
+                const spotX = cx + (this.seededRandom(worldX, worldY, i * 10 + j + 54) - 0.5) * 12;
+                const spotY = cy + (this.seededRandom(worldX, worldY, i * 10 + j + 55) - 0.5) * 10;
+                const spotSize = 1.5 + this.seededRandom(worldX, worldY, i * 10 + j + 56) * 2.5;
+
+                const greenVar = 90 + this.seededRandom(worldX, worldY, i * 10 + j + 57) * 20;
+                ctx.fillStyle = `rgba(${greenVar}, 100, 70, 0.35)`;
+                ctx.fillRect(spotX, spotY, spotSize, spotSize);
             }
-            ctx.closePath();
-            ctx.fill();
         }
 
         // Snow drift curves
@@ -935,10 +908,10 @@ export class CanvasGridRenderer {
             ctx.fillRect(sx, sy, 2, 2);
         }
 
-        // Tussock grass - golden-brown clumps (2x size)
+        // Tussock grass - golden-brown clumps
         ctx.strokeStyle = 'rgba(140, 120, 80, 0.5)';
         ctx.lineWidth = 1.5;
-        const tussockCount = 3 + Math.floor(this.seededRandom(worldX, worldY, 30) * 2);
+        const tussockCount = 5 + Math.floor(this.seededRandom(worldX, worldY, 30) * 4);
         for (let i = 0; i < tussockCount; i++) {
             const gx = px + size * (0.15 + this.seededRandom(worldX, worldY, i + 31) * 0.7);
             const gy = py + size * (0.35 + this.seededRandom(worldX, worldY, i + 32) * 0.45);
