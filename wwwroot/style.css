@@ -2141,6 +2141,13 @@ body {
     margin-top: 4px;
 }
 
+.event-choice-btn .choice-disabled-reason {
+    font-size: 0.8rem;
+    color: var(--danger);
+    margin-top: 4px;
+    font-style: italic;
+}
+
 .event-choice-btn .choice-cost {
     font-size: 0.75rem;
     color: var(--warning-color);
@@ -2842,7 +2849,7 @@ body {
    ============================================ */
 
 .encounter-modal {
-    max-width: 450px;
+    max-width: 650px;
 }
 
 .encounter-header {
@@ -3067,10 +3074,11 @@ body {
 .combat-zone {
     flex: 1;
     padding: 6px 8px;
-    background: var(--panel-bg-dark);
+    background: var(--bg-surface);
     color: var(--text-muted);
+    font-family: var(--font-display);
     font-size: 0.75em;
-    font-weight: 600;
+    font-weight: 500;
     text-align: center;
     border-radius: 4px;
     transition: all 0.3s ease;
@@ -3098,6 +3106,7 @@ body {
 }
 
 .combat-distance-meters {
+    font-family: var(--font-mono);
     font-size: 0.85em;
     color: var(--text-secondary);
     transition: all 0.3s ease;
@@ -3105,7 +3114,7 @@ body {
 
 /* Animal status */
 .combat-animal-status {
-    background: var(--panel-bg-dark);
+    background: var(--bg-surface);
     padding: 12px;
     border-radius: 8px;
     margin-bottom: 12px;
@@ -3113,10 +3122,12 @@ body {
 }
 
 .combat-animal-name {
+    font-family: var(--font-display);
     font-size: 1.1em;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--danger);
-    text-transform: capitalize;
+    text-transform: uppercase;
+    letter-spacing: 1px;
     margin-bottom: 6px;
 }
 
@@ -3128,11 +3139,13 @@ body {
 }
 
 .behavior-state {
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-weight: 500;
     padding: 2px 8px;
     border-radius: 4px;
     font-size: 0.85em;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
     background: var(--warning);
     color: var(--bg-primary);
 }
@@ -3159,12 +3172,14 @@ body {
 }
 
 .behavior-desc {
+    font-family: var(--font-mono);
     font-size: 0.9em;
     color: var(--text-secondary);
     font-style: italic;
 }
 
 .combat-animal-health {
+    font-family: var(--font-mono);
     font-size: 0.9em;
     color: var(--text-secondary);
     line-height: 1.4;
@@ -3188,8 +3203,9 @@ body {
     gap: 4px;
     padding: 4px 10px;
     border-radius: 12px;
+    font-family: var(--font-mono);
     font-size: 0.8em;
-    background: var(--panel-bg-dark);
+    background: var(--bg-surface);
 }
 
 .threat-factor .material-symbols-outlined {
@@ -3210,6 +3226,7 @@ body {
 
 /* Action message */
 .combat-action-message {
+    font-family: var(--font-mono);
     text-align: center;
     color: var(--text-secondary);
     margin-bottom: 12px;
@@ -3236,10 +3253,12 @@ body {
     padding: 4px 12px;
     background: var(--success);
     color: var(--bg-primary);
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-weight: 500;
     font-size: 0.85em;
     border-radius: 4px;
     text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 /* Combat actions */
@@ -3261,7 +3280,7 @@ body {
     padding: 10px 12px;
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    background: var(--panel-bg);
+    background: var(--bg-surface);
     color: var(--text-primary);
     cursor: pointer;
     text-align: left;
@@ -3270,7 +3289,7 @@ body {
 
 .combat-action:hover:not(:disabled) {
     border-color: var(--text-primary);
-    background: var(--bg-surface);
+    background: var(--panel-bg);
 }
 
 .combat-action:disabled {
@@ -3279,20 +3298,32 @@ body {
 }
 
 .combat-action-name {
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-weight: 500;
     font-size: 0.95em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     margin-bottom: 2px;
 }
 
 .combat-action-hint {
+    font-family: var(--font-mono);
     font-size: 0.8em;
     color: var(--text-muted);
 }
 
 .combat-action-stat {
+    font-family: var(--font-mono);
     font-size: 0.75em;
     color: var(--info);
     font-weight: 600;
+}
+
+.combat-action-disabled {
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    color: var(--danger);
+    font-style: italic;
 }
 
 /* Action categories */
@@ -3316,12 +3347,13 @@ body {
 .combat-outcome {
     text-align: center;
     padding: 16px;
-    background: var(--panel-bg-dark);
+    background: var(--bg-surface);
     border-radius: 8px;
     margin-top: 12px;
 }
 
 .combat-outcome-message {
+    font-family: var(--font-mono);
     font-size: 1.1em;
     line-height: 1.5;
     margin-bottom: 8px;
@@ -3346,6 +3378,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    font-family: var(--font-mono);
     color: var(--text-secondary);
     font-size: 0.9em;
 }
@@ -3356,6 +3389,7 @@ body {
 
 /* Targeting options (two-stage combat menu) */
 .targeting-prompt {
+    font-family: var(--font-mono);
     text-align: center;
     margin-bottom: 12px;
     color: var(--text-secondary);
@@ -3370,6 +3404,9 @@ body {
 }
 
 .targeting-btn {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 1px;
     padding: 12px 20px;
     border-left: 3px solid var(--danger);
     min-width: 100px;
@@ -4014,6 +4051,12 @@ body {
 .cooking-option-time {
     color: var(--text-faint);
     font-size: 0.85rem;
+}
+
+.cooking-option-disabled {
+    color: var(--danger);
+    font-size: 0.85rem;
+    font-style: italic;
 }
 
 .cooking-result {
