@@ -72,15 +72,20 @@ public static class WebServer
 
             var socket = await context.WebSockets.AcceptWebSocketAsync();
 
-            // Dispose old session if reconnecting
-            var oldSession = SessionRegistry.Get(sessionId);
-            if (oldSession != null)
+            // Check if session already exists (reconnection case)
+            var existingSession = SessionRegistry.Get(sessionId);
+            if (existingSession != null)
             {
-                Console.WriteLine($"[WebServer] Disposing old session for reconnect: {sessionId}");
-                oldSession.Dispose();
-                WebIO.ClearAllOverlays(sessionId);
+                // Graceful handoff - preserve session state including inputId counter
+                Console.WriteLine($"[WebServer] Reconnecting session: {sessionId}");
+                existingSession.Reconnect(socket);
+                // Don't start new game loop - existing one continues
+                // Wait for the existing game loop to finish (it will use the new socket)
+                await existingSession.WaitForCompletionAsync();
+                return;
             }
 
+            // New session - create and start game loop
             var session = new WebGameSession(socket);
             SessionRegistry.Register(sessionId, session);
 

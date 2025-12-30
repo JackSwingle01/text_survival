@@ -137,6 +137,9 @@ class GameClient {
         this.socket.onopen = () => {
             this.reconnectAttempts = 0;
             this.awaitingResponse = false;
+            // Reset inputId - the next frame from server will set the correct value
+            // This ensures any stale buttons from before reconnect are rejected
+            this.currentInputId = 0;
             ConnectionOverlay.hide();
         };
 
@@ -1668,15 +1671,17 @@ class GameClient {
             label.textContent = choice.label;
             btn.appendChild(label);
 
-            if (choice.description) {
+            // Show disabled reason if unavailable, otherwise show description
+            if (!choice.isAvailable && choice.disabledReason) {
+                const reason = document.createElement('span');
+                reason.className = 'choice-disabled-reason';
+                reason.textContent = choice.disabledReason;
+                btn.appendChild(reason);
+            } else if (choice.description) {
                 const desc = document.createElement('span');
                 desc.className = 'choice-desc';
                 desc.textContent = choice.description;
                 btn.appendChild(desc);
-            }
-
-            if (!choice.isAvailable && choice.disabledReason) {
-                btn.title = choice.disabledReason;
             }
 
             btn.onclick = () => this.respond(choice.id, inputId);
@@ -1894,15 +1899,17 @@ class GameClient {
             label.textContent = choice.label;
             btn.appendChild(label);
 
-            if (choice.description) {
+            // Show disabled reason if unavailable, otherwise show description
+            if (!choice.isAvailable && choice.disabledReason) {
+                const reason = document.createElement('span');
+                reason.className = 'choice-disabled-reason';
+                reason.textContent = choice.disabledReason;
+                btn.appendChild(reason);
+            } else if (choice.description) {
                 const desc = document.createElement('span');
                 desc.className = 'choice-desc';
                 desc.textContent = choice.description;
                 btn.appendChild(desc);
-            }
-
-            if (!choice.isAvailable && choice.disabledReason) {
-                btn.title = choice.disabledReason;
             }
 
             btn.onclick = () => this.respond(choice.id, inputId);
@@ -2111,25 +2118,28 @@ class GameClient {
                 nameEl.textContent = action.label;
                 btn.appendChild(nameEl);
 
-                // Description (shown as hint)
-                if (action.description) {
-                    const hintEl = document.createElement('div');
-                    hintEl.className = 'combat-action-hint';
-                    hintEl.textContent = action.description;
-                    btn.appendChild(hintEl);
-                }
-
-                // Hit chance stat
-                if (action.hitChance) {
-                    const statEl = document.createElement('div');
-                    statEl.className = 'combat-action-stat';
-                    statEl.textContent = action.hitChance;
-                    btn.appendChild(statEl);
-                }
-
-                // Disabled reason tooltip
+                // Show disabled reason if unavailable, otherwise show description and hit chance
                 if (!action.isAvailable && action.disabledReason) {
-                    btn.title = action.disabledReason;
+                    const reasonEl = document.createElement('div');
+                    reasonEl.className = 'combat-action-disabled';
+                    reasonEl.textContent = action.disabledReason;
+                    btn.appendChild(reasonEl);
+                } else {
+                    // Description (shown as hint)
+                    if (action.description) {
+                        const hintEl = document.createElement('div');
+                        hintEl.className = 'combat-action-hint';
+                        hintEl.textContent = action.description;
+                        btn.appendChild(hintEl);
+                    }
+
+                    // Hit chance stat
+                    if (action.hitChance) {
+                        const statEl = document.createElement('div');
+                        statEl.className = 'combat-action-stat';
+                        statEl.textContent = action.hitChance;
+                        btn.appendChild(statEl);
+                    }
                 }
 
                 btn.onclick = () => this.respond(action.id, inputId);
@@ -3591,8 +3601,12 @@ class GameClient {
             timeSpan.textContent = `${opt.timeMinutes} min`;
             btn.appendChild(timeSpan);
 
+            // Show disabled reason if unavailable
             if (!opt.isAvailable && opt.disabledReason) {
-                btn.title = opt.disabledReason;
+                const reasonSpan = document.createElement('span');
+                reasonSpan.className = 'cooking-option-disabled';
+                reasonSpan.textContent = opt.disabledReason;
+                btn.appendChild(reasonSpan);
             }
 
             btn.onclick = () => this.respond(opt.id, inputId);

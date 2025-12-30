@@ -190,12 +190,18 @@ public class WebGameSession : IDisposable
 
     /// <summary>
     /// Mark connection as disconnected (triggers reconnect wait in Send).
+    /// Only resets the event if the socket is actually disconnected - prevents
+    /// race condition where reconnect is undone by stale disconnect notification.
     /// </summary>
     public void MarkDisconnected()
     {
         lock (_socketLock)
         {
-            _reconnectEvent.Reset();
+            // Only reset if actually disconnected - if we've reconnected, don't reset
+            if (_socket.State != WebSocketState.Open)
+            {
+                _reconnectEvent.Reset();
+            }
         }
     }
 
@@ -271,6 +277,23 @@ public class WebGameSession : IDisposable
     {
         _cts.Cancel();
         _reconnectEvent.Set(); // Unblock any waiting Send calls
+    }
+
+    /// <summary>
+    /// Wait until the session completes (game over or session cancelled).
+    /// Used by reconnecting handlers to keep the WebSocket connection alive.
+    /// </summary>
+    public async Task WaitForCompletionAsync()
+    {
+        try
+        {
+            // Wait indefinitely until the session is cancelled
+            await Task.Delay(Timeout.Infinite, _cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Session was cancelled (game over or timeout) - this is expected
+        }
     }
 
     /// <summary>
