@@ -122,17 +122,13 @@ export class MobileUI {
         // Improve canvas touch handling
         const canvas = document.getElementById('gridCanvas');
         if (canvas) {
-            // Only prevent multi-touch (pinch zoom) - allow single touch clicks through
+            // Prevent default touch behavior on canvas
             canvas.addEventListener('touchstart', (e) => {
-                if (e.touches.length > 1) {
-                    e.preventDefault(); // Prevent pinch zoom
-                }
+                e.preventDefault();
             }, { passive: false });
 
             canvas.addEventListener('touchmove', (e) => {
-                if (e.touches.length > 1) {
-                    e.preventDefault(); // Prevent pinch zoom
-                }
+                e.preventDefault();
             }, { passive: false });
         }
 
