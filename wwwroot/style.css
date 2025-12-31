@@ -2701,22 +2701,464 @@ body {
     background: var(--border-bright);
 }
 
-/* 
+/*
    RESPONSIVE - Mobile
 */
-@media (max-width: 768px) {
-    .game-container {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr auto;
+
+/* Mobile sidebar toggle button */
+.mobile-sidebar-toggle {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: calc(var(--z-modal) - 1);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--fire-orange);
+    color: #000;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s ease;
+}
+
+.mobile-sidebar-toggle .material-symbols-outlined {
+    font-size: 28px;
+}
+
+.mobile-sidebar-toggle:active {
+    transform: scale(0.95);
+}
+
+/* Touch active state for better feedback */
+.touch-active {
+    opacity: 0.7 !important;
+}
+
+/* Tablet and below (landscape tablets, large phones) */
+@media (max-width: 1024px) {
+    :root {
+        /* Slightly larger touch targets */
+        --space-3: 14px;
+        --space-4: 18px;
     }
 
+    .game-container {
+        grid-template-columns: 200px auto 240px;
+        gap: 4px;
+        padding: 4px;
+    }
+
+    .left-sidebar {
+        font-size: 0.85em;
+    }
+
+    /* Smaller modals on tablets */
+    .modal-base--lg {
+        max-width: 800px;
+    }
+
+    .modal-base--xl {
+        max-width: 900px;
+    }
+}
+
+/* Mobile (phones, small tablets portrait) */
+@media (max-width: 768px) {
+    :root {
+        /* Larger touch targets for mobile */
+        --space-2: 10px;
+        --space-3: 16px;
+        --space-4: 20px;
+        --space-5: 24px;
+    }
+
+    body {
+        font-size: 14px;
+    }
+
+    /* Single column layout - center area takes full width */
+    .game-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+        gap: 0;
+        padding: 0;
+        max-width: 100%;
+    }
+
+    /* Hide sidebars by default on mobile */
+    .left-sidebar,
+    .right-sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        width: 85%;
+        max-width: 320px;
+        z-index: calc(var(--z-modal) - 1);
+        background: var(--bg-primary);
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        overflow-y: auto;
+        padding: var(--space-3);
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.5);
+    }
+
+    .right-sidebar {
+        right: 0;
+        left: auto;
+        transform: translateX(100%);
+        box-shadow: -4px 0 16px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Show sidebars when toggled */
+    .left-sidebar.mobile-visible,
+    .right-sidebar.mobile-visible {
+        transform: translateX(0);
+    }
+
+    /* Mobile sidebar overlay backdrop */
+    .mobile-sidebar-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: calc(var(--z-modal) - 2);
+    }
+
+    .mobile-sidebar-backdrop.visible {
+        display: block;
+    }
+
+    /* Show toggle button on mobile */
+    .mobile-sidebar-toggle {
+        display: flex;
+    }
+
+    /* Center area takes full screen */
+    .center-area {
+        width: 100vw;
+        height: 100vh;
+        padding: 0;
+    }
+
+    /* Location header - stack badges vertically on very small screens */
+    .location-header {
+        top: var(--space-1);
+        left: var(--space-1);
+        right: var(--space-1);
+    }
+
+    .header-row {
+        flex-wrap: wrap;
+        gap: var(--space-2);
+    }
+
+    .location-center {
+        max-width: 100%;
+        padding: var(--space-2) var(--space-3);
+    }
+
+    .location-name {
+        font-size: 1rem;
+    }
+
+    .weather-strip {
+        font-size: 9px;
+        gap: var(--space-2);
+    }
+
+    /* Make badges more compact */
+    .badge--lg {
+        padding: var(--space-1) var(--space-3);
+        font-size: 0.75rem;
+    }
+
+    .badge-content {
+        gap: 2px;
+    }
+
+    .badge-value {
+        font-size: 0.9rem;
+    }
+
+    .badge-label {
+        font-size: 0.65rem;
+    }
+
+    /* Grid canvas - fill available space */
+    .grid-viewport {
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+        border: none;
+        padding: 0;
+    }
+
+    #gridCanvas {
+        width: 100%;
+        height: 100%;
+        cursor: default;
+    }
+
+    /* Progress bar at bottom */
+    .progress-bar-container {
+        bottom: 20px;
+        width: 90%;
+        max-width: 400px;
+    }
+
+    /* Modals - full screen or nearly full screen */
     .modal-base {
         width: 100%;
-        max-height: 95vh;
+        max-width: 100%;
+        max-height: 100vh;
+        height: 100vh;
         padding: var(--space-4);
+        border-radius: 0;
+        border: none;
+    }
+
+    .modal-base--sm,
+    .modal-base--md,
+    .modal-base--lg,
+    .modal-base--xl {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    /* Modal headers more compact */
+    .modal-header__title {
+        font-size: 1.3rem;
+    }
+
+    /* Panes stack vertically on mobile */
+    .modal-content {
+        flex-direction: column;
     }
 
     .pane {
-        max-height: 300px;
+        max-height: 40vh;
+        width: 100%;
+    }
+
+    /* Dividers between panes - horizontal on mobile */
+    .divider {
+        padding: var(--space-2) 0;
+    }
+
+    .divider .material-symbols-outlined {
+        transform: rotate(90deg);
+        font-size: 24px;
+    }
+
+    /* Buttons - larger touch targets */
+    .btn {
+        min-height: 44px;
+        padding: var(--space-3) var(--space-4);
+        font-size: 0.95rem;
+    }
+
+    .btn--sm {
+        min-height: 36px;
+        padding: var(--space-2) var(--space-3);
+        font-size: 0.85rem;
+    }
+
+    .btn--lg {
+        min-height: 52px;
+        padding: var(--space-4) var(--space-5);
+        font-size: 1.1rem;
+    }
+
+    /* Option buttons - larger on mobile */
+    .option-btn {
+        min-height: 48px;
+        padding: var(--space-3) var(--space-4);
+    }
+
+    /* Action buttons grid - single column on mobile */
+    .action-buttons {
+        grid-template-columns: 1fr;
+    }
+
+    /* Inventory grid - single or two columns */
+    .inventory-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-3);
+    }
+
+    /* Tab bar - scrollable horizontally */
+    .tab-bar {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab {
+        flex-shrink: 0;
+    }
+
+    /* Event choices - full width */
+    .event-choices {
+        gap: var(--space-2);
+    }
+
+    /* Time/focus option grids */
+    .time-options,
+    .focus-options {
+        grid-template-columns: 1fr;
+    }
+
+    /* Combat/hunt distance bars - taller on mobile */
+    .distance-bar--hunt,
+    .distance-bar--encounter {
+        height: 36px;
+    }
+
+    /* Tile popup - better positioning on mobile */
+    .tile-popup {
+        position: fixed;
+        left: 50% !important;
+        top: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        width: 90%;
+        max-width: 400px;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    /* Quick actions - stack vertically */
+    .quick-actions {
+        flex-direction: column;
+    }
+
+    .quick-actions .btn {
+        width: 100%;
+    }
+
+    /* Narrative log - smaller on mobile */
+    .narrative-log {
+        font-size: 11px;
+    }
+
+    .log-entry {
+        padding: 4px var(--space-2);
+    }
+
+    /* Fire/temperature panels more compact */
+    .fire-status {
+        font-size: 0.8em;
+    }
+
+    .stat-row {
+        padding: var(--space-1) var(--space-2);
+    }
+}
+
+/* Very small phones (< 375px width) */
+@media (max-width: 374px) {
+    :root {
+        --text-xs: 0.7rem;
+        --text-sm: 0.8rem;
+    }
+
+    body {
+        font-size: 13px;
+    }
+
+    .modal-header__title {
+        font-size: 1.1rem;
+        letter-spacing: 1px;
+    }
+
+    .badge-value {
+        font-size: 0.8rem;
+    }
+
+    .weather-strip {
+        font-size: 8px;
+    }
+
+    /* Even more compact spacing */
+    .panel {
+        padding: var(--space-2);
+    }
+
+    .modal-base {
+        padding: var(--space-3);
+    }
+}
+
+/* Landscape orientation on phones */
+@media (max-width: 768px) and (orientation: landscape) {
+    /* Use horizontal space better in landscape */
+    .game-container {
+        grid-template-columns: 200px 1fr;
+        grid-template-rows: 1fr;
+    }
+
+    .left-sidebar {
+        position: relative;
+        transform: none;
+        width: 200px;
+        box-shadow: none;
+        font-size: 0.75em;
+    }
+
+    .right-sidebar {
+        display: none;
+    }
+
+    .mobile-sidebar-toggle {
+        /* Only toggle right sidebar in landscape */
+        display: flex;
+    }
+
+    /* Modals still full screen in landscape */
+    .modal-base {
+        max-height: 100vh;
+    }
+
+    .pane {
+        max-height: 50vh;
+    }
+}
+
+/* Touch-specific improvements */
+@media (hover: none) and (pointer: coarse) {
+    /* Larger tap targets for touch devices */
+    .btn,
+    .option-btn,
+    .list-item--clickable {
+        min-height: 44px;
+    }
+
+    /* Remove hover effects on touch devices */
+    .btn:hover,
+    .option-btn:hover,
+    .list-item--clickable:hover {
+        transform: none;
+    }
+
+    /* Active/pressed state instead */
+    .btn:active,
+    .option-btn:active,
+    .list-item--clickable:active {
+        opacity: 0.7;
+    }
+
+    /* Disable tooltips on touch devices (they're awkward) */
+    .survival-stat:hover .stat-tooltip,
+    .compact-stat:hover .stat-tooltip,
+    .effect-item.has-tooltip:hover .effect-tooltip {
+        display: none;
+    }
+
+    /* Make scrollbars thicker on touch */
+    ::-webkit-scrollbar {
+        width: 8px;
     }
 }
