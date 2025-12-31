@@ -231,6 +231,9 @@ public class Inventory
     public double TotalInsulation =>
         _equipment.Values.Sum(e => e?.Insulation ?? 0);
 
+    public double TotalEquipmentWeightKg =>
+        _equipment.Values.Sum(e => e?.Weight ?? 0);
+
     // Armor: Cushioning absorbs Blunt, Toughness resists Sharp/Pierce
     // Values stack from all equipped gear
     public double TotalCushioning =>

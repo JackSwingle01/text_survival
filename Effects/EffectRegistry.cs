@@ -28,8 +28,16 @@ public class EffectRegistry
 
             if (existingEffect != null) // if we find existing, update, otherwise apply it below
             {
-                // Take the more severe of the two - natural decay handles reduction
-                existingEffect.Severity = Math.Max(existingEffect.Severity, effect.Severity);
+                // Special case: Bleeding stacks additively (multiple wounds = more blood loss)
+                if (effect.EffectKind == "Bleeding")
+                {
+                    existingEffect.Severity = Math.Min(existingEffect.Severity + effect.Severity, 1.0);
+                }
+                else
+                {
+                    // Take the more severe of the two - natural decay handles reduction
+                    existingEffect.Severity = Math.Max(existingEffect.Severity, effect.Severity);
+                }
                 return null;
             }
         }

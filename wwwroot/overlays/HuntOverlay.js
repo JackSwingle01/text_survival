@@ -21,6 +21,11 @@ export class HuntOverlay extends OverlayManager {
         this.outcomeEl = document.getElementById('huntOutcome');
         this.outcomeMessageEl = document.getElementById('huntOutcomeMessage');
         this.outcomeSummaryEl = document.getElementById('huntOutcomeSummary');
+        this.outcomeActionsEl = document.getElementById('huntOutcomeActions');
+        this.outcomeContinueBtn = document.getElementById('huntOutcomeContinueBtn');
+
+        // Set up button
+        this.outcomeContinueBtn.onclick = () => this.respond('continue');
 
         this.lastHuntTime = 0;
     }
@@ -95,6 +100,7 @@ export class HuntOverlay extends OverlayManager {
 
     showChoices(huntData) {
         hide(this.outcomeEl);
+        hide(this.outcomeActionsEl);
         show(this.choicesEl);
 
         this.setChoices(huntData.choices, '#huntChoices');
@@ -103,6 +109,7 @@ export class HuntOverlay extends OverlayManager {
     showOutcome(huntData) {
         hide(this.choicesEl);
         show(this.outcomeEl);
+        show(this.outcomeActionsEl);
 
         const outcome = huntData.outcome;
         this.outcomeMessageEl.textContent = outcome.message;
@@ -128,12 +135,8 @@ export class HuntOverlay extends OverlayManager {
             });
         }
 
-        // Continue button
-        const continueBtn = document.createElement('button');
-        continueBtn.className = 'event-continue-btn';
-        continueBtn.textContent = outcome.transitionToCombat ? 'Face It!' : 'Continue';
-        continueBtn.onclick = () => this.respond('continue');
-        this.outcomeSummaryEl.appendChild(continueBtn);
+        // Update button text
+        this.outcomeContinueBtn.textContent = outcome.transitionToCombat ? 'Face It!' : 'Continue';
     }
 
     addOutcomeItem(icon, text, styleClass) {

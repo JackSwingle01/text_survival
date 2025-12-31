@@ -13,6 +13,7 @@ public class SurvivalProcessorResult
     public double FatToConsume;
     public double MuscleToConsume;
     public double BloodHealing;  // Blood regeneration (0-1 condition units)
+    public double ClothingHeatBufferDelta;  // Change to clothing thermal mass buffer
 
     public void Combine(SurvivalProcessorResult other)
     {
@@ -24,5 +25,6 @@ public class SurvivalProcessorResult
         FatToConsume += other.FatToConsume;
         MuscleToConsume += other.MuscleToConsume;
         BloodHealing += other.BloodHealing;
+        ClothingHeatBufferDelta += other.ClothingHeatBufferDelta;
     }
 }

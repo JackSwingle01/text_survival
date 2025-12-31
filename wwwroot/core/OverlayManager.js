@@ -252,24 +252,24 @@ export class OverlayManager {
      * @returns {HTMLDivElement} The created stat row
      */
     createStatRow(label, value, options = {}) {
-        const prefix = options.classPrefix || 'stat';
+        const prefix = options.classPrefix || 'stat-row';
         const row = document.createElement('div');
-        row.className = `${prefix}-row` + (options.background ? ` ${prefix}-row--bg` : '');
+        row.className = `${prefix}` + (options.background ? ` ${prefix}--bg` : '');
 
         if (options.icon) {
             const labelContainer = this.createIconText(options.icon, label);
-            labelContainer.className = `${prefix}-label`;
+            labelContainer.className = `${prefix}__label`;
             row.appendChild(labelContainer);
         } else {
             const labelEl = document.createElement('div');
-            labelEl.className = `${prefix}-label`;
+            labelEl.className = `${prefix}__label`;
             labelEl.textContent = label;
             row.appendChild(labelEl);
         }
 
         const valueEl = document.createElement('div');
-        valueEl.className = `${prefix}-value`;
-        if (options.valueClass) valueEl.classList.add(options.valueClass);
+        valueEl.className = `${prefix}__value`;
+        if (options.valueClass) valueEl.classList.add(`${prefix}__value--${options.valueClass}`);
         valueEl.textContent = value;
         row.appendChild(valueEl);
 

@@ -1,5 +1,5 @@
 import { OverlayManager } from '../core/OverlayManager.js';
-import { DOMBuilder } from '../core/DOMBuilder.js';
+import { StatRow } from '../components/StatRow.js';
 import { Utils } from '../modules/utils.js';
 
 /**
@@ -19,21 +19,28 @@ export class DeathOverlay extends OverlayManager {
         // Set cause of death
         this.causeEl.textContent = data.causeOfDeath;
 
-        // Build stats
+        // Build stats using StatRow component
         this.clear(this.statsEl);
-        const statLines = [
-            `Time Survived: ${data.timeSurvived}`,
-            `Final Vitality: ${data.finalVitality.toFixed(0)}%`,
-            `Final Calories: ${data.finalCalories.toFixed(0)} kcal`,
-            `Final Hydration: ${data.finalHydration.toFixed(0)}%`,
-            `Body Temperature: ${data.finalTemperature.toFixed(1)}°F`
-        ];
 
-        statLines.forEach(line => {
-            this.statsEl.appendChild(
-                DOMBuilder.div().text(line).build()
-            );
-        });
+        this.statsEl.appendChild(
+            StatRow.simple('schedule', 'Time Survived', data.timeSurvived)
+        );
+
+        this.statsEl.appendChild(
+            StatRow.simple('favorite', 'Final Vitality', `${data.finalVitality.toFixed(0)}%`)
+        );
+
+        this.statsEl.appendChild(
+            StatRow.simple('restaurant', 'Final Calories', `${data.finalCalories.toFixed(0)} kcal`)
+        );
+
+        this.statsEl.appendChild(
+            StatRow.simple('water_drop', 'Final Hydration', `${data.finalHydration.toFixed(0)}%`)
+        );
+
+        this.statsEl.appendChild(
+            StatRow.simple('device_thermostat', 'Body Temperature', `${data.finalTemperature.toFixed(1)}°F`)
+        );
 
         // Add restart/choice buttons
         if (input?.choices) {

@@ -398,16 +398,16 @@ export const fixtures = {
     fireStarting: {
         mode: 'starting',
         tools: [
-            { id: 'bow_drill', name: 'Bow Drill', successBonus: 25, durability: 45, maxDurability: 100 },
-            { id: 'hand_drill', name: 'Hand Drill', successBonus: 10, durability: 30, maxDurability: 80 }
+            { id: 'bow_drill', displayName: 'Bow Drill', successPercent: 25, isSelected: true, durability: 45, maxDurability: 100 },
+            { id: 'hand_drill', displayName: 'Hand Drill', successPercent: 10, isSelected: false, durability: 30, maxDurability: 80 }
         ],
         tinders: [
-            { id: 'birch_bark', name: 'Birch Bark', successBonus: 20, amount: 3 },
-            { id: 'dry_grass', name: 'Dry Grass', successBonus: 10, amount: 5 }
+            { id: 'birch_bark', displayName: 'Birch Bark', bonusPercent: 20, count: 3, isSelected: true },
+            { id: 'dry_grass', displayName: 'Dry Grass', bonusPercent: 10, count: 5, isSelected: false }
         ],
         fuels: [
-            { id: 'pine_logs', name: 'Pine Logs', weight: 3.2 },
-            { id: 'birch_logs', name: 'Birch Logs', weight: 1.8 }
+            { id: 'pine_logs', displayName: 'Pine Logs', weightKg: 3.2, count: 8, burnTimeMinutes: 45, canAdd: true, icon: 'local_fire_department' },
+            { id: 'birch_logs', displayName: 'Birch Logs', weightKg: 1.8, count: 5, burnTimeMinutes: 60, canAdd: true, icon: 'local_fire_department' }
         ],
         fire: {
             isActive: false,
@@ -422,8 +422,9 @@ export const fixtures = {
             burningKg: 0,
             minutesRemaining: 0,
             burnRateKgPerHour: 0,
-            finalSuccessPercent: 0,
-            charcoalKg: 0.3
+            finalSuccessPercent: 65,
+            charcoalKg: 0.3,
+            hasKindling: true
         }
     },
 
@@ -433,9 +434,9 @@ export const fixtures = {
         tools: [],
         tinders: [],
         fuels: [
-            { id: 'pine_logs', name: 'Pine Logs', weight: 3.2 },
-            { id: 'birch_logs', name: 'Birch Logs', weight: 1.8 },
-            { id: 'oak_logs', name: 'Oak Logs', weight: 2.1 }
+            { id: 'pine_logs', displayName: 'Pine Logs', weightKg: 0.4, count: 8, burnTimeMinutes: 45, canAdd: true, icon: 'local_fire_department' },
+            { id: 'birch_logs', displayName: 'Birch Logs', weightKg: 0.36, count: 5, burnTimeMinutes: 60, canAdd: true, icon: 'local_fire_department' },
+            { id: 'oak_logs', displayName: 'Oak Logs', weightKg: 0.42, count: 4, burnTimeMinutes: 90, canAdd: true, icon: 'local_fire_department' }
         ],
         fire: {
             isActive: true,
@@ -503,19 +504,19 @@ export const fixtures = {
         playerCurrentWeightKg: 12.3,
         playerMaxWeightKg: 20,
         playerItems: [
-            { id: 'raw_meat_1', category: 'Food', name: 'Raw Venison', weight: 2.1, isAggregated: false, count: 1 },
-            { id: 'hide_1', category: 'Materials', name: 'Hide', weight: 1.2, isAggregated: false, count: 1 },
-            { id: 'bone_stack', category: 'Materials', name: 'Bone', weight: 0.8, isAggregated: true, count: 3 }
+            { id: 'raw_meat_1', category: 'Food', displayName: 'Raw Venison', weightKg: 2.1, isAggregated: false, count: 1, icon: 'restaurant' },
+            { id: 'hide_1', category: 'Materials', displayName: 'Hide', weightKg: 1.2, isAggregated: false, count: 1, icon: 'checkroom' },
+            { id: 'bone_stack', category: 'Materials', displayName: 'Bone', weightKg: 0.8, isAggregated: true, count: 3, icon: 'skull' }
         ],
         storageTitle: 'Camp Storage',
         storageCurrentWeightKg: 35.6,
         storageMaxWeightKg: 999,
         storageItems: [
-            { id: 'cooked_meat_stack', category: 'Food', name: 'Cooked Meat', weight: 3.5, isAggregated: true, count: 7 },
-            { id: 'dried_meat_stack', category: 'Food', name: 'Dried Meat', weight: 1.8, isAggregated: true, count: 5 },
-            { id: 'pine_logs_stack', category: 'Fuel', name: 'Pine Logs', weight: 12.0, isAggregated: true, count: 15 },
-            { id: 'birch_logs_stack', category: 'Fuel', name: 'Birch Logs', weight: 8.3, isAggregated: true, count: 10 },
-            { id: 'flint_stack', category: 'Materials', name: 'Flint', weight: 2.1, isAggregated: true, count: 8 }
+            { id: 'cooked_meat_stack', category: 'Food', displayName: 'Cooked Meat', weightKg: 3.5, isAggregated: true, count: 7, icon: 'restaurant' },
+            { id: 'dried_meat_stack', category: 'Food', displayName: 'Dried Meat', weightKg: 1.8, isAggregated: true, count: 5, icon: 'restaurant' },
+            { id: 'pine_logs_stack', category: 'Fuel', displayName: 'Pine Logs', weightKg: 12.0, isAggregated: true, count: 15, icon: 'local_fire_department' },
+            { id: 'birch_logs_stack', category: 'Fuel', displayName: 'Birch Logs', weightKg: 8.3, isAggregated: true, count: 10, icon: 'local_fire_department' },
+            { id: 'flint_stack', category: 'Materials', displayName: 'Flint', weightKg: 2.1, isAggregated: true, count: 8, icon: 'diamond' }
         ]
     },
 

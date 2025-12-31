@@ -11,21 +11,22 @@ namespace text_survival.Actions.Expeditions.WorkStrategies;
 
 /// <summary>
 /// Strategy for the search phase of hunting.
-/// Requires AnimalTerritoryFeature. Time-based search for game.
+/// Can hunt on tiles with herds present (checked via HerdRegistry at current position).
+/// AnimalTerritoryFeature provides additional small game spawning (rabbit, fox, ptarmigan).
 /// If animal found, returns WorkResult.FoundAnimal for caller to handle interactive hunt.
 /// </summary>
 public class HuntStrategy : IWorkStrategy
 {
     public string? ValidateLocation(GameContext ctx, Location location)
     {
-        // Check if there are persistent herds nearby
+        // Check if there are persistent herds on this tile
         if (ctx.Map != null)
         {
             var pos = ctx.Map.GetPosition(location);
             if (pos.HasValue)
             {
-                var nearbyHerds = ctx.Herds.GetHerdsInRange(pos.Value, 1);
-                if (nearbyHerds.Any(h => h.Count > 0))
+                var herdsHere = ctx.Herds.GetHerdsAt(pos.Value);
+                if (herdsHere.Any(h => h.Count > 0))
                 {
                     return null; // Game available (prey or predator)
                 }

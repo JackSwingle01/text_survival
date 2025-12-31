@@ -8,6 +8,13 @@ import { Utils, show, hide } from '../modules/utils.js';
 export class EventOverlay extends OverlayManager {
     constructor(inputHandler) {
         super('eventOverlay', inputHandler);
+
+        // Outcome actions
+        this.outcomeActionsEl = document.getElementById('eventOutcomeActions');
+        this.outcomeContinueBtn = document.getElementById('eventOutcomeContinueBtn');
+
+        // Set up button
+        this.outcomeContinueBtn.onclick = () => this.respond('continue');
     }
 
     render(eventData, inputId) {
@@ -23,6 +30,7 @@ export class EventOverlay extends OverlayManager {
     }
 
     renderEventChoices(eventData) {
+        hide(this.outcomeActionsEl);
         this.$('#eventDescription').textContent = eventData.description;
         this.setChoices(eventData.choices, '#eventChoices');
     }
@@ -63,6 +71,7 @@ export class EventOverlay extends OverlayManager {
 
         show(descEl);
         show(choicesEl);
+        show(this.outcomeActionsEl);
         this.clear(descEl);
         this.clear(choicesEl);
 
@@ -114,7 +123,7 @@ export class EventOverlay extends OverlayManager {
         if (outcome.statsDelta) {
             const statsGroup = DOMBuilder.div('outcome-stats-group');
             const d = outcome.statsDelta;
-            
+
             if (Math.abs(d.energyDelta) >= 1) {
                 const val = Math.round(d.energyDelta);
                 statsGroup.append(StatRow.outcome('bolt', `${val > 0 ? '+' : ''}${val} energy`, 'stat'));
@@ -131,7 +140,7 @@ export class EventOverlay extends OverlayManager {
                 const val = d.temperatureDelta.toFixed(1);
                 statsGroup.append(StatRow.outcome('thermostat', `${d.temperatureDelta > 0 ? '+' : ''}${val}°F`, 'stat'));
             }
-            
+
             if (statsGroup.el.children.length > 0) {
                 summary.append(statsGroup);
             }
@@ -140,13 +149,6 @@ export class EventOverlay extends OverlayManager {
         if (summary.el.children.length > 0) {
             choicesEl.appendChild(summary.build());
         }
-
-        // Continue button
-        const continueBtn = document.createElement('button');
-        continueBtn.className = 'event-continue-btn';
-        continueBtn.textContent = 'Continue';
-        continueBtn.onclick = () => this.respond('continue');
-        choicesEl.appendChild(continueBtn);
     }
 
     cleanup() {

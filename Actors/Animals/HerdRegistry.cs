@@ -255,8 +255,8 @@ public class HerdRegistry
     /// <returns>Tuple of (herd, animal) if found, or null.</returns>
     public (Herd herd, Animal animal)? SearchForLargeGame(GridPosition pos, int searchMinutes)
     {
-        // Get herds at current position and adjacent tiles
-        var nearby = GetHerdsInRange(pos, 1);
+        // Get herds at current position only
+        var nearby = GetHerdsAt(pos);
 
         // Filter to herds with animals (both prey and predators are huntable)
         var huntableHerds = nearby.Where(h => h.Count > 0).ToList();

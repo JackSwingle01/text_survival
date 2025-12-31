@@ -12,12 +12,10 @@ export class CombatOverlay extends OverlayManager {
 
         // Intro phase elements
         this.introSectionEl = document.getElementById('combatIntroSection');
+        this.introActionsEl = document.getElementById('combatIntroActions');
         this.introMessageEl = document.getElementById('combatIntroMessage');
         this.introConfirmBtn = document.getElementById('combatIntroConfirm');
         this.combatContentEl = document.getElementById('combatContent');
-
-        // Set up intro confirm button
-        this.introConfirmBtn.onclick = () => this.respond('confirm');
 
         // Combat phase elements
         this.animalNameEl = document.getElementById('combatAnimalName');
@@ -32,6 +30,8 @@ export class CombatOverlay extends OverlayManager {
         this.outcomeEl = document.getElementById('combatOutcome');
         this.outcomeMessageEl = document.getElementById('combatOutcomeMessage');
         this.rewardsEl = document.getElementById('combatRewards');
+        this.outcomeActionsEl = document.getElementById('combatOutcomeActions');
+        this.outcomeContinueBtn = document.getElementById('combatOutcomeContinueBtn');
 
         // Distance track elements
         this.distanceValueEl = document.getElementById('combatDistanceValue');
@@ -52,6 +52,10 @@ export class CombatOverlay extends OverlayManager {
         this.encounterChoicesEl = document.getElementById('encounterChoices');
         this.encounterOutcomeEl = document.getElementById('encounterOutcome');
         this.encounterOutcomeMessageEl = document.getElementById('encounterOutcomeMessage');
+
+        // Set up button handlers
+        this.introConfirmBtn.onclick = () => this.respond('confirm');
+        this.outcomeContinueBtn.onclick = () => this.respond('continue');
     }
 
     render(combatData, inputId) {
@@ -80,8 +84,6 @@ export class CombatOverlay extends OverlayManager {
      */
     renderApproachPhase(encounterData, inputId) {
         // Hide combat-specific elements
-        hide(document.querySelector('.combat-zones'));
-        hide(document.querySelector('.combat-behavior'));
         hide(this.actionMessageEl);
         hide(this.playerBracedEl);
         hide(this.outcomeEl);
@@ -160,6 +162,7 @@ export class CombatOverlay extends OverlayManager {
     renderIntroPhase(combatData) {
         // Show intro, hide combat content
         show(this.introSectionEl);
+        show(this.introActionsEl);
         hide(this.combatContentEl);
 
         // Set intro message
@@ -172,6 +175,8 @@ export class CombatOverlay extends OverlayManager {
     renderChoicePhase(combatData) {
         // Hide intro, show content
         hide(this.introSectionEl);
+        hide(this.introActionsEl);
+        hide(this.outcomeActionsEl);
         show(this.combatContentEl);
 
         // Show elements that narrative phase hides
@@ -356,20 +361,18 @@ export class CombatOverlay extends OverlayManager {
     showCombatOutcome(combatData) {
         hide(this.actionsEl);
         hide(this.actionMessageEl);
+        hide(this.introActionsEl);
         hide(document.getElementById('encounterOverlay'));
         show(this.outcomeEl);
+        show(this.outcomeActionsEl);
 
         const outcome = combatData.outcome;
         if (!outcome) return;
 
-        // Clear outcome element to prevent duplicate buttons
-        this.clear(this.outcomeEl);
-
         this.outcomeEl.className = 'combat-outcome ' + (outcome.result || '').toLowerCase();
 
-        // Rebuild outcome content
+        // Outcome message
         this.outcomeMessageEl.textContent = outcome.message;
-        this.outcomeEl.appendChild(this.outcomeMessageEl);
 
         // Show rewards if any
         this.clear(this.rewardsEl);
@@ -381,17 +384,12 @@ export class CombatOverlay extends OverlayManager {
                 rewardEl.textContent = '+ ' + reward;
                 this.rewardsEl.appendChild(rewardEl);
             });
-            this.outcomeEl.appendChild(this.rewardsEl);
         } else {
             hide(this.rewardsEl);
         }
 
-        // Add continue button
-        const continueBtn = document.createElement('button');
-        continueBtn.className = 'event-continue-btn';
-        continueBtn.textContent = 'Continue';
-        continueBtn.onclick = () => this.respond('continue');
-        this.outcomeEl.appendChild(continueBtn);
+        // Update button text
+        this.outcomeContinueBtn.textContent = 'Continue';
     }
 
     /**

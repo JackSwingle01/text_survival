@@ -148,7 +148,7 @@
 
     <!-- Inventory Overlay -->
     <div class="overlay hidden" id="inventoryOverlay">
-        <div class="modal-base modal-base--lg inventory-modal">
+        <div class="modal-base modal-base--wide inventory-modal">
             <div class="modal-header modal-header--between">
                 <h2 class="modal-header__title" id="inventoryTitle">INVENTORY</h2>
                 <span class="inventory-weight" id="inventoryWeight">0 / 15 kg</span>
@@ -190,7 +190,7 @@
 
     <!-- Transfer Overlay -->
     <div class="overlay overlay--higher hidden" id="transferOverlay">
-        <div class="modal-base modal-base--xl">
+        <div class="modal-base modal-base--wide">
             <div class="modal-header modal-header--center">
                 <h2 class="modal-header__title">
                     <span class="material-symbols-outlined">swap_horiz</span>TRANSFER
@@ -215,14 +215,14 @@
 
     <!-- Fire Overlay -->
     <div class="overlay overlay--higher hidden" id="fireOverlay">
-        <div class="modal-base modal-base--lg">
+        <div class="modal-base modal-base--wide">
             <div class="modal-header modal-header--center">
                 <h2 class="modal-header__title">
                     <span class="material-symbols-outlined">local_fire_department</span>
                     <span id="fireTitle">FIRE</span>
                 </h2>
             </div>
-            <div class="modal-content" style="display: flex; gap: var(--space-5);">
+            <div class="modal-content modal-content--dual-pane">
                 <div class="pane" id="fireLeftPane"></div>
                 <div class="divider">
                     <span class="material-symbols-outlined">arrow_forward</span>
@@ -245,13 +245,13 @@
 
     <!-- Cooking Overlay -->
     <div class="overlay overlay--higher hidden" id="cookingOverlay">
-        <div class="modal-base modal-base--md">
+        <div class="modal-base modal-base--wide">
             <div class="modal-header modal-header--center">
                 <h2 class="modal-header__title">
                     <span class="material-symbols-outlined">outdoor_grill</span>COOK & MELT
                 </h2>
             </div>
-            <div class="modal-content" style="display: flex; gap: var(--space-5);">
+            <div class="modal-content modal-content--dual-pane">
                 <div class="pane" id="cookingStatus"></div>
                 <div class="divider">
                     <span class="material-symbols-outlined">arrow_forward</span>
@@ -267,7 +267,7 @@
 
     <!-- Crafting Overlay -->
     <div class="overlay hidden" id="craftingOverlay">
-        <div class="modal-base modal-base--lg">
+        <div class="modal-base modal-base--wide">
             <div class="modal-header">
                 <h2 class="modal-header__title" id="craftingTitle">CRAFTING</h2>
             </div>
@@ -281,7 +281,7 @@
 
     <!-- Event Overlay -->
     <div class="overlay overlay--high hidden" id="eventOverlay">
-        <div class="modal-base modal-base--md modal-base--event">
+        <div class="modal-base modal-base--standard modal-base--event">
             <div class="modal-header">
                 <h2 class="modal-header__title modal-header__title--warning" id="eventName">Event</h2>
             </div>
@@ -295,12 +295,17 @@
                 <div class="event-description" id="eventDescription"></div>
                 <div class="event-choices" id="eventChoices"></div>
             </div>
+
+            <!-- Event Outcome Actions -->
+            <div class="modal-actions modal-actions--center hidden" id="eventOutcomeActions">
+                <button class="btn" id="eventOutcomeContinueBtn">Continue</button>
+            </div>
         </div>
     </div>
 
     <!-- Hazard Overlay -->
     <div class="overlay overlay--high hidden" id="hazardOverlay">
-        <div class="modal-base modal-base--md">
+        <div class="modal-base modal-base--standard">
             <div class="modal-header">
                 <h2 class="modal-header__title modal-header__title--warning">
                     <span class="material-symbols-outlined">warning</span> Hazardous Terrain
@@ -325,7 +330,7 @@
 
     <!-- Death Screen Overlay -->
     <div class="overlay overlay--high hidden" id="deathOverlay">
-        <div class="modal-base modal-base--md">
+        <div class="modal-base modal-base--standard">
             <div class="modal-header">
                 <h2 class="modal-header__title modal-header__title--danger">YOU DIED</h2>
             </div>
@@ -339,7 +344,7 @@
 
     <!-- Forage Overlay -->
     <div class="overlay hidden" id="forageOverlay">
-        <div class="modal-base modal-base--md">
+        <div class="modal-base modal-base--standard">
             <div class="modal-header">
                 <h2 class="modal-header__title">
                     <span class="material-symbols-outlined">eco</span> Foraging
@@ -374,12 +379,12 @@
 
             <!-- Action buttons -->
             <div class="modal-actions modal-actions--column">
-                <button class="btn btn--success btn--full" id="forageConfirmBtn" disabled>
+                <button class="btn btn--success" id="forageConfirmBtn" disabled>
                     <span class="option-btn__label">Search</span>
                     <span class="option-btn__desc" id="forageConfirmDesc">Select focus and time</span>
                 </button>
-                <button class="btn btn--full" id="forageCancelBtn">Cancel</button>
-                <button class="btn btn--full" id="forageKeepWalkingBtn">
+                <button class="btn" id="forageCancelBtn">Cancel</button>
+                <button class="btn" id="forageKeepWalkingBtn">
                     Keep Walking <span style="font-size: 0.8em; opacity: 0.7;">(5 min)</span>
                 </button>
             </div>
@@ -388,7 +393,7 @@
 
     <!-- Butcher Overlay -->
     <div class="overlay hidden" id="butcherOverlay">
-        <div class="modal-base modal-base--md">
+        <div class="modal-base modal-base--standard">
             <div class="modal-header">
                 <h2 class="modal-header__title">
                     <span class="material-symbols-outlined">restaurant</span> Butchering
@@ -414,18 +419,18 @@
 
             <!-- Action buttons -->
             <div class="modal-actions modal-actions--column">
-                <button class="btn btn--success btn--full" id="butcherConfirmBtn" disabled>
+                <button class="btn btn--success" id="butcherConfirmBtn" disabled>
                     <span class="option-btn__label">Start</span>
                     <span class="option-btn__desc" id="butcherConfirmDesc">Select a method</span>
                 </button>
-                <button class="btn btn--full" id="butcherCancelBtn">Cancel</button>
+                <button class="btn" id="butcherCancelBtn">Cancel</button>
             </div>
         </div>
     </div>
 
     <!-- Hunt Overlay -->
     <div class="overlay hidden" id="huntOverlay">
-        <div class="modal-base modal-base--sm">
+        <div class="modal-base modal-base--standard">
             <div class="modal-header">
                 <h2 class="modal-header__title">
                     <span class="material-symbols-outlined">pets</span> Hunting
@@ -456,7 +461,7 @@
                 </div>
 
                 <!-- Animal status -->
-                <div class="hunt-status">
+                <div class="event-description hunt-status">
                     <span class="hunt-activity" id="huntActivity">grazing, head down</span>
                     <span class="hunt-time" id="huntTime">0 min</span>
                     <span class="hunt-state" id="huntState">unaware</span>
@@ -474,12 +479,17 @@
                     <div class="hunt-outcome-summary" id="huntOutcomeSummary"></div>
                 </div>
             </div>
+
+            <!-- Hunt Outcome Actions -->
+            <div class="modal-actions modal-actions--center hidden" id="huntOutcomeActions">
+                <button class="btn" id="huntOutcomeContinueBtn">Continue</button>
+            </div>
         </div>
     </div>
 
     <!-- Encounter Overlay -->
     <div class="overlay hidden" id="encounterOverlay">
-        <div class="modal-base modal-base--md">
+        <div class="modal-base modal-base--standard">
             <div class="modal-header">
                 <h2 class="modal-header__title modal-header__title--danger">
                     <span class="material-symbols-outlined">warning</span>Predator Encounter
@@ -533,47 +543,63 @@
 
     <!-- Combat Overlay -->
     <div class="overlay hidden" id="combatOverlay">
-        <div class="modal-base modal-base--sm">
+        <div class="modal-base modal-base--standard">
             <div class="modal-header">
                 <h2 class="modal-header__title modal-header__title--danger">
-                    <span class="material-symbols-outlined">swords</span>
-                    <span id="combatAnimalName">Wolf</span>
+                    <span class="material-symbols-outlined">swords</span>Combat
                 </h2>
             </div>
 
-            <div class="modal-content" style="text-align: center;">
+            <div class="modal-content modal-content--center">
                 <!-- Intro Section (shown on first frame) -->
-                <div class="hidden" id="combatIntroSection" style="padding: var(--space-4);">
-                    <div class="panel">
-                        <div id="combatIntroMessage" style="font-size: 1.2em;"></div>
+                <div class="hidden combat-intro" id="combatIntroSection">
+                    <div class="panel panel--padded">
+                        <div class="combat-intro__message" id="combatIntroMessage"></div>
                     </div>
-                    <button class="btn btn--danger" id="combatIntroConfirm"
-                        style="margin-top: var(--space-3);">Fight!</button>
                 </div>
 
                 <!-- Combat Content (hidden during intro) -->
                 <div id="combatContent">
+                    <!-- Animal name -->
+                    <div class="info-panel info-panel--center info-panel--danger">
+                        <div class="info-panel__title" id="combatAnimalName">Wolf</div>
+                    </div>
+
                     <div class="info-panel">
                         <!-- Behavior badge + braced indicator -->
-                        <div class="flex items-center justify-center gap-2" style="margin-bottom: var(--space-3);">
+                        <div class="combat-status">
                             <span class="behavior-state" id="combatBehaviorState">Circling</span>
                             <span class="badge hidden" id="combatPlayerBraced">
                                 <span class="material-symbols-outlined">shield</span>BRACED
                             </span>
                         </div>
 
-                        <!-- Distance bar with zone markers -->
-                        <div style="margin-bottom: var(--space-3);">
-                            <div class="hunt-distance-label">
-                                <span>Distance</span>
-                                <span class="hunt-distance-value" id="combatDistanceValue">12m</span>
+                        <!-- Distance track with player marker -->
+                        <div class="distance-track">
+                            <div class="distance-track__header">
+                                <span class="distance-track__label">Distance</span>
+                                <span class="distance-track__value" id="combatDistanceValue">12m</span>
                             </div>
-                            <div class="distance-bar distance-bar--combat">
-                                <div class="distance-bar__mask" id="combatDistanceMask"></div>
-                                <div class="distance-bar__zones">
-                                    <span class="distance-bar__marker" style="left: 12%;" title="Melee">3m</span>
-                                    <span class="distance-bar__marker" style="left: 32%;" title="Close">8m</span>
-                                    <span class="distance-bar__marker" style="left: 60%;" title="Mid">15m</span>
+                            <div class="distance-track__container">
+                                <!-- Player marker - position set via JS -->
+                                <div class="distance-track__player" id="combatPlayerMarker">
+                                    <span class="material-symbols-outlined">person_pin_circle</span>
+                                </div>
+
+                                <!-- Track line -->
+                                <div class="distance-track__line"></div>
+
+                                <!-- Zone tick marks (fixed positions) -->
+                                <div class="distance-track__ticks">
+                                    <span class="distance-track__tick" style="left: 0%;">25m</span>
+                                    <span class="distance-track__tick" style="left: 40%;">15m</span>
+                                    <span class="distance-track__tick" style="left: 68%;">8m</span>
+                                    <span class="distance-track__tick" style="left: 88%;">3m</span>
+                                </div>
+
+                                <!-- Target fixed on right -->
+                                <div class="distance-track__target" id="combatTargetMarker">
+                                    <span class="material-symbols-outlined">pets</span>
                                 </div>
                             </div>
                         </div>
@@ -589,40 +615,46 @@
                             </div>
                         </div>
 
-                        <!-- Behavior description -->
-                        <div class="text-dim" style="font-size: 0.9em; margin-bottom: var(--space-2);"
-                            id="combatBehaviorDesc">
-                            Looking for an opening
-                        </div>
+                    </div>
+                    <!-- Behavior description -->
+                    <div class="event-description" id="combatBehaviorDesc">
+                        Looking for an opening
                     </div>
                     <div class="info-panel">
                         <!-- Health narrative -->
-                        <div class="text-dim"
-                            style="font-size: 0.9em; font-style: italic; margin-bottom: var(--space-3);"
-                            id="combatAnimalHealth">
+                        <div class="text-dim italic combat-health" id="combatAnimalHealth">
                             The wolf appears unhurt.
                         </div>
 
                         <!-- Threat Factors -->
-                        <div class="hidden" id="combatThreatSection" style="margin-bottom: var(--space-3);">
-                            <div class="flex justify-center gap-1" style="flex-wrap: wrap;" id="combatThreatFactors">
+                        <div class="hidden combat-threat-factors" id="combatThreatSection">
+                            <div id="combatThreatFactors">
                             </div>
                         </div>
-
-                        <!-- Last action message -->
-                        <div class="combat-action-message" id="combatActionMessage"></div>
-
                     </div>
+
+                    <!-- Last action message -->
+                    <div class="event-description" id="combatActionMessage"></div>
 
                     <!-- Actions (hidden during outcome) -->
                     <div class="combat-actions" id="combatActions"></div>
 
                     <!-- Outcome section (hidden during combat) -->
                     <div class="combat-outcome hidden" id="combatOutcome">
-                        <div class="combat-outcome-message" id="combatOutcomeMessage"></div>
+                        <div class="event-description combat-outcome-message" id="combatOutcomeMessage"></div>
                         <div class="combat-rewards" id="combatRewards"></div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Combat Intro Actions -->
+            <div class="modal-actions modal-actions--center hidden" id="combatIntroActions">
+                <button class="btn btn--danger" id="combatIntroConfirm">Fight!</button>
+            </div>
+
+            <!-- Combat Outcome Actions -->
+            <div class="modal-actions modal-actions--center hidden" id="combatOutcomeActions">
+                <button class="btn" id="combatOutcomeContinueBtn">Continue</button>
             </div>
         </div>
     </div>

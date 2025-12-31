@@ -50,6 +50,19 @@ export const TemperatureDisplay = {
             airTempEl.textContent = `${state.airTemp.toFixed(0)}°F`;
         }
 
+        // Clothing warmth display
+        const clothingWarmthBar = document.getElementById('clothingWarmthBar');
+        const clothingWarmthDisplay = document.getElementById('clothingWarmthDisplay');
+        if (clothingWarmthBar && clothingWarmthDisplay) {
+            const warmthPct = state.clothingWarmthPercent || 0;
+            const capacityF = state.clothingWarmthCapacityF || 0;
+            clothingWarmthBar.style.width = warmthPct + '%';
+
+            // Tooltip shows current heat stored / max capacity
+            const currentHeatF = (warmthPct / 100) * capacityF;
+            clothingWarmthDisplay.textContent = `${currentHeatF.toFixed(1)}°F / ${capacityF.toFixed(1)}°F`;
+        }
+
         // Temperature crisis - make section red and show warning
         const tempSection = document.querySelector('.panel:has([data-stat="body-temp"])');
         let crisisWarning = document.getElementById('tempCrisisWarning');

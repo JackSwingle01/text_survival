@@ -90,9 +90,13 @@ class GameClient {
             this.currentInputId = frame.input.inputId;
         }
 
+        // Check if this is a progress mode (animation will handle stat interpolation)
+        const isProgressMode = frame.mode?.type === 'progress' ||
+                              frame.mode?.type === 'travel_progress';
+
         // Render state
         if (frame.state) {
-            this.renderState(frame.state);
+            this.renderState(frame.state, isProgressMode);
         }
 
         // Set mode
@@ -185,8 +189,10 @@ class GameClient {
 
     /**
      * Render game state to UI
+     * @param {object} state - Game state to render
+     * @param {boolean} skipSurvivalStats - Skip survival stat rendering (for progress animation)
      */
-    renderState(state) {
+    renderState(state, skipSurvivalStats = false) {
 
         // CSS variables
         document.documentElement.style.setProperty('--warmth', state.warmth);
@@ -233,11 +239,11 @@ class GameClient {
         // Fire
         FireDisplay.render(state.fire);
 
-        // Temperature
-        TemperatureDisplay.render(state);
-
-        // Survival stats
-        SurvivalDisplay.render(state);
+        // Temperature and Survival stats - skip if progress animation will handle interpolation
+        if (!skipSurvivalStats) {
+            TemperatureDisplay.render(state);
+            SurvivalDisplay.render(state);
+        }
 
         // Effects & Injuries
         EffectsDisplay.render(state.effects);

@@ -24,10 +24,13 @@ export class StatRow {
      * Create an outcome summary item
      */
     static outcome(iconName, text, styleClass = '') {
-        return DOMBuilder.div(`outcome-item ${styleClass}`)
+        // Support both old modifier format (--time) and new class format (time)
+        const normalizedClass = styleClass.startsWith('--') ? styleClass.slice(2) : styleClass;
+
+        return DOMBuilder.div(`outcome-item ${normalizedClass}`)
             .append(
-                icon(iconName),
-                DOMBuilder.span().text(text)
+                icon(iconName, 'outcome-item__icon'),
+                DOMBuilder.span('outcome-item__content').text(text)
             )
             .build();
     }

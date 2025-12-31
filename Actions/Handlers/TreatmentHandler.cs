@@ -9,9 +9,9 @@ public static class TreatmentHandler
 {
     private static readonly List<(Resource Resource, string EffectKind, string Description, double EffectReduction)> DirectTreatments =
     [
-        // SphagnumMoss - absorbent dressing (BEST bleeding)
-        (Resource.SphagnumMoss, "Bleeding", "Pack wound with absorbent sphagnum moss", 0.6),
-        (Resource.SphagnumMoss, "Inflamed", "Apply sphagnum moss antiseptic dressing", 0.25),
+        // SphagnumMoss - absorbent dressing with mild antiseptic
+        (Resource.SphagnumMoss, "Bleeding", "Press sphagnum moss against the wound. It absorbs blood and has mild antiseptic properties.", 0.4),
+        (Resource.SphagnumMoss, "Inflamed", "Apply sphagnum moss as antiseptic dressing", 0.05),
 
         // BirchPolypore - styptic + mild fever
         (Resource.BirchPolypore, "Bleeding", "Press birch polypore to staunch bleeding", 0.4),

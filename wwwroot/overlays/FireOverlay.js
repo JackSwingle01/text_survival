@@ -154,7 +154,7 @@ export class FireOverlay extends OverlayManager {
         items.appendChild(kindlingHeader);
 
         const kindling = document.createElement('div');
-        kindling.className = 'fire-kindling-status ' + (fire.hasKindling ? 'has-kindling' : 'no-kindling');
+        kindling.className = fire.hasKindling ? 'fire-kindling-status--has' : 'fire-kindling-status--missing';
         const kindlingStatusIcon = document.createElement('span');
         kindlingStatusIcon.className = ICON_CLASS;
         kindlingStatusIcon.textContent = fire.hasKindling ? 'check_circle' : 'cancel';
@@ -330,7 +330,8 @@ export class FireOverlay extends OverlayManager {
     }
 
     cleanup() {
-        this.pendingFireStart = false;
+        // Don't reset pendingFireStart here - it needs to survive hide/show cycle
+        // Flag is reset in render() after showing the result (line 34)
         this.clear(this.leftPane);
         this.clear(this.statusPane);
         hide(this.progressEl);

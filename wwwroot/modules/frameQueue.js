@@ -57,6 +57,7 @@ export const FrameQueue = {
                 waterPercent: this.currentState.waterPercent,
                 energyPercent: this.currentState.energyPercent,
                 bodyTemp: this.currentState.bodyTemp,
+                clothingWarmthPercent: this.currentState.clothingWarmthPercent,
                 clockTimeMinutes: this.currentState.clockTimeMinutes,
                 airTemp: this.currentState.airTemp,
                 fire: this.currentState.fire ? {
@@ -84,6 +85,7 @@ export const FrameQueue = {
                 waterPercent: endState.waterPercent - startState.waterPercent,
                 energyPercent: endState.energyPercent - startState.energyPercent,
                 bodyTemp: endState.bodyTemp - startState.bodyTemp,
+                clothingWarmthPercent: endState.clothingWarmthPercent - startState.clothingWarmthPercent,
                 clockTimeMinutes: endState.clockTimeMinutes - startState.clockTimeMinutes,
                 airTemp: endState.airTemp - startState.airTemp,
                 fireMinutesRemaining: endState.fire && startState.fire

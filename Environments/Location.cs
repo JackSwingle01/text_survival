@@ -1,5 +1,7 @@
 ﻿using text_survival.Actions;
 using text_survival.Actions.Expeditions;
+using text_survival.Actions.Expeditions.WorkStrategies;
+using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;  // For TileVisibility enum
 using text_survival.UI;
@@ -216,13 +218,71 @@ public class Location
     public bool HasFeature<T>() where T : LocationFeature => GetFeature<T>() is not null;
 
     /// <summary>
+    /// Check if huntable herds exist on this tile.
+    /// </summary>
+    private bool HasHerdsHere(GameContext ctx)
+    {
+        if (ctx.Map == null) return false;
+
+        var pos = ctx.Map.GetPosition(this);
+        if (!pos.HasValue) return false;
+
+        var herdsHere = ctx.Herds.GetHerdsAt(pos.Value);
+        return herdsHere.Any(h => h.Count > 0);
+    }
+
+    /// <summary>
+    /// Generate contextual hunt description based on herds at this location.
+    /// </summary>
+    private string GetHerdHuntDescription(GameContext ctx)
+    {
+        var pos = ctx.Map!.GetPosition(this);
+        var herdsHere = ctx.Herds.GetHerdsAt(pos!.Value);
+
+        int totalAnimals = herdsHere.Sum(h => h.Count);
+
+        // Get most notable herd (predators prioritized, then largest prey)
+        var mostNotable = herdsHere
+            .OrderByDescending(h => h.IsPredator ? 1000 : h.Count)
+            .FirstOrDefault();
+
+        string quality = totalAnimals switch
+        {
+            >= 20 => "plentiful",
+            >= 10 => "decent",
+            >= 5 => "sparse",
+            _ => "scarce"
+        };
+
+        if (mostNotable != null)
+        {
+            string animalType = mostNotable.AnimalType.DisplayName().ToLower();
+            return $"Hunt ({animalType} here, {quality})";
+        }
+
+        return $"Hunt ({quality})";
+    }
+
+    /// <summary>
     /// Get work options from all features. Does not include Hunt or Explore.
     /// </summary>
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
+        // Yield all feature-based work options (includes Hunt from AnimalTerritoryFeature)
         foreach (var feature in Features.OfType<IWorkableFeature>())
             foreach (var option in feature.GetWorkOptions(ctx))
                 yield return option;
+
+        // Add herd-based hunt option if no AnimalTerritoryFeature exists
+        // (AnimalTerritoryFeature already provides Hunt + small game spawning)
+        if (!HasFeature<AnimalTerritoryFeature>() && HasHerdsHere(ctx))
+        {
+            yield return new WorkOption(
+                GetHerdHuntDescription(ctx),
+                "hunt_herd",  // Different ID to avoid collision with territory hunt
+                new HuntStrategy()
+            );
+        }
     }
 
     /// <summary>

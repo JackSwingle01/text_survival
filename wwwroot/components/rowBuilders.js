@@ -70,3 +70,17 @@ export const TransferRowBuilder = {
     ],
     arrow: null  // Set dynamically when used
 };
+
+/**
+ * Row builder for Cooking overlay
+ */
+export const CookingRowBuilder = {
+    type: 'action',
+    icon: { key: 'icon' },
+    fields: [
+        { key: 'label', element: 'label' },
+        { key: 'timeMinutes', element: 'meta', format: (v) => `${v} min` }
+    ],
+    arrow: null,  // No arrow for cooking actions
+    disabled: { key: 'isAvailable', invert: true, reasonKey: 'disabledReason' }
+};

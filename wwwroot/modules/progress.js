@@ -150,6 +150,15 @@ export const ProgressDisplay = {
             }
         }
 
+        // Interpolate clothing warmth
+        if (this.statDeltas.clothingWarmthPercent !== undefined) {
+            const current = lerp(this.startState.clothingWarmthPercent, this.statDeltas.clothingWarmthPercent);
+            const clothingWarmthBar = document.getElementById('clothingWarmthBar');
+            if (clothingWarmthBar) {
+                clothingWarmthBar.style.width = current + '%';
+            }
+        }
+
         // Interpolate clock time badge
         if (this.statDeltas.clockTimeMinutes !== undefined) {
             const currentMinutes = lerp(this.startState.clockTimeMinutes, this.statDeltas.clockTimeMinutes);

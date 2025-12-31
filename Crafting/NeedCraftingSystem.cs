@@ -774,26 +774,52 @@ public class NeedCraftingSystem
             }
         });
 
-        // Sphagnum Bandage: Premium bleeding treatment
+        // Fiber Wrap: Basic bleeding treatment
         _options.Add(new CraftOption
         {
-            Name = "Sphagnum Bandage",
-            Description = "Peat moss bound with fat into a thick bandage. Highly absorbent and antiseptic.",
+            Name = "Fiber Wrap",
+            Description = "Strips of plant fiber twisted into a rough wrap. Barely holds together.",
+            Category = NeedCategory.Treatment,
+            CraftingTimeMinutes = 5,
+            Durability = 1,
+            Requirements = [new MaterialRequirement(Resource.PlantFiber, 3)],
+            GearFactory = dur => new Gear
+            {
+                Name = "Fiber Wrap",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Treatment,
+                Weight = 0.1,
+                Durability = dur,
+                MaxDurability = dur,
+                TreatsEffect = "Bleeding",
+                EffectReduction = 0.2,
+                TreatmentDescription = "You wrap the wound with twisted fiber. It barely holds, but slows the bleeding slightly."
+            }
+        });
+
+        // Hide Bandage: Proper bandage with antiseptic properties
+        _options.Add(new CraftOption
+        {
+            Name = "Hide Bandage",
+            Description = "Sphagnum moss wrapped in soft hide. The moss prevents infection.",
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 10,
             Durability = 1,
-            Requirements = [new MaterialRequirement(Resource.SphagnumMoss, 2), new MaterialRequirement(Resource.RawFat, 1)],
+            Requirements = [new MaterialRequirement(Resource.Hide, 1), new MaterialRequirement(Resource.SphagnumMoss, 2)],
+            RequiredTools = [ToolType.Knife],
             GearFactory = dur => new Gear
             {
-                Name = "Sphagnum Bandage",
+                Name = "Hide Bandage",
                 Category = GearCategory.Tool,
                 ToolType = ToolType.Treatment,
                 Weight = 0.2,
                 Durability = dur,
                 MaxDurability = dur,
                 TreatsEffect = "Bleeding",
-                EffectReduction = 0.75,
-                TreatmentDescription = "You wrap the wound with the thick bandage. It absorbs the blood completely."
+                EffectReduction = 0.65,
+                SecondaryTreatsEffect = "Inflamed",
+                SecondaryEffectReduction = 0.3,
+                TreatmentDescription = "You bind the moss-packed hide around the wound. The hide holds it firm, the moss fights infection."
             }
         });
 
@@ -820,15 +846,16 @@ public class NeedCraftingSystem
             }
         });
 
-        // Sealed Bandage: Combination treatment for both bleeding and infection
+        // Sealed Bandage: Premium treatment - best all-around
         _options.Add(new CraftOption
         {
             Name = "Sealed Bandage",
-            Description = "Sphagnum moss sealed with pine resin. Treats bleeding and prevents infection.",
+            Description = "Hide bandage sealed with pine resin. Waterproof and antiseptic.",
             Category = NeedCategory.Treatment,
             CraftingTimeMinutes = 15,
             Durability = 1,
-            Requirements = [new MaterialRequirement(Resource.SphagnumMoss, 1), new MaterialRequirement(Resource.PineResin, 1)],
+            Requirements = [new MaterialRequirement(Resource.Hide, 1), new MaterialRequirement(Resource.SphagnumMoss, 1), new MaterialRequirement(Resource.PineResin, 1)],
+            RequiredTools = [ToolType.Knife],
             GearFactory = dur => new Gear
             {
                 Name = "Sealed Bandage",
@@ -838,10 +865,10 @@ public class NeedCraftingSystem
                 Durability = dur,
                 MaxDurability = dur,
                 TreatsEffect = "Bleeding",
-                EffectReduction = 0.5,
+                EffectReduction = 0.75,
                 SecondaryTreatsEffect = "Inflamed",
                 SecondaryEffectReduction = 0.5,
-                TreatmentDescription = "You apply the sealed bandage. It stops the bleeding and seals against infection."
+                TreatmentDescription = "You bind the resin-sealed hide around the wound. Waterproof and antiseptic - the best treatment available."
             }
         });
     }

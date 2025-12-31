@@ -308,6 +308,10 @@ public class GameContext(Player player, Location camp, Weather weather)
             // Bloody accumulation context
             CurrentBleedingSeverity = currentBleeding,
             CurrentBloodySeverity = currentBloody,
+
+            // Clothing thermal mass
+            ClothingWeightKg = Inventory.TotalEquipmentWeightKg,
+            ClothingHeatBuffer = player.Body.ClothingHeatBuffer,
         };
     }
 

@@ -263,16 +263,12 @@ body {
     max-width: 450px;
 }
 
-.modal-base--md {
+.modal-base--standard {
     max-width: 650px;
 }
 
-.modal-base--lg {
+.modal-base--wide {
     max-width: 1000px;
-}
-
-.modal-base--xl {
-    max-width: 1200px;
 }
 
 .modal-base--event {
@@ -334,6 +330,15 @@ body {
     min-height: 0;
 }
 
+.modal-content--dual-pane {
+    display: flex;
+    gap: var(--space-5);
+}
+
+.modal-content--center {
+    text-align: center;
+}
+
 /* Modal actions */
 .modal-actions {
     display: flex;
@@ -342,6 +347,11 @@ body {
     border-top: 1px solid var(--border-dim);
     margin-top: var(--space-4);
     flex-shrink: 0;
+}
+
+/* All buttons in modal-actions are full-width by default */
+.modal-actions .btn {
+    width: 100%;
 }
 
 .modal-actions--center {
@@ -481,6 +491,7 @@ body {
 .list-item {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
     background: var(--bg-surface);
@@ -526,11 +537,15 @@ body {
 .list-item__content {
     flex: 1;
     min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
 }
 
 .list-item__label {
     font-size: var(--text-sm);
     color: var(--text-mid);
+    flex: 1;
 }
 
 .list-item__meta {
@@ -907,6 +922,17 @@ body {
     border-left: 3px solid var(--health-green);
 }
 
+/* Mode selection containers (e.g., Butcher overlay) */
+.mode-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.mode-options .option-btn {
+    width: 100%;
+}
+
 /* ============================================
    PROGRESS BARS & GAUGES
    ============================================ */
@@ -954,6 +980,10 @@ body {
 
 .bar--temp .bar__fill {
     background: var(--vital-red);
+}
+
+.bar--warmth .bar__fill {
+    background: #ff9800;  /* Orange for clothing warmth */
 }
 
 .bar--progress .bar__fill {
@@ -1047,38 +1077,81 @@ body {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    padding: 6px var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-dim);
+    border-left-width: 4px;  /* Accent bar for semantic color */
     border-radius: var(--radius-sm);
-    font-size: 0.9rem;
+    transition: var(--transition-fast);
+    font-size: var(--text-sm);
 }
 
 .outcome-item .material-symbols-outlined {
     font-size: 18px;
-}
-
-.outcome-item--time {
-    background: rgba(100, 100, 100, 0.2);
     color: var(--text-dim);
+    flex-shrink: 0;
 }
 
-.outcome-item--damage {
+/* Time cost - neutral gray */
+.outcome-item--time,
+.outcome-item.time {
+    border-left-color: var(--text-dim);
+    background: var(--surface-dark);
+}
+
+/* Damage/Loss - danger red */
+.outcome-item--damage,
+.outcome-item--loss,
+.outcome-item.damage,
+.outcome-item.loss {
+    border-left-color: var(--color-error-bright);
     background: var(--effect-danger-bg);
+}
+
+/* Effects/Warnings - amber */
+.outcome-item--effect,
+.outcome-item.effect {
+    border-left-color: var(--warning-amber);
+    background: var(--effect-warning-bg);
+}
+
+/* Gains/Success - green */
+.outcome-item--gain,
+.outcome-item.gain {
+    border-left-color: var(--color-success-bright);
+    background: var(--effect-success-bg);
+}
+
+/* Sub-components */
+.outcome-item__icon {
+    font-size: 18px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+}
+
+.outcome-item__content {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-bright);
+    line-height: 1.4;
+}
+
+/* Icon color matching for visual cohesion */
+.outcome-item--damage .outcome-item__icon,
+.outcome-item.damage .outcome-item__icon,
+.outcome-item--loss .outcome-item__icon,
+.outcome-item.loss .outcome-item__icon {
     color: var(--color-error-bright);
 }
 
-.outcome-item--effect {
-    background: var(--effect-warning-bg);
-    color: var(--warning-amber);
-}
-
-.outcome-item--gain {
-    background: var(--effect-success-bg);
+.outcome-item--gain .outcome-item__icon,
+.outcome-item.gain .outcome-item__icon {
     color: var(--color-success-bright);
 }
 
-.outcome-item--loss {
-    background: var(--effect-danger-bg);
-    color: var(--color-error-bright);
+.outcome-item--effect .outcome-item__icon,
+.outcome-item.effect .outcome-item__icon {
+    color: var(--warning-amber);
 }
 
 /* ============================================
@@ -1260,21 +1333,31 @@ body {
     top: 50%;
     left: 12px;
     right: 12px;
-    height: 3px;
-    background: var(--border-dim);
+    height: 6px;
+    background: linear-gradient(to right,
+        var(--health-green) 0%,
+        var(--warning-amber) 50%,
+        var(--vital-red) 100%);
     transform: translateY(-50%);
-    border-radius: 2px;
+    border-radius: 3px;
 }
 
 .distance-track__player {
     position: absolute;
     top: 50%;
     transform: translate(-50%, -50%);
-    font-size: 1.4em;
     color: var(--tech-cyan);
-    text-shadow: 0 0 8px var(--tech-cyan);
     transition: left 0.5s ease-out;
     z-index: 2;
+}
+
+.distance-track__player .material-symbols-outlined {
+    font-size: 20px;
+    text-shadow:
+        -1px -1px 0 var(--bg-primary),
+        1px -1px 0 var(--bg-primary),
+        -1px 1px 0 var(--bg-primary),
+        1px 1px 0 var(--bg-primary);
 }
 
 .distance-track__target {
@@ -1282,10 +1365,17 @@ body {
     right: 0;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 1.2em;
     color: var(--vital-red);
-    text-shadow: 0 0 6px var(--vital-red);
     z-index: 2;
+}
+
+.distance-track__target .material-symbols-outlined {
+    font-size: 20px;
+    text-shadow:
+        -1px -1px 0 var(--bg-primary),
+        1px -1px 0 var(--bg-primary),
+        -1px 1px 0 var(--bg-primary),
+        1px 1px 0 var(--bg-primary);
 }
 
 .distance-track__ticks {
@@ -2530,9 +2620,44 @@ body {
     font-size: 16px;
 }
 
-/* 
+/*
    COMBAT MODAL
 */
+.combat-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.combat-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-3);
+}
+
+.combat-narrative {
+    padding: var(--space-4);
+    background: var(--bg-surface);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
+}
+
+.combat-intro {
+    padding: var(--space-4);
+}
+
+.combat-intro__message {
+    font-size: 1.2em;
+}
+
+.combat-health {
+    font-size: 0.9em;
+    margin-bottom: var(--space-3);
+}
+
 .combat-distance-zones {
     display: flex;
     justify-content: stretch;
@@ -2614,7 +2739,7 @@ body {
 
 .combat-threat-factors {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: var(--space-2);
     margin-bottom: var(--space-3);
 }
@@ -2625,6 +2750,7 @@ body {
 
 .threat-factor {
     display: flex;
+    width: 100%;
     align-items: center;
     gap: var(--space-1);
     padding: var(--space-1) var(--space-2);
@@ -2650,6 +2776,11 @@ body {
     border: 1px solid var(--health-green);
 }
 
+#combatOverlay .badge {
+    width: 100%;
+    justify-content: flex-start;
+}
+
 .player-braced {
     display: inline-block;
     padding: var(--space-1) var(--space-3);
@@ -2673,9 +2804,6 @@ body {
 
 .combat-outcome-message {
     font-family: var(--font-mono);
-    font-size: 1.1em;
-    line-height: 1.5;
-    margin-bottom: var(--space-2);
 }
 
 .combat-outcome.victory .combat-outcome-message {
@@ -2699,13 +2827,46 @@ body {
     color: var(--health-green);
 }
 
-/* 
+/*
    FIRE MODAL
 */
-.fire-phase-icon,
+.fire-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+}
+
+.fire-kindling-status--has,
+.fire-kindling-status--missing {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+}
+
+.fire-kindling-status--has {
+    background: var(--effect-success-bg);
+    color: var(--health-green);
+    border: 1px solid var(--health-green);
+}
+
+.fire-kindling-status--missing {
+    background: var(--effect-danger-bg);
+    color: var(--color-error-bright);
+    border: 1px solid var(--vital-red);
+}
+
 .fire-phase-name {
     font-family: var(--font-display);
     text-transform: uppercase;
+}
+
+.fire-phase-icon {
+    /* Material icon - don't override font-family */
+    font-size: 48px;
 }
 
 .fire-phase-icon[data-phase="cold"],
@@ -2868,32 +3029,9 @@ body {
     color: var(--vital-red);
 }
 
-/* 
+/*
    COOKING MODAL
 */
-.cooking-status-item {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) 0;
-}
-
-.cooking-status-item .material-symbols-outlined {
-    color: var(--text-faint);
-    font-size: 20px;
-}
-
-.cooking-status-label {
-    flex: 1;
-    color: var(--text-dim);
-}
-
-.cooking-status-value {
-    color: var(--text-bright);
-    font-weight: 500;
-    font-size: 15px;
-}
-
 .cooking-result {
     display: flex;
     align-items: center;

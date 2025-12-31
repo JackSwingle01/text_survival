@@ -173,8 +173,8 @@ public static class EffectFactory
     {
         EffectKind = "Bleeding",
         Severity = severity,
-        HourlySeverityChange = -0.1,  // Decays slowly; minor wounds stabilize before death
-        RequiresTreatment = true,     // Stops at 0.05 floor until treated
+        HourlySeverityChange = -0.1,  // Decays slowly but eventually stops
+        RequiresTreatment = false,    // Will decay to zero naturally (but takes hours)
         Damage = new(3000, DamageType.Bleed),  // 3000 ml/hour at severity 1.0
         TargetBodyPart = BodyTarget.Blood,
         ApplicationMessage = "You're bleeding.",

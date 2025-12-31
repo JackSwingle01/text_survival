@@ -274,7 +274,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
             // Track damage taken
             var targetName = BodyTargetResolver.GetDisplayName(NewDamage.Target);
-            summary.DamageTaken.Add($"{NewDamage.Amount:F0} {NewDamage.Type} to {targetName}");
+            summary.DamageTaken.Add($"{NewDamage.Amount * 100:F0}% {NewDamage.Type} to {targetName}");
 
             // Track triggered effects (bleeding, pain, etc.)
             foreach (var effect in dmgResult.TriggeredEffects)

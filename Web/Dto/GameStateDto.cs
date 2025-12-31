@@ -43,6 +43,8 @@ public record GameStateDto
     public double TrendPerHour { get; init; }
     public string TempStatus { get; init; } = "";
     public TemperatureCrisisDto? TemperatureCrisis { get; init; }
+    public int ClothingWarmthPercent { get; init; }  // 0-100 buffer level
+    public double ClothingWarmthCapacityF { get; init; }  // °F capacity based on gear weight
 
     // Survival (0-100)
     public int HealthPercent { get; init; }
@@ -164,6 +166,8 @@ public record GameStateDto
             TrendPerHour = trendPerHour,
             TempStatus = GetTemperatureStatus(body.BodyTemperature),
             TemperatureCrisis = DetectTemperatureCrisis(body.BodyTemperature, trendPerHour, ctx),
+            ClothingWarmthPercent = (int)(body.ClothingHeatBuffer * 100),
+            ClothingWarmthCapacityF = inventory.TotalEquipmentWeightKg * 2.0,
 
             // Survival
             HealthPercent = healthPercent,

@@ -46,6 +46,12 @@
     <Exec Command="node wwwroot/build-tools/validate-frontend.js"
           WorkingDirectory="$(ProjectDir)"
           Condition="'$(NodeExitCode)' == '0'" />
+
+    <!-- Build test page from template -->
+    <Message Text="Building test overlay page..." Importance="high" Condition="'$(NodeExitCode)' == '0'" />
+    <Exec Command="npm run build:test-page"
+          WorkingDirectory="$(ProjectDir)"
+          Condition="'$(NodeExitCode)' == '0'" />
   </Target>
 
 </Project>

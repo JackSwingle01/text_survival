@@ -30,6 +30,8 @@ public static class SurvivalProcessor
 	private const double REGEN_MAX_ENERGY_PERCENT = 0.50;
 	private const double BASE_HEALING_PER_HOUR = 0.1;
 
+	private const double ThermalMassFactorFPerKg = 2.0;  // °F capacity per kg of clothing
+
 	private enum TemperatureStage { Warm, Cool, Cold, Freezing, Hot }
 
 	public static SurvivalProcessorResult Process(Body body, SurvivalContext context, int minutesElapsed)
@@ -102,12 +104,65 @@ public static class SurvivalProcessor
 
 		double tempChange = netHeatHr / heatCapacity; // kcal/hr * F/kcal = F/hr
 
+		// Clothing thermal mass buffer
+		double clothingCapacityF = context.ClothingWeightKg * ThermalMassFactorFPerKg;
+		double bufferDelta = 0;
+		double bodyTempDelta = tempChange / 60 * minutes;  // Original calculation
+
+		if (clothingCapacityF > 0)
+		{
+			if (bodyTempDelta < 0)  // COOLING
+			{
+				if (context.ClothingHeatBuffer > 0)
+				{
+					// Buffer absorbs cooling first
+					double lossF = Math.Abs(bodyTempDelta);
+					double bufferHeatF = context.ClothingHeatBuffer * clothingCapacityF;
+
+					if (bufferHeatF >= lossF)
+					{
+						bufferDelta = -lossF / clothingCapacityF;
+						bodyTempDelta = 0;
+					}
+					else
+					{
+						bufferDelta = -context.ClothingHeatBuffer;
+						bodyTempDelta = -(lossF - bufferHeatF);
+					}
+				}
+				// else: buffer empty, normal cooling
+			}
+			else if (context.FireProximityBonus > 0 && context.ClothingHeatBuffer < 1.0)
+			{
+				// NEAR FIRE: Fill buffer based on fire intensity
+				// FireProximityBonus is typically 10-50 for a good fire
+				double fillRate = (context.FireProximityBonus / 50.0) / clothingCapacityF;
+				bufferDelta = Math.Min(fillRate * minutes, 1.0 - context.ClothingHeatBuffer);
+				// bodyTempDelta unchanged (fire already reduces heat loss)
+			}
+			else if (bodyTempDelta > 0)  // Actually gaining heat (rare)
+			{
+				if (context.ClothingHeatBuffer < 1.0)
+				{
+					// Split 50/50 between body and buffer
+					double halfGain = bodyTempDelta / 2;
+					double spaceF = (1.0 - context.ClothingHeatBuffer) * clothingCapacityF;
+					double toBufferF = Math.Min(halfGain, spaceF);
+
+					bufferDelta = toBufferF / clothingCapacityF;
+					bodyTempDelta = halfGain + (halfGain - toBufferF);  // body gets half + overflow
+				}
+				// else: buffer full, all heat to body
+			}
+		}
+
 		return new SurvivalProcessorResult
 		{
 			StatsDelta = new SurvivalStatsDelta
 			{
-				TemperatureDelta = tempChange / 60 * minutes,
+				TemperatureDelta = bodyTempDelta,
 			},
+			ClothingHeatBufferDelta = bufferDelta,
 			Effects = GetTemperatureEffects(body),
 		};
 	}
@@ -207,14 +262,14 @@ public static class SurvivalProcessor
 
 	private static SurvivalProcessorResult ProcessHypothermia(double projectedTemp, int minutesElapsed)
 	{
-		if (projectedTemp >= SevereHypothermiaThreshold)
+		if (projectedTemp >= HypothermiaThreshold)
 			return new SurvivalProcessorResult();
 
 		// Severity reaches 100% at ~80°F (realistic lethal threshold)
-		double severityFactor = Math.Min(1.0, (SevereHypothermiaThreshold - projectedTemp) / 10.0);
+		double severityFactor = Math.Min(1.0, (HypothermiaThreshold - projectedTemp) / 15.0);
 
 		// Damage scales more aggressively at high severity
-		// Low severity (just below 89.6°F): ~0.5/hour
+		// Low severity (just below 95°F): ~0.5/hour
 		// High severity (~80°F): ~8/hour = death in ~45 minutes
 		double damagePerHour = severityFactor < 0.5
 			? 0.5 + (1.0 * severityFactor)              // 0.5-1.0/hour for mild

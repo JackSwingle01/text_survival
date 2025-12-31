@@ -29,6 +29,10 @@ public class SurvivalContext
     // Bloody accumulation from bleeding
     public double CurrentBleedingSeverity; // 0-1 from Bleeding effect
     public double CurrentBloodySeverity;   // 0-1 from Bloody effect
+
+    // Clothing thermal mass
+    public double ClothingWeightKg;        // Total equipment weight for capacity calc
+    public double ClothingHeatBuffer;      // Current buffer level 0-1
 }
 
 public class Body
@@ -47,6 +51,7 @@ public class Body
     public double _calorieStore = 1500;
     public double _energy = 800;
     public double _hydration = 3000;
+    public double _clothingHeatBuffer = 0;  // 0-1 thermal mass buffer
 
     // Public properties backed by private fields
     public bool IsTired => Energy < SurvivalProcessor.MAX_ENERGY_MINUTES / 2;
@@ -59,6 +64,7 @@ public class Body
     public double CalorieStore => _calorieStore;
     public double Energy => _energy;
     public double Hydration => _hydration;
+    public double ClothingHeatBuffer => _clothingHeatBuffer;
 
     // Parameterless constructor for deserialization
     public Body()
@@ -148,6 +154,7 @@ public class Body
         _hydration = Math.Max(0, _hydration + result.StatsDelta.HydrationDelta);
         _energy = Math.Clamp(_energy + result.StatsDelta.EnergyDelta, 0, SurvivalProcessor.MAX_ENERGY_MINUTES);
         _bodyTemperature += result.StatsDelta.TemperatureDelta;
+        _clothingHeatBuffer = Math.Clamp(_clothingHeatBuffer + result.ClothingHeatBufferDelta, 0, 1);
 
         // Body composition
         _bodyFatKG = Math.Max(0, _bodyFatKG - result.FatToConsume);

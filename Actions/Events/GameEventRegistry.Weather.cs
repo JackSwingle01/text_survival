@@ -79,9 +79,8 @@ public static partial class GameEventRegistry
                         .WithCold(-12, 50),
                     new EventResult("The cold seeps in despite your efforts. You feel the early signs of hypothermia.", 0.20, 40)
                         .DangerousCold(),
-                    new EventResult("Something finds you while you're stationary.", 0.05, 20)
-                        .MinorBite()
-                        .Aborts()
+                    new EventResult("A shape materializes from the white — a wolf, already too close.", 0.05, 0)
+                        .Encounter("Wolf", 8, 0.6)
                 ])
             .Choice("Burn Fuel for Warmth",
                 "Use some of your fuel to start a fire and wait out the storm in relative comfort.",

@@ -1,6 +1,8 @@
 import { OverlayManager } from '../core/OverlayManager.js';
-import { DOMBuilder } from '../core/DOMBuilder.js';
+import { paneHeader } from '../core/DOMBuilder.js';
 import { Utils, ICON_CLASS, show, hide } from '../modules/utils.js';
+import { ItemList } from '../components/ItemList.js';
+import { CookingRowBuilder } from '../components/rowBuilders.js';
 
 /**
  * CookingOverlay - Cooking interface with supplies and action options
@@ -42,18 +44,11 @@ export class CookingOverlay extends OverlayManager {
         this.clear(this.statusEl);
 
         // Header
-        const header = document.createElement('div');
-        header.className = 'cooking-pane-header';
-        const h3 = document.createElement('h3');
-
-        const icon = document.createElement('span');
-        icon.className = ICON_CLASS;
-        icon.textContent = 'inventory_2';
-        h3.appendChild(icon);
-        h3.appendChild(document.createTextNode('Supplies'));
-
-        header.appendChild(h3);
-        this.statusEl.appendChild(header);
+        const header = paneHeader({
+            title: 'Supplies',
+            icon: 'inventory_2'
+        });
+        this.statusEl.appendChild(header.build());
 
         // Supply items
         const statusItems = [
@@ -75,51 +70,22 @@ export class CookingOverlay extends OverlayManager {
         this.clear(this.optionsEl);
 
         // Header
-        const header = document.createElement('div');
-        header.className = 'cooking-pane-header';
-        const h3 = document.createElement('h3');
+        const header = paneHeader({
+            title: 'Actions',
+            icon: 'skillet'
+        });
+        this.optionsEl.appendChild(header.build());
 
-        const icon = document.createElement('span');
-        icon.className = ICON_CLASS;
-        icon.textContent = 'skillet';
-        h3.appendChild(icon);
-        h3.appendChild(document.createTextNode('Actions'));
+        // Action options using ItemList
+        const actionList = new ItemList({
+            container: this.optionsEl,
+            onItemClick: (opt) => this.respond(opt.id),
+            rowBuilder: CookingRowBuilder
+        });
 
-        header.appendChild(h3);
-        this.optionsEl.appendChild(header);
-
-        // Action options
-        for (const opt of cookingData.options) {
-            const btn = document.createElement('button');
-            btn.className = 'cooking-option-btn' + (opt.isAvailable ? '' : ' disabled');
-            btn.disabled = !opt.isAvailable;
-
-            const iconSpan = document.createElement('span');
-            iconSpan.className = ICON_CLASS;
-            iconSpan.textContent = opt.icon;
-            btn.appendChild(iconSpan);
-
-            const labelSpan = document.createElement('span');
-            labelSpan.className = 'cooking-option-label';
-            labelSpan.textContent = opt.label;
-            btn.appendChild(labelSpan);
-
-            const timeSpan = document.createElement('span');
-            timeSpan.className = 'cooking-option-time';
-            timeSpan.textContent = `${opt.timeMinutes} min`;
-            btn.appendChild(timeSpan);
-
-            // Show disabled reason if unavailable
-            if (!opt.isAvailable && opt.disabledReason) {
-                const reasonSpan = document.createElement('span');
-                reasonSpan.className = 'cooking-option-disabled';
-                reasonSpan.textContent = opt.disabledReason;
-                btn.appendChild(reasonSpan);
-            }
-
-            btn.onclick = () => this.respond(opt.id);
-            this.optionsEl.appendChild(btn);
-        }
+        actionList.render([{
+            items: cookingData.options
+        }]);
     }
 
     renderResult(lastResult) {
