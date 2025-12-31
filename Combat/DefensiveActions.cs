@@ -295,24 +295,24 @@ public static class DefensiveActions
             return new BraceResult(false, 0, 0, 0, "You have nothing to brace with!");
         }
 
-        // Was the animal charging?
-        bool wasCharging = state.Behavior.CurrentBehavior == CombatBehavior.Charging;
+        // Was the animal attacking?
+        bool wasAttacking = state.Behavior.CurrentBehavior == CombatBehavior.Attacking;
 
         // Energy cost is tracked in BraceResult, drain happens via ctx.Update()
 
-        if (!wasCharging)
+        if (!wasAttacking)
         {
-            // Brace wasted - animal didn't charge
+            // Brace wasted - animal didn't attack
             return new BraceResult(
                 Success: false,
                 DamageReduction: 0,
                 CounterDamage: 0,
                 EnergyCost: BraceEnergyCost,
-                Narrative: $"You hold your {weapon.Name} ready, but the {state.Animal.Name} doesn't charge."
+                Narrative: $"You hold your {weapon.Name} ready, but the {state.Animal.Name} doesn't attack."
             );
         }
 
-        // Animal charged into the brace!
+        // Animal attacked into the brace!
         var capacities = ctx.player.GetCapacities();
         double energy = ctx.player.Body.Energy / 480.0;
 

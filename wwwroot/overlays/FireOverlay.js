@@ -299,8 +299,7 @@ export class FireOverlay extends OverlayManager {
     addStatRow(icon, label, value, valueClass = '') {
         const row = this.createStatRow(label, value, {
             icon: icon,
-            valueClass: valueClass,
-            classPrefix: 'fire-stat'
+            valueClass: valueClass
         });
         this.statusPane.appendChild(row);
     }

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overlay Test Page - Text Survival</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background: var(--color-bg-dark);
+            margin: 0;
+            padding: 0;
+        }
+
+        .test-controls {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--color-bg-darker);
+            border-bottom: 2px solid var(--color-border);
+            padding: var(--space-3);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            z-index: 10000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .test-controls select {
+            padding: 8px 12px;
+            background: var(--color-bg-light);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+            cursor: pointer;
+            min-width: 200px;
+        }
+
+        .test-controls select:focus {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 2px;
+        }
+
+        .current-overlay-label {
+            font-family: var(--font-mono);
+            color: var(--color-text-dim);
+            font-size: 0.9em;
+        }
+
+        .current-overlay-name {
+            color: var(--color-primary);
+            font-weight: 600;
+        }
+
+        .keyboard-hint {
+            margin-left: auto;
+            font-family: var(--font-mono);
+            color: var(--color-text-dim);
+            font-size: 0.85em;
+        }
+
+        .variant-selector {
+            display: flex;
+            gap: var(--space-2);
+            align-items: center;
+        }
+
+        .variant-btn {
+            padding: 4px 8px;
+            background: var(--color-bg-light);
+            color: var(--color-text-dim);
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .variant-btn.active {
+            background: var(--color-primary);
+            color: var(--color-text-primary);
+            border-color: var(--color-primary);
+        }
+
+        .variant-btn:hover {
+            background: var(--color-primary-dark);
+        }
+
+        /* Ensure overlays are always visible in test mode */
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay {
+            display: flex;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Test Controls -->
+    <div class="test-controls">
+        <select id="overlaySelector">
+            <option value="inventory">Inventory</option>
+            <option value="crafting">Crafting</option>
+            <option value="eventChoice">Event (Choices)</option>
+            <option value="eventOutcome">Event (Outcome)</option>
+            <option value="forage">Forage</option>
+            <option value="huntStalking">Hunt (Stalking)</option>
+            <option value="huntAlert">Hunt (Alert)</option>
+            <option value="encounter">Encounter</option>
+            <option value="combatIntro">Combat (Intro)</option>
+            <option value="combatChoice">Combat (Choice)</option>
+            <option value="combatNarrative">Combat (Narrative)</option>
+            <option value="combatOutcome">Combat (Outcome)</option>
+            <option value="fireStarting">Fire (Starting)</option>
+            <option value="fireTending">Fire (Tending)</option>
+            <option value="cooking">Cooking</option>
+            <option value="transfer">Transfer</option>
+            <option value="butcher">Butcher</option>
+            <option value="hazard">Hazard</option>
+            <option value="confirm">Confirm</option>
+            <option value="death">Death</option>
+        </select>
+        <span class="current-overlay-label">
+            Current: <span class="current-overlay-name" id="currentOverlayName">Inventory</span>
+        </span>
+        <span class="keyboard-hint">Use ← → or Tab/Shift+Tab to navigate</span>
+    </div>
+
+
+    <!-- OVERLAYS_PLACEHOLDER -->
+
+    <!-- Test Harness Script -->
+    <script type="module">
+        import { fixtures } from './test-data/overlay-fixtures.js';
+        import { InventoryOverlay } from './overlays/InventoryOverlay.js';
+        import { CraftingOverlay } from './overlays/CraftingOverlay.js';
+        import { EventOverlay } from './overlays/EventOverlay.js';
+        import { ForageOverlay } from './overlays/ForageOverlay.js';
+        import { HuntOverlay } from './overlays/HuntOverlay.js';
+        import { EncounterOverlay } from './overlays/EncounterOverlay.js';
+        import { CombatOverlay } from './overlays/CombatOverlay.js';
+        import { FireOverlay } from './overlays/FireOverlay.js';
+        import { CookingOverlay } from './overlays/CookingOverlay.js';
+        import { TransferOverlay } from './overlays/TransferOverlay.js';
+        import { ButcherOverlay } from './overlays/ButcherOverlay.js';
+        import { HazardOverlay } from './overlays/HazardOverlay.js';
+        import { ConfirmOverlay } from './overlays/ConfirmOverlay.js';
+        import { DeathOverlay } from './overlays/DeathOverlay.js';
+
+        // Mock input handler
+        const mockInputHandler = {
+            respond: (choiceId, inputId) => {
+                console.log(`[Mock Response] Choice: ${choiceId}, InputId: ${inputId}`);
+            },
+            sendAction: (actionType, params, inputId) => {
+                console.log(`[Mock Action] Type: ${actionType}, Params:`, params, `InputId: ${inputId}`);
+            }
+        };
+
+        // Initialize all overlays
+        const inventoryOverlay = new InventoryOverlay(mockInputHandler);
+        const craftingOverlay = new CraftingOverlay(mockInputHandler);
+        const eventOverlay = new EventOverlay(mockInputHandler);
+        const forageOverlay = new ForageOverlay(mockInputHandler);
+        const huntOverlay = new HuntOverlay(mockInputHandler);
+        const encounterOverlay = new EncounterOverlay(mockInputHandler);
+        const combatOverlay = new CombatOverlay(mockInputHandler);
+        const fireOverlay = new FireOverlay(mockInputHandler);
+        const cookingOverlay = new CookingOverlay(mockInputHandler);
+        const transferOverlay = new TransferOverlay(mockInputHandler);
+        const butcherOverlay = new ButcherOverlay(mockInputHandler);
+        const hazardOverlay = new HazardOverlay(mockInputHandler);
+        const confirmOverlay = new ConfirmOverlay(mockInputHandler);
+        const deathOverlay = new DeathOverlay(mockInputHandler);
+
+        // Mock input for overlays that need it
+        const mockInput = {
+            type: 'select',
+            choices: [
+                { id: 'close', label: 'Close' }
+            ]
+        };
+
+        const confirmInput = {
+            type: 'select',
+            choices: [
+                { id: 'yes', label: 'Yes', description: null },
+                { id: 'no', label: 'No', description: null }
+            ]
+        };
+
+        const deathInput = {
+            type: 'select',
+            choices: [
+                { id: 'restart', label: 'Restart' },
+                { id: 'quit', label: 'Quit to Menu' }
+            ]
+        };
+
+        const craftingInput = {
+            type: 'select',
+            choices: [
+                { id: 'craft_hand_drill', label: 'Craft Hand Drill' },
+                { id: 'craft_stone_knife', label: 'Craft Stone Knife' },
+                { id: 'craft_stone_axe', label: 'Craft Stone Axe' },
+                { id: 'cancel', label: 'Cancel' }
+            ]
+        };
+
+        // Overlay configurations
+        const overlayConfigs = [
+            { key: 'inventory', name: 'Inventory', overlay: inventoryOverlay, fixture: fixtures.inventory, input: mockInput },
+            { key: 'crafting', name: 'Crafting', overlay: craftingOverlay, fixture: fixtures.crafting, input: craftingInput },
+            { key: 'eventChoice', name: 'Event (Choices)', overlay: eventOverlay, fixture: fixtures.eventChoice, input: null },
+            { key: 'eventOutcome', name: 'Event (Outcome)', overlay: eventOverlay, fixture: fixtures.eventOutcome, input: null },
+            { key: 'forage', name: 'Forage', overlay: forageOverlay, fixture: fixtures.forage, input: null },
+            { key: 'huntStalking', name: 'Hunt (Stalking)', overlay: huntOverlay, fixture: fixtures.huntStalking, input: null },
+            { key: 'huntAlert', name: 'Hunt (Alert)', overlay: huntOverlay, fixture: fixtures.huntAlert, input: null },
+            { key: 'encounter', name: 'Encounter', overlay: encounterOverlay, fixture: fixtures.encounter, input: null },
+            { key: 'combatIntro', name: 'Combat (Intro)', overlay: combatOverlay, fixture: fixtures.combatIntro, input: null },
+            { key: 'combatChoice', name: 'Combat (Choice)', overlay: combatOverlay, fixture: fixtures.combatChoice, input: null },
+            { key: 'combatNarrative', name: 'Combat (Narrative)', overlay: combatOverlay, fixture: fixtures.combatNarrative, input: null },
+            { key: 'combatOutcome', name: 'Combat (Outcome)', overlay: combatOverlay, fixture: fixtures.combatOutcome, input: null },
+            { key: 'fireStarting', name: 'Fire (Starting)', overlay: fireOverlay, fixture: fixtures.fireStarting, input: null },
+            { key: 'fireTending', name: 'Fire (Tending)', overlay: fireOverlay, fixture: fixtures.fireTending, input: null },
+            { key: 'cooking', name: 'Cooking', overlay: cookingOverlay, fixture: fixtures.cooking, input: null },
+            { key: 'transfer', name: 'Transfer', overlay: transferOverlay, fixture: fixtures.transfer, input: null },
+            { key: 'butcher', name: 'Butcher', overlay: butcherOverlay, fixture: fixtures.butcher, input: null },
+            { key: 'hazard', name: 'Hazard', overlay: hazardOverlay, fixture: fixtures.hazard, input: null },
+            { key: 'confirm', name: 'Confirm', overlay: confirmOverlay, fixture: fixtures.confirm.prompt, input: confirmInput },
+            { key: 'death', name: 'Death', overlay: deathOverlay, fixture: fixtures.death, input: deathInput }
+        ];
+
+        let currentIndex = 0;
+        let currentOverlay = null;
+
+        function showOverlay(index) {
+            // Clean up previous overlay
+            if (currentOverlay) {
+                currentOverlay.hide();
+                if (currentOverlay.cleanup) {
+                    currentOverlay.cleanup();
+                }
+            }
+
+            // Update index
+            currentIndex = index;
+            const config = overlayConfigs[index];
+
+            // Render and show new overlay
+            const inputId = 'test-input-' + config.key;
+            config.overlay.render(config.fixture, inputId, config.input || {});
+            config.overlay.show(inputId);
+
+            // Update UI
+            currentOverlay = config.overlay;
+            document.getElementById('currentOverlayName').textContent = config.name;
+            document.getElementById('overlaySelector').value = config.key;
+
+            console.log(`[Test] Showing ${config.name}`);
+        }
+
+        function nextOverlay() {
+            showOverlay((currentIndex + 1) % overlayConfigs.length);
+        }
+
+        function prevOverlay() {
+            showOverlay((currentIndex - 1 + overlayConfigs.length) % overlayConfigs.length);
+        }
+
+        // Dropdown handler
+        document.getElementById('overlaySelector').addEventListener('change', (e) => {
+            const selectedKey = e.target.value;
+            const selectedIndex = overlayConfigs.findIndex(c => c.key === selectedKey);
+            if (selectedIndex >= 0) {
+                showOverlay(selectedIndex);
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                e.shiftKey ? prevOverlay() : nextOverlay();
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                nextOverlay();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                prevOverlay();
+            }
+        });
+
+        // Show first overlay on load
+        showOverlay(0);
+
+        console.log('[Test Harness] Ready! Use dropdown or keyboard to navigate overlays.');
+        console.log('[Test Harness] Total overlays:', overlayConfigs.length);
+    </script>
+</body>
+
+</html>

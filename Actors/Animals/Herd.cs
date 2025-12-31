@@ -111,6 +111,10 @@ public class Herd
     [JsonInclude]
     public double WoundSeverity { get; set; }
 
+    /// <summary>Learned fear of player (0-1). Reduces boldness. Decays over time.</summary>
+    [JsonInclude]
+    public double PlayerFear { get; set; }
+
     #endregion
 
     #region Behavior Strategy
@@ -315,6 +319,13 @@ public class Herd
         if (Behavior == null)
         {
             RecreateBehavior();
+        }
+
+        // Decay player fear over time (fixed rate)
+        if (PlayerFear > 0)
+        {
+            const double DecayPerMinute = 0.015;  // ~67 minutes to fully decay from 1.0
+            PlayerFear = Math.Max(0, PlayerFear - elapsedMinutes * DecayPerMinute);
         }
 
         // Delegate to behavior strategy

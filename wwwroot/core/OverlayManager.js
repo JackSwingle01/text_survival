@@ -204,6 +204,43 @@ export class OverlayManager {
     }
 
     /**
+     * Create an info panel wrapper
+     * @param {Object} options - Panel configuration
+     * @param {string} [options.title] - Optional title text
+     * @param {string} [options.description] - Optional description text
+     * @param {boolean} [options.center] - Center align content
+     * @param {boolean} [options.danger] - Apply danger styling
+     * @param {HTMLElement[]} [options.children] - Child elements to append
+     * @returns {HTMLDivElement} The created info panel
+     */
+    createInfoPanel(options = {}) {
+        const panel = document.createElement('div');
+        panel.className = 'info-panel';
+        if (options.center) panel.classList.add('info-panel--center');
+        if (options.danger) panel.classList.add('info-panel--danger');
+
+        if (options.title) {
+            const title = document.createElement('div');
+            title.className = 'info-panel__title';
+            title.textContent = options.title;
+            panel.appendChild(title);
+        }
+
+        if (options.description) {
+            const desc = document.createElement('div');
+            desc.className = 'info-panel__desc';
+            desc.textContent = options.description;
+            panel.appendChild(desc);
+        }
+
+        if (options.children) {
+            options.children.forEach(child => panel.appendChild(child));
+        }
+
+        return panel;
+    }
+
+    /**
      * Create a stat row (label + value)
      * @param {string} label - Row label
      * @param {string} value - Row value
@@ -273,6 +310,8 @@ class Form {
         this.confirmDesc = config.confirmDesc;
         this.onSubmit = config.onSubmit;
         this.fields = {}; // { fieldName: { group: RadioGroup, value: null } }
+        // Initialize button state
+        this.updateConfirmButton();
     }
 
     /**
@@ -310,7 +349,7 @@ class Form {
 
         if (allSelected) {
             // Build description from selected values
-            const labels = Object.entries(this.fields).map(([name, field]) => {
+            const labels = Object.entries(this.fields).map(([_name, field]) => {
                 const attrName = field.group.datasetKey.replace(/([A-Z])/g, '-$1').toLowerCase();
                 const btn = document.querySelector(`[data-${attrName}="${field.value}"]`);
                 return btn?.querySelector('.option-btn__label')?.textContent || '';

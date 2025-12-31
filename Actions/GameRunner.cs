@@ -49,6 +49,13 @@ public partial class GameRunner(GameContext ctx)
                 continue;
             }
 
+            // Handle pending encounter from event or activity
+            if (ctx.HasPendingEncounter)
+            {
+                ctx.HandlePendingEncounter();
+                continue; // Return to top of loop after encounter
+            }
+
             MainMenu();
         }
 

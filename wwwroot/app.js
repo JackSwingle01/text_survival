@@ -104,6 +104,12 @@ class GameClient {
             this.showOverlay(overlay, frame.input);
         }
 
+        // Update tile popup actions if it's currently shown
+        const tilePopupElement = document.getElementById('tilePopup');
+        if (this.tilePopup && tilePopupElement && !tilePopupElement.classList.contains('hidden')) {
+            this.updateTilePopupActions();
+        }
+
         // Update quick actions
         this.updateQuickActionStates(frame.input?.choices);
         this.currentInput = frame.input;
@@ -388,6 +394,13 @@ class GameClient {
      */
     setMode(mode) {
         if (!mode) return;
+
+        // Clear progress UI when switching away from progress mode
+        // stop() will only hide the bar if it completed (reached 100%)
+        // If interrupted, bar stays visible showing progress made
+        if (mode.type !== 'progress' && mode.type !== 'travel_progress') {
+            ProgressDisplay.stop();
+        }
 
         switch (mode.type) {
             case 'location':
@@ -875,8 +888,6 @@ class GameClient {
 
         // Build action buttons from current input choices
         if (this.currentInput?.choices) {
-            const inputId = this.currentInputId;
-
             this.currentInput.choices.forEach((choice) => {
                 if (POPUP_HIDDEN_ACTIONS.some(action => choice.label.includes(action))) return;
 
@@ -885,7 +896,8 @@ class GameClient {
                 btn.textContent = choice.label;
                 btn.onclick = (e) => {
                     e.stopPropagation();
-                    this.respond(choice.id, inputId);
+                    // Use live reference to current input ID instead of closure capture
+                    this.respond(choice.id, this.currentInputId);
                 };
                 actionsEl.appendChild(btn);
             });

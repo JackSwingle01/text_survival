@@ -46,7 +46,7 @@
     --tool-warning: #a86;
 
     /* Common backgrounds */
-    --overlay-bg: rgba(8, 10, 14, 0.95);
+    --overlay-bg: rgba(8, 10, 14, 0.80);
     --hover-bg-light: rgba(255, 255, 255, 0.08);
     --hover-bg-subtle: rgba(255, 255, 255, 0.05);
     --hover-border: rgba(255, 255, 255, 0.3);
@@ -805,6 +805,12 @@ body {
     pointer-events: none;
 }
 
+.btn--success:disabled {
+    background: var(--surface-darker);
+    border-color: var(--border-dim);
+    color: var(--text-dim);
+}
+
 .btn .material-symbols-outlined {
     font-size: 1rem;
 }
@@ -874,6 +880,14 @@ body {
     color: var(--tech-cyan);
     margin-top: 6px;
     font-family: var(--font-mono);
+}
+
+.choice-disabled-reason {
+    font-size: var(--text-xs);
+    color: var(--warning-amber);
+    margin-top: 6px;
+    font-family: var(--font-mono);
+    font-style: italic;
 }
 
 /* Combat action categories */
@@ -1103,6 +1117,206 @@ body {
     transition: width 0.8s ease-out;
 }
 
+/* Combat distance bar - green when close (safe), red when far (danger of losing target) */
+.distance-bar--combat {
+    height: 28px;
+    background: linear-gradient(to right,
+            var(--health-green) 0%,
+            var(--warning-amber) 40%,
+            var(--vital-red) 100%);
+}
+
+/* Zone markers on distance bars (shared by hunt + combat) */
+.distance-bar__zones {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+}
+
+.distance-bar__marker {
+    position: absolute;
+    font-size: 0.65em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 2px var(--space-1);
+    transform: translateX(-50%);
+    bottom: 2px;
+}
+
+.distance-bar__marker::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================
+   GAUGE BAR (shared: encounter boldness, combat aggression)
+   ============================================ */
+.gauge-bar {
+    margin-bottom: var(--space-3);
+}
+
+.gauge-bar__label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.gauge-bar__descriptor {
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.gauge-bar__descriptor--aggressive {
+    color: var(--vital-red);
+}
+
+.gauge-bar__descriptor--wary,
+.gauge-bar__descriptor--bold {
+    color: var(--warning-amber);
+}
+
+.gauge-bar__descriptor--hesitant,
+.gauge-bar__descriptor--cautious {
+    color: var(--health-green);
+}
+
+.gauge-bar__track {
+    height: 10px;
+    background: var(--bg-darker);
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid var(--border-dim);
+}
+
+.gauge-bar__fill {
+    height: 100%;
+    background: var(--warning-amber);
+    border-radius: 5px;
+    transition: width var(--transition-base), background-color var(--transition-base);
+}
+
+.gauge-bar__fill--aggressive {
+    background: var(--vital-red);
+}
+
+.gauge-bar__fill--wary,
+.gauge-bar__fill--bold {
+    background: var(--warning-amber);
+}
+
+.gauge-bar__fill--hesitant,
+.gauge-bar__fill--cautious {
+    background: var(--health-green);
+}
+
+/* ============================================
+   DISTANCE TRACK (combat distance visualization)
+   ============================================ */
+.distance-track {
+    margin-bottom: var(--space-3);
+}
+
+.distance-track__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.distance-track__label {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.distance-track__value {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--text-bright);
+}
+
+.distance-track__container {
+    position: relative;
+    height: 40px;
+    padding: 0 12px;
+}
+
+.distance-track__line {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    right: 12px;
+    height: 3px;
+    background: var(--border-dim);
+    transform: translateY(-50%);
+    border-radius: 2px;
+}
+
+.distance-track__player {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.4em;
+    color: var(--tech-cyan);
+    text-shadow: 0 0 8px var(--tech-cyan);
+    transition: left 0.5s ease-out;
+    z-index: 2;
+}
+
+.distance-track__target {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    color: var(--vital-red);
+    text-shadow: 0 0 6px var(--vital-red);
+    z-index: 2;
+}
+
+.distance-track__ticks {
+    position: absolute;
+    top: 0;
+    left: 12px;
+    right: 12px;
+    height: 100%;
+}
+
+.distance-track__tick {
+    position: absolute;
+    top: 75%;
+    transform: translateX(-50%);
+    font-size: 0.65em;
+    color: var(--text-faint);
+    font-family: var(--font-mono);
+}
+
+.distance-track__tick::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1px;
+    height: 12px;
+    background: var(--border-dim);
+    margin-bottom: 2px;
+}
+
 /* ============================================
    EMPTY STATE
    ============================================ */
@@ -1291,30 +1505,30 @@ body {
 
 /* Fire urgency states */
 .fire-status.fire-safe {
-    background: rgba(76, 175, 80, 0.1);
-    border-color: rgba(76, 175, 80, 0.3);
+    background: var(--effect-success-bg);
+    border-color: rgba(80, 160, 96, 0.3);
 }
 
 .fire-status.fire-safe .fire-phase-text {
-    color: #4caf50;
+    color: var(--health-green);
 }
 
 .fire-status.fire-caution {
-    background: rgba(255, 193, 7, 0.1);
-    border-color: rgba(255, 193, 7, 0.3);
+    background: var(--effect-warning-bg);
+    border-color: rgba(192, 128, 64, 0.3);
 }
 
 .fire-status.fire-caution .fire-phase-text {
-    color: #ffc107;
+    color: var(--warning-amber);
 }
 
 .fire-status.fire-warning {
-    background: rgba(255, 152, 0, 0.15);
-    border-color: rgba(255, 152, 0, 0.4);
+    background: var(--effect-warning-bg);
+    border-color: rgba(224, 136, 48, 0.4);
 }
 
 .fire-status.fire-warning .fire-phase-text {
-    color: #ff9800;
+    color: var(--fire-orange);
     font-weight: 500;
 }
 
@@ -1325,7 +1539,7 @@ body {
 }
 
 .fire-status.fire-critical .fire-phase-text {
-    color: #f44336;
+    color: var(--vital-red);
     font-weight: 600;
 }
 
@@ -2576,6 +2790,41 @@ body {
     font-size: 36px;
     font-weight: 700;
     color: var(--health-green);
+}
+
+/* Fire Overlay - Containers */
+.fire-phase-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-4) var(--space-3);
+    margin-bottom: var(--space-3);
+}
+
+.fire-success-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-3);
+    margin-top: var(--space-3);
+}
+
+.fire-success-label {
+    font-size: var(--text-sm);
+    color: var(--text-dim);
+    margin-bottom: var(--space-2);
+}
+
+.fire-fuel-gauge {
+    padding: var(--space-3);
+    margin: var(--space-2) 0;
+}
+
+.fire-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
 }
 
 .fire-progress {

@@ -300,11 +300,7 @@ public class TravelRunner(GameContext ctx)
         {
             GameDisplay.Render(_ctx, statusText: "Interrupted");
 
-            var choice = new Choice<bool>("Continue traveling?");
-            choice.AddOption($"Continue to {destination.Name}", true);
-            choice.AddOption("Stay here", false);
-
-            if (!choice.GetPlayerChoice(_ctx))
+            if (!WebIO.Confirm(_ctx, $"Continue traveling to {destination.Name}?"))
             {
                 // Player chose to stay at origin - don't move
                 return (false, true);

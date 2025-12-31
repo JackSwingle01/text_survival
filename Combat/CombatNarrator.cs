@@ -161,8 +161,6 @@ public static class CombatNarrator
             possibleStarts.Add("You hear growling as a wolf steps out from the shadows, fangs bared!");
         else if (enemy.Name.Contains("Bear"))
             possibleStarts.Add("A massive bear rears up on its hind legs, letting out a terrifying roar!");
-        else if (enemy.Name.Contains("Snake"))
-            possibleStarts.Add("A venomous snake rises up, hood flared, ready to strike!");
 
         return possibleStarts[Utils.RandInt(0, possibleStarts.Count - 1)];
     }

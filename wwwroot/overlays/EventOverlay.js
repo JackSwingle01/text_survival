@@ -12,17 +12,17 @@ export class EventOverlay extends OverlayManager {
 
     render(eventData, inputId) {
         this.show(inputId);
-        
+
         this.$('#eventName').textContent = eventData.name;
 
         if (eventData.outcome) {
             this.renderOutcome(eventData);
         } else {
-            this.renderChoices(eventData);
+            this.renderEventChoices(eventData);
         }
     }
 
-    renderChoices(eventData) {
+    renderEventChoices(eventData) {
         this.$('#eventDescription').textContent = eventData.description;
         this.setChoices(eventData.choices, '#eventChoices');
     }

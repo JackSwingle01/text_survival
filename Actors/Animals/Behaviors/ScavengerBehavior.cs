@@ -392,6 +392,10 @@ public class ScavengerBehavior : IHerdBehavior
         // Defending food
         if (isDefendingCarcass) bold += 0.15;
 
+        // Apply learned fear (multiplicative - preserves relative relationships)
+        if (herd.PlayerFear > 0)
+            bold *= (1.0 - herd.PlayerFear);
+
         // Cap at 0.6 - hyenas won't engage confidently like wolves
         return Math.Clamp(bold, 0, 0.6);
     }

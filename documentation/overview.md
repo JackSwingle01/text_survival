@@ -365,19 +365,53 @@ Tensions interact with: events (tensions modify event weights, events modify ten
 
 ---
 
-## Predator Encounters
+## Combat System
 
-Emerge during hunting or from event outcomes. Uses boldness-based AI:
+Distance-zone based strategic combat. Emerges from hunting, events, or predator encounters.
 
-- Boldness (0-1) — calculated from context: player injured, carrying meat, low vitality
-- Distance tracking — predator closes or backs off based on player actions
-- Player options: stand ground, back away, run, fight, drop meat
+**Design Philosophy** — Predator encounters should feel dramatic, tense, deadly, and strategic. One wrong move against a megafauna or large predator can be life-threatening. Combat rewards preparation, reading the situation, and making calculated decisions under pressure.
 
-The encounter emerges from intersecting state: player carrying meat + injury slowing movement + predator's boldness calculation. Each turn gives the player a chance to respond.
+**Distance Zones** — Distance is the single source of truth, constraining both player and animal options:
+- Melee (0-3m) — grappling range, desperate close-quarters
+- Close (3-8m) — weapon strike range, main combat zone
+- Mid (8-15m) — thrown weapon range, circling/threatening
+- Far (15-25m) — standoff distance, approach or disengage
 
-Combat is simple turn-based when it occurs: attack with equipped weapon, predator attacks back.
+**Animal Behavior States** — Each zone limits which behaviors are available:
+- Circling — sizing up, repositioning (Far/Mid)
+- Approaching — closing distance (Far)
+- Threatening — posturing, about to strike (Mid/Close)
+- Attacking — lunging, biting, resolves damage (Close/Melee)
+- Recovering — off-balance after attack, vulnerable (Close/Melee)
+- Retreating — backing off (all zones)
+- Disengaging — trying to break contact (Melee)
 
-Predator encounters interact with: events (can spawn encounters), body system (injuries affect options), inventory (carrying meat affects boldness, weapons affect combat), effects (fear, injuries from attacks).
+Boldness (0-1) influences which available behavior the animal chooses. Calculated from context: player injured, carrying meat, low vitality. Modified by player actions — holding ground reduces boldness, retreating increases it.
+
+**Player Options by Zone**:
+- Far: Disengage, intimidate, drop meat, close in
+- Mid: Throw weapon, intimidate, careful retreat, close in
+- Close: Thrust (spear), hold ground, brace, back away, close to melee
+- Melee: Strike, shove, grapple, play dead
+
+**Defensive Actions** — Prepared before animal attacks:
+- Dodge — avoid damage entirely, costs energy, pushes you back
+- Block — reduce damage with weapon, costs weapon durability
+- Brace — set spear against charge, deals counter-damage if animal attacks
+- Give Ground — retreat to avoid attack, shows weakness (increases boldness)
+
+**Targeted Attacks** — At Close range, player can target specific body parts:
+- Legs — cripples movement, easier hit
+- Torso — standard damage, balanced
+- Head — high damage/lethal potential, risky
+
+Animal state affects targeting: Recovering animals easier to hit (vulnerability window), Attacking animals expose their head.
+
+**Damage Narratives** — Combat damage reports which body part was hit: "The bear's jaws find your left leg!" Organ damage surfaced when applicable.
+
+Combat interacts with: events (can spawn combat), body system (injuries affect options, damage hits specific parts), inventory (meat affects boldness, weapons enable attacks), effects (fear, bleeding, pain from attacks), tensions (predator threats).
+
+**Files**: `Actions/CombatRunner.cs`, `Combat/AnimalCombatBehavior.cs`, `Combat/DefensiveActions.cs`, `Combat/CombatState.cs`
 
 ---
 

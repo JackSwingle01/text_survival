@@ -70,10 +70,53 @@ public class GameContext(Player player, Location camp, Weather weather)
     public (double Energy, double Calories, double Hydration, double Temp)? StatsBeforeWork { get; set; }
 
     private EncounterConfig? _pendingEncounter;
+    private Guid? _pendingEncounterHerdId;
 
     public void QueueEncounter(EncounterConfig config)
     {
         _pendingEncounter = config;
+    }
+
+    public bool HasPendingEncounter => _pendingEncounter != null;
+
+    public void HandlePendingEncounter()
+    {
+        if (_pendingEncounter == null)
+            return;
+
+        var activityConfig = ActivityConfig.Get(CurrentActivity);
+        if (activityConfig.EventMultiplier == 0)
+            return; // Activities that block events also block encounters
+
+        var predator = CombatRunner.CreateAnimalFromConfig(_pendingEncounter);
+        _pendingEncounter = null;
+
+        if (predator != null)
+        {
+            // Use unified combat system - starts at encounter distance
+            var outcome = CombatRunner.RunCombat(this, predator);
+            LastEventAborted = true;  // Encounters abort the current action
+
+            // Set fear on source herd based on encounter outcome
+            if (_pendingEncounterHerdId.HasValue)
+            {
+                var herd = Herds.GetHerdById(_pendingEncounterHerdId.Value);
+                if (herd != null)
+                {
+                    double fear = outcome switch
+                    {
+                        CombatResult.Victory => 0.9,           // Player killed predator - high fear
+                        CombatResult.AnimalFled => 0.7,        // Predator retreated - moderate fear
+                        CombatResult.DistractedWithMeat => 0.5, // Got food, mild wariness
+                        CombatResult.Fled => 0.2,              // Player fled - predator "won", low fear
+                        CombatResult.AnimalDisengaged => 0.4,  // Mutual disengage - mild fear
+                        _ => 0.5
+                    };
+                    herd.PlayerFear = Math.Max(herd.PlayerFear, fear);
+                }
+                _pendingEncounterHerdId = null;
+            }
+        }
     }
 
     public bool IsHandlingEvent { get; set; } = false;
@@ -361,21 +404,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         if (Map != null)
             Map.RevealedNewLocations = false;
 
-        // Spawn predator encounter if event outcome requested it
-        // Use same gate as events: activities with EventMultiplier == 0 block interruptions
-        var activityConfig = ActivityConfig.Get(CurrentActivity);
-        if (_pendingEncounter != null && activityConfig.EventMultiplier > 0)
-        {
-            var predator = CombatRunner.CreateAnimalFromConfig(_pendingEncounter);
-            _pendingEncounter = null;
-            if (predator != null)
-            {
-                // Use unified combat system - starts at encounter distance
-                CombatRunner.RunCombat(this, predator);
-                LastEventAborted = true;  // Encounters abort the current action
-            }
-        }
-
         // Tutorial: afternoon fuel warning on Day 1
         if (DaysSurvived == 0 && GetTimeOfDay() == TimeOfDay.Afternoon)
         {
@@ -462,6 +490,8 @@ public class GameContext(Player player, Location camp, Weather weather)
                         var predator = encounterHerd.GetRandomMember();
                         if (predator != null)
                         {
+                            _pendingEncounterHerdId = encounterHerd.Id;  // Track source herd for fear setting
+
                             _pendingEncounter = new EncounterConfig(
                                 encounterHerd.AnimalType.DisplayName(),
                                 InitialDistance: result.EncounterRequest.IsDefendingKill ? 10 : 20,

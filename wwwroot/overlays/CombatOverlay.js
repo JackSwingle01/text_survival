@@ -10,19 +10,36 @@ export class CombatOverlay extends OverlayManager {
     constructor(inputHandler) {
         super('combatOverlay', inputHandler);
 
+        // Intro phase elements
+        this.introSectionEl = document.getElementById('combatIntroSection');
+        this.introMessageEl = document.getElementById('combatIntroMessage');
+        this.introConfirmBtn = document.getElementById('combatIntroConfirm');
+        this.combatContentEl = document.getElementById('combatContent');
+
+        // Set up intro confirm button
+        this.introConfirmBtn.onclick = () => this.respond('confirm');
+
         // Combat phase elements
         this.animalNameEl = document.getElementById('combatAnimalName');
-        this.distanceMetersEl = document.getElementById('combatDistanceMeters');
         this.behaviorStateEl = document.getElementById('combatBehaviorState');
         this.behaviorDescEl = document.getElementById('combatBehaviorDesc');
         this.animalHealthEl = document.getElementById('combatAnimalHealth');
-        this.threatFactorsEl = document.getElementById('combatThreatFactors');
-        this.actionMessageEl = document.getElementById('combatActionMessage');
         this.playerBracedEl = document.getElementById('combatPlayerBraced');
+        this.threatFactorsEl = document.getElementById('combatThreatFactors');
+        this.threatSectionEl = document.getElementById('combatThreatSection');
+        this.actionMessageEl = document.getElementById('combatActionMessage');
         this.actionsEl = document.getElementById('combatActions');
         this.outcomeEl = document.getElementById('combatOutcome');
         this.outcomeMessageEl = document.getElementById('combatOutcomeMessage');
         this.rewardsEl = document.getElementById('combatRewards');
+
+        // Distance track elements
+        this.distanceValueEl = document.getElementById('combatDistanceValue');
+        this.playerMarkerEl = document.getElementById('combatPlayerMarker');
+
+        // Aggression gauge elements
+        this.aggressionDescriptorEl = document.getElementById('combatAggressionDescriptor');
+        this.aggressionFillEl = document.getElementById('combatAggressionFill');
 
         // Approach phase elements (from EncounterOverlay)
         this.encounterTargetEl = document.getElementById('encounterTarget');
@@ -101,58 +118,187 @@ export class CombatOverlay extends OverlayManager {
 
     /**
      * Render combat phase (active fighting)
+     * Uses phase field to determine what to display
      */
     renderCombatPhase(combatData, inputId) {
         // Hide encounter-specific elements
         hide(document.getElementById('encounterOverlay'));
 
-        // Show combat-specific elements
-        show(document.querySelector('.combat-zones'));
-        show(document.querySelector('.combat-behavior'));
+        // Always update animal status header
+        this.animalNameEl.textContent = combatData.animalName || 'Enemy';
 
-        // Update distance zone indicator
-        this.updateDistance(combatData);
+        // Phase-specific rendering
+        const phase = combatData.phase?.toLowerCase() || 'playerChoice';
 
-        // Update animal status
+        switch (phase) {
+            case 'intro':
+                this.renderIntroPhase(combatData);
+                break;
+
+            case 'playerchoice':
+                this.renderChoicePhase(combatData);
+                break;
+
+            case 'playeraction':
+            case 'animalaction':
+            case 'behaviorchange':
+                this.renderNarrativePhase(combatData, 'Continue');
+                break;
+
+            case 'outcome':
+                this.showCombatOutcome(combatData);
+                break;
+
+            default:
+                this.renderChoicePhase(combatData);
+        }
+    }
+
+    /**
+     * Render intro phase (first frame with confirmation)
+     */
+    renderIntroPhase(combatData) {
+        // Show intro, hide combat content
+        show(this.introSectionEl);
+        hide(this.combatContentEl);
+
+        // Set intro message
+        this.introMessageEl.textContent = combatData.narrativeMessage || `A ${combatData.animalName?.toLowerCase()} lunges at you!`;
+    }
+
+    /**
+     * Render player choice phase - show actions and full combat state
+     */
+    renderChoicePhase(combatData) {
+        // Hide intro, show content
+        hide(this.introSectionEl);
+        show(this.combatContentEl);
+
+        // Show elements that narrative phase hides
+        show(this.behaviorDescEl);
+        show(this.animalHealthEl);
+
+        // Update combat state display
+        this.updateDistanceBar(combatData);
+        this.updateAggression(combatData);
         this.updateAnimalStatus(combatData);
-
-        // Update threat factors
         this.updateThreatFactors(combatData);
 
-        // Last action message
-        if (combatData.lastActionMessage) {
-            this.actionMessageEl.textContent = combatData.lastActionMessage;
-            show(this.actionMessageEl);
-        } else {
-            this.actionMessageEl.textContent = '';
-        }
-
-        // Player status (braced indicator)
+        // Braced indicator
         if (combatData.playerBraced) {
             show(this.playerBracedEl);
         } else {
             hide(this.playerBracedEl);
         }
 
+        // Hide narrative message in choice phase
+        hide(this.actionMessageEl);
+        hide(this.outcomeEl);
+
         // Combat actions
         this.showActions(combatData);
     }
 
-    updateDistance(combatData) {
-        // Update zone highlight
-        const zones = document.querySelectorAll('.combat-zone');
-        const currentZone = (combatData.distanceZone || '').toLowerCase();
+    /**
+     * Render narrative phase - show message with continue button
+     * Used for player action results, animal attacks, and behavior changes
+     * Only shows the narrative - hides behavior description to avoid info dump
+     */
+    renderNarrativePhase(combatData, buttonText) {
+        // Hide intro, show content
+        hide(this.introSectionEl);
+        show(this.combatContentEl);
 
-        zones.forEach(zone => {
-            zone.classList.remove('active');
-            if (zone.dataset.zone === currentZone) {
-                zone.classList.add('active');
+        // Update bars (keep visual context)
+        this.updateDistanceBar(combatData);
+        this.updateAggression(combatData);
+
+        // Update animal name and behavior state
+        this.animalNameEl.textContent = combatData.animalName || 'Enemy';
+        this.behaviorStateEl.textContent = combatData.behaviorState || '';
+        this.behaviorStateEl.className = 'behavior-state ' + (combatData.behaviorState || '').toLowerCase();
+
+        // Hide the behavior description - the narrative message is the focus
+        hide(this.behaviorDescEl);
+        hide(this.animalHealthEl);
+        hide(this.threatSectionEl);
+        hide(this.playerBracedEl);
+
+        // Show narrative message prominently
+        if (combatData.narrativeMessage) {
+            this.actionMessageEl.textContent = combatData.narrativeMessage;
+            show(this.actionMessageEl);
+        } else {
+            hide(this.actionMessageEl);
+        }
+
+        // Hide outcome
+        hide(this.outcomeEl);
+
+        // Show continue button instead of actions
+        this.clear(this.actionsEl);
+        const continueBtn = document.createElement('button');
+        continueBtn.className = 'event-continue-btn';
+        continueBtn.textContent = buttonText;
+        continueBtn.onclick = () => this.respond('continue');
+        this.actionsEl.appendChild(continueBtn);
+        show(this.actionsEl);
+    }
+
+    /**
+     * Update combat distance track with player marker
+     * Player marker slides along track toward target (fixed on right)
+     * 25m = left edge (0%), 0m = right edge (100%)
+     */
+    updateDistanceBar(combatData) {
+        const maxDistance = 25; // Combat max distance
+        const currentDistance = combatData.distanceMeters || 0;
+        const prevDistance = combatData.previousDistanceMeters;
+
+        // Update text value
+        if (this.distanceValueEl) {
+            this.distanceValueEl.textContent = `${Math.round(currentDistance)}m`;
+        }
+
+        // Position player marker along track
+        // 25m = 0% (left), 0m = 100% (right, at target)
+        if (this.playerMarkerEl) {
+            const positionPct = 100 - (currentDistance / maxDistance * 100);
+            const clampedPct = Math.max(0, Math.min(100, positionPct));
+
+            // Check if we should animate (previous distance differs significantly)
+            const shouldAnimate = prevDistance != null && Math.abs(prevDistance - currentDistance) > 0.5;
+
+            if (shouldAnimate) {
+                // CSS transition handles animation
+                this.playerMarkerEl.style.transition = 'left 0.5s ease-out';
+            } else {
+                // Instant positioning
+                this.playerMarkerEl.style.transition = 'none';
             }
-        });
 
-        // Update distance meters
-        const newDistance = Math.round(combatData.distanceMeters || 0);
-        this.distanceMetersEl.textContent = `${newDistance}m`;
+            this.playerMarkerEl.style.left = clampedPct + '%';
+        }
+    }
+
+    /**
+     * Update aggression gauge
+     */
+    updateAggression(combatData) {
+        const boldness = combatData.boldnessLevel || 0;
+        const descriptor = combatData.boldnessDescriptor || 'wary';
+
+        // Update descriptor text and class
+        if (this.aggressionDescriptorEl) {
+            this.aggressionDescriptorEl.textContent = descriptor;
+            this.aggressionDescriptorEl.className = 'gauge-bar__descriptor gauge-bar__descriptor--' + descriptor;
+        }
+
+        // Update fill bar
+        if (this.aggressionFillEl) {
+            this.aggressionFillEl.style.width = (boldness * 100) + '%';
+            this.aggressionFillEl.className = 'gauge-bar__fill gauge-bar__fill--' + descriptor;
+        }
     }
 
     updateAnimalStatus(combatData) {
@@ -173,9 +319,19 @@ export class CombatOverlay extends OverlayManager {
         this.clear(this.threatFactorsEl);
 
         const factors = combatData.threatFactors || [];
+
+        // Hide entire panel if no factors
+        if (factors.length === 0) {
+            hide(this.threatSectionEl);
+            return;
+        }
+
+        show(this.threatSectionEl);
+
         factors.forEach(factor => {
             const isDanger = ['meat', 'weakness', 'blood', 'bleeding'].includes(factor.id);
-            const className = 'threat-factor ' + (isDanger ? 'danger' : 'advantage');
+            // Use .badge class instead of .threat-factor
+            const className = 'badge threat-factor ' + (isDanger ? 'danger' : 'advantage');
             const factorEl = this.createIconText(factor.icon || 'info', factor.description, className);
             this.threatFactorsEl.appendChild(factorEl);
         });
@@ -206,8 +362,14 @@ export class CombatOverlay extends OverlayManager {
         const outcome = combatData.outcome;
         if (!outcome) return;
 
+        // Clear outcome element to prevent duplicate buttons
+        this.clear(this.outcomeEl);
+
         this.outcomeEl.className = 'combat-outcome ' + (outcome.result || '').toLowerCase();
+
+        // Rebuild outcome content
         this.outcomeMessageEl.textContent = outcome.message;
+        this.outcomeEl.appendChild(this.outcomeMessageEl);
 
         // Show rewards if any
         this.clear(this.rewardsEl);
@@ -219,6 +381,7 @@ export class CombatOverlay extends OverlayManager {
                 rewardEl.textContent = '+ ' + reward;
                 this.rewardsEl.appendChild(rewardEl);
             });
+            this.outcomeEl.appendChild(this.rewardsEl);
         } else {
             hide(this.rewardsEl);
         }

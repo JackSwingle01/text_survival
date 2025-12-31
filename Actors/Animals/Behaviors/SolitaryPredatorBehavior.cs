@@ -207,6 +207,10 @@ public class SolitaryPredatorBehavior : IHerdBehavior
             aggression += 0.2;
         }
 
+        // Apply learned fear (multiplicative - preserves relative relationships)
+        if (herd.PlayerFear > 0)
+            aggression *= (1.0 - herd.PlayerFear);
+
         return _rng.NextDouble() < aggression;
     }
 

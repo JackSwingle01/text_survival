@@ -300,6 +300,10 @@ public class PackPredatorBehavior : IHerdBehavior
         bool isNight = ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;
         if (isNight) bold += 0.1;
 
+        // Apply learned fear (multiplicative - preserves relative relationships)
+        if (herd.PlayerFear > 0)
+            bold *= (1.0 - herd.PlayerFear);
+
         return Math.Clamp(bold, 0, 0.9);
     }
 

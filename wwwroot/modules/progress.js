@@ -214,17 +214,22 @@ export const ProgressDisplay = {
         // Clear callback to prevent stale state
         this.onComplete = null;
 
-        // Only reset progress bar if animation completed normally
-        // If interrupted (e.g., by event), leave bar where it was
+        // Only reset progress bar AND hide UI if animation completed normally
+        // If interrupted (e.g., by event), leave bar visible at current percentage
         const progressBar = document.getElementById('progressBar');
-        if (progressBar && this.completed) {
-            progressBar.style.width = '0%';
-        }
-        this.completed = false;  // Reset flag for next animation
-
         const progressTextEl = document.getElementById('progressText');
-        if (progressTextEl) {
-            progressTextEl.classList.remove('active');
+
+        if (this.completed) {
+            // Completed normally (reached 100%) - reset and hide
+            if (progressBar) {
+                progressBar.style.width = '0%';
+            }
+            if (progressTextEl) {
+                progressTextEl.classList.remove('active');
+            }
         }
+        // If not completed (interrupted), leave bar visible at current percentage
+
+        this.completed = false;  // Reset flag for next animation
     }
 };

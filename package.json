@@ -1,0 +1,11 @@
+{
+  "name": "text-survival",
+  "version": "1.0.0",
+  "description": "Ice Age survival game - Build scripts",
+  "scripts": {
+    "build:test-page": "node scripts/build-test-page.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

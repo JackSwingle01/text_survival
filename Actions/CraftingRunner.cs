@@ -4,6 +4,7 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions;
 
@@ -88,11 +89,7 @@ public class CraftingRunner(GameContext ctx)
         GameDisplay.AddNarrative(_ctx, $"You could make {GetNeedDescription(need)}. Craft one now?");
         GameDisplay.Render(_ctx, statusText: "Thinking.");
 
-        var confirm = new Choice<bool>("Craft now?");
-        confirm.AddOption("Yes", true);
-        confirm.AddOption("No", false);
-
-        if (!confirm.GetPlayerChoice(_ctx))
+        if (!WebIO.Confirm(_ctx, "Craft now?"))
             return false;
 
         // Show crafting screen for this category

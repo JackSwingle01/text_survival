@@ -1,3 +1,4 @@
+using text_survival.Actions;
 using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Bodies;
 using text_survival.Environments;
@@ -170,11 +171,7 @@ public class WorkRunner(GameContext ctx)
                 int remainingAfterEvent = workMinutes - totalElapsed;
                 GameDisplay.Render(_ctx, statusText: "Interrupted");
 
-                var choice = new Choice<bool>($"Continue {activityName}? ({remainingAfterEvent} min remaining)");
-                choice.AddOption("Continue", true);
-                choice.AddOption("Stop", false);
-
-                if (!choice.GetPlayerChoice(_ctx))
+                if (!WebIO.Confirm(_ctx, $"Continue {activityName}? ({remainingAfterEvent} min remaining)"))
                     break;
             }
         }
@@ -295,11 +292,7 @@ public class WorkRunner(GameContext ctx)
         GameDisplay.AddNarrative(ctx, $"You've found a path to {discovered.Name}.");
         GameDisplay.Render(ctx, statusText: "Discovery!");
 
-        var goChoice = new Choice<bool>($"Go there now? (~{travelMinutes} min)");
-        goChoice.AddOption("Yes, head there", true);
-        goChoice.AddOption("No, stay here", false);
-
-        return goChoice.GetPlayerChoice(ctx);
+        return WebIO.Confirm(ctx, $"Go to {discovered.Name} now? (~{travelMinutes} min)");
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using text_survival.Actions;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -82,11 +83,8 @@ public class SalvageStrategy : IWorkStrategy
 
             // Present moral choice
             GameDisplay.Render(ctx, statusText: "Deciding.");
-            var choice = new Choice<bool>("Take their belongings?");
-            choice.AddOption("Yes", true);
-            choice.AddOption("No", false);
 
-            if (!choice.GetPlayerChoice(ctx))
+            if (!WebIO.Confirm(ctx, "Take their belongings?"))
             {
                 GameDisplay.AddNarrative(ctx, "You leave everything as you found it.");
                 return new WorkResult([], null, actualTime, false);

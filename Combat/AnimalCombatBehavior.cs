@@ -5,23 +5,30 @@ namespace text_survival.Combat;
 /// <summary>
 /// Animal behavior states during combat. Each state has readable tells
 /// that let players learn patterns and predict actions.
+/// Available behaviors are constrained by distance zone.
 /// </summary>
 public enum CombatBehavior
 {
-    /// <summary>Moving side to side, looking for an opening. Neutral state.</summary>
+    /// <summary>Moving side to side, looking for an opening. Available at Far/Mid.</summary>
     Circling,
 
-    /// <summary>Snarling, raised hackles. Testing player's nerve. May charge soon.</summary>
+    /// <summary>Closing distance from far range. Available at Far.</summary>
+    Approaching,
+
+    /// <summary>Snarling, raised hackles. About to strike. Available at Mid/Close.</summary>
     Threatening,
 
-    /// <summary>Committed attack run. Player must react.</summary>
-    Charging,
+    /// <summary>Actively attacking - lunging, biting. Available at Close/Melee.</summary>
+    Attacking,
 
-    /// <summary>Off-balance after failed charge or dodged attack. Vulnerable moment.</summary>
+    /// <summary>Off-balance after attack. Vulnerable moment. Available at Close/Melee.</summary>
     Recovering,
 
-    /// <summary>Lost nerve, backing away. May flee if given opportunity.</summary>
-    Retreating
+    /// <summary>Lost nerve, backing away. Available at all zones.</summary>
+    Retreating,
+
+    /// <summary>Trying to break contact from melee. Available at Melee.</summary>
+    Disengaging
 }
 
 /// <summary>
@@ -78,6 +85,30 @@ public class AnimalCombatBehaviorManager
     public double Boldness => _currentBoldness;
 
     /// <summary>
+    /// Returns which behaviors are valid at a given distance zone.
+    /// Distance constrains what behaviors are possible; boldness determines which is chosen.
+    /// </summary>
+    public static List<CombatBehavior> GetAvailableBehaviors(DistanceZone zone)
+    {
+        return zone switch
+        {
+            DistanceZone.Far => [CombatBehavior.Circling, CombatBehavior.Approaching, CombatBehavior.Retreating],
+            DistanceZone.Mid => [CombatBehavior.Circling, CombatBehavior.Threatening, CombatBehavior.Retreating],
+            DistanceZone.Close => [CombatBehavior.Threatening, CombatBehavior.Attacking, CombatBehavior.Recovering, CombatBehavior.Retreating],
+            DistanceZone.Melee => [CombatBehavior.Attacking, CombatBehavior.Recovering, CombatBehavior.Disengaging],
+            _ => [CombatBehavior.Circling]
+        };
+    }
+
+    /// <summary>
+    /// Checks if the current behavior is valid for the given zone.
+    /// </summary>
+    public bool IsBehaviorValidForZone(DistanceZone zone)
+    {
+        return GetAvailableBehaviors(zone).Contains(CurrentBehavior);
+    }
+
+    /// <summary>
     /// Max turns in Circling before transitioning. Bold animals commit faster.
     /// </summary>
     private int CirclingMaxTurns => Math.Max(1, (int)(BaseCirclingMaxTurns * (1.5 - _currentBoldness)));
@@ -109,10 +140,12 @@ public class AnimalCombatBehaviorManager
         return CurrentBehavior switch
         {
             CombatBehavior.Circling => GetCirclingDescription(),
+            CombatBehavior.Approaching => GetApproachingDescription(),
             CombatBehavior.Threatening => GetThreateningDescription(),
-            CombatBehavior.Charging => GetChargingDescription(),
+            CombatBehavior.Attacking => GetAttackingDescription(),
             CombatBehavior.Recovering => GetRecoveringDescription(),
             CombatBehavior.Retreating => GetRetreatingDescription(),
+            CombatBehavior.Disengaging => GetDisengagingDescription(),
             _ => $"The {_animal.Name} watches you."
         };
     }
@@ -125,10 +158,12 @@ public class AnimalCombatBehaviorManager
         return CurrentBehavior switch
         {
             CombatBehavior.Circling => "Circling",
+            CombatBehavior.Approaching => "Approaching",
             CombatBehavior.Threatening => "Threatening",
-            CombatBehavior.Charging => "CHARGING!",
+            CombatBehavior.Attacking => "ATTACKING!",
             CombatBehavior.Recovering => "Recovering",
             CombatBehavior.Retreating => "Retreating",
+            CombatBehavior.Disengaging => "Disengaging",
             _ => "Unknown"
         };
     }
@@ -159,14 +194,26 @@ public class AnimalCombatBehaviorManager
         return descriptions[_rng.Next(descriptions.Length)];
     }
 
-    private string GetChargingDescription()
+    private string GetApproachingDescription()
     {
         var descriptions = new[]
         {
-            $"The {_animal.Name} explodes forward!",
-            $"The {_animal.Name} launches at your throat!",
-            $"The {_animal.Name} charges!",
-            $"The {_animal.Name} springs at you with terrifying speed!"
+            $"The {_animal.Name} stalks closer.",
+            $"The {_animal.Name} advances slowly, eyes locked on you.",
+            $"The {_animal.Name} closes the distance, testing your nerve.",
+            $"The {_animal.Name} moves in, watching for weakness."
+        };
+        return descriptions[_rng.Next(descriptions.Length)];
+    }
+
+    private string GetAttackingDescription()
+    {
+        var descriptions = new[]
+        {
+            $"The {_animal.Name} lunges!",
+            $"The {_animal.Name} snaps at you!",
+            $"The {_animal.Name} strikes!",
+            $"The {_animal.Name} attacks with savage force!"
         };
         return descriptions[_rng.Next(descriptions.Length)];
     }
@@ -191,6 +238,18 @@ public class AnimalCombatBehaviorManager
             $"The {_animal.Name}'s ears flatten. It's had enough.",
             $"The {_animal.Name} whimpers, giving ground.",
             $"The {_animal.Name} backs off, eyes still fixed on you."
+        };
+        return descriptions[_rng.Next(descriptions.Length)];
+    }
+
+    private string GetDisengagingDescription()
+    {
+        var descriptions = new[]
+        {
+            $"The {_animal.Name} tries to break free!",
+            $"The {_animal.Name} scrambles back, desperate to escape.",
+            $"The {_animal.Name} twists away, seeking distance.",
+            $"The {_animal.Name} struggles to disengage."
         };
         return descriptions[_rng.Next(descriptions.Length)];
     }
@@ -240,18 +299,57 @@ public class AnimalCombatBehaviorManager
         CombatBehavior newBehavior = CurrentBehavior switch
         {
             CombatBehavior.Circling => TransitionFromCircling(lastPlayerAction, currentZone),
+            CombatBehavior.Approaching => TransitionFromApproaching(lastPlayerAction, currentZone),
             CombatBehavior.Threatening => TransitionFromThreatening(lastPlayerAction, currentZone),
-            CombatBehavior.Charging => TransitionFromCharging(),
+            CombatBehavior.Attacking => TransitionFromAttacking(),
             CombatBehavior.Recovering => TransitionFromRecovering(),
             CombatBehavior.Retreating => TransitionFromRetreating(lastPlayerAction),
+            CombatBehavior.Disengaging => TransitionFromDisengaging(lastPlayerAction),
             _ => CombatBehavior.Circling
         };
+
+        // Validate behavior is allowed at current zone
+        // If not, force a valid behavior (this indicates distance needs to change)
+        if (!GetAvailableBehaviors(currentZone).Contains(newBehavior))
+        {
+            newBehavior = GetFallbackBehavior(currentZone, newBehavior);
+        }
 
         if (newBehavior != CurrentBehavior)
         {
             CurrentBehavior = newBehavior;
             TurnsInCurrentBehavior = 0;
         }
+    }
+
+    /// <summary>
+    /// When a behavior isn't valid for the current zone, return a valid fallback.
+    /// </summary>
+    private CombatBehavior GetFallbackBehavior(DistanceZone zone, CombatBehavior attempted)
+    {
+        // If animal wanted to attack but isn't close enough, threaten instead
+        if (attempted == CombatBehavior.Attacking && zone > DistanceZone.Close)
+        {
+            return CombatBehavior.Threatening; // Can't attack from here, threaten instead
+        }
+
+        // If animal wanted to disengage but isn't at melee, just retreat
+        if (attempted == CombatBehavior.Disengaging && zone != DistanceZone.Melee)
+        {
+            return CombatBehavior.Retreating;
+        }
+
+        // If animal wanted to approach but is already close, threaten
+        if (attempted == CombatBehavior.Approaching && zone <= DistanceZone.Mid)
+        {
+            return _currentBoldness > 0.5 ? CombatBehavior.Threatening : CombatBehavior.Circling;
+        }
+
+        // Default to circling if available, otherwise first available
+        var available = GetAvailableBehaviors(zone);
+        if (available.Contains(CombatBehavior.Circling))
+            return CombatBehavior.Circling;
+        return available[0];
     }
 
     private CombatBehavior TransitionFromCircling(CombatPlayerAction action, DistanceZone zone)
@@ -282,12 +380,35 @@ public class AnimalCombatBehaviorManager
         return CombatBehavior.Circling;
     }
 
+    private CombatBehavior TransitionFromApproaching(CombatPlayerAction action, DistanceZone zone)
+    {
+        // At Far zone, closing distance
+        // Once at Mid, transition to Threatening or Circling
+        if (zone <= DistanceZone.Mid)
+        {
+            if (_currentBoldness > 0.5) return CombatBehavior.Threatening;
+            return CombatBehavior.Circling;
+        }
+
+        // Player showing aggression may cause hesitation
+        if (action == CombatPlayerAction.CloseDistance || action == CombatPlayerAction.Strike)
+        {
+            _currentBoldness -= 0.1;
+            if (_currentBoldness < 0.3) return CombatBehavior.Retreating;
+        }
+
+        // Low boldness triggers retreat
+        if (_currentBoldness < 0.25) return CombatBehavior.Retreating;
+
+        return CombatBehavior.Approaching;
+    }
+
     private CombatBehavior TransitionFromThreatening(CombatPlayerAction action, DistanceZone zone)
     {
         // Player backing away from threat triggers charge
         if (action == CombatPlayerAction.BackAway || action == CombatPlayerAction.GiveGround)
         {
-            return CombatBehavior.Charging;
+            return CombatBehavior.Attacking;
         }
 
         // Holding ground or advancing may cause hesitation
@@ -303,22 +424,22 @@ public class AnimalCombatBehaviorManager
         // After threatening too long, commit to charge or back off
         if (TurnsInCurrentBehavior >= ThreateningMaxTurns)
         {
-            if (_currentBoldness > 0.4) return CombatBehavior.Charging;
+            if (_currentBoldness > 0.4) return CombatBehavior.Attacking;
             return CombatBehavior.Circling;
         }
 
         // High boldness with player in range triggers charge
         if (_currentBoldness > 0.7 && zone <= DistanceZone.Close)
         {
-            return CombatBehavior.Charging;
+            return CombatBehavior.Attacking;
         }
 
         return CombatBehavior.Threatening;
     }
 
-    private CombatBehavior TransitionFromCharging()
+    private CombatBehavior TransitionFromAttacking()
     {
-        // Charging always leads to Recovering (whether hit lands or misses)
+        // Attacking always leads to Recovering (whether hit lands or misses)
         // The actual damage/dodge happens in CombatRunner, this is just state
         return CombatBehavior.Recovering;
     }
@@ -350,6 +471,29 @@ public class AnimalCombatBehaviorManager
         return CombatBehavior.Retreating;
     }
 
+    private CombatBehavior TransitionFromDisengaging(CombatPlayerAction action)
+    {
+        // At Melee, trying to break contact
+        // If player lets them go, transition to Retreating
+        if (action == CombatPlayerAction.HoldGround || action == CombatPlayerAction.BackAway)
+        {
+            return CombatBehavior.Retreating;
+        }
+
+        // Player pressing - cornered animal may fight
+        if (action == CombatPlayerAction.Strike || action == CombatPlayerAction.CloseDistance)
+        {
+            if (_rng.NextDouble() < 0.4 + _currentBoldness * 0.3)
+            {
+                _currentBoldness += 0.15; // Cornered, desperate
+                return CombatBehavior.Attacking;
+            }
+        }
+
+        // Keep trying to disengage
+        return CombatBehavior.Disengaging;
+    }
+
     #endregion
 
     #region Combat Modifiers
@@ -362,10 +506,12 @@ public class AnimalCombatBehaviorManager
         return CurrentBehavior switch
         {
             CombatBehavior.Circling => 1.0,
+            CombatBehavior.Approaching => 1.1,   // Moving predictably
             CombatBehavior.Threatening => 0.8,   // Ready to dodge
-            CombatBehavior.Charging => 1.2,     // Committed, predictable
-            CombatBehavior.Recovering => 1.5,   // Off-balance, exposed
-            CombatBehavior.Retreating => 1.3,   // Not defending
+            CombatBehavior.Attacking => 1.2,     // Committed, predictable
+            CombatBehavior.Recovering => 1.5,    // Off-balance, exposed
+            CombatBehavior.Retreating => 1.3,    // Not defending
+            CombatBehavior.Disengaging => 1.4,   // Desperate, exposed
             _ => 1.0
         };
     }
@@ -378,10 +524,12 @@ public class AnimalCombatBehaviorManager
         return CurrentBehavior switch
         {
             CombatBehavior.Circling => 0.05,
+            CombatBehavior.Approaching => 0.08,  // Closing predictably
             CombatBehavior.Threatening => 0.03,
-            CombatBehavior.Charging => 0.15,    // Committed to path
-            CombatBehavior.Recovering => 0.25,  // The opening
+            CombatBehavior.Attacking => 0.15,    // Committed to attack
+            CombatBehavior.Recovering => 0.25,   // The opening
             CombatBehavior.Retreating => 0.10,
+            CombatBehavior.Disengaging => 0.20,  // Exposed while fleeing
             _ => 0.05
         };
     }
@@ -391,7 +539,7 @@ public class AnimalCombatBehaviorManager
     /// </summary>
     public bool WillAttackThisTurn()
     {
-        return CurrentBehavior == CombatBehavior.Charging;
+        return CurrentBehavior == CombatBehavior.Attacking;
     }
 
     /// <summary>

@@ -97,33 +97,7 @@ export class HuntOverlay extends OverlayManager {
         hide(this.outcomeEl);
         show(this.choicesEl);
 
-        this.clear(this.choicesEl);
-
-        huntData.choices.forEach(choice => {
-            const btn = document.createElement('button');
-            btn.className = 'option-btn';
-            btn.disabled = !choice.isAvailable;
-
-            const label = document.createElement('span');
-            label.className = 'option-btn__label';
-            label.textContent = choice.label;
-            btn.appendChild(label);
-
-            if (!choice.isAvailable && choice.disabledReason) {
-                const reason = document.createElement('span');
-                reason.className = 'choice-disabled-reason';
-                reason.textContent = choice.disabledReason;
-                btn.appendChild(reason);
-            } else if (choice.description) {
-                const desc = document.createElement('span');
-                desc.className = 'option-btn__desc';
-                desc.textContent = choice.description;
-                btn.appendChild(desc);
-            }
-
-            btn.onclick = () => this.respond(choice.id);
-            this.choicesEl.appendChild(btn);
-        });
+        this.setChoices(huntData.choices, '#huntChoices');
     }
 
     showOutcome(huntData) {

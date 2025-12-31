@@ -36,21 +36,8 @@ export class DeathOverlay extends OverlayManager {
         });
 
         // Add restart/choice buttons
-        this.clear(this.choicesEl);
-
         if (input?.choices) {
-            input.choices.forEach(choice => {
-                const btn = document.createElement('button');
-                btn.className = 'option-btn';
-
-                const label = document.createElement('span');
-                label.className = 'option-btn__label';
-                label.textContent = choice.label;
-                btn.appendChild(label);
-
-                btn.onclick = this.makeClickHandler(choice.id);
-                this.choicesEl.appendChild(btn);
-            });
+            this.setChoices(input.choices, '#deathChoices');
         }
     }
 

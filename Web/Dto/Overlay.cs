@@ -323,6 +323,20 @@ public record EncounterOutcomeDto(
 // ============================================
 
 /// <summary>
+/// Combat phase for pacing narrative beats.
+/// Each phase gets its own frame with appropriate UI.
+/// </summary>
+public enum CombatPhase
+{
+    Intro,           // "A wolf attacks!" - dramatic opening
+    PlayerChoice,    // Waiting for player to select action
+    PlayerAction,    // Result of player's action
+    AnimalAction,    // Animal's attack/charge result
+    BehaviorChange,  // Animal behavior transition
+    Outcome          // Combat ended
+}
+
+/// <summary>
 /// Combat overlay: Distance-based strategic combat with defensive options and readable tells.
 /// Unified system that handles both pre-combat (encounter) and active combat phases.
 /// </summary>
@@ -352,9 +366,14 @@ public record CombatDto(
     double PlayerEnergy,                  // 0-1, affects action effectiveness
     bool PlayerBraced,                    // Whether player has set a brace
 
-    // Turn info
-    string? LastActionMessage,            // Combat narrative from last turn
-    List<CombatActionDto> Actions,        // Available actions this turn (zone-dependent)
+    // Aggression/boldness (for gauge display)
+    double BoldnessLevel,                 // 0-1 for fill bar width
+    string BoldnessDescriptor,            // "cautious", "wary", "bold", "aggressive"
+
+    // Phase and narrative
+    CombatPhase Phase,                    // Current combat phase for pacing
+    string? NarrativeMessage,             // Current narrative beat (replaces IntroMessage/LastActionMessage)
+    List<CombatActionDto> Actions,        // Available actions (only shown in PlayerChoice phase)
 
     // Threat factors (carried over from encounter, shown to player)
     List<ThreatFactorDto> ThreatFactors,

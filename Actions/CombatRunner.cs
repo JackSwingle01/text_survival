@@ -28,7 +28,7 @@ public enum CombatResult
 ///
 /// Key Features:
 /// - Distance zones (Melee, Close, Mid, Far) determine available actions
-/// - Animal behavior states (Circling, Threatening, Charging, Recovering, Retreating)
+/// - Animal behavior states (Circling, Approaching, Threatening, Attacking, Recovering, Retreating, Disengaging)
 /// - Defensive options (Dodge, Block, Brace, Give Ground)
 /// - Descriptive health instead of HP bars
 /// - Vulnerability windows for player lethality
@@ -73,10 +73,15 @@ public static class CombatRunner
     {
         return (behavior, target) switch
         {
-            // Charging - committed path, predictable. Head exposed, legs moving fast
-            (CombatBehavior.Charging, AttackTarget.Head) => 0.15,
-            (CombatBehavior.Charging, AttackTarget.Torso) => 0.10,
-            (CombatBehavior.Charging, AttackTarget.Legs) => -0.15,
+            // Attacking - committed, predictable. Head exposed
+            (CombatBehavior.Attacking, AttackTarget.Head) => 0.15,
+            (CombatBehavior.Attacking, AttackTarget.Torso) => 0.10,
+            (CombatBehavior.Attacking, AttackTarget.Legs) => -0.15,
+
+            // Approaching - closing distance, moving predictably
+            (CombatBehavior.Approaching, AttackTarget.Head) => 0.05,
+            (CombatBehavior.Approaching, AttackTarget.Torso) => 0.10,
+            (CombatBehavior.Approaching, AttackTarget.Legs) => 0.05,
 
             // Circling - steady movement, legs visible
             (CombatBehavior.Circling, AttackTarget.Legs) => 0.10,
@@ -87,6 +92,11 @@ public static class CombatRunner
             (CombatBehavior.Recovering, AttackTarget.Head) => 0.15,
             (CombatBehavior.Recovering, AttackTarget.Torso) => 0.15,
             (CombatBehavior.Recovering, AttackTarget.Legs) => 0.15,
+
+            // Disengaging - desperate, exposed
+            (CombatBehavior.Disengaging, AttackTarget.Head) => 0.10,
+            (CombatBehavior.Disengaging, AttackTarget.Torso) => 0.15,
+            (CombatBehavior.Disengaging, AttackTarget.Legs) => 0.10,
 
             // Threatening - ready position, slightly harder to hit head
             (CombatBehavior.Threatening, AttackTarget.Head) => -0.05,
@@ -151,11 +161,13 @@ public static class CombatRunner
     {
         return behavior switch
         {
-            CombatBehavior.Charging => "Head exposed as it charges",
+            CombatBehavior.Attacking => "Head exposed as it attacks",
+            CombatBehavior.Approaching => "Moving predictably as it closes",
             CombatBehavior.Circling => "Legs are an easier target while it paces",
             CombatBehavior.Recovering => "It's off-balance - any target is easier",
             CombatBehavior.Threatening => "It's ready - no easy shots",
             CombatBehavior.Retreating => "Its back is exposed",
+            CombatBehavior.Disengaging => "Desperate to escape - exposed",
             _ => ""
         };
     }
@@ -232,34 +244,65 @@ public static class CombatRunner
         WebIO.ClearCombat(ctx);
 
         double? prevDistance = null;
-        string? lastActionMessage = null;
+        bool isFirstTurn = true;
 
         while (state.Animal.IsAlive && ctx.player.IsAlive && state.TurnCount < MaxCombatTurns)
         {
             state.StartTurn();
 
-            // Build and show combat UI
-            var combatDto = BuildCombatDto(ctx, state, prevDistance, lastActionMessage);
-            string actionId = WebIO.WaitForCombatChoice(ctx, combatDto);
+            // === PHASE 1: Intro (first turn only) ===
+            if (isFirstTurn)
+            {
+                var introDto = BuildCombatDto(ctx, state, prevDistance,
+                    phase: CombatPhase.Intro,
+                    narrative: $"A {state.Animal.Name.ToLower()} lunges at you!");
+                WebIO.RenderCombat(ctx, introDto);
+                WebIO.WaitForCombatContinue(ctx);
+                isFirstTurn = false;
+            }
+
+            // === PHASE 2: Player Choice ===
+            var choiceDto = BuildCombatDto(ctx, state, prevDistance,
+                phase: CombatPhase.PlayerChoice);
+            string actionId = WebIO.WaitForCombatChoice(ctx, choiceDto);
 
             // Save distance for animation
             prevDistance = state.DistanceMeters;
 
             // Process player action
             var actionResult = ProcessPlayerAction(ctx, state, actionId);
-            lastActionMessage = actionResult.Narrative;
 
-            // Check for immediate resolution (drop meat, disengage success)
-            if (actionResult.ImmediateOutcome.HasValue)
+            // === PHASE 3: Player Action Result ===
+            if (!string.IsNullOrEmpty(actionResult.Narrative))
             {
-                return ShowOutcome(ctx, state, actionResult.ImmediateOutcome.Value, lastActionMessage);
+                var actionDto = BuildCombatDto(ctx, state, prevDistance,
+                    phase: CombatPhase.PlayerAction,
+                    narrative: actionResult.Narrative);
+                WebIO.RenderCombat(ctx, actionDto);
+                WebIO.WaitForCombatContinue(ctx);
             }
 
-            // If animal is charging, resolve the charge
+            // Check for immediate resolution (drop meat, disengage success, play dead)
+            if (actionResult.ImmediateOutcome.HasValue)
+            {
+                return ShowOutcome(ctx, state, actionResult.ImmediateOutcome.Value, actionResult.Narrative);
+            }
+
+            // === PHASE 4: Animal Attack (if attacking) ===
             if (state.Behavior.WillAttackThisTurn())
             {
-                var chargeResult = ResolveAnimalCharge(ctx, state, actionResult.DefenseChosen);
-                lastActionMessage += " " + chargeResult;
+                // Animal attacks - must close distance to attack range
+                if (state.Zone > DistanceZone.Close)
+                {
+                    state.SetToZone(DistanceZone.Close);
+                }
+                var chargeNarrative = ResolveAnimalCharge(ctx, state, actionResult.DefenseChosen);
+
+                var chargeDto = BuildCombatDto(ctx, state, prevDistance,
+                    phase: CombatPhase.AnimalAction,
+                    narrative: chargeNarrative);
+                WebIO.RenderCombat(ctx, chargeDto);
+                WebIO.WaitForCombatContinue(ctx);
             }
 
             // Update time
@@ -268,7 +311,7 @@ public static class CombatRunner
             // End turn - update animal behavior
             state.EndTurn();
 
-            // Add transition message if behavior changed
+            // === PHASE 5: Behavior Transition (if changed) ===
             if (state.PreviousBehavior.HasValue &&
                 state.PreviousBehavior.Value != state.Behavior.CurrentBehavior)
             {
@@ -278,7 +321,11 @@ public static class CombatRunner
                     state.Behavior.CurrentBehavior);
                 if (!string.IsNullOrEmpty(transitionMsg))
                 {
-                    lastActionMessage += " " + transitionMsg;
+                    var transitionDto = BuildCombatDto(ctx, state, null,
+                        phase: CombatPhase.BehaviorChange,
+                        narrative: transitionMsg);
+                    WebIO.RenderCombat(ctx, transitionDto);
+                    WebIO.WaitForCombatContinue(ctx);
                 }
             }
 
@@ -286,16 +333,21 @@ public static class CombatRunner
             var outcome = state.CheckForEnd(ctx);
             if (outcome.HasValue)
             {
-                return ShowOutcome(ctx, state, MapOutcome(outcome.Value), lastActionMessage);
+                return ShowOutcome(ctx, state, MapOutcome(outcome.Value), null);
             }
 
-            // Animal acts (if not charging - that was handled above)
+            // === PHASE 6: Animal Action (non-attacking) ===
+            // Circling, threatening, retreating - show as its own narrative beat
             if (!state.Behavior.WillAttackThisTurn())
             {
-                var animalAction = ProcessAnimalAction(ctx, state);
-                if (animalAction != null)
+                var animalActionNarrative = ProcessAnimalAction(ctx, state);
+                if (!string.IsNullOrEmpty(animalActionNarrative))
                 {
-                    lastActionMessage += " " + animalAction;
+                    var animalDto = BuildCombatDto(ctx, state, null,
+                        phase: CombatPhase.AnimalAction,
+                        narrative: animalActionNarrative);
+                    WebIO.RenderCombat(ctx, animalDto);
+                    WebIO.WaitForCombatContinue(ctx);
                 }
             }
         }
@@ -346,6 +398,9 @@ public static class CombatRunner
             "drop_meat" => ProcessDropMeat(ctx, state),
             "go_down" => ProcessGoDown(ctx, state),
             "retrieve_weapon" => ProcessRetrieveWeapon(ctx, state),
+
+            // Intro confirmation - no action, just acknowledge
+            "confirm" => new ActionResult("", null, CombatPlayerAction.None),
 
             _ => new ActionResult("You hesitate.", null, CombatPlayerAction.None)
         };
@@ -613,8 +668,9 @@ public static class CombatRunner
         {
             // Animal gets free attack during retrieval
             double damage = state.Animal.AttackDamage * 0.7; // Glancing blow while you grab weapon
-            ApplyDamageToPlayer(ctx, state, state.Animal, damage);
-            narrative = $"You dive for your weapon! The {state.Animal.Name} catches you as you grab it.";
+            var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal, damage);
+            string partName = FormatBodyPartName(damageResult.HitPartName);
+            narrative = $"You dive for your weapon! The {state.Animal.Name} catches your {partName} as you grab it.";
         }
         else
         {
@@ -666,9 +722,10 @@ public static class CombatRunner
         {
             // Failed grapple - you take damage
             double damage = state.Animal.AttackDamage * 0.5;
-            ApplyDamageToPlayer(ctx, state, state.Animal, damage);
+            var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal, damage);
+            string partName = FormatBodyPartName(damageResult.HitPartName);
 
-            string narrative = $"The {state.Animal.Name} slips free and bites you in the struggle!";
+            string narrative = $"The {state.Animal.Name} slips free and bites your {partName}!";
             return new ActionResult(narrative, null, CombatPlayerAction.Grapple);
         }
     }
@@ -786,7 +843,7 @@ public static class CombatRunner
 
         string narrative = boldnessReduction > 0.1
             ? $"You shout and make yourself large. The {state.Animal.Name} flinches!"
-            : $"You try to intimidate the {state.Animal.Name}, but it seems unimpressed.";
+            : $"You try to intimidate the {state.Animal.Name}. It watches you warily.";
 
         return new ActionResult(narrative, null, CombatPlayerAction.Intimidate);
     }
@@ -811,10 +868,11 @@ public static class CombatRunner
         {
             // Failed escape - animal gets free attack
             double damage = state.Animal.AttackDamage;
-            ApplyDamageToPlayer(ctx, state, state.Animal, damage);
+            var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal, damage);
+            string partName = FormatBodyPartName(damageResult.HitPartName);
 
             return new ActionResult(
-                $"You try to run but can't escape! The {state.Animal.Name} catches you!",
+                $"You try to run but can't escape! The {state.Animal.Name} catches your {partName}!",
                 null,
                 CombatPlayerAction.Disengage
             );
@@ -857,10 +915,11 @@ public static class CombatRunner
         {
             // Didn't work - animal attacks
             double damage = state.Animal.AttackDamage * 1.5; // Vulnerable position
-            ApplyDamageToPlayer(ctx, state, state.Animal, damage);
+            var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal, damage);
+            string partName = FormatBodyPartName(damageResult.HitPartName);
 
             return new ActionResult(
-                $"You go down, but the {state.Animal.Name} isn't fooled. It attacks!",
+                $"You go down, but the {state.Animal.Name} isn't fooled. It mauls your {partName}!",
                 null,
                 CombatPlayerAction.GoDown
             );
@@ -974,22 +1033,34 @@ public static class CombatRunner
 
             default:
                 // No defense chosen - take full damage
-                ApplyDamageToPlayer(ctx, state, state.Animal, baseDamage);
-                narrative = GetAnimalAttackNarrative(state.Animal);
+                var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal, baseDamage);
+                narrative = GetAnimalAttackNarrative(state.Animal, damageResult);
                 return narrative;
         }
     }
 
-    private static string GetAnimalAttackNarrative(Animal animal)
+    private static string GetAnimalAttackNarrative(Animal animal, DamageResult damageResult)
     {
+        string partName = FormatBodyPartName(damageResult.HitPartName);
+        string organInfo = damageResult.OrganHit && damageResult.OrganHitName != null
+            ? $" {damageResult.OrganHitName} damaged!"
+            : "";
+
         var options = new[]
         {
-            $"The {animal.Name}'s attack connects!",
-            $"The {animal.Name} catches you with a vicious strike!",
-            $"The {animal.Name}'s jaws find their mark!",
-            $"You take the full force of the {animal.Name}'s attack!"
+            $"The {animal.Name}'s attack catches your {partName}!{organInfo}",
+            $"The {animal.Name}'s jaws find your {partName}!{organInfo}",
+            $"The {animal.Name} strikes your {partName}!{organInfo}"
         };
         return options[_rng.Next(options.Length)];
+    }
+
+    /// <summary>
+    /// Formats body part names for narrative display (e.g., "Left Arm" → "left arm").
+    /// </summary>
+    private static string FormatBodyPartName(string partName)
+    {
+        return partName.ToLower();
     }
 
     #endregion
@@ -1044,7 +1115,7 @@ public static class CombatRunner
         }
     }
 
-    private static void ApplyDamageToPlayer(GameContext ctx, CombatState state, Animal attacker, double damage)
+    private static DamageResult ApplyDamageToPlayer(GameContext ctx, CombatState state, Animal attacker, double damage)
     {
         // Mark that animal has attacked
         state.RecordAnimalAttack();
@@ -1061,6 +1132,8 @@ public static class CombatRunner
         {
             ctx.player.AddLog(ctx.player.EffectRegistry.AddEffect(effect));
         }
+
+        return result;
     }
 
     private static DamageType GetDamageType(WeaponClass? weaponClass)
@@ -1141,7 +1214,10 @@ public static class CombatRunner
 
         // Show outcome
         var outcomeDto = new CombatOutcomeDto(outcomeType, message, rewards);
-        var finalDto = BuildCombatDto(ctx, state, null, lastMessage, outcomeDto);
+        var finalDto = BuildCombatDto(ctx, state, null,
+            phase: CombatPhase.Outcome,
+            narrative: message,
+            outcome: outcomeDto);
         WebIO.RenderCombat(ctx, finalDto);
         WebIO.WaitForCombatContinue(ctx);
 
@@ -1176,11 +1252,26 @@ public static class CombatRunner
             (CombatBehavior.Circling, CombatBehavior.Threatening) =>
                 $"The {animalName} stops circling and moves to attack.",
 
-            (CombatBehavior.Threatening, CombatBehavior.Charging) =>
+            (CombatBehavior.Threatening, CombatBehavior.Attacking) =>
                 $"The {animalName} commits to the attack!",
+
+            (CombatBehavior.Circling, CombatBehavior.Approaching) =>
+                $"The {animalName} begins closing the distance.",
+
+            (CombatBehavior.Approaching, CombatBehavior.Threatening) =>
+                $"The {animalName} is close enough to strike.",
+
+            (CombatBehavior.Attacking, CombatBehavior.Recovering) =>
+                $"The {animalName} is off-balance after its attack.",
+
+            (CombatBehavior.Recovering, CombatBehavior.Circling) =>
+                $"The {animalName} recovers and resumes circling.",
 
             (CombatBehavior.Retreating, CombatBehavior.Circling) =>
                 $"The {animalName} regains its nerve and circles back.",
+
+            (CombatBehavior.Disengaging, CombatBehavior.Retreating) =>
+                $"The {animalName} breaks free and retreats.",
 
             _ => "" // No message for other transitions
         };
@@ -1194,14 +1285,27 @@ public static class CombatRunner
         GameContext ctx,
         CombatState state,
         double? prevDistance,
-        string? lastActionMessage,
+        CombatPhase phase,
+        string? narrative = null,
         CombatOutcomeDto? outcome = null)
     {
         // Build threat factors
         var factors = BuildThreatFactors(ctx, state);
 
-        // Build available actions based on zone
-        var actions = BuildAvailableActions(ctx, state);
+        // Only include actions when in PlayerChoice phase
+        var actions = phase == CombatPhase.PlayerChoice
+            ? BuildAvailableActions(ctx, state)
+            : new List<CombatActionDto>();
+
+        // Get boldness level and descriptor
+        var boldness = state.Behavior.Boldness;
+        var boldnessDescriptor = boldness switch
+        {
+            >= 0.7 => "aggressive",
+            >= 0.5 => "bold",
+            >= 0.3 => "wary",
+            _ => "cautious"
+        };
 
         return new CombatDto(
             AnimalName: state.Animal.Name,
@@ -1215,7 +1319,10 @@ public static class CombatRunner
             PlayerVitality: ctx.player.Vitality,
             PlayerEnergy: ctx.player.Body.Energy / 480.0, // Normalize to 0-1
             PlayerBraced: state.PlayerBraced,
-            LastActionMessage: lastActionMessage,
+            BoldnessLevel: boldness,
+            BoldnessDescriptor: boldnessDescriptor,
+            Phase: phase,
+            NarrativeMessage: narrative,
             Actions: actions,
             ThreatFactors: factors,
             Outcome: outcome
@@ -1433,12 +1540,14 @@ public static class CombatRunner
     {
         // Disengage
         bool canDisengage = state.CanDisengage(ctx);
+        string? disengageReason = canDisengage ? null :
+            (state.Zone != DistanceZone.Far ? "Too close to escape" : "Too slow to escape");
         actions.Add(new CombatActionDto(
             "disengage", "Disengage",
             "Attempt to end the encounter",
             "special",
             canDisengage,
-            canDisengage ? null : "Too slow to escape",
+            disengageReason,
             null
         ));
 

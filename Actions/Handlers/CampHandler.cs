@@ -2,6 +2,7 @@ using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Actions.Handlers;
 
@@ -22,11 +23,7 @@ public static class CampHandler
         bool hasShovel = ctx.Inventory.GetTool(ToolType.Shovel) != null;
         int setupTimeMinutes = hasShovel ? 22 : 45;
 
-        var confirm = new Choice<bool>($"Do you want to setup camp here? ({setupTimeMinutes} min)");
-        confirm.AddOption("Yes, establish camp here", true);
-        confirm.AddOption("No, not yet", false);
-
-        if (!confirm.GetPlayerChoice(ctx))
+        if (!WebIO.Confirm(ctx, $"Do you want to setup camp here? ({setupTimeMinutes} min)"))
             return;
 
         if (hasShovel)
