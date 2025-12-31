@@ -1,4 +1,5 @@
 import { OverlayManager } from '../core/OverlayManager.js';
+import { Animator } from '../core/Animator.js';
 import { paneHeader } from '../core/DOMBuilder.js';
 import { Utils, ICON_CLASS, show, hide } from '../modules/utils.js';
 import { ItemList } from '../components/ItemList.js';
@@ -14,12 +15,38 @@ export class CookingOverlay extends OverlayManager {
         this.statusEl = document.getElementById('cookingStatus');
         this.optionsEl = document.getElementById('cookingOptions');
         this.resultEl = document.getElementById('cookingResult');
+        this.progressEl = document.getElementById('cookingProgress');
+        this.progressBar = document.getElementById('cookingProgressBar');
+        this.progressText = document.getElementById('cookingProgressText');
+        this.progressResult = document.getElementById('cookingProgressResult');
         this.doneBtn = document.getElementById('cookingDoneBtn');
         this.resultTimeout = null;
+        this.pendingCooking = false;
     }
 
     render(cookingData, inputId) {
         this.show(inputId);
+
+        // Check if we're receiving result from a cooking action
+        if (this.pendingCooking) {
+            this.pendingCooking = false;
+            // Show success result
+            this.progressResult.textContent = 'Complete!';
+            this.progressResult.className = 'overlay-progress-result success';
+            show(this.progressResult);
+
+            // Hide result after delay and reset progress bar
+            setTimeout(() => {
+                hide(this.progressEl);
+                hide(this.progressResult);
+                this.progressBar.style.width = '0%';
+            }, 1500);
+        } else {
+            // Hide progress bar initially
+            hide(this.progressEl);
+            hide(this.progressResult);
+            this.progressBar.style.width = '0%';
+        }
 
         // Clear previous result timeout
         if (this.resultTimeout) {
@@ -79,13 +106,34 @@ export class CookingOverlay extends OverlayManager {
         // Action options using ItemList
         const actionList = new ItemList({
             container: this.optionsEl,
-            onItemClick: (opt) => this.respond(opt.id),
+            onItemClick: (opt) => this.cookWithProgress(opt.id, opt.timeMinutes),
             rowBuilder: CookingRowBuilder
         });
 
         actionList.render([{
             items: cookingData.options
         }]);
+    }
+
+    cookWithProgress(choiceId, timeMinutes) {
+        this.pendingCooking = true;
+        show(this.progressEl);
+        hide(this.progressResult);
+        this.progressText.textContent = 'Cooking...';
+
+        // Disable buttons during animation
+        this.doneBtn.disabled = true;
+        const allButtons = this.optionsEl.querySelectorAll('button');
+        allButtons.forEach(btn => btn.disabled = true);
+
+        // Calculate animation duration: game minutes / 7 = real seconds
+        // Convert to milliseconds
+        const durationMs = Math.max(1000, (timeMinutes / 7) * 1000);
+
+        // Animate progress bar
+        Animator.progressBar(this.progressBar, durationMs, () => {
+            this.respond(choiceId);
+        });
     }
 
     renderResult(lastResult) {
@@ -116,5 +164,7 @@ export class CookingOverlay extends OverlayManager {
         this.clear(this.statusEl);
         this.clear(this.optionsEl);
         hide(this.resultEl);
+        hide(this.progressEl);
+        hide(this.progressResult);
     }
 }

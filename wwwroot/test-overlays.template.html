@@ -127,6 +127,7 @@
             <option value="fireStarting">Fire (Starting)</option>
             <option value="fireTending">Fire (Tending)</option>
             <option value="cooking">Cooking</option>
+            <option value="eating">Eating</option>
             <option value="transfer">Transfer</option>
             <option value="butcher">Butcher</option>
             <option value="hazard">Hazard</option>
@@ -154,6 +155,7 @@
         import { CombatOverlay } from './overlays/CombatOverlay.js';
         import { FireOverlay } from './overlays/FireOverlay.js';
         import { CookingOverlay } from './overlays/CookingOverlay.js';
+        import { EatingOverlay } from './overlays/EatingOverlay.js';
         import { TransferOverlay } from './overlays/TransferOverlay.js';
         import { ButcherOverlay } from './overlays/ButcherOverlay.js';
         import { HazardOverlay } from './overlays/HazardOverlay.js';
@@ -180,6 +182,7 @@
         const combatOverlay = new CombatOverlay(mockInputHandler);
         const fireOverlay = new FireOverlay(mockInputHandler);
         const cookingOverlay = new CookingOverlay(mockInputHandler);
+        const eatingOverlay = new EatingOverlay(mockInputHandler);
         const transferOverlay = new TransferOverlay(mockInputHandler);
         const butcherOverlay = new ButcherOverlay(mockInputHandler);
         const hazardOverlay = new HazardOverlay(mockInputHandler);
@@ -237,6 +240,7 @@
             { key: 'fireStarting', name: 'Fire (Starting)', overlay: fireOverlay, fixture: fixtures.fireStarting, input: null },
             { key: 'fireTending', name: 'Fire (Tending)', overlay: fireOverlay, fixture: fixtures.fireTending, input: null },
             { key: 'cooking', name: 'Cooking', overlay: cookingOverlay, fixture: fixtures.cooking, input: null },
+            { key: 'eating', name: 'Eating', overlay: eatingOverlay, fixture: fixtures.eating, input: null },
             { key: 'transfer', name: 'Transfer', overlay: transferOverlay, fixture: fixtures.transfer, input: null },
             { key: 'butcher', name: 'Butcher', overlay: butcherOverlay, fixture: fixtures.butcher, input: null },
             { key: 'hazard', name: 'Hazard', overlay: hazardOverlay, fixture: fixtures.hazard, input: null },

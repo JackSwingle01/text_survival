@@ -516,9 +516,13 @@ public class Inventory
             }
         }
 
-        if (WaterLiters >= 0.5)
-            items.Add(("Water", "Water (0.5L)", 0.5,
-                () => { target.WaterLiters += 0.5; WaterLiters -= 0.5; }
+        if (WaterLiters >= 0.1)
+            items.Add(("Water", "Water (1.0L)", 1.0,
+                () => {
+                    double amount = Math.Min(1.0, WaterLiters);
+                    target.WaterLiters += amount;
+                    WaterLiters -= amount;
+                }
             ));
 
         foreach (var tool in Tools.ToList())

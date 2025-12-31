@@ -330,6 +330,19 @@ body {
     min-height: 0;
 }
 
+/* Stats row - compact horizontal stats display */
+.stats-row {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: var(--bg-darker);
+    border-bottom: 1px solid var(--border-dim);
+}
+
+.stats-row .stat-row {
+    flex: 1;
+}
+
 .modal-content--dual-pane {
     display: flex;
     gap: var(--space-5);
@@ -637,8 +650,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--space-2) var(--space-3);
-    margin-bottom: var(--space-1);
+    margin-bottom: 6px;
 }
 
 .stat-row--bg {
@@ -647,21 +659,24 @@ body {
 }
 
 .stat-row__label {
-    font-size: var(--text-sm);
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: var(--text-xs);
     color: var(--text-dim);
     display: flex;
     align-items: center;
-    gap: var(--space-2);
 }
 
 .stat-row__label .material-symbols-outlined {
-    font-size: 16px;
+    font-size: 0.85rem;
+    margin-right: var(--space-1);
+    color: var(--text-faint);
 }
 
 .stat-row__value {
     font-size: var(--text-sm);
-    font-weight: 500;
-    color: var(--text-bright);
+    color: var(--text-mid);
 }
 
 .stat-row__value--good {
@@ -740,6 +755,22 @@ body {
 .badge--neutral {
     background: rgba(128, 128, 128, 0.2);
     color: var(--text-dim);
+}
+
+/* Material requirement badges (for crafting) */
+.badge--requirement {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border: 1px solid;
+}
+
+.badge--requirement.badge--success {
+    border-color: rgba(80, 160, 96, 0.3);
+}
+
+.badge--requirement.badge--danger {
+    border-color: rgba(160, 80, 80, 0.3);
 }
 
 /* ============================================
@@ -1792,27 +1823,6 @@ body {
     display: block;
 }
 
-/* Gear Section */
-.gear-label {
-    font-family: var(--font-display);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-size: var(--text-xs);
-    color: var(--text-dim);
-    display: flex;
-    align-items: center;
-}
-
-.gear-label .material-symbols-outlined {
-    font-size: 0.85rem;
-    margin-right: var(--space-1);
-    color: var(--text-faint);
-}
-
-.gear-value {
-    color: var(--text-mid);
-}
-
 /* Quick Actions */
 .quick-actions {
     display: flex;
@@ -1866,7 +1876,7 @@ body {
     flex: 0 0 auto;
 }
 
-.location-center {
+.weather-panel {
     flex: 0 1 auto;
     text-align: center;
     max-width: 300px;
@@ -1878,6 +1888,14 @@ body {
 }
 
 /* Badge variants */
+.time-badge,
+.temp-badge {
+    background: var(--bg-surface);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-bright);
+    box-shadow: var(--shadow-md);
+}
+
 .time-badge .material-symbols-outlined {
     color: var(--fire-orange);
 }
@@ -1921,14 +1939,29 @@ body {
     color: var(--text-faint);
 }
 
-.weather-front-label {
+.weather-condition-primary {
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-bright);
+}
+
+.weather-condition-primary .material-symbols-outlined {
+    font-size: 14px;
+    color: var(--text-bright);
+}
+
+.weather-front-label {
+    font-size: 9px;
+    color: var(--text-faint);
 }
 
 .weather-divider {
     color: var(--text-faint);
     user-select: none;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    line-height: 1;
 }
 
 /* Grid Viewport */
@@ -2186,6 +2219,29 @@ body {
     display: none;
 }
 
+.popup-feature-detailed {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-surface);
+}
+
+.popup-feature-detailed .material-symbols-outlined {
+    font-size: 18px;
+    width: 22px;
+    text-align: center;
+    color: var(--text-faint);
+    margin-top: 2px;
+}
+
+.popup-feature-detailed .feature-emoji {
+    font-size: 16px;
+    width: 22px;
+    text-align: center;
+    margin-top: 2px;
+}
+
 .feature-content {
     display: flex;
     flex-direction: column;
@@ -2206,6 +2262,19 @@ body {
     font-size: 0.75rem;
     color: var(--text-faint);
     font-style: italic;
+}
+
+.tile-popup-prompt {
+    padding: var(--space-2) 14px;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border-dim);
+    border-left: 3px solid rgba(100, 151, 177, 0.4);
+    margin: var(--space-2) 14px 0 14px;
+}
+
+.tile-popup-prompt.hidden {
+    display: none;
 }
 
 .tile-popup-actions {
@@ -2988,45 +3057,80 @@ body {
     padding: var(--space-3);
 }
 
-.fire-progress {
+/* Generic overlay progress bar (used by fire, eating, etc.) */
+.overlay-progress {
     padding: var(--space-4) var(--space-5);
     border-top: 1px solid var(--border-dim);
     margin-top: var(--space-3);
     text-align: center;
 }
 
-.fire-progress-text {
-    color: var(--fire-orange);
+.overlay-progress-text {
     margin-bottom: var(--space-2);
     font-size: 14px;
 }
 
-.fire-progress-bar-container {
+.overlay-progress-bar-container {
     height: 6px;
     background: var(--bar-bg);
     border-radius: var(--radius-sm);
     overflow: hidden;
 }
 
-.fire-progress-bar {
+.overlay-progress-bar {
     height: 100%;
     width: 0%;
-    background: var(--fire-orange);
     border-radius: var(--radius-sm);
     transition: width 0.1s linear;
 }
 
-.fire-progress-result {
+.overlay-progress-result {
     margin-top: var(--space-3);
     font-size: 14px;
 }
 
-.fire-progress-result.success {
+.overlay-progress-result.success {
     color: var(--health-green);
 }
 
-.fire-progress-result.failure {
+.overlay-progress-result.failure {
     color: var(--vital-red);
+}
+
+/* Color modifiers for different overlay types */
+.overlay-progress-text--fire {
+    color: var(--fire-orange);
+}
+
+.overlay-progress-bar--fire {
+    background: var(--fire-orange);
+}
+
+.overlay-progress-text--eating {
+    color: var(--health-green);
+}
+
+.overlay-progress-bar--eating {
+    background: var(--health-green);
+}
+
+.overlay-progress-text--cooking {
+    color: var(--fire-orange);
+}
+
+.overlay-progress-bar--cooking {
+    background: var(--fire-orange);
+}
+
+/*
+   EATING MODAL
+*/
+
+.eating-stats {
+    display: flex;
+    gap: var(--space-4);
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--border-dim);
 }
 
 /*

@@ -44,9 +44,9 @@ export class CraftingComponents {
      */
     static requirement(materialName, available, required, isMet) {
         const text = `${materialName}: ${available}/${required}`;
-        const colorClass = isMet ? 'text-success' : 'text-danger';
+        const colorClass = isMet ? 'badge--success' : 'badge--danger';
 
-        return DOMBuilder.span(colorClass)
+        return DOMBuilder.span(`badge badge--sm badge--requirement ${colorClass}`)
             .text(text)
             .build();
     }

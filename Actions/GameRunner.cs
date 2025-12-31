@@ -8,6 +8,7 @@ using text_survival.Actions.Handlers;
 using text_survival.Persistence;
 using text_survival.UI;
 using text_survival.Environments;
+using text_survival.Web;
 
 namespace text_survival.Actions;
 
@@ -515,7 +516,18 @@ public partial class GameRunner(GameContext ctx)
         InventoryTransferHelper.RunTransferMenu(ctx, storage.Storage, "CAMP STORAGE", viewStorageFirst: true);
     }
 
-    private void EatDrink() => ConsumptionHandler.EatDrink(ctx);
+    private void EatDrink()
+    {
+        // Web sessions get the eating overlay UI
+        if (ctx.SessionId != null)
+        {
+            WebIO.RunEatingUI(ctx);
+            return;
+        }
+
+        // Console fallback
+        ConsumptionHandler.EatDrink(ctx);
+    }
 
     private void CookMelt() => CookingHandler.CookMelt(ctx);
 

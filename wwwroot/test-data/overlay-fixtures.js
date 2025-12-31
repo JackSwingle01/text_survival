@@ -498,6 +498,72 @@ export const fixtures = {
         lastResult: null
     },
 
+    // ==================== EATING ====================
+    eating: {
+        caloriesPercent: 45,
+        hydrationPercent: 62,
+        foods: [
+            {
+                id: 'cooked_meat',
+                name: 'Cooked Venison',
+                amount: '1.2 kg',
+                caloriesEstimate: 3000,
+                hydrationEstimate: -50,
+                warning: null
+            },
+            {
+                id: 'raw_meat',
+                name: 'Raw Meat',
+                amount: '0.8 kg',
+                caloriesEstimate: 1200,
+                hydrationEstimate: null,
+                warning: 'Risk of illness'
+            },
+            {
+                id: 'berries',
+                name: 'Berries',
+                amount: '0.3 kg',
+                caloriesEstimate: 150,
+                hydrationEstimate: 60,
+                warning: null
+            },
+            {
+                id: 'dried_meat',
+                name: 'Dried Meat',
+                amount: '0.5 kg',
+                caloriesEstimate: 1500,
+                hydrationEstimate: -25,
+                warning: 'Makes you thirsty'
+            },
+            {
+                id: 'honey',
+                name: 'Honey',
+                amount: '0.1 kg',
+                caloriesEstimate: 300,
+                hydrationEstimate: null,
+                warning: null
+            }
+        ],
+        drinks: [
+            {
+                id: 'water',
+                name: 'Water',
+                amount: '2.4 L',
+                caloriesEstimate: null,
+                hydrationEstimate: 240,
+                warning: null
+            }
+        ],
+        specialAction: {
+            id: 'wash_blood',
+            name: 'Wash blood',
+            amount: '0.5 L water',
+            caloriesEstimate: null,
+            hydrationEstimate: null,
+            warning: null
+        }
+    },
+
     // ==================== TRANSFER ====================
     transfer: {
         playerTitle: 'Carrying',

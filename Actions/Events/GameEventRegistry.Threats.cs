@@ -870,24 +870,24 @@ public static partial class GameEventRegistry
     private static GameEvent FugueState(GameContext ctx)
     {
         return new GameEvent("Fugue State",
-            "You blink, and the sun has moved. You don't remember the last hour. You kept working, but you were somewhere else.", 0.2)
+            "You blink, and the sun has moved. You don't remember the last hour. You kept working, but you were somewhere else.", 0.1)
             .Requires(EventCondition.Working)
             .WithSituationFactor(Situations.CriticallyDepleted, 2.0)  // LowCalories + LowHydration
             .Choice("Come Back to Reality",
                 "Assess the damage. What did you miss?",
                 [
                     new EventResult("Time lost. Work done but you're drained.", weight: 0.50, minutes: 90)
-                        .WithEffects(EffectFactory.Exhausted(0.4, 120))
+                        .WithEffects(EffectFactory.Exhausted(0.2, 120))
                         .FindsSupplies(),
                     new EventResult("You worked while dissociated. But at what cost?", weight: 0.30, minutes: 120)
                         .WithEffects(EffectFactory.Exhausted(0.3, 90))
                         .FindsSupplies(),
                     new EventResult("You feel... hollow. What happened while you were gone?", weight: 0.15, minutes: 100)
-                        .WithEffects(EffectFactory.Shaken(0.3), EffectFactory.Exhausted(0.5, 150))
+                        .WithEffects(EffectFactory.Shaken(0.1), EffectFactory.Exhausted(0.5, 150))
                         .FindsSupplies(),
                     new EventResult("Something happened while you were away. You don't remember what.", weight: 0.05, minutes: 80)
                         .WithEffects(EffectFactory.Fear(0.25))
-                        .BecomeStalked(0.2)
+                        .BecomeStalked(0.4)
                 ]);
     }
 

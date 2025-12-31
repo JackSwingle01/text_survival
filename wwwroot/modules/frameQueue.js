@@ -1,4 +1,5 @@
 import { ProgressDisplay } from './progress.js';
+import { AnimatedStatRegistry } from './animatedStatRegistry.js';
 
 /**
  * Frame Queue - owns all frame sequencing logic.
@@ -51,20 +52,11 @@ export const FrameQueue = {
         const isTravelProgress = nextFrame.mode?.type === 'travel_progress';
         let startState = null;
         if ((isProgress || isTravelProgress) && this.currentState) {
-            startState = {
-                healthPercent: this.currentState.healthPercent,
-                foodPercent: this.currentState.foodPercent,
-                waterPercent: this.currentState.waterPercent,
-                energyPercent: this.currentState.energyPercent,
-                bodyTemp: this.currentState.bodyTemp,
-                clothingWarmthPercent: this.currentState.clothingWarmthPercent,
-                clockTimeMinutes: this.currentState.clockTimeMinutes,
-                airTemp: this.currentState.airTemp,
-                fire: this.currentState.fire ? {
-                    minutesRemaining: this.currentState.fire.minutesRemaining,
-                    phase: this.currentState.fire.phase
-                } : null
-            };
+            // Capture state using registry
+            startState = {};
+            for (const [key, def] of Object.entries(AnimatedStatRegistry)) {
+                startState[key] = def.capture(this.currentState);
+            }
         }
 
         // Render the frame content (state, mode, overlays, input)
@@ -77,21 +69,24 @@ export const FrameQueue = {
 
         // Handle progress animation
         if ((isProgress || isTravelProgress) && startState) {
-            // Calculate stat deltas by comparing start vs current
+            // Calculate stat deltas using registry
+            const statDeltas = {};
             const endState = nextFrame.state;
-            const statDeltas = {
-                healthPercent: endState.healthPercent - startState.healthPercent,
-                foodPercent: endState.foodPercent - startState.foodPercent,
-                waterPercent: endState.waterPercent - startState.waterPercent,
-                energyPercent: endState.energyPercent - startState.energyPercent,
-                bodyTemp: endState.bodyTemp - startState.bodyTemp,
-                clothingWarmthPercent: endState.clothingWarmthPercent - startState.clothingWarmthPercent,
-                clockTimeMinutes: endState.clockTimeMinutes - startState.clockTimeMinutes,
-                airTemp: endState.airTemp - startState.airTemp,
-                fireMinutesRemaining: endState.fire && startState.fire
-                    ? endState.fire.minutesRemaining - startState.fire.minutesRemaining
-                    : 0
-            };
+
+            for (const [key, def] of Object.entries(AnimatedStatRegistry)) {
+                const startVal = startState[key];
+                const endVal = def.capture(endState);
+
+                // Handle fire time special case (object with minutes + phase)
+                if (typeof startVal === 'object' && startVal !== null) {
+                    statDeltas[key] = {
+                        minutes: (endVal?.minutes || 0) - (startVal?.minutes || 0),
+                        phase: endVal?.phase || startVal?.phase || ''
+                    };
+                } else {
+                    statDeltas[key] = endVal - startVal;
+                }
+            }
 
             this.state = 'animating';
 

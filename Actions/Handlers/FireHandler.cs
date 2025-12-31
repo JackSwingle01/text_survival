@@ -361,9 +361,9 @@ public static class FireHandler
             else if (inv.Count(Resource.Amadou) > 0)
             {
                 tinderUsed = inv.Pop(Resource.Amadou);
-                tinderType = FuelType.Tinder; // Amadou burns like tinder
+                tinderType = FuelType.Amadou;
                 tinderName = "amadou";
-                finalChance += 0.20; // Amadou is excellent fire-starting material
+                finalChance += FuelDatabase.Get(FuelType.Amadou).IgnitionBonus;
             }
             else if (inv.Count(Resource.Usnea) > 0)
             {

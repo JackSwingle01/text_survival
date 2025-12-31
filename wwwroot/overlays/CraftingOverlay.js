@@ -4,17 +4,17 @@ import { CraftingComponents } from '../components/CraftingComponents.js';
 import { Utils, ICON_CLASS, show, hide } from '../modules/utils.js';
 
 const CRAFT_CATEGORY_ICONS = {
-    'FireStarting': 'local_fire_department',
-    'CuttingTool': 'content_cut',
-    'HuntingWeapon': 'gps_fixed',
-    'Trapping': 'trip_origin',
-    'Processing': 'build',
-    'Treatment': 'healing',
-    'Equipment': 'checkroom',
-    'Lighting': 'flare',
-    'Carrying': 'backpack',
-    'CampInfrastructure': 'house',
-    'Mending': 'build_circle'
+    'FireStarting': 'local_fire_department',              // Flame (primitive fire)
+    'CuttingTool': 'handyman',               // Tools (diverse toolset)
+    'HuntingWeapon': 'shield',               // Weapons (martial symbol)
+    'Trapping': 'trip_origin',               // Trapping (best available)
+    'Processing': 'autorenew',               // Materials (transformation)
+    'Treatment': 'healing',                  // Medicine
+    'Equipment': 'checkroom',                // Clothing
+    'Lighting': 'light_mode',             // Lighting (torch-like)
+    'Carrying': 'backpack',                  // Storage
+    'CampInfrastructure': 'cabin',           // Camp (wilderness shelter)
+    'Mending': 'home_repair_service'         // Repair (maintenance)
 };
 
 const SHORT_CATEGORY_NAMES = {
@@ -194,14 +194,10 @@ export class CraftingOverlay extends OverlayManager {
         const contentDiv = DOMBuilder.div('list-item__content')
             .append(
                 DOMBuilder.div('section-header').text(recipe.name),
-                // Requirements with comma separators
-                DOMBuilder.div('flex gap-1')
+                // Requirements as badges
+                DOMBuilder.div('flex gap-2 flex-wrap')
                     .append(
-                        ...requirementElements.flatMap((el, i) =>
-                            i < requirementElements.length - 1
-                                ? [el, document.createTextNode(', ')]
-                                : [el]
-                        )
+                        ...requirementElements
                     )
                     .build()
             );

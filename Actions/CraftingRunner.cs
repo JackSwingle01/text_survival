@@ -272,15 +272,16 @@ public class CraftingRunner(GameContext ctx)
     private static string GetCategoryShortLabel(NeedCategory category) => category switch
     {
         NeedCategory.FireStarting => "Fire",
-        NeedCategory.CuttingTool => "Cutting",
+        NeedCategory.CuttingTool => "Tool",
         NeedCategory.HuntingWeapon => "Weapon",
         NeedCategory.Trapping => "Trap",
-        NeedCategory.Processing => "Process",
+        NeedCategory.Processing => "Material",
         NeedCategory.Treatment => "Medical",
-        NeedCategory.Equipment => "Gear",
+        NeedCategory.Equipment => "Clothing",
         NeedCategory.Lighting => "Light",
-        NeedCategory.Carrying => "Carry",
-        NeedCategory.Mending => "Mend",
+        NeedCategory.Carrying => "Storage",
+        NeedCategory.CampInfrastructure => "Camp",
+        NeedCategory.Mending => "Repair",
         _ => category.ToString()
     };
 

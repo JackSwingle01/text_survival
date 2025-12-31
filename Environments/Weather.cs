@@ -181,9 +181,9 @@ public class Weather
 
         _weatherDuration = TimeSpan.FromHours(6);
 
-        // Initialize weather fronts
-        CurrentFront = FrontPatterns.Generate(Season.Fall, CurrentCondition);
-        NextFront = FrontPatterns.Generate(Season.Fall, CurrentCondition);
+        // Initialize weather fronts - guaranteed gentle start
+        CurrentFront = FrontPatterns.GenerateInitialFront();
+        NextFront = FrontPatterns.Generate(Season.Winter, CurrentCondition);
     }
 
     public void Update(DateTime newTime)

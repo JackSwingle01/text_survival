@@ -21,6 +21,7 @@ namespace text_survival.Web.Dto;
 [JsonDerivedType(typeof(ButcherOverlay), "butcher")]
 [JsonDerivedType(typeof(EncounterOverlay), "encounter")]
 [JsonDerivedType(typeof(CombatOverlay), "combat")]
+[JsonDerivedType(typeof(EatingOverlay), "eating")]
 public abstract record Overlay;
 
 /// <summary>
@@ -73,6 +74,34 @@ public record CookingResultDto(
     string Message,
     string Icon,
     bool IsSuccess
+);
+
+/// <summary>
+/// Eating overlay: Interactive eating and drinking UI with progress bar.
+/// </summary>
+public record EatingOverlay(EatingOverlayDto Data) : Overlay;
+
+/// <summary>
+/// Data for the eating overlay.
+/// </summary>
+public record EatingOverlayDto(
+    int CaloriesPercent,
+    int HydrationPercent,
+    List<ConsumableItemDto> Foods,
+    List<ConsumableItemDto> Drinks,
+    ConsumableItemDto? SpecialAction
+);
+
+/// <summary>
+/// A consumable item (food or drink).
+/// </summary>
+public record ConsumableItemDto(
+    string Id,
+    string Name,
+    string Amount,
+    int? CaloriesEstimate,
+    int? HydrationEstimate,
+    string? Warning
 );
 
 /// <summary>

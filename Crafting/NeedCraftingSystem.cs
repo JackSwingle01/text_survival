@@ -11,10 +11,10 @@ public class NeedCraftingSystem
     public NeedCraftingSystem()
     {
         InitializeFireStartingOptions();
-        InitializeCuttingToolOptions();
+        InitializeToolOptions();
         InitializeHuntingWeaponOptions();
         InitializeTrappingOptions();
-        InitializeProcessingOptions();
+        InitializeMaterialOptions();
         InitializeTreatmentOptions();
         InitializeEquipmentOptions();
         InitializeLightingOptions();
@@ -166,9 +166,9 @@ public class NeedCraftingSystem
 
     #endregion
 
-    #region Cutting Tool Options
+    #region Tool Options
 
-    private void InitializeCuttingToolOptions()
+    private void InitializeToolOptions()
     {
         // Sharp Rock: 2 stones (crude, low durability)
         _options.Add(new CraftOption
@@ -303,6 +303,92 @@ public class NeedCraftingSystem
                 BlockChance = 0.03,
                 WeaponClass = WeaponClass.Blade
             }
+        });
+
+        // Stone Axe: Chopping tool for felling trees
+        _options.Add(new CraftOption
+        {
+            Name = "Stone Axe",
+            Description = "A heavy stone head lashed to a wooden handle. Required for felling standing trees.",
+            Category = NeedCategory.CuttingTool,
+            CraftingTimeMinutes = 25,
+            Durability = 12,
+            Requirements = [
+                new MaterialRequirement(Resource.Stone, 1),
+                new MaterialRequirement(Resource.Stick, 1),
+                new MaterialRequirement(Resource.PlantFiber, 1)
+            ],
+            RequiredTools = [ToolType.KnappingStone],
+            GearFactory = dur => new Gear
+            {
+                Name = "Stone Axe",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Axe,
+                Weight = 1.5,
+                Durability = dur,
+                MaxDurability = dur,
+                Damage = 12,
+                BlockChance = 0.05,
+                WeaponClass = WeaponClass.Blade
+            }
+        });
+
+        // Bone Shovel: Digging tool for camp improvements
+        _options.Add(new CraftOption
+        {
+            Name = "Bone Shovel",
+            Description = "A flat bone lashed to a sturdy stick. Speeds up digging for fire pits, snow shelters, and camp setup.",
+            Category = NeedCategory.CuttingTool,
+            CraftingTimeMinutes = 20,
+            Durability = 15,
+            Requirements = [
+                new MaterialRequirement(Resource.Bone, 2),
+                new MaterialRequirement(Resource.Stick, 1),
+                new MaterialRequirement(Resource.PlantFiber, 1)
+            ],
+            RequiredTools = [ToolType.KnappingStone],
+            GearFactory = dur => new Gear
+            {
+                Name = "Bone Shovel",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Shovel,
+                Weight = 1.2,
+                Durability = dur,
+                MaxDurability = dur
+            }
+        });
+
+        // Knapping Stone: Essential tool for shaping flint, shale, and bone
+        _options.Add(new CraftOption
+        {
+            Name = "Knapping Stone",
+            Description = "A hard stone used for knapping. Strike flint, shale, or bone to shape tools.",
+            Category = NeedCategory.CuttingTool,
+            CraftingTimeMinutes = 10,
+            Durability = 30,
+            Requirements = [new MaterialRequirement(Resource.Stone, 3)],
+            GearFactory = dur => new Gear
+            {
+                Name = "Knapping Stone",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.KnappingStone,
+                Weight = 1.0,
+                Durability = dur,
+                MaxDurability = dur
+            }
+        });
+
+        // Bone Needle: Essential for sewing equipment and mending
+        _options.Add(new CraftOption
+        {
+            Name = "Bone Needle",
+            Description = "A fine bone needle for stitching hide. Required for crafting and mending equipment.",
+            Category = NeedCategory.CuttingTool,
+            CraftingTimeMinutes = 20,
+            Durability = 20,
+            Requirements = [new MaterialRequirement(Resource.Bone, 1)],
+            RequiredTools = [ToolType.Knife],
+            GearFactory = dur => Gear.BoneNeedle(durability: dur)
         });
     }
 
@@ -474,9 +560,9 @@ public class NeedCraftingSystem
 
     #endregion
 
-    #region Processing Options
+    #region Material Options
 
-    private void InitializeProcessingOptions()
+    private void InitializeMaterialOptions()
     {
         // Scrape Hide: Raw hide → Scraped hide (requires cutting tool)
         _options.Add(new CraftOption
@@ -536,92 +622,6 @@ public class NeedCraftingSystem
             Durability = 0,
             Requirements = [new MaterialRequirement(Resource.PlantFiber, 3)],
             MaterialOutputs = [new MaterialOutput("Rope", 1, 0.2)]
-        });
-
-        // Bone Shovel: Digging tool for camp improvements
-        _options.Add(new CraftOption
-        {
-            Name = "Bone Shovel",
-            Description = "A flat bone lashed to a sturdy stick. Speeds up digging for fire pits, snow shelters, and camp setup.",
-            Category = NeedCategory.Processing,
-            CraftingTimeMinutes = 20,
-            Durability = 15,
-            Requirements = [
-                new MaterialRequirement(Resource.Bone, 2),
-                new MaterialRequirement(Resource.Stick, 1),
-                new MaterialRequirement(Resource.PlantFiber, 1)
-            ],
-            RequiredTools = [ToolType.KnappingStone],
-            GearFactory = dur => new Gear
-            {
-                Name = "Bone Shovel",
-                Category = GearCategory.Tool,
-                ToolType = ToolType.Shovel,
-                Weight = 1.2,
-                Durability = dur,
-                MaxDurability = dur
-            }
-        });
-
-        // Stone Axe: Chopping tool for felling trees
-        _options.Add(new CraftOption
-        {
-            Name = "Stone Axe",
-            Description = "A heavy stone head lashed to a wooden handle. Required for felling standing trees.",
-            Category = NeedCategory.Processing,
-            CraftingTimeMinutes = 25,
-            Durability = 12,
-            Requirements = [
-                new MaterialRequirement(Resource.Stone, 1),
-                new MaterialRequirement(Resource.Stick, 1),
-                new MaterialRequirement(Resource.PlantFiber, 1)
-            ],
-            RequiredTools = [ToolType.KnappingStone],
-            GearFactory = dur => new Gear
-            {
-                Name = "Stone Axe",
-                Category = GearCategory.Tool,
-                ToolType = ToolType.Axe,
-                Weight = 1.5,
-                Durability = dur,
-                MaxDurability = dur,
-                Damage = 12,
-                BlockChance = 0.05,
-                WeaponClass = WeaponClass.Blade
-            }
-        });
-
-        // Knapping Stone: Essential tool for shaping flint, shale, and bone
-        _options.Add(new CraftOption
-        {
-            Name = "Knapping Stone",
-            Description = "A hard stone used for knapping. Strike flint, shale, or bone to shape tools.",
-            Category = NeedCategory.Processing,
-            CraftingTimeMinutes = 10,
-            Durability = 30,
-            Requirements = [new MaterialRequirement(Resource.Stone, 3)],
-            GearFactory = dur => new Gear
-            {
-                Name = "Knapping Stone",
-                Category = GearCategory.Tool,
-                ToolType = ToolType.KnappingStone,
-                Weight = 1.0,
-                Durability = dur,
-                MaxDurability = dur
-            }
-        });
-
-        // Bone Needle: Essential for sewing equipment and mending
-        _options.Add(new CraftOption
-        {
-            Name = "Bone Needle",
-            Description = "A fine bone needle for stitching hide. Required for crafting and mending equipment.",
-            Category = NeedCategory.Processing,
-            CraftingTimeMinutes = 20,
-            Durability = 20,
-            Requirements = [new MaterialRequirement(Resource.Bone, 1)],
-            RequiredTools = [ToolType.Knife],
-            GearFactory = dur => Gear.BoneNeedle(durability: dur)
         });
     }
 

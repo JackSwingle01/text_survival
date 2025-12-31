@@ -84,3 +84,19 @@ export const CookingRowBuilder = {
     arrow: null,  // No arrow for cooking actions
     disabled: { key: 'isAvailable', invert: true, reasonKey: 'disabledReason' }
 };
+
+/**
+ * Row builder for Eating overlay
+ */
+export const ConsumableRowBuilder = {
+    type: 'action',
+    fields: [
+        { key: 'label', element: 'label' },
+        { key: 'amount', element: 'meta', format: (v) => `(${v})` },
+        { key: 'estimate', element: 'meta' },
+        { key: 'hydrationNote', element: 'meta' },
+        { key: 'warning', element: 'meta', format: (v) => `⚠ ${v}` }
+    ],
+    arrow: null,
+    disabled: { key: 'isAvailable', invert: true }
+};

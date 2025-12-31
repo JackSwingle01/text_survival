@@ -330,7 +330,7 @@ public record TransferDto(
                 DisplayName: $"{source.WaterLiters:F1}L water",
                 Icon: "water_drop",
                 WeightKg: source.WaterLiters,
-                Count: (int)(source.WaterLiters / 0.5),
+                Count: (int)(source.WaterLiters / 1.0),
                 IsAggregated: source.WaterLiters > 0.5
             ));
         }
@@ -576,7 +576,7 @@ public record FireManagementDto(
         {
             (Resource.Tinder, FuelType.Tinder, "grass", "Tinder"),
             (Resource.BirchBark, FuelType.BirchBark, "note", "Birch Bark"),
-            (Resource.Amadou, FuelType.Tinder, "spa", "Amadou"),
+            (Resource.Amadou, FuelType.Amadou, "spa", "Amadou"),
             (Resource.Usnea, FuelType.Usnea, "eco", "Usnea"),
             (Resource.Chaga, FuelType.Chaga, "spa", "Chaga"),
         };

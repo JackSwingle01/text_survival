@@ -32,11 +32,11 @@
                     <span class="fire-phase-text" id="firePhaseText">No fire</span>
                 </div>
                 <div class="stat-row" style="margin-top: 8px;">
-                    <span class="stat-row__label">Fuel</span>
+                    <span class="stat-row__label"><span class="material-symbols-outlined">layers</span>Fuel</span>
                     <span class="stat-row__value" id="fireFuel">--</span>
                 </div>
                 <div class="stat-row">
-                    <span class="stat-row__label">Heat</span>
+                    <span class="stat-row__label"><span class="material-symbols-outlined">heat</span>Heat</span>
                     <span class="stat-row__value stat-row__value--good" id="fireHeat">--</span>
                 </div>
             </div>
@@ -137,26 +137,25 @@
                     <span class="material-symbols-outlined">backpack</span>Gear
                 </div>
                 <div class="compact-stat" data-stat="carry">
-                    <span class="stat-icon material-symbols-outlined">fitness_center</span>
+                    <span class="stat-icon material-symbols-outlined">weight</span>
                     <div class="bar bar--carry">
                         <div class="bar__fill" id="carryBar" style="width: 0%;"></div>
                     </div>
                     <div class="stat-tooltip"><span class="stat-name">Carry</span> <span class="stat-value"
                             id="carryDisplay">0 / 15 kg</span></div>
                 </div>
-                <div class="flex justify-between items-center" style="margin-bottom: 6px;">
-                    <span class="gear-label"><span
-                            class="material-symbols-outlined">local_fire_department</span>Fuel</span>
-                    <span class="gear-value" id="fuelReserve">0 kg</span>
+                <div class="stat-row">
+                    <span class="stat-row__label"><span class="material-symbols-outlined">local_fire_department</span>Fuel</span>
+                    <span class="stat-row__value" id="fuelReserve">0 kg</span>
                 </div>
-                <div class="flex justify-between items-center" style="margin-bottom: 6px;">
-                    <span class="gear-label"><span class="material-symbols-outlined">restaurant</span>Food</span>
-                    <span class="gear-value" id="foodWaterSummary">No food</span>
+                <div class="stat-row">
+                    <span class="stat-row__label"><span class="material-symbols-outlined">restaurant</span>Food</span>
+                    <span class="stat-row__value" id="foodWaterSummary">No food</span>
                 </div>
                 <div class="flex gap-2" id="toolPills" style="flex-wrap: wrap; margin-top: var(--space-2);"></div>
                 <div class="quick-actions">
                     <button class="btn btn--sm" id="inventoryBtn">
-                        <span class="material-symbols-outlined">inventory_2</span>
+                        <span class="material-symbols-outlined">backpack</span>
                         Inventory
                     </button>
                     <button class="btn btn--sm" id="craftingBtn">
@@ -166,7 +165,7 @@
                 </div>
                 <div class="quick-actions storage-row hidden" id="storageRow">
                     <button class="btn btn--sm storage-btn" id="storageBtn">
-                        <span class="material-symbols-outlined">warehouse</span>
+                        <span class="material-symbols-outlined">inventory_2</span>
                         Storage
                     </button>
                 </div>
@@ -175,7 +174,7 @@
 
         <!-- CENTER AREA -->
         <div class="center-area location-mode">
-            <!-- Location Header with integrated weather -->
+            <!-- Weather Panel -->
             <div class="location-header">
                 <div class="header-row">
                     <div class="badge badge--lg time-badge">
@@ -186,17 +185,15 @@
                         </div>
                     </div>
 
-                    <div class="location-center">
-                        <div class="location-name" id="locationName">Loading...</div>
-                        <div class="location-desc" id="locationDesc"></div>
+                    <div class="weather-panel">
                         <div class="weather-strip">
-                            <div class="weather-item weather-front-label">
-                                <span id="weatherFront">Stable Weather</span>
-                            </div>
-                            <div class="weather-divider">|</div>
-                            <div class="weather-item">
+                            <div class="weather-item weather-condition-primary">
                                 <span class="material-symbols-outlined" id="weatherIcon">partly_cloudy_day</span>
                                 <span id="weatherCond">Clear</span>
+                            </div>
+                            <div class="weather-divider">|</div>
+                            <div class="weather-item weather-front-label">
+                                <span id="weatherFront">Stable Weather</span>
                             </div>
                             <div class="weather-item">
                                 <span class="material-symbols-outlined">air</span>
@@ -327,16 +324,41 @@
                 </div>
                 <div class="pane" id="fireStatusPane"></div>
             </div>
-            <div class="fire-progress hidden" id="fireProgress">
-                <div class="fire-progress-text" id="fireProgressText">Starting fire...</div>
-                <div class="fire-progress-bar-container">
-                    <div class="fire-progress-bar" id="fireProgressBar"></div>
+            <div class="overlay-progress hidden" id="fireProgress">
+                <div class="overlay-progress-text overlay-progress-text--fire" id="fireProgressText">Starting fire...</div>
+                <div class="overlay-progress-bar-container">
+                    <div class="overlay-progress-bar overlay-progress-bar--fire" id="fireProgressBar"></div>
                 </div>
-                <div class="fire-progress-result hidden" id="fireProgressResult"></div>
+                <div class="overlay-progress-result hidden" id="fireProgressResult"></div>
             </div>
             <div class="modal-actions modal-actions--center">
                 <button class="btn btn--primary hidden" id="fireStartBtn">Start Fire</button>
                 <button class="btn" id="fireDoneBtn">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Eating Overlay -->
+    <div class="overlay overlay--higher hidden" id="eatingOverlay">
+        <div class="modal-base modal-base--standard">
+            <div class="modal-header modal-header--center">
+                <h2 class="modal-header__title">
+                    <span class="material-symbols-outlined">restaurant</span>EAT & DRINK
+                </h2>
+            </div>
+            <div class="modal-content">
+                <div class="stats-row" id="eatingStats"></div>
+                <div id="eatingItems"></div>
+                <div class="overlay-progress hidden" id="eatingProgress">
+                    <div class="overlay-progress-text" id="eatingProgressText">Eating...</div>
+                    <div class="overlay-progress-bar-container">
+                        <div class="overlay-progress-bar" id="eatingProgressBar"></div>
+                    </div>
+                    <div class="overlay-progress-result hidden" id="eatingProgressResult"></div>
+                </div>
+            </div>
+            <div class="modal-actions modal-actions--center">
+                <button class="btn" id="eatingDoneBtn">Done</button>
             </div>
         </div>
     </div>
@@ -355,6 +377,13 @@
                     <span class="material-symbols-outlined">arrow_forward</span>
                 </div>
                 <div class="pane" id="cookingOptions"></div>
+            </div>
+            <div class="overlay-progress hidden" id="cookingProgress">
+                <div class="overlay-progress-text overlay-progress-text--cooking" id="cookingProgressText">Cooking...</div>
+                <div class="overlay-progress-bar-container">
+                    <div class="overlay-progress-bar overlay-progress-bar--cooking" id="cookingProgressBar"></div>
+                </div>
+                <div class="overlay-progress-result hidden" id="cookingProgressResult"></div>
             </div>
             <div class="cooking-result hidden" id="cookingResult"></div>
             <div class="modal-actions modal-actions--center">

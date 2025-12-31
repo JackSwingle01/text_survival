@@ -133,6 +133,7 @@
             <option value="fireStarting">Fire (Starting)</option>
             <option value="fireTending">Fire (Tending)</option>
             <option value="cooking">Cooking</option>
+            <option value="eating">Eating</option>
             <option value="transfer">Transfer</option>
             <option value="butcher">Butcher</option>
             <option value="hazard">Hazard</option>
@@ -229,16 +230,41 @@
                 </div>
                 <div class="pane" id="fireStatusPane"></div>
             </div>
-            <div class="fire-progress hidden" id="fireProgress">
-                <div class="fire-progress-text" id="fireProgressText">Starting fire...</div>
-                <div class="fire-progress-bar-container">
-                    <div class="fire-progress-bar" id="fireProgressBar"></div>
+            <div class="overlay-progress hidden" id="fireProgress">
+                <div class="overlay-progress-text overlay-progress-text--fire" id="fireProgressText">Starting fire...</div>
+                <div class="overlay-progress-bar-container">
+                    <div class="overlay-progress-bar overlay-progress-bar--fire" id="fireProgressBar"></div>
                 </div>
-                <div class="fire-progress-result hidden" id="fireProgressResult"></div>
+                <div class="overlay-progress-result hidden" id="fireProgressResult"></div>
             </div>
             <div class="modal-actions modal-actions--center">
                 <button class="btn btn--primary hidden" id="fireStartBtn">Start Fire</button>
                 <button class="btn" id="fireDoneBtn">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Eating Overlay -->
+    <div class="overlay overlay--higher hidden" id="eatingOverlay">
+        <div class="modal-base modal-base--standard">
+            <div class="modal-header modal-header--center">
+                <h2 class="modal-header__title">
+                    <span class="material-symbols-outlined">restaurant</span>EAT & DRINK
+                </h2>
+            </div>
+            <div class="modal-content">
+                <div class="stats-row" id="eatingStats"></div>
+                <div id="eatingItems"></div>
+                <div class="overlay-progress hidden" id="eatingProgress">
+                    <div class="overlay-progress-text" id="eatingProgressText">Eating...</div>
+                    <div class="overlay-progress-bar-container">
+                        <div class="overlay-progress-bar" id="eatingProgressBar"></div>
+                    </div>
+                    <div class="overlay-progress-result hidden" id="eatingProgressResult"></div>
+                </div>
+            </div>
+            <div class="modal-actions modal-actions--center">
+                <button class="btn" id="eatingDoneBtn">Done</button>
             </div>
         </div>
     </div>
@@ -257,6 +283,13 @@
                     <span class="material-symbols-outlined">arrow_forward</span>
                 </div>
                 <div class="pane" id="cookingOptions"></div>
+            </div>
+            <div class="overlay-progress hidden" id="cookingProgress">
+                <div class="overlay-progress-text overlay-progress-text--cooking" id="cookingProgressText">Cooking...</div>
+                <div class="overlay-progress-bar-container">
+                    <div class="overlay-progress-bar overlay-progress-bar--cooking" id="cookingProgressBar"></div>
+                </div>
+                <div class="overlay-progress-result hidden" id="cookingProgressResult"></div>
             </div>
             <div class="cooking-result hidden" id="cookingResult"></div>
             <div class="modal-actions modal-actions--center">
@@ -671,6 +704,7 @@
         import { CombatOverlay } from './overlays/CombatOverlay.js';
         import { FireOverlay } from './overlays/FireOverlay.js';
         import { CookingOverlay } from './overlays/CookingOverlay.js';
+        import { EatingOverlay } from './overlays/EatingOverlay.js';
         import { TransferOverlay } from './overlays/TransferOverlay.js';
         import { ButcherOverlay } from './overlays/ButcherOverlay.js';
         import { HazardOverlay } from './overlays/HazardOverlay.js';
@@ -697,6 +731,7 @@
         const combatOverlay = new CombatOverlay(mockInputHandler);
         const fireOverlay = new FireOverlay(mockInputHandler);
         const cookingOverlay = new CookingOverlay(mockInputHandler);
+        const eatingOverlay = new EatingOverlay(mockInputHandler);
         const transferOverlay = new TransferOverlay(mockInputHandler);
         const butcherOverlay = new ButcherOverlay(mockInputHandler);
         const hazardOverlay = new HazardOverlay(mockInputHandler);
@@ -754,6 +789,7 @@
             { key: 'fireStarting', name: 'Fire (Starting)', overlay: fireOverlay, fixture: fixtures.fireStarting, input: null },
             { key: 'fireTending', name: 'Fire (Tending)', overlay: fireOverlay, fixture: fixtures.fireTending, input: null },
             { key: 'cooking', name: 'Cooking', overlay: cookingOverlay, fixture: fixtures.cooking, input: null },
+            { key: 'eating', name: 'Eating', overlay: eatingOverlay, fixture: fixtures.eating, input: null },
             { key: 'transfer', name: 'Transfer', overlay: transferOverlay, fixture: fixtures.transfer, input: null },
             { key: 'butcher', name: 'Butcher', overlay: butcherOverlay, fixture: fixtures.butcher, input: null },
             { key: 'hazard', name: 'Hazard', overlay: hazardOverlay, fixture: fixtures.hazard, input: null },

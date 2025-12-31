@@ -7,6 +7,7 @@ public enum FuelType
 {
     Tinder,     // Grass, leaves, dry bark - ignites easily, burns fast
     BirchBark,  // Excellent tinder with high ignition bonus
+    Amadou,     // Amadou fungus - excellent tinder, smolders well
     Usnea,      // Old man's beard lichen - good tinder
     Chaga,      // Birch polypore - adequate tinder, smolders well
     Kindling,   // Small branches, twigs - builds fire
@@ -85,6 +86,14 @@ public static class FuelDatabase
             burnRateKgPerHour: 2.5,      // Burns fast but not as fast as grass/leaves
             minFireTemperature: 0,       // Can ignite from cold
             ignitionBonus: 0.25,         // +25% to fire-starting - birch bark is excellent tinder
+            startupTimeMinutes: 2        // Catches very quickly
+        ),
+
+        [FuelType.Amadou] = new FuelProperties(
+            peakTemperature: 490,        // Good heat for tinder
+            burnRateKgPerHour: 2.6,      // Burns fast, fungal material
+            minFireTemperature: 0,       // Can ignite from cold
+            ignitionBonus: 0.20,         // +20% to fire-starting - excellent tinder fungus
             startupTimeMinutes: 2        // Catches very quickly
         ),
 

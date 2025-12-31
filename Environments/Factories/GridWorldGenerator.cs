@@ -515,7 +515,6 @@ public class GridWorldGenerator
 
         // Create camp location
         var camp = CreateCampLocation(weather);
-        camp.Terrain = TerrainType.Clearing;
 
         // Place on map
         map.SetLocation(campPos.X, campPos.Y, camp);

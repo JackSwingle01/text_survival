@@ -13,6 +13,7 @@ import { TransferOverlay } from './overlays/TransferOverlay.js';
 import { CookingOverlay } from './overlays/CookingOverlay.js';
 import { CraftingOverlay } from './overlays/CraftingOverlay.js';
 import { FireOverlay } from './overlays/FireOverlay.js';
+import { EatingOverlay } from './overlays/EatingOverlay.js';
 import { ConnectionOverlay } from './modules/connection.js';
 import { Utils, ICON_CLASS, createIcon, show, hide } from './modules/utils.js';
 import { ProgressDisplay } from './modules/progress.js';
@@ -58,6 +59,7 @@ class GameClient {
             inventory: new InventoryOverlay(this.inputHandler),
             crafting: new CraftingOverlay(this.inputHandler),
             fire: new FireOverlay(this.inputHandler),
+            eating: new EatingOverlay(this.inputHandler),
             transfer: new TransferOverlay(this.inputHandler),
             forage: new ForageOverlay(this.inputHandler),
             butcher: new ButcherOverlay(this.inputHandler),
@@ -108,15 +110,19 @@ class GameClient {
             this.showOverlay(overlay, frame.input);
         }
 
-        // Update tile popup actions if it's currently shown
+        // Store current input BEFORE updating popup (popup uses this.currentInput)
+        this.currentInput = frame.input;
+
+        // Update tile popup actions if it's currently shown (but not during progress/state-only frames)
         const tilePopupElement = document.getElementById('tilePopup');
         if (this.tilePopup && tilePopupElement && !tilePopupElement.classList.contains('hidden')) {
-            this.updateTilePopupActions();
+            if (!isProgressMode && frame.input?.choices) {
+                this.updateTilePopupActions();
+            }
         }
 
         // Update quick actions
         this.updateQuickActionStates(frame.input?.choices);
-        this.currentInput = frame.input;
     }
 
     /**
@@ -231,10 +237,6 @@ class GameClient {
         document.getElementById('weatherIcon').textContent = getWeatherIcon(state.weatherCondition);
         document.getElementById('windLabel').textContent = state.wind;
         document.getElementById('precipLabel').textContent = state.precipitation;
-
-        // Location
-        document.getElementById('locationName').textContent = state.locationName;
-        document.getElementById('locationDesc').textContent = state.locationDescription || '';
 
         // Fire
         FireDisplay.render(state.fire);
@@ -630,33 +632,9 @@ class GameClient {
             this.buildGlanceBar(glanceEl, tileData);
         }
 
-        // Build features list - use detailed features if available, otherwise icons
+        // Build features list - use detailed features if available
         if (isExplored && tileData.featureDetails && tileData.featureDetails.length > 0) {
             this.buildDetailedFeatures(featuresEl, tileData.featureDetails);
-        } else if (tileData.featureIcons && tileData.featureIcons.length > 0) {
-            // Unexplored tiles: show icon-only badges in glance section
-            tileData.featureIcons.forEach(icon => {
-                const featureEl = document.createElement('span');
-                featureEl.className = 'badge';
-
-                // Add badge type classes for certain icons
-                if (icon === 'local_fire_department' || icon === 'fireplace') {
-                    featureEl.classList.add('badge--fire');
-                } else if (icon === 'water_drop') {
-                    featureEl.classList.add('badge--water');
-                } else if (icon === 'catching_pokemon' || icon === 'done_all') {
-                    featureEl.classList.add('badge--warning');
-                } else {
-                    featureEl.classList.add('badge--neutral');
-                }
-
-                const iconEl = document.createElement('span');
-                iconEl.className = ICON_CLASS;
-                iconEl.textContent = icon;
-                featureEl.appendChild(iconEl);
-
-                glanceEl.appendChild(featureEl);
-            });
         }
 
         // Show prompt if player is here and there's a prompt

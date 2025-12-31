@@ -1,9 +1,11 @@
 using text_survival.Actions;
 using text_survival.Actions.Variants;
 using text_survival.Crafting;
+using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
+using text_survival.Survival;
 using text_survival.Web.Dto;
 
 namespace text_survival.Web;
@@ -28,6 +30,7 @@ public static class WebIO
     private static readonly Dictionary<string, ButcherDto> _currentButcher = new();
     private static readonly Dictionary<string, EncounterDto> _currentEncounter = new();
     private static readonly Dictionary<string, CombatDto> _currentCombat = new();
+    private static readonly Dictionary<string, EatingOverlayDto> _currentEating = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -101,6 +104,8 @@ public static class WebIO
                 overlays.Add(new EncounterOverlay(encounter));
             if (_currentCombat.TryGetValue(sessionId, out var combat))
                 overlays.Add(new CombatOverlay(combat));
+            if (_currentEating.TryGetValue(sessionId, out var eating))
+                overlays.Add(new EatingOverlay(eating));
         }
 
         return overlays;
@@ -1143,13 +1148,13 @@ public static class WebIO
         string itemId,
         int count)
     {
-        // Parse itemId: "player_resource_Pine", "storage_tool_0", etc.
+        // Parse itemId: "player_resource_Pine", "storage_tool_0", "player_water", etc.
         var parts = itemId.Split('_', 3);
-        if (parts.Length < 3) return;
+        if (parts.Length < 2) return;  // Allow 2-part IDs (water) and 3-part IDs (resources)
 
         string source = parts[0];        // "player" or "storage"
         string itemType = parts[1];      // "resource", "tool", "accessory", "water"
-        string itemKey = parts[2];       // Resource name or index
+        string itemKey = parts.Length > 2 ? parts[2] : "";  // Resource name or index (empty for water)
 
         var sourceInv = source == "player" ? player : storage;
         var targetInv = source == "player" ? storage : player;
@@ -1173,7 +1178,7 @@ public static class WebIO
                 break;
 
             case "water":
-                double waterAmount = Math.Min(0.5 * count, sourceInv.WaterLiters);
+                double waterAmount = Math.Min(1.0 * count, sourceInv.WaterLiters);
                 if (targetInv == player && !player.CanCarry(waterAmount))
                     break;
                 sourceInv.WaterLiters -= waterAmount;
@@ -1414,6 +1419,230 @@ public static class WebIO
         }
 
         return success;
+    }
+
+    // ============================================
+    // Eating UI
+    // ============================================
+
+    /// <summary>
+    /// Run the web-based eating/drinking UI overlay.
+    /// </summary>
+    public static void RunEatingUI(GameContext ctx)
+    {
+        var session = GetSession(ctx);
+
+        while (true)
+        {
+            // Build eating DTO from current inventory
+            var eatingData = BuildEatingDto(ctx);
+
+            // Store in overlays
+            _currentEating[ctx.SessionId!] = eatingData;
+
+            int inputId = session.GenerateInputId();
+            var frame = new WebFrame(
+                GameStateDto.FromContext(ctx),
+                GetCurrentMode(ctx),
+                GetCurrentOverlays(ctx.SessionId),
+                new InputRequestDto(inputId, "eating", "Eat / Drink", new List<ChoiceDto> { new("done", "Done") })
+            );
+
+            session.Send(frame);
+            var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+            // Handle response
+            if (response.ChoiceId == "done" || response.Type == "close")
+                break;
+
+            // Execute consumption
+            if (response.ChoiceId != null)
+            {
+                ExecuteConsumption(ctx, response.ChoiceId);
+
+                // Update game time (5 minutes for eating)
+                ctx.Update(5, ActivityType.Eating);
+
+                // No event interruption check needed - events are handled by the frame queue
+            }
+        }
+
+        _currentEating.Remove(ctx.SessionId!);
+    }
+
+    /// <summary>
+    /// Build EatingOverlayDto from current inventory state.
+    /// </summary>
+    private static EatingOverlayDto BuildEatingDto(GameContext ctx)
+    {
+        var inv = ctx.Inventory;
+        var body = ctx.player.Body;
+
+        int caloriesPercent = (int)(body.CalorieStore / SurvivalProcessor.MAX_CALORIES * 100);
+        int hydrationPercent = (int)(body.Hydration / SurvivalProcessor.MAX_HYDRATION * 100);
+
+        var foods = new List<ConsumableItemDto>();
+        var drinks = new List<ConsumableItemDto>();
+        ConsumableItemDto? specialAction = null;
+
+        // Food items
+        AddFoodIfAvailable(inv, Resource.CookedMeat, "Cooked meat", 2500, 0, null, foods);
+        AddFoodIfAvailable(inv, Resource.RawMeat, "Raw meat", 1500, 0, "[risk of illness]", foods);
+        AddFoodIfAvailable(inv, Resource.Berries, "Berries", 500, 200, null, foods);
+        AddFoodIfAvailable(inv, Resource.Honey, "Honey", 3000, 0, null, foods);
+        AddFoodIfAvailable(inv, Resource.Nuts, "Nuts", 6000, 0, null, foods);
+        AddFoodIfAvailable(inv, Resource.Roots, "Roots", 400, 100, null, foods);
+        AddFoodIfAvailable(inv, Resource.DriedMeat, "Dried meat", 3000, -50, "[makes you thirsty]", foods);
+        AddFoodIfAvailable(inv, Resource.DriedBerries, "Dried berries", 2500, 0, null, foods);
+
+        // Water (drink up to 1L, capped by hydration room)
+        if (inv.HasWater)
+        {
+            double hydrationRoom = (SurvivalProcessor.MAX_HYDRATION - body.Hydration) / 1000.0;
+            double toDrink = Math.Min(1.0, Math.Min(inv.WaterLiters, hydrationRoom));
+            toDrink = Math.Round(toDrink, 2);
+
+            if (toDrink >= 0.01)
+            {
+                drinks.Add(new ConsumableItemDto(
+                    "water",
+                    "Water",
+                    $"{toDrink:F2}L",
+                    null,
+                    (int)(toDrink * 1000),
+                    null
+                ));
+            }
+        }
+
+        // Special action: wash off blood
+        if (ctx.player.EffectRegistry.HasEffect("Bloody") && inv.WaterLiters >= 0.5)
+        {
+            double toUse = Math.Min(0.5, inv.WaterLiters);
+            specialAction = new ConsumableItemDto(
+                "wash_blood",
+                "Wash off blood",
+                $"{toUse:F2}L",
+                null,
+                null,
+                null
+            );
+        }
+
+        return new EatingOverlayDto(caloriesPercent, hydrationPercent, foods, drinks, specialAction);
+    }
+
+    /// <summary>
+    /// Helper to add food item if available in inventory.
+    /// </summary>
+    private static void AddFoodIfAvailable(
+        Inventory inv,
+        Resource resource,
+        string name,
+        double caloriesPerKg,
+        double hydrationPerKg,
+        string? warning,
+        List<ConsumableItemDto> foods)
+    {
+        if (inv.Count(resource) > 0)
+        {
+            double weight = inv.Peek(resource);
+            int calories = (int)(weight * caloriesPerKg);
+            int? hydration = hydrationPerKg != 0 ? (int)(weight * hydrationPerKg) : null;
+
+            foods.Add(new ConsumableItemDto(
+                $"food_{resource}",
+                name,
+                $"{weight:F2}kg",
+                calories,
+                hydration,
+                warning
+            ));
+        }
+    }
+
+    /// <summary>
+    /// Execute consumption based on choice ID.
+    /// </summary>
+    private static void ExecuteConsumption(GameContext ctx, string choiceId)
+    {
+        var inv = ctx.Inventory;
+        var body = ctx.player.Body;
+
+        // Water
+        if (choiceId == "water")
+        {
+            double hydrationRoom = (SurvivalProcessor.MAX_HYDRATION - body.Hydration) / 1000.0;
+            double toDrink = Math.Min(1.0, Math.Min(inv.WaterLiters, hydrationRoom));
+            toDrink = Math.Round(toDrink, 2);
+
+            inv.WaterLiters -= toDrink;
+            body.AddHydration(toDrink * 1000);
+
+            // Drinking water helps cool down when overheating
+            var hyperthermia = ctx.player.EffectRegistry.GetEffectsByKind("Hyperthermia").FirstOrDefault();
+            if (hyperthermia != null)
+            {
+                double cooldown = 0.15 * (toDrink / 0.25);
+                hyperthermia.Severity = Math.Max(0, hyperthermia.Severity - cooldown);
+            }
+            return;
+        }
+
+        // Wash blood
+        if (choiceId == "wash_blood")
+        {
+            double toUse = Math.Min(0.5, inv.WaterLiters);
+            inv.WaterLiters -= toUse;
+            ctx.player.EffectRegistry.RemoveEffectsByKind("Bloody");
+            ctx.player.EffectRegistry.AddEffect(EffectFactory.Wet(0.05));
+            return;
+        }
+
+        // Food items
+        if (choiceId.StartsWith("food_"))
+        {
+            var resourceName = choiceId[5..];
+            if (!Enum.TryParse<Resource>(resourceName, out var resource)) return;
+
+            double eaten = inv.Pop(resource);
+
+            // Apply calories and hydration based on resource type
+            switch (resource)
+            {
+                case Resource.CookedMeat:
+                    body.AddCalories((int)(eaten * 2500));
+                    break;
+                case Resource.RawMeat:
+                    body.AddCalories((int)(eaten * 1500));
+                    // TODO: Add chance of food poisoning
+                    break;
+                case Resource.Berries:
+                    body.AddCalories((int)(eaten * 500));
+                    body.AddHydration(eaten * 200);
+                    break;
+                case Resource.Honey:
+                    body.AddCalories((int)(eaten * 3000));
+                    // Honey gives energy boost
+                    double energySeverity = Math.Min(0.5, eaten / 0.25 * 0.3);
+                    ctx.player.EffectRegistry.AddEffect(EffectFactory.Energized(energySeverity));
+                    break;
+                case Resource.Nuts:
+                    body.AddCalories((int)(eaten * 6000));
+                    break;
+                case Resource.Roots:
+                    body.AddCalories((int)(eaten * 400));
+                    body.AddHydration(eaten * 100);
+                    break;
+                case Resource.DriedMeat:
+                    body.AddCalories((int)(eaten * 3000));
+                    body.AddHydration(eaten * -50);
+                    break;
+                case Resource.DriedBerries:
+                    body.AddCalories((int)(eaten * 2500));
+                    break;
+            }
+        }
     }
 
     // ============================================

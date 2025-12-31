@@ -70,7 +70,7 @@ export class TransferOverlay extends OverlayManager {
         // Use ItemList for rendering
         const itemList = new ItemList({
             container: list,
-            onItemClick: (item) => this.sendTransfer(item.id, item.isAggregated ? item.count : 1),
+            onItemClick: (item) => this.sendTransfer(item.id, 1),
             rowBuilder: builder
         });
 

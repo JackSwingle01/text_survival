@@ -35,6 +35,32 @@ public static class FrontPatterns
     }
 
     /// <summary>
+    /// Generate initial front for game start - gentle light snow
+    /// Provides atmospheric weather without overwhelming new players
+    /// </summary>
+    public static WeatherFront GenerateInitialFront()
+    {
+        var states = new List<WeatherState>
+        {
+            new WeatherState
+            {
+                Condition = Weather.WeatherCondition.LightSnow,
+                TempRange = (-25, -15),  // Cold but manageable winter temp
+                WindRange = (0.1, 0.3),  // Light to moderate wind
+                PrecipRange = (0.1, 0.3), // Light precipitation
+                CloudRange = (0.5, 0.8),  // Overcast
+                Duration = GenerateTriangularDuration(24, 48)
+            }
+        };
+
+        return new WeatherFront
+        {
+            Type = FrontType.StormSystem,
+            States = states
+        };
+    }
+
+    /// <summary>
     /// Storm System: Building → Peak → Trailing → Clearing (12-48 hours total)
     /// Some states can skip for variety
     /// </summary>

@@ -135,8 +135,8 @@ public static class SurvivalProcessor
 			else if (context.FireProximityBonus > 0 && context.ClothingHeatBuffer < 1.0)
 			{
 				// NEAR FIRE: Fill buffer based on fire intensity
-				// FireProximityBonus is typically 10-50 for a good fire
-				double fillRate = (context.FireProximityBonus / 50.0) / clothingCapacityF;
+				// Physics: 6.0 * FireProximityBonus kcal/hr heat transfer, 2% efficiency
+				double fillRate = (context.FireProximityBonus / 200.0) / clothingCapacityF;
 				bufferDelta = Math.Min(fillRate * minutes, 1.0 - context.ClothingHeatBuffer);
 				// bodyTempDelta unchanged (fire already reduces heat loss)
 			}
