@@ -24,10 +24,10 @@ public class GameContext(Player player, Location camp, Weather weather)
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsAtCamp => CurrentLocation == Camp;
 
-    // Web session support - null means console mode
+    // Web session identifier for this game instance
     public string? SessionId { get; set; }
 
-    // Instance log for web mode (console mode uses static log in GameDisplay)
+    // Instance narrative log for this session
     public NarrativeLog Log { get; set; } = new();
 
     // Player's carried inventory (aggregate-based)

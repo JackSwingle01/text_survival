@@ -85,7 +85,7 @@ public class EffectRegistry
         }
         else
         {
-            GameDisplay.AddWarning("ERROR: couldn't find effect to remove."); // shouldn't hit this, but soft error for now
+            Console.WriteLine("ERROR: couldn't find effect to remove."); // shouldn't hit this, but soft error for now
             return null;
         }
     }

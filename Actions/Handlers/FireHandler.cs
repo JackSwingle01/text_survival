@@ -11,21 +11,10 @@ public static class FireHandler
 {
     public static void ManageFire(GameContext ctx, HeatSourceFeature? fire = null)
     {
-        // Web sessions get the combined fire UI
-        if (ctx.SessionId != null)
-        {
-            // Get existing fire or create temporary for starting mode
-            fire ??= ctx.CurrentLocation.GetFeature<HeatSourceFeature>() ?? new HeatSourceFeature();
-            WebIO.RunFireUI(ctx, fire);
-            return;
-        }
-
-        // Console fallback - use existing methods based on fire state
-        fire ??= ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
-        if (fire != null && (fire.IsActive || fire.HasEmbers))
-            TendFire(ctx);
-        else
-            StartFire(ctx);
+        // Get existing fire or create temporary for starting mode
+        fire ??= ctx.CurrentLocation.GetFeature<HeatSourceFeature>() ?? new HeatSourceFeature();
+        WebIO.RunFireUI(ctx, fire);
+        return;
     }
 
     public static void TendFire(GameContext ctx)
@@ -117,7 +106,8 @@ public static class FireHandler
                         carrier.EmberBurnHoursRemaining = carrier.EmberBurnHoursMax;
                         GameDisplay.AddSuccess(ctx, $"You light the {carrier.Name}. It smolders gently, ready to transport fire.");
                         return 0;
-                    });
+                    }
+                    );
                 }
             }
 

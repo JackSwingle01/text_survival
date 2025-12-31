@@ -9,8 +9,6 @@ namespace text_survival.UI;
 
 public static class GameDisplay
 {
-    private static readonly NarrativeLog _log = new();
-
     #region Context-aware overloads (route to WebIO when SessionId present)
 
     /// <summary>
@@ -19,10 +17,7 @@ public static class GameDisplay
     public static void AddNarrative(GameContext ctx, string text, LogLevel level = LogLevel.Normal)
     {
         var timestamp = ctx.GameTime.ToString("h:mm");
-        if (ctx.SessionId != null)
-            ctx.Log.Add(text, level, timestamp);
-        else
-            _log.Add(text, level, timestamp);
+        ctx.Log.Add(text, level, timestamp);
     }
 
     /// <summary>
@@ -31,13 +26,7 @@ public static class GameDisplay
     public static void AddNarrative(GameContext ctx, IEnumerable<string> texts, LogLevel level = LogLevel.Normal)
     {
         var timestamp = ctx.GameTime.ToString("h:mm");
-        if (ctx.SessionId != null)
-            ctx.Log.AddRange(texts, level, timestamp);
-        else
-        {
-            foreach (var text in texts)
-                _log.Add(text, level, timestamp);
-        }
+        ctx.Log.AddRange(texts, level, timestamp);
     }
 
     public static void AddSuccess(GameContext ctx, string text) => AddNarrative(ctx, text, LogLevel.Success);
@@ -46,39 +35,21 @@ public static class GameDisplay
 
     public static void AddSeparator(GameContext ctx)
     {
-        if (ctx.SessionId != null)
-            ctx.Log.AddSeparator();
-        else
-            _log.AddSeparator();
+        ctx.Log.AddSeparator();
     }
 
     public static void ClearNarrative(GameContext ctx)
     {
-        if (ctx.SessionId != null)
-            ctx.Log.Clear();
-        else
-            _log.Clear();
+        ctx.Log.Clear();
     }
 
     #endregion
 
-    #region Static overloads (console-only, for backwards compatibility)
+    #region Static overloads (no-op compatibility)
 
-    public static void AddNarrative(string text, LogLevel level = LogLevel.Normal)
-    {
-        _log.Add(text, level);
-    }
-
-    public static void AddNarrative(IEnumerable<string> texts)
-    {
-        foreach (var text in texts)
-            AddNarrative(text);
-    }
-
-    public static void AddSuccess(string text) => AddNarrative(text, LogLevel.Success);
-    public static void AddWarning(string text) => AddNarrative(text, LogLevel.Warning);
-    public static void AddDanger(string text) => AddNarrative(text, LogLevel.Danger);
-
+    // These methods exist for backwards compatibility with domain code that doesn't have GameContext access.
+    // They are no-ops since console mode is removed.
+    public static void AddNarrative(string text, LogLevel level = LogLevel.Normal) { }
 
     #endregion
 

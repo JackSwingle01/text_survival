@@ -1,6 +1,6 @@
 # Text Survival — Systems Overview
 
-*A console-based survival game set in an Ice Age world. This document describes the core systems and how they interact.*
+*A web-based survival game set in an Ice Age world. This document describes the core systems and how they interact.*
 
 ---
 

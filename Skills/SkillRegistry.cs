@@ -32,21 +32,6 @@ namespace text_survival.Skills
             Magic = new Skill("Shamanism");
         }
 
-        public void Describe()
-        {
-            GameDisplay.AddNarrative("\nSkills:");
-
-            var allSkills = new[] { Fighting, Endurance, Reflexes, Defense, Hunting, Crafting, Foraging, Firecraft, Mending, Healing, Magic };
-
-            foreach (var skill in allSkills)
-            {
-                if (skill.Level > 0)
-                {
-                    GameDisplay.AddNarrative($"{skill.Name}: {skill.Level} ({skill.Xp}/{skill.LevelUpThreshold})");
-                }
-            }
-        }
-
         public Skill GetSkill(string skillName)
         {
             return skillName switch

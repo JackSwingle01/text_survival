@@ -1,6 +1,6 @@
 # Text Survival — Design Principles
 
-*A console-based Ice Age survival game where you've been separated from your tribe during the mountain crossing. Survive until midsummer when the pass clears — or gear up and attempt the crossing early.*
+*A web-based Ice Age survival game where you've been separated from your tribe during the mountain crossing. Survive until midsummer when the pass clears — or gear up and attempt the crossing early.*
 
 ---
 

@@ -498,15 +498,7 @@ public partial class GameRunner(GameContext ctx)
 
     private void RunInventoryMenu()
     {
-        // For web UI, show inventory overlay and wait for close
-        if (ctx.SessionId != null)
-        {
-            Web.WebIO.ShowInventoryAndWait(ctx, ctx.Inventory, "INVENTORY");
-            return;
-        }
-
-        // Console fallback - just show read-only inventory view
-        GameDisplay.RenderInventoryScreen(ctx);
+        Web.WebIO.ShowInventoryAndWait(ctx, ctx.Inventory, "INVENTORY");
     }
 
     private void RunStorageMenu()
@@ -518,15 +510,7 @@ public partial class GameRunner(GameContext ctx)
 
     private void EatDrink()
     {
-        // Web sessions get the eating overlay UI
-        if (ctx.SessionId != null)
-        {
-            WebIO.RunEatingUI(ctx);
-            return;
-        }
-
-        // Console fallback
-        ConsumptionHandler.EatDrink(ctx);
+        WebIO.RunEatingUI(ctx);
     }
 
     private void CookMelt() => CookingHandler.CookMelt(ctx);
