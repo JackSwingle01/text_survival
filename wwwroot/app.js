@@ -24,7 +24,6 @@ import { SurvivalDisplay } from './modules/survival.js';
 import { EffectsDisplay } from './modules/effects.js';
 import { getGridRenderer } from './modules/grid/CanvasGridRenderer.js';
 import { getWeatherIcon, getFeatureIconLabel, getFeatureTypeIcon } from './modules/icons.js';
-import { MobileUI } from './modules/mobile.js';
 
 // Actions handled elsewhere (sidebar buttons, grid clicks) - hidden from popup
 const POPUP_HIDDEN_ACTIONS = ['Inventory', 'Crafting', 'Travel', 'Storage'];
@@ -956,9 +955,6 @@ class GameClient {
         });
     }
 }
-
-// Initialize mobile UI helpers
-MobileUI.init();
 
 // Initialize game client
 const gameClient = new GameClient();
