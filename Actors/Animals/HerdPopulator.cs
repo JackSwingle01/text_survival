@@ -21,7 +21,7 @@ public static class HerdPopulator
 
         // Avoid placing herds too close to camp (give player safe zone)
         var campPos = map.CurrentPosition;
-        var safeZone = 4; // Tiles from camp (~1 mile)
+        var safeZone = 6; // Tiles from camp (~1.5 miles)
 
         var availablePositions = allPositions
             .Where(p => p.ManhattanDistance(campPos) > safeZone)
@@ -35,8 +35,8 @@ public static class HerdPopulator
 
         PopulateWolves(registry, availablePositions, 1 + _rng.Next(2)); // 1-2 packs
         PopulateBears(registry, availablePositions, 3 + _rng.Next(3)); // 3-5 bears
-        PopulateCaribou(registry, availablePositions, 1 + _rng.Next(2)); // 1-2 herds
-        PopulateLargePrey(registry, availablePositions, 5 + _rng.Next(6)); // 5-10 individuals
+        PopulateCaribou(registry, availablePositions, 2 + _rng.Next(2)); // 2-3 herds
+        PopulateLargePrey(registry, availablePositions, 8 + _rng.Next(8)); // 8-15 individuals
 
         // New animals
         PopulateSaberTooths(registry, availablePositions, 1 + _rng.Next(2)); // 1-2 apex predators
@@ -61,8 +61,8 @@ public static class HerdPopulator
             // Add details to territory tiles (but not all - sparse placement)
             foreach (var pos in herd.HomeTerritory)
             {
-                // 30% chance per territory tile to add a detail
-                if (_rng.NextDouble() > 0.30) continue;
+                // 10% chance per territory tile to add a detail
+                if (_rng.NextDouble() > 0.10) continue;
 
                 var location = map.GetLocationAt(pos);
                 if (location == null) continue;
@@ -113,9 +113,9 @@ public static class HerdPopulator
     private static List<GridPosition> GetInteriorPositions(GameMap map)
     {
         var positions = new List<GridPosition>();
-        for (int x = 4; x < map.Width - 4; x++)
+        for (int x = 6; x < map.Width - 6; x++)
         {
-            for (int y = 4; y < map.Height - 4; y++)
+            for (int y = 6; y < map.Height - 6; y++)
             {
                 var loc = map.GetLocationAt(x, y);
                 if (loc != null && loc.IsPassable)

@@ -176,14 +176,8 @@ public class GameContext(Player player, Location camp, Weather weather)
         GameEventRegistry.ClearTriggerTimes();
         Weather weather = new Weather(-10);
 
-        // Generate world map
-        var worldGen = new GridWorldGenerator
-        {
-            Width = 32,
-            Height = 32,
-            TargetNamedLocations = 100,
-            MinLocationSpacing = 4
-        };
+        // Generate world map (uses defaults: 48x48 with 150 locations)
+        var worldGen = new GridWorldGenerator();
 
         var (map, camp) = worldGen.Generate(weather);
 

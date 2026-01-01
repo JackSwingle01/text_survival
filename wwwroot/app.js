@@ -138,13 +138,13 @@ class GameClient {
      */
     showOverlay(overlay, input) {
         const handler = this.overlays[overlay.type];
-        if (handler) {
-            // Special case: confirm overlay uses prompt instead of data
-            const data = overlay.type === 'confirm' ? overlay.prompt : overlay.data;
-            handler.render(data, this.currentInputId, input);
-        } else {
-            console.warn(`Unknown overlay type: ${overlay.type}`);
+        if (!handler) {
+            console.error(`[showOverlay] Unknown overlay type: ${overlay.type}`);
+            return;
         }
+        // Special case: confirm overlay uses prompt instead of data
+        const data = overlay.type === 'confirm' ? overlay.prompt : overlay.data;
+        handler.safeRender(data, this.currentInputId, input);
     }
 
     /**
@@ -163,10 +163,16 @@ class GameClient {
 
         this.socket.onopen = () => {
             this.reconnectAttempts = 0;
-            this.awaitingResponse = false;
+            // Block clicks until first frame arrives to prevent stale button race condition
+            this.awaitingResponse = true;
             // Reset inputId - the next frame from server will set the correct value
-            // This ensures any stale buttons from before reconnect are rejected
             this.currentInputId = 0;
+
+            // Clear all stale UI to prevent clicking old buttons with captured state
+            this.hideAllOverlays();
+            this.updateAvailableActions(null);
+            this.hideTilePopup();
+
             ConnectionOverlay.hide();
         };
 
@@ -922,6 +928,11 @@ class GameClient {
 
         const inputId = this.currentInputId;
         workActions.forEach(choice => {
+            // Skip choices without IDs to prevent sending empty strings to server
+            if (!choice.id) {
+                console.error('[updateAvailableActions] Choice missing id, skipping:', choice);
+                return;
+            }
             const btn = document.createElement('button');
             btn.className = 'btn btn--sm btn--full';
             btn.textContent = choice.label;

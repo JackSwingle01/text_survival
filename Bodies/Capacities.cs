@@ -150,7 +150,8 @@ public class CapacityModifierContainer
     public double GetCapacityModifier(string capacityName) => Math.Clamp(capacities.GetValueOrDefault(capacityName), -1, 1);
     public void SetCapacityModifier(string capacityName, double value) => capacities[capacityName] = Math.Clamp(value, -1, 1);
 
-    private Dictionary<string, double> capacities;
+    // Must be public for JSON serialization with IncludeFields
+    public Dictionary<string, double> capacities;
 
     public CapacityModifierContainer()
     {

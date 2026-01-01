@@ -136,23 +136,60 @@ public class TravelRunner(GameContext ctx)
         int exitTime = TravelProcessor.CalculateSegmentTime(origin, _ctx.player, _ctx.Inventory);
         int entryTime = TravelProcessor.CalculateSegmentTime(destination, _ctx.player, _ctx.Inventory);
 
-        // Track quick travel choices for injury checks
+        // Track quick travel choices and injury risks for checks after travel
         bool originQuickTravel = false;
         bool destQuickTravel = false;
+        double originInjuryRisk = 0;
+        double destInjuryRisk = 0;
 
-        // Handle hazard prompts upfront
-        if (TravelProcessor.IsHazardousTerrain(origin))
-        {
-            var (segmentTime, quickTravel) = PromptForSpeed(origin, exitTime, isExiting: true);
-            exitTime = segmentTime;
-            originQuickTravel = quickTravel;
-        }
+        // Check both locations for hazards upfront
+        bool originHazardous = TravelProcessor.IsHazardousTerrain(origin);
+        bool destHazardous = TravelProcessor.IsHazardousTerrain(destination);
 
-        if (TravelProcessor.IsHazardousTerrain(destination))
+        // Single prompt for the entire journey if any hazards
+        if (originHazardous || destHazardous)
         {
-            var (segmentTime, quickTravel) = PromptForSpeed(destination, entryTime, isExiting: false);
-            entryTime = segmentTime;
-            destQuickTravel = quickTravel;
+            // Calculate times and risks for hazardous segments
+            int originCarefulTime = (int)Math.Ceiling(exitTime * TravelProcessor.CarefulTravelMultiplier);
+            int destCarefulTime = (int)Math.Ceiling(entryTime * TravelProcessor.CarefulTravelMultiplier);
+            originInjuryRisk = originHazardous ? TravelProcessor.GetInjuryRisk(origin, _ctx.player, _ctx.Weather) : 0;
+            destInjuryRisk = destHazardous ? TravelProcessor.GetInjuryRisk(destination, _ctx.player, _ctx.Weather) : 0;
+
+            // Combined times for display (only hazardous segments count)
+            int combinedQuickTime = (originHazardous ? exitTime : 0) + (destHazardous ? entryTime : 0);
+            int combinedCarefulTime = (originHazardous ? originCarefulTime : 0) + (destHazardous ? destCarefulTime : 0);
+            double maxRisk = Math.Max(originInjuryRisk, destInjuryRisk);
+
+            // Use destination for position (where player is heading)
+            var position = _ctx.Map!.GetPosition(destination);
+            if (position == null)
+                throw new InvalidOperationException($"Location {destination.Name} not found on map");
+
+            // Combine hazard descriptions if both are hazardous with different types
+            string hazardType = GetCombinedHazardDescription(origin, destination, originHazardous, destHazardous);
+
+            bool quickTravel = WebIO.PromptHazardChoice(
+                _ctx,
+                destination,
+                position.Value.X,
+                position.Value.Y,
+                hazardType,
+                combinedQuickTime,
+                combinedCarefulTime,
+                maxRisk
+            );
+
+            // Apply speed choice to hazardous segments
+            if (originHazardous)
+            {
+                exitTime = quickTravel ? exitTime : originCarefulTime;
+                originQuickTravel = quickTravel;
+            }
+            if (destHazardous)
+            {
+                entryTime = quickTravel ? entryTime : destCarefulTime;
+                destQuickTravel = quickTravel;
+            }
         }
 
         // Single combined progress bar with synchronized camera pan
@@ -164,25 +201,17 @@ public class TravelRunner(GameContext ctx)
         if (died) return false;
         if (stayed) return true;  // Player chose to stay at origin after event - travel "succeeded" but ended early
 
-        // Apply injury checks after travel completes
-        if (originQuickTravel)
+        // Apply injury checks after travel completes - use risk captured at decision time
+        if (originQuickTravel && originInjuryRisk > 0 && Utils.RandDouble(0, 1) < originInjuryRisk)
         {
-            double injuryRisk = TravelProcessor.GetInjuryRisk(origin, _ctx.player, _ctx.Weather);
-            if (injuryRisk > 0 && Utils.RandDouble(0, 1) < injuryRisk)
-            {
-                TravelHandler.ApplyTravelInjury(_ctx, origin);
-                if (!_ctx.player.IsAlive) return false;
-            }
+            TravelHandler.ApplyTravelInjury(_ctx, origin);
+            if (!_ctx.player.IsAlive) return false;
         }
 
-        if (destQuickTravel)
+        if (destQuickTravel && destInjuryRisk > 0 && Utils.RandDouble(0, 1) < destInjuryRisk)
         {
-            double injuryRisk = TravelProcessor.GetInjuryRisk(destination, _ctx.player, _ctx.Weather);
-            if (injuryRisk > 0 && Utils.RandDouble(0, 1) < injuryRisk)
-            {
-                TravelHandler.ApplyTravelInjury(_ctx, destination);
-                if (!_ctx.player.IsAlive) return false;
-            }
+            TravelHandler.ApplyTravelInjury(_ctx, destination);
+            if (!_ctx.player.IsAlive) return false;
         }
 
         bool firstVisit = !destination.Explored;
@@ -222,39 +251,6 @@ public class TravelRunner(GameContext ctx)
     }
 
     /// <summary>
-    /// Prompts player for speed choice on hazardous terrain.
-    /// Returns adjusted time and whether quick travel was chosen.
-    /// </summary>
-    private (int segmentTime, bool quickTravel) PromptForSpeed(Location location, int normalTime, bool isExiting)
-    {
-        int carefulTime = (int)Math.Ceiling(normalTime * TravelProcessor.CarefulTravelMultiplier);
-        double injuryRisk = TravelProcessor.GetInjuryRisk(location, _ctx.player, _ctx.Weather);
-
-        // Get location position for UI overlay
-        var position = _ctx.Map!.GetPosition(location);
-        if (position == null)
-            throw new InvalidOperationException($"Location {location.Name} not found on map");
-
-        // Determine hazard type for display
-        string hazardType = GetHazardDescription(location);
-
-        // Use specialized hazard prompt (already exists in WebIO)
-        bool quickTravel = WebIO.PromptHazardChoice(
-            _ctx,
-            location,
-            position.Value.X,
-            position.Value.Y,
-            hazardType,
-            normalTime,
-            carefulTime,
-            injuryRisk
-        );
-
-        int segmentTime = quickTravel ? normalTime : carefulTime;
-        return (segmentTime, quickTravel);
-    }
-
-    /// <summary>
     /// Determines the specific hazard type for a location.
     /// </summary>
     private static string GetHazardDescription(Location location)
@@ -266,6 +262,29 @@ public class TravelRunner(GameContext ctx)
 
         // Generic terrain hazard
         return "terrain";
+    }
+
+    /// <summary>
+    /// Gets a combined hazard description for a journey crossing hazardous terrain.
+    /// </summary>
+    private static string GetCombinedHazardDescription(Location origin, Location destination, bool originHazardous, bool destHazardous)
+    {
+        if (originHazardous && destHazardous)
+        {
+            string originType = GetHazardDescription(origin);
+            string destType = GetHazardDescription(destination);
+            if (originType == destType)
+                return originType;
+            return $"{originType} and {destType}";
+        }
+        else if (originHazardous)
+        {
+            return GetHazardDescription(origin);
+        }
+        else
+        {
+            return GetHazardDescription(destination);
+        }
     }
 
     /// <summary>

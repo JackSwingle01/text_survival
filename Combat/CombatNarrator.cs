@@ -1,3 +1,4 @@
+using System.Text;
 using text_survival.Actors;
 using text_survival.Actors.Player;
 using text_survival.Bodies;
@@ -6,12 +7,206 @@ namespace text_survival.Combat;
 
 public static class CombatNarrator
 {
+    private static readonly Random _rng = new();
+
     private static readonly Dictionary<DamageType, List<string>> AttackVerbs = new()
     {
         { DamageType.Sharp, new List<string> { "slashes", "cuts", "slices", "carves" } },
         { DamageType.Blunt, new List<string> { "bashes", "strikes", "smashes", "cracks" } },
         { DamageType.Pierce, new List<string> { "stabs", "pierces", "impales", "punctures" } }
     };
+
+    #region Player Attack Narratives (used by CombatRunner)
+
+    /// <summary>
+    /// Describes the result of a player's attack on an animal.
+    /// Merges best features from CombatRunner and CombatNarrator.
+    /// </summary>
+    public static string DescribePlayerAttackHit(
+        string animalName,
+        string weaponName,
+        DamageResult result,
+        DamageType damageType,
+        bool isCritical)
+    {
+        string partName = FormatBodyPartName(result.HitPartName);
+        string verb = GetAttackVerb(damageType);
+
+        var sb = new StringBuilder();
+
+        // Main hit description
+        if (isCritical)
+        {
+            sb.Append($"Your {weaponName} {verb} deep into the {animalName}'s {partName}!");
+        }
+        else if (result.TotalDamageDealt > 0.15)
+        {
+            sb.Append($"Your {weaponName} {verb} the {animalName}'s {partName}.");
+        }
+        else if (result.TotalDamageDealt > 0.05)
+        {
+            sb.Append($"You land a hit on the {animalName}'s {partName}.");
+        }
+        else
+        {
+            sb.Append($"Your {weaponName} grazes the {animalName}'s {partName}.");
+        }
+
+        // Organ damage (critical info for player)
+        if (result.OrganHit && result.OrganHitName != null)
+        {
+            sb.Append($" {result.OrganHitName} damaged!");
+        }
+
+        // Bleeding effect
+        if (result.TriggeredEffects.Any(e => e.EffectKind == "Bleeding"))
+        {
+            sb.Append(" Blood flows from the wound.");
+        }
+
+        // Penetration detail for severe hits
+        if (result.WasPenetrating && result.TotalDamageDealt > 0.1 && !result.OrganHit)
+        {
+            if (result.TissuesDamaged.Any(t => t.TissueName == "Muscle"))
+            {
+                sb.Append(" The attack tears through muscle!");
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Describes a player's attack missing.
+    /// </summary>
+    public static string DescribePlayerMiss(string animalName, string? targetPart = null)
+    {
+        if (targetPart != null)
+        {
+            return $"Your thrust at the {animalName}'s {targetPart} misses!";
+        }
+        return $"Your attack misses the {animalName}.";
+    }
+
+    #endregion
+
+    #region Animal Attack Narratives (used by CombatRunner)
+
+    /// <summary>
+    /// Describes the result of an animal's attack on the player.
+    /// </summary>
+    public static string DescribeAnimalAttackHit(string animalName, DamageResult damageResult)
+    {
+        string partName = FormatBodyPartName(damageResult.HitPartName);
+        string organInfo = damageResult.OrganHit && damageResult.OrganHitName != null
+            ? $" {damageResult.OrganHitName} damaged!"
+            : "";
+
+        var options = new[]
+        {
+            $"The {animalName}'s attack catches your {partName}!{organInfo}",
+            $"The {animalName}'s jaws find your {partName}!{organInfo}",
+            $"The {animalName} strikes your {partName}!{organInfo}"
+        };
+        return options[_rng.Next(options.Length)];
+    }
+
+    #endregion
+
+    #region Behavior Transitions (used by CombatRunner)
+
+    /// <summary>
+    /// Describes animal behavior state transitions.
+    /// </summary>
+    public static string DescribeBehaviorTransition(
+        string animalName,
+        CombatBehavior from,
+        CombatBehavior to)
+    {
+        return (from, to) switch
+        {
+            (CombatBehavior.Circling, CombatBehavior.Retreating) =>
+                $"The {animalName}'s nerve wavers - it begins backing away.",
+
+            (CombatBehavior.Threatening, CombatBehavior.Retreating) =>
+                $"The {animalName} breaks off its threat display and retreats.",
+
+            (CombatBehavior.Circling, CombatBehavior.Threatening) =>
+                $"The {animalName} stops circling and moves to attack.",
+
+            (CombatBehavior.Threatening, CombatBehavior.Attacking) =>
+                $"The {animalName} commits to the attack!",
+
+            (CombatBehavior.Circling, CombatBehavior.Approaching) =>
+                $"The {animalName} begins closing the distance.",
+
+            (CombatBehavior.Approaching, CombatBehavior.Threatening) =>
+                $"The {animalName} is close enough to strike.",
+
+            (CombatBehavior.Attacking, CombatBehavior.Recovering) =>
+                $"The {animalName} is off-balance after its attack.",
+
+            (CombatBehavior.Recovering, CombatBehavior.Circling) =>
+                $"The {animalName} recovers and resumes circling.",
+
+            (CombatBehavior.Retreating, CombatBehavior.Circling) =>
+                $"The {animalName} regains its nerve and circles back.",
+
+            (CombatBehavior.Disengaging, CombatBehavior.Retreating) =>
+                $"The {animalName} breaks free and retreats.",
+
+            _ => "" // No message for other transitions
+        };
+    }
+
+    /// <summary>
+    /// Describes animal disengaging from combat.
+    /// </summary>
+    public static string DescribeDisengage(string animalName)
+    {
+        var messages = new[]
+        {
+            $"The {animalName} sniffs at your motionless form, then loses interest and lumbers away.",
+            $"Satisfied that you're no threat, the {animalName} turns and disappears.",
+            $"The {animalName} gives you one last look, then wanders off.",
+            $"Your stillness convinces the {animalName} the fight is over. It leaves."
+        };
+        return messages[_rng.Next(messages.Length)];
+    }
+
+    #endregion
+
+    #region Utility Methods
+
+    /// <summary>
+    /// Formats body part names for narrative display (e.g., "Left Arm" → "left arm").
+    /// </summary>
+    public static string FormatBodyPartName(string partName)
+    {
+        return partName.ToLower();
+    }
+
+    public static string GetAttackVerb(DamageType damageType)
+    {
+        if (AttackVerbs.TryGetValue(damageType, out var verbs))
+            return verbs[_rng.Next(verbs.Count)];
+        return "strikes";
+    }
+
+    public static string GetDamageSeverity(double damage)
+    {
+        return damage switch
+        {
+            <= 0.05 => "minimal",
+            <= 0.1 => "light",
+            <= 0.25 => "moderate",
+            <= 0.5 => "severe",
+            <= 1 => "critical",
+            _ => "devastating"
+        };
+    }
+
+    #endregion
 
     public static string DescribeAttack(Actor attacker, Actor target, DamageResult? damageResult, bool isHit, bool isDodged, bool isBlocked)
     {
@@ -111,26 +306,6 @@ public static class CombatNarrator
         sb.Append($"({Math.Round(damageResult.TotalDamageDealt, 1)})");
 
         return sb.ToString();
-    }
-
-    private static string GetAttackVerb(DamageType damageType)
-    {
-        if (AttackVerbs.TryGetValue(damageType, out var verbs))
-            return verbs[Utils.RandInt(0, verbs.Count - 1)];
-        return "strikes";
-    }
-
-    private static string GetDamageSeverity(double damage)
-    {
-        return damage switch
-        {
-            <= 0.05 => "minimal",
-            <= 0.1 => "light",
-            <= 0.25 => "moderate",
-            <= 0.5 => "severe",
-            <= 1 => "critical",
-            _ => "devastating"
-        };
     }
 
     public static string DescribeTargetStatus(string partName, double healthPercent)

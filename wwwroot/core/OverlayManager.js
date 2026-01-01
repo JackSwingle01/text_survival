@@ -37,6 +37,35 @@ export class OverlayManager {
     cleanup() {}
 
     /**
+     * Wrapper for render() that catches errors centrally.
+     * app.js calls this instead of render() directly.
+     */
+    safeRender(data, inputId, input) {
+        try {
+            if (data === undefined || data === null) {
+                console.error(`[${this.overlayId}] safeRender called with null/undefined data`);
+                return;
+            }
+            this.render(data, inputId, input);
+        } catch (error) {
+            console.error(`[${this.overlayId}] Render error:`, error);
+            console.error(`[${this.overlayId}] Data:`, JSON.stringify(data, null, 2));
+            // Don't re-throw - prevent one overlay from breaking entire frame
+        }
+    }
+
+    /**
+     * Safe document.getElementById with logging. Use in constructors.
+     */
+    getElement(id) {
+        const el = document.getElementById(id);
+        if (!el) {
+            console.warn(`[${this.overlayId}] Element '${id}' not found`);
+        }
+        return el;
+    }
+
+    /**
      * Get an element within this overlay
      */
     $(selector) {
@@ -147,6 +176,11 @@ export class OverlayManager {
      */
     renderChoices(container, choices) {
         choices.forEach(choice => {
+            // Skip choices without IDs to prevent sending empty strings to server
+            if (!choice.id) {
+                console.error('[OverlayManager] Choice missing id, skipping:', choice);
+                return;
+            }
             const btn = this.createOptionButton({
                 label: choice.label,
                 description: choice.description,

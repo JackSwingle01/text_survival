@@ -1,6 +1,7 @@
 import { OverlayManager } from '../core/OverlayManager.js';
 import { Animator } from '../core/Animator.js';
 import { Utils, show, hide } from '../modules/utils.js';
+import { TERRAIN_COLORS, renderTerrainTexture } from '../modules/grid/TerrainRenderer.js';
 
 /**
  * CombatOverlay - Multi-phase combat interface
@@ -32,6 +33,16 @@ export class CombatOverlay extends OverlayManager {
         this.rewardsEl = document.getElementById('combatRewards');
         this.outcomeActionsEl = document.getElementById('combatOutcomeActions');
         this.outcomeContinueBtn = document.getElementById('combatOutcomeContinueBtn');
+
+        // Combat grid elements (left pane)
+        this.gridPaneEl = document.getElementById('combatGridPane');
+        this.gridCanvasEl = document.getElementById('combatGridCanvas');
+        this.gridCtx = this.gridCanvasEl?.getContext('2d');
+
+        // Grid settings
+        this.GRID_SIZE = 25;          // 25x25 grid
+        this.CELL_SIZE = 20;          // pixels per cell
+        this.GRID_PADDING = 2;        // padding around grid
 
         // Distance track elements
         this.distanceValueEl = document.getElementById('combatDistanceValue');
@@ -186,6 +197,9 @@ export class CombatOverlay extends OverlayManager {
         show(this.behaviorDescEl);
         show(this.animalHealthEl);
 
+        // Render 2D combat grid
+        this.renderGrid(combatData);
+
         // Update combat state display
         this.updateDistanceBar(combatData);
         this.updateAggression(combatData);
@@ -216,6 +230,9 @@ export class CombatOverlay extends OverlayManager {
         // Hide intro, show content
         hide(this.introSectionEl);
         show(this.combatContentEl);
+
+        // Render 2D combat grid (keep visual context)
+        this.renderGrid(combatData);
 
         // Update bars (keep visual context)
         this.updateDistanceBar(combatData);
@@ -498,12 +515,190 @@ export class CombatOverlay extends OverlayManager {
         this.encounterOutcomeEl.appendChild(continueBtn);
     }
 
+    /**
+     * Render the 2D combat grid showing actor positions
+     */
+    renderGrid(combatData) {
+        if (!this.gridCanvasEl || !this.gridCtx || !combatData.grid) {
+            return;
+        }
+
+        const grid = combatData.grid;
+        const gridSize = grid.gridSize || this.GRID_SIZE;
+        const canvasSize = gridSize * this.CELL_SIZE + this.GRID_PADDING * 2;
+
+        // Set canvas size
+        this.gridCanvasEl.width = canvasSize;
+        this.gridCanvasEl.height = canvasSize;
+
+        const ctx = this.gridCtx;
+
+        // Draw terrain background if available
+        if (grid.terrain && grid.locationX != null && grid.locationY != null) {
+            // Fill with base terrain color
+            const baseColor = TERRAIN_COLORS[grid.terrain] || TERRAIN_COLORS.Plain;
+            ctx.fillStyle = baseColor;
+            ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+            // Tile terrain texture at world-map scale (120px tiles)
+            // This keeps texture elements (grass, trees) at their intended size
+            const tileSize = 120;
+            const tilesNeeded = Math.ceil(canvasSize / tileSize);
+
+            for (let ty = 0; ty < tilesNeeded; ty++) {
+                for (let tx = 0; tx < tilesNeeded; tx++) {
+                    // Use different seed offsets for each tile to vary the pattern
+                    const seedX = grid.locationX * 10 + tx;
+                    const seedY = grid.locationY * 10 + ty;
+                    renderTerrainTexture(ctx, grid.terrain, tx * tileSize, ty * tileSize, tileSize, seedX, seedY);
+                }
+            }
+        } else {
+            // Fallback: dark background
+            ctx.fillStyle = 'hsl(215, 25%, 12%)';
+            ctx.fillRect(0, 0, canvasSize, canvasSize);
+        }
+
+        // Draw distance zone rings from player position (1m per cell)
+        const cellSizeMeters = grid.cellSizeMeters || 1;
+
+        // Find player position for zone rings
+        const playerActor = grid.actors?.find(a => a.team?.toLowerCase() === 'player');
+        if (playerActor) {
+            const playerX = this.GRID_PADDING + playerActor.position.x * this.CELL_SIZE + this.CELL_SIZE / 2;
+            const playerY = this.GRID_PADDING + playerActor.position.y * this.CELL_SIZE + this.CELL_SIZE / 2;
+
+            // Zone boundaries in meters: Melee (3m), Close (8m), Mid (15m)
+            const zones = [
+                { radius: 3, color: 'rgba(255, 80, 80, 0.15)' },   // Melee - red
+                { radius: 8, color: 'rgba(255, 160, 80, 0.1)' },   // Close - orange
+                { radius: 15, color: 'rgba(255, 220, 80, 0.05)' }  // Mid - yellow
+            ];
+
+            zones.forEach(zone => {
+                const radiusPx = (zone.radius / cellSizeMeters) * this.CELL_SIZE;
+                ctx.beginPath();
+                ctx.arc(playerX, playerY, radiusPx, 0, Math.PI * 2);
+                ctx.fillStyle = zone.color;
+                ctx.fill();
+            });
+        }
+
+        // Draw actors
+        if (grid.actors) {
+            grid.actors.forEach(actor => {
+                this.drawActor(ctx, actor, gridSize);
+            });
+        }
+    }
+
+    /**
+     * Draw a single actor on the combat grid
+     */
+    drawActor(ctx, actor, gridSize) {
+        const x = this.GRID_PADDING + actor.position.x * this.CELL_SIZE + this.CELL_SIZE / 2;
+        const y = this.GRID_PADDING + actor.position.y * this.CELL_SIZE + this.CELL_SIZE / 2;
+        const radius = this.CELL_SIZE * 0.35;
+
+        // Color based on team
+        let fillColor, strokeColor, icon;
+        switch (actor.team?.toLowerCase()) {
+            case 'player':
+                fillColor = 'hsl(210, 60%, 45%)';
+                strokeColor = 'hsl(210, 70%, 60%)';
+                icon = '👤';
+                break;
+            case 'ally':
+                fillColor = 'hsl(120, 40%, 35%)';
+                strokeColor = 'hsl(120, 50%, 50%)';
+                icon = '🛡';
+                break;
+            case 'enemy':
+            default:
+                fillColor = 'hsl(0, 60%, 40%)';
+                strokeColor = 'hsl(0, 70%, 55%)';
+                icon = '🐺';
+                break;
+        }
+
+        // Alpha indicator if actor is alpha
+        if (actor.isAlpha) {
+            strokeColor = 'hsl(45, 100%, 50%)';
+        }
+
+        // Draw actor circle
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw icon/emoji in center
+        ctx.font = `${this.CELL_SIZE * 0.5}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(icon, x, y);
+
+        // Draw behavior state indicator for enemies
+        if (actor.team?.toLowerCase() === 'enemy' && actor.behaviorState) {
+            const indicatorColor = this.getBehaviorColor(actor.behaviorState);
+            ctx.beginPath();
+            ctx.arc(x + radius * 0.7, y - radius * 0.7, 4, 0, Math.PI * 2);
+            ctx.fillStyle = indicatorColor;
+            ctx.fill();
+        }
+    }
+
+    /**
+     * Get color for behavior state indicator
+     */
+    getBehaviorColor(behaviorState) {
+        const state = (behaviorState || '').toLowerCase();
+        switch (state) {
+            case 'attacking':
+            case 'charging':
+                return '#ff4444';  // Red - danger
+            case 'threatening':
+            case 'approaching':
+                return '#ff8844';  // Orange - warning
+            case 'circling':
+                return '#ffcc44';  // Yellow - caution
+            case 'retreating':
+            case 'disengaging':
+                return '#44cc44';  // Green - backing off
+            case 'recovering':
+                return '#4488ff';  // Blue - vulnerable
+            default:
+                return '#888888';  // Gray - unknown
+        }
+    }
+
     cleanup() {
+        // Clear DOM contents
         this.clear(this.actionsEl);
         this.clear(this.rewardsEl);
         this.clear(this.threatFactorsEl);
         this.clear(this.encounterChoicesEl);
         this.clear(this.encounterFactorsEl);
         this.clear(this.encounterOutcomeEl);
+
+        // Hide all sub-sections that might be visible
+        if (this.introSectionEl) hide(this.introSectionEl);
+        if (this.introActionsEl) hide(this.introActionsEl);
+        if (this.outcomeEl) hide(this.outcomeEl);
+        if (this.outcomeActionsEl) hide(this.outcomeActionsEl);
+        if (this.actionMessageEl) hide(this.actionMessageEl);
+        if (this.combatContentEl) hide(this.combatContentEl);
+
+        // Hide encounter overlay
+        const encounterOverlay = document.getElementById('encounterOverlay');
+        if (encounterOverlay) hide(encounterOverlay);
+
+        // Reset distance marker animation state
+        if (this.playerMarkerEl) {
+            this.playerMarkerEl.style.transition = 'none';
+        }
     }
 }

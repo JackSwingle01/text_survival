@@ -693,106 +693,119 @@
 
     <!-- Combat Overlay -->
     <div class="overlay hidden" id="combatOverlay">
-        <div class="modal-base modal-base--standard">
+        <div class="modal-base modal-base--wide">
             <div class="modal-header">
                 <h2 class="modal-header__title modal-header__title--danger">
                     <span class="material-symbols-outlined">swords</span>Combat
                 </h2>
             </div>
 
-            <div class="modal-content modal-content--center">
-                <!-- Intro Section (shown on first frame) -->
-                <div class="hidden combat-intro" id="combatIntroSection">
-                    <div class="panel panel--padded">
-                        <div class="combat-intro__message" id="combatIntroMessage"></div>
-                    </div>
+            <div class="modal-content modal-content--dual-pane">
+                <!-- Left Pane: Combat Grid -->
+                <div class="pane combat-grid-pane" id="combatGridPane">
+                    <canvas id="combatGridCanvas"></canvas>
                 </div>
 
-                <!-- Combat Content (hidden during intro) -->
-                <div id="combatContent">
-                    <!-- Animal name -->
-                    <div class="info-panel info-panel--center info-panel--danger">
-                        <div class="info-panel__title" id="combatAnimalName">Wolf</div>
+                <!-- Divider -->
+                <div class="divider">
+                    <span class="material-symbols-outlined">swords</span>
+                </div>
+
+                <!-- Right Pane: Combat Info -->
+                <div class="pane" id="combatInfoPane">
+                    <!-- Intro Section (shown on first frame) -->
+                    <div class="hidden combat-intro" id="combatIntroSection">
+                        <div class="panel panel--padded">
+                            <div class="combat-intro__message" id="combatIntroMessage"></div>
+                        </div>
                     </div>
 
-                    <div class="info-panel">
-                        <!-- Behavior badge + braced indicator -->
-                        <div class="combat-status">
-                            <span class="behavior-state" id="combatBehaviorState">Circling</span>
-                            <span class="badge hidden" id="combatPlayerBraced">
-                                <span class="material-symbols-outlined">shield</span>BRACED
-                            </span>
+                    <!-- Combat Content (hidden during intro) -->
+                    <div id="combatContent">
+                        <!-- Animal name -->
+                        <div class="info-panel info-panel--center info-panel--danger">
+                            <div class="info-panel__title" id="combatAnimalName">Wolf</div>
                         </div>
 
-                        <!-- Distance track with player marker -->
-                        <div class="distance-track">
-                            <div class="distance-track__header">
-                                <span class="distance-track__label">Distance</span>
-                                <span class="distance-track__value" id="combatDistanceValue">12m</span>
+                        <div class="info-panel">
+                            <!-- Behavior badge + braced indicator -->
+                            <div class="combat-status">
+                                <span class="behavior-state" id="combatBehaviorState">Circling</span>
+                                <span class="badge hidden" id="combatPlayerBraced">
+                                    <span class="material-symbols-outlined">shield</span>BRACED
+                                </span>
                             </div>
-                            <div class="distance-track__container">
-                                <!-- Player marker - position set via JS -->
-                                <div class="distance-track__player" id="combatPlayerMarker">
-                                    <span class="material-symbols-outlined">person_pin_circle</span>
+
+                            <!-- Distance track with player marker -->
+                            <div class="distance-track">
+                                <div class="distance-track__header">
+                                    <span class="distance-track__label">Distance</span>
+                                    <span class="distance-track__value" id="combatDistanceValue">12m</span>
                                 </div>
+                                <div class="distance-track__container">
+                                    <!-- Player marker - position set via JS -->
+                                    <div class="distance-track__player" id="combatPlayerMarker">
+                                        <span class="material-symbols-outlined">person_pin_circle</span>
+                                    </div>
 
-                                <!-- Track line -->
-                                <div class="distance-track__line"></div>
+                                    <!-- Track line -->
+                                    <div class="distance-track__line"></div>
 
-                                <!-- Zone tick marks (fixed positions) -->
-                                <div class="distance-track__ticks">
-                                    <span class="distance-track__tick" style="left: 0%;">25m</span>
-                                    <span class="distance-track__tick" style="left: 40%;">15m</span>
-                                    <span class="distance-track__tick" style="left: 68%;">8m</span>
-                                    <span class="distance-track__tick" style="left: 88%;">3m</span>
+                                    <!-- Zone tick marks (fixed positions) -->
+                                    <div class="distance-track__ticks">
+                                        <span class="distance-track__tick" style="left: 0%;">25m</span>
+                                        <span class="distance-track__tick" style="left: 40%;">15m</span>
+                                        <span class="distance-track__tick" style="left: 68%;">8m</span>
+                                        <span class="distance-track__tick" style="left: 88%;">3m</span>
+                                    </div>
+
+                                    <!-- Target fixed on right -->
+                                    <div class="distance-track__target" id="combatTargetMarker">
+                                        <span class="material-symbols-outlined">pets</span>
+                                    </div>
                                 </div>
+                            </div>
 
-                                <!-- Target fixed on right -->
-                                <div class="distance-track__target" id="combatTargetMarker">
-                                    <span class="material-symbols-outlined">pets</span>
+                            <!-- Aggression gauge -->
+                            <div class="gauge-bar">
+                                <div class="gauge-bar__label">
+                                    <span>Aggression</span>
+                                    <span class="gauge-bar__descriptor" id="combatAggressionDescriptor">wary</span>
+                                </div>
+                                <div class="gauge-bar__track">
+                                    <div class="gauge-bar__fill" id="combatAggressionFill"></div>
+                                </div>
+                            </div>
+
+                        </div>
+                        <!-- Behavior description -->
+                        <div class="event-description" id="combatBehaviorDesc">
+                            Looking for an opening
+                        </div>
+                        <div class="info-panel">
+                            <!-- Health narrative -->
+                            <div class="text-dim italic combat-health" id="combatAnimalHealth">
+                                The wolf appears unhurt.
+                            </div>
+
+                            <!-- Threat Factors -->
+                            <div class="hidden combat-threat-factors" id="combatThreatSection">
+                                <div id="combatThreatFactors">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Aggression gauge -->
-                        <div class="gauge-bar">
-                            <div class="gauge-bar__label">
-                                <span>Aggression</span>
-                                <span class="gauge-bar__descriptor" id="combatAggressionDescriptor">wary</span>
-                            </div>
-                            <div class="gauge-bar__track">
-                                <div class="gauge-bar__fill" id="combatAggressionFill"></div>
-                            </div>
+                        <!-- Last action message -->
+                        <div class="event-description" id="combatActionMessage"></div>
+
+                        <!-- Actions (hidden during outcome) -->
+                        <div class="combat-actions" id="combatActions"></div>
+
+                        <!-- Outcome section (hidden during combat) -->
+                        <div class="combat-outcome hidden" id="combatOutcome">
+                            <div class="event-description combat-outcome-message" id="combatOutcomeMessage"></div>
+                            <div class="combat-rewards" id="combatRewards"></div>
                         </div>
-
-                    </div>
-                    <!-- Behavior description -->
-                    <div class="event-description" id="combatBehaviorDesc">
-                        Looking for an opening
-                    </div>
-                    <div class="info-panel">
-                        <!-- Health narrative -->
-                        <div class="text-dim italic combat-health" id="combatAnimalHealth">
-                            The wolf appears unhurt.
-                        </div>
-
-                        <!-- Threat Factors -->
-                        <div class="hidden combat-threat-factors" id="combatThreatSection">
-                            <div id="combatThreatFactors">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Last action message -->
-                    <div class="event-description" id="combatActionMessage"></div>
-
-                    <!-- Actions (hidden during outcome) -->
-                    <div class="combat-actions" id="combatActions"></div>
-
-                    <!-- Outcome section (hidden during combat) -->
-                    <div class="combat-outcome hidden" id="combatOutcome">
-                        <div class="event-description combat-outcome-message" id="combatOutcomeMessage"></div>
-                        <div class="combat-rewards" id="combatRewards"></div>
                     </div>
                 </div>
             </div>

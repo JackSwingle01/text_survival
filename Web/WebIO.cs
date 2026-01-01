@@ -445,6 +445,9 @@ public static class WebIO
     {
         WaitForEventContinue(ctx);
         ClearCombat(ctx);
+
+        // Send a fresh frame so frontend knows what to show next
+        Render(ctx);
     }
 
     /// <summary>
@@ -481,7 +484,7 @@ public static class WebIO
             var label = display(item);
             var semanticId = GenerateSemanticId(label, i);
             var disabled = isDisabled?.Invoke(item) ?? false;
-            return new ChoiceDto(semanticId, label, disabled);
+            return new ChoiceDto(semanticId, label, !disabled);  // Invert: isAvailable = !disabled
         }).ToList();
 
         // Detect continue/stop pattern (2 choices, first is Continue)

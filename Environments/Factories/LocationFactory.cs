@@ -1252,6 +1252,1410 @@ public static class LocationFactory
         return location;
     }
 
+    // === NEW FOREST LOCATIONS ===
+
+    /// <summary>
+    /// Fallen Giant - massive downed tree providing shelter and abundant fuel.
+    /// </summary>
+    public static Location MakeFallenGiant(Weather weather)
+    {
+        var location = new Location(
+            name: "Fallen Giant",
+            tags: "[Forest] [Fuel] [Shelter]",
+            weather: weather,
+            terrainHazardLevel: 0.25,
+            windFactor: 0.4,
+            overheadCoverLevel: 0.5,
+            visibilityFactor: 0.5)
+        {
+            DiscoveryText = "A massive tree, ancient and fallen. Its trunk creates a natural windbreak, branches reaching skyward like ribs."
+        };
+
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 1.2));
+        location.Features.Add(FeatureFactory.CreateMassiveDeadfall());
+        location.Features.Add(new ShelterFeature("Trunk Hollow", 0.25, 0.5, 0.6));
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.6));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Hollow Oak - standing hollow tree providing natural shelter.
+    /// </summary>
+    public static Location MakeHollowOak(Weather weather)
+    {
+        var location = new Location(
+            name: "Hollow Oak",
+            tags: "[Forest] [Shelter] [Dark]",
+            weather: weather,
+            terrainHazardLevel: 0.15,
+            windFactor: 0.3,
+            overheadCoverLevel: 0.8,
+            visibilityFactor: 0.4)
+        {
+            DiscoveryText = "A gnarled oak, hollow at the base. The cavity is large enough to crouch in, protected from wind and snow."
+        };
+
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.8));
+        location.Features.Add(new ShelterFeature("Tree Hollow", 0.35, 0.8, 0.7));
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.5));
+        location.Features.Add(new WoodedAreaFeature("Old Oak", Resource.Oak, 60));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Fungal Grove - rotting logs rich with medicinal mushrooms.
+    /// </summary>
+    public static Location MakeFungalGrove(Weather weather)
+    {
+        var location = new Location(
+            name: "Fungal Grove",
+            tags: "[Forest] [Medicine] [Damp]",
+            weather: weather,
+            terrainHazardLevel: 0.2,
+            windFactor: 0.5,
+            overheadCoverLevel: 0.6,
+            visibilityFactor: 0.5)
+        {
+            DiscoveryText = "Rotting logs carpeted in shelf fungi and strange growths. The air smells of decay and earth. Medicinal, if you know what to look for."
+        };
+
+        // Enhanced mushroom foraging
+        var forage = new ForageFeature(1.5)
+            .AddTinder(0.3, 0.02, 0.05)
+            .AddAmadou(0.25, 0.03, 0.08)
+            .AddChaga(0.2, 0.02, 0.06)
+            .AddBirchPolypore(0.2, 0.02, 0.06);
+        location.Features.Add(forage);
+
+        location.Features.Add(FeatureFactory.CreateMixedDeadfall());
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.4));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Birch Stand - grove of birch trees with excellent bark for tinder.
+    /// </summary>
+    public static Location MakeBirchStand(Weather weather)
+    {
+        var location = new Location(
+            name: "Birch Stand",
+            tags: "[Forest] [Tinder] [Bright]",
+            weather: weather,
+            terrainHazardLevel: 0.1,
+            windFactor: 0.7,
+            overheadCoverLevel: 0.4,
+            visibilityFactor: 0.9)
+        {
+            DiscoveryText = "White bark gleams through the forest. A stand of birch, their papery bark curling in sheets. Tinder everywhere."
+        };
+
+        // Birch-focused foraging
+        var forage = new ForageFeature(1.3)
+            .AddBirchBark(0.8, 0.08, 0.2)
+            .AddSticks(0.6, 0.1, 0.3)
+            .AddTinder(0.4, 0.03, 0.08);
+        location.Features.Add(forage);
+
+        location.Features.Add(new WoodedAreaFeature("Birch Stand", Resource.Birch, 120));
+        location.Features.Add(FeatureFactory.CreateMixedPreyAnimals(density: 0.7));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Mossy Hollow - damp sheltered depression in the forest.
+    /// </summary>
+    public static Location MakeMossyHollow(Weather weather)
+    {
+        var location = new Location(
+            name: "Mossy Hollow",
+            tags: "[Forest] [Sheltered] [Damp]",
+            weather: weather,
+            terrainHazardLevel: 0.15,
+            windFactor: 0.3,
+            overheadCoverLevel: 0.7,
+            visibilityFactor: 0.4)
+        {
+            DiscoveryText = "The ground dips into a natural hollow, carpeted in thick moss. Sheltered from wind, though perpetually damp."
+        };
+
+        var forage = new ForageFeature(1.0)
+            .AddPlantFiber(0.5, 0.05, 0.12)
+            .AddTinder(0.3, 0.02, 0.05)
+            .AddSticks(0.4, 0.08, 0.2);
+        location.Features.Add(forage);
+
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.6));
+        location.Features.Add(new WoodedAreaFeature("Forest Trees", null, 80));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Tangled Roots - upturned root ball creating escape terrain.
+    /// </summary>
+    public static Location MakeTangledRoots(Weather weather)
+    {
+        var location = new Location(
+            name: "Tangled Roots",
+            tags: "[Forest] [Escape] [Difficult]",
+            weather: weather,
+            terrainHazardLevel: 0.35,
+            windFactor: 0.5,
+            overheadCoverLevel: 0.3,
+            visibilityFactor: 0.3)
+        {
+            Terrain = TerrainType.Forest,
+            TraversalModifier = 1.3,
+            DiscoveryText = "A massive tree torn from the ground, roots reaching like grasping fingers. The tangled mass creates a maze only you can navigate.",
+            IsEscapeTerrain = true
+        };
+
+        var forage = new ForageFeature(0.8)
+            .AddSticks(0.5, 0.1, 0.25)
+            .AddPlantFiber(0.3, 0.04, 0.1)
+            .AddBone(0.1, 0.05, 0.15);
+        location.Features.Add(forage);
+
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.8));
+
+        return location;
+    }
+
+    // === NEW PLAINS/CLEARING LOCATIONS ===
+
+    /// <summary>
+    /// Salt Lick - mineral deposit attracting prey animals.
+    /// </summary>
+    public static Location MakeSaltLick(Weather weather)
+    {
+        var location = new Location(
+            name: "Salt Lick",
+            tags: "[Plain] [Hunting] [Exposed]",
+            weather: weather,
+            terrainHazardLevel: 0.1,
+            windFactor: 1.0,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.4)
+        {
+            DiscoveryText = "A bare patch where animals have licked the earth white. Tracks converge from every direction. They come here regularly."
+        };
+
+        location.Features.Add(FeatureFactory.CreateOpenForage(density: 0.4));
+
+        // High animal density - the draw of this location
+        var animals = new AnimalTerritoryFeature(1.6)
+            .AddMegaloceros(1.5)
+            .AddCaribou(1.2)
+            .AddRabbit(0.8)
+            .WithPeakHours(5, 8, 2.0);
+        location.Features.Add(animals);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Tall Grass - prairie grass providing hiding cover.
+    /// </summary>
+    public static Location MakeTallGrass(Weather weather)
+    {
+        var location = new Location(
+            name: "Tall Grass",
+            tags: "[Plain] [Cover] [Hunting]",
+            weather: weather,
+            terrainHazardLevel: 0.1,
+            windFactor: 0.8,
+            overheadCoverLevel: 0.1,
+            visibilityFactor: 0.5)
+        {
+            DiscoveryText = "Grass taller than your waist, swaying in the wind. Small things rustle unseen. Good cover for stalking — or being stalked."
+        };
+
+        var forage = new ForageFeature(0.9)
+            .AddPlantFiber(0.7, 0.08, 0.18)
+            .AddTinder(0.4, 0.03, 0.08);
+        location.Features.Add(forage);
+
+        var animals = new AnimalTerritoryFeature(1.2)
+            .AddRabbit(1.5)
+            .AddPtarmigan(1.2)
+            .AddFox(0.5);
+        location.Features.Add(animals);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Standing Stones - mysterious markers providing wind shelter.
+    /// </summary>
+    public static Location MakeStandingStones(Weather weather)
+    {
+        var location = new Location(
+            name: "Standing Stones",
+            tags: "[Plain] [Shelter] [Ancient]",
+            weather: weather,
+            terrainHazardLevel: 0.1,
+            windFactor: 0.5,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.3)
+        {
+            DiscoveryText = "Stones stand upright in a rough circle, placed by hands long gone. The wind breaks around them. Someone worshipped here once."
+        };
+
+        var forage = new ForageFeature(0.5)
+            .AddStone(0.4, 0.1, 0.25)
+            .AddBone(0.15, 0.05, 0.15);
+        location.Features.Add(forage);
+
+        // Partial shelter from stones
+        location.Features.Add(new ShelterFeature("Stone Circle", 0.15, 0.0, 0.5));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Herd Crossing - migration path with high animal density.
+    /// </summary>
+    public static Location MakeHerdCrossing(Weather weather)
+    {
+        var location = new Location(
+            name: "Herd Crossing",
+            tags: "[Plain] [Hunting] [Trail]",
+            weather: weather,
+            terrainHazardLevel: 0.15,
+            windFactor: 0.9,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.3)
+        {
+            TraversalModifier = 0.8,
+            DiscoveryText = "The ground is beaten flat by countless hooves. A migration path — herds pass through here on their seasonal journey."
+        };
+
+        location.Features.Add(FeatureFactory.CreateOpenForage(density: 0.5));
+
+        // Exceptional hunting - migration route
+        var animals = new AnimalTerritoryFeature(1.8)
+            .AddCaribou(2.0)
+            .AddMegaloceros(1.5)
+            .AddBison(0.8)
+            .WithPeakHours(6, 10, 1.8);
+        location.Features.Add(animals);
+
+        return location;
+    }
+
+    // === NEW ROCKY/HILLS LOCATIONS ===
+
+    /// <summary>
+    /// Talus Slope - jumbled rock debris, treacherous but stone-rich.
+    /// </summary>
+    public static Location MakeTalusSlope(Weather weather)
+    {
+        var location = new Location(
+            name: "Talus Slope",
+            tags: "[Rock] [Stone] [Treacherous]",
+            weather: weather,
+            terrainHazardLevel: 0.55,
+            windFactor: 0.9,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.0)
+        {
+            TraversalModifier = 1.4,
+            DiscoveryText = "Loose rock cascades down the slope. Every step threatens to start a slide. But the stone here is good — fractured and ready."
+        };
+
+        var forage = new ForageFeature(1.2)
+            .AddStone(1.5, 0.2, 0.5)
+            .AddFlint(0.2, 0.05, 0.15);
+        location.Features.Add(forage);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Split Rock - cracked boulder creating natural shelter.
+    /// </summary>
+    public static Location MakeSplitRock(Weather weather)
+    {
+        var location = new Location(
+            name: "Split Rock",
+            tags: "[Rock] [Shelter] [Landmark]",
+            weather: weather,
+            terrainHazardLevel: 0.2,
+            windFactor: 0.4,
+            overheadCoverLevel: 0.6,
+            visibilityFactor: 0.8)
+        {
+            DiscoveryText = "A massive boulder, cleaved in two by ancient forces. The gap between is just wide enough to shelter in, dry and out of the wind."
+        };
+
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.6));
+        location.Features.Add(new ShelterFeature("Rock Cleft", 0.3, 0.6, 0.7));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Fossil Bed - exposed ancient bones for crafting materials.
+    /// </summary>
+    public static Location MakeFossilBed(Weather weather)
+    {
+        var location = new Location(
+            name: "Fossil Bed",
+            tags: "[Rock] [Bones] [Ancient]",
+            weather: weather,
+            terrainHazardLevel: 0.25,
+            windFactor: 0.8,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.1)
+        {
+            DiscoveryText = "Ancient bones jut from the eroded hillside. Not mammoth — older. Strange shapes, but the bone is still good."
+        };
+
+        var forage = new ForageFeature(0.9)
+            .AddBone(1.5, 0.2, 0.5)
+            .AddStone(0.4, 0.1, 0.25);
+        location.Features.Add(forage);
+
+        // Harvestable fossil bones
+        var fossils = new HarvestableFeature("fossil_bones", "Fossil Bones")
+        {
+            Description = "Ancient bones eroding from stone. Dense and well-preserved.",
+            MinutesToHarvest = 15
+        };
+        fossils.AddResource("fossil bone", Resource.Bone, maxQuantity: 10, weightPerUnit: 1.2, respawnHoursPerUnit: 0);
+        location.Features.Add(fossils);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Shale Outcrop - layered stone good for tools.
+    /// </summary>
+    public static Location MakeShaleOutcrop(Weather weather)
+    {
+        var location = new Location(
+            name: "Shale Outcrop",
+            tags: "[Rock] [Stone] [Exposed]",
+            weather: weather,
+            terrainHazardLevel: 0.3,
+            windFactor: 1.0,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.2)
+        {
+            DiscoveryText = "Layered stone, splitting into thin sheets. The edges are sharp where frost has cleaved them. Good for scraping tools."
+        };
+
+        var forage = new ForageFeature(1.1)
+            .AddShale(1.2, 0.15, 0.4)
+            .AddStone(0.5, 0.1, 0.25);
+        location.Features.Add(forage);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Chimney Rock - landmark spire with vantage point.
+    /// </summary>
+    public static Location MakeChimneyRock(Weather weather)
+    {
+        var location = new Location(
+            name: "Chimney Rock",
+            tags: "[Rock] [Vantage] [Landmark]",
+            weather: weather,
+            terrainHazardLevel: 0.4,
+            windFactor: 1.3,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.8)
+        {
+            DiscoveryText = "A lone spire of stone rises from the landscape. Visible for miles in every direction. From the top, you could see anything approaching.",
+            IsVantagePoint = true
+        };
+
+        location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.4));
+
+        return location;
+    }
+
+    // === NEW WATER/MARSH LOCATIONS ===
+
+    /// <summary>
+    /// Spring Seep - unfrozen water bubbling from the ground.
+    /// </summary>
+    public static Location MakeSpringSeep(Weather weather)
+    {
+        var location = new Location(
+            name: "Spring Seep",
+            tags: "[Water] [Warm] [Sheltered]",
+            weather: weather,
+            terrainHazardLevel: 0.2,
+            windFactor: 0.6,
+            overheadCoverLevel: 0.1,
+            visibilityFactor: 0.9)
+        {
+            DiscoveryText = "Water bubbles from the ground, too warm to freeze. A small pool collects before it soaks away. Animals come here to drink."
+        };
+
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.8));
+
+        var waterFeature = new WaterFeature("spring_water", "Spring")
+            .AsOpenWater()
+            .WithDescription("Clear water seeping from underground. Slightly warm, never freezes.");
+        location.Features.Add(waterFeature);
+
+        var animals = new AnimalTerritoryFeature(1.0)
+            .AddMegaloceros(1.0)
+            .AddRabbit(0.8)
+            .WithPeakHours(5, 8, 1.5);
+        location.Features.Add(animals);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Reed Bed - dense reeds providing fiber and waterfowl habitat.
+    /// </summary>
+    public static Location MakeReedBed(Weather weather)
+    {
+        var location = new Location(
+            name: "Reed Bed",
+            tags: "[Marsh] [Fiber] [Hunting]",
+            weather: weather,
+            terrainHazardLevel: 0.3,
+            windFactor: 0.5,
+            overheadCoverLevel: 0.2,
+            visibilityFactor: 0.4)
+        {
+            DiscoveryText = "Dense reeds crowd the shallows, rattling in the wind. Ducks burst from cover as you approach. Good fiber, if you can reach it."
+        };
+
+        var forage = new ForageFeature(1.4)
+            .AddPlantFiber(1.2, 0.1, 0.25)
+            .AddTinder(0.3, 0.02, 0.05);
+        location.Features.Add(forage);
+
+        location.Features.Add(FeatureFactory.CreateCattails());
+        location.Features.Add(FeatureFactory.CreateWaterfowlAnimals(density: 1.3));
+
+        var waterFeature = new WaterFeature("reed_water", "Reed Shallows")
+            .WithDescription("Shallow water between the reed stalks. Thin ice.")
+            .WithIceThickness(0.2);
+        location.Features.Add(waterFeature);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Fish Run - shallow rapids where fish can be caught.
+    /// </summary>
+    public static Location MakeFishRun(Weather weather)
+    {
+        var location = new Location(
+            name: "Fish Run",
+            tags: "[Water] [Fishing] [Open]",
+            weather: weather,
+            terrainHazardLevel: 0.25,
+            windFactor: 0.9,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.1)
+        {
+            DiscoveryText = "The stream narrows over rocks, forcing fish through a bottleneck. Dark shapes flash in the current. You could spear them here."
+        };
+
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.6));
+        location.Features.Add(FeatureFactory.CreateRiver());
+
+        var waterFeature = new WaterFeature("rapids_water", "Rapids")
+            .WithDescription("Fast-moving water over rocks. Too turbulent to freeze solid.")
+            .WithIceThickness(0.1);
+        location.Features.Add(waterFeature);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Cranberry Bog - tart berries in treacherous footing.
+    /// </summary>
+    public static Location MakeCranberryBog(Weather weather)
+    {
+        var location = new Location(
+            name: "Cranberry Bog",
+            tags: "[Marsh] [Food] [Treacherous]",
+            weather: weather,
+            terrainHazardLevel: 0.45,
+            windFactor: 0.6,
+            overheadCoverLevel: 0.1,
+            visibilityFactor: 0.7)
+        {
+            TraversalModifier = 1.3,
+            DiscoveryText = "Red berries dot the spongy ground, frozen but still good. The footing is treacherous — one wrong step and you're through."
+        };
+
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 1.0));
+        location.Features.Add(FeatureFactory.CreateBerryBush());
+        location.Features.Add(FeatureFactory.CreateWaterfowlAnimals(density: 0.6));
+
+        var waterFeature = new WaterFeature("bog_pools", "Bog Pools")
+            .WithDescription("Dark water hidden beneath thin ice and moss.")
+            .AsThinIce();
+        location.Features.Add(waterFeature);
+
+        return location;
+    }
+
+    // === NEW ANIMAL-FOCUSED LOCATIONS ===
+
+    /// <summary>
+    /// Raven's Perch - scavenger birds indicating nearby food.
+    /// </summary>
+    public static Location MakeRavensPerch(Weather weather)
+    {
+        var location = new Location(
+            name: "Raven's Perch",
+            tags: "[Forest] [Scavenger] [Vantage]",
+            weather: weather,
+            terrainHazardLevel: 0.15,
+            windFactor: 0.7,
+            overheadCoverLevel: 0.4,
+            visibilityFactor: 1.0)
+        {
+            DiscoveryText = "Ravens circle overhead, cawing. They've found something. Where there are ravens, there's often a kill nearby."
+        };
+
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.9));
+        location.Features.Add(new WoodedAreaFeature("Perch Trees", null, 60));
+
+        // Bones from scavenged kills
+        var forage = new ForageFeature(0.8)
+            .AddBone(0.4, 0.1, 0.3);
+        location.Features.Add(forage);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Fox Earth - small predator den with fur opportunity.
+    /// </summary>
+    public static Location MakeFoxEarth(Weather weather)
+    {
+        var location = new Location(
+            name: "Fox Earth",
+            tags: "[Forest] [Hunting] [Den]",
+            weather: weather,
+            terrainHazardLevel: 0.15,
+            windFactor: 0.5,
+            overheadCoverLevel: 0.5,
+            visibilityFactor: 0.6)
+        {
+            DiscoveryText = "A burrow entrance, well-used. The musky smell of fox. Small bones scattered around the opening. Valuable fur, if you're patient."
+        };
+
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.7));
+
+        var animals = new AnimalTerritoryFeature(0.9)
+            .AddFox(2.0)
+            .AddRabbit(0.6)
+            .WithPeakHours(4, 7, 1.8);
+        location.Features.Add(animals);
+
+        var forage = new ForageFeature(0.6)
+            .AddBone(0.3, 0.05, 0.15);
+        location.Features.Add(forage);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Owl Hollow - night hunter roost with bone pellets.
+    /// </summary>
+    public static Location MakeOwlHollow(Weather weather)
+    {
+        var location = new Location(
+            name: "Owl Hollow",
+            tags: "[Forest] [Dark] [Bones]",
+            weather: weather,
+            terrainHazardLevel: 0.1,
+            windFactor: 0.4,
+            overheadCoverLevel: 0.7,
+            visibilityFactor: 0.4)
+        {
+            DiscoveryText = "A hollow in a dead tree, streaked white. Pellets of compressed bone and fur litter the ground below. An owl's roost."
+        };
+
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.6));
+        location.Features.Add(new WoodedAreaFeature("Dead Snag", null, 40));
+
+        // Owl pellets provide small bones
+        var forage = new ForageFeature(0.7)
+            .AddBone(0.6, 0.08, 0.2);
+        location.Features.Add(forage);
+
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.5));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Eagle's Crag - high nest with feathers and vantage.
+    /// </summary>
+    public static Location MakeEaglesCrag(Weather weather)
+    {
+        var location = new Location(
+            name: "Eagle's Crag",
+            tags: "[Rock] [Vantage] [Exposed]",
+            weather: weather,
+            terrainHazardLevel: 0.45,
+            windFactor: 1.4,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 2.0)
+        {
+            DiscoveryText = "A massive nest crowns the cliff, built of sticks and bone. The eagle is gone, but feathers and remains litter the rock. The view is commanding.",
+            IsVantagePoint = true
+        };
+
+        location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
+
+        var forage = new ForageFeature(0.5)
+            .AddBone(0.5, 0.1, 0.3)
+            .AddStone(0.3, 0.08, 0.2);
+        location.Features.Add(forage);
+
+        return location;
+    }
+
+    // === LOCATIONS FROM DESIGN DOC ===
+
+    /// <summary>
+    /// Creek Falls - loud waterfall with fish opportunity. Sound covers approach.
+    /// </summary>
+    public static Location MakeCreekFalls(Weather weather)
+    {
+        var location = new Location(
+            name: "Creek Falls",
+            tags: "[Water] [Fishing] [Loud]",
+            weather: weather,
+            terrainHazardLevel: 0.45,
+            windFactor: 0.7,
+            overheadCoverLevel: 0.1,
+            visibilityFactor: 0.8)
+        {
+            DiscoveryText = "Water roars over a rocky drop. The spray freezes on the stones. Fish leap in the pool below — and the noise covers your approach."
+        };
+
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.7));
+        location.Features.Add(FeatureFactory.CreateRiver());
+
+        var waterFeature = new WaterFeature("falls_pool", "Falls Pool")
+            .WithDescription("A churning pool at the base of the falls. Open water even in deep cold.")
+            .AsOpenWater();
+        location.Features.Add(waterFeature);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Open Pines - fast travel, high visibility, good hunting sightlines.
+    /// </summary>
+    public static Location MakeOpenPines(Weather weather)
+    {
+        var location = new Location(
+            name: "Open Pines",
+            tags: "[Forest] [Open] [Fast]",
+            weather: weather,
+            terrainHazardLevel: 0.1,
+            windFactor: 0.8,
+            overheadCoverLevel: 0.5,
+            visibilityFactor: 1.2)
+        {
+            TraversalModifier = 0.7,
+            DiscoveryText = "Tall pines, widely spaced. The ground is clear of brush — you can move fast here, and see far. So can they."
+        };
+
+        var forage = new ForageFeature(0.9)
+            .AddSticks(0.5, 0.1, 0.3)
+            .AddPineNeedles(0.4)
+            .AddPineResin(0.15)
+            .AddTinder(0.3, 0.02, 0.06);
+        location.Features.Add(forage);
+
+        location.Features.Add(new WoodedAreaFeature("Pine Stand", Resource.Pine, 140));
+
+        var animals = new AnimalTerritoryFeature(1.1)
+            .AddCaribou(1.2)
+            .AddMegaloceros(1.0)
+            .AddWolf(0.4);
+        location.Features.Add(animals);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Young Growth - very dense regrowth, escape terrain, limited resources.
+    /// </summary>
+    public static Location MakeYoungGrowth(Weather weather)
+    {
+        var location = new Location(
+            name: "Young Growth",
+            tags: "[Forest] [Dense] [Escape]",
+            weather: weather,
+            terrainHazardLevel: 0.2,
+            windFactor: 0.3,
+            overheadCoverLevel: 0.6,
+            visibilityFactor: 0.2)
+        {
+            Terrain = TerrainType.Forest,
+            TraversalModifier = 1.4,
+            DiscoveryText = "Dense saplings crowd together, competing for light. You can barely push through — but nothing large can follow.",
+            IsEscapeTerrain = true
+        };
+
+        var forage = new ForageFeature(0.5)
+            .AddSticks(0.3, 0.05, 0.15)
+            .AddPlantFiber(0.3, 0.03, 0.08);
+        location.Features.Add(forage);
+
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.9));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Cliff Face - steep barrier with bird eggs and vantage point.
+    /// </summary>
+    public static Location MakeCliffFace(Weather weather)
+    {
+        var location = new Location(
+            name: "Cliff Face",
+            tags: "[Rock] [Vantage] [Climb]",
+            weather: weather,
+            terrainHazardLevel: 0.6,
+            windFactor: 1.2,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.6)
+        {
+            DiscoveryText = "Sheer stone rises before you. Bird nests dot the ledges above. Climbable, if you're careful — and the view would be worth it.",
+            IsVantagePoint = true
+        };
+
+        location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
+
+        var forage = new ForageFeature(0.4)
+            .AddStone(0.5, 0.15, 0.35)
+            .AddBone(0.2, 0.05, 0.15);
+        location.Features.Add(forage);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Root Hollow - hidden shelter beneath upturned roots.
+    /// </summary>
+    public static Location MakeRootHollow(Weather weather)
+    {
+        var location = new Location(
+            name: "Root Hollow",
+            tags: "[Forest] [Shelter] [Hidden]",
+            weather: weather,
+            terrainHazardLevel: 0.15,
+            windFactor: 0.2,
+            overheadCoverLevel: 0.8,
+            visibilityFactor: 0.2)
+        {
+            DiscoveryText = "A massive root ball, torn from the earth. The hollow beneath is dry and sheltered — barely room for one, but enough."
+        };
+
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.6));
+        location.Features.Add(new ShelterFeature("Root Hollow", 0.4, 0.8, 0.7));
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.5));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Deer Meadow - open grazing area with high animal activity at dawn/dusk.
+    /// </summary>
+    public static Location MakeDeerMeadow(Weather weather)
+    {
+        var location = new Location(
+            name: "Deer Meadow",
+            tags: "[Plain] [Hunting] [Exposed]",
+            weather: weather,
+            terrainHazardLevel: 0.1,
+            windFactor: 1.0,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.5)
+        {
+            DiscoveryText = "A broad meadow, grass poking through snow. Tracks everywhere — they graze here. But you'll be seen from a long way off."
+        };
+
+        var forage = new ForageFeature(0.6)
+            .AddPlantFiber(0.5, 0.05, 0.12)
+            .AddBone(0.1, 0.05, 0.15);
+        location.Features.Add(forage);
+
+        // High animal density with dawn/dusk peak
+        var animals = new AnimalTerritoryFeature(1.5)
+            .AddMegaloceros(1.8)
+            .AddCaribou(1.5)
+            .AddRabbit(0.6)
+            .WithPeakHours(5, 8, 2.2);
+        location.Features.Add(animals);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Rabbit Warren - reliable small game hunting ground.
+    /// </summary>
+    public static Location MakeRabbitWarren(Weather weather)
+    {
+        var location = new Location(
+            name: "Rabbit Warren",
+            tags: "[Forest] [Hunting] [Small Game]",
+            weather: weather,
+            terrainHazardLevel: 0.2,
+            windFactor: 0.6,
+            overheadCoverLevel: 0.5,
+            visibilityFactor: 0.6)
+        {
+            DiscoveryText = "Burrow entrances dot the slope, earth worn smooth by generations of rabbits. They're here — you just have to be patient."
+        };
+
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.7));
+
+        // Exceptional small game density
+        var animals = new AnimalTerritoryFeature(1.3)
+            .AddRabbit(2.5)
+            .AddFox(0.6)
+            .WithPeakHours(5, 7, 1.8);
+        location.Features.Add(animals);
+
+        return location;
+    }
+
+    // === BATCH 3: READY-NOW LOCATIONS ===
+
+    /// <summary>
+    /// Ice Shove Ridge - pressure ridges create shelter pockets, escape terrain.
+    /// </summary>
+    public static Location MakeIceShoveRidge(Weather weather)
+    {
+        var location = new Location(
+            name: "Ice Shove Ridge",
+            tags: "[Ice] [Shelter] [Escape]",
+            weather: weather,
+            terrainHazardLevel: 0.6,
+            windFactor: 0.3,
+            overheadCoverLevel: 0.4,
+            visibilityFactor: 0.6)
+        {
+            TraversalModifier = 1.5,
+            DiscoveryText = "Ice plates driven up into jagged ridges by wind and current. Treacherous to navigate, but sheltered pockets between the slabs.",
+            IsEscapeTerrain = true
+        };
+
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.2));
+
+        var waterFeature = new WaterFeature("pressure_ice", "Pressure Ice")
+            .WithDescription("Jumbled ice plates. Hard to reach open water, but harvestable ice everywhere.")
+            .AsSolidIce();
+        location.Features.Add(waterFeature);
+
+        location.Features.Add(new ShelterFeature("Ice Pocket", 0.25, 0.4, 0.6));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Overflow Ice - smooth ice with water welling up, fast but soaks you.
+    /// </summary>
+    public static Location MakeOverflowIce(Weather weather)
+    {
+        var location = new Location(
+            name: "Overflow Ice",
+            tags: "[Ice] [Fast] [Wet]",
+            weather: weather,
+            terrainHazardLevel: 0.7,
+            windFactor: 1.1,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.5)
+        {
+            TraversalModifier = 0.6,
+            DiscoveryText = "Mirror-smooth ice, water welling up through cracks and spreading in sheets. Fast travel — but your feet are soaked before you know it."
+        };
+
+        var waterFeature = new WaterFeature("overflow_water", "Overflow")
+            .AsOpenWater()
+            .WithDescription("Water bubbling up through ice cracks. Standing in it.");
+        location.Features.Add(waterFeature);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Mineral Spring - iron-rich medicinal water that attracts animals.
+    /// </summary>
+    public static Location MakeMineralSpring(Weather weather)
+    {
+        var location = new Location(
+            name: "Mineral Spring",
+            tags: "[Water] [Medicine] [Hunting]",
+            weather: weather,
+            terrainHazardLevel: 0.2,
+            windFactor: 0.6,
+            overheadCoverLevel: 0.1,
+            visibilityFactor: 0.9)
+        {
+            TemperatureDeltaF = 3,
+            DiscoveryText = "Water stained rust-red, smelling of iron. Warm from underground. Animals come for the minerals — and so do predators."
+        };
+
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.6));
+
+        var waterFeature = new WaterFeature("mineral_water", "Mineral Spring")
+            .AsOpenWater()
+            .WithDescription("Iron-rich water. Medicinal, if you can stomach the taste.");
+        location.Features.Add(waterFeature);
+
+        var animals = new AnimalTerritoryFeature(1.3)
+            .AddCaribou(1.2)
+            .AddMegaloceros(1.0)
+            .AddWolf(0.4)
+            .WithPeakHours(5, 8, 1.8);
+        location.Features.Add(animals);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Sinkhole Pool - deep dark water, fishing opportunity, dangerous approach.
+    /// </summary>
+    public static Location MakeSinkholePool(Weather weather)
+    {
+        var location = new Location(
+            name: "Sinkhole Pool",
+            tags: "[Water] [Dark] [Dangerous]",
+            weather: weather,
+            terrainHazardLevel: 0.55,
+            windFactor: 0.4,
+            overheadCoverLevel: 0.2,
+            visibilityFactor: 0.5)
+        {
+            DiscoveryText = "A perfect circle of dark water where the ground collapsed. Underground warmth keeps it open. Fish move in the depths — if you can reach them safely."
+        };
+
+        location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
+
+        var waterFeature = new WaterFeature("sinkhole_water", "Sinkhole")
+            .AsOpenWater()
+            .WithDescription("Deep, dark water. Never freezes. Rumored to have fish.");
+        location.Features.Add(waterFeature);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Snowfield Basin - deep snow, exhausting but shows all tracks.
+    /// </summary>
+    public static Location MakeSnowfieldBasin(Weather weather)
+    {
+        var location = new Location(
+            name: "Snowfield Basin",
+            tags: "[Snow] [Exposed] [Tracking]",
+            weather: weather,
+            terrainHazardLevel: 0.15,
+            windFactor: 0.7,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.4)
+        {
+            TraversalModifier = 2.0,
+            DiscoveryText = "A high bowl filled with deep snow. Post-holing through it exhausts you — but every track is preserved. Nothing moves through here unseen."
+        };
+
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.1));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Moraine Field - glacier debris with best stone but terrible footing.
+    /// </summary>
+    public static Location MakeMoraineField(Weather weather)
+    {
+        var location = new Location(
+            name: "Moraine Field",
+            tags: "[Rock] [Stone] [Treacherous]",
+            weather: weather,
+            terrainHazardLevel: 0.6,
+            windFactor: 1.0,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.2)
+        {
+            TraversalModifier = 1.4,
+            DiscoveryText = "Where the glacier dumped its load — boulders, gravel, sand jumbled together. The stone variety is excellent. The footing is murderous.",
+            IsEscapeTerrain = true
+        };
+
+        var forage = new ForageFeature(1.5)
+            .AddStone(2.0, 0.2, 0.6)
+            .AddFlint(0.3, 0.08, 0.2);
+        location.Features.Add(forage);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Scree Chute - fast downhill, slow uphill, announces your presence.
+    /// </summary>
+    public static Location MakeScreeChute(Weather weather)
+    {
+        var location = new Location(
+            name: "Scree Chute",
+            tags: "[Rock] [Slope] [Loud]",
+            weather: weather,
+            terrainHazardLevel: 0.45,
+            windFactor: 0.9,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.1)
+        {
+            TraversalModifier = 1.2,  // Average - faster down, slower up
+            DiscoveryText = "Loose rock in a steep channel. Going down is fast — going up is exhausting. Every step sends stones clattering."
+        };
+
+        var forage = new ForageFeature(0.8)
+            .AddStone(1.0, 0.15, 0.4)
+            .AddShale(0.5, 0.1, 0.3);
+        location.Features.Add(forage);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Krummholz Zone - stunted wind-twisted trees, abundant fuel, very slow.
+    /// </summary>
+    public static Location MakeKrummholzZone(Weather weather)
+    {
+        var location = new Location(
+            name: "Krummholz Zone",
+            tags: "[Forest] [Fuel] [Slow]",
+            weather: weather,
+            terrainHazardLevel: 0.25,
+            windFactor: 0.4,
+            overheadCoverLevel: 0.3,
+            visibilityFactor: 0.4)
+        {
+            TraversalModifier = 1.8,
+            DiscoveryText = "Stunted, wind-twisted trees barely knee-high. You're crawling through them — but there's firewood everywhere, and ptarmigan love it here."
+        };
+
+        var forage = new ForageFeature(2.0)
+            .AddSticks(1.5, 0.15, 0.4)
+            .AddTinder(0.5, 0.03, 0.08);
+        location.Features.Add(forage);
+
+        var animals = new AnimalTerritoryFeature(1.0)
+            .AddPtarmigan(2.0)
+            .AddRabbit(0.8);
+        location.Features.Add(animals);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Flint Knapping Site - ancient workshop with premium flint.
+    /// </summary>
+    public static Location MakeFlintKnappingSite(Weather weather)
+    {
+        var location = new Location(
+            name: "Flint Knapping Site",
+            tags: "[Rock] [Flint] [Ancient]",
+            weather: weather,
+            terrainHazardLevel: 0.2,
+            windFactor: 1.0,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.3)
+        {
+            DiscoveryText = "The ground glitters with flakes and failed attempts. Someone stood here making tools, long ago. The flint is premium quality."
+        };
+
+        var forage = new ForageFeature(2.0)
+            .AddFlint(2.0, 0.1, 0.3)
+            .AddStone(0.4, 0.1, 0.25);
+        location.Features.Add(forage);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Kill Site - mass bone pile from ancient hunt, draws scavengers.
+    /// </summary>
+    public static Location MakeKillSite(Weather weather)
+    {
+        var location = new Location(
+            name: "Kill Site",
+            tags: "[Bones] [Hunting] [Scavengers]",
+            weather: weather,
+            terrainHazardLevel: 0.2,
+            windFactor: 0.8,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.1)
+        {
+            DiscoveryText = "Bones piled where many animals died. A stampede? A coordinated hunt? The bones are old but usable — and scavengers remember this place."
+        };
+
+        var forage = new ForageFeature(1.5)
+            .AddBone(2.5, 0.3, 0.8);
+        location.Features.Add(forage);
+
+        // Harvestable bone pile
+        var boneHeap = new HarvestableFeature("bone_heap", "Bone Heap")
+        {
+            Description = "Jumbled bones from an ancient kill. Dense, quality material.",
+            MinutesToHarvest = 20
+        };
+        boneHeap.AddResource("quality bone", Resource.Bone, maxQuantity: 15, weightPerUnit: 1.0, respawnHoursPerUnit: 0);
+        location.Features.Add(boneHeap);
+
+        var animals = new AnimalTerritoryFeature(0.8)
+            .AddFox(1.5)
+            .AddWolf(0.6);
+        location.Features.Add(animals);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Rock Shelter - painted cave with established fire pit.
+    /// </summary>
+    public static Location MakeRockShelter(Weather weather)
+    {
+        var location = new Location(
+            name: "Rock Shelter",
+            tags: "[Shelter] [Ancient] [Fire]",
+            weather: weather,
+            terrainHazardLevel: 0.1,
+            windFactor: 0.2,
+            overheadCoverLevel: 0.9,
+            visibilityFactor: 0.3)
+        {
+            DiscoveryText = "Painted walls in the firelight. Someone lived here, seasons beyond counting. Their handprints are still on the stone. A fire pit is already dug."
+        };
+
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.3));
+        location.Features.Add(new ShelterFeature("Rock Shelter", 0.5, 0.9, 0.8));
+        location.Features.Add(SalvageFeature.CreateAbandonedCamp());
+
+        return location;
+    }
+
+    /// <summary>
+    /// Cairn Marker - stone stack revealing nearby locations.
+    /// </summary>
+    public static Location MakeCairnMarker(Weather weather)
+    {
+        var location = new Location(
+            name: "Cairn Marker",
+            tags: "[Landmark] [Exposed] [Ancient]",
+            weather: weather,
+            terrainHazardLevel: 0.1,
+            windFactor: 1.2,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.6)
+        {
+            DiscoveryText = "Stacked stones on a rise, placed by hands long gone. A message you can't read — but it marks something. The view from here reveals the land.",
+            IsVantagePoint = true
+        };
+
+        var forage = new ForageFeature(0.4)
+            .AddStone(0.5, 0.1, 0.25);
+        location.Features.Add(forage);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Mammoth Wallow - where mammoths roll, churned mud, dung fuel.
+    /// </summary>
+    public static Location MakeMammothWallow(Weather weather)
+    {
+        var location = new Location(
+            name: "Mammoth Wallow",
+            tags: "[Plain] [Megafauna] [Messy]",
+            weather: weather,
+            terrainHazardLevel: 0.4,
+            windFactor: 0.9,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.2)
+        {
+            TraversalModifier = 1.3,
+            DiscoveryText = "Churned mud and ice where something massive rolls to shed parasites. Fresh dung steams in the cold. They come here regularly."
+        };
+
+        // Dung as alternative fuel
+        var forage = new ForageFeature(1.0)
+            .AddTinder(0.8, 0.1, 0.3);  // Dried dung burns
+        location.Features.Add(forage);
+
+        location.Features.Add(new MegafaunaPresenceFeature
+        {
+            MegafaunaType = "Mammoth",
+            ActivityLevel = 0.9,
+            RespawnHours = 480
+        });
+
+        return location;
+    }
+
+    /// <summary>
+    /// Pyrite Outcrop - fire-starting material in exposed location.
+    /// </summary>
+    public static Location MakePyriteOutcrop(Weather weather)
+    {
+        var location = new Location(
+            name: "Pyrite Outcrop",
+            tags: "[Rock] [Fire] [Exposed]",
+            weather: weather,
+            terrainHazardLevel: 0.25,
+            windFactor: 1.1,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.3)
+        {
+            DiscoveryText = "Fool's gold glitters in the rock face. Worthless for trade — but strike it against flint and you get sparks."
+        };
+
+        var forage = new ForageFeature(1.2)
+            .AddPyrite(1.5, 0.05, 0.15)
+            .AddStone(0.5, 0.1, 0.25);
+        location.Features.Add(forage);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Glacial Tongue - ancient ice with preserved materials, extreme cold.
+    /// </summary>
+    public static Location MakeGlacialTongue(Weather weather)
+    {
+        var location = new Location(
+            name: "Glacial Tongue",
+            tags: "[Ice] [Ancient] [Cold]",
+            weather: weather,
+            terrainHazardLevel: 0.5,
+            windFactor: 1.0,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.0)
+        {
+            TemperatureDeltaF = -8,
+            DiscoveryText = "Ancient ice pushing into the valley, moving inches per year. Old things emerge from its face — bone, ivory, frozen flesh from creatures long dead."
+        };
+
+        // Ancient materials melting out
+        var ancientMaterials = new HarvestableFeature("glacial_melt", "Glacial Melt Zone")
+        {
+            Description = "The edge where ice meets air. Ancient materials emerge as the glacier melts.",
+            MinutesToHarvest = 25
+        };
+        ancientMaterials.AddResource("ancient bone", Resource.Bone, maxQuantity: 8, weightPerUnit: 1.5, respawnHoursPerUnit: 0);
+        ancientMaterials.AddResource("ancient ivory", Resource.Ivory, maxQuantity: 4, weightPerUnit: 2.0, respawnHoursPerUnit: 0);
+        location.Features.Add(ancientMaterials);
+
+        var waterFeature = new WaterFeature("glacier_ice", "Glacier Ice")
+            .AsSolidIce()
+            .WithDescription("Pure, ancient ice. Dense and cold.");
+        location.Features.Add(waterFeature);
+
+        return location;
+    }
+
+    /// <summary>
+    /// Deadfall Maze - massive fuel source, very slow, escape terrain.
+    /// </summary>
+    public static Location MakeDeadfallMaze(Weather weather)
+    {
+        var location = new Location(
+            name: "Deadfall Maze",
+            tags: "[Forest] [Fuel] [Escape]",
+            weather: weather,
+            terrainHazardLevel: 0.55,
+            windFactor: 0.5,
+            overheadCoverLevel: 0.4,
+            visibilityFactor: 0.3)
+        {
+            TraversalModifier = 1.6,
+            DiscoveryText = "Forest flattened by some ancient storm. Logs stacked chaotically in every direction. Fuel everywhere — but nothing large can follow you through.",
+            IsEscapeTerrain = true
+        };
+
+        var forage = new ForageFeature(3.0)
+            .AddSticks(2.0, 0.2, 0.5)
+            .AddMixedWood(1.5, 1.5, 4.0);
+        location.Features.Add(forage);
+
+        location.Features.Add(FeatureFactory.CreateMassiveDeadfall());
+        location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 1.2));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Smoke Tree - lightning-struck tree still smoldering, fire source.
+    /// </summary>
+    public static Location MakeSmokeTree(Weather weather)
+    {
+        var location = new Location(
+            name: "Smoke Tree",
+            tags: "[Forest] [Fire] [Landmark]",
+            weather: weather,
+            terrainHazardLevel: 0.2,
+            windFactor: 0.7,
+            overheadCoverLevel: 0.3,
+            visibilityFactor: 1.0)
+        {
+            DiscoveryText = "Smoke rises from a massive tree, struck by lightning and still smoldering inside. The wood is charred but preserved. You could light a torch here without tools."
+        };
+
+        // Charcoal and punk wood (smoldering tinder)
+        var smokeHarvest = new HarvestableFeature("smoke_tree", "Smoldering Tree")
+        {
+            Description = "Lightning-struck and still smoldering. Charcoal forms as it burns.",
+            MinutesToHarvest = 15
+        };
+        smokeHarvest.AddResource("charcoal", Resource.Charcoal, maxQuantity: 10, weightPerUnit: 0.3, respawnHoursPerUnit: 0);
+        location.Features.Add(smokeHarvest);
+
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.6));
+
+        return location;
+    }
+
+    /// <summary>
+    /// Thermal Vent - warmth from underground, barren but warm.
+    /// </summary>
+    public static Location MakeThermalVent(Weather weather)
+    {
+        var location = new Location(
+            name: "Thermal Vent",
+            tags: "[Warm] [Barren] [Landmark]",
+            weather: weather,
+            terrainHazardLevel: 0.3,
+            windFactor: 0.5,
+            overheadCoverLevel: 0.0,
+            visibilityFactor: 1.2)
+        {
+            TemperatureDeltaF = 12,
+            DiscoveryText = "Warm air rises from a crack in the earth. The snow never sticks here. Nothing grows — the sulfur kills everything — but the warmth is real."
+        };
+
+        // Barren - no forage
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.1));
+
+        return location;
+    }
+
     #endregion
 
     #region Mountain Pass Factories

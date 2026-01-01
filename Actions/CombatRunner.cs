@@ -185,6 +185,7 @@ public static class CombatRunner
         double terrainHazard = ctx.CurrentLocation.GetEffectiveTerrainHazard();
         double boldness = CalculateInitialBoldness(ctx, enemy);
         var state = new CombatState(enemy, enemy.DistanceFromPlayer, boldness, terrainHazard);
+        state.InitializeGrid(ctx.player);
         return RunCombatLoop(ctx, state);
     }
 
@@ -195,6 +196,7 @@ public static class CombatRunner
     {
         double terrainHazard = ctx.CurrentLocation.GetEffectiveTerrainHazard();
         var state = new CombatState(enemy, initialDistance, initialBoldness, terrainHazard);
+        state.InitializeGrid(ctx.player);
         return RunCombatLoop(ctx, state);
     }
 
@@ -314,7 +316,7 @@ public static class CombatRunner
             if (state.PreviousBehavior.HasValue &&
                 state.PreviousBehavior.Value != state.Behavior.CurrentBehavior)
             {
-                string transitionMsg = GetBehaviorTransitionMessage(
+                string transitionMsg = CombatNarrator.DescribeBehaviorTransition(
                     state.Animal.Name,
                     state.PreviousBehavior.Value,
                     state.Behavior.CurrentBehavior);
@@ -351,34 +353,16 @@ public static class CombatRunner
             }
         }
 
-        // Safety fallback - combat ended without explicit resolution
-        // This can happen if turn limit reached or edge case
-        CombatResult fallbackResult;
-        string fallbackMessage;
-
-        if (!ctx.player.IsAlive)
-        {
-            fallbackResult = CombatResult.Defeat;
-            fallbackMessage = "You collapse from your injuries.";
-        }
-        else if (!state.Animal.IsAlive)
-        {
-            fallbackResult = CombatResult.Victory;
-            fallbackMessage = $"The {state.Animal.Name} falls!";
-        }
-        else if (state.TurnCount >= MaxCombatTurns)
-        {
-            fallbackResult = CombatResult.AnimalFled;
-            fallbackMessage = $"The prolonged fight exhausts you both. The {state.Animal.Name} breaks off and flees.";
-        }
-        else
-        {
-            // Unknown edge case
-            fallbackResult = CombatResult.AnimalFled;
-            fallbackMessage = $"The {state.Animal.Name} breaks off and retreats.";
-        }
-
-        return ShowOutcome(ctx, state, fallbackResult, fallbackMessage);
+        // Safety fallback - should NEVER be reached now
+        // CheckForEnd() now handles ALL exit conditions (player death, animal death, turn limit)
+        // If we reach here, there's a bug in the combat loop logic
+        throw new InvalidOperationException(
+            $"[COMBAT BUG] Combat loop exited unexpectedly! " +
+            $"Animal alive: {state.Animal.IsAlive}, " +
+            $"Player alive: {ctx.player.IsAlive}, " +
+            $"Turns: {state.TurnCount}, " +
+            $"Zone: {state.Zone}, " +
+            $"Behavior: {state.Behavior.CurrentBehavior}");
     }
 
     #endregion
@@ -543,7 +527,7 @@ public static class CombatRunner
         if (!hit)
         {
             string targetName = target.ToString().ToLower();
-            string missNarrative = $"Your thrust at the {state.Animal.Name}'s {targetName} misses!";
+            string missNarrative = CombatNarrator.DescribePlayerMiss(state.Animal.Name, targetName);
             return (0, missNarrative);
         }
 
@@ -563,15 +547,16 @@ public static class CombatRunner
         }
 
         // Apply damage to specific body region
-        ApplyTargetedDamageToAnimal(ctx, state, damage, weapon, target, isCritical);
+        var damageResult = ApplyTargetedDamageToAnimal(ctx, state, damage, weapon, target, isCritical);
 
-        // Build narrative
-        string hitNarrative = BuildTargetedHitNarrative(state.Animal.Name, weapon.Name, target, damage, isCritical);
+        // Build narrative from actual damage result using CombatNarrator
+        string hitNarrative = CombatNarrator.DescribePlayerAttackHit(
+            state.Animal.Name, weapon.Name, damageResult, damageType, isCritical);
 
         return (damage, hitNarrative);
     }
 
-    private static void ApplyTargetedDamageToAnimal(
+    private static DamageResult ApplyTargetedDamageToAnimal(
         GameContext ctx, CombatState state, double damage, Gear weapon,
         AttackTarget target, bool isCritical)
     {
@@ -604,32 +589,8 @@ public static class CombatRunner
             // Crippling effect - reduces chase/charge effectiveness
             state.AddMessage($"The {state.Animal.Name} favors its wounded leg.");
         }
-    }
 
-    private static string BuildTargetedHitNarrative(string animalName, string weaponName, AttackTarget target, double damage, bool isCritical)
-    {
-        string targetName = target.ToString().ToLower();
-
-        if (isCritical && target == AttackTarget.Head)
-        {
-            return $"Your {weaponName} drives into the {animalName}'s skull! A devastating blow!";
-        }
-        else if (isCritical)
-        {
-            return $"Your {weaponName} finds a vital spot in the {animalName}'s {targetName}! Critical hit!";
-        }
-        else if (damage > 20)
-        {
-            return $"Your {weaponName} strikes deep into the {animalName}'s {targetName}!";
-        }
-        else if (damage > 10)
-        {
-            return $"You land a solid hit on the {animalName}'s {targetName}.";
-        }
-        else
-        {
-            return $"Your {weaponName} grazes the {animalName}'s {targetName}.";
-        }
+        return result;
     }
 
     private static ActionResult ProcessThrow(GameContext ctx, CombatState state)
@@ -693,7 +654,7 @@ public static class CombatRunner
             // Animal gets free attack during retrieval
             double damage = state.Animal.AttackDamage * 0.7; // Glancing blow while you grab weapon
             var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal, damage);
-            string partName = FormatBodyPartName(damageResult.HitPartName);
+            string partName = CombatNarrator.FormatBodyPartName(damageResult.HitPartName);
             narrative = $"You dive for your weapon! The {state.Animal.Name} catches your {partName} as you grab it.";
         }
         else
@@ -747,7 +708,7 @@ public static class CombatRunner
             // Failed grapple - you take damage
             double damage = state.Animal.AttackDamage * 0.5;
             var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal, damage);
-            string partName = FormatBodyPartName(damageResult.HitPartName);
+            string partName = CombatNarrator.FormatBodyPartName(damageResult.HitPartName);
 
             string narrative = $"The {state.Animal.Name} slips free and bites your {partName}!";
             return new ActionResult(narrative, null, CombatPlayerAction.Grapple);
@@ -925,7 +886,7 @@ public static class CombatRunner
             // Didn't work - animal attacks
             double damage = state.Animal.AttackDamage * 1.5; // Vulnerable position
             var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal, damage);
-            string partName = FormatBodyPartName(damageResult.HitPartName);
+            string partName = CombatNarrator.FormatBodyPartName(damageResult.HitPartName);
 
             return new ActionResult(
                 $"You go down, but the {state.Animal.Name} isn't fooled. It mauls your {partName}!",
@@ -1043,33 +1004,9 @@ public static class CombatRunner
             default:
                 // No defense chosen - take full damage
                 var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal, baseDamage);
-                narrative = GetAnimalAttackNarrative(state.Animal, damageResult);
+                narrative = CombatNarrator.DescribeAnimalAttackHit(state.Animal.Name, damageResult);
                 return narrative;
         }
-    }
-
-    private static string GetAnimalAttackNarrative(Animal animal, DamageResult damageResult)
-    {
-        string partName = FormatBodyPartName(damageResult.HitPartName);
-        string organInfo = damageResult.OrganHit && damageResult.OrganHitName != null
-            ? $" {damageResult.OrganHitName} damaged!"
-            : "";
-
-        var options = new[]
-        {
-            $"The {animal.Name}'s attack catches your {partName}!{organInfo}",
-            $"The {animal.Name}'s jaws find your {partName}!{organInfo}",
-            $"The {animal.Name} strikes your {partName}!{organInfo}"
-        };
-        return options[_rng.Next(options.Length)];
-    }
-
-    /// <summary>
-    /// Formats body part names for narrative display (e.g., "Left Arm" → "left arm").
-    /// </summary>
-    private static string FormatBodyPartName(string partName)
-    {
-        return partName.ToLower();
     }
 
     #endregion
@@ -1207,7 +1144,7 @@ public static class CombatRunner
 
             case CombatResult.AnimalDisengaged:
                 outcomeType = "disengaged";
-                message = GetDisengageMessage(state.Animal);
+                message = CombatNarrator.DescribeDisengage(state.Animal.Name);
                 break;
 
             case CombatResult.DistractedWithMeat:
@@ -1231,59 +1168,6 @@ public static class CombatRunner
         WebIO.WaitForCombatContinue(ctx);
 
         return result;
-    }
-
-    private static string GetDisengageMessage(Animal enemy)
-    {
-        var messages = new[]
-        {
-            $"The {enemy.Name} sniffs at your motionless form, then loses interest and lumbers away.",
-            $"Satisfied that you're no threat, the {enemy.Name} turns and disappears.",
-            $"The {enemy.Name} gives you one last look, then wanders off.",
-            $"Your stillness convinces the {enemy.Name} the fight is over. It leaves."
-        };
-        return messages[_rng.Next(messages.Length)];
-    }
-
-    private static string GetBehaviorTransitionMessage(
-        string animalName,
-        CombatBehavior from,
-        CombatBehavior to)
-    {
-        return (from, to) switch
-        {
-            (CombatBehavior.Circling, CombatBehavior.Retreating) =>
-                $"The {animalName}'s nerve wavers - it begins backing away.",
-
-            (CombatBehavior.Threatening, CombatBehavior.Retreating) =>
-                $"The {animalName} breaks off its threat display and retreats.",
-
-            (CombatBehavior.Circling, CombatBehavior.Threatening) =>
-                $"The {animalName} stops circling and moves to attack.",
-
-            (CombatBehavior.Threatening, CombatBehavior.Attacking) =>
-                $"The {animalName} commits to the attack!",
-
-            (CombatBehavior.Circling, CombatBehavior.Approaching) =>
-                $"The {animalName} begins closing the distance.",
-
-            (CombatBehavior.Approaching, CombatBehavior.Threatening) =>
-                $"The {animalName} is close enough to strike.",
-
-            (CombatBehavior.Attacking, CombatBehavior.Recovering) =>
-                $"The {animalName} is off-balance after its attack.",
-
-            (CombatBehavior.Recovering, CombatBehavior.Circling) =>
-                $"The {animalName} recovers and resumes circling.",
-
-            (CombatBehavior.Retreating, CombatBehavior.Circling) =>
-                $"The {animalName} regains its nerve and circles back.",
-
-            (CombatBehavior.Disengaging, CombatBehavior.Retreating) =>
-                $"The {animalName} breaks free and retreats.",
-
-            _ => "" // No message for other transitions
-        };
     }
 
     #endregion
@@ -1316,6 +1200,9 @@ public static class CombatRunner
             _ => "cautious"
         };
 
+        // Build grid data if available
+        var grid = BuildGridData(ctx, state);
+
         return new CombatDto(
             AnimalName: state.Animal.Name,
             AnimalHealthDescription: state.GetAnimalHealthDescription(),
@@ -1334,7 +1221,56 @@ public static class CombatRunner
             NarrativeMessage: narrative,
             Actions: actions,
             ThreatFactors: factors,
-            Outcome: outcome
+            Outcome: outcome,
+            Grid: grid
+        );
+    }
+
+    /// <summary>
+    /// Build grid data for 2D visualization.
+    /// </summary>
+    private static CombatGridDto? BuildGridData(GameContext ctx, CombatState state)
+    {
+        if (state.Map == null) return null;
+
+        // Get terrain info from current location
+        var terrain = ctx.CurrentLocation?.Terrain.ToString();
+        var locationX = ctx.Map?.CurrentPosition.X;
+        var locationY = ctx.Map?.CurrentPosition.Y;
+
+        var actors = new List<CombatGridActorDto>();
+
+        foreach (var actor in state.Actors)
+        {
+            var pos = state.Map.GetPosition(actor);
+            if (pos == null) continue;
+
+            var team = actor.Team switch
+            {
+                CombatTeam.Player => "player",
+                CombatTeam.Enemy => "enemy",
+                CombatTeam.Ally => "ally",
+                _ => "unknown"
+            };
+
+            actors.Add(new CombatGridActorDto(
+                Id: actor.Id.ToString(),
+                Name: actor.Name,
+                Team: team,
+                Position: new CombatGridPositionDto(pos.Value.X, pos.Value.Y),
+                BehaviorState: actor.CurrentBehavior?.ToString(),
+                Vitality: actor.IsPlayer ? null : actor.Vitality,
+                IsAlpha: state.Alpha == actor
+            ));
+        }
+
+        return new CombatGridDto(
+            GridSize: CombatMap.GridSize,
+            CellSizeMeters: CombatMap.CellSizeMeters,
+            Actors: actors,
+            Terrain: terrain,
+            LocationX: locationX,
+            LocationY: locationY
         );
     }
 

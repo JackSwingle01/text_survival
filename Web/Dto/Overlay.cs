@@ -422,7 +422,10 @@ public record CombatDto(
     List<ThreatFactorDto> ThreatFactors,
 
     // Outcome (null during combat)
-    CombatOutcomeDto? Outcome
+    CombatOutcomeDto? Outcome,
+
+    // 2D Grid visualization (new)
+    CombatGridDto? Grid = null            // null if grid not initialized
 );
 
 /// <summary>
@@ -455,4 +458,37 @@ public record CombatOutcomeDto(
     string Result,                        // "victory", "defeat", "fled", "animal_fled", "disengaged"
     string Message,
     List<string>? Rewards                 // Items gained on victory
+);
+
+/// <summary>
+/// A position on the combat grid.
+/// </summary>
+public record CombatGridPositionDto(
+    int X,
+    int Y
+);
+
+/// <summary>
+/// An actor on the combat grid (player, enemy, ally).
+/// </summary>
+public record CombatGridActorDto(
+    string Id,
+    string Name,
+    string Team,                          // "player", "enemy", "ally"
+    CombatGridPositionDto Position,
+    string? BehaviorState,                // null for player
+    double? Vitality,                     // 0-1, null if not shown
+    bool IsAlpha                          // Pack alpha (for visual indicator)
+);
+
+/// <summary>
+/// Combat grid data for 2D visualization.
+/// </summary>
+public record CombatGridDto(
+    int GridSize,                         // e.g., 25 for 25x25
+    double CellSizeMeters,                // e.g., 1.0
+    List<CombatGridActorDto> Actors,
+    string? Terrain = null,               // e.g., "Forest", "Plain" for background
+    int? LocationX = null,                // World X coordinate for seeded textures
+    int? LocationY = null                 // World Y coordinate for seeded textures
 );

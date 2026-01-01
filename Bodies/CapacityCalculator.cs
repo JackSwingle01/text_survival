@@ -83,7 +83,13 @@ public static class CapacityCalculator
 
     public static CapacityContainer GetRegionCapacities(BodyRegion region)
     {
-        // Step 1: Sum all base capacities from organs
+        // Destroyed region = no functioning organs
+        if (region.IsDestroyed)
+        {
+            return new CapacityContainer(); // All zeros
+        }
+
+        // Step 1: Sum all base capacities from organs and tissues
         var baseCapacities = new CapacityContainer();
         foreach (var organ in region.Organs)
         {
@@ -95,13 +101,31 @@ public static class CapacityCalculator
             baseCapacities += material!.GetBaseCapacities();
         }
 
-        // Step 2: Calculate combined material multipliers (including organs)
+        // Step 2: Calculate combined tissue multipliers (region damage affects all capacities)
         var allParts = materials.Concat(region.Organs.Cast<Tissue>()).ToList();
         var allMultipliers = allParts.Select(p => p.GetConditionMultipliers()).ToList();
         var avgMultipliers = AverageCapacityContainers(allMultipliers);
 
-        // Step 3: Apply multipliers to base capacities
-        return baseCapacities.ApplyMultipliers(avgMultipliers);
+        // Step 3: Apply averaged multipliers
+        var result = baseCapacities.ApplyMultipliers(avgMultipliers);
+
+        // Step 4: Critical organ override - if an organ providing full capacity is destroyed, zero it
+        foreach (var organ in region.Organs)
+        {
+            if (organ.Condition <= 0)
+            {
+                var provided = organ.GetBaseCapacities();
+                foreach (var capacityName in CapacityNames.All)
+                {
+                    if (provided.GetCapacity(capacityName) >= 1.0)
+                    {
+                        result.SetCapacity(capacityName, 0);
+                    }
+                }
+            }
+        }
+
+        return result;
     }
 
     private static CapacityContainer AverageCapacityContainers(List<CapacityContainer> containers)
@@ -109,8 +133,7 @@ public static class CapacityCalculator
         if (containers.Count == 0) return CapacityContainer.GetBaseCapacityMultiplier();
 
         var result = new CapacityContainer();
-        var capacityNames = CapacityNames.All;
-        foreach (var capacityName in capacityNames)
+        foreach (var capacityName in CapacityNames.All)
         {
             double avg = containers.Average(c => c.GetCapacity(capacityName));
             result.SetCapacity(capacityName, avg);

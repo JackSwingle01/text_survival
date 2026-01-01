@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Actors;
 using text_survival.Actors.Animals;
 
 namespace text_survival.Combat;
@@ -41,11 +42,48 @@ public class CombatState
 
     #region Core State
 
-    /// <summary>The animal being fought.</summary>
+    /// <summary>The animal being fought (legacy single-enemy property).</summary>
     public Animal Animal { get; }
 
-    /// <summary>Distance in meters between player and animal.</summary>
+    /// <summary>Distance in meters between player and animal (legacy 1D property).</summary>
     public double DistanceMeters { get; private set; }
+
+    #endregion
+
+    #region Multi-Actor State (New)
+
+    /// <summary>2D combat grid managing actor positions.</summary>
+    public CombatMap? Map { get; private set; }
+
+    /// <summary>All actors in this combat (enemies, player, allies).</summary>
+    public List<CombatActor> Actors { get; } = new();
+
+    /// <summary>Quick reference to the player actor.</summary>
+    public CombatActor? PlayerActor { get; private set; }
+
+    /// <summary>Pack morale (null for solo enemies, 0-1 for packs).</summary>
+    public double? PackMorale { get; set; }
+
+    /// <summary>The alpha of the pack (wounding has extra morale impact).</summary>
+    public CombatActor? Alpha { get; set; }
+
+    /// <summary>Whether this is a multi-actor combat (uses new system).</summary>
+    public bool IsMultiActor => Map != null && Actors.Count > 0;
+
+    /// <summary>Get all active enemy actors.</summary>
+    public IEnumerable<CombatActor> ActiveEnemies =>
+        Actors.Where(a => a.IsEnemy && a.IsActive);
+
+    /// <summary>Get all active ally actors.</summary>
+    public IEnumerable<CombatActor> ActiveAllies =>
+        Actors.Where(a => a.IsAlly && a.IsActive);
+
+    /// <summary>Get count of enemies still in the fight.</summary>
+    public int ActiveEnemyCount => ActiveEnemies.Count();
+
+    #endregion
+
+    #region Legacy State (for backward compatibility)
 
     /// <summary>Previous distance for UI animation.</summary>
     public double? PreviousDistanceMeters { get; private set; }
@@ -150,6 +188,55 @@ public class CombatState
         );
     }
 
+    /// <summary>
+    /// Initialize the 2D grid for 1v1 combat.
+    /// Places player at bottom-center, enemy at top based on distance.
+    /// </summary>
+    public void InitializeGrid(Actor player)
+    {
+        Map = new CombatMap();
+
+        // Create combat actors
+        PlayerActor = CombatActor.CreatePlayer(player);
+        var enemyActor = CombatActor.CreateEnemy(Animal, Behavior.Boldness);
+
+        Actors.Clear();
+        Actors.Add(PlayerActor);
+        Actors.Add(enemyActor);
+
+        // Place player at bottom-center
+        int centerX = CombatMap.GridSize / 2;
+        int playerY = CombatMap.GridSize - 3;  // Near bottom
+        Map.SetPosition(PlayerActor, new CombatPosition(centerX, playerY));
+
+        // Place enemy at top, distance away (1m per cell)
+        int distanceCells = (int)Math.Round(DistanceMeters);
+        int enemyY = Math.Max(0, playerY - distanceCells);
+        Map.SetPosition(enemyActor, new CombatPosition(centerX, enemyY));
+    }
+
+    /// <summary>
+    /// Sync grid positions after a distance change (for 1v1 compatibility).
+    /// Moves the enemy vertically (toward top = away from player).
+    /// </summary>
+    private void SyncGridPositions()
+    {
+        if (Map == null || PlayerActor == null) return;
+
+        var enemy = Actors.FirstOrDefault(a => a.IsEnemy);
+        if (enemy == null) return;
+
+        var playerPos = Map.GetPosition(PlayerActor);
+        if (playerPos == null) return;
+
+        // Enemy moves vertically: distance cells up from player (1m per cell)
+        int distanceCells = (int)Math.Round(DistanceMeters);
+        int enemyY = Math.Max(0, playerPos.Value.Y - distanceCells);
+
+        var newPos = new CombatPosition(playerPos.Value.X, enemyY);
+        Map.SetPosition(enemy, newPos);
+    }
+
     #endregion
 
     #region Distance Management
@@ -172,6 +259,7 @@ public class CombatState
         PreviousDistanceMeters = DistanceMeters;
         double actualMove = CalculateMovement(BasePlayerMove, playerMovingCapacity);
         DistanceMeters = Math.Max(DistanceZoneHelper.MeleeCenter, DistanceMeters - actualMove);
+        SyncGridPositions();
         return actualMove;
     }
 
@@ -183,6 +271,7 @@ public class CombatState
         PreviousDistanceMeters = DistanceMeters;
         double actualMove = CalculateMovement(BasePlayerMove, playerMovingCapacity);
         DistanceMeters = Math.Min(DistanceZoneHelper.FarMax + 5, DistanceMeters + actualMove);
+        SyncGridPositions();
         return actualMove;
     }
 
@@ -195,6 +284,7 @@ public class CombatState
         double animalSpeed = Animal.SpeedMps / 2.0; // Normalize to reasonable combat movement
         double actualMove = CalculateMovement(BaseAnimalMove, Math.Min(1.0, animalSpeed / 5.0));
         DistanceMeters = Math.Max(DistanceZoneHelper.MeleeCenter, DistanceMeters - actualMove);
+        SyncGridPositions();
         return actualMove;
     }
 
@@ -207,6 +297,7 @@ public class CombatState
         double animalSpeed = Animal.SpeedMps / 2.0;
         double actualMove = CalculateMovement(BaseAnimalMove, Math.Min(1.0, animalSpeed / 5.0));
         DistanceMeters = Math.Min(DistanceZoneHelper.FarMax + 5, DistanceMeters + actualMove);
+        SyncGridPositions();
         return actualMove;
     }
 
@@ -217,6 +308,7 @@ public class CombatState
     {
         PreviousDistanceMeters = DistanceMeters;
         DistanceMeters = Math.Max(DistanceZoneHelper.MeleeCenter, DistanceMeters - meters);
+        SyncGridPositions();
     }
 
     /// <summary>
@@ -226,6 +318,7 @@ public class CombatState
     {
         PreviousDistanceMeters = DistanceMeters;
         DistanceMeters = Math.Min(DistanceZoneHelper.FarMax + 5, DistanceMeters + meters);
+        SyncGridPositions();
     }
 
     /// <summary>
@@ -235,6 +328,7 @@ public class CombatState
     {
         PreviousDistanceMeters = DistanceMeters;
         DistanceMeters = DistanceZoneHelper.GetZoneCenter(zone);
+        SyncGridPositions();
     }
 
     /// <summary>
@@ -348,6 +442,13 @@ public class CombatState
         if (!Animal.IsAlive)
             return CombatOutcome.Victory;
 
+        // Turn limit reached (100 turns)
+        if (TurnCount >= 100)
+        {
+            Console.WriteLine("[COMBAT] Turn limit reached - combat timeout");
+            return CombatOutcome.AnimalFled;
+        }
+
         // Animal fleeing at far range
         if (Behavior.IsTryingToFlee() && Zone == DistanceZone.Far)
             return CombatOutcome.AnimalFled;
@@ -410,6 +511,137 @@ public class CombatState
     {
         // At Far range with movement capacity, you can always disengage successfully
         return CanDisengage(ctx);
+    }
+
+    #endregion
+
+    #region Multi-Actor Initialization
+
+    /// <summary>
+    /// Initialize multi-actor combat with a 2D grid.
+    /// Call after constructor to set up the new system.
+    /// </summary>
+    public void InitializeMultiActor(Actor player, IEnumerable<Animal> enemies, double initialDistance)
+    {
+        Map = new CombatMap();
+        Actors.Clear();
+
+        // Place player at center
+        PlayerActor = CombatActor.CreatePlayer(player);
+        Actors.Add(PlayerActor);
+        Map.SetPosition(PlayerActor, CombatMap.CenterPosition);
+
+        // Place enemies at distance, spread around
+        var enemyList = enemies.ToList();
+        double angleStep = 360.0 / Math.Max(1, enemyList.Count);
+        double angle = 0;
+
+        foreach (var enemy in enemyList)
+        {
+            var actor = CombatActor.CreateEnemy(enemy, enemy.EncounterBoldness);
+            Actors.Add(actor);
+            Map.SetPositionAtDistance(actor, PlayerActor, initialDistance, angle);
+            angle += angleStep;
+        }
+
+        // First enemy is alpha by default (can be overridden)
+        if (enemyList.Count > 0)
+        {
+            Alpha = Actors.FirstOrDefault(a => a.IsEnemy);
+        }
+
+        // Initialize pack morale if multiple enemies
+        if (enemyList.Count > 1)
+        {
+            PackMorale = 0.7; // Starting morale
+        }
+    }
+
+    /// <summary>
+    /// Add an ally to the combat.
+    /// </summary>
+    public CombatActor AddAlly(Actor ally, double distanceFromPlayer, double angle = 180)
+    {
+        if (Map == null || PlayerActor == null)
+            throw new InvalidOperationException("Must call InitializeMultiActor first");
+
+        var actor = CombatActor.CreateAlly(ally, 0.5);
+        Actors.Add(actor);
+        Map.SetPositionAtDistance(actor, PlayerActor, distanceFromPlayer, angle);
+        return actor;
+    }
+
+    /// <summary>
+    /// Add a reinforcement enemy mid-combat.
+    /// </summary>
+    public CombatActor AddEnemy(Animal enemy, double distanceFromPlayer, double angle)
+    {
+        if (Map == null || PlayerActor == null)
+            throw new InvalidOperationException("Must call InitializeMultiActor first");
+
+        var actor = CombatActor.CreateEnemy(enemy, enemy.EncounterBoldness);
+        Actors.Add(actor);
+        Map.SetPositionAtDistance(actor, PlayerActor, distanceFromPlayer, angle);
+        return actor;
+    }
+
+    #endregion
+
+    #region Multi-Actor Distance Queries
+
+    /// <summary>
+    /// Get distance between player and an enemy (in meters).
+    /// Uses CombatMap for multi-actor, falls back to DistanceMeters for legacy.
+    /// </summary>
+    public double GetDistanceTo(CombatActor enemy)
+    {
+        if (Map != null && PlayerActor != null)
+        {
+            return Map.GetDistanceMeters(PlayerActor, enemy);
+        }
+        return DistanceMeters; // Legacy fallback
+    }
+
+    /// <summary>
+    /// Get distance zone between player and an enemy.
+    /// </summary>
+    public DistanceZone GetZoneTo(CombatActor enemy)
+    {
+        if (Map != null && PlayerActor != null)
+        {
+            return Map.GetZone(PlayerActor, enemy);
+        }
+        return Zone; // Legacy fallback
+    }
+
+    /// <summary>
+    /// Get the nearest active enemy to the player.
+    /// </summary>
+    public CombatActor? GetNearestEnemy()
+    {
+        if (Map == null || PlayerActor == null) return null;
+
+        return Map.GetNearestActor(PlayerActor, ActiveEnemies) as CombatActor;
+    }
+
+    /// <summary>
+    /// Get all enemies in a specific zone from the player.
+    /// </summary>
+    public IEnumerable<CombatActor> GetEnemiesInZone(DistanceZone zone)
+    {
+        if (Map == null || PlayerActor == null)
+            return Enumerable.Empty<CombatActor>();
+
+        return ActiveEnemies.Where(e => GetZoneTo(e) == zone);
+    }
+
+    /// <summary>
+    /// Count enemies in melee/close range (for flanking calculation).
+    /// </summary>
+    public int GetEnemiesInMeleeRange()
+    {
+        return GetEnemiesInZone(DistanceZone.Melee).Count() +
+               GetEnemiesInZone(DistanceZone.Close).Count();
     }
 
     #endregion

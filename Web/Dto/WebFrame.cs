@@ -13,7 +13,7 @@ public record WebFrame(
     string? StatusText = null
 );
 
-public record ChoiceDto(string Id, string Label, bool IsDisabled = false);
+public record ChoiceDto(string Id, string Label, bool IsAvailable = true);
 
 public record InputRequestDto(
     int InputId,           // Unique ID for this input request

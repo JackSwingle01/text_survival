@@ -9,11 +9,11 @@ namespace text_survival.Environments.Factories;
 /// </summary>
 public class GridWorldGenerator
 {
-    public int Width { get; set; } = 32;
-    public int Height { get; set; } = 32;
-    public int TargetNamedLocations { get; set; } = 100;
-    public int MinLocationSpacing { get; set; } = 4;  // Minimum tiles between named locations
-    public int MountainRows { get; set; } = 6;
+    public int Width { get; set; } = 48;
+    public int Height { get; set; } = 48;
+    public int TargetNamedLocations { get; set; } = 150;
+    public int MinLocationSpacing { get; set; } = 5;  // Minimum tiles between named locations
+    public int MountainRows { get; set; } = 9;
 
     // Terrain matrix used during generation
     private TerrainType[,] _terrain = null!;
@@ -48,26 +48,38 @@ public class GridWorldGenerator
     // null terrain means location can be placed anywhere
     private static readonly List<(Func<Weather, Location> Factory, double Weight, TerrainType[]? PreferredTerrain)> LocationWeights =
     [
-        // Forest locations
-        (LocationFactory.MakeForest, 40.0, [TerrainType.Forest]),
+        // Forest locations (rebalanced - was 40.0 for MakeForest alone)
+        (LocationFactory.MakeForest, 8.0, [TerrainType.Forest]),
         (LocationFactory.MakeDeadwoodGrove, 4.0, [TerrainType.Forest]),
         (LocationFactory.MakeAncientGrove, 2.0, [TerrainType.Forest]),
         (LocationFactory.MakeDenseThicket, 3.0, [TerrainType.Forest]),
         (LocationFactory.MakeWolfDen, 1.5, [TerrainType.Forest]),
         (LocationFactory.MakeBurntStand, 4.0, [TerrainType.Forest]),
+        // New forest locations
+        (LocationFactory.MakeFallenGiant, 6.0, [TerrainType.Forest]),
+        (LocationFactory.MakeHollowOak, 5.0, [TerrainType.Forest]),
+        (LocationFactory.MakeFungalGrove, 4.0, [TerrainType.Forest]),
+        (LocationFactory.MakeBirchStand, 5.0, [TerrainType.Forest]),
+        (LocationFactory.MakeMossyHollow, 4.0, [TerrainType.Forest]),
+        (LocationFactory.MakeTangledRoots, 3.0, [TerrainType.Forest]),
 
-        // Clearing/Plain locations
-        (LocationFactory.MakeClearing, 15.0, [TerrainType.Clearing]),
+        // Clearing/Plain locations (rebalanced)
+        (LocationFactory.MakeClearing, 6.0, [TerrainType.Clearing]),
         (LocationFactory.MakePlain, 5.0, [TerrainType.Plain, TerrainType.Clearing]),
         (LocationFactory.MakeGameTrail, 4.0, [TerrainType.Clearing, TerrainType.Plain]),
         (LocationFactory.MakeShelteredValley, 3.0, [TerrainType.Clearing, TerrainType.Forest]),
         (LocationFactory.MakeSnowfieldHollow, 4.0, [TerrainType.Plain, TerrainType.Clearing]),
         (LocationFactory.MakeAbandonedCamp, 0.5, [TerrainType.Clearing, TerrainType.Forest]),
         (LocationFactory.MakeOldCampsite, 0.6, [TerrainType.Clearing, TerrainType.Forest]),
+        // New plains/clearing locations
+        (LocationFactory.MakeSaltLick, 3.0, [TerrainType.Plain, TerrainType.Clearing]),
+        (LocationFactory.MakeTallGrass, 4.0, [TerrainType.Plain, TerrainType.Clearing]),
+        (LocationFactory.MakeStandingStones, 2.0, [TerrainType.Plain, TerrainType.Clearing]),
+        (LocationFactory.MakeHerdCrossing, 3.0, [TerrainType.Plain, TerrainType.Clearing]),
 
-        // Rock/Hills locations
-        (LocationFactory.MakeStoneScatter, 10.0, [TerrainType.Rock, TerrainType.Hills]),
-        (LocationFactory.MakeHillside, 8.0, [TerrainType.Hills]),
+        // Rock/Hills locations (rebalanced)
+        (LocationFactory.MakeStoneScatter, 5.0, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeHillside, 5.0, [TerrainType.Hills]),
         (LocationFactory.MakeOverlook, 3.0, [TerrainType.Hills, TerrainType.Rock]),
         (LocationFactory.MakeCave, 2.0, [TerrainType.Rock]),
         (LocationFactory.MakeRockOverhang, 3.0, [TerrainType.Rock, TerrainType.Hills]),
@@ -81,6 +93,12 @@ public class GridWorldGenerator
         (LocationFactory.MakeBoneHollow, 3.5, [TerrainType.Rock, TerrainType.Hills]),
         (LocationFactory.MakeWindGap, 3.5, [TerrainType.Hills]),
         (LocationFactory.MakeSunWarmedCliff, 4.0, [TerrainType.Rock, TerrainType.Hills]),
+        // New rock/hills locations
+        (LocationFactory.MakeTalusSlope, 4.0, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeSplitRock, 3.0, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeFossilBed, 2.0, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeShaleOutcrop, 3.0, [TerrainType.Rock]),
+        (LocationFactory.MakeChimneyRock, 2.0, [TerrainType.Rock, TerrainType.Hills]),
 
         // Water locations
         (LocationFactory.MakeRiverbank, 7.0, [TerrainType.Water]),
@@ -89,10 +107,57 @@ public class GridWorldGenerator
         (LocationFactory.MakeBeaverDam, 1.0, [TerrainType.Water]),
         (LocationFactory.MakeIceShelf, 4.0, [TerrainType.Water]),
         (LocationFactory.MakeHotSpring, 1.5, [TerrainType.Water, TerrainType.Rock]),
+        // New water locations
+        (LocationFactory.MakeSpringSeep, 3.0, [TerrainType.Water]),
+        (LocationFactory.MakeFishRun, 2.0, [TerrainType.Water]),
 
         // Marsh locations
         (LocationFactory.MakeMarsh, 4.0, [TerrainType.Marsh]),
-        (LocationFactory.MakePeatBog, 4.0, [TerrainType.Marsh])
+        (LocationFactory.MakePeatBog, 4.0, [TerrainType.Marsh]),
+        // New marsh locations
+        (LocationFactory.MakeReedBed, 4.0, [TerrainType.Marsh]),
+        (LocationFactory.MakeCranberryBog, 3.0, [TerrainType.Marsh]),
+
+        // Animal-focused locations (new)
+        (LocationFactory.MakeRavensPerch, 2.0, [TerrainType.Forest, TerrainType.Clearing]),
+        (LocationFactory.MakeFoxEarth, 2.0, [TerrainType.Forest]),
+        (LocationFactory.MakeOwlHollow, 2.0, [TerrainType.Forest]),
+        (LocationFactory.MakeEaglesCrag, 1.5, [TerrainType.Rock, TerrainType.Hills]),
+
+        // Design doc locations
+        (LocationFactory.MakeCreekFalls, 2.5, [TerrainType.Water]),
+        (LocationFactory.MakeOpenPines, 5.0, [TerrainType.Forest]),
+        (LocationFactory.MakeYoungGrowth, 3.0, [TerrainType.Forest]),
+        (LocationFactory.MakeCliffFace, 2.0, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeRootHollow, 2.5, [TerrainType.Forest]),
+        (LocationFactory.MakeDeerMeadow, 3.0, [TerrainType.Plain, TerrainType.Clearing]),
+        (LocationFactory.MakeRabbitWarren, 3.0, [TerrainType.Forest, TerrainType.Clearing]),
+
+        // Batch 3: Ready-now locations using existing features
+        // Water
+        (LocationFactory.MakeIceShoveRidge, 2.5, [TerrainType.Water]),
+        (LocationFactory.MakeOverflowIce, 2.0, [TerrainType.Water]),
+        (LocationFactory.MakeMineralSpring, 1.5, [TerrainType.Water, TerrainType.Rock]),
+        (LocationFactory.MakeSinkholePool, 1.5, [TerrainType.Water]),
+        // Elevation
+        (LocationFactory.MakeSnowfieldBasin, 3.0, [TerrainType.Plain, TerrainType.Clearing]),
+        (LocationFactory.MakeMoraineField, 2.5, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeScreeChute, 2.0, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeKrummholzZone, 2.5, [TerrainType.Forest, TerrainType.Hills]),
+        // Human traces
+        (LocationFactory.MakeFlintKnappingSite, 1.5, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeKillSite, 1.0, [TerrainType.Plain, TerrainType.Clearing]),
+        (LocationFactory.MakeRockShelter, 2.0, [TerrainType.Rock]),
+        (LocationFactory.MakeCairnMarker, 2.0, [TerrainType.Hills, TerrainType.Rock]),
+        // Megafauna
+        (LocationFactory.MakeMammothWallow, 1.5, [TerrainType.Plain, TerrainType.Marsh]),
+        // Resource
+        (LocationFactory.MakePyriteOutcrop, 2.0, [TerrainType.Rock, TerrainType.Hills]),
+        (LocationFactory.MakeGlacialTongue, 1.0, [TerrainType.Rock]),
+        // Unique
+        (LocationFactory.MakeDeadfallMaze, 2.0, [TerrainType.Forest]),
+        (LocationFactory.MakeSmokeTree, 0.8, [TerrainType.Forest]),
+        (LocationFactory.MakeThermalVent, 1.0, [TerrainType.Rock, TerrainType.Hills])
     ];
 
     /// <summary>
@@ -198,7 +263,7 @@ public class GridWorldGenerator
             }
 
             // Layer 2: Rock - scattered single tiles
-            int rockCount = _rng.Next(25, 41);
+            int rockCount = _rng.Next(56, 93);
             for (int i = 0; i < rockCount; i++)
             {
                 var (x, y) = RandomPosition(avoidMountainRows: true);
@@ -209,15 +274,15 @@ public class GridWorldGenerator
             }
 
             // Layer 3: Clearings - clusters placed in forest
-            int clearingClusters = _rng.Next(12, 21);
+            int clearingClusters = _rng.Next(27, 48);
             PlaceClusters(clearingClusters, TerrainType.Clearing, TerrainType.Forest, MediumShapes);
 
             // Layer 4: Hills - clusters placed in plains
-            int hillClusters = _rng.Next(10, 17);
+            int hillClusters = _rng.Next(23, 39);
             PlaceClusters(hillClusters, TerrainType.Hills, TerrainType.Plain, MediumShapes);
 
             // Layer 5: Water - small clusters scattered
-            int waterFeatures = _rng.Next(10, 17);
+            int waterFeatures = _rng.Next(23, 39);
             PlaceClusters(waterFeatures, TerrainType.Water, null, SmallShapes,
                 allowedBase: [TerrainType.Forest, TerrainType.Plain, TerrainType.Clearing]);
 

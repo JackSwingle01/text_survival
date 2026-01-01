@@ -2737,6 +2737,20 @@ body {
     font-size: 1.2em;
 }
 
+/* Combat Grid Pane - Left side of two-panel combat layout */
+.combat-grid-pane {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-3);
+}
+
+.combat-grid-pane canvas {
+    border-radius: var(--radius-sm);
+    image-rendering: pixelated;
+}
+
 .combat-health {
     font-size: 0.9em;
     margin-bottom: var(--space-3);

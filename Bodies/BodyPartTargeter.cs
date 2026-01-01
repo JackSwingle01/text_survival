@@ -17,7 +17,17 @@ public static class BodyTargetHelper
     public static BodyRegion GetRandomMajorPartByCoverage(Body body)
     {
         var parts = GetAllMajorParts(body);
-        var partChances = parts.Where(p => !p.IsDestroyed).ToDictionary(p => p, p => p.Coverage);
+        var availableParts = parts.Where(p => !p.IsDestroyed).ToList();
+
+        // Defensive: If all parts destroyed, entity should be dead
+        // Return first part as fallback to prevent crash
+        if (availableParts.Count == 0)
+        {
+            Console.WriteLine($"[DAMAGE WARNING] No viable body parts remaining - all parts destroyed");
+            return parts.First(); // Return first part even if destroyed, to prevent crash
+        }
+
+        var partChances = availableParts.ToDictionary(p => p, p => p.Coverage);
         return Utils.GetRandomWeighted(partChances);
     }
 

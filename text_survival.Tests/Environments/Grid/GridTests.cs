@@ -326,12 +326,12 @@ public class LocationTests
         var location = new Location("Test Cave", "[cave]", weather,
             terrainHazardLevel: 0.3, windFactor: 0.2)
         {
-            Terrain = TerrainType.Rock  // Base 7 min
+            Terrain = TerrainType.Rock  // Base 5 min
         };
 
         Assert.Equal("Test Cave", location.Name);
-        // BaseTraversalMinutes is now computed from terrain (Rock=16) + hazard (floor(0.3*5)=1) = 17
-        Assert.Equal(17, location.BaseTraversalMinutes);
+        // BaseTraversalMinutes is now computed from terrain (Rock=5) + hazard (floor(0.3*5)=1) = 6
+        Assert.Equal(6, location.BaseTraversalMinutes);
         Assert.Equal(0.3, location.TerrainHazardLevel);
         Assert.Equal(0.2, location.WindFactor);
     }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using text_survival.Actions;
 using text_survival.Actions.Expeditions;
+using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
 using text_survival.Items;
@@ -468,13 +469,23 @@ public class SerializationTests
         // Arrange - Create game with player effects
         var ctx = GameContext.CreateNewGame();
 
-        // Add multiple effect types
+        // Add multiple effect types with known capacity modifiers
         ctx.player.EffectRegistry.AddEffect(EffectFactory.Pain(0.5));
         ctx.player.EffectRegistry.AddEffect(EffectFactory.Fear(0.7));
         ctx.player.EffectRegistry.AddEffect(EffectFactory.Bleeding(0.3));
+        ctx.player.EffectRegistry.AddEffect(EffectFactory.Hypothermia(0.6));
 
         int originalEffectCount = ctx.player.EffectRegistry.GetAll().Count;
-        Assert.True(originalEffectCount >= 3, "Should have at least 3 effects");
+        Assert.True(originalEffectCount >= 4, "Should have at least 4 effects");
+
+        // Capture original capacity modifiers
+        var originalModifiers = ctx.player.EffectRegistry.GetCapacityModifiers();
+        double originalConsciousnessMod = originalModifiers.GetCapacityModifier(CapacityNames.Consciousness);
+        double originalManipulationMod = originalModifiers.GetCapacityModifier(CapacityNames.Manipulation);
+
+        // Hypothermia at 0.6 severity should have Consciousness modifier of -0.5 * 0.6 = -0.3
+        Assert.True(originalConsciousnessMod < -0.25,
+            $"Original Consciousness modifier should be negative (Hypothermia + Pain), got {originalConsciousnessMod}");
 
         // Act
         string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
@@ -489,10 +500,23 @@ public class SerializationTests
         Assert.True(deserialized.player.EffectRegistry.HasEffect("Pain"), "Pain effect should survive serialization");
         Assert.True(deserialized.player.EffectRegistry.HasEffect("Fear"), "Fear effect should survive serialization");
         Assert.True(deserialized.player.EffectRegistry.HasEffect("Bleeding"), "Bleeding effect should survive serialization");
+        Assert.True(deserialized.player.EffectRegistry.HasEffect("Hypothermia"), "Hypothermia effect should survive serialization");
 
         // Verify severity preserved
         var painSeverity = deserialized.player.EffectRegistry.GetSeverity("Pain");
         Assert.True(painSeverity > 0.4, $"Pain severity should be ~0.5, got {painSeverity}");
+
+        // CRITICAL: Verify capacity modifiers are preserved
+        var deserializedModifiers = deserialized.player.EffectRegistry.GetCapacityModifiers();
+        double deserializedConsciousnessMod = deserializedModifiers.GetCapacityModifier(CapacityNames.Consciousness);
+        double deserializedManipulationMod = deserializedModifiers.GetCapacityModifier(CapacityNames.Manipulation);
+
+        Assert.Equal(originalConsciousnessMod, deserializedConsciousnessMod, precision: 2);
+        Assert.Equal(originalManipulationMod, deserializedManipulationMod, precision: 2);
+
+        // Verify modifiers are actually non-zero (the bug we're fixing)
+        Assert.True(deserializedConsciousnessMod < -0.1,
+            $"Deserialized Consciousness modifier should be negative, got {deserializedConsciousnessMod}");
     }
 
     private static JsonSerializerOptions GetSerializerOptions()

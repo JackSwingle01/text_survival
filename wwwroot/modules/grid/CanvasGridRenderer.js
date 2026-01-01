@@ -1,3 +1,5 @@
+import { TERRAIN_COLORS, renderTerrainTexture } from './TerrainRenderer.js';
+
 /**
  * CanvasGridRenderer - Canvas-based tile grid rendering
  * Replaces Phaser-based GridScene with direct canvas rendering
@@ -11,7 +13,7 @@ export class CanvasGridRenderer {
 
         // Grid settings
         this.TILE_SIZE = 120;
-        this.GAP = 3;
+        this.GAP = 0;
         this.VIEW_SIZE = 7;
 
         // State
@@ -50,18 +52,7 @@ export class CanvasGridRenderer {
             vitalRed: '#a05050'
         };
 
-        this.TERRAIN_COLORS = {
-            Forest: '#2a4038',      // Dark green - evergreen cover
-            Clearing: '#d8d8d8',    // Neutral gray - tundra snow
-            Plain: '#d8d8d8',       // Neutral gray - tundra snow
-            Hills: '#8090a0',       // Blue-gray - snow-dusted hills
-            Water: '#90b0c8',       // Light ice blue - frozen
-            Marsh: '#607068',       // Muted green-gray - frozen wetland
-            Rock: '#606068',        // Medium gray - exposed stone
-            Mountain: '#404048',    // Dark gray - high peaks
-            DeepWater: '#6090b0',   // Deeper blue - thick ice
-            unexplored: '#080a0c'   // Nearly black
-        };
+        // TERRAIN_COLORS imported from TerrainRenderer.js
 
         // Icons with special styling (glow, color)
         this.SPECIAL_ICONS = {
@@ -78,13 +69,7 @@ export class CanvasGridRenderer {
         this._boundHandleClick = (e) => this.handleClick(e);
     }
 
-    /**
-     * Seeded random for consistent terrain patterns per tile
-     */
-    seededRandom(worldX, worldY, seed) {
-        const h = (worldX * 73856093) ^ (worldY * 19349663) ^ (seed * 83492791);
-        return Math.abs(Math.sin(h)) % 1.0;
-    }
+    // seededRandom moved to TerrainRenderer.js
 
     /**
      * Calculate optimal tile size based on available viewport height
@@ -507,7 +492,7 @@ export class CanvasGridRenderer {
 
                 if (!tile) {
                     // Out of bounds or no tile data
-                    ctx.fillStyle = this.TERRAIN_COLORS.unexplored;
+                    ctx.fillStyle = TERRAIN_COLORS.unexplored;
                     ctx.fillRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
                     continue;
                 }
@@ -564,35 +549,29 @@ export class CanvasGridRenderer {
 
         // Draw unexplored tiles
         if (tile.visibility === 'unexplored') {
-            ctx.fillStyle = this.TERRAIN_COLORS.unexplored;
+            ctx.fillStyle = TERRAIN_COLORS.unexplored;
             ctx.fillRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
             return;
         }
 
         // Draw terrain base
-        const baseTerrainColor = this.TERRAIN_COLORS[tile.terrain] || this.TERRAIN_COLORS.Plain;
+        const baseTerrainColor = TERRAIN_COLORS[tile.terrain] || TERRAIN_COLORS.Plain;
         ctx.fillStyle = baseTerrainColor;
         ctx.fillRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
 
         // Draw terrain textures for visible tiles
         if (isVisible) {
-            this.renderTerrainTexture(tile.terrain, px, py, worldX, worldY);
+            renderTerrainTexture(ctx, tile.terrain, px, py, this.TILE_SIZE, worldX, worldY);
         }
 
-        // Apply fog of war for explored but not visible
-        if (isExplored && !isVisible) {
+        // Fog of war for explored (not currently visible) tiles
+        if (isExplored) {
             ctx.fillStyle = 'rgba(8, 10, 12, 0.65)';
             ctx.fillRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
         }
 
-        // Draw tile border and highlights
+        // Draw tile highlights (no grid borders, just functional highlights)
         if (isPlayer) {
-            ctx.strokeStyle = this.COLORS.fireOrange;
-            ctx.lineWidth = 2;
-
             // Player tile glow
             const gradient = ctx.createRadialGradient(
                 px + this.TILE_SIZE/2, py + this.TILE_SIZE/2, 0,
@@ -602,20 +581,22 @@ export class CanvasGridRenderer {
             gradient.addColorStop(1, 'rgba(224, 136, 48, 0)');
             ctx.fillStyle = gradient;
             ctx.fillRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
+
+            ctx.strokeStyle = this.COLORS.fireOrange;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
         } else if (isHovered && isAdjacent) {
             ctx.fillStyle = 'rgba(96, 160, 176, 0.12)';
             ctx.fillRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
             ctx.strokeStyle = this.COLORS.techCyan;
             ctx.lineWidth = 2;
+            ctx.strokeRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
         } else if (isAdjacent) {
             ctx.strokeStyle = 'rgba(96, 160, 176, 0.25)';
             ctx.lineWidth = 1;
-        } else {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-            ctx.lineWidth = 1;
+            ctx.strokeRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
         }
-
-        ctx.strokeRect(px, py, this.TILE_SIZE, this.TILE_SIZE);
+        // No border for regular tiles
 
         // Draw hazard indicator
         if (tile.isHazardous && isVisible) {
@@ -623,11 +604,6 @@ export class CanvasGridRenderer {
             ctx.lineWidth = 2;
             ctx.strokeRect(px + 2, py + 2, this.TILE_SIZE - 4, this.TILE_SIZE - 4);
         }
-
-        // Corner marker
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.fillRect(px + this.TILE_SIZE - 5, py + this.TILE_SIZE - 5, 3, 1);
-        ctx.fillRect(px + this.TILE_SIZE - 3, py + this.TILE_SIZE - 5, 1, 3);
 
         // Draw location name with badge background (matches event choice button theme)
         // For explored named locations, show the actual name
@@ -768,706 +744,8 @@ export class CanvasGridRenderer {
         this.ctx.restore();
     }
 
-    /**
-     * Render terrain texture details - makes each terrain type immediately recognizable
-     */
-    renderTerrainTexture(terrain, px, py, worldX, worldY) {
-        const ctx = this.ctx;
-        const size = this.TILE_SIZE;
+    // Terrain rendering methods moved to TerrainRenderer.js
 
-        switch (terrain) {
-            case 'Forest':
-                this.renderForestTexture(ctx, px, py, worldX, worldY);
-                break;
-            case 'Water':
-            case 'DeepWater':
-                this.renderWaterTexture(ctx, px, py, worldX, worldY, terrain === 'DeepWater');
-                break;
-            case 'Plain':
-                this.renderPlainTexture(ctx, px, py, worldX, worldY);
-                break;
-            case 'Clearing':
-                this.renderClearingTexture(ctx, px, py, worldX, worldY);
-                break;
-            case 'Hills':
-                this.renderHillsTexture(ctx, px, py, worldX, worldY);
-                break;
-            case 'Rock':
-            case 'Mountain':
-                this.renderRockTexture(ctx, px, py, worldX, worldY, terrain === 'Mountain');
-                break;
-            case 'Marsh':
-                this.renderMarshTexture(ctx, px, py, worldX, worldY);
-                break;
-        }
-    }
-
-    /**
-     * Forest - recognizable evergreen trees
-     */
-    renderForestTexture(ctx, px, py, worldX, worldY) {
-        const size = this.TILE_SIZE;
-        ctx.fillStyle = 'rgba(15, 35, 25, 0.7)';
-
-        // Generate 5-7 trees at seeded random positions
-        const treeCount = 5 + Math.floor(this.seededRandom(worldX, worldY, 100) * 3);
-        for (let i = 0; i < treeCount; i++) {
-            const tx = px + size * (0.1 + this.seededRandom(worldX, worldY, i * 10) * 0.8);
-            const ty = py + size * (0.15 + this.seededRandom(worldX, worldY, i * 10 + 1) * 0.7);
-            const treeHeight = 12 + this.seededRandom(worldX, worldY, i * 10 + 2) * 8;
-            const treeWidth = treeHeight * 0.6;
-
-            // Draw layered triangle tree (evergreen shape)
-            ctx.beginPath();
-            ctx.moveTo(tx, ty - treeHeight);
-            ctx.lineTo(tx - treeWidth / 2, ty);
-            ctx.lineTo(tx + treeWidth / 2, ty);
-            ctx.closePath();
-            ctx.fill();
-
-            // Second layer (slightly smaller, overlapping)
-            ctx.beginPath();
-            ctx.moveTo(tx, ty - treeHeight * 0.85);
-            ctx.lineTo(tx - treeWidth * 0.35, ty - treeHeight * 0.2);
-            ctx.lineTo(tx + treeWidth * 0.35, ty - treeHeight * 0.2);
-            ctx.closePath();
-            ctx.fill();
-        }
-
-        // Snow on some trees (white highlights)
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-        for (let i = 0; i < 3; i++) {
-            const sx = px + size * (0.2 + this.seededRandom(worldX, worldY, i + 50) * 0.6);
-            const sy = py + size * (0.2 + this.seededRandom(worldX, worldY, i + 51) * 0.4);
-            ctx.fillRect(sx - 3, sy, 6, 2);
-        }
-    }
-
-    /**
-     * Water/Ice - frozen surface with concentric pressure rings
-     */
-    renderWaterTexture(ctx, px, py, worldX, worldY, isDeep) {
-        const size = this.TILE_SIZE;
-        const centerX = px + size * (0.4 + this.seededRandom(worldX, worldY, 1) * 0.2);
-        const centerY = py + size * (0.4 + this.seededRandom(worldX, worldY, 2) * 0.2);
-
-        // Concentric pressure rings (arcs, not full circles)
-        const ringColor = isDeep ? 'rgba(40, 70, 100, 0.4)' : 'rgba(60, 100, 130, 0.35)';
-        ctx.strokeStyle = ringColor;
-        ctx.lineWidth = 2;
-
-        for (let i = 0; i < 3; i++) {
-            const radius = size * (0.15 + i * 0.12);
-            const startAngle = this.seededRandom(worldX, worldY, i + 10) * Math.PI * 0.5;
-            const arcLength = Math.PI * (0.6 + this.seededRandom(worldX, worldY, i + 11) * 0.8);
-
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, startAngle, startAngle + arcLength);
-            ctx.stroke();
-        }
-
-        // Central snow patch (distinctive frozen lake feature)
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-        ctx.beginPath();
-        const snowRadius = size * 0.12;
-        // Irregular blob shape
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2;
-            const r = snowRadius * (0.7 + this.seededRandom(worldX, worldY, i + 20) * 0.5);
-            const x = centerX + Math.cos(angle) * r;
-            const y = centerY + Math.sin(angle) * r;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        ctx.closePath();
-        ctx.fill();
-
-        // Radiating cracks from pressure points
-        ctx.strokeStyle = isDeep ? 'rgba(30, 55, 80, 0.45)' : 'rgba(50, 80, 110, 0.35)';
-        ctx.lineWidth = 1;
-        const crackCount = 2 + Math.floor(this.seededRandom(worldX, worldY, 30) * 2);
-        for (let i = 0; i < crackCount; i++) {
-            const angle = this.seededRandom(worldX, worldY, i + 31) * Math.PI * 2;
-            const len = size * (0.25 + this.seededRandom(worldX, worldY, i + 32) * 0.2);
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY);
-            ctx.lineTo(
-                centerX + Math.cos(angle) * len,
-                centerY + Math.sin(angle) * len
-            );
-            ctx.stroke();
-        }
-
-        // Subtle ice shimmer patches
-        ctx.fillStyle = 'rgba(200, 220, 240, 0.12)';
-        for (let i = 0; i < 3; i++) {
-            const shimmerX = px + size * (0.1 + this.seededRandom(worldX, worldY, i + 40) * 0.8);
-            const shimmerY = py + size * (0.1 + this.seededRandom(worldX, worldY, i + 41) * 0.8);
-            ctx.beginPath();
-            ctx.ellipse(shimmerX, shimmerY, 10, 6, this.seededRandom(worldX, worldY, i + 42) * Math.PI, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Additional jagged ice cracks (original detail)
-        ctx.strokeStyle = isDeep ? 'rgba(40, 70, 100, 0.35)' : 'rgba(60, 100, 130, 0.3)';
-        ctx.lineWidth = 1;
-        const startX = px + size * (0.1 + this.seededRandom(worldX, worldY, 50) * 0.3);
-        const startY = py + size * (0.6 + this.seededRandom(worldX, worldY, 51) * 0.3);
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        let cx = startX, cy = startY;
-        for (let i = 0; i < 3; i++) {
-            cx += size * (0.12 + this.seededRandom(worldX, worldY, i + 52) * 0.1);
-            cy -= size * (0.05 + this.seededRandom(worldX, worldY, i + 53) * 0.08);
-            ctx.lineTo(cx, cy);
-        }
-        ctx.stroke();
-    }
-
-    /**
-     * Plain - Arctic tundra with snow, dirt, lichen, tussock grass, and low shrubs
-     */
-    renderPlainTexture(ctx, px, py, worldX, worldY) {
-        const size = this.TILE_SIZE;
-
-        // Lichen patches - clusters of small squares
-        const lichenCount = 1 + Math.floor(this.seededRandom(worldX, worldY, 50) * 2);
-        for (let i = 0; i < lichenCount; i++) {
-            const cx = px + size * (0.15 + this.seededRandom(worldX, worldY, i + 51) * 0.7);
-            const cy = py + size * (0.15 + this.seededRandom(worldX, worldY, i + 52) * 0.7);
-
-            // Cluster of small spots
-            const spotCount = 4 + Math.floor(this.seededRandom(worldX, worldY, i + 53) * 4);
-            for (let j = 0; j < spotCount; j++) {
-                const spotX = cx + (this.seededRandom(worldX, worldY, i * 10 + j + 54) - 0.5) * 12;
-                const spotY = cy + (this.seededRandom(worldX, worldY, i * 10 + j + 55) - 0.5) * 10;
-                const spotSize = 1.5 + this.seededRandom(worldX, worldY, i * 10 + j + 56) * 2.5;
-
-                const greenVar = 90 + this.seededRandom(worldX, worldY, i * 10 + j + 57) * 20;
-                ctx.fillStyle = `rgba(${greenVar}, 100, 70, 0.35)`;
-                ctx.fillRect(spotX, spotY, spotSize, spotSize);
-            }
-        }
-
-        // Snow drift curves
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.lineWidth = 2;
-        for (let i = 0; i < 2; i++) {
-            const startY = py + size * (0.3 + i * 0.4 + this.seededRandom(worldX, worldY, i) * 0.1);
-            ctx.beginPath();
-            ctx.moveTo(px + 5, startY);
-            ctx.bezierCurveTo(
-                px + size * 0.3, startY + (this.seededRandom(worldX, worldY, i + 10) - 0.5) * 12,
-                px + size * 0.7, startY + (this.seededRandom(worldX, worldY, i + 11) - 0.5) * 12,
-                px + size - 5, startY + (this.seededRandom(worldX, worldY, i + 12) - 0.5) * 8
-            );
-            ctx.stroke();
-        }
-
-        // Scattered snow sparkles
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        for (let i = 0; i < 6; i++) {
-            const sx = px + size * (0.1 + this.seededRandom(worldX, worldY, i + 20) * 0.8);
-            const sy = py + size * (0.1 + this.seededRandom(worldX, worldY, i + 21) * 0.8);
-            ctx.fillRect(sx, sy, 2, 2);
-        }
-
-        // Tussock grass - golden-brown clumps
-        ctx.strokeStyle = 'rgba(140, 120, 80, 0.5)';
-        ctx.lineWidth = 1.5;
-        const tussockCount = 5 + Math.floor(this.seededRandom(worldX, worldY, 30) * 4);
-        for (let i = 0; i < tussockCount; i++) {
-            const gx = px + size * (0.15 + this.seededRandom(worldX, worldY, i + 31) * 0.7);
-            const gy = py + size * (0.35 + this.seededRandom(worldX, worldY, i + 32) * 0.45);
-
-            // Tuft of grass blades
-            for (let j = 0; j < 5; j++) {
-                const angle = -Math.PI / 2 + (j - 2) * 0.2 + (this.seededRandom(worldX, worldY, i + j + 33) - 0.5) * 0.25;
-                const len = 8 + this.seededRandom(worldX, worldY, i + j + 36) * 8;
-                ctx.beginPath();
-                ctx.moveTo(gx, gy);
-                ctx.lineTo(gx + Math.cos(angle) * len, gy + Math.sin(angle) * len);
-                ctx.stroke();
-            }
-        }
-
-        // Low shrubs - branching twigs
-        ctx.strokeStyle = 'rgba(60, 50, 40, 0.45)';
-        ctx.lineWidth = 1.5;
-        const shrubCount = 1 + Math.floor(this.seededRandom(worldX, worldY, 60) * 2);
-        for (let i = 0; i < shrubCount; i++) {
-            const sx = px + size * (0.2 + this.seededRandom(worldX, worldY, i + 61) * 0.6);
-            const sy = py + size * (0.45 + this.seededRandom(worldX, worldY, i + 62) * 0.35);
-
-            // Main stem
-            ctx.beginPath();
-            ctx.moveTo(sx, sy);
-            ctx.lineTo(sx, sy - 10);
-            ctx.stroke();
-
-            // Branches
-            for (let j = 0; j < 4; j++) {
-                const branchY = sy - 3 - j * 2;
-                const branchLen = 6 + this.seededRandom(worldX, worldY, i + j + 63) * 4;
-                const dir = (j % 2 === 0) ? 1 : -1;
-                ctx.beginPath();
-                ctx.moveTo(sx, branchY);
-                ctx.lineTo(sx + dir * branchLen, branchY - 2);
-                ctx.stroke();
-            }
-        }
-    }
-
-    /**
-     * Clearing - sheltered forest gap with dirt, vegetation, and occasional trees
-     */
-    renderClearingTexture(ctx, px, py, worldX, worldY) {
-        const size = this.TILE_SIZE;
-
-        // Dirt patches - exposed earth showing through snow
-        ctx.fillStyle = 'rgba(80, 65, 50, 0.35)';
-        const dirtCount = 3 + Math.floor(this.seededRandom(worldX, worldY, 75) * 3);
-        for (let i = 0; i < dirtCount; i++) {
-            const dx = px + size * (0.15 + this.seededRandom(worldX, worldY, i + 76) * 0.7);
-            const dy = py + size * (0.2 + this.seededRandom(worldX, worldY, i + 77) * 0.6);
-            const dw = 6 + this.seededRandom(worldX, worldY, i + 78) * 10;
-            const dh = 4 + this.seededRandom(worldX, worldY, i + 79) * 6;
-
-            ctx.beginPath();
-            ctx.ellipse(dx, dy, dw, dh, this.seededRandom(worldX, worldY, i + 80) * Math.PI, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Softer snow drifts - less wind-blown, more settled
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
-        ctx.lineWidth = 1.5;
-        for (let i = 0; i < 2; i++) {
-            const baseY = py + size * (0.4 + i * 0.3);
-            ctx.beginPath();
-            ctx.moveTo(px + size * 0.1, baseY);
-            ctx.quadraticCurveTo(
-                px + size * 0.5, baseY + 4 + this.seededRandom(worldX, worldY, i + 81) * 4,
-                px + size * 0.9, baseY + (this.seededRandom(worldX, worldY, i + 82) - 0.5) * 3
-            );
-            ctx.stroke();
-        }
-
-        // Grass tufts - V-shapes poking through snow
-        ctx.strokeStyle = 'rgba(70, 90, 60, 0.4)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 4; i++) {
-            const gx = px + size * (0.2 + this.seededRandom(worldX, worldY, i + 90) * 0.6);
-            const gy = py + size * (0.3 + this.seededRandom(worldX, worldY, i + 91) * 0.5);
-            const spread = 2 + this.seededRandom(worldX, worldY, i + 92) * 2;
-            const height = 4 + this.seededRandom(worldX, worldY, i + 93) * 3;
-            ctx.beginPath();
-            ctx.moveTo(gx - spread, gy);
-            ctx.lineTo(gx, gy - height);
-            ctx.lineTo(gx + spread, gy);
-            ctx.stroke();
-        }
-
-        // Tree stumps - 1-2 small circles with ring detail
-        const stumpCount = 1 + Math.floor(this.seededRandom(worldX, worldY, 100) * 1.5);
-        for (let i = 0; i < stumpCount; i++) {
-            const sx = px + size * (0.25 + this.seededRandom(worldX, worldY, i + 101) * 0.5);
-            const sy = py + size * (0.55 + this.seededRandom(worldX, worldY, i + 102) * 0.3);
-            const radius = 3 + this.seededRandom(worldX, worldY, i + 103) * 2;
-
-            ctx.fillStyle = 'rgba(60, 50, 40, 0.5)';
-            ctx.beginPath();
-            ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.strokeStyle = 'rgba(80, 70, 55, 0.4)';
-            ctx.lineWidth = 0.5;
-            ctx.beginPath();
-            ctx.arc(sx, sy, radius * 0.5, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-
-        // Fallen branches - thin dark lines at angles
-        ctx.strokeStyle = 'rgba(50, 45, 35, 0.35)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 2; i++) {
-            const bx = px + size * (0.15 + this.seededRandom(worldX, worldY, i + 110) * 0.7);
-            const by = py + size * (0.4 + this.seededRandom(worldX, worldY, i + 111) * 0.4);
-            const angle = this.seededRandom(worldX, worldY, i + 112) * Math.PI * 0.5 - Math.PI * 0.25;
-            const len = 8 + this.seededRandom(worldX, worldY, i + 113) * 6;
-            ctx.beginPath();
-            ctx.moveTo(bx, by);
-            ctx.lineTo(bx + Math.cos(angle) * len, by + Math.sin(angle) * len);
-            ctx.stroke();
-        }
-
-        // Occasional tree - simple triangle like forest (50% chance)
-        if (this.seededRandom(worldX, worldY, 130) > 0.5) {
-            const tx = px + size * (0.2 + this.seededRandom(worldX, worldY, 131) * 0.6);
-            const ty = py + size * (0.4 + this.seededRandom(worldX, worldY, 132) * 0.35);
-            const treeHeight = 12 + this.seededRandom(worldX, worldY, 133) * 8;
-            const treeWidth = treeHeight * 0.6;
-
-            // Simple triangle tree (same as forest)
-            ctx.fillStyle = 'rgba(15, 35, 25, 0.7)';
-            ctx.beginPath();
-            ctx.moveTo(tx, ty - treeHeight);
-            ctx.lineTo(tx - treeWidth / 2, ty);
-            ctx.lineTo(tx + treeWidth / 2, ty);
-            ctx.closePath();
-            ctx.fill();
-
-            // Second layer
-            ctx.beginPath();
-            ctx.moveTo(tx, ty - treeHeight * 0.85);
-            ctx.lineTo(tx - treeWidth * 0.35, ty - treeHeight * 0.2);
-            ctx.lineTo(tx + treeWidth * 0.35, ty - treeHeight * 0.2);
-            ctx.closePath();
-            ctx.fill();
-
-            // Snow highlight
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-            ctx.fillRect(tx - 3, ty - treeHeight * 0.6, 6, 2);
-        }
-
-        // Edge tree hints - subtle partial triangles suggesting surrounding forest
-        ctx.fillStyle = 'rgba(30, 50, 40, 0.25)';
-        const edgeCount = 2 + Math.floor(this.seededRandom(worldX, worldY, 120) * 2);
-        for (let i = 0; i < edgeCount; i++) {
-            const edge = Math.floor(this.seededRandom(worldX, worldY, i + 121) * 4);
-            const offset = this.seededRandom(worldX, worldY, i + 122) * 0.6 + 0.2;
-            const treeSize = 6 + this.seededRandom(worldX, worldY, i + 123) * 4;
-
-            ctx.beginPath();
-            if (edge === 0) {
-                const etx = px + size * offset;
-                ctx.moveTo(etx - treeSize * 0.5, py);
-                ctx.lineTo(etx, py + treeSize * 0.7);
-                ctx.lineTo(etx + treeSize * 0.5, py);
-            } else if (edge === 1) {
-                const ety = py + size * offset;
-                ctx.moveTo(px + size, ety - treeSize * 0.5);
-                ctx.lineTo(px + size - treeSize * 0.7, ety);
-                ctx.lineTo(px + size, ety + treeSize * 0.5);
-            } else if (edge === 2) {
-                const etx = px + size * offset;
-                ctx.moveTo(etx - treeSize * 0.5, py + size);
-                ctx.lineTo(etx, py + size - treeSize * 0.7);
-                ctx.lineTo(etx + treeSize * 0.5, py + size);
-            } else {
-                const ety = py + size * offset;
-                ctx.moveTo(px, ety - treeSize * 0.5);
-                ctx.lineTo(px + treeSize * 0.7, ety);
-                ctx.lineTo(px, ety + treeSize * 0.5);
-            }
-            ctx.fill();
-        }
-    }
-
-    /**
-     * Hills - stacked rounded mounds with snow caps
-     */
-    renderHillsTexture(ctx, px, py, worldX, worldY) {
-        const size = this.TILE_SIZE;
-
-        // Three stacked hill mounds (back to front for depth)
-        const hills = [
-            { cx: 0.7, baseY: 0.55, width: 0.5, height: 0.4, color: 'rgba(55, 65, 80, 0.45)' },   // Back hill
-            { cx: 0.25, baseY: 0.65, width: 0.45, height: 0.35, color: 'rgba(65, 75, 90, 0.4)' }, // Middle hill
-            { cx: 0.55, baseY: 0.85, width: 0.6, height: 0.45, color: 'rgba(75, 85, 100, 0.35)' } // Front hill
-        ];
-
-        for (let i = 0; i < hills.length; i++) {
-            const hill = hills[i];
-            const cx = px + size * hill.cx;
-            const baseY = py + size * hill.baseY;
-            const halfWidth = size * hill.width / 2;
-            const peakHeight = size * hill.height;
-
-            // Hill shadow (underneath)
-            ctx.fillStyle = 'rgba(40, 50, 60, 0.25)';
-            ctx.beginPath();
-            ctx.moveTo(cx - halfWidth, baseY + 4);
-            ctx.quadraticCurveTo(cx, baseY - peakHeight + 8, cx + halfWidth, baseY + 4);
-            ctx.lineTo(cx - halfWidth, baseY + 4);
-            ctx.fill();
-
-            // Hill body (arc/mound shape)
-            ctx.fillStyle = hill.color;
-            ctx.beginPath();
-            ctx.moveTo(cx - halfWidth, baseY);
-            ctx.quadraticCurveTo(cx, baseY - peakHeight, cx + halfWidth, baseY);
-            ctx.lineTo(cx - halfWidth, baseY);
-            ctx.fill();
-
-            // Snow cap on top
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.beginPath();
-            const capWidth = halfWidth * 0.6;
-            const capTop = baseY - peakHeight;
-            ctx.moveTo(cx - capWidth, capTop + peakHeight * 0.25);
-            ctx.quadraticCurveTo(cx, capTop - 2, cx + capWidth, capTop + peakHeight * 0.25);
-            ctx.lineTo(cx - capWidth, capTop + peakHeight * 0.25);
-            ctx.fill();
-        }
-
-        // Exposed rock patches on slopes
-        ctx.fillStyle = 'rgba(70, 80, 90, 0.4)';
-        for (let i = 0; i < 2; i++) {
-            const rx = px + size * (0.2 + this.seededRandom(worldX, worldY, i + 20) * 0.6);
-            const ry = py + size * (0.35 + this.seededRandom(worldX, worldY, i + 21) * 0.35);
-            ctx.beginPath();
-            ctx.ellipse(rx, ry, 8, 5, this.seededRandom(worldX, worldY, i + 22) * Math.PI, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Sparse grass on lower slopes
-        ctx.strokeStyle = 'rgba(90, 100, 80, 0.35)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 5; i++) {
-            const gx = px + size * (0.1 + this.seededRandom(worldX, worldY, i + 30) * 0.8);
-            const gy = py + size * (0.65 + this.seededRandom(worldX, worldY, i + 31) * 0.25);
-            ctx.beginPath();
-            ctx.moveTo(gx - 2, gy);
-            ctx.lineTo(gx, gy - 5);
-            ctx.lineTo(gx + 2, gy);
-            ctx.stroke();
-        }
-
-        // Subtle contour hints
-        ctx.strokeStyle = 'rgba(60, 80, 100, 0.15)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 2; i++) {
-            const baseY = py + size * (0.35 + i * 0.25);
-            ctx.beginPath();
-            ctx.moveTo(px + 10, baseY);
-            ctx.bezierCurveTo(
-                px + size * 0.35, baseY - 5 - this.seededRandom(worldX, worldY, i + 40) * 4,
-                px + size * 0.65, baseY - 3 - this.seededRandom(worldX, worldY, i + 41) * 5,
-                px + size - 10, baseY + this.seededRandom(worldX, worldY, i + 42) * 3
-            );
-            ctx.stroke();
-        }
-    }
-
-    /**
-     * Rock/Mountain - stacked boulders or mountain peak silhouette
-     */
-    renderRockTexture(ctx, px, py, worldX, worldY, isMountain) {
-        const size = this.TILE_SIZE;
-
-        if (isMountain) {
-            // MOUNTAIN: Large triangular peak silhouette
-
-            // Secondary peak (behind, left)
-            ctx.fillStyle = 'rgba(45, 50, 55, 0.5)';
-            ctx.beginPath();
-            ctx.moveTo(px + size * 0.05, py + size);
-            ctx.lineTo(px + size * 0.25, py + size * 0.25);
-            ctx.lineTo(px + size * 0.5, py + size);
-            ctx.closePath();
-            ctx.fill();
-
-            // Main peak (dominant center-right)
-            ctx.fillStyle = 'rgba(35, 40, 45, 0.65)';
-            ctx.beginPath();
-            ctx.moveTo(px + size * 0.2, py + size);
-            ctx.lineTo(px + size * 0.55, py + size * 0.08);
-            ctx.lineTo(px + size * 0.95, py + size);
-            ctx.closePath();
-            ctx.fill();
-
-            // Snow cap on main peak
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.beginPath();
-            ctx.moveTo(px + size * 0.4, py + size * 0.35);
-            ctx.lineTo(px + size * 0.55, py + size * 0.08);
-            ctx.lineTo(px + size * 0.72, py + size * 0.35);
-            ctx.closePath();
-            ctx.fill();
-
-            // Ridge line detail
-            ctx.strokeStyle = 'rgba(25, 30, 35, 0.4)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(px + size * 0.55, py + size * 0.08);
-            ctx.lineTo(px + size * 0.75, py + size * 0.5);
-            ctx.stroke();
-
-        } else {
-            // ROCK: Stacked angular boulders
-            const boulders = [
-                { x: 0.25, y: 0.45, w: 0.35, h: 0.25 },
-                { x: 0.6, y: 0.35, w: 0.3, h: 0.22 },
-                { x: 0.45, y: 0.7, w: 0.4, h: 0.28 },
-                { x: 0.15, y: 0.75, w: 0.25, h: 0.2 }
-            ];
-
-            for (let i = 0; i < boulders.length; i++) {
-                const b = boulders[i];
-                const bx = px + size * b.x;
-                const by = py + size * b.y;
-                const bw = size * b.w;
-                const bh = size * b.h;
-
-                // Boulder shadow
-                ctx.fillStyle = 'rgba(30, 35, 40, 0.35)';
-                ctx.beginPath();
-                ctx.moveTo(bx, by + bh * 0.3);
-                ctx.lineTo(bx + bw * 0.15, by + bh);
-                ctx.lineTo(bx + bw * 0.9, by + bh);
-                ctx.lineTo(bx + bw, by + bh * 0.4);
-                ctx.closePath();
-                ctx.fill();
-
-                // Boulder side (darker)
-                ctx.fillStyle = 'rgba(55, 60, 65, 0.5)';
-                ctx.beginPath();
-                ctx.moveTo(bx + bw * 0.5, by);
-                ctx.lineTo(bx + bw, by + bh * 0.4);
-                ctx.lineTo(bx + bw * 0.9, by + bh);
-                ctx.lineTo(bx + bw * 0.4, by + bh * 0.7);
-                ctx.closePath();
-                ctx.fill();
-
-                // Boulder top (with snow)
-                ctx.fillStyle = 'rgba(85, 90, 95, 0.5)';
-                ctx.beginPath();
-                ctx.moveTo(bx, by + bh * 0.3);
-                ctx.lineTo(bx + bw * 0.5, by);
-                ctx.lineTo(bx + bw, by + bh * 0.4);
-                ctx.lineTo(bx + bw * 0.4, by + bh * 0.7);
-                ctx.closePath();
-                ctx.fill();
-
-                // Snow on top
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
-                ctx.beginPath();
-                ctx.moveTo(bx + bw * 0.1, by + bh * 0.25);
-                ctx.lineTo(bx + bw * 0.5, by + bh * 0.05);
-                ctx.lineTo(bx + bw * 0.85, by + bh * 0.35);
-                ctx.lineTo(bx + bw * 0.4, by + bh * 0.5);
-                ctx.closePath();
-                ctx.fill();
-            }
-
-            // Cracks between boulders
-            ctx.strokeStyle = 'rgba(25, 30, 35, 0.4)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(px + size * 0.35, py + size * 0.5);
-            ctx.lineTo(px + size * 0.5, py + size * 0.65);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(px + size * 0.55, py + size * 0.55);
-            ctx.lineTo(px + size * 0.65, py + size * 0.72);
-            ctx.stroke();
-
-            // Additional crack lines for detail
-            for (let i = 0; i < 3; i++) {
-                ctx.beginPath();
-                ctx.moveTo(
-                    px + size * this.seededRandom(worldX, worldY, i + 60),
-                    py + size * this.seededRandom(worldX, worldY, i + 61)
-                );
-                ctx.lineTo(
-                    px + size * this.seededRandom(worldX, worldY, i + 62),
-                    py + size * this.seededRandom(worldX, worldY, i + 63)
-                );
-                ctx.stroke();
-            }
-
-            // Gravel scatter around boulders
-            ctx.fillStyle = 'rgba(70, 75, 80, 0.35)';
-            for (let i = 0; i < 5; i++) {
-                const gx = px + size * (0.1 + this.seededRandom(worldX, worldY, i + 70) * 0.8);
-                const gy = py + size * (0.1 + this.seededRandom(worldX, worldY, i + 71) * 0.8);
-                const gs = 2 + this.seededRandom(worldX, worldY, i + 72) * 2;
-                ctx.beginPath();
-                ctx.arc(gx, gy, gs, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-    }
-
-    /**
-     * Marsh - cattail clusters in frozen wetland
-     */
-    renderMarshTexture(ctx, px, py, worldX, worldY) {
-        const size = this.TILE_SIZE;
-
-        // Murky ice patches
-        ctx.fillStyle = 'rgba(40, 55, 50, 0.3)';
-        for (let i = 0; i < 2; i++) {
-            const patchX = px + size * (0.2 + this.seededRandom(worldX, worldY, i) * 0.6);
-            const patchY = py + size * (0.3 + this.seededRandom(worldX, worldY, i + 1) * 0.4);
-            ctx.beginPath();
-            ctx.ellipse(patchX, patchY, 15, 10, 0, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Cattail clusters - smaller, more subtle (3-4 clusters)
-        const clusterCount = 3 + Math.floor(this.seededRandom(worldX, worldY, 10) * 2);
-        const clusterPositions = [
-            { x: 0.2, y: 0.6 },
-            { x: 0.55, y: 0.5 },
-            { x: 0.8, y: 0.65 },
-            { x: 0.35, y: 0.75 },
-            { x: 0.7, y: 0.4 }
-        ];
-
-        for (let c = 0; c < clusterCount; c++) {
-            const cluster = clusterPositions[c];
-            const baseX = px + size * cluster.x;
-            const baseY = py + size * cluster.y;
-
-            // Each cluster has 2-3 stalks (smaller)
-            const stalkCount = 2 + Math.floor(this.seededRandom(worldX, worldY, c + 20) * 2);
-            for (let i = 0; i < stalkCount; i++) {
-                const stalkX = baseX + (this.seededRandom(worldX, worldY, c * 10 + i + 30) - 0.5) * 6;
-                const stalkHeight = size * (0.12 + this.seededRandom(worldX, worldY, c * 10 + i + 31) * 0.08);
-                const lean = (this.seededRandom(worldX, worldY, c * 10 + i + 32) - 0.5) * 3;
-
-                // Stalk (thinner)
-                ctx.strokeStyle = 'rgba(80, 90, 70, 0.6)';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(stalkX, baseY);
-                ctx.lineTo(stalkX + lean, baseY - stalkHeight);
-                ctx.stroke();
-
-                // Cattail head (smaller sausage)
-                ctx.fillStyle = 'rgba(60, 50, 40, 0.7)';
-                ctx.beginPath();
-                const headX = stalkX + lean;
-                const headY = baseY - stalkHeight - 2;
-                ctx.ellipse(headX, headY, 2, 4, 0, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        // Dead reeds/grass scattered around
-        ctx.strokeStyle = 'rgba(80, 90, 70, 0.5)';
-        ctx.lineWidth = 1;
-        const reedCount = 4 + Math.floor(this.seededRandom(worldX, worldY, 50) * 3);
-        for (let i = 0; i < reedCount; i++) {
-            const rx = px + size * (0.1 + this.seededRandom(worldX, worldY, i + 51) * 0.8);
-            const ry = py + size * (0.4 + this.seededRandom(worldX, worldY, i + 52) * 0.5);
-            const height = 8 + this.seededRandom(worldX, worldY, i + 53) * 8;
-            const lean = (this.seededRandom(worldX, worldY, i + 54) - 0.5) * 4;
-            ctx.beginPath();
-            ctx.moveTo(rx, ry);
-            ctx.lineTo(rx + lean, ry - height);
-            ctx.stroke();
-        }
-
-        // Ice crack
-        ctx.strokeStyle = 'rgba(50, 70, 65, 0.3)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(px + 10, py + size * 0.7);
-        ctx.lineTo(px + size * 0.6, py + size * 0.8);
-        ctx.stroke();
-    }
 
     /**
      * Render feature icons on a tile
