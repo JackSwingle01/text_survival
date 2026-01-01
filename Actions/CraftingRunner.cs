@@ -177,9 +177,46 @@ public class CraftingRunner(GameContext ctx)
             if (feature == null)
                 return false;
 
+            // Special handling for bedding - replace existing
+            if (feature is BeddingFeature)
+            {
+                var oldBedding = _ctx.Camp.GetFeature<BeddingFeature>();
+                if (oldBedding != null)
+                {
+                    _ctx.Camp.RemoveFeature(oldBedding);
+                    GameDisplay.AddNarrative(_ctx, "You replace your old bedding.");
+                }
+            }
+
+            // Add the feature to camp
             _ctx.Camp.AddFeature(feature);
-            GameDisplay.AddSuccess(_ctx, $"You built a {option.Name}!");
-            GameDisplay.AddNarrative(_ctx, "It's now available at your camp.");
+
+            // Check if this is a multi-session project or instant improvement
+            if (feature is CraftingProjectFeature project)
+            {
+                GameDisplay.AddSuccess(_ctx, $"Started construction project: {project.ProjectName}");
+                GameDisplay.AddNarrative(_ctx, $"Materials consumed. Work on it from the camp menu to make progress.");
+                GameDisplay.AddNarrative(_ctx, $"Total work required: {project.TimeRequiredMinutes} minutes ({project.TimeRequiredMinutes / 60:F1} hours).");
+
+                if (project.BenefitsFromShovel)
+                {
+                    bool hasShovel = _ctx.Inventory.GetTool(ToolType.Shovel) != null;
+                    if (hasShovel)
+                    {
+                        GameDisplay.AddNarrative(_ctx, "Your shovel will double progress on this digging work.");
+                    }
+                    else
+                    {
+                        GameDisplay.AddNarrative(_ctx, "A shovel would double your progress on this digging work.");
+                    }
+                }
+            }
+            else
+            {
+                // Instant improvement
+                GameDisplay.AddSuccess(_ctx, $"You built a {option.Name}!");
+                GameDisplay.AddNarrative(_ctx, "It's now available at your camp.");
+            }
         }
         else
         {
@@ -328,7 +365,24 @@ public class CraftingRunner(GameContext ctx)
         if (option.Name == "Curing Rack")
             return _ctx.Camp.GetFeature<CuringRackFeature>() != null;
 
-        // Add other feature checks here as needed
+        // Shelters - only one at camp
+        if (option.Name.Contains("Shelter") || option.Name.Contains("Cabin"))
+        {
+            // Check for existing shelter or shelter project
+            if (_ctx.Camp.GetFeature<ShelterFeature>() != null)
+                return true;
+
+            // Check for in-progress shelter project
+            var projects = _ctx.Camp.Features.OfType<CraftingProjectFeature>();
+            return projects.Any(p => p.ProjectName.Contains("Shelter") || p.ProjectName.Contains("Cabin"));
+        }
+
+        // Fire pit upgrades - can't have multiple ongoing projects
+        if (option.Name.Contains("Fire Pit"))
+        {
+            var projects = _ctx.Camp.Features.OfType<CraftingProjectFeature>();
+            return projects.Any(p => p.ProjectName.Contains("Fire Pit"));
+        }
 
         return false;
     }

@@ -9,7 +9,6 @@ export class OverlayManager {
     constructor(overlayId, inputHandler) {
         this.overlayId = overlayId;
         this.inputHandler = inputHandler;
-        this.inputId = null;
     }
 
     get overlay() {
@@ -17,10 +16,10 @@ export class OverlayManager {
     }
 
     /**
-     * Show the overlay and store input context
+     * Show the overlay
      */
     show(inputId) {
-        this.inputId = inputId;
+        // Don't store inputId - always use current from InputHandler
         show(this.overlay);
     }
 
@@ -29,7 +28,6 @@ export class OverlayManager {
      */
     hide() {
         hide(this.overlay);
-        this.inputId = null;
         this.cleanup();
     }
 
@@ -56,14 +54,15 @@ export class OverlayManager {
     }
 
     /**
-     * Send a response using the stored inputId
+     * Send a response using the current inputId from InputHandler
      */
     respond(choiceId) {
-        return this.inputHandler.respond(choiceId, this.inputId);
+        const currentInputId = this.inputHandler.getCurrentInputId();
+        return this.inputHandler.respond(choiceId, currentInputId);
     }
 
     /**
-     * Create a bound click handler that uses stored inputId
+     * Create a bound click handler that uses current inputId
      */
     makeClickHandler(choiceId) {
         return () => this.respond(choiceId);

@@ -92,9 +92,9 @@ public record InventoryDto(
         AddIfPresent(items, inv, Resource.Tinder, "tinder", null);
 
         // Wood types
-        AddIfPresent(items, inv, Resource.Pine, "pine logs", "wood-pine");
-        AddIfPresent(items, inv, Resource.Birch, "birch logs", "wood-birch");
-        AddIfPresent(items, inv, Resource.Oak, "oak logs", "wood-oak");
+        AddIfPresent(items, inv, Resource.Pine, "pine log", "wood-pine");
+        AddIfPresent(items, inv, Resource.Birch, "birch log", "wood-birch");
+        AddIfPresent(items, inv, Resource.Oak, "oak log", "wood-oak");
         AddIfPresent(items, inv, Resource.BirchBark, "birch bark", "tinder");
 
         return items;
@@ -501,9 +501,9 @@ public record FireManagementDto(
         var fuelMappings = new (Resource resource, FuelType fuel, string icon, string name)[]
         {
             (Resource.Stick, FuelType.Kindling, "horizontal_rule", "Sticks"),
-            (Resource.Pine, FuelType.PineWood, "park", "Pine Logs"),
-            (Resource.Birch, FuelType.BirchWood, "nature", "Birch Logs"),
-            (Resource.Oak, FuelType.OakWood, "forest", "Oak Logs"),
+            (Resource.Pine, FuelType.PineWood, "park", "Pine log"),
+            (Resource.Birch, FuelType.BirchWood, "nature", "Birch log"),
+            (Resource.Oak, FuelType.OakWood, "forest", "Oak log"),
             (Resource.Tinder, FuelType.Tinder, "grass", "Tinder"),
             (Resource.BirchBark, FuelType.BirchBark, "note", "Birch Bark"),
             (Resource.Usnea, FuelType.Usnea, "eco", "Usnea"),

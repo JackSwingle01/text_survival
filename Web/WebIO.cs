@@ -844,12 +844,6 @@ public static class WebIO
         _currentCrafting[ctx.SessionId] = CraftingDto.FromContext(ctx, crafting);
     }
 
-    public static void RenderCampImprovementScreen(GameContext ctx, NeedCraftingSystem crafting)
-    {
-        if (ctx.SessionId == null) return;
-        // Reuse CraftingDto but filter to only CampInfrastructure category
-        _currentCrafting[ctx.SessionId] = CraftingDto.FromContext(ctx, crafting, filterCategory: Crafting.NeedCategory.CampInfrastructure);
-    }
 
     // Grid Mode Methods //
 

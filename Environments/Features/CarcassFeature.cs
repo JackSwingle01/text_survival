@@ -322,6 +322,49 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         return result;
     }
 
+    /// <summary>
+    /// Restores yields that couldn't fit in inventory back to the carcass.
+    /// Called when player's pack is full - items left on carcass for later butchering.
+    /// </summary>
+    public void RestoreYields(Inventory leftovers)
+    {
+        // Add back resources that didn't fit
+        foreach (Resource type in Enum.GetValues<Resource>())
+        {
+            double leftoverWeight = leftovers.Weight(type);
+            if (leftoverWeight > 0)
+            {
+                // Map resources back to carcass yields
+                switch (type)
+                {
+                    case Resource.RawMeat:
+                        MeatRemainingKg += leftoverWeight;
+                        break;
+                    case Resource.Bone:
+                        BoneRemainingKg += leftoverWeight;
+                        break;
+                    case Resource.Hide:
+                        HideRemainingKg += leftoverWeight;
+                        break;
+                    case Resource.Sinew:
+                        SinewRemainingKg += leftoverWeight;
+                        break;
+                    case Resource.RawFat:
+                        FatRemainingKg += leftoverWeight;
+                        break;
+                    case Resource.Ivory:
+                        IvoryRemainingKg += leftoverWeight;
+                        break;
+                    case Resource.MammothHide:
+                        MammothHideRemainingKg += leftoverWeight;
+                        break;
+                }
+            }
+        }
+
+        ClampRemaining();
+    }
+
     private void HarvestFullButcher(Inventory result, double workFraction, double yieldMultiplier,
         double meatDecayMultiplier, ButcheringModeConfig mode)
     {

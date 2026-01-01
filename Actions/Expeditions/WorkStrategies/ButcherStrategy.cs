@@ -191,12 +191,26 @@ public class ButcherStrategy : IWorkStrategy
         // Increase carcass scent based on mode
         _carcass.ScentIntensityBonus += modeConfig.ScentIncrease;
 
-        // Add to inventory
+        // Add to inventory - track what actually fits
         var collected = new List<string>();
         if (!yield.IsEmpty)
         {
-            collected.Add(yield.GetDescription());
-            InventoryCapacityHelper.CombineAndReport(ctx, yield);
+            // Try to add to inventory, get back what doesn't fit
+            var leftovers = InventoryCapacityHelper.CombineAndReport(ctx, yield);
+
+            // Calculate what was actually taken (yield minus leftovers)
+            var taken = CalculateTaken(yield, leftovers);
+
+            if (!taken.IsEmpty)
+            {
+                collected.Add(taken.GetDescription());
+            }
+
+            // Restore leftovers back to carcass for future butchering
+            if (!leftovers.IsEmpty)
+            {
+                _carcass.RestoreYields(leftovers);
+            }
         }
 
         // Build result message
@@ -227,5 +241,30 @@ public class ButcherStrategy : IWorkStrategy
         WebIO.ShowWorkResult(ctx, "Butchering", resultMessage, collected);
 
         return new WorkResult(collected, null, actualTime, false);
+    }
+
+    /// <summary>
+    /// Calculate what was actually taken from the yield (yield minus leftovers).
+    /// Used to show accurate "collected" message when inventory is full.
+    /// </summary>
+    private static Inventory CalculateTaken(Inventory yield, Inventory leftovers)
+    {
+        var taken = new Inventory();
+
+        foreach (Resource type in Enum.GetValues<Resource>())
+        {
+            // Get all items of this type from yield
+            var yieldItems = yield[type].ToList();
+            var leftoverItems = leftovers[type].ToList();
+
+            // What was taken = yield items minus leftover items
+            int takenCount = yieldItems.Count - leftoverItems.Count;
+            for (int i = 0; i < takenCount; i++)
+            {
+                taken.Add(type, yieldItems[i]);
+            }
+        }
+
+        return taken;
     }
 }

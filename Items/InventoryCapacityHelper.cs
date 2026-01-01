@@ -11,9 +11,9 @@ public static class InventoryCapacityHelper
     /// <summary>
     /// Combines items into player inventory respecting capacity limits.
     /// Displays a message if any items were left behind.
-    /// Returns true if any items were dropped.
+    /// Returns the leftovers that didn't fit.
     /// </summary>
-    public static bool CombineAndReport(GameContext ctx, Inventory source)
+    public static Inventory CombineAndReport(GameContext ctx, Inventory source)
     {
         var leftovers = ctx.Inventory.CombineWithCapacity(source);
 
@@ -21,9 +21,18 @@ public static class InventoryCapacityHelper
         {
             GameDisplay.AddWarning(ctx, $"Your pack is full. You left behind: {leftovers.GetDescription()}");
             ctx.ShowTutorialOnce("You can store extra items at camp to free up space.");
-            return true;
         }
 
-        return false;
+        return leftovers;
+    }
+
+    /// <summary>
+    /// Legacy method for backwards compatibility.
+    /// Returns true if any items were dropped.
+    /// </summary>
+    public static bool CombineAndReportBool(GameContext ctx, Inventory source)
+    {
+        var leftovers = CombineAndReport(ctx, source);
+        return !leftovers.IsEmpty;
     }
 }

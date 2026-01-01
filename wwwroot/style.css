@@ -422,6 +422,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: var(--space-3);
+    min-height: 200px;
 }
 
 /* ============================================
@@ -713,13 +714,17 @@ body {
 }
 
 .badge--lg {
-    padding: var(--space-2) var(--space-4);
-    font-size: var(--text-sm);
+    padding: var(--space-3) var(--space-5);
+    font-size: 1rem;
     border: 1px solid var(--border-dim);
 }
 
 .badge .material-symbols-outlined {
     font-size: 16px;
+}
+
+.badge--lg .material-symbols-outlined {
+    font-size: 22px;
 }
 
 .badge--danger {
@@ -980,11 +985,11 @@ body {
 }
 
 .bar--md {
-    height: 10px;
+    height: 12px;
 }
 
 .bar--lg {
-    height: 12px;
+    height: 16px;
 }
 
 .bar__fill {
@@ -1838,7 +1843,20 @@ body {
     flex: 1;
 }
 
-/* 
+/* Available Actions (work/exploration) */
+.available-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+.available-actions .btn {
+    justify-content: center;
+    min-width: 200px;
+}
+
+/*
    CENTER AREA - Grid, Location, and Actions
 */
 .center-area {
@@ -1898,10 +1916,17 @@ body {
 
 .time-badge .material-symbols-outlined {
     color: var(--fire-orange);
+    font-size: 22px;
 }
 
 .temp-badge .material-symbols-outlined {
     color: var(--tech-cyan);
+    font-size: 22px;
+}
+
+.badge-value {
+    font-weight: 600;
+    font-size: 1.05rem;
 }
 
 .temp-badge.warm .material-symbols-outlined {
@@ -1991,33 +2016,36 @@ body {
     z-index: var(--z-base);
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    padding: 6px var(--space-3);
+    gap: var(--space-3);
+    padding: 10px var(--space-4);
     background: var(--bg-surface);
     border: 1px solid var(--border-bright);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
+    min-width: 300px;
 }
 
 .progress-bar-container .material-symbols-outlined {
-    font-size: 16px;
+    font-size: 22px;
     color: var(--tech-cyan);
 }
 
 .progress-bar-container .bar {
     flex: 1;
-    height: 6px;
+    height: 14px;
 }
 
 .progress-text {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--text-dim);
-    min-width: 80px;
+    min-width: 100px;
     text-align: right;
+    font-weight: 500;
 }
 
 .progress-text.active {
     color: var(--tech-cyan);
+    font-weight: 600;
 }
 
 /* Actions Area */
@@ -2071,13 +2099,14 @@ body {
     flex-shrink: 0;
 }
 
-/* 
+/*
    RIGHT SIDEBAR - Narrative Log
 */
 .right-sidebar {
     grid-row: 1;
     display: flex;
     flex-direction: column;
+    gap: var(--space-3);
     overflow: hidden;
 }
 
@@ -2090,6 +2119,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    max-height: 25vh;
 }
 
 .narrative-log {
@@ -2099,8 +2129,8 @@ body {
     gap: 6px;
     overflow-y: auto;
     flex: 1;
-    font-size: 12px;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.6;
 }
 
 .log-entry {
@@ -3136,6 +3166,17 @@ body {
 /*
    COOKING MODAL
 */
+
+/* Make cooking overlay more spacious */
+#cookingOverlay .pane__content {
+    min-height: 250px;
+}
+
+#cookingOverlay .list-item {
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-2);
+}
+
 .cooking-result {
     display: flex;
     align-items: center;

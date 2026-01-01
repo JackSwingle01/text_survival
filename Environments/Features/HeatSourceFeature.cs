@@ -117,7 +117,7 @@ public class HeatSourceFeature : LocationFeature
 
     // Catching mechanic constants
     private const double BaseCatchRate = 0.05; // kg/min baseline
-    private const double CharcoalYieldPercent = 0.15; // 15% of burned fuel becomes charcoal
+    private const double CharcoalYieldPercent = 0.04; // 4% of burned fuel becomes charcoal
 
     public HeatSourceFeature(FirePitType pitType = FirePitType.Open)
         : base("Campfire")

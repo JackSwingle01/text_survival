@@ -28,7 +28,10 @@ import { getGridRenderer } from './modules/grid/CanvasGridRenderer.js';
 import { getWeatherIcon, getFeatureIconLabel, getFeatureTypeIcon } from './modules/icons.js';
 
 // Actions handled elsewhere (sidebar buttons, grid clicks) - hidden from popup
-const POPUP_HIDDEN_ACTIONS = ['Inventory', 'Crafting', 'Travel', 'Storage'];
+// Work/exploration actions now go to sidebar instead
+const POPUP_HIDDEN_ACTIONS = ['Inventory', 'Crafting', 'Travel', 'Storage',
+    'Forage', 'Hunt', 'Harvest', 'Explore', 'Trap', 'Chop', 'Work',
+    'Butcher', 'Check', 'Set', 'Build', 'Salvage', 'Cache'];
 
 class GameClient {
     constructor() {
@@ -125,6 +128,9 @@ class GameClient {
 
         // Update quick actions
         this.updateQuickActionStates(frame.input?.choices);
+
+        // Update available actions in sidebar
+        this.updateAvailableActions(frame.input?.choices);
     }
 
     /**
@@ -674,24 +680,8 @@ class GameClient {
             actionsEl.appendChild(goBtn);
         }
 
-        // Show location actions when clicking current tile
-        if (isPlayerHere && this.currentInput?.choices) {
-            const inputId = this.currentInputId;
-
-            this.currentInput.choices.forEach((choice) => {
-                if (POPUP_HIDDEN_ACTIONS.some(action => choice.label.includes(action))) return;
-
-                const btn = document.createElement('button');
-                btn.className = 'btn btn--full';
-                btn.textContent = choice.label;
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    // Don't hide popup - let next frame update it with new choices
-                    this.respond(choice.id, inputId);
-                };
-                actionsEl.appendChild(btn);
-            });
-        }
+        // Don't show any actions in popup when player is at current tile
+        // All actions are now shown in the right sidebar instead
 
         // Position popup horizontally (screenPos.x is already at tile's right edge)
         popup.style.left = `${screenPos.x}px`;
@@ -937,6 +927,45 @@ class GameClient {
         if (storageBtn) {
             storageBtn.onclick = () => this.requestAction('storage');
         }
+    }
+
+    /**
+     * Update available actions in right sidebar
+     */
+    updateAvailableActions(choices) {
+        const panel = document.getElementById('availableActionsPanel');
+        const container = document.getElementById('availableActions');
+
+        if (!choices || choices.length === 0) {
+            hide(panel);
+            return;
+        }
+
+        // Filter to only work/exploration actions (those hidden from popup but not quick actions)
+        const quickActions = ['Inventory', 'Crafting', 'Storage', 'Travel'];
+        const workActions = choices.filter(c =>
+            !quickActions.some(qa => c.label.includes(qa))
+        );
+
+        if (workActions.length === 0) {
+            hide(panel);
+            return;
+        }
+
+        // Show panel and populate actions
+        show(panel);
+        Utils.clearElement(container);
+
+        const inputId = this.currentInputId;
+        workActions.forEach(choice => {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn--sm btn--full';
+            btn.textContent = choice.label;
+            btn.onclick = () => {
+                this.respond(choice.id, inputId);
+            };
+            container.appendChild(btn);
+        });
     }
 
     /**

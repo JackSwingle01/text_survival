@@ -127,9 +127,6 @@ public partial class GameRunner(GameContext ctx)
         string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
         choice.AddOption(craftLabel, RunCrafting);
 
-        if (ctx.Inventory.HasBuildingMaterials && ctx.CurrentLocation == ctx.Camp)
-            choice.AddOption("Improve Camp", ImproveCamp);
-
         // Inventory - always available when player has items
         if (HasItems())
             choice.AddOption("Inventory", RunInventoryMenu);
@@ -219,12 +216,6 @@ public partial class GameRunner(GameContext ctx)
             // Crafting always available - menu shows what's craftable/uncraftable
             string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
             choice.AddOption(craftLabel, RunCrafting);
-
-            // Improve Camp - build infrastructure (fire pits, shelters, bedding)
-            if (ctx.Inventory.HasBuildingMaterials)
-            {
-                choice.AddOption("Improve Camp", ImproveCamp);
-            }
 
             // Inventory - always available when player has items
             if (HasItems())
@@ -357,12 +348,6 @@ public partial class GameRunner(GameContext ctx)
     {
         var craftingRunner = new CraftingRunner(ctx);
         craftingRunner.Run();
-    }
-
-    private void ImproveCamp()
-    {
-        var improveCampRunner = new ImproveCampRunner(ctx);
-        improveCampRunner.Run();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

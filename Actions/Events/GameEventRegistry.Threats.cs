@@ -796,7 +796,7 @@ public static partial class GameEventRegistry
         };
 
         return new GameEvent("Old Ache",
-            descriptions[Random.Shared.Next(descriptions.Length)], 0.7)
+            descriptions[Random.Shared.Next(descriptions.Length)], 0.35)
             .Requires(EventCondition.Awake)
             .WithConditionFactor(EventCondition.LowTemperature, 1.5)
             .WithSituationFactor(Situations.Vulnerable, 2.0)  // Injured, slow, impaired, no weapon
