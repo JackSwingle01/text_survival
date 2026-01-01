@@ -181,8 +181,8 @@ public class GameContext(Player player, Location camp, Weather weather)
         {
             Width = 32,
             Height = 32,
-            TargetNamedLocations = 40,
-            MinLocationSpacing = 3
+            TargetNamedLocations = 100,
+            MinLocationSpacing = 4
         };
 
         var (map, camp) = worldGen.Generate(weather);

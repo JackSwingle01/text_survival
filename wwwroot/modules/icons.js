@@ -8,10 +8,15 @@ export const WEATHER_ICONS = {
     'Clear': 'wb_sunny',
     'Cloudy': 'cloud',
     'Overcast': 'cloud',
+    'Misty': 'foggy',
     'Light Snow': 'weather_snowy',
     'Snow': 'weather_snowy',
     'Heavy Snow': 'ac_unit',
     'Blizzard': 'ac_unit',
+    'Whiteout': 'ac_unit',
+    'Freezing Rain': 'weather_mix',
+    'Rain': 'rainy',
+    'Storm': 'thunderstorm',
     'Fog': 'foggy',
     'Wind': 'air'
 };
@@ -48,6 +53,7 @@ export const FEATURE_ICON_LABELS = {
     'nutrition': 'Harvestable resources',
     'cruelty_free': 'Wildlife territory',
     'pets': 'Predator territory',
+    'warning': 'Megafauna territory',
     'water_drop': 'Water source',
     'park': 'Wooded area',
 
@@ -59,7 +65,7 @@ export const FEATURE_ICON_LABELS = {
 
     // Trapping
     'circle': 'Snares set',
-    'catching_pokemon': 'Snare catch ready!',
+    'check_circle': 'Snare catch ready!',
 
     // Work sites
     'search': 'Salvage site',

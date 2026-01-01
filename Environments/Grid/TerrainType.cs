@@ -28,21 +28,21 @@ public static class TerrainTypeExtensions
 {
     /// <summary>
     /// Base traversal time in minutes to enter this terrain type.
-    /// Based on ~1 mile across per location, 20 min per mile on flat terrain = 10 min radius.
+    /// Based on ~1/4 mile across per location, ~24 min per mile on flat terrain = 3 min radius.
     /// Higher = slower travel.
     /// </summary>
     public static int BaseTraversalMinutes(this TerrainType terrain) => terrain switch
     {
-        TerrainType.Plain => 10,      // Baseline - flat terrain, fast
-        TerrainType.Clearing => 11,   // Slight undergrowth
-        TerrainType.Water => 12,      // Slippery ice but flat
-        TerrainType.Forest => 14,     // Slower through trees
-        TerrainType.Rock => 16,       // Careful footing over rocks
-        TerrainType.Hills => 17,      // Elevation changes
-        TerrainType.Marsh => 20,      // Very slow, treacherous
+        TerrainType.Plain => 3,       // Baseline - flat terrain, fast
+        TerrainType.Clearing => 3,    // Slight undergrowth
+        TerrainType.Water => 4,       // Slippery ice but flat
+        TerrainType.Forest => 4,      // Slower through trees
+        TerrainType.Rock => 5,        // Careful footing over rocks
+        TerrainType.Hills => 5,       // Elevation changes
+        TerrainType.Marsh => 6,       // Very slow, treacherous
         TerrainType.Mountain => int.MaxValue,
         TerrainType.DeepWater => int.MaxValue,
-        _ => 12
+        _ => 4
     };
 
     /// <summary>

@@ -9,11 +9,11 @@ namespace text_survival.Environments.Factories;
 /// </summary>
 public class GridWorldGenerator
 {
-    public int Width { get; set; } = 16;
-    public int Height { get; set; } = 16;
-    public int TargetNamedLocations { get; set; } = 40;
-    public int MinLocationSpacing { get; set; } = 2;  // Minimum tiles between named locations
-    public int MountainRows { get; set; } = 3;
+    public int Width { get; set; } = 32;
+    public int Height { get; set; } = 32;
+    public int TargetNamedLocations { get; set; } = 100;
+    public int MinLocationSpacing { get; set; } = 4;  // Minimum tiles between named locations
+    public int MountainRows { get; set; } = 6;
 
     // Terrain matrix used during generation
     private TerrainType[,] _terrain = null!;
@@ -480,7 +480,7 @@ public class GridWorldGenerator
     {
         // Randomize pass position (keep it somewhat central)
         int passStart = _rng.Next(Width / 4, Width * 3 / 4);
-        int passWidth = 2;
+        int passWidth = 1;  // Single-tile pass through mountains
 
         for (int x = 0; x < Width; x++)
         {

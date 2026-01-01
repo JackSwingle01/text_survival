@@ -16,7 +16,7 @@ public static partial class GameEventRegistry
     /// Stage 1: Discovery - Player hears mammoth calls near the herd territory.
     /// Creates initial MammothTracked tension. Now territory-aware.
     /// </summary>
-    private static GameEvent DistantTrumpeting(GameContext ctx)
+    internal static GameEvent DistantTrumpeting(GameContext ctx)
     {
         var herd = Situations.GetMammothHerd(ctx);
         var herdDesc = herd?.State switch
@@ -59,7 +59,7 @@ public static partial class GameEventRegistry
     /// Stage 2: Escalation - Player tracks the mammoth, finds definitive evidence.
     /// Escalates MammothTracked tension. Requires preparation choice.
     /// </summary>
-    private static GameEvent FreshSpoor(GameContext ctx)
+    internal static GameEvent FreshSpoor(GameContext ctx)
     {
         var mammothTension = ctx.Tensions.GetTension("MammothTracked");
         var confidence = mammothTension?.Severity ?? 0.4;
@@ -113,7 +113,7 @@ public static partial class GameEventRegistry
     /// Stage 3: Confrontation - Player approaches with high tension, commits to the hunt.
     /// Gates the actual encounter spawn. High risk decision point.
     /// </summary>
-    private static GameEvent TheBull(GameContext ctx)
+    internal static GameEvent TheBull(GameContext ctx)
     {
         var mammothTension = ctx.Tensions.GetTension("MammothTracked");
         var hasWeapon = ctx.Inventory.Weapon != null;
@@ -173,7 +173,7 @@ public static partial class GameEventRegistry
     /// <summary>
     /// Weather escalates during active mammoth hunt. Creates compounding pressure.
     /// </summary>
-    private static GameEvent ColdSnapDuringHunt(GameContext ctx)
+    internal static GameEvent ColdSnapDuringHunt(GameContext ctx)
     {
         return new GameEvent("Cold Snap During Hunt",
             "The wind shifts. Suddenly it's much colder—biting, deadly cold. " +
@@ -221,7 +221,7 @@ public static partial class GameEventRegistry
     /// <summary>
     /// Wolves smell blood during mammoth butchering. Competition for the kill.
     /// </summary>
-    private static GameEvent WolvesSmellBlood(GameContext ctx)
+    internal static GameEvent WolvesSmellBlood(GameContext ctx)
     {
         return new GameEvent("Wolves Smell Blood",
             "You're elbow-deep in the mammoth carcass, working as fast as you can. " +
@@ -263,7 +263,7 @@ public static partial class GameEventRegistry
     /// Peaceful sighting - the mammoth herd is grazing/resting and player observes.
     /// Creates opportunity without immediate danger.
     /// </summary>
-    private static GameEvent TheHerd(GameContext ctx)
+    internal static GameEvent TheHerd(GameContext ctx)
     {
         var herd = Situations.GetMammothHerd(ctx);
         int count = herd?.Count ?? 8;
@@ -326,7 +326,7 @@ public static partial class GameEventRegistry
     /// Matriarch's warning - the herd is alert and player is detected.
     /// Standoff where player chooses confrontation or retreat.
     /// </summary>
-    private static GameEvent TheMatriarchsWarning(GameContext ctx)
+    internal static GameEvent TheMatriarchsWarning(GameContext ctx)
     {
         return new GameEvent("The Matriarch's Warning",
             "The matriarch faces you directly. Ears spread wide. Trunk raised, testing. " +
@@ -377,7 +377,7 @@ public static partial class GameEventRegistry
     /// The herd is moving - migration or relocation.
     /// Player can follow or let them go.
     /// </summary>
-    private static GameEvent TheHerdMoves(GameContext ctx)
+    internal static GameEvent TheHerdMoves(GameContext ctx)
     {
         var herd = Situations.GetMammothHerd(ctx);
         var direction = herd?.Position.X < (ctx.Map?.CurrentPosition.X ?? 0) ? "west" : "east";
@@ -415,7 +415,7 @@ public static partial class GameEventRegistry
     /// The mammoth charges - defensive attack by the herd.
     /// This is triggered when player provokes the alert herd.
     /// </summary>
-    private static GameEvent TheCharge(GameContext ctx)
+    internal static GameEvent TheCharge(GameContext ctx)
     {
         return new GameEvent("The Charge",
             "A sound like thunder. Tusks gleaming. Thousands of pounds of muscle and fury. " +

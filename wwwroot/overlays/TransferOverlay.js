@@ -115,13 +115,12 @@ export class TransferOverlay extends OverlayManager {
     }
 
     sendTransfer(itemId, count) {
-        this.inputHandler.sendAction(
+        this.sendAction(
             'transfer',
             {
                 transferItemId: itemId,
                 transferCount: count
-            },
-            this.inputId
+            }
         );
     }
 

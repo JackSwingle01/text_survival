@@ -239,9 +239,8 @@ public static class CombatRunner
 
     private static CombatResult RunCombatLoop(GameContext ctx, CombatState state)
     {
-        // Defensive cleanup
-        WebIO.ClearEncounter(ctx);
-        WebIO.ClearCombat(ctx);
+        // Defensive cleanup - clear ALL overlays to prevent stale overlay interference
+        WebIO.ClearAllOverlays(ctx.SessionId!);
 
         double? prevDistance = null;
         bool isFirstTurn = true;
@@ -352,9 +351,34 @@ public static class CombatRunner
             }
         }
 
-        // Safety fallback
-        WebIO.ClearCombat(ctx);
-        return ctx.player.IsAlive ? CombatResult.AnimalFled : CombatResult.Defeat;
+        // Safety fallback - combat ended without explicit resolution
+        // This can happen if turn limit reached or edge case
+        CombatResult fallbackResult;
+        string fallbackMessage;
+
+        if (!ctx.player.IsAlive)
+        {
+            fallbackResult = CombatResult.Defeat;
+            fallbackMessage = "You collapse from your injuries.";
+        }
+        else if (!state.Animal.IsAlive)
+        {
+            fallbackResult = CombatResult.Victory;
+            fallbackMessage = $"The {state.Animal.Name} falls!";
+        }
+        else if (state.TurnCount >= MaxCombatTurns)
+        {
+            fallbackResult = CombatResult.AnimalFled;
+            fallbackMessage = $"The prolonged fight exhausts you both. The {state.Animal.Name} breaks off and flees.";
+        }
+        else
+        {
+            // Unknown edge case
+            fallbackResult = CombatResult.AnimalFled;
+            fallbackMessage = $"The {state.Animal.Name} breaks off and retreats.";
+        }
+
+        return ShowOutcome(ctx, state, fallbackResult, fallbackMessage);
     }
 
     #endregion
@@ -855,28 +879,13 @@ public static class CombatRunner
             return new ActionResult("You can't disengage from here!", null, CombatPlayerAction.Disengage);
         }
 
-        bool escaped = state.AttemptDisengage(ctx);
-        if (escaped)
-        {
-            return new ActionResult(
-                $"You break away and sprint to safety. The {state.Animal.Name} doesn't follow.",
-                CombatResult.Fled,
-                CombatPlayerAction.Disengage
-            );
-        }
-        else
-        {
-            // Failed escape - animal gets free attack
-            double damage = state.Animal.AttackDamage;
-            var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal, damage);
-            string partName = FormatBodyPartName(damageResult.HitPartName);
-
-            return new ActionResult(
-                $"You try to run but can't escape! The {state.Animal.Name} catches your {partName}!",
-                null,
-                CombatPlayerAction.Disengage
-            );
-        }
+        // At Far range, disengage always succeeds
+        state.AttemptDisengage(ctx);
+        return new ActionResult(
+            $"You break away and sprint to safety. The {state.Animal.Name} doesn't follow.",
+            CombatResult.Fled,
+            CombatPlayerAction.Disengage
+        );
     }
 
     private static ActionResult ProcessDropMeat(GameContext ctx, CombatState state)

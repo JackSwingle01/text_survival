@@ -88,7 +88,7 @@ Locations interact with: expeditions (travel destinations), features (what's ava
 
 The world map is a 2D grid of locations. `GameMap` owns all spatial relationships — locations don't know their positions.
 
-**Scale**: Each tile represents approximately **1 square mile** of terrain. Travel time across a tile (entering or exiting) is based on ~20 minutes per mile on flat terrain, giving a 10-minute radius for plain terrain, scaled up for difficult terrain types.
+**Scale**: Each tile represents approximately **1/4 square mile** (0.25 sq mi) of terrain. Travel time across a tile (entering or exiting) is based on ~24 minutes per mile on flat terrain, giving a 3-minute radius for typical terrain, scaled up for difficult terrain types.
 
 Core operations:
 - `CurrentPosition` — player's (X, Y) coordinates

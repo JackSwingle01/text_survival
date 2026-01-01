@@ -42,13 +42,12 @@ export class HazardOverlay extends OverlayManager {
             label: label,
             description: description,
             onClick: () => {
-                this.inputHandler.sendAction(
+                this.sendAction(
                     'hazard_choice',
                     {
                         quickTravel: isQuick,
                         choiceId: isQuick ? 'quick' : 'careful'
-                    },
-                    this.inputId
+                    }
                 );
             }
         });

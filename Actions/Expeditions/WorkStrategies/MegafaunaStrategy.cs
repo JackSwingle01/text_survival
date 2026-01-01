@@ -100,16 +100,67 @@ public class MegafaunaStrategy : IWorkStrategy
 
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
-        var megafaunaFeature = location.GetFeature<MegafaunaPresenceFeature>()!;
-        string huntStage = megafaunaFeature.GetHuntStage(ctx);
+        var rng = new Random();
 
-        GameDisplay.AddNarrative(ctx, $"You search for signs of the {megafaunaFeature.MegafaunaType.ToLower()}...");
+        // Check for saber-tooth discovery
+        if (Situations.InSaberToothTerritory(ctx))
+        {
+            var tension = ctx.Tensions.GetTension("SaberToothStalked");
 
-        // Events will handle the actual hunt progression
-        // The work strategy just marks that we're working on megafauna hunting
-        // Event system will check hunt stage and trigger appropriate events during time passage
+            if (tension == null)
+            {
+                GameDisplay.AddNarrative(ctx, "You search for signs of the saber-tooth...");
 
-        // Return standard work result - events will trigger during time passage in WorkRunner
+                // 40% chance to discover
+                if (rng.NextDouble() < 0.4)
+                {
+                    GameEventRegistry.HandleEvent(ctx, GameEventRegistry.AncientPredator(ctx));
+                    return WorkResult.Empty(actualTime);
+                }
+
+                GameDisplay.AddNarrative(ctx, "You find nothing conclusive. Old tracks, maybe.");
+                return WorkResult.Empty(actualTime);
+            }
+            else
+            {
+                GameDisplay.AddNarrative(ctx, "You're already tracking the saber-tooth. The tension hangs heavy.");
+                return WorkResult.Empty(actualTime);
+            }
+        }
+
+        // Check for mammoth discovery
+        if (Situations.NearMammothHerd(ctx) || Situations.MammothHerdPresent(ctx))
+        {
+            var tension = ctx.Tensions.GetTension("MammothTracked");
+
+            if (tension == null)
+            {
+                GameDisplay.AddNarrative(ctx, "You search for signs of the mammoth herd...");
+
+                // 40% chance to discover
+                if (rng.NextDouble() < 0.4)
+                {
+                    // 50/50 between hearing calls and seeing herd
+                    var discoveryEvent = rng.NextDouble() < 0.5
+                        ? GameEventRegistry.DistantTrumpeting(ctx)
+                        : GameEventRegistry.TheHerd(ctx);
+
+                    GameEventRegistry.HandleEvent(ctx, discoveryEvent);
+                    return WorkResult.Empty(actualTime);
+                }
+
+                GameDisplay.AddNarrative(ctx, "You search but find no fresh signs of the herd.");
+                return WorkResult.Empty(actualTime);
+            }
+            else
+            {
+                GameDisplay.AddNarrative(ctx, "You're already tracking the mammoth herd.");
+                return WorkResult.Empty(actualTime);
+            }
+        }
+
+        // No megafauna in area
+        GameDisplay.AddNarrative(ctx, "There's no sign of megafauna here.");
         return WorkResult.Empty(actualTime);
     }
 }

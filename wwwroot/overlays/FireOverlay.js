@@ -342,19 +342,19 @@ export class FireOverlay extends OverlayManager {
     }
 
     sendToolSelect(toolId) {
-        this.inputHandler.sendAction('fire', { fireToolId: toolId }, this.inputId);
+        this.sendAction('fire', { fireToolId: toolId });
     }
 
     sendTinderSelect(tinderId) {
-        this.inputHandler.sendAction('fire', { tinderId: tinderId }, this.inputId);
+        this.sendAction('fire', { tinderId: tinderId });
     }
 
     sendAddFuel(fuelId, count) {
-        this.inputHandler.sendAction('fire', { fuelItemId: fuelId, fuelCount: count }, this.inputId);
+        this.sendAction('fire', { fuelItemId: fuelId, fuelCount: count });
     }
 
     sendLightEmberCarrier(carrierId) {
-        this.inputHandler.sendAction('fire', { emberCarrierId: carrierId }, this.inputId);
+        this.sendAction('fire', { emberCarrierId: carrierId });
     }
 
     cleanup() {

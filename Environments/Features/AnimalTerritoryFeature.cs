@@ -22,7 +22,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     public override int IconPriority => HasPredators() ? 3 : 2; // Predators show prominently
 
     public List<AnimalSpawnEntry> _possibleAnimals = [];
-    private readonly double _respawnRateHours = 168.0; // Full respawn takes 1 week
+    private readonly double _respawnRateHours = 672.0; // Full respawn takes 4 weeks
 
     // Public fields for serialization (System.Text.Json IncludeFields requires public)
     public double _baseGameDensity;

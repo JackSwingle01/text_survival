@@ -61,8 +61,11 @@ export class CombatOverlay extends OverlayManager {
     render(combatData, inputId) {
         this.show(inputId);
 
-        // Phase detection: Check for approach phase properties
-        const isApproachPhase = combatData.boldnessLevel !== undefined || combatData.choices !== undefined;
+        // Phase detection: Distinguish between encounter (choices) and combat (actions + phase)
+        // Encounter has: choices, predatorName
+        // Combat has: actions, phase, animalName
+        const isApproachPhase = combatData.choices !== undefined;
+        const isCombatPhase = combatData.phase !== undefined || combatData.actions !== undefined;
         const isOutcomePhase = combatData.outcome != null;  // Check for both null and undefined
 
         if (isApproachPhase && !isOutcomePhase) {
@@ -350,8 +353,8 @@ export class CombatOverlay extends OverlayManager {
     }
 
     showOutcome(combatData) {
-        // Delegate to appropriate outcome handler
-        if (combatData.boldnessLevel !== undefined || combatData.choices !== undefined) {
+        // Delegate to appropriate outcome handler based on data structure
+        if (combatData.choices !== undefined) {
             this.showApproachOutcome(combatData);
         } else {
             this.showCombatOutcome(combatData);
@@ -452,6 +455,12 @@ export class CombatOverlay extends OverlayManager {
         show(this.encounterChoicesEl);
 
         this.clear(this.encounterChoicesEl);
+
+        // Guard against missing choices array
+        if (!encounterData.choices || !Array.isArray(encounterData.choices)) {
+            console.warn('No choices available in approach phase data');
+            return;
+        }
 
         encounterData.choices.forEach(choice => {
             const btn = this.createOptionButton({

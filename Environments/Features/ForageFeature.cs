@@ -19,7 +19,7 @@ public record ForageResource(
 
 public class ForageFeature : LocationFeature, IWorkableFeature
 {
-    private readonly double respawnRateHours = 168.0; // Full respawn takes 1 week
+    private readonly double respawnRateHours = 672.0; // Full respawn takes 4 weeks
     private const double BaseGrazingRatePerKgPerHour = 0.0001;
     [System.Text.Json.Serialization.JsonInclude]
     private List<ForageResource> _resources = [];

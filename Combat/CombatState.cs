@@ -404,17 +404,12 @@ public class CombatState
 
     /// <summary>
     /// Attempt to disengage from combat.
-    /// Returns true if successful.
+    /// At Far range with movement capacity, you can always successfully disengage.
     /// </summary>
     public bool AttemptDisengage(GameContext ctx)
     {
-        if (!CanDisengage(ctx)) return false;
-
-        // Use pursuit calculation
-        var (escaped, _) = HuntingCalculator.CalculatePursuitOutcome(
-            ctx.player, Animal, DistanceMeters);
-
-        return escaped;
+        // At Far range with movement capacity, you can always disengage successfully
+        return CanDisengage(ctx);
     }
 
     #endregion

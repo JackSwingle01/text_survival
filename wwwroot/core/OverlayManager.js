@@ -62,6 +62,14 @@ export class OverlayManager {
     }
 
     /**
+     * Send an action using the current inputId from InputHandler
+     */
+    sendAction(type, data) {
+        const currentInputId = this.inputHandler.getCurrentInputId();
+        return this.inputHandler.sendAction(type, data, currentInputId);
+    }
+
+    /**
      * Create a bound click handler that uses current inputId
      */
     makeClickHandler(choiceId) {

@@ -68,7 +68,8 @@ export class CanvasGridRenderer {
             'local_fire_department': { color: '#e08830', glow: true },  // Fire
             'fireplace': { color: '#a06030', glow: true },              // Embers
             'water_drop': { color: '#90d0e0', glow: false },            // Water
-            'catching_pokemon': { color: '#e0a030', glow: true }        // Catch ready!
+            'check_circle': { color: '#e0a030', glow: true },           // Catch ready!
+            'warning': { color: '#d84315', glow: true }                 // Megafauna
         };
 
         // Bound event handlers for proper add/remove
@@ -1675,14 +1676,13 @@ export class CanvasGridRenderer {
             const { x: worldX, y: worldY } = this.viewToWorld(vx, vy);
             const tile = this.findTile(worldX, worldY);
 
-            if (tile && tile.visibility !== 'unexplored') {
-                // Calculate popup position (screen coordinates, accounting for CSS scaling)
-                const cellSize = (this.TILE_SIZE + this.GAP) / scaleX;
-                const tileScreenX = rect.left + (vx + 1) * cellSize;
-                const tileScreenY = rect.top + vy * cellSize;
+            // Calculate popup position (screen coordinates, accounting for CSS scaling)
+            const cellSize = (this.TILE_SIZE + this.GAP) / scaleX;
+            const tileScreenX = rect.left + (vx + 1) * cellSize;
+            const tileScreenY = rect.top + vy * cellSize;
 
-                this.onTileClick(worldX, worldY, tile, { x: tileScreenX, y: tileScreenY });
-            }
+            // Call callback for both explored tiles (tile !== null) and unexplored tiles (tile === null)
+            this.onTileClick(worldX, worldY, tile, { x: tileScreenX, y: tileScreenY });
         }
     }
 

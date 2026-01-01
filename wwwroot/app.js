@@ -607,11 +607,14 @@ class GameClient {
         // Hide any existing popup first
         this.hideTilePopup();
 
-        // Store current tile for actions
-        this.tilePopup = { x, y, tileData };
+        // Only show new popup if tile data exists and is explored
+        if (tileData && tileData.visibility !== 'unexplored') {
+            // Store current tile for actions
+            this.tilePopup = { x, y, tileData };
 
-        // Show the popup
-        this.showTilePopup(x, y, tileData, screenPos);
+            // Show the popup
+            this.showTilePopup(x, y, tileData, screenPos);
+        }
     }
 
     /**
@@ -623,7 +626,6 @@ class GameClient {
         const terrainEl = document.getElementById('popupTerrain');
         const glanceEl = document.getElementById('popupGlance');
         const featuresEl = document.getElementById('popupFeatures');
-        const promptEl = document.getElementById('popupPrompt');
         const actionsEl = document.getElementById('popupActions');
 
         // Set location info
@@ -645,14 +647,7 @@ class GameClient {
             this.buildDetailedFeatures(featuresEl, tileData.featureDetails);
         }
 
-        // Show prompt if player is here and there's a prompt
         const isPlayerHere = tileData.isPlayerHere;
-        if (isPlayerHere && this.currentInput?.prompt) {
-            promptEl.textContent = this.currentInput.prompt;
-            show(promptEl);
-        } else {
-            hide(promptEl);
-        }
 
         // Build actions
         Utils.clearElement(actionsEl);
@@ -838,46 +833,15 @@ class GameClient {
 
     /**
      * Update just the action buttons in an already-visible tile popup
+     * Actions are now in sidebar, so this just clears the popup actions
      */
     updateTilePopupActions() {
         if (!this.tilePopup) return;
 
-        const promptEl = document.getElementById('popupPrompt');
         const actionsEl = document.getElementById('popupActions');
         if (!actionsEl) return;
 
         Utils.clearElement(actionsEl);
-
-        // Only show actions if player is at this tile
-        if (!this.tilePopup.tileData?.isPlayerHere) {
-            hide(promptEl);
-            return;
-        }
-
-        // Update prompt
-        if (this.currentInput?.prompt && promptEl) {
-            promptEl.textContent = this.currentInput.prompt;
-            show(promptEl);
-        } else {
-            hide(promptEl);
-        }
-
-        // Build action buttons from current input choices
-        if (this.currentInput?.choices) {
-            this.currentInput.choices.forEach((choice) => {
-                if (POPUP_HIDDEN_ACTIONS.some(action => choice.label.includes(action))) return;
-
-                const btn = document.createElement('button');
-                btn.className = 'btn btn--full';
-                btn.textContent = choice.label;
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    // Use live reference to current input ID instead of closure capture
-                    this.respond(choice.id, this.currentInputId);
-                };
-                actionsEl.appendChild(btn);
-            });
-        }
     }
 
     /**

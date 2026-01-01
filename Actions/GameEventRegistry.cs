@@ -121,6 +121,20 @@ public static partial class GameEventRegistry
         Stampede,
         TheFollowers,
 
+        // Saber-tooth escalation/confrontation (GameEventRegistry.SaberTooth.cs)
+        SomethingWatches,
+        TheAmbush,
+
+        // Mammoth hunt arc (GameEventRegistry.Megafauna.cs)
+        FreshSpoor,
+        TheBull,
+        ColdSnapDuringHunt,
+        WolvesSmellBlood,
+        TheHerd,
+        TheMatriarchsWarning,
+        TheHerdMoves,
+        TheCharge,
+
         // Cold Snap Arc (GameEventRegistry.ColdSnap.cs)
         TheWindShifts,
         GoingNumb,

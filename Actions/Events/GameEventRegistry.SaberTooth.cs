@@ -13,7 +13,7 @@ public static partial class GameEventRegistry
     /// Discovery event - you find signs of saber-tooth presence.
     /// Unique tension that doesn't decay at camp. Fire doesn't help.
     /// </summary>
-    private static GameEvent AncientPredator(GameContext ctx)
+    internal static GameEvent AncientPredator(GameContext ctx)
     {
         return new GameEvent("Ancient Predator",
             "Deep gouges on the tree bark. Higher than any wolf could reach. The claw marks are fresh. " +
@@ -66,7 +66,7 @@ public static partial class GameEventRegistry
     /// Escalation event - the saber-tooth is actively stalking you.
     /// Key mechanic: NOISE DRAWS IT IN. "Make noise" is the WRONG choice.
     /// </summary>
-    private static GameEvent SomethingWatches(GameContext ctx)
+    internal static GameEvent SomethingWatches(GameContext ctx)
     {
         var tension = ctx.Tensions.GetTension("SaberToothStalked");
         double severity = tension?.Severity ?? 0.3;
@@ -137,7 +137,7 @@ public static partial class GameEventRegistry
     /// Confrontation event - the saber-tooth attacks.
     /// Key mechanic: Running triggers the ambush. You MUST face it.
     /// </summary>
-    private static GameEvent TheAmbush(GameContext ctx)
+    internal static GameEvent TheAmbush(GameContext ctx)
     {
         var tension = ctx.Tensions.GetTension("SaberToothStalked");
         bool isDistracted = ctx.CurrentActivity != ActivityType.Traveling &&

@@ -528,6 +528,9 @@ public class Weather
             WeatherCondition.Rainy => "Rain",
             WeatherCondition.Blizzard => "Blizzard",
             WeatherCondition.Stormy => "Storm",
+            WeatherCondition.HeavySnow => "Heavy Snow",
+            WeatherCondition.FreezingRain => "Freezing Rain",
+            WeatherCondition.Whiteout => "Whiteout",
             _ => "Unknown"
         };
     }

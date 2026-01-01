@@ -107,12 +107,12 @@ public class TileEdge
     {
         (TraversalModifierMinutes, Bidirectional, Impassable, BlockedSeason) = Type switch
         {
-            EdgeType.River => (20, true, false, (Weather.Season?)null),       // +20 min to ford
+            EdgeType.River => (4, true, false, (Weather.Season?)null),        // +4 min to ford
             EdgeType.Cliff => (0, false, true, (Weather.Season?)null),        // One-way down, blocks up
-            EdgeType.Climb => (30, true, false, (Weather.Season?)null),       // +30 min, risky
-            EdgeType.GameTrail => (-5, true, false, (Weather.Season?)null),   // -5 min, animals keep it clear
-            EdgeType.TrailMarker => (-3, true, false, (Weather.Season?)null), // -3 min, easier navigation
-            EdgeType.CutTrail => (-8, true, false, (Weather.Season?)null),    // -8 min, cleared brush
+            EdgeType.Climb => (6, true, false, (Weather.Season?)null),        // +6 min, risky
+            EdgeType.GameTrail => (-1, true, false, (Weather.Season?)null),   // -1 min, animals keep it clear
+            EdgeType.TrailMarker => (-1, true, false, (Weather.Season?)null), // -1 min, easier navigation
+            EdgeType.CutTrail => (-2, true, false, (Weather.Season?)null),    // -2 min, cleared brush
             _ => (0, true, false, (Weather.Season?)null)
         };
 
