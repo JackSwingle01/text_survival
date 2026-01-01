@@ -43,7 +43,7 @@ public class CacheStrategy : IWorkStrategy
         var cache = location.GetFeature<CacheFeature>()!;
 
         string name = cache.Name.ToUpper();
-        InventoryTransferHelper.RunTransferMenu(ctx, cache.Storage, name);
+        Web.WebIO.RunTransferUI(ctx, cache.Storage, name);
 
         return WorkResult.Empty(0); // No time cost for cache management
     }

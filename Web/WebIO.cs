@@ -31,6 +31,7 @@ public static class WebIO
     private static readonly Dictionary<string, EncounterDto> _currentEncounter = new();
     private static readonly Dictionary<string, CombatDto> _currentCombat = new();
     private static readonly Dictionary<string, EatingOverlayDto> _currentEating = new();
+    private static readonly Dictionary<string, DiscoveryDto> _currentDiscovery = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -106,6 +107,8 @@ public static class WebIO
                 overlays.Add(new CombatOverlay(combat));
             if (_currentEating.TryGetValue(sessionId, out var eating))
                 overlays.Add(new EatingOverlay(eating));
+            if (_currentDiscovery.TryGetValue(sessionId, out var discovery))
+                overlays.Add(new DiscoveryOverlay(discovery));
         }
 
         return overlays;
@@ -229,6 +232,15 @@ public static class WebIO
     }
 
     /// <summary>
+    /// Clear the current discovery display for a session.
+    /// </summary>
+    public static void ClearDiscovery(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentDiscovery.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
     /// Clear all overlays for a session. Used on reconnect to prevent stale overlays.
     /// </summary>
     public static void ClearAllOverlays(string sessionId)
@@ -246,6 +258,7 @@ public static class WebIO
         _currentButcher.Remove(sessionId);
         _currentEncounter.Remove(sessionId);
         _currentCombat.Remove(sessionId);
+        _currentDiscovery.Remove(sessionId);
     }
 
     /// <summary>
@@ -432,6 +445,24 @@ public static class WebIO
     {
         WaitForEventContinue(ctx);
         ClearCombat(ctx);
+    }
+
+    /// <summary>
+    /// Show discovery overlay and wait for player to acknowledge.
+    /// </summary>
+    public static void ShowDiscovery(GameContext ctx, string locationName, string discoveryText)
+    {
+        if (ctx.SessionId == null) return;
+
+        // Set discovery overlay
+        var discoveryData = new DiscoveryDto(locationName, discoveryText);
+        _currentDiscovery[ctx.SessionId] = discoveryData;
+
+        // Render and wait for continue
+        WaitForEventContinue(ctx);
+
+        // Clear after acknowledgment
+        ClearDiscovery(ctx);
     }
 
     /// <summary>
@@ -1240,6 +1271,11 @@ public static class WebIO
             {
                 choices.Insert(choices.Count - 1, new ChoiceDto("wait", "Wait (2 min)"));
             }
+            // Add charcoal collection button when available
+            if (fire.CharcoalAvailableKg > 0.01 && !fire.IsActive)
+            {
+                choices.Insert(choices.Count - 1, new ChoiceDto("collect_charcoal", $"Collect Charcoal ({fire.CharcoalAvailableKg:F2}kg)"));
+            }
 
             int inputId = session.GenerateInputId();
             var frame = new WebFrame(
@@ -1289,6 +1325,30 @@ public static class WebIO
             else if (response.ChoiceId == "wait")
             {
                 ctx.Update(2, ActivityType.TendingFire);
+            }
+            // Collect charcoal
+            else if (response.ChoiceId == "collect_charcoal")
+            {
+                double collected = fire.CollectCharcoal();
+                ctx.Inventory.Add(Resource.Charcoal, collected);
+                ctx.Update(1, ActivityType.TendingFire);
+            }
+            // Light ember carrier
+            else if (response.EmberCarrierId != null)
+            {
+                if (int.TryParse(response.EmberCarrierId.Replace("ember_", ""), out int carrierIdx))
+                {
+                    var inv = ctx.Inventory;
+                    if (carrierIdx >= 0 && carrierIdx < inv.Tools.Count)
+                    {
+                        var carrier = inv.Tools[carrierIdx];
+                        if (carrier.ToolType == Items.ToolType.EmberCarrier && !carrier.IsEmberLit && fire.IsActive)
+                        {
+                            carrier.EmberBurnHoursRemaining = carrier.EmberBurnHoursMax;
+                            ctx.Update(2, ActivityType.TendingFire);
+                        }
+                    }
+                }
             }
         }
 

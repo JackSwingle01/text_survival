@@ -417,6 +417,14 @@ public record TinderDto(
     bool IsSelected
 );
 
+public record EmberCarrierDto(
+    string Id,              // "ember_0", "ember_1", etc.
+    string Name,
+    bool IsLit,
+    double HoursRemaining,
+    double MaxHours
+);
+
 public record FirePanelDto(
     string Mode,            // "starting" or "tending"
     string Phase,           // "Cold", "Roaring", etc.
@@ -445,7 +453,8 @@ public record FireManagementDto(
     List<FuelItemDto>? Fuels,       // Tending mode
     List<FireToolDto>? Tools,       // Starting mode
     List<TinderDto>? Tinders,       // Starting mode
-    FirePanelDto Fire
+    FirePanelDto Fire,
+    List<EmberCarrierDto>? EmberCarriers  // Tending mode when fire active
 )
 {
     public static FireManagementDto FromContext(
@@ -460,6 +469,7 @@ public record FireManagementDto(
         List<FuelItemDto>? fuels = null;
         List<FireToolDto>? tools = null;
         List<TinderDto>? tinders = null;
+        List<EmberCarrierDto>? emberCarriers = null;
 
         if (isStartingMode)
         {
@@ -469,11 +479,17 @@ public record FireManagementDto(
         else
         {
             fuels = BuildFuelList(ctx, fire);
+
+            // Build ember carriers list when fire is active (can light carriers from active fire)
+            if (fire.IsActive)
+            {
+                emberCarriers = BuildEmberCarrierList(ctx);
+            }
         }
 
         var panel = BuildFirePanel(ctx, fire, mode, selectedToolId, selectedTinderId);
 
-        return new FireManagementDto(mode, fuels, tools, tinders, panel);
+        return new FireManagementDto(mode, fuels, tools, tinders, panel, emberCarriers);
     }
 
     private static List<FuelItemDto> BuildFuelList(GameContext ctx, HeatSourceFeature fire)
@@ -604,6 +620,34 @@ public record FireManagementDto(
         }
 
         return tinders;
+    }
+
+    private static List<EmberCarrierDto> BuildEmberCarrierList(GameContext ctx)
+    {
+        var carriers = new List<EmberCarrierDto>();
+        var inv = ctx.Inventory;
+
+        // Find all ember carriers (both lit and unlit)
+        for (int i = 0; i < inv.Tools.Count; i++)
+        {
+            var tool = inv.Tools[i];
+            if (tool.ToolType != Items.ToolType.EmberCarrier) continue;
+
+            string id = $"ember_{i}";
+            string displayName = tool.IsEmberLit
+                ? $"{tool.Name} ({tool.EmberBurnHoursRemaining:F1}h)"
+                : tool.Name;
+
+            carriers.Add(new EmberCarrierDto(
+                Id: id,
+                Name: displayName,
+                IsLit: tool.IsEmberLit,
+                HoursRemaining: tool.EmberBurnHoursRemaining,
+                MaxHours: tool.EmberBurnHoursMax
+            ));
+        }
+
+        return carriers;
     }
 
     private static FirePanelDto BuildFirePanel(

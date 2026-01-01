@@ -54,6 +54,22 @@ export const FireRowBuilders = {
         ],
         arrow: { icon: 'arrow_forward' },
         disabled: { key: 'canAdd', invert: true, reasonKey: 'disabledReason' }
+    },
+
+    // Ember carriers (portable fire transport)
+    emberCarrier: {
+        type: 'action',
+        icon: { key: 'isLit', format: (lit) => lit ? 'fireplace' : 'fireplace' },
+        fields: [
+            { key: 'name', element: 'label' },
+            {
+                key: 'hoursRemaining',
+                element: 'meta',
+                format: (v, item) => item.isLit ? `${v.toFixed(1)}h` : 'Unlit'
+            }
+        ],
+        arrow: { key: 'isLit', invert: true, icon: 'arrow_forward' },
+        disabled: { key: 'isLit', reasonKey: null }
     }
 };
 

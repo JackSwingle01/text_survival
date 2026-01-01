@@ -505,7 +505,7 @@ public partial class GameRunner(GameContext ctx)
     {
         var storage = ctx.Camp.GetFeature<CacheFeature>()!;
         // Start with storage view instead of player inventory
-        InventoryTransferHelper.RunTransferMenu(ctx, storage.Storage, "CAMP STORAGE", viewStorageFirst: true);
+        Web.WebIO.RunTransferUI(ctx, storage.Storage, "CAMP STORAGE");
     }
 
     private void EatDrink()

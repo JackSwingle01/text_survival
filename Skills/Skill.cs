@@ -26,12 +26,5 @@ namespace text_survival.Skills
             GameDisplay.AddNarrative($"You leveled up {this} to level {Level}!");
         }
 
-        public override string ToString() => Name;
-
-        public void Describe()
-        {
-            GameDisplay.AddNarrative($"{this}: {Level} ({Xp}/{LevelUpThreshold})");
-        }
-
     }
 }

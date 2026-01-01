@@ -206,12 +206,16 @@ public class TravelRunner(GameContext ctx)
             return true;
         }
 
-        GameDisplay.AddNarrative(_ctx, $"You arrive at {destination.Name}.");
-
-        // Show discovery text on first visit
-        if (firstVisit && !string.IsNullOrEmpty(destination.DiscoveryText))
+        // Show discovery popup if this is first visit and has discovery text
+        // Only if FirstVisitEvent didn't already handle it
+        if (firstVisit && !string.IsNullOrEmpty(destination.DiscoveryText) && destination.FirstVisitEvent == null)
         {
-            GameDisplay.AddNarrative(_ctx, destination.DiscoveryText);
+            WebIO.ShowDiscovery(_ctx, destination.Name, destination.DiscoveryText);
+        }
+        else
+        {
+            // Standard arrival message (always shown when no discovery)
+            GameDisplay.AddNarrative(_ctx, $"You arrive at {destination.Name}.");
         }
 
         return true;

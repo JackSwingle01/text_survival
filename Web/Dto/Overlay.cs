@@ -22,6 +22,7 @@ namespace text_survival.Web.Dto;
 [JsonDerivedType(typeof(EncounterOverlay), "encounter")]
 [JsonDerivedType(typeof(CombatOverlay), "combat")]
 [JsonDerivedType(typeof(EatingOverlay), "eating")]
+[JsonDerivedType(typeof(DiscoveryOverlay), "discovery")]
 public abstract record Overlay;
 
 /// <summary>
@@ -102,6 +103,19 @@ public record ConsumableItemDto(
     int? CaloriesEstimate,
     int? HydrationEstimate,
     string? Warning
+);
+
+/// <summary>
+/// Discovery overlay: Simple location discovery popup with name + text + Continue.
+/// </summary>
+public record DiscoveryOverlay(DiscoveryDto Data) : Overlay;
+
+/// <summary>
+/// Data for the discovery overlay - shown on first visit to named locations.
+/// </summary>
+public record DiscoveryDto(
+    string LocationName,
+    string DiscoveryText
 );
 
 /// <summary>

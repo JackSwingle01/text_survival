@@ -1,8 +1,6 @@
-// Body.cs
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.Items;
 using text_survival.Survival;
 
 namespace text_survival.Bodies;

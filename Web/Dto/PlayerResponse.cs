@@ -21,5 +21,7 @@ public record PlayerResponse(
     string? FuelItemId = null,      // For "fire" type: fuel to add (tending mode)
     int? FuelCount = null,          // For "fire" type: how many units
     string? FireToolId = null,      // For "fire" type: selected tool (starting mode)
-    string? TinderId = null         // For "fire" type: selected tinder (starting mode)
+    string? TinderId = null,        // For "fire" type: selected tinder (starting mode)
+    bool? CollectCharcoal = null,   // For "fire" type: collect charcoal from fire pit
+    string? EmberCarrierId = null   // For "fire" type: light ember carrier (e.g., "ember_0")
 );

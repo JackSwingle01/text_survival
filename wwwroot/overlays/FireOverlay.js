@@ -71,7 +71,7 @@ export class FireOverlay extends OverlayManager {
                                      fireData.tools.length === 0 || !hasTinder;
             this.startBtn.onclick = () => this.startFireWithProgress();
         } else {
-            this.renderTendingMode(fireData.fuels, fireData.fire);
+            this.renderTendingMode(fireData.fuels, fireData.emberCarriers, fireData.fire);
             hide(this.startBtn);
         }
 
@@ -165,7 +165,7 @@ export class FireOverlay extends OverlayManager {
         this.leftPane.appendChild(items);
     }
 
-    renderTendingMode(fuels, fire) {
+    renderTendingMode(fuels, emberCarriers, fire) {
         this.clear(this.leftPane);
 
         // Header using paneHeader helper
@@ -189,6 +189,30 @@ export class FireOverlay extends OverlayManager {
             items: fuels || [],
             emptyMessage: !fuels || fuels.length === 0 ? 'No fuel in inventory' : null
         }]);
+
+        // Add ember carriers section if any exist
+        if (emberCarriers && emberCarriers.length > 0) {
+            const carrierHeader = paneHeader({
+                title: 'Ember Carriers',
+                icon: 'fireplace'
+            });
+            items.appendChild(carrierHeader.build());
+
+            const carrierList = new ItemList({
+                container: items,
+                onItemClick: (carrier) => {
+                    if (!carrier.isLit) {
+                        this.sendLightEmberCarrier(carrier.id);
+                    }
+                },
+                rowBuilder: FireRowBuilders.emberCarrier
+            });
+
+            carrierList.render([{
+                items: emberCarriers,
+                emptyMessage: null
+            }]);
+        }
 
         this.leftPane.appendChild(items);
     }
@@ -327,6 +351,10 @@ export class FireOverlay extends OverlayManager {
 
     sendAddFuel(fuelId, count) {
         this.inputHandler.sendAction('fire', { fuelItemId: fuelId, fuelCount: count }, this.inputId);
+    }
+
+    sendLightEmberCarrier(carrierId) {
+        this.inputHandler.sendAction('fire', { emberCarrierId: carrierId }, this.inputId);
     }
 
     cleanup() {
