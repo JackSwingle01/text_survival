@@ -1,4 +1,6 @@
 using text_survival.Actors.Animals;
+using text_survival.Environments;
+using text_survival.Environments.Grid;
 using text_survival.Web;
 using text_survival.Web.Dto;
 

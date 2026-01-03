@@ -210,5 +210,50 @@ export const EffectsDisplay = {
         if (percent <= 50) return 'severe';
         if (percent <= 70) return 'moderate';
         return 'minor';
+    },
+
+    renderCapacities(capacities) {
+        const container = document.getElementById('capacitiesList');
+        const section = container?.closest('.panel');
+
+        // Filter to only impaired capacities (< 100%)
+        const impaired = Object.entries(capacities || {})
+            .filter(([_, pct]) => pct < 100)
+            .sort((a, b) => a[1] - b[1]); // Worst first
+
+        // Hide section if all capacities are at 100%
+        if (impaired.length === 0) {
+            hide(section);
+            return;
+        }
+
+        show(section);
+        Utils.clearElement(container);
+
+        impaired.forEach(([name, pct]) => {
+            const div = document.createElement('div');
+            // Reuse injury classes - severity based on capacity level
+            div.className = `injury-item ${this.getInjurySeverityClass(pct)}`;
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'injury-name';
+            nameSpan.textContent = name;
+            div.appendChild(nameSpan);
+
+            const barContainer = document.createElement('div');
+            barContainer.className = 'injury-bar-container';
+            const bar = document.createElement('div');
+            bar.className = 'injury-bar';
+            bar.style.width = `${pct}%`; // Show capacity level
+            barContainer.appendChild(bar);
+            div.appendChild(barContainer);
+
+            const pctSpan = document.createElement('span');
+            pctSpan.className = 'injury-pct';
+            pctSpan.textContent = `${pct}%`;
+            div.appendChild(pctSpan);
+
+            container.appendChild(div);
+        });
     }
 };

@@ -4,6 +4,7 @@ using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
 using text_survival.Survival;
+using text_survival.Actors;
 using text_survival.UI;
 
 namespace text_survival.Web.Dto;
@@ -32,6 +33,7 @@ public record GameStateDto
     public string LocationName { get; init; } = "";
     public List<string> LocationTags { get; init; } = [];
     public List<FeatureDto> Features { get; init; } = [];
+    public List<NPCInfoDto> LocationNPCs { get; init; } = [];
 
     // Fire
     public FireDto? Fire { get; init; }
@@ -78,9 +80,8 @@ public record GameStateDto
     public double Warmth { get; init; }
     public double Vitality { get; init; }
 
-    // Debug: raw capacity values
-    public Dictionary<string, double> DebugCapacities { get; init; } = [];
-    public Dictionary<string, double> DebugEffectModifiers { get; init; } = [];
+    // Capacity levels (0-100 percent)
+    public Dictionary<string, int> Capacities { get; init; } = [];
 
     public static GameStateDto FromContext(GameContext ctx)
     {
@@ -155,6 +156,13 @@ public record GameStateDto
             LocationName = location.Name,
             LocationTags = ParseTags(location.Tags),
             Features = ExtractFeatures(location),
+            LocationNPCs = ctx.NPCs
+                .Where(n => n.CurrentLocation == location)
+                .Select(n => new NPCInfoDto(
+                    n.Name,
+                    n.CurrentAction?.Name ?? "idle",
+                    n.CurrentNeed?.ToString()))
+                .ToList(),
 
             // Fire
             Fire = ExtractFire(fire, zoneTemp),
@@ -203,22 +211,17 @@ public record GameStateDto
             Warmth = warmth,
             Vitality = ctx.player.Vitality,
 
-            // Debug: capture raw values
-            DebugCapacities = new Dictionary<string, double>
+            // Capacity levels as percentages
+            Capacities = new Dictionary<string, int>
             {
-                ["Moving"] = ctx.player.GetCapacities().Moving,
-                ["Manipulation"] = ctx.player.GetCapacities().Manipulation,
-                ["Consciousness"] = ctx.player.GetCapacities().Consciousness,
-                ["Breathing"] = ctx.player.GetCapacities().Breathing,
-                ["BloodPumping"] = ctx.player.GetCapacities().BloodPumping,
-            },
-            DebugEffectModifiers = new Dictionary<string, double>
-            {
-                ["Moving"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.Moving),
-                ["Manipulation"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.Manipulation),
-                ["Consciousness"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.Consciousness),
-                ["Breathing"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.Breathing),
-                ["BloodPumping"] = ctx.player.GetEffectModifiers().GetCapacityModifier(CapacityNames.BloodPumping),
+                ["Moving"] = (int)(ctx.player.GetCapacities().Moving * 100),
+                ["Manipulation"] = (int)(ctx.player.GetCapacities().Manipulation * 100),
+                ["Consciousness"] = (int)(ctx.player.GetCapacities().Consciousness * 100),
+                ["Breathing"] = (int)(ctx.player.GetCapacities().Breathing * 100),
+                ["BloodPumping"] = (int)(ctx.player.GetCapacities().BloodPumping * 100),
+                ["Sight"] = (int)(ctx.player.GetCapacities().Sight * 100),
+                ["Hearing"] = (int)(ctx.player.GetCapacities().Hearing * 100),
+                ["Digestion"] = (int)(ctx.player.GetCapacities().Digestion * 100),
             }
         };
     }
@@ -602,3 +605,5 @@ public record TemperatureCrisisDto(
     int? MinutesUntilDamage,
     string ActionGuidance
 );
+
+public record NPCInfoDto(string Name, string Action, string? Need);

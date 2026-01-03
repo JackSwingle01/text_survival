@@ -516,7 +516,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         Animal animal = GetTerritoryAnimal(ctx);
         if (CarcassCreation.AnimalType is not null)
         {
-            animal = AnimalFactory.FromType((AnimalType)CarcassCreation.AnimalType);
+            animal = AnimalFactory.FromType((AnimalType)CarcassCreation.AnimalType, ctx.CurrentLocation, ctx.Map);
         }
 
         var carcass = CarcassFeature.FromAnimal(

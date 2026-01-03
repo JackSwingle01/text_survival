@@ -272,9 +272,8 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     {
         if (IsCompletelyButchered) yield break;
 
-        string decayDesc = GetDecayDescription();
         yield return new WorkOption(
-            $"Butcher {AnimalName} carcass ({decayDesc})",
+            $"Butcher {AnimalName} carcass",
             "butcher",
             new ButcherStrategy(this)
         );

@@ -3,13 +3,10 @@ using System.Text.Json.Serialization;
 namespace text_survival.Web.Dto;
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(LocationMode), "location")]
 [JsonDerivedType(typeof(TravelMode), "travel")]
 [JsonDerivedType(typeof(ProgressMode), "progress")]
 [JsonDerivedType(typeof(TravelProgressMode), "travel_progress")]
 public abstract record FrameMode;
-
-public record LocationMode() : FrameMode;
 
 public record TravelMode(GridStateDto Grid) : FrameMode;
 

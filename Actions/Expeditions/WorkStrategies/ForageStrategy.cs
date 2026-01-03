@@ -343,7 +343,7 @@ public class ForageStrategy : IWorkStrategy
 
                 // Create carcass with appropriate harvestedPct
                 double harvestedPct = FreshnessHelper.RollHarvestedPct(scenario.Freshness);
-                var carcass = CarcassFeature.FromAnimal(AnimalFactory.FromType(animalType), harvestedPct);
+                var carcass = CarcassFeature.FromAnimal(AnimalFactory.FromType(animalType, location, ctx.Map), harvestedPct);
                 location.AddFeature(carcass);
 
                 string description = $"{FreshnessHelper.GetDescription(scenario.Freshness)} - {animalType.DisplayName().ToLower()}";

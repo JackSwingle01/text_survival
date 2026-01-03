@@ -74,27 +74,54 @@ public abstract class Actor : IMovable
 
     public double GetMovementFactor()
     {
-        double factor = Speed;
         var capacities = GetCapacities();
 
-        // Breathing impairment adds +10% time for all journeys
+        // Base time multiplier from moving capacity
+        // Moving 1.0 → 1.0x time (normal)
+        // Moving 0.5 → 2.0x time (half speed = double time)
+        // Moving 0.1 → 10.0x time (barely moving)
+        double movingMultiplier = Math.Max(0.1, capacities.Moving); // Floor to prevent infinity
+        double timeMultiplier = 1.0 / movingMultiplier;
+
+        // Breathing impairment adds +10% time
         // Labored breathing slows pace
         if (AbilityCalculator.IsBreathingImpaired(capacities.Breathing))
         {
-            factor *= .9;
+            timeMultiplier *= 1.10;
         }
+
+        // Blood pumping impairment adds +25% time
         if (AbilityCalculator.IsBloodPumpingImpaired(capacities.BloodPumping))
         {
-            factor *= .8;
+            timeMultiplier *= 1.25;
         }
-        return factor;
+
+        return timeMultiplier;
     }
 
-    public double Strength => AbilityCalculator.CalculateStrength(Body, GetEffectModifiers());
-    public double Speed => AbilityCalculator.CalculateSpeed(Body, GetEffectModifiers());
+    #region Abilities
+
+    // Non-context abilities (no environmental factors)
     public double Vitality => AbilityCalculator.CalculateVitality(Body, GetEffectModifiers());
-    public double Perception => AbilityCalculator.CalculatePerception(Body, GetEffectModifiers());
+    public double Strength => AbilityCalculator.CalculateStrength(Body, GetEffectModifiers());
     public double ColdResistance => AbilityCalculator.CalculateColdResistance(Body);
+
+    // Context-aware abilities - use these when you have AbilityContext
+    public double GetSpeed(AbilityContext context)
+        => AbilityCalculator.CalculateSpeed(Body, GetEffectModifiers(), context);
+
+    public double GetPerception(AbilityContext context)
+        => AbilityCalculator.CalculatePerception(Body, GetEffectModifiers(), context);
+
+    public double GetDexterity(AbilityContext context)
+        => AbilityCalculator.CalculateDexterity(Body, GetEffectModifiers(), context);
+
+    // Properties for backward compatibility (use Default context)
+    public double Speed => GetSpeed(AbilityContext.Default);
+    public double Perception => GetPerception(AbilityContext.Default);
+    public double Dexterity => GetDexterity(AbilityContext.Default);
+
+    #endregion
 
 
 }

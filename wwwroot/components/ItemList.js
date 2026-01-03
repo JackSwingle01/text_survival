@@ -63,6 +63,8 @@ export class ItemList {
             return this.buildRadioRow(item, builder);
         } else if (builder.type === 'action') {
             return this.buildActionRow(item, builder);
+        } else if (builder.type === 'display') {
+            return this.buildDisplayRow(item, builder);
         }
 
         throw new Error(`Unknown row builder type: ${builder.type}`);
@@ -164,6 +166,42 @@ export class ItemList {
             row.appendChild(arrow);
         }
 
+        return row;
+    }
+
+    /**
+     * Build a display-only row (non-clickable, with icon and fields)
+     */
+    buildDisplayRow(item, builder) {
+        const row = document.createElement('div');
+        row.className = 'list-item';
+
+        // Icon (if configured)
+        if (builder.icon) {
+            const iconName = item[builder.icon.key] || builder.icon.default;
+            const icon = document.createElement('span');
+            icon.className = `list-item__icon ${ICON_CLASS}`;
+            icon.textContent = iconName;
+            row.appendChild(icon);
+        }
+
+        // Content container
+        const content = document.createElement('div');
+        content.className = 'list-item__content';
+
+        // Fields
+        for (const field of builder.fields) {
+            const value = item[field.key];
+            if (value === undefined) continue;
+
+            const formatted = field.format ? field.format(value) : value;
+            const span = document.createElement('span');
+            span.className = `list-item__${field.element}`;
+            span.textContent = formatted;
+            content.appendChild(span);
+        }
+
+        row.appendChild(content);
         return row;
     }
 

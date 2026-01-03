@@ -1,6 +1,5 @@
 using text_survival.Environments.Features;
 using text_survival.Items;
-using static text_survival.Crafting.MaterialSpecifier;
 
 namespace text_survival.Crafting;
 

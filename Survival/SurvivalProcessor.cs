@@ -490,8 +490,13 @@ public static class SurvivalProcessor
 		}
 		// else: below freezing = 0 (clothes freeze wet)
 
-		// Wind accelerates drying
-		baseRate += context.WindSpeedLevel;
+		// Wind accelerates drying (but not during active precipitation)
+		double windBonus = 0;
+		if (!context.IsRaining && !context.IsSnowing && !context.IsBlizzard)
+		{
+			windBonus = context.WindSpeedLevel;
+		}
+		baseRate += windBonus;
 
 		return baseRate;
 	}
@@ -514,7 +519,7 @@ public static class SurvivalProcessor
 			else if (context.IsBlizzard)
 				wetnessDelta = 0.005 * context.PrecipitationPct * exposureFactor * waterproofReduction;
 			else if (context.IsSnowing)
-				wetnessDelta = 0.001 * context.PrecipitationPct * exposureFactor * waterproofReduction;
+				wetnessDelta = 0.003 * context.PrecipitationPct * exposureFactor * waterproofReduction;
 		}
 
 		// Calculate drying (reduction in wetness per minute)
@@ -526,8 +531,8 @@ public static class SurvivalProcessor
 			context.CurrentWetnessPct + wetnessDelta * minutesElapsed - dryingDelta,
 			0, 1);
 
-		// Create/update effect only when wetness reaches 10% to avoid spam in light snow
-		if (newSeverity >= 0.1)
+		// Create/update effect when wetness reaches 5%
+		if (newSeverity >= 0.05)
 		{
 			result.Effects.Add(EffectFactory.Wet(newSeverity));
 		}

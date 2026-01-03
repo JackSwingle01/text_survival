@@ -2,6 +2,7 @@ using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Actors.Animals;
+using text_survival.Environments.Grid;
 using text_survival.Items;
 
 namespace text_survival.Environments.Features;

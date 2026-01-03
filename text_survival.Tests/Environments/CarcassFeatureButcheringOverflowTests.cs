@@ -28,7 +28,7 @@ public class CarcassFeatureButcheringOverflowTests
     public void Butchering_WhenInventoryFull_LeavesMaterialsOnCarcass()
     {
         // Arrange: Create a caribou carcass (significant meat)
-        var caribou = AnimalFactory.FromType(AnimalType.Caribou)!;
+        var caribou = AnimalFactory.FromType(AnimalType.Caribou, null!, null!)!;
         var carcass = new CarcassFeature(caribou);
 
         // Player inventory with very limited capacity (5kg)
@@ -111,7 +111,7 @@ public class CarcassFeatureButcheringOverflowTests
     public void Butchering_MultiplePartialSessions_EventuallyCompleteCarcass()
     {
         // Arrange: Create a rabbit carcass (smaller, can fully butcher in parts)
-        var rabbit = AnimalFactory.FromType(AnimalType.Rabbit)!;
+        var rabbit = AnimalFactory.FromType(AnimalType.Rabbit, null!, null!)!;
         var carcass = new CarcassFeature(rabbit);
 
         var ctx = CreateTestContext();
@@ -160,7 +160,7 @@ public class CarcassFeatureButcheringOverflowTests
     public void RestoreYields_OnlyRestoresActualLeftovers()
     {
         // Arrange: Create a caribou carcass
-        var caribou = AnimalFactory.FromType(AnimalType.Caribou)!;
+        var caribou = AnimalFactory.FromType(AnimalType.Caribou, null!, null!)!;
         var carcass = new CarcassFeature(caribou);
 
         double initialMeat = carcass.MeatRemainingKg;

@@ -25,7 +25,7 @@ public class CacheFeature : LocationFeature, IWorkableFeature
     public CacheType Type { get; }
 
     /// <summary>
-    /// Maximum storage capacity in kg (-1 for unlimited).
+    /// Maximum storage capacity in kg.
     /// </summary>
     public double CapacityKg { get; }
 
@@ -47,7 +47,7 @@ public class CacheFeature : LocationFeature, IWorkableFeature
     public CacheFeature(
         string name,
         CacheType type,
-        double capacityKg = -1,
+        double capacityKg = 100,
         bool protectsFromPredators = false,
         bool protectsFromWeather = false,
         bool preservesFood = false)
@@ -70,15 +70,8 @@ public class CacheFeature : LocationFeature, IWorkableFeature
     {
         var parts = new List<string>();
 
-        if (CapacityKg > 0)
-        {
-            double used = Storage.CurrentWeightKg;
-            parts.Add($"{used:F1}/{CapacityKg:F0} kg");
-        }
-        else
-        {
-            parts.Add($"{Storage.CurrentWeightKg:F1} kg stored");
-        }
+        double used = Storage.CurrentWeightKg;
+        parts.Add($"{used:F1}/{CapacityKg:F0} kg");
 
         if (ProtectsFromPredators) parts.Add("predator-safe");
         if (PreservesFood) parts.Add("preserves food");
@@ -100,7 +93,7 @@ public class CacheFeature : LocationFeature, IWorkableFeature
     /// <summary>
     /// Check if cache is at capacity.
     /// </summary>
-    public bool IsAtCapacity => CapacityKg > 0 && Storage.CurrentWeightKg >= CapacityKg;
+    public bool IsAtCapacity => Storage.CurrentWeightKg >= CapacityKg;
 
     /// <summary>
     /// Get work options for this feature.
@@ -134,12 +127,12 @@ public class CacheFeature : LocationFeature, IWorkableFeature
         Storage.GetResourceTypes();
 
     /// <summary>
-    /// Create a basic camp cache (unlimited storage, no special protection).
+    /// Create a basic camp cache (large storage, no special protection).
     /// </summary>
     public static CacheFeature CreateCampCache() => new(
         "Camp Storage",
         CacheType.Built,
-        capacityKg: -1,
+        capacityKg: 1000,
         protectsFromPredators: false,
         protectsFromWeather: true,
         preservesFood: false

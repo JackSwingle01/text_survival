@@ -63,7 +63,14 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     // Herd registry for tracking persistent animals
     public HerdRegistry Herds { get; set; } = new();
+
     public List<NPC> NPCs { get; set; } = new();
+
+    public List<NPC> GetNPCsAt(GridPosition pos)
+    {
+        if (Map == null) return [];
+        return NPCs.Where(n => Map.GetPosition(n.CurrentLocation) == pos).ToList();
+    }
 
     public ActivityType CurrentActivity { get; private set; } = ActivityType.Idle;
 
@@ -162,6 +169,13 @@ public class GameContext(Player player, Location camp, Weather weather)
         if (Map != null)
         {
             Map.Weather = Weather;
+
+            // Restore actor Map references (CurrentLocation restored via $ref)
+            player.Map = Map;
+            foreach (var npc in NPCs)
+            {
+                npc.Map = Map;
+            }
         }
 
         // Recreate non-serialized animal members for herds
@@ -192,12 +206,18 @@ public class GameContext(Player player, Location camp, Weather weather)
         camp.Features.Add(CacheFeature.CreateCampCache());
 
         var player = new Player();
+        player.CurrentLocation = camp;
+        player.Map = map;
 
         GameContext ctx = new GameContext(player, camp, weather);
         ctx.Map = map;
 
         // Populate world with persistent animal herds
         HerdPopulator.Populate(ctx.Herds, map);
+
+        // Spawn test NPC near camp
+        var testNPC = NPCFactory.SpawnNearCamp(map, camp);
+        if (testNPC != null) ctx.NPCs.Add(testNPC);
 
         // Equip starting clothing
         ctx.Inventory.Equip(Gear.WornFurChestWrap());
@@ -458,14 +478,15 @@ public class GameContext(Player player, Location camp, Weather weather)
                     }
                 }
             }
-            for (int i = 0; i < minutes; i++)
-            {
-                foreach (NPC npc in NPCs)
-                {
-                    npc.Update(1, GetSurvivalContext(npc, npc.Inventory));
-                }
-            }
+        }
 
+        // Update NPCs
+        for (int i = 0; i < minutes; i++)
+        {
+            foreach (NPC npc in NPCs)
+            {
+                npc.Update(1, GetSurvivalContext(npc, npc.Inventory));
+            }
         }
 
         // DeadlyCold auto-resolves when player reaches fire

@@ -77,20 +77,48 @@ export class CookingOverlay extends OverlayManager {
         });
         this.statusEl.appendChild(header.build());
 
-        // Supply items
-        const statusItems = [
-            { icon: 'water_drop', label: 'Water', value: `${cookingData.waterLiters.toFixed(1)}L` },
-            { icon: 'lunch_dining', label: 'Raw Meat', value: `${cookingData.rawMeatKg.toFixed(1)}kg` },
-            { icon: 'outdoor_grill', label: 'Cooked Meat', value: `${cookingData.cookedMeatKg.toFixed(1)}kg` }
+        // Create wrapper for supplies
+        const suppliesContainer = document.createElement('div');
+        suppliesContainer.className = 'cooking-supplies';
+
+        // Supply items as list items
+        const supplyItems = [
+            {
+                icon: 'water_drop',
+                displayName: 'Water',
+                value: `${cookingData.waterLiters.toFixed(1)}L`
+            },
+            {
+                icon: 'lunch_dining',
+                displayName: 'Raw Meat',
+                value: `${cookingData.rawMeatKg.toFixed(1)}kg`
+            },
+            {
+                icon: 'outdoor_grill',
+                displayName: 'Cooked Meat',
+                value: `${cookingData.cookedMeatKg.toFixed(1)}kg`
+            }
         ];
 
-        for (const item of statusItems) {
-            const row = this.createStatRow(item.label, item.value, {
-                icon: item.icon,
-                background: true
-            });
-            this.statusEl.appendChild(row);
-        }
+        // Row builder for supply display (non-clickable)
+        const supplyRowBuilder = {
+            type: 'display',
+            icon: { key: 'icon' },
+            fields: [
+                { key: 'displayName', element: 'label' },
+                { key: 'value', element: 'value' }
+            ]
+        };
+
+        const itemList = new ItemList({
+            container: suppliesContainer,
+            onItemClick: null,  // Non-clickable
+            rowBuilder: supplyRowBuilder
+        });
+
+        itemList.render([{ items: supplyItems }]);
+
+        this.statusEl.appendChild(suppliesContainer);
     }
 
     renderOptions(cookingData) {
@@ -103,9 +131,13 @@ export class CookingOverlay extends OverlayManager {
         });
         this.optionsEl.appendChild(header.build());
 
+        // Create wrapper div for items
+        const items = document.createElement('div');
+        items.className = 'cooking-items';
+
         // Action options using ItemList
         const actionList = new ItemList({
-            container: this.optionsEl,
+            container: items,
             onItemClick: (opt) => this.cookWithProgress(opt.id, opt.timeMinutes),
             rowBuilder: CookingRowBuilder
         });
@@ -113,6 +145,9 @@ export class CookingOverlay extends OverlayManager {
         actionList.render([{
             items: cookingData.options
         }]);
+
+        // Append wrapper to pane
+        this.optionsEl.appendChild(items);
     }
 
     cookWithProgress(choiceId, timeMinutes) {

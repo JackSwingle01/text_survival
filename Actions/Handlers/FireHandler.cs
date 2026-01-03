@@ -332,6 +332,32 @@ public static class FireHandler
     }
 
     /// <summary>
+    /// Check if inventory has appropriate fuel for the current fire temperature.
+    /// </summary>
+    public static bool CanTendFire(Inventory inv, HeatSourceFeature fire)
+    {
+        if (fire.GetCurrentFireTemperature() > 200)
+        {
+            return inv.Count(Resource.Oak) > 0
+                || inv.Count(Resource.Birch) > 0
+                || inv.Count(Resource.Pine) > 0
+                || inv.Count(Resource.Stick) > 0;
+        }
+        return inv.Count(Resource.Stick) > 0;
+    }
+
+    /// <summary>
+    /// Check if inventory has materials needed to start a fire.
+    /// </summary>
+    public static bool CanStartFire(Inventory inv)
+    {
+        var materials = GetFireMaterials(inv);
+        var tool = GetBestTool(inv);
+        var tinder = GetBestTinder(inv);
+        return tool != null && tinder != null && materials.HasKindling;
+    }
+
+    /// <summary>
     /// NPC fire tending - adds best available fuel.
     /// </summary>
     public static void TendFire(Inventory inv, HeatSourceFeature fire)

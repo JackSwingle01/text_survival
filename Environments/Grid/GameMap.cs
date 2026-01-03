@@ -44,8 +44,8 @@ public class GameMap
     /// </summary>
     private Dictionary<(GridPosition, Direction), List<TileEdge>> _edges = new();
 
-    public int Width { get; private set; }
-    public int Height { get; private set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
 
     /// <summary>
     /// Current player position on the map.
@@ -274,11 +274,11 @@ public class GameMap
     // === Visibility ===
 
     /// <summary>
-    /// Update visibility based on current position.
+    /// Update visibility based on current position and sight capacity.
     /// </summary>
-    public void UpdateVisibility()
+    public void UpdateVisibility(double sightCapacity = 1.0)
     {
-        int sightRange = GetSightRange(CurrentLocation);
+        int sightRange = GetSightRange(CurrentLocation, sightCapacity);
 
         // Reset reveal flag
         RevealedNewLocations = false;
@@ -311,21 +311,24 @@ public class GameMap
     }
 
     /// <summary>
-    /// Calculate sight range based on location's visibility factor.
+    /// Calculate sight range based on location's visibility factor and player's sight capacity.
     /// </summary>
-    public static int GetSightRange(Location location)
+    public static int GetSightRange(Location location, double sightCapacity = 1.0)
     {
-        double visibility = location.VisibilityFactor;
+        // Combine location visibility with player sight capacity
+        double effectiveVisibility = location.VisibilityFactor * sightCapacity;
 
-        if (visibility < 0.5)
-            return 1;  // Bordering locations (was 0)
-        if (visibility < 1.0)
-            return 2;  // 2 tile radius (was 1)
-        if (visibility < 1.5)
-            return 3;  // 3 tile radius (was 2)
-        if (visibility < 2.0)
-            return 4;  // 4 tile radius (was 3)
-        return 5;      // Vantage points (was 4)
+        if (effectiveVisibility < 0.25)
+            return 0;  // Nearly blind - only current tile
+        if (effectiveVisibility < 0.5)
+            return 1;  // Bordering locations
+        if (effectiveVisibility < 1.0)
+            return 2;  // 2 tile radius
+        if (effectiveVisibility < 1.5)
+            return 3;  // 3 tile radius
+        if (effectiveVisibility < 2.0)
+            return 4;  // 4 tile radius
+        return 5;      // Vantage points
     }
 
     // === Queries ===
@@ -516,6 +519,51 @@ public class GameMap
                 if (!_edges.ContainsKey(key))
                     _edges[key] = new List<TileEdge>();
                 _edges[key].Add(data.Edge);
+            }
+        }
+    }
+
+    // === Location Serialization ===
+
+    /// <summary>
+    /// Serializable location data property.
+    /// Converts between 2D array and flat list for JSON serialization.
+    /// </summary>
+    public List<MapLocationData> Locations
+    {
+        get
+        {
+            var result = new List<MapLocationData>();
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    var loc = _locations[x, y];
+                    if (loc != null)
+                        result.Add(new MapLocationData(x, y, loc));
+                }
+            }
+            return result;
+        }
+        set
+        {
+            // Resize array if needed (parameterless constructor creates 0x0)
+            if (_locations.GetLength(0) != Width || _locations.GetLength(1) != Height)
+            {
+                _locations = new Location?[Width, Height];
+            }
+
+            // Clear and rebuild index
+            _locationIndex.Clear();
+            Array.Clear(_locations);
+
+            foreach (var data in value ?? [])
+            {
+                if (data.X >= 0 && data.X < Width && data.Y >= 0 && data.Y < Height)
+                {
+                    _locations[data.X, data.Y] = data.Location;
+                    _locationIndex[data.Location.Id] = new GridPosition(data.X, data.Y);
+                }
             }
         }
     }

@@ -1002,6 +1002,14 @@ body {
     background: var(--health-green);
 }
 
+.bar--health .bar__fill.danger {
+    background: var(--vital-red);
+}
+
+.bar--health .bar__fill.warning {
+    background: var(--warning-amber);
+}
+
 .bar--food .bar__fill {
     background: var(--fire-orange);
 }
@@ -2292,6 +2300,61 @@ body {
     font-style: italic;
 }
 
+/* NPC feature in tile popup - compact layout with health bar */
+.popup-feature-npc {
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-surface);
+}
+
+.npc-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.npc-header .feature-emoji {
+    font-size: 16px;
+}
+
+.npc-name {
+    font-size: 0.9rem;
+    color: var(--text-bright);
+    font-weight: 500;
+}
+
+.npc-status {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.npc-status::before {
+    content: '·';
+    margin-right: var(--space-2);
+}
+
+.npc-health-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+}
+
+.npc-health-row .material-symbols-outlined {
+    font-size: 14px;
+    color: var(--health-green);
+}
+
+.npc-health-row .bar {
+    flex: 1;
+}
+
+.npc-health-pct {
+    font-size: 0.75rem;
+    color: var(--health-green);
+    min-width: 32px;
+    text-align: right;
+}
+
 .tile-popup-actions {
     padding: 14px;
     display: flex;
@@ -3074,6 +3137,21 @@ body {
     margin-bottom: var(--space-2);
 }
 
+.fire-modifiers {
+    margin-top: var(--space-2);
+    font-size: var(--text-sm);
+}
+
+.fire-modifier-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.fire-modifier-row.bonus { color: var(--health-green); }
+.fire-modifier-row.penalty { color: var(--vital-red); }
+.fire-modifier-name { flex: 1; }
+
 .fire-fuel-gauge {
     padding: var(--space-3);
     margin: var(--space-2) 0;
@@ -3169,6 +3247,20 @@ body {
 /* Make cooking overlay more spacious */
 #cookingOverlay .pane__content {
     min-height: 250px;
+}
+
+.cooking-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+}
+
+.cooking-supplies {
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
 }
 
 #cookingOverlay .list-item {

@@ -58,7 +58,7 @@ public class Player : Actor
         return (result, messages);
     }
 
-    public Player() : base("Player", Body.BaselinePlayerStats)
+    public Player() : base("Player", Body.BaselinePlayerStats, null!, null!)
     {
         Name = "Player";
         Skills = new SkillRegistry();

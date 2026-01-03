@@ -25,9 +25,9 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     private List<ForageResource> _resources = [];
     private static readonly Random rng = new();
 
-    internal double BaseResourceDensity { get; set; } = 1;
-    internal double NumberOfHoursForaged { get; set; } = 0;
-    internal double HoursSinceLastForage { get; set; } = 0;
+    public double BaseResourceDensity { get; set; } = 1;
+    public double NumberOfHoursForaged { get; set; } = 0;
+    public double HoursSinceLastForage { get; set; } = 0;
 
     /// <summary>
     /// Tracks per-resource depletion from animal grazing (0-1 scale).

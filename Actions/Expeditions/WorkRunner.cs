@@ -311,7 +311,7 @@ public class WorkRunner(GameContext ctx)
         GameDisplay.Render(_ctx, statusText: "Overburdened.");
 
         // Create a dummy "drop target" that just discards items
-        var dropTarget = new Inventory { MaxWeightKg = -1 };
+        var dropTarget = new Inventory { MaxWeightKg = 10000 };
 
         while (inv.RemainingCapacityKg < 0)
         {

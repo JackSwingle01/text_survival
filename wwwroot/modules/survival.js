@@ -15,14 +15,18 @@ export const SurvivalDisplay = {
         pctEl.textContent = percent + '%';
         barEl.style.width = percent + '%';
 
+        // Determine severity class
+        let severity = 'good';
+        if (percent < 30) severity = 'danger';
+        else if (percent < 60) severity = 'warning';
+
         // Update value color class
-        pctEl.className = 'stat-value';
-        if (percent >= 60) {
-            pctEl.classList.add('good');
-        } else if (percent >= 30) {
-            pctEl.classList.add('warning');
-        } else {
-            pctEl.classList.add('danger');
+        pctEl.className = 'stat-value ' + severity;
+
+        // Update bar color for health only
+        if (stat === 'health') {
+            barEl.classList.remove('good', 'warning', 'danger');
+            barEl.classList.add(severity);
         }
     }
 };

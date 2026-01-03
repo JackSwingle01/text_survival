@@ -1,4 +1,6 @@
 using text_survival.Actions;
+using text_survival.Actions.Handlers;
+using text_survival.Bodies;
 using text_survival.Crafting;
 using text_survival.Environments.Features;
 using text_survival.Items;
@@ -425,6 +427,12 @@ public record EmberCarrierDto(
     double MaxHours
 );
 
+public record FireModifierDto(
+    string Name,            // "Wetness", "Shaky Hands", "Skill", etc.
+    int PercentDelta,       // -25, -20, +10, etc.
+    string Icon             // "water_drop", "front_hand", "star", etc.
+);
+
 public record FirePanelDto(
     string Mode,            // "starting" or "tending"
     string Phase,           // "Cold", "Roaring", etc.
@@ -445,7 +453,8 @@ public record FirePanelDto(
     double CharcoalKg,
     // Starting mode fields
     bool HasKindling,
-    int FinalSuccessPercent
+    int FinalSuccessPercent,
+    List<FireModifierDto>? Modifiers  // Active bonuses/penalties affecting success
 );
 
 public record FireManagementDto(
@@ -562,13 +571,7 @@ public record FireManagementDto(
         {
             var tool = fireTools[i];
             string id = $"tool_{i}";
-            int baseChance = tool.ToolType switch
-            {
-                ToolType.HandDrill => 35,
-                ToolType.BowDrill => 55,
-                ToolType.FireStriker => 75,
-                _ => 30
-            };
+            int baseChance = (int)(FireHandler.GetToolBaseChance(tool) * 100);
 
             tools.Add(new FireToolDto(
                 Id: id,
@@ -682,9 +685,10 @@ public record FireManagementDto(
             _ => "local_fire_department"
         };
 
-        // Calculate success chance for starting mode
+        // Calculate success chance and modifiers for starting mode
         int finalSuccess = 0;
         bool hasKindling = ctx.Inventory.Count(Resource.Stick) > 0;
+        List<FireModifierDto>? modifiers = null;
 
         if (mode == "starting")
         {
@@ -697,36 +701,53 @@ public record FireManagementDto(
             if (selectedToolId != null && selectedToolId.StartsWith("tool_"))
                 int.TryParse(selectedToolId[5..], out toolIndex);
 
-            int baseChance = 30;
-            if (toolIndex < tools.Count)
-            {
-                baseChance = tools[toolIndex].ToolType switch
-                {
-                    ToolType.HandDrill => 35,
-                    ToolType.BowDrill => 55,
-                    ToolType.FireStriker => 75,
-                    _ => 30
-                };
-            }
-
-            int tinderBonus = 0;
+            // Get selected tinder
+            Resource tinderResource = Resource.Tinder;
             if (selectedTinderId != null && selectedTinderId.StartsWith("tinder_"))
             {
                 var resourceName = selectedTinderId[7..];
                 if (Enum.TryParse<Resource>(resourceName, out var res))
-                {
-                    var fuelType = res switch
-                    {
-                        Resource.BirchBark => FuelType.BirchBark,
-                        Resource.Usnea => FuelType.Usnea,
-                        Resource.Chaga => FuelType.Chaga,
-                        _ => FuelType.Tinder
-                    };
-                    tinderBonus = (int)(FuelDatabase.Get(fuelType).IgnitionBonus * 100);
-                }
+                    tinderResource = res;
             }
 
-            finalSuccess = Math.Min(95, baseChance + tinderBonus);
+            if (toolIndex < tools.Count)
+            {
+                var tool = tools[toolIndex];
+                int skillLevel = ctx.player.Skills.GetSkill("Firecraft").Level;
+                var capacities = ctx.player.GetCapacities();
+                bool consciousnessImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
+                bool manipulationImpaired = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
+                double wetness = ctx.player.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault()?.Severity ?? 0;
+
+                // Calculate actual success chance using FireHandler
+                double chance = FireHandler.CalculateFireChance(
+                    tool, tinderResource, skillLevel, consciousnessImpaired, manipulationImpaired, wetness);
+                finalSuccess = (int)(chance * 100);
+
+                // Build modifiers list for display
+                modifiers = new List<FireModifierDto>();
+
+                if (skillLevel > 0)
+                    modifiers.Add(new FireModifierDto("Skill", skillLevel * 10, "star"));
+
+                // Tinder bonus (already shown in tinder list, but good to include in breakdown)
+                var fuelType = FireHandler.GetTinderFuelType(tinderResource);
+                int tinderBonus = (int)(FuelDatabase.Get(fuelType).IgnitionBonus * 100);
+                if (tinderBonus != 0)
+                    modifiers.Add(new FireModifierDto("Tinder", tinderBonus, "local_fire_department"));
+
+                if (consciousnessImpaired)
+                    modifiers.Add(new FireModifierDto("Dazed", -20, "psychology"));
+
+                if (manipulationImpaired)
+                    modifiers.Add(new FireModifierDto("Shaky Hands", -25, "front_hand"));
+
+                if (wetness > 0.3)
+                {
+                    int wetPenalty = -(int)(wetness * 25);
+                    modifiers.Add(new FireModifierDto("Wet", wetPenalty, "water_drop"));
+                }
+            }
         }
 
         return new FirePanelDto(
@@ -748,7 +769,8 @@ public record FireManagementDto(
             HasEmbers: fire.HasEmbers,
             CharcoalKg: fire.CharcoalAvailableKg,
             HasKindling: hasKindling,
-            FinalSuccessPercent: finalSuccess
+            FinalSuccessPercent: finalSuccess,
+            Modifiers: modifiers
         );
     }
 }

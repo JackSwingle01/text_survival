@@ -252,10 +252,10 @@ public static class ScavengeScenarioSelector
         var pool = new List<(ScavengeScenario, double)>();
 
         // Bones - always available, common
-        pool.AddRange(ScavengeScenarios.BonesOnly.Select(s => (s, 0.4)));
+        pool.AddRange(ScavengeScenarios.BonesOnly.Select(s => (s, 0.1)));
 
         // Small game - always available
-        pool.AddRange(ScavengeScenarios.SmallGame.Select(s => (s, 0.25)));
+        pool.AddRange(ScavengeScenarios.SmallGame.Select(s => (s, 0.06)));
 
         // Medium game - contextual
         foreach (var scenario in ScavengeScenarios.MediumGame)
@@ -263,7 +263,7 @@ public static class ScavengeScenarioSelector
             if (scenario.ContextTags?.Contains("snow") == true && !isSnowy)
                 continue;
 
-            double weight = 0.12;
+            double weight = 0.03;
             if (isPredatorTerritory) weight *= 1.5;
             pool.Add((scenario, weight));
         }
@@ -274,7 +274,7 @@ public static class ScavengeScenarioSelector
             if (scenario.ContextTags?.Contains("predator_territory") == true && !isPredatorTerritory)
                 continue;
 
-            pool.Add((scenario, 0.05));
+            pool.Add((scenario, 0.01));
         }
 
         // Special - very rare, context-dependent
@@ -283,16 +283,16 @@ public static class ScavengeScenarioSelector
             if (scenario.ContextTags?.Contains("deep_cold") == true)
             {
                 if (ctx.Weather.TemperatureInFahrenheit < 10)
-                    pool.Add((scenario, 0.02));
+                    pool.Add((scenario, 0.005));
             }
             else if (scenario.ContextTags?.Contains("bear_territory") == true)
             {
                 if (isBearTerritory)
-                    pool.Add((scenario, 0.02));
+                    pool.Add((scenario, 0.005));
             }
             else
             {
-                pool.Add((scenario, 0.02));
+                pool.Add((scenario, 0.005));
             }
         }
 

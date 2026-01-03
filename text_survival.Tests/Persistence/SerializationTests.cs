@@ -414,6 +414,44 @@ public class SerializationTests
         Assert.True(deserialized.player.Body.CalorieStore > 0, "Calorie store preserved");
     }
 
+    [Fact]
+    public void SerializeDeserialize_BodyOrgans_PreserveState()
+    {
+        // Arrange
+        var ctx = GameContext.CreateNewGame();
+        var body = ctx.player.Body;
+
+        // Get organ data before serialization
+        var headPart = body.Parts.First(p => p.Name == "Head");
+        int originalOrganCount = headPart.Organs.Count;
+        var originalOrganNames = headPart.Organs.Select(o => o.Name).ToList();
+        var brainOrgan = headPart.Organs.FirstOrDefault(o => o.Name == "Brain");
+        Assert.NotNull(brainOrgan);
+        bool brainIsExternal = brainOrgan.IsExternal;
+
+        // Act
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert - Organs preserved
+        var deserializedHead = deserialized!.player.Body.Parts.First(p => p.Name == "Head");
+        Assert.Equal(originalOrganCount, deserializedHead.Organs.Count);
+
+        // Verify organ names preserved
+        var deserializedOrganNames = deserializedHead.Organs.Select(o => o.Name).ToList();
+        Assert.Equal(originalOrganNames.OrderBy(n => n), deserializedOrganNames.OrderBy(n => n));
+
+        // Verify Brain organ can be found by name lookup (this is what dehydration damage does)
+        var deserializedBrain = deserializedHead.Organs.FirstOrDefault(o => o.Name == "Brain");
+        Assert.NotNull(deserializedBrain);
+        Assert.Equal(brainIsExternal, deserializedBrain.IsExternal);
+
+        // Verify all body organs survive (critical for dehydration targeting)
+        var allOrgans = deserialized.player.Body.Parts.SelectMany(p => p.Organs).ToList();
+        Assert.Contains(allOrgans, o => o.Name == "Brain");
+        Assert.Contains(allOrgans, o => o.Name == "Heart");
+        Assert.Contains(allOrgans, o => o.Name == "Liver");
+    }
 
     [Fact]
     public void SerializeDeserialize_Stack_PreservesOrder()

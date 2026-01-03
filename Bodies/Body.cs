@@ -56,6 +56,7 @@ public class Body
     public double MusclePercentage => MuscleKG / WeightKG;
     public double WeightKG => _baseWeight + BodyFatKG + MuscleKG;
     public double BodyTemperature;
+    public double LastTemperatureDelta { get; private set; }
     public double CalorieStore = 1500;
     public double Energy = 900;
     public double Hydration = 3000;
@@ -144,6 +145,7 @@ public class Body
         CalorieStore = Math.Max(0, CalorieStore + result.StatsDelta.CalorieDelta);
         Hydration = Math.Max(0, Hydration + result.StatsDelta.HydrationDelta);
         Energy = Math.Clamp(Energy + result.StatsDelta.EnergyDelta, 0, SurvivalProcessor.MAX_ENERGY_MINUTES);
+        LastTemperatureDelta = result.StatsDelta.TemperatureDelta;
         BodyTemperature += result.StatsDelta.TemperatureDelta;
         ClothingHeatBufferPct = Math.Clamp(ClothingHeatBufferPct + result.ClothingHeatBufferDelta, 0, 1);
 

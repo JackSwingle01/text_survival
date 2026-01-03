@@ -1,6 +1,5 @@
 import { OverlayManager } from '../core/OverlayManager.js';
-import { Animator } from '../core/Animator.js';
-import { show, hide } from '../modules/utils.js';
+import { hide } from '../modules/utils.js';
 import { ItemList } from '../components/ItemList.js';
 import { ConsumableRowBuilder } from '../components/rowBuilders.js';
 
@@ -20,31 +19,27 @@ export class EatingOverlay extends OverlayManager {
         this.doneBtn = document.getElementById('eatingDoneBtn');
 
         this.pendingConsumption = false;
+
+        // Progress config
+        this.progressConfig = {
+            progressEl: this.progressEl,
+            progressBar: this.progressBar,
+            progressText: this.progressText,
+            progressResult: this.progressResult,
+            doneBtn: this.doneBtn,
+            progressMessage: 'Eating...',
+            successMessage: 'Consumed!',
+            pendingFlag: 'pendingConsumption',
+            buttonsContainer: this.itemsEl,
+            buttonSelector: '.list-item--clickable'
+        };
     }
 
     render(eatingData, inputId) {
         this.show(inputId);
 
-        // Check if we're receiving result from a consumption
-        if (this.pendingConsumption) {
-            this.pendingConsumption = false;
-            // Show success result
-            this.progressResult.textContent = 'Consumed!';
-            this.progressResult.className = 'overlay-progress-result success';
-            show(this.progressResult);
-
-            // Hide result after delay and reset progress bar
-            setTimeout(() => {
-                hide(this.progressEl);
-                hide(this.progressResult);
-                this.progressBar.style.width = '0%';
-            }, 1500);
-        } else {
-            // Hide progress bar initially
-            hide(this.progressEl);
-            hide(this.progressResult);
-            this.progressBar.style.width = '0%';
-        }
+        // Handle progress completion
+        this.handleProgressComplete(this.progressConfig);
 
         // Render compact stats row at top
         this.renderStats(eatingData);
@@ -153,22 +148,10 @@ export class EatingOverlay extends OverlayManager {
     }
 
     consumeWithProgress(itemId) {
-        this.pendingConsumption = true;
-
-        // Show progress bar
-        show(this.progressEl);
-        hide(this.progressResult);
-        this.progressText.textContent = 'Eating...';
-
-        // Disable buttons during animation
-        this.doneBtn.disabled = true;
-        const allButtons = this.overlay.querySelectorAll('.list-item--clickable');
-        allButtons.forEach(btn => btn.style.pointerEvents = 'none');
-
-        // Animate progress bar (~1.5 seconds)
-        Animator.progressBar(this.progressBar, 1500, () => {
-            // Animation complete - send response to backend
-            this.respond(itemId);
+        this.runWithProgress({
+            ...this.progressConfig,
+            durationMs: 1500,
+            choiceId: itemId
         });
     }
 

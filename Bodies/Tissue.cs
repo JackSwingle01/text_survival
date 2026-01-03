@@ -6,6 +6,7 @@ namespace text_survival.Bodies;
 [JsonDerivedType(typeof(Tissue), "tissue")]
 [JsonDerivedType(typeof(Muscle), "muscle")]
 [JsonDerivedType(typeof(Bone), "bone")]
+[JsonDerivedType(typeof(Organ), "organ")]
 public class Tissue
 {
     public string Name { get; init; } = "Unknown";

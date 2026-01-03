@@ -26,6 +26,46 @@ public class TravelRunner(GameContext ctx)
             var target = _ctx.PendingTravelTarget;
             _ctx.PendingTravelTarget = null; // Clear it
 
+            // Validate movement capacity before allowing travel
+            var capacities = _ctx.player.GetCapacities();
+            double moving = capacities.Moving;
+
+            if (moving <= 0.5)
+            {
+                string message;
+                Dictionary<string, string> buttons;
+
+                if (moving <= 0.1)
+                {
+                    // Completely blocked
+                    message = "You can barely move at all. Your injuries prevent travel.";
+                    buttons = new() { { "ok", "OK" } };
+                    WebIO.PromptConfirm(_ctx, message, buttons);
+                    return; // Don't allow travel
+                }
+                else if (moving <= 0.3)
+                {
+                    // Severe impairment
+                    int slowdown = (int)(1.0 / moving);
+                    message = $"You can barely stand. Travel will be extremely slow and dangerous. (approximately {slowdown}x slower)";
+                    buttons = new() { { "proceed", "Proceed" }, { "cancel", "Cancel" } };
+                }
+                else // moving <= 0.5
+                {
+                    // Moderate impairment
+                    int slowdown = (int)(1.0 / moving);
+                    message = $"Moving is difficult. Travel will be noticeably slower. (approximately {slowdown}x slower)";
+                    buttons = new() { { "proceed", "Proceed" }, { "cancel", "Cancel" } };
+                }
+
+                // If we get here, show warning and get confirmation
+                string response = WebIO.PromptConfirm(_ctx, message, buttons);
+                if (response != "proceed")
+                {
+                    return; // User cancelled
+                }
+            }
+
             var destination = _ctx.Map?.GetLocationAt(target.Value.X, target.Value.Y);
             if (destination != null && destination != _ctx.CurrentLocation)
             {

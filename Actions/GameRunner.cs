@@ -85,6 +85,9 @@ public partial class GameRunner(GameContext ctx)
         var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
         var isClumsy = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
 
+        // can always wait
+        choice.AddOption("Wait (5 min)", Wait);
+
         // Work options (field activities) - listed directly in menu
         var workOptions = ctx.CurrentLocation.GetWorkOptions(ctx).ToList();
         foreach (var opt in workOptions)
@@ -93,15 +96,11 @@ public partial class GameRunner(GameContext ctx)
             choice.AddOption(opt.Label, () => ExecuteWork(workId));
         }
 
-        // Grid-based travel option (allows WebIO.Select to handle travel_to responses)
+        // Grid-based travel option (always visible, but may trigger warning)
         if (ctx.Map != null)
         {
-            choice.AddOption("Travel", () => new TravelRunner(ctx).DoTravel());
+            choice.AddOption("Travel", HandleTravel);
         }
-
-        // Camp activities (combined from CampWork menu)
-        if (CanRestByFire())
-            choice.AddOption("Wait", Wait);
 
         if (HasActiveFire())
             choice.AddOption("Tend fire", TendFire);
@@ -112,7 +111,7 @@ public partial class GameRunner(GameContext ctx)
         if (ctx.Inventory.HasFood || ctx.Inventory.HasWater)
             choice.AddOption("Eat/Drink", EatDrink);
 
-        if (HasActiveFire() && (ctx.Inventory.Count(Resource.RawMeat) > 0 || true))
+        if (CanUseFireForCooking())
             choice.AddOption("Cook/Melt", CookMelt);
 
         if (CanLightTorch())
@@ -200,8 +199,8 @@ public partial class GameRunner(GameContext ctx)
             if (ctx.Inventory.HasFood || ctx.Inventory.HasWater)
                 choice.AddOption("Eat/Drink", EatDrink);
 
-            // Cook/Melt - requires active fire
-            if (HasActiveFire() && (ctx.Inventory.Count(Resource.RawMeat) > 0 || true)) // Snow always available (Ice Age)
+            // Cook/Melt - requires active fire (no fuel needed to use existing fire)
+            if (CanUseFireForCooking())
                 choice.AddOption("Cook/Melt", CookMelt);
 
             // Torch management
@@ -363,6 +362,13 @@ public partial class GameRunner(GameContext ctx)
         return (fire.IsActive || fire.HasEmbers) && ctx.Inventory.HasFuel;
     }
 
+    private bool CanUseFireForCooking()
+    {
+        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+        // Can cook/melt with any active fire - don't need fuel in inventory
+        return fire != null && fire.IsActive;
+    }
+
     private void CheckFireWarning()
     {
         var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
@@ -402,6 +408,56 @@ public partial class GameRunner(GameContext ctx)
     private bool CanRestByFire()
     {
         return ctx.CurrentLocation.HasActiveHeatSource();
+    }
+
+    private void HandleTravel()
+    {
+        // Skip capacity check if there's a pending travel target from grid click
+        // TravelRunner.DoTravel() will handle validation for grid-initiated travel
+        if (!ctx.PendingTravelTarget.HasValue)
+        {
+            var capacities = ctx.player.GetCapacities();
+            double moving = capacities.Moving;
+
+            // Check for impairment and show popup if needed
+            if (moving <= 0.5)
+            {
+                bool proceed = ShowMovementWarning(moving);
+                if (!proceed)
+                    return; // User cancelled or blocked
+            }
+        }
+
+        // Proceed with travel
+        new TravelRunner(ctx).DoTravel();
+    }
+
+    private bool ShowMovementWarning(double movingCapacity)
+    {
+        string message;
+        Dictionary<string, string> buttons;
+
+        if (movingCapacity <= 0.1)
+        {
+            message = "You can barely move at all. Your injuries prevent travel.";
+            buttons = new() { { "ok", "OK" } };
+            WebIO.PromptConfirm(ctx, message, buttons);
+            return false; // Blocked
+        }
+        else if (movingCapacity <= 0.3)
+        {
+            int slowdown = (int)(1.0 / movingCapacity);
+            message = $"You can barely stand. Travel will be extremely slow and dangerous. (approximately {slowdown}x slower)";
+            buttons = new() { { "proceed", "Proceed" }, { "cancel", "Cancel" } };
+        }
+        else // movingCapacity <= 0.5
+        {
+            int slowdown = (int)(1.0 / movingCapacity);
+            message = $"Moving is difficult. Travel will be noticeably slower. (approximately {slowdown}x slower)";
+            buttons = new() { { "proceed", "Proceed" }, { "cancel", "Cancel" } };
+        }
+
+        return WebIO.PromptConfirm(ctx, message, buttons) == "proceed";
     }
 
     private void TendFire() => FireHandler.ManageFire(ctx);

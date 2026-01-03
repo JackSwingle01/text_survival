@@ -88,14 +88,13 @@ public static class ResourceCategories
 
 public class Inventory
 {
-    // Capacity (-1 = unlimited)
-    // Base capacity before accessory bonuses
-    private double _baseMaxWeightKg = -1;
+    // Base capacity before accessory bonuses (default 15kg for a person)
+    private double _baseMaxWeightKg = 15;
 
     // Effective capacity including accessory bonuses
     public double MaxWeightKg
     {
-        get => _baseMaxWeightKg < 0 ? -1 : _baseMaxWeightKg + AccessoryCapacityBonus;
+        get => _baseMaxWeightKg + AccessoryCapacityBonus;
         set => _baseMaxWeightKg = value;
     }
 
@@ -263,10 +262,10 @@ public class Inventory
         _equipment.Values.Sum(e => e?.Toughness ?? 0);
 
     public bool CanCarry(double additionalKg) =>
-        MaxWeightKg < 0 || CurrentWeightKg + additionalKg <= MaxWeightKg;
+        CurrentWeightKg + additionalKg <= MaxWeightKg;
 
     public double RemainingCapacityKg =>
-        MaxWeightKg < 0 ? double.MaxValue : Math.Max(0, MaxWeightKg - CurrentWeightKg);
+        MaxWeightKg - CurrentWeightKg;
 
     // Torch methods
     public bool HasLitTorch => ActiveTorch != null && TorchBurnTimeRemainingMinutes > 0;
@@ -328,14 +327,7 @@ public class Inventory
     /// </summary>
     public Inventory CombineWithCapacity(Inventory other)
     {
-        // If unlimited capacity, just combine normally
-        if (MaxWeightKg < 0)
-        {
-            Combine(other);
-            return new Inventory();
-        }
-
-        var leftovers = new Inventory();
+        var leftovers = new Inventory { MaxWeightKg = 10000 };
 
         // Add resources one by one, checking capacity
         foreach (var type in _stacks.Keys)

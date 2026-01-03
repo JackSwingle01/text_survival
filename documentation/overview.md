@@ -575,7 +575,7 @@ Action executes
 WebSocket-based communication between C# backend and browser frontend. Backend sends `WebFrame` DTOs; frontend renders them.
 
 Mode + Overlay pattern separates UI states:
-- **Modes** (mutually exclusive) — LocationMode (at camp), TravelMode (on expedition with grid), ProgressMode (animated activity in progress)
+- **Modes** (mutually exclusive) — TravelMode (grid always visible), ProgressMode (animated activity in progress)
 - **Overlays** (stackable) — InventoryOverlay, CraftingOverlay, EventOverlay. Multiple can be active simultaneously.
 
 Frame structure:

@@ -3,15 +3,21 @@ using text_survival.Environments;
 
 public class ResourceMemory
 {
-    public Dictionary<Location, HashSet<Resource>> _locationResources = new();
+    public Dictionary<Resource, HashSet<Location>> _resourceLocations = new();
+
     public void RememberLocation(Location location)
     {
-        _locationResources[location] = location.ListResourcesHere().ToHashSet();
+        foreach (var resource in location.ListResourcesHere())
+        {
+            if (!_resourceLocations.TryGetValue(resource, out var locations))
+            {
+                locations = new HashSet<Location>();
+                _resourceLocations[resource] = locations;
+            }
+            locations.Add(location);
+        }
     }
 
     public IEnumerable<Location> WhereIs(Resource r) =>
-       _locationResources.Where(kv => kv.Value.Contains(r)).Select(kv => kv.Key);
-
-    public HashSet<Resource>? WhatIsAt(Location loc) =>
-        _locationResources.GetValueOrDefault(loc);
+        _resourceLocations.TryGetValue(r, out var locs) ? locs : [];
 }

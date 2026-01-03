@@ -63,12 +63,8 @@ public static class WebIO
         if (estimatedDurationSeconds.HasValue)
             return new ProgressMode(activityText ?? "Working...", estimatedDurationSeconds.Value);
 
-        // Travel mode when map is present
-        if (ctx.Map != null)
-            return new TravelMode(GridStateDto.FromContext(ctx));
-
-        // Default to location mode
-        return new LocationMode();
+        // Always use travel mode when map is present (grid is always visible)
+        return new TravelMode(GridStateDto.FromContext(ctx));
     }
 
     /// <summary>
@@ -633,6 +629,37 @@ public static class WebIO
         ClearConfirm(ctx);
 
         return response.ChoiceId == "yes";
+    }
+
+    /// <summary>
+    /// Present a confirmation with custom buttons and wait for player choice.
+    /// Returns the button ID that was clicked.
+    /// </summary>
+    public static string PromptConfirm(GameContext ctx, string message, Dictionary<string, string> buttons)
+    {
+        var session = GetSession(ctx);
+
+        // Set confirm overlay
+        if (ctx.SessionId != null)
+            _currentConfirm[ctx.SessionId] = message;
+
+        var choices = buttons.Select(kvp => new ChoiceDto(kvp.Key, kvp.Value)).ToList();
+
+        int inputId = session.GenerateInputId();
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto(inputId, "confirm", message, choices)
+        );
+
+        session.Send(frame);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+        // Clear confirm overlay after response
+        ClearConfirm(ctx);
+
+        return response.ChoiceId;
     }
 
     /// <summary>
@@ -1314,6 +1341,9 @@ public static class WebIO
                     // Fire now active, mode switches to tending automatically
                     selectedToolId = null;
                     selectedTinderId = null;
+
+                    // Refresh fire reference from location to ensure mode detection works correctly
+                    fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>() ?? fire;
                 }
                 // On failure, loop continues to show updated UI (may have consumed materials)
             }
@@ -1405,7 +1435,7 @@ public static class WebIO
 
         // Get skill level and determine existing fire
         int skillLevel = ctx.player.Skills.GetSkill("Firecraft").Level;
-        var existingFire = ctx.CurrentLocation.Features.Contains(fire) ? fire : null;
+        var existingFire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
 
         // Use tool (decrement durability on attempt)
         if (tool.Durability > 0)

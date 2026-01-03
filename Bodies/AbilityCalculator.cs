@@ -4,9 +4,31 @@ namespace text_survival.Bodies;
 
 public static class AbilityCalculator
 {
+    #region Core Abilities (with dependency chain)
+
+    /// <summary>
+    /// Vitality: Foundation ability - "how alive are you".
+    /// Minimum of critical life-sustaining systems. No dependencies.
+    /// </summary>
+    public static double CalculateVitality(Body body, CapacityModifierContainer effectModifiers)
+    {
+        var capacities = CapacityCalculator.GetCapacities(body, effectModifiers);
+        return Math.Min(
+            capacities.Breathing,
+            Math.Min(capacities.BloodPumping, capacities.Consciousness)
+        );
+    }
+
+    public static double CalculateVitality(Body body) => CalculateVitality(body, new CapacityModifierContainer());
+
+    /// <summary>
+    /// Strength: Power output, scaled by Vitality.
+    /// Dying = weak, regardless of muscles.
+    /// </summary>
     public static double CalculateStrength(Body body, CapacityModifierContainer effectModifiers)
     {
         var capacities = CapacityCalculator.GetCapacities(body, effectModifiers);
+        double vitality = CalculateVitality(body, effectModifiers);
 
         double bfPercent = body.BodyFatPercentage;
         double musclePercent = body.MusclePercentage;
@@ -30,13 +52,17 @@ public static class AbilityCalculator
 
         double manipulationContribution = 0.80 + 0.20 * capacities.Manipulation;
         double movingContribution = 0.50 + 0.50 * capacities.Moving;
-        double bloodPumping = capacities.BloodPumping;
         double bodyContribution = baseStrength + muscleContribution + fatBonus;
 
-        return bodyContribution * movingContribution * manipulationContribution * bloodPumping;
+        // Vitality scales strength - dying = weak
+        return bodyContribution * movingContribution * manipulationContribution * vitality;
     }
 
-    public static double CalculateSpeed(Body body, CapacityModifierContainer effectModifiers)
+    /// <summary>
+    /// Speed (base): Body composition and Moving capacity.
+    /// Use context-aware overload for encumbrance.
+    /// </summary>
+    private static double CalculateBaseSpeed(Body body, CapacityModifierContainer effectModifiers)
     {
         var capacities = CapacityCalculator.GetCapacities(body, effectModifiers);
 
@@ -65,26 +91,110 @@ public static class AbilityCalculator
         return capacities.Moving * (1 + muscleModifier - fatPenalty + weightEffect) * sizeModifier;
     }
 
-    public static double CalculateVitality(Body body, CapacityModifierContainer effectModifiers)
+    /// <summary>
+    /// Speed (no context): For backward compatibility.
+    /// </summary>
+    public static double CalculateSpeed(Body body, CapacityModifierContainer effectModifiers)
     {
-        var capacities = CapacityCalculator.GetCapacities(body, effectModifiers);
-
-        // Vitality = minimum of critical life-sustaining systems
-        // If any critical system fails (heart, lungs, or brain), you die
-        return Math.Min(
-            capacities.Breathing,
-            Math.Min(capacities.BloodPumping, capacities.Consciousness)
-        );
+        return CalculateSpeed(body, effectModifiers, AbilityContext.Default);
     }
 
-    // Overload for simpler calls without effect modifiers
-    public static double CalculateVitality(Body body) => CalculateVitality(body, new CapacityModifierContainer());
+    /// <summary>
+    /// Speed (with context): Depends on Vitality + Strength (for encumbrance modulation).
+    /// Strong person carrying 30kg feels it less than weak person.
+    /// </summary>
+    public static double CalculateSpeed(Body body, CapacityModifierContainer effectModifiers, AbilityContext context)
+    {
+        double baseSpeed = CalculateBaseSpeed(body, effectModifiers);
+        double vitality = CalculateVitality(body, effectModifiers);
+        double strength = CalculateStrength(body, effectModifiers);
 
+        // Vitality factor: at 0 vitality, speed is 50% of base
+        double vitalityFactor = 0.5 + (vitality * 0.5);
+
+        // Strength modulates encumbrance: strong = load feels lighter
+        // At strength 1.0, divisor is 1.0 (no help)
+        // At strength 0.5, divisor is 0.75 (encumbrance feels heavier)
+        double strengthDivisor = 0.5 + (strength * 0.5);
+        double effectiveEncumbrance = context.EncumbrancePct / strengthDivisor;
+
+        // Encumbrance penalty: >50% effective load starts slowing
+        double encumbrancePenalty = Math.Max(0, (effectiveEncumbrance - 0.5) * 0.8);
+
+        return baseSpeed * vitalityFactor * (1 - encumbrancePenalty);
+    }
+
+    /// <summary>
+    /// Perception (no context): For backward compatibility.
+    /// </summary>
     public static double CalculatePerception(Body body, CapacityModifierContainer effectModifiers)
     {
-        var capacities = CapacityCalculator.GetCapacities(body, effectModifiers);
-        return (capacities.Sight + capacities.Hearing) / 2;
+        return CalculatePerception(body, effectModifiers, AbilityContext.Default);
     }
+
+    /// <summary>
+    /// Perception (with context): Depends on Vitality + Consciousness directly.
+    /// Consciousness double-dips: once in Vitality, once directly. Being dazed tanks perception.
+    /// </summary>
+    public static double CalculatePerception(Body body, CapacityModifierContainer effectModifiers, AbilityContext context)
+    {
+        var capacities = CapacityCalculator.GetCapacities(body, effectModifiers);
+        double vitality = CalculateVitality(body, effectModifiers);
+
+        // Darkness reduces sight effectiveness (unless light source present)
+        double sightEffectiveness = context.HasLightSource ? 1.0 : (1.0 - context.DarknessLevel);
+        double baseSight = capacities.Sight * sightEffectiveness;
+
+        // In darkness, hearing becomes more important
+        double sightWeight = 0.5;
+        double hearingWeight = 0.5;
+        if (context.DarknessLevel > 0 && !context.HasLightSource)
+        {
+            sightWeight = 0.5 * (1 - context.DarknessLevel);
+            hearingWeight = 1 - sightWeight;
+        }
+
+        double basePerception = (baseSight * sightWeight) + (capacities.Hearing * hearingWeight);
+
+        // Vitality affects alertness
+        double vitalityFactor = 0.7 + (vitality * 0.3);
+
+        // Consciousness double-dips - being dazed specifically hurts awareness
+        return basePerception * capacities.Consciousness * vitalityFactor;
+    }
+
+    /// <summary>
+    /// Dexterity: Fine motor control. Depends on Vitality for steadiness.
+    /// Affected by darkness (can't see hands) and wetness (slippery grip).
+    /// </summary>
+    public static double CalculateDexterity(Body body, CapacityModifierContainer effectModifiers, AbilityContext context)
+    {
+        var capacities = CapacityCalculator.GetCapacities(body, effectModifiers);
+        double vitality = CalculateVitality(body, effectModifiers);
+
+        double baseDexterity = capacities.Manipulation;
+
+        // Darkness penalty: can't see what you're doing (up to 50% penalty)
+        double darknessPenalty = context.HasLightSource ? 0 : context.DarknessLevel * 0.5;
+
+        // Wetness penalty: slippery grip (starts at 30% wetness, up to 21% penalty)
+        double wetnessPenalty = Math.Max(0, (context.WetnessPct - 0.3) * 0.3);
+
+        // Vitality affects steadiness: dying = shaky hands
+        double steadiness = 0.7 + (vitality * 0.3);
+
+        return baseDexterity * (1 - darknessPenalty) * (1 - wetnessPenalty) * steadiness;
+    }
+
+    /// <summary>
+    /// Dexterity (no context): For backward compatibility.
+    /// </summary>
+    public static double CalculateDexterity(Body body, CapacityModifierContainer effectModifiers)
+    {
+        return CalculateDexterity(body, effectModifiers, AbilityContext.Default);
+    }
+
+    #endregion
 
     // Consciousness impairment check - used for mental fog effects
     public static bool IsConsciousnessImpaired(double consciousness) => consciousness < 0.5;

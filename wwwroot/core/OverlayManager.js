@@ -1,5 +1,6 @@
 // modules/overlays/OverlayManager.js
 import { Utils, show, hide, ICON_CLASS } from '../modules/utils.js';
+import { Animator } from './Animator.js';
 
 /**
  * Base class for overlay management
@@ -338,6 +339,89 @@ export class OverlayManager {
      */
     createForm(config) {
         return new Form(config);
+    }
+
+    /**
+     * Run an action with progress bar animation
+     * @param {Object} config - Progress configuration
+     * @param {HTMLElement} config.progressEl - Progress container element
+     * @param {HTMLElement} config.progressBar - Progress bar element
+     * @param {HTMLElement} config.progressText - Progress text element
+     * @param {HTMLElement} config.progressResult - Progress result element
+     * @param {HTMLButtonElement} config.doneBtn - Done button to disable
+     * @param {string} config.progressMessage - Text to show during progress (e.g., "Cooking...")
+     * @param {number} config.durationMs - Animation duration in milliseconds
+     * @param {string} config.choiceId - Choice ID to send when complete
+     * @param {string} config.pendingFlag - Name of the pending flag property (e.g., 'pendingCooking')
+     * @param {HTMLElement} [config.buttonsContainer] - Optional container to disable buttons in
+     * @param {string} [config.buttonSelector] - Optional selector for buttons to disable (default: 'button, .list-item--clickable')
+     */
+    runWithProgress(config) {
+        // Set pending flag
+        this[config.pendingFlag] = true;
+
+        // Show progress bar
+        show(config.progressEl);
+        hide(config.progressResult);
+        config.progressText.textContent = config.progressMessage;
+
+        // Disable done button
+        config.doneBtn.disabled = true;
+
+        // Disable action buttons if container provided
+        if (config.buttonsContainer) {
+            const selector = config.buttonSelector || 'button, .list-item--clickable';
+            const buttons = config.buttonsContainer.querySelectorAll(selector);
+            buttons.forEach(btn => {
+                if (btn.tagName === 'BUTTON') {
+                    btn.disabled = true;
+                } else {
+                    btn.style.pointerEvents = 'none';
+                }
+            });
+        }
+
+        // Animate progress bar
+        Animator.progressBar(config.progressBar, config.durationMs, () => {
+            this.respond(config.choiceId);
+        });
+    }
+
+    /**
+     * Check if progress animation just completed and handle result display
+     * Call this at the start of render() for overlays that use progress
+     * @param {Object} config - Same config as runWithProgress
+     * @param {string} config.successMessage - Message to show on success (e.g., "Consumed!")
+     * @returns {boolean} - True if progress was pending (so caller knows to skip normal render)
+     */
+    handleProgressComplete(config) {
+        if (this[config.pendingFlag]) {
+            this[config.pendingFlag] = false;
+
+            // Show success result
+            config.progressResult.textContent = config.successMessage;
+            config.progressResult.className = 'overlay-progress-result success';
+            show(config.progressResult);
+
+            // Hide after delay
+            setTimeout(() => {
+                hide(config.progressEl);
+                hide(config.progressResult);
+                config.progressBar.style.width = '0%';
+            }, 1500);
+
+            return true;
+        }
+
+        // Hide progress bar initially if not pending
+        hide(config.progressEl);
+        hide(config.progressResult);
+        config.progressBar.style.width = '0%';
+
+        // Re-enable done button
+        config.doneBtn.disabled = false;
+
+        return false;
     }
 }
 

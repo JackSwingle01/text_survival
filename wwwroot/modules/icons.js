@@ -35,7 +35,8 @@ export const FEATURE_TYPE_ICONS = {
     'water': 'water_drop',
     'wood': 'park',
     'snares': 'circle',
-    'curing': 'timelapse'
+    'curing': 'timelapse',
+    'npc': 'person'
 };
 
 export function getFeatureTypeIcon(type) {

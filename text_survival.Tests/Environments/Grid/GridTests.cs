@@ -279,8 +279,7 @@ public class GameMapTests
 
         var position = map.GetPosition(location);
 
-        Assert.NotNull(position);
-        Assert.Equal(new GridPosition(5, 5), position.Value);
+        Assert.Equal(new GridPosition(5, 5), position);
     }
 
     [Fact]
@@ -468,7 +467,7 @@ public class GridWorldGeneratorTests
         var weather = new Weather();
 
         var (map, camp) = generator.Generate(weather);
-        var campPos = map.GetPosition(camp)!.Value;
+        var campPos = map.GetPosition(camp);
 
         // Camp and immediate surroundings should be visible
         Assert.Equal(TileVisibility.Visible, camp.Visibility);

@@ -24,6 +24,11 @@ public record GridStateDto(
             throw new InvalidOperationException("Cannot create GridStateDto without a map");
 
         var map = ctx.Map;
+
+        // Update visibility based on current player sight capacity
+        var sightCapacity = ctx.player.GetCapacities().Sight;
+        map.UpdateVisibility(sightCapacity);
+
         var tiles = new List<TileDto>();
 
         // Include all explored or visible locations
@@ -154,8 +159,8 @@ public record TileDto(
                 ctx.CurrentLocation, location, ctx.player, ctx.Inventory);
         }
 
-        // Only include detailed info for explored locations
-        bool isExplored = location.Explored;
+        // Include detailed info for explored OR visible locations
+        bool showDetails = location.Explored || location.Visibility == TileVisibility.Visible;
 
         return new TileDto(
             X: x,
@@ -166,7 +171,7 @@ public record TileDto(
             LocationTags: locationTags,
             HasNamedLocation: !location.IsTerrainOnly,
             FeatureIcons: GetFeatureIcons(location),
-            AnimalIcons: GetAnimalIcons(x, y, location, ctx),
+            AnimalIcons: GetCreatureIcons(x, y, location, ctx),
             HasFire: location.HasActiveHeatSource(),
             IsHazardous: TravelProcessor.IsHazardousTerrain(location),
             IsPassable: location.IsPassable,
@@ -174,22 +179,22 @@ public record TileDto(
             IsAdjacent: isAdjacent,
             TravelTimeMinutes: travelTime,
 
-            // Environmental (only for explored)
-            WindFactor: isExplored ? location.WindFactor : null,
-            OverheadCoverLevel: isExplored ? location.OverheadCoverLevel : null,
-            TemperatureDeltaF: isExplored ? location.TemperatureDeltaF : null,
+            // Environmental (only for explored/visible)
+            WindFactor: showDetails ? location.WindFactor : null,
+            OverheadCoverLevel: showDetails ? location.OverheadCoverLevel : null,
+            TemperatureDeltaF: showDetails ? location.TemperatureDeltaF : null,
 
             // Hazards
-            TerrainHazardLevel: isExplored ? location.GetEffectiveTerrainHazard() : null,
+            TerrainHazardLevel: showDetails ? location.GetEffectiveTerrainHazard() : null,
 
             // Tactical
-            IsEscapeTerrain: isExplored ? location.IsEscapeTerrain : null,
-            IsVantagePoint: isExplored ? location.IsVantagePoint : null,
-            VisibilityFactor: isExplored ? location.VisibilityFactor : null,
-            IsDark: isExplored ? location.IsDark : null,
+            IsEscapeTerrain: showDetails ? location.IsEscapeTerrain : null,
+            IsVantagePoint: showDetails ? location.IsVantagePoint : null,
+            VisibilityFactor: showDetails ? location.VisibilityFactor : null,
+            IsDark: showDetails ? location.IsDark : null,
 
             // Feature details
-            FeatureDetails: isExplored ? GetFeatureDetails(location, x, y, ctx) : null
+            FeatureDetails: showDetails ? GetFeatureDetails(location, x, y, ctx) : null
         );
     }
 
@@ -250,23 +255,35 @@ public record TileDto(
 
                 details.Add(new FeatureDetailDto("herd", label, status, [emoji]));
             }
+
+            // Add NPC information
+            var npcs = ctx.GetNPCsAt(new GridPosition(x, y));
+            foreach (var npc in npcs)
+            {
+                var status = npc.CurrentAction?.Name ?? "idle";
+                details.Add(new FeatureDetailDto("npc", npc.Name, status, ["🧑"], npc.Vitality));
+            }
         }
 
         return details;
     }
 
-    private static List<string> GetAnimalIcons(int x, int y, Location location, GameContext ctx)
+    private static List<string> GetCreatureIcons(int x, int y, Location location, GameContext ctx)
     {
-        // Only show animal icons for visible tiles
+        // Only show icons for visible tiles
         if (location.Visibility != TileVisibility.Visible) return [];
 
-        var herds = ctx.Herds.GetHerdsAt(new GridPosition(x, y));
-        if (herds.Count == 0) return [];
+        var icons = new List<string>();
 
-        return herds
-            .Take(4)  // Max 4 positions available
-            .Select(h => h.AnimalType.Emoji())
-            .ToList();
+        // Animal icons
+        var herds = ctx.Herds.GetHerdsAt(new GridPosition(x, y));
+        icons.AddRange(herds.Take(3).Select(h => h.AnimalType.Emoji()));
+
+        // NPC icons
+        var npcs = ctx.GetNPCsAt(new GridPosition(x, y));
+        icons.AddRange(npcs.Select(_ => "🧑"));
+
+        return icons.Take(4).ToList();  // Max 4 icons per tile
     }
 }
 
@@ -308,7 +325,8 @@ public record FeatureDetailDto(
     string Type,           // "shelter", "forage", "animal", "cache", etc.
     string Label,          // Display name
     string? Status,        // e.g., "75% insulation", "abundant"
-    List<string>? Details  // Additional details like resource types
+    List<string>? Details, // Additional details like resource types
+    double? HealthPct = null  // 0-1, for NPCs/creatures with health bars
 );
 
 /// <summary>

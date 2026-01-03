@@ -261,9 +261,10 @@ class GameClient {
             SurvivalDisplay.render(state);
         }
 
-        // Effects & Injuries
+        // Effects, Injuries & Capacities
         EffectsDisplay.render(state.effects);
         EffectsDisplay.renderInjuries(state.injuries, state.bloodPercent);
+        EffectsDisplay.renderCapacities(state.capacities);
 
         // Inventory summary
         document.getElementById('carryDisplay').textContent =
@@ -642,8 +643,8 @@ class GameClient {
         Utils.clearElement(glanceEl);
         Utils.clearElement(featuresEl);
 
-        // Build quick glance badges (for explored locations)
-        const isExplored = tileData.visibility === 'visible' && tileData.locationName && tileData.locationName !== '???';
+        // Build quick glance badges (for visible locations)
+        const isExplored = tileData.visibility === 'visible';
         if (isExplored) {
             this.buildGlanceBar(glanceEl, tileData);
         }
@@ -786,6 +787,61 @@ class GameClient {
      */
     buildDetailedFeatures(container, featureDetails) {
         featureDetails.forEach(feature => {
+            // Special compact layout for NPCs with health bars
+            if (feature.type === 'npc' && feature.healthPct != null) {
+                const featureEl = document.createElement('div');
+                featureEl.className = 'popup-feature-npc';
+
+                // Header row: emoji + name + status (all inline)
+                const headerEl = document.createElement('div');
+                headerEl.className = 'npc-header';
+
+                const iconEl = document.createElement('span');
+                iconEl.className = 'feature-emoji';
+                iconEl.textContent = feature.details?.[0] || '🧑';
+                headerEl.appendChild(iconEl);
+
+                const nameEl = document.createElement('span');
+                nameEl.className = 'npc-name';
+                nameEl.textContent = feature.label;
+                headerEl.appendChild(nameEl);
+
+                if (feature.status) {
+                    const statusEl = document.createElement('span');
+                    statusEl.className = 'npc-status';
+                    statusEl.textContent = feature.status;
+                    headerEl.appendChild(statusEl);
+                }
+                featureEl.appendChild(headerEl);
+
+                // Health bar row: heart icon + bar + percentage
+                const healthRow = document.createElement('div');
+                healthRow.className = 'npc-health-row';
+
+                const heartIcon = document.createElement('span');
+                heartIcon.className = ICON_CLASS;
+                heartIcon.textContent = 'favorite';
+                healthRow.appendChild(heartIcon);
+
+                const barContainer = document.createElement('div');
+                barContainer.className = 'bar bar--sm bar--health';
+                const barFill = document.createElement('div');
+                barFill.className = 'bar__fill';
+                barFill.style.width = `${Math.round(feature.healthPct * 100)}%`;
+                barContainer.appendChild(barFill);
+                healthRow.appendChild(barContainer);
+
+                const pctEl = document.createElement('span');
+                pctEl.className = 'npc-health-pct';
+                pctEl.textContent = `${Math.round(feature.healthPct * 100)}%`;
+                healthRow.appendChild(pctEl);
+
+                featureEl.appendChild(healthRow);
+                container.appendChild(featureEl);
+                return; // Skip normal rendering for this feature
+            }
+
+            // Standard feature rendering
             const featureEl = document.createElement('div');
             featureEl.className = 'popup-feature-detailed';
 

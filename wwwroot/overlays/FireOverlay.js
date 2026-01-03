@@ -282,6 +282,36 @@ export class FireOverlay extends OverlayManager {
             successValue.textContent = fire.finalSuccessPercent + '%';
             successSection.appendChild(successValue);
 
+            // Show modifiers breakdown if any exist
+            if (fire.modifiers && fire.modifiers.length > 0) {
+                const modifiersSection = document.createElement('div');
+                modifiersSection.className = 'fire-modifiers';
+
+                for (const mod of fire.modifiers) {
+                    const modRow = document.createElement('div');
+                    modRow.className = 'fire-modifier-row ' + (mod.percentDelta >= 0 ? 'bonus' : 'penalty');
+
+                    const modIcon = document.createElement('span');
+                    modIcon.className = ICON_CLASS;
+                    modIcon.textContent = mod.icon;
+                    modRow.appendChild(modIcon);
+
+                    const modName = document.createElement('span');
+                    modName.className = 'fire-modifier-name';
+                    modName.textContent = mod.name;
+                    modRow.appendChild(modName);
+
+                    const modValue = document.createElement('span');
+                    modValue.className = 'fire-modifier-value';
+                    modValue.textContent = (mod.percentDelta >= 0 ? '+' : '') + mod.percentDelta + '%';
+                    modRow.appendChild(modValue);
+
+                    modifiersSection.appendChild(modRow);
+                }
+
+                successSection.appendChild(modifiersSection);
+            }
+
             this.statusPane.appendChild(successSection);
         }
     }
