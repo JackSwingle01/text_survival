@@ -44,8 +44,11 @@ public class ButcherStrategy : IWorkStrategy
         var capacities = ctx.player.GetCapacities();
         var effectModifiers = ctx.player.EffectRegistry.GetCapacityModifiers();
 
-        // Check manipulation impairment
-        if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
+        // Check dexterity impairment (combines manipulation, wetness, darkness, vitality)
+        var abilityContext = AbilityContext.FromFullContext(
+            ctx.player, ctx.Inventory, location, ctx.GameTime.Hour);
+        double dexterity = ctx.player.GetDexterity(abilityContext);
+        if (dexterity < 0.7)
         {
             warnings.Add("Your unsteady hands will waste some yield.");
         }
@@ -160,10 +163,12 @@ public class ButcherStrategy : IWorkStrategy
         var mode = _selectedMode ?? ButcheringMode.Careful;
         var modeConfig = CarcassFeature.GetModeConfig(mode);
 
-        // Determine tool and impairment status
+        // Determine tool and dexterity status
         bool hasCuttingTool = ctx.Inventory.HasCuttingTool;
-        var manipulation = ctx.player.GetCapacities().Manipulation;
-        bool manipulationImpaired = AbilityCalculator.IsManipulationImpaired(manipulation);
+        var abilityContext = AbilityContext.FromFullContext(
+            ctx.player, ctx.Inventory, location, ctx.GameTime.Hour);
+        double dexterity = ctx.player.GetDexterity(abilityContext);
+        bool dexterityImpaired = dexterity < 0.7;
 
         // Warn if no cutting tool
         if (!hasCuttingTool)
@@ -171,14 +176,20 @@ public class ButcherStrategy : IWorkStrategy
             GameDisplay.AddWarning(ctx, "Without a cutting tool, you tear what you can by hand...");
         }
 
-        // Warn if manipulation impaired (affects yield, not time here)
-        if (manipulationImpaired)
+        // Warn if dexterity impaired (affects yield, not time here)
+        if (dexterityImpaired)
         {
-            GameDisplay.AddWarning(ctx, "Your unsteady hands waste some of the meat.");
+            // Contextual warning
+            if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)
+                GameDisplay.AddWarning(ctx, "The darkness makes your cuts imprecise, wasting some of the meat.");
+            else if (abilityContext.WetnessPct > 0.3)
+                GameDisplay.AddWarning(ctx, "Your wet, slippery hands waste some of the meat.");
+            else
+                GameDisplay.AddWarning(ctx, "Your unsteady hands waste some of the meat.");
         }
 
         // Harvest from carcass with selected mode
-        var yield = _carcass.Harvest(actualTime, hasCuttingTool, manipulationImpaired, mode);
+        var yield = _carcass.Harvest(actualTime, hasCuttingTool, dexterityImpaired, mode);
 
         // Apply Bloody effect based on mode (messy modes = more blood)
         double bloodySeverity = modeConfig.BloodySeverity * (actualTime / 60.0);

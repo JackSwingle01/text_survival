@@ -260,7 +260,9 @@ public record TileDto(
             var npcs = ctx.GetNPCsAt(new GridPosition(x, y));
             foreach (var npc in npcs)
             {
-                var status = npc.CurrentAction?.Name ?? "idle";
+                var action = npc.CurrentAction?.Name ?? "idle";
+                var need = npc.CurrentNeed?.ToString().ToLower();
+                var status = need != null ? $"{action} ({need})" : action;
                 details.Add(new FeatureDetailDto("npc", npc.Name, status, ["🧑"], npc.Vitality));
             }
         }

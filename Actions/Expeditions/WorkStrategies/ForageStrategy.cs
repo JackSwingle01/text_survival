@@ -79,9 +79,10 @@ public class ForageStrategy : IWorkStrategy
 
             // Build warnings
             var warnings = new List<string>();
-            bool isDark = location.IsDark || ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;
-            if (isDark && !location.HasActiveHeatSource() && !ctx.Inventory.HasLitTorch)
-                warnings.Add("It's dark - your yield will be halved without light.");
+            var previewContext = AbilityContext.FromFullContext(
+                ctx.player, ctx.Inventory, location, ctx.GameTime.Hour);
+            if (previewContext.DarknessLevel > 0.5 && !previewContext.HasLightSource)
+                warnings.Add("It's dark - your yield will be reduced without light.");
 
             var axe = ctx.Inventory.GetTool(ToolType.Axe);
             var shovel = ctx.Inventory.GetTool(ToolType.Shovel);
@@ -251,21 +252,25 @@ public class ForageStrategy : IWorkStrategy
             found.ApplyMultiplier(negativeClue.YieldModifier);
         }
 
-        // Darkness penalty: limited visibility reduces yield (-50%)
-        bool isDark = location.IsDark || ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;
-        if (isDark && !location.HasActiveHeatSource() && !ctx.Inventory.HasLitTorch)
-        {
-            found.ApplyMultiplier(0.5);
-            GameDisplay.AddWarning(ctx, "The darkness limits what you can find.");
-        }
+        // Perception affects yield - includes darkness, consciousness, vitality, and injury effects
+        var abilityContext = AbilityContext.FromFullContext(
+            ctx.player, ctx.Inventory, location, ctx.GameTime.Hour);
+        double perception = ctx.player.GetPerception(abilityContext);
 
-        // Perception impairment reduces yield (-15%)
-        var perception = AbilityCalculator.CalculatePerception(
-            ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers());
-        if (AbilityCalculator.IsPerceptionImpaired(perception))
+        // Apply perception as a direct multiplier (perception 1.0 = full yield, 0.5 = half yield)
+        if (perception < 1.0)
         {
-            found.ApplyMultiplier(0.85);
-            GameDisplay.AddWarning(ctx, "Your foggy senses cause you to miss some resources.");
+            found.ApplyMultiplier(perception);
+
+            // Contextual warning based on what's reducing perception
+            if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)
+            {
+                GameDisplay.AddWarning(ctx, "The darkness limits what you can find.");
+            }
+            else if (perception < 0.7)
+            {
+                GameDisplay.AddWarning(ctx, "Your foggy senses cause you to miss some resources.");
+            }
         }
 
         // Tool bonuses - help gather more efficiently (+10% each)

@@ -177,7 +177,8 @@ public class NeedCraftingSystem
             Category = NeedCategory.CuttingTool,
             CraftingTimeMinutes = 5,
             Durability = 3,
-            Requirements = [new MaterialRequirement(Resource.Stone, 2)],
+            Requirements = [new MaterialRequirement(Resource.Stone, 1)],
+            RequiredTools = [ToolType.KnappingStone],
             GearFactory = dur => new Gear
             {
                 Name = "Sharp Rock",
@@ -365,7 +366,7 @@ public class NeedCraftingSystem
             Category = NeedCategory.CuttingTool,
             CraftingTimeMinutes = 10,
             Durability = 30,
-            Requirements = [new MaterialRequirement(Resource.Stone, 3)],
+            Requirements = [new MaterialRequirement(Resource.Stone, 2)],
             GearFactory = dur => new Gear
             {
                 Name = "Knapping Stone",

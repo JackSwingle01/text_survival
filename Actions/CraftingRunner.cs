@@ -37,13 +37,13 @@ public class CraftingRunner(GameContext ctx)
                 allCraftable.Add((category, opt));
         }
 
-        if (allCraftable.Count == 0)
-        {
-            GameDisplay.AddNarrative(_ctx, "You don't have materials to make anything.");
-            GameDisplay.Render(_ctx, statusText: "Thinking.");
-            Web.WebIO.ClearCrafting(_ctx);
-            return;
-        }
+        // if (allCraftable.Count == 0)
+        // {
+        //     GameDisplay.AddNarrative(_ctx, "You don't have materials to make anything.");
+        //     GameDisplay.Render(_ctx, statusText: "Thinking.");
+        //     Web.WebIO.ClearCrafting(_ctx);
+        //     return;
+        // }
 
         // Let player select a recipe
         var choice = new Choice<(NeedCategory, CraftOption)?>("Select a recipe to craft:");
@@ -57,7 +57,6 @@ public class CraftingRunner(GameContext ctx)
 
         choice.AddOption("Cancel", null);
 
-        GameDisplay.Render(_ctx, statusText: "Planning.");
         var selected = choice.GetPlayerChoice(_ctx);
 
         Web.WebIO.ClearCrafting(_ctx);
@@ -127,7 +126,6 @@ public class CraftingRunner(GameContext ctx)
 
         choice.AddOption("Cancel", null);
 
-        GameDisplay.Render(_ctx, statusText: "Planning.");
         var selected = choice.GetPlayerChoice(_ctx);
 
         if (selected == null)
@@ -150,11 +148,23 @@ public class CraftingRunner(GameContext ctx)
             GameDisplay.AddWarning(_ctx, "Your foggy mind slows the work.");
         }
 
-        // Manipulation impairment slows crafting (+30%)
-        if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
+        // Dexterity impairment slows crafting (combines manipulation, wetness, darkness, vitality)
+        var abilityContext = AbilityContext.FromFullContext(
+            _ctx.player, _ctx.Inventory, _ctx.CurrentLocation, _ctx.GameTime.Hour);
+        double dexterity = _ctx.player.GetDexterity(abilityContext);
+        if (dexterity < 0.7)
         {
-            totalTime = (int)(totalTime * 1.30);
-            GameDisplay.AddWarning(_ctx, "Your unsteady hands slow the work.");
+            // Scale penalty based on dexterity: 0.7 = no penalty, 0.0 = +50% time
+            double penaltyFactor = 1.0 + ((0.7 - dexterity) / 0.7 * 0.5);
+            totalTime = (int)(totalTime * penaltyFactor);
+
+            // Contextual warning
+            if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)
+                GameDisplay.AddWarning(_ctx, "The darkness makes the work harder.");
+            else if (abilityContext.WetnessPct > 0.3)
+                GameDisplay.AddWarning(_ctx, "Your wet hands slow the work.");
+            else
+                GameDisplay.AddWarning(_ctx, "Your unsteady hands slow the work.");
         }
 
         // Use centralized progress method - handles web animation and processes all time at once

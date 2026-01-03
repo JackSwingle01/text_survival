@@ -91,7 +91,7 @@ public class NPC : Actor
             ContinueAction();
         }
     }
-    private bool ShouldInterrupt()
+    internal bool ShouldInterrupt()
     {
         if (DecideRespondToThreat())
             return true;
@@ -127,38 +127,76 @@ public class NPC : Actor
         Console.WriteLine($"  [Warmth] Determining action for need: {CurrentNeed}");
         if (CurrentNeed == NeedType.Warmth)
         {
-            var fire = GetKnownFire();
-            Console.WriteLine($"  [Warmth] Known fire: {fire?.Name ?? "none"}");
+            bool atActiveFire = CurrentLocation.HasActiveHeatSource();
+            bool atDeadFire = !atActiveFire && CurrentLocation.HasFeature<HeatSourceFeature>();
+            bool notAtFire = !(atActiveFire || atDeadFire);
 
-            // if at fire then wait
-            if (fire != null && CurrentLocation == fire)
+            bool isWarming = Body.LastTemperatureDelta > 0;
+            bool needToStartFire = atDeadFire;
+            bool needToTendFire = false;
+
+            // either at active fire
+            // at dead fire
+            // not at fire
+            if (notAtFire)
             {
-                Console.WriteLine($"  [Warmth] At fire, idling");
-                return new NPCIdle(Utils.RandInt(5, 15));
+                var knownActiveFire = GetKnownActiveFire();
+                Console.WriteLine($"  [Warmth] Known fire: {knownActiveFire?.Name ?? "none"}");
+                // known fire -> go there
+                if (knownActiveFire != null)
+                {
+                    Console.WriteLine($"  [Warmth] Going to fire at {knownActiveFire.Name}");
+                    var move = DecideToMove(knownActiveFire);
+                    if (move != null) return move;
+                }
+                else if (Camp != null) // if no known fire prefer to make it at camp
+                {
+                    Console.WriteLine($"  [Warmth] Going to camp");
+                    var move = DecideToMove(Camp, maxTiles: 4); // only if close
+                    if (move != null) return move;
+                }
+                // no known fire and camp is far
+                needToStartFire = true;
             }
 
-            // known fire -> go there
-            if (fire != null && fire != CurrentLocation)
+            // if at fire then wait
+            if (atActiveFire)
             {
-                var nextLoc = Map.GetNextInPath(CurrentLocation, fire);
-                if (nextLoc != null)
+                if (isWarming)
                 {
-                    Console.WriteLine($"  [Warmth] Going to fire at {fire.Name}");
-                    return new NPCMove(nextLoc, this);
+                    // Rest near fire to get fire proximity heat bonus
+                    Console.WriteLine($"  [Warmth] At fire, resting");
+                    return new NPCRest(Utils.RandInt(5, 15));
+                }
+                else
+                {
+                    needToTendFire = true;
                 }
             }
 
-            // no known fire -> make one
+            if (needToTendFire)
+            {
+                // at fire but still cooling -> add fuel if you can
+                var fireFeature = CurrentLocation.GetFeature<HeatSourceFeature>()!;
+                if (FireHandler.CanTendFire(Inventory, fireFeature))
+                {
+                    Console.WriteLine($"  [Warmth] Tending fire");
+                    return new NPCTendFire();
+                }
+
+                if (!FireHandler.CanTendFire(Inventory, fireFeature))
+                {
+                    Console.WriteLine($"  [Warmth] Getting fuel");
+                    var get = DetermineGetResource(ResourceCategory.Fuel);
+                    if (get != null) return get;
+                }
+            }
+
             // at fire but not lit -> light it
-            bool needToStartFire = fire == null || !fire.GetFeature<HeatSourceFeature>()!.IsActive;
-            bool needToTendFire = fire != null && CurrentLocation.HasActiveHeatSource() && Body.LastTemperatureDelta < 0;
-            Console.WriteLine($"  [Warmth] needToStartFire={needToStartFire}, needToTendFire={needToTendFire}");
-
-            var hasTool = FireHandler.GetBestTool(Inventory) != null;
-            Console.WriteLine($"  [Warmth] Has fire tool: {hasTool}");
-
             if (needToStartFire)
             {
+                var hasTool = FireHandler.GetBestTool(Inventory) != null;
+                Console.WriteLine($"  [Warmth] Has fire tool: {hasTool}");
                 if (FireHandler.CanStartFire(Inventory))
                 {
                     Console.WriteLine($"  [Warmth] Can start fire, starting");
@@ -177,34 +215,20 @@ public class NPC : Actor
                     Console.WriteLine($"  [Warmth] Can't craft, skipping fire materials");
                     // Can't craft tool - don't gather fire materials we can't use
                 }
-            }
-
-            // at fire but still cooling -> add fuel
-            if (needToTendFire)
-            {
-                var fireFeature = CurrentLocation.GetFeature<HeatSourceFeature>()!;
-                if (FireHandler.CanTendFire(Inventory, fireFeature))
+                else
                 {
-                    Console.WriteLine($"  [Warmth] Tending fire");
-                    return new NPCTendFire();
-                }
-            }
-
-            // Only gather fire materials if we have a tool to use them
-            if (hasTool)
-            {
-                if (needToStartFire && !HasResource(ResourceCategory.Tinder))
-                {
-                    Console.WriteLine($"  [Warmth] Getting tinder");
-                    var get = DetermineGetResource(ResourceCategory.Tinder);
-                    if (get != null) return get;
-                }
-
-                if ((needToStartFire || needToTendFire) && !HasResource(ResourceCategory.Fuel))
-                {
-                    Console.WriteLine($"  [Warmth] Getting fuel");
-                    var get = DetermineGetResource(ResourceCategory.Fuel);
-                    if (get != null) return get;
+                    if (FireHandler.GetFireMaterials(Inventory).Tinders.Count < 1)
+                    {
+                        Console.WriteLine($"  [Warmth] Getting tinder");
+                        var get = DetermineGetResource(ResourceCategory.Tinder);
+                        if (get != null) return get;
+                    }
+                    if (!FireHandler.GetFireMaterials(Inventory).HasKindling)
+                    {
+                        Console.WriteLine($"  [Warmth] Getting fuel");
+                        var get = DetermineGetResource(ResourceCategory.Fuel);
+                        if (get != null) return get;
+                    }
                 }
             }
             Console.WriteLine($"  [Warmth] Falling through to work/craft");
@@ -243,7 +267,29 @@ public class NPC : Actor
 
         return action;
     }
-    private Location? GetKnownFire()
+
+    private NPCMove? DecideToMove(Location destination, int maxTiles = 100)
+    {
+        if (destination == CurrentLocation) throw new Exception("You can't move to current location");
+        int distanceToCamp = Map.GetPosition(CurrentLocation).ManhattanDistance(Map.GetPosition(destination));
+        if (distanceToCamp <= maxTiles) // tiles
+        {
+            var nextLoc = Map.GetNextInPath(CurrentLocation, destination);
+            if (nextLoc != null)
+            {
+                Console.WriteLine($"  [Moving] Going to {destination.Name}");
+                return new NPCMove(nextLoc, this);
+            }
+            Console.WriteLine($"Can't move to {destination} - no path");
+        }
+        else
+        {
+            Console.WriteLine($"Can't move to {destination} - too far");
+        }
+        return null;
+    }
+
+    private Location? GetKnownActiveFire()
     {
         if (CurrentLocation.HasActiveHeatSource()) return CurrentLocation;
         if (Camp?.HasActiveHeatSource() ?? false) return Camp;
@@ -251,7 +297,7 @@ public class NPC : Actor
         return null;
     }
 
-    private bool IsCriticalNeedSatisfied()
+    internal bool IsCriticalNeedSatisfied()
     {
         return CurrentNeed switch
         {
@@ -282,7 +328,7 @@ public class NPC : Actor
         CurrentNeed = need;
         return true;
     }
-    private NeedType? GetCriticalNeed()
+    internal NeedType? GetCriticalNeed()
     {
         if (Body.WarmPct < .25)
             return NeedType.Warmth;
@@ -364,7 +410,7 @@ public class NPC : Actor
         if (remembered != null)
         {
             Console.WriteLine($"    [GetResource] Remembered location with {resource}: {remembered.Name}");
-            locWithResource ??= Map.GetNextInPath(CurrentLocation, remembered);
+            locWithResource ??= remembered;
         }
 
         // unknown? -> (bold check?) move random (explore)
@@ -377,7 +423,8 @@ public class NPC : Actor
         if (locWithResource != null)
         {
             Console.WriteLine($"    [GetResource] Moving to {locWithResource.Name}");
-            return new NPCMove(locWithResource, this);
+            var move = DecideToMove(locWithResource);
+            if (move != null) return move;
         }
 
         Console.WriteLine($"    [GetResource] Could not find {resource}");
@@ -422,7 +469,7 @@ public class NPC : Actor
         // otherwise wait
         return null;
     }
-    private Location? GetClosestKnownResource(ResourceCategory category)
+    internal Location? GetClosestKnownResource(ResourceCategory category)
     {
         if (Map == null) return null;
 
@@ -448,8 +495,29 @@ public class NPC : Actor
         if (forage != null && !forage.IsNearlyDepleted())
             resources.AddRange(forage.ProvidedResources());
 
-        // TODO: Add WoodedAreaFeature (requires axe) when NCPChopWood is implemented
-        // TODO: Add HarvestableFeature when NPCHarvest is implemented
+        // HarvestableFeature - check tool requirements
+        var harvestable = WorkHandler.GetAvailableHarvestable(location);
+        if (harvestable != null && harvestable.CanBeHarvested())
+        {
+            // Check if NPC has required tool (if any)
+            if (harvestable.RequiredToolType != null)
+            {
+                var tool = Inventory.GetTool(harvestable.RequiredToolType.Value);
+                if (!harvestable.MeetsToolRequirement(tool))
+                    goto skipHarvest; // Skip - can't harvest without tool
+            }
+            resources.AddRange(harvestable.ProvidedResources());
+        }
+    skipHarvest:
+
+        // WoodedAreaFeature - requires working axe
+        var wooded = location.GetFeature<WoodedAreaFeature>();
+        if (wooded != null && wooded.HasTrees)
+        {
+            var axe = Inventory.GetTool(ToolType.Axe);
+            if (axe?.Works == true)
+                resources.AddRange(wooded.ProvidedResources());
+        }
 
         return resources.Distinct().ToList();
     }
@@ -466,12 +534,50 @@ public class NPC : Actor
             return new NPCForage(Utils.RandInt(15, 60));
         }
 
-        // TODO: Add WoodedAreaFeature (requires axe) when NCPChopWood is implemented
-        // TODO: Add HarvestableFeature when NPCHarvest is implemented
+        // HarvestableFeature - check tool requirements
+        var harvestable = WorkHandler.GetAvailableHarvestable(CurrentLocation);
+        if (harvestable != null && harvestable.CanBeHarvested() &&
+            harvestable.ProvidedResources().Any(r => targetResources.Contains(r)))
+        {
+            // Check tool requirement
+            if (harvestable.RequiredToolType != null)
+            {
+                var tool = Inventory.GetTool(harvestable.RequiredToolType.Value);
+                if (!harvestable.MeetsToolRequirement(tool))
+                {
+                    // Need tool - try to craft/find it
+                    return DetermineGetTool(harvestable.RequiredToolType.Value);
+                }
+            }
+
+            // Calculate work time (harvest may complete in one session or require multiple)
+            int workTime = Math.Min(60, harvestable.GetTotalMinutesToHarvest());
+            if (workTime > 0)
+                return new NPCHarvest(workTime);
+        }
+
+        // WoodedAreaFeature - requires working axe
+        var wooded = CurrentLocation.GetFeature<WoodedAreaFeature>();
+        if (wooded != null && wooded.HasTrees &&
+            wooded.ProvidedResources().Any(r => targetResources.Contains(r)))
+        {
+            var axe = Inventory.GetTool(ToolType.Axe);
+            if (axe == null || !axe.Works)
+            {
+                // Need axe - try to craft/find it
+                return DetermineGetTool(ToolType.Axe);
+            }
+
+            // Calculate work time based on remaining progress
+            double remainingMinutes = wooded.MinutesToFell - wooded.MinutesWorked;
+            int workTime = (int)Math.Min(60, Math.Max(30, remainingMinutes));
+
+            return new NPCChopWood(workTime);
+        }
 
         return null;
     }
-    private NPCAction? DetermineWork()
+    internal NPCAction? DetermineWork()
     {
         // Stockpile resources if camp doesn't have enough
         if (!IsEnoughStockpiled(ResourceCategory.Fuel))
@@ -488,7 +594,7 @@ public class NPC : Actor
         }
         else return null;
     }
-    private NPCAction? Stockpile(ResourceCategory resource)
+    internal NPCAction? Stockpile(ResourceCategory resource)
     {
         // if at camp and have stuff -> store in cache
         if (CurrentLocation == Camp && Inventory.GetWeight(resource) >= 1.0)
@@ -504,7 +610,7 @@ public class NPC : Actor
         // else -> get resource ! at camp
         return DetermineGetResource(resource, allowCamp: false);
     }
-    private NPCAction? DealWithFullInventory()
+    internal NPCAction? DealWithFullInventory()
     {
         Console.WriteLine($"    [InvCheck] Current: {Inventory.CurrentWeightKg:F2}kg, Max: {Inventory.MaxWeightKg:F2}kg, Threshold: {Inventory.MaxWeightKg * .9:F2}kg");
         // if inv full -> return to camp
@@ -513,18 +619,16 @@ public class NPC : Actor
             Console.WriteLine($"    [InvCheck] Inventory full! At camp: {CurrentLocation == Camp}");
             if (Camp != null && CurrentLocation != Camp)
             {
-                var nextLoc = Map.GetNextInPath(CurrentLocation, Camp);
-                if (nextLoc != null)
-                {
-                    Console.WriteLine($"    [InvCheck] Returning to camp via {nextLoc.Name}");
-                    return new NPCMove(nextLoc, this);
-                }
+                Console.WriteLine($"    [InvCheck] Returning to camp");
+                var move = DecideToMove(Camp);
+                if (move != null) return move;
             }
             else if (Camp != null && CurrentLocation == Camp)
             {
-                var heaviestResource = Inventory.GetResourceTypes().OrderByDescending(x => Inventory.Weight(x)).FirstOrDefault();
-                if (heaviestResource != default)
+                var resourceTypes = Inventory.GetResourceTypes();
+                if (resourceTypes.Count > 0)
                 {
+                    var heaviestResource = resourceTypes.OrderByDescending(x => Inventory.Weight(x)).First();
                     var heaviest = heaviestResource.GetCategory();
                     if (heaviest != null)
                     {
@@ -547,28 +651,38 @@ public class NPC : Actor
     }
     private bool CampHas(ResourceCategory resourceCat) => Cache?.Has(resourceCat) ?? false;
     private Inventory? Cache => Camp?.GetFeature<CacheFeature>()?.Storage;
-    private bool IsEnoughStockpiled(ResourceCategory resource)
+    internal bool IsEnoughStockpiled(ResourceCategory resource)
     {
         int DAYS_RESERVE = 2;
         int PEOPLE_AT_CAMP = 1; // todo add property to location
         if (Cache is null) return false;
-        if (!CampHas(resource)) return false;
-        double kgNeededPerPersonDay = resource switch
+
+        // Water is tracked via WaterLiters, not in resource stacks
+        bool hasResource = resource == ResourceCategory.Water
+            ? Cache.WaterLiters > 0
+            : CampHas(resource);
+        if (!hasResource) return false;
+
+        double neededPerPersonDay = resource switch
         {
             ResourceCategory.Fuel => 20,
             ResourceCategory.Tinder => .1,
             ResourceCategory.Food => 1,
-            ResourceCategory.Water => 3, // 3l
+            ResourceCategory.Water => 3, // 3 liters
             ResourceCategory.Medicine => .1,
             ResourceCategory.Material => 0,
             ResourceCategory.Log => throw new NotImplementedException(),
             _ => throw new NotImplementedException(),
         };
-        int targetKg = (int)(DAYS_RESERVE * PEOPLE_AT_CAMP * kgNeededPerPersonDay);
-        if (Cache.GetWeight(resource) >= targetKg) return true;
-        return false;
+        int target = (int)(DAYS_RESERVE * PEOPLE_AT_CAMP * neededPerPersonDay);
+
+        double currentAmount = resource == ResourceCategory.Water
+            ? Cache.WaterLiters
+            : Cache.GetWeight(resource);
+
+        return currentAmount >= target;
     }
-    private NPCAction? DetermineCraft()
+    internal NPCAction? DetermineCraft()
     {
         // Priority based on current need (per npc-plan.md GET_CRAFT_DESIRE)
         NeedCategory? category = CurrentNeed switch
@@ -667,10 +781,10 @@ public class NPC : Actor
             Console.WriteLine($"    [GetTool] Found {cachedTool.Name} in cache");
             if (CurrentLocation == Camp)
                 return new NPCTakeToolFromCache(toolType);
-            else
+            else if (Camp != null)
             {
-                var nextLoc = Map.GetNextInPath(CurrentLocation, Camp);
-                if (nextLoc != null) return new NPCMove(nextLoc, this);
+                var move = DecideToMove(Camp);
+                if (move != null) return move;
             }
         }
 
@@ -705,7 +819,7 @@ public class NPC : Actor
         // if context.Time.IsNight and CAN_SLEEP(npc, context):
         //     options.Add(SLEEP, 40)
 
-        return new NPCIdle(Utils.RandInt(5, 30));
+        return new NPCRest(Utils.RandInt(5, 30));
     }
     private NPCSleep? DecideSleep()
     {
@@ -715,7 +829,7 @@ public class NPC : Actor
         }
         return null;
     }
-    private bool CanSleep()
+    internal bool CanSleep()
     {
         // Must be at camp
         if (CurrentLocation != Camp) return false;
@@ -767,11 +881,6 @@ public class NPCEat(Resource food, double amount) : NPCAction($"Eating {food.ToD
     }
 }
 
-public class NPCIdle(int minutes) : NPCAction("Idling", minutes, ActivityType.Idle)
-{
-    public override void Complete(NPC npc) { } // does nothing
-}
-
 public class NPCMove(Location destination, NPC npc) :
     NPCAction($"Traveling to {destination.Name}", TravelProcessor.GetTraversalMinutes(npc.CurrentLocation, destination, npc, npc.Inventory), ActivityType.Traveling)
 {
@@ -799,13 +908,86 @@ public class NPCForage(int minutes) : NPCAction("Foraging", minutes, ActivityTyp
         _ = npc.Inventory.CombineWithCapacity(found); // discard overflow
     }
 }
-public class NPCHarvest
+public class NPCHarvest : NPCAction
 {
-    // todo
+    public NPCHarvest(int minutes) : base("Harvesting", minutes, ActivityType.Foraging) { }
+
+    public override void Complete(NPC npc)
+    {
+        // Get first available harvestable (NPCs auto-select)
+        var feature = WorkHandler.GetAvailableHarvestable(npc.CurrentLocation);
+        if (feature == null)
+        {
+            Console.WriteLine($"[NPC:{npc.Name}] No harvestable at {npc.CurrentLocation.Name}");
+            return;
+        }
+
+        // Check tool requirements (some harvestables need tools)
+        if (feature.RequiredToolType != null)
+        {
+            var tool = npc.Inventory.GetTool(feature.RequiredToolType.Value);
+            if (!feature.MeetsToolRequirement(tool))
+            {
+                Console.WriteLine($"[NPC:{npc.Name}] Missing tool: {feature.GetToolRequirementDescription()}");
+                return;
+            }
+        }
+
+        // Execute harvest via WorkHandler
+        var found = WorkHandler.Harvest(npc.CurrentLocation, MinutesSpent);
+
+        // Add to NPC inventory (discard overflow)
+        _ = npc.Inventory.CombineWithCapacity(found);
+
+        Console.WriteLine($"[NPC:{npc.Name}] Harvested {found.GetDescription()} from {feature.DisplayName}");
+    }
 }
-public class NCPChopWood
+public class NPCChopWood : NPCAction
 {
-    // todo
+    public NPCChopWood(int minutes) : base("Chopping wood", minutes, ActivityType.Chopping) { }
+
+    public override void Complete(NPC npc)
+    {
+        var feature = npc.CurrentLocation.GetFeature<WoodedAreaFeature>();
+        if (feature == null || !feature.HasTrees)
+        {
+            Console.WriteLine($"[NPC:{npc.Name}] No trees at {npc.CurrentLocation.Name}");
+            return;
+        }
+
+        // Check for working axe (required)
+        var axe = npc.Inventory.GetTool(ToolType.Axe);
+        if (axe == null || axe.IsBroken)
+        {
+            Console.WriteLine($"[NPC:{npc.Name}] No working axe");
+            return;
+        }
+
+        // Use axe (durability cost)
+        bool axeStillWorks = axe.Use();
+
+        // Add progress to feature (persists across sessions)
+        feature.AddProgress(MinutesSpent);
+
+        // Check if tree is ready to fell
+        if (feature.IsTreeReady)
+        {
+            var yield = feature.FellTree();
+            var overflow = npc.Inventory.CombineWithCapacity(yield);
+
+            if (!overflow.IsEmpty)
+                Console.WriteLine($"[NPC:{npc.Name}] Inventory overflow - dropped {overflow.GetDescription()}");
+
+            Console.WriteLine($"[NPC:{npc.Name}] Felled tree! Got {yield.GetDescription()}");
+        }
+        else
+        {
+            Console.WriteLine($"[NPC:{npc.Name}] Chopping: {feature.ProgressPct:P0}");
+        }
+
+        if (!axeStillWorks)
+            Console.WriteLine($"[NPC:{npc.Name}] Axe broke!");
+    }
 }
 public class NPCStartFire() : NPCAction("Starting Fire", 10, ActivityType.TendingFire)
 {

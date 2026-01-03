@@ -1493,10 +1493,18 @@ public static class WebIO
             {
                 ExecuteConsumption(ctx, response.ChoiceId);
 
-                // Update game time (5 minutes for eating)
-                ctx.Update(5, ActivityType.Eating);
+                // Send a frame with current state BEFORE eating
+                // This ensures FrameQueue.currentState is populated
+                Render(ctx);
 
-                // No event interruption check needed - events are handled by the frame queue
+                // Update game time (5 minutes for eating) with progress display
+                int elapsed = ctx.Update(5, ActivityType.Eating);
+
+                // Skip progress animation if eating was aborted by an event
+                if (!ctx.LastEventAborted)
+                {
+                    RenderWithDuration(ctx, "Eating...", elapsed);
+                }
             }
         }
 
@@ -1655,8 +1663,19 @@ public static class WebIO
         if (inv.Count(Resource.RawMeat) <= 0)
             return new CookingResultDto("No raw meat to cook!", "error", false);
 
-        // Cook meat
-        ctx.Update(CookMeatTimeMinutes, ActivityType.Cooking);
+        // Send a frame with current state BEFORE cooking
+        // This ensures FrameQueue.currentState is populated
+        Render(ctx);
+
+        // Cook meat with progress display
+        int elapsed = ctx.Update(CookMeatTimeMinutes, ActivityType.Cooking);
+
+        // Skip progress animation if cooking was aborted by an event
+        if (!ctx.LastEventAborted)
+        {
+            RenderWithDuration(ctx, "Cooking meat...", elapsed);
+        }
+
         double weight = inv.Pop(Resource.RawMeat);
         inv.Add(Resource.CookedMeat, weight);
 
@@ -1665,7 +1684,18 @@ public static class WebIO
 
     private static CookingResultDto ExecuteMeltSnow(GameContext ctx)
     {
-        ctx.Update(MeltSnowTimeMinutes, ActivityType.Cooking);
+        // Send a frame with current state BEFORE melting
+        // This ensures FrameQueue.currentState is populated
+        Render(ctx);
+
+        int elapsed = ctx.Update(MeltSnowTimeMinutes, ActivityType.Cooking);
+
+        // Skip progress animation if melting was aborted by an event
+        if (!ctx.LastEventAborted)
+        {
+            RenderWithDuration(ctx, "Melting snow...", elapsed);
+        }
+
         ctx.Inventory.WaterLiters += MeltSnowWaterLiters;
 
         return new CookingResultDto($"+{MeltSnowWaterLiters:F1}L water", "water_drop", true);

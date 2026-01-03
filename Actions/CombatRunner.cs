@@ -452,16 +452,20 @@ public static class CombatRunner
 
     private static ActionResult ProcessCloseDistance(GameContext ctx, CombatState state)
     {
-        var capacities = ctx.player.GetCapacities();
-        double movedMeters = state.PlayerClosesDistance(capacities.Moving);
+        // Use Speed ability - encumbrance affects combat movement
+        var context = AbilityContext.FromActorAndInventory(ctx.player, ctx.Inventory);
+        double speed = ctx.player.GetSpeed(context);
+        double movedMeters = state.PlayerClosesDistance(speed);
         string narrative = $"You advance {movedMeters:F0}m toward the {state.Animal.Name}.";
         return new ActionResult(narrative, null, CombatPlayerAction.CloseDistance);
     }
 
     private static ActionResult ProcessBackAway(GameContext ctx, CombatState state)
     {
-        var capacities = ctx.player.GetCapacities();
-        double movedMeters = state.PlayerIncreasesDistance(capacities.Moving);
+        // Use Speed ability - encumbrance affects combat movement
+        var context = AbilityContext.FromActorAndInventory(ctx.player, ctx.Inventory);
+        double speed = ctx.player.GetSpeed(context);
+        double movedMeters = state.PlayerIncreasesDistance(speed);
         state.Behavior.ModifyBoldness(0.05);
         string narrative = $"You back away {movedMeters:F0}m, keeping eyes on the predator.";
         return new ActionResult(narrative, null, CombatPlayerAction.BackAway);
@@ -469,8 +473,10 @@ public static class CombatRunner
 
     private static ActionResult ProcessCarefulRetreat(GameContext ctx, CombatState state)
     {
-        var capacities = ctx.player.GetCapacities();
-        double movedMeters = state.PlayerIncreasesDistance(capacities.Moving * 0.8); // Slower but safer
+        // Use Speed ability - encumbrance affects combat movement
+        var context = AbilityContext.FromActorAndInventory(ctx.player, ctx.Inventory);
+        double speed = ctx.player.GetSpeed(context);
+        double movedMeters = state.PlayerIncreasesDistance(speed * 0.8); // Slower but safer
         state.Behavior.ModifyBoldness(0.03);
         string narrative = $"You retreat {movedMeters:F0}m carefully, watching for any sudden moves.";
         return new ActionResult(narrative, null, CombatPlayerAction.GiveGround);

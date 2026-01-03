@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Actors;
 
 namespace text_survival.Environments.Grid;
 
@@ -147,15 +148,18 @@ public class GameMap
         VisibleLocations.Where(l => !l.IsTerrainOnly).ToList();
 
     /// <summary>
-    /// Move player to a location. Updates visibility.
+    /// Move player to a location. Updates visibility and optionally the mover's CurrentLocation.
     /// </summary>
-    public void MoveTo(Location destination)
+    public void MoveTo(Location destination, IMovable? mover = null)
     {
         var position = GetPosition(destination);
 
         CurrentPosition = position;
         destination.MarkExplored();
         UpdateVisibility();
+
+        if (mover != null)
+            mover.CurrentLocation = destination;
     }
 
     public Location? GetNextInPath(Location from, Location to)

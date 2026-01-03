@@ -365,7 +365,7 @@ public class TravelRunner(GameContext ctx)
         }
 
         // Move to destination
-        _ctx.Map!.MoveTo(destination);
+        _ctx.Map!.MoveTo(destination, _ctx.player);
 
         // Send combined frame for synchronized animation
         // Grid state shows destination, origin position enables camera pan from start

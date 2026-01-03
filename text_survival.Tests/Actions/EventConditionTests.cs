@@ -17,6 +17,8 @@ public class EventConditionTests
         var weather = new Weather(-10);
         var camp = new Location("Test Camp", "[test]", weather, 5);
 
+        player.CurrentLocation = camp;
+
         var ctx = new GameContext(player, camp, weather);
         return ctx;
     }
@@ -34,6 +36,9 @@ public class EventConditionTests
         map.SetLocation(0, 0, camp);
         map.SetLocation(1, 0, awayLocation);
         map.CurrentPosition = new GridPosition(0, 0);
+
+        player.CurrentLocation = camp;
+        player.Map = map;
 
         var ctx = new GameContext(player, camp, weather);
         ctx.Map = map;
@@ -59,7 +64,7 @@ public class EventConditionTests
         // Arrange
         var ctx = CreateTestContextWithMap();
         var awayLocation = ctx.Map!.GetLocationAt(1, 0)!;
-        ctx.Map!.MoveTo(awayLocation); // Travel away from camp
+        ctx.Map!.MoveTo(awayLocation, ctx.player); // Travel away from camp
 
         // Act & Assert
         Assert.False(ctx.Check(EventCondition.AtCamp));
@@ -71,7 +76,7 @@ public class EventConditionTests
         // Arrange
         var ctx = CreateTestContextWithMap();
         var awayLocation = ctx.Map!.GetLocationAt(1, 0)!;
-        ctx.Map!.MoveTo(awayLocation); // Travel away from camp
+        ctx.Map!.MoveTo(awayLocation, ctx.player); // Travel away from camp
 
         // Act & Assert
         Assert.True(ctx.Check(EventCondition.OnExpedition));

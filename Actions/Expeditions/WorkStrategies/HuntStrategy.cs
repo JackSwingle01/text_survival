@@ -64,8 +64,9 @@ public class HuntStrategy : IWorkStrategy
         );
 
         // Check perception impairment separately for warning
-        var perception = AbilityCalculator.CalculatePerception(
-            ctx.player.Body, effectModifiers);
+        var abilityContext = AbilityContext.FromFullContext(
+            ctx.player, ctx.Inventory, location, ctx.GameTime.Hour);
+        double perception = ctx.player.GetPerception(abilityContext);
         if (AbilityCalculator.IsPerceptionImpaired(perception))
         {
             warnings.Add("Your dulled senses make it harder to spot game.");
@@ -113,8 +114,9 @@ public class HuntStrategy : IWorkStrategy
         var found = territory.SearchForGame(actualTime, location, ctx.Map);
 
         // Perception impairment reduces effective search time by 25%
-        var perception = AbilityCalculator.CalculatePerception(
-            ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers());
+        var abilityContext = AbilityContext.FromFullContext(
+            ctx.player, ctx.Inventory, location, ctx.GameTime.Hour);
+        double perception = ctx.player.GetPerception(abilityContext);
         if (AbilityCalculator.IsPerceptionImpaired(perception) && found == null)
         {
             // Second chance with reduced time if impaired and found nothing

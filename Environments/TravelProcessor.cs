@@ -70,15 +70,20 @@ public static class TravelProcessor
         if (weather.Precipitation > 0.5)
             multiplier *= 1 + (weather.Precipitation * 0.2);
 
-        // Encumbrance from inventory
-        if (inventory != null && inventory.MaxWeightKg > 0)
+        // Build ability context for Speed calculation
+        // Speed ability handles: vitality, strength modulating encumbrance
+        var context = new AbilityContext
         {
-            double encumbrance = inventory.CurrentWeightKg / inventory.MaxWeightKg;
-            if (encumbrance > 0.5)
-                multiplier *= 1 + (encumbrance * 0.4);
-        }
+            EncumbrancePct = (inventory != null && inventory.MaxWeightKg > 0)
+                ? inventory.CurrentWeightKg / inventory.MaxWeightKg
+                : 0
+        };
 
-        int baseTime = (int)Math.Ceiling(location.BaseTraversalMinutes * (1 + multiplier) * actor.GetMovementFactor());
+        // Speed is a rate (higher = faster), convert to time multiplier (higher = slower)
+        double speed = actor.GetSpeed(context);
+        double speedMultiplier = 1.0 / Math.Max(0.1, speed); // Floor to prevent infinity
+
+        int baseTime = (int)Math.Ceiling(location.BaseTraversalMinutes * (1 + multiplier) * speedMultiplier);
 
         return baseTime;
     }

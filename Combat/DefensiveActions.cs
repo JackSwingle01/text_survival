@@ -151,7 +151,7 @@ public static class DefensiveActions
         var capacities = ctx.player.GetCapacities();
         double baseChance = BaseDodgeSuccess;
 
-        // Movement capacity strongly affects dodge
+        // Movement capacity strongly affects dodge availability (raw body function)
         baseChance *= capacities.Moving;
 
         // Reflexes skill bonus
@@ -160,8 +160,9 @@ public static class DefensiveActions
             baseChance += player.Skills.Reflexes.Level * 0.02;
         }
 
-        // Speed difference matters
-        double playerSpeed = 6.0 * capacities.Moving;
+        // Speed difference matters - use Speed ability (includes encumbrance, vitality)
+        var context = AbilityContext.FromActorAndInventory(ctx.player, ctx.Inventory);
+        double playerSpeed = ctx.player.GetSpeed(context) * 6.0; // Scale to ~m/s
         double speedRatio = playerSpeed / enemy.SpeedMps;
         baseChance *= Math.Min(1.3, speedRatio);
 

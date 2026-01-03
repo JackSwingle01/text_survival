@@ -6,7 +6,7 @@ namespace text_survival.Actors;
 
 public static class NPCFactory
 {
-    private static readonly string[] TestNames = ["Stranger", "Wanderer", "Survivor"];
+    private static readonly string[] TestNames = ["Grog", "Ubik", "Olar"];
 
     public static NPC CreateTestNPC(Location location, GameMap map, Location? camp = null)
     {

@@ -123,14 +123,14 @@ public static class FireHandler
 
     /// <summary>
     /// Calculate fire start success chance with all modifiers.
+    /// Dexterity combines manipulation, wetness, darkness, and vitality effects.
     /// </summary>
     public static double CalculateFireChance(
         Gear tool,
         Resource tinder,
         int skillLevel = 0,
         bool consciousnessImpaired = false,
-        bool manipulationImpaired = false,
-        double wetness = 0)
+        double dexterity = 1.0)
     {
         double chance = GetToolBaseChance(tool);
 
@@ -145,28 +145,39 @@ public static class FireHandler
         if (consciousnessImpaired)
             chance -= 0.2;
 
-        // Manipulation impairment (-25%)
-        if (manipulationImpaired)
-            chance -= 0.25;
-
-        // Wetness penalty (up to -25% at full wetness)
-        if (wetness > 0.3)
-            chance -= wetness * 0.25;
+        // Dexterity penalty (up to -50% at dexterity 0)
+        // Dexterity combines: manipulation capacity, wetness, darkness, vitality
+        double dexterityPenalty = (1.0 - dexterity) * 0.5;
+        chance -= dexterityPenalty;
 
         return Math.Clamp(chance, 0.05, 0.95);
     }
 
     /// <summary>
-    /// Calculate fire chance for an actor (gets impairments from capacities).
+    /// Calculate fire chance for an actor with context (gets dexterity from abilities).
+    /// </summary>
+    public static double CalculateFireChance(Actor actor, Gear tool, Resource tinder, int skillLevel, Location location, int hourOfDay)
+    {
+        var capacities = actor.GetCapacities();
+        bool consciousnessImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
+
+        // Use context-aware Dexterity which combines manipulation, wetness, darkness, vitality
+        var context = AbilityContext.FromFullContext(actor, null, location, hourOfDay);
+        double dexterity = actor.GetDexterity(context);
+
+        return CalculateFireChance(tool, tinder, skillLevel, consciousnessImpaired, dexterity);
+    }
+
+    /// <summary>
+    /// Calculate fire chance for an actor (backward compatible, uses default context).
     /// </summary>
     public static double CalculateFireChance(Actor actor, Gear tool, Resource tinder, int skillLevel = 0)
     {
         var capacities = actor.GetCapacities();
         bool consciousnessImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
-        bool manipulationImpaired = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
-        double wetness = actor.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault()?.Severity ?? 0;
+        double dexterity = actor.Dexterity; // Uses default context
 
-        return CalculateFireChance(tool, tinder, skillLevel, consciousnessImpaired, manipulationImpaired, wetness);
+        return CalculateFireChance(tool, tinder, skillLevel, consciousnessImpaired, dexterity);
     }
 
     // ============================================
@@ -479,11 +490,21 @@ public static class FireHandler
         var capacities = ctx.player.GetCapacities();
         if (AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness))
             GameDisplay.AddWarning(ctx, "Your foggy mind makes this harder.");
-        if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
-            GameDisplay.AddWarning(ctx, "Your unsteady hands make this harder.");
-        var wetness = ctx.player.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault()?.Severity ?? 0;
-        if (wetness > 0.3)
-            GameDisplay.AddWarning(ctx, "Your wet hands make this harder.");
+
+        // Check dexterity (combines manipulation, wetness, darkness, vitality)
+        var abilityContext = AbilityContext.FromFullContext(
+            ctx.player, ctx.Inventory, ctx.CurrentLocation, ctx.GameTime.Hour);
+        double dexterity = ctx.player.GetDexterity(abilityContext);
+        if (dexterity < 0.7)
+        {
+            // Determine most relevant warning
+            if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)
+                GameDisplay.AddWarning(ctx, "The darkness makes this harder.");
+            else if (abilityContext.WetnessPct > 0.3)
+                GameDisplay.AddWarning(ctx, "Your wet hands make this harder.");
+            else
+                GameDisplay.AddWarning(ctx, "Your unsteady hands make this harder.");
+        }
 
         // Fire starting loop
         while (true)

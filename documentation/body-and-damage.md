@@ -1,7 +1,7 @@
 # Body and Damage System
 
 *Created: 2024-11*
-*Last Updated: 2025-12-20*
+*Last Updated: 2026-01-03*
 
 Body hierarchy (Region → Tissue → Organ), capacity system, body composition (fat/muscle), damage processing, and healing mechanics.
 
@@ -10,6 +10,7 @@ Body hierarchy (Region → Tissue → Organ), capacity system, body composition 
 - [Body Hierarchy](#body-hierarchy)
 - [Body Parts and Structure](#body-parts-and-structure)
 - [Capacity System](#capacity-system)
+- [Capacities vs Abilities](#capacities-vs-abilities)
 - [Body Composition](#body-composition)
 - [Damage System](#damage-system)
 - [Healing Mechanics](#healing-mechanics)
@@ -217,6 +218,45 @@ if (player.Body.GetCapacityValue(CapacityNames.Consciousness) < 0.1)
     player.Die();
 }
 ```
+
+---
+
+## Capacities vs Abilities
+
+**Capacities** are raw body function measurements (0-1):
+- Internal to the body system
+- Used for threshold/impairment checks
+- Pure physiological state
+- Examples: "Is consciousness < 0.3?" (incapacitated), "Is manipulation < 0.6?" (impaired)
+
+**Abilities** are context-aware performance measurements:
+- Incorporate capacities PLUS environmental factors
+- Used for performance calculations
+- Consider: darkness, wetness, encumbrance, vitality
+- Examples: Speed (encumbrance), Perception (darkness), Dexterity (wetness + darkness)
+
+**Rule of thumb**: If checking a threshold for availability/impairment, use Capacity. If calculating performance/effectiveness, use Ability.
+
+### Example: Manipulation vs Dexterity
+
+```csharp
+// THRESHOLD CHECK - Use Capacity
+var capacities = player.GetCapacities();
+if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
+{
+    Output.WriteLine("Your hands are too injured to work!");
+    return;
+}
+
+// PERFORMANCE CALCULATION - Use Ability
+var context = AbilityContext.FromFullContext(player, inventory, location, hour);
+double dexterity = player.GetDexterity(context);
+double craftingTime = baseTime * (2.0 - dexterity);  // Scales with performance
+```
+
+The distinction prevents double-dipping: Dexterity already incorporates Manipulation capacity, so using both would incorrectly compound the same impairment.
+
+For detailed Ability documentation, see [abilities-system.md](abilities-system.md).
 
 ---
 

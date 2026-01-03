@@ -406,8 +406,10 @@ public static class HuntRunner
         double impairedMultiplier = 1.0;
         if (AbilityCalculator.IsConsciousnessImpaired(ctx.player.GetCapacities().Consciousness))
             impairedMultiplier *= 1.3;
-        if (AbilityCalculator.IsPerceptionImpaired(
-            AbilityCalculator.CalculatePerception(ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers())))
+        var abilityContext = AbilityContext.FromFullContext(
+            ctx.player, ctx.Inventory, ctx.CurrentLocation, ctx.GameTime.Hour);
+        double perception = ctx.player.GetPerception(abilityContext);
+        if (AbilityCalculator.IsPerceptionImpaired(perception))
             impairedMultiplier *= 1.3;
         double detectionChance = HuntingCalculator.CalculateDetectionChanceWithTraits(
             nextApproachDistance,
@@ -738,8 +740,10 @@ public static class HuntRunner
         double impairedMultiplier = 1.0;
         if (AbilityCalculator.IsConsciousnessImpaired(ctx.player.GetCapacities().Consciousness))
             impairedMultiplier *= 1.3;  // +30% detection when mentally impaired
-        if (AbilityCalculator.IsPerceptionImpaired(
-            AbilityCalculator.CalculatePerception(ctx.player.Body, ctx.player.EffectRegistry.GetCapacityModifiers())))
+        var abilityContext = AbilityContext.FromFullContext(
+            ctx.player, ctx.Inventory, ctx.CurrentLocation, ctx.GameTime.Hour);
+        double perception = ctx.player.GetPerception(abilityContext);
+        if (AbilityCalculator.IsPerceptionImpaired(perception))
             impairedMultiplier *= 1.3;  // +30% detection when senses are foggy
         double detectionChance = HuntingCalculator.CalculateDetectionChanceWithTraits(
             newDistance,

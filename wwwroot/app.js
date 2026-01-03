@@ -814,27 +814,38 @@ class GameClient {
                 }
                 featureEl.appendChild(headerEl);
 
-                // Health bar row: heart icon + bar + percentage
+                // Health bar - reuse survival-stat structure
                 const healthRow = document.createElement('div');
-                healthRow.className = 'npc-health-row';
+                healthRow.className = 'survival-stat';
+                healthRow.dataset.stat = 'health';
 
                 const heartIcon = document.createElement('span');
-                heartIcon.className = ICON_CLASS;
-                heartIcon.textContent = 'favorite';
+                heartIcon.className = 'stat-icon material-symbols-outlined';
+                heartIcon.textContent = 'monitor_heart';
                 healthRow.appendChild(heartIcon);
 
                 const barContainer = document.createElement('div');
-                barContainer.className = 'bar bar--sm bar--health';
+                barContainer.className = 'bar bar--health';
                 const barFill = document.createElement('div');
+                const pct = Math.round(feature.healthPct * 100);
                 barFill.className = 'bar__fill';
-                barFill.style.width = `${Math.round(feature.healthPct * 100)}%`;
+                if (pct < 30) barFill.classList.add('danger');
+                else if (pct < 60) barFill.classList.add('warning');
+                barFill.style.width = `${pct}%`;
                 barContainer.appendChild(barFill);
                 healthRow.appendChild(barContainer);
 
-                const pctEl = document.createElement('span');
-                pctEl.className = 'npc-health-pct';
-                pctEl.textContent = `${Math.round(feature.healthPct * 100)}%`;
-                healthRow.appendChild(pctEl);
+                const tooltip = document.createElement('div');
+                tooltip.className = 'stat-tooltip';
+                const statName = document.createElement('span');
+                statName.className = 'stat-name';
+                statName.textContent = 'Health';
+                const statValue = document.createElement('span');
+                statValue.className = 'stat-value';
+                statValue.textContent = `${pct}%`;
+                tooltip.appendChild(statName);
+                tooltip.appendChild(statValue);
+                healthRow.appendChild(tooltip);
 
                 featureEl.appendChild(healthRow);
                 container.appendChild(featureEl);

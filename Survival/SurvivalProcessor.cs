@@ -85,7 +85,9 @@ public static class SurvivalProcessor
 		double specificHeat = 0.83; // for calories in F
 		double surfaceArea = 1.8; // m^2
 		double heatCapacity = body.WeightKG * specificHeat; // kg * kcal/kg*F = kcal / F
-		double h = 7; // avg. todo - determine based on condition (wind/water)
+		// Wind scaling: calm=7, fierce wind/blizzard=21-28
+		double windFactor = 1.0 + (context.WindSpeedLevel * 3.0); // 1x to 4x based on wind
+		double h = 7.0 * windFactor;
 
 		double coldResistance = AbilityCalculator.CalculateColdResistance(body);
 		double naturalInsulation = Math.Clamp(coldResistance, 0, 1);

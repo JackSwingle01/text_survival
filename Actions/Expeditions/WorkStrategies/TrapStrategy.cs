@@ -103,18 +103,31 @@ public class TrapStrategy : IWorkStrategy
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
     {
-        var capacities = ctx.player.GetCapacities();
+        // Use Dexterity which combines manipulation, wetness, darkness, vitality
+        var abilityContext = AbilityContext.FromFullContext(
+            ctx.player, ctx.Inventory, location, ctx.GameTime.Hour);
+        double dexterity = ctx.player.GetDexterity(abilityContext);
 
         if (_mode == TrapMode.Set)
         {
             baseTime = 10; // Setting time
             _injuryChance = 0.05; // Base 5% injury chance
 
-            if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
+            if (dexterity < 0.7)
             {
-                baseTime = (int)(baseTime * 1.25);
-                _injuryChance += 0.10 * (1.0 - capacities.Manipulation);
-                return (baseTime, ["Your clumsy hands make setting the snare difficult."]);
+                // Scale time penalty: dexterity 0.7 = no penalty, 0.0 = +50% time
+                double timePenalty = 1.0 + ((0.7 - dexterity) / 0.7 * 0.5);
+                baseTime = (int)(baseTime * timePenalty);
+                // Injury chance increases as dexterity drops
+                _injuryChance += 0.10 * (1.0 - dexterity);
+
+                // Contextual warning
+                if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)
+                    return (baseTime, ["The darkness makes setting the snare difficult."]);
+                else if (abilityContext.WetnessPct > 0.3)
+                    return (baseTime, ["Your wet hands make setting the snare difficult."]);
+                else
+                    return (baseTime, ["Your clumsy hands make setting the snare difficult."]);
             }
         }
         else // Check mode
@@ -123,11 +136,19 @@ public class TrapStrategy : IWorkStrategy
             baseTime = 5 + (snareLine!.SnareCount * 3); // Base time + per-snare check time
             _injuryChance = 0.03; // Lower base since just checking
 
-            if (AbilityCalculator.IsManipulationImpaired(capacities.Manipulation))
+            if (dexterity < 0.7)
             {
-                baseTime = (int)(baseTime * 1.20);
-                _injuryChance += 0.08 * (1.0 - capacities.Manipulation);
-                return (baseTime, ["Your clumsy hands make checking the traps difficult."]);
+                double timePenalty = 1.0 + ((0.7 - dexterity) / 0.7 * 0.4);
+                baseTime = (int)(baseTime * timePenalty);
+                _injuryChance += 0.08 * (1.0 - dexterity);
+
+                // Contextual warning
+                if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)
+                    return (baseTime, ["The darkness makes checking the traps difficult."]);
+                else if (abilityContext.WetnessPct > 0.3)
+                    return (baseTime, ["Your wet hands make checking the traps difficult."]);
+                else
+                    return (baseTime, ["Your clumsy hands make checking the traps difficult."]);
             }
         }
 

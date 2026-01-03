@@ -7,13 +7,14 @@ public static class ActivityConfig
     private static readonly Dictionary<ActivityType, Config> _configs = new()
     {
         // No events
-        [ActivityType.Idle] = new(0.0, 1.0, 0.0, "Thinking."),
+        [ActivityType.Idle] = new(0.0, 1.0, 2.0, "Thinking."),
         [ActivityType.Fighting] = new(0.0, 2.0, 0.0, "Fighting."),
         [ActivityType.Encounter] = new(0.0, 1.5, 0.0, "Alert."),
 
         // Camp activities (near fire, moderate events)
         [ActivityType.Sleeping] = new(0.1, 0.5, 2.0, "Sleeping."),
         [ActivityType.Resting] = new(0.3, 1.0, 2.0, "Resting."),
+        [ActivityType.Incapacitated] = new(0.3, 0.8, 2.0, "Incapacitated."),
         [ActivityType.TendingFire] = new(0.5, 1.0, 2.0, "Tending fire."),
         [ActivityType.Eating] = new(0.5, 1.0, 2.0, "Eating."),
         [ActivityType.Cooking] = new(0.5, 1.0, 2.0, "Cooking."),

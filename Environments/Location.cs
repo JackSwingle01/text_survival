@@ -333,6 +333,12 @@ public class Location
             {
                 carcass.ApplyTemperatureDecay(temperatureF, minutes);
             }
+
+            // Temperature-aware decay for NPC bodies
+            if (feature is NPCBodyFeature body)
+            {
+                body.ApplyTemperatureDecay(temperatureF, minutes);
+            }
         }
     }
 

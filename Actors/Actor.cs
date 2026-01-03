@@ -26,6 +26,15 @@ public abstract class Actor : IMovable
     {
         var result = SurvivalProcessor.Process(Body, context, minutes);
 
+        // 2. Add effects from survival (hypothermia, etc)
+        foreach (var effect in result.Effects)
+        {
+            // Wet and Bloody effects can both increase and decrease, so use SetEffectSeverity
+            _ = (effect.EffectKind == "Wet" || effect.EffectKind == "Bloody")
+                ? EffectRegistry.SetEffectSeverity(effect)
+                : EffectRegistry.AddEffect(effect);
+        }
+
         _ = EffectRegistry.Update(minutes);
 
         var delta = EffectRegistry.GetSurvivalDelta();
@@ -71,33 +80,6 @@ public abstract class Actor : IMovable
     public CapacityModifierContainer GetEffectModifiers() => EffectRegistry.GetCapacityModifiers();
 
     public CapacityContainer GetCapacities() => CapacityCalculator.GetCapacities(Body, GetEffectModifiers());
-
-    public double GetMovementFactor()
-    {
-        var capacities = GetCapacities();
-
-        // Base time multiplier from moving capacity
-        // Moving 1.0 → 1.0x time (normal)
-        // Moving 0.5 → 2.0x time (half speed = double time)
-        // Moving 0.1 → 10.0x time (barely moving)
-        double movingMultiplier = Math.Max(0.1, capacities.Moving); // Floor to prevent infinity
-        double timeMultiplier = 1.0 / movingMultiplier;
-
-        // Breathing impairment adds +10% time
-        // Labored breathing slows pace
-        if (AbilityCalculator.IsBreathingImpaired(capacities.Breathing))
-        {
-            timeMultiplier *= 1.10;
-        }
-
-        // Blood pumping impairment adds +25% time
-        if (AbilityCalculator.IsBloodPumpingImpaired(capacities.BloodPumping))
-        {
-            timeMultiplier *= 1.25;
-        }
-
-        return timeMultiplier;
-    }
 
     #region Abilities
 

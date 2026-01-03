@@ -36,7 +36,9 @@ export const FEATURE_TYPE_ICONS = {
     'wood': 'park',
     'snares': 'circle',
     'curing': 'timelapse',
-    'npc': 'person'
+    'npc': 'person',
+    'body': 'person_off',
+    'grave': 'landscape'
 };
 
 export function getFeatureTypeIcon(type) {
@@ -81,7 +83,10 @@ export const FEATURE_ICON_LABELS = {
     'forest': 'Fallen log',
     'nature': 'Hollow tree',
     'skeleton': 'Scattered bones',
-    'landscape': 'Stone pile'
+    'landscape': 'Stone pile',
+
+    // NPC body
+    'person_off': 'Remains'
 };
 
 export function getFeatureIconLabel(icon) {

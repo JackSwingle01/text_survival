@@ -83,6 +83,32 @@ public class PackPredatorBehavior : IHerdBehavior
             }
         }
 
+        // Check for NPC allies at this location
+        var npcsHere = ctx.NPCs.Where(npc =>
+            ctx.Map != null && ctx.Map.GetPosition(npc.CurrentLocation) == herd.Position
+        ).ToList();
+
+        foreach (var npc in npcsHere)
+        {
+            // Calculate boldness toward this NPC (similar to player)
+            double boldness = CalculateBoldnessTowardNPC(herd, npc, ctx);
+
+            if (Random.Shared.NextDouble() < boldness)
+            {
+                // Attack the NPC
+                var outcome = ActorCombatResolver.ResolveCombat(
+                    herd.Members[0],  // Lead predator
+                    npc,
+                    npc.CurrentLocation
+                );
+
+                HandleNPCCombatOutcome(herd, npc, outcome);
+
+                // Only one attack per update
+                break;
+            }
+        }
+
         // Check for prey herds in this tile
         var preyHere = ctx.Herds.GetHerdsAt(herd.Position)
             .FirstOrDefault(h => !h.IsPredator && !h.IsEmpty);
@@ -349,6 +375,64 @@ public class PackPredatorBehavior : IHerdBehavior
         if (dy != 0) candidates.Add(new GridPosition(from.X, from.Y + dy));
 
         return candidates.FirstOrDefault(p => ctx.Map?.GetLocationAt(p)?.IsPassable ?? false);
+    }
+
+    private static double CalculateBoldnessTowardNPC(Herd herd, NPC npc, GameContext ctx)
+    {
+        double bold = 0.3;  // Base boldness
+
+        // Pack size
+        bold += herd.Count * 0.05;
+
+        // Hunger
+        if (herd.Hunger > 0.7) bold += 0.2;
+        if (herd.Hunger > 0.9) bold += 0.2;
+
+        // NPC condition
+        if (npc.EffectRegistry.HasEffect("Bleeding"))
+            bold += 0.15;
+
+        var capacities = npc.GetCapacities();
+        if (capacities.Moving < 0.5)
+            bold += 0.2;
+
+        // NPC carrying meat
+        if (npc.Inventory.Count(Resource.RawMeat) > 0)
+            bold += 0.1;
+
+        // Reduce by fear learned from this NPC (if tracked)
+        // bold *= (1.0 - herd.NPCFear);  // Future enhancement
+
+        return Math.Clamp(bold, 0, 1);
+    }
+
+    private static void HandleNPCCombatOutcome(
+        Herd herd, NPC npc, ActorCombatResolver.CombatOutcome outcome)
+    {
+        switch (outcome)
+        {
+            case ActorCombatResolver.CombatOutcome.DefenderEscaped:
+                Console.WriteLine($"[Predator] {npc.Name} escaped from {herd.AnimalType.DisplayName()}");
+                // NPC already has fear effect from resolver
+                break;
+
+            case ActorCombatResolver.CombatOutcome.DefenderInjured:
+                Console.WriteLine($"[Predator] {npc.Name} was mauled by {herd.AnimalType.DisplayName()}");
+                herd.Hunger = Math.Max(0, herd.Hunger - 0.3);
+                break;
+
+            case ActorCombatResolver.CombatOutcome.DefenderKilled:
+                Console.WriteLine($"[Predator] {npc.Name} was killed by {herd.AnimalType.DisplayName()}");
+                // NPC death handled by GameContext.Update() death detection
+                herd.Hunger = 0;  // Predator is fed
+                break;
+
+            case ActorCombatResolver.CombatOutcome.AttackerRepelled:
+                Console.WriteLine($"[Predator] {npc.Name} fought off {herd.AnimalType.DisplayName()}");
+                // Predator learns fear
+                herd.PlayerFear = Math.Min(0.9, herd.PlayerFear + 0.3);
+                break;
+        }
     }
 
     private static void ReturnToHome(Herd herd)

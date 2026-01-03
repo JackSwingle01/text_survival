@@ -5,35 +5,6 @@ using text_survival.Survival;
 
 namespace text_survival.Bodies;
 
-public class SurvivalContext
-{
-    public double LocationTemperature;
-    public bool IsNight;
-    public double ClothingInsulation;
-    public double ActivityLevel;
-    public double FireProximityBonus; // Direct radiant heat from fire proximity (0-2 scale multiplied by fire heat)
-
-    // Wetness system context
-    public double OverheadCoverLevel;
-    public double PrecipitationPct;
-    public double WindSpeedLevel;
-    public bool IsRaining;
-    public bool IsSnowing;                 // Weather condition flag (light snow)
-    public bool IsBlizzard;
-    public double CurrentWetnessPct;  // 0-1 current wetness from effect
-
-    // Waterproofing from resin-treated equipment (0-1 scale)
-    public double WaterproofingLevel;      // Reduces wetness accumulation by this factor
-
-    // Bloody accumulation from bleeding
-    public double CurrentBleedingPct; // 0-1 from Bleeding effect
-    public double CurrentBloodyPct;   // 0-1 from Bloody effect
-
-    // Clothing thermal mass
-    public double ClothingWeightKg;        // Total equipment weight for capacity calc
-    public double ClothingHeatBuffer;      // Current buffer level 0-1
-}
-
 public class Body
 {
     // Changed from readonly to allow deserialization

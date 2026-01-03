@@ -210,6 +210,25 @@ Body composition (fat, muscle mass in kg) affects temperature resistance, speed,
 
 Capacity calculation is generic — average tissue multipliers across relevant regions. Blood condition affects all capacities via circulation.
 
+### Abilities
+
+Abilities provide context-aware performance calculations built on top of capacities. While capacities measure raw body function, abilities incorporate environmental factors:
+
+- **Vitality** — Overall life force (min of breathing, blood pumping, consciousness)
+- **Strength** — Power output (vitality, body composition)
+- **Speed** — Movement rate (encumbrance, vitality, strength)
+- **Perception** — Awareness (darkness, consciousness, vitality)
+- **Dexterity** — Fine motor control (manipulation, darkness, wetness, vitality)
+- **ColdResistance** — Temperature tolerance (body fat with diminishing returns)
+
+Abilities are used for performance calculations throughout the game: foraging yield, fire-starting chance, travel time, combat effectiveness. The key distinction: **threshold checks use Capacities** (e.g., "Is consciousness < 0.3?"), while **performance calculations use Abilities** (e.g., `yield = baseYield * perception`).
+
+See [abilities-system.md](abilities-system.md) for comprehensive documentation.
+
+**Files**: `Bodies/AbilityCalculator.cs`, `Bodies/AbilityContext.cs`
+
+---
+
 Body system interacts with: survival simulation (stats live here), effects (damage triggers effects), damage (structural harm via DamageCalculator), abilities (capacities determine what player can do).
 
 **Files**: `Bodies/Body.cs`, `Bodies/BodyPart.cs`, `Bodies/BodyPartFactory.cs`
@@ -431,6 +450,48 @@ Wounded animals split into trackable single-animal herds. NPC predator-prey reso
 Herds interact with: locations (territory spans tiles), features (grazing depletes ForageFeature), hunting (HuntStrategy searches herds), events (herd arc triggers), tensions (HerdNearby, WoundedPrey), encounters (predators engage player).
 
 **Files**: `Actors/Animals/Herd.cs`, `Actors/Animals/HerdRegistry.cs`, `Actors/Animals/Behaviors/`
+
+---
+
+## NPC Allies
+
+Autonomous survival agents with full needs-based decision making. NPCs pursue their own survival independently while sharing camp with the player.
+
+**Autonomous Behavior:**
+- **Need hierarchy** — Warmth > Water > Rest > Food > Work. NPCs interrupt current actions when critical needs arise.
+- **Resource gathering** — Forage ambient resources, harvest from bushes/trees, chop wood with axes. Automatically craft missing tools.
+- **Fire management** — Start fires with crafted tools, tend fires to maintain warmth, understand ember preservation.
+- **Survival needs** — Eat, drink, sleep based on body state. Seek warmth when cold.
+- **Inventory management** — Fill inventory during expeditions, stockpile resources at camp when supplies run low.
+- **Movement** — Pathfinding across grid, travel to remembered resource locations, explore when resources unknown.
+
+**Resource Memory:**
+- NPCs remember where they've found resources (forage, harvestables, wood).
+- Prefer known locations over exploration.
+- Forget depleted locations after visiting and finding nothing.
+
+**Work Types:**
+- Forage (ambient searching), Harvest (bushes/features), Chop (trees with axe)
+- Automatically handles tool requirements — crafts axes, fire-starters when needed
+- Progress persists across sessions (chopping trees continues over multiple work periods)
+
+**Death System:**
+- NPCs can die from hypothermia, starvation, dehydration, blood loss, organ failure.
+- Death creates `NPCBodyFeature` at death location with belongings.
+- Discovery-based notification — player finds body when arriving at tile, not immediately announced.
+- Temperature-aware decay (fresh → decomposing → skeletal) affects discovery text.
+- Player can bury bodies or loot belongings via work options.
+
+**Current Limitations:**
+- No player influence (can't command or suggest actions)
+- No NPC-to-player communication
+- No threat response (NPCs ignore predators)
+- Personality traits (Boldness, Selfishness, Sociability) exist but don't affect behavior yet
+- No collaboration on tasks
+
+NPCs interact with: survival simulation (same body/stats system), locations (same movement/features), inventory (own inventory + camp stockpile), crafting (autonomous tool creation), fire (start/tend), death (creates discoverable bodies).
+
+**Files**: `Actors/NPC/NPC.cs`, `Actors/NPC/NPCFactory.cs`, `Environments/Features/NPCBodyFeature.cs`
 
 ---
 

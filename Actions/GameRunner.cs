@@ -82,6 +82,14 @@ public partial class GameRunner(GameContext ctx)
 
         var choice = new Choice<Action>();
         var capacities = ctx.player.GetCapacities();
+
+        // Check for incapacitation - moving at exactly 0%
+        if (capacities.Moving <= 0)
+        {
+            HandleIncapacitation();
+            return; // Don't show menu, handler will loop until recovery/death
+        }
+
         var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
         var isClumsy = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
 
@@ -529,6 +537,35 @@ public partial class GameRunner(GameContext ctx)
     {
         // ActivityType.Resting has EventMultiplier=0, so no events can interrupt
         GameDisplay.UpdateAndRenderProgress(ctx, "Resting", 5, ActivityType.Resting);
+    }
+
+    private void HandleIncapacitation()
+    {
+        GameDisplay.AddNarrative(ctx, "You cannot move. All you can do now is wait.");
+
+        const int chunkMinutes = 5;  // Update in 5-minute chunks like Wait
+        const double recoveryThreshold = 0.01;  // >1% moving to recover
+
+        while (ctx.player.IsAlive)
+        {
+            var capacities = ctx.player.GetCapacities();
+
+            // Check for recovery
+            if (capacities.Moving > recoveryThreshold)
+            {
+                GameDisplay.AddNarrative(ctx, "You can move again.");
+                return;
+            }
+
+            // Process time chunk with event interruption
+            var (elapsed, interrupted) = GameDisplay.UpdateAndRenderProgress(
+                ctx, "Incapacitated", chunkMinutes, ActivityType.Incapacitated);
+
+            // If event interrupted, it may have changed state - check again next loop
+            // If player died, IsAlive will be false and loop exits
+        }
+
+        // If loop exits and player is dead, GameRunner.Run() will handle death
     }
 
     private bool HasItems()

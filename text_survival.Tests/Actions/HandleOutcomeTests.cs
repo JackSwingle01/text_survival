@@ -18,6 +18,8 @@ public class HandleOutcomeTests
         var weather = new Weather(-10);
         var campLocation = new Location("Test Location", "[test]", weather, 5);
 
+        player.CurrentLocation = campLocation;
+
         var ctx = new GameContext(player, campLocation, weather);
         return ctx;
     }

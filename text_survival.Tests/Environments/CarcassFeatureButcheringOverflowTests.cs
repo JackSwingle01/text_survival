@@ -21,6 +21,8 @@ public class CarcassFeatureButcheringOverflowTests
         var weather = new Weather(-10);
         var camp = new Location("Test Camp", "[test]", weather, 5);
 
+        player.CurrentLocation = camp;
+
         var ctx = new GameContext(player, camp, weather);
         return ctx;
     }

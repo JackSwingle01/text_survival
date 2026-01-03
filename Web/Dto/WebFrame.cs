@@ -716,12 +716,15 @@ public record FireManagementDto(
                 int skillLevel = ctx.player.Skills.GetSkill("Firecraft").Level;
                 var capacities = ctx.player.GetCapacities();
                 bool consciousnessImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
-                bool manipulationImpaired = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
-                double wetness = ctx.player.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault()?.Severity ?? 0;
+
+                // Calculate dexterity with full context (includes manipulation, wetness, darkness, vitality)
+                var abilityContext = AbilityContext.FromFullContext(
+                    ctx.player, ctx.Inventory, ctx.CurrentLocation, ctx.GameTime.Hour);
+                double dexterity = ctx.player.GetDexterity(abilityContext);
 
                 // Calculate actual success chance using FireHandler
                 double chance = FireHandler.CalculateFireChance(
-                    tool, tinderResource, skillLevel, consciousnessImpaired, manipulationImpaired, wetness);
+                    tool, tinderResource, skillLevel, consciousnessImpaired, dexterity);
                 finalSuccess = (int)(chance * 100);
 
                 // Build modifiers list for display
@@ -739,13 +742,22 @@ public record FireManagementDto(
                 if (consciousnessImpaired)
                     modifiers.Add(new FireModifierDto("Dazed", -20, "psychology"));
 
-                if (manipulationImpaired)
-                    modifiers.Add(new FireModifierDto("Shaky Hands", -25, "front_hand"));
-
-                if (wetness > 0.3)
+                // Dexterity penalty (combines manipulation, wetness, darkness, vitality)
+                if (dexterity < 1.0)
                 {
-                    int wetPenalty = -(int)(wetness * 25);
-                    modifiers.Add(new FireModifierDto("Wet", wetPenalty, "water_drop"));
+                    int dexterityPenalty = -(int)((1.0 - dexterity) * 50);
+                    // Choose appropriate label based on what's reducing dexterity
+                    string label = abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource
+                        ? "Darkness"
+                        : abilityContext.WetnessPct > 0.3
+                            ? "Wet"
+                            : "Unsteady";
+                    string icon = abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource
+                        ? "dark_mode"
+                        : abilityContext.WetnessPct > 0.3
+                            ? "water_drop"
+                            : "front_hand";
+                    modifiers.Add(new FireModifierDto(label, dexterityPenalty, icon));
                 }
             }
         }

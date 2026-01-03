@@ -29,6 +29,7 @@ public record FeatureUIInfo(
 [JsonDerivedType(typeof(EnvironmentalDetail), "environmentalDetail")]
 [JsonDerivedType(typeof(CarcassFeature), "carcass")]
 [JsonDerivedType(typeof(MegafaunaPresenceFeature), "megafaunaPresence")]
+[JsonDerivedType(typeof(NPCBodyFeature), "npcbody")]
 public abstract class LocationFeature
 {
     public string Name { get; set; } = string.Empty;
