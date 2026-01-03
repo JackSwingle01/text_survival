@@ -102,7 +102,7 @@ public class TrailMarkingStrategy : IWorkStrategy
 
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
-        var pos = ctx.Map!.GetPosition(location)!.Value;
+        var pos = ctx.Map!.GetPosition(location);
         var targetPos = _direction.GetNeighbor(pos);
 
         var edgeType = _fullCut ? EdgeType.CutTrail : EdgeType.TrailMarker;

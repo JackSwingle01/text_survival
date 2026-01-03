@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Actions.Handlers;
 using text_survival.Actions.Variants;
 using text_survival.Crafting;
 using text_survival.Effects;
@@ -445,9 +446,7 @@ public static class WebIO
     {
         WaitForEventContinue(ctx);
         ClearCombat(ctx);
-
-        // Send a fresh frame so frontend knows what to show next
-        Render(ctx);
+        // Game loop handles the next frame - no need to send one here
     }
 
     /// <summary>
@@ -1362,29 +1361,7 @@ public static class WebIO
         var resourceName = fuelItemId[5..];
         if (!Enum.TryParse<Resource>(resourceName, out var resource)) return;
 
-        // Map resource to fuel type
-        var fuelType = resource switch
-        {
-            Resource.Stick => FuelType.Kindling,
-            Resource.Pine => FuelType.PineWood,
-            Resource.Birch => FuelType.BirchWood,
-            Resource.Oak => FuelType.OakWood,
-            Resource.Tinder => FuelType.Tinder,
-            Resource.BirchBark => FuelType.BirchBark,
-            Resource.Usnea => FuelType.Usnea,
-            Resource.Chaga => FuelType.Chaga,
-            Resource.Charcoal => FuelType.Kindling,
-            Resource.Bone => FuelType.Bone,
-            _ => FuelType.Kindling
-        };
-
-        // Add fuel up to count
-        for (int i = 0; i < count && ctx.Inventory.Count(resource) > 0; i++)
-        {
-            if (!fire.CanAddFuel(fuelType)) break;
-            double weight = ctx.Inventory.Pop(resource);
-            fire.AddFuel(weight, fuelType);
-        }
+        FireHandler.AddFuel(ctx.Inventory, fire, resource, count);
     }
 
     /// <summary>
@@ -1413,69 +1390,38 @@ public static class WebIO
         if (toolIndex >= fireTools.Count) return false;
         var tool = fireTools[toolIndex];
 
-        // Check kindling
-        if (inv.Count(Resource.Stick) <= 0) return false;
-
         // Get selected tinder
         Resource tinderResource = Resource.Tinder;
-        FuelType tinderFuelType = FuelType.Tinder;
         if (selectedTinderId != null && selectedTinderId.StartsWith("tinder_"))
         {
             var resourceName = selectedTinderId[7..];
             if (Enum.TryParse<Resource>(resourceName, out var res))
-            {
                 tinderResource = res;
-                tinderFuelType = res switch
-                {
-                    Resource.BirchBark => FuelType.BirchBark,
-                    Resource.Usnea => FuelType.Usnea,
-                    Resource.Chaga => FuelType.Chaga,
-                    _ => FuelType.Tinder
-                };
-            }
         }
 
+        // Validate materials
         if (inv.Count(tinderResource) <= 0) return false;
+        if (inv.Count(Resource.Stick) <= 0) return false;
 
-        // Calculate success chance
-        int baseChance = tool.ToolType switch
-        {
-            ToolType.HandDrill => 35,
-            ToolType.BowDrill => 55,
-            ToolType.FireStriker => 75,
-            _ => 30
-        };
+        // Get skill level and determine existing fire
+        int skillLevel = ctx.player.Skills.GetSkill("Firecraft").Level;
+        var existingFire = ctx.CurrentLocation.Features.Contains(fire) ? fire : null;
 
-        int tinderBonus = (int)(FuelDatabase.Get(tinderFuelType).IgnitionBonus * 100);
-        int finalChance = Math.Min(95, baseChance + tinderBonus);
-
-        // Consume materials (tinder + kindling)
-        inv.Pop(tinderResource);
-        inv.Pop(Resource.Stick);
-
-        // Use tool (decrement durability)
+        // Use tool (decrement durability on attempt)
         if (tool.Durability > 0)
             tool.Durability--;
 
         // Time cost for fire-starting attempt
         ctx.Update(10, ActivityType.TendingFire);
 
-        // Roll for success
-        bool success = Utils.RandInt(0, 99) < finalChance;
+        // Execute fire start attempt using FireHandler (includes impairment penalties)
+        var result = FireHandler.AttemptStartFire(
+            ctx.player, inv, ctx.CurrentLocation, tool, tinderResource, skillLevel, existingFire);
 
-        if (success)
-        {
-            // Light the fire with kindling
-            fire.AddFuel(0.1, FuelType.Tinder);  // Initial tinder
-            fire.AddFuel(0.2, FuelType.Kindling); // Initial kindling
-            fire.IgniteAll();
+        // Award skill XP
+        ctx.player.Skills.GetSkill("Firecraft").GainExperience(result.Success ? 3 : 1);
 
-            // Add fire to location if it's new
-            if (!ctx.CurrentLocation.Features.Contains(fire))
-                ctx.CurrentLocation.Features.Add(fire);
-        }
-
-        return success;
+        return result.Success;
     }
 
     // ============================================
@@ -1532,90 +1478,41 @@ public static class WebIO
     /// </summary>
     private static EatingOverlayDto BuildEatingDto(GameContext ctx)
     {
-        var inv = ctx.Inventory;
         var body = ctx.player.Body;
-
         int caloriesPercent = (int)(body.CalorieStore / SurvivalProcessor.MAX_CALORIES * 100);
         int hydrationPercent = (int)(body.Hydration / SurvivalProcessor.MAX_HYDRATION * 100);
+
+        var consumables = ConsumptionHandler.GetAvailableConsumables(ctx);
 
         var foods = new List<ConsumableItemDto>();
         var drinks = new List<ConsumableItemDto>();
         ConsumableItemDto? specialAction = null;
 
-        // Food items
-        AddFoodIfAvailable(inv, Resource.CookedMeat, "Cooked meat", 2500, 0, null, foods);
-        AddFoodIfAvailable(inv, Resource.RawMeat, "Raw meat", 1500, 0, "[risk of illness]", foods);
-        AddFoodIfAvailable(inv, Resource.Berries, "Berries", 500, 200, null, foods);
-        AddFoodIfAvailable(inv, Resource.Honey, "Honey", 3000, 0, null, foods);
-        AddFoodIfAvailable(inv, Resource.Nuts, "Nuts", 6000, 0, null, foods);
-        AddFoodIfAvailable(inv, Resource.Roots, "Roots", 400, 100, null, foods);
-        AddFoodIfAvailable(inv, Resource.DriedMeat, "Dried meat", 3000, -50, "[makes you thirsty]", foods);
-        AddFoodIfAvailable(inv, Resource.DriedBerries, "Dried berries", 2500, 0, null, foods);
-
-        // Water (drink up to 1L, capped by hydration room)
-        if (inv.HasWater)
+        foreach (var item in consumables)
         {
-            double hydrationRoom = (SurvivalProcessor.MAX_HYDRATION - body.Hydration) / 1000.0;
-            double toDrink = Math.Min(1.0, Math.Min(inv.WaterLiters, hydrationRoom));
-            toDrink = Math.Round(toDrink, 2);
+            // Format amount based on item type
+            string amountStr = item.Id == "water" || item.Id == "wash_blood"
+                ? $"{item.Amount:F2}L"
+                : $"{item.Amount:F2}kg";
 
-            if (toDrink >= 0.01)
-            {
-                drinks.Add(new ConsumableItemDto(
-                    "water",
-                    "Water",
-                    $"{toDrink:F2}L",
-                    null,
-                    (int)(toDrink * 1000),
-                    null
-                ));
-            }
-        }
-
-        // Special action: wash off blood
-        if (ctx.player.EffectRegistry.HasEffect("Bloody") && inv.WaterLiters >= 0.5)
-        {
-            double toUse = Math.Min(0.5, inv.WaterLiters);
-            specialAction = new ConsumableItemDto(
-                "wash_blood",
-                "Wash off blood",
-                $"{toUse:F2}L",
-                null,
-                null,
-                null
+            var dto = new ConsumableItemDto(
+                item.Id,
+                item.Name,
+                amountStr,
+                item.Calories,
+                item.Hydration,
+                item.Warning
             );
+
+            if (item.Id == "water")
+                drinks.Add(dto);
+            else if (item.Id == "wash_blood")
+                specialAction = dto;
+            else
+                foods.Add(dto);
         }
 
         return new EatingOverlayDto(caloriesPercent, hydrationPercent, foods, drinks, specialAction);
-    }
-
-    /// <summary>
-    /// Helper to add food item if available in inventory.
-    /// </summary>
-    private static void AddFoodIfAvailable(
-        Inventory inv,
-        Resource resource,
-        string name,
-        double caloriesPerKg,
-        double hydrationPerKg,
-        string? warning,
-        List<ConsumableItemDto> foods)
-    {
-        if (inv.Count(resource) > 0)
-        {
-            double weight = inv.Peek(resource);
-            int calories = (int)(weight * caloriesPerKg);
-            int? hydration = hydrationPerKg != 0 ? (int)(weight * hydrationPerKg) : null;
-
-            foods.Add(new ConsumableItemDto(
-                $"food_{resource}",
-                name,
-                $"{weight:F2}kg",
-                calories,
-                hydration,
-                warning
-            ));
-        }
     }
 
     /// <summary>
@@ -1623,83 +1520,7 @@ public static class WebIO
     /// </summary>
     private static void ExecuteConsumption(GameContext ctx, string choiceId)
     {
-        var inv = ctx.Inventory;
-        var body = ctx.player.Body;
-
-        // Water
-        if (choiceId == "water")
-        {
-            double hydrationRoom = (SurvivalProcessor.MAX_HYDRATION - body.Hydration) / 1000.0;
-            double toDrink = Math.Min(1.0, Math.Min(inv.WaterLiters, hydrationRoom));
-            toDrink = Math.Round(toDrink, 2);
-
-            inv.WaterLiters -= toDrink;
-            body.AddHydration(toDrink * 1000);
-
-            // Drinking water helps cool down when overheating
-            var hyperthermia = ctx.player.EffectRegistry.GetEffectsByKind("Hyperthermia").FirstOrDefault();
-            if (hyperthermia != null)
-            {
-                double cooldown = 0.15 * (toDrink / 0.25);
-                hyperthermia.Severity = Math.Max(0, hyperthermia.Severity - cooldown);
-            }
-            return;
-        }
-
-        // Wash blood
-        if (choiceId == "wash_blood")
-        {
-            double toUse = Math.Min(0.5, inv.WaterLiters);
-            inv.WaterLiters -= toUse;
-            ctx.player.EffectRegistry.RemoveEffectsByKind("Bloody");
-            ctx.player.EffectRegistry.AddEffect(EffectFactory.Wet(0.05));
-            return;
-        }
-
-        // Food items
-        if (choiceId.StartsWith("food_"))
-        {
-            var resourceName = choiceId[5..];
-            if (!Enum.TryParse<Resource>(resourceName, out var resource)) return;
-
-            double eaten = inv.Pop(resource);
-
-            // Apply calories and hydration based on resource type
-            switch (resource)
-            {
-                case Resource.CookedMeat:
-                    body.AddCalories((int)(eaten * 2500));
-                    break;
-                case Resource.RawMeat:
-                    body.AddCalories((int)(eaten * 1500));
-                    // TODO: Add chance of food poisoning
-                    break;
-                case Resource.Berries:
-                    body.AddCalories((int)(eaten * 500));
-                    body.AddHydration(eaten * 200);
-                    break;
-                case Resource.Honey:
-                    body.AddCalories((int)(eaten * 3000));
-                    // Honey gives energy boost
-                    double energySeverity = Math.Min(0.5, eaten / 0.25 * 0.3);
-                    ctx.player.EffectRegistry.AddEffect(EffectFactory.Energized(energySeverity));
-                    break;
-                case Resource.Nuts:
-                    body.AddCalories((int)(eaten * 6000));
-                    break;
-                case Resource.Roots:
-                    body.AddCalories((int)(eaten * 400));
-                    body.AddHydration(eaten * 100);
-                    break;
-                case Resource.DriedMeat:
-                    body.AddCalories((int)(eaten * 3000));
-                    body.AddHydration(eaten * -50);
-                    break;
-                case Resource.DriedBerries:
-                    body.AddCalories((int)(eaten * 2500));
-                    break;
-            }
-        }
+        ConsumptionHandler.Consume(ctx, choiceId);
     }
 
     // ============================================

@@ -1,3 +1,5 @@
+using text_survival.Actors.Animals;
+
 namespace text_survival.Actions.Variants;
 
 /// <summary>
@@ -6,7 +8,7 @@ namespace text_survival.Actions.Variants;
 /// Eliminates wolf/bear branching logic scattered across events.
 /// </summary>
 public record AnimalTypeVariant(
-    string AnimalType,          // "Wolf", "Bear", etc.
+    AnimalType AnimalType,     
     string TacticsDescription,  // What the player sees about tactics
     string WaitDescription,     // Description for "wait for it to leave" choice
     double FireEffectiveness,   // 0-1 how well fire/smoke works
@@ -28,7 +30,7 @@ public record AnimalTypeVariant(
 public static class AnimalVariants
 {
     public static readonly AnimalTypeVariant Wolf = new(
-        "Wolf",
+        AnimalType.Wolf,
         "Wolves. Fire works. Noise might work. They hunt during the day — maybe wait.",
         "Wolves hunt during the day. Maybe it's out.",
         FireEffectiveness: 0.7,
@@ -43,7 +45,7 @@ public static class AnimalVariants
     );
 
     public static readonly AnimalTypeVariant Bear = new(
-        "Bear",
+        AnimalType.Bear,
         "Bear. Fire works best — smoke them out. Noise alone won't help.",
         "Wait and watch. Maybe an opportunity.",
         FireEffectiveness: 0.85,
@@ -58,7 +60,7 @@ public static class AnimalVariants
     );
 
     public static readonly AnimalTypeVariant Fox = new(
-        "Fox",
+        AnimalType.Fox,
         "Fox. Skittish. Noise works. Fire unnecessary.",
         "Wait quietly. It won't stay long.",
         FireEffectiveness: 0.5,
@@ -76,7 +78,7 @@ public static class AnimalVariants
     /// Default for unknown animals - cautious approach.
     /// </summary>
     public static readonly AnimalTypeVariant Unknown = new(
-        "Unknown",
+        AnimalType.Wolf,  // Default to wolf behavior
         "Something territorial. Proceed with caution.",
         "Wait and watch. Maybe an opportunity.",
         FireEffectiveness: 0.6,
@@ -94,7 +96,7 @@ public static class AnimalVariants
     // Quick opportunity targets - not threats, but rewards for prepared players
 
     public static readonly AnimalTypeVariant Rabbit = new(
-        "Rabbit",
+        AnimalType.Rabbit,
         "Rabbit. Freeze response. Quick hands or a good throw.",
         "Wait quietly. It might come closer.",
         FireEffectiveness: 0.0,  // Fire irrelevant
@@ -109,7 +111,7 @@ public static class AnimalVariants
     );
 
     public static readonly AnimalTypeVariant Ptarmigan = new(
-        "Ptarmigan",
+        AnimalType.Ptarmigan,
         "Ptarmigan. Ground bird. Reluctant to fly if you move slowly.",
         "Wait. They're calmer than most birds.",
         FireEffectiveness: 0.0,
@@ -124,7 +126,7 @@ public static class AnimalVariants
     );
 
     public static readonly AnimalTypeVariant Squirrel = new(
-        "Squirrel",
+        AnimalType.Rabbit,  // Use generic small game type
         "Squirrel. Fast, arboreal. Caches are worth more than the animal.",
         "Watch where it goes. It might lead to a cache.",
         FireEffectiveness: 0.0,
@@ -139,7 +141,7 @@ public static class AnimalVariants
     );
 
     public static readonly AnimalTypeVariant Fish = new(
-        "Fish",
+        AnimalType.Fish,
         "Fish. Visible in shallows. Spear or patience required.",
         "Wait for them to settle. Movement spooks them.",
         FireEffectiveness: 0.0,
@@ -154,7 +156,7 @@ public static class AnimalVariants
     );
 
     public static readonly AnimalTypeVariant Grouse = new(
-        "Grouse",
+        AnimalType.Ptarmigan,  // Use ptarmigan as ground bird type
         "Grouse. Camouflaged until disturbed. Explosive takeoff.",
         "Mark where they land. Approach from downwind.",
         FireEffectiveness: 0.0,
@@ -174,21 +176,19 @@ public static class AnimalVariants
 /// </summary>
 public static class AnimalSelector
 {
-    public static AnimalTypeVariant GetVariant(string? animalType)
+    public static AnimalTypeVariant GetVariant(AnimalType animalType)
     {
-        if (string.IsNullOrEmpty(animalType))
-            return AnimalVariants.Wolf;  // Default to wolf
-
-        return animalType.ToLower() switch
+        var typeStr = animalType.ToString().ToLower();
+        return typeStr switch
         {
-            var t when t.Contains("wolf") => AnimalVariants.Wolf,
-            var t when t.Contains("bear") => AnimalVariants.Bear,
-            var t when t.Contains("fox") => AnimalVariants.Fox,
+            var t when t.Contains(AnimalType.Wolf.ToString().ToLower()) => AnimalVariants.Wolf,
+            var t when t.Contains(AnimalType.Bear.ToString().ToLower()) => AnimalVariants.Bear,
+            var t when t.Contains(AnimalType.Fox.ToString().ToLower()) => AnimalVariants.Fox,
             // Small game
-            var t when t.Contains("rabbit") || t.Contains("rabbit") => AnimalVariants.Rabbit,
-            var t when t.Contains("ptarmigan") => AnimalVariants.Ptarmigan,
+            var t when t.Contains(AnimalType.Rabbit.ToString().ToLower()) => AnimalVariants.Rabbit,
+            var t when t.Contains(AnimalType.Ptarmigan.ToString().ToLower()) => AnimalVariants.Ptarmigan,
             var t when t.Contains("squirrel") => AnimalVariants.Squirrel,
-            var t when t.Contains("fish") => AnimalVariants.Fish,
+            var t when t.Contains(AnimalType.Fish.ToString().ToLower()) => AnimalVariants.Fish,
             var t when t.Contains("grouse") => AnimalVariants.Grouse,
             _ => AnimalVariants.Unknown
         };

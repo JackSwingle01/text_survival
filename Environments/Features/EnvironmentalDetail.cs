@@ -192,8 +192,8 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
             InteractionMinutes = 1,
             ExaminationPool = ExaminationVariants.TrackExaminations,
             TensionOnInteract = isPredator
-                ? () => ActiveTension.Stalked(0.2, displayName)
-                : () => ActiveTension.FreshTrail(0.4, displayName)
+                ? () => ActiveTension.Stalked(0.2, animalType)
+                : () => ActiveTension.FreshTrail(0.4, animalType)
         };
     }
 
@@ -247,8 +247,8 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
             InteractionMinutes = 1,
             ExaminationPool = ExaminationVariants.DroppingExaminations,
             TensionOnInteract = isPredator
-                ? () => ActiveTension.Stalked(0.15, displayName)
-                : () => ActiveTension.FreshTrail(0.3, displayName)
+                ? () => ActiveTension.Stalked(0.15, animalType)
+                : () => ActiveTension.FreshTrail(0.3, animalType)
         };
     }
 
@@ -265,7 +265,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
             InteractionMinutes = 1,
             ExaminationPool = ExaminationVariants.BranchExaminations,
             TensionOnInteract = () => Random.Shared.NextDouble() < 0.5
-                ? ActiveTension.FreshTrail(0.3, "unknown")
+                ? ActiveTension.FreshTrail(0.3, null)
                 : ActiveTension.Stalked(0.1)
         };
     }
@@ -392,7 +392,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
                 new ExaminationVariant("The burrow goes deep. You can hear movement below."),
                 new ExaminationVariant("Fur caught on roots at the entrance. Recent activity.")
             ],
-            TensionOnInteract = () => ActiveTension.FreshTrail(0.2, "rabbit")
+            TensionOnInteract = () => ActiveTension.FreshTrail(0.2, AnimalType.Rabbit)
         };
     }
 
@@ -496,4 +496,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
             ]
         };
     }
+
+    public override List<Resource> ProvidedResources() => [];
 }

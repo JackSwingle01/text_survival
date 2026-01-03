@@ -134,12 +134,12 @@ public static partial class GameEventRegistry
                 "It's alone, vulnerable. You'll never get a better chance.",
                 [
                     new EventResult("You advance. It turns, sensing you. Trunks raise. Here it comes.", weight: 0.50)
-                        .Encounter("Mammoth", distance: 40, boldness: 0.6)
+                        .Encounter(AnimalType.Mammoth, distance: 40, boldness: 0.6)
                         .ResolveTension("MammothTracked"),
                     new EventResult("You rush forward—it bolts! Too alert. You only manage a glancing throw as it crashes into the forest.", weight: 0.30, minutes: 20)
                         .ResolveTension("MammothTracked"),
                     new EventResult("As you close in, the bull charges! Not isolated—a decoy. The herd was behind you!", weight: 0.20)
-                        .Encounter("Mammoth", distance: 20, boldness: 0.8)
+                        .Encounter(AnimalType.Mammoth, distance: 20, boldness: 0.8)
                         .ResolveTension("MammothTracked")
                 ])
             .Choice("Set Trap with Bait",
@@ -147,15 +147,15 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("The trap works. It approaches the bait, head down, distracted. Perfect.", weight: 0.70, minutes: 35)
                         .Costs(ResourceType.Food, 4)
-                        .Encounter("Mammoth", distance: 25, boldness: 0.4)
+                        .Encounter(AnimalType.Mammoth, distance: 25, boldness: 0.4)
                         .ResolveTension("MammothTracked"),
                     new EventResult("It approaches cautiously, stops short of the bait. Wary. You attack from position anyway.", weight: 0.20, minutes: 30)
                         .Costs(ResourceType.Food, 4)
-                        .Encounter("Mammoth", distance: 35, boldness: 0.5)
+                        .Encounter(AnimalType.Mammoth, distance: 35, boldness: 0.5)
                         .ResolveTension("MammothTracked"),
                     new EventResult("It ignores the bait entirely. The meat is wasted. You approach openly instead.", weight: 0.10, minutes: 25)
                         .Costs(ResourceType.Food, 4)
-                        .Encounter("Mammoth", distance: 40, boldness: 0.6)
+                        .Encounter(AnimalType.Mammoth, distance: 40, boldness: 0.6)
                         .ResolveTension("MammothTracked")
                 ],
                 [EventCondition.HasCookedMeat])
@@ -232,14 +232,14 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You cut free what you can carry and bolt. The howls are very close now.", weight: 0.60, minutes: 8)
                         .FindsLargeMeat()
-                        .BecomeStalked(0.4, "Wolf"),
+                        .BecomeStalked(0.4, AnimalType.Wolf),
                     new EventResult("Knife slips in your haste—you cut yourself. But you get clear.", weight: 0.25, minutes: 10)
                         .FindsMeat()
                         .Damage(0.15, DamageType.Sharp)
                         .WithEffects(EffectFactory.Bleeding(0.3))
-                        .BecomeStalked(0.5, "Wolf"),
+                        .BecomeStalked(0.5, AnimalType.Wolf),
                     new EventResult("Too slow. They're here. You drop everything and run.", weight: 0.15, minutes: 5)
-                        .BecomeStalked(0.6, "Wolf")
+                        .BecomeStalked(0.6, AnimalType.Wolf)
                 ])
             .Choice("Defend the Kill",
                 "This is YOUR kill. Stand your ground.",
@@ -253,7 +253,7 @@ public static partial class GameEventRegistry
                         .CreateTension("PackNearby", 0.6),
                     new EventResult("There are too many. They swarm. You fight them off the carcass.", weight: 0.25)
                         .FindsMeat()
-                        .Encounter("Wolf", distance: 15, boldness: 0.7)
+                        .Encounter(AnimalType.Wolf, distance: 15, boldness: 0.7)
                 ]);
     }
 

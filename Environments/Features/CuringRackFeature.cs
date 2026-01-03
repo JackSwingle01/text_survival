@@ -188,6 +188,24 @@ public class CuringRackFeature : LocationFeature
             null);
     }
 
+    public override List<Resource> ProvidedResources()
+    {
+        if (!HasReadyItems) return [];
+        var resources = new List<Resource>();
+        foreach (var item in _items.Where(i => i.IsReady))
+        {
+            Resource output = item.Type switch
+            {
+                CurableItemType.ScrapedHide => Resource.CuredHide,
+                CurableItemType.RawMeat => Resource.DriedMeat,
+                CurableItemType.Berries => Resource.DriedBerries,
+                _ => Resource.RawMeat
+            };
+            if (!resources.Contains(output)) resources.Add(output);
+        }
+        return resources;
+    }
+
     /// <summary>
     /// Get internal state for saving.
     /// </summary>

@@ -7,6 +7,7 @@ public enum ResourceCategory
     Fuel,
     Tinder,
     Food,
+    Water,
     Medicine,
     Material,
     Log  // Groups typed wood: Pine, Birch, Oak
@@ -22,6 +23,9 @@ public enum Resource
 
     // Food
     CookedMeat, RawMeat, Berries, Nuts, Roots, DriedMeat, DriedBerries, Honey,
+
+    // Water
+    Water,
 
     // Materials
     Stone, Bone, Hide, PlantFiber, Sinew, Shale, Flint, Pyrite,
@@ -57,6 +61,11 @@ public static class ResourceCategories
         {
             Resource.CookedMeat, Resource.RawMeat, Resource.Berries,
             Resource.Nuts, Resource.Roots, Resource.DriedMeat, Resource.DriedBerries, Resource.Honey
+        },
+
+        [ResourceCategory.Water] = new()
+        {
+            Resource.Water
         },
 
         [ResourceCategory.Medicine] = new()
@@ -176,7 +185,7 @@ public class Inventory
     public double Pop(Resource type) => _stacks[type].TryPop(out var w) ? w : 0;
     public double Peek(Resource type) => _stacks[type].Count > 0 ? _stacks[type].Peek() : 0;
 
-    public void Take(Resource type, int count)
+    public void Remove(Resource type, int count)
     {
         for (int i = 0; i < count; i++) Pop(type);
     }
@@ -190,6 +199,17 @@ public class Inventory
 
     public int GetCount(ResourceCategory category) =>
         ResourceCategories.Items[category].Sum(type => _stacks[type].Count);
+
+    public Resource FindAnyResourceInCategory(ResourceCategory category)
+    {
+        return ResourceCategories.Items[category].First(type => _stacks[type].Count > 0);
+    }
+
+    /// <summary>
+    /// Get list of resource types that have items in this inventory.
+    /// </summary>
+    public List<Resource> GetResourceTypes() =>
+        _stacks.Where(kvp => kvp.Value.Count > 0).Select(kvp => kvp.Key).ToList();
 
     // Convenience properties
     public bool HasFood => Has(ResourceCategory.Food);
@@ -518,7 +538,8 @@ public class Inventory
 
         if (WaterLiters >= 0.1)
             items.Add(("Water", "Water (1.0L)", 1.0,
-                () => {
+                () =>
+                {
                     double amount = Math.Min(1.0, WaterLiters);
                     target.WaterLiters += amount;
                     WaterLiters -= amount;
@@ -555,6 +576,33 @@ public class Inventory
                 return category.ToString();
         return "Other";
     }
+
+    public double CalculateWaterproofingLevel()
+    {
+        // Slot coverage weights (how much of body each slot covers for wetness)
+        var slotWeights = new Dictionary<EquipSlot, double>
+        {
+            { EquipSlot.Head, 0.1 },
+            { EquipSlot.Chest, 0.4 },
+            { EquipSlot.Legs, 0.3 },
+            { EquipSlot.Hands, 0.1 },
+            { EquipSlot.Feet, 0.1 }
+        };
+
+        double totalWaterproofing = 0;
+        foreach (var slot in slotWeights.Keys)
+        {
+            var equipment = GetEquipment(slot);
+            if (equipment != null)
+            {
+                // Use gear's total waterproof level (base material + treatment bonus)
+                totalWaterproofing += slotWeights[slot] * equipment.TotalWaterproofLevel;
+            }
+        }
+
+        return Math.Min(totalWaterproofing, 1.0);
+    }
+
 }
 
 public static class ResourceTypeExtensions

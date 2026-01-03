@@ -1,8 +1,6 @@
 using text_survival.Actions.Variants;
-using text_survival.Bodies;
-using text_survival.Effects;
+using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
-using text_survival.Items;
 
 namespace text_survival.Actions;
 
@@ -17,7 +15,7 @@ public static partial class GameEventRegistry
     private static GameEvent PackSigns(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
         var variant = AnimalSelector.GetVariant(predator);
 
         // Pack animals coordinate better - higher risk of being detected
@@ -25,7 +23,7 @@ public static partial class GameEventRegistry
         double chaseTriggeredWeight = isPackAnimal ? 0.15 : 0.05;
 
         return new GameEvent("Pack Signs",
-            $"Multiple tracks, recent. {(isPackAnimal ? "Coordinated movement patterns." : "Scattered, but recent.")} This isn't a lone hunter — it's a pack of {predator.ToLower()}s.", 0.8)
+            $"Multiple tracks, recent. {(isPackAnimal ? "Coordinated movement patterns." : "Scattered, but recent.")} This isn't a lone hunter — it's a pack of {predator.DisplayName()}s.", 0.8)
             .Requires(EventCondition.InAnimalTerritory, EventCondition.HasPredators)
             .Requires(EventCondition.OnExpedition)
             .RequiresSituation(Situations.PackPredatorInTerritory)  // Requires pack predator herd present
@@ -65,7 +63,7 @@ public static partial class GameEventRegistry
     private static GameEvent EyesInTreeline(GameContext ctx)
     {
         var packTension = ctx.Tensions.GetTension("PackNearby");
-        var predator = packTension?.AnimalType ?? "Wolf";
+        var predator = packTension?.AnimalType ?? AnimalType.Wolf;
         var variant = AnimalSelector.GetVariant(predator);
 
         // Pack coordination affects how they respond
@@ -76,7 +74,7 @@ public static partial class GameEventRegistry
         double chaseWeight = variant.ChaseThreshold * 0.3;  // 0.0-0.30
 
         return new GameEvent("Eyes in the Treeline",
-            $"Glimpses of movement. The {predator.ToLower()}s are paralleling you. Not attacking yet — {(isPackAnimal ? "coordinating, probing." : "watching, testing.")}", 1.5)
+            $"Glimpses of movement. The {predator.DisplayName()}s are paralleling you. Not attacking yet — {(isPackAnimal ? "coordinating, probing." : "watching, testing.")}", 1.5)
             .Requires(EventCondition.PackNearby, EventCondition.IsExpedition)
             .WithSituationFactor(Situations.AttractiveToPredators, 2.5)
             .WithSituationFactor(Situations.Vulnerable, 2.5)
@@ -147,7 +145,7 @@ public static partial class GameEventRegistry
     private static GameEvent Circling(GameContext ctx)
     {
         var packTension = ctx.Tensions.GetTension("PackNearby");
-        var predator = packTension?.AnimalType ?? "Wolf";
+        var predator = packTension?.AnimalType ?? AnimalType.Wolf;
         var variant = AnimalSelector.GetVariant(predator);
 
         bool isPackAnimal = AnimalSelector.IsPredatorPackAnimal(variant);
@@ -212,15 +210,15 @@ public static partial class GameEventRegistry
     private static GameEvent ThePackCommits(GameContext ctx)
     {
         var packTension = ctx.Tensions.GetTension("PackNearby");
-        var predator = packTension?.AnimalType ?? "Wolf";
+        var predator = packTension?.AnimalType ?? AnimalType.Wolf;
         var variant = AnimalSelector.GetVariant(predator);
 
         bool isPackAnimal = AnimalSelector.IsPredatorPackAnimal(variant);
         double fireSuccessWeight = 0.30 + variant.FireEffectiveness * 0.35;  // 0.30-0.65
 
         string commitDesc = isPackAnimal
-            ? $"They've decided. This is happening. The {predator.ToLower()}s move as one."
-            : $"It's decided. This is happening. The {predator.ToLower()} attacks.";
+            ? $"They've decided. This is happening. The {predator.DisplayName()}s move as one."
+            : $"It's decided. This is happening. The {predator.DisplayName()} attacks.";
 
         return new GameEvent("The Pack Commits", commitDesc, 3.0)
             .Requires(EventCondition.PackNearbyCritical, EventCondition.IsExpedition)
@@ -228,7 +226,7 @@ public static partial class GameEventRegistry
             .Choice("Stand and Fight",
                 "Face them. Take as many as you can.",
                 [
-                    new EventResult($"The first {predator.ToLower()} lunges. The fight is on.", weight: 1.0, minutes: 5)
+                    new EventResult($"The first {predator.DisplayName()} lunges. The fight is on.", weight: 1.0, minutes: 5)
                         .ConfrontPack(predator, 5, 0.85)
                 ])
             .Choice("Feed the Fire",

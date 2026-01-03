@@ -16,9 +16,6 @@ namespace text_survival.Actions;
 /// </summary>
 public enum ResourceType { Fuel, Tinder, Food, Water, PlantFiber, Medicine }
 
-/// <summary>
-/// Represents resources consumed by an event outcome.
-/// </summary>
 public record ResourceCost(ResourceType Type, int Amount);
 
 /// <summary>
@@ -28,7 +25,7 @@ public record ResourceCost(ResourceType Type, int Amount);
 /// <param name="AnimalType">Animal type name, or null for territory-based selection</param>
 /// <param name="HarvestedPct">Portion already consumed by scavengers (0-1)</param>
 /// <param name="AgeHours">Hours since death (for decay calculation)</param>
-public record CarcassCreation(string? AnimalType, double HarvestedPct = 0, double AgeHours = 0);
+public record CarcassCreation(AnimalType? AnimalType, double HarvestedPct = 0, double AgeHours = 0);
 
 /// <summary>
 /// Configuration for spawning a herd at the current location.
@@ -37,7 +34,7 @@ public record CarcassCreation(string? AnimalType, double HarvestedPct = 0, doubl
 /// <param name="AnimalType">Animal type name (Wolf, Bear, Caribou, etc.)</param>
 /// <param name="Count">Number of animals (1 for lone predator)</param>
 /// <param name="TerritoryRadius">Radius for home territory generation</param>
-public record HerdCreation(string AnimalType, int Count = 1, int TerritoryRadius = 2);
+public record HerdCreation(AnimalType AnimalType, int Count = 1, int TerritoryRadius = 2);
 
 public class EventResult(string message, double weight = 1, int minutes = 0)
 {
@@ -75,7 +72,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public int DestroysSnareCount;
 
     // Direct stat drains (for vomiting, etc)
-    public (double calories, double hydration)? StatDrain;
+    public SurvivalStatsDelta? StatDelta;
 
     // Carcass creation
     public CarcassCreation? CarcassCreation;
@@ -148,7 +145,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     // Tension operations
     public EventResult CreateTension(string type, double severity, Environments.Location? location = null,
-        string? animalType = null, string? direction = null, string? description = null)
+        AnimalType? animalType = null, string? direction = null, string? description = null)
     {
         CreatesTension = new TensionCreation(type, severity, location, animalType, direction, description);
         return this;
@@ -157,7 +154,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public EventResult Escalate(string type, double amount) { EscalateTension = (type, amount); return this; }
 
     // Encounter spawning
-    public EventResult Encounter(string animal, int distance, double boldness)
+    public EventResult Encounter(AnimalType animal, int distance, double boldness)
     {
         SpawnEncounter = new EncounterConfig(animal, distance, boldness);
         return this;
@@ -193,12 +190,12 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     // Stat drains
     public EventResult DrainsStats(double calories = 0, double hydration = 0)
     {
-        StatDrain = (calories, hydration);
+        StatDelta = new SurvivalStatsDelta() { CalorieDelta = -calories, HydrationDelta = -hydration };
         return this;
     }
 
     // Herd spawning
-    public EventResult SpawnsHerd(string animalType, int count = 1, int territoryRadius = 2)
+    public EventResult SpawnsHerd(AnimalType animalType, int count = 1, int territoryRadius = 2)
     {
         HerdCreation = new HerdCreation(animalType, count, territoryRadius);
         return this;
@@ -220,7 +217,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         ApplyDamage(ctx, summary);
         ApplyRewards(ctx, summary);
         ApplyCosts(ctx, summary);
-        ApplyStatDrains(ctx, summary);
+        ApplyStatDelta(ctx, summary);
         ApplyTensions(ctx, summary);
         ApplyEquipmentDamage(ctx, summary);
         ApplyFeatureModifications(ctx);
@@ -309,20 +306,20 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         }
     }
 
-    private void ApplyStatDrains(GameContext ctx, OutcomeSummary summary)
+    private void ApplyStatDelta(GameContext ctx, OutcomeSummary summary)
     {
-        if (StatDrain is not null)
+        if (StatDelta is not null)
         {
-            var (calories, hydration) = StatDrain.Value;
-            if (calories > 0)
+            ctx.player.Body.ApplyResult(new Survival.SurvivalProcessorResult() { StatsDelta = StatDelta });
+            double calories = StatDelta.CalorieDelta;
+            double hydration = StatDelta.HydrationDelta;
+            if (calories < 0)
             {
-                ctx.player.Body.DrainCalories(calories);
                 GameDisplay.AddDanger(ctx, $"  - Lost {calories:F0} calories");
                 summary.ItemsLost.Add($"{calories:F0} calories");
             }
-            if (hydration > 0)
+            if (hydration < 0)
             {
-                ctx.player.Body.DrainHydration(hydration);
                 GameDisplay.AddDanger(ctx, $"  - Lost {hydration:F0}ml hydration");
                 summary.ItemsLost.Add($"{hydration:F0}ml hydration");
             }
@@ -516,17 +513,21 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     {
         if (CarcassCreation is null) return;
 
-        string animalType = CarcassCreation.AnimalType ?? GetTerritoryAnimal(ctx);
+        Animal animal = GetTerritoryAnimal(ctx);
+        if (CarcassCreation.AnimalType is not null)
+        {
+            animal = AnimalFactory.FromType((AnimalType)CarcassCreation.AnimalType);
+        }
 
-        var carcass = CarcassFeature.FromAnimalName(
-            animalType,
+        var carcass = CarcassFeature.FromAnimal(
+            animal,
             CarcassCreation.HarvestedPct,
             CarcassCreation.AgeHours
         );
         ctx.CurrentLocation.AddFeature(carcass);
 
-        GameDisplay.AddSuccess(ctx, $"  + Found a {animalType.ToLower()} carcass");
-        summary.ItemsGained.Add($"{animalType} carcass");
+        GameDisplay.AddSuccess(ctx, $"  + Found a {animal.Name} carcass");
+        summary.ItemsGained.Add($"{animal.Name} carcass");
     }
 
     private void ApplyHerdCreation(GameContext ctx, OutcomeSummary summary)
@@ -555,7 +556,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         if (herd != null)
         {
             string countDesc = HerdCreation.Count == 1 ? "a lone" : $"a group of {HerdCreation.Count}";
-            GameDisplay.AddNarrative(ctx, $"You've discovered {countDesc} {HerdCreation.AnimalType.ToLower()}.");
+            GameDisplay.AddNarrative(ctx, $"You've discovered {countDesc} {HerdCreation.AnimalType.DisplayName().ToLower()}.");
         }
     }
 
@@ -565,7 +566,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         var pos = ctx.Map.CurrentPosition;
 
         // Find mammoths for herd effects (these specifically target the mammoth herd)
-        var mammothHerd = ctx.Herds.GetHerdsByType("Woolly Mammoth")
+        var mammothHerd = ctx.Herds.GetHerdsByType(AnimalType.Mammoth)
             .FirstOrDefault(h => h.Count > 0 && h.Position.ManhattanDistance(pos) <= 2);
 
         // Alert herd if alert level set
@@ -611,21 +612,21 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     /// <summary>
     /// Get a random animal type from the current location's territory feature.
-    /// Falls back to "caribou" if no territory feature exists.
+    /// Falls back to AnimalType.Caribou if no territory feature exists.
     /// </summary>
-    private static string GetTerritoryAnimal(GameContext ctx)
+    private static Animal GetTerritoryAnimal(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
         if (territory != null)
         {
             // Use the territory's spawn entries to pick a random animal
-            var animal = territory.SearchForGame(0);  // 0 minutes = just get random type
+            var animal = territory.SearchForGame(0, ctx.CurrentLocation, ctx.Map);  // 0 minutes = just get random type
             if (animal != null)
-                return animal.Name;
+                return animal;
         }
 
         // Default fallback
-        return "Caribou";
+        return AnimalFactory.FromType(AnimalType.Caribou, ctx.CurrentLocation, ctx.Map);
     }
 
     private void DisplaySummary(GameContext ctx, OutcomeSummary summary)

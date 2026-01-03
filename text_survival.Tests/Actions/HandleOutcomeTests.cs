@@ -5,6 +5,7 @@ using text_survival.Actors.Player;
 using text_survival.Environments;
 using text_survival.Items;
 using text_survival.Effects;
+using text_survival.Actors.Animals;
 
 namespace text_survival.Tests.Actions;
 
@@ -140,7 +141,7 @@ public class HandleOutcomeTests
         var ctx = CreateTestContext();
         var outcome = new EventResult("Test")
         {
-            CreatesTension = new TensionCreation("Stalked", 0.5, AnimalType: "wolf")
+            CreatesTension = new TensionCreation("Stalked", 0.5, AnimalType: AnimalType.Wolf)
         };
 
         // Act

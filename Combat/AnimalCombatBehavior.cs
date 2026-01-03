@@ -53,11 +53,11 @@ public class AnimalCombatBehaviorManager
     // Species recovery base values (turns = base * (2 - vitality) * random)
     private static readonly Dictionary<string, double> SpeciesRecoveryBase = new()
     {
-        { "bear", 0.8 },      // Relentless
-        { "cave bear", 0.7 }, // Even more relentless
-        { "wolf", 1.5 },      // Quick but readable
+        { AnimalType.Bear.ToString(), 0.8 },      // Relentless
+        { AnimalType.CaveBear.ToString(), 0.7 }, // Even more relentless
+        { AnimalType.Wolf.ToString(), 1.5 },      // Quick but readable
         { "sabertooth", 1.2 }, // Fast and deadly
-        { "hyena", 1.4 },     // Similar to wolf
+        { AnimalType.Hyena.ToString(), 1.4 },     // Similar to wolf
         { "default", 1.5 }
     };
 

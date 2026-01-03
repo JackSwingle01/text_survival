@@ -23,10 +23,10 @@ public class TravelRunner(GameContext ctx)
         // Check for pending travel target from map click
         if (_ctx.PendingTravelTarget.HasValue)
         {
-            var target = _ctx.PendingTravelTarget.Value;
+            var target = _ctx.PendingTravelTarget;
             _ctx.PendingTravelTarget = null; // Clear it
 
-            var destination = _ctx.Map?.GetLocationAt(target.X, target.Y);
+            var destination = _ctx.Map?.GetLocationAt(target.Value.X, target.Value.Y);
             if (destination != null && destination != _ctx.CurrentLocation)
             {
                 TravelToLocation(destination);
@@ -98,39 +98,35 @@ public class TravelRunner(GameContext ctx)
         var destPos = _ctx.Map.GetPosition(destination);
 
         // Check for blocked edges
-        if (destPos.HasValue)
+
+        var season = _ctx.Weather.CurrentSeason;
+        if (_ctx.Map.IsEdgeBlocked(originPos, destPos, season))
         {
-            var season = _ctx.Weather.CurrentSeason;
-            if (_ctx.Map.IsEdgeBlocked(originPos, destPos.Value, season))
-            {
-                GameDisplay.AddNarrative(_ctx, GetBlockedMessage(originPos, destPos.Value));
-                return true;  // Not dead, just can't go there
-            }
+            GameDisplay.AddNarrative(_ctx, GetBlockedMessage(originPos, destPos));
+            return true;  // Not dead, just can't go there
         }
+
 
         // Check for edge events BEFORE travel
-        if (destPos.HasValue)
+
+        var edgeEvent = _ctx.Map.TryTriggerEdgeEvent(originPos, destPos, _ctx);
+        if (edgeEvent != null)
         {
-            var edgeEvent = _ctx.Map.TryTriggerEdgeEvent(originPos, destPos.Value, _ctx);
-            if (edgeEvent != null)
+            var result = GameEventRegistry.HandleEvent(_ctx, edgeEvent);
+
+            // Check if the chosen outcome aborted the travel
+            if (result.AbortsAction)
             {
-                var result = GameEventRegistry.HandleEvent(_ctx, edgeEvent);
-
-                // Check if the chosen outcome aborted the travel
-                if (result.AbortsAction)
-                {
-                    GameDisplay.AddNarrative(_ctx, "You decide not to proceed.");
-                    return true;  // Didn't travel, but not dead
-                }
-
-                if (!_ctx.player.IsAlive) return false;
+                GameDisplay.AddNarrative(_ctx, "You decide not to proceed.");
+                return true;  // Didn't travel, but not dead
             }
+
+            if (!_ctx.player.IsAlive) return false;
         }
 
+
         // Get edge time modifier
-        int edgeModifier = destPos.HasValue
-            ? _ctx.Map.GetEdgeTraversalModifier(originPos, destPos.Value)
-            : 0;
+        int edgeModifier = _ctx.Map.GetEdgeTraversalModifier(originPos, destPos);
 
         // Calculate base segment times
         int exitTime = TravelProcessor.CalculateSegmentTime(origin, _ctx.player, _ctx.Inventory);
@@ -162,8 +158,6 @@ public class TravelRunner(GameContext ctx)
 
             // Use destination for position (where player is heading)
             var position = _ctx.Map!.GetPosition(destination);
-            if (position == null)
-                throw new InvalidOperationException($"Location {destination.Name} not found on map");
 
             // Combine hazard descriptions if both are hazardous with different types
             string hazardType = GetCombinedHazardDescription(origin, destination, originHazardous, destHazardous);
@@ -171,8 +165,8 @@ public class TravelRunner(GameContext ctx)
             bool quickTravel = WebIO.PromptHazardChoice(
                 _ctx,
                 destination,
-                position.Value.X,
-                position.Value.Y,
+                position.X,
+                position.Y,
                 hazardType,
                 combinedQuickTime,
                 combinedCarefulTime,

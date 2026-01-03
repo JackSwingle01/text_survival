@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Items;
@@ -177,7 +178,7 @@ public static class OutcomeTemplates
     // === TENSION OPERATIONS ===
 
     /// <summary>Begin being stalked by a predator.</summary>
-    public static EventResult BecomeStalked(this EventResult r, double severity, string? predator = null)
+    public static EventResult BecomeStalked(this EventResult r, double severity, AnimalType? predator = null)
         => r.CreateTension("Stalked", severity, animalType: predator);
 
     /// <summary>Increase stalking tension.</summary>
@@ -201,21 +202,21 @@ public static class OutcomeTemplates
         => r.CreateTension("MarkedDiscovery", severity, description: description);
 
     /// <summary>Mark location with animal sign for tracking.</summary>
-    public static EventResult MarksAnimalSign(this EventResult r, string animal, double severity = 0.4)
-        => r.CreateTension("MarkedDiscovery", severity, animalType: animal, description: $"{animal.ToLower()} territory");
+    public static EventResult MarksAnimalSign(this EventResult r, AnimalType animal, double severity = 0.4)
+        => r.CreateTension("MarkedDiscovery", severity, animalType: animal, description: $"{animal.DisplayName().ToLower()} territory");
 
     // === PREDATOR ENCOUNTER PATTERNS ===
 
     /// <summary>Predator encounter that resolves stalking tension.</summary>
-    public static EventResult ConfrontStalker(this EventResult r, string animal, int distance, double boldness)
+    public static EventResult ConfrontStalker(this EventResult r, AnimalType animal, int distance, double boldness)
         => r.ResolveTension("Stalked").Encounter(animal, distance, boldness);
 
     /// <summary>Pack encounter that resolves pack tension.</summary>
-    public static EventResult ConfrontPack(this EventResult r, string animal, int distance, double boldness)
+    public static EventResult ConfrontPack(this EventResult r, AnimalType animal, int distance, double boldness)
         => r.ResolveTension("PackNearby").Encounter(animal, distance, boldness);
 
     /// <summary>Stalker escalates to "Hunted" - more aggressive pursuit.</summary>
-    public static EventResult EscalatesToHunted(this EventResult r, string? animal = null)
+    public static EventResult EscalatesToHunted(this EventResult r, AnimalType? animal = null)
         => r.ResolveTension("Stalked").CreateTension("Hunted", 0.5, animalType: animal);
 
     // === COMPOUND PATTERNS ===
@@ -286,8 +287,7 @@ public static class OutcomeTemplates
     /// <param name="animalType">Animal type name, or null for territory-based selection</param>
     /// <param name="harvestedPct">Portion already consumed by scavengers (0-1)</param>
     /// <param name="ageHours">Hours since death (for decay calculation)</param>
-    public static EventResult CreatesCarcass(this EventResult r, string? animalType = null,
-        double harvestedPct = 0, double ageHours = 0)
+    public static EventResult CreatesCarcass(this EventResult r, AnimalType? animalType = null, double harvestedPct = 0, double ageHours = 0)
     {
         r.CarcassCreation = new CarcassCreation(animalType, harvestedPct, ageHours);
         return r;
@@ -363,26 +363,26 @@ public static class OutcomeTemplates
     /// <summary>
     /// Discover a lone predator - spawns herd of 1 + creates Stalked tension.
     /// </summary>
-    public static EventResult DiscoversPredator(this EventResult r, string animal, double stalkSeverity = 0.3)
+    public static EventResult DiscoversPredator(this EventResult r, AnimalType animal, double stalkSeverity = 0.3)
         => r.SpawnsHerd(animal, 1, 2).BecomeStalked(stalkSeverity, animal);
 
     /// <summary>
     /// Discover a predator pack - spawns pack + creates PackNearby tension.
     /// </summary>
-    public static EventResult DiscoversPack(this EventResult r, string animal, int count = 4, double severity = 0.4)
+    public static EventResult DiscoversPack(this EventResult r, AnimalType animal, int count = 4, double severity = 0.4)
         => r.SpawnsHerd(animal, count, 3).CreateTension("PackNearby", severity, animalType: animal);
 
     /// <summary>
     /// Discover a prey herd - spawns herd + creates HerdNearby tension.
     /// </summary>
-    public static EventResult DiscoversPreyHerd(this EventResult r, string animal, int count = 8, double severity = 0.5)
+    public static EventResult DiscoversPreyHerd(this EventResult r, AnimalType animal, int count = 8, double severity = 0.5)
         => r.SpawnsHerd(animal, count, 4).CreateTension("HerdNearby", severity, animalType: animal);
 
     /// <summary>
     /// Follow tracks to discover animals - spawns herd if none exists.
     /// Creates appropriate tension based on predator/prey.
     /// </summary>
-    public static EventResult FollowsTracks(this EventResult r, string animal, bool isPredator, int count = 1)
+    public static EventResult FollowsTracks(this EventResult r, AnimalType animal, bool isPredator, int count = 1)
     {
         r.SpawnsHerd(animal, count, isPredator ? 2 : 4);
         return isPredator
@@ -414,7 +414,7 @@ public static class OutcomeTemplates
     /// Confront scavengers directly.
     /// </summary>
     public static EventResult ConfrontScavengers(this EventResult r, int distance, double boldness)
-        => r.ResolveTension("ScavengersWaiting").Encounter("Cave Hyena", distance, boldness);
+        => r.ResolveTension("ScavengersWaiting").Encounter(AnimalType.Hyena, distance, boldness);
 
     // === SABER-TOOTH DYNAMICS ===
 
@@ -440,7 +440,7 @@ public static class OutcomeTemplates
     /// Confront the saber-tooth directly. This is the primary way to resolve the threat.
     /// </summary>
     public static EventResult ConfrontSaberTooth(this EventResult r, int distance, double boldness)
-        => r.ResolveTension("SaberToothStalked").Encounter("Saber-Tooth", distance, boldness);
+        => r.ResolveTension("SaberToothStalked").Encounter(AnimalType.SaberTooth, distance, boldness);
 
     // === MAMMOTH DYNAMICS ===
 
@@ -487,7 +487,7 @@ public static class OutcomeTemplates
     public static EventResult KillsMammoth(this EventResult r)
     {
         r.MammothKilled = true;
-        return r.CreatesCarcass("Woolly Mammoth")
+        return r.CreatesCarcass(AnimalType.Mammoth)
                .CreateTension("FoodScentStrong", 0.8)
                .TriggersHerdFlee();
     }

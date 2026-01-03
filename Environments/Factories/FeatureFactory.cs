@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 using text_survival.Items;
@@ -285,7 +286,7 @@ public static class FeatureFactory
     {
         return new AnimalTerritoryFeature(density)
             .AddBear(2.0)
-            .AddAnimal("cave bear", 0.3);
+            .AddAnimal(AnimalType.CaveBear, 0.3);
     }
 
     /// <summary>

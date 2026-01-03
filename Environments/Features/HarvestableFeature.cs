@@ -324,6 +324,9 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
         return string.Join(", ", descriptions);
     }
 
+    public override List<Resource> ProvidedResources() =>
+        _resources.Where(r => !r.IsWater).Select(r => r.ResourceType).Distinct().ToList();
+
     public class HarvestableResource
     {
         public string DisplayName { get; set; } = "";

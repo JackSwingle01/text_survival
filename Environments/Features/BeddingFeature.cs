@@ -144,4 +144,6 @@ public class BeddingFeature : LocationFeature
         HasGroundInsulation = true,
         WarmthBonus = 5.0  // +5°F while sleeping
     };
+
+    public override List<Resource> ProvidedResources() => [];
 }

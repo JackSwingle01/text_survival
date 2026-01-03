@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Effects;
 using text_survival.Environments.Features;
 
@@ -63,7 +64,9 @@ public static partial class GameEventRegistry
     private static GameEvent ContestedCarcass(GameContext ctx)
     {
         var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
-        var animalName = carcass?.AnimalName.ToLower() ?? "carcass";
+        var animalName = carcass != null
+            ? (AnimalTypes.Parse(carcass.AnimalName)?.DisplayName() ?? carcass.AnimalName).ToLower()
+            : "carcass";
 
         return new GameEvent("Contested Carcass",
             $"The hyenas have grown bold. They circle the {animalName}, yipping and cackling. They want it.", 1.5)
@@ -101,7 +104,7 @@ public static partial class GameEventRegistry
                         .ResolvesScavengers(),
                     new EventResult("They follow, wanting what you're carrying too.", weight: 0.2, minutes: 3)
                         .ResolvesScavengers()
-                        .BecomeStalked(0.2, "Cave Hyena")
+                        .BecomeStalked(0.2, AnimalType.Hyena)
                 ])
             .Choice("Use Fire",
                 "Light a torch. Animals fear fire.",
@@ -122,7 +125,9 @@ public static partial class GameEventRegistry
     private static GameEvent ThePacksLeavings(GameContext ctx)
     {
         var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
-        var animalName = carcass?.AnimalName.ToLower() ?? "animal";
+        var animalName = carcass != null
+            ? (AnimalTypes.Parse(carcass.AnimalName)?.DisplayName() ?? carcass.AnimalName).ToLower()
+            : "animal";
         var isFresh = carcass != null && carcass.DecayLevel < 0.5;
         var leavingsDesc = isFresh
             ? "Fresh kill, but the scavengers got here first. Half-eaten."
@@ -149,7 +154,7 @@ public static partial class GameEventRegistry
                 "Follow them. Maybe they know where the hunting is good.",
                 [
                     new EventResult("Their trail leads toward wolf territory. They're following a pack.", weight: 0.5, minutes: 25)
-                        .CreateTension("FreshTrail", 0.4, animalType: "Wolf"),
+                        .CreateTension("FreshTrail", 0.4, animalType: AnimalType.Wolf),
                     new EventResult("You find where they're denning. Good to know.", weight: 0.3, minutes: 30)
                         .MarksDiscovery("Hyena den location", 0.4),
                     new EventResult("Lost the trail. They move fast.", weight: 0.2, minutes: 20)
@@ -239,7 +244,9 @@ public static partial class GameEventRegistry
     private static GameEvent ScavengersGambit(GameContext ctx)
     {
         var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
-        var animalName = carcass?.AnimalName.ToLower() ?? "prey";
+        var animalName = carcass != null
+            ? (AnimalTypes.Parse(carcass.AnimalName)?.DisplayName() ?? carcass.AnimalName).ToLower()
+            : "prey";
 
         return new GameEvent("Scavenger's Gambit",
             $"A {animalName} carcass. Wolves feed. Hyenas circle, waiting. You're the third faction in this stand-off.", 0.8)
@@ -291,7 +298,7 @@ public static partial class GameEventRegistry
                     new EventResult("Quick work. The wolves notice you leaving.", weight: 0.2, minutes: 10)
                         .FindsMeat()
                         .MinorBloody()
-                        .BecomeStalked(0.2, "Wolf"),
+                        .BecomeStalked(0.2, AnimalType.Wolf),
                     new EventResult("Everyone noticed. Time to run.", weight: 0.2, minutes: 5)
                         .Frightening()
                         .EscalatesPack(0.2)

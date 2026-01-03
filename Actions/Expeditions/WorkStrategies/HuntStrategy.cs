@@ -23,13 +23,11 @@ public class HuntStrategy : IWorkStrategy
         if (ctx.Map != null)
         {
             var pos = ctx.Map.GetPosition(location);
-            if (pos.HasValue)
+
+            var herdsHere = ctx.Herds.GetHerdsAt(pos);
+            if (herdsHere.Any(h => h.Count > 0))
             {
-                var herdsHere = ctx.Herds.GetHerdsAt(pos.Value);
-                if (herdsHere.Any(h => h.Count > 0))
-                {
-                    return null; // Game available (prey or predator)
-                }
+                return null; // Game available (prey or predator)
             }
         }
 
@@ -90,18 +88,16 @@ public class HuntStrategy : IWorkStrategy
         if (ctx.Map != null)
         {
             var pos = ctx.Map.GetPosition(location);
-            if (pos.HasValue)
-            {
-                var herdResult = ctx.Herds.SearchForLargeGame(pos.Value, actualTime);
-                if (herdResult.HasValue)
-                {
-                    var (herd, animal) = herdResult.Value;
-                    GameDisplay.AddNarrative(ctx, $"You spot {animal.GetTraitDescription()}.");
-                    GameDisplay.AddNarrative(ctx, $"It's {animal.GetActivityDescription()}.");
 
-                    // Return with FoundAnimal and HerdId set
-                    return new WorkResult([], null, actualTime, false, animal, herd.Id);
-                }
+            var herdResult = ctx.Herds.SearchForLargeGame(pos, actualTime);
+            if (herdResult.HasValue)
+            {
+                var (herd, animal) = herdResult.Value;
+                GameDisplay.AddNarrative(ctx, $"You spot {animal.GetTraitDescription()}.");
+                GameDisplay.AddNarrative(ctx, $"It's {animal.GetActivityDescription()}.");
+
+                // Return with FoundAnimal and HerdId set
+                return new WorkResult([], null, actualTime, false, animal, herd.Id);
             }
         }
 
@@ -114,7 +110,7 @@ public class HuntStrategy : IWorkStrategy
         }
 
         // Search for small game
-        var found = territory.SearchForGame(actualTime);
+        var found = territory.SearchForGame(actualTime, location, ctx.Map);
 
         // Perception impairment reduces effective search time by 25%
         var perception = AbilityCalculator.CalculatePerception(
@@ -123,7 +119,7 @@ public class HuntStrategy : IWorkStrategy
         {
             // Second chance with reduced time if impaired and found nothing
             int reducedTime = (int)(actualTime * 0.75);
-            found = territory.SearchForGame(reducedTime);
+            found = territory.SearchForGame(reducedTime, location, ctx.Map);
         }
 
         if (found == null)

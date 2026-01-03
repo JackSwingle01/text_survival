@@ -51,6 +51,7 @@ public abstract class LocationFeature
     }
     public LocationFeature() { } // Parameterless constructor for deserialization
     public virtual void Update(int minutes) {}
+    public abstract List<Resource> ProvidedResources();
 
     /// <summary>
     /// Returns UI display information for this feature.

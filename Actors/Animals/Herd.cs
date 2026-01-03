@@ -252,13 +252,15 @@ public class Herd
     /// Recreates animal members from MemberCount and AnimalType.
     /// Called after deserialization.
     /// </summary>
-    public void RecreateMembers()
+    public void RecreateMembers(GameMap map)
     {
         if (Members.Count > 0 || MemberCount == 0) return;
 
+        var location = map.GetLocationAt(Position);
+
         for (int i = 0; i < MemberCount; i++)
         {
-            var animal = AnimalFactory.FromType(AnimalType);
+            var animal = AnimalFactory.FromType(AnimalType, location, map);
             if (animal != null)
             {
                 Members.Add(animal);

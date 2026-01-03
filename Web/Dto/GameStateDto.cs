@@ -166,7 +166,7 @@ public record GameStateDto
             TrendPerHour = trendPerHour,
             TempStatus = GetTemperatureStatus(body.BodyTemperature),
             TemperatureCrisis = DetectTemperatureCrisis(body.BodyTemperature, trendPerHour, ctx),
-            ClothingWarmthPercent = (int)(body.ClothingHeatBuffer * 100),
+            ClothingWarmthPercent = (int)(body.ClothingHeatBufferPct * 100),
             ClothingWarmthCapacityF = inventory.TotalEquipmentWeightKg * 2.0,
 
             // Survival

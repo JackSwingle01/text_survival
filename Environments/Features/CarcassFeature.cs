@@ -67,10 +67,8 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         InitializeYieldsFromAnimal(animal, harvestedPct);
     }
 
-    public static CarcassFeature FromAnimalName(string animalName, double harvestedPct = 0, double ageHours = 0)
+    public static CarcassFeature FromAnimal(Animal animal, double harvestedPct = 0, double ageHours = 0)
     {
-        var animal = AnimalFactory.FromName(animalName)
-            ?? throw new ArgumentException($"Unknown animal type: {animalName}");
         return new CarcassFeature(animal, harvestedPct, ageHours);
     }
 
@@ -566,5 +564,19 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
             Status: status,
             Details: details
         );
+    }
+
+    public override List<Resource> ProvidedResources()
+    {
+        if (IsCompletelyButchered) return [];
+        var resources = new List<Resource>();
+        if (MeatRemainingKg > 0) resources.Add(Resource.RawMeat);
+        if (BoneRemainingKg > 0) resources.Add(Resource.Bone);
+        if (HideRemainingKg > 0) resources.Add(Resource.Hide);
+        if (SinewRemainingKg > 0) resources.Add(Resource.Sinew);
+        if (FatRemainingKg > 0) resources.Add(Resource.RawFat);
+        if (IvoryRemainingKg > 0) resources.Add(Resource.Ivory);
+        if (MammothHideRemainingKg > 0) resources.Add(Resource.MammothHide);
+        return resources;
     }
 }

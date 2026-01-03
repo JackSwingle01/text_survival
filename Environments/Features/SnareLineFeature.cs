@@ -1,6 +1,7 @@
 using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Expeditions.WorkStrategies;
+using text_survival.Actors.Animals;
 
 namespace text_survival.Environments.Features;
 
@@ -255,6 +256,9 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
             GetDescription(),
             null);
     }
+
+    public override List<Resource> ProvidedResources() =>
+        CanBeChecked ? [Resource.RawMeat] : [];
 
     #region Save/Load Support
 

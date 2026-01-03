@@ -1,4 +1,5 @@
 using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
 using text_survival.Effects;
 using text_survival.Environments.Features;
 
@@ -15,7 +16,7 @@ public static partial class GameEventRegistry
     private static GameEvent TheFind(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+        var predator = territory?.GetRandomPredator();
 
         // Vary description based on what kind of den
         var denType = Utils.DetermineSuccess(0.5) ? "cave" : "overhang";
@@ -32,11 +33,11 @@ public static partial class GameEventRegistry
             .Choice("Investigate Carefully",
                 "Check the signs. Know what you're dealing with.",
                 [
-                    new EventResult($"Fresh scat. A {predator.ToLower()} has been here recently.", weight: 0.40, minutes: 15)
+                    new EventResult($"Fresh scat. A {predator?.DisplayName() ?? "predator"} has been here recently.", weight: 0.40, minutes: 15)
                         .CreateTension("ClaimedTerritory", 0.3, animalType: predator, location: ctx.CurrentLocation),
                     new EventResult("Old droppings. Dried. Maybe abandoned?", weight: 0.30, minutes: 15)
                         .CreateTension("ClaimedTerritory", 0.2, animalType: predator, location: ctx.CurrentLocation),
-                    new EventResult($"Fresh tracks, still steaming scat. The {predator.ToLower()} is close.", weight: 0.20, minutes: 10)
+                    new EventResult($"Fresh tracks, still steaming scat. The {predator?.DisplayName() ?? "predator"} is close.", weight: 0.20, minutes: 10)
                         .CreateTension("ClaimedTerritory", 0.5, animalType: predator, location: ctx.CurrentLocation),
                     new EventResult("Empty. Abandoned. Yours for the taking.", weight: 0.10, minutes: 20)
                         .AddsShelter(temp: 0.4, overhead: 0.6, wind: 0.7)
@@ -62,7 +63,7 @@ public static partial class GameEventRegistry
     private static GameEvent AssessingTheClaim(GameContext ctx)
     {
         var denTension = ctx.Tensions.GetTension("ClaimedTerritory");
-        var animal = denTension?.AnimalType ?? "Wolf";
+        var animal = denTension?.AnimalType ?? AnimalType.Wolf;
 
         // Use AnimalTypeVariant for behavior - eliminates branching
         var variant = AnimalSelector.GetVariant(animal);
@@ -135,7 +136,7 @@ public static partial class GameEventRegistry
             .Choice("Fight for It Now",
                 "Enter the den. Force the confrontation.",
                 [
-                    new EventResult($"You enter. The {animal.ToLower()} is cornered. It fights.", weight: 1.0, minutes: 5)
+                    new EventResult($"You enter. The {animal.DisplayName()} is cornered. It fights.", weight: 1.0, minutes: 5)
                         .Encounter(animal, 10, 0.9)
                 ])
             .Choice("Abandon the Claim",
@@ -153,15 +154,15 @@ public static partial class GameEventRegistry
     private static GameEvent TheConfrontation(GameContext ctx)
     {
         var denTension = ctx.Tensions.GetTension("ClaimedTerritory");
-        var animal = denTension?.AnimalType ?? "Wolf";
+        var animal = denTension?.AnimalType ?? AnimalType.Wolf;
 
         return new GameEvent("The Confrontation",
-            $"The {animal.ToLower()} is aware of you. It's defending its home. Cornered animals fight hardest.", 2.5)
+            $"The {animal.DisplayName()} is aware of you. It's defending its home. Cornered animals fight hardest.", 2.5)
             .Requires(EventCondition.ClaimedTerritoryHigh, EventCondition.Working, EventCondition.AtClaimedTerritory)
             .Choice("Commit to the Fight",
                 "This is happening. Make it count.",
                 [
-                    new EventResult($"The {animal.ToLower()} charges. The fight for the den begins.", weight: 1.0, minutes: 5)
+                    new EventResult($"The {animal.DisplayName()} charges. The fight for the den begins.", weight: 1.0, minutes: 5)
                         .ResolveTension("ClaimedTerritory")
                         .Encounter(animal, 10, 0.85)
                 ])

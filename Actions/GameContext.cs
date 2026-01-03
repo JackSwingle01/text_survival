@@ -5,10 +5,10 @@ using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Environments.Factories;
-using text_survival.Actions.Expeditions;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
+using text_survival.Actors;
 
 namespace text_survival.Actions;
 
@@ -63,6 +63,7 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     // Herd registry for tracking persistent animals
     public HerdRegistry Herds { get; set; } = new();
+    public List<NPC> NPCs { get; set; } = new();
 
     public ActivityType CurrentActivity { get; private set; } = ActivityType.Idle;
 
@@ -88,7 +89,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         if (activityConfig.EventMultiplier == 0)
             return; // Activities that block events also block encounters
 
-        var predator = CombatRunner.CreateAnimalFromConfig(_pendingEncounter);
+        var predator = CombatRunner.CreateAnimalFromConfig(_pendingEncounter, CurrentLocation, Map);
         _pendingEncounter = null;
 
         if (predator != null)
@@ -153,10 +154,7 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     // Parameterless constructor for JSON deserialization
     [System.Text.Json.Serialization.JsonConstructor]
-    public GameContext() : this(null!, null!, null!)
-    {
-    }
-
+    public GameContext() : this(null!, null!, null!) { }
     public void RestoreAfterDeserialization()
     {
         // Map handles its own restoration via LocationData property
@@ -167,7 +165,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         }
 
         // Recreate non-serialized animal members for herds
-        Herds.RecreateAllMembers();
+        Herds.RecreateAllMembers(Map);
     }
 
     public static GameContext CreateNewGame()
@@ -220,13 +218,6 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     public bool Check(EventCondition condition) => ConditionChecker.Check(this, condition);
 
-    public bool CanEstablishCampAt(Location location)
-    {
-        bool hasBedding = location.HasFeature<BeddingFeature>();
-        bool hasActiveFire = location.HasActiveHeatSource();
-        return hasBedding && hasActiveFire;
-    }
-
     public void EstablishCamp(Location location)
     {
         // Only show message if actually changing camp location
@@ -239,23 +230,19 @@ public class GameContext(Player player, Location camp, Weather weather)
             GameDisplay.AddSuccess(this, $"You've established camp at {location.Name}.");
     }
 
-    public bool HasUnrevealedLocations() => Map?.HasUnexploredVisibleLocations ?? false;
-    public Location? RevealRandomLocation(Location fromLocation) => Map?.RevealRandomLocation();
-    public int UnrevealedCount => Map?.UnexploredVisibleCount ?? 0;
-
     public DateTime GameTime { get; set; } = new DateTime(2025, 1, 1, 9, 0, 0); // Full date/time for resource respawn tracking
 
-    public SurvivalContext GetSurvivalContext(bool isStationary = true)
+    public static SurvivalContext GetSurvivalContext(Actor actor, Inventory inventory, bool isStationary = true)
     {
-        double clothingInsulation = Inventory.TotalInsulation;
+        double clothingInsulation = inventory.TotalInsulation;
 
         // Get current wetness
-        var wetEffect = player.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault();
+        var wetEffect = actor.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault();
         double currentWetness = wetEffect?.Severity ?? 0;
 
         // Get bleeding and bloody severities for bloody accumulation
-        double currentBleeding = player.EffectRegistry.GetSeverity("Bleeding");
-        double currentBloody = player.EffectRegistry.GetSeverity("Bloody");
+        double currentBleeding = actor.EffectRegistry.GetSeverity("Bleeding");
+        double currentBloody = actor.EffectRegistry.GetSeverity("Bloody");
 
         // Wetness reduces insulation effectiveness
         if (wetEffect != null)
@@ -266,73 +253,47 @@ public class GameContext(Player player, Location camp, Weather weather)
         }
 
         // Calculate overhead cover (environmental + shelter if stationary)
-        double overheadCover = CurrentLocation.OverheadCoverLevel;
+        double overheadCover = actor.CurrentLocation.OverheadCoverLevel;
         if (isStationary)
         {
-            var shelter = CurrentLocation.GetFeature<ShelterFeature>();
+            var shelter = actor.CurrentLocation.GetFeature<ShelterFeature>();
             if (shelter != null)
                 overheadCover = Math.Max(overheadCover, shelter.OverheadCoverage);
         }
 
         // Extract weather conditions
-        bool isRaining = Weather.CurrentCondition == Weather.WeatherCondition.Rainy ||
-                         Weather.CurrentCondition == Weather.WeatherCondition.Stormy;
-        bool isBlizzard = Weather.CurrentCondition == Weather.WeatherCondition.Blizzard;
-        bool isSnowing = Weather.CurrentCondition == Weather.WeatherCondition.LightSnow;
+        bool isRaining = actor.CurrentLocation.Weather.CurrentCondition == Weather.WeatherCondition.Rainy ||
+                         actor.CurrentLocation.Weather.CurrentCondition == Weather.WeatherCondition.Stormy;
+        bool isBlizzard = actor.CurrentLocation.Weather.CurrentCondition == Weather.WeatherCondition.Blizzard;
+        bool isSnowing = actor.CurrentLocation.Weather.CurrentCondition == Weather.WeatherCondition.LightSnow;
 
         // Calculate waterproofing level from resin-treated equipment
-        double waterproofingLevel = CalculateWaterproofingLevel();
+        double waterproofingLevel = inventory.CalculateWaterproofingLevel();
 
         return new SurvivalContext
         {
             ActivityLevel = 1.5,
-            LocationTemperature = CurrentLocation.GetTemperature(isStationary),
+            LocationTemperature = actor.CurrentLocation.GetTemperature(isStationary),
             ClothingInsulation = clothingInsulation,
 
             // Wetness context
-            OverheadCover = overheadCover,
-            Precipitation = Weather.Precipitation,
-            WindSpeed = Weather.WindSpeed,
+            OverheadCoverLevel = overheadCover,
+            PrecipitationPct = actor.CurrentLocation.Weather.Precipitation,
+            WindSpeedLevel = actor.CurrentLocation.Weather.WindSpeed,
             IsRaining = isRaining,
             IsSnowing = isSnowing,
             IsBlizzard = isBlizzard,
-            CurrentWetnessSeverity = currentWetness,
+            CurrentWetnessPct = currentWetness,
             WaterproofingLevel = waterproofingLevel,
 
             // Bloody accumulation context
-            CurrentBleedingSeverity = currentBleeding,
-            CurrentBloodySeverity = currentBloody,
+            CurrentBleedingPct = currentBleeding,
+            CurrentBloodyPct = currentBloody,
 
             // Clothing thermal mass
-            ClothingWeightKg = Inventory.TotalEquipmentWeightKg,
-            ClothingHeatBuffer = player.Body.ClothingHeatBuffer,
+            ClothingWeightKg = inventory.TotalEquipmentWeightKg,
+            ClothingHeatBuffer = actor.Body.ClothingHeatBufferPct,
         };
-    }
-
-    public double CalculateWaterproofingLevel()
-    {
-        // Slot coverage weights (how much of body each slot covers for wetness)
-        var slotWeights = new Dictionary<EquipSlot, double>
-        {
-            { EquipSlot.Head, 0.1 },
-            { EquipSlot.Chest, 0.4 },
-            { EquipSlot.Legs, 0.3 },
-            { EquipSlot.Hands, 0.1 },
-            { EquipSlot.Feet, 0.1 }
-        };
-
-        double totalWaterproofing = 0;
-        foreach (var slot in slotWeights.Keys)
-        {
-            var equipment = Inventory.GetEquipment(slot);
-            if (equipment != null)
-            {
-                // Use gear's total waterproof level (base material + treatment bonus)
-                totalWaterproofing += slotWeights[slot] * equipment.TotalWaterproofLevel;
-            }
-        }
-
-        return Math.Min(totalWaterproofing, 1.0);
     }
 
     private static bool IsActivityStationary(ActivityType activity) => activity switch
@@ -421,8 +382,9 @@ public class GameContext(Player player, Location camp, Weather weather)
     private void UpdateInternal(int minutes, double activityLevel, double fireProximityMultiplier)
     {
         bool isStationary = IsActivityStationary(CurrentActivity);
-        var context = GetSurvivalContext(isStationary);
+        var context = GetSurvivalContext(player, Inventory, isStationary);
         context.ActivityLevel = activityLevel;
+        context.IsNight = GetTimeOfDay() == TimeOfDay.Night;
 
         // Calculate fire proximity bonus if there's an active fire
         // Skip if hyperthermic - player would back away from fire
@@ -466,39 +428,44 @@ public class GameContext(Player player, Location camp, Weather weather)
         Tensions.Update(minutes, IsAtCamp);
 
         // Update herds - they move and can detect player
-        if (Map != null)
+
+        var herdResults = Herds.Update(minutes, this);
+        // Process herd update results
+        foreach (var result in herdResults)
         {
-            var herdResults = Herds.Update(minutes, this);
-
-            // Process herd update results
-            foreach (var result in herdResults)
+            // Show narrative messages
+            if (result.NarrativeMessage != null)
             {
-                // Show narrative messages
-                if (result.NarrativeMessage != null)
-                {
-                    GameDisplay.AddNarrative(this, result.NarrativeMessage);
-                }
+                GameDisplay.AddNarrative(this, result.NarrativeMessage);
+            }
 
-                // Queue predator encounters
-                if (result.EncounterRequest != null && _pendingEncounter == null)
+            // Queue predator encounters
+            if (result.EncounterRequest != null && _pendingEncounter == null)
+            {
+                var encounterHerd = Herds.GetHerdById(result.EncounterRequest.HerdId);
+                if (encounterHerd != null)
                 {
-                    var encounterHerd = Herds.GetHerdById(result.EncounterRequest.HerdId);
-                    if (encounterHerd != null)
+                    var predator = encounterHerd.GetRandomMember();
+                    if (predator != null)
                     {
-                        var predator = encounterHerd.GetRandomMember();
-                        if (predator != null)
-                        {
-                            _pendingEncounterHerdId = encounterHerd.Id;  // Track source herd for fear setting
+                        _pendingEncounterHerdId = encounterHerd.Id;  // Track source herd for fear setting
 
-                            _pendingEncounter = new EncounterConfig(
-                                encounterHerd.AnimalType.DisplayName(),
-                                InitialDistance: result.EncounterRequest.IsDefendingKill ? 10 : 20,
-                                InitialBoldness: result.EncounterRequest.IsDefendingKill ? 0.8 : 0.6
-                            );
-                        }
+                        _pendingEncounter = new EncounterConfig(
+                            encounterHerd.AnimalType,
+                            InitialDistance: result.EncounterRequest.IsDefendingKill ? 10 : 20,
+                            InitialBoldness: result.EncounterRequest.IsDefendingKill ? 0.8 : 0.6
+                        );
                     }
                 }
             }
+            for (int i = 0; i < minutes; i++)
+            {
+                foreach (NPC npc in NPCs)
+                {
+                    npc.Update(1, GetSurvivalContext(npc, npc.Inventory));
+                }
+            }
+
         }
 
         // DeadlyCold auto-resolves when player reaches fire

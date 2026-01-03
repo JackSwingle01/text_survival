@@ -244,7 +244,7 @@ public class CraftOption
         switch (material)
         {
             case MaterialSpecifier.Specific(var resource):
-                inv.Take(resource, count);
+                inv.Remove(resource, count);
                 break;
             case MaterialSpecifier.Category(var category):
                 // For category requirements, consume from the first available resource in that category

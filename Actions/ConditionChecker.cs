@@ -192,8 +192,8 @@ public static class ConditionChecker
             EventCondition.PlayerBloodyHigh => ctx.player.EffectRegistry.GetSeverity("Bloody") > 0.2,
 
             // Equipment state conditions
-            EventCondition.Waterproofed => ctx.CalculateWaterproofingLevel() >= 0.15,
-            EventCondition.FullyWaterproofed => ctx.CalculateWaterproofingLevel() >= 0.4,
+            EventCondition.Waterproofed => ctx.Inventory.CalculateWaterproofingLevel() >= 0.15,
+            EventCondition.FullyWaterproofed => ctx.Inventory.CalculateWaterproofingLevel() >= 0.4,
 
             // Equipment possession
             EventCondition.HasWeapon => ctx.Inventory.HasWeapon,
@@ -287,8 +287,7 @@ public static class ConditionChecker
     {
         if (ctx.Map == null) return 0;
         var campPos = ctx.Map.GetPosition(ctx.Camp);
-        if (!campPos.HasValue) return 0;
-        return ctx.Map.CurrentPosition.ManhattanDistance(campPos.Value);
+        return ctx.Map.CurrentPosition.ManhattanDistance(campPos);
     }
 
     private static bool HasAdjacentTerrain(GameContext ctx, TerrainType terrain)

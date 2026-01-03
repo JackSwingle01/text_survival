@@ -12,7 +12,7 @@ public static class TestFixtures
     /// <summary>
     /// Creates a baseline human body with default stats
     /// </summary>
-    public static Body CreateBaselineHumanBody(string ownerName = "TestHuman")
+    public static Body CreateBaselineHumanBody()
     {
         var creationInfo = new BodyCreationInfo
         {
@@ -23,7 +23,7 @@ public static class TestFixtures
             IsPlayer = false
         };
 
-        return new Body(ownerName, creationInfo);
+        return new Body(creationInfo);
     }
 
     /// <summary>
@@ -45,7 +45,7 @@ public static class TestFixtures
             IsPlayer = isPlayer
         };
 
-        return new Body(ownerName, creationInfo);
+        return new Body(creationInfo);
     }
 
     /// <summary>

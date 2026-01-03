@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Environments;
 
 namespace text_survival.Actions.Tensions;
@@ -11,7 +12,7 @@ public class ActiveTension
     public Location? SourceLocation { get; }
 
     // Content properties (explicit, no Dictionary<string, object>)
-    public string? AnimalType { get; }
+    public AnimalType? AnimalType { get; }
     public string? Direction { get; }
     public string? Description { get; }
 
@@ -28,7 +29,7 @@ public class ActiveTension
         bool decaysAtCamp,
         Location? relevantLocation = null,
         Location? sourceLocation = null,
-        string? animalType = null,
+        AnimalType? animalType = null,
         string? direction = null,
         string? description = null,
         Guid? herdId = null)
@@ -46,7 +47,7 @@ public class ActiveTension
         HerdId = herdId;
     }
 
-    public static ActiveTension Stalked(double severity, string? animalType = null, Location? location = null, Guid? herdId = null) => new(
+    public static ActiveTension Stalked(double severity, AnimalType? animalType = null, Location? location = null, Guid? herdId = null) => new(
         type: "Stalked",
         severity: severity,
         decayPerHour: 0.05,
@@ -96,7 +97,7 @@ public class ActiveTension
         decaysAtCamp: true
     );
 
-    public static ActiveTension Hunted(double severity, string? animalType = null) => new(
+    public static ActiveTension Hunted(double severity, AnimalType? animalType = null) => new(
         type: "Hunted",
         severity: severity,
         decayPerHour: 0.02,
@@ -122,7 +123,7 @@ public class ActiveTension
         description: description
     );
 
-    public static ActiveTension WoundedPrey(double severity, string? animalType = null, Location? location = null, Guid? herdId = null) => new(
+    public static ActiveTension WoundedPrey(double severity, AnimalType? animalType = null, Location? location = null, Guid? herdId = null) => new(
         type: "WoundedPrey",
         severity: severity,
         decayPerHour: 0.08,
@@ -132,7 +133,7 @@ public class ActiveTension
         herdId: herdId
     );
 
-    public static ActiveTension PackNearby(double severity, string? animalType = null, Guid? herdId = null) => new(
+    public static ActiveTension PackNearby(double severity, AnimalType? animalType = null, Guid? herdId = null) => new(
         type: "PackNearby",
         severity: severity,
         decayPerHour: 0.03,
@@ -141,7 +142,7 @@ public class ActiveTension
         herdId: herdId
     );
 
-    public static ActiveTension ClaimedTerritory(double severity, string? animalType = null, Location? location = null) => new(
+    public static ActiveTension ClaimedTerritory(double severity, AnimalType? animalType = null, Location? location = null) => new(
         type: "ClaimedTerritory",
         severity: severity,
         decayPerHour: 0.0,
@@ -150,7 +151,7 @@ public class ActiveTension
         animalType: animalType
     );
 
-    public static ActiveTension HerdNearby(double severity, string? animalType = null, string? direction = null) => new(
+    public static ActiveTension HerdNearby(double severity, AnimalType? animalType = null, string? direction = null) => new(
         type: "HerdNearby",
         severity: severity,
         decayPerHour: 0.15,
@@ -190,7 +191,7 @@ public class ActiveTension
         relevantLocation: location
     );
 
-    public static ActiveTension FreshTrail(double severity, string? animalType = null) => new(
+    public static ActiveTension FreshTrail(double severity, AnimalType? animalType = null) => new(
         type: "FreshTrail",
         severity: severity,
         decayPerHour: 0.15,  // Decays quickly - trail goes cold
@@ -223,7 +224,7 @@ public class ActiveTension
         decayPerHour: 0.02,  // Extremely patient - very slow decay
         decaysAtCamp: false,  // Fire doesn't work! Unique threat profile.
         relevantLocation: location,
-        animalType: "Saber-Tooth",
+        animalType: Actors.Animals.AnimalType.SaberTooth,
         herdId: herdId
     );
 
@@ -233,7 +234,7 @@ public class ActiveTension
         double decayPerHour,
         bool decaysAtCamp,
         Location? relevantLocation = null,
-        string? animalType = null,
+        AnimalType? animalType = null,
         string? direction = null,
         string? description = null,
         Guid? herdId = null) => new(

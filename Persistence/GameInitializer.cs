@@ -19,7 +19,7 @@ public static class GameInitializer
         }
 
         // Post-load: recreate non-serialized data
-        ctx?.Herds.RecreateAllMembers();
+        ctx?.Herds.RecreateAllMembers(ctx.Map);
 
         return ctx;
     }

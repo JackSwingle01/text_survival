@@ -197,4 +197,15 @@ public class WoodedAreaFeature : LocationFeature, IWorkableFeature
             return $"{TreesAvailable} trees";
         return "standing timber";
     }
+
+    public override List<Resource> ProvidedResources()
+    {
+        if (!HasTrees) return [];
+        List<Resource> resources = [Resource.Stick, Resource.Tinder];
+        if (WoodType != null)
+            resources.Add(WoodType.Value);
+        else
+            resources.AddRange([Resource.Pine, Resource.Birch, Resource.Oak]);
+        return resources;
+    }
 }

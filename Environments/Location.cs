@@ -11,7 +11,6 @@ namespace text_survival.Environments;
 
 public class Location
 {
-    // Identity //
     public Guid Id { get; init; } = Guid.NewGuid();
     public string Name { get; init; } = "Unknown";
 
@@ -20,14 +19,8 @@ public class Location
     /// </summary>
     public string Tags { get; init; } = "";
 
-    /// <summary>
-    /// Terrain type for this location (for grid rendering).
-    /// </summary>
     public TerrainType Terrain { get; set; } = TerrainType.Plain;
 
-    /// <summary>
-    /// Whether this location can be entered (derived from terrain).
-    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsPassable => Terrain.IsPassable();
 
@@ -55,8 +48,6 @@ public class Location
     public bool IsTerrainOnly { get; init; } = false;
 
     public Weather Weather { get; init; } = null!;
-
-    // Environment //
     public double WindFactor { get; init; } = 1;
     public double TemperatureDeltaF { get; set; } = 0;
     public double OverheadCoverLevel { get; init; } = 0;
@@ -100,11 +91,7 @@ public class Location
     public double TerrainHazardLevel { get; set; } = 0;
 
     // Parameterless constructor for deserialization
-    public Location()
-    {
-    }
-
-    // Normal constructor for creation
+    public Location() {}
     public Location(string name, string tags, Weather weather,
         double terrainHazardLevel = 0, double windFactor = 1,
         double overheadCoverLevel = 0, double visibilityFactor = 1)
@@ -135,24 +122,16 @@ public class Location
         return Math.Min(1.0, hazard);
     }
 
-    /// <summary>
-    /// Require fire or torch to work
-    /// </summary>
     public bool IsDark { get; set; } = false;
 
-    /// <summary>
-    /// First-visit discovery text (flavor text shown once).
-    /// </summary>
     public string? DiscoveryText { get; set; }
 
     /// <summary>
     /// Optional event factory that triggers on first arrival.
     /// Called before DiscoveryText is shown.
     /// </summary>
-    [System.Text.Json.Serialization.JsonIgnore]
+    [System.Text.Json.Serialization.JsonIgnore] // todo fix?
     public Func<GameContext, GameEvent?>? FirstVisitEvent { get; set; }
-
-    // Tactical Properties //
 
     /// <summary>
     /// Terrain large predators can't easily follow into (thick brush, narrow passages).
@@ -166,19 +145,8 @@ public class Location
     /// </summary>
     public bool IsVantagePoint { get; set; } = false;
 
-    // Edge Specifications //
-
-    /// <summary>
-    /// Edge specifications for this location. Applied when location is placed on map.
-    /// Key = direction, Value = edge to create on that side.
-    /// Null means no special edge (use terrain-based generation).
-    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public Dictionary<Direction, TileEdge>? EdgeOverrides { get; set; }
-
-    /// <summary>
-    /// Apply the same edge type on all sides. Convenience for locations like Boulder Field.
-    /// </summary>
     public Location WithEdgesOnAllSides(EdgeType type, List<EdgeEvent>? customEvents = null)
     {
         EdgeOverrides = new()
@@ -190,10 +158,6 @@ public class Location
         };
         return this;
     }
-
-    /// <summary>
-    /// Set a specific edge on one side.
-    /// </summary>
     public Location WithEdge(Direction dir, EdgeType type, List<EdgeEvent>? customEvents = null)
     {
         EdgeOverrides ??= new();
@@ -201,71 +165,27 @@ public class Location
         return this;
     }
 
-    // Discovery //
     public bool Explored { get; set; } = false;
     public List<LocationFeature> Features { get; set; } = [];
 
     /// <summary>
     /// Mark as explored without triggering narrative display.
-    /// Used by map system when player enters a location.
     /// </summary>
     public void MarkExplored() => Explored = true;
-
-    public List<BloodTrail> BloodTrails = []; // MVP Hunting System - Phase 4
-
 
     public T? GetFeature<T>() where T : LocationFeature => Features.OfType<T>().FirstOrDefault();
     public bool HasFeature<T>() where T : LocationFeature => GetFeature<T>() is not null;
 
-    /// <summary>
-    /// Check if huntable herds exist on this tile.
-    /// </summary>
     private bool HasHerdsHere(GameContext ctx)
     {
         if (ctx.Map == null) return false;
 
         var pos = ctx.Map.GetPosition(this);
-        if (!pos.HasValue) return false;
 
-        var herdsHere = ctx.Herds.GetHerdsAt(pos.Value);
+        var herdsHere = ctx.Herds.GetHerdsAt(pos);
         return herdsHere.Any(h => h.Count > 0);
     }
 
-    /// <summary>
-    /// Generate contextual hunt description based on herds at this location.
-    /// </summary>
-    private string GetHerdHuntDescription(GameContext ctx)
-    {
-        var pos = ctx.Map!.GetPosition(this);
-        var herdsHere = ctx.Herds.GetHerdsAt(pos!.Value);
-
-        int totalAnimals = herdsHere.Sum(h => h.Count);
-
-        // Get most notable herd (predators prioritized, then largest prey)
-        var mostNotable = herdsHere
-            .OrderByDescending(h => h.IsPredator ? 1000 : h.Count)
-            .FirstOrDefault();
-
-        string quality = totalAnimals switch
-        {
-            >= 20 => "plentiful",
-            >= 10 => "decent",
-            >= 5 => "sparse",
-            _ => "scarce"
-        };
-
-        if (mostNotable != null)
-        {
-            string animalType = mostNotable.AnimalType.DisplayName().ToLower();
-            return $"Hunt ({animalType} here, {quality})";
-        }
-
-        return $"Hunt ({quality})";
-    }
-
-    /// <summary>
-    /// Get work options from all features. Does not include Hunt or Explore.
-    /// </summary>
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
         // Yield all feature-based work options (includes Hunt from AnimalTerritoryFeature)
@@ -278,42 +198,19 @@ public class Location
         if (!HasFeature<AnimalTerritoryFeature>() && HasHerdsHere(ctx))
         {
             yield return new WorkOption(
-                GetHerdHuntDescription(ctx),
+                "Hunt",
                 "hunt_herd",  // Different ID to avoid collision with territory hunt
                 new HuntStrategy()
             );
         }
     }
 
-    /// <summary>
-    /// Check if this location has any work options available.
-    /// </summary>
     public bool HasWorkOptions(GameContext ctx) => GetWorkOptions(ctx).Any();
 
     /// <summary>
     /// Check if this location has an active heat source (fire).
     /// </summary>
     public bool HasActiveHeatSource() => GetFeature<HeatSourceFeature>()?.IsActive ?? false;
-
-    /// <summary>
-    /// Check if this location has a light source.
-    /// Currently only active fires, but could extend for torches or other light sources later.
-    /// </summary>
-    public bool HasLight() => HasActiveHeatSource();
-
-    /// <summary>
-    /// Remove a feature by type. Returns true if removed.
-    /// </summary>
-    public bool RemoveFeature<T>() where T : LocationFeature
-    {
-        var feature = GetFeature<T>();
-        if (feature != null)
-        {
-            Features.Remove(feature);
-            return true;
-        }
-        return false;
-    }
 
     /// <summary>
     /// Remove a specific feature instance.
@@ -439,6 +336,16 @@ public class Location
         }
     }
 
+    public List<Resource> ListResourcesHere()
+    {
+        List<Resource> resources = new();
+        foreach (var feature in Features)
+        {
+            resources.AddRange(feature.ProvidedResources());
+        }
+        return resources;
+    }
+
 
     public void Explore()
     {
@@ -455,57 +362,4 @@ public class Location
         return $"??? (~{rounded} min)";
     }
 
-    public string GetGatherSummary()
-    {
-        var parts = new List<string>();
-
-        var forage = GetFeature<ForageFeature>();
-        if (forage != null)
-        {
-            var resources = forage.GetAvailableResourceTypes();
-            if (resources.Count > 0)
-                parts.Add($"Foraging: {string.Join(", ", resources.Take(3))}");
-        }
-
-        var harvestables = Features
-            .OfType<HarvestableFeature>()
-            .Where(h => h.IsDiscovered && h.HasAvailableResources())
-            .Select(h => h.DisplayName);
-
-        if (harvestables.Any())
-            parts.AddRange(harvestables);
-
-        return string.Join(" | ", parts);
-    }
-
-    #region Description Helpers
-
-    private string GetShelterClause(ShelterFeature s)
-    {
-        double quality = (s.TemperatureInsulation + s.OverheadCoverage + s.WindCoverage) / 3;
-        string name = s.Name.ToLower();
-        string article = "aeiou".Contains(name[0]) ? "an" : "a";
-        return quality switch
-        {
-            >= 0.7 => $"well-sheltered by {article} {name}",
-            >= 0.4 => $"beneath {article} {name}",
-            _ => $"with only {article} {name} for cover"
-        };
-    }
-
-    private string GetFireClause(HeatSourceFeature f)
-    {
-        if (!f.IsActive && f.HasEmbers) return "with glowing embers";
-        return f.GetFirePhase() switch
-        {
-            "Igniting" => "with a small fire starting",
-            "Building" => "with a growing fire",
-            "Roaring" => "with a roaring fire",
-            "Steady" => "with a steady fire",
-            "Dying" => "with a dying fire",
-            _ => "with a fire"
-        };
-    }
-
-    #endregion
 }

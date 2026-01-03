@@ -1,10 +1,7 @@
-using text_survival.Actions;
 using text_survival.Actions.Expeditions.WorkStrategies;
-using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
-using text_survival.Items;
 using text_survival.UI;
 using text_survival.Web;
 
@@ -136,11 +133,6 @@ public class WorkRunner(GameContext ctx)
         return ExecuteWork(location, new SalvageStrategy());
     }
 
-    public WorkResult DoExplore(Location location)
-    {
-        return ExecuteWork(location, new ExploreStrategy());
-    }
-
     // === PROGRESS AND TIME PASSAGE ===
 
     /// <summary>
@@ -221,40 +213,7 @@ public class WorkRunner(GameContext ctx)
     }
 
     // === WORK OPTIONS (used by ExpeditionRunner) ===
-
-    /// <summary>
-    /// Check if any work is available at a location.
-    /// Hunt is now a feature-based work option. Explore remains zone-level.
-    /// </summary>
-    public static bool HasWorkOptions(GameContext ctx, Location location)
-    {
-        // Feature-based work options (includes Hunt from AnimalTerritoryFeature)
-        if (location.HasWorkOptions(ctx))
-            return true;
-
-        // Explore - zone-level action
-        if (ctx.HasUnrevealedLocations())
-            return true;
-
-        return false;
-    }
-
-    /// <summary>
-    /// Get work options menu for a location. Returns null if no options available.
-    /// Does not include Hunt (separate action type) or Explore (zone-level).
-    /// </summary>
-    public static Choice<string>? GetWorkOptions(GameContext ctx, Location location)
-    {
-        var options = location.GetWorkOptions(ctx).ToList();
-        if (options.Count == 0) return null;
-
-        var choice = new Choice<string>("What work do you want to do?");
-        foreach (var option in options)
-            choice.AddOption(option.Label, option.Id);
-        choice.AddOption("Cancel", "cancel");
-        return choice;
-    }
-
+    
     /// <summary>
     /// Execute work by ID. Finds the matching WorkOption and executes its strategy.
     /// </summary>
@@ -263,22 +222,6 @@ public class WorkRunner(GameContext ctx)
         var option = location.GetWorkOptions(_ctx).FirstOrDefault(o => o.Id == workId);
         if (option == null) return WorkResult.Empty(0);
         return ExecuteWork(location, option.Strategy);
-    }
-
-    /// <summary>
-    /// Get labels for available work types (for menu display).
-    /// </summary>
-    public static List<string> GetWorkLabels(GameContext ctx, Location location)
-    {
-        var labels = new List<string>();
-
-        if (location.HasFeature<ForageFeature>())
-            labels.Add("Forage");
-
-        if (ctx.HasUnrevealedLocations())
-            labels.Add("Scout");
-
-        return labels;
     }
 
     // === HELPERS ===

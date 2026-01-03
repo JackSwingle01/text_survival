@@ -867,7 +867,7 @@ public static class Situations
 
         bool hasScavengers = ctx.Herds.GetHerdsByBehavior(HerdBehaviorType.Scavenger)
             .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
-        bool hasWolves = ctx.Herds.GetHerdsByType("Wolf")
+        bool hasWolves = ctx.Herds.GetHerdsByType(AnimalType.Wolf)
             .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
 
         return hasScavengers && hasWolves;
@@ -917,7 +917,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetHerdsByType("Saber-Tooth")
+        return ctx.Herds.GetHerdsByType(AnimalType.SaberTooth)
             .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
     }
 
@@ -967,7 +967,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetHerdsByType("Woolly Mammoth")
+        return ctx.Herds.GetHerdsByType(AnimalType.Mammoth)
             .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
     }
 
@@ -978,7 +978,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetHerdsByType("Woolly Mammoth")
+        return ctx.Herds.GetHerdsByType(AnimalType.Mammoth)
             .Any(h => h.Count > 0 && h.Position.ManhattanDistance(pos) <= 2);
     }
 
@@ -989,7 +989,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetHerdsByType("Woolly Mammoth")
+        return ctx.Herds.GetHerdsByType(AnimalType.Mammoth)
             .Any(h => h.Position == pos && h.Count > 0);
     }
 
@@ -999,7 +999,7 @@ public static class Situations
     /// </summary>
     public static Herd? GetMammothHerd(GameContext ctx)
     {
-        return ctx.Herds.GetHerdsByType("Woolly Mammoth")
+        return ctx.Herds.GetHerdsByType(AnimalType.Mammoth)
             .FirstOrDefault(h => h.Count > 0);
     }
 

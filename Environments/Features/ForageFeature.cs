@@ -536,6 +536,9 @@ public class ForageFeature : LocationFeature, IWorkableFeature
             GetAvailableResourceTypes());
     }
 
+    public override List<Resource> ProvidedResources() =>
+        _resources.Select(r => r.ResourceType).Distinct().ToList();
+
     #region Save/Load Support
 
     // Collection needs backing field for mutation

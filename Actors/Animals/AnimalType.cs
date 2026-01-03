@@ -23,8 +23,6 @@ public enum AnimalType
     Ptarmigan,
     Fox,
     Rat,
-    Squirrel,
-    Grouse,
     Fish
 }
 
@@ -44,15 +42,13 @@ public static class AnimalTypes
         AnimalType.Mammoth => "Mammoth",
         AnimalType.Wolf => "Wolf",
         AnimalType.Bear => "Bear",
-        AnimalType.CaveBear => "Cave Bear",
-        AnimalType.SaberTooth => "Saber-Tooth",
+        AnimalType.CaveBear => "CaveBear",
+        AnimalType.SaberTooth => "SaberTooth",
         AnimalType.Hyena => "Hyena",
         AnimalType.Rabbit => "Rabbit",
         AnimalType.Ptarmigan => "Ptarmigan",
         AnimalType.Fox => "Fox",
         AnimalType.Rat => "Rat",
-        AnimalType.Squirrel => "Squirrel",
-        AnimalType.Grouse => "Grouse",
         AnimalType.Fish => "Fish",
         _ => type.ToString()
     };
@@ -75,8 +71,6 @@ public static class AnimalTypes
         AnimalType.Ptarmigan => "🐦",
         AnimalType.Fox => "🦊",
         AnimalType.Rat => "🐀",
-        AnimalType.Squirrel => "🐿️",
-        AnimalType.Grouse => "🐦",
         AnimalType.Fish => "🐟",
         _ => "🐾"
     };
@@ -96,8 +90,7 @@ public static class AnimalTypes
     /// </summary>
     public static bool IsSmallGame(this AnimalType type) => type switch
     {
-        AnimalType.Rabbit or AnimalType.Ptarmigan or AnimalType.Fox
-            or AnimalType.Squirrel or AnimalType.Grouse or AnimalType.Fish => true,
+        AnimalType.Rabbit or AnimalType.Ptarmigan or AnimalType.Fox or AnimalType.Fish => true,
         _ => false
     };
 
@@ -132,8 +125,6 @@ public static class AnimalTypes
         AnimalType.Rabbit => 2,
         AnimalType.Rat => 0.3,
         AnimalType.Ptarmigan => 0.5,
-        AnimalType.Squirrel => 0.4,
-        AnimalType.Grouse => 0.5,
         AnimalType.Fish => 1,
         _ => 10
     };
@@ -180,15 +171,13 @@ public static class AnimalTypes
             "mammoth" or "woolly mammoth" => AnimalType.Mammoth,
             "wolf" => AnimalType.Wolf,
             "bear" => AnimalType.Bear,
-            "cave bear" => AnimalType.CaveBear,
-            "saber-tooth" or "saber-tooth tiger" or "sabertooth" => AnimalType.SaberTooth,
+            "cave bear" or "cavebear" => AnimalType.CaveBear,
+            "saber-tooth" or "saber tooth tiger" or "sabertooth" => AnimalType.SaberTooth,
             "hyena" or "cave hyena" => AnimalType.Hyena,
             "rabbit" => AnimalType.Rabbit,
             "ptarmigan" => AnimalType.Ptarmigan,
             "fox" => AnimalType.Fox,
             "rat" => AnimalType.Rat,
-            "squirrel" => AnimalType.Squirrel,
-            "grouse" => AnimalType.Grouse,
             "fish" => AnimalType.Fish,
             _ => null
         };

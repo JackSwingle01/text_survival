@@ -106,4 +106,6 @@ public class CraftingProjectFeature : LocationFeature, IWorkableFeature
         }
         return reclaimed;
     }
+
+    public override List<Resource> ProvidedResources() => [];
 }

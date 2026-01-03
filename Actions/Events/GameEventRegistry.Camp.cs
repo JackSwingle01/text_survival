@@ -1,4 +1,5 @@
 using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -197,7 +198,7 @@ public static partial class GameEventRegistry
     private static GameEvent RustleAtCampEdge(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
 
         return new GameEvent("Rustle at Camp Edge",
             $"Rustling at the camp perimeter. Something drawn by the scent of your food.", 0.8)
@@ -212,13 +213,13 @@ public static partial class GameEventRegistry
                     new EventResult("A weak rabbit. Easy catch.", 0.25, 10)
                         .Rewards(RewardPool.SmallGame),
                     new EventResult("A fox. It retreats but doesn't go far.", 0.20, 8)
-                        .BecomeStalked(0.15, "Fox"),
+                        .BecomeStalked(0.15, AnimalType.Fox),
                     new EventResult("Nothing there now. Tracks suggest a small scavenger.", 0.15, 8)
-                        .BecomeStalked(0.05, "Scavenger"),
-                    new EventResult($"{predator}. Close. It hasn't decided if you're prey yet.", 0.20, 5)
+                        .BecomeStalked(0.05),
+                    new EventResult($"{predator.DisplayName()}. Close. It hasn't decided if you're prey yet.", 0.20, 5)
                         .Frightening()
                         .BecomeStalked(0.4, predator),
-                    new EventResult($"{predator}. It charges.", 0.15, 0)
+                    new EventResult($"{predator.DisplayName()}. It charges.", 0.15, 0)
                         .Panicking()
                         .Encounter(predator, 15, 0.6),
                     new EventResult("Blood on the snow. Something killed here recently — and it's still nearby.", 0.05, 3)
@@ -240,7 +241,7 @@ public static partial class GameEventRegistry
                     new EventResult("It steals some food while you're not looking.", 0.35, 0)
                         .Costs(ResourceType.Food, 1),
                     new EventResult("Ignoring it emboldens it. It'll be back.", 0.15, 0)
-                        .BecomeStalked(0.2, "Scavenger")
+                        .BecomeStalked(0.2)
                 ]);
     }
 

@@ -14,8 +14,8 @@ public class Player : Actor
     public int LastUpdateMinutes { get; private set; } = 1;
 
     // Combat defaults (unarmed) - actual weapon passed to Attack()
-    public override double AttackDamage => 2;
-    public override double BlockChance => 0.01;
+    public override double AttackDamage => .1;
+    public override double BlockChance => 0.05;
     public override string AttackName => "fists";
     public override DamageType AttackType => DamageType.Blunt;
 

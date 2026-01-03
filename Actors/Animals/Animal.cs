@@ -1,5 +1,6 @@
 using text_survival.Bodies;
-using text_survival.Items;
+using text_survival.Environments;
+using text_survival.Environments.Grid;
 
 namespace text_survival.Actors.Animals
 {
@@ -179,12 +180,14 @@ namespace text_survival.Actors.Animals
             double attackDamage,
             string attackName,
             DamageType attackType,
+            Location location,
+            GameMap map,
             double speedMps = 6.0,
             double pursuitCommitment = 45.0,
             bool isHostile = true,
             double blockChance = 0.01,
             double disengageAfterMaul = 0.1)
-            : base(name, bodyStats)
+            : base(name, bodyStats, location, map)
         {
             // Combat stats
             AttackDamage = attackDamage;

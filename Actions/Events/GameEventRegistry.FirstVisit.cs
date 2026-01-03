@@ -1,3 +1,10 @@
+using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
+using text_survival.Bodies;
+using text_survival.Effects;
+using text_survival.Environments.Features;
+using text_survival.Items;
+
 namespace text_survival.Actions;
 
 /// <summary>
@@ -42,9 +49,9 @@ public static partial class GameEventRegistry
                 "Move slowly. Let your eyes adjust.",
                 [
                     new EventResult("Darkness swallows you. The cave goes deeper than you expected. Anything could be in here.", weight: 0.7, minutes: 5)
-                        .CreateTension("ClaimedTerritory", 0.3, animalType: "Bear", location: ctx.CurrentLocation),
+                        .CreateTension("ClaimedTerritory", 0.3, animalType: AnimalType.Bear, location: ctx.CurrentLocation),
                     new EventResult("Your footstep echoes. Something shifts in the darkness ahead.", weight: 0.3, minutes: 3)
-                        .CreateTension("ClaimedTerritory", 0.5, animalType: "Bear", location: ctx.CurrentLocation)
+                        .CreateTension("ClaimedTerritory", 0.5, animalType: AnimalType.Bear, location: ctx.CurrentLocation)
                 ])
             .Choice("Stay near the entrance",
                 "No need to push deeper. Not yet.",

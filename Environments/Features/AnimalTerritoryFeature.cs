@@ -9,7 +9,7 @@ namespace text_survival.Environments.Features;
 /// <summary>
 /// Entry defining an animal type that can spawn in this territory.
 /// </summary>
-public record AnimalSpawnEntry(string AnimalType, double SpawnWeight);
+public record AnimalSpawnEntry(AnimalType AnimalType, double SpawnWeight);
 
 /// <summary>
 /// Defines what animals can be found at a location through hunting.
@@ -115,11 +115,13 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     /// Automatically consumes any temporary hunt bonus from game clues.
     /// </summary>
     /// <param name="minutesSearching">Time spent searching</param>
+    /// <param name="location">Location where search is happening</param>
+    /// <param name="map">Game map</param>
     /// <returns>A small game Animal if found, null if search fails</returns>
-    public Animal? SearchForGame(int minutesSearching)
+    public Animal? SearchForGame(int minutesSearching, Location location, GameMap map)
     {
         // Filter to small game only - large game comes from persistent herds
-        var smallGame = _possibleAnimals.Where(a => IsSmallGame(a.AnimalType)).ToList();
+        var smallGame = _possibleAnimals.Where(a => a.AnimalType.IsSmallGame()).ToList();
         if (smallGame.Count == 0) return null;
 
         // Consume temporary bonus if any (from following game clues during foraging)
@@ -137,7 +139,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
         var entry = SelectRandomAnimalFrom(smallGame);
         if (entry == null) return null;
 
-        return CreateAnimal(entry.AnimalType);
+        return CreateAnimal(entry.AnimalType, location, map);
     }
 
     /// <summary>
@@ -173,7 +175,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
         return animals.Last();
     }
 
-    private static Animal? CreateAnimal(string animalType) => AnimalFactory.FromName(animalType);
+    private static Animal? CreateAnimal(AnimalType animalType, Location location, GameMap map) => AnimalFactory.FromType(animalType, location, map);
 
     /// <summary>
     /// Get work options for this feature.
@@ -219,7 +221,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
     /// <summary>
     /// Add an animal type that can be found in this territory.
     /// </summary>
-    public AnimalTerritoryFeature AddAnimal(string animalType, double spawnWeight = 1.0)
+    public AnimalTerritoryFeature AddAnimal(AnimalType animalType, double spawnWeight = 1.0)
     {
         _possibleAnimals.Add(new AnimalSpawnEntry(animalType, spawnWeight));
         return this;
@@ -227,15 +229,15 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
 
     // Convenience methods for common configurations
 
-    public AnimalTerritoryFeature AddCaribou(double weight = 1.0) => AddAnimal("caribou", weight);
-    public AnimalTerritoryFeature AddRabbit(double weight = 1.0) => AddAnimal("rabbit", weight);
-    public AnimalTerritoryFeature AddPtarmigan(double weight = 1.0) => AddAnimal("ptarmigan", weight);
-    public AnimalTerritoryFeature AddFox(double weight = 0.5) => AddAnimal("fox", weight);
-    public AnimalTerritoryFeature AddWolf(double weight = 0.3) => AddAnimal("wolf", weight);
-    public AnimalTerritoryFeature AddBear(double weight = 0.2) => AddAnimal("bear", weight);
-    public AnimalTerritoryFeature AddMegaloceros(double weight = 0.3) => AddAnimal("megaloceros", weight);
-    public AnimalTerritoryFeature AddBison(double weight = 0.4) => AddAnimal("bison", weight);
-    public AnimalTerritoryFeature AddHyena(double weight = 0.3) => AddAnimal("hyena", weight);
+    public AnimalTerritoryFeature AddCaribou(double weight = 1.0) => AddAnimal(AnimalType.Caribou, weight);
+    public AnimalTerritoryFeature AddRabbit(double weight = 1.0) => AddAnimal(AnimalType.Rabbit, weight);
+    public AnimalTerritoryFeature AddPtarmigan(double weight = 1.0) => AddAnimal(AnimalType.Ptarmigan, weight);
+    public AnimalTerritoryFeature AddFox(double weight = 0.5) => AddAnimal(AnimalType.Fox, weight);
+    public AnimalTerritoryFeature AddWolf(double weight = 0.3) => AddAnimal(AnimalType.Wolf, weight);
+    public AnimalTerritoryFeature AddBear(double weight = 0.2) => AddAnimal(AnimalType.Bear, weight);
+    public AnimalTerritoryFeature AddMegaloceros(double weight = 0.3) => AddAnimal(AnimalType.Megaloceros, weight);
+    public AnimalTerritoryFeature AddBison(double weight = 0.4) => AddAnimal(AnimalType.Bison, weight);
+    public AnimalTerritoryFeature AddHyena(double weight = 0.3) => AddAnimal(AnimalType.Hyena, weight);
 
     /// <summary>
     /// Set peak activity hours when game is more likely to be found.
@@ -284,7 +286,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
 
         // Find the heaviest animal type to determine description
         var heaviest = _possibleAnimals
-            .Select(a => (a, GetAnimalWeight(a.AnimalType)))
+            .Select(a => (a, a.AnimalType.WeightKg()))
             .OrderByDescending(x => x.Item2)
             .First();
 
@@ -321,47 +323,28 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
         };
     }
 
-    private static double GetAnimalWeight(string animalType)
-    {
-        return animalType.ToLower() switch
-        {
-            "caribou" => 120,
-            "rabbit" => 2,
-            "ptarmigan" => 0.5,
-            "fox" => 6,
-            "wolf" => 40,
-            "bear" => 250,
-            "cave bear" => 350,
-            "rat" => 2,
-            "megaloceros" => 600,
-            "bison" => 800,
-            "hyena" => 70,
-            _ => 10
-        };
-    }
-
     // Event system helpers
 
     /// <summary>
-    /// Get a random animal name based on spawn weights (for event text).
+    /// Get a random animal type based on spawn weights (for event text).
     /// </summary>
-    public string GetRandomAnimalName()
+    public AnimalType? GetRandomAnimal()
     {
         var entry = SelectRandomAnimal();
-        return entry?.AnimalType ?? "animal";
+        return entry?.AnimalType;
     }
 
     /// <summary>
     /// Check if any predators exist in this territory.
     /// </summary>
-    public bool HasPredators() => _possibleAnimals.Any(a => IsPredatorType(a.AnimalType));
+    public bool HasPredators() => _possibleAnimals.Any(a => a.AnimalType.IsPredator());
 
     /// <summary>
-    /// Get a random predator name from this territory (for "Something Watching" event).
+    /// Get a random predator type from this territory (for "Something Watching" event).
     /// </summary>
-    public string? GetRandomPredatorName()
+    public AnimalType? GetRandomPredator()
     {
-        var predators = _possibleAnimals.Where(a => IsPredatorType(a.AnimalType)).ToList();
+        var predators = _possibleAnimals.Where(a => a.AnimalType.IsPredator()).ToList();
         if (predators.Count == 0) return null;
 
         double totalWeight = predators.Sum(a => a.SpawnWeight);
@@ -376,28 +359,6 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
         return predators.Last().AnimalType;
     }
 
-    private static bool IsPredatorType(string animalType)
-    {
-        return animalType.ToLower() switch
-        {
-            "wolf" or "bear" or "cave bear" or "hyena" => true,
-            _ => false
-        };
-    }
-
-    /// <summary>
-    /// Check if an animal type is small game (spawn-based hunting).
-    /// Large game (caribou, wolves, bears, etc.) come from persistent herds.
-    /// </summary>
-    private static bool IsSmallGame(string animalType)
-    {
-        return animalType.ToLower() switch
-        {
-            "rabbit" or "ptarmigan" or "fox" or "squirrel" or "grouse" or "fish" => true,
-            _ => false
-        };
-    }
-
     public override FeatureUIInfo? GetUIInfo()
     {
         if (!CanHunt()) return null;
@@ -407,6 +368,9 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
             GetDescription(),
             null);
     }
+
+    public override List<Resource> ProvidedResources() =>
+        CanHunt() ? [Resource.RawMeat] : [];
 
     #region Save/Load Support - No longer needed with field-based serialization
 

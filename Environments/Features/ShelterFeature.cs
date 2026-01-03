@@ -209,4 +209,6 @@ public class ShelterFeature : LocationFeature
     }
 
     #endregion
+
+    public override List<Resource> ProvidedResources() => [];
 }

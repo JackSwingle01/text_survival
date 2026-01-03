@@ -517,7 +517,7 @@ public static class HuntRunner
                 // Create WoundedPrey tension
                 var tension = Tensions.ActiveTension.WoundedPrey(
                     woundSeverity,
-                    target.Name,
+                    null,
                     ctx.CurrentLocation
                 );
                 ctx.Tensions.AddTension(tension);

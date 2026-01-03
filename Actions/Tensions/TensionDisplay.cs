@@ -1,3 +1,5 @@
+using text_survival.Actors.Animals;
+
 namespace text_survival.Actions.Tensions;
 
 /// <summary>
@@ -36,9 +38,9 @@ public static class TensionDisplay
         if (TensionLookup.TryGetValue(tension.Type, out var info))
         {
             var message = info.MessageTemplate;
-            if (tension.AnimalType != null)
+            if (tension.AnimalType.HasValue)
             {
-                message = message.Replace("{animalType}", tension.AnimalType.ToLower());
+                message = message.Replace("{animalType}", tension.AnimalType.Value.DisplayName().ToLower());
             }
             else
             {

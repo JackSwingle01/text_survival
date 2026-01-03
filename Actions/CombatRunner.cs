@@ -1596,22 +1596,9 @@ public static class CombatRunner
     /// Creates an animal from an EncounterConfig, ready for combat.
     /// Logs a warning and returns null for unknown animal types.
     /// </summary>
-    public static Animal? CreateAnimalFromConfig(EncounterConfig config)
+    public static Animal? CreateAnimalFromConfig(EncounterConfig config, Location location, GameMap map)
     {
-        var animal = config.AnimalType.ToLower() switch
-        {
-            "wolf" => AnimalFactory.MakeWolf(),
-            "bear" => AnimalFactory.MakeBear(),
-            "cave bear" => AnimalFactory.MakeCaveBear(),
-            "mammoth" => AnimalFactory.MakeWoollyMammoth(),
-            "fox" => AnimalFactory.MakeFox(),
-            "caribou" => AnimalFactory.MakeCaribou(),
-            "megaloceros" => AnimalFactory.MakeMegaloceros(),
-            "bison" => AnimalFactory.MakeSteppeBison(),
-            "hyena" => AnimalFactory.MakeCaveHyena(),
-            "sabertooth" => AnimalFactory.MakeSaberToothTiger(),
-            _ => null
-        };
+        var animal = AnimalFactory.FromType(config.AnimalType, location, map);
 
         if (animal == null)
         {

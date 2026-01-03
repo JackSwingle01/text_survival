@@ -137,6 +137,9 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
         return hints.Count > 0 ? string.Join(", ", hints) : "nothing obvious";
     }
 
+    public override List<Resource> ProvidedResources() =>
+        HasLoot ? Resources.GetResourceTypes() : [];
+
     // === Factory methods for common salvage types ===
 
     /// <summary>

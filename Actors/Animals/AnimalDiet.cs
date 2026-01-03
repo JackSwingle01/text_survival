@@ -81,21 +81,21 @@ public static class AnimalDietExtensions
         };
     }
 
-    /// <summary>
-    /// Get diet for an animal type.
-    /// </summary>
-    public static AnimalDiet GetDietForAnimal(string animalType)
-    {
-        return animalType.ToLower() switch
-        {
-            "bear" or "cave bear" => AnimalDiet.Omnivore,
-            "caribou" or "megaloceros" => AnimalDiet.Browser,
-            "mammoth" or "woolly mammoth" => AnimalDiet.Browser,  // Mammoths browse trees/shrubs
-            "bison" or "steppe bison" => AnimalDiet.Grazer,
-            "wolf" => AnimalDiet.Carnivore,
-            "hyena" or "cave hyena" => AnimalDiet.Carnivore,
-            "saber-tooth" or "saber-tooth tiger" => AnimalDiet.Carnivore,
-            _ => AnimalDiet.Carnivore // Default to no foraging competition
-        };
-    }
+    // /// <summary>
+    // /// Get diet for an animal type.
+    // /// </summary>
+    // public static AnimalDiet GetDietForAnimal(string animalType)
+    // {
+    //     return animalType.ToLower() switch
+    //     {
+    //         AnimalType.Bear.ToString() or AnimalType.CaveBear.ToString() => AnimalDiet.Omnivore,
+    //         AnimalType.Caribou.ToString() or AnimalType.Megaloceros.ToString() => AnimalDiet.Browser,
+    //         AnimalType.Mammoth.ToString() or "woolly mammoth" => AnimalDiet.Browser,  // Mammoths browse trees/shrubs
+    //         AnimalType.Bison.ToString() or "steppe bison" => AnimalDiet.Grazer,
+    //         AnimalType.Wolf.ToString() => AnimalDiet.Carnivore,
+    //         AnimalType.Hyena.ToString() or "cave hyena" => AnimalDiet.Carnivore,
+    //         AnimalType.SaberTooth.ToString() or "saber-tooth tiger" => AnimalDiet.Carnivore,
+    //         _ => AnimalDiet.Carnivore // Default to no foraging competition
+    //     };
+    // }
 }

@@ -1,3 +1,5 @@
+using text_survival.Actors.Animals;
+
 namespace text_survival.Actions.Variants;
 
 /// <summary>
@@ -17,16 +19,15 @@ public record ScavengeScenario(
 /// <summary>
 /// Weighted pool of animal types for carcass selection.
 /// </summary>
-public record WeightedAnimalPool(string[] Animals, double[] Weights)
+public record WeightedAnimalPool(AnimalType[] Animals, double[] Weights)
 {
-    public static WeightedAnimalPool Single(string animal) =>
+    public static WeightedAnimalPool Single(AnimalType animal) =>
         new([animal], [1.0]);
 
     public static WeightedAnimalPool Empty => new([], []);
 
-    public string Select()
+    public AnimalType Select()
     {
-        if (Animals.Length == 0) return "";
         if (Animals.Length == 1) return Animals[0];
 
         double total = Weights.Sum();
@@ -46,14 +47,14 @@ public record WeightedAnimalPool(string[] Animals, double[] Weights)
 /// <summary>
 /// Weighted pool of predator types for encounter selection.
 /// </summary>
-public record WeightedPredatorPool(string[] Predators, double[] Weights)
+public record WeightedPredatorPool(AnimalType[] Predators, double[] Weights)
 {
-    public static WeightedPredatorPool Single(string predator) =>
+    public static WeightedPredatorPool Single(AnimalType predator) =>
         new([predator], [1.0]);
 
     public static WeightedPredatorPool None => new([], []);
 
-    public string? Select()
+    public AnimalType? Select()
     {
         if (Predators.Length == 0) return null;
         if (Predators.Length == 1) return Predators[0];
@@ -159,15 +160,15 @@ public static class ScavengeScenarios
     public static readonly ScavengeScenario[] SmallGame =
     [
         new("Scattered feathers and blood",
-            new WeightedAnimalPool(["Grouse"], [1.0]),
+            new WeightedAnimalPool([AnimalType.Ptarmigan], [1.0]),
             FreshnessCategory.Recent,
-            new WeightedPredatorPool(["Fox"], [1.0]),
+            new WeightedPredatorPool([AnimalType.Fox], [1.0]),
             0.03),
 
         new("Blood trail into the brush",
-            new WeightedAnimalPool(["Hare", "Grouse", "Fox"], [0.6, 0.2, 0.2]),
+            new WeightedAnimalPool([AnimalType.Rabbit, AnimalType.Ptarmigan, AnimalType.Fox], [0.6, 0.2, 0.2]),
             FreshnessCategory.Recent,
-            new WeightedPredatorPool(["Wolf", "Fox"], [0.4, 0.6]),
+            new WeightedPredatorPool([AnimalType.Wolf, AnimalType.Fox], [0.4, 0.6]),
             0.08),
     ];
 
@@ -176,22 +177,22 @@ public static class ScavengeScenarios
     public static readonly ScavengeScenario[] MediumGame =
     [
         new("Circling ravens ahead",
-            new WeightedAnimalPool(["Caribou", "Hare", "Fox", "Wolf"], [0.5, 0.2, 0.15, 0.15]),
+            new WeightedAnimalPool([AnimalType.Caribou, AnimalType.Rabbit, AnimalType.Fox, AnimalType.Wolf], [0.5, 0.2, 0.15, 0.15]),
             FreshnessCategory.PickedOver,
-            new WeightedPredatorPool(["Wolf"], [1.0]),
+            new WeightedPredatorPool([AnimalType.Wolf], [1.0]),
             0.12),
 
         new("Drag marks through the snow",
-            new WeightedAnimalPool(["Caribou", "Wolf", "Megaloceros"], [0.6, 0.25, 0.15]),
+            new WeightedAnimalPool([AnimalType.Caribou, AnimalType.Wolf, AnimalType.Megaloceros], [0.6, 0.25, 0.15]),
             FreshnessCategory.Recent,
-            new WeightedPredatorPool(["Wolf", "Bear"], [0.7, 0.3]),
+            new WeightedPredatorPool([AnimalType.Wolf, AnimalType.Bear], [0.7, 0.3]),
             0.15,
             ["snow"]),
 
         new("Ground torn up, blood frozen",
-            new WeightedAnimalPool(["Caribou", "Bison", "Megaloceros"], [0.4, 0.35, 0.25]),
+            new WeightedAnimalPool([AnimalType.Caribou, AnimalType.Bison, AnimalType.Megaloceros], [0.4, 0.35, 0.25]),
             FreshnessCategory.PickedOver,
-            new WeightedPredatorPool(["Wolf"], [1.0]),
+            new WeightedPredatorPool([AnimalType.Wolf], [1.0]),
             0.10,
             ["cold"]),
     ];
@@ -201,15 +202,15 @@ public static class ScavengeScenarios
     public static readonly ScavengeScenario[] LargeGame =
     [
         new("Fresh kill, still warm. Blood steams in the cold.",
-            new WeightedAnimalPool(["Caribou", "Bison", "Megaloceros", "Wolf"], [0.35, 0.30, 0.25, 0.10]),
+            new WeightedAnimalPool([AnimalType.Caribou, AnimalType.Bison, AnimalType.Megaloceros, AnimalType.Wolf], [0.35, 0.30, 0.25, 0.10]),
             FreshnessCategory.Fresh,
-            new WeightedPredatorPool(["Wolf", "Bear"], [0.6, 0.4]),
+            new WeightedPredatorPool([AnimalType.Wolf, AnimalType.Bear], [0.6, 0.4]),
             0.25),
 
         new("Large carcass, wolves gone. Still fresh enough.",
-            new WeightedAnimalPool(["Bison", "Caribou", "Megaloceros"], [0.5, 0.3, 0.2]),
+            new WeightedAnimalPool([AnimalType.Bison, AnimalType.Caribou, AnimalType.Megaloceros], [0.5, 0.3, 0.2]),
             FreshnessCategory.Recent,
-            new WeightedPredatorPool(["Wolf"], [1.0]),
+            new WeightedPredatorPool([AnimalType.Wolf], [1.0]),
             0.08,
             ["predator_territory"]),
     ];
@@ -219,16 +220,16 @@ public static class ScavengeScenarios
     public static readonly ScavengeScenario[] Special =
     [
         new("Something large, half-buried in snow. Frozen solid.",
-            new WeightedAnimalPool(["Bison", "Caribou", "Bear", "Woolly Mammoth"], [0.4, 0.35, 0.15, 0.1]),
+            new WeightedAnimalPool([AnimalType.Bison, AnimalType.Caribou, AnimalType.Bear, AnimalType.Mammoth], [0.4, 0.35, 0.15, 0.1]),
             FreshnessCategory.Fresh,
             WeightedPredatorPool.None,
             0,
             ["deep_cold"]),
 
         new("Pine branches piled over something. Bear cache.",
-            new WeightedAnimalPool(["Caribou", "Bison", "Megaloceros"], [0.6, 0.3, 0.1]),
+            new WeightedAnimalPool([AnimalType.Caribou, AnimalType.Bison, AnimalType.Megaloceros], [0.6, 0.3, 0.1]),
             FreshnessCategory.Recent,
-            WeightedPredatorPool.Single("Bear"),
+            WeightedPredatorPool.Single(AnimalType.Bear),
             0.60,
             ["bear_territory"]),
     ];

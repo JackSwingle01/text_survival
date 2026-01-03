@@ -14,11 +14,11 @@ public static partial class GameEventRegistry
     private static GameEvent FreshCarcass(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animal = territory?.GetRandomAnimalName() ?? "animal";
+        var animal = territory?.GetRandomAnimal() ?? AnimalType.Wolf;
 
         return new GameEvent(
             "Fresh Carcass",
-            $"Something killed a {animal.ToLower()} recently. The meat's still good, but you didn't make this kill.", 0.5)
+            $"Something killed a {animal.DisplayName().ToLower()} recently. The meat's still good, but you didn't make this kill.", 0.5)
             .Requires(EventCondition.Working, EventCondition.InAnimalTerritory)
             .WithSituationFactor(Situations.PredatorInTerritory, 2.0)  // More likely in predator territory
             .Choice("Scavenge Quickly", "Grab what you can and get out before whatever killed this returns.",
@@ -58,14 +58,14 @@ public static partial class GameEventRegistry
         var herdInTerritory = ctx.Herds._herds
             .FirstOrDefault(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animal = herdInTerritory?.AnimalType.DisplayName() ?? territory?.GetRandomAnimalName() ?? "animal";
+        var animal = herdInTerritory?.AnimalType ?? territory?.GetRandomAnimal() ?? AnimalType.Wolf;
         bool isPredator = herdInTerritory != null
             ? herdInTerritory.IsPredator
             : (territory?.HasPredators() ?? false);
 
         return new GameEvent(
             "Tracks",
-            $"Fresh {animal.ToLower()} tracks cross your path. They're recent.", 0.3)
+            $"Fresh {animal.DisplayName().ToLower()} tracks cross your path. They're recent.", 0.3)
             .Requires(EventCondition.IsExpedition, EventCondition.InAnimalTerritory)
             .WithConditionFactor(EventCondition.HighVisibility, 1.5) // Easier to see tracks in open terrain
             .WithSituationFactor(Situations.PredatorInTerritory, 5.0) // Very common when predator herd present
@@ -75,13 +75,13 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("The tracks lead nowhere. You lose the trail.", weight: 0.35f, minutes: 20)
                         .CreateTension("FreshTrail", 0.1, description: "faint sign of game"),
-                    new EventResult($"You follow the tracks and find signs of {animal.ToLower()} activity.", weight: 0.35f, minutes: 25)
+                    new EventResult($"You follow the tracks and find signs of {animal.DisplayName().ToLower()} activity.", weight: 0.35f, minutes: 25)
                         .FollowsTracks(animal, isPredator, isPredator ? 1 : 3),
                     new EventResult("You find a game trail — good hunting ground.", weight: 0.15f, minutes: 30)
                         .FindsGameTrail(),
                     new EventResult("You were so focused on the tracks, you didn't notice what was tracking YOU. It lunges.", weight: 0.15f, minutes: 15)
                         .AnimalAttack()
-                        .DiscoversPredator(isPredator ? animal : "Wolf", 0.4)
+                        .DiscoversPredator(isPredator ? animal : AnimalType.Wolf, 0.4f)
                         .Aborts()
                 ])
             .Choice("Note Direction",
@@ -89,7 +89,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You file the information away and continue.", minutes: 2)
                         .CreateTension("FreshTrail", 0.15, description: "noted animal direction")
-                        .MarksAnimalSign(animal, 0.3)
+                        .MarksAnimalSign(animal, 0.3f)
                 ])
             .Choice("Avoid the Area",
                 "Best not to cross paths with whatever made these.",
@@ -104,7 +104,7 @@ public static partial class GameEventRegistry
         var predatorHerd = ctx.Herds.GetPredatorHerds()
             .FirstOrDefault(h => h.HomeTerritory.Contains(ctx.Map?.CurrentPosition ?? default) && h.Count > 0);
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = predatorHerd?.AnimalType.DisplayName() ?? territory?.GetRandomPredatorName() ?? "Wolf";
+        var predator = predatorHerd?.AnimalType ?? territory?.GetRandomPredator() ?? AnimalType.Wolf;
         var variant = AnimalSelector.GetVariant(predator);
 
         // Noise effectiveness varies by animal - skittish animals flee, others may be provoked
@@ -112,7 +112,7 @@ public static partial class GameEventRegistry
         double noiseProvokeWeight = 0.05 + (1 - variant.NoiseEffectiveness) * 0.10;  // 0.05-0.15
 
         return new GameEvent("Something Watching",
-            $"The hair on your neck stands up. Something is watching. You catch a glimpse of movement — {predator.ToLower()}?", 0.2)
+            $"The hair on your neck stands up. Something is watching. You catch a glimpse of movement — {predator.DisplayName()}?", 0.2f)
             .Requires(EventCondition.Working, EventCondition.HasPredators)
             .WithSituationFactor(Situations.PredatorInTerritory, 5.0)    // Very common when predator herd present
             .WithSituationFactor(Situations.AttractiveToPredators, 3.0)  // Meat, bleeding, food scent
@@ -161,10 +161,10 @@ public static partial class GameEventRegistry
     private static GameEvent RavenCall(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
 
         return new GameEvent("Raven Call",
-            "Ravens circling overhead. They've spotted something — or someone. They're watching you.", 0.6)
+            "Ravens circling overhead. They've spotted something — or someone. They're watching you.", 0.6f)
             .Requires(EventCondition.Outside)
             .WithConditionFactor(EventCondition.LowOnFood, 1.5)
             .Choice("Follow Them",
@@ -194,7 +194,7 @@ public static partial class GameEventRegistry
     private static GameEvent StalkerCircling(GameContext ctx)
     {
         var stalkedTension = ctx.Tensions.GetTension("Stalked");
-        var predator = stalkedTension?.AnimalType ?? "Wolf";
+        var predator = stalkedTension?.AnimalType ?? AnimalType.Wolf;
         var variant = AnimalSelector.GetVariant(predator);
 
         // Select terrain-aware escape scenario
@@ -213,7 +213,7 @@ public static partial class GameEventRegistry
         string terrainDesc = $"{escapeScenario.SetupDescription}. {escapeHint}";
 
         var evt = new GameEvent("Stalker Circling",
-            $"You catch movement in your peripheral vision. Again. {variant.CirclingDescription}", 1.5)
+            $"You catch movement in your peripheral vision. Again. {variant.CirclingDescription}", 1.5f)
             .Requires(EventCondition.Stalked, EventCondition.IsExpedition)
             .WithSituationFactor(Situations.InDarkness, darknessFactor)
             .Choice("Confront It Now",
@@ -245,7 +245,7 @@ public static partial class GameEventRegistry
             // Failure results
             escapeResults.Add(new EventResult(primaryEscape.FailureText, failWeight * 0.6, primaryEscape.TimeCost)
                 .EscalatesStalking(0.2));
-            escapeResults.Add(new EventResult($"The {predator.ToLower()} cuts you off. No escape.",
+            escapeResults.Add(new EventResult($"The {predator.DisplayName()} cuts you off. No escape.",
                     failWeight * 0.3, primaryEscape.TimeCost)
                 .ConfrontStalker(predator, 10, 0.7));
             escapeResults.Add(new EventResult("You get turned around trying to escape.",
@@ -316,7 +316,7 @@ public static partial class GameEventRegistry
     private static GameEvent PredatorRevealed(GameContext ctx)
     {
         var stalkedTension = ctx.Tensions.GetTension("Stalked");
-        var predator = stalkedTension?.AnimalType ?? "Wolf";
+        var predator = stalkedTension?.AnimalType ?? AnimalType.Wolf;
         var variant = AnimalSelector.GetVariant(predator);
 
         // Slow retreat success depends on chase threshold - low chase = easier escape
@@ -324,7 +324,7 @@ public static partial class GameEventRegistry
         double chargeWeight = variant.ChaseThreshold * 0.35;  // 0.0-0.35
 
         return new GameEvent("The Predator Revealed",
-            $"You finally see it clearly. A {predator.ToLower()}. It's watching you from maybe thirty feet away. Not hiding anymore. {variant.TacticsDescription}", 2.0)
+            $"You finally see it clearly. A {predator.DisplayName()}. It's watching you from maybe thirty feet away. Not hiding anymore. {variant.TacticsDescription}", 2.0f)
             .Requires(EventCondition.StalkedHigh, EventCondition.IsExpedition)
             .WithSituationFactor(Situations.TrappedByTerrain, 2.0)  // Cornered = revealed faster
             .WithSituationFactor(Situations.RemoteAndVulnerable, 1.5)  // Far + weak = dangerous
@@ -349,22 +349,22 @@ public static partial class GameEventRegistry
     private static GameEvent Ambush(GameContext ctx)
     {
         var stalkedTension = ctx.Tensions.GetTension("Stalked");
-        var predator = stalkedTension?.AnimalType ?? "Wolf";
+        var predator = stalkedTension?.AnimalType ?? AnimalType.Wolf;
         var variant = AnimalSelector.GetVariant(predator);
 
         // Ambush chance affects how the attack unfolds
         string ambushDesc = variant.AmbushChance > 0.3
-            ? $"It's been waiting for this moment. The {predator.ToLower()} strikes from cover."
-            : $"It's done testing. The {predator.ToLower()} charges.";
+            ? $"It's been waiting for this moment. The {predator.DisplayName()} strikes from cover."
+            : $"It's done testing. The {predator.DisplayName()} charges.";
 
-        return new GameEvent("Ambush", ambushDesc, 3.0)
+        return new GameEvent("Ambush", ambushDesc, 3.0f)
             .Requires(EventCondition.StalkedCritical, EventCondition.IsExpedition)
             .WithSituationFactor(Situations.RemoteAndVulnerable, 2.0)  // Isolation invites attack
             .WithSituationFactor(Situations.TrappedByTerrain, 2.5)  // No escape = perfect ambush
             .Choice("Brace Yourself",
                 "No time to run. It's on you.",
                 [
-                    new EventResult($"The {predator.ToLower()} attacks!", weight: 1.0, minutes: 3)
+                    new EventResult($"The {predator.DisplayName()} attacks!", weight: 1.0, minutes: 3)
                         .ConfrontStalker(predator, 5, 0.9)
                 ]);
     }
@@ -374,7 +374,7 @@ public static partial class GameEventRegistry
     private static GameEvent TheShakes(GameContext ctx)
     {
         return new GameEvent("The Shakes",
-            "It's not just the cold. Your blood sugar has crashed. Your hands are trembling so violently you can barely hold anything.", 1.0)
+            "It's not just the cold. Your blood sugar has crashed. Your hands are trembling so violently you can barely hold anything.", 1.0f)
             .Requires(EventCondition.LowCalories, EventCondition.Awake)
             .WithConditionFactor(EventCondition.LowTemperature, 2.0)
             .Choice("Eat Immediately",
@@ -416,7 +416,7 @@ public static partial class GameEventRegistry
     private static GameEvent GutWrench(GameContext ctx)
     {
         return new GameEvent("Gut Wrench",
-            "Your stomach twists. Something you ate isn't sitting right. At all.", 0.6)
+            "Your stomach twists. Something you ate isn't sitting right. At all.", 0.6f)
             .Requires(EventCondition.Eating)
             .WithConditionFactor(EventCondition.LowOnFood, .5)
             .Choice("Induce Vomiting",
@@ -462,7 +462,7 @@ public static partial class GameEventRegistry
         var fallVariant = VariantSelector.SelectAccidentVariant(ctx);
 
         return new GameEvent("Muscle Cramp",
-            "Sharp pain shoots through your leg. The muscle seizes, locks up. You can't put weight on it.", 0.5)
+            "Sharp pain shoots through your leg. The muscle seizes, locks up. You can't put weight on it.", 0.5f)
             .Requires(EventCondition.Awake, EventCondition.Traveling)
             .WithSituationFactor(Situations.CriticallyDepleted, 2.5)  // LowCalories + LowHydration
             .Choice("Work It Out",
@@ -521,7 +521,7 @@ public static partial class GameEventRegistry
     private static GameEvent VisionBlur(GameContext ctx)
     {
         return new GameEvent("Vision Blur",
-            "Your vision swims. Hard to focus. The world keeps sliding sideways.", 0.7)
+            "Your vision swims. Hard to focus. The world keeps sliding sideways.", 0.7f)
             .Requires(EventCondition.LowHydration, EventCondition.Awake)
             .WithConditionFactor(EventCondition.LowCalories, 1.5)
             .Choice("Rub Eyes and Push On",
@@ -566,10 +566,10 @@ public static partial class GameEventRegistry
     private static GameEvent ParanoiaEvent(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
 
         return new GameEvent("Paranoia",
-            "You are certain — absolutely certain — you see eyes reflecting at the edge of the firelight.", 0.5)
+            "You are certain — absolutely certain — you see eyes reflecting at the edge of the firelight.", 0.5f)
             .Requires(EventCondition.AtCamp, EventCondition.Night, EventCondition.Awake)
             .WithSituationFactor(Situations.PsychologicallyCompromised, 3.0)  // Disturbed, stalked
             .Choice("Throw Fuel on Fire",
@@ -604,7 +604,7 @@ public static partial class GameEventRegistry
     private static GameEvent MomentOfClarity(GameContext ctx)
     {
         return new GameEvent("Moment of Clarity",
-            "Your mind clears. For a brief moment, everything makes sense. You see your situation with perfect clarity.", 0.12)
+            "Your mind clears. For a brief moment, everything makes sense. You see your situation with perfect clarity.", 0.12f)
             .Requires(EventCondition.Awake)
             .WithSituationFactor(Situations.CriticallyDepleted, 2.0)  // LowCalories + LowHydration
             .WithSituationFactor(Situations.Vulnerable, 1.5)  // Injured, slow, impaired, no weapon
@@ -632,7 +632,7 @@ public static partial class GameEventRegistry
         var bodyPart = woundTension?.Description ?? "wound";
 
         return new GameEvent("The Wound Festers",
-            $"The {bodyPart} is red, swollen. Hot to the touch. This is infection.", 2.0)
+            $"The {bodyPart} is red, swollen. Hot to the touch. This is infection.", 2.0f)
             .Requires(EventCondition.WoundUntreated)
             .Choice("Clean It Properly",
                 "Use water to thoroughly clean the wound.",
@@ -693,7 +693,7 @@ public static partial class GameEventRegistry
     private static GameEvent FeverSetsIn(GameContext ctx)
     {
         return new GameEvent("Fever Sets In",
-            "You're burning up. Chills and sweats. The infection has spread.", 2.5)
+            "You're burning up. Chills and sweats. The infection has spread.", 2.5f)
             .Requires(EventCondition.WoundUntreatedHigh)
             .Choice("Aggressive Treatment",
                 "All-out effort to fight the infection. Use everything you have.",
@@ -746,7 +746,7 @@ public static partial class GameEventRegistry
         var severeBurnVariant = VariantSelector.SelectEmberBurn(ctx);
 
         return new GameEvent("Frozen Fingers",
-            "Your fingers have gone white. You can't feel them properly. This is frostbite territory.", 0.8)
+            "Your fingers have gone white. You can't feel them properly. This is frostbite territory.", 0.8f)
             .Requires(EventCondition.LowTemperature)
             .WithConditionFactor(EventCondition.Working, 1.5)
             .WithSituationFactor(Situations.ExtremeColdCrisis, 2.0)  // ExtremelyCold, blizzard + low fuel
@@ -796,7 +796,7 @@ public static partial class GameEventRegistry
         };
 
         return new GameEvent("Old Ache",
-            descriptions[Random.Shared.Next(descriptions.Length)], 0.35)
+            descriptions[Random.Shared.Next(descriptions.Length)], 0.35f)
             .Requires(EventCondition.Awake)
             .WithConditionFactor(EventCondition.LowTemperature, 1.5)
             .WithSituationFactor(Situations.Vulnerable, 2.0)  // Injured, slow, impaired, no weapon
@@ -832,7 +832,7 @@ public static partial class GameEventRegistry
     private static GameEvent Toothbreaker(GameContext ctx)
     {
         return new GameEvent("Toothbreaker",
-            "You bite down on something hard. A crack echoes in your skull. That was either the food or your tooth.", 0.4)
+            "You bite down on something hard. A crack echoes in your skull. That was either the food or your tooth.", 0.4f)
             .Requires(EventCondition.Eating)
             .WithConditionFactor(EventCondition.LowTemperature, 1.1) // frozen food
             .WithConditionFactor(EventCondition.LowOnFood, 1.3)
@@ -870,7 +870,7 @@ public static partial class GameEventRegistry
     private static GameEvent FugueState(GameContext ctx)
     {
         return new GameEvent("Fugue State",
-            "You blink, and the sun has moved. You don't remember the last hour. You kept working, but you were somewhere else.", 0.1)
+            "You blink, and the sun has moved. You don't remember the last hour. You kept working, but you were somewhere else.", 0.1f)
             .Requires(EventCondition.Working)
             .WithSituationFactor(Situations.CriticallyDepleted, 2.0)  // LowCalories + LowHydration
             .Choice("Come Back to Reality",
@@ -894,16 +894,16 @@ public static partial class GameEventRegistry
     private static GameEvent DistantCarcassStench(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animal = territory?.GetRandomAnimalName() ?? "animal";
+        var animal = territory?.GetRandomAnimal() ?? AnimalType.Wolf;
 
         return new GameEvent("Distant Carcass Stench",
-            $"The wind brings a smell — death, recent. Something died nearby, or something killed nearby.", 0.6)
+            $"The wind brings a smell — death, recent. Something died nearby, or something killed nearby.", 0.6f)
             .Requires(EventCondition.IsExpedition, EventCondition.InAnimalTerritory)
             .WithSituationFactor(Situations.PredatorInTerritory, 2.0)  // More likely in predator territory
             .Choice("Scout Toward It",
                 "Follow the smell. Could be free meat.",
                 [
-                    new EventResult($"Find a {animal.ToLower()} carcass. Some meat left.", weight: 0.35, minutes: 30)
+                    new EventResult($"Find a {animal.DisplayName().ToLower()} carcass. Some meat left.", weight: 0.35f, minutes: 30)
                         .FindsMeat(),
                     new EventResult("Find the carcass. Something's already there.", weight: 0.25, minutes: 25)
                         .BecomeStalked(0.3),
@@ -911,7 +911,7 @@ public static partial class GameEventRegistry
                         .FindsGameTrail(),
                     new EventResult("Can't find it. Wind shifted.", weight: 0.15, minutes: 30),
                     new EventResult("Find it. And what killed it.", weight: 0.05, minutes: 20)
-                        .Encounter(territory?.GetRandomPredatorName() ?? "Wolf", 25, 0.6)
+                        .Encounter(territory?.GetRandomPredator() ?? AnimalType.Wolf, 25, 0.6)
                 ])
             .Choice("Mark the Direction",
                 "Note for later investigation.",
@@ -932,10 +932,10 @@ public static partial class GameEventRegistry
     private static GameEvent ShadowMovement(GameContext ctx)
     {
         var stalkedTension = ctx.Tensions.GetTension("Stalked");
-        var predator = stalkedTension?.AnimalType ?? "something";
+        var predator = stalkedTension?.AnimalType ?? AnimalType.Wolf;
 
         return new GameEvent("Shadow Movement",
-            $"Movement in your peripheral vision. Your heart hammers. Is it the {predator.ToLower()}? Or your mind again?", 2.0)
+            $"Movement in your peripheral vision. Your heart hammers. Is it the {predator.DisplayName()}? Or your mind again?", 2.0f)
             .Requires(EventCondition.Disturbed, EventCondition.Stalked, EventCondition.IsExpedition)
             .WithSituationFactor(Situations.SeverelyCompromised, 1.5)  // DisturbedHigh or StalkedHigh
             .Choice("Assume It's Real",
@@ -949,7 +949,7 @@ public static partial class GameEventRegistry
                     new EventResult("False alarm. Your nerves are fraying.", 0.25, 8)
                         .Escalate("Disturbed", 0.1),
                     new EventResult("You spin to face it. The predator is there.", 0.10, 0)
-                        .Encounter(stalkedTension?.AnimalType ?? "Wolf", 25, 0.5)
+                        .Encounter(stalkedTension?.AnimalType ?? AnimalType.Wolf, 25, 0.5)
                 ])
             .Choice("Assume It's Nothing",
                 "You're jumping at shadows. Stay calm.",
@@ -961,7 +961,7 @@ public static partial class GameEventRegistry
                         .EscalatesStalking(0.25)
                         .WithEffects(EffectFactory.Fear(0.25)),
                     new EventResult("Fatal mistake. It strikes.", 0.10, 0)
-                        .Encounter(stalkedTension?.AnimalType ?? "Wolf", 10, 0.75)
+                        .Encounter(stalkedTension?.AnimalType ?? AnimalType.Wolf, 10, 0.75)
                 ])
             .Choice("Stop and Observe",
                 "Freeze. Watch. Listen. Know the difference.",
@@ -982,7 +982,7 @@ public static partial class GameEventRegistry
         // Check for existing threat
         var stalked = ctx.Tensions.GetTension("Stalked");
         var hunted = ctx.Tensions.GetTension("Hunted");
-        var predator = stalked?.AnimalType ?? hunted?.AnimalType ?? "Wolf";
+        var predator = stalked?.AnimalType ?? hunted?.AnimalType ?? AnimalType.Wolf;
         bool underThreat = stalked != null || hunted != null;
 
         // Distance description
@@ -991,7 +991,7 @@ public static partial class GameEventRegistry
             : "You're far from safety";
 
         var evt = new GameEvent("Cut Off",
-            $"{distanceDesc}. The terrain narrows here — cliffs to one side, frozen water to the other. If something comes at you, there's nowhere to go.", 0.9)
+            $"{distanceDesc}. The terrain narrows here — cliffs to one side, frozen water to the other. If something comes at you, there's nowhere to go.", 0.9f)
             .Requires(EventCondition.FarFromCamp, EventCondition.AtTerrainBottleneck)
             .WithSituationFactor(Situations.UnderThreat, 3.0)
             .WithSituationFactor(Situations.Vulnerable, 2.0);
@@ -1002,7 +1002,7 @@ public static partial class GameEventRegistry
             evt.Choice("Push through quickly",
                 "Move fast, before anything notices.",
                 [
-                    new EventResult($"You make your move. The {predator.ToLower()} was waiting. It strikes from the bottleneck.", 0.5, 5)
+                    new EventResult($"You make your move. The {predator.DisplayName()} was waiting. It strikes from the bottleneck.", 0.5, 5)
                         .ResolvesStalking()
                         .Encounter(predator, 15, 0.6),
                     new EventResult("You make it through. But you were exposed.", 0.3, 10)
@@ -1044,7 +1044,7 @@ public static partial class GameEventRegistry
 
         return new GameEvent(
             "Something Investigates",
-            $"Fresh tracks circle the {animal.ToLower()} carcass. Something has been here recently.", 0.8)
+            $"Fresh tracks circle the {animal.ToLower()} carcass. Something has been here recently.", 0.8f)
             .Requires(EventCondition.HasCarcass)
             .WithConditionFactor(EventCondition.HasFreshCarcass, 1.5)
             .WithConditionFactor(EventCondition.PlayerBloody, 1.3)
@@ -1052,7 +1052,7 @@ public static partial class GameEventRegistry
                 "See if you can tell what's been investigating.",
                 [
                     new EventResult("Wolf tracks. A scout. The pack will come.", 0.4, 5)
-                        .BecomeStalked(0.3, "wolf"),
+                        .BecomeStalked(0.3, AnimalType.Wolf),
                     new EventResult("Fox tracks. Bold, but not dangerous.", 0.35, 5),
                     new EventResult("You were so focused on the tracks you didn't notice it watching from the treeline.", 0.25, 5)
                         .BecomeStalked(0.4)
@@ -1081,40 +1081,40 @@ public static partial class GameEventRegistry
 
         // Pick a scavenger based on territory
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        string scavenger = territory?.HasPredators() == true ? "wolf" : "fox";
+        AnimalType scavenger = territory?.HasPredators() == true ? AnimalType.Wolf : AnimalType.Fox;
 
         return new GameEvent(
             "Scavenger Approach",
-            $"A {scavenger} emerges from the brush, eyeing the {carcassName.ToLower()} carcass. It hasn't committed yet.", 0.7)
+            $"A {scavenger.DisplayName()} emerges from the brush, eyeing the {carcassName.ToLower()} carcass. It hasn't committed yet.", 0.7f)
             .Requires(EventCondition.HasFreshCarcass)
             .WithConditionFactor(EventCondition.HasStrongScent, 1.5)
             .WithConditionFactor(EventCondition.PlayerBloody, 1.4)
             .Choice("Shout and wave",
                 "Scare it off. Show you're not easy prey.",
                 [
-                    new EventResult($"The {scavenger} slinks away. It will remember this place.", 0.7, 2),
-                    new EventResult($"The {scavenger} flinches but doesn't leave. It's hungry.", 0.2, 2)
-                        .BecomeStalked(0.25, scavenger),
-                    new EventResult($"Your shouting draws more attention. Now there are two.", 0.1, 2)
+                    new EventResult($"The {scavenger.DisplayName()} slinks away. It will remember this place.", 0.7f, 2),
+                    new EventResult($"The {scavenger.DisplayName()} flinches but doesn't leave. It's hungry.", 0.2f, 2)
+                        .BecomeStalked(0.25f, scavenger),
+                    new EventResult($"Your shouting draws more attention. Now there are two.", 0.1f, 2)
                         .CreateTension("PackNearby", 0.3, animalType: scavenger)
                 ])
             .Choice("Ignore it",
                 "Keep working. One animal won't attack while you're active.",
                 [
-                    new EventResult($"The {scavenger} watches but keeps its distance. For now.", 0.6, 0)
-                        .BecomeStalked(0.2, scavenger),
-                    new EventResult($"The {scavenger} creeps closer. You lock eyes. It backs off.", 0.3, 0),
-                    new EventResult($"The {scavenger} lunges! It wants this kill.", 0.1, 5)
-                        .Encounter(scavenger, 10, 0.5)
+                    new EventResult($"The {scavenger.DisplayName()} watches but keeps its distance. For now.", 0.6f, 0)
+                        .BecomeStalked(0.2f, scavenger),
+                    new EventResult($"The {scavenger.DisplayName()} creeps closer. You lock eyes. It backs off.", 0.3f, 0),
+                    new EventResult($"The {scavenger.DisplayName()} lunges! It wants this kill.", 0.1f, 5)
+                        .Encounter(scavenger, 10, 0.5f)
                 ])
             .Choice("Throw it some meat",
                 "Maybe feeding it will keep it occupied.",
                 [
-                    new EventResult($"It takes the offering and retreats to eat.", 0.7, 3)
+                    new EventResult($"It takes the offering and retreats to eat.", 0.7f, 3)
                         .Costs(ResourceType.Food, 1),
-                    new EventResult($"It grabs the meat and wants more. Others are watching.", 0.3, 3)
+                    new EventResult($"It grabs the meat and wants more. Others are watching.", 0.3f, 3)
                         .Costs(ResourceType.Food, 1)
-                        .BecomeStalked(0.3, scavenger)
+                        .BecomeStalked(0.3f, scavenger)
                 ]);
     }
 
@@ -1129,46 +1129,46 @@ public static partial class GameEventRegistry
 
         // More dangerous predator for contested kills
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        string predator = territory?.GetRandomAnimalName() ?? "wolf";
-        if (territory?.HasPredators() == true)
-            predator = "wolf";  // Default to wolf for contested kills
+        AnimalType predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        if (territory?.HasPredators() != true)
+            predator = AnimalType.Wolf;  // Default to wolf for contested kills
 
         return new GameEvent(
             "Contested Kill",
-            $"A low growl. A {predator.ToLower()} steps into view, eyes fixed on your {carcassName.ToLower()}. It's not backing down.", 0.6)
+            $"A low growl. A {predator.DisplayName()} steps into view, eyes fixed on your {carcassName.ToLower()}. It's not backing down.", 0.6f)
             .Requires(EventCondition.HasStrongScent, EventCondition.Working)
             .WithConditionFactor(EventCondition.PlayerBloody, 1.5)
             .WithConditionFactor(EventCondition.Injured, 1.3)
             .Choice("Stand your ground",
                 "This is YOUR kill. Make that clear.",
                 [
-                    new EventResult($"You raise your arms and shout. The {predator.ToLower()} hesitates, then retreats.", 0.4, 5)
+                    new EventResult($"You raise your arms and shout. The {predator.DisplayName()} hesitates, then retreats.", 0.4f, 5)
                         .ResolvesStalking(),
-                    new EventResult($"You lock eyes. Neither of you blinks. It circles once, then leaves.", 0.3, 8)
+                    new EventResult($"You lock eyes. Neither of you blinks. It circles once, then leaves.", 0.3f, 8)
                         .Frightening(),
-                    new EventResult($"It charges. You're between it and food.", 0.3, 3)
-                        .Encounter(predator, 8, 0.7)
+                    new EventResult($"It charges. You're between it and food.", 0.3f, 3)
+                        .Encounter(predator, 8, 0.7f)
                 ])
             .Choice("Grab what you have",
                 "Take what you've butchered and go. The rest isn't worth dying for.",
                 [
-                    new EventResult("You back away slowly with your haul. It claims the rest.", 0.8, 5)
+                    new EventResult("You back away slowly with your haul. It claims the rest.", 0.8f, 5)
                         .Aborts(),
-                    new EventResult($"As you turn, it lunges. It wanted YOU, not the {carcassName.ToLower()}.", 0.2, 3)
-                        .Encounter(predator, 5, 0.6)
+                    new EventResult($"As you turn, it lunges. It wanted YOU, not the {carcassName.ToLower()}.", 0.2f, 3)
+                        .Encounter(predator, 5, 0.6f)
                         .Aborts()
                 ])
             .Choice("Use fire",
                 "Light a torch. Most animals fear flame.",
                 ctx.Inventory.HasLitTorch || ctx.CurrentLocation.HasActiveHeatSource()
                     ? [
-                        new EventResult($"You thrust the flame forward. The {predator.ToLower()} snarls but backs away.", 0.8, 5)
+                        new EventResult($"You thrust the flame forward. The {predator.DisplayName()} snarls but backs away.", 0.8f, 5)
                             .ResolvesStalking(),
-                        new EventResult($"It flinches from the flame but doesn't leave. It's starving.", 0.2, 5)
-                            .BecomeStalked(0.4, predator)
+                        new EventResult($"It flinches from the flame but doesn't leave. It's starving.", 0.2f, 5)
+                            .BecomeStalked(0.4f, predator)
                     ]
                     : [
-                        new EventResult("You have no fire to use.", 1.0, 0)
+                        new EventResult("You have no fire to use.", 1.0f, 0)
                     ]);
     }
 
@@ -1182,7 +1182,7 @@ public static partial class GameEventRegistry
         if (carcass == null) return new GameEvent("Empty", "", 0).Requires(EventCondition.Cornered);  // Invalid
 
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var scavenger = territory?.GetRandomPredatorName() ?? "Wolf";
+        var scavenger = territory?.GetRandomPredator() ?? AnimalType.Wolf;
 
         string animal = carcass.AnimalName;
         double lossPercent = Random.Shared.NextDouble() * 0.5 + 0.3;  // 30-80% loss
@@ -1190,31 +1190,31 @@ public static partial class GameEventRegistry
 
         return new GameEvent(
             "Carcass Claimed",
-            $"You return to find the {animal.ToLower()} carcass torn apart. Scavengers have been at it. Some meat remains.", 0.5)
+            $"You return to find the {animal.ToLower()} carcass torn apart. Scavengers have been at it. Some meat remains.", 0.5f)
             .Requires(EventCondition.HasCarcass, EventCondition.HasFreshCarcass)
             .RequiresSituation(ctx => !ctx.Check(EventCondition.Working))  // Not during active work
             .Choice("Salvage what's left",
                 $"There's still meat here. Maybe {remainingKg:F1}kg.",
                 [
-                    new EventResult("You gather what the scavengers left behind.", 0.7, 10)
+                    new EventResult("You gather what the scavengers left behind.", 0.7f, 10)
                         .WithScavengerLoss(lossPercent),
-                    new EventResult("You hear movement nearby. The scavengers are watching, waiting for you to leave.", 0.3, 8)
+                    new EventResult("You hear movement nearby. The scavengers are watching, waiting for you to leave.", 0.3f, 8)
                         .WithScavengerLoss(lossPercent)
-                        .BecomeStalked(0.25)
+                        .BecomeStalked(0.25f)
                 ])
             .Choice("Track the scavengers",
                 "Fresh tracks lead away. They can't have gone far.",
                 [
-                    new EventResult("The tracks lead into thick brush. They're watching you.", 0.5, 15)
-                        .BecomeStalked(0.3),
-                    new EventResult("You find them. A standoff at their cache.", 0.3, 20)
-                        .Encounter(scavenger, 20, 0.4),
-                    new EventResult("The trail goes cold. They know this territory better than you.", 0.2, 25)
+                    new EventResult("The tracks lead into thick brush. They're watching you.", 0.5f, 15)
+                        .BecomeStalked(0.3f),
+                    new EventResult("You find them. A standoff at their cache.", 0.3f, 20)
+                        .Encounter(scavenger, 20, 0.4f),
+                    new EventResult("The trail goes cold. They know this territory better than you.", 0.2f, 25)
                 ])
             .Choice("Leave it",
                 "Not worth fighting over scraps.",
                 [
-                    new EventResult($"You abandon what remains of the {animal.ToLower()}.", 1.0, 2)
+                    new EventResult($"You abandon what remains of the {animal.ToLower()}.", 1.0f, 2)
                 ]);
     }
 }

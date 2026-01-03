@@ -130,6 +130,9 @@ public class CacheFeature : LocationFeature, IWorkableFeature
             null);
     }
 
+    public override List<Resource> ProvidedResources() =>
+        Storage.GetResourceTypes();
+
     /// <summary>
     /// Create a basic camp cache (unlimited storage, no special protection).
     /// </summary>

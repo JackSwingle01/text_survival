@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
 
 namespace text_survival.Actions.Variants;
@@ -22,7 +23,7 @@ public record EscapeMethod(
     string SuccessText,           // "You lose them in the tangle"
     string FailureText,           // "They push through after you"
     double BaseSuccessChance,     // 0.3-0.7
-    string[]? ExcludedPredators,  // ["bear"] - predators this doesn't work against
+    AnimalType[]? ExcludedPredators,  // [AnimalType.Bear] - predators this doesn't work against
     double InjuryChance = 0.0,    // Chance of minor injury during escape
     int TimeCost = 5              // Minutes the escape takes
 );
@@ -39,12 +40,12 @@ public static class EscapeScenarios
             new("Dense Brush", "Dive into thick undergrowth",
                 "Thorns tear at you but you're through. They can't follow.",
                 "They push through after you",
-                0.55, ["bear", "wolverine"], InjuryChance: 0.2),
+                0.55, [AnimalType.Bear, AnimalType.CaveBear], InjuryChance: 0.2),
 
             new("Climb Tree", "Scramble up the nearest trunk",
                 "You pull yourself up. They circle below, frustrated.",
                 "You slip. Back on the ground.",
-                0.40, ["bear", "wolverine", "lynx"], TimeCost: 8),
+                0.40, [AnimalType.Bear], TimeCost: 8),
 
             new("Break Trail", "Weave between trees, change direction",
                 "Your zigzag pattern loses them.",
@@ -66,7 +67,7 @@ public static class EscapeScenarios
             new("Narrow Passage", "Squeeze through a gap too small for them",
                 "You wedge through. They can't follow.",
                 "Stuck. They're waiting on the other side.",
-                0.60, ["fox", "lynx"], InjuryChance: 0.1, TimeCost: 6),
+                0.60, [AnimalType.Fox], InjuryChance: 0.1, TimeCost: 6),
 
             new("High Ground", "Scramble up the rocks",
                 "You reach a ledge they can't climb.",
@@ -120,7 +121,7 @@ public static class EscapeScenarios
             new("Fire Scare", "Light something and wave it at them",
                 "The flames make them hesitate. You back away.",
                 "They're not impressed.",
-                0.45, ["bear"], TimeCost: 8),
+                0.45, [AnimalType.Bear], TimeCost: 8),
 
             new("Drop Meat", "Throw your food behind you",
                 "They stop to investigate. You run.",
@@ -185,17 +186,16 @@ public static class EscapeScenarioSelector
     /// </summary>
     public static List<EscapeMethod> GetAvailableMethods(
         EscapeScenario scenario,
-        string? predatorType,
+        AnimalType predatorType,
         GameContext ctx)
     {
         var available = new List<EscapeMethod>();
-        string predatorLower = predatorType?.ToLower() ?? "";
 
         foreach (var method in scenario.Methods)
         {
             // Check if method is excluded for this predator
             if (method.ExcludedPredators != null &&
-                method.ExcludedPredators.Any(p => predatorLower.Contains(p.ToLower())))
+                method.ExcludedPredators.Any(p => predatorType == p))
             {
                 continue;
             }
@@ -234,18 +234,15 @@ public static class EscapeScenarioSelector
         EscapeMethod method,
         EscapeScenario scenario,
         GameContext ctx,
-        string? predatorType)
+        AnimalType? predatorType)
     {
         double chance = method.BaseSuccessChance + scenario.TerrainEscapeBonus;
 
         // Predator-specific modifiers
-        string predatorLower = predatorType?.ToLower() ?? "";
-        if (predatorLower.Contains("wolf"))
+        if (predatorType == AnimalType.Wolf)
             chance -= 0.1; // Wolves coordinate, harder to lose
-        else if (predatorLower.Contains("bear"))
+        else if (predatorType == AnimalType.Bear)
             chance += 0.1; // Bears give up easier
-        else if (predatorLower.Contains("lynx"))
-            chance -= 0.05; // Lynx are stealthy, moderate difficulty
 
         // Player condition modifiers
         var caps = ctx.player.GetCapacities();
@@ -267,18 +264,12 @@ public static class EscapeScenarioSelector
     /// <summary>
     /// Get a description hint for the escape based on predator.
     /// </summary>
-    public static string GetPredatorHint(string? predatorType)
+    public static string GetPredatorHint(AnimalType predatorType)
     {
-        string predatorLower = predatorType?.ToLower() ?? "";
-
-        if (predatorLower.Contains("wolf"))
+        if (predatorType == AnimalType.Wolf)
             return "Wolves coordinate. Breaking line of sight won't be enough.";
-        if (predatorLower.Contains("bear"))
+        if (predatorType == AnimalType.Bear)
             return "Bears are powerful but give up easier. Show you're not easy prey.";
-        if (predatorLower.Contains("lynx"))
-            return "Lynx are patient stalkers. Quick, decisive action.";
-        if (predatorLower.Contains("wolverine"))
-            return "Wolverines are tenacious. You need real distance.";
 
         return "Move fast. Think faster.";
     }

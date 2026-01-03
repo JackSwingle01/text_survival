@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -57,10 +58,10 @@ public static partial class GameEventRegistry
     private static GameEvent PredatorAtTrapLine(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
 
         return new GameEvent("Predator at Trap Line",
-            $"You approach your snares and freeze. A {predator.ToLower()} is there, sniffing around the bait.", 1.2)
+            $"You approach your snares and freeze. A {predator.DisplayName()} is there, sniffing around the bait.", 1.2)
             .Requires(EventCondition.TrapLineActive, EventCondition.Stalked, EventCondition.FieldWork)
             // TrapLineAttractive covers: SnareHasCatch OR SnareBaited (higher-value target)
             .WithSituationFactor(Situations.TrapLineAttractive, 2.5)
@@ -68,7 +69,7 @@ public static partial class GameEventRegistry
             .Choice("Drive It Off",
                 "Make noise. Assert dominance. This is YOUR trap line.",
                 [
-                    new EventResult($"You shout and wave your arms. The {predator.ToLower()} backs off, watching.", 0.40, 5)
+                    new EventResult($"You shout and wave your arms. The {predator.DisplayName()} backs off, watching.", 0.40, 5)
                         .ResolvesStalking()
                         .Shaken(),
                     new EventResult($"It startles and runs. But it knows where to find food now.", 0.30, 3)
@@ -82,7 +83,7 @@ public static partial class GameEventRegistry
             .Choice("Wait It Out",
                 "Stay hidden. Let it take what it wants and leave.",
                 [
-                    new EventResult($"The {predator.ToLower()} sniffs around, then wanders off. Your catches are safe.", 0.30, 20)
+                    new EventResult($"The {predator.DisplayName()} sniffs around, then wanders off. Your catches are safe.", 0.30, 20)
                         .ResolvesStalking(),
                     new EventResult($"It finds your catch and drags it away. You watch helplessly.", 0.40, 15),
                     new EventResult($"It destroys a snare trying to get at something. Then leaves.", 0.20, 15)
@@ -95,7 +96,7 @@ public static partial class GameEventRegistry
                 "Not worth the risk. Come back later.",
                 [
                     new EventResult("You slip away unseen. The trap line can wait.", 0.70, 0),
-                    new EventResult($"A branch snaps. The {predator.ToLower()} looks up, ears forward.", 0.30, 0)
+                    new EventResult($"A branch snaps. The {predator.DisplayName()} looks up, ears forward.", 0.30, 0)
                         .EscalatesStalking(0.2)
                         .Unsettling()
                 ]);
@@ -137,7 +138,7 @@ public static partial class GameEventRegistry
     private static GameEvent TrapLinePlundered(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
 
         return new GameEvent("Trap Line Plundered",
             "Your snares have been hit. The snow is churned up, feathers and fur scattered. Something got here first.", 0.7)
@@ -164,7 +165,7 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.SmallGame),
                     new EventResult("You find the scavenger — a fox, still eating. Easy target.", 0.20, 25)
                         .Rewards(RewardPool.SmallGame),
-                    new EventResult($"You find the 'scavenger' — a {predator.ToLower()}. It sees you too.", 0.10, 15)
+                    new EventResult($"You find the 'scavenger' — a {predator.DisplayName()}. It sees you too.", 0.10, 15)
                         .Frightening()
                         .Encounter(predator, 20, 0.4)
                 ],
@@ -236,10 +237,10 @@ public static partial class GameEventRegistry
     private static GameEvent BaitedTrapAttention(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredatorName() ?? "wolf";
+        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
 
         return new GameEvent("Unwanted Attention",
-            $"The meat bait on your snare has attracted attention. {predator.ToUpper()} tracks circle the trap.", 0.5)
+            $"The meat bait on your snare has attracted attention. {predator.DisplayName().ToLower()} tracks circle the trap.", 0.5)
             .Requires(EventCondition.TrapLineActive, EventCondition.SnareBaited, EventCondition.FieldWork)
             // InDarkness covers: Night, InDarkness
             .WithSituationFactor(Situations.InDarkness, 1.5)
@@ -258,7 +259,7 @@ public static partial class GameEventRegistry
                         .EscalatesStalking(0.1),
                     new EventResult("As you debate, you hear something moving nearby.", 0.30, 0)
                         .BecomeStalked(0.25),
-                    new EventResult($"Too late to decide. A {predator.ToLower()} emerges from cover.", 0.10, 0)
+                    new EventResult($"Too late to decide. A {predator.DisplayName()} emerges from cover.", 0.10, 0)
                         .Encounter(predator, 25, 0.4)
                 ])
             .Choice("Set Up an Ambush",
@@ -267,7 +268,7 @@ public static partial class GameEventRegistry
                     new EventResult("You wait. Nothing comes. Time wasted.", 0.50, 30),
                     new EventResult("A fox approaches the bait. Easy shot.", 0.30, 25)
                         .Rewards(RewardPool.SmallGame),
-                    new EventResult($"A {predator.ToLower()} approaches. You have the advantage.", 0.15, 20)
+                    new EventResult($"A {predator.DisplayName()} approaches. You have the advantage.", 0.15, 20)
                         .Encounter(predator, 30, 0.3),
                     new EventResult("You wait so long you start to freeze.", 0.05, 45)
                         .HarshCold()

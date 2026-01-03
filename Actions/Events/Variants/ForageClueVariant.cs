@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -37,7 +38,7 @@ public record ForageClue(
     ClueCategory Category,                     // What type of clue this is
     Resource[] SuggestedResources,             // Resources this clue suggests (Resource clues)
     double YieldModifier = 1.0,                // Multiplier for Resource/Negative clues
-    string? GameAnimalType = null,             // For Game clues: "rabbit", "deer", etc.
+    AnimalType? GameAnimalType = null,             // For Game clues: AnimalType.Rabbit, AnimalType.Caribou, etc.
     double HuntBonus = 0,                      // For Game clues: additive density bonus
     ScavengeScenario? Scenario = null          // For Scavenge: scenario with animal/predator pools
 );
@@ -123,25 +124,25 @@ public static class ClueLibrary
     public static readonly ForageClue[] SnowGameClues =
     [
         new("Fresh tracks in the snow", ClueCategory.Game,
-            [], 1.0, GameAnimalType: "caribou", HuntBonus: 0.20),
+            [], 1.0, GameAnimalType: AnimalType.Caribou, HuntBonus: 0.20),
 
         new("Scat visible against the white", ClueCategory.Game,
-            [], 1.0, GameAnimalType: "rabbit", HuntBonus: 0.10),
+            [], 1.0, GameAnimalType: AnimalType.Rabbit, HuntBonus: 0.10),
     ];
 
     public static readonly ForageClue[] ForestGameClues =
     [
         new("Animal trails through the brush", ClueCategory.Game,
-            [], 1.0, GameAnimalType: "caribou", HuntBonus: 0.15),
+            [], 1.0, GameAnimalType: AnimalType.Caribou, HuntBonus: 0.15),
     ];
 
     public static readonly ForageClue[] DawnDuskGameClues =
     [
         new("Fresh feeding marks in the bark", ClueCategory.Game,
-            [], 1.0, GameAnimalType: "caribou", HuntBonus: 0.15),
+            [], 1.0, GameAnimalType: AnimalType.Caribou, HuntBonus: 0.15),
 
         new("Movement in the underbrush", ClueCategory.Game,
-            [], 1.0, GameAnimalType: "rabbit", HuntBonus: 0.10),
+            [], 1.0, GameAnimalType: AnimalType.Rabbit, HuntBonus: 0.10),
     ];
 
     // ============ SCAVENGE CLUES ============
@@ -318,7 +319,7 @@ public static class ClueSelector
         // Scavenge scenarios - context-aware carcass discovery
         bool isPredatorTerritory = territory?.HasPredators() == true;
         bool isBearTerritory = territory?._possibleAnimals.Any(a =>
-            a.AnimalType.Contains("bear", StringComparison.OrdinalIgnoreCase)) == true;
+            a.AnimalType == AnimalType.Bear) == true;
 
         var scavengePool = ScavengeScenarioSelector.BuildWeightedPool(
             ctx, isSnowy, isPredatorTerritory, isBearTerritory);

@@ -20,9 +20,6 @@ public class HerdRegistry
 
     #region Queries
 
-    /// <summary>
-    /// Gets all herds at a specific position.
-    /// </summary>
     public IReadOnlyList<Herd> GetHerdsAt(GridPosition pos)
     {
         return _herds.Where(h => h.Position == pos).ToList();
@@ -36,88 +33,46 @@ public class HerdRegistry
         return _herds.Where(h => h.Position.ManhattanDistance(center) <= range).ToList();
     }
 
-    /// <summary>
-    /// Gets a herd by its ID.
-    /// </summary>
     public Herd? GetHerdById(Guid id)
     {
         return _herds.FirstOrDefault(h => h.Id == id);
     }
 
-    /// <summary>
-    /// Gets all predator herds.
-    /// </summary>
     public IReadOnlyList<Herd> GetPredatorHerds()
     {
         return _herds.Where(h => h.IsPredator).ToList();
     }
 
-    /// <summary>
-    /// Gets all prey herds.
-    /// </summary>
     public IReadOnlyList<Herd> GetPreyHerds()
     {
         return _herds.Where(h => !h.IsPredator).ToList();
     }
 
-    /// <summary>
-    /// Gets all herds of a specific animal type.
-    /// </summary>
     public IReadOnlyList<Herd> GetHerdsByType(AnimalType animalType)
     {
         return _herds.Where(h => h.AnimalType == animalType).ToList();
     }
 
-    /// <summary>
-    /// Gets all herds of a specific animal type (string overload for legacy code).
-    /// </summary>
-    public IReadOnlyList<Herd> GetHerdsByType(string animalTypeName)
-    {
-        var animalType = AnimalTypes.Parse(animalTypeName);
-        return animalType.HasValue ? GetHerdsByType(animalType.Value) : [];
-    }
-
-    /// <summary>
-    /// Gets all herds with a specific behavior type.
-    /// </summary>
     public IReadOnlyList<Herd> GetHerdsByBehavior(HerdBehaviorType behaviorType)
     {
         return _herds.Where(h => h.BehaviorType == behaviorType).ToList();
     }
 
-    /// <summary>
-    /// Gets count of all tracked animals across all herds.
-    /// </summary>
     public int TotalAnimalCount => _herds.Sum(h => h.Count);
-
-    /// <summary>
-    /// Gets count of all herds.
-    /// </summary>
     public int HerdCount => _herds.Count;
 
     #endregion
 
     #region Mutations
 
-    /// <summary>
-    /// Adds a herd to the registry.
-    /// </summary>
     public void AddHerd(Herd herd)
     {
         _herds.Add(herd);
     }
-
-    /// <summary>
-    /// Removes a herd from the registry.
-    /// </summary>
     public void RemoveHerd(Herd herd)
     {
         _herds.Remove(herd);
     }
-
-    /// <summary>
-    /// Removes a herd by ID.
-    /// </summary>
     public void RemoveHerd(Guid id)
     {
         var herd = GetHerdById(id);
@@ -161,11 +116,11 @@ public class HerdRegistry
     /// Recreates animal members and behaviors for all herds after deserialization.
     /// Called from GameContext.RestoreAfterDeserialization().
     /// </summary>
-    public void RecreateAllMembers()
+    public void RecreateAllMembers(GameMap map)
     {
         foreach (var herd in _herds)
         {
-            herd.RecreateMembers();
+            herd.RecreateMembers(map);
             herd.RecreateBehavior();
         }
     }
@@ -217,30 +172,6 @@ public class HerdRegistry
         CleanupEmptyHerds();
 
         return results;
-    }
-
-    /// <summary>
-    /// Legacy Update method for compatibility.
-    /// </summary>
-    [System.Obsolete("Use Update(int, GameContext) instead.")]
-    public Herd? Update(int elapsedMinutes, GridPosition playerPosition, bool playerCarryingMeat, bool playerBleeding)
-    {
-        Herd? encounterHerd = null;
-
-        foreach (var herd in _herds.ToList())
-        {
-#pragma warning disable CS0618 // Type or member is obsolete
-            bool initiatedEncounter = herd.Update(elapsedMinutes, playerPosition, playerCarryingMeat, playerBleeding);
-#pragma warning restore CS0618
-
-            if (initiatedEncounter && encounterHerd == null)
-            {
-                encounterHerd = herd;
-            }
-        }
-
-        CleanupEmptyHerds();
-        return encounterHerd;
     }
 
     #endregion

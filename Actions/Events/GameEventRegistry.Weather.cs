@@ -1,4 +1,5 @@
 using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Items;
@@ -80,7 +81,7 @@ public static partial class GameEventRegistry
                     new EventResult("The cold seeps in despite your efforts. You feel the early signs of hypothermia.", 0.20, 40)
                         .DangerousCold(),
                     new EventResult("A shape materializes from the white — a wolf, already too close.", 0.05, 0)
-                        .Encounter("Wolf", 8, 0.6)
+                        .Encounter(AnimalType.Wolf, 8, 0.6)
                 ])
             .Choice("Burn Fuel for Warmth",
                 "Use some of your fuel to start a fire and wait out the storm in relative comfort.",

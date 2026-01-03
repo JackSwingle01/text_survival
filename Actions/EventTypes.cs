@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Environments;
 using text_survival.Items;
 
@@ -11,7 +12,7 @@ public record TensionCreation(
     string Type,
     double Severity,
     Location? RelevantLocation = null,
-    string? AnimalType = null,
+    AnimalType? AnimalType = null,
     string? Direction = null,
     string? Description = null
 );
@@ -20,7 +21,7 @@ public record TensionCreation(
 /// Configuration for spawning a predator encounter from an event outcome.
 /// </summary>
 public record EncounterConfig(
-    string AnimalType,
+    AnimalType AnimalType,
     double InitialDistance,
     double InitialBoldness,
     List<string>? Modifiers = null

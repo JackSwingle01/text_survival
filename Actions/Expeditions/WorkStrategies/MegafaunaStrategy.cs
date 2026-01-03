@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -27,7 +28,7 @@ public class MegafaunaStrategy : IWorkStrategy
             if (hoursSince < megafaunaFeature.RespawnHours)
             {
                 var daysRemaining = (int)Math.Ceiling((megafaunaFeature.RespawnHours - hoursSince) / 24.0);
-                return $"The {megafaunaFeature.MegafaunaType.ToLower()} haven't returned yet. (About {daysRemaining} days)";
+                return $"The {megafaunaFeature.MegafaunaType.DisplayName()} haven't returned yet. (About {daysRemaining} days)";
             }
         }
 

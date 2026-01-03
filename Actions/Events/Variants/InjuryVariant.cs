@@ -121,12 +121,23 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectTravelInjuryVariant(GameContext ctx, Environments.Location location)
     {
+        bool hasIce = HasIce(ctx);
+        return SelectTravelInjuryVariantCore(location, hasIce);
+    }
+
+    /// <summary>
+    /// Select a travel injury variant (NPC-friendly, no GameContext required).
+    /// </summary>
+    public static InjuryVariant SelectTravelInjuryVariant(Environments.Location location)
+    {
+        bool hasIce = location.GetFeature<Environments.Features.WaterFeature>()?.IsFrozen ?? false;
+        return SelectTravelInjuryVariantCore(location, hasIce);
+    }
+
+    private static InjuryVariant SelectTravelInjuryVariantCore(Environments.Location location, bool hasIce)
+    {
         var pool = new List<(InjuryVariant variant, double weight)>();
         double severity = location.TerrainHazardLevel;
-
-        // Determine primary hazard type
-        // Note: Climb hazards now handled via edge events (EdgeEvents.ClimbingHazard)
-        bool hasIce = HasIce(ctx);
 
         if (hasIce)
         {

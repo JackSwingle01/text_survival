@@ -101,14 +101,13 @@ public class GameMap
     public IReadOnlyList<Location> GetTravelOptionsFrom(Location from)
     {
         var position = GetPosition(from);
-        if (!position.HasValue) return [];
 
         var season = Weather?.CurrentSeason ?? Weather.Season.Winter;
         var options = new List<Location>();
-        foreach (var neighborPos in position.Value.GetCardinalNeighbors())
+        foreach (var neighborPos in position.GetCardinalNeighbors())
         {
             // Skip edge-blocked paths
-            if (IsEdgeBlocked(position.Value, neighborPos, season))
+            if (IsEdgeBlocked(position, neighborPos, season))
                 continue;
 
             var location = GetLocationAt(neighborPos);
@@ -153,12 +152,47 @@ public class GameMap
     public void MoveTo(Location destination)
     {
         var position = GetPosition(destination);
-        if (!position.HasValue)
-            throw new ArgumentException($"Location {destination.Name} is not on this map");
 
-        CurrentPosition = position.Value;
+        CurrentPosition = position;
         destination.MarkExplored();
         UpdateVisibility();
+    }
+
+    public Location? GetNextInPath(Location from, Location to)
+    {
+        // greedy pathfinding for now - will break if no direct path
+        if (from == to) throw new Exception("Can't get path because you're already there!");
+
+        var fromPos = GetPosition(from);
+        var toPos = GetPosition(to);
+
+        int dx = Math.Sign(toPos.X - fromPos.X);
+        int dy = Math.Sign(toPos.Y - fromPos.Y);
+
+        Location? locX = null, locY = null;
+        if (dx != 0)
+        {
+            locX = GetLocationAt(new GridPosition(fromPos.X + dx, fromPos.Y));
+        }
+        if (dy != 0)
+        {
+            locY = GetLocationAt(new GridPosition(fromPos.X, fromPos.Y + dy));
+        }
+        if (locX != null && locX.IsPassable)
+        {
+            if (locY != null && locY.IsPassable)
+            {
+                if (locX.BaseTraversalMinutes > locY.BaseTraversalMinutes) 
+                    return locY;
+            }
+            return locX;
+        }
+        else if (locY != null && locY.IsPassable)
+        {
+            return locY;
+        }
+        Console.WriteLine("WARNING: pathfinding failed. Time to implement a better algorithm");
+        return null;
     }
 
     // === UI/Rendering (grid-specific) ===
@@ -178,8 +212,8 @@ public class GameMap
     /// <summary>
     /// Get the position of a location on this map.
     /// </summary>
-    public GridPosition? GetPosition(Location location) =>
-        _locationIndex.TryGetValue(location.Id, out var pos) ? pos : null;
+    public GridPosition GetPosition(Location location) =>
+        _locationIndex.TryGetValue(location.Id, out var pos) ? pos : throw new Exception("Location doesn't exist!");
 
     /// <summary>
     /// Check if a location is on this map.
@@ -213,9 +247,7 @@ public class GameMap
     /// <summary>
     /// Parameterless constructor for JSON deserialization.
     /// </summary>
-    public GameMap() : this(0, 0)
-    {
-    }
+    public GameMap() : this(0, 0) { }
 
     /// <summary>
     /// Check if coordinates are within map bounds.
@@ -294,66 +326,6 @@ public class GameMap
         if (visibility < 2.0)
             return 4;  // 4 tile radius (was 3)
         return 5;      // Vantage points (was 4)
-    }
-
-    // === Serialization ===
-
-    /// <summary>
-    /// Serializable location data. Set during serialization, used during deserialization.
-    /// </summary>
-    public List<MapLocationData> LocationData
-    {
-        get
-        {
-            var data = new List<MapLocationData>();
-            for (int x = 0; x < Width; x++)
-            {
-                for (int y = 0; y < Height; y++)
-                {
-                    var loc = _locations[x, y];
-                    if (loc != null)
-                        data.Add(new MapLocationData(x, y, loc));
-                }
-            }
-            return data;
-        }
-        set
-        {
-            if (value == null || value.Count == 0) return;
-
-            // Determine dimensions from the data if array not yet sized
-            if (_locations.GetLength(0) == 0 || _locations.GetLength(1) == 0)
-            {
-                int maxX = value.Max(ld => ld.X) + 1;
-                int maxY = value.Max(ld => ld.Y) + 1;
-                // Use Width/Height if set (they should be), otherwise infer from data
-                int width = Width > 0 ? Width : maxX;
-                int height = Height > 0 ? Height : maxY;
-                _locations = new Location?[width, height];
-                Width = width;
-                Height = height;
-            }
-
-            // Rebuild map from serialized data
-            foreach (var ld in value)
-            {
-                if (IsInBounds(ld.X, ld.Y))
-                {
-                    _locations[ld.X, ld.Y] = ld.Location;
-                    _locationIndex[ld.Location.Id] = new GridPosition(ld.X, ld.Y);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Initialize dimensions after deserialization.
-    /// </summary>
-    public void InitializeDimensions(int width, int height)
-    {
-        Width = width;
-        Height = height;
-        _locations = new Location?[width, height];
     }
 
     // === Queries ===

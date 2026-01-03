@@ -8,25 +8,26 @@ namespace text_survival.Bodies;
 public class SurvivalContext
 {
     public double LocationTemperature;
+    public bool IsNight;
     public double ClothingInsulation;
     public double ActivityLevel;
     public double FireProximityBonus; // Direct radiant heat from fire proximity (0-2 scale multiplied by fire heat)
 
     // Wetness system context
-    public double OverheadCover;           // 0-1 combined environmental + shelter coverage
-    public double Precipitation;           // 0-1 intensity from weather
-    public double WindSpeed;               // 0-1 intensity from weather
-    public bool IsRaining;                 // Weather condition flag
+    public double OverheadCoverLevel;
+    public double PrecipitationPct;
+    public double WindSpeedLevel;
+    public bool IsRaining;
     public bool IsSnowing;                 // Weather condition flag (light snow)
-    public bool IsBlizzard;                // Weather condition flag
-    public double CurrentWetnessSeverity;  // 0-1 current wetness from effect
+    public bool IsBlizzard;
+    public double CurrentWetnessPct;  // 0-1 current wetness from effect
 
     // Waterproofing from resin-treated equipment (0-1 scale)
     public double WaterproofingLevel;      // Reduces wetness accumulation by this factor
 
     // Bloody accumulation from bleeding
-    public double CurrentBleedingSeverity; // 0-1 from Bleeding effect
-    public double CurrentBloodySeverity;   // 0-1 from Bloody effect
+    public double CurrentBleedingPct; // 0-1 from Bleeding effect
+    public double CurrentBloodyPct;   // 0-1 from Bloody effect
 
     // Clothing thermal mass
     public double ClothingWeightKg;        // Total equipment weight for capacity calc
@@ -38,58 +39,50 @@ public class Body
     // Changed from readonly to allow deserialization
     public bool IsPlayer { get; init; } = false;
     public List<BodyRegion> Parts { get; init; } = new();
-    public string OwnerName { get; init; } = "Unknown";
     public Blood Blood { get; init; } = new();
-
-    // Explicit fields for serialization (must be public for System.Text.Json IncludeFields)
-    public double _baseWeight;
-    public double _bodyFatKG;
-    public double _muscleKG;
-    public double _bodyTemperature;
-    public double _calorieStore = 1500;
-    public double _energy = 800;
-    public double _hydration = 3000;
-    public double _clothingHeatBuffer = 0;  // 0-1 thermal mass buffer
+    public const double BASE_BODY_TEMP = 98.6;
 
     // Public properties backed by private fields
-    public bool IsTired => Energy < SurvivalProcessor.MAX_ENERGY_MINUTES / 2;
-    public double BodyFatKG => _bodyFatKG;
-    public double MuscleKG => _muscleKG;
+    public double EnergyPct => Energy / SurvivalProcessor.MAX_ENERGY_MINUTES;
+    public double FullPct => CalorieStore / SurvivalProcessor.MAX_CALORIES;
+    public double HydratedPct => Hydration / SurvivalProcessor.MAX_HYDRATION;
+    public double WarmPct => (BodyTemperature - SurvivalProcessor.HypothermiaThreshold) / (BASE_BODY_TEMP - SurvivalProcessor.HypothermiaThreshold);
+
+    // body properties
+    public double _baseWeight;
+    public double BodyFatKG;
+    public double MuscleKG;
     public double BodyFatPercentage => BodyFatKG / WeightKG;
     public double MusclePercentage => MuscleKG / WeightKG;
     public double WeightKG => _baseWeight + BodyFatKG + MuscleKG;
-    public double BodyTemperature => _bodyTemperature;
-    public double CalorieStore => _calorieStore;
-    public double Energy => _energy;
-    public double Hydration => _hydration;
-    public double ClothingHeatBuffer => _clothingHeatBuffer;
+    public double BodyTemperature;
+    public double CalorieStore = 1500;
+    public double Energy = 900;
+    public double Hydration = 3000;
+    public double ClothingHeatBufferPct = .3;
 
     // Parameterless constructor for deserialization
-    public Body()
-    {
-    }
+    public Body() { }
 
     // Normal constructor for creation
-    public Body(string ownerName, BodyCreationInfo stats)
+    public Body(BodyCreationInfo stats)
     {
-        OwnerName = ownerName;
         IsPlayer = stats.IsPlayer;
         Parts = BodyPartFactory.CreateBody(stats.type);
 
-        _bodyFatKG = stats.overallWeight * stats.fatPercent;
-        _muscleKG = stats.overallWeight * stats.musclePercent;
-        _baseWeight = stats.overallWeight - _bodyFatKG - _muscleKG;
+        BodyFatKG = stats.overallWeight * stats.fatPercent;
+        MuscleKG = stats.overallWeight * stats.musclePercent;
+        _baseWeight = stats.overallWeight - BodyFatKG - MuscleKG;
 
-        _bodyTemperature = 98.6;
+        BodyTemperature = BASE_BODY_TEMP;
     }
 
     public void ApplySizeModifier(double modifier)
     {
         _baseWeight *= modifier;
-        _bodyFatKG *= modifier;
-        _muscleKG *= modifier;
+        BodyFatKG *= modifier;
+        MuscleKG *= modifier;
     }
-
 
     public DamageResult Damage(DamageInfo damageInfo)
     {
@@ -148,15 +141,15 @@ public class Body
     public void ApplyResult(SurvivalProcessorResult result)
     {
         // Stats
-        _calorieStore = Math.Max(0, _calorieStore + result.StatsDelta.CalorieDelta);
-        _hydration = Math.Max(0, _hydration + result.StatsDelta.HydrationDelta);
-        _energy = Math.Clamp(_energy + result.StatsDelta.EnergyDelta, 0, SurvivalProcessor.MAX_ENERGY_MINUTES);
-        _bodyTemperature += result.StatsDelta.TemperatureDelta;
-        _clothingHeatBuffer = Math.Clamp(_clothingHeatBuffer + result.ClothingHeatBufferDelta, 0, 1);
+        CalorieStore = Math.Max(0, CalorieStore + result.StatsDelta.CalorieDelta);
+        Hydration = Math.Max(0, Hydration + result.StatsDelta.HydrationDelta);
+        Energy = Math.Clamp(Energy + result.StatsDelta.EnergyDelta, 0, SurvivalProcessor.MAX_ENERGY_MINUTES);
+        BodyTemperature += result.StatsDelta.TemperatureDelta;
+        ClothingHeatBufferPct = Math.Clamp(ClothingHeatBufferPct + result.ClothingHeatBufferDelta, 0, 1);
 
         // Body composition
-        _bodyFatKG = Math.Max(0, _bodyFatKG - result.FatToConsume);
-        _muscleKG = Math.Max(0, _muscleKG - result.MuscleToConsume);
+        BodyFatKG = Math.Max(0, BodyFatKG - result.FatToConsume);
+        MuscleKG = Math.Max(0, MuscleKG - result.MuscleToConsume);
 
         // Blood regeneration
         if (result.BloodHealing > 0)
@@ -177,40 +170,16 @@ public class Body
         }
     }
 
-    // Commented out - FoodItem class removed during item system unification
-    // Food is now handled via Resources in Inventory
-    // public void Consume(FoodItem food)
-    // {
-    //     var digestion = GetDigestionCapacity();
-    //     double absorptionRate = 0.5 + (0.5 * digestion);  // 50-100% absorption
-    //
-    //     _calorieStore += food.Calories * absorptionRate;
-    //     _hydration += food.WaterContent;  // Water absorption unaffected
-    //
-    //     if (food.HealthEffect != null) Heal(food.HealthEffect);
-    //     if (food.DamageEffect != null) Damage(food.DamageEffect);
-    // }
-
     public void AddCalories(double calories)
     {
         var digestion = GetDigestionCapacity();
         double absorptionRate = 0.5 + (0.5 * digestion);
-        _calorieStore = Math.Min(SurvivalProcessor.MAX_CALORIES, _calorieStore + calories * absorptionRate);
+        CalorieStore = Math.Min(SurvivalProcessor.MAX_CALORIES, CalorieStore + calories * absorptionRate);
     }
 
     public void AddHydration(double ml)
     {
-        _hydration = Math.Min(SurvivalProcessor.MAX_HYDRATION, _hydration + ml);
-    }
-
-    public void DrainCalories(double calories)
-    {
-        _calorieStore = Math.Max(0, _calorieStore - calories);
-    }
-
-    public void DrainHydration(double ml)
-    {
-        _hydration = Math.Max(0, _hydration - ml);
+        Hydration = Math.Min(SurvivalProcessor.MAX_HYDRATION, Hydration + ml);
     }
 
     private double GetDigestionCapacity()
@@ -270,16 +239,4 @@ public class Body
     }
 
     public double BaseColdResistance { get; } = 0;
-
-    internal void Restore(double calories, double energy, double hydration,
-        double temperature, double fatKg, double muscleKg, double bloodCondition)
-    {
-        _calorieStore = calories;
-        _energy = energy;
-        _hydration = hydration;
-        _bodyTemperature = temperature;
-        _bodyFatKG = fatKg;
-        _muscleKG = muscleKg;
-        Blood.Condition = bloodCondition;
-    }
 }

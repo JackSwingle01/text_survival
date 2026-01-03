@@ -1,6 +1,7 @@
 using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Expeditions.WorkStrategies;
+using text_survival.Actors.Animals;
 
 namespace text_survival.Environments.Features;
 
@@ -14,9 +15,9 @@ public class MegafaunaPresenceFeature : LocationFeature, IWorkableFeature
     public override int IconPriority => 5;  // High priority - important gameplay feature
 
     /// <summary>
-    /// Type of megafauna present at this location ("Mammoth", "CaveBear", "SaberTooth").
+    /// Type of megafauna present at this location (AnimalType.Mammoth, AnimalType.CaveBear, AnimalType.SaberTooth).
     /// </summary>
-    public string MegafaunaType { get; set; } = "Mammoth";
+    public AnimalType MegafaunaType { get; set; } = AnimalType.Mammoth;
 
     /// <summary>
     /// Current activity level (0-1). Affects encounter chance and event triggers.
@@ -37,8 +38,8 @@ public class MegafaunaPresenceFeature : LocationFeature, IWorkableFeature
 
     public MegafaunaPresenceFeature() : base("Megafauna Territory") { }
 
-    public MegafaunaPresenceFeature(string megafaunaType, double activityLevel = 0.7, double respawnHours = 720.0)
-        : base($"{megafaunaType} Territory")
+    public MegafaunaPresenceFeature(AnimalType megafaunaType, double activityLevel = 0.7, double respawnHours = 720.0)
+        : base($"{megafaunaType.DisplayName()} Territory")
     {
         MegafaunaType = megafaunaType;
         ActivityLevel = activityLevel;
@@ -62,15 +63,15 @@ public class MegafaunaPresenceFeature : LocationFeature, IWorkableFeature
         }
 
         // Get current hunt tension to determine available work options
-        var huntTension = ctx.Tensions.GetTension($"{MegafaunaType}Tracked");
+        var huntTension = ctx.Tensions.GetTension($"{MegafaunaType.DisplayName()}Tracked");
         double tensionSeverity = huntTension?.Severity ?? 0.0;
 
         // Scout option - always available when no or low tension
         if (tensionSeverity < 0.5)
         {
             yield return new WorkOption(
-                $"Scout for {MegafaunaType.ToLower()} signs",
-                $"scout_{MegafaunaType.ToLower()}",
+                $"Scout for {MegafaunaType.DisplayName().ToLower()} signs",
+                $"scout_{MegafaunaType.DisplayName().ToLower()}",
                 new MegafaunaStrategy()
             );
         }
@@ -79,8 +80,8 @@ public class MegafaunaPresenceFeature : LocationFeature, IWorkableFeature
         if (tensionSeverity >= 0.3 && tensionSeverity < 0.6)
         {
             yield return new WorkOption(
-                $"Track the {MegafaunaType.ToLower()}",
-                $"track_{MegafaunaType.ToLower()}",
+                $"Track the {MegafaunaType.DisplayName().ToLower()}",
+                $"track_{MegafaunaType.DisplayName().ToLower()}",
                 new MegafaunaStrategy()
             );
         }
@@ -90,7 +91,7 @@ public class MegafaunaPresenceFeature : LocationFeature, IWorkableFeature
         {
             yield return new WorkOption(
                 $"Approach for confrontation",
-                $"approach_{MegafaunaType.ToLower()}",
+                $"approach_{MegafaunaType.DisplayName().ToLower()}",
                 new MegafaunaStrategy()
             );
         }
@@ -111,11 +112,13 @@ public class MegafaunaPresenceFeature : LocationFeature, IWorkableFeature
     /// </summary>
     public string GetHuntStage(GameContext ctx)
     {
-        var huntTension = ctx.Tensions.GetTension($"{MegafaunaType}Tracked");
+        var huntTension = ctx.Tensions.GetTension($"{MegafaunaType.DisplayName()}Tracked");
         double tensionSeverity = huntTension?.Severity ?? 0.0;
 
         if (tensionSeverity < 0.3) return "scout";
         if (tensionSeverity < 0.6) return "track";
         return "approach";
     }
+
+    public override List<Resource> ProvidedResources() => []; // we don't want NPCs hunting megafauna
 }

@@ -1,4 +1,5 @@
 using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -229,7 +230,7 @@ public static partial class GameEventRegistry
                         new EventResult("Patient observation reveals movement. It's real.", weight: 0.80, minutes: 20)
                             .BecomeStalked(0.25),
                         new EventResult("You see it clearly now. Wolf. Circling.", weight: 0.20, minutes: 15)
-                            .BecomeStalked(0.4, "Wolf")
+                            .BecomeStalked(0.4, AnimalType.Wolf)
                     ]
                     : [
                         new EventResult("Long minutes of watching. Nothing. Fever lied.", weight: 0.70, minutes: 20)

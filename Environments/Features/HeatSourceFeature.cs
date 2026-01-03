@@ -587,6 +587,9 @@ public class HeatSourceFeature : LocationFeature
 
     #endregion
 
+    public override List<Resource> ProvidedResources() =>
+        _charcoalAvailableKg > 0 ? [Resource.Charcoal] : [];
+
     #region Save/Load Support - No longer needed with field-based serialization
 
     // Removed Restore() method - JSON deserialization now handles this automatically via private fields

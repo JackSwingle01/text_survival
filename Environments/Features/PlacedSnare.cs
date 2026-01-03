@@ -1,3 +1,5 @@
+using text_survival.Actors.Animals;
+
 namespace text_survival.Environments.Features;
 
 /// <summary>

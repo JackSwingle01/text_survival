@@ -1,48 +1,31 @@
 using text_survival.Bodies;
-using text_survival.Items;
 
 namespace text_survival.Actors.Animals;
 
 public static class AnimalFactory
 {
-    /// <summary>
-    /// Create an animal from an AnimalType enum.
-    /// </summary>
-    public static Animal? FromType(AnimalType animalType)
+    public static Animal FromType(AnimalType animalType, Location location, GameMap map)
     {
         return animalType switch
         {
-            AnimalType.Caribou => MakeCaribou(),
-            AnimalType.Rabbit => MakeRabbit(),
-            AnimalType.Ptarmigan => MakePtarmigan(),
-            AnimalType.Fox => MakeFox(),
-            AnimalType.Wolf => MakeWolf(),
-            AnimalType.Bear => MakeBear(),
-            AnimalType.CaveBear => MakeCaveBear(),
-            AnimalType.Hyena => MakeCaveHyena(),
-            AnimalType.Mammoth => MakeWoollyMammoth(),
-            AnimalType.SaberTooth => MakeSaberToothTiger(),
-            AnimalType.Megaloceros => MakeMegaloceros(),
-            AnimalType.Bison => MakeSteppeBison(),
-            AnimalType.Rat => MakeRat(),
-            AnimalType.Squirrel => MakeRat(),  // Placeholder - similar small game
-            AnimalType.Grouse => MakePtarmigan(),  // Placeholder - similar bird
-            AnimalType.Fish => null,  // Fish don't have combat stats
-            _ => null
+            AnimalType.Caribou => MakeCaribou(location, map),
+            AnimalType.Rabbit => MakeRabbit(location, map),
+            AnimalType.Ptarmigan => MakePtarmigan(location, map),
+            AnimalType.Fox => MakeFox(location, map),
+            AnimalType.Wolf => MakeWolf(location, map),
+            AnimalType.Bear => MakeBear(location, map),
+            AnimalType.CaveBear => MakeCaveBear(location, map),
+            AnimalType.Hyena => MakeCaveHyena(location, map),
+            AnimalType.Mammoth => MakeWoollyMammoth(location, map),
+            AnimalType.SaberTooth => MakeSaberToothTiger(location, map),
+            AnimalType.Megaloceros => MakeMegaloceros(location, map),
+            AnimalType.Bison => MakeSteppeBison(location, map),
+            AnimalType.Rat => MakeRat(location, map),
+            AnimalType.Fish => throw new NotImplementedException(),
         };
     }
 
-    /// <summary>
-    /// Create an animal from a name string.
-    /// Used for territories and event-based carcass creation.
-    /// </summary>
-    public static Animal? FromName(string animalName)
-    {
-        var animalType = AnimalTypes.Parse(animalName);
-        return animalType.HasValue ? FromType(animalType.Value) : null;
-    }
-
-    public static Animal MakeRat()
+    public static Animal MakeRat(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -54,7 +37,8 @@ public static class AnimalFactory
 
         // 0-1 damage scale: 0.05 = scratches, negligible
         var animal = new Animal("Rat", bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small,
-            attackDamage: 0.05, attackName: "teeth", attackType: DamageType.Pierce)
+            attackDamage: 0.05, attackName: "teeth", attackType: DamageType.Pierce,
+            location: location, map: map)
         {
             TrackingDifficulty = 3
         };
@@ -62,7 +46,7 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeWolf()
+    public static Animal MakeWolf(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -75,6 +59,7 @@ public static class AnimalFactory
         // 0-1 damage scale: 0.45 = 2 hits cripples limb, very dangerous
         var animal = new Animal("Wolf", bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
             attackDamage: 0.45, attackName: "fangs", attackType: DamageType.Pierce,
+            location: location, map: map,
             speedMps: 8.0, pursuitCommitment: 60.0,
             disengageAfterMaul: 0.2)  // Pack hunters tend to finish prey
         {
@@ -84,7 +69,7 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeBear()
+    public static Animal MakeBear(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -97,6 +82,7 @@ public static class AnimalFactory
         // 0-1 damage scale: 0.60 = 1-2 hits cripples limb, large predator
         var animal = new Animal("Bear", bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
             attackDamage: 0.60, attackName: "claws", attackType: DamageType.Sharp,
+            location: location, map: map,
             speedMps: 5.0, pursuitCommitment: 30.0,
             disengageAfterMaul: 0.5)  // Often leaves after incapacitating (territorial defense)
         {
@@ -106,7 +92,7 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeCaveBear()
+    public static Animal MakeCaveBear(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -117,8 +103,9 @@ public static class AnimalFactory
         };
 
         // 0-1 damage scale: 0.80 = 1 hit major wound, terrifying
-        var animal = new Animal("Cave Bear", bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
+        var animal = new Animal(AnimalType.CaveBear.DisplayName(), bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
             attackDamage: 0.80, attackName: "massive claws", attackType: DamageType.Sharp,
+            location: location, map: map,
             speedMps: 4.5, pursuitCommitment: 25.0,
             disengageAfterMaul: 0.5)  // Often leaves after incapacitating (territorial defense)
         {
@@ -128,7 +115,7 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeWoollyMammoth()
+    public static Animal MakeWoollyMammoth(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -141,6 +128,7 @@ public static class AnimalFactory
         // 0-1 damage scale: 1.2 = 1 hit destroys limb, run or die
         var animal = new Animal("Woolly Mammoth", bodyStats, AnimalBehaviorType.DangerousPrey, AnimalSize.Large,
             attackDamage: 1.2, attackName: "tusks", attackType: DamageType.Pierce,
+            location: location, map: map,
             disengageAfterMaul: 0.7)  // Defensive - just wants you to go away
         {
             TrackingDifficulty = 2,
@@ -154,7 +142,7 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeSaberToothTiger()
+    public static Animal MakeSaberToothTiger(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -167,6 +155,7 @@ public static class AnimalFactory
         // 0-1 damage scale: 0.90 = 1 hit cripples/dying, apex predator
         var animal = new Animal("Saber-Tooth Tiger", bodyStats, AnimalBehaviorType.Predator, AnimalSize.Large,
             attackDamage: 0.90, attackName: "massive fangs", attackType: DamageType.Pierce,
+            location: location, map: map,
             speedMps: 9.0, pursuitCommitment: 45.0,
             disengageAfterMaul: 0.15)  // Big cat, likely to finish kill
         {
@@ -176,7 +165,7 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeCaribou()
+    public static Animal MakeCaribou(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -187,8 +176,9 @@ public static class AnimalFactory
         };
 
         // 0-1 damage scale: 0.25 = defensive bruising/gash
-        var animal = new Animal("Caribou", bodyStats, AnimalBehaviorType.Prey, AnimalSize.Large,
+        var animal = new Animal(AnimalType.Caribou.DisplayName(), bodyStats, AnimalBehaviorType.Prey, AnimalSize.Large,
             attackDamage: 0.25, attackName: "antlers", attackType: DamageType.Blunt,
+            location: location, map: map,
             isHostile: false)
         {
             TrackingDifficulty = 4
@@ -197,7 +187,7 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeRabbit()
+    public static Animal MakeRabbit(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -208,8 +198,9 @@ public static class AnimalFactory
         };
 
         // 0-1 damage scale: 0.02 = negligible, prey animal
-        var animal = new Animal("Rabbit", bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small,
+        var animal = new Animal(AnimalType.Rabbit.DisplayName(), bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small,
             attackDamage: 0.02, attackName: "teeth", attackType: DamageType.Blunt,
+            location: location, map: map,
             isHostile: false)
         {
             TrackingDifficulty = 6
@@ -218,7 +209,7 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakePtarmigan()
+    public static Animal MakePtarmigan(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -229,8 +220,9 @@ public static class AnimalFactory
         };
 
         // 0-1 damage scale: 0.02 = negligible, prey bird
-        var animal = new Animal("Ptarmigan", bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small,
+        var animal = new Animal(AnimalType.Ptarmigan.DisplayName(), bodyStats, AnimalBehaviorType.Prey, AnimalSize.Small,
             attackDamage: 0.02, attackName: "beak", attackType: DamageType.Blunt,
+            location: location, map: map,
             isHostile: false)
         {
             TrackingDifficulty = 7
@@ -239,7 +231,7 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeFox()
+    public static Animal MakeFox(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -250,8 +242,9 @@ public static class AnimalFactory
         };
 
         // 0-1 damage scale: 0.12 = minor wound, small predator
-        var animal = new Animal("Fox", bodyStats, AnimalBehaviorType.Scavenger, AnimalSize.Small,
+        var animal = new Animal(AnimalType.Fox.DisplayName(), bodyStats, AnimalBehaviorType.Scavenger, AnimalSize.Small,
             attackDamage: 0.12, attackName: "sharp teeth", attackType: DamageType.Pierce,
+            location: location, map: map,
             isHostile: false)
         {
             TrackingDifficulty = 6
@@ -260,7 +253,7 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeMegaloceros()
+    public static Animal MakeMegaloceros(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -271,8 +264,9 @@ public static class AnimalFactory
         };
 
         // 0-1 damage scale: 0.50 = gored/trampled, massive antlers
-        var animal = new Animal("Megaloceros", bodyStats, AnimalBehaviorType.DangerousPrey, AnimalSize.Large,
+        var animal = new Animal(AnimalType.Megaloceros.DisplayName(), bodyStats, AnimalBehaviorType.DangerousPrey, AnimalSize.Large,
             attackDamage: 0.50, attackName: "massive antlers", attackType: DamageType.Blunt,
+            location: location, map: map,
             speedMps: 7.0, pursuitCommitment: 20.0,
             isHostile: false,
             disengageAfterMaul: 0.6)  // Defensive - leaves once threat neutralized
@@ -283,7 +277,7 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeSteppeBison()
+    public static Animal MakeSteppeBison(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -296,6 +290,7 @@ public static class AnimalFactory
         // 0-1 damage scale: 0.55 = gored, dangerous prey
         var animal = new Animal("Steppe Bison", bodyStats, AnimalBehaviorType.DangerousPrey, AnimalSize.Large,
             attackDamage: 0.55, attackName: "horns", attackType: DamageType.Pierce,
+            location: location, map: map,
             speedMps: 6.5, pursuitCommitment: 25.0,
             isHostile: false,
             disengageAfterMaul: 0.6)  // Defensive - leaves once threat neutralized
@@ -306,7 +301,7 @@ public static class AnimalFactory
         return animal;
     }
 
-    public static Animal MakeCaveHyena()
+    public static Animal MakeCaveHyena(Location location, GameMap map)
     {
         var bodyStats = new BodyCreationInfo
         {
@@ -319,6 +314,7 @@ public static class AnimalFactory
         // 0-1 damage scale: 0.40 = crushing bite, bone-crushing jaws
         var animal = new Animal("Cave Hyena", bodyStats, AnimalBehaviorType.Scavenger, AnimalSize.Large,
             attackDamage: 0.40, attackName: "crushing jaws", attackType: DamageType.Blunt,
+            location: location, map: map,
             speedMps: 7.5, pursuitCommitment: 50.0,
             disengageAfterMaul: 0.3)  // Scavenger, may leave if prey plays dead
         {

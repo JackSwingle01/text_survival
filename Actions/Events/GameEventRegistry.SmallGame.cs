@@ -1,4 +1,5 @@
 using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -109,7 +110,7 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.SmallGame),
                     new EventResult("Water distorts the position. You miss.", 0.35, 5),
                     new EventResult("A glancing blow. It escapes, wounded.", 0.20, 5)
-                        .CreateTension("WoundedPrey", 0.2, animalType: "fish"),
+                        .CreateTension("WoundedPrey", 0.2, animalType: AnimalType.Fish),
                     new EventResult("Two fish! They were closer together than you thought.", hasSpear ? 0.08 : 0.02, 5)
                         .Rewards(RewardPool.SmallGame)
                         .Rewards(RewardPool.SmallGame)

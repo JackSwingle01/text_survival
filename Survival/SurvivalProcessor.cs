@@ -15,7 +15,7 @@ public static class SurvivalProcessor
 
 	private const double BaseBodyTemperature = 98.6;
 	private const double SevereHypothermiaThreshold = 89.6;
-	private const double HypothermiaThreshold = 95.0;
+	public const double HypothermiaThreshold = 95.0;
 	private const double ShiveringThreshold = 97.0;
 	private const double HyperthermiaThreshold = 100.0;
 	private const double SweatingThreshold = 99.0;
@@ -491,7 +491,7 @@ public static class SurvivalProcessor
 		// else: below freezing = 0 (clothes freeze wet)
 
 		// Wind accelerates drying
-		baseRate += context.WindSpeed;
+		baseRate += context.WindSpeedLevel;
 
 		return baseRate;
 	}
@@ -502,7 +502,7 @@ public static class SurvivalProcessor
 
 		// Calculate wetness accumulation per minute
 		double wetnessDelta = 0;
-		double exposureFactor = 1 - context.OverheadCover;
+		double exposureFactor = 1 - context.OverheadCoverLevel;
 
 		// Apply waterproofing reduction (resin-treated equipment)
 		double waterproofReduction = 1 - context.WaterproofingLevel;
@@ -510,11 +510,11 @@ public static class SurvivalProcessor
 		if (exposureFactor > 0)
 		{
 			if (context.IsRaining)
-				wetnessDelta = 0.01 * context.Precipitation * exposureFactor * waterproofReduction;
+				wetnessDelta = 0.01 * context.PrecipitationPct * exposureFactor * waterproofReduction;
 			else if (context.IsBlizzard)
-				wetnessDelta = 0.005 * context.Precipitation * exposureFactor * waterproofReduction;
+				wetnessDelta = 0.005 * context.PrecipitationPct * exposureFactor * waterproofReduction;
 			else if (context.IsSnowing)
-				wetnessDelta = 0.001 * context.Precipitation * exposureFactor * waterproofReduction;
+				wetnessDelta = 0.001 * context.PrecipitationPct * exposureFactor * waterproofReduction;
 		}
 
 		// Calculate drying (reduction in wetness per minute)
@@ -523,7 +523,7 @@ public static class SurvivalProcessor
 
 		// Calculate new severity (accumulation - drying)
 		double newSeverity = Math.Clamp(
-			context.CurrentWetnessSeverity + wetnessDelta * minutesElapsed - dryingDelta,
+			context.CurrentWetnessPct + wetnessDelta * minutesElapsed - dryingDelta,
 			0, 1);
 
 		// Create/update effect only when wetness reaches 10% to avoid spam in light snow
@@ -540,16 +540,16 @@ public static class SurvivalProcessor
 		var result = new SurvivalProcessorResult();
 
 		// No bleeding = no accumulation (let natural decay handle existing bloody)
-		if (context.CurrentBleedingSeverity <= 0)
+		if (context.CurrentBleedingPct <= 0)
 			return result;
 
 		// Accumulation rate: +0.15/hour at full bleeding severity
 		const double ACCUMULATION_RATE_PER_HOUR = 0.15;
 		double accumulationPerMinute = ACCUMULATION_RATE_PER_HOUR / 60.0;
-		double bloodyDelta = accumulationPerMinute * context.CurrentBleedingSeverity * minutesElapsed;
+		double bloodyDelta = accumulationPerMinute * context.CurrentBleedingPct * minutesElapsed;
 
 		// Calculate new severity
-		double newSeverity = Math.Clamp(context.CurrentBloodySeverity + bloodyDelta, 0, 1);
+		double newSeverity = Math.Clamp(context.CurrentBloodyPct + bloodyDelta, 0, 1);
 
 		// Create/update effect only when bloody reaches 5%
 		if (newSeverity >= 0.05)

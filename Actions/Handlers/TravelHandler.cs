@@ -1,4 +1,5 @@
 using text_survival.Actions.Variants;
+using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.IO;
@@ -39,5 +40,30 @@ public static class TravelHandler
 
         // Show narrative
         GameDisplay.AddNarrative(ctx, variant.Description);
+    }
+
+    /// <summary>
+    /// Apply travel injury to any actor (NPC-friendly, no UI).
+    /// Returns description of what happened for caller to handle.
+    /// </summary>
+    public static string ApplyTravelInjury(Actor actor, Location location)
+    {
+        var variant = VariantSelector.SelectTravelInjuryVariant(location);
+
+        actor.Body.Damage(new DamageInfo(
+            variant.Amount,
+            variant.Type,
+            target: variant.Target
+        ));
+
+        if (variant.Effects != null)
+        {
+            foreach (var effect in variant.Effects)
+            {
+                actor.AddLog(actor.EffectRegistry.AddEffect(effect));
+            }
+        }
+
+        return variant.Description;
     }
 }

@@ -1,5 +1,6 @@
 using System.Text;
 using text_survival.Actors;
+using text_survival.Actors.Animals;
 using text_survival.Actors.Player;
 using text_survival.Bodies;
 
@@ -332,9 +333,9 @@ public static class CombatNarrator
             $"A {enemy.Name} lunges towards you suddenly!"
         ];
 
-        if (enemy.Name.Contains("Wolf"))
+        if (enemy.Name.Contains(AnimalType.Wolf.ToString()))
             possibleStarts.Add("You hear growling as a wolf steps out from the shadows, fangs bared!");
-        else if (enemy.Name.Contains("Bear"))
+        else if (enemy.Name.Contains(AnimalType.Bear.ToString()))
             possibleStarts.Add("A massive bear rears up on its hind legs, letting out a terrifying roar!");
 
         return possibleStarts[Utils.RandInt(0, possibleStarts.Count - 1)];

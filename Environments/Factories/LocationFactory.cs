@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 using text_survival.Items;
@@ -468,7 +469,7 @@ public static class LocationFactory
         // Saber-tooth drawn by abundant prey
         location.Features.Add(new MegafaunaPresenceFeature
         {
-            MegafaunaType = "SaberTooth",
+            MegafaunaType = AnimalType.SaberTooth,
             ActivityLevel = 0.45,    // More active where prey gathers
             RespawnHours = 480
         });
@@ -657,7 +658,7 @@ public static class LocationFactory
         // Saber-tooth ambush territory - stalks prey along the trail
         location.Features.Add(new MegafaunaPresenceFeature
         {
-            MegafaunaType = "SaberTooth",
+            MegafaunaType = AnimalType.SaberTooth,
             ActivityLevel = 0.4,
             RespawnHours = 480
         });
@@ -749,7 +750,7 @@ public static class LocationFactory
         // Saber-tooth hunting ground - commands view of prey below
         location.Features.Add(new MegafaunaPresenceFeature
         {
-            MegafaunaType = "SaberTooth",
+            MegafaunaType = AnimalType.SaberTooth,
             ActivityLevel = 0.35,    // Elusive apex predator
             RespawnHours = 480       // 20 days between encounters
         });
@@ -1085,7 +1086,7 @@ public static class LocationFactory
         // Megafauna presence - woolly mammoths still pass through this ancient graveyard
         location.Features.Add(new MegafaunaPresenceFeature
         {
-            MegafaunaType = "Mammoth",
+            MegafaunaType = AnimalType.Mammoth,
             ActivityLevel = 0.7,
             RespawnHours = 720  // 30 days between hunts
         });
@@ -2502,7 +2503,7 @@ public static class LocationFactory
 
         location.Features.Add(new MegafaunaPresenceFeature
         {
-            MegafaunaType = "Mammoth",
+            MegafaunaType = AnimalType.Mammoth,
             ActivityLevel = 0.9,
             RespawnHours = 480
         });

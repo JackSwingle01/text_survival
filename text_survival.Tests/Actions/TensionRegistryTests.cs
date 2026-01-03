@@ -1,4 +1,5 @@
 using text_survival.Actions.Tensions;
+using text_survival.Actors.Animals;
 
 namespace text_survival.Tests.Actions;
 
@@ -9,7 +10,7 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        var tension = ActiveTension.Stalked(0.5, "wolf");
+        var tension = ActiveTension.Stalked(0.5, AnimalType.Wolf);
 
         // Act
         registry.AddTension(tension);
@@ -23,17 +24,17 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        registry.AddTension(ActiveTension.Stalked(0.3, "wolf"));
+        registry.AddTension(ActiveTension.Stalked(0.3, AnimalType.Wolf));
 
         // Act - add same type with higher severity
-        registry.AddTension(ActiveTension.Stalked(0.8, "bear"));
+        registry.AddTension(ActiveTension.Stalked(0.8, AnimalType.Bear));
 
         // Assert - severity updates but original tension properties remain
         var tension = registry.GetTension("Stalked");
         Assert.NotNull(tension);
         Assert.Equal(0.8, tension.Severity);
-        // Note: AnimalType remains "wolf" as only severity is updated
-        Assert.Equal("wolf", tension.AnimalType);
+        // Note: AnimalType remains AnimalType.Wolf as only severity is updated
+        Assert.Equal(AnimalType.Wolf, tension.AnimalType);
     }
 
     [Fact]
@@ -41,7 +42,7 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        registry.AddTension(ActiveTension.Stalked(0.6, "wolf"));
+        registry.AddTension(ActiveTension.Stalked(0.6, AnimalType.Wolf));
 
         // Act
         var tension = registry.GetTension("Stalked");
@@ -176,12 +177,12 @@ public class TensionRegistryTests
     public void ActiveTension_Stalked_HasCorrectDefaults()
     {
         // Act
-        var tension = ActiveTension.Stalked(0.5, "wolf");
+        var tension = ActiveTension.Stalked(0.5, AnimalType.Wolf);
 
         // Assert
         Assert.Equal("Stalked", tension.Type);
         Assert.Equal(0.5, tension.Severity);
-        Assert.Equal("wolf", tension.AnimalType);
+        Assert.Equal(AnimalType.Wolf, tension.AnimalType);
         Assert.True(tension.DecaysAtCamp);
         Assert.True(tension.DecayPerHour > 0);
     }

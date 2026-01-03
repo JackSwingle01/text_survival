@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
 using text_survival.Items;
 
@@ -43,33 +44,33 @@ public static partial class GameEventRegistry
     private static GameEvent SpottedInOpen(GameContext ctx)
     {
         var stalked = ctx.Tensions.GetTension("Stalked");
-        var predator = stalked?.AnimalType ?? "wolf";
+        var predator = stalked?.AnimalType ?? AnimalType.Wolf;
 
         return new GameEvent("Exposed",
-            $"Movement at the tree line. The open terrain works both ways — you spot the {predator.ToLower()}, and it sees you.", 0.8)
+            $"Movement at the tree line. The open terrain works both ways — you spot the {predator.DisplayName()}, and it sees you.", 0.8)
             .Requires(EventCondition.Working, EventCondition.Stalked)
             .OnlyAt("Burnt Stand")
             .WithCooldown(2)
             .Choice("Hold Your Ground",
                 "Face it. Show no fear.",
                 [
-                    new EventResult($"The {predator.ToLower()} watches. You watch back. A standoff in the ash.", weight: 0.60, minutes: 10)
+                    new EventResult($"The {predator.DisplayName()} watches. You watch back. A standoff in the ash.", weight: 0.60, minutes: 10)
                         .EscalatesStalking(0.1),
-                    new EventResult($"Your stance unsettles it. The {predator.ToLower()} circles wider, keeping distance.", weight: 0.40, minutes: 8)
+                    new EventResult($"Your stance unsettles it. The {predator.DisplayName()} circles wider, keeping distance.", weight: 0.40, minutes: 8)
                         .EscalatesStalking(-0.1)
                 ])
             .Choice("Back Away Slowly",
                 "Create distance. Don't run.",
                 [
                     new EventResult("You retreat step by step. It doesn't follow. Yet.", weight: 0.70, minutes: 15),
-                    new EventResult($"Your movement triggers something. The {predator.ToLower()} starts toward you.", weight: 0.30, minutes: 5)
+                    new EventResult($"Your movement triggers something. The {predator.DisplayName()} starts toward you.", weight: 0.30, minutes: 5)
                         .EscalatesStalking(0.3)
                 ])
             .Choice("Use the Visibility",
                 "If you can see it, you can prepare.",
                 [
                     new EventResult($"You track its position while gathering what you need. Knowledge is power.", weight: 0.80, minutes: 12),
-                    new EventResult($"Distracted by watching it, you stumble. The {predator.ToLower()} notices.", weight: 0.20, minutes: 8)
+                    new EventResult($"Distracted by watching it, you stumble. The {predator.DisplayName()} notices.", weight: 0.20, minutes: 8)
                         .EscalatesStalking(0.2)
                 ]);
     }
@@ -218,7 +219,7 @@ public static partial class GameEventRegistry
                 "Use your vantage. Learn what you're dealing with.",
                 [
                     new EventResult("A wolf, circling. Now you know where it is.", weight: 0.50, minutes: 10)
-                        .BecomeStalked(0.3, "Wolf"),
+                        .BecomeStalked(0.3, AnimalType.Wolf),
                     new EventResult("A fox, hunting mice. No threat.", weight: 0.30, minutes: 8),
                     new EventResult("Deer, grazing. Opportunity, if you can get close.", weight: 0.20, minutes: 8)
                 ])
@@ -240,34 +241,34 @@ public static partial class GameEventRegistry
     private static GameEvent MutualVisibility(GameContext ctx)
     {
         var stalked = ctx.Tensions.GetTension("Stalked");
-        var predator = stalked?.AnimalType ?? "wolf";
+        var predator = stalked?.AnimalType ?? AnimalType.Wolf;
 
         return new GameEvent("Seen and Seeing",
-            $"Exposed on the rock, you see the {predator.ToLower()} below — and it sees you. Eyes lock across the distance.", 0.9)
+            $"Exposed on the rock, you see the {predator.DisplayName()} below — and it sees you. Eyes lock across the distance.", 0.9)
             .Requires(EventCondition.Stalked)
             .OnlyAt("Granite Outcrop")
             .WithCooldown(4)
             .Choice("Use the Advantage",
                 "You have the high ground. Act like it.",
                 [
-                    new EventResult($"You stand tall. The {predator.ToLower()} hesitates. Prey doesn't act like this.", weight: 0.60, minutes: 5)
+                    new EventResult($"You stand tall. The {predator.DisplayName()} hesitates. Prey doesn't act like this.", weight: 0.60, minutes: 5)
                         .EscalatesStalking(-0.2),
-                    new EventResult($"It's not intimidated. The {predator.ToLower()} circles, looking for a path up.", weight: 0.40, minutes: 8)
+                    new EventResult($"It's not intimidated. The {predator.DisplayName()} circles, looking for a path up.", weight: 0.40, minutes: 8)
                         .EscalatesStalking(0.1)
                 ])
             .Choice("Descend Carefully",
                 "You can't stay up here forever.",
                 [
-                    new EventResult($"You descend the far side. The {predator.ToLower()} loses sight of you.", weight: 0.50, minutes: 12),
+                    new EventResult($"You descend the far side. The {predator.DisplayName()} loses sight of you.", weight: 0.50, minutes: 12),
                     new EventResult($"It tracks your descent. When you reach the bottom, it's waiting.", weight: 0.50, minutes: 15)
                         .EscalatesStalking(0.3)
                 ])
             .Choice("Throw Something",
                 "Maybe you can drive it off.",
                 [
-                    new EventResult($"A rock clatters near it. The {predator.ToLower()} flinches and retreats into the trees.", weight: 0.45, minutes: 3)
+                    new EventResult($"A rock clatters near it. The {predator.DisplayName()} flinches and retreats into the trees.", weight: 0.45, minutes: 3)
                         .EscalatesStalking(-0.1),
-                    new EventResult($"Your throw falls short. The {predator.ToLower()} doesn't even react.", weight: 0.35, minutes: 3),
+                    new EventResult($"Your throw falls short. The {predator.DisplayName()} doesn't even react.", weight: 0.35, minutes: 3),
                     new EventResult($"The motion catches its attention. It advances.", weight: 0.20, minutes: 2)
                         .EscalatesStalking(0.2)
                 ]);
@@ -395,21 +396,21 @@ public static partial class GameEventRegistry
     private static GameEvent FreshTracks(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animal = territory?.GetRandomAnimalName() ?? "caribou";
-        var animalLower = animal.ToLower();
-        var trackDesc = animalLower switch
+        var animal = territory?.GetRandomAnimal() ?? AnimalType.Caribou;
+        var trackDesc = animal switch
         {
-            "caribou" => "Hoofprints in the snow",
-            "megaloceros" => "Massive hoofprints with antler drag marks",
-            "bison" => "Deep cloven tracks churning the snow",
-            "rabbit" => "Small paw prints, close together",
+            AnimalType.Caribou => "Hoofprints in the snow",
+            AnimalType.Megaloceros => "Massive hoofprints with antler drag marks",
+            AnimalType.Bison => "Deep cloven tracks churning the snow",
+            AnimalType.Rabbit => "Small paw prints, close together",
             _ => "Fresh tracks"
         };
 
         bool isGameTrail = ctx.CurrentLocation?.Name == "Game Trail";
+        var animalDisplay = animal.DisplayName();
 
         return new GameEvent("Fresh Tracks",
-            $"{trackDesc}, still crisp. {char.ToUpper(animal[0]) + animal[1..]} passed through recently.", isGameTrail ? 1.2 : 0.6)
+            $"{trackDesc}, still crisp. {char.ToUpper(animalDisplay[0]) + animalDisplay[1..]} passed through recently.", isGameTrail ? 1.2 : 0.6)
             .Requires(EventCondition.Working, EventCondition.InAnimalTerritory)
             .WithSituationFactor(Situations.IsFollowingAnimalSigns, 1.5)
             .WithSituationFactor(Situations.HasFreshTrail, 1.5)  // Examining signs helps find more
@@ -417,8 +418,8 @@ public static partial class GameEventRegistry
             .Choice("Follow Them",
                 "The trail is fresh. They can't be far.",
                 [
-                    new EventResult($"You track them carefully. {char.ToUpper(animal[0]) + animal[1..]} ahead, grazing. An opportunity.", weight: 0.45, minutes: 20)
-                        .CreateTension("WoundedPrey", 0.5, description: $"Fresh {animal} trail"),
+                    new EventResult($"You track them carefully. {char.ToUpper(animalDisplay[0]) + animalDisplay[1..]} ahead, grazing. An opportunity.", weight: 0.45, minutes: 20)
+                        .CreateTension("WoundedPrey", 0.5, description: $"Fresh {animalDisplay.ToLower()} trail"),
                     new EventResult("The trail goes cold. They're faster than you.", weight: 0.30, minutes: 15),
                     new EventResult("The trail leads to a thicket. Bedded down - dangerous to approach.", weight: 0.15, minutes: 12)
                         .CreateTension("WoundedPrey", 0.3),
@@ -429,9 +430,9 @@ public static partial class GameEventRegistry
                 "Note where you found these. Return prepared for a proper hunt.",
                 [
                     new EventResult("You memorize the landmarks. Good hunting ground.", weight: 0.80, minutes: 3)
-                        .CreateTension("MarkedDiscovery", 0.3, description: $"{animal} trail spotted"),
+                        .CreateTension("MarkedDiscovery", 0.3, description: $"{animalDisplay.ToLower()} trail spotted"),
                     new EventResult("You break some branches to mark the spot.", weight: 0.20, minutes: 5)
-                        .CreateTension("MarkedDiscovery", 0.4, description: $"Marked {animal} trail")
+                        .CreateTension("MarkedDiscovery", 0.4, description: $"Marked {animalDisplay.ToLower()} trail")
                 ])
             .Choice("Keep Working",
                 "Note the tracks and continue what you were doing.",
@@ -448,26 +449,26 @@ public static partial class GameEventRegistry
     private static GameEvent EscapeIntoThicket(GameContext ctx)
     {
         var stalked = ctx.Tensions.GetTension("Stalked");
-        var predator = stalked?.AnimalType ?? "wolf";
+        var predator = stalked?.AnimalType ?? AnimalType.Wolf;
 
         return new GameEvent("Escape Route",
-            $"The {predator.ToLower()} circles at the thicket's edge. It can't follow you in here.", 0.9)
+            $"The {predator.DisplayName()} circles at the thicket's edge. It can't follow you in here.", 0.9)
             .Requires(EventCondition.Stalked)
             .OnlyAt("Dense Thicket")
             .WithCooldown(4)
             .Choice("Push Deeper",
                 "Put more brush between you.",
                 [
-                    new EventResult($"Branches tear at you, but the {predator.ToLower()} falls back. You're safe.", weight: 0.85, minutes: 15)
+                    new EventResult($"Branches tear at you, but the {predator.DisplayName()} falls back. You're safe.", weight: 0.85, minutes: 15)
                         .ResolvesStalking(),
                     new EventResult("The thicket is impassable here. You have to go around.", weight: 0.15, minutes: 20)
                 ])
             .Choice("Wait It Out",
                 "It has to give up eventually.",
                 [
-                    new EventResult($"Minutes pass. The {predator.ToLower()} paces, then leaves. You're safe.", weight: 0.70, minutes: 30)
+                    new EventResult($"Minutes pass. The {predator.DisplayName()} paces, then leaves. You're safe.", weight: 0.70, minutes: 30)
                         .ResolvesStalking(),
-                    new EventResult($"It's patient. The {predator.ToLower()} settles in to wait. So are you.", weight: 0.30, minutes: 45)
+                    new EventResult($"It's patient. The {predator.DisplayName()} settles in to wait. So are you.", weight: 0.30, minutes: 45)
                         .EscalatesStalking(-0.1)
                 ]);
     }
@@ -606,12 +607,12 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You uncover frozen carcasses. Partially eaten, but there's meat here.", weight: 0.50, minutes: 20)
                         .FindsMeat()
-                        .CreateTension("ClaimedTerritory", 0.4, animalType: "Bear", location: ctx.CurrentLocation),
+                        .CreateTension("ClaimedTerritory", 0.4, animalType: AnimalType.Bear, location: ctx.CurrentLocation),
                     new EventResult("The cache is fresh. The bear hasn't been gone long.", weight: 0.30, minutes: 15)
                         .Rewards(RewardPool.SmallGame)
-                        .CreateTension("ClaimedTerritory", 0.6, animalType: "Bear", location: ctx.CurrentLocation),
+                        .CreateTension("ClaimedTerritory", 0.6, animalType: AnimalType.Bear, location: ctx.CurrentLocation),
                     new EventResult("A rumbling growl from the cave mouth. It's back. RUN.", weight: 0.20, minutes: 5)
-                        .Encounter("Bear", 20, 0.7)
+                        .Encounter(AnimalType.Bear, 20, 0.7)
                 ])
             .Choice("Take Bones Only",
                 "Less valuable, but won't smell like fresh theft.",
@@ -620,7 +621,7 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.BoneHarvest),
                     new EventResult("Even this disturbs the cache. You've left a sign.", weight: 0.20, minutes: 8)
                         .Rewards(RewardPool.BoneHarvest)
-                        .CreateTension("ClaimedTerritory", 0.2, animalType: "Bear", location: ctx.CurrentLocation)
+                        .CreateTension("ClaimedTerritory", 0.2, animalType: AnimalType.Bear, location: ctx.CurrentLocation)
                 ])
             .Choice("Leave It Untouched",
                 "Not worth angering whatever lives here.",
@@ -644,7 +645,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Deep gouges. Old and new, layered. A regular occupant — not just passing through.", weight: 0.60, minutes: 8),
                     new EventResult("The claw marks are fresh. Sap still oozes from the scratched wood. It was here recently.", weight: 0.40, minutes: 5)
-                        .CreateTension("ClaimedTerritory", 0.3, animalType: "Bear", location: ctx.CurrentLocation)
+                        .CreateTension("ClaimedTerritory", 0.3, animalType: AnimalType.Bear, location: ctx.CurrentLocation)
                 ])
             .Choice("Focus on Why You're Here",
                 "You know it's dangerous. Keep moving.",
@@ -672,7 +673,7 @@ public static partial class GameEventRegistry
                         .FindsLargeMeat()
                         .AddsShelter(temp: 0.6, overhead: 0.9, wind: 0.8),
                     new EventResult("A glancing blow. It wakes — confused, then enraged.", weight: 0.50, minutes: 5)
-                        .Encounter("Bear", 5, 0.9),
+                        .Encounter(AnimalType.Bear, 5, 0.9),
                     new EventResult("Your nerve fails. You can't do it.", weight: 0.20, minutes: 3)
                 ])
             .Choice("Back Away Silently",
@@ -928,10 +929,10 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Deer, picking through the snow. You note their path.", weight: 0.40, minutes: 10),
                     new EventResult("A lone wolf, hunting. It hasn't noticed you.", weight: 0.30, minutes: 8)
-                        .BecomeStalked(0.2, "Wolf"),
+                        .BecomeStalked(0.2, AnimalType.Wolf),
                     new EventResult("Humans? No — just the way the trees move. Tricks of the light.", weight: 0.20, minutes: 5),
                     new EventResult("A bear, foraging along the ridgeline. Headed this way.", weight: 0.10, minutes: 6)
-                        .BecomeStalked(0.3, "Bear")
+                        .BecomeStalked(0.3, AnimalType.Bear)
                 ])
             .Choice("Mark the Location",
                 "Remember where the activity is.",
@@ -1004,7 +1005,7 @@ public static partial class GameEventRegistry
         if (tensionCheck == null) return new GameEvent("WhatKilledThem", "", 0);
 
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
 
         return new GameEvent("Still Here",
             "A sound in the brush. The same thing that ended the last occupant might still be around.", 0.8)
@@ -1014,7 +1015,7 @@ public static partial class GameEventRegistry
             .Choice("Face It",
                 "Better to know what's hunting you.",
                 [
-                    new EventResult($"A {predator.ToLower()} emerges from the trees. It's been watching. It knows this place.", weight: 0.50, minutes: 5)
+                    new EventResult($"A {predator.DisplayName()} emerges from the trees. It's been watching. It knows this place.", weight: 0.50, minutes: 5)
                         .Encounter(predator, 15, 0.6),
                     new EventResult("Nothing. Wind in the branches. Your nerves are shot.", weight: 0.35, minutes: 8)
                         .ResolveTension("PredatorTerritory"),

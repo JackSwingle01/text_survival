@@ -1,4 +1,5 @@
 using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -759,24 +760,25 @@ public static partial class GameEventRegistry
     private static GameEvent AmbushOpportunity(GameContext ctx)
     {
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animal = territory?.GetRandomAnimalName() ?? "animal";
+        var animalType = territory?.GetRandomAnimal() ?? AnimalType.Rabbit;
+        var animalName = animalType.DisplayName().ToLower();
 
         return new GameEvent("Ambush Opportunity",
-            $"Dense cover conceals you. Fresh {animal.ToLower()} sign everywhere. Perfect hunting ground — or perfect place for something to hunt YOU.", 0.8)
+            $"Dense cover conceals you. Fresh {animalName} sign everywhere. Perfect hunting ground — or perfect place for something to hunt YOU.", 0.8)
             .Requires(EventCondition.LowVisibility, EventCondition.InAnimalTerritory, EventCondition.Working)
             .WithSituationFactor(Situations.HuntingAdvantage, 1.5)  // Weapon + stealth = better odds
             .WithSituationFactor(Situations.GoodForStealth, 1.3)  // Good conditions amplify opportunity
             .Choice("Set Up an Ambush",
                 "Use this cover to your advantage. Wait for prey.",
                 [
-                    new EventResult($"A {animal.ToLower()} wanders into your kill zone. Clean shot.", 0.35, 45)
+                    new EventResult($"A {animalName} wanders into your kill zone. Clean shot.", 0.35, 45)
                         .FindsMeat(),
                     new EventResult("Nothing comes. Wasted time, but you're well-positioned now.", 0.30, 40),
                     new EventResult("Something comes — too big. You let it pass.", 0.20, 50)
                         .Unsettling()
                         .BecomeStalked(0.2),
                     new EventResult("Something was hunting YOU. It pounces.", 0.10, 30)
-                        .Encounter(territory?.GetRandomPredatorName() ?? "Wolf", 10, 0.7)
+                        .Encounter(territory?.GetRandomPredator() ?? AnimalType.Wolf, 10, 0.7)
                         .Aborts(),
                     new EventResult("Perfect shot. Quality kill.", 0.05, 55)
                         .FindsLargeMeat()
@@ -793,7 +795,7 @@ public static partial class GameEventRegistry
                         .FindsSupplies()
                         .Damage(0.05, DamageType.Sharp),
                     new EventResult("You disturb a nest. Something angry emerges.", 0.10, 15)
-                        .Encounter(territory?.GetRandomAnimalName() ?? "Fox", 15, 0.4)
+                        .Encounter(territory?.GetRandomAnimal() ?? AnimalType.Fox, 15, 0.4)
                 ])
             .Choice("Move Through Quickly",
                 "Don't linger. This place favors predators.",

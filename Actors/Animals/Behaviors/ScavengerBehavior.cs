@@ -282,7 +282,7 @@ public class ScavengerBehavior : IHerdBehavior
 
     private static Herd? FindWolfPack(Herd herd, GameContext ctx)
     {
-        return ctx.Herds.GetHerdsByType("Wolf")
+        return ctx.Herds.GetHerdsByType(AnimalType.Wolf)
             .Where(h => h.State == HerdState.Patrolling)
             .OrderBy(h => h.Position.ManhattanDistance(herd.Position))
             .FirstOrDefault();

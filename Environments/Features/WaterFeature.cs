@@ -165,4 +165,7 @@ public class WaterFeature : LocationFeature
         }
         return this;
     }
+
+    public override List<Resource> ProvidedResources() =>
+        (!IsFrozen || HasIceHole) ? [Resource.Water] : [];
 }

@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
 
 namespace text_survival.Actions;
@@ -13,7 +14,7 @@ public static partial class GameEventRegistry
     private static GameEvent BloodInSnow(GameContext ctx)
     {
         var woundedTension = ctx.Tensions.GetTension("WoundedPrey");
-        var animal = woundedTension?.AnimalType ?? "animal";
+        var animal = woundedTension?.AnimalType ?? AnimalType.Caribou;
 
         // Situational reading based on blood trail description
         var trailDescription = woundedTension?.Severity > 0.5
@@ -66,36 +67,42 @@ public static partial class GameEventRegistry
     private static GameEvent TheDyingAnimal(GameContext ctx)
     {
         var woundedTension = ctx.Tensions.GetTension("WoundedPrey");
-        var animal = woundedTension?.AnimalType ?? "caribou";
+        var animal = woundedTension?.AnimalType ?? AnimalType.Caribou;
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
 
-        // Scavenger type affects options
+        // Scavenger type affects options - null indicates ravens
         var scavengerType = territory?.HasPredators() == true
-            ? (territory.GetRandomPredatorName() ?? "wolf")
-            : "ravens";
+            ? territory.GetRandomPredator()
+            : null;
 
-        var scavengerDesc = scavengerType.ToLower() == "ravens"
+        var scavengerDesc = scavengerType == null
             ? "Ravens circle overhead, cawing. They've spotted the blood."
-            : $"A {scavengerType.ToLower()} watches from the treeline. It's been following the blood trail too.";
+            : $"A {scavengerType.Value.DisplayName()} watches from the treeline. It's been following the blood trail too.";
 
         return new GameEvent("The Dying Animal",
-            $"You find the {animal.ToLower()}. It's down, breathing shallow, too weak to run. {scavengerDesc}", 2.0)
+            $"You find the {animal.DisplayName()}. It's down, breathing shallow, too weak to run. {scavengerDesc}", 2.0)
             .Requires(EventCondition.WoundedPreyHigh)
             .Choice("Finish It Quickly",
                 "End it fast. Take the meat before competition arrives.",
                 [
-                    new EventResult($"A clean kill. You work fast, aware of the {scavengerType.ToLower()} watching.", weight: 0.60, minutes: 15)
+                    new EventResult(scavengerType == null
+                        ? "A clean kill. You work fast, aware of the ravens watching."
+                        : $"A clean kill. You work fast, aware of the {scavengerType.Value.DisplayName()} watching.", weight: 0.60, minutes: 15)
                         .ResolveTension("WoundedPrey")
                         .FindsLargeMeat()
                         .CreateTension("FoodScentStrong", 0.4),
-                    new EventResult($"The {scavengerType.ToLower()} moves closer as you work. Hurrying now.", weight: 0.25, minutes: 12)
+                    new EventResult(scavengerType == null
+                        ? "The ravens move closer as you work. Hurrying now."
+                        : $"The {scavengerType.Value.DisplayName()} moves closer as you work. Hurrying now.", weight: 0.25, minutes: 12)
                         .ResolveTension("WoundedPrey")
                         .FindsMeat()
                         .BecomeStalked(0.3, scavengerType),
-                    new EventResult($"Too slow. The {scavengerType.ToLower()} commits.", weight: 0.15, minutes: 10)
+                    new EventResult(scavengerType == null
+                        ? "Too slow. The ravens commit."
+                        : $"Too slow. The {scavengerType.Value.DisplayName()} commits.", weight: 0.15, minutes: 10)
                         .ResolveTension("WoundedPrey")
                         .FindsMeat()
-                        .Encounter(scavengerType, 20, 0.5)
+                        .Encounter(scavengerType ?? AnimalType.Wolf, 20, 0.5)
                 ])
             .Choice("Wait for It to Die",
                 "Let nature take its course. No need to risk getting close yet.",
@@ -103,17 +110,19 @@ public static partial class GameEventRegistry
                     new EventResult("It finally stops breathing. The scavengers held back.", weight: 0.40, minutes: 25)
                         .ResolveTension("WoundedPrey")
                         .FindsLargeMeat(),
-                    new EventResult($"The {scavengerType.ToLower()} doesn't wait. It claims the kill.", weight: 0.35, minutes: 20)
+                    new EventResult(scavengerType == null
+                        ? "The ravens don't wait. They claim the kill."
+                        : $"The {scavengerType.Value.DisplayName()} doesn't wait. It claims the kill.", weight: 0.35, minutes: 20)
                         .ResolveTension("WoundedPrey")
                         .BecomeStalked(0.2, scavengerType),
                     new EventResult("Takes too long. Other scavengers arrive. You retreat.", weight: 0.25, minutes: 30)
                         .ResolveTension("WoundedPrey")
                 ])
             .Choice("Scare Off Scavengers First",
-                scavengerType.ToLower() == "ravens"
+                scavengerType == null
                     ? "Make noise. Drive the birds away."
                     : "Posture aggressively. Show you're not easy prey.",
-                scavengerType.ToLower() == "ravens"
+                scavengerType == null
                     ? [
                         new EventResult("The ravens scatter. You claim your kill in peace.", weight: 0.80, minutes: 18)
                             .ResolveTension("WoundedPrey")
@@ -123,16 +132,16 @@ public static partial class GameEventRegistry
                             .FindsMeat()
                     ]
                     : [
-                        new EventResult($"The {scavengerType.ToLower()} backs off. For now.", weight: 0.50, minutes: 20)
+                        new EventResult($"The {scavengerType.Value.DisplayName()} backs off. For now.", weight: 0.50, minutes: 20)
                             .ResolveTension("WoundedPrey")
                             .FindsLargeMeat()
                             .BecomeStalked(0.2, scavengerType),
                         new EventResult("It doesn't back down. This is a confrontation.", weight: 0.30, minutes: 10)
                             .ResolveTension("WoundedPrey")
-                            .Encounter(scavengerType, 25, 0.6),
+                            .Encounter(scavengerType ?? AnimalType.Wolf, 25, 0.6),
                         new EventResult("You misjudged. It attacks.", weight: 0.20, minutes: 5)
                             .ResolveTension("WoundedPrey")
-                            .Encounter(scavengerType, 10, 0.8)
+                            .Encounter(scavengerType ?? AnimalType.Wolf, 10, 0.8)
                     ]);
     }
 
@@ -143,17 +152,17 @@ public static partial class GameEventRegistry
     private static GameEvent ScavengersConverge(GameContext ctx)
     {
         var woundedTension = ctx.Tensions.GetTension("WoundedPrey");
-        var animal = woundedTension?.AnimalType ?? "caribou";
+        var animal = woundedTension?.AnimalType ?? AnimalType.Caribou;
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredatorName() ?? "Wolf";
+        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
 
         return new GameEvent("Scavengers Converge",
-            $"Too late. {predator}s have found the blood trail. They're between you and the {animal.ToLower()}.", 3.0)
+            $"Too late. {predator.DisplayName()}s have found the blood trail. They're between you and the {animal.DisplayName()}.", 3.0)
             .Requires(EventCondition.WoundedPreyCritical, EventCondition.HasPredators)
             .Choice("Fight for Your Kill",
                 "You tracked it. You wounded it. It's YOUR meat.",
                 [
-                    new EventResult($"You charge in. The {predator.ToLower()} doesn't back down.", weight: 1.0, minutes: 5)
+                    new EventResult($"You charge in. The {predator.DisplayName()} doesn't back down.", weight: 1.0, minutes: 5)
                         .ResolveTension("WoundedPrey")
                         .Encounter(predator, 15, 0.7)
                 ])

@@ -1,5 +1,6 @@
 using text_survival.Actions;
 using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -338,31 +339,29 @@ public class ForageStrategy : IWorkStrategy
             else
             {
                 // Select animal from weighted pool
-                string animalName = scenario.Animals.Select();
-                if (!string.IsNullOrEmpty(animalName))
+                AnimalType animalType = scenario.Animals.Select();
+
+                // Create carcass with appropriate harvestedPct
+                double harvestedPct = FreshnessHelper.RollHarvestedPct(scenario.Freshness);
+                var carcass = CarcassFeature.FromAnimal(AnimalFactory.FromType(animalType), harvestedPct);
+                location.AddFeature(carcass);
+
+                string description = $"{FreshnessHelper.GetDescription(scenario.Freshness)} - {animalType.DisplayName().ToLower()}";
+                collected.Add(description);
+                GameDisplay.AddNarrative(ctx, $"You find a {description}. It could be butchered for resources.");
+
+                // Roll for predator encounter with freshness modifier
+                double riskMod = FreshnessHelper.GetRiskModifier(scenario.Freshness);
+                double encounterChance = scenario.BaseEncounterChance * riskMod;
+
+                if (encounterChance > 0 && Utils.DetermineSuccess(encounterChance))
                 {
-                    // Roll freshness and create carcass with appropriate harvestedPct
-                    double harvestedPct = FreshnessHelper.RollHarvestedPct(scenario.Freshness);
-                    var carcass = CarcassFeature.FromAnimalName(animalName, harvestedPct);
-                    location.AddFeature(carcass);
-
-                    string description = $"{FreshnessHelper.GetDescription(scenario.Freshness)} - {animalName.ToLower()}";
-                    collected.Add(description);
-                    GameDisplay.AddNarrative(ctx, $"You find a {description}. It could be butchered for resources.");
-
-                    // Roll for predator encounter with freshness modifier
-                    double riskMod = FreshnessHelper.GetRiskModifier(scenario.Freshness);
-                    double encounterChance = scenario.BaseEncounterChance * riskMod;
-
-                    if (encounterChance > 0 && Utils.DetermineSuccess(encounterChance))
+                    AnimalType? predator = scenario.Predators.Select();
+                    if (predator != null)
                     {
-                        string? predator = scenario.Predators.Select();
-                        if (predator != null)
-                        {
-                            double boldness = FreshnessHelper.GetBoldness(scenario.Freshness);
-                            ctx.QueueEncounter(new EncounterConfig(predator, 30, boldness));
-                            GameDisplay.AddWarning(ctx, "Something is watching from the brush...");
-                        }
+                        double boldness = FreshnessHelper.GetBoldness(scenario.Freshness);
+                        ctx.QueueEncounter(new EncounterConfig(predator.Value, 30, boldness));
+                        GameDisplay.AddWarning(ctx, "Something is watching from the brush...");
                     }
                 }
             }
