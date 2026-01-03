@@ -23,6 +23,7 @@ namespace text_survival.Web.Dto;
 [JsonDerivedType(typeof(CombatOverlay), "combat")]
 [JsonDerivedType(typeof(EatingOverlay), "eating")]
 [JsonDerivedType(typeof(DiscoveryOverlay), "discovery")]
+[JsonDerivedType(typeof(WeatherChangeOverlay), "weatherChange")]
 public abstract record Overlay;
 
 /// <summary>
@@ -116,6 +117,19 @@ public record DiscoveryOverlay(DiscoveryDto Data) : Overlay;
 public record DiscoveryDto(
     string LocationName,
     string DiscoveryText
+);
+
+/// <summary>
+/// Weather change overlay: Simple notification popup when weather changes.
+/// </summary>
+public record WeatherChangeOverlay(WeatherChangeDto Data) : Overlay;
+
+/// <summary>
+/// Data for the weather change overlay - shown when weather transitions.
+/// </summary>
+public record WeatherChangeDto(
+    string WeatherCondition,
+    string WeatherFront
 );
 
 /// <summary>

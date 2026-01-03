@@ -331,6 +331,13 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         // Update zone weather and all named locations (terrain-only don't need updates)
         Weather.Update(GameTime);
+
+        // Show weather change popup
+        if (Weather.WeatherJustChanged && SessionId != null)
+        {
+            Web.WebIO.ShowWeatherChange(this);
+        }
+
         if (Map != null)
         {
             foreach (var location in Map.NamedLocations)

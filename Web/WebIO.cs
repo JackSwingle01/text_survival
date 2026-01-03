@@ -33,6 +33,7 @@ public static class WebIO
     private static readonly Dictionary<string, CombatDto> _currentCombat = new();
     private static readonly Dictionary<string, EatingOverlayDto> _currentEating = new();
     private static readonly Dictionary<string, DiscoveryDto> _currentDiscovery = new();
+    private static readonly Dictionary<string, WeatherChangeDto> _currentWeatherChange = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -106,6 +107,8 @@ public static class WebIO
                 overlays.Add(new EatingOverlay(eating));
             if (_currentDiscovery.TryGetValue(sessionId, out var discovery))
                 overlays.Add(new DiscoveryOverlay(discovery));
+            if (_currentWeatherChange.TryGetValue(sessionId, out var weatherChange))
+                overlays.Add(new WeatherChangeOverlay(weatherChange));
         }
 
         return overlays;
@@ -235,6 +238,15 @@ public static class WebIO
     {
         if (ctx.SessionId != null)
             _currentDiscovery.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
+    /// Clear the current weather change display for a session.
+    /// </summary>
+    public static void ClearWeatherChange(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentWeatherChange.Remove(ctx.SessionId);
     }
 
     /// <summary>
@@ -461,6 +473,27 @@ public static class WebIO
 
         // Clear after acknowledgment
         ClearDiscovery(ctx);
+    }
+
+    /// <summary>
+    /// Show weather change notification popup with OK button.
+    /// </summary>
+    public static void ShowWeatherChange(GameContext ctx)
+    {
+        if (ctx.SessionId == null) return;
+
+        // Set weather change overlay
+        var weatherData = new WeatherChangeDto(
+            ctx.Weather.GetConditionLabel(),
+            ctx.Weather.GetFrontLabel()
+        );
+        _currentWeatherChange[ctx.SessionId] = weatherData;
+
+        // Render and wait for continue
+        WaitForEventContinue(ctx);
+
+        // Clear after acknowledgment
+        ClearWeatherChange(ctx);
     }
 
     /// <summary>

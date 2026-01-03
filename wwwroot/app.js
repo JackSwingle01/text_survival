@@ -15,6 +15,7 @@ import { CraftingOverlay } from './overlays/CraftingOverlay.js';
 import { FireOverlay } from './overlays/FireOverlay.js';
 import { EatingOverlay } from './overlays/EatingOverlay.js';
 import { DiscoveryOverlay } from './overlays/DiscoveryOverlay.js';
+import { WeatherChangeOverlay } from './overlays/WeatherChangeOverlay.js';
 import { ConnectionOverlay } from './modules/connection.js';
 import { Utils, ICON_CLASS, createIcon, show, hide } from './modules/utils.js';
 import { ProgressDisplay } from './modules/progress.js';
@@ -65,6 +66,7 @@ class GameClient {
             fire: new FireOverlay(this.inputHandler),
             eating: new EatingOverlay(this.inputHandler),
             discovery: new DiscoveryOverlay(this.inputHandler),
+            weatherChange: new WeatherChangeOverlay(this.inputHandler),
             transfer: new TransferOverlay(this.inputHandler),
             forage: new ForageOverlay(this.inputHandler),
             butcher: new ButcherOverlay(this.inputHandler),
