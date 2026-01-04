@@ -61,6 +61,26 @@ public class HerdRegistry
     public int TotalAnimalCount => _herds.Sum(h => h.Count);
     public int HerdCount => _herds.Count;
 
+    /// <summary>
+    /// Gets all individual animals from all herds (flattened).
+    /// Used by GameContext.AllActors for unified actor tracking.
+    /// </summary>
+    public IEnumerable<Animal> GetAllAnimals()
+    {
+        foreach (var herd in _herds)
+            foreach (var animal in herd.Members)
+                yield return animal;
+    }
+
+    /// <summary>
+    /// Finds which herd contains a specific animal.
+    /// Used by GameContext.GetActorPosition() to locate animals on the map.
+    /// </summary>
+    public Herd? GetHerdContaining(Animal animal)
+    {
+        return _herds.FirstOrDefault(h => h.Members.Contains(animal));
+    }
+
     #endregion
 
     #region Mutations

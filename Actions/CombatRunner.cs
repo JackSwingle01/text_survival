@@ -1,5 +1,6 @@
 using text_survival.Actors;
 using text_survival.Actors.Animals;
+using text_survival.Actors.Animals.Behaviors;
 using text_survival.Bodies;
 using text_survival.Combat;
 using text_survival.Environments;
@@ -202,6 +203,71 @@ public static class CombatRunner
         return RunCombatLoop(ctx, state);
     }
 
+    /// <summary>
+    /// Unified combat entry point. Routes to interactive or automatic mode based on player presence.
+    /// </summary>
+    public static CombatResult StartCombat(List<Actor> combatants, Location location, GameContext? ctx = null)
+    {
+        bool playerPresent = combatants.Any(a => a is text_survival.Actors.Player.Player);
+
+        if (playerPresent && ctx != null)
+        {
+            // Interactive mode - delegate to existing RunCombat
+            var enemy = combatants.FirstOrDefault(a => a != ctx.player) as Animal;
+            if (enemy != null)
+            {
+                return RunCombat(ctx, enemy);
+            }
+
+            // Fallback if no valid enemy found
+            return CombatResult.Fled;
+        }
+
+        // Automatic mode - delegate to ActorCombatResolver
+        var outcome = ActorCombatResolver.ResolveCombat(
+            combatants[0] as Animal ?? throw new ArgumentException("First combatant must be an animal"),
+            combatants[1] as NPC ?? throw new ArgumentException("Second combatant must be an NPC"),
+            location
+        );
+
+        // Convert CombatOutcome to CombatResult
+        return outcome switch
+        {
+            ActorCombatResolver.CombatOutcome.DefenderEscaped => CombatResult.Fled,
+            ActorCombatResolver.CombatOutcome.DefenderInjured => CombatResult.AnimalDisengaged,
+            ActorCombatResolver.CombatOutcome.DefenderKilled => CombatResult.Victory,
+            ActorCombatResolver.CombatOutcome.AttackerRepelled => CombatResult.AnimalFled,
+            _ => CombatResult.AnimalDisengaged
+        };
+    }
+
+    /// <summary>
+    /// Run combat with player + NPC allies vs animal enemy.
+    /// Uses multi-actor grid system.
+    /// </summary>
+    public static CombatResult RunCombatWithAllies(GameContext ctx, Animal enemy, List<NPC> allies)
+    {
+        double terrainHazard = ctx.CurrentLocation.GetEffectiveTerrainHazard();
+        double boldness = CalculateInitialBoldness(ctx, enemy);
+
+        var state = new CombatState(enemy, enemy.DistanceFromPlayer, boldness, terrainHazard);
+
+        // Initialize multi-actor grid
+        state.InitializeMultiActor(ctx.player, new[] { enemy }, enemy.DistanceFromPlayer);
+
+        // Add NPC allies with their behavior
+        for (int i = 0; i < allies.Count; i++)
+        {
+            var ally = allies[i];
+            var npcBehavior = new NPCCombatBehavior(ally, ctx.player);
+            double allyDistance = 3.0;  // Start near player
+            double angle = 180 + (i * 45);  // Spread behind player
+            state.AddAlly(ally, allyDistance, angle, npcBehavior);
+        }
+
+        return RunMultiActorCombatLoop(ctx, state, allies);
+    }
+
     #endregion
 
     #region Boldness Calculation
@@ -365,6 +431,321 @@ public static class CombatRunner
             $"Turns: {state.TurnCount}, " +
             $"Zone: {state.Zone}, " +
             $"Behavior: {state.Behavior.CurrentBehavior}");
+    }
+
+    #endregion
+
+    #region Multi-Actor Combat Loop
+
+    /// <summary>
+    /// Combat loop for player + allies vs enemy.
+    /// Processes turns for all actors: Player → Allies → Enemies
+    /// </summary>
+    private static CombatResult RunMultiActorCombatLoop(GameContext ctx, CombatState state, List<NPC> allies)
+    {
+        WebIO.ClearAllOverlays(ctx.SessionId!);
+
+        bool isFirstTurn = true;
+        double? prevDistance = null;
+
+        while (ctx.player.IsAlive && state.ActiveEnemyCount > 0 && state.TurnCount < MaxCombatTurns)
+        {
+            state.StartTurn();
+
+            // === PHASE 1: Intro (first turn only) ===
+            if (isFirstTurn)
+            {
+                string allyIntro = allies.Count == 1
+                    ? $"{allies[0].Name} joins the fight!"
+                    : $"{string.Join(" and ", allies.Select(a => a.Name))} join the fight!";
+                var introDto = BuildCombatDto(ctx, state, prevDistance,
+                    phase: CombatPhase.Intro,
+                    narrative: $"A {state.Animal.Name.ToLower()} attacks! {allyIntro}");
+                WebIO.RenderCombat(ctx, introDto);
+                WebIO.WaitForCombatContinue(ctx);
+                isFirstTurn = false;
+            }
+
+            // === PHASE 2: Player Choice ===
+            var choiceDto = BuildCombatDto(ctx, state, prevDistance, phase: CombatPhase.PlayerChoice);
+            string actionId = WebIO.WaitForCombatChoice(ctx, choiceDto);
+
+            prevDistance = state.DistanceMeters;
+            var playerResult = ProcessPlayerAction(ctx, state, actionId);
+
+            // Show player action
+            if (!string.IsNullOrEmpty(playerResult.Narrative))
+            {
+                var actionDto = BuildCombatDto(ctx, state, prevDistance,
+                    phase: CombatPhase.PlayerAction,
+                    narrative: playerResult.Narrative);
+                WebIO.RenderCombat(ctx, actionDto);
+                WebIO.WaitForCombatContinue(ctx);
+            }
+
+            if (playerResult.ImmediateOutcome.HasValue)
+                return ShowMultiActorOutcome(ctx, state, playerResult.ImmediateOutcome.Value, playerResult.Narrative);
+
+            // === PHASE 3: Ally Actions ===
+            foreach (var allyActor in state.ActiveAllies.ToList())
+            {
+                if (allyActor.NPCBehavior == null) continue;
+                if (!allyActor.IsActive) continue;
+
+                var action = allyActor.NPCBehavior.DecideAction(state, allyActor);
+                var narrative = ProcessAllyAction(ctx, state, allyActor, action);
+
+                if (!string.IsNullOrEmpty(narrative))
+                {
+                    var allyDto = BuildCombatDto(ctx, state, null,
+                        phase: CombatPhase.PlayerAction, // Use PlayerAction phase for ally narratives
+                        narrative: narrative);
+                    WebIO.RenderCombat(ctx, allyDto);
+                    WebIO.WaitForCombatContinue(ctx);
+                }
+
+                // Check if enemy died from ally attack
+                if (!state.Animal.IsAlive)
+                    return ShowMultiActorOutcome(ctx, state, CombatResult.Victory, $"{allyActor.Name} delivers the killing blow!");
+            }
+
+            // === PHASE 4: Enemy Actions ===
+            foreach (var enemyActor in state.ActiveEnemies.ToList())
+            {
+                if (!enemyActor.IsActive) continue;
+
+                // Enemy chooses target based on proximity
+                var target = ChooseEnemyTarget(state, enemyActor);
+                var narrative = ProcessMultiActorEnemyAction(ctx, state, enemyActor, target);
+
+                if (!string.IsNullOrEmpty(narrative))
+                {
+                    var enemyDto = BuildCombatDto(ctx, state, null,
+                        phase: CombatPhase.AnimalAction,
+                        narrative: narrative);
+                    WebIO.RenderCombat(ctx, enemyDto);
+                    WebIO.WaitForCombatContinue(ctx);
+                }
+            }
+
+            // Check for ally deaths
+            foreach (var allyActor in state.Actors.Where(a => a.IsAlly).ToList())
+            {
+                if (!allyActor.Actor.IsAlive && allyActor.IsEngaged)
+                {
+                    var deathDto = BuildCombatDto(ctx, state, null,
+                        phase: CombatPhase.AnimalAction,
+                        narrative: $"{allyActor.Name} falls!");
+                    WebIO.RenderCombat(ctx, deathDto);
+                    WebIO.WaitForCombatContinue(ctx);
+                    allyActor.IsEngaged = false;
+                }
+            }
+
+            ctx.Update(1, ActivityType.Fighting);
+            state.EndTurn();
+
+            var outcome = state.CheckForEnd(ctx);
+            if (outcome.HasValue)
+                return ShowMultiActorOutcome(ctx, state, MapOutcome(outcome.Value), null);
+        }
+
+        throw new InvalidOperationException("[COMBAT BUG] Multi-actor combat loop exited unexpectedly!");
+    }
+
+    /// <summary>
+    /// Enemy chooses target based on proximity.
+    /// </summary>
+    private static CombatActor? ChooseEnemyTarget(CombatState state, CombatActor enemy)
+    {
+        var targets = new List<CombatActor>();
+        if (state.PlayerActor != null && state.PlayerActor.IsActive)
+            targets.Add(state.PlayerActor);
+        targets.AddRange(state.ActiveAllies);
+
+        if (targets.Count == 0) return null;
+
+        return targets
+            .OrderBy(t => state.Map?.GetDistanceMeters(enemy, t) ?? double.MaxValue)
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Process an ally's combat action.
+    /// </summary>
+    private static string? ProcessAllyAction(GameContext ctx, CombatState state, CombatActor ally, NPCCombatAction action)
+    {
+        var npc = ally.Actor as NPC;
+        if (npc == null) return null;
+
+        var target = ally.NPCBehavior?.CurrentTarget;
+
+        return action switch
+        {
+            NPCCombatAction.Approach => ProcessAllyApproach(state, ally, target, npc),
+            NPCCombatAction.Attack => ProcessAllyAttack(ctx, state, ally, target, npc),
+            NPCCombatAction.Threaten => ProcessAllyThreaten(state, ally, target, npc),
+            NPCCombatAction.Flee => ProcessAllyFlee(state, ally, npc),
+            _ => null
+        };
+    }
+
+    private static string ProcessAllyApproach(CombatState state, CombatActor ally, CombatActor? target, NPC npc)
+    {
+        if (target == null || state.Map == null) return "";
+        state.Map.MoveToward(ally, target, 3.0);
+        return $"{npc.Name} moves closer to the {target.Name}.";
+    }
+
+    private static string ProcessAllyAttack(GameContext ctx, CombatState state, CombatActor ally, CombatActor? target, NPC npc)
+    {
+        if (target == null) return "";
+
+        var weapon = npc.Inventory.Weapon;
+        double baseDamage = weapon?.Damage ?? npc.AttackDamage;
+        double hitChance = 0.7 + (npc.Personality.Boldness * 0.2);
+
+        if (_rng.NextDouble() < hitChance)
+        {
+            // Apply damage to target (not state.Animal - that's the legacy single enemy)
+            DamageType damageType = weapon != null
+                ? GetDamageType(weapon.WeaponClass)
+                : DamageType.Blunt;
+
+            var damageInfo = new DamageInfo(baseDamage, damageType);
+            var result = DamageProcessor.DamageBody(damageInfo, target.Actor.Body);
+
+            foreach (var effect in result.TriggeredEffects)
+            {
+                target.Actor.EffectRegistry.AddEffect(effect);
+            }
+
+            // Decrement weapon durability
+            weapon?.Use();
+
+            return $"{npc.Name} strikes the {target.Name}!";
+        }
+        else
+        {
+            return $"{npc.Name}'s attack misses.";
+        }
+    }
+
+    private static string ProcessAllyThreaten(CombatState state, CombatActor ally, CombatActor? target, NPC npc)
+    {
+        if (target == null) return "";
+        // Reduce enemy boldness slightly
+        state.Behavior.ModifyBoldness(-0.05);
+        return $"{npc.Name} shouts at the {target.Name}, trying to intimidate it.";
+    }
+
+    private static string ProcessAllyFlee(CombatState state, CombatActor ally, NPC npc)
+    {
+        ally.Flee();
+        state.Map?.RemoveActor(ally);
+        return $"{npc.Name} flees from combat!";
+    }
+
+    /// <summary>
+    /// Process enemy action in multi-actor combat.
+    /// </summary>
+    private static string? ProcessMultiActorEnemyAction(GameContext ctx, CombatState state, CombatActor enemy, CombatActor? target)
+    {
+        if (target == null) return null;
+
+        // Use existing animal behavior
+        if (state.Behavior.WillAttackThisTurn())
+        {
+            // Attack the target
+            bool targetIsPlayer = target == state.PlayerActor;
+            double damage = state.Animal.AttackDamage;
+
+            if (targetIsPlayer)
+            {
+                var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal, damage);
+                return CombatNarrator.DescribeAnimalAttackHit(state.Animal.Name, damageResult);
+            }
+            else
+            {
+                // Attack an ally
+                var npcTarget = target.Actor as NPC;
+                if (npcTarget != null)
+                {
+                    var damageInfo = new DamageInfo(damage, state.Animal.AttackType)
+                    {
+                        ArmorCushioning = npcTarget.Inventory.TotalCushioning,
+                        ArmorToughness = npcTarget.Inventory.TotalToughness
+                    };
+                    var result = DamageProcessor.DamageBody(damageInfo, npcTarget.Body);
+                    foreach (var effect in result.TriggeredEffects)
+                        npcTarget.EffectRegistry.AddEffect(effect);
+                    return $"The {state.Animal.Name} attacks {npcTarget.Name}!";
+                }
+            }
+        }
+
+        // Non-attacking behavior
+        return ProcessAnimalAction(ctx, state);
+    }
+
+    /// <summary>
+    /// Show outcome for multi-actor combat, including relationship boosts.
+    /// </summary>
+    private static CombatResult ShowMultiActorOutcome(GameContext ctx, CombatState state, CombatResult result, string? lastMessage)
+    {
+        // Boost relationship for surviving allies
+        foreach (var allyActor in state.Actors.Where(a => a.IsAlly))
+        {
+            if (allyActor.Actor is NPC npc && allyActor.Actor.IsAlive)
+            {
+                double boost = 0.1 + (state.TurnCount > 5 ? 0.1 : 0);  // More for longer fights
+                npc.ModifyRelationship(ctx.player, boost);
+                Console.WriteLine($"[Combat] {npc.Name}'s relationship improved by {boost:F2}");
+            }
+        }
+
+        // Show standard outcome with dead allies in summary
+        string outcomeType;
+        string message;
+        List<string>? rewards = null;
+
+        switch (result)
+        {
+            case CombatResult.Victory:
+                var carcass = new CarcassFeature(state.Animal);
+                ctx.CurrentLocation.AddFeature(carcass);
+                rewards = new List<string> { $"{state.Animal.Name} carcass available for butchering" };
+
+                // Add casualties
+                var deadAllies = state.Actors
+                    .Where(a => a.IsAlly && !a.Actor.IsAlive)
+                    .Select(a => a.Name)
+                    .ToList();
+                if (deadAllies.Count > 0)
+                    rewards.Add($"Lost: {string.Join(", ", deadAllies)}");
+
+                outcomeType = "victory";
+                message = $"The {state.Animal.Name} falls!";
+                break;
+
+            case CombatResult.Defeat:
+                outcomeType = "defeat";
+                message = $"The {state.Animal.Name} has killed you.";
+                break;
+
+            default:
+                return ShowOutcome(ctx, state, result, lastMessage);
+        }
+
+        var outcomeDto = new CombatOutcomeDto(outcomeType, message, rewards);
+        var finalDto = BuildCombatDto(ctx, state, null,
+            phase: CombatPhase.Outcome,
+            narrative: message,
+            outcome: outcomeDto);
+        WebIO.RenderCombat(ctx, finalDto);
+        WebIO.WaitForCombatContinue(ctx);
+
+        return result;
     }
 
     #endregion
@@ -679,7 +1060,8 @@ public static class CombatRunner
 
     private static ActionResult ProcessShove(GameContext ctx, CombatState state)
     {
-        var result = DefensiveActions.AttemptShove(ctx, state);
+        var playerActor = new PlayerCombatActor(ctx.player, ctx.Inventory);
+        var result = DefensiveActions.AttemptShove(playerActor, state);
 
         if (result.NewZone.HasValue)
         {
@@ -808,7 +1190,8 @@ public static class CombatRunner
 
     private static ActionResult ProcessGiveGround(GameContext ctx, CombatState state)
     {
-        var result = DefensiveActions.AttemptGiveGround(ctx, state, 0);
+        var playerActor = new PlayerCombatActor(ctx.player, ctx.Inventory);
+        var result = DefensiveActions.AttemptGiveGround(playerActor, state, 0);
 
         if (result.NewZone.HasValue)
         {
@@ -951,11 +1334,12 @@ public static class CombatRunner
     {
         double baseDamage = state.Animal.AttackDamage;
         string narrative;
+        var playerActor = new PlayerCombatActor(ctx.player, ctx.Inventory);
 
         // Check if player had a brace set
         if (state.PlayerBraced)
         {
-            var braceResult = DefensiveActions.ResolveBrace(ctx, state, baseDamage);
+            var braceResult = DefensiveActions.ResolveBrace(playerActor, state, baseDamage);
 
             // Apply counter-damage to animal
             if (braceResult.CounterDamage > 0)
@@ -978,7 +1362,7 @@ public static class CombatRunner
         switch (playerDefense)
         {
             case CombatPlayerAction.Dodge:
-                var dodgeResult = DefensiveActions.AttemptDodge(ctx, state, baseDamage);
+                var dodgeResult = DefensiveActions.AttemptDodge(playerActor, state, baseDamage);
                 if (dodgeResult.Success)
                 {
                     if (dodgeResult.NewZone.HasValue)
@@ -994,13 +1378,13 @@ public static class CombatRunner
                 }
 
             case CombatPlayerAction.Block:
-                var blockResult = DefensiveActions.AttemptBlock(ctx, state, baseDamage);
+                var blockResult = DefensiveActions.AttemptBlock(playerActor, state, baseDamage);
                 double blockedDamage = baseDamage * (1 - blockResult.DamageReduction);
                 ApplyDamageToPlayer(ctx, state, state.Animal, blockedDamage);
                 return blockResult.Narrative;
 
             case CombatPlayerAction.GiveGround:
-                var giveGroundResult = DefensiveActions.AttemptGiveGround(ctx, state, baseDamage);
+                var giveGroundResult = DefensiveActions.AttemptGiveGround(playerActor, state, baseDamage);
                 if (giveGroundResult.NewZone.HasValue)
                 {
                     state.SetToZone(giveGroundResult.NewZone.Value);
@@ -1534,8 +1918,10 @@ public static class CombatRunner
 
     private static void AddDefensiveOptions(List<CombatActionDto> actions, GameContext ctx, CombatState state, DistanceZone zone)
     {
+        var playerActor = new PlayerCombatActor(ctx.player, ctx.Inventory);
+
         // Dodge
-        if (DefensiveActions.CanDodge(ctx))
+        if (DefensiveActions.CanDodge(playerActor))
         {
             actions.Add(new CombatActionDto(
                 "dodge", "Dodge",
@@ -1555,7 +1941,7 @@ public static class CombatRunner
         }
 
         // Block
-        if (DefensiveActions.CanBlock(ctx))
+        if (DefensiveActions.CanBlock(playerActor))
         {
             actions.Add(new CombatActionDto(
                 "block", "Block",

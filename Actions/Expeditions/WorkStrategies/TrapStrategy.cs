@@ -104,9 +104,7 @@ public class TrapStrategy : IWorkStrategy
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
     {
         // Use Dexterity which combines manipulation, wetness, darkness, vitality
-        var abilityContext = AbilityContext.FromFullContext(
-            ctx.player, ctx.Inventory, location, ctx.GameTime.Hour);
-        double dexterity = ctx.player.GetDexterity(abilityContext);
+        double dexterity = AbilityCalculator.GetDexterity(ctx.player, ctx);
 
         if (_mode == TrapMode.Set)
         {
@@ -120,6 +118,10 @@ public class TrapStrategy : IWorkStrategy
                 baseTime = (int)(baseTime * timePenalty);
                 // Injury chance increases as dexterity drops
                 _injuryChance += 0.10 * (1.0 - dexterity);
+
+                // Get context for warnings
+                var abilityContext = AbilityContext.FromFullContext(
+                    ctx.player, ctx.Inventory, ctx.player.CurrentLocation, ctx.GameTime.Hour);
 
                 // Contextual warning
                 if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)
@@ -141,6 +143,10 @@ public class TrapStrategy : IWorkStrategy
                 double timePenalty = 1.0 + ((0.7 - dexterity) / 0.7 * 0.4);
                 baseTime = (int)(baseTime * timePenalty);
                 _injuryChance += 0.08 * (1.0 - dexterity);
+
+                // Get context for warnings
+                var abilityContext = AbilityContext.FromFullContext(
+                    ctx.player, ctx.Inventory, ctx.player.CurrentLocation, ctx.GameTime.Hour);
 
                 // Contextual warning
                 if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)

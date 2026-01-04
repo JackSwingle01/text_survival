@@ -45,9 +45,7 @@ public class ButcherStrategy : IWorkStrategy
         var effectModifiers = ctx.player.EffectRegistry.GetCapacityModifiers();
 
         // Check dexterity impairment (combines manipulation, wetness, darkness, vitality)
-        var abilityContext = AbilityContext.FromFullContext(
-            ctx.player, ctx.Inventory, location, ctx.GameTime.Hour);
-        double dexterity = ctx.player.GetDexterity(abilityContext);
+        double dexterity = AbilityCalculator.GetDexterity(ctx.player, ctx);
         if (dexterity < 0.7)
         {
             warnings.Add("Your unsteady hands will waste some yield.");
@@ -165,9 +163,7 @@ public class ButcherStrategy : IWorkStrategy
 
         // Determine tool and dexterity status
         bool hasCuttingTool = ctx.Inventory.HasCuttingTool;
-        var abilityContext = AbilityContext.FromFullContext(
-            ctx.player, ctx.Inventory, location, ctx.GameTime.Hour);
-        double dexterity = ctx.player.GetDexterity(abilityContext);
+        double dexterity = AbilityCalculator.GetDexterity(ctx.player, ctx);
         bool dexterityImpaired = dexterity < 0.7;
 
         // Warn if no cutting tool
@@ -179,6 +175,10 @@ public class ButcherStrategy : IWorkStrategy
         // Warn if dexterity impaired (affects yield, not time here)
         if (dexterityImpaired)
         {
+            // Get context for warnings
+            var abilityContext = AbilityContext.FromFullContext(
+                ctx.player, ctx.Inventory, ctx.player.CurrentLocation, ctx.GameTime.Hour);
+
             // Contextual warning
             if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)
                 GameDisplay.AddWarning(ctx, "The darkness makes your cuts imprecise, wasting some of the meat.");

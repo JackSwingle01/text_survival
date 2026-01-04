@@ -1,4 +1,7 @@
+using text_survival.Actions;
+using text_survival.Actors;
 using text_survival.Effects;
+using text_survival.Environments;
 
 namespace text_survival.Bodies;
 
@@ -192,6 +195,43 @@ public static class AbilityCalculator
     public static double CalculateDexterity(Body body, CapacityModifierContainer effectModifiers)
     {
         return CalculateDexterity(body, effectModifiers, AbilityContext.Default);
+    }
+
+    #endregion
+
+    #region Helper Methods (GameContext-based)
+
+    /// <summary>
+    /// Get actor's speed with context from GameContext.
+    /// Encumbrance + vitality + strength factors.
+    /// </summary>
+    public static double GetSpeed(Actor actor, GameContext ctx)
+    {
+        var context = AbilityContext.FromFullContext(
+            actor, ctx.Inventory, actor.CurrentLocation, ctx.GameTime.Hour);
+        return CalculateSpeed(actor.Body, actor.GetEffectModifiers(), context);
+    }
+
+    /// <summary>
+    /// Get actor's perception with context from GameContext.
+    /// Darkness + consciousness factors.
+    /// </summary>
+    public static double GetPerception(Actor actor, GameContext ctx)
+    {
+        var context = AbilityContext.FromFullContext(
+            actor, ctx.Inventory, actor.CurrentLocation, ctx.GameTime.Hour);
+        return CalculatePerception(actor.Body, actor.GetEffectModifiers(), context);
+    }
+
+    /// <summary>
+    /// Get actor's dexterity with context from GameContext.
+    /// Manipulation + darkness + wetness factors.
+    /// </summary>
+    public static double GetDexterity(Actor actor, GameContext ctx)
+    {
+        var context = AbilityContext.FromFullContext(
+            actor, ctx.Inventory, actor.CurrentLocation, ctx.GameTime.Hour);
+        return CalculateDexterity(actor.Body, actor.GetEffectModifiers(), context);
     }
 
     #endregion

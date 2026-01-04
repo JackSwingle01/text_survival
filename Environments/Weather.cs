@@ -164,6 +164,10 @@ public class Weather
 
     public DateTime Time { get; set; }
 
+    // Grace period for early game - prevents severe weather
+    private DateTime _gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
+    private const int GRACE_PERIOD_DAYS = 7;
+
     // Parameterless constructor for deserialization
     public Weather()
     {
@@ -184,6 +188,9 @@ public class Weather
         // Initialize weather fronts - guaranteed gentle start
         CurrentFront = FrontPatterns.GenerateInitialFront();
         NextFront = FrontPatterns.Generate(Season.Winter, CurrentCondition);
+
+        // Apply the initial state immediately (fixes bug where 6-hour legacy duration was used)
+        ApplyWeatherState(CurrentFront.CurrentState);
     }
 
     public void Update(DateTime newTime)
@@ -596,6 +603,14 @@ public class Weather
     }
 
     /// <summary>
+    /// Check if we're still in the early-game grace period where severe weather is excluded.
+    /// </summary>
+    private bool IsInGracePeriod(DateTime currentTime)
+    {
+        return (currentTime - _gameStartTime).TotalDays < GRACE_PERIOD_DAYS;
+    }
+
+    /// <summary>
     /// Advance to the next weather state within the current front,
     /// or transition to the next front if the current one is complete.
     /// </summary>
@@ -612,7 +627,17 @@ public class Weather
         {
             // Current front is done, move to next front
             CurrentFront = NextFront ?? FrontPatterns.Generate(CurrentSeason, CurrentCondition);
-            NextFront = FrontPatterns.Generate(CurrentSeason, CurrentCondition);
+
+            // Generate next front - use gentle version during grace period
+            if (IsInGracePeriod(Time))
+            {
+                NextFront = FrontPatterns.GenerateGentleFront(CurrentSeason, CurrentCondition);
+            }
+            else
+            {
+                NextFront = FrontPatterns.Generate(CurrentSeason, CurrentCondition);
+            }
+
             CurrentFront.CurrentStateIndex = 0;
         }
         else

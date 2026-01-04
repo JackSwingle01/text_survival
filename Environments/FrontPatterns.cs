@@ -61,6 +61,23 @@ public static class FrontPatterns
     }
 
     /// <summary>
+    /// Generate gentle front for early-game grace period
+    /// Excludes severe weather: Prolonged Blizzards, Cold Snaps, Ice Storms
+    /// Allows: Clear Spells (50%), Storm Systems (30%), Warming (20%)
+    /// </summary>
+    public static WeatherFront GenerateGentleFront(Weather.Season season, Weather.WeatherCondition currentCondition)
+    {
+        double roll = Utils.RandDouble(0, 1);
+
+        if (roll < 0.50)       // 50% - Clear Spell
+            return GenerateClearSpell(season);
+        else if (roll < 0.80)  // 30% - Storm System (still allows snow, just not extreme)
+            return GenerateStormSystem(season);
+        else                    // 20% - Warming
+            return GenerateWarmingPeriod(season);
+    }
+
+    /// <summary>
     /// Storm System: Building → Peak → Trailing → Clearing (12-48 hours total)
     /// Some states can skip for variety
     /// </summary>

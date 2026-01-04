@@ -31,10 +31,16 @@ public class CombatActor
     public CombatTeam Team { get; }
 
     /// <summary>
-    /// Behavior state machine for this actor.
+    /// Behavior state machine for this actor (animal behavior).
     /// Null for player (player makes own decisions).
     /// </summary>
     public AnimalCombatBehaviorManager? Behavior { get; }
+
+    /// <summary>
+    /// NPC-specific combat behavior (for NPC allies).
+    /// Null for player and animals.
+    /// </summary>
+    public NPCCombatBehavior? NPCBehavior { get; init; }
 
     /// <summary>Current boldness level (0-1).</summary>
     public double Boldness { get; set; }
@@ -86,15 +92,18 @@ public class CombatActor
 
     /// <summary>
     /// Create a combat actor for an ally NPC.
-    /// For now, allies use animal behavior. May change later.
+    /// NPCs use NPCCombatBehavior; animals use AnimalCombatBehaviorManager.
     /// </summary>
-    public static CombatActor CreateAlly(Actor ally, double initialBoldness)
+    public static CombatActor CreateAlly(Actor ally, double initialBoldness, NPCCombatBehavior? npcBehavior = null)
     {
-        var behavior = ally is Animal animal
+        var animalBehavior = ally is Animal animal
             ? new AnimalCombatBehaviorManager(animal, initialBoldness)
             : null;
 
-        return new CombatActor(ally, CombatTeam.Ally, behavior, initialBoldness);
+        return new CombatActor(ally, CombatTeam.Ally, animalBehavior, initialBoldness)
+        {
+            NPCBehavior = npcBehavior
+        };
     }
 
     private CombatActor(Actor actor, CombatTeam team, AnimalCombatBehaviorManager? behavior, double boldness)

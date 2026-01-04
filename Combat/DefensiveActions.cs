@@ -40,37 +40,37 @@ public static class DefensiveActions
     #region Availability Checks
 
     /// <summary>
-    /// Checks if player can dodge (requires movement capacity).
+    /// Checks if actor can dodge (requires movement capacity).
     /// </summary>
-    public static bool CanDodge(GameContext ctx)
+    public static bool CanDodge(ICombatActor actor)
     {
-        var capacities = ctx.player.GetCapacities();
+        var capacities = actor.ActorReference.GetCapacities();
         return capacities.Moving > 0.3;
     }
 
     /// <summary>
-    /// Checks if player can block (requires weapon or shield).
+    /// Checks if actor can block (requires weapon or shield).
     /// </summary>
-    public static bool CanBlock(GameContext ctx)
+    public static bool CanBlock(ICombatActor actor)
     {
-        var weapon = ctx.Inventory.Weapon;
+        var weapon = actor.Weapon;
         if (weapon == null) return false;
 
-        var capacities = ctx.player.GetCapacities();
+        var capacities = actor.ActorReference.GetCapacities();
         return capacities.Manipulation > 0.3;
     }
 
     /// <summary>
-    /// Checks if player can brace (requires spear-type weapon).
+    /// Checks if actor can brace (requires spear-type weapon).
     /// </summary>
-    public static bool CanBrace(GameContext ctx)
+    public static bool CanBrace(ICombatActor actor)
     {
-        var weapon = ctx.Inventory.Weapon;
+        var weapon = actor.Weapon;
         if (weapon == null) return false;
 
         // Spears can brace
         bool isSpear = weapon.WeaponClass == WeaponClass.Pierce;
-        var capacities = ctx.player.GetCapacities();
+        var capacities = actor.ActorReference.GetCapacities();
         return isSpear && capacities.Manipulation > 0.4;
     }
 
@@ -86,13 +86,13 @@ public static class DefensiveActions
     /// <summary>
     /// Gets the reason why a defensive action is unavailable.
     /// </summary>
-    public static string? GetUnavailableReason(CombatPlayerAction action, GameContext ctx, DistanceZone zone)
+    public static string? GetUnavailableReason(CombatPlayerAction action, ICombatActor actor, DistanceZone zone)
     {
         return action switch
         {
-            CombatPlayerAction.Dodge => !CanDodge(ctx) ? "Too injured to dodge" : null,
-            CombatPlayerAction.Block => !CanBlock(ctx) ? "No weapon to block with" : null,
-            CombatPlayerAction.Brace => !CanBrace(ctx) ? "Need a spear to brace" : null,
+            CombatPlayerAction.Dodge => !CanDodge(actor) ? "Too injured to dodge" : null,
+            CombatPlayerAction.Block => !CanBlock(actor) ? "No weapon to block with" : null,
+            CombatPlayerAction.Brace => !CanBrace(actor) ? "Need a spear to brace" : null,
             CombatPlayerAction.GiveGround => !CanGiveGround(zone) ? "No room to retreat" : null,
             _ => null
         };
@@ -104,15 +104,15 @@ public static class DefensiveActions
 
     /// <summary>
     /// Attempt to dodge an incoming attack.
-    /// Success avoids damage entirely but costs energy and pushes player back.
+    /// Success avoids damage entirely but costs energy and pushes actor back.
     /// </summary>
-    public static DefenseResult AttemptDodge(GameContext ctx, CombatState state, double incomingDamage)
+    public static DefenseResult AttemptDodge(ICombatActor defender, CombatState state, double incomingDamage)
     {
-        var capacities = ctx.player.GetCapacities();
-        double energy = ctx.player.Body.Energy / 480.0;
+        var capacities = defender.ActorReference.GetCapacities();
+        double energy = defender.ActorReference.Body.Energy / 480.0;
 
-        // Calculate dodge chance based on player state
-        double dodgeChance = CalculateDodgeChance(ctx, state.Animal);
+        // Calculate dodge chance based on defender state
+        double dodgeChance = CalculateDodgeChance(defender, state.Animal);
 
         // Energy affects effectiveness
         double energyFactor = 0.5 + (energy * 0.5); // 50-100% effectiveness
@@ -120,7 +120,7 @@ public static class DefensiveActions
 
         bool success = _rng.NextDouble() < dodgeChance;
 
-        // Energy cost is tracked in DefenseResult, drain happens via ctx.Update()
+        // Energy cost is tracked in DefenseResult, drain happens via update
 
         // Determine new zone (dodging pushes you back)
         DistanceZone? newZone = null;
@@ -134,8 +134,8 @@ public static class DefensiveActions
         }
 
         string narrative = success
-            ? GetDodgeSuccessNarrative(state.Animal)
-            : GetDodgeFailNarrative(state.Animal);
+            ? GetDodgeSuccessNarrative(defender.Name, state.Animal.Name)
+            : GetDodgeFailNarrative(defender.Name, state.Animal.Name);
 
         return new DefenseResult(
             Success: success,
@@ -146,48 +146,47 @@ public static class DefensiveActions
         );
     }
 
-    private static double CalculateDodgeChance(GameContext ctx, Animal enemy)
+    private static double CalculateDodgeChance(ICombatActor defender, Animal enemy)
     {
-        var capacities = ctx.player.GetCapacities();
+        var capacities = defender.ActorReference.GetCapacities();
         double baseChance = BaseDodgeSuccess;
 
         // Movement capacity strongly affects dodge availability (raw body function)
         baseChance *= capacities.Moving;
 
-        // Reflexes skill bonus
-        if (ctx.player is Player player)
+        // Reflexes skill bonus (Player-specific)
+        if (defender.ActorReference is Player player)
         {
             baseChance += player.Skills.Reflexes.Level * 0.02;
         }
 
-        // Speed difference matters - use Speed ability (includes encumbrance, vitality)
-        var context = AbilityContext.FromActorAndInventory(ctx.player, ctx.Inventory);
-        double playerSpeed = ctx.player.GetSpeed(context) * 6.0; // Scale to ~m/s
-        double speedRatio = playerSpeed / enemy.SpeedMps;
+        // Speed difference matters - use actor speed property
+        double defenderSpeed = defender.Speed * 6.0; // Scale to ~m/s
+        double speedRatio = defenderSpeed / enemy.SpeedMps;
         baseChance *= Math.Min(1.3, speedRatio);
 
         return Math.Clamp(baseChance, 0.1, 0.9);
     }
 
-    private static string GetDodgeSuccessNarrative(Animal animal)
+    private static string GetDodgeSuccessNarrative(string defenderName, string attackerName)
     {
         var options = new[]
         {
-            $"You twist aside as the {animal.Name} lunges past.",
-            $"You dive clear of the {animal.Name}'s attack.",
-            $"You sidestep the {animal.Name}'s charge.",
-            $"The {animal.Name} snaps at empty air as you duck away."
+            $"{defenderName} twist aside as the {attackerName} lunges past.",
+            $"{defenderName} dive clear of the {attackerName}'s attack.",
+            $"{defenderName} sidestep the {attackerName}'s charge.",
+            $"The {attackerName} snaps at empty air as {defenderName} duck away."
         };
         return options[_rng.Next(options.Length)];
     }
 
-    private static string GetDodgeFailNarrative(Animal animal)
+    private static string GetDodgeFailNarrative(string defenderName, string attackerName)
     {
         var options = new[]
         {
-            $"You try to dodge but the {animal.Name} catches you.",
-            $"Too slow! The {animal.Name}'s attack connects.",
-            $"You stumble trying to evade. The {animal.Name} is on you."
+            $"{defenderName} try to dodge but the {attackerName} catches them.",
+            $"Too slow! The {attackerName}'s attack connects with {defenderName}.",
+            $"{defenderName} stumble trying to evade. The {attackerName} is on them."
         };
         return options[_rng.Next(options.Length)];
     }
@@ -200,30 +199,30 @@ public static class DefensiveActions
     /// Attempt to block an incoming attack with weapon.
     /// Reduces damage but costs energy and weapon durability.
     /// </summary>
-    public static DefenseResult AttemptBlock(GameContext ctx, CombatState state, double incomingDamage)
+    public static DefenseResult AttemptBlock(ICombatActor defender, CombatState state, double incomingDamage)
     {
-        var weapon = ctx.Inventory.Weapon;
+        var weapon = defender.Weapon;
         if (weapon == null)
         {
-            return new DefenseResult(false, 0, 0, "You have nothing to block with!");
+            return new DefenseResult(false, 0, 0, $"{defender.Name} have nothing to block with!");
         }
 
-        var capacities = ctx.player.GetCapacities();
-        double energy = ctx.player.Body.Energy / 480.0;
+        var capacities = defender.ActorReference.GetCapacities();
+        double energy = defender.ActorReference.Body.Energy / 480.0;
 
         // Calculate block effectiveness
-        double blockAmount = CalculateBlockAmount(ctx, weapon);
+        double blockAmount = CalculateBlockAmount(defender, weapon);
 
         // Energy affects effectiveness
         double energyFactor = 0.5 + (energy * 0.5);
         blockAmount *= energyFactor;
 
-        // Energy cost is tracked in DefenseResult, drain happens via ctx.Update()
+        // Energy cost is tracked in DefenseResult, drain happens via update
 
         // Damage weapon (apply wear)
         weapon.Use();
 
-        string narrative = GetBlockNarrative(state.Animal, weapon, blockAmount);
+        string narrative = GetBlockNarrative(defender.Name, state.Animal.Name, weapon.Name, blockAmount);
 
         return new DefenseResult(
             Success: true,
@@ -233,16 +232,16 @@ public static class DefensiveActions
         );
     }
 
-    private static double CalculateBlockAmount(GameContext ctx, Gear weapon)
+    private static double CalculateBlockAmount(ICombatActor defender, Gear weapon)
     {
         double baseBlock = BaseBlockAbsorption;
 
         // Manipulation affects block
-        var capacities = ctx.player.GetCapacities();
+        var capacities = defender.ActorReference.GetCapacities();
         baseBlock *= capacities.Manipulation;
 
-        // Defense skill bonus
-        if (ctx.player is Player player)
+        // Defense skill bonus (Player-specific)
+        if (defender.ActorReference is Player player)
         {
             baseBlock += player.Skills.Defense.Level * 0.02;
         }
@@ -253,19 +252,19 @@ public static class DefensiveActions
         return Math.Clamp(baseBlock, 0.2, 0.8);
     }
 
-    private static string GetBlockNarrative(Animal animal, Gear weapon, double blockAmount)
+    private static string GetBlockNarrative(string defenderName, string attackerName, string weaponName, double blockAmount)
     {
         if (blockAmount > 0.6)
         {
-            return $"You catch the {animal.Name}'s attack on your {weapon.Name}, deflecting most of the force.";
+            return $"{defenderName} catch the {attackerName}'s attack on their {weaponName}, deflecting most of the force.";
         }
         else if (blockAmount > 0.4)
         {
-            return $"Your {weapon.Name} absorbs some of the impact as the {animal.Name} strikes.";
+            return $"{defenderName}'s {weaponName} absorbs some of the impact as the {attackerName} strikes.";
         }
         else
         {
-            return $"You partially block with your {weapon.Name}, but the blow still hits hard.";
+            return $"{defenderName} partially block with their {weaponName}, but the blow still hits hard.";
         }
     }
 
@@ -286,20 +285,20 @@ public static class DefensiveActions
 
     /// <summary>
     /// Resolve a brace against a charging animal.
-    /// If animal charges into brace, player takes reduced damage and deals counter-damage.
+    /// If animal charges into brace, defender takes reduced damage and deals counter-damage.
     /// </summary>
-    public static BraceResult ResolveBrace(GameContext ctx, CombatState state, double incomingDamage)
+    public static BraceResult ResolveBrace(ICombatActor defender, CombatState state, double incomingDamage)
     {
-        var weapon = ctx.Inventory.Weapon;
+        var weapon = defender.Weapon;
         if (weapon == null)
         {
-            return new BraceResult(false, 0, 0, 0, "You have nothing to brace with!");
+            return new BraceResult(false, 0, 0, 0, $"{defender.Name} have nothing to brace with!");
         }
 
         // Was the animal attacking?
         bool wasAttacking = state.Behavior.CurrentBehavior == CombatBehavior.Attacking;
 
-        // Energy cost is tracked in BraceResult, drain happens via ctx.Update()
+        // Energy cost is tracked in BraceResult, drain happens via update
 
         if (!wasAttacking)
         {
@@ -309,13 +308,13 @@ public static class DefensiveActions
                 DamageReduction: 0,
                 CounterDamage: 0,
                 EnergyCost: BraceEnergyCost,
-                Narrative: $"You hold your {weapon.Name} ready, but the {state.Animal.Name} doesn't attack."
+                Narrative: $"{defender.Name} hold their {weapon.Name} ready, but the {state.Animal.Name} doesn't attack."
             );
         }
 
         // Animal attacked into the brace!
-        var capacities = ctx.player.GetCapacities();
-        double energy = ctx.player.Body.Energy / 480.0;
+        var capacities = defender.ActorReference.GetCapacities();
+        double energy = defender.ActorReference.Body.Energy / 480.0;
 
         // Calculate counter damage (weapon damage * brace multiplier)
         double baseDamage = weapon.Damage ?? 10;
@@ -325,10 +324,10 @@ public static class DefensiveActions
         double effectiveFactor = (0.5 + (energy * 0.5)) * capacities.Manipulation;
         counterDamage *= effectiveFactor;
 
-        // Player still takes some damage (momentum)
+        // Defender still takes some damage (momentum)
         double damageReduction = 0.5; // Block half the damage when braced
 
-        string narrative = GetBraceSuccessNarrative(state.Animal, weapon, counterDamage);
+        string narrative = GetBraceSuccessNarrative(defender.Name, state.Animal.Name, weapon.Name, counterDamage);
 
         return new BraceResult(
             Success: true,
@@ -339,19 +338,19 @@ public static class DefensiveActions
         );
     }
 
-    private static string GetBraceSuccessNarrative(Animal animal, Gear weapon, double damage)
+    private static string GetBraceSuccessNarrative(string defenderName, string attackerName, string weaponName, double damage)
     {
         if (damage > 30)
         {
-            return $"The {animal.Name} impales itself on your {weapon.Name}! A devastating blow!";
+            return $"The {attackerName} impales itself on {defenderName}'s {weaponName}! A devastating blow!";
         }
         else if (damage > 15)
         {
-            return $"Your braced {weapon.Name} catches the charging {animal.Name}, driving deep.";
+            return $"{defenderName}'s braced {weaponName} catches the charging {attackerName}, driving deep.";
         }
         else
         {
-            return $"The {animal.Name} hits your {weapon.Name}, wounding itself but knocking you back.";
+            return $"The {attackerName} hits {defenderName}'s {weaponName}, wounding itself but knocking {defenderName} back.";
         }
     }
 
@@ -362,9 +361,9 @@ public static class DefensiveActions
     /// <summary>
     /// Retreat to avoid an attack, increasing distance but showing weakness.
     /// </summary>
-    public static DefenseResult AttemptGiveGround(GameContext ctx, CombatState state, double incomingDamage)
+    public static DefenseResult AttemptGiveGround(ICombatActor defender, CombatState state, double incomingDamage)
     {
-        var capacities = ctx.player.GetCapacities();
+        var capacities = defender.ActorReference.GetCapacities();
 
         // Can't give ground at Far zone
         if (state.Zone == DistanceZone.Far)
@@ -382,7 +381,7 @@ public static class DefensiveActions
 
         bool success = _rng.NextDouble() < successChance;
 
-        // Energy cost is tracked in DefenseResult, drain happens via ctx.Update()
+        // Energy cost is tracked in DefenseResult, drain happens via update
 
         // Increase animal boldness (showing weakness)
         state.Behavior.ModifyBoldness(0.1);
@@ -396,8 +395,8 @@ public static class DefensiveActions
         }
 
         string narrative = success
-            ? GetGiveGroundSuccessNarrative(state.Animal)
-            : GetGiveGroundFailNarrative(state.Animal);
+            ? GetGiveGroundSuccessNarrative(defender.Name, state.Animal.Name)
+            : GetGiveGroundFailNarrative(defender.Name, state.Animal.Name);
 
         return new DefenseResult(
             Success: success,
@@ -408,24 +407,24 @@ public static class DefensiveActions
         );
     }
 
-    private static string GetGiveGroundSuccessNarrative(Animal animal)
+    private static string GetGiveGroundSuccessNarrative(string defenderName, string attackerName)
     {
         var options = new[]
         {
-            $"You back away quickly, putting distance between you and the {animal.Name}.",
-            $"You give ground, staying out of the {animal.Name}'s reach.",
-            $"You retreat, the {animal.Name} snapping at empty air."
+            $"{defenderName} back away quickly, putting distance between them and the {attackerName}.",
+            $"{defenderName} give ground, staying out of the {attackerName}'s reach.",
+            $"{defenderName} retreat, the {attackerName} snapping at empty air."
         };
         return options[_rng.Next(options.Length)];
     }
 
-    private static string GetGiveGroundFailNarrative(Animal animal)
+    private static string GetGiveGroundFailNarrative(string defenderName, string attackerName)
     {
         var options = new[]
         {
-            $"You try to retreat but stumble. The {animal.Name} clips you.",
-            $"You back away but not fast enough—the {animal.Name} catches you.",
-            $"Your retreat is too slow. The {animal.Name}'s attack grazes you."
+            $"{defenderName} try to retreat but stumble. The {attackerName} clips them.",
+            $"{defenderName} back away but not fast enough—the {attackerName} catches them.",
+            $"{defenderName}'s retreat is too slow. The {attackerName}'s attack grazes them."
         };
         return options[_rng.Next(options.Length)];
     }
@@ -437,20 +436,20 @@ public static class DefensiveActions
     /// <summary>
     /// Shove the animal to create distance. Only available at melee range.
     /// </summary>
-    public static DefenseResult AttemptShove(GameContext ctx, CombatState state)
+    public static DefenseResult AttemptShove(ICombatActor defender, CombatState state)
     {
-        var capacities = ctx.player.GetCapacities();
+        var capacities = defender.ActorReference.GetCapacities();
 
         // Need strength and manipulation
-        double successChance = 0.4 + (ctx.player.Strength * 0.3) + (capacities.Manipulation * 0.2);
+        double successChance = 0.4 + (defender.ActorReference.Strength * 0.3) + (capacities.Manipulation * 0.2);
 
         // Smaller animals easier to shove
-        double weightRatio = ctx.player.Body.WeightKG / state.Animal.Body.WeightKG;
+        double weightRatio = defender.ActorReference.Body.WeightKG / state.Animal.Body.WeightKG;
         successChance *= Math.Min(1.5, weightRatio);
 
         bool success = _rng.NextDouble() < successChance;
 
-        // Energy cost is tracked in DefenseResult, drain happens via ctx.Update()
+        // Energy cost is tracked in DefenseResult, drain happens via update
 
         DistanceZone? newZone = null;
         double damageReduction = 0;
@@ -462,8 +461,8 @@ public static class DefensiveActions
         }
 
         string narrative = success
-            ? $"You shove the {state.Animal.Name} back, creating space!"
-            : $"You try to push the {state.Animal.Name} away but it's too strong.";
+            ? $"{defender.Name} shove the {state.Animal.Name} back, creating space!"
+            : $"{defender.Name} try to push the {state.Animal.Name} away but it's too strong.";
 
         return new DefenseResult(
             Success: success,

@@ -492,11 +492,13 @@ public static class FireHandler
             GameDisplay.AddWarning(ctx, "Your foggy mind makes this harder.");
 
         // Check dexterity (combines manipulation, wetness, darkness, vitality)
-        var abilityContext = AbilityContext.FromFullContext(
-            ctx.player, ctx.Inventory, ctx.CurrentLocation, ctx.GameTime.Hour);
-        double dexterity = ctx.player.GetDexterity(abilityContext);
+        double dexterity = AbilityCalculator.GetDexterity(ctx.player, ctx);
         if (dexterity < 0.7)
         {
+            // Get context for warnings
+            var abilityContext = AbilityContext.FromFullContext(
+                ctx.player, ctx.Inventory, ctx.CurrentLocation, ctx.GameTime.Hour);
+
             // Determine most relevant warning
             if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)
                 GameDisplay.AddWarning(ctx, "The darkness makes this harder.");

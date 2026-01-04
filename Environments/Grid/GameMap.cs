@@ -186,7 +186,7 @@ public class GameMap
         {
             if (locY != null && locY.IsPassable)
             {
-                if (locX.BaseTraversalMinutes > locY.BaseTraversalMinutes) 
+                if (locX.BaseTraversalMinutes > locY.BaseTraversalMinutes)
                     return locY;
             }
             return locX;
@@ -218,6 +218,11 @@ public class GameMap
     /// </summary>
     public GridPosition GetPosition(Location location) =>
         _locationIndex.TryGetValue(location.Id, out var pos) ? pos : throw new Exception("Location doesn't exist!");
+
+    public int DistanceBetween(Location a, Location b)
+    {
+        return GetPosition(a).ManhattanDistance(GetPosition(b));
+    }
 
     /// <summary>
     /// Check if a location is on this map.

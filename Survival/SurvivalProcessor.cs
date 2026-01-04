@@ -75,18 +75,16 @@ public static class SurvivalProcessor
 		};
 	}
 
-	private static SurvivalProcessorResult ProcessTemperature(Body body, SurvivalContext context, int minutes)
+	/// <summary>
+	/// Calculate temperature change per hour for given conditions.
+	/// Positive = warming, negative = cooling. Units: °F/hour.
+	/// </summary>
+	public static double CalculateTemperatureChangePerHour(Body body, SurvivalContext context)
 	{
-		// heat_capacity = mass * specific heat 
-		// dT/dt = (heat_in - heat_out) / heat_capacity
-		// Q_loss = h * surface_area * deltaT * (1 - insulation) | h = heat transfer coef: air -> 7, wind -> 20, water -> 400
-		// Human body: surface_area = 1.8m^2, specific heat = 3.5 J/KG*C or .83 kcal/kg*F
-
 		double specificHeat = 0.83; // for calories in F
 		double surfaceArea = 1.8; // m^2
-		double heatCapacity = body.WeightKG * specificHeat; // kg * kcal/kg*F = kcal / F
-		// Wind scaling: calm=7, fierce wind/blizzard=21-28
-		double windFactor = 1.0 + (context.WindSpeedLevel * 3.0); // 1x to 4x based on wind
+		double heatCapacity = body.WeightKG * specificHeat;
+		double windFactor = 1.0 + (context.WindSpeedLevel * 2.0);
 		double h = 7.0 * windFactor;
 
 		double coldResistance = AbilityCalculator.CalculateColdResistance(body);
@@ -96,15 +94,24 @@ public static class SurvivalProcessor
 		double skinTemp = body.BodyTemperature - 8.4;
 		double effectiveTemp = context.LocationTemperature + context.FireProximityBonus;
 		double tempDifferential = skinTemp - effectiveTemp;
-		double deltaT = tempDifferential * (5.0 / 9.0); // convert to C
+		double deltaT = tempDifferential * (5.0 / 9.0);
 
 		double heatLossW = h * surfaceArea * deltaT * (1 - totalInsulation);
-		double heatLossHr = heatLossW * 0.86; // convert from W to kcal/hr
-		double heatGainHr = GetCurrentMetabolism(body, context.ActivityLevel) / 24; // metabolism from per day to hour
+		double heatLossHr = heatLossW * 0.86;
+		double heatGainHr = GetCurrentMetabolism(body, context.ActivityLevel) / 24;
 
 		double netHeatHr = heatGainHr - heatLossHr;
+		return netHeatHr / heatCapacity; // °F/hr
+	}
 
-		double tempChange = netHeatHr / heatCapacity; // kcal/hr * F/kcal = F/hr
+	private static SurvivalProcessorResult ProcessTemperature(Body body, SurvivalContext context, int minutes)
+	{
+		// heat_capacity = mass * specific heat
+		// dT/dt = (heat_in - heat_out) / heat_capacity
+		// Q_loss = h * surface_area * deltaT * (1 - insulation) | h = heat transfer coef: air -> 7, wind -> 20, water -> 400
+		// Human body: surface_area = 1.8m^2, specific heat = 3.5 J/KG*C or .83 kcal/kg*F
+
+		double tempChange = CalculateTemperatureChangePerHour(body, context);
 
 		// Clothing thermal mass buffer
 		double clothingCapacityF = context.ClothingWeightKg * ThermalMassFactorFPerKg;

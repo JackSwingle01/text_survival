@@ -560,12 +560,12 @@ public class CombatState
     /// <summary>
     /// Add an ally to the combat.
     /// </summary>
-    public CombatActor AddAlly(Actor ally, double distanceFromPlayer, double angle = 180)
+    public CombatActor AddAlly(Actor ally, double distanceFromPlayer, double angle = 180, NPCCombatBehavior? npcBehavior = null)
     {
         if (Map == null || PlayerActor == null)
             throw new InvalidOperationException("Must call InitializeMultiActor first");
 
-        var actor = CombatActor.CreateAlly(ally, 0.5);
+        var actor = CombatActor.CreateAlly(ally, 0.5, npcBehavior);
         Actors.Add(actor);
         Map.SetPositionAtDistance(actor, PlayerActor, distanceFromPlayer, angle);
         return actor;

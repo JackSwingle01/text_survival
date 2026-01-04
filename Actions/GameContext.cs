@@ -72,6 +72,39 @@ public class GameContext(Player player, Location camp, Weather weather)
         return NPCs.Where(n => Map.GetPosition(n.CurrentLocation) == pos).ToList();
     }
 
+    // Unified actor tracking - enables combat detection across all actor types
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IEnumerable<Actor> AllActors
+    {
+        get
+        {
+            yield return player;
+            foreach (var npc in NPCs)
+                yield return npc;
+            foreach (var animal in Herds.GetAllAnimals())
+                yield return animal;
+        }
+    }
+
+    public GridPosition? GetActorPosition(Actor actor)
+    {
+        if (actor == player)
+            return Map?.CurrentPosition;
+
+        if (actor is NPC npc)
+            return Map?.GetPosition(npc.CurrentLocation);
+
+        if (actor is Animal animal)
+            return Herds.GetHerdContaining(animal)?.Position;
+
+        return null;
+    }
+
+    public List<Actor> GetActorsAt(GridPosition pos)
+    {
+        return AllActors.Where(a => GetActorPosition(a) == pos).ToList();
+    }
+
     public ActivityType CurrentActivity { get; private set; } = ActivityType.Idle;
 
     [System.Text.Json.Serialization.JsonIgnore]
@@ -101,8 +134,27 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         if (predator != null)
         {
-            // Use unified combat system - starts at encounter distance
-            var outcome = CombatRunner.RunCombat(this, predator);
+            // Check for NPC allies at player's location
+            var npcsHere = GetNPCsAt(Map?.CurrentPosition ?? new Environments.Grid.GridPosition(0, 0));
+            var joiningAllies = npcsHere
+                .Where(npc => npc.DecideToHelpInCombat(player, predator))
+                .ToList();
+
+            CombatResult outcome;
+            if (joiningAllies.Count > 0)
+            {
+                // Log allies joining combat
+                foreach (var ally in joiningAllies)
+                {
+                    Console.WriteLine($"[Combat] {ally.Name} joins the fight against {predator.Name}!");
+                }
+                outcome = CombatRunner.RunCombatWithAllies(this, predator, joiningAllies);
+            }
+            else
+            {
+                outcome = CombatRunner.RunCombat(this, predator);
+            }
+
             LastEventAborted = true;  // Encounters abort the current action
 
             // Set fear on source herd based on encounter outcome

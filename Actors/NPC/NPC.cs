@@ -1,11 +1,14 @@
 using text_survival.Actions;
 using text_survival.Actions.Handlers;
+using text_survival.Actors.Animals;
+using text_survival.Actors.Animals.Behaviors;
 using text_survival.Bodies;
 using text_survival.Crafting;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 using text_survival.Items;
+using text_survival.Survival;
 
 namespace text_survival.Actors;
 
@@ -21,6 +24,9 @@ public class NPC : Actor
 
     [System.Text.Json.Serialization.JsonIgnore]
     public NPCAction? CurrentAction { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    private SurvivalContext? _currentContext;
 
     public NeedType? CurrentNeed { get; set; }
 
@@ -53,6 +59,7 @@ public class NPC : Actor
     public override void Update(int minutes, SurvivalContext context)
     {
         base.Update(minutes, context);
+        _currentContext = context; // Store for decision-making methods
         for (int i = 0; i < minutes; i++)
         {
             // Console.WriteLine($"[NPC:{Name}] Tick {i + 1}/{minutes} - Action={CurrentAction?.Name ?? "none"}, Need={CurrentNeed?.ToString() ?? "none"}");
@@ -93,8 +100,9 @@ public class NPC : Actor
     }
     internal bool ShouldInterrupt()
     {
-        if (DecideRespondToThreat())
-            return true;
+        // TODO: Fix threat response - needs threatTarget and threat parameters
+        // if (DecideRespondToThreat())
+        //     return true;
 
         // critical needs interrupt if higher priority 
         var minimumCriticalNeed = NeedType.Food;
@@ -271,8 +279,8 @@ public class NPC : Actor
     private NPCMove? DecideToMove(Location destination, int maxTiles = 100)
     {
         if (destination == CurrentLocation) throw new Exception("You can't move to current location");
-        int distanceToCamp = Map.GetPosition(CurrentLocation).ManhattanDistance(Map.GetPosition(destination));
-        if (distanceToCamp <= maxTiles) // tiles
+        int distanceTo = Map.DistanceBetween(CurrentLocation, destination);
+        if (distanceTo <= maxTiles) // tiles
         {
             var nextLoc = Map.GetNextInPath(CurrentLocation, destination);
             if (nextLoc != null)
@@ -293,7 +301,8 @@ public class NPC : Actor
     {
         if (CurrentLocation.HasActiveHeatSource()) return CurrentLocation;
         if (Camp?.HasActiveHeatSource() ?? false) return Camp;
-        // todo - track other fires
+        var remembered = ResourceMemory.GetClosestActiveFire(CurrentLocation, Map);
+        if (remembered != null) return remembered;
         return null;
     }
 
@@ -309,6 +318,46 @@ public class NPC : Actor
         };
     }
 
+    /// <summary>
+    /// Check if NPC can survive an activity away from fire for the specified duration.
+    /// Returns false if the activity would drop warmth to dangerous levels.
+    /// </summary>
+    private bool CanSurviveAwayFromFire(int durationMinutes)
+    {
+        if (_currentContext == null) return true;
+
+        // Simulate being away from fire by zeroing the fire bonus
+        double originalFireBonus = _currentContext.FireProximityBonus;
+        _currentContext.FireProximityBonus = 0;
+
+        double tempChangePerHour = SurvivalProcessor.CalculateTemperatureChangePerHour(Body, _currentContext);
+
+        // Restore original value
+        _currentContext.FireProximityBonus = originalFireBonus;
+
+        // If warming or stable even without fire, always safe
+        if (tempChangePerHour >= 0) return true;
+
+        // Project temperature after activity
+        double hoursNeeded = durationMinutes / 60.0;
+        double tempLoss = Math.Abs(tempChangePerHour) * hoursNeeded;
+        double projectedTemp = Body.BodyTemperature - tempLoss;
+
+        // Calculate projected warmth percentage
+        double projectedWarmPct = (projectedTemp - SurvivalProcessor.HypothermiaThreshold)
+            / (Body.BASE_BODY_TEMP - SurvivalProcessor.HypothermiaThreshold);
+
+        // Require 30% warmth buffer
+        bool canSurvive = projectedWarmPct > 0.3;
+
+        if (!canSurvive)
+        {
+            Console.WriteLine($"  [Survival] {durationMinutes}min away from fire would drop warmth to {projectedWarmPct:P0} - too dangerous");
+        }
+
+        return canSurvive;
+    }
+
     private void DetermineNeed()
     {
         if (DetermineCriticalNeed())
@@ -317,8 +366,12 @@ public class NPC : Actor
             return;
     }
 
-    private bool DecideRespondToThreat()
+    private bool DecideRespondToThreat(Actor threatTarget, Actor threat)
     {
+        bool canFight = Inventory.HasWeapon && Vitality > .5;
+        double fightChance = Personality.Boldness;
+        double baseWillingness = ((threatTarget == this? 2 : Relationships[threatTarget]) + 1.0) / 2.0;
+
         return false;
     }
     private bool DetermineCriticalNeed()
@@ -384,8 +437,12 @@ public class NPC : Actor
         if (forage != null && !forage.IsNearlyDepleted() &&
             forage.ProvidedResources().Contains(resource))
         {
+            int forageTime = Utils.RandInt(15, 60);
+            // Check if we can survive foraging in current conditions
+            if (!CanSurviveAwayFromFire(forageTime))
+                return null;
             Console.WriteLine($"    [GetResource] Found {resource} at current location, foraging");
-            return new NPCForage(Utils.RandInt(15, 60));
+            return new NPCForage(forageTime);
         }
 
         // in adjacent -> move to location that has this specific resource
@@ -422,6 +479,14 @@ public class NPC : Actor
 
         if (locWithResource != null)
         {
+            // Check if we can survive traveling in current conditions
+            int estimatedTravelMinutes = 10;
+            if (!CanSurviveAwayFromFire(estimatedTravelMinutes))
+            {
+                Console.WriteLine($"    [GetResource] Too dangerous to travel");
+                return null;
+            }
+
             Console.WriteLine($"    [GetResource] Moving to {locWithResource.Name}");
             var move = DecideToMove(locWithResource);
             if (move != null) return move;
@@ -463,6 +528,15 @@ public class NPC : Actor
 
         if (locWithResource != null)
         {
+            // Check if we can survive traveling in current conditions
+            // Estimate travel time based on distance (rough estimate: 10 min per tile)
+            int estimatedTravelMinutes = 10;
+            if (!CanSurviveAwayFromFire(estimatedTravelMinutes))
+            {
+                Console.WriteLine($"    [GetResource] Too dangerous to travel");
+                return null;
+            }
+
             Console.WriteLine($"    [GetResource] Moving to {locWithResource.Name}");
             return new NPCMove(locWithResource, this);
         }
@@ -519,6 +593,11 @@ public class NPC : Actor
                 resources.AddRange(wooded.ProvidedResources());
         }
 
+        // WaterFeature - can collect water if conditions allow
+        var water = location.GetFeature<WaterFeature>();
+        if (water != null)
+            resources.AddRange(water.ProvidedResources());
+
         return resources.Distinct().ToList();
     }
 
@@ -531,7 +610,11 @@ public class NPC : Actor
         if (forage != null && !forage.IsNearlyDepleted() &&
             forage.ProvidedResources().Any(r => targetResources.Contains(r)))
         {
-            return new NPCForage(Utils.RandInt(15, 60));
+            int forageTime = Utils.RandInt(15, 60);
+            // Check if we can survive foraging in current conditions
+            if (!CanSurviveAwayFromFire(forageTime))
+                return null;
+            return new NPCForage(forageTime);
         }
 
         // HarvestableFeature - check tool requirements
@@ -553,7 +636,12 @@ public class NPC : Actor
             // Calculate work time (harvest may complete in one session or require multiple)
             int workTime = Math.Min(60, harvestable.GetTotalMinutesToHarvest());
             if (workTime > 0)
+            {
+                // Check if we can survive harvesting in current conditions
+                if (!CanSurviveAwayFromFire(workTime))
+                    return null;
                 return new NPCHarvest(workTime);
+            }
         }
 
         // WoodedAreaFeature - requires working axe
@@ -571,6 +659,10 @@ public class NPC : Actor
             // Calculate work time based on remaining progress
             double remainingMinutes = wooded.MinutesToFell - wooded.MinutesWorked;
             int workTime = (int)Math.Min(60, Math.Max(30, remainingMinutes));
+
+            // Check if we can survive chopping in current conditions
+            if (!CanSurviveAwayFromFire(workTime))
+                return null;
 
             return new NPCChopWood(workTime);
         }
@@ -838,11 +930,92 @@ public class NPC : Actor
         // Fire has runway of 2 hours
         if (CurrentLocation.HasActiveHeatSource() && CurrentLocation.GetFeature<HeatSourceFeature>()!.BurningHoursRemaining < 2)
             return false;
+        // TODO: Fix threat response - needs threatTarget and threat parameters
         // No threats
-        if (DecideRespondToThreat()) return false;
+        // if (DecideRespondToThreat()) return false;
 
         return true;
     }
+
+    public double GetRelationship(Actor other)
+    {
+        return Relationships.TryGetValue(other, out var value) ? value : 0;
+    }
+    public void ModifyRelationship(Actor other, double delta)
+    {
+        double current = GetRelationship(other);
+        Relationships[other] = Math.Clamp(current + delta, -1, 1);
+    }
+
+    #region Combat Decisions
+
+    /// <summary>
+    /// Decides if NPC will join combat to help another actor.
+    /// Uses relationship + self-assessment + threat assessment.
+    /// </summary>
+    internal bool DecideToHelpInCombat(Actor ally, Animal threat)
+    {
+        double relationship = GetRelationship(ally);
+        if (relationship < -0.3) return false;  // Hostile NPCs won't help
+
+        // Base willingness from relationship: -1..1 → 0..1
+        double baseWillingness = (relationship + 1) / 2;
+
+        // Self-assessment
+        bool hasWeapon = Inventory.Weapon != null;
+        bool isInjured = Vitality < 0.7;
+        double selfFactor = (hasWeapon ? 1.2 : 0.6) * (isInjured ? 0.7 : 1.0);
+
+        // Personality
+        double boldnessFactor = 0.5 + (Personality.Boldness * 0.5);
+
+        // Threat assessment (bigger/healthier = scarier)
+        double threatFactor = 1.0 / (1.0 + threat.Vitality * threat.Body.WeightKG / 100);
+
+        double joinScore = baseWillingness * selfFactor * boldnessFactor * threatFactor;
+
+        // Threshold: 0.35 means neutral + armed + bold = likely joins
+        return joinScore > 0.35;
+    }
+
+    /// <summary>
+    /// Decides fight vs flee when NPC faces threat alone.
+    /// Returns true for fight, false for flee.
+    /// </summary>
+    internal bool DecideFlightOrFight(Animal threat)
+    {
+        double fightChance = Personality.Boldness;
+
+        // Equipment check
+        bool hasWeapon = Inventory.Weapon != null;
+        bool isInjured = Vitality < 0.7;
+
+        if (hasWeapon && !isInjured) fightChance += 0.2;
+        if (isInjured) fightChance -= 0.2;
+
+        // Threat comparison
+        double npcStrength = Vitality * (hasWeapon ? 2.0 : 1.0);
+        double threatStrength = threat.Vitality * (threat.Body.WeightKG / 30.0);
+
+        if (threatStrength > npcStrength * 1.5) fightChance -= 0.3;  // Much stronger
+        if (threatStrength < npcStrength * 0.5) fightChance += 0.3;  // Much weaker
+
+        fightChance = Math.Clamp(fightChance, 0.1, 0.9);
+        return Utils.DetermineSuccess(fightChance);
+    }
+
+    /// <summary>
+    /// Check for hostile predators at NPC's current location.
+    /// </summary>
+    internal Animal? GetThreatAtLocation(HerdRegistry herds)
+    {
+        var position = Map.GetPosition(CurrentLocation);
+        var herdsHere = herds.GetHerdsAt(position);
+        var predatorHerd = herdsHere.FirstOrDefault(h => h.IsPredator);
+        return predatorHerd?.GetRandomMember();
+    }
+
+    #endregion
 }
 
 public class Personality
@@ -886,6 +1059,8 @@ public class NPCMove(Location destination, NPC npc) :
 {
     public override void Complete(NPC npc)
     {
+        // first update destination memory as leaving
+        npc.ResourceMemory.RememberLocation(npc.CurrentLocation);
         npc.CurrentLocation = destination;
         npc.ResourceMemory.RememberLocation(destination);
     }
@@ -1097,3 +1272,78 @@ public class NPCCraft : NPCAction
             npc.Inventory.Tools.Add(result);
     }
 }
+
+#region Combat Actions
+
+public class NPCFight : NPCAction
+{
+    private readonly Animal _threat;
+
+    public NPCFight(Animal threat) : base($"Fighting {threat.Name}", 1, ActivityType.Fighting)
+    {
+        _threat = threat;
+    }
+
+    public override void Complete(NPC npc)
+    {
+        var outcome = ActorCombatResolver.ResolveCombat(_threat, npc, npc.CurrentLocation);
+
+        switch (outcome)
+        {
+            case ActorCombatResolver.CombatOutcome.DefenderKilled:
+                Console.WriteLine($"[NPC] {npc.Name} was killed by {_threat.Name}");
+                break;
+            case ActorCombatResolver.CombatOutcome.DefenderInjured:
+                Console.WriteLine($"[NPC] {npc.Name} was injured fighting {_threat.Name}");
+                break;
+            case ActorCombatResolver.CombatOutcome.AttackerRepelled:
+                Console.WriteLine($"[NPC] {npc.Name} drove off {_threat.Name}!");
+                break;
+            case ActorCombatResolver.CombatOutcome.DefenderEscaped:
+                Console.WriteLine($"[NPC] {npc.Name} escaped from {_threat.Name}");
+                break;
+        }
+    }
+
+    public Animal Threat => _threat;
+}
+
+public class NPCFlee : NPCAction
+{
+    private readonly Animal _threat;
+
+    public NPCFlee(Animal threat) : base($"Fleeing from {threat.Name}", 5, ActivityType.Traveling)
+    {
+        _threat = threat;
+    }
+
+    public override void Complete(NPC npc)
+    {
+        // Move toward camp if known, else random adjacent
+        Location? retreat = null;
+
+        if (npc.Camp != null && npc.CurrentLocation != npc.Camp)
+        {
+            retreat = npc.Map.GetNextInPath(npc.CurrentLocation, npc.Camp);
+        }
+
+        if (retreat == null)
+        {
+            var options = npc.Map.GetTravelOptionsFrom(npc.CurrentLocation).ToList();
+            if (options.Count > 0)
+                retreat = Utils.GetRandomFromList(options);
+        }
+
+        if (retreat != null)
+        {
+            Console.WriteLine($"[NPC:{npc.Name}] Fleeing to {retreat.Name}");
+            npc.CurrentLocation = retreat;
+        }
+        else
+        {
+            Console.WriteLine($"[NPC:{npc.Name}] Cannot flee - no escape route!");
+        }
+    }
+}
+
+#endregion

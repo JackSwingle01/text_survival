@@ -83,10 +83,10 @@ public class PackPredatorBehavior : IHerdBehavior
             }
         }
 
-        // Check for NPC allies at this location
-        var npcsHere = ctx.NPCs.Where(npc =>
-            ctx.Map != null && ctx.Map.GetPosition(npc.CurrentLocation) == herd.Position
-        ).ToList();
+        // Check for NPC allies at this location (using unified actor tracking)
+        var npcsHere = ctx.GetActorsAt(herd.Position)
+            .OfType<NPC>()
+            .ToList();
 
         foreach (var npc in npcsHere)
         {

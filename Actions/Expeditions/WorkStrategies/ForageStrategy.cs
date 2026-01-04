@@ -253,14 +253,16 @@ public class ForageStrategy : IWorkStrategy
         }
 
         // Perception affects yield - includes darkness, consciousness, vitality, and injury effects
-        var abilityContext = AbilityContext.FromFullContext(
-            ctx.player, ctx.Inventory, location, ctx.GameTime.Hour);
-        double perception = ctx.player.GetPerception(abilityContext);
+        double perception = AbilityCalculator.GetPerception(ctx.player, ctx);
 
         // Apply perception as a direct multiplier (perception 1.0 = full yield, 0.5 = half yield)
         if (perception < 1.0)
         {
             found.ApplyMultiplier(perception);
+
+            // Get context for warnings
+            var abilityContext = AbilityContext.FromFullContext(
+                ctx.player, ctx.Inventory, ctx.player.CurrentLocation, ctx.GameTime.Hour);
 
             // Contextual warning based on what's reducing perception
             if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)

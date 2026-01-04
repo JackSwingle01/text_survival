@@ -718,9 +718,7 @@ public record FireManagementDto(
                 bool consciousnessImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
 
                 // Calculate dexterity with full context (includes manipulation, wetness, darkness, vitality)
-                var abilityContext = AbilityContext.FromFullContext(
-                    ctx.player, ctx.Inventory, ctx.CurrentLocation, ctx.GameTime.Hour);
-                double dexterity = ctx.player.GetDexterity(abilityContext);
+                double dexterity = AbilityCalculator.GetDexterity(ctx.player, ctx);
 
                 // Calculate actual success chance using FireHandler
                 double chance = FireHandler.CalculateFireChance(
@@ -745,6 +743,10 @@ public record FireManagementDto(
                 // Dexterity penalty (combines manipulation, wetness, darkness, vitality)
                 if (dexterity < 1.0)
                 {
+                    // Get context for modifier display
+                    var abilityContext = AbilityContext.FromFullContext(
+                        ctx.player, ctx.Inventory, ctx.player.CurrentLocation, ctx.GameTime.Hour);
+
                     int dexterityPenalty = -(int)((1.0 - dexterity) * 50);
                     // Choose appropriate label based on what's reducing dexterity
                     string label = abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource

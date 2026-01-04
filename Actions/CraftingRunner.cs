@@ -149,14 +149,16 @@ public class CraftingRunner(GameContext ctx)
         }
 
         // Dexterity impairment slows crafting (combines manipulation, wetness, darkness, vitality)
-        var abilityContext = AbilityContext.FromFullContext(
-            _ctx.player, _ctx.Inventory, _ctx.CurrentLocation, _ctx.GameTime.Hour);
-        double dexterity = _ctx.player.GetDexterity(abilityContext);
+        double dexterity = AbilityCalculator.GetDexterity(_ctx.player, _ctx);
         if (dexterity < 0.7)
         {
             // Scale penalty based on dexterity: 0.7 = no penalty, 0.0 = +50% time
             double penaltyFactor = 1.0 + ((0.7 - dexterity) / 0.7 * 0.5);
             totalTime = (int)(totalTime * penaltyFactor);
+
+            // Get context for warnings
+            var abilityContext = AbilityContext.FromFullContext(
+                _ctx.player, _ctx.Inventory, _ctx.CurrentLocation, _ctx.GameTime.Hour);
 
             // Contextual warning
             if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)

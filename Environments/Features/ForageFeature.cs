@@ -370,14 +370,6 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     public ForageFeature AddBone(double abundance = 0.2, double minKg = 0.1, double maxKg = 0.4) =>
         AddResource("bones", Resource.Bone, abundance, minKg, maxKg);
 
-    public ForageFeature AddSmallGame(double abundance = 0.1, double minKg = 0.2, double maxKg = 0.5) =>
-        AddResource("small game", Resource.RawMeat, abundance, minKg, maxKg);
-
-    // Note: Water uses special handling - adds directly to WaterLiters
-    // We'll need to handle this specially in Forage() method or create a Water Resource type
-    public ForageFeature AddWater(double abundance = 0.5, double minLiters = 0.2, double maxLiters = 0.5) =>
-        AddResource("water", Resource.RawMeat, abundance, minLiters, maxLiters);  // TODO: Create Water resource or special handling
-
     // Stone type convenience methods
     public ForageFeature AddShale(double abundance = 0.2, double minKg = 0.2, double maxKg = 0.5) =>
         AddResource("shale", Resource.Shale, abundance, minKg, maxKg);
@@ -518,14 +510,6 @@ public class ForageFeature : LocationFeature, IWorkableFeature
         NumberOfHoursForaged += hours;
     }
 
-    /// <summary>
-    /// Restore resources by simulating time passing without foraging.
-    /// </summary>
-    public void Restore(double hours)
-    {
-        HoursSinceLastForage += hours;
-    }
-
     public override FeatureUIInfo? GetUIInfo()
     {
         if (!CanForage()) return null;
@@ -537,7 +521,7 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     }
 
     public override List<Resource> ProvidedResources() =>
-        _resources.Select(r => r.ResourceType).Distinct().ToList();
+        !IsDepleted() ? _resources.Select(r => r.ResourceType).Distinct().ToList() : [];
 
     #region Save/Load Support
 
