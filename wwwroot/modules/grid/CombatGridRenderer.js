@@ -1,3 +1,5 @@
+import { TERRAIN_COLORS, renderTerrainTexture } from './TerrainRenderer.js';
+
 /**
  * CombatGridRenderer - Renders combat grid on the main canvas
  * Replaces the world map when in combat mode
@@ -180,18 +182,38 @@ export class CombatGridRenderer {
 
         const ctx = this.ctx;
         const canvasSize = this.canvas.width;
+        const grid = this.combatState?.grid;
 
-        // Clear background
-        ctx.fillStyle = this.COLORS.background;
-        ctx.fillRect(0, 0, canvasSize, canvasSize);
+        // Render terrain background if available, otherwise solid background
+        if (grid?.terrain && grid.locationX != null && grid.locationY != null) {
+            const baseColor = TERRAIN_COLORS[grid.terrain] || TERRAIN_COLORS.Plain;
+            ctx.fillStyle = baseColor;
+            ctx.fillRect(0, 0, canvasSize, canvasSize);
 
-        if (!this.combatState?.grid) {
+            // Render terrain texture across entire combat grid
+            // Use a single texture render at the grid origin for consistency
+            renderTerrainTexture(
+                ctx,
+                grid.terrain,
+                this.PADDING,
+                this.PADDING,
+                this.GRID_SIZE * this.CELL_SIZE,
+                grid.locationX,
+                grid.locationY
+            );
+        } else {
+            // Fallback to solid background if no terrain data
+            ctx.fillStyle = this.COLORS.background;
+            ctx.fillRect(0, 0, canvasSize, canvasSize);
+        }
+
+        if (!grid) {
             this.renderLoading();
             return;
         }
 
         // Find player unit for zone rendering
-        const playerUnit = this.combatState.grid.units?.find(u => u.team === 'player');
+        const playerUnit = grid.units?.find(u => u.team === 'player');
 
         // Render layers
         this.renderGrid();
