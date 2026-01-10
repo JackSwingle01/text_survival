@@ -717,6 +717,22 @@ export class CanvasGridRenderer {
 
         const playerIconSize = Math.round(this.TILE_SIZE * 0.25);
 
+        // 3D elliptical shadow beneath player icon
+        // Icon bottom is at ~y + iconSize*0.4, shadow should be just below that
+        const shadowWidth = playerIconSize * 0.7;
+        this.ctx.save();
+        this.ctx.translate(playerX, playerY + playerIconSize * 0.5);
+        this.ctx.scale(1, 0.4);
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, shadowWidth, 0, Math.PI * 2);
+        const shadowGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shadowWidth);
+        shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.5)');
+        shadowGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.25)');
+        shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        this.ctx.fillStyle = shadowGradient;
+        this.ctx.fill();
+        this.ctx.restore();
+
         // Draw outline first (thicker black stroke)
         this.ctx.save();
         this.ctx.font = `200 ${playerIconSize}px 'Material Symbols Outlined'`;
@@ -806,7 +822,6 @@ export class CanvasGridRenderer {
 
         // Scale sizes with tile size
         const emojiSize = Math.round(this.TILE_SIZE * 0.15);
-        const bgRadius = Math.round(this.TILE_SIZE * 0.10);
 
         icons.slice(0, 4).forEach((emoji, i) => {
             if (!emoji) return;
@@ -815,12 +830,21 @@ export class CanvasGridRenderer {
             const iconX = px + pos.ox;
             const iconY = py + pos.oy;
 
-            // Draw dark background circle for readability
-            const bgAlpha = 0.25 + (0.15 * this.timeFactor);
-            this.ctx.fillStyle = `rgba(0, 0, 0, ${bgAlpha})`;
+            // 3D elliptical shadow beneath animal icon
+            // Emoji bottom is at ~y + emojiSize*0.4, shadow should be just below that
+            const shadowWidth = emojiSize * 0.7;
+            this.ctx.save();
+            this.ctx.translate(iconX, iconY + emojiSize * 0.5);
+            this.ctx.scale(1, 0.4);
             this.ctx.beginPath();
-            this.ctx.arc(iconX, iconY, bgRadius, 0, Math.PI * 2);
+            this.ctx.arc(0, 0, shadowWidth, 0, Math.PI * 2);
+            const shadowGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shadowWidth);
+            shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.5)');
+            shadowGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.25)');
+            shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            this.ctx.fillStyle = shadowGradient;
             this.ctx.fill();
+            this.ctx.restore();
 
             // Draw emoji
             this.ctx.font = `${emojiSize}px sans-serif`;
