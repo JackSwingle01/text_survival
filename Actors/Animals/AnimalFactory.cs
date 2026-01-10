@@ -43,10 +43,10 @@ public static class AnimalFactory
             location: location, map: map)
         {
             TrackingDifficulty = 3,
-            Threat = 0.05,
-            BaseBoldness = 0.3,
-            Aggression = 0.05,
-            Cohesion = 1
+            BaseThreat = 0.05,
+            StartingBoldness = 0.3,
+            BaseAggression = 0.05,
+            BaseCohesion = 1
         };
         animal.GenerateTraits();
         return animal;
@@ -70,10 +70,10 @@ public static class AnimalFactory
             disengageAfterMaul: 0.2)  // Pack hunters tend to finish prey
         {
             TrackingDifficulty = 6,
-            Threat = 0.7,
-            BaseBoldness = 1.3,
-            Aggression = 0.8,
-            Cohesion = 2
+            BaseThreat = 0.7,
+            StartingBoldness = 1.3,
+            BaseAggression = 0.8,
+            BaseCohesion = 2
         };
         animal.GenerateTraits();
         return animal;
@@ -97,10 +97,10 @@ public static class AnimalFactory
             disengageAfterMaul: 0.5)  // Often leaves after incapacitating (territorial defense)
         {
             TrackingDifficulty = 5,
-            Threat = 2.5,
-            BaseBoldness = 1.6,
-            Aggression = 0.4,
-            Cohesion = 0
+            BaseThreat = 2.5,
+            StartingBoldness = 1.6,
+            BaseAggression = 0.4,
+            BaseCohesion = 0
         };
         animal.GenerateTraits();
         return animal;
@@ -124,10 +124,10 @@ public static class AnimalFactory
             disengageAfterMaul: 0.5)  // Often leaves after incapacitating (territorial defense)
         {
             TrackingDifficulty = 4,
-            Threat = 3.0,
-            BaseBoldness = 1.8,
-            Aggression = 0.4,
-            Cohesion = 0
+            BaseThreat = 3.0,
+            StartingBoldness = 1.8,
+            BaseAggression = 0.4,
+            BaseCohesion = 0
         };
         animal.GenerateTraits();
         return animal;
@@ -155,10 +155,10 @@ public static class AnimalFactory
                 (Resource.Ivory, 4),        // 2 tusks
                 (Resource.MammothHide, 15)  // Special thick hide
             ],
-            Threat = 3.5,
-            BaseBoldness = 1.0,
-            Aggression = 0.1,
-            Cohesion = 2
+            BaseThreat = 3.5,
+            StartingBoldness = 1.0,
+            BaseAggression = 0.1,
+            BaseCohesion = 2
         };
         animal.GenerateTraits();
         return animal;
@@ -182,10 +182,10 @@ public static class AnimalFactory
             disengageAfterMaul: 0.15)  // Big cat, likely to finish kill
         {
             TrackingDifficulty = 7,
-            Threat = 3.0,
-            BaseBoldness = 2.0,
-            Aggression = 0.7,
-            Cohesion = 0
+            BaseThreat = 3.0,
+            StartingBoldness = 2.0,
+            BaseAggression = 0.7,
+            BaseCohesion = 0
         };
         animal.GenerateTraits();
         return animal;
@@ -208,10 +208,10 @@ public static class AnimalFactory
             isHostile: false)
         {
             TrackingDifficulty = 4,
-            Threat = 0.3,
-            BaseBoldness = 0.3,
-            Aggression = 0.05,
-            Cohesion = 1
+            BaseThreat = 0.3,
+            StartingBoldness = 0.3,
+            BaseAggression = 0.05,
+            BaseCohesion = 1
         };
         animal.GenerateTraits();
         return animal;
@@ -234,10 +234,10 @@ public static class AnimalFactory
             isHostile: false)
         {
             TrackingDifficulty = 6,
-            Threat = 0.05,
-            BaseBoldness = 0.1,
-            Aggression = 0.0,
-            Cohesion = 1
+            BaseThreat = 0.05,
+            StartingBoldness = 0.1,
+            BaseAggression = 0.0,
+            BaseCohesion = 1
         };
         animal.GenerateTraits();
         return animal;
@@ -260,10 +260,10 @@ public static class AnimalFactory
             isHostile: false)
         {
             TrackingDifficulty = 7,
-            Threat = 0.02,
-            BaseBoldness = 0.1,
-            Aggression = 0.0,
-            Cohesion = 1
+            BaseThreat = 0.02,
+            StartingBoldness = 0.1,
+            BaseAggression = 0.0,
+            BaseCohesion = 1
         };
         animal.GenerateTraits();
         return animal;
@@ -286,10 +286,10 @@ public static class AnimalFactory
             isHostile: false)
         {
             TrackingDifficulty = 6,
-            Threat = 0.15,
-            BaseBoldness = 0.4,
-            Aggression = 0.1,
-            Cohesion = 0
+            BaseThreat = 0.15,
+            StartingBoldness = 0.4,
+            BaseAggression = 0.1,
+            BaseCohesion = 0
         };
         animal.GenerateTraits();
         return animal;
@@ -314,10 +314,10 @@ public static class AnimalFactory
             disengageAfterMaul: 0.6)  // Defensive - leaves once threat neutralized
         {
             TrackingDifficulty = 3,
-            Threat = 0.5,
-            BaseBoldness = 0.4,
-            Aggression = 0.1,
-            Cohesion = 1
+            BaseThreat = 0.5,
+            StartingBoldness = 0.4,
+            BaseAggression = 0.1,
+            BaseCohesion = 1
         };
         animal.GenerateTraits();
         return animal;
@@ -342,10 +342,10 @@ public static class AnimalFactory
             disengageAfterMaul: 0.6)  // Defensive - leaves once threat neutralized
         {
             TrackingDifficulty = 2,
-            Threat = 1.8,
-            BaseBoldness = 0.5,
-            Aggression = 0.1,
-            Cohesion = 2
+            BaseThreat = 1.8,
+            StartingBoldness = 0.5,
+            BaseAggression = 0.1,
+            BaseCohesion = 2
         };
         animal.GenerateTraits();
         return animal;
@@ -369,10 +369,10 @@ public static class AnimalFactory
             disengageAfterMaul: 0.3)  // Scavenger, may leave if prey plays dead
         {
             TrackingDifficulty = 5,
-            Threat = 0.4,
-            BaseBoldness = 0.7,
-            Aggression = 0.5,
-            Cohesion = 2
+            BaseThreat = 0.4,
+            StartingBoldness = 0.7,
+            BaseAggression = 0.5,
+            BaseCohesion = 2
         };
         animal.GenerateTraits();
         return animal;

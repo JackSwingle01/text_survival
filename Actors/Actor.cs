@@ -54,11 +54,11 @@ public abstract class Actor : IMovable
         return result;
     }
 
-    // not sure if these should be set manually set
-    public virtual double BaseThreat => Math.Log10(Strength * Body.WeightKG * AttackDamage); // todo - tune this
-    public virtual double StartingBoldness => 1.0;
-    public virtual double BaseAggression => 1.0;
-    public virtual double BaseCohesion => .5;
+    // Combat stats - animals override with set values, NPCs/players use defaults
+    public virtual double BaseThreat { get; set; }
+    public virtual double StartingBoldness { get; set; } = 1.0;
+    public virtual double BaseAggression { get; set; } = 1.0;
+    public virtual double BaseCohesion { get; set; } = 0.5;
 
     public bool IsEngaged { get; set; }
     public bool IsAlive => Vitality > 0;

@@ -41,6 +41,12 @@ namespace text_survival.Actors.Animals
 
         #region Properties
 
+        // Combat stats for Unit system
+        public override double BaseThreat { get; set; }
+        public override double StartingBoldness { get; set; }
+        public override double BaseAggression { get; set; }
+        public override double BaseCohesion { get; set; }
+
         public string Description { get; set; } = "";
         public bool IsHostile { get; protected set; } = true;
 
