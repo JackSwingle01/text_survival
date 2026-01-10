@@ -6,7 +6,6 @@ using text_survival.Environments.Grid;
 using text_survival.Items;
 using text_survival.Web;
 using text_survival.Web.Dto;
-using CombatResultEnum = text_survival.Actions.CombatResult;
 
 namespace text_survival.Combat;
 
@@ -22,7 +21,7 @@ public static class CombatOrchestrator
     /// <summary>
     /// Main entry point for player combat. Matches old CombatRunner signature.
     /// </summary>
-    public static CombatResultEnum RunCombat(GameContext ctx, Animal enemy)
+    public static CombatResult RunCombat(GameContext ctx, Animal enemy)
     {
         // === SETUP ===
         var (scenario, playerUnit) = SetupCombat(ctx, enemy);
@@ -265,18 +264,18 @@ public static class CombatOrchestrator
 
     #region Result & Cleanup
 
-    private static CombatResultEnum DetermineResult(CombatScenario scenario, Unit player)
+    private static CombatResult DetermineResult(CombatScenario scenario, Unit player)
     {
-        if (!player.actor.IsAlive) return CombatResultEnum.Defeat;
-        if (scenario.Team2.All(u => !u.actor.IsAlive)) return CombatResultEnum.Victory;
-        if (!scenario.Units.Contains(player)) return CombatResultEnum.Fled;
-        return CombatResultEnum.AnimalFled;  // enemies fled
+        if (!player.actor.IsAlive) return CombatResult.Defeat;
+        if (scenario.Team2.All(u => !u.actor.IsAlive)) return CombatResult.Victory;
+        if (!scenario.Units.Contains(player)) return CombatResult.Fled;
+        return CombatResult.AnimalFled;  // enemies fled
     }
 
-    private static void HandlePostCombat(GameContext ctx, CombatScenario scenario, CombatResultEnum result)
+    private static void HandlePostCombat(GameContext ctx, CombatScenario scenario, CombatResult result)
     {
         // Create carcasses for dead enemies
-        if (result == CombatResultEnum.Victory)
+        if (result == CombatResult.Victory)
         {
             foreach (var unit in scenario.Team2)
             {
@@ -342,27 +341,27 @@ public static class CombatOrchestrator
         GameContext ctx,
         CombatScenario scenario,
         Unit playerUnit,
-        CombatResultEnum result)
+        CombatResult result)
     {
         var outcomeType = result switch
         {
-            CombatResultEnum.Victory => "victory",
-            CombatResultEnum.Defeat => "defeat",
-            CombatResultEnum.Fled => "fled",
-            CombatResultEnum.AnimalFled => "animal_fled",
+            CombatResult.Victory => "victory",
+            CombatResult.Defeat => "defeat",
+            CombatResult.Fled => "fled",
+            CombatResult.AnimalFled => "animal_fled",
             _ => "ended"
         };
 
         var message = result switch
         {
-            CombatResultEnum.Victory => "You are victorious!",
-            CombatResultEnum.Defeat => "You have been killed.",
-            CombatResultEnum.Fled => "You escape!",
-            CombatResultEnum.AnimalFled => "Your enemies flee!",
+            CombatResult.Victory => "You are victorious!",
+            CombatResult.Defeat => "You have been killed.",
+            CombatResult.Fled => "You escape!",
+            CombatResult.AnimalFled => "Your enemies flee!",
             _ => "The encounter ends."
         };
 
-        var rewards = result == CombatResultEnum.Victory
+        var rewards = result == CombatResult.Victory
             ? scenario.Team2.Where(u => !u.actor.IsAlive)
                 .Select(u => $"{u.actor.Name} carcass")
                 .ToList()

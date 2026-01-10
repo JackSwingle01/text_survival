@@ -1,5 +1,6 @@
 using text_survival.Actors.Animals;
 using text_survival.Actors.Player;
+using text_survival.Actions.Expeditions;
 using text_survival.Actions.Tensions;
 using text_survival.Bodies;
 using text_survival.Combat;
@@ -106,7 +107,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         if (activityConfig.EventMultiplier == 0)
             return; // Activities that block events also block encounters
 
-        var predator = CombatRunner.CreateAnimalFromConfig(_pendingEncounter, CurrentLocation, Map);
+        var predator = EncounterRunner.CreateAnimalFromConfig(_pendingEncounter, CurrentLocation, Map);
         _pendingEncounter = null;
 
         if (predator != null)
