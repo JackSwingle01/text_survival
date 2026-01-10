@@ -81,11 +81,20 @@ public static class SurvivalProcessor
 	/// </summary>
 	public static double CalculateTemperatureChangePerHour(Body body, SurvivalContext context)
 	{
+		// heat_capacity = mass * specific heat
+		// dT/dt = (heat_in - heat_out) / heat_capacity
+		// Q_loss = h * surface_area * deltaT * (1 - insulation) | h = heat transfer coef: air -> 7, wind -> 20, water -> 400
+		// Human body: surface_area = 1.8m^2, specific heat = 3.5 J/KG*C or .83 kcal/kg*F
+
 		double specificHeat = 0.83; // for calories in F
 		double surfaceArea = 1.8; // m^2
 		double heatCapacity = body.WeightKG * specificHeat;
-		double windFactor = 1.0 + (context.WindSpeedLevel * 2.0);
-		double h = 7.0 * windFactor;
+
+		// Clothing provides wind protection proportional to insulation
+		double clothingWindProtection = context.ClothingInsulation * 0.5;
+		double effectiveWind = context.WindSpeedLevel * (1 - clothingWindProtection);
+		double windFactor = 1.0 + (effectiveWind * 2.0);
+		double h = 5.0 * windFactor;
 
 		double coldResistance = AbilityCalculator.CalculateColdResistance(body);
 		double naturalInsulation = Math.Clamp(coldResistance, 0, 1);
@@ -106,11 +115,6 @@ public static class SurvivalProcessor
 
 	private static SurvivalProcessorResult ProcessTemperature(Body body, SurvivalContext context, int minutes)
 	{
-		// heat_capacity = mass * specific heat
-		// dT/dt = (heat_in - heat_out) / heat_capacity
-		// Q_loss = h * surface_area * deltaT * (1 - insulation) | h = heat transfer coef: air -> 7, wind -> 20, water -> 400
-		// Human body: surface_area = 1.8m^2, specific heat = 3.5 J/KG*C or .83 kcal/kg*F
-
 		double tempChange = CalculateTemperatureChangePerHour(body, context);
 
 		// Clothing thermal mass buffer
@@ -313,7 +317,7 @@ public static class SurvivalProcessor
 
 		// Check if any body parts or blood need healing
 		bool fullyHealed = body.Parts.All(p => p.Condition >= 1.0) &&
-		                   body.Parts.SelectMany(p => p.Organs).All(o => o.Condition >= 1.0);
+						   body.Parts.SelectMany(p => p.Organs).All(o => o.Condition >= 1.0);
 		bool bloodFull = body.Blood.Condition >= 1.0;
 
 		if (!wellFed || !hydrated || !rested || (fullyHealed && bloodFull))
