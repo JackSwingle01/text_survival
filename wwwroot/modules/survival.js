@@ -1,32 +1,28 @@
 export const SurvivalDisplay = {
     render(state) {
-        this.updateStat('health', state.healthPercent);
-        this.updateStat('food', state.foodPercent);
-        this.updateStat('water', state.waterPercent);
-        this.updateStat('energy', state.energyPercent);
+        // Use pre-computed display values from server
+        this.updateStat('health', state.healthDisplay, true);
+        this.updateStat('food', state.foodDisplay, false);
+        this.updateStat('water', state.waterDisplay, false);
+        this.updateStat('energy', state.energyDisplay, false);
     },
 
-    updateStat(stat, percent) {
+    updateStat(stat, display, showBarColor) {
         const pctEl = document.getElementById(stat + 'Pct');
         const barEl = document.getElementById(stat + 'Bar');
 
         if (!pctEl || !barEl) return;
 
-        pctEl.textContent = percent + '%';
-        barEl.style.width = percent + '%';
+        pctEl.textContent = display.value + '%';
+        barEl.style.width = display.value + '%';
 
-        // Determine severity class
-        let severity = 'good';
-        if (percent < 30) severity = 'danger';
-        else if (percent < 60) severity = 'warning';
-
-        // Update value color class
-        pctEl.className = 'stat-value ' + severity;
+        // Use server-provided severity class
+        pctEl.className = 'stat-value ' + display.severity;
 
         // Update bar color for health only
-        if (stat === 'health') {
+        if (showBarColor) {
             barEl.classList.remove('good', 'warning', 'danger');
-            barEl.classList.add(severity);
+            barEl.classList.add(display.severity);
         }
     }
 };

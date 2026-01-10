@@ -6,11 +6,10 @@ export const TemperatureDisplay = {
         const bodyTempEl = document.getElementById('bodyTempDisplay');
         bodyTempEl.textContent = `${bodyTemp.toFixed(1)}°F`;
 
-        // Temperature bar (87-102 range for body temp)
-        const tempPct = Math.max(0, Math.min(100, (bodyTemp - 87) / (102 - 87) * 100));
+        // Temperature bar - use pre-computed percentage from server
         const tempBar = document.getElementById('tempBar');
         if (tempBar) {
-            tempBar.style.width = tempPct + '%';
+            tempBar.style.width = state.bodyTempBarPct + '%';
         }
 
         // Temperature trend in tooltip
@@ -23,7 +22,7 @@ export const TemperatureDisplay = {
             trendEl.textContent = trendText;
         }
 
-        // Temperature trend arrow (to the right of the bar)
+        // Temperature trend arrow - use pre-computed from server
         let trendArrow = document.getElementById('tempTrendArrow');
         if (!trendArrow) {
             trendArrow = document.createElement('span');
@@ -33,14 +32,8 @@ export const TemperatureDisplay = {
             if (tempStat) tempStat.appendChild(trendArrow);
         }
 
-        const arrow = state.trendPerHour > 0.2 ? '↑' :
-                     state.trendPerHour < -0.2 ? '↓' :
-                     '→';
-        const color = state.trendPerHour > 0.2 ? '#4caf50' :
-                     state.trendPerHour < -0.2 ? '#f44336' :
-                     '#888';
-        trendArrow.textContent = arrow;
-        trendArrow.style.color = color;
+        trendArrow.textContent = state.tempTrend.arrow;
+        trendArrow.style.color = state.tempTrend.color;
 
         // Air temperature display
         const airTempEl = document.getElementById('airTempDisplay');

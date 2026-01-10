@@ -40,67 +40,20 @@ export const EffectsDisplay = {
             trendSpan.textContent = trend;
             div.appendChild(trendSpan);
 
-            // Add tooltip
-            const tooltip = this.createEffectTooltip(e);
-            if (tooltip) {
+            // Add tooltip using pre-computed lines from server
+            if (e.tooltipLines && e.tooltipLines.length > 0) {
+                const tooltip = document.createElement('div');
+                tooltip.className = 'effect-tooltip';
+                e.tooltipLines.forEach((line, i) => {
+                    if (i > 0) tooltip.appendChild(document.createElement('br'));
+                    tooltip.appendChild(document.createTextNode(line));
+                });
                 div.appendChild(tooltip);
                 div.classList.add('has-tooltip');
             }
 
             container.appendChild(div);
         });
-    },
-
-    createEffectTooltip(effect) {
-        const lines = [];
-
-        // Capacity impacts
-        if (effect.capacityImpacts) {
-            for (const [cap, impact] of Object.entries(effect.capacityImpacts)) {
-                const sign = impact > 0 ? '+' : '';
-                lines.push(`${cap}: ${sign}${impact}%`);
-            }
-        }
-
-        // Stat impacts
-        if (effect.statsImpact) {
-            const s = effect.statsImpact;
-            if (s.temperaturePerHour) {
-                const sign = s.temperaturePerHour > 0 ? '+' : '';
-                lines.push(`Temp: ${sign}${s.temperaturePerHour.toFixed(1)}\u00B0F/hr`);
-            }
-            if (s.hydrationPerHour) {
-                const sign = s.hydrationPerHour > 0 ? '+' : '';
-                lines.push(`Hydration: ${sign}${s.hydrationPerHour.toFixed(0)}ml/hr`);
-            }
-            if (s.caloriesPerHour) {
-                const sign = s.caloriesPerHour > 0 ? '+' : '';
-                lines.push(`Calories: ${sign}${s.caloriesPerHour.toFixed(0)}/hr`);
-            }
-            if (s.energyPerHour) {
-                const sign = s.energyPerHour > 0 ? '+' : '';
-                lines.push(`Energy: ${sign}${s.energyPerHour.toFixed(0)}/hr`);
-            }
-            if (s.damagePerHour) {
-                lines.push(`${s.damageType || 'Damage'}: ${s.damagePerHour.toFixed(1)}/hr`);
-            }
-        }
-
-        // Treatment status
-        if (effect.requiresTreatment) {
-            lines.push('Requires treatment');
-        }
-
-        if (lines.length === 0) return null;
-
-        const tooltip = document.createElement('div');
-        tooltip.className = 'effect-tooltip';
-        // Use safe DOM methods instead of innerHTML
-        lines.forEach((line, i) => {
-            if (i > 0) tooltip.appendChild(document.createElement('br'));
-            tooltip.appendChild(document.createTextNode(line));
-        });
-        return tooltip;
     },
 
     renderInjuries(injuries, bloodPercent) {
@@ -152,7 +105,8 @@ export const EffectsDisplay = {
         if (hasInjuries) {
             injuries.forEach(i => {
                 const div = document.createElement('div');
-                div.className = `injury-item ${this.getInjurySeverityClass(i.conditionPercent)}`;
+                // Use pre-computed severity class from server
+                div.className = `injury-item ${i.severityClass}`;
 
                 // Name
                 const nameSpan = document.createElement('span');
@@ -205,6 +159,7 @@ export const EffectsDisplay = {
         return tooltip;
     },
 
+    // Still needed for blood loss (not sent from server) and capacities
     getInjurySeverityClass(percent) {
         if (percent <= 20) return 'critical';
         if (percent <= 50) return 'severe';

@@ -6,6 +6,7 @@ using text_survival.Environments.Features;
 using text_survival.Survival;
 using text_survival.Actors;
 using text_survival.UI;
+using text_survival.Web;
 
 namespace text_survival.Web.Dto;
 
@@ -82,6 +83,17 @@ public record GameStateDto
 
     // Capacity levels (0-100 percent)
     public Dictionary<string, int> Capacities { get; init; } = [];
+
+    // Display-ready values (pre-computed by DisplayFormatter)
+    public SurvivalStatDisplay HealthDisplay { get; init; } = new(0, "good");
+    public SurvivalStatDisplay FoodDisplay { get; init; } = new(0, "good");
+    public SurvivalStatDisplay WaterDisplay { get; init; } = new(0, "good");
+    public SurvivalStatDisplay EnergyDisplay { get; init; } = new(0, "good");
+    public TempTrendDisplay TempTrend { get; init; } = new("→", "#888");
+    public int BodyTempBarPct { get; init; }
+    public string? TempBadgeClass { get; init; }
+    public BackgroundDisplay Background { get; init; } = new(215, 30, 5);
+    public string FireTimeDisplay { get; init; } = "";
 
     public static GameStateDto FromContext(GameContext ctx)
     {
@@ -222,8 +234,33 @@ public record GameStateDto
                 ["Sight"] = (int)(ctx.player.GetCapacities().Sight * 100),
                 ["Hearing"] = (int)(ctx.player.GetCapacities().Hearing * 100),
                 ["Digestion"] = (int)(ctx.player.GetCapacities().Digestion * 100),
-            }
+            },
+
+            // Display-ready values
+            HealthDisplay = new SurvivalStatDisplay(healthPercent, DisplayFormatter.StatSeverity(healthPercent)),
+            FoodDisplay = new SurvivalStatDisplay(caloriesPercent, DisplayFormatter.StatSeverity(caloriesPercent)),
+            WaterDisplay = new SurvivalStatDisplay(hydrationPercent, DisplayFormatter.StatSeverity(hydrationPercent)),
+            EnergyDisplay = new SurvivalStatDisplay(energyPercent, DisplayFormatter.StatSeverity(energyPercent)),
+            TempTrend = DisplayFormatter.TempTrend(trendPerHour),
+            BodyTempBarPct = DisplayFormatter.BodyTempBarPct(body.BodyTemperature),
+            TempBadgeClass = DisplayFormatter.TempBadgeClass(locationTemp),
+            Background = DisplayFormatter.BackgroundHsl(ctx.GameTime.Hour * 60 + ctx.GameTime.Minute),
+            FireTimeDisplay = fire != null ? GetFireTimeDisplay(fire, zoneTemp) : ""
         };
+    }
+
+    private static string GetFireTimeDisplay(HeatSourceFeature fire, double zoneTemp)
+    {
+        if (!fire.IsActive && !fire.HasEmbers)
+            return "";
+
+        int minutes = fire.HasEmbers
+            ? (int)(fire.EmberTimeRemaining * 60)
+            : fire.UnburnedMassKg > 0.1
+                ? (int)(fire.TotalHoursRemaining * 60)
+                : (int)(fire.BurningHoursRemaining * 60);
+
+        return DisplayFormatter.FireTime(minutes);
     }
 
     private static List<FeatureDto> ExtractFeatures(Environments.Location location)
@@ -299,6 +336,7 @@ public record GameStateDto
         return new FireDto(
             Phase: phase,
             MinutesRemaining: minutesRemaining,
+            TimeDisplay: DisplayFormatter.FireTime(minutesRemaining),
             BurningKg: fire.BurningMassKg,
             UnlitKg: fire.UnburnedMassKg,
             TotalKg: fire.TotalMassKg,
@@ -351,7 +389,8 @@ public record GameStateDto
                          : "stable",
                     CapacityImpacts: capacityImpacts,
                     StatsImpact: statsImpact,
-                    RequiresTreatment: e.RequiresTreatment
+                    RequiresTreatment: e.RequiresTreatment,
+                    TooltipLines: DisplayFormatter.EffectTooltipLines(capacityImpacts, statsImpact, e.RequiresTreatment)
                 );
             })
             .ToList();
@@ -373,13 +412,15 @@ public record GameStateDto
 
         foreach (var organ in damagedOrgans)
         {
+            var conditionPercent = (int)(organ.Condition * 100);
             var capacityImpacts = CalculateOrganImpact(body, organ, currentCapacities);
             injuries.Add(new InjuryDto(
                 PartName: organ.Name,
-                ConditionPercent: (int)(organ.Condition * 100),
+                ConditionPercent: conditionPercent,
                 DamagePercent: (int)((1 - organ.Condition) * 100),
                 IsOrgan: true,
-                CapacityImpacts: capacityImpacts
+                CapacityImpacts: capacityImpacts,
+                SeverityClass: DisplayFormatter.InjurySeverity(conditionPercent)
             ));
         }
 
@@ -391,13 +432,15 @@ public record GameStateDto
 
         foreach (var part in damagedParts)
         {
+            var conditionPercent = (int)(part.Condition * 100);
             var capacityImpacts = CalculateRegionImpact(body, part, currentCapacities);
             injuries.Add(new InjuryDto(
                 PartName: part.Name,
-                ConditionPercent: (int)(part.Condition * 100),
+                ConditionPercent: conditionPercent,
                 DamagePercent: (int)((1 - part.Condition) * 100),
                 IsOrgan: false,
-                CapacityImpacts: capacityImpacts
+                CapacityImpacts: capacityImpacts,
+                SeverityClass: DisplayFormatter.InjurySeverity(conditionPercent)
             ));
         }
 
@@ -559,6 +602,7 @@ public enum FireUrgency
 public record FireDto(
     string Phase,
     int MinutesRemaining,
+    string TimeDisplay,  // Pre-formatted "3hrs" or "45min"
     double BurningKg,
     double UnlitKg,
     double TotalKg,
@@ -574,7 +618,8 @@ public record EffectDto(
     string Trend,
     Dictionary<string, int> CapacityImpacts,
     EffectStatsDto? StatsImpact,
-    bool RequiresTreatment
+    bool RequiresTreatment,
+    List<string> TooltipLines  // Pre-formatted tooltip content
 );
 
 public record EffectStatsDto(
@@ -591,7 +636,8 @@ public record InjuryDto(
     int ConditionPercent,
     int DamagePercent,
     bool IsOrgan,
-    Dictionary<string, int> CapacityImpacts
+    Dictionary<string, int> CapacityImpacts,
+    string SeverityClass  // "critical", "severe", "moderate", "minor"
 );
 
 public record LogEntryDto(string Text, string Level, string Timestamp);

@@ -35,10 +35,8 @@ export const FireDisplay = {
         // Active fire - show phase and time (using centralized labels)
         const phaseLabel = getFirePhaseLabel(fire.phase);
 
-        const timeDisplay = fire.minutesRemaining >= 60
-            ? `${Math.floor(fire.minutesRemaining / 60)}hrs`
-            : `${fire.minutesRemaining}min`;
-        phaseText.textContent = `${phaseLabel} — ${timeDisplay}`;
+        // Use pre-computed time display from server
+        phaseText.textContent = `${phaseLabel} — ${fire.timeDisplay}`;
 
         // Apply urgency class for styling
         const urgencyClass = fire.urgency?.toLowerCase() || 'safe';

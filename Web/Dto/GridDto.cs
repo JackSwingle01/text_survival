@@ -3,6 +3,7 @@ using text_survival.Actors.Animals;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Environments.Features;
+using text_survival.Web;
 
 namespace text_survival.Web.Dto;
 
@@ -122,7 +123,10 @@ public record TileDto(
     bool? IsDark,
 
     // Detailed feature info
-    List<FeatureDetailDto>? FeatureDetails
+    List<FeatureDetailDto>? FeatureDetails,
+
+    // Display-ready glance badges (pre-computed)
+    List<BadgeDto>? GlanceBadges
 )
 {
     public static TileDto FromLocation(Location location, int x, int y, GameContext ctx)
@@ -194,7 +198,29 @@ public record TileDto(
             IsDark: showDetails ? location.IsDark : null,
 
             // Feature details
-            FeatureDetails: showDetails ? GetFeatureDetails(location, x, y, ctx) : null
+            FeatureDetails: showDetails ? GetFeatureDetails(location, x, y, ctx) : null,
+
+            // Pre-computed glance badges
+            GlanceBadges: showDetails ? BuildGlanceBadges(location) : null
+        );
+    }
+
+    private static List<BadgeDto> BuildGlanceBadges(Location location)
+    {
+        var fire = location.GetFeature<HeatSourceFeature>();
+        var hasActiveFire = fire?.IsActive == true;
+        var hasEmbers = fire?.HasEmbers == true && !hasActiveFire;
+        var hasWater = location.GetFeature<WaterFeature>() != null;
+
+        return DisplayFormatter.GlanceBadges(
+            terrainHazardLevel: location.GetEffectiveTerrainHazard(),
+            hasActiveFire: hasActiveFire,
+            hasEmbers: hasEmbers,
+            hasWater: hasWater,
+            temperatureDeltaF: location.TemperatureDeltaF,
+            windFactor: location.WindFactor,
+            isDark: location.IsDark,
+            isVantagePoint: location.IsVantagePoint
         );
     }
 

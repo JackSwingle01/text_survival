@@ -220,8 +220,8 @@ class GameClient {
         document.documentElement.style.setProperty('--warmth', state.warmth);
         document.documentElement.style.setProperty('--vitality', state.vitality);
 
-        // Deep Ocean time-based background interpolation
-        this.updateDeepOceanBackground(state.clockTime);
+        // Deep Ocean time-based background - use pre-computed values from server
+        this.updateDeepOceanBackground(state.background);
 
         // Info badges - Time
         document.getElementById('badgeTime').textContent = state.clockTime;
@@ -231,18 +231,12 @@ class GameClient {
         const feelsLikeTemp = Math.round(state.airTemp);
         document.getElementById('badgeFeelsLike').textContent = `${feelsLikeTemp}°F`;
 
-        // Update temperature badge color based on temperature
+        // Update temperature badge color - use pre-computed class from server
         const tempBadge = document.querySelector('.temp-badge');
         if (tempBadge) {
             tempBadge.classList.remove('freezing', 'cold', 'warm', 'hot');
-            if (feelsLikeTemp <= 20) {
-                tempBadge.classList.add('freezing');
-            } else if (feelsLikeTemp <= 40) {
-                tempBadge.classList.add('cold');
-            } else if (feelsLikeTemp >= 80) {
-                tempBadge.classList.add('hot');
-            } else if (feelsLikeTemp >= 60) {
-                tempBadge.classList.add('warm');
+            if (state.tempBadgeClass) {
+                tempBadge.classList.add(state.tempBadgeClass);
             }
         }
 
@@ -361,57 +355,21 @@ class GameClient {
         container.appendChild(pill);
     }
 
-    updateDeepOceanBackground(clockTime) {
-        // Parse clock time (format: "h:mm tt" e.g. "9:00 AM")
-        const minutesSinceMidnight = this.parseClockTime(clockTime);
-
-        // Calculate time factor t (0 = midnight, 1 = noon)
-        let t;
-        if (minutesSinceMidnight <= 720) {
-            // 12:00 AM → 12:00 PM (ascending toward noon)
-            t = minutesSinceMidnight / 720;
-        } else {
-            // 12:00 PM → 12:00 AM (descending from noon)
-            t = (1440 - minutesSinceMidnight) / 720;
-        }
-
-        // Deep Ocean anchor values
-        const midnight = { h: 215, s: 30, l: 5 };
-        const noon = { h: 212, s: 25, l: 26 };
-
-        // Linear interpolation
-        const h = midnight.h + (noon.h - midnight.h) * t;
-        const s = midnight.s + (noon.s - midnight.s) * t;
-        const l = midnight.l + (noon.l - midnight.l) * t;
+    updateDeepOceanBackground(background) {
+        // Use pre-computed HSL values from server
+        const { h, s, l } = background;
 
         // Update CSS custom properties
         document.documentElement.style.setProperty('--bg-h', h.toFixed(1));
         document.documentElement.style.setProperty('--bg-s', s.toFixed(1) + '%');
         document.documentElement.style.setProperty('--bg-l', l.toFixed(1) + '%');
 
-        // Update canvas grid renderer with same time factor
+        // Calculate time factor for grid renderer (0 = midnight, 1 = noon)
+        // Derived from lightness: l=5 at midnight, l=26 at noon
+        const t = (l - 5) / (26 - 5);
         if (this.gridRenderer) {
             this.gridRenderer.setTimeFactor(t);
         }
-    }
-
-    parseClockTime(clockTime) {
-        // Parse "h:mm tt" format (e.g., "9:00 AM", "12:30 PM")
-        const match = clockTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
-        if (!match) return 0;
-
-        let hours = parseInt(match[1]);
-        const minutes = parseInt(match[2]);
-        const meridiem = match[3].toUpperCase();
-
-        // Convert to 24-hour format
-        if (meridiem === 'AM') {
-            if (hours === 12) hours = 0; // 12 AM = 00:00
-        } else {
-            if (hours !== 12) hours += 12; // PM times except 12 PM
-        }
-
-        return hours * 60 + minutes;
     }
 
     /**
@@ -717,57 +675,15 @@ class GameClient {
 
     /**
      * Build quick glance bar with color-coded badges
-     * Shows key info at a glance - scannable in 2 seconds
+     * Uses pre-computed badges from server
      */
     buildGlanceBar(container, tileData) {
-        const badges = [];
-
-        // Priority 1: Safety hazards (most important)
-        if (tileData.terrainHazardLevel != null && tileData.terrainHazardLevel > 0.2) {
-            const label = tileData.terrainHazardLevel > 0.5 ? 'Dangerous' : 'Hazardous';
-            badges.push({ icon: 'warning', label, type: 'danger' });
+        // Use pre-computed glance badges from server
+        if (!tileData.glanceBadges || tileData.glanceBadges.length === 0) {
+            return;
         }
 
-        if (tileData.climbRiskFactor != null && tileData.climbRiskFactor > 0.2) {
-            badges.push({ icon: 'hiking', label: 'Climbing', type: 'danger' });
-        }
-
-        // Priority 2: Key resources
-        if (tileData.featureIcons?.includes('local_fire_department')) {
-            badges.push({ icon: 'local_fire_department', label: 'Fire', type: 'fire' });
-        } else if (tileData.featureIcons?.includes('fireplace')) {
-            badges.push({ icon: 'fireplace', label: 'Embers', type: 'fire' });
-        }
-
-        if (tileData.featureIcons?.includes('water_drop')) {
-            badges.push({ icon: 'water_drop', label: 'Water', type: 'water' });
-        }
-
-        // Priority 3: Temperature effects
-        if (tileData.temperatureDeltaF != null && tileData.temperatureDeltaF < -5) {
-            badges.push({ icon: 'ac_unit', label: 'Cold', type: 'cold' });
-        } else if (tileData.temperatureDeltaF != null && tileData.temperatureDeltaF > 5) {
-            badges.push({ icon: 'sunny', label: 'Warm', type: 'warm' });
-        }
-
-        // Priority 4: Wind exposure
-        if (tileData.windFactor != null && tileData.windFactor > 1.3) {
-            badges.push({ icon: 'air', label: 'Exposed', type: 'danger' });
-        } else if (tileData.windFactor != null && tileData.windFactor < 0.7) {
-            badges.push({ icon: 'forest', label: 'Sheltered', type: 'good' });
-        }
-
-        // Priority 5: Special conditions
-        if (tileData.isDark) {
-            badges.push({ icon: 'dark_mode', label: 'Dark', type: 'neutral' });
-        }
-
-        if (tileData.isVantagePoint) {
-            badges.push({ icon: 'visibility', label: 'Vantage', type: 'good' });
-        }
-
-        // Render badges (limit to 4 most important)
-        badges.slice(0, 4).forEach(badge => {
+        tileData.glanceBadges.forEach(badge => {
             const badgeEl = document.createElement('span');
             badgeEl.className = `badge badge--${badge.type}`;
 
