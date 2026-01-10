@@ -265,12 +265,12 @@ export class FireOverlay extends OverlayBase {
 
     addStatRow(container, iconName, label, value, valueClass = '') {
         container.appendChild(
-            div({ className: 'fire-stat-row' },
-                span({ className: 'fire-stat-label' },
+            div({ className: 'stat-row' },
+                span({ className: 'stat-row__label' },
                     Icon(iconName),
                     label
                 ),
-                span({ className: `fire-stat-value ${valueClass}`.trim() }, value)
+                span({ className: `stat-row__value ${valueClass}`.trim() }, value)
             )
         );
     }

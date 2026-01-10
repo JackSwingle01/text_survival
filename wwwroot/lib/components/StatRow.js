@@ -59,12 +59,12 @@ export function InventoryItem(label, quantity, styleClass = '') {
  * @returns {HTMLElement}
  */
 export function FireStatRow(iconName, label, value, valueClass = '') {
-    return div({ className: 'fire-stat-row' },
-        span({ className: 'fire-stat-label' },
+    return div({ className: 'stat-row' },
+        span({ className: 'stat-row__label' },
             Icon(iconName),
             label
         ),
-        span({ className: `fire-stat-value ${valueClass}`.trim() }, String(value))
+        span({ className: `stat-row__value ${valueClass}`.trim() }, String(value))
     );
 }
 
