@@ -41,8 +41,8 @@ export class CombatGridRenderer {
 
         // Zone radii in meters
         this.ZONES = [
-            { radius: 3, color: this.COLORS.zoneClose, label: 'CLOSE' },
-            { radius: 8, color: this.COLORS.zoneNear, label: 'NEAR' },
+            { radius: 1, color: this.COLORS.zoneClose, label: 'CLOSE' },
+            { radius: 3, color: this.COLORS.zoneNear, label: 'NEAR' },
             { radius: 15, color: this.COLORS.zoneMid, label: 'MID' }
         ];
 

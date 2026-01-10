@@ -2454,7 +2454,7 @@ body {
 
 .tab-content {
     padding: var(--space-4);
-    max-height: 55vh;
+    height: 55vh;
     overflow-y: auto;
     background: var(--bg-panel);
 }

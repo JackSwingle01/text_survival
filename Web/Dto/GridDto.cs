@@ -289,7 +289,15 @@ public record TileDto(
                 var action = npc.CurrentAction?.Name ?? "idle";
                 var need = npc.CurrentNeed?.ToString().ToLower();
                 var status = need != null ? $"{action} ({need})" : action;
-                details.Add(new FeatureDetailDto("npc", npc.Name, status, ["🧑"], npc.Vitality));
+                details.Add(new FeatureDetailDto(
+                    "npc", npc.Name, status, ["🧑"],
+                    HealthPct: npc.Vitality,
+                    FoodPct: npc.Body.FullPct,
+                    WaterPct: npc.Body.HydratedPct,
+                    EnergyPct: npc.Body.EnergyPct,
+                    BodyTempF: npc.Body.BodyTemperature,
+                    BodyTempBarPct: (int)(npc.Body.WarmPct * 100)
+                ));
             }
         }
 
@@ -354,7 +362,12 @@ public record FeatureDetailDto(
     string Label,          // Display name
     string? Status,        // e.g., "75% insulation", "abundant"
     List<string>? Details, // Additional details like resource types
-    double? HealthPct = null  // 0-1, for NPCs/creatures with health bars
+    double? HealthPct = null,  // 0-1, for NPCs/creatures with health bars
+    double? FoodPct = null,    // 0-1, NPC food/calories level
+    double? WaterPct = null,   // 0-1, NPC hydration level
+    double? EnergyPct = null,  // 0-1, NPC energy level
+    double? BodyTempF = null,  // Body temperature in Fahrenheit
+    int? BodyTempBarPct = null // 0-100, temp bar position (95-98.6°F range via WarmPct)
 );
 
 /// <summary>

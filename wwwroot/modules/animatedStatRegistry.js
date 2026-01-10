@@ -75,7 +75,7 @@ export const AnimatedStatRegistry = {
         }
     },
 
-    // Body temperature (custom range: 87-102°F)
+    // Body temperature (custom range: 95-98.6°F - hypothermia threshold to normal body temp)
     bodyTemp: {
         type: StatTypes.TEMPERATURE,
         capture: (state) => state.bodyTemp,
@@ -84,8 +84,8 @@ export const AnimatedStatRegistry = {
             bar: 'tempBar'
         },
         config: {
-            minTemp: 87,
-            maxTemp: 102,
+            minTemp: 95,    // SurvivalProcessor.HypothermiaThreshold
+            maxTemp: 98.6,  // Body.BASE_BODY_TEMP
             decimals: 1
         }
     },

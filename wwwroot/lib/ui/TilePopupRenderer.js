@@ -184,7 +184,7 @@ export class TilePopupRenderer {
     }
 
     /**
-     * Build NPC feature card with health bar
+     * Build NPC feature card with survival stat bars
      */
     _buildNpcFeature(feature) {
         const featureEl = document.createElement('div');
@@ -212,41 +212,100 @@ export class TilePopupRenderer {
         }
         featureEl.appendChild(headerEl);
 
-        // Health bar - reuse survival-stat structure
-        const healthRow = document.createElement('div');
-        healthRow.className = 'survival-stat';
-        healthRow.dataset.stat = 'health';
+        // Build all survival stat bars
+        this._buildNpcStatBar(featureEl, 'health', 'monitor_heart', feature.healthPct);
+        this._buildNpcTempBar(featureEl, feature.bodyTempF, feature.bodyTempBarPct);
+        this._buildNpcStatBar(featureEl, 'food', 'restaurant', feature.foodPct);
+        this._buildNpcStatBar(featureEl, 'water', 'water_drop', feature.waterPct);
+        this._buildNpcStatBar(featureEl, 'energy', 'bolt', feature.energyPct);
 
-        const heartIcon = document.createElement('span');
-        heartIcon.className = 'stat-icon material-symbols-outlined';
-        heartIcon.textContent = 'monitor_heart';
-        healthRow.appendChild(heartIcon);
+        this.featuresEl.appendChild(featureEl);
+    }
+
+    /**
+     * Build a single NPC stat bar (health, food, water, energy)
+     */
+    _buildNpcStatBar(container, statName, iconName, pctValue) {
+        if (pctValue == null) return;
+
+        const pct = Math.round(pctValue * 100);
+
+        const row = document.createElement('div');
+        row.className = 'survival-stat';
+        row.dataset.stat = statName;
+
+        const icon = document.createElement('span');
+        icon.className = 'stat-icon material-symbols-outlined';
+        icon.textContent = iconName;
+        row.appendChild(icon);
 
         const barContainer = document.createElement('div');
-        barContainer.className = 'bar bar--health';
+        barContainer.className = `bar bar--${statName}`;
         const barFill = document.createElement('div');
-        const pct = Math.round(feature.healthPct * 100);
         barFill.className = 'bar__fill';
-        if (pct < 30) barFill.classList.add('danger');
-        else if (pct < 60) barFill.classList.add('warning');
+        if (statName === 'health') {
+            if (pct < 30) barFill.classList.add('danger');
+            else if (pct < 60) barFill.classList.add('warning');
+        }
         barFill.style.width = `${pct}%`;
         barContainer.appendChild(barFill);
-        healthRow.appendChild(barContainer);
+        row.appendChild(barContainer);
 
         const tooltip = document.createElement('div');
         tooltip.className = 'stat-tooltip';
-        const statName = document.createElement('span');
-        statName.className = 'stat-name';
-        statName.textContent = 'Health';
-        const statValue = document.createElement('span');
-        statValue.className = 'stat-value';
-        statValue.textContent = `${pct}%`;
-        tooltip.appendChild(statName);
-        tooltip.appendChild(statValue);
-        healthRow.appendChild(tooltip);
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'stat-name';
+        nameSpan.textContent = statName.charAt(0).toUpperCase() + statName.slice(1);
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'stat-value';
+        valueSpan.textContent = `${pct}%`;
+        tooltip.appendChild(nameSpan);
+        tooltip.appendChild(valueSpan);
+        row.appendChild(tooltip);
 
-        featureEl.appendChild(healthRow);
-        this.featuresEl.appendChild(featureEl);
+        container.appendChild(row);
+    }
+
+    /**
+     * Build NPC temperature bar (shows °F instead of %)
+     */
+    _buildNpcTempBar(container, tempF, barPct) {
+        if (tempF == null || barPct == null) return;
+
+        const row = document.createElement('div');
+        row.className = 'survival-stat';
+        row.dataset.stat = 'temp';
+
+        const icon = document.createElement('span');
+        icon.className = 'stat-icon material-symbols-outlined';
+        icon.textContent = 'thermostat';
+        row.appendChild(icon);
+
+        const barContainer = document.createElement('div');
+        barContainer.className = 'bar bar--temp';
+        const barFill = document.createElement('div');
+        barFill.className = 'bar__fill';
+        // Danger at <30% WarmPct (approaching hypothermia threshold at 95°F)
+        // Warning at <60% WarmPct (getting cold)
+        if (barPct < 30) barFill.classList.add('danger');
+        else if (barPct < 60) barFill.classList.add('warning');
+        barFill.style.width = `${barPct}%`;
+        barContainer.appendChild(barFill);
+        row.appendChild(barContainer);
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'stat-tooltip';
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'stat-name';
+        nameSpan.textContent = 'Body';
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'stat-value';
+        valueSpan.textContent = `${tempF.toFixed(1)}°F`;
+        tooltip.appendChild(nameSpan);
+        tooltip.appendChild(valueSpan);
+        row.appendChild(tooltip);
+
+        container.appendChild(row);
     }
 
     /**

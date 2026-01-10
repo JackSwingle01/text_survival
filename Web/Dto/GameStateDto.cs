@@ -242,7 +242,7 @@ public record GameStateDto
             WaterDisplay = new SurvivalStatDisplay(hydrationPercent, DisplayFormatter.StatSeverity(hydrationPercent)),
             EnergyDisplay = new SurvivalStatDisplay(energyPercent, DisplayFormatter.StatSeverity(energyPercent)),
             TempTrend = DisplayFormatter.TempTrend(trendPerHour),
-            BodyTempBarPct = DisplayFormatter.BodyTempBarPct(body.BodyTemperature),
+            BodyTempBarPct = (int)(body.WarmPct * 100),
             TempBadgeClass = DisplayFormatter.TempBadgeClass(locationTemp),
             Background = DisplayFormatter.BackgroundHsl(ctx.GameTime.Hour * 60 + ctx.GameTime.Minute),
             FireTimeDisplay = fire != null ? GetFireTimeDisplay(fire, zoneTemp) : ""

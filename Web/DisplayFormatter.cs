@@ -80,10 +80,6 @@ public static class DisplayFormatter
         tempF >= 60 ? "warm" :
         null;
 
-    /// <summary>Body temp bar percentage (87-102°F range).</summary>
-    public static int BodyTempBarPct(double bodyTempF) =>
-        (int)Math.Clamp((bodyTempF - 87) / (102 - 87) * 100, 0, 100);
-
     /// <summary>Build glance badges for tile popup.</summary>
     public static List<BadgeDto> GlanceBadges(
         double? terrainHazardLevel,
