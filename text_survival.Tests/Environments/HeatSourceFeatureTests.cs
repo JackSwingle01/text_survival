@@ -293,7 +293,7 @@ public class HeatSourceFeatureTests
         var fire = TestFixtures.CreateTestFire(initialFuelKg: 1.5, fuelType: FuelType.Kindling);
 
         // Act
-        double fuelHours = fire.HoursRemaining;
+        double fuelHours = fire.BurningHoursRemaining;
 
         // Assert
         // Kindling burns at 1.5kg/hour, so 1.5kg should last 1 hour

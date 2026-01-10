@@ -47,11 +47,9 @@ public class Herd
     #region Identity
 
     /// <summary>Unique identifier for this herd.</summary>
-    [JsonInclude]
     public Guid Id { get; private set; } = Guid.NewGuid();
 
     /// <summary>Type of animals in this herd (Wolf, Bear, Caribou, etc.).</summary>
-    [JsonInclude]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public AnimalTypeEnum AnimalType { get; private set; }
 
@@ -61,7 +59,6 @@ public class Herd
     public List<Animal> Members { get; private set; } = [];
 
     /// <summary>Number of members for serialization. Animals recreated on load.</summary>
-    [JsonInclude]
     public int MemberCount { get; private set; }
 
     #endregion
@@ -69,23 +66,18 @@ public class Herd
     #region Position & Territory
 
     /// <summary>Current tile position on the map.</summary>
-    [JsonInclude]
     public GridPosition Position { get; set; }
 
     /// <summary>Tiles this herd uses as its home range.</summary>
-    [JsonInclude]
     public List<GridPosition> HomeTerritory { get; private set; } = [];
 
     /// <summary>Current index in territory patrol cycle.</summary>
-    [JsonInclude]
     public int TerritoryIndex { get; set; }
 
     /// <summary>Destination tile when traveling. Null if not traveling.</summary>
-    [JsonInclude]
     public GridPosition? TravelDestination { get; set; }
 
     /// <summary>Minutes remaining until travel completes.</summary>
-    [JsonInclude]
     public int TravelTimeRemainingMinutes { get; set; }
 
     #endregion
@@ -93,35 +85,25 @@ public class Herd
     #region State Machine
 
     /// <summary>Current behavioral state.</summary>
-    [JsonInclude]
     public HerdState State { get; set; } = HerdState.Resting;
 
     /// <summary>How long the herd has been in current state (minutes).</summary>
-    [JsonInclude]
     public int StateTimeMinutes { get; set; }
-
-    /// <summary>State before becoming Alert (for returning after threat passes).</summary>
-    [JsonInclude]
-    public HerdState PreviousState { get; set; } = HerdState.Resting;
 
     #endregion
 
     #region Shared Condition
 
     /// <summary>Shared hunger level (0 = full, 1 = starving). Drives grazing behavior.</summary>
-    [JsonInclude]
     public double Hunger { get; set; }
 
     /// <summary>Whether this herd has a wounded member (affects behavior).</summary>
-    [JsonInclude]
     public bool IsWounded { get; set; }
 
     /// <summary>Severity of wound (0-1) for wounded herds.</summary>
-    [JsonInclude]
     public double WoundSeverity { get; set; }
 
     /// <summary>Learned fear of player (0-1). Reduces boldness. Decays over time.</summary>
-    [JsonInclude]
     public double PlayerFear { get; set; }
 
     #endregion
@@ -129,7 +111,7 @@ public class Herd
     #region Behavior Strategy
 
     /// <summary>Type of behavior for serialization. Behavior is recreated from this on load.</summary>
-    [JsonInclude]
+    
     public HerdBehaviorType BehaviorType { get; private set; } = HerdBehaviorType.Prey;
 
     /// <summary>The behavior strategy implementation. Not serialized - recreated on load.</summary>
@@ -228,15 +210,6 @@ public class Herd
 
         herd.RecreateBehavior();
         return herd;
-    }
-
-    /// <summary>
-    /// Creates a herd from a string animal type (for legacy code/events).
-    /// </summary>
-    public static Herd Create(string animalTypeName, GridPosition startPosition, List<GridPosition> territory)
-    {
-        var animalType = AnimalTypes.ParseRequired(animalTypeName);
-        return Create(animalType, startPosition, territory);
     }
 
     #endregion
@@ -345,45 +318,6 @@ public class Herd
 
         // Delegate to behavior strategy
         return Behavior!.Update(this, elapsedMinutes, ctx);
-    }
-
-    /// <summary>
-    /// Legacy Update method for compatibility. Delegates to new behavior-based Update.
-    /// </summary>
-    /// <param name="elapsedMinutes">Minutes elapsed since last update.</param>
-    /// <param name="playerPosition">Current player position (unused in new system).</param>
-    /// <param name="playerCarryingMeat">Whether player is carrying meat (unused in new system).</param>
-    /// <param name="playerBleeding">Whether player is bleeding (unused in new system).</param>
-    /// <returns>True if the herd initiated an encounter with the player.</returns>
-    [Obsolete("Use Update(int, GameContext) instead. This method is kept for compatibility.")]
-    public bool Update(int elapsedMinutes, GridPosition playerPosition, bool playerCarryingMeat, bool playerBleeding)
-    {
-        // Legacy fallback - use inline behavior without GameContext
-        StateTimeMinutes += elapsedMinutes;
-
-        // Update hunger
-        double hungerRate = IsPredator ? 0.002 : 0.003;
-        Hunger = Math.Clamp(Hunger + elapsedMinutes * hungerRate, 0, 1);
-
-        // Wounded herds heal over time
-        if (IsWounded)
-        {
-            WoundSeverity = Math.Max(0, WoundSeverity - elapsedMinutes * 0.0002);
-            if (WoundSeverity <= 0)
-                IsWounded = false;
-        }
-
-        // Only trigger encounter if predator is at player position
-        if (IsPredator && Position == playerPosition && State == HerdState.Patrolling)
-        {
-            // Random encounter chance based on hunger
-            if (Hunger > 0.5 && new Random().NextDouble() < 0.3)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     #endregion

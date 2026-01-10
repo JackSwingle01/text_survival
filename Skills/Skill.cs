@@ -23,7 +23,7 @@ namespace text_survival.Skills
         public void LevelUp()
         {
             Level++;
-            GameDisplay.AddNarrative($"You leveled up {this} to level {Level}!");
+            // GameDisplay.AddNarrative($"You leveled up {this} to level {Level}!"); // todo
         }
 
     }

@@ -1,10 +1,6 @@
-using text_survival.Actors;
-using text_survival.Actors.Animals;
-using text_survival.Bodies;
 using text_survival.Combat;
 using text_survival.Effects;
 using text_survival.Environments;
-using text_survival.Items;
 
 namespace text_survival.Actors.Animals.Behaviors;
 
@@ -90,52 +86,6 @@ public static class ActorCombatResolver
     }
 
     /// <summary>
-    /// Legacy method - kept for backward compatibility.
-    /// </summary>
-    private static CombatOutcome ResolveCombatLegacy(
-        Animal attacker,
-        NPC defender,
-        Location location)
-    {
-        // 1. Calculate escape chance
-        double escapeChance = CalculateEscapeChance(defender, attacker, location);
-
-        if (Random.Shared.NextDouble() < escapeChance)
-        {
-            // NPC escapes - add fear effect
-            defender.EffectRegistry.AddEffect(EffectFactory.Fear(0.4));
-            return CombatOutcome.DefenderEscaped;
-        }
-
-        // 2. Combat occurs - simulate 1-3 quick rounds
-        int rounds = Random.Shared.Next(1, 4);
-
-        for (int i = 0; i < rounds; i++)
-        {
-            // Predator attacks NPC
-            ApplyAttack(attacker, defender);
-
-            if (!defender.IsAlive)
-                return CombatOutcome.DefenderKilled;
-
-            // NPC counterattacks if equipped
-            var weapon = defender.Inventory.Weapon;
-            if (weapon != null && !weapon.IsBroken)
-            {
-                ApplyAttack(defender, attacker);
-
-                if (!attacker.IsAlive)
-                    return CombatOutcome.AttackerRepelled;
-            }
-        }
-
-        // Both survived - determine outcome based on condition
-        return defender.Vitality < 0.5
-            ? CombatOutcome.DefenderInjured
-            : CombatOutcome.AttackerRepelled;
-    }
-
-    /// <summary>
     /// Creates ICombatActor wrapper for any actor type.
     /// Note: Player combat should use interactive mode (CombatRunner), not automatic resolution.
     /// </summary>
@@ -173,17 +123,6 @@ public static class ActorCombatResolver
             chance += 0.3;  // Thick brush helps escape
 
         return Math.Clamp(chance, 0.05, 0.95);
-    }
-
-    /// <summary>
-    /// Legacy escape calculation - delegates to generalized version.
-    /// </summary>
-    private static double CalculateEscapeChance(
-        NPC defender, Animal attacker, Location location)
-    {
-        var escaperActor = new NPCCombatActor(defender);
-        var pursuerActor = new AnimalCombatActor(attacker);
-        return CalculateEscapeChance(escaperActor, pursuerActor, location);
     }
 
     private static void ApplyAttack(Actor attacker, Actor defender)

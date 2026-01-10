@@ -127,21 +127,4 @@ public static class TestFixtures
 
         return fire;
     }
-
-    /// <summary>
-    /// Helper to convert FuelType enum to ItemProperty (legacy, may not be needed)
-    /// </summary>
-    private static ItemProperty GetFuelProperty(FuelType fuelType)
-    {
-        return fuelType switch
-        {
-            FuelType.Tinder => ItemProperty.Fuel_Tinder,
-            FuelType.Kindling => ItemProperty.Fuel_Kindling,
-            FuelType.Softwood => ItemProperty.Fuel_Softwood,
-            FuelType.Hardwood => ItemProperty.Fuel_Hardwood,
-            FuelType.Bone => ItemProperty.Fuel_Bone,
-            FuelType.Peat => ItemProperty.Fuel_Peat,
-            _ => ItemProperty.Fuel_Tinder
-        };
-    }
 }

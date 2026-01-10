@@ -15,14 +15,17 @@ public static class CombatAI
         var distance = unit.Position.DistanceTo(nearestEnemy.Position);
         bool wantsToAttack = unit.DetermineAttack(nearestEnemy);
         var zone = CombatScenario.GetZone(distance);
+
         switch (zone)
         {
             case Zone.close:
                 if (wantsToAttack) return CombatActions.Attack;
-                else return Utils.FlipCoin() ? CombatActions.Block : CombatActions.Shove;
+                // 50% block, 25% shove or move
+                else return Utils.FlipCoin() ? CombatActions.Block : Utils.FlipCoin() ? CombatActions.Shove : CombatActions.Move;
             case Zone.near:
                 if (wantsToAttack) return CombatActions.Attack;
-                else return Utils.FlipCoin() ? CombatActions.Block : CombatActions.Dodge;
+                // 50% move, 25% block or dodge
+                else return Utils.FlipCoin() ? CombatActions.Move : Utils .FlipCoin() ? CombatActions.Block : CombatActions.Dodge;
             case Zone.mid:
                 return CombatActions.Move;
                 // todo - handle throwing and intimidation

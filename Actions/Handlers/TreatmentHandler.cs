@@ -99,9 +99,6 @@ public static class TreatmentHandler
         return false;
     }
 
-    // Keep legacy name for backwards compatibility
-    public static bool CanApplyDirectTreatment(GameContext ctx) => CanApplyTreatment(ctx);
-
     public static void ApplyTreatment(GameContext ctx)
     {
         var effects = ctx.player.EffectRegistry.GetAll();
@@ -308,9 +305,6 @@ public static class TreatmentHandler
 
         GameDisplay.Render(ctx, statusText: "Treating.");
     }
-
-    // Keep legacy name for backwards compatibility
-    public static void ApplyDirectTreatment(GameContext ctx) => ApplyTreatment(ctx);
 
     private static string GetResourceDisplayName(Resource resource) => resource switch
     {

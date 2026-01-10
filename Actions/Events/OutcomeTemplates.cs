@@ -331,10 +331,9 @@ public static class OutcomeTemplates
         return r;
     }
 
-    /// <summary>Destroy a specific tool (set durability to 0).</summary>
     public static EventResult DestroysTool(this EventResult r, ToolType tool)
     {
-        r.BreakTool = tool;
+        r.DamagesTool(tool, 99);
         return r;
     }
 

@@ -359,7 +359,7 @@ public class Location
 
     public void Explore()
     {
-        GameDisplay.AddNarrative(Name + " - " + Tags); // todo first discovery detailed description
+        // GameDisplay.AddNarrative(Name + " - " + Tags); // todo first discovery detailed description
         Explored = true;
     }
 

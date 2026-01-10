@@ -78,8 +78,6 @@ public class HeatSourceFeature : LocationFeature
     [JsonInclude] private Dictionary<FuelType, double> _burningMixture = [];
 
     // Time remaining calculations
-    public double HoursRemaining => BurningHoursRemaining; // Backwards compatibility
-
     public double BurningHoursRemaining
     {
         get

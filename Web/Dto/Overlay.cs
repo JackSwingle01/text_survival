@@ -445,16 +445,6 @@ public record CombatActionDto(
 );
 
 /// <summary>
-/// A choice option in the combat overlay (legacy compatibility).
-/// </summary>
-public record CombatChoiceDto(
-    string Id,                            // "attack", "flee"
-    string Label,
-    bool IsAvailable,
-    string? DisabledReason
-);
-
-/// <summary>
 /// Combat outcome when combat concludes.
 /// </summary>
 public record CombatOutcomeDto(

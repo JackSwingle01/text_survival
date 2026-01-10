@@ -388,7 +388,7 @@ public partial class GameRunner(GameContext ctx)
         if (phase == "Igniting" || phase == "Building")
             return;
 
-        int minutes = (int)(fire.HoursRemaining * 60);
+        int minutes = (int)(fire.BurningHoursRemaining * 60);
 
         if (minutes <= 5)
             GameDisplay.AddDanger(ctx, $"Your fire will die in {minutes} minutes!");
@@ -595,9 +595,9 @@ public partial class GameRunner(GameContext ctx)
 
     private void UseCuringRack() => CuringRackHandler.UseCuringRack(ctx);
 
-    private bool CanApplyDirectTreatment() => TreatmentHandler.CanApplyDirectTreatment(ctx);
+    private bool CanApplyDirectTreatment() => TreatmentHandler.CanApplyTreatment(ctx);
 
-    private void ApplyDirectTreatment() => TreatmentHandler.ApplyDirectTreatment(ctx);
+    private void ApplyDirectTreatment() => TreatmentHandler.ApplyTreatment(ctx);
 
     private bool CanApplyWaterproofing() => MaintenanceHandler.CanApplyWaterproofing(ctx);
 

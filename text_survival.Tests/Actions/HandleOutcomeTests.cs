@@ -69,28 +69,6 @@ public class HandleOutcomeTests
     }
 
     [Fact]
-    public void HandleOutcome_BreakTool_SetsDurabilityToZero()
-    {
-        // Arrange
-        var ctx = CreateTestContext();
-        var spear = Gear.Spear("Test Spear");
-        spear.Durability = 10;
-        ctx.Inventory.Tools.Add(spear);
-
-        var outcome = new EventResult("Test")
-        {
-            BreakTool = ToolType.Spear
-        };
-
-        // Act
-        GameEventRegistry.HandleOutcome(ctx, outcome);
-
-        // Assert
-        Assert.Equal(0, spear.Durability);
-        Assert.True(spear.IsBroken);
-    }
-
-    [Fact]
     public void HandleOutcome_DamageClothing_ReducesDurability()
     {
         // Arrange

@@ -499,13 +499,6 @@ public class Weather
             return "Powerful, freezing gusts threaten to knock you over.";
     }
 
-    // Season is now derived from Time - this method kept for compatibility but only regenerates weather
-    [Obsolete("Season is now derived from game time. Use GenerateNewWeather() directly if needed.")]
-    public void SetSeason(Season season)
-    {
-        GenerateNewWeather();
-    }
-
     // Short-form labels for UI panels
     public string GetWindLabel()
     {
@@ -702,30 +695,6 @@ public class Weather
             _ => "Stable Weather"
         };
     }
-
-    #region Save/Load Support
-
-    /// <summary>
-    /// Restore weather state from save data.
-    /// Note: Season is now derived from Time, so the season parameter is ignored.
-    /// </summary>
-    internal void RestoreState(
-        double baseTemp,
-        WeatherCondition condition,
-        double precipitation,
-        double windSpeed,
-        double cloudCover,
-        Season season) // Kept for backward compatibility with save files
-    {
-        BaseTemperature = baseTemp;
-        CurrentCondition = condition;
-        Precipitation = precipitation;
-        WindSpeed = windSpeed;
-        CloudCover = cloudCover;
-        // Season is now derived from Time, no longer stored
-    }
-
-    #endregion
 }
 
 

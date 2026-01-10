@@ -569,7 +569,7 @@ public static class HerdPopulator
             territory = [boneHollowPos.Value];
         }
 
-        var herd = Herd.Create("Woolly Mammoth", boneHollowPos.Value, territory);
+        var herd = Herd.Create(AnimalType.Mammoth, boneHollowPos.Value, territory);
 
         var location = map.GetLocationAt(boneHollowPos.Value);
 

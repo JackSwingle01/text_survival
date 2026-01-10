@@ -45,14 +45,6 @@ public static class GameDisplay
 
     #endregion
 
-    #region Static overloads (no-op compatibility)
-
-    // These methods exist for backwards compatibility with domain code that doesn't have GameContext access.
-    // They are no-ops since console mode is removed.
-    public static void AddNarrative(string text, LogLevel level = LogLevel.Normal) { }
-
-    #endregion
-
     /// <summary>
     /// Render the game display with optional status text.
     /// Status text style: laconic, character perspective (e.g. "Resting." "Planning." "Thinking.")

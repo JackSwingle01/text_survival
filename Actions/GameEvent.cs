@@ -60,7 +60,6 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     // Equipment targeting
     public GearDamage? DamageGear;
     public GearRepair? RepairGear;
-    public ToolType? BreakTool;  // Legacy - completely destroy a tool
 
     // Feature modification
     public FeatureCreation? AddFeature;
@@ -403,18 +402,6 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
                     : $" (+{RepairGear.DurabilityGain} uses)";
                 GameDisplay.AddSuccess(ctx, $"  + {target.Name} repaired{conditionInfo}");
                 summary.ItemsGained.Add($"{target.Name} repaired");
-            }
-        }
-
-        // Tool break - completely destroy the tool (legacy support)
-        if (BreakTool is not null)
-        {
-            var tool = ctx.Inventory.GetTool(BreakTool.Value);
-            if (tool != null)
-            {
-                tool.Durability = 0;
-                GameDisplay.AddDanger(ctx, $"  - {tool.Name} breaks!");
-                summary.ItemsLost.Add($"{tool.Name} destroyed");
             }
         }
     }

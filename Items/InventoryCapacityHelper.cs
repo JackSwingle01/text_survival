@@ -25,14 +25,4 @@ public static class InventoryCapacityHelper
 
         return leftovers;
     }
-
-    /// <summary>
-    /// Legacy method for backwards compatibility.
-    /// Returns true if any items were dropped.
-    /// </summary>
-    public static bool CombineAndReportBool(GameContext ctx, Inventory source)
-    {
-        var leftovers = CombineAndReport(ctx, source);
-        return !leftovers.IsEmpty;
-    }
 }
