@@ -328,34 +328,18 @@ public class NPC : Actor
     {
         if (_currentContext == null) return true;
 
-        // Simulate being away from fire by zeroing the fire bonus
-        double originalFireBonus = _currentContext.FireProximityBonus;
-        _currentContext.FireProximityBonus = 0;
+        double projectedTemp = SurvivalProcessor.ProjectTemperatureAwayFromFire(
+            Body, _currentContext, durationMinutes);
 
-        double tempChangePerHour = SurvivalProcessor.CalculateTemperatureChangePerHour(Body, _currentContext);
-
-        // Restore original value
-        _currentContext.FireProximityBonus = originalFireBonus;
-
-        // If warming or stable even without fire, always safe
-        if (tempChangePerHour >= 0) return true;
-
-        // Project temperature after activity
-        double hoursNeeded = durationMinutes / 60.0;
-        double tempLoss = Math.Abs(tempChangePerHour) * hoursNeeded;
-        double projectedTemp = Body.BodyTemperature - tempLoss;
-
-        // Calculate projected warmth percentage (clamped to 0-1 range)
         double projectedWarmPct = Math.Clamp(
             (projectedTemp - SurvivalProcessor.HypothermiaThreshold)
             / (Body.BASE_BODY_TEMP - SurvivalProcessor.HypothermiaThreshold), 0, 1);
 
-        // Require 30% warmth buffer
         bool canSurvive = projectedWarmPct > 0.3;
 
         if (!canSurvive)
         {
-            Console.WriteLine($"  [Survival] {durationMinutes}min away from fire would drop warmth from {Body.WarmPct:P2} to {projectedWarmPct:P0} - too dangerous");
+            Console.WriteLine($"  [Survival] {durationMinutes}min away would drop warmth to {projectedWarmPct:P0} - too dangerous");
         }
 
         return canSurvive;

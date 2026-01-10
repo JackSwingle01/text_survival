@@ -113,7 +113,7 @@ public static class SurvivalProcessor
 		return netHeatHr / heatCapacity; // °F/hr
 	}
 
-	private static SurvivalProcessorResult ProcessTemperature(Body body, SurvivalContext context, int minutes)
+	public static SurvivalProcessorResult ProcessTemperature(Body body, SurvivalContext context, int minutes)
 	{
 		double tempChange = CalculateTemperatureChangePerHour(body, context);
 
@@ -178,6 +178,21 @@ public static class SurvivalProcessor
 			ClothingHeatBufferDelta = bufferDelta,
 			Effects = GetTemperatureEffects(body),
 		};
+	}
+
+	/// <summary>
+	/// Project temperature after duration away from fire, accounting for buffer depletion.
+	/// </summary>
+	public static double ProjectTemperatureAwayFromFire(Body body, SurvivalContext context, int minutes)
+	{
+		double originalFireBonus = context.FireProximityBonus;
+		context.FireProximityBonus = 0;
+
+		var result = ProcessTemperature(body, context, minutes);
+
+		context.FireProximityBonus = originalFireBonus;
+
+		return body.BodyTemperature + result.StatsDelta.TemperatureDelta;
 	}
 
 	private static SurvivalProcessorResult ProcessStarvation(Body body, double projectedCalories, int minutesElapsed)
