@@ -241,6 +241,14 @@ public class NPC : Actor
                     }
                 }
             }
+
+            // If we get here, warmth handling exhausted normal options
+            // (tried nearby fire, known fires, starting fire, crafting tools)
+            // Explore to find fire or materials
+            var exploreAction = TryExplore(context, "No known fire/tools");
+            if (exploreAction != null) return exploreAction;
+
+            // If even exploration fails (low boldness), fall through to idle as last resort
             Console.WriteLine($"  [Warmth] Falling through to work/craft");
         }
         else if (CurrentNeed == NeedType.Water)
@@ -253,12 +261,24 @@ public class NPC : Actor
 
             var get = DetermineGetResource(ResourceCategory.Water);
             if (get != null) return get;
+
+            // Check if blocked by cold prerequisite
+            var coldAction = HandleColdPrerequisite(context);
+            if (coldAction != null) return coldAction;
+
+            // Resource not found - explore to find it
+            var exploreAction = TryExplore(context, "Water not found");
+            if (exploreAction != null) return exploreAction;
         }
         else if (CurrentNeed == NeedType.Rest)
         {
             var sleep = DecideSleep();
             if (sleep != null)
                 return sleep;
+
+            // Can't sleep - check if blocked by cold
+            var coldAction = HandleColdPrerequisite(context);
+            if (coldAction != null) return coldAction;
         }
         else if (CurrentNeed == NeedType.Food)
         {
@@ -269,6 +289,14 @@ public class NPC : Actor
             }
             var get = DetermineGetResource(ResourceCategory.Food);
             if (get != null) return get;
+
+            // Check if blocked by cold prerequisite
+            var coldAction = HandleColdPrerequisite(context);
+            if (coldAction != null) return coldAction;
+
+            // Resource not found - explore to find it
+            var exploreAction = TryExplore(context, "Food not found");
+            if (exploreAction != null) return exploreAction;
         }
 
         var action = DetermineWork();
@@ -343,6 +371,67 @@ public class NPC : Actor
         }
 
         return canSurvive;
+    }
+
+    /// <summary>
+    /// Check if the NPC's low warmth is blocking productive activities.
+    /// Uses same projection logic as CanSurviveAwayFromFire for consistency.
+    /// </summary>
+    /// <param name="estimatedMinutes">How long the activity would take (default 30 min)</param>
+    private bool IsBlockedByCold(int estimatedMinutes = 30)
+    {
+        if (_currentContext == null) return false;
+
+        // Project warmth after estimated time away from fire
+        double projectedWarmth = SurvivalProcessor.ProjectTemperatureAwayFromFire(
+            Body, _currentContext, estimatedMinutes);
+
+        double projectedWarmPct = Math.Clamp(
+            (projectedWarmth - SurvivalProcessor.HypothermiaThreshold)
+            / (Body.BASE_BODY_TEMP - SurvivalProcessor.HypothermiaThreshold), 0, 1);
+
+        bool blocked = projectedWarmPct <= 0.2;
+
+        if (blocked)
+        {
+            Console.WriteLine($"  [Prerequisite] Blocked by cold (projected warmth after {estimatedMinutes}min: {projectedWarmPct:P0})");
+        }
+
+        return blocked;
+    }
+
+    /// <summary>
+    /// Check if current need is blocked by cold, and if so, switch to warmth.
+    /// Returns warmth action if blocked, null otherwise.
+    /// </summary>
+    private NPCAction? HandleColdPrerequisite(SurvivalContext context)
+    {
+        if (!IsBlockedByCold())
+            return null;
+
+        Console.WriteLine($"  [Prerequisite] {CurrentNeed} blocked by cold → switching to Warmth");
+        CurrentNeed = NeedType.Warmth;
+        return DetermineActionForNeed(context);
+    }
+
+    /// <summary>
+    /// Try to explore when normal resource acquisition fails.
+    /// Returns exploration action or null if exploration not possible.
+    /// </summary>
+    private NPCAction? TryExplore(SurvivalContext context, string reason)
+    {
+        // Check boldness - only explore if brave enough
+        if (!Utils.DetermineSuccess(Personality.Boldness))
+            return null;
+
+        // Get adjacent locations and pick a random one
+        var adjacentLocations = Map?.GetTravelOptionsFrom(CurrentLocation)?.ToList();
+        if (adjacentLocations == null || adjacentLocations.Count == 0)
+            return null;
+
+        var destination = Utils.GetRandomFromList(adjacentLocations);
+        Console.WriteLine($"  [Exploration] {reason} → exploring to {destination.Name}");
+        return new NPCMove(destination, this);
     }
 
     private void DetermineNeed()
@@ -911,8 +1000,41 @@ public class NPC : Actor
         return TryCraftSpecificTool(toolType);
     }
 
+    /// <summary>
+    /// Check if the NPC can safely idle/rest without addressing critical needs.
+    /// Idle is only safe if: no critical needs OR currently warming by a fire
+    /// </summary>
+    private bool CanSafelyIdle()
+    {
+        // If no current need, idling is safe
+        if (CurrentNeed == null) return true;
+
+        // If current need is warmth AND we're near an active fire, idling (warming) is safe
+        if (CurrentNeed == NeedType.Warmth)
+        {
+            bool atActiveFire = CurrentLocation.HasActiveHeatSource();
+            if (atActiveFire)
+            {
+                Console.WriteLine($"  [Idle] Safe to idle - warming by fire");
+                return true;
+            }
+        }
+
+        // Otherwise, we have a critical need that requires action
+        return false;
+    }
+
     private NPCAction DetermineIdle(SurvivalContext context)
     {
+        // Check if idling is safe
+        if (!CanSafelyIdle())
+        {
+            Console.WriteLine($"  [Idle] Cannot safely idle - warmth critical");
+            // Force warmth need
+            CurrentNeed = NeedType.Warmth;
+            return DetermineActionForNeed(context);
+        }
+
         if (context.IsNight && Body.EnergyPct < .8)
         {
             var sleep = DecideSleep();
