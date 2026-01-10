@@ -320,7 +320,7 @@ public static class CombatOrchestrator
             ? GetAvailableActions(scenario, playerUnit, ctx)
             : new List<CombatActionDto>();
 
-        var grid = BuildGridDto(scenario);
+        var grid = BuildGridDto(ctx, scenario);
 
         return new CombatDto(
             DistanceZone: zone.ToString(),
@@ -375,7 +375,7 @@ public static class CombatOrchestrator
         return dto with { Outcome = outcome, NarrativeMessage = message };
     }
 
-    private static CombatGridDto BuildGridDto(CombatScenario scenario)
+    private static CombatGridDto BuildGridDto(GameContext ctx, CombatScenario scenario)
     {
         var units = new List<CombatUnitDto>();
 
@@ -406,9 +406,9 @@ public static class CombatOrchestrator
             GridSize: 25,
             CellSizeMeters: 1.0,
             Units: units,
-            Terrain: null,
-            LocationX: null,
-            LocationY: null
+            Terrain: ctx.CurrentLocation?.Terrain.ToString(),
+            LocationX: ctx.Map?.CurrentPosition.X,
+            LocationY: ctx.Map?.CurrentPosition.Y
         );
     }
 

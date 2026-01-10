@@ -103,8 +103,11 @@ public class Herd
     /// <summary>Severity of wound (0-1) for wounded herds.</summary>
     public double WoundSeverity { get; set; }
 
-    /// <summary>Learned fear of player (0-1). Reduces boldness. Decays over time.</summary>
-    public double PlayerFear { get; set; }
+    /// <summary>Learned fear from recent combat (0-1). Reduces aggression toward all targets. Decays over time.</summary>
+    public double Fear { get; set; }
+
+    /// <summary>Game time in minutes when this herd last engaged in combat.</summary>
+    public int LastCombatMinutes { get; set; } = -9999;
 
     #endregion
 
@@ -309,11 +312,11 @@ public class Herd
             RecreateBehavior();
         }
 
-        // Decay player fear over time (fixed rate)
-        if (PlayerFear > 0)
+        // Decay fear over time (fixed rate)
+        if (Fear > 0)
         {
             const double DecayPerMinute = 0.015;  // ~67 minutes to fully decay from 1.0
-            PlayerFear = Math.Max(0, PlayerFear - elapsedMinutes * DecayPerMinute);
+            Fear = Math.Max(0, Fear - elapsedMinutes * DecayPerMinute);
         }
 
         // Delegate to behavior strategy

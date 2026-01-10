@@ -132,7 +132,22 @@ public class GameContext(Player player, Location camp, Weather weather)
                         CombatResult.AnimalDisengaged => 0.4,  // Mutual disengage - mild fear
                         _ => 0.5
                     };
-                    herd.PlayerFear = Math.Max(herd.PlayerFear, fear);
+                    herd.Fear = Math.Max(herd.Fear, fear);
+
+                    // Handle post-combat behavior based on outcome
+                    if (outcome == CombatResult.AnimalFled || outcome == CombatResult.AnimalDisengaged)
+                    {
+                        // Trigger herd to flee the area
+                        if (herd.Behavior != null && Map != null)
+                        {
+                            herd.Behavior.TriggerFlee(herd, Map.CurrentPosition, this);
+                        }
+                    }
+                    else if (outcome == CombatResult.Fled)
+                    {
+                        // Mark combat time for cooldown (player fled, predator stays)
+                        herd.LastCombatMinutes = TotalMinutesElapsed;
+                    }
                 }
                 _pendingEncounterHerdId = null;
             }
@@ -257,6 +272,9 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     public DateTime GameTime { get; set; } = new DateTime(2025, 1, 1, 9, 0, 0); // Full date/time for resource respawn tracking
 
+    /// <summary>Total minutes elapsed since game start (for cooldown comparisons).</summary>
+    public int TotalMinutesElapsed => (int)(GameTime - new DateTime(2025, 1, 1, 9, 0, 0)).TotalMinutes;
+
     public int Update(int targetMinutes, ActivityType activity, bool render = false)
     {
         EventOccurredLastUpdate = false;
@@ -372,6 +390,7 @@ public class GameContext(Player player, Location camp, Weather weather)
                     if (predator != null)
                     {
                         _pendingEncounterHerdId = encounterHerd.Id;  // Track source herd for fear setting
+                        encounterHerd.LastCombatMinutes = TotalMinutesElapsed;  // Mark combat start for cooldown
 
                         _pendingEncounter = new EncounterConfig(
                             encounterHerd.AnimalType,

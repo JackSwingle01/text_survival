@@ -47,6 +47,9 @@ public class PackPredatorBehavior : IHerdBehavior
                 // Predators in alert state decide to hunt or not
                 return UpdateAlert(herd, ctx);
 
+            case HerdState.Fleeing:
+                return UpdateFleeing(herd, ctx);
+
             default:
                 herd.State = HerdState.Resting;
                 return HerdUpdateResult.None;
@@ -178,6 +181,53 @@ public class PackPredatorBehavior : IHerdBehavior
         return HerdUpdateResult.None;
     }
 
+    private static HerdUpdateResult UpdateFleeing(Herd herd, GameContext ctx)
+    {
+        if (ctx.Map == null) return HerdUpdateResult.None;
+
+        var fleeTarget = GetFleeTarget(herd, ctx);
+
+        if (fleeTarget != null && fleeTarget != herd.Position)
+        {
+            if (!herd.StartTravelTo(fleeTarget.Value, ctx.Map))
+            {
+                // Can't start travel - just rest
+                herd.State = HerdState.Resting;
+                herd.StateTimeMinutes = 0;
+                return HerdUpdateResult.None;
+            }
+
+            // Narrative if player sees them flee
+            if (ctx.Map.CurrentPosition == herd.Position)
+            {
+                return HerdUpdateResult.WithNarrative($"The {herd.AnimalType.DisplayName()} pack retreats into the distance.");
+            }
+        }
+        else
+        {
+            // Can't flee - just rest
+            herd.State = HerdState.Resting;
+            herd.StateTimeMinutes = 0;
+        }
+
+        return HerdUpdateResult.None;
+    }
+
+    private static GridPosition? GetFleeTarget(Herd herd, GameContext ctx)
+    {
+        if (ctx.Map == null) return null;
+
+        var playerPos = ctx.Map.CurrentPosition;
+
+        // Get passable neighbors and sort by distance from player (furthest first)
+        var options = herd.Position.GetCardinalNeighbors()
+            .Where(p => ctx.Map.GetLocationAt(p)?.IsPassable ?? false)
+            .OrderByDescending(p => p.ManhattanDistance(playerPos))
+            .ToList();
+
+        return options.FirstOrDefault();
+    }
+
     private static HerdUpdateResult UpdateFeeding(Herd herd, int elapsedMinutes, GameContext ctx)
     {
         // Defend kill if player enters
@@ -198,6 +248,12 @@ public class PackPredatorBehavior : IHerdBehavior
 
     private HerdUpdateResult AttemptNpcHunt(Herd predator, Herd prey, GameContext ctx)
     {
+        // Skip hunting if fearful (just lost a fight)
+        if (predator.Fear > 0.5)
+        {
+            return HerdUpdateResult.None;
+        }
+
         // Predator-prey resolution
         var resolution = PredatorPreyResolver.ResolvePredatorPreyEncounter(predator, prey);
 
@@ -293,8 +349,7 @@ public class PackPredatorBehavior : IHerdBehavior
 
     public void TriggerFlee(Herd herd, GridPosition threatSource, GameContext ctx)
     {
-        // Predators don't flee - they disengage
-        herd.State = HerdState.Patrolling;
+        herd.State = HerdState.Fleeing;
         herd.StateTimeMinutes = 0;
     }
 
@@ -302,6 +357,13 @@ public class PackPredatorBehavior : IHerdBehavior
 
     private static bool ShouldEngagePlayer(Herd herd, GameContext ctx)
     {
+        // Check 30-minute cooldown after recent combat
+        int minutesSinceCombat = ctx.TotalMinutesElapsed - herd.LastCombatMinutes;
+        if (minutesSinceCombat < 30)
+        {
+            return false; // Still on cooldown
+        }
+
         double boldness = CalculateBoldness(herd, ctx);
         return _rng.NextDouble() < boldness;
     }
@@ -334,8 +396,8 @@ public class PackPredatorBehavior : IHerdBehavior
         if (isNight) bold += 0.1;
 
         // Apply learned fear (multiplicative - preserves relative relationships)
-        if (herd.PlayerFear > 0)
-            bold *= (1.0 - herd.PlayerFear);
+        if (herd.Fear > 0)
+            bold *= (1.0 - herd.Fear);
 
         return Math.Clamp(bold, 0, 0.9);
     }
@@ -437,7 +499,7 @@ public class PackPredatorBehavior : IHerdBehavior
             case ActorCombatResolver.CombatOutcome.AttackerRepelled:
                 Console.WriteLine($"[Predator] {npc.Name} fought off {herd.AnimalType.DisplayName()}");
                 // Predator learns fear
-                herd.PlayerFear = Math.Min(0.9, herd.PlayerFear + 0.3);
+                herd.Fear = Math.Min(0.9, herd.Fear + 0.3);
                 break;
         }
     }

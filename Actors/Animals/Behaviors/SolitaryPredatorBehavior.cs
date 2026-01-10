@@ -51,6 +51,9 @@ public class SolitaryPredatorBehavior : IHerdBehavior
                 herd.State = HerdState.Patrolling;
                 return HerdUpdateResult.None;
 
+            case HerdState.Fleeing:
+                return UpdateFleeing(herd, ctx);
+
             default:
                 herd.State = HerdState.Resting;
                 return HerdUpdateResult.None;
@@ -183,10 +186,56 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         return HerdUpdateResult.None;
     }
 
+    private static HerdUpdateResult UpdateFleeing(Herd herd, GameContext ctx)
+    {
+        if (ctx.Map == null) return HerdUpdateResult.None;
+
+        var fleeTarget = GetFleeTarget(herd, ctx);
+
+        if (fleeTarget != null && fleeTarget != herd.Position)
+        {
+            if (!herd.StartTravelTo(fleeTarget.Value, ctx.Map))
+            {
+                // Can't start travel - just rest
+                herd.State = HerdState.Resting;
+                herd.StateTimeMinutes = 0;
+                return HerdUpdateResult.None;
+            }
+
+            // Narrative if player sees them flee
+            if (ctx.Map.CurrentPosition == herd.Position)
+            {
+                return HerdUpdateResult.WithNarrative($"The {herd.AnimalType.DisplayName()} retreats into the distance.");
+            }
+        }
+        else
+        {
+            // Can't flee - just rest
+            herd.State = HerdState.Resting;
+            herd.StateTimeMinutes = 0;
+        }
+
+        return HerdUpdateResult.None;
+    }
+
+    private static GridPosition? GetFleeTarget(Herd herd, GameContext ctx)
+    {
+        if (ctx.Map == null) return null;
+
+        var playerPos = ctx.Map.CurrentPosition;
+
+        // Get passable neighbors and sort by distance from player (furthest first)
+        var options = herd.Position.GetCardinalNeighbors()
+            .Where(p => ctx.Map.GetLocationAt(p)?.IsPassable ?? false)
+            .OrderByDescending(p => p.ManhattanDistance(playerPos))
+            .ToList();
+
+        return options.FirstOrDefault();
+    }
+
     public void TriggerFlee(Herd herd, GridPosition threatSource, GameContext ctx)
     {
-        // Bears don't flee - they disengage
-        herd.State = HerdState.Patrolling;
+        herd.State = HerdState.Fleeing;
         herd.StateTimeMinutes = 0;
     }
 
@@ -194,6 +243,13 @@ public class SolitaryPredatorBehavior : IHerdBehavior
 
     private static bool ShouldEngagePlayer(Herd herd, GameContext ctx)
     {
+        // Check 30-minute cooldown after recent combat
+        int minutesSinceCombat = ctx.TotalMinutesElapsed - herd.LastCombatMinutes;
+        if (minutesSinceCombat < 30)
+        {
+            return false; // Still on cooldown
+        }
+
         double aggression = 0.15;  // Lower base than wolves
 
         // Starving bear is dangerous
@@ -215,8 +271,8 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         }
 
         // Apply learned fear (multiplicative - preserves relative relationships)
-        if (herd.PlayerFear > 0)
-            aggression *= (1.0 - herd.PlayerFear);
+        if (herd.Fear > 0)
+            aggression *= (1.0 - herd.Fear);
 
         return _rng.NextDouble() < aggression;
     }
