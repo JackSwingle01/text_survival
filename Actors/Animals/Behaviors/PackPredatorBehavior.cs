@@ -112,7 +112,7 @@ public class PackPredatorBehavior : IHerdBehavior
                     npc.CurrentLocation
                 );
 
-                HandleNPCCombatOutcome(herd, npc, outcome);
+                HandleNPCCombatOutcome(herd, npc, outcome, ctx);
 
                 // Only one attack per update
                 break;
@@ -475,8 +475,8 @@ public class PackPredatorBehavior : IHerdBehavior
         return Math.Clamp(bold, 0, 1);
     }
 
-    private static void HandleNPCCombatOutcome(
-        Herd herd, NPC npc, ActorCombatResolver.CombatOutcome outcome)
+    private void HandleNPCCombatOutcome(
+        Herd herd, NPC npc, ActorCombatResolver.CombatOutcome outcome, GameContext ctx)
     {
         switch (outcome)
         {
@@ -498,8 +498,10 @@ public class PackPredatorBehavior : IHerdBehavior
 
             case ActorCombatResolver.CombatOutcome.AttackerRepelled:
                 Console.WriteLine($"[Predator] {npc.Name} fought off {herd.AnimalType.DisplayName()}");
-                // Predator learns fear
+                // Predator learns fear and flees
                 herd.Fear = Math.Min(0.9, herd.Fear + 0.3);
+                herd.LastCombatMinutes = ctx.TotalMinutesElapsed;
+                TriggerFlee(herd, herd.Position, ctx);
                 break;
         }
     }
