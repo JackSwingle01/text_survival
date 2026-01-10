@@ -1,7 +1,4 @@
 using System.Numerics;
-using text_survival.Actors;
-using text_survival.Environments.Grid;
-using text_survival.Items;
 
 namespace text_survival.Combat;
 
@@ -19,7 +16,7 @@ public class Unit(Actor actor, GridPosition position)
 
     // primary stats    
     public double Threat => actor.BaseThreat * actor.Vitality;
-    public double Boldness => actor.StartingBoldness + GetBonusBoldnessFromAllies() + BoldnessModifier;
+    public double Boldness => actor.StartingBoldness + GetBonusBoldnessFromAllies() + BoldnessModifier + (InitialOptimism ? 1.0 : 0);
     public double Aggression => actor.BaseAggression + (JustDamaged ? RETALIATION_BONUS : 0);
     public double CohesionTowards(Unit other)
     {
@@ -40,12 +37,13 @@ public class Unit(Actor actor, GridPosition position)
         double enemyThreat = other?.Threat ?? 0;
         BoldnessModifier += evt switch
         {
-            MoraleEvent.TookDamage => -0.5,
-            MoraleEvent.DealtDamage => 0.3,
+            MoraleEvent.TookDamage => -0.6,
+            MoraleEvent.DealtDamage => 0.4,
+            MoraleEvent.AllyDealtDamage => .2,
             MoraleEvent.AllyDamaged => 0.3 * cohesion,
             MoraleEvent.AllyKilled => -2.0 * cohesion,
             MoraleEvent.AllyFled => -1.0 * cohesion,
-            MoraleEvent.EnemyAdvanced => -0.1 * enemyThreat,
+            MoraleEvent.EnemyAdvanced => -0.05 * enemyThreat,
             MoraleEvent.EnemyRetreated => +0.05,
             MoraleEvent.RoundAdvanced => -0.01,
             MoraleEvent.Intimidated => -CalculateIntimidation(other!),
@@ -55,7 +53,12 @@ public class Unit(Actor actor, GridPosition position)
         {
             JustDamaged = true;
         }
+        if (BadEvents.Contains(evt))
+        {
+            InitialOptimism = false;
+        }
     }
+    private static readonly List<MoraleEvent> BadEvents = [MoraleEvent.AllyKilled, MoraleEvent.TookDamage, MoraleEvent.AllyFled];
     private double CalculateIntimidation(Unit other)
     {
         double effectiveness = .3;
@@ -80,6 +83,7 @@ public class Unit(Actor actor, GridPosition position)
 
     // state
     public bool JustDamaged = false;
+    public bool InitialOptimism = true;
     public bool DodgeSet = false;
     public bool BlockSet = false;
     public bool BraceSet = false;
@@ -164,6 +168,7 @@ public enum MoraleEvent
 {
     TookDamage,
     DealtDamage,
+    AllyDealtDamage,
     AllyDamaged,
     AllyKilled,
     AllyFled,

@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Security.Cryptography.X509Certificates;
 using text_survival.Environments.Grid;
 using text_survival.Items;
 
@@ -130,9 +131,9 @@ public class CombatScenario
     }
     private void HandleUnitDeath(Unit unit)
     {
-        unit.allies.ToList().ForEach(u=>u.ApplyBoldnessChange(MoraleEvent.AllyKilled, unit));
-        unit.allies.ToList().ForEach(u=>u.allies.Remove(unit));
-        unit.enemies.ToList().ForEach(u=>u.enemies.Remove(unit));
+        unit.allies.ToList().ForEach(u => u.ApplyBoldnessChange(MoraleEvent.AllyKilled, unit));
+        unit.allies.ToList().ForEach(u => u.allies.Remove(unit));
+        unit.enemies.ToList().ForEach(u => u.enemies.Remove(unit));
         Units.Remove(unit);
     }
 
@@ -202,6 +203,7 @@ public class CombatScenario
         defender.ApplyBoldnessChange(MoraleEvent.TookDamage, attacker);
 
         defender.allies.ForEach(x => x.ApplyBoldnessChange(MoraleEvent.AllyDamaged, defender));
+        attacker.allies.ForEach(x => x.ApplyBoldnessChange(MoraleEvent.AllyDealtDamage, attacker));
         if (!defender.actor.IsAlive)
         {
             HandleUnitDeath(defender);
