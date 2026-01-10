@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using text_survival.Actions;
 using text_survival.Actors.Animals.Behaviors;
+using text_survival.Environments;
 using text_survival.Environments.Grid;
 
 // Avoid ambiguity between Herd.AnimalType property and AnimalType enum
@@ -78,6 +79,14 @@ public class Herd
     /// <summary>Current index in territory patrol cycle.</summary>
     [JsonInclude]
     public int TerritoryIndex { get; set; }
+
+    /// <summary>Destination tile when traveling. Null if not traveling.</summary>
+    [JsonInclude]
+    public GridPosition? TravelDestination { get; set; }
+
+    /// <summary>Minutes remaining until travel completes.</summary>
+    [JsonInclude]
+    public int TravelTimeRemainingMinutes { get; set; }
 
     #endregion
 
@@ -179,6 +188,10 @@ public class Herd
     /// <summary>The diet type for this herd based on animal type.</summary>
     [JsonIgnore]
     public AnimalDiet Diet => AnimalType.GetDiet();
+
+    /// <summary>True if the herd is currently traveling between tiles.</summary>
+    [JsonIgnore]
+    public bool IsTraveling => TravelDestination != null;
 
     #endregion
 
@@ -376,6 +389,49 @@ public class Herd
     #endregion
 
     #region Movement
+
+    /// <summary>
+    /// Initiates travel to a destination. Calculates travel time using TravelProcessor.
+    /// Returns false if already traveling or destination invalid.
+    /// </summary>
+    public bool StartTravelTo(GridPosition destination, GameMap map)
+    {
+        if (TravelDestination != null) return false; // Already traveling
+
+        var origin = map.GetLocationAt(Position);
+        var destLocation = map.GetLocationAt(destination);
+        if (origin == null || destLocation == null || !destLocation.IsPassable) return false;
+
+        // Use first member as representative for speed calculation
+        var representative = Members.FirstOrDefault();
+        if (representative == null) return false;
+
+        int travelMinutes = TravelProcessor.GetTraversalMinutes(origin, destLocation, representative, inventory: null);
+
+        TravelDestination = destination;
+        TravelTimeRemainingMinutes = travelMinutes;
+        return true;
+    }
+
+    /// <summary>
+    /// Updates travel progress. Call each tick. Returns true if travel completed this tick.
+    /// </summary>
+    public bool UpdateTravel(int elapsedMinutes)
+    {
+        if (TravelDestination == null) return false;
+
+        TravelTimeRemainingMinutes -= elapsedMinutes;
+
+        if (TravelTimeRemainingMinutes <= 0)
+        {
+            Position = TravelDestination.Value;
+            TravelDestination = null;
+            TravelTimeRemainingMinutes = 0;
+            return true;
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Moves randomly within territory (for grazing).

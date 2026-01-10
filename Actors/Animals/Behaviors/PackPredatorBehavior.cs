@@ -19,6 +19,13 @@ public class PackPredatorBehavior : IHerdBehavior
 
     public HerdUpdateResult Update(Herd herd, int elapsedMinutes, GameContext ctx)
     {
+        // Tick travel progress first
+        if (herd.IsTraveling)
+        {
+            herd.UpdateTravel(elapsedMinutes);
+            if (herd.IsTraveling) return HerdUpdateResult.None; // Still traveling, skip behavior
+        }
+
         herd.StateTimeMinutes += elapsedMinutes;
         herd.Hunger = Math.Clamp(herd.Hunger + elapsedMinutes * HungerRatePerMinute, 0, 1);
 
@@ -60,13 +67,13 @@ public class PackPredatorBehavior : IHerdBehavior
 
     private HerdUpdateResult UpdatePatrolling(Herd herd, int elapsedMinutes, GameContext ctx)
     {
-        // Move to next territory tile periodically
-        if (herd.StateTimeMinutes > 0 && herd.StateTimeMinutes % 30 == 0)
+        // Move to next territory tile periodically (skip if already traveling)
+        if (!herd.IsTraveling && herd.StateTimeMinutes > 0 && herd.StateTimeMinutes % 30 == 0)
         {
             var nextTile = GetNextPatrolTarget(herd, ctx);
-            if (nextTile != null && nextTile != herd.Position)
+            if (nextTile != null && nextTile != herd.Position && ctx.Map != null)
             {
-                herd.Position = nextTile.Value;
+                herd.StartTravelTo(nextTile.Value, ctx.Map);
                 herd.TerritoryIndex = herd.HomeTerritory.IndexOf(nextTile.Value);
                 if (herd.TerritoryIndex < 0) herd.TerritoryIndex = 0;
             }
@@ -124,7 +131,7 @@ public class PackPredatorBehavior : IHerdBehavior
         {
             herd.State = HerdState.Resting;
             herd.StateTimeMinutes = 0;
-            ReturnToHome(herd);
+            ReturnToHome(herd, ctx);
         }
 
         // Low hunger - rest
@@ -207,10 +214,10 @@ public class PackPredatorBehavior : IHerdBehavior
             }
 
             // Hungry wolves may pursue
-            if (predator.Hunger > 0.8 && _rng.NextDouble() < 0.4)
+            if (predator.Hunger > 0.8 && _rng.NextDouble() < 0.4 && ctx.Map != null)
             {
-                predator.Position = prey.Position;
-                // Will re-encounter next tick
+                predator.StartTravelTo(prey.Position, ctx.Map);
+                // Will re-encounter after arrival
             }
 
             // Narrative if player present
@@ -435,11 +442,11 @@ public class PackPredatorBehavior : IHerdBehavior
         }
     }
 
-    private static void ReturnToHome(Herd herd)
+    private static void ReturnToHome(Herd herd, GameContext ctx)
     {
-        if (herd.HomeTerritory.Count > 0)
+        if (herd.HomeTerritory.Count > 0 && ctx.Map != null)
         {
-            herd.Position = herd.HomeTerritory[0];
+            herd.StartTravelTo(herd.HomeTerritory[0], ctx.Map);
             herd.TerritoryIndex = 0;
         }
     }

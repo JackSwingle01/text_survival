@@ -19,6 +19,13 @@ public class SolitaryPredatorBehavior : IHerdBehavior
 
     public HerdUpdateResult Update(Herd herd, int elapsedMinutes, GameContext ctx)
     {
+        // Tick travel progress first
+        if (herd.IsTraveling)
+        {
+            herd.UpdateTravel(elapsedMinutes);
+            if (herd.IsTraveling) return HerdUpdateResult.None; // Still traveling, skip behavior
+        }
+
         herd.StateTimeMinutes += elapsedMinutes;
         herd.Hunger = Math.Clamp(herd.Hunger + elapsedMinutes * HungerRatePerMinute, 0, 1);
 
@@ -216,7 +223,7 @@ public class SolitaryPredatorBehavior : IHerdBehavior
 
     private static void TryMoveWithinTerritory(Herd herd, int elapsedMinutes, GameContext ctx)
     {
-        if (herd.HomeTerritory.Count == 0) return;
+        if (herd.HomeTerritory.Count == 0 || herd.IsTraveling || ctx.Map == null) return;
 
         // Get grazed level at current location to influence movement
         double grazedLevel = GetGrazedLevelAtLocation(herd, ctx);
@@ -230,7 +237,7 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         if (_rng.NextDouble() < moveProbability)
         {
             herd.TerritoryIndex = (herd.TerritoryIndex + 1) % herd.HomeTerritory.Count;
-            herd.Position = herd.HomeTerritory[herd.TerritoryIndex];
+            herd.StartTravelTo(herd.HomeTerritory[herd.TerritoryIndex], ctx.Map);
         }
     }
 

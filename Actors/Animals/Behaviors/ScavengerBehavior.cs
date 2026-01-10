@@ -21,6 +21,21 @@ public class ScavengerBehavior : IHerdBehavior
 
     public HerdUpdateResult Update(Herd herd, int elapsedMinutes, GameContext ctx)
     {
+        // Tick travel progress first
+        if (herd.IsTraveling)
+        {
+            bool arrived = herd.UpdateTravel(elapsedMinutes);
+            if (!arrived) return HerdUpdateResult.None; // Still traveling, skip behavior
+
+            // Just arrived - if fleeing, transition to patrolling
+            if (herd.State == HerdState.Fleeing)
+            {
+                herd.State = HerdState.Patrolling;
+                herd.StateTimeMinutes = 0;
+                return HerdUpdateResult.None;
+            }
+        }
+
         herd.StateTimeMinutes += elapsedMinutes;
         herd.Hunger = Math.Clamp(herd.Hunger + elapsedMinutes * HungerRatePerMinute, 0, 1);
 
@@ -82,13 +97,13 @@ public class ScavengerBehavior : IHerdBehavior
 
         // Priority 3: Follow feeding predators (they have food)
         var feedingPredator = FindFeedingPredator(herd.Position, ctx);
-        if (feedingPredator != null)
+        if (feedingPredator != null && ctx.Map != null)
         {
             // Stay one tile away from feeding predator
             var oneAway = GetTileNear(herd.Position, feedingPredator.Position, ctx);
             if (oneAway != null && oneAway != herd.Position)
             {
-                herd.Position = oneAway.Value;
+                herd.StartTravelTo(oneAway.Value, ctx.Map);
             }
             return HerdUpdateResult.None;
         }
@@ -216,13 +231,13 @@ public class ScavengerBehavior : IHerdBehavior
         herd.StateTimeMinutes = 0;
 
         // Move away from threat
-        if (herd.HomeTerritory.Count > 0)
+        if (herd.HomeTerritory.Count > 0 && ctx.Map != null)
         {
             // Find territory tile furthest from threat
             var safest = herd.HomeTerritory
                 .OrderByDescending(p => p.ManhattanDistance(threatSource))
                 .First();
-            herd.Position = safest;
+            herd.StartTravelTo(safest, ctx.Map);
         }
     }
 
@@ -299,6 +314,8 @@ public class ScavengerBehavior : IHerdBehavior
 
     private static void MoveToward(Herd herd, GridPosition target, GameContext ctx)
     {
+        if (herd.IsTraveling || ctx.Map == null) return;
+
         int dx = Math.Sign(target.X - herd.Position.X);
         int dy = Math.Sign(target.Y - herd.Position.Y);
 
@@ -317,9 +334,9 @@ public class ScavengerBehavior : IHerdBehavior
             newPos = new GridPosition(herd.Position.X + dx, herd.Position.Y);
         }
 
-        if (newPos != null && ctx.Map?.GetLocationAt(newPos.Value)?.IsPassable == true)
+        if (newPos != null && ctx.Map.GetLocationAt(newPos.Value)?.IsPassable == true)
         {
-            herd.Position = newPos.Value;
+            herd.StartTravelTo(newPos.Value, ctx.Map);
         }
     }
 
@@ -352,7 +369,7 @@ public class ScavengerBehavior : IHerdBehavior
 
     private static void TryMoveWithinTerritory(Herd herd, int elapsedMinutes, GameContext ctx)
     {
-        if (herd.HomeTerritory.Count == 0) return;
+        if (herd.HomeTerritory.Count == 0 || herd.IsTraveling || ctx.Map == null) return;
 
         // Hyenas move frequently while patrolling (faster than wolves)
         double moveChancePerMinute = 0.04;  // ~4% per minute
@@ -361,7 +378,7 @@ public class ScavengerBehavior : IHerdBehavior
         if (_rng.NextDouble() < moveProbability)
         {
             herd.TerritoryIndex = (herd.TerritoryIndex + 1) % herd.HomeTerritory.Count;
-            herd.Position = herd.HomeTerritory[herd.TerritoryIndex];
+            herd.StartTravelTo(herd.HomeTerritory[herd.TerritoryIndex], ctx.Map);
         }
     }
 

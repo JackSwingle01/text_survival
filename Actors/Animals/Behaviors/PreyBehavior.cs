@@ -18,6 +18,21 @@ public class PreyBehavior : IHerdBehavior
 
     public HerdUpdateResult Update(Herd herd, int elapsedMinutes, GameContext ctx)
     {
+        // Tick travel progress first
+        if (herd.IsTraveling)
+        {
+            bool arrived = herd.UpdateTravel(elapsedMinutes);
+            if (!arrived) return HerdUpdateResult.None; // Still traveling, skip behavior
+
+            // Just arrived - if fleeing, transition to resting
+            if (herd.State == HerdState.Fleeing)
+            {
+                herd.State = HerdState.Resting;
+                herd.StateTimeMinutes = 0;
+                return HerdUpdateResult.None;
+            }
+        }
+
         herd.StateTimeMinutes += elapsedMinutes;
         herd.Hunger = Math.Clamp(herd.Hunger + elapsedMinutes * HungerRatePerMinute, 0, 1);
 
@@ -103,24 +118,32 @@ public class PreyBehavior : IHerdBehavior
 
     private static HerdUpdateResult ExecuteFlee(Herd herd, GameContext ctx)
     {
+        if (ctx.Map == null) return HerdUpdateResult.None;
+
         var fleeTarget = GetFleeTarget(herd, ctx);
 
         if (fleeTarget != null && fleeTarget != herd.Position)
         {
             var previousPosition = herd.Position;
-            herd.Position = fleeTarget.Value;
-            herd.State = HerdState.Resting;
-            herd.StateTimeMinutes = 0;
 
-            // Narrative if player can see
-            if (ctx.Map != null && ctx.Map.CurrentPosition == previousPosition)
+            // Start travel instead of instant move (state transitions to Resting when travel completes)
+            if (!herd.StartTravelTo(fleeTarget.Value, ctx.Map))
+            {
+                // Can't start travel - just rest
+                herd.State = HerdState.Resting;
+                herd.StateTimeMinutes = 0;
+                return HerdUpdateResult.None;
+            }
+
+            // Narrative if player can see them bolt
+            if (ctx.Map.CurrentPosition == previousPosition)
             {
                 string direction = GetCardinalDirection(previousPosition, fleeTarget.Value);
                 return HerdUpdateResult.WithNarrative(
                     $"The {herd.AnimalType.DisplayName().ToLower()} herd bolts {direction}.");
             }
 
-            return new HerdUpdateResult { NewPosition = herd.Position };
+            return HerdUpdateResult.None;
         }
         else
         {
@@ -172,7 +195,7 @@ public class PreyBehavior : IHerdBehavior
 
     private static void TryMoveWithinTerritory(Herd herd, int elapsedMinutes, GameContext ctx)
     {
-        if (herd.HomeTerritory.Count == 0) return;
+        if (herd.HomeTerritory.Count == 0 || herd.IsTraveling || ctx.Map == null) return;
 
         // Get grazed level at current location to influence movement
         double grazedLevel = GetGrazedLevelAtLocation(herd, ctx);
@@ -187,7 +210,7 @@ public class PreyBehavior : IHerdBehavior
         if (_rng.NextDouble() < moveProbability)
         {
             herd.TerritoryIndex = (herd.TerritoryIndex + 1) % herd.HomeTerritory.Count;
-            herd.Position = herd.HomeTerritory[herd.TerritoryIndex];
+            herd.StartTravelTo(herd.HomeTerritory[herd.TerritoryIndex], ctx.Map);
         }
     }
 
