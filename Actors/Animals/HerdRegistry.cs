@@ -33,11 +33,6 @@ public class HerdRegistry
         return _herds.Where(h => h.Position.ManhattanDistance(center) <= range).ToList();
     }
 
-    public Herd? GetHerdById(Guid id)
-    {
-        return _herds.FirstOrDefault(h => h.Id == id);
-    }
-
     public IReadOnlyList<Herd> GetPredatorHerds()
     {
         return _herds.Where(h => h.IsPredator).ToList();
@@ -92,14 +87,6 @@ public class HerdRegistry
     public void RemoveHerd(Herd herd)
     {
         _herds.Remove(herd);
-    }
-    public void RemoveHerd(Guid id)
-    {
-        var herd = GetHerdById(id);
-        if (herd != null)
-        {
-            _herds.Remove(herd);
-        }
     }
 
     /// <summary>

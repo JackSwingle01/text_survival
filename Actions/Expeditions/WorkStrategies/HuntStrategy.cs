@@ -95,8 +95,8 @@ public class HuntStrategy : IWorkStrategy
                 GameDisplay.AddNarrative(ctx, $"You spot {animal.GetTraitDescription()}.");
                 GameDisplay.AddNarrative(ctx, $"It's {animal.GetActivityDescription()}.");
 
-                // Return with FoundAnimal and HerdId set
-                return new WorkResult([], null, actualTime, false, animal, herd.Id);
+                // Return with FoundAnimal and Herd set
+                return new WorkResult([], null, actualTime, false, animal, herd);
             }
         }
 

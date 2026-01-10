@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Environments.Grid;
 
 namespace text_survival.Actors.Animals.Behaviors;
@@ -24,11 +25,11 @@ public record HerdUpdateResult
 
     /// <summary>Create result requesting a predator encounter.</summary>
     public static HerdUpdateResult WithEncounter(Herd herd, bool isDefending = false) =>
-        new() { EncounterRequest = new HerdEncounterRequest(herd.Id, isDefending) };
+        new() { EncounterRequest = new HerdEncounterRequest(herd, isDefending) };
 
     /// <summary>Create result for predator killing prey.</summary>
     public static HerdUpdateResult WithPreyKill(Herd preyHerd, Animal victim, GridPosition position) =>
-        new() { PreyKill = new PreyKillResult(preyHerd.Id, victim, position) };
+        new() { PreyKill = new PreyKillResult(preyHerd, victim, position) };
 
     /// <summary>Create result with a narrative message.</summary>
     public static HerdUpdateResult WithNarrative(string message) =>
@@ -42,14 +43,14 @@ public record HerdUpdateResult
 /// <summary>
 /// Request for a predator encounter with the player.
 /// </summary>
-/// <param name="HerdId">ID of the predator herd initiating the encounter.</param>
+/// <param name="Herd">The predator herd initiating the encounter.</param>
 /// <param name="IsDefendingKill">Whether the predator is defending a kill (more aggressive).</param>
-public record HerdEncounterRequest(Guid HerdId, bool IsDefendingKill);
+public record HerdEncounterRequest(Herd Herd, bool IsDefendingKill);
 
 /// <summary>
 /// Result of a predator successfully killing prey.
 /// </summary>
-/// <param name="PreyHerdId">ID of the prey herd that lost a member.</param>
+/// <param name="PreyHerd">The prey herd that lost a member.</param>
 /// <param name="Victim">The animal that was killed.</param>
 /// <param name="Position">Where the kill occurred (for carcass placement).</param>
-public record PreyKillResult(Guid PreyHerdId, Animal Victim, GridPosition Position);
+public record PreyKillResult(Herd PreyHerd, Animal Victim, GridPosition Position);

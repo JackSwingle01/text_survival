@@ -46,12 +46,9 @@ public class Herd
 
     #region Identity
 
-    /// <summary>Unique identifier for this herd.</summary>
-    public Guid Id { get; private set; } = Guid.NewGuid();
-
     /// <summary>Type of animals in this herd (Wolf, Bear, Caribou, etc.).</summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public AnimalTypeEnum AnimalType { get; private set; }
+    public AnimalTypeEnum AnimalType { get; set; }
 
     /// <summary>The animals in this herd. Reuses existing Animal class for combat stats.</summary>
     /// <remarks>Not serialized - recreated on load from MemberCount and AnimalType.</remarks>
@@ -59,7 +56,7 @@ public class Herd
     public List<Animal> Members { get; private set; } = [];
 
     /// <summary>Number of members for serialization. Animals recreated on load.</summary>
-    public int MemberCount { get; private set; }
+    public int MemberCount { get; set; }
 
     #endregion
 
@@ -69,7 +66,7 @@ public class Herd
     public GridPosition Position { get; set; }
 
     /// <summary>Tiles this herd uses as its home range.</summary>
-    public List<GridPosition> HomeTerritory { get; private set; } = [];
+    public List<GridPosition> HomeTerritory { get; set; } = [];
 
     /// <summary>Current index in territory patrol cycle.</summary>
     public int TerritoryIndex { get; set; }
@@ -114,8 +111,7 @@ public class Herd
     #region Behavior Strategy
 
     /// <summary>Type of behavior for serialization. Behavior is recreated from this on load.</summary>
-    
-    public HerdBehaviorType BehaviorType { get; private set; } = HerdBehaviorType.Prey;
+    public HerdBehaviorType BehaviorType { get; set; } = HerdBehaviorType.Prey;
 
     /// <summary>The behavior strategy implementation. Not serialized - recreated on load.</summary>
     [JsonIgnore]

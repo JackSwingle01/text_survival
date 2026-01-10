@@ -557,6 +557,58 @@ public class SerializationTests
             $"Deserialized Consciousness modifier should be negative, got {deserializedConsciousnessMod}");
     }
 
+    [Fact]
+    public void SerializeDeserialize_Herds_PreserveState()
+    {
+        // Arrange - Create game with herds (game already spawns some herds)
+        var ctx = GameContext.CreateNewGame();
+
+        // Record original counts (including game-spawned herds)
+        int originalHerdCount = ctx.Herds.HerdCount;
+        int originalAnimalCount = ctx.Herds.TotalAnimalCount;
+
+        // Verify game spawns herds by default
+        Assert.True(originalHerdCount > 0, "Game should spawn some herds at start");
+
+        // Pick a specific herd to verify state preservation
+        var firstHerd = ctx.Herds.GetPredatorHerds().FirstOrDefault()
+            ?? ctx.Herds.GetPreyHerds().First();
+        var firstHerdPosition = firstHerd.Position;
+        var firstHerdType = firstHerd.AnimalType;
+        var firstHerdMemberCount = firstHerd.MemberCount;
+        var firstHerdBehaviorType = firstHerd.BehaviorType;
+        firstHerd.Hunger = 0.75;  // Set specific state to verify
+
+        // Act - Serialize and deserialize
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Post-load restoration (mimics SaveManager.Load)
+        deserialized?.Herds.RecreateAllMembers(deserialized.Map!);
+
+        // Assert - Herd registry preserved
+        Assert.NotNull(deserialized);
+        Assert.Equal(originalHerdCount, deserialized.Herds.HerdCount);
+        Assert.Equal(originalAnimalCount, deserialized.Herds.TotalAnimalCount);
+
+        // Verify the specific herd we tracked still exists with correct state
+        var matchingHerds = deserialized.Herds.GetHerdsByType(firstHerdType)
+            .Where(h => h.Position == firstHerdPosition && h.MemberCount == firstHerdMemberCount)
+            .ToList();
+        Assert.NotEmpty(matchingHerds);
+
+        var deserializedHerd = matchingHerds.First();
+
+        // Verify serialized state preserved
+        Assert.Equal(firstHerdMemberCount, deserializedHerd.Count);
+        Assert.Equal(firstHerdMemberCount, deserializedHerd.Members.Count);  // Members recreated
+        Assert.Equal(firstHerdPosition, deserializedHerd.Position);
+        Assert.Equal(0.75, deserializedHerd.Hunger, precision: 2);  // State we set
+        Assert.Equal(firstHerdBehaviorType, deserializedHerd.BehaviorType);
+        Assert.NotNull(deserializedHerd.Behavior);  // Behavior recreated
+        Assert.True(deserializedHerd.HomeTerritory.Count > 0, "HomeTerritory should be preserved");
+    }
+
     private static JsonSerializerOptions GetSerializerOptions()
     {
         return SaveManager.Options;

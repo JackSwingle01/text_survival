@@ -16,7 +16,7 @@ public class ActiveTension
     public string? Direction { get; }
     public string? Description { get; }
 
-    public Guid? HerdId { get; }
+    public Herd? SourceHerd { get; }
 
     // Decay behavior
     public double DecayPerHour { get; }
@@ -32,7 +32,7 @@ public class ActiveTension
         AnimalType? animalType = null,
         string? direction = null,
         string? description = null,
-        Guid? herdId = null)
+        Herd? sourceHerd = null)
     {
         Type = type;
         Severity = Math.Clamp(severity, 0.0, 1.0);
@@ -44,17 +44,17 @@ public class ActiveTension
         AnimalType = animalType;
         Direction = direction;
         Description = description;
-        HerdId = herdId;
+        SourceHerd = sourceHerd;
     }
 
-    public static ActiveTension Stalked(double severity, AnimalType? animalType = null, Location? location = null, Guid? herdId = null) => new(
+    public static ActiveTension Stalked(double severity, AnimalType? animalType = null, Location? location = null, Herd? sourceHerd = null) => new(
         type: "Stalked",
         severity: severity,
         decayPerHour: 0.05,
         decaysAtCamp: true,
         relevantLocation: location,
         animalType: animalType,
-        herdId: herdId
+        sourceHerd: sourceHerd
     );
 
     public static ActiveTension SmokeSpotted(double severity, string? direction = null, Location? sourceLocation = null) => new(
@@ -123,23 +123,23 @@ public class ActiveTension
         description: description
     );
 
-    public static ActiveTension WoundedPrey(double severity, AnimalType? animalType = null, Location? location = null, Guid? herdId = null) => new(
+    public static ActiveTension WoundedPrey(double severity, AnimalType? animalType = null, Location? location = null, Herd? sourceHerd = null) => new(
         type: "WoundedPrey",
         severity: severity,
         decayPerHour: 0.08,
         decaysAtCamp: true,  // Trail goes cold if you return to camp
         relevantLocation: location,
         animalType: animalType,
-        herdId: herdId
+        sourceHerd: sourceHerd
     );
 
-    public static ActiveTension PackNearby(double severity, AnimalType? animalType = null, Guid? herdId = null) => new(
+    public static ActiveTension PackNearby(double severity, AnimalType? animalType = null, Herd? sourceHerd = null) => new(
         type: "PackNearby",
         severity: severity,
         decayPerHour: 0.03,
         decaysAtCamp: true,
         animalType: animalType,
-        herdId: herdId
+        sourceHerd: sourceHerd
     );
 
     public static ActiveTension ClaimedTerritory(double severity, AnimalType? animalType = null, Location? location = null) => new(
@@ -205,12 +205,12 @@ public class ActiveTension
     /// Slower decay than other threats - hyenas wait.
     /// Fire at camp deters them (faster decay at camp).
     /// </summary>
-    public static ActiveTension ScavengersWaiting(double severity, Guid? herdId = null) => new(
+    public static ActiveTension ScavengersWaiting(double severity, Herd? sourceHerd = null) => new(
         type: "ScavengersWaiting",
         severity: severity,
         decayPerHour: 0.05,  // Very patient - slow decay
         decaysAtCamp: true,  // Fire and activity at camp deter them
-        herdId: herdId
+        sourceHerd: sourceHerd
     );
 
     /// <summary>
@@ -218,14 +218,14 @@ public class ActiveTension
     /// Unique threat: fire doesn't deter it, noise draws it in.
     /// Tension does NOT decay at camp - only resolves by confrontation or leaving territory.
     /// </summary>
-    public static ActiveTension SaberToothStalked(double severity, Location? location = null, Guid? herdId = null) => new(
+    public static ActiveTension SaberToothStalked(double severity, Location? location = null, Herd? sourceHerd = null) => new(
         type: "SaberToothStalked",
         severity: severity,
         decayPerHour: 0.02,  // Extremely patient - very slow decay
         decaysAtCamp: false,  // Fire doesn't work! Unique threat profile.
         relevantLocation: location,
         animalType: Actors.Animals.AnimalType.SaberTooth,
-        herdId: herdId
+        sourceHerd: sourceHerd
     );
 
     public static ActiveTension Custom(
@@ -237,7 +237,7 @@ public class ActiveTension
         AnimalType? animalType = null,
         string? direction = null,
         string? description = null,
-        Guid? herdId = null) => new(
+        Herd? sourceHerd = null) => new(
         type: type,
         severity: severity,
         decayPerHour: decayPerHour,
@@ -246,6 +246,6 @@ public class ActiveTension
         animalType: animalType,
         direction: direction,
         description: description,
-        herdId: herdId
+        sourceHerd: sourceHerd
     );
 }

@@ -34,18 +34,18 @@ internal class HuntState
     public Animal Target { get; }
     public Location Location { get; }
     public GameContext Context { get; }
-    public Guid? HerdId { get; }  // Set when animal came from persistent herd
+    public Herd? SourceHerd { get; }  // Set when animal came from persistent herd
     public int MinutesSpent { get; set; }
     public double? PreviousDistanceMeters { get; set; }
     public string? StatusMessage { get; set; }
     public bool JustApproached { get; set; }
 
-    public HuntState(Animal target, Location location, GameContext ctx, Guid? herdId = null)
+    public HuntState(Animal target, Location location, GameContext ctx, Herd? sourceHerd = null)
     {
         Target = target;
         Location = location;
         Context = ctx;
-        HerdId = herdId;
+        SourceHerd = sourceHerd;
         MinutesSpent = 0;
         PreviousDistanceMeters = null;
         StatusMessage = null;
@@ -95,9 +95,9 @@ public static class HuntRunner
     /// Run an interactive hunt against a found animal.
     /// Prompts player to stalk, then runs the approach/attack loop.
     /// </summary>
-    /// <param name="herdId">Optional ID of persistent herd this animal belongs to.</param>
+    /// <param name="sourceHerd">Optional persistent herd this animal belongs to.</param>
     /// <returns>Outcome of the hunt and minutes elapsed</returns>
-    public static (HuntOutcome outcome, int minutesElapsed) Run(Animal target, Location location, GameContext ctx, Guid? herdId = null)
+    public static (HuntOutcome outcome, int minutesElapsed) Run(Animal target, Location location, GameContext ctx, Herd? sourceHerd = null)
     {
         // Initial "Stalk?" prompt
         if (!PromptInitialStalk(target, ctx))
@@ -106,7 +106,7 @@ public static class HuntRunner
         }
 
         // Initialize hunt state
-        var state = new HuntState(target, location, ctx, herdId);
+        var state = new HuntState(target, location, ctx, sourceHerd);
 
         // Auto-equip spear if available
         var spear = ctx.Inventory.GetOrEquipWeapon(ctx, ToolType.Spear);
@@ -655,10 +655,8 @@ public static class HuntRunner
     /// </summary>
     private static void RemoveFromHerd(HuntState state)
     {
-        if (state.HerdId == null) return;
-
-        var herd = state.Context.Herds.GetHerdById(state.HerdId.Value);
-        if (herd == null) return;
+        if (state.SourceHerd == null) return;
+        var herd = state.SourceHerd;
 
         herd.RemoveMember(state.Target);
 
@@ -675,10 +673,8 @@ public static class HuntRunner
     /// </summary>
     private static void SplitWoundedFromHerd(HuntState state)
     {
-        if (state.HerdId == null) return;
-
-        var herd = state.Context.Herds.GetHerdById(state.HerdId.Value);
-        if (herd == null) return;
+        if (state.SourceHerd == null) return;
+        var herd = state.SourceHerd;
 
         var ctx = state.Context;
 

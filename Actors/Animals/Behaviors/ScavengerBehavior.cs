@@ -145,7 +145,7 @@ public class ScavengerBehavior : IHerdBehavior
 
         // Check for larger predator at our location - flee!
         var threatHere = ctx.Herds.GetHerdsAt(herd.Position)
-            .FirstOrDefault(h => h.Id != herd.Id && IsLargerPredator(h));
+            .FirstOrDefault(h => h != herd && IsLargerPredator(h));
 
         if (threatHere != null)
         {
