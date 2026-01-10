@@ -1,55 +1,62 @@
-import { OverlayManager } from '../core/OverlayManager.js';
-import { StatRow } from '../components/StatRow.js';
-import { Utils } from '../modules/utils.js';
+// overlays/DeathOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { clear } from '../lib/helpers.js';
+import { SimpleStatRow } from '../lib/components/StatRow.js';
+import { ActionButton } from '../lib/components/ActionButton.js';
 
 /**
  * DeathOverlay - Game over screen showing cause of death and final stats
  */
-export class DeathOverlay extends OverlayManager {
+export class DeathOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('deathOverlay', inputHandler);
-        this.causeEl = document.getElementById('deathCause');
-        this.statsEl = document.getElementById('deathStats');
-        this.choicesEl = document.getElementById('deathChoices');
     }
 
     render(data, inputId, input) {
-        this.show(inputId);
+        if (!data) {
+            this.hide();
+            return;
+        }
+
+        this.show();
 
         // Set cause of death
-        this.causeEl.textContent = data.causeOfDeath;
+        const causeEl = this.$('#deathCause');
+        if (causeEl) causeEl.textContent = data.causeOfDeath;
 
-        // Build stats using StatRow component
-        this.clear(this.statsEl);
-
-        this.statsEl.appendChild(
-            StatRow.simple('schedule', 'Time Survived', data.timeSurvived)
-        );
-
-        this.statsEl.appendChild(
-            StatRow.simple('favorite', 'Final Vitality', `${data.finalVitality.toFixed(0)}%`)
-        );
-
-        this.statsEl.appendChild(
-            StatRow.simple('restaurant', 'Final Calories', `${data.finalCalories.toFixed(0)} kcal`)
-        );
-
-        this.statsEl.appendChild(
-            StatRow.simple('water_drop', 'Final Hydration', `${data.finalHydration.toFixed(0)}%`)
-        );
-
-        this.statsEl.appendChild(
-            StatRow.simple('device_thermostat', 'Body Temperature', `${data.finalTemperature.toFixed(1)}°F`)
-        );
-
-        // Add restart/choice buttons
-        if (input?.choices) {
-            this.setChoices(input.choices, '#deathChoices');
+        // Build stats
+        const statsEl = this.$('#deathStats');
+        if (statsEl) {
+            clear(statsEl);
+            statsEl.appendChild(
+                SimpleStatRow('schedule', 'Time Survived', data.timeSurvived)
+            );
+            statsEl.appendChild(
+                SimpleStatRow('favorite', 'Final Vitality', `${data.finalVitality.toFixed(0)}%`)
+            );
+            statsEl.appendChild(
+                SimpleStatRow('restaurant', 'Final Calories', `${data.finalCalories.toFixed(0)} kcal`)
+            );
+            statsEl.appendChild(
+                SimpleStatRow('water_drop', 'Final Hydration', `${data.finalHydration.toFixed(0)}%`)
+            );
+            statsEl.appendChild(
+                SimpleStatRow('device_thermostat', 'Body Temperature', `${data.finalTemperature.toFixed(1)}°F`)
+            );
         }
-    }
 
-    cleanup() {
-        this.clear(this.statsEl);
-        this.clear(this.choicesEl);
+        // Build choices (restart button)
+        const choicesEl = this.$('#deathChoices');
+        if (choicesEl) {
+            clear(choicesEl);
+            if (input?.choices) {
+                input.choices.forEach(choice => {
+                    if (!choice.id) return;
+                    choicesEl.appendChild(
+                        ActionButton(choice, () => this.respond(choice.id))
+                    );
+                });
+            }
+        }
     }
 }

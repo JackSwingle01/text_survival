@@ -1,4 +1,4 @@
-import { show, hide } from './utils.js';
+import { show, hide } from '../lib/helpers.js';
 import { getFirePhaseLabel } from './icons.js';
 
 export const FireDisplay = {

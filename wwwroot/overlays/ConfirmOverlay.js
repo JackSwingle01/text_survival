@@ -1,30 +1,42 @@
-import { OverlayManager } from '../core/OverlayManager.js';
-import { Utils } from '../modules/utils.js';
+// overlays/ConfirmOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { div } from '../lib/helpers.js';
+import { ActionButton } from '../lib/components/ActionButton.js';
 
 /**
  * ConfirmOverlay - Simple confirmation dialog with yes/no choices
  */
-export class ConfirmOverlay extends OverlayManager {
+export class ConfirmOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('confirmOverlay', inputHandler);
-        this.promptEl = document.getElementById('confirmPrompt');
-        this.choicesEl = document.getElementById('confirmChoices');
     }
 
     render(prompt, inputId, input) {
-        this.show(inputId);
+        if (!prompt) {
+            this.hide();
+            return;
+        }
+
+        this.show();
 
         // Set prompt text
-        this.promptEl.textContent = prompt;
+        const promptEl = this.$('#confirmPrompt');
+        if (promptEl) promptEl.textContent = prompt;
 
-        // Create Yes/No buttons from input choices
-        if (input?.choices) {
-            this.setChoices(input.choices, '#confirmChoices');
+        // Build choices
+        const choicesEl = this.$('#confirmChoices');
+        if (choicesEl) {
+            choicesEl.replaceChildren();
+            if (input?.choices) {
+                input.choices.forEach(choice => {
+                    if (!choice.id) return;
+                    choicesEl.appendChild(
+                        ActionButton(choice, () => this.respond(choice.id))
+                    );
+                });
+            }
         }
     }
 
-    cleanup() {
-        // Clear any state
-        this.clear(this.choicesEl);
-    }
+    // safeRender is inherited from OverlayBase
 }

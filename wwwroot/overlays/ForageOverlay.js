@@ -1,152 +1,143 @@
-import { OverlayManager } from '../core/OverlayManager.js';
-import { DOMBuilder } from '../core/DOMBuilder.js';
-import { Utils, ICON_CLASS, show, hide } from '../modules/utils.js';
+// overlays/ForageOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { div, span, clear, show, hide } from '../lib/helpers.js';
+import { Icon } from '../lib/components/Icon.js';
+import { MultiStepForm } from '../lib/components/RadioGroup.js';
 
 /**
  * ForageOverlay - Multi-step foraging interface with focus/time selection
  */
-export class ForageOverlay extends OverlayManager {
+export class ForageOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('forageOverlay', inputHandler);
-
-        // Get DOM elements
-        this.qualityEl = document.getElementById('forageQuality');
-        this.cluesSection = document.getElementById('forageClues');
-        this.cluesListEl = document.getElementById('forageCluesList');
-        this.warningsEl = document.getElementById('forageWarnings');
-        this.focusOptionsEl = document.getElementById('forageFocusOptions');
-        this.timeOptionsEl = document.getElementById('forageTimeOptions');
-        this.confirmBtn = document.getElementById('forageConfirmBtn');
-        this.confirmDesc = document.getElementById('forageConfirmDesc');
-        this.cancelBtn = document.getElementById('forageCancelBtn');
-        this.keepWalkingBtn = document.getElementById('forageKeepWalkingBtn');
-
+        this.form = null;
     }
 
-    render(forageData, inputId) {
-        this.show(inputId);
+    render(data, inputId) {
+        if (!data) {
+            this.hide();
+            return;
+        }
+
+        this.show();
 
         // Quality indicator
-        this.qualityEl.textContent = `Resources look ${forageData.locationQuality}.`;
+        const qualityEl = this.$('#forageQuality');
+        if (qualityEl) qualityEl.textContent = `Resources look ${data.locationQuality}.`;
 
-        // Clues list
-        this.clear(this.cluesListEl);
-
-        if (forageData.clues && forageData.clues.length > 0) {
-            show(this.cluesSection);
-            forageData.clues.forEach(clue => {
-                const clueEl = this.createClue(clue);
-                this.cluesListEl.appendChild(clueEl);
-            });
-        } else {
-            hide(this.cluesSection);
-        }
+        // Clues
+        this.renderClues(data.clues);
 
         // Warnings
-        this.clear(this.warningsEl);
-
-        if (forageData.warnings && forageData.warnings.length > 0) {
-            forageData.warnings.forEach(warning => {
-                const warnEl = this.createWarning(warning);
-                this.warningsEl.appendChild(warnEl);
-            });
-        }
+        this.renderWarnings(data.warnings);
 
         // Focus options
-        this.clear(this.focusOptionsEl);
-        forageData.focusOptions.forEach(focus => {
-            const btn = this.createFocusButton(focus);
-            this.focusOptionsEl.appendChild(btn);
+        const focusEl = this.$('#forageFocusOptions');
+        const timeEl = this.$('#forageTimeOptions');
+        const confirmBtn = this.$('#forageConfirmBtn');
+        const confirmDesc = this.$('#forageConfirmDesc');
+
+        // Clean up old form
+        this.form?.destroy();
+
+        // Create new form
+        this.form = new MultiStepForm({
+            confirmBtn,
+            confirmDesc
         });
 
-        // Time options
-        this.clear(this.timeOptionsEl);
-        forageData.timeOptions.forEach(time => {
-            const btn = this.createTimeButton(time);
-            this.timeOptionsEl.appendChild(btn);
-        });
+        // Add focus options
+        this.form.addField(
+            'focus',
+            focusEl,
+            data.focusOptions.map(f => ({
+                id: f.id,
+                label: f.label,
+                description: f.description
+            })),
+            (focusId) => this.highlightClues(focusId)
+        );
 
-        // Create form with two radio group fields
-        this.form = this.createForm({
-            confirmBtn: this.confirmBtn,
-            confirmDesc: this.confirmDesc
-        });
-
-        this.form.addRadioGroup('focusId', this.focusOptionsEl, 'focusId', (value) => {
-            this.highlightClues(value);
-        });
-
-        this.form.addRadioGroup('timeId', this.timeOptionsEl, 'timeId');
+        // Add time options
+        this.form.addField(
+            'time',
+            timeEl,
+            data.timeOptions.map(t => ({
+                id: t.id,
+                label: t.label
+            }))
+        );
 
         // Action buttons
-        this.confirmBtn.onclick = () => {
+        confirmBtn.onclick = () => {
             if (this.form.isComplete()) {
                 this.respond(this.form.getChoiceId());
             }
         };
 
-        this.cancelBtn.onclick = () => this.respond('cancel');
-        this.keepWalkingBtn.onclick = () => this.respond('keep_walking');
+        const cancelBtn = this.$('#forageCancelBtn');
+        if (cancelBtn) cancelBtn.onclick = () => this.respond('cancel');
+
+        const keepWalkingBtn = this.$('#forageKeepWalkingBtn');
+        if (keepWalkingBtn) keepWalkingBtn.onclick = () => this.respond('keep_walking');
     }
 
-    createClue(clue) {
-        const clueEl = document.createElement('div');
-        clueEl.className = 'forage-clue';
+    renderClues(clues) {
+        const section = this.$('#forageClues');
+        const list = this.$('#forageCluesList');
 
-        if (clue.suggestedFocusId) {
-            clueEl.classList.add('clickable');
-            clueEl.dataset.focusId = clue.suggestedFocusId;
-            clueEl.onclick = () => this.focusGroup.select(clue.suggestedFocusId);
+        if (!clues || clues.length === 0) {
+            hide(section);
+            return;
         }
 
-        const bulletEl = document.createElement('span');
-        bulletEl.className = 'clue-bullet';
-        bulletEl.textContent = '•';
-        clueEl.appendChild(bulletEl);
+        show(section);
+        clear(list);
 
-        const descEl = document.createElement('span');
-        descEl.className = 'clue-desc';
-        descEl.textContent = clue.description;
-        clueEl.appendChild(descEl);
-
-        return clueEl;
-    }
-
-    createWarning(warning) {
-        const iconName = warning.includes('dark') ? 'dark_mode' :
-                        warning.includes('axe') ? 'carpenter' :
-                        warning.includes('shovel') ? 'agriculture' : 'info';
-        return this.createIconText(iconName, warning, 'forage-warning');
-    }
-
-    createFocusButton(focus) {
-        return this.createOptionButton({
-            datasetKey: 'focusId',
-            datasetValue: focus.id,
-            label: focus.label,
-            description: focus.description
+        clues.forEach(clue => {
+            const clueEl = div(
+                {
+                    className: `forage-clue ${clue.suggestedFocusId ? 'clickable' : ''}`.trim(),
+                    'data-focus-id': clue.suggestedFocusId || '',
+                    onClick: clue.suggestedFocusId
+                        ? () => this.form?.groups.focus?.select(clue.suggestedFocusId)
+                        : null
+                },
+                span({ className: 'clue-bullet' }, '•'),
+                span({ className: 'clue-desc' }, clue.description)
+            );
+            list.appendChild(clueEl);
         });
     }
 
-    createTimeButton(time) {
-        return this.createOptionButton({
-            datasetKey: 'timeId',
-            datasetValue: time.id,
-            label: time.label
+    renderWarnings(warnings) {
+        const el = this.$('#forageWarnings');
+        clear(el);
+
+        if (!warnings || warnings.length === 0) return;
+
+        warnings.forEach(warning => {
+            const iconName = warning.includes('dark') ? 'dark_mode' :
+                            warning.includes('axe') ? 'carpenter' :
+                            warning.includes('shovel') ? 'agriculture' : 'info';
+            el.appendChild(
+                div({ className: 'forage-warning' },
+                    Icon(iconName),
+                    span({}, warning)
+                )
+            );
         });
     }
 
     highlightClues(focusId) {
-        document.querySelectorAll('.forage-clue').forEach(clue => {
+        this.container.querySelectorAll('.forage-clue').forEach(clue => {
             clue.classList.toggle('highlighted', clue.dataset.focusId === focusId);
         });
     }
 
-    cleanup() {
-        this.form?.cleanup();
-        this.clear(this.cluesListEl);
-        this.clear(this.warningsEl);
-        this.clear(this.focusOptionsEl);
-        this.clear(this.timeOptionsEl);
+    hide() {
+        super.hide();
+        this.form?.destroy();
+        this.form = null;
     }
 }

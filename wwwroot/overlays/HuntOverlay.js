@@ -1,93 +1,98 @@
-import { OverlayManager } from '../core/OverlayManager.js';
+// overlays/HuntOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { div, span, clear, show, hide } from '../lib/helpers.js';
+import { ActionButton, ContinueButton } from '../lib/components/ActionButton.js';
+import { OutcomeItem } from '../lib/components/StatRow.js';
 import { Animator } from '../core/Animator.js';
-import { Utils, show, hide } from '../modules/utils.js';
 
 /**
  * HuntOverlay - Hunting interface with distance tracking and state display
  */
-export class HuntOverlay extends OverlayManager {
+export class HuntOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('huntOverlay', inputHandler);
-
-        this.animalNameEl = document.getElementById('huntAnimalName');
-        this.animalDescEl = document.getElementById('huntAnimalDesc');
-        this.distanceMask = document.getElementById('huntDistanceMask');
-        this.distanceValue = document.getElementById('huntDistanceValue');
-        this.activityEl = document.getElementById('huntActivity');
-        this.timeEl = document.getElementById('huntTime');
-        this.stateEl = document.getElementById('huntState');
-        this.messageEl = document.getElementById('huntMessage');
-        this.choicesEl = document.getElementById('huntChoices');
-        this.outcomeEl = document.getElementById('huntOutcome');
-        this.outcomeMessageEl = document.getElementById('huntOutcomeMessage');
-        this.outcomeSummaryEl = document.getElementById('huntOutcomeSummary');
-        this.outcomeActionsEl = document.getElementById('huntOutcomeActions');
-        this.outcomeContinueBtn = document.getElementById('huntOutcomeContinueBtn');
-
-        // Set up button
-        this.outcomeContinueBtn.onclick = () => this.respond('continue');
-
         this.lastHuntTime = 0;
     }
 
-    render(huntData, inputId) {
-        this.show(inputId);
+    render(data, inputId) {
+        if (!data) {
+            this.hide();
+            return;
+        }
+
+        this.show();
 
         // Animal info
-        this.animalNameEl.textContent = huntData.animalName;
-        this.animalDescEl.textContent = huntData.animalDescription || '';
+        const nameEl = this.$('#huntAnimalName');
+        const descEl = this.$('#huntAnimalDesc');
+        if (nameEl) nameEl.textContent = data.animalName;
+        if (descEl) descEl.textContent = data.animalDescription || '';
 
         // Distance bar with animation
-        this.updateDistanceBar(huntData);
+        this.updateDistanceBar(data);
 
-        // Status
-        this.activityEl.textContent = huntData.animalActivity || '';
+        // Activity status
+        const activityEl = this.$('#huntActivity');
+        if (activityEl) activityEl.textContent = data.animalActivity || '';
 
         // Time with animation
-        const newTime = huntData.minutesSpent;
-        if (huntData.isAnimatingDistance && this.lastHuntTime < newTime) {
-            Animator.time(this.timeEl, this.lastHuntTime, newTime);
-        } else {
-            this.timeEl.textContent = newTime + ' min';
+        const timeEl = this.$('#huntTime');
+        if (timeEl) {
+            const newTime = data.minutesSpent;
+            if (data.isAnimatingDistance && this.lastHuntTime < newTime) {
+                Animator.time(timeEl, this.lastHuntTime, newTime);
+            } else {
+                timeEl.textContent = newTime + ' min';
+            }
+            this.lastHuntTime = newTime;
         }
-        this.lastHuntTime = newTime;
 
-        this.updateStateDisplay(huntData.animalState);
+        // Animal state
+        this.updateStateDisplay(data.animalState);
 
         // Message
-        if (huntData.statusMessage) {
-            this.messageEl.textContent = huntData.statusMessage;
-            show(this.messageEl);
-        } else {
-            hide(this.messageEl);
+        const messageEl = this.$('#huntMessage');
+        if (messageEl) {
+            if (data.statusMessage) {
+                messageEl.textContent = data.statusMessage;
+                show(messageEl);
+            } else {
+                hide(messageEl);
+            }
         }
 
         // Check if outcome phase
-        if (huntData.outcome) {
-            this.showOutcome(huntData);
+        if (data.outcome) {
+            this.renderOutcome(data);
         } else {
-            this.showChoices(huntData);
+            this.renderChoices(data);
         }
     }
 
-    updateDistanceBar(huntData) {
+    updateDistanceBar(data) {
+        const distanceMask = this.$('#huntDistanceMask');
+        const distanceValue = this.$('#huntDistanceValue');
+        if (!distanceMask || !distanceValue) return;
+
         const maxDistance = 100;
 
-        if (huntData.isAnimatingDistance && huntData.previousDistanceMeters != null) {
-            Animator.distanceMask(this.distanceMask, huntData.previousDistanceMeters, huntData.currentDistanceMeters, maxDistance);
-            Animator.distance(this.distanceValue, huntData.previousDistanceMeters, huntData.currentDistanceMeters);
+        if (data.isAnimatingDistance && data.previousDistanceMeters != null) {
+            Animator.distanceMask(distanceMask, data.previousDistanceMeters, data.currentDistanceMeters, maxDistance);
+            Animator.distance(distanceValue, data.previousDistanceMeters, data.currentDistanceMeters);
         } else {
-            const targetPct = Math.max(0, Math.min(100, huntData.currentDistanceMeters / maxDistance * 100));
-            this.distanceMask.style.transition = 'none';
-            this.distanceMask.style.width = targetPct + '%';
-            this.distanceValue.textContent = `${Math.round(huntData.currentDistanceMeters)}m`;
+            const targetPct = Math.max(0, Math.min(100, data.currentDistanceMeters / maxDistance * 100));
+            distanceMask.style.transition = 'none';
+            distanceMask.style.width = targetPct + '%';
+            distanceValue.textContent = `${Math.round(data.currentDistanceMeters)}m`;
         }
     }
 
     updateStateDisplay(state) {
-        if (!this.stateEl) return;
+        const stateEl = this.$('#huntState');
+        if (!stateEl) return;
 
-        this.stateEl.className = 'hunt-state ' + (state || 'idle').toLowerCase();
+        const normalizedState = (state || 'idle').toLowerCase();
+        stateEl.className = 'hunt-state ' + normalizedState;
 
         const stateText = {
             'idle': 'unaware',
@@ -95,58 +100,82 @@ export class HuntOverlay extends OverlayManager {
             'detected': 'spotted you!'
         };
 
-        this.stateEl.textContent = stateText[(state || 'idle').toLowerCase()] || state;
+        stateEl.textContent = stateText[normalizedState] || state;
     }
 
-    showChoices(huntData) {
-        hide(this.outcomeEl);
-        hide(this.outcomeActionsEl);
-        show(this.choicesEl);
+    renderChoices(data) {
+        const choicesEl = this.$('#huntChoices');
+        const outcomeEl = this.$('#huntOutcome');
+        const outcomeActionsEl = this.$('#huntOutcomeActions');
 
-        this.setChoices(huntData.choices, '#huntChoices');
+        hide(outcomeEl);
+        hide(outcomeActionsEl);
+        show(choicesEl);
+
+        if (choicesEl) {
+            clear(choicesEl);
+            data.choices?.forEach(choice => {
+                choicesEl.appendChild(
+                    ActionButton(choice, () => this.respond(choice.id))
+                );
+            });
+        }
     }
 
-    showOutcome(huntData) {
-        hide(this.choicesEl);
-        show(this.outcomeEl);
-        show(this.outcomeActionsEl);
+    renderOutcome(data) {
+        const choicesEl = this.$('#huntChoices');
+        const outcomeEl = this.$('#huntOutcome');
+        const outcomeActionsEl = this.$('#huntOutcomeActions');
+        const outcomeMessageEl = this.$('#huntOutcomeMessage');
+        const outcomeSummaryEl = this.$('#huntOutcomeSummary');
 
-        const outcome = huntData.outcome;
-        this.outcomeMessageEl.textContent = outcome.message;
+        hide(choicesEl);
+        show(outcomeEl);
+        show(outcomeActionsEl);
 
-        this.clear(this.outcomeSummaryEl);
+        const outcome = data.outcome;
 
-        // Time spent
-        if (outcome.totalMinutesSpent > 0) {
-            this.addOutcomeItem('schedule', `${outcome.totalMinutesSpent} minutes`, 'time');
+        if (outcomeMessageEl) {
+            outcomeMessageEl.textContent = outcome.message;
         }
 
-        // Items gained
-        if (outcome.itemsGained && outcome.itemsGained.length > 0) {
-            outcome.itemsGained.forEach(item => {
-                this.addOutcomeItem('add', item, 'gain');
+        if (outcomeSummaryEl) {
+            clear(outcomeSummaryEl);
+
+            // Time spent
+            if (outcome.totalMinutesSpent > 0) {
+                outcomeSummaryEl.appendChild(
+                    OutcomeItem('schedule', `${outcome.totalMinutesSpent} minutes`, 'time')
+                );
+            }
+
+            // Items gained
+            outcome.itemsGained?.forEach(item => {
+                outcomeSummaryEl.appendChild(
+                    OutcomeItem('add', item, 'gain')
+                );
+            });
+
+            // Effects
+            outcome.effectsApplied?.forEach(effect => {
+                outcomeSummaryEl.appendChild(
+                    OutcomeItem('warning', effect, 'effect')
+                );
             });
         }
 
-        // Effects
-        if (outcome.effectsApplied && outcome.effectsApplied.length > 0) {
-            outcome.effectsApplied.forEach(effect => {
-                this.addOutcomeItem('warning', effect, 'effect');
-            });
+        // Update continue button
+        if (outcomeActionsEl) {
+            clear(outcomeActionsEl);
+            const buttonLabel = outcome.transitionToCombat ? 'Face It!' : 'Continue';
+            outcomeActionsEl.appendChild(
+                ContinueButton(() => this.respond('continue'), buttonLabel)
+            );
         }
-
-        // Update button text
-        this.outcomeContinueBtn.textContent = outcome.transitionToCombat ? 'Face It!' : 'Continue';
     }
 
-    addOutcomeItem(icon, text, styleClass) {
-        const item = this.createIconText(icon, text, 'outcome-item ' + styleClass);
-        this.outcomeSummaryEl.appendChild(item);
-    }
-
-    cleanup() {
+    hide() {
+        super.hide();
         this.lastHuntTime = 0;
-        this.clear(this.choicesEl);
-        this.clear(this.outcomeSummaryEl);
     }
 }

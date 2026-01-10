@@ -1,361 +1,293 @@
-import { OverlayManager } from '../core/OverlayManager.js';
-import { Animator } from '../core/Animator.js';
-import { DOMBuilder, paneHeader } from '../core/DOMBuilder.js';
-import { Utils, ICON_CLASS, show, hide } from '../modules/utils.js';
+// overlays/FireOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { div, span, clear, show, hide } from '../lib/helpers.js';
+import { Icon, ICON_CLASS } from '../lib/components/Icon.js';
+import { FuelGauge } from '../lib/components/Gauge.js';
 import { ItemList } from '../components/ItemList.js';
 import { FireRowBuilders } from '../components/rowBuilders.js';
+import { Animator } from '../core/Animator.js';
 
 /**
  * FireOverlay - Complex dual-mode fire management interface
  * Modes: starting (select tool/tinder) and tending (add fuel)
  */
-export class FireOverlay extends OverlayManager {
+export class FireOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('fireOverlay', inputHandler);
-
-        this.titleEl = document.getElementById('fireTitle');
-        this.leftPane = document.getElementById('fireLeftPane');
-        this.statusPane = document.getElementById('fireStatusPane');
-        this.progressEl = document.getElementById('fireProgress');
-        this.progressBar = document.getElementById('fireProgressBar');
-        this.progressText = document.getElementById('fireProgressText');
-        this.progressResult = document.getElementById('fireProgressResult');
-        this.startBtn = document.getElementById('fireStartBtn');
-        this.doneBtn = document.getElementById('fireDoneBtn');
-
         this.pendingFireStart = false;
     }
 
-    render(fireData, inputId, input) {
-        this.show(inputId);
+    render(data, inputId) {
+        if (!data) {
+            this.hide();
+            return;
+        }
 
-        // Check if we're receiving result from a fire start attempt
+        this.show();
+
+        const progressEl = this.$('#fireProgress');
+        const progressBar = this.$('#fireProgressBar');
+        const progressResult = this.$('#fireProgressResult');
+        const startBtn = this.$('#fireStartBtn');
+        const doneBtn = this.$('#fireDoneBtn');
+
+        // Handle fire start result
         if (this.pendingFireStart) {
             this.pendingFireStart = false;
-            // Show result based on whether fire is now active
-            if (fireData.fire.isActive) {
-                this.progressResult.textContent = 'Fire started!';
-                this.progressResult.className = 'fire-progress-result success';
+            if (data.fire.isActive) {
+                progressResult.textContent = 'Fire started!';
+                progressResult.className = 'fire-progress-result success';
             } else {
-                this.progressResult.textContent = 'Failed to catch...';
-                this.progressResult.className = 'fire-progress-result failure';
+                progressResult.textContent = 'Failed to catch...';
+                progressResult.className = 'fire-progress-result failure';
             }
-            show(this.progressResult);
-            // Hide result after delay and reset progress bar
+            show(progressResult);
             setTimeout(() => {
-                hide(this.progressEl);
-                hide(this.progressResult);
-                this.progressBar.style.width = '0%';
+                hide(progressEl);
+                hide(progressResult);
+                progressBar.style.width = '0%';
             }, 1500);
         } else {
-            // Show progress bar (empty) in starting mode to prevent layout jump, hide in tending mode
-            if (fireData.mode === 'starting') {
-                show(this.progressEl);
-                this.progressBar.style.width = '0%';
-                this.progressText.textContent = '';
-                hide(this.progressResult);
+            if (data.mode === 'starting') {
+                show(progressEl);
+                progressBar.style.width = '0%';
+                this.$('#fireProgressText').textContent = '';
+                hide(progressResult);
             } else {
-                hide(this.progressEl);
+                hide(progressEl);
             }
         }
 
-        // Set title based on mode
-        this.titleEl.textContent = fireData.mode === 'starting' ? 'START FIRE' : 'TEND FIRE';
-
-        // Render left pane based on mode
-        if (fireData.mode === 'starting') {
-            this.renderStartingMode(fireData.tools, fireData.tinders, fireData.fire);
-            show(this.startBtn);
-            const hasTinder = fireData.tinders && fireData.tinders.length > 0;
-            this.startBtn.disabled = !fireData.fire.hasKindling || !fireData.tools ||
-                                     fireData.tools.length === 0 || !hasTinder;
-            this.startBtn.onclick = () => this.startFireWithProgress();
-        } else {
-            this.renderTendingMode(fireData.fuels, fireData.emberCarriers, fireData.fire);
-            hide(this.startBtn);
+        // Title
+        const titleEl = this.$('#fireTitle');
+        if (titleEl) {
+            titleEl.textContent = data.mode === 'starting' ? 'START FIRE' : 'TEND FIRE';
         }
 
-        // Render right pane (fire status)
-        this.renderStatus(fireData.fire, fireData.mode);
+        // Left pane content based on mode
+        if (data.mode === 'starting') {
+            this.renderStartingMode(data, progressEl, progressBar, startBtn, doneBtn);
+        } else {
+            this.renderTendingMode(data);
+            hide(startBtn);
+        }
+
+        // Right pane (status)
+        this.renderStatus(data.fire, data.mode);
 
         // Done button
-        this.doneBtn.onclick = () => this.respond('done');
+        doneBtn.onclick = () => this.respond('done');
     }
 
-    startFireWithProgress() {
-        this.pendingFireStart = true;
+    renderStartingMode(data, progressEl, progressBar, startBtn, doneBtn) {
+        const leftPane = this.$('#fireLeftPane');
+        clear(leftPane);
 
-        // Show progress bar
-        show(this.progressEl);
-        hide(this.progressResult);
-        this.progressText.textContent = 'Starting fire...';
+        // Header
+        leftPane.appendChild(this.buildPaneHeader('Materials', 'construction'));
 
-        // Disable buttons during animation
-        this.startBtn.disabled = true;
-        this.doneBtn.disabled = true;
-
-        // Animate progress bar (~1.5 seconds)
-        Animator.progressBar(this.progressBar, 1500, () => {
-            // Animation complete - send response to backend
-            this.respond('start_fire');
-        });
-    }
-
-    renderStartingMode(tools, tinders, fire) {
-        this.clear(this.leftPane);
-
-        // Header using paneHeader helper
-        const header = paneHeader({
-            title: 'Materials',
-            icon: 'construction'
-        });
-        this.leftPane.appendChild(header.build());
-
-        const items = document.createElement('div');
-        items.className = 'fire-items';
-
-        // Use ItemList for tools and tinders
-        const itemList = new ItemList({
-            container: items,
-            onItemClick: (item) => {
-                // Determine if it's a tool or tinder based on which property exists
-                if (item.successPercent !== undefined) {
-                    this.sendToolSelect(item.id);
-                } else if (item.bonusPercent !== undefined) {
-                    this.sendTinderSelect(item.id);
-                }
-            },
-            rowBuilder: null  // Will be set per section
-        });
+        const items = div({ className: 'fire-items' });
 
         // Tools section
-        itemList.rowBuilder = FireRowBuilders.tool;
-        itemList.render([{
-            header: tools && tools.length > 0 ? { text: 'Tools', icon: 'handyman' } : null,
-            items: tools || [],
-            emptyMessage: tools && tools.length === 0 ? 'No fire-making tools' : null
+        const toolList = new ItemList({
+            container: items,
+            onItemClick: (item) => this.sendAction('fire', { fireToolId: item.id }),
+            rowBuilder: FireRowBuilders.tool
+        });
+
+        toolList.render([{
+            header: data.tools?.length > 0 ? { text: 'Tools', icon: 'handyman' } : null,
+            items: data.tools || [],
+            emptyMessage: data.tools?.length === 0 ? 'No fire-making tools' : null
         }]);
 
         // Tinders section
-        itemList.rowBuilder = FireRowBuilders.tinder;
-        itemList.render([{
-            header: tinders && tinders.length > 0 ? { text: 'Tinder', icon: 'grass' } : null,
-            items: tinders || []
+        const tinderList = new ItemList({
+            container: items,
+            onItemClick: (item) => this.sendAction('fire', { tinderId: item.id }),
+            rowBuilder: FireRowBuilders.tinder
+        });
+
+        tinderList.render([{
+            header: data.tinders?.length > 0 ? { text: 'Tinder', icon: 'grass' } : null,
+            items: data.tinders || []
         }]);
 
-        // Kindling check (unique to fire overlay, not using ItemList)
-        const kindlingHeader = document.createElement('div');
-        kindlingHeader.className = 'section-header';
-        const kindlingIcon = document.createElement('span');
-        kindlingIcon.className = ICON_CLASS;
-        kindlingIcon.textContent = 'park';
-        kindlingHeader.appendChild(kindlingIcon);
-        kindlingHeader.appendChild(document.createTextNode('Kindling'));
-        items.appendChild(kindlingHeader);
+        // Kindling section
+        items.appendChild(this.buildSectionHeader('Kindling', 'park'));
+        items.appendChild(this.buildKindlingStatus(data.fire.hasKindling));
 
-        const kindling = document.createElement('div');
-        kindling.className = fire.hasKindling ? 'fire-kindling-status--has' : 'fire-kindling-status--missing';
-        const kindlingStatusIcon = document.createElement('span');
-        kindlingStatusIcon.className = ICON_CLASS;
-        kindlingStatusIcon.textContent = fire.hasKindling ? 'check_circle' : 'cancel';
-        kindling.appendChild(kindlingStatusIcon);
-        kindling.appendChild(document.createTextNode(fire.hasKindling ? 'Sticks (required)' : 'No sticks (required)'));
-        items.appendChild(kindling);
+        leftPane.appendChild(items);
 
-        this.leftPane.appendChild(items);
+        // Start button
+        show(startBtn);
+        const hasTinder = data.tinders?.length > 0;
+        startBtn.disabled = !data.fire.hasKindling || !data.tools?.length || !hasTinder;
+        startBtn.onclick = () => this.startFireWithProgress(progressEl, progressBar, startBtn, doneBtn);
     }
 
-    renderTendingMode(fuels, emberCarriers, fire) {
-        this.clear(this.leftPane);
+    renderTendingMode(data) {
+        const leftPane = this.$('#fireLeftPane');
+        clear(leftPane);
 
-        // Header using paneHeader helper
-        const header = paneHeader({
-            title: 'Fuel',
-            icon: 'local_fire_department'
-        });
-        this.leftPane.appendChild(header.build());
+        // Header
+        leftPane.appendChild(this.buildPaneHeader('Fuel', 'local_fire_department'));
 
-        const items = document.createElement('div');
-        items.className = 'fire-items';
+        const items = div({ className: 'fire-items' });
 
-        // Use ItemList for fuels
+        // Fuels section
         const fuelList = new ItemList({
             container: items,
-            onItemClick: (fuel) => this.sendAddFuel(fuel.id, 1),
+            onItemClick: (fuel) => this.sendAction('fire', { fuelItemId: fuel.id, fuelCount: 1 }),
             rowBuilder: FireRowBuilders.fuel
         });
 
         fuelList.render([{
-            items: fuels || [],
-            emptyMessage: !fuels || fuels.length === 0 ? 'No fuel in inventory' : null
+            items: data.fuels || [],
+            emptyMessage: !data.fuels?.length ? 'No fuel in inventory' : null
         }]);
 
-        // Add ember carriers section if any exist
-        if (emberCarriers && emberCarriers.length > 0) {
-            const carrierHeader = paneHeader({
-                title: 'Ember Carriers',
-                icon: 'fireplace'
-            });
-            items.appendChild(carrierHeader.build());
+        // Ember carriers section
+        if (data.emberCarriers?.length > 0) {
+            items.appendChild(this.buildPaneHeader('Ember Carriers', 'fireplace'));
 
             const carrierList = new ItemList({
                 container: items,
                 onItemClick: (carrier) => {
                     if (!carrier.isLit) {
-                        this.sendLightEmberCarrier(carrier.id);
+                        this.sendAction('fire', { emberCarrierId: carrier.id });
                     }
                 },
                 rowBuilder: FireRowBuilders.emberCarrier
             });
 
-            carrierList.render([{
-                items: emberCarriers,
-                emptyMessage: null
-            }]);
+            carrierList.render([{ items: data.emberCarriers }]);
         }
 
-        this.leftPane.appendChild(items);
+        leftPane.appendChild(items);
     }
 
     renderStatus(fire, mode) {
-        this.clear(this.statusPane);
+        const statusPane = this.$('#fireStatusPane');
+        clear(statusPane);
 
         // Phase display
-        const phaseDisplay = document.createElement('div');
-        phaseDisplay.className = 'fire-phase-display';
+        const phaseClass = fire.phase.toLowerCase().replace(' ', '');
+        statusPane.appendChild(
+            div({ className: 'fire-phase-display' },
+                div({ className: `fire-phase-icon ${ICON_CLASS} ${phaseClass}` }, fire.phaseIcon || 'local_fire_department'),
+                div({ className: `fire-phase-name ${phaseClass}` }, fire.phase)
+            )
+        );
 
-        const phaseIconClass = fire.phase.toLowerCase().replace(' ', '');
-        const phaseIcon = document.createElement('div');
-        phaseIcon.className = `fire-phase-icon ${ICON_CLASS} ${phaseIconClass}`;
-        phaseIcon.textContent = fire.phaseIcon || 'local_fire_department';
-        phaseDisplay.appendChild(phaseIcon);
-
-        const phaseName = document.createElement('div');
-        phaseName.className = 'fire-phase-name ' + phaseIconClass;
-        phaseName.textContent = fire.phase;
-        phaseDisplay.appendChild(phaseName);
-
-        this.statusPane.appendChild(phaseDisplay);
-
-        // Fire stats
         if (mode === 'tending') {
             // Temperature
-            this.addStatRow('thermostat', 'Temperature', `${Math.round(fire.temperatureF)}°F`, this.getTempClass(fire.temperatureF));
+            this.addStatRow(statusPane, 'thermostat', 'Temperature', `${Math.round(fire.temperatureF)}°F`, this.getTempClass(fire.temperatureF));
 
             // Heat output
-            this.addStatRow('wb_sunny', 'Heat Output', `+${Math.round(fire.heatOutputF)}°F`);
+            this.addStatRow(statusPane, 'wb_sunny', 'Heat Output', `+${Math.round(fire.heatOutputF)}°F`);
 
             // Fuel gauge
-            this.renderFuelGauge(fire);
+            statusPane.appendChild(FuelGauge({
+                totalKg: fire.totalKg,
+                burningKg: fire.burningKg,
+                maxCapacityKg: fire.maxCapacityKg
+            }));
 
             // Time remaining
             const timeClass = fire.minutesRemaining < 30 ? 'danger' : fire.minutesRemaining < 60 ? 'warning' : '';
-            this.addStatRow('timer', 'Time Remaining', this.formatTime(fire.minutesRemaining), timeClass);
+            this.addStatRow(statusPane, 'timer', 'Time Remaining', this.formatTime(fire.minutesRemaining), timeClass);
 
             // Burn rate
-            this.addStatRow('speed', 'Burn Rate', `${fire.burnRateKgPerHour.toFixed(1)} kg/hr`);
+            this.addStatRow(statusPane, 'speed', 'Burn Rate', `${fire.burnRateKgPerHour.toFixed(1)} kg/hr`);
 
             // Pit info
-            this.addStatRow('circle', 'Pit Type', fire.pitType);
+            this.addStatRow(statusPane, 'circle', 'Pit Type', fire.pitType);
 
             // Charcoal
             if (fire.charcoalKg > 0) {
-                this.addStatRow('whatshot', 'Charcoal', `${fire.charcoalKg.toFixed(2)} kg`);
+                this.addStatRow(statusPane, 'whatshot', 'Charcoal', `${fire.charcoalKg.toFixed(2)} kg`);
             }
         } else {
-            // Starting mode - show pit info and success chance
-            this.addStatRow('circle', 'Pit Type', fire.pitType);
-            this.addStatRow('air', 'Wind Protection', `${Math.round(fire.windProtection * 100)}%`);
-            this.addStatRow('eco', 'Fuel Efficiency', `+${Math.round((fire.fuelEfficiency - 1) * 100)}%`);
+            // Starting mode
+            this.addStatRow(statusPane, 'circle', 'Pit Type', fire.pitType);
+            this.addStatRow(statusPane, 'air', 'Wind Protection', `${Math.round(fire.windProtection * 100)}%`);
+            this.addStatRow(statusPane, 'eco', 'Fuel Efficiency', `+${Math.round((fire.fuelEfficiency - 1) * 100)}%`);
 
-            // Success chance section
-            const successSection = document.createElement('div');
-            successSection.className = 'fire-success-section';
-
-            const successLabel = document.createElement('div');
-            successLabel.className = 'fire-success-label';
-            successLabel.textContent = 'Success Chance';
-            successSection.appendChild(successLabel);
-
-            const successValue = document.createElement('div');
-            successValue.className = 'fire-success-value';
-            successValue.textContent = fire.finalSuccessPercent + '%';
-            successSection.appendChild(successValue);
-
-            // Show modifiers breakdown if any exist
-            if (fire.modifiers && fire.modifiers.length > 0) {
-                const modifiersSection = document.createElement('div');
-                modifiersSection.className = 'fire-modifiers';
-
-                for (const mod of fire.modifiers) {
-                    const modRow = document.createElement('div');
-                    modRow.className = 'fire-modifier-row ' + (mod.percentDelta >= 0 ? 'bonus' : 'penalty');
-
-                    const modIcon = document.createElement('span');
-                    modIcon.className = ICON_CLASS;
-                    modIcon.textContent = mod.icon;
-                    modRow.appendChild(modIcon);
-
-                    const modName = document.createElement('span');
-                    modName.className = 'fire-modifier-name';
-                    modName.textContent = mod.name;
-                    modRow.appendChild(modName);
-
-                    const modValue = document.createElement('span');
-                    modValue.className = 'fire-modifier-value';
-                    modValue.textContent = (mod.percentDelta >= 0 ? '+' : '') + mod.percentDelta + '%';
-                    modRow.appendChild(modValue);
-
-                    modifiersSection.appendChild(modRow);
-                }
-
-                successSection.appendChild(modifiersSection);
-            }
-
-            this.statusPane.appendChild(successSection);
+            // Success chance
+            statusPane.appendChild(this.buildSuccessSection(fire));
         }
     }
 
-    renderFuelGauge(fire) {
-        const gauge = document.createElement('div');
-        gauge.className = 'fire-fuel-gauge';
-
-        const gaugeLabel = document.createElement('div');
-        gaugeLabel.className = 'fire-gauge-label';
-        const gaugeLabelLeft = document.createElement('span');
-        gaugeLabelLeft.textContent = 'Fuel';
-        const gaugeLabelRight = document.createElement('span');
-        gaugeLabelRight.textContent = `${fire.totalKg.toFixed(1)} / ${fire.maxCapacityKg.toFixed(0)} kg`;
-        gaugeLabel.appendChild(gaugeLabelLeft);
-        gaugeLabel.appendChild(gaugeLabelRight);
-        gauge.appendChild(gaugeLabel);
-
-        const gaugeBar = document.createElement('div');
-        gaugeBar.className = 'fire-gauge-bar';
-
-        const fillPct = (fire.totalKg / fire.maxCapacityKg) * 100;
-        const burningPct = (fire.burningKg / fire.maxCapacityKg) * 100;
-
-        const unburnedFill = document.createElement('div');
-        unburnedFill.className = 'fire-gauge-fill unburned';
-        unburnedFill.style.width = fillPct + '%';
-        gaugeBar.appendChild(unburnedFill);
-
-        const burningFill = document.createElement('div');
-        burningFill.className = 'fire-gauge-fill burning';
-        burningFill.style.width = burningPct + '%';
-        gaugeBar.appendChild(burningFill);
-
-        gauge.appendChild(gaugeBar);
-        this.statusPane.appendChild(gauge);
+    buildPaneHeader(title, iconName) {
+        return div({ className: 'pane-header' },
+            Icon(iconName, 'pane-header__icon'),
+            span({ className: 'pane-header__title' }, title)
+        );
     }
 
-    addStatRow(icon, label, value, valueClass = '') {
-        const row = this.createStatRow(label, value, {
-            icon: icon,
-            valueClass: valueClass
+    buildSectionHeader(text, iconName) {
+        return div({ className: 'section-header' },
+            Icon(iconName),
+            text
+        );
+    }
+
+    buildKindlingStatus(hasKindling) {
+        return div({ className: hasKindling ? 'fire-kindling-status--has' : 'fire-kindling-status--missing' },
+            Icon(hasKindling ? 'check_circle' : 'cancel'),
+            hasKindling ? 'Sticks (required)' : 'No sticks (required)'
+        );
+    }
+
+    buildSuccessSection(fire) {
+        const section = div({ className: 'fire-success-section' },
+            div({ className: 'fire-success-label' }, 'Success Chance'),
+            div({ className: 'fire-success-value' }, `${fire.finalSuccessPercent}%`)
+        );
+
+        if (fire.modifiers?.length > 0) {
+            const modifiersEl = div({ className: 'fire-modifiers' });
+            fire.modifiers.forEach(mod => {
+                modifiersEl.appendChild(
+                    div({ className: `fire-modifier-row ${mod.percentDelta >= 0 ? 'bonus' : 'penalty'}` },
+                        Icon(mod.icon),
+                        span({ className: 'fire-modifier-name' }, mod.name),
+                        span({ className: 'fire-modifier-value' }, `${mod.percentDelta >= 0 ? '+' : ''}${mod.percentDelta}%`)
+                    )
+                );
+            });
+            section.appendChild(modifiersEl);
+        }
+
+        return section;
+    }
+
+    addStatRow(container, iconName, label, value, valueClass = '') {
+        container.appendChild(
+            div({ className: 'fire-stat-row' },
+                span({ className: 'fire-stat-label' },
+                    Icon(iconName),
+                    label
+                ),
+                span({ className: `fire-stat-value ${valueClass}`.trim() }, value)
+            )
+        );
+    }
+
+    startFireWithProgress(progressEl, progressBar, startBtn, doneBtn) {
+        this.pendingFireStart = true;
+
+        show(progressEl);
+        hide(this.$('#fireProgressResult'));
+        this.$('#fireProgressText').textContent = 'Starting fire...';
+
+        startBtn.disabled = true;
+        doneBtn.disabled = true;
+
+        Animator.progressBar(progressBar, 1500, () => {
+            this.respond('start_fire');
         });
-        this.statusPane.appendChild(row);
     }
 
     getTempClass(temp) {
@@ -371,28 +303,11 @@ export class FireOverlay extends OverlayManager {
         return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
     }
 
-    sendToolSelect(toolId) {
-        this.sendAction('fire', { fireToolId: toolId });
-    }
-
-    sendTinderSelect(tinderId) {
-        this.sendAction('fire', { tinderId: tinderId });
-    }
-
-    sendAddFuel(fuelId, count) {
-        this.sendAction('fire', { fuelItemId: fuelId, fuelCount: count });
-    }
-
-    sendLightEmberCarrier(carrierId) {
-        this.sendAction('fire', { emberCarrierId: carrierId });
-    }
-
-    cleanup() {
-        // Don't reset pendingFireStart here - it needs to survive hide/show cycle
-        // Flag is reset in render() after showing the result (line 34)
-        this.clear(this.leftPane);
-        this.clear(this.statusPane);
-        hide(this.progressEl);
-        hide(this.progressResult);
+    hide() {
+        super.hide();
+        const progressEl = this.$('#fireProgress');
+        const progressResult = this.$('#fireProgressResult');
+        if (progressEl) hide(progressEl);
+        if (progressResult) hide(progressResult);
     }
 }

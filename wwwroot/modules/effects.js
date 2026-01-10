@@ -1,4 +1,4 @@
-import { Utils, show, hide } from './utils.js';
+import { show, hide, clear } from '../lib/helpers.js';
 
 export const EffectsDisplay = {
     render(effects) {
@@ -13,7 +13,7 @@ export const EffectsDisplay = {
 
         // Show section
         show(section);
-        Utils.clearElement(container);
+        clear(container);
 
         effects.forEach(e => {
             const div = document.createElement('div');
@@ -71,7 +71,7 @@ export const EffectsDisplay = {
 
         // Show section
         show(section);
-        Utils.clearElement(container);
+        clear(container);
 
         if (hasBloodLoss) {
             const bloodLossPercent = 100 - bloodPercent;
@@ -183,7 +183,7 @@ export const EffectsDisplay = {
         }
 
         show(section);
-        Utils.clearElement(container);
+        clear(container);
 
         impaired.forEach(([name, pct]) => {
             const div = document.createElement('div');

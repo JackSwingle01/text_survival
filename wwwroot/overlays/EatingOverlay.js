@@ -1,166 +1,192 @@
-import { OverlayManager } from '../core/OverlayManager.js';
-import { hide } from '../modules/utils.js';
+// overlays/EatingOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { div, span, clear, show, hide } from '../lib/helpers.js';
+import { Icon } from '../lib/components/Icon.js';
 import { ItemList } from '../components/ItemList.js';
 import { ConsumableRowBuilder } from '../components/rowBuilders.js';
+import { Animator } from '../core/Animator.js';
 
 /**
- * EatingOverlay - Interactive eating and drinking UI with compact stats and organized sections
+ * EatingOverlay - Eating and drinking UI with progress animations
  */
-export class EatingOverlay extends OverlayManager {
+export class EatingOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('eatingOverlay', inputHandler);
-
-        this.statsEl = document.getElementById('eatingStats');
-        this.itemsEl = document.getElementById('eatingItems');
-        this.progressEl = document.getElementById('eatingProgress');
-        this.progressBar = document.getElementById('eatingProgressBar');
-        this.progressText = document.getElementById('eatingProgressText');
-        this.progressResult = document.getElementById('eatingProgressResult');
-        this.doneBtn = document.getElementById('eatingDoneBtn');
-
         this.pendingConsumption = false;
-
-        // Progress config
-        this.progressConfig = {
-            progressEl: this.progressEl,
-            progressBar: this.progressBar,
-            progressText: this.progressText,
-            progressResult: this.progressResult,
-            doneBtn: this.doneBtn,
-            progressMessage: 'Eating...',
-            successMessage: 'Consumed!',
-            pendingFlag: 'pendingConsumption',
-            buttonsContainer: this.itemsEl,
-            buttonSelector: '.list-item--clickable'
-        };
     }
 
-    render(eatingData, inputId) {
-        this.show(inputId);
+    render(data, inputId) {
+        if (!data) {
+            this.hide();
+            return;
+        }
+
+        this.show();
+
+        const progressEl = this.$('#eatingProgress');
+        const progressBar = this.$('#eatingProgressBar');
+        const progressResult = this.$('#eatingProgressResult');
+        const doneBtn = this.$('#eatingDoneBtn');
 
         // Handle progress completion
-        this.handleProgressComplete(this.progressConfig);
+        if (this.pendingConsumption) {
+            this.pendingConsumption = false;
+            progressResult.textContent = 'Consumed!';
+            progressResult.className = 'overlay-progress-result success';
+            show(progressResult);
 
-        // Render compact stats row at top
-        this.renderStats(eatingData);
+            setTimeout(() => {
+                hide(progressEl);
+                hide(progressResult);
+                progressBar.style.width = '0%';
+            }, 1500);
+        } else {
+            hide(progressEl);
+            hide(progressResult);
+            progressBar.style.width = '0%';
+            doneBtn.disabled = false;
+        }
 
-        // Render consumable items in sections
-        this.renderItems(eatingData);
+        // Render stats
+        this.renderStats(data);
+
+        // Render items
+        this.renderItems(data, progressEl, progressBar, this.$('#eatingProgressText'), doneBtn);
 
         // Done button
-        this.doneBtn.onclick = () => this.respond('done');
+        doneBtn.onclick = () => this.respond('done');
     }
 
-    renderStats(eatingData) {
-        this.clear(this.statsEl);
+    renderStats(data) {
+        const statsEl = this.$('#eatingStats');
+        clear(statsEl);
 
-        // Compact horizontal stats row - no pane header needed
-        const caloriesRow = this.createStatRow('Calories', `${eatingData.caloriesPercent}%`, {
-            icon: 'restaurant',
-            background: true
-        });
-        this.statsEl.appendChild(caloriesRow);
+        statsEl.appendChild(
+            div({ className: 'stat-row stat-row--bg' },
+                div({ className: 'stat-row__label' },
+                    Icon('restaurant'),
+                    'Calories'
+                ),
+                div({ className: 'stat-row__value' }, `${data.caloriesPercent}%`)
+            )
+        );
 
-        const hydrationRow = this.createStatRow('Hydration', `${eatingData.hydrationPercent}%`, {
-            icon: 'water_drop',
-            background: true
-        });
-        this.statsEl.appendChild(hydrationRow);
+        statsEl.appendChild(
+            div({ className: 'stat-row stat-row--bg' },
+                div({ className: 'stat-row__label' },
+                    Icon('water_drop'),
+                    'Hydration'
+                ),
+                div({ className: 'stat-row__value' }, `${data.hydrationPercent}%`)
+            )
+        );
     }
 
-    renderItems(eatingData) {
-        this.clear(this.itemsEl);
+    renderItems(data, progressEl, progressBar, progressText, doneBtn) {
+        const itemsEl = this.$('#eatingItems');
+        clear(itemsEl);
 
-        // Build sections for foods, drinks, and special actions
         const sections = [];
 
         // Food section
-        if (eatingData.foods && eatingData.foods.length > 0) {
+        if (data.foods && data.foods.length > 0) {
             sections.push({
                 header: { text: 'Food' },
-                items: eatingData.foods.map(food => {
-                    const item = {
-                        id: food.id,
-                        label: food.name,
-                        amount: food.amount,
-                        isAvailable: true
-                    };
-
-                    // Only add optional fields if they have values
-                    if (food.caloriesEstimate) {
-                        item.estimate = `~${food.caloriesEstimate} cal`;
-                    }
-                    if (food.hydrationEstimate) {
-                        item.hydrationNote = `${food.hydrationEstimate > 0 ? '+' : ''}${food.hydrationEstimate} ml`;
-                    }
-                    if (food.warning) {
-                        item.warning = food.warning;
-                    }
-
-                    return item;
-                })
+                items: data.foods.map(food => this.mapFoodItem(food))
             });
         }
 
         // Drinks section
-        if (eatingData.drinks && eatingData.drinks.length > 0) {
+        if (data.drinks && data.drinks.length > 0) {
             sections.push({
                 header: { text: 'Drinks' },
-                items: eatingData.drinks.map(drink => {
-                    const item = {
-                        id: drink.id,
-                        label: drink.name,
-                        amount: drink.amount,
-                        isAvailable: true
-                    };
-
-                    // Only add hydration estimate if present
-                    if (drink.hydrationEstimate) {
-                        item.estimate = `+${drink.hydrationEstimate} ml`;
-                    }
-
-                    return item;
-                })
+                items: data.drinks.map(drink => this.mapDrinkItem(drink))
             });
         }
 
         // Special action section
-        if (eatingData.specialAction) {
+        if (data.specialAction) {
             sections.push({
                 header: { text: 'Special' },
                 items: [{
-                    id: eatingData.specialAction.id,
-                    label: eatingData.specialAction.name,
-                    amount: eatingData.specialAction.amount,
+                    id: data.specialAction.id,
+                    label: data.specialAction.name,
+                    amount: data.specialAction.amount,
                     isAvailable: true
                 }]
             });
         }
 
-        // Render using ItemList with progress animation on click
+        // Render using ItemList
         const itemList = new ItemList({
-            container: this.itemsEl,
-            onItemClick: (item) => this.consumeWithProgress(item.id),
+            container: itemsEl,
+            onItemClick: (item) => this.consumeWithProgress(item.id, progressEl, progressBar, progressText, doneBtn, itemsEl),
             rowBuilder: ConsumableRowBuilder
         });
 
         itemList.render(sections);
     }
 
-    consumeWithProgress(itemId) {
-        this.runWithProgress({
-            ...this.progressConfig,
-            durationMs: 1500,
-            choiceId: itemId
+    mapFoodItem(food) {
+        const item = {
+            id: food.id,
+            label: food.name,
+            amount: food.amount,
+            isAvailable: true
+        };
+
+        if (food.caloriesEstimate) {
+            item.estimate = `~${food.caloriesEstimate} cal`;
+        }
+        if (food.hydrationEstimate) {
+            item.hydrationNote = `${food.hydrationEstimate > 0 ? '+' : ''}${food.hydrationEstimate} ml`;
+        }
+        if (food.warning) {
+            item.warning = food.warning;
+        }
+
+        return item;
+    }
+
+    mapDrinkItem(drink) {
+        const item = {
+            id: drink.id,
+            label: drink.name,
+            amount: drink.amount,
+            isAvailable: true
+        };
+
+        if (drink.hydrationEstimate) {
+            item.estimate = `+${drink.hydrationEstimate} ml`;
+        }
+
+        return item;
+    }
+
+    consumeWithProgress(itemId, progressEl, progressBar, progressText, doneBtn, itemsEl) {
+        this.pendingConsumption = true;
+
+        // Show progress bar
+        show(progressEl);
+        progressText.textContent = 'Eating...';
+
+        // Disable buttons
+        doneBtn.disabled = true;
+        itemsEl.querySelectorAll('.list-item--clickable').forEach(el => {
+            el.style.pointerEvents = 'none';
+        });
+
+        // Animate progress bar
+        Animator.progressBar(progressBar, 1500, () => {
+            this.respond(itemId);
         });
     }
 
-    cleanup() {
-        // Don't reset pendingConsumption here - it needs to survive hide/show cycle
-        // Flag is reset in render() after showing the result
-        this.clear(this.statsEl);
-        this.clear(this.itemsEl);
-        hide(this.progressEl);
-        hide(this.progressResult);
+    hide() {
+        super.hide();
+        const progressEl = this.$('#eatingProgress');
+        const progressResult = this.$('#eatingProgressResult');
+        if (progressEl) hide(progressEl);
+        if (progressResult) hide(progressResult);
     }
 }

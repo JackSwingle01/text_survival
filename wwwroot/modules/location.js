@@ -1,10 +1,11 @@
-import { Utils, createIcon } from './utils.js';
+import { clear } from '../lib/helpers.js';
+import { Icon } from '../lib/components/Icon.js';
 import { getLocationFeatureIcon } from './icons.js';
 
 export const LocationDisplay = {
     renderFeatures(features) {
         const container = document.getElementById('locationFeatures');
-        Utils.clearElement(container);
+        clear(container);
 
         if (!features || features.length === 0) return;
 
@@ -13,7 +14,7 @@ export const LocationDisplay = {
             tag.className = 'feature-tag';
 
             // Add icon (using centralized icons module)
-            tag.appendChild(createIcon(getLocationFeatureIcon(f.type)));
+            tag.appendChild(Icon(getLocationFeatureIcon(f.type)));
 
             // Add label text
             tag.appendChild(document.createTextNode(f.label));

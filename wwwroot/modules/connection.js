@@ -1,4 +1,4 @@
-import { show as showEl, hide as hideEl } from './utils.js';
+import { show as showEl, hide as hideEl } from '../lib/helpers.js';
 
 export const ConnectionOverlay = {
     show(message, isError = false) {

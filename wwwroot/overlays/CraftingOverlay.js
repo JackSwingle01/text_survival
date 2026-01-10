@@ -1,20 +1,20 @@
-import { OverlayManager } from '../core/OverlayManager.js';
-import { DOMBuilder } from '../core/DOMBuilder.js';
-import { CraftingComponents } from '../components/CraftingComponents.js';
-import { Utils, ICON_CLASS, show, hide } from '../modules/utils.js';
+// overlays/CraftingOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { div, span, button, clear } from '../lib/helpers.js';
+import { Icon } from '../lib/components/Icon.js';
 
 const CRAFT_CATEGORY_ICONS = {
-    'FireStarting': 'local_fire_department',              // Flame (primitive fire)
-    'CuttingTool': 'handyman',               // Tools (diverse toolset)
-    'HuntingWeapon': 'shield',               // Weapons (martial symbol)
-    'Trapping': 'trip_origin',               // Trapping (best available)
-    'Processing': 'autorenew',               // Materials (transformation)
-    'Treatment': 'healing',                  // Medicine
-    'Equipment': 'checkroom',                // Clothing
-    'Lighting': 'light_mode',             // Lighting (torch-like)
-    'Carrying': 'backpack',                  // Storage
-    'CampInfrastructure': 'cabin',           // Camp (wilderness shelter)
-    'Mending': 'home_repair_service'         // Repair (maintenance)
+    'FireStarting': 'local_fire_department',
+    'CuttingTool': 'handyman',
+    'HuntingWeapon': 'shield',
+    'Trapping': 'trip_origin',
+    'Processing': 'autorenew',
+    'Treatment': 'healing',
+    'Equipment': 'checkroom',
+    'Lighting': 'light_mode',
+    'Carrying': 'backpack',
+    'CampInfrastructure': 'cabin',
+    'Mending': 'home_repair_service'
 };
 
 const SHORT_CATEGORY_NAMES = {
@@ -33,217 +33,214 @@ const SHORT_CATEGORY_NAMES = {
 /**
  * CraftingOverlay - Tabbed crafting interface with recipes grouped by category
  */
-export class CraftingOverlay extends OverlayManager {
+export class CraftingOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('craftingOverlay', inputHandler);
-
-        this.titleEl = document.getElementById('craftingTitle');
-        this.tabBar = document.getElementById('craftTabBar');
-        this.categoriesEl = document.getElementById('craftingCategories');
-        this.closeBtn = document.getElementById('craftingCloseBtn');
-
         this.craftingData = null;
         this.craftingInput = null;
         this.activeTab = null;
     }
 
-    render(crafting, inputId, input) {
-        this.show(inputId);
+    render(data, inputId, input) {
+        if (!data) {
+            this.hide();
+            return;
+        }
+
+        this.show();
 
         // Store data for tab switching
-        this.craftingData = crafting;
+        this.craftingData = data;
         this.craftingInput = input;
 
         // Set title
-        this.titleEl.textContent = crafting.title;
+        const titleEl = this.$('#craftingTitle');
+        if (titleEl) titleEl.textContent = data.title;
 
         // Build tab bar
-        this.buildTabs(crafting.categories);
+        this.buildTabs(data.categories);
 
         // Select first tab with craftable recipes, or first tab
-        const defaultTab = crafting.categories.find(c => c.craftableRecipes && c.craftableRecipes.length > 0)
-            || crafting.categories[0];
+        const defaultTab = data.categories.find(c => c.craftableRecipes?.length > 0)
+            || data.categories[0];
 
         if (defaultTab) {
             this.setTab(defaultTab.categoryKey);
         }
 
         // Handle close button
-        this.closeBtn.onclick = () => {
-            if (input && input.type === 'select') {
-                const cancelChoice = input.choices.find(c => c.label === 'Cancel');
-                if (cancelChoice) {
-                    this.respond(cancelChoice.id);
+        const closeBtn = this.$('#craftingCloseBtn');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                if (input?.type === 'select') {
+                    const cancelChoice = input.choices.find(c => c.label === 'Cancel');
+                    this.respond(cancelChoice?.id || 'continue');
                 } else {
                     this.respond('continue');
                 }
-            } else {
-                this.respond('continue');
-            }
-        };
+            };
+        }
     }
 
     buildTabs(categories) {
-        this.clear(this.tabBar);
+        const tabBar = this.$('#craftTabBar');
+        if (!tabBar) return;
+        clear(tabBar);
 
         categories.forEach(cat => {
-            const shortName = this.getShortCategoryName(cat.categoryName);
-            const icon = CRAFT_CATEGORY_ICONS[cat.categoryKey] || 'category';
-            const count = cat.craftableRecipes ? cat.craftableRecipes.length : 0;
+            const shortName = SHORT_CATEGORY_NAMES[cat.categoryName] || cat.categoryName;
+            const iconName = CRAFT_CATEGORY_ICONS[cat.categoryKey] || 'category';
+            const count = cat.craftableRecipes?.length || 0;
             const isActive = this.activeTab === cat.categoryKey;
 
-            const tab = CraftingComponents.tab(
-                shortName,
-                icon,
-                count,
-                isActive,
-                () => this.setTab(cat.categoryKey)
-            );
-
+            const tab = this.buildTab(shortName, iconName, count, isActive, () => this.setTab(cat.categoryKey));
             tab.dataset.category = cat.categoryKey;
-            this.tabBar.appendChild(tab);
+            tabBar.appendChild(tab);
         });
     }
 
-    getShortCategoryName(name) {
-        return SHORT_CATEGORY_NAMES[name] || name;
+    buildTab(name, iconName, count, isActive, onClick) {
+        const children = [
+            Icon(iconName),
+            span({}, name)
+        ];
+
+        if (count > 0) {
+            children.push(span({ className: 'badge badge--success' }, String(count)));
+        }
+
+        return button(
+            {
+                className: isActive ? 'tab tab--active' : 'tab',
+                onClick
+            },
+            ...children
+        );
     }
 
     setTab(categoryKey) {
         this.activeTab = categoryKey;
 
         // Update tab active states
-        document.querySelectorAll('.tab').forEach(tab => {
-            if (tab.dataset.category === categoryKey) {
-                tab.classList.add('tab--active');
-            } else {
-                tab.classList.remove('tab--active');
-            }
+        this.container.querySelectorAll('.tab').forEach(tab => {
+            tab.classList.toggle('tab--active', tab.dataset.category === categoryKey);
         });
 
         // Find category data and render
-        const category = this.craftingData.categories
-            .find(c => c.categoryKey === categoryKey);
-
+        const category = this.craftingData.categories.find(c => c.categoryKey === categoryKey);
         if (category) {
             this.renderCategory(category);
         }
     }
 
     renderCategory(category) {
-        this.clear(this.categoriesEl);
+        const categoriesEl = this.$('#craftingCategories');
+        if (!categoriesEl) return;
+        clear(categoriesEl);
 
         // Craftable recipes first
-        if (category.craftableRecipes && category.craftableRecipes.length > 0) {
+        if (category.craftableRecipes?.length > 0) {
             category.craftableRecipes.forEach(recipe => {
-                const row = this.createRecipeRow(recipe, true);
-                this.categoriesEl.appendChild(row);
+                categoriesEl.appendChild(this.buildRecipeRow(recipe, true));
             });
         }
 
         // Uncraftable recipes
-        if (category.uncraftableRecipes && category.uncraftableRecipes.length > 0) {
-            const separator = DOMBuilder.div('section-header')
-                .text('Needs materials:')
-                .build();
-            this.categoriesEl.appendChild(separator);
+        if (category.uncraftableRecipes?.length > 0) {
+            categoriesEl.appendChild(
+                div({ className: 'section-header' }, 'Needs materials:')
+            );
 
             category.uncraftableRecipes.forEach(recipe => {
-                const row = this.createRecipeRow(recipe, false);
-                this.categoriesEl.appendChild(row);
+                categoriesEl.appendChild(this.buildRecipeRow(recipe, false));
             });
         }
 
         // Empty state
-        if ((!category.craftableRecipes || category.craftableRecipes.length === 0) &&
-            (!category.uncraftableRecipes || category.uncraftableRecipes.length === 0)) {
-            const empty = DOMBuilder.div('empty-state')
-                .text('No recipes in this category.')
-                .build();
-            this.categoriesEl.appendChild(empty);
+        if (!category.craftableRecipes?.length && !category.uncraftableRecipes?.length) {
+            categoriesEl.appendChild(
+                div({ className: 'empty-state' }, 'No recipes in this category.')
+            );
         }
     }
 
-    createRecipeRow(recipe, isCraftable) {
-        const classes = isCraftable ? 'list-item' : 'list-item list-item--disabled';
-
-        // Build material requirements
-        const requirementElements = recipe.requirements.map((req, i) => {
-            const element = CraftingComponents.requirement(
-                req.materialName,
-                req.available,
-                req.required,
-                req.isMet
-            );
-            return element;
-        });
-
-        // Build tool requirements (if any)
-        const toolElements = recipe.toolRequirements
-            ? recipe.toolRequirements.map(tool => {
-                return CraftingComponents.toolRequirement(
-                    tool.toolName,
-                    tool.isAvailable,
-                    tool.isBroken,
-                    tool.durability
-                );
-            })
-            : [];
-
-        // Build the row content
-        const contentDiv = DOMBuilder.div('list-item__content')
-            .append(
-                DOMBuilder.div('section-header').text(recipe.name),
-                // Requirements as badges
-                DOMBuilder.div('flex gap-2 flex-wrap')
-                    .append(
-                        ...requirementElements
-                    )
-                    .build()
-            );
-
-        // Add tool requirements if any
-        if (toolElements.length > 0) {
-            const toolContainer = DOMBuilder.div('flex gap-2')
-                .append(...toolElements);
-            contentDiv.append(toolContainer.build());
-        }
-
-        // Add time
-        contentDiv.append(
-            DOMBuilder.div('text-dim text-sm')
-                .text(recipe.craftingTimeDisplay)
-                .build()
+    buildRecipeRow(recipe, isCraftable) {
+        const requirementBadges = recipe.requirements.map(req =>
+            this.buildRequirementBadge(req.materialName, req.available, req.required, req.isMet)
         );
 
-        // Build main row
-        const row = DOMBuilder.div(classes)
-            .append(contentDiv.build());
+        const toolBadges = recipe.toolRequirements?.map(tool =>
+            this.buildToolBadge(tool.toolName, tool.isAvailable, tool.isBroken, tool.durability)
+        ) || [];
+
+        const content = div({ className: 'list-item__content' },
+            div({ className: 'section-header' }, recipe.name),
+            div({ className: 'flex gap-2 flex-wrap' }, ...requirementBadges),
+            toolBadges.length > 0 ? div({ className: 'flex gap-2' }, ...toolBadges) : null,
+            div({ className: 'text-dim text-sm' }, recipe.craftingTimeDisplay)
+        );
+
+        const rowChildren = [content];
 
         // Add CRAFT button if craftable
-        if (isCraftable && this.craftingInput && this.craftingInput.type === 'select') {
-            // Find the matching choice by recipe name
+        if (isCraftable && this.craftingInput?.type === 'select') {
             const matchingChoice = this.craftingInput.choices.find(choice =>
                 choice.label.includes(recipe.name)
             );
 
             if (matchingChoice) {
-                const craftBtn = DOMBuilder.button('btn btn--success')
-                    .text('CRAFT')
-                    .onClick(() => this.respond(matchingChoice.id))
-                    .build();
-                row.append(craftBtn);
+                rowChildren.push(
+                    button(
+                        {
+                            className: 'btn btn--success',
+                            onClick: () => this.respond(matchingChoice.id)
+                        },
+                        'CRAFT'
+                    )
+                );
             }
         }
 
-        return row.build();
+        return div(
+            { className: isCraftable ? 'list-item' : 'list-item list-item--disabled' },
+            ...rowChildren
+        );
     }
 
-    cleanup() {
+    buildRequirementBadge(materialName, available, required, isMet) {
+        const text = `${materialName}: ${available}/${required}`;
+        const colorClass = isMet ? 'badge--success' : 'badge--danger';
+
+        return span({ className: `badge badge--sm badge--requirement ${colorClass}` }, text);
+    }
+
+    buildToolBadge(toolName, isAvailable, isBroken, durability = null) {
+        let badgeClass, iconName, text;
+
+        if (isBroken) {
+            badgeClass = 'badge badge--danger';
+            iconName = 'close';
+            text = `${toolName} (broken)`;
+        } else if (!isAvailable) {
+            badgeClass = 'badge badge--danger';
+            iconName = 'close';
+            text = `${toolName} (missing)`;
+        } else {
+            badgeClass = 'badge badge--success';
+            iconName = 'check';
+            text = durability !== null ? `${toolName} (${durability} uses left)` : toolName;
+        }
+
+        return span({ className: badgeClass },
+            Icon(iconName),
+            span({}, text)
+        );
+    }
+
+    hide() {
+        super.hide();
         this.craftingData = null;
         this.craftingInput = null;
         this.activeTab = null;
-        this.clear(this.tabBar);
-        this.clear(this.categoriesEl);
     }
 }

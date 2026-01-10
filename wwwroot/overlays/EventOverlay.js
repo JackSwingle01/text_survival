@@ -1,42 +1,63 @@
-// modules/overlays/EventOverlay.js
-import { OverlayManager } from '../core/OverlayManager.js';
-import { DOMBuilder, icon } from '../core/DOMBuilder.js';
-import { StatRow } from '../components/StatRow.js';
+// overlays/EventOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { div, span, clear, show, hide } from '../lib/helpers.js';
+import { ActionButton } from '../lib/components/ActionButton.js';
+import { OutcomeItem } from '../lib/components/StatRow.js';
 import { Animator } from '../core/Animator.js';
-import { Utils, show, hide } from '../modules/utils.js';
 
-export class EventOverlay extends OverlayManager {
+/**
+ * EventOverlay - Event display with choices and animated outcomes
+ */
+export class EventOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('eventOverlay', inputHandler);
 
-        // Outcome actions
-        this.outcomeActionsEl = document.getElementById('eventOutcomeActions');
-        this.outcomeContinueBtn = document.getElementById('eventOutcomeContinueBtn');
-
-        // Set up button
-        this.outcomeContinueBtn.onclick = () => this.respond('continue');
-    }
-
-    render(eventData, inputId) {
-        this.show(inputId);
-
-        this.$('#eventName').textContent = eventData.name;
-
-        if (eventData.outcome) {
-            this.renderOutcome(eventData);
-        } else {
-            this.renderEventChoices(eventData);
+        // Bind continue button (static element)
+        const continueBtn = this.$('#eventOutcomeContinueBtn');
+        if (continueBtn) {
+            continueBtn.onclick = () => this.respond('continue');
         }
     }
 
-    renderEventChoices(eventData) {
-        hide(this.outcomeActionsEl);
-        this.$('#eventDescription').textContent = eventData.description;
-        this.setChoices(eventData.choices, '#eventChoices');
+    render(data, inputId) {
+        if (!data) {
+            this.hide();
+            return;
+        }
+
+        this.show();
+
+        // Event name
+        const nameEl = this.$('#eventName');
+        if (nameEl) nameEl.textContent = data.name;
+
+        if (data.outcome) {
+            this.renderOutcome(data);
+        } else {
+            this.renderChoices(data);
+        }
     }
 
-    renderOutcome(eventData) {
-        const outcome = eventData.outcome;
+    renderChoices(data) {
+        const outcomeActionsEl = this.$('#eventOutcomeActions');
+        const descEl = this.$('#eventDescription');
+        const choicesEl = this.$('#eventChoices');
+
+        hide(outcomeActionsEl);
+        if (descEl) descEl.textContent = data.description;
+
+        if (choicesEl) {
+            clear(choicesEl);
+            data.choices?.forEach(choice => {
+                choicesEl.appendChild(
+                    ActionButton(choice, () => this.respond(choice.id))
+                );
+            });
+        }
+    }
+
+    renderOutcome(data) {
+        const outcome = data.outcome;
         const progressEl = this.$('#eventProgress');
         const progressBar = this.$('#eventProgressBar');
         const progressText = this.$('#eventProgressText');
@@ -48,71 +69,72 @@ export class EventOverlay extends OverlayManager {
             hide(descEl);
             hide(choicesEl);
             show(progressEl);
-            
-            progressText.textContent = `${eventData.description} (+${outcome.timeAddedMinutes} min)`;
-            
+
+            progressText.textContent = `${data.description} (+${outcome.timeAddedMinutes} min)`;
+
             const durationMs = Math.max(500, outcome.timeAddedMinutes / 5 * 1000);
-            
+
             Animator.progressBar(progressBar, durationMs, () => {
                 setTimeout(() => {
                     hide(progressEl);
-                    this.showOutcomeContent(eventData, outcome);
+                    this.showOutcomeContent(data, outcome);
                 }, 150);
             });
         } else {
             hide(progressEl);
-            this.showOutcomeContent(eventData, outcome);
+            this.showOutcomeContent(data, outcome);
         }
     }
 
-    showOutcomeContent(eventData, outcome) {
+    showOutcomeContent(data, outcome) {
         const descEl = this.$('#eventDescription');
         const choicesEl = this.$('#eventChoices');
+        const outcomeActionsEl = this.$('#eventOutcomeActions');
 
         show(descEl);
         show(choicesEl);
-        show(this.outcomeActionsEl);
-        this.clear(descEl);
-        this.clear(choicesEl);
+        show(outcomeActionsEl);
+        clear(descEl);
+        clear(choicesEl);
 
         // Context + message
         descEl.appendChild(
-            DOMBuilder.div('event-choice-context').text(eventData.description).build()
+            div({ className: 'event-choice-context' }, data.description)
         );
         descEl.appendChild(
-            DOMBuilder.div('event-outcome-message').text(outcome.message).build()
+            div({ className: 'event-outcome-message' }, outcome.message)
         );
 
         // Build summary
-        const summary = DOMBuilder.div('event-outcome-summary');
+        const summaryItems = [];
 
         // Time
         if (outcome.timeAddedMinutes > 0) {
-            summary.append(StatRow.outcome('schedule', `+${outcome.timeAddedMinutes} minutes`, 'time'));
+            summaryItems.push(OutcomeItem('schedule', `+${outcome.timeAddedMinutes} minutes`, 'time'));
         }
 
         // Damage
         outcome.damageTaken?.forEach(dmg => {
-            summary.append(StatRow.outcome('personal_injury', dmg, 'damage'));
+            summaryItems.push(OutcomeItem('personal_injury', dmg, 'damage'));
         });
 
         // Effects
         outcome.effectsApplied?.forEach(effect => {
-            summary.append(StatRow.outcome('warning', effect, 'effect'));
+            summaryItems.push(OutcomeItem('warning', effect, 'effect'));
         });
 
         // Items gained/lost
         outcome.itemsGained?.forEach(item => {
-            summary.append(StatRow.outcome('add', item, 'gain'));
+            summaryItems.push(OutcomeItem('add', item, 'gain'));
         });
         outcome.itemsLost?.forEach(item => {
-            summary.append(StatRow.outcome('remove', item, 'loss'));
+            summaryItems.push(OutcomeItem('remove', item, 'loss'));
         });
 
         // Tensions
         outcome.tensionsChanged?.forEach(tension => {
             const isPositive = tension.startsWith('-');
-            summary.append(StatRow.outcome(
+            summaryItems.push(OutcomeItem(
                 isPositive ? 'trending_down' : 'trending_up',
                 tension,
                 isPositive ? 'tension-down' : 'tension-up'
@@ -121,37 +143,43 @@ export class EventOverlay extends OverlayManager {
 
         // Stats delta
         if (outcome.statsDelta) {
-            const statsGroup = DOMBuilder.div('outcome-stats-group');
             const d = outcome.statsDelta;
+            const statsItems = [];
 
             if (Math.abs(d.energyDelta) >= 1) {
                 const val = Math.round(d.energyDelta);
-                statsGroup.append(StatRow.outcome('bolt', `${val > 0 ? '+' : ''}${val} energy`, 'stat'));
+                statsItems.push(OutcomeItem('bolt', `${val > 0 ? '+' : ''}${val} energy`, 'stat'));
             }
             if (Math.abs(d.calorieDelta) >= 1) {
                 const val = Math.round(d.calorieDelta);
-                statsGroup.append(StatRow.outcome('restaurant', `${val > 0 ? '+' : ''}${val} kcal`, 'stat'));
+                statsItems.push(OutcomeItem('restaurant', `${val > 0 ? '+' : ''}${val} kcal`, 'stat'));
             }
             if (Math.abs(d.hydrationDelta) >= 10) {
                 const val = Math.round(d.hydrationDelta);
-                statsGroup.append(StatRow.outcome('water_drop', `${val > 0 ? '+' : ''}${val} mL`, 'stat'));
+                statsItems.push(OutcomeItem('water_drop', `${val > 0 ? '+' : ''}${val} mL`, 'stat'));
             }
             if (Math.abs(d.temperatureDelta) >= 0.1) {
                 const val = d.temperatureDelta.toFixed(1);
-                statsGroup.append(StatRow.outcome('thermostat', `${d.temperatureDelta > 0 ? '+' : ''}${val}°F`, 'stat'));
+                statsItems.push(OutcomeItem('thermostat', `${d.temperatureDelta > 0 ? '+' : ''}${val}°F`, 'stat'));
             }
 
-            if (statsGroup.el.children.length > 0) {
-                summary.append(statsGroup);
+            if (statsItems.length > 0) {
+                summaryItems.push(
+                    div({ className: 'outcome-stats-group' }, ...statsItems)
+                );
             }
         }
 
-        if (summary.el.children.length > 0) {
-            choicesEl.appendChild(summary.build());
+        // Add summary to choices area
+        if (summaryItems.length > 0) {
+            choicesEl.appendChild(
+                div({ className: 'event-outcome-summary' }, ...summaryItems)
+            );
         }
     }
 
-    cleanup() {
+    hide() {
+        super.hide();
         const progressEl = this.$('#eventProgress');
         const progressBar = this.$('#eventProgressBar');
         if (progressEl) hide(progressEl);

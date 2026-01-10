@@ -1,30 +1,34 @@
-// modules/overlays/WeatherChangeOverlay.js
-import { OverlayManager } from '../core/OverlayManager.js';
+// overlays/WeatherChangeOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
 
-export class WeatherChangeOverlay extends OverlayManager {
+/**
+ * WeatherChangeOverlay - Simple weather change notification
+ */
+export class WeatherChangeOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('weatherChangeOverlay', inputHandler);
 
-        // Get element references
-        this.okBtn = document.getElementById('weatherChangeOkBtn');
-
-        // Bind OK button
-        this.okBtn.onclick = () => this.respond('continue');
+        // Bind OK button (static element)
+        const okBtn = this.$('#weatherChangeOkBtn');
+        if (okBtn) {
+            okBtn.onclick = () => this.respond('continue');
+        }
     }
 
     render(data, inputId) {
-        this.show(inputId);
+        if (!data) {
+            this.hide();
+            return;
+        }
+
+        this.show();
 
         // Build message from weather front and condition
         const message = data.weatherFront
             ? `${data.weatherFront}: ${data.weatherCondition}`
             : data.weatherCondition;
 
-        // Set weather change message in body
-        this.$('#weatherChangeMessage').textContent = message;
-    }
-
-    cleanup() {
-        // No cleanup needed (no progress bars or animations)
+        const messageEl = this.$('#weatherChangeMessage');
+        if (messageEl) messageEl.textContent = message;
     }
 }

@@ -1,4 +1,4 @@
-import { ICON_CLASS } from '../modules/utils.js';
+import { ICON_CLASS } from '../lib/components/Icon.js';
 
 /**
  * ItemList - Generic component for rendering categorized item lists

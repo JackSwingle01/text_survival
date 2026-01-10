@@ -1,9 +1,9 @@
-import { Utils } from './utils.js';
+import { clear } from '../lib/helpers.js';
 
 export const NarrativeLog = {
     render(log) {
         const container = document.getElementById('narrativeLog');
-        Utils.clearElement(container);
+        clear(container);
 
         if (!log || log.length === 0) return;
 

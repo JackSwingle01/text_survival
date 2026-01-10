@@ -1,59 +1,54 @@
-import { OverlayManager } from '../core/OverlayManager.js';
-import { Utils } from '../modules/utils.js';
+// overlays/HazardOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { clear } from '../lib/helpers.js';
+import { ActionButton } from '../lib/components/ActionButton.js';
 
 /**
  * HazardOverlay - Hazardous terrain warning with quick/careful choices
  */
-export class HazardOverlay extends OverlayManager {
+export class HazardOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('hazardOverlay', inputHandler);
-        this.descEl = document.getElementById('hazardDescription');
-        this.choicesEl = document.getElementById('hazardChoices');
     }
 
-    render(hazardPrompt, inputId) {
-        this.show(inputId);
+    render(data, inputId) {
+        if (!data) {
+            this.hide();
+            return;
+        }
+
+        this.show();
 
         // Set hazard description
-        this.descEl.textContent = hazardPrompt.hazardDescription;
+        const descEl = this.$('#hazardDescription');
+        if (descEl) descEl.textContent = data.hazardDescription;
 
-        // Clear previous choices
-        this.clear(this.choicesEl);
+        // Build choices
+        const choicesEl = this.$('#hazardChoices');
+        if (choicesEl) {
+            clear(choicesEl);
 
-        // Quick option
-        const quickBtn = this.createHazardButton(
-            'Quick',
-            `${hazardPrompt.quickTimeMinutes} min • ${(hazardPrompt.injuryRisk * 100).toFixed(0)}% injury risk`,
-            true
-        );
-        this.choicesEl.appendChild(quickBtn);
-
-        // Careful option
-        const carefulBtn = this.createHazardButton(
-            'Careful',
-            `${hazardPrompt.carefulTimeMinutes} min • Safe passage`,
-            false
-        );
-        this.choicesEl.appendChild(carefulBtn);
-    }
-
-    createHazardButton(label, description, isQuick) {
-        return this.createOptionButton({
-            label: label,
-            description: description,
-            onClick: () => {
-                this.sendAction(
-                    'hazard_choice',
+            // Quick option
+            choicesEl.appendChild(
+                ActionButton(
                     {
-                        quickTravel: isQuick,
-                        choiceId: isQuick ? 'quick' : 'careful'
-                    }
-                );
-            }
-        });
-    }
+                        label: 'Quick',
+                        description: `${data.quickTimeMinutes} min • ${(data.injuryRisk * 100).toFixed(0)}% injury risk`
+                    },
+                    () => this.sendAction('hazard_choice', { quickTravel: true, choiceId: 'quick' })
+                )
+            );
 
-    cleanup() {
-        this.clear(this.choicesEl);
+            // Careful option
+            choicesEl.appendChild(
+                ActionButton(
+                    {
+                        label: 'Careful',
+                        description: `${data.carefulTimeMinutes} min • Safe passage`
+                    },
+                    () => this.sendAction('hazard_choice', { quickTravel: false, choiceId: 'careful' })
+                )
+            );
+        }
     }
 }

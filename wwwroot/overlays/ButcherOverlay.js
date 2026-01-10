@@ -1,93 +1,106 @@
-import { OverlayManager } from '../core/OverlayManager.js';
-import { DOMBuilder } from '../core/DOMBuilder.js';
-import { Utils, ICON_CLASS, show, hide } from '../modules/utils.js';
+// overlays/ButcherOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { div, span, clear, show, hide } from '../lib/helpers.js';
+import { Icon } from '../lib/components/Icon.js';
+import { MultiStepForm } from '../lib/components/RadioGroup.js';
 
 /**
  * ButcherOverlay - Butchering interface with mode selection
  */
-export class ButcherOverlay extends OverlayManager {
+export class ButcherOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('butcherOverlay', inputHandler);
-
-        // Get DOM elements
-        this.animalEl = document.getElementById('butcherAnimal');
-        this.statusEl = document.getElementById('butcherStatus');
-        this.warningsEl = document.getElementById('butcherWarnings');
-        this.modeOptionsEl = document.getElementById('butcherModeOptions');
-        this.confirmBtn = document.getElementById('butcherConfirmBtn');
-        this.confirmDesc = document.getElementById('butcherConfirmDesc');
-        this.cancelBtn = document.getElementById('butcherCancelBtn');
+        this.form = null;
     }
 
-    render(butcherData, inputId) {
-        this.show(inputId);
+    render(data, inputId) {
+        if (!data) {
+            this.hide();
+            return;
+        }
+
+        this.show();
 
         // Carcass info
-        this.animalEl.textContent = `${butcherData.animalName} carcass`;
+        const animalEl = this.$('#butcherAnimal');
+        if (animalEl) animalEl.textContent = `${data.animalName} carcass`;
 
         // Status
-        let statusParts = [butcherData.decayStatus];
-        if (butcherData.remainingKg > 0) {
-            statusParts.push(`~${butcherData.remainingKg.toFixed(1)}kg remaining`);
+        const statusEl = this.$('#butcherStatus');
+        if (statusEl) {
+            const parts = [data.decayStatus];
+            if (data.remainingKg > 0) {
+                parts.push(`~${data.remainingKg.toFixed(1)}kg remaining`);
+            }
+            if (data.isFrozen) {
+                parts.push('frozen');
+            }
+            statusEl.textContent = parts.join(', ');
         }
-        if (butcherData.isFrozen) {
-            statusParts.push('frozen');
-        }
-        this.statusEl.textContent = statusParts.join(', ');
 
         // Warnings
-        this.clear(this.warningsEl);
-        if (butcherData.warnings && butcherData.warnings.length > 0) {
-            butcherData.warnings.forEach(warning => {
-                const warnEl = this.createWarning(warning);
-                this.warningsEl.appendChild(warnEl);
-            });
-            show(this.warningsEl);
-        } else {
-            hide(this.warningsEl);
-        }
+        this.renderWarnings(data.warnings);
 
         // Mode options
-        this.clear(this.modeOptionsEl);
-        butcherData.modeOptions.forEach(mode => {
-            const btn = this.createModeButton(mode);
-            this.modeOptionsEl.appendChild(btn);
+        const modeEl = this.$('#butcherModeOptions');
+        const confirmBtn = this.$('#butcherConfirmBtn');
+        const confirmDesc = this.$('#butcherConfirmDesc');
+
+        // Clean up old form
+        this.form?.destroy();
+
+        // Create new form
+        this.form = new MultiStepForm({
+            confirmBtn,
+            confirmDesc
         });
 
-        // Create form with one radio group field
-        this.form = this.createForm({
-            confirmBtn: this.confirmBtn,
-            confirmDesc: this.confirmDesc
-        });
-
-        this.form.addRadioGroup('modeId', this.modeOptionsEl, 'modeId');
+        // Add mode options
+        this.form.addField(
+            'mode',
+            modeEl,
+            data.modeOptions.map(m => ({
+                id: m.id,
+                label: m.label,
+                description: m.description,
+                meta: `~${m.estimatedMinutes} min`
+            }))
+        );
 
         // Action buttons
-        this.confirmBtn.onclick = () => {
+        confirmBtn.onclick = () => {
             if (this.form.isComplete()) {
                 this.respond(this.form.getChoiceId());
             }
         };
-        this.cancelBtn.onclick = () => this.respond('cancel');
+
+        const cancelBtn = this.$('#butcherCancelBtn');
+        if (cancelBtn) cancelBtn.onclick = () => this.respond('cancel');
     }
 
-    createWarning(warning) {
-        return this.createIconText('warning', warning, 'butcher-warning');
-    }
+    renderWarnings(warnings) {
+        const el = this.$('#butcherWarnings');
+        clear(el);
 
-    createModeButton(mode) {
-        return this.createOptionButton({
-            datasetKey: 'modeId',
-            datasetValue: mode.id,
-            label: mode.label,
-            description: mode.description,
-            meta: `~${mode.estimatedMinutes} min`
+        if (!warnings || warnings.length === 0) {
+            hide(el);
+            return;
+        }
+
+        show(el);
+        warnings.forEach(warning => {
+            el.appendChild(
+                div({ className: 'butcher-warning' },
+                    Icon('warning'),
+                    span({}, warning)
+                )
+            );
         });
     }
 
-    cleanup() {
-        this.form?.cleanup();
-        this.clear(this.warningsEl);
-        this.clear(this.modeOptionsEl);
+    hide() {
+        super.hide();
+        this.form?.destroy();
+        this.form = null;
     }
 }

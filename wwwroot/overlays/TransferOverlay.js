@@ -1,80 +1,81 @@
-import { OverlayManager } from '../core/OverlayManager.js';
-import { DOMBuilder, paneHeader } from '../core/DOMBuilder.js';
-import { Utils, ICON_CLASS } from '../modules/utils.js';
+// overlays/TransferOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { div, span, clear } from '../lib/helpers.js';
+import { Icon } from '../lib/components/Icon.js';
 import { ItemList } from '../components/ItemList.js';
 import { TransferRowBuilder } from '../components/rowBuilders.js';
 
 /**
  * TransferOverlay - Bidirectional item transfer between player/storage
  */
-export class TransferOverlay extends OverlayManager {
+export class TransferOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('transferOverlay', inputHandler);
-
-        this.playerPane = document.getElementById('transferPlayerPane');
-        this.storagePane = document.getElementById('transferStoragePane');
-        this.doneBtn = document.getElementById('transferDoneBtn');
     }
 
-    render(transfer, inputId) {
-        this.show(inputId);
+    render(data, inputId) {
+        if (!data) {
+            this.hide();
+            return;
+        }
+
+        this.show();
 
         // Render player pane
         this.renderPane(
-            this.playerPane,
-            transfer.playerTitle,
-            transfer.playerCurrentWeightKg,
-            transfer.playerMaxWeightKg,
-            transfer.playerItems,
+            this.$('#transferPlayerPane'),
+            data.playerTitle,
+            data.playerCurrentWeightKg,
+            data.playerMaxWeightKg,
+            data.playerItems,
             'player'
         );
 
         // Render storage pane
         this.renderPane(
-            this.storagePane,
-            transfer.storageTitle,
-            transfer.storageCurrentWeightKg,
-            transfer.storageMaxWeightKg,
-            transfer.storageItems,
+            this.$('#transferStoragePane'),
+            data.storageTitle,
+            data.storageCurrentWeightKg,
+            data.storageMaxWeightKg,
+            data.storageItems,
             'storage'
         );
 
         // Done button
-        this.doneBtn.onclick = () => this.respond('done');
+        const doneBtn = this.$('#transferDoneBtn');
+        if (doneBtn) doneBtn.onclick = () => this.respond('done');
     }
 
     renderPane(pane, title, currentWeight, maxWeight, items, side) {
-        this.clear(pane);
+        if (!pane) return;
+        clear(pane);
 
-        // Header using paneHeader helper
+        // Header with weight
         const weightText = maxWeight > 0 && maxWeight < 500
             ? `${currentWeight.toFixed(1)} / ${maxWeight.toFixed(0)} kg`
             : `${currentWeight.toFixed(1)} kg`;
 
-        const header = paneHeader({
-            title: title,
-            meta: weightText
-        });
-        pane.appendChild(header.build());
+        pane.appendChild(
+            div({ className: 'pane-header' },
+                span({ className: 'pane-header__title' }, title),
+                span({ className: 'pane-header__meta' }, weightText)
+            )
+        );
 
         // Items list
-        const list = document.createElement('div');
-        list.className = 'transfer-items';
+        const list = div({ className: 'transfer-items' });
 
-        // Configure row builder with arrow direction based on side
         const builder = {
             ...TransferRowBuilder,
             arrow: { icon: side === 'player' ? 'arrow_forward' : 'arrow_back' }
         };
 
-        // Use ItemList for rendering
         const itemList = new ItemList({
             container: list,
             onItemClick: (item) => this.sendTransfer(item.id, 1),
             rowBuilder: builder
         });
 
-        // Build sections from categorized items
         const sections = this.buildCategorySections(items);
         itemList.render(sections);
 
@@ -115,17 +116,9 @@ export class TransferOverlay extends OverlayManager {
     }
 
     sendTransfer(itemId, count) {
-        this.sendAction(
-            'transfer',
-            {
-                transferItemId: itemId,
-                transferCount: count
-            }
-        );
-    }
-
-    cleanup() {
-        this.clear(this.playerPane);
-        this.clear(this.storagePane);
+        this.sendAction('transfer', {
+            transferItemId: itemId,
+            transferCount: count
+        });
     }
 }

@@ -1,28 +1,34 @@
-// modules/overlays/DiscoveryOverlay.js
-import { OverlayManager } from '../core/OverlayManager.js';
+// overlays/DiscoveryOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
 
-export class DiscoveryOverlay extends OverlayManager {
+/**
+ * DiscoveryOverlay - Location discovery notification
+ */
+export class DiscoveryOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('discoveryOverlay', inputHandler);
 
-        // Get element references
-        this.continueBtn = document.getElementById('discoveryContinueBtn');
-
-        // Bind continue button
-        this.continueBtn.onclick = () => this.respond('continue');
+        // Bind continue button (static element)
+        const continueBtn = this.$('#discoveryContinueBtn');
+        if (continueBtn) {
+            continueBtn.onclick = () => this.respond('continue');
+        }
     }
 
-    render(discoveryData, inputId) {
-        this.show(inputId);
+    render(data, inputId) {
+        if (!data) {
+            this.hide();
+            return;
+        }
 
-        // Set location name in title
-        this.$('#discoveryLocationName').textContent = discoveryData.locationName;
+        this.show();
 
-        // Set discovery text in body
-        this.$('#discoveryText').textContent = discoveryData.discoveryText;
-    }
+        // Set location name
+        const nameEl = this.$('#discoveryLocationName');
+        if (nameEl) nameEl.textContent = data.locationName;
 
-    cleanup() {
-        // No cleanup needed (no progress bars or animations)
+        // Set discovery text
+        const textEl = this.$('#discoveryText');
+        if (textEl) textEl.textContent = data.discoveryText;
     }
 }

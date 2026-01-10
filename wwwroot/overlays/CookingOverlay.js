@@ -1,51 +1,50 @@
-import { OverlayManager } from '../core/OverlayManager.js';
-import { Animator } from '../core/Animator.js';
-import { paneHeader } from '../core/DOMBuilder.js';
-import { Utils, ICON_CLASS, show, hide } from '../modules/utils.js';
+// overlays/CookingOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { div, span, clear, show, hide } from '../lib/helpers.js';
+import { Icon } from '../lib/components/Icon.js';
 import { ItemList } from '../components/ItemList.js';
 import { CookingRowBuilder } from '../components/rowBuilders.js';
+import { Animator } from '../core/Animator.js';
 
 /**
  * CookingOverlay - Cooking interface with supplies and action options
  */
-export class CookingOverlay extends OverlayManager {
+export class CookingOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('cookingOverlay', inputHandler);
-
-        this.statusEl = document.getElementById('cookingStatus');
-        this.optionsEl = document.getElementById('cookingOptions');
-        this.resultEl = document.getElementById('cookingResult');
-        this.progressEl = document.getElementById('cookingProgress');
-        this.progressBar = document.getElementById('cookingProgressBar');
-        this.progressText = document.getElementById('cookingProgressText');
-        this.progressResult = document.getElementById('cookingProgressResult');
-        this.doneBtn = document.getElementById('cookingDoneBtn');
         this.resultTimeout = null;
         this.pendingCooking = false;
     }
 
-    render(cookingData, inputId) {
-        this.show(inputId);
+    render(data, inputId) {
+        if (!data) {
+            this.hide();
+            return;
+        }
 
-        // Check if we're receiving result from a cooking action
+        this.show();
+
+        const progressEl = this.$('#cookingProgress');
+        const progressBar = this.$('#cookingProgressBar');
+        const progressResult = this.$('#cookingProgressResult');
+        const doneBtn = this.$('#cookingDoneBtn');
+
+        // Handle cooking completion
         if (this.pendingCooking) {
             this.pendingCooking = false;
-            // Show success result
-            this.progressResult.textContent = 'Complete!';
-            this.progressResult.className = 'overlay-progress-result success';
-            show(this.progressResult);
+            progressResult.textContent = 'Complete!';
+            progressResult.className = 'overlay-progress-result success';
+            show(progressResult);
 
-            // Hide result after delay and reset progress bar
             setTimeout(() => {
-                hide(this.progressEl);
-                hide(this.progressResult);
-                this.progressBar.style.width = '0%';
+                hide(progressEl);
+                hide(progressResult);
+                progressBar.style.width = '0%';
             }, 1500);
         } else {
-            // Hide progress bar initially
-            hide(this.progressEl);
-            hide(this.progressResult);
-            this.progressBar.style.width = '0%';
+            hide(progressEl);
+            hide(progressResult);
+            progressBar.style.width = '0%';
         }
 
         // Clear previous result timeout
@@ -54,53 +53,31 @@ export class CookingOverlay extends OverlayManager {
             this.resultTimeout = null;
         }
 
-        // Render left pane: supplies
-        this.renderSupplies(cookingData);
-
-        // Render right pane: action options
-        this.renderOptions(cookingData);
-
-        // Show result feedback if present
-        this.renderResult(cookingData.lastResult);
+        // Render supplies and options
+        this.renderSupplies(data);
+        this.renderOptions(data, progressEl, progressBar, doneBtn);
+        this.renderResult(data.lastResult);
 
         // Done button
-        this.doneBtn.onclick = () => this.respond('done');
+        doneBtn.onclick = () => this.respond('done');
     }
 
-    renderSupplies(cookingData) {
-        this.clear(this.statusEl);
+    renderSupplies(data) {
+        const statusEl = this.$('#cookingStatus');
+        clear(statusEl);
 
         // Header
-        const header = paneHeader({
-            title: 'Supplies',
-            icon: 'inventory_2'
-        });
-        this.statusEl.appendChild(header.build());
+        statusEl.appendChild(this.buildPaneHeader('Supplies', 'inventory_2'));
 
-        // Create wrapper for supplies
-        const suppliesContainer = document.createElement('div');
-        suppliesContainer.className = 'cooking-supplies';
+        // Supplies container
+        const container = div({ className: 'cooking-supplies' });
 
-        // Supply items as list items
         const supplyItems = [
-            {
-                icon: 'water_drop',
-                displayName: 'Water',
-                value: `${cookingData.waterLiters.toFixed(1)}L`
-            },
-            {
-                icon: 'lunch_dining',
-                displayName: 'Raw Meat',
-                value: `${cookingData.rawMeatKg.toFixed(1)}kg`
-            },
-            {
-                icon: 'outdoor_grill',
-                displayName: 'Cooked Meat',
-                value: `${cookingData.cookedMeatKg.toFixed(1)}kg`
-            }
+            { icon: 'water_drop', displayName: 'Water', value: `${data.waterLiters.toFixed(1)}L` },
+            { icon: 'lunch_dining', displayName: 'Raw Meat', value: `${data.rawMeatKg.toFixed(1)}kg` },
+            { icon: 'outdoor_grill', displayName: 'Cooked Meat', value: `${data.cookedMeatKg.toFixed(1)}kg` }
         ];
 
-        // Row builder for supply display (non-clickable)
         const supplyRowBuilder = {
             type: 'display',
             icon: { key: 'icon' },
@@ -111,95 +88,93 @@ export class CookingOverlay extends OverlayManager {
         };
 
         const itemList = new ItemList({
-            container: suppliesContainer,
-            onItemClick: null,  // Non-clickable
+            container,
+            onItemClick: null,
             rowBuilder: supplyRowBuilder
         });
 
         itemList.render([{ items: supplyItems }]);
-
-        this.statusEl.appendChild(suppliesContainer);
+        statusEl.appendChild(container);
     }
 
-    renderOptions(cookingData) {
-        this.clear(this.optionsEl);
+    renderOptions(data, progressEl, progressBar, doneBtn) {
+        const optionsEl = this.$('#cookingOptions');
+        clear(optionsEl);
 
         // Header
-        const header = paneHeader({
-            title: 'Actions',
-            icon: 'skillet'
-        });
-        this.optionsEl.appendChild(header.build());
+        optionsEl.appendChild(this.buildPaneHeader('Actions', 'skillet'));
 
-        // Create wrapper div for items
-        const items = document.createElement('div');
-        items.className = 'cooking-items';
+        // Items container
+        const items = div({ className: 'cooking-items' });
 
-        // Action options using ItemList
         const actionList = new ItemList({
             container: items,
-            onItemClick: (opt) => this.cookWithProgress(opt.id, opt.timeMinutes),
+            onItemClick: (opt) => this.cookWithProgress(opt.id, opt.timeMinutes, progressEl, progressBar, doneBtn, optionsEl),
             rowBuilder: CookingRowBuilder
         });
 
-        actionList.render([{
-            items: cookingData.options
-        }]);
-
-        // Append wrapper to pane
-        this.optionsEl.appendChild(items);
+        actionList.render([{ items: data.options }]);
+        optionsEl.appendChild(items);
     }
 
-    cookWithProgress(choiceId, timeMinutes) {
+    buildPaneHeader(title, iconName) {
+        return div({ className: 'pane-header' },
+            Icon(iconName, 'pane-header__icon'),
+            span({ className: 'pane-header__title' }, title)
+        );
+    }
+
+    cookWithProgress(choiceId, timeMinutes, progressEl, progressBar, doneBtn, optionsEl) {
         this.pendingCooking = true;
-        show(this.progressEl);
-        hide(this.progressResult);
-        this.progressText.textContent = 'Cooking...';
+        show(progressEl);
+        hide(this.$('#cookingProgressResult'));
+        this.$('#cookingProgressText').textContent = 'Cooking...';
 
-        // Disable buttons during animation
-        this.doneBtn.disabled = true;
-        const allButtons = this.optionsEl.querySelectorAll('button');
-        allButtons.forEach(btn => btn.disabled = true);
+        // Disable buttons
+        doneBtn.disabled = true;
+        optionsEl.querySelectorAll('button').forEach(btn => btn.disabled = true);
 
-        // Calculate animation duration: game minutes / 7 = real seconds
-        // Convert to milliseconds
+        // Animation duration
         const durationMs = Math.max(1000, (timeMinutes / 7) * 1000);
 
-        // Animate progress bar
-        Animator.progressBar(this.progressBar, durationMs, () => {
+        Animator.progressBar(progressBar, durationMs, () => {
             this.respond(choiceId);
         });
     }
 
     renderResult(lastResult) {
+        const resultEl = this.$('#cookingResult');
+
         if (lastResult) {
-            this.clear(this.resultEl);
+            clear(resultEl);
+            resultEl.appendChild(
+                div({ className: 'cooking-result-content' },
+                    Icon(lastResult.icon),
+                    span({}, lastResult.message)
+                )
+            );
 
-            const resultContent = this.createIconText(lastResult.icon, lastResult.message);
-            this.resultEl.appendChild(resultContent);
+            resultEl.className = 'cooking-result ' + (lastResult.isSuccess ? 'success' : 'failure');
+            show(resultEl);
 
-            this.resultEl.className = 'cooking-result ' + (lastResult.isSuccess ? 'success' : 'failure');
-            show(this.resultEl);
-
-            // Auto-hide after delay
             this.resultTimeout = setTimeout(() => {
-                hide(this.resultEl);
+                hide(resultEl);
                 this.resultTimeout = null;
             }, 2000);
         } else {
-            hide(this.resultEl);
+            hide(resultEl);
         }
     }
 
-    cleanup() {
+    hide() {
+        super.hide();
         if (this.resultTimeout) {
             clearTimeout(this.resultTimeout);
             this.resultTimeout = null;
         }
-        this.clear(this.statusEl);
-        this.clear(this.optionsEl);
-        hide(this.resultEl);
-        hide(this.progressEl);
-        hide(this.progressResult);
+        const progressEl = this.$('#cookingProgress');
+        const resultEl = this.$('#cookingResult');
+        if (progressEl) hide(progressEl);
+        if (resultEl) hide(resultEl);
     }
 }

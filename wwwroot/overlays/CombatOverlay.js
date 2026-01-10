@@ -1,566 +1,444 @@
-import { OverlayManager } from '../core/OverlayManager.js';
+// overlays/CombatOverlay.js
+import { OverlayBase } from '../lib/OverlayBase.js';
+import { div, span, button, clear, show, hide } from '../lib/helpers.js';
+import { Icon } from '../lib/components/Icon.js';
+import { ActionButton, ContinueButton } from '../lib/components/ActionButton.js';
 import { Animator } from '../core/Animator.js';
-import { Utils, show, hide } from '../modules/utils.js';
 import { TERRAIN_COLORS, renderTerrainTexture } from '../modules/grid/TerrainRenderer.js';
 
 /**
  * CombatOverlay - Multi-phase combat interface
  * Handles both predator approach (encounter) and active combat phases
  */
-export class CombatOverlay extends OverlayManager {
+export class CombatOverlay extends OverlayBase {
     constructor(inputHandler) {
         super('combatOverlay', inputHandler);
 
-        // Intro phase elements
-        this.introSectionEl = document.getElementById('combatIntroSection');
-        this.introActionsEl = document.getElementById('combatIntroActions');
-        this.introMessageEl = document.getElementById('combatIntroMessage');
-        this.introConfirmBtn = document.getElementById('combatIntroConfirm');
-        this.combatContentEl = document.getElementById('combatContent');
-
-        // Combat phase elements
-        this.animalNameEl = document.getElementById('combatAnimalName');
-        this.behaviorStateEl = document.getElementById('combatBehaviorState');
-        this.behaviorDescEl = document.getElementById('combatBehaviorDesc');
-        this.animalHealthEl = document.getElementById('combatAnimalHealth');
-        this.playerBracedEl = document.getElementById('combatPlayerBraced');
-        this.threatFactorsEl = document.getElementById('combatThreatFactors');
-        this.threatSectionEl = document.getElementById('combatThreatSection');
-        this.actionMessageEl = document.getElementById('combatActionMessage');
-        this.actionsEl = document.getElementById('combatActions');
-        this.outcomeEl = document.getElementById('combatOutcome');
-        this.outcomeMessageEl = document.getElementById('combatOutcomeMessage');
-        this.rewardsEl = document.getElementById('combatRewards');
-        this.outcomeActionsEl = document.getElementById('combatOutcomeActions');
-        this.outcomeContinueBtn = document.getElementById('combatOutcomeContinueBtn');
-
-        // Combat grid elements (left pane)
-        this.gridPaneEl = document.getElementById('combatGridPane');
-        this.gridCanvasEl = document.getElementById('combatGridCanvas');
-        this.gridCtx = this.gridCanvasEl?.getContext('2d');
-
         // Grid settings
-        this.GRID_SIZE = 25;          // 25x25 grid
-        this.CELL_SIZE = 20;          // pixels per cell
-        this.GRID_PADDING = 2;        // padding around grid
+        this.GRID_SIZE = 25;
+        this.CELL_SIZE = 20;
+        this.GRID_PADDING = 2;
 
-        // Store current units for click detection
+        // State for grid interaction
         this.currentUnits = [];
         this.selectedUnit = null;
+        this.lastCombatData = null;
+        this._autoAdvanceTimer = null;
+    }
 
-        // Unit detail panel
-        this.unitDetailEl = document.getElementById('combatUnitDetail');
-
-        // Set up grid click handler
-        if (this.gridCanvasEl) {
-            this.gridCanvasEl.addEventListener('click', (e) => this.handleGridClick(e));
-            this.gridCanvasEl.style.cursor = 'pointer';
+    render(data, inputId) {
+        if (!data) {
+            this.hide();
+            return;
         }
 
-        // Distance track elements
-        this.distanceValueEl = document.getElementById('combatDistanceValue');
-        this.playerMarkerEl = document.getElementById('combatPlayerMarker');
+        this.show();
 
-        // Aggression gauge elements
-        this.aggressionDescriptorEl = document.getElementById('combatAggressionDescriptor');
-        this.aggressionFillEl = document.getElementById('combatAggressionFill');
-
-        // Approach phase elements (from EncounterOverlay)
-        this.encounterTargetEl = document.getElementById('encounterTarget');
-        this.encounterDistanceMask = document.getElementById('encounterDistanceMask');
-        this.encounterDistanceValue = document.getElementById('encounterDistanceValue');
-        this.encounterBoldnessDescriptor = document.getElementById('encounterBoldnessDescriptor');
-        this.encounterBoldnessFill = document.getElementById('encounterBoldnessFill');
-        this.encounterFactorsEl = document.getElementById('encounterFactors');
-        this.encounterMessageEl = document.getElementById('encounterMessage');
-        this.encounterChoicesEl = document.getElementById('encounterChoices');
-        this.encounterOutcomeEl = document.getElementById('encounterOutcome');
-        this.encounterOutcomeMessageEl = document.getElementById('encounterOutcomeMessage');
+        // Set up grid click handler (once)
+        this.setupGridClickHandler();
 
         // Set up button handlers
-        this.introConfirmBtn.onclick = () => this.respond('confirm');
-        this.outcomeContinueBtn.onclick = () => this.respond('continue');
-    }
+        const introConfirmBtn = this.$('#combatIntroConfirm');
+        if (introConfirmBtn) introConfirmBtn.onclick = () => this.respond('confirm');
 
-    render(combatData, inputId) {
-        this.show(inputId);
+        const outcomeContinueBtn = this.$('#combatOutcomeContinueBtn');
+        if (outcomeContinueBtn) outcomeContinueBtn.onclick = () => this.respond('continue');
 
-        // Phase detection: Distinguish between encounter (choices) and combat (actions + phase)
-        // Encounter has: choices, predatorName
-        // Combat has: actions, phase, animalName
-        const isApproachPhase = combatData.choices !== undefined;
-        const isCombatPhase = combatData.phase !== undefined || combatData.actions !== undefined;
-        const isOutcomePhase = combatData.outcome != null;  // Check for both null and undefined
+        // Phase detection
+        const isApproachPhase = data.choices !== undefined;
+        const isCombatPhase = data.phase !== undefined || data.actions !== undefined;
+        const isOutcomePhase = data.outcome != null;
 
         if (isApproachPhase && !isOutcomePhase) {
-            this.renderApproachPhase(combatData, inputId);
+            this.renderApproachPhase(data);
         } else if (isOutcomePhase) {
-            // Outcome phase - check which type
             if (isApproachPhase) {
-                this.showApproachOutcome(combatData);
+                this.showApproachOutcome(data);
             } else {
-                this.showCombatOutcome(combatData);
+                this.showCombatOutcome(data);
             }
         } else {
-            this.renderCombatPhase(combatData, inputId);
+            this.renderCombatPhase(data);
         }
     }
 
-    /**
-     * Render approach phase (predator encounter before combat)
-     */
-    renderApproachPhase(encounterData, inputId) {
-        // Hide combat-specific elements
-        hide(this.actionMessageEl);
-        hide(this.playerBracedEl);
-        hide(this.outcomeEl);
-        hide(this.actionsEl);
-
-        // Show encounter-specific elements
-        show(document.getElementById('encounterOverlay'));
-
-        // Predator name
-        if (this.encounterTargetEl) {
-            this.encounterTargetEl.textContent = encounterData.predatorName || encounterData.animalName;
-        }
-
-        // Distance bar with animation
-        this.updateApproachDistanceBar(encounterData);
-
-        // Boldness gauge
-        this.updateBoldness(encounterData);
-
-        // Threat factors (using shared implementation)
-        this.updateApproachThreatFactors(encounterData.threatFactors || []);
-
-        // Status message
-        if (encounterData.statusMessage) {
-            this.encounterMessageEl.textContent = encounterData.statusMessage;
-            show(this.encounterMessageEl);
-        } else {
-            hide(this.encounterMessageEl);
-        }
-
-        // Choices (approach phase actions)
-        this.showApproachChoices(encounterData);
-    }
-
-    /**
-     * Render combat phase (active fighting)
-     * Uses phase field to determine what to display
-     */
-    renderCombatPhase(combatData, inputId) {
-        // Hide encounter-specific elements
-        hide(document.getElementById('encounterOverlay'));
-
-        // Always update animal status header
-        this.animalNameEl.textContent = combatData.animalName || 'Enemy';
-
-        // Phase-specific rendering
-        const phase = combatData.phase?.toLowerCase() || 'playerChoice';
-
-        switch (phase) {
-            case 'intro':
-                this.renderIntroPhase(combatData);
-                break;
-
-            case 'playerchoice':
-                this.renderChoicePhase(combatData);
-                break;
-
-            case 'playeraction':
-            case 'animalaction':
-            case 'behaviorchange':
-                this.renderNarrativePhase(combatData, 'Continue');
-                break;
-
-            case 'outcome':
-                this.showCombatOutcome(combatData);
-                break;
-
-            default:
-                this.renderChoicePhase(combatData);
+    setupGridClickHandler() {
+        const gridCanvas = this.$('#combatGridCanvas');
+        if (gridCanvas && !gridCanvas._clickHandlerAttached) {
+            gridCanvas.addEventListener('click', (e) => this.handleGridClick(e));
+            gridCanvas.style.cursor = 'pointer';
+            gridCanvas._clickHandlerAttached = true;
         }
     }
 
-    /**
-     * Render intro phase (first frame with confirmation)
-     */
-    renderIntroPhase(combatData) {
-        // Show intro, hide combat content
-        show(this.introSectionEl);
-        show(this.introActionsEl);
-        hide(this.combatContentEl);
+    // ========== APPROACH PHASE ==========
 
-        // Get enemy name from grid units if needed for fallback
-        const enemyUnit = combatData.grid?.units?.find(u => u.team?.toLowerCase() === 'enemy');
-        const enemyName = enemyUnit?.name?.toLowerCase() || 'enemy';
+    renderApproachPhase(data) {
+        hide(this.$('#combatActionMessage'));
+        hide(this.$('#combatPlayerBraced'));
+        hide(this.$('#combatOutcome'));
+        hide(this.$('#combatActions'));
+        show(this.$('#encounterOverlay'));
 
-        // Set intro message
-        this.introMessageEl.textContent = combatData.narrativeMessage || `A ${enemyName} lunges at you!`;
-    }
+        const targetEl = this.$('#encounterTarget');
+        if (targetEl) targetEl.textContent = data.predatorName || data.animalName;
 
-    /**
-     * Render player choice phase - show actions and full combat state
-     */
-    renderChoicePhase(combatData) {
-        // Hide intro, show content
-        hide(this.introSectionEl);
-        hide(this.introActionsEl);
-        hide(this.outcomeActionsEl);
-        show(this.combatContentEl);
+        this.updateApproachDistanceBar(data);
+        this.updateBoldness(data);
+        this.updateApproachThreatFactors(data.threatFactors || []);
 
-        // Hide legacy single-enemy header elements - info now via grid click
-        hide(this.behaviorDescEl);
-        hide(this.animalHealthEl);
-        hide(this.animalNameEl?.parentElement); // Hide the whole animal status row
-
-        // Render 2D combat grid
-        this.renderGrid(combatData);
-
-        // Update combat state display
-        this.updateDistanceBar(combatData);
-        this.updateThreatFactors(combatData);
-
-        // Braced indicator
-        if (combatData.playerBraced) {
-            show(this.playerBracedEl);
-        } else {
-            hide(this.playerBracedEl);
-        }
-
-        // Hide narrative message in choice phase
-        hide(this.actionMessageEl);
-        hide(this.outcomeEl);
-
-        // Combat actions
-        this.showActions(combatData);
-    }
-
-    /**
-     * Render narrative phase - show message with continue button
-     * Used for player action results, animal attacks, and behavior changes
-     * Only shows the narrative - hides behavior description to avoid info dump
-     */
-    renderNarrativePhase(combatData, buttonText) {
-        // Hide intro, show content
-        hide(this.introSectionEl);
-        show(this.combatContentEl);
-
-        // Render 2D combat grid (keep visual context)
-        this.renderGrid(combatData);
-
-        // Update bars (keep visual context)
-        this.updateDistanceBar(combatData);
-
-        // Hide legacy header elements
-        hide(this.animalNameEl?.parentElement);
-        hide(this.behaviorDescEl);
-        hide(this.animalHealthEl);
-        hide(this.threatSectionEl);
-        hide(this.playerBracedEl);
-
-        // Show narrative message prominently
-        if (combatData.narrativeMessage) {
-            this.actionMessageEl.textContent = combatData.narrativeMessage;
-            show(this.actionMessageEl);
-        } else {
-            hide(this.actionMessageEl);
-        }
-
-        // Hide outcome
-        hide(this.outcomeEl);
-
-        // Show continue button instead of actions
-        this.clear(this.actionsEl);
-        const continueBtn = document.createElement('button');
-        continueBtn.className = 'event-continue-btn';
-        continueBtn.textContent = buttonText;
-        continueBtn.onclick = () => this.respond('continue');
-        this.actionsEl.appendChild(continueBtn);
-        show(this.actionsEl);
-
-        // Auto-advance after delay if specified (for AI turns)
-        if (combatData.autoAdvanceMs) {
-            // Clear any existing auto-advance timer
-            if (this._autoAdvanceTimer) {
-                clearTimeout(this._autoAdvanceTimer);
-            }
-            this._autoAdvanceTimer = setTimeout(() => {
-                this._autoAdvanceTimer = null;
-                this.respond('continue');
-            }, combatData.autoAdvanceMs);
-        }
-    }
-
-    /**
-     * Update combat distance track with player marker
-     * Player marker slides along track toward target (fixed on right)
-     * 25m = left edge (0%), 0m = right edge (100%)
-     */
-    updateDistanceBar(combatData) {
-        const maxDistance = 25; // Combat max distance
-        const currentDistance = combatData.distanceMeters || 0;
-        const prevDistance = combatData.previousDistanceMeters;
-
-        // Update text value
-        if (this.distanceValueEl) {
-            this.distanceValueEl.textContent = `${Math.round(currentDistance)}m`;
-        }
-
-        // Position player marker along track
-        // 25m = 0% (left), 0m = 100% (right, at target)
-        if (this.playerMarkerEl) {
-            const positionPct = 100 - (currentDistance / maxDistance * 100);
-            const clampedPct = Math.max(0, Math.min(100, positionPct));
-
-            // Check if we should animate (previous distance differs significantly)
-            const shouldAnimate = prevDistance != null && Math.abs(prevDistance - currentDistance) > 0.5;
-
-            if (shouldAnimate) {
-                // CSS transition handles animation
-                this.playerMarkerEl.style.transition = 'left 0.5s ease-out';
+        const messageEl = this.$('#encounterMessage');
+        if (messageEl) {
+            if (data.statusMessage) {
+                messageEl.textContent = data.statusMessage;
+                show(messageEl);
             } else {
-                // Instant positioning
-                this.playerMarkerEl.style.transition = 'none';
+                hide(messageEl);
             }
-
-            this.playerMarkerEl.style.left = clampedPct + '%';
-        }
-    }
-
-    /**
-     * Update aggression gauge
-     */
-    updateAggression(combatData) {
-        const boldness = combatData.boldnessLevel || 0;
-        const descriptor = combatData.boldnessDescriptor || 'wary';
-
-        // Update descriptor text and class
-        if (this.aggressionDescriptorEl) {
-            this.aggressionDescriptorEl.textContent = descriptor;
-            this.aggressionDescriptorEl.className = 'gauge-bar__descriptor gauge-bar__descriptor--' + descriptor;
         }
 
-        // Update fill bar
-        if (this.aggressionFillEl) {
-            this.aggressionFillEl.style.width = (boldness * 100) + '%';
-            this.aggressionFillEl.className = 'gauge-bar__fill gauge-bar__fill--' + descriptor;
-        }
+        this.showApproachChoices(data);
     }
 
-    updateAnimalStatus(combatData) {
-        // Animal name
-        this.animalNameEl.textContent = combatData.animalName || 'Enemy';
-
-        // Behavior state and description
-        const behaviorState = combatData.behaviorState || 'Unknown';
-        this.behaviorStateEl.textContent = behaviorState;
-        this.behaviorStateEl.className = 'behavior-state ' + behaviorState.toLowerCase();
-        this.behaviorDescEl.textContent = combatData.behaviorDescription || '';
-
-        // Health description
-        this.animalHealthEl.textContent = combatData.animalConditionNarrative || 'The animal watches you.';
-    }
-
-    updateThreatFactors(combatData) {
-        this.clear(this.threatFactorsEl);
-
-        const factors = combatData.threatFactors || [];
-
-        // Hide entire panel if no factors
-        if (factors.length === 0) {
-            hide(this.threatSectionEl);
-            return;
-        }
-
-        show(this.threatSectionEl);
-
-        factors.forEach(factor => {
-            const isDanger = ['meat', 'weakness', 'blood', 'bleeding'].includes(factor.id);
-            // Use .badge class instead of .threat-factor
-            const className = 'badge threat-factor ' + (isDanger ? 'danger' : 'advantage');
-            const factorEl = this.createIconText(factor.icon || 'info', factor.description, className);
-            this.threatFactorsEl.appendChild(factorEl);
-        });
-    }
-
-    showActions(combatData) {
-        hide(this.outcomeEl);
-        show(this.actionsEl);
-
-        this.setChoices(combatData.actions, '#combatActions');
-    }
-
-    showOutcome(combatData) {
-        // Delegate to appropriate outcome handler based on data structure
-        if (combatData.choices !== undefined) {
-            this.showApproachOutcome(combatData);
-        } else {
-            this.showCombatOutcome(combatData);
-        }
-    }
-
-    showCombatOutcome(combatData) {
-        hide(this.actionsEl);
-        hide(this.actionMessageEl);
-        hide(this.introActionsEl);
-        hide(document.getElementById('encounterOverlay'));
-        show(this.outcomeEl);
-        show(this.outcomeActionsEl);
-
-        const outcome = combatData.outcome;
-        if (!outcome) return;
-
-        this.outcomeEl.className = 'combat-outcome ' + (outcome.result || '').toLowerCase();
-
-        // Outcome message
-        this.outcomeMessageEl.textContent = outcome.message;
-
-        // Show rewards if any
-        this.clear(this.rewardsEl);
-        if (outcome.rewards && outcome.rewards.length > 0) {
-            show(this.rewardsEl);
-            outcome.rewards.forEach(reward => {
-                const rewardEl = document.createElement('div');
-                rewardEl.className = 'combat-reward-item';
-                rewardEl.textContent = '+ ' + reward;
-                this.rewardsEl.appendChild(rewardEl);
-            });
-        } else {
-            hide(this.rewardsEl);
-        }
-
-        // Update button text
-        this.outcomeContinueBtn.textContent = 'Continue';
-    }
-
-    /**
-     * Approach phase: Update distance bar with animation
-     * Reversed from hunt - red is close (danger), green is far
-     */
-    updateApproachDistanceBar(encounterData) {
+    updateApproachDistanceBar(data) {
         const maxDistance = 100;
+        const distanceMask = this.$('#encounterDistanceMask');
+        const distanceValue = this.$('#encounterDistanceValue');
 
-        if (encounterData.isAnimatingDistance && encounterData.previousDistanceMeters != null) {
-            Animator.distanceMask(this.encounterDistanceMask, encounterData.previousDistanceMeters, encounterData.currentDistanceMeters, maxDistance);
-            Animator.distance(this.encounterDistanceValue, encounterData.previousDistanceMeters, encounterData.currentDistanceMeters);
+        if (!distanceMask || !distanceValue) return;
+
+        if (data.isAnimatingDistance && data.previousDistanceMeters != null) {
+            Animator.distanceMask(distanceMask, data.previousDistanceMeters, data.currentDistanceMeters, maxDistance);
+            Animator.distance(distanceValue, data.previousDistanceMeters, data.currentDistanceMeters);
         } else {
-            const targetPct = Math.max(0, Math.min(100, encounterData.currentDistanceMeters / maxDistance * 100));
-            this.encounterDistanceMask.style.transition = 'none';
-            this.encounterDistanceMask.style.width = targetPct + '%';
-            this.encounterDistanceValue.textContent = `${Math.round(encounterData.currentDistanceMeters)}m`;
+            const targetPct = Math.max(0, Math.min(100, data.currentDistanceMeters / maxDistance * 100));
+            distanceMask.style.transition = 'none';
+            distanceMask.style.width = targetPct + '%';
+            distanceValue.textContent = `${Math.round(data.currentDistanceMeters)}m`;
         }
     }
 
-    /**
-     * Approach phase: Update boldness gauge
-     */
-    updateBoldness(encounterData) {
-        const boldness = encounterData.boldnessLevel || 0;
-        const descriptor = encounterData.boldnessDescriptor || 'wary';
+    updateBoldness(data) {
+        const boldness = data.boldnessLevel || 0;
+        const descriptor = data.boldnessDescriptor || 'wary';
 
-        // Update descriptor text and class
-        this.encounterBoldnessDescriptor.textContent = descriptor;
-        this.encounterBoldnessDescriptor.className = 'encounter-boldness-descriptor ' + descriptor;
+        const descriptorEl = this.$('#encounterBoldnessDescriptor');
+        if (descriptorEl) {
+            descriptorEl.textContent = descriptor;
+            descriptorEl.className = 'encounter-boldness-descriptor ' + descriptor;
+        }
 
-        // Update fill bar
-        this.encounterBoldnessFill.style.width = (boldness * 100) + '%';
-        this.encounterBoldnessFill.className = 'encounter-boldness-fill ' + descriptor;
+        const fillEl = this.$('#encounterBoldnessFill');
+        if (fillEl) {
+            fillEl.style.width = (boldness * 100) + '%';
+            fillEl.className = 'encounter-boldness-fill ' + descriptor;
+        }
     }
 
-    /**
-     * Approach phase: Update threat factors
-     */
     updateApproachThreatFactors(factors) {
-        this.clear(this.encounterFactorsEl);
+        const factorsEl = this.$('#encounterFactors');
+        if (!factorsEl) return;
+        clear(factorsEl);
 
         if (!factors || factors.length === 0) {
-            hide(this.encounterFactorsEl);
+            hide(factorsEl);
             return;
         }
 
-        show(this.encounterFactorsEl);
+        show(factorsEl);
         factors.forEach(factor => {
-            const factorEl = this.createIconText(factor.icon || 'warning', factor.description, 'encounter-factor');
-            this.encounterFactorsEl.appendChild(factorEl);
+            factorsEl.appendChild(
+                span({ className: 'encounter-factor' },
+                    Icon(factor.icon || 'warning'),
+                    factor.description
+                )
+            );
         });
     }
 
-    /**
-     * Approach phase: Show choices (stand/back/run/fight/drop)
-     */
-    showApproachChoices(encounterData) {
-        hide(this.encounterOutcomeEl);
-        show(this.encounterChoicesEl);
+    showApproachChoices(data) {
+        const choicesEl = this.$('#encounterChoices');
+        const outcomeEl = this.$('#encounterOutcome');
 
-        this.clear(this.encounterChoicesEl);
+        hide(outcomeEl);
+        show(choicesEl);
 
-        // Guard against missing choices array
-        if (!encounterData.choices || !Array.isArray(encounterData.choices)) {
+        if (!choicesEl) return;
+        clear(choicesEl);
+
+        if (!data.choices || !Array.isArray(data.choices)) {
             console.warn('No choices available in approach phase data');
             return;
         }
 
-        encounterData.choices.forEach(choice => {
-            const btn = this.createOptionButton({
-                label: choice.label,
-                description: choice.description,
-                disabled: !choice.isAvailable,
-                disabledReason: choice.disabledReason,
-                onClick: () => this.respond(choice.id)
-            });
-            this.encounterChoicesEl.appendChild(btn);
+        data.choices.forEach(choice => {
+            choicesEl.appendChild(
+                ActionButton({
+                    label: choice.label,
+                    description: choice.description,
+                    disabled: !choice.isAvailable,
+                    disabledReason: choice.disabledReason
+                }, () => this.respond(choice.id))
+            );
         });
     }
 
-    /**
-     * Approach phase: Show outcome
-     */
-    showApproachOutcome(encounterData) {
-        hide(this.encounterChoicesEl);
-        show(this.encounterOutcomeEl);
+    showApproachOutcome(data) {
+        const choicesEl = this.$('#encounterChoices');
+        const outcomeEl = this.$('#encounterOutcome');
+        const outcomeMessageEl = this.$('#encounterOutcomeMessage');
 
-        const outcome = encounterData.outcome;
-        if (!outcome) return;
+        hide(choicesEl);
+        show(outcomeEl);
 
-        this.encounterOutcomeEl.className = 'encounter-outcome ' + (outcome.result || '').toLowerCase();
-        this.encounterOutcomeMessageEl.textContent = outcome.message;
+        const outcome = data.outcome;
+        if (!outcome || !outcomeEl) return;
 
-        // Add continue button
-        this.clear(this.encounterOutcomeEl);
-        this.encounterOutcomeEl.appendChild(this.encounterOutcomeMessageEl);
+        outcomeEl.className = 'encounter-outcome ' + (outcome.result || '').toLowerCase();
+        if (outcomeMessageEl) outcomeMessageEl.textContent = outcome.message;
 
-        const continueBtn = document.createElement('button');
-        continueBtn.className = 'event-continue-btn';
-        continueBtn.textContent = outcome.result === 'fight' ? 'Fight!' : 'Continue';
-        continueBtn.onclick = () => this.respond('continue');
-        this.encounterOutcomeEl.appendChild(continueBtn);
+        clear(outcomeEl);
+        if (outcomeMessageEl) outcomeEl.appendChild(outcomeMessageEl);
+
+        outcomeEl.appendChild(
+            ContinueButton(
+                () => this.respond('continue'),
+                outcome.result === 'fight' ? 'Fight!' : 'Continue'
+            )
+        );
     }
 
-    /**
-     * Render the 2D combat grid showing unit positions
-     */
-    renderGrid(combatData) {
-        if (!this.gridCanvasEl || !this.gridCtx || !combatData.grid) {
+    // ========== COMBAT PHASE ==========
+
+    renderCombatPhase(data) {
+        hide(this.$('#encounterOverlay'));
+
+        const animalNameEl = this.$('#combatAnimalName');
+        if (animalNameEl) animalNameEl.textContent = data.animalName || 'Enemy';
+
+        const phase = data.phase?.toLowerCase() || 'playerChoice';
+
+        switch (phase) {
+            case 'intro':
+                this.renderIntroPhase(data);
+                break;
+            case 'playerchoice':
+                this.renderChoicePhase(data);
+                break;
+            case 'playeraction':
+            case 'animalaction':
+            case 'behaviorchange':
+                this.renderNarrativePhase(data, 'Continue');
+                break;
+            case 'outcome':
+                this.showCombatOutcome(data);
+                break;
+            default:
+                this.renderChoicePhase(data);
+        }
+    }
+
+    renderIntroPhase(data) {
+        show(this.$('#combatIntroSection'));
+        show(this.$('#combatIntroActions'));
+        hide(this.$('#combatContent'));
+
+        const enemyUnit = data.grid?.units?.find(u => u.team?.toLowerCase() === 'enemy');
+        const enemyName = enemyUnit?.name?.toLowerCase() || 'enemy';
+
+        const introMessageEl = this.$('#combatIntroMessage');
+        if (introMessageEl) {
+            introMessageEl.textContent = data.narrativeMessage || `A ${enemyName} lunges at you!`;
+        }
+    }
+
+    renderChoicePhase(data) {
+        hide(this.$('#combatIntroSection'));
+        hide(this.$('#combatIntroActions'));
+        hide(this.$('#combatOutcomeActions'));
+        show(this.$('#combatContent'));
+
+        // Hide legacy single-enemy header elements
+        hide(this.$('#combatBehaviorDesc'));
+        hide(this.$('#combatAnimalHealth'));
+        const animalNameEl = this.$('#combatAnimalName');
+        if (animalNameEl?.parentElement) hide(animalNameEl.parentElement);
+
+        this.renderGrid(data);
+        this.updateDistanceBar(data);
+        this.updateThreatFactors(data);
+
+        const bracedEl = this.$('#combatPlayerBraced');
+        if (bracedEl) {
+            data.playerBraced ? show(bracedEl) : hide(bracedEl);
+        }
+
+        hide(this.$('#combatActionMessage'));
+        hide(this.$('#combatOutcome'));
+
+        this.showActions(data);
+    }
+
+    renderNarrativePhase(data, buttonText) {
+        hide(this.$('#combatIntroSection'));
+        show(this.$('#combatContent'));
+
+        this.renderGrid(data);
+        this.updateDistanceBar(data);
+
+        // Hide status elements
+        const animalNameEl = this.$('#combatAnimalName');
+        if (animalNameEl?.parentElement) hide(animalNameEl.parentElement);
+        hide(this.$('#combatBehaviorDesc'));
+        hide(this.$('#combatAnimalHealth'));
+        hide(this.$('#combatThreatSection'));
+        hide(this.$('#combatPlayerBraced'));
+
+        const actionMessageEl = this.$('#combatActionMessage');
+        if (actionMessageEl) {
+            if (data.narrativeMessage) {
+                actionMessageEl.textContent = data.narrativeMessage;
+                show(actionMessageEl);
+            } else {
+                hide(actionMessageEl);
+            }
+        }
+
+        hide(this.$('#combatOutcome'));
+
+        // Show continue button
+        const actionsEl = this.$('#combatActions');
+        if (actionsEl) {
+            clear(actionsEl);
+            actionsEl.appendChild(ContinueButton(() => this.respond('continue'), buttonText));
+            show(actionsEl);
+        }
+
+        // Auto-advance for AI turns
+        if (data.autoAdvanceMs) {
+            if (this._autoAdvanceTimer) clearTimeout(this._autoAdvanceTimer);
+            this._autoAdvanceTimer = setTimeout(() => {
+                this._autoAdvanceTimer = null;
+                this.respond('continue');
+            }, data.autoAdvanceMs);
+        }
+    }
+
+    updateDistanceBar(data) {
+        const maxDistance = 25;
+        const currentDistance = data.distanceMeters || 0;
+        const prevDistance = data.previousDistanceMeters;
+
+        const distanceValueEl = this.$('#combatDistanceValue');
+        if (distanceValueEl) distanceValueEl.textContent = `${Math.round(currentDistance)}m`;
+
+        const playerMarkerEl = this.$('#combatPlayerMarker');
+        if (playerMarkerEl) {
+            const positionPct = 100 - (currentDistance / maxDistance * 100);
+            const clampedPct = Math.max(0, Math.min(100, positionPct));
+
+            const shouldAnimate = prevDistance != null && Math.abs(prevDistance - currentDistance) > 0.5;
+            playerMarkerEl.style.transition = shouldAnimate ? 'left 0.5s ease-out' : 'none';
+            playerMarkerEl.style.left = clampedPct + '%';
+        }
+    }
+
+    updateThreatFactors(data) {
+        const threatFactorsEl = this.$('#combatThreatFactors');
+        const threatSectionEl = this.$('#combatThreatSection');
+
+        if (!threatFactorsEl) return;
+        clear(threatFactorsEl);
+
+        const factors = data.threatFactors || [];
+
+        if (factors.length === 0) {
+            hide(threatSectionEl);
             return;
         }
 
-        const grid = combatData.grid;
+        show(threatSectionEl);
+
+        factors.forEach(factor => {
+            const isDanger = ['meat', 'weakness', 'blood', 'bleeding'].includes(factor.id);
+            threatFactorsEl.appendChild(
+                span({ className: `badge threat-factor ${isDanger ? 'danger' : 'advantage'}` },
+                    Icon(factor.icon || 'info'),
+                    factor.description
+                )
+            );
+        });
+    }
+
+    showActions(data) {
+        hide(this.$('#combatOutcome'));
+        const actionsEl = this.$('#combatActions');
+        if (!actionsEl) return;
+        show(actionsEl);
+        clear(actionsEl);
+
+        data.actions?.forEach(action => {
+            actionsEl.appendChild(
+                ActionButton(action, () => this.respond(action.id))
+            );
+        });
+    }
+
+    showCombatOutcome(data) {
+        hide(this.$('#combatActions'));
+        hide(this.$('#combatActionMessage'));
+        hide(this.$('#combatIntroActions'));
+        hide(this.$('#encounterOverlay'));
+        show(this.$('#combatOutcome'));
+        show(this.$('#combatOutcomeActions'));
+
+        const outcome = data.outcome;
+        if (!outcome) return;
+
+        const outcomeEl = this.$('#combatOutcome');
+        if (outcomeEl) outcomeEl.className = 'combat-outcome ' + (outcome.result || '').toLowerCase();
+
+        const outcomeMessageEl = this.$('#combatOutcomeMessage');
+        if (outcomeMessageEl) outcomeMessageEl.textContent = outcome.message;
+
+        const rewardsEl = this.$('#combatRewards');
+        if (rewardsEl) {
+            clear(rewardsEl);
+            if (outcome.rewards?.length > 0) {
+                show(rewardsEl);
+                outcome.rewards.forEach(reward => {
+                    rewardsEl.appendChild(
+                        div({ className: 'combat-reward-item' }, '+ ' + reward)
+                    );
+                });
+            } else {
+                hide(rewardsEl);
+            }
+        }
+
+        const outcomeContinueBtn = this.$('#combatOutcomeContinueBtn');
+        if (outcomeContinueBtn) outcomeContinueBtn.textContent = 'Continue';
+    }
+
+    // ========== GRID RENDERING ==========
+
+    renderGrid(data) {
+        const gridCanvas = this.$('#combatGridCanvas');
+        const ctx = gridCanvas?.getContext('2d');
+
+        if (!gridCanvas || !ctx || !data.grid) return;
+
+        const grid = data.grid;
         const gridSize = grid.gridSize || this.GRID_SIZE;
         const canvasSize = gridSize * this.CELL_SIZE + this.GRID_PADDING * 2;
 
-        // Store data for click detection
         this.currentUnits = grid.units || [];
-        this.lastCombatData = combatData;
+        this.lastCombatData = data;
 
-        // Set canvas size
-        this.gridCanvasEl.width = canvasSize;
-        this.gridCanvasEl.height = canvasSize;
+        gridCanvas.width = canvasSize;
+        gridCanvas.height = canvasSize;
 
-        const ctx = this.gridCtx;
-
-        // Draw terrain background if available
+        // Draw terrain background
         if (grid.terrain && grid.locationX != null && grid.locationY != null) {
             const baseColor = TERRAIN_COLORS[grid.terrain] || TERRAIN_COLORS.Plain;
             ctx.fillStyle = baseColor;
@@ -581,17 +459,18 @@ export class CombatOverlay extends OverlayManager {
             ctx.fillRect(0, 0, canvasSize, canvasSize);
         }
 
-        // Draw distance zone rings from player position
+        // Draw distance zone rings
         const cellSizeMeters = grid.cellSizeMeters || 1;
         const playerUnit = this.currentUnits.find(u => u.team?.toLowerCase() === 'player');
+
         if (playerUnit) {
             const playerX = this.GRID_PADDING + playerUnit.position.x * this.CELL_SIZE + this.CELL_SIZE / 2;
             const playerY = this.GRID_PADDING + playerUnit.position.y * this.CELL_SIZE + this.CELL_SIZE / 2;
 
             const zones = [
-                { radius: 3, color: 'rgba(255, 80, 80, 0.15)' },   // Close - red
-                { radius: 8, color: 'rgba(255, 160, 80, 0.1)' },   // Near - orange
-                { radius: 15, color: 'rgba(255, 220, 80, 0.05)' }  // Mid - yellow
+                { radius: 3, color: 'rgba(255, 80, 80, 0.15)' },
+                { radius: 8, color: 'rgba(255, 160, 80, 0.1)' },
+                { radius: 15, color: 'rgba(255, 220, 80, 0.05)' }
             ];
 
             zones.forEach(zone => {
@@ -605,131 +484,19 @@ export class CombatOverlay extends OverlayManager {
 
         // Draw units
         this.currentUnits.forEach(unit => {
-            const isSelected = this.selectedUnit && this.selectedUnit.id === unit.id;
+            const isSelected = this.selectedUnit?.id === unit.id;
             this.drawUnit(ctx, unit, gridSize, isSelected);
         });
     }
 
-    /**
-     * Handle click on combat grid canvas
-     */
-    handleGridClick(event) {
-        const rect = this.gridCanvasEl.getBoundingClientRect();
-        const clickX = event.clientX - rect.left;
-        const clickY = event.clientY - rect.top;
-
-        // Convert to grid coordinates
-        const gridX = (clickX - this.GRID_PADDING) / this.CELL_SIZE;
-        const gridY = (clickY - this.GRID_PADDING) / this.CELL_SIZE;
-
-        // Find unit at click position (within 1 cell tolerance)
-        const clickedUnit = this.currentUnits.find(unit => {
-            const dx = unit.position.x + 0.5 - gridX;
-            const dy = unit.position.y + 0.5 - gridY;
-            return Math.sqrt(dx * dx + dy * dy) < 0.7;
-        });
-
-        if (clickedUnit) {
-            this.selectedUnit = clickedUnit;
-            this.showUnitDetail(clickedUnit);
-            // Redraw grid to show selection
-            if (this.lastCombatData) {
-                this.renderGrid(this.lastCombatData);
-            }
-        } else {
-            this.selectedUnit = null;
-            this.hideUnitDetail();
-        }
-    }
-
-    /**
-     * Show detail panel for clicked unit (using safe DOM methods)
-     */
-    showUnitDetail(unit) {
-        if (!this.unitDetailEl) return;
-
-        // Clear existing content
-        this.clear(this.unitDetailEl);
-
-        const isEnemy = unit.team?.toLowerCase() === 'enemy';
-
-        // Header row
-        const header = document.createElement('div');
-        header.className = 'unit-detail-header';
-
-        const nameSpan = document.createElement('span');
-        nameSpan.className = 'unit-detail-name';
-        nameSpan.textContent = unit.name;
-        header.appendChild(nameSpan);
-
-        const teamSpan = document.createElement('span');
-        teamSpan.className = 'unit-detail-team ' + unit.team;
-        teamSpan.textContent = unit.team;
-        header.appendChild(teamSpan);
-
-        this.unitDetailEl.appendChild(header);
-
-        // Health section
-        const healthDiv = document.createElement('div');
-        healthDiv.className = 'unit-detail-health';
-
-        const barDiv = document.createElement('div');
-        barDiv.className = 'unit-detail-bar';
-
-        const fillDiv = document.createElement('div');
-        fillDiv.className = 'unit-detail-bar-fill';
-        fillDiv.style.width = (unit.vitality * 100).toFixed(0) + '%';
-        barDiv.appendChild(fillDiv);
-        healthDiv.appendChild(barDiv);
-
-        const healthText = document.createElement('span');
-        healthText.className = 'unit-detail-health-text';
-        healthText.textContent = unit.healthDescription;
-        healthDiv.appendChild(healthText);
-
-        this.unitDetailEl.appendChild(healthDiv);
-
-        // Show boldness for enemies
-        if (isEnemy) {
-            const boldnessDiv = document.createElement('div');
-            boldnessDiv.className = 'unit-detail-boldness';
-
-            const boldnessLabel = document.createElement('span');
-            boldnessLabel.className = 'unit-detail-boldness-label';
-            boldnessLabel.textContent = 'Behavior:';
-            boldnessDiv.appendChild(boldnessLabel);
-
-            const boldnessValue = document.createElement('span');
-            boldnessValue.className = 'unit-detail-boldness-value ' + unit.boldnessDescriptor;
-            boldnessValue.textContent = unit.boldnessDescriptor;
-            boldnessDiv.appendChild(boldnessValue);
-
-            this.unitDetailEl.appendChild(boldnessDiv);
-        }
-
-        this.unitDetailEl.classList.add('visible');
-    }
-
-    /**
-     * Hide unit detail panel
-     */
-    hideUnitDetail() {
-        if (this.unitDetailEl) {
-            this.unitDetailEl.classList.remove('visible');
-        }
-    }
-
-    /**
-     * Draw a single unit on the combat grid
-     */
     drawUnit(ctx, unit, gridSize, isSelected) {
         const x = this.GRID_PADDING + unit.position.x * this.CELL_SIZE + this.CELL_SIZE / 2;
         const y = this.GRID_PADDING + unit.position.y * this.CELL_SIZE + this.CELL_SIZE / 2;
         const radius = this.CELL_SIZE * 0.35;
 
-        // Color based on team, icon from DTO (matches world map)
+        const icon = unit.icon || '🐾';
         let fillColor, strokeColor;
-        const icon = unit.icon || '🐾';  // Use icon from backend, fallback to paw
+
         switch (unit.team?.toLowerCase()) {
             case 'player':
                 fillColor = 'hsl(210, 60%, 45%)';
@@ -755,7 +522,7 @@ export class CombatOverlay extends OverlayManager {
             ctx.stroke();
         }
 
-        // Draw unit circle
+        // Unit circle
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fillStyle = fillColor;
@@ -764,13 +531,13 @@ export class CombatOverlay extends OverlayManager {
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Draw icon/emoji in center
+        // Icon
         ctx.font = `${this.CELL_SIZE * 0.5}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(icon, x, y);
 
-        // Draw boldness indicator for enemies (color dot based on aggression)
+        // Boldness indicator for enemies
         if (unit.team?.toLowerCase() === 'enemy') {
             const indicatorColor = this.getBoldnessColor(unit.boldnessDescriptor);
             ctx.beginPath();
@@ -780,57 +547,121 @@ export class CombatOverlay extends OverlayManager {
         }
     }
 
-    /**
-     * Get color for boldness descriptor
-     */
     getBoldnessColor(descriptor) {
         switch ((descriptor || '').toLowerCase()) {
-            case 'aggressive':
-                return '#ff4444';  // Red
-            case 'bold':
-                return '#ff8844';  // Orange
-            case 'wary':
-                return '#ffcc44';  // Yellow
-            case 'cautious':
-                return '#44cc44';  // Green
-            default:
-                return '#888888';  // Gray
+            case 'aggressive': return '#ff4444';
+            case 'bold': return '#ff8844';
+            case 'wary': return '#ffcc44';
+            case 'cautious': return '#44cc44';
+            default: return '#888888';
         }
     }
 
-    cleanup() {
-        // Clear auto-advance timer if running
+    handleGridClick(event) {
+        const gridCanvas = this.$('#combatGridCanvas');
+        if (!gridCanvas) return;
+
+        const rect = gridCanvas.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const clickY = event.clientY - rect.top;
+
+        const gridX = (clickX - this.GRID_PADDING) / this.CELL_SIZE;
+        const gridY = (clickY - this.GRID_PADDING) / this.CELL_SIZE;
+
+        const clickedUnit = this.currentUnits.find(unit => {
+            const dx = unit.position.x + 0.5 - gridX;
+            const dy = unit.position.y + 0.5 - gridY;
+            return Math.sqrt(dx * dx + dy * dy) < 0.7;
+        });
+
+        if (clickedUnit) {
+            this.selectedUnit = clickedUnit;
+            this.showUnitDetail(clickedUnit);
+            if (this.lastCombatData) this.renderGrid(this.lastCombatData);
+        } else {
+            this.selectedUnit = null;
+            this.hideUnitDetail();
+        }
+    }
+
+    showUnitDetail(unit) {
+        const unitDetailEl = this.$('#combatUnitDetail');
+        if (!unitDetailEl) return;
+        clear(unitDetailEl);
+
+        const isEnemy = unit.team?.toLowerCase() === 'enemy';
+
+        // Header
+        unitDetailEl.appendChild(
+            div({ className: 'unit-detail-header' },
+                span({ className: 'unit-detail-name' }, unit.name),
+                span({ className: 'unit-detail-team ' + unit.team }, unit.team)
+            )
+        );
+
+        // Health
+        unitDetailEl.appendChild(
+            div({ className: 'unit-detail-health' },
+                div({ className: 'unit-detail-bar' },
+                    div({
+                        className: 'unit-detail-bar-fill',
+                        style: { width: (unit.vitality * 100).toFixed(0) + '%' }
+                    })
+                ),
+                span({ className: 'unit-detail-health-text' }, unit.healthDescription)
+            )
+        );
+
+        // Boldness for enemies
+        if (isEnemy) {
+            unitDetailEl.appendChild(
+                div({ className: 'unit-detail-boldness' },
+                    span({ className: 'unit-detail-boldness-label' }, 'Behavior:'),
+                    span({ className: 'unit-detail-boldness-value ' + unit.boldnessDescriptor }, unit.boldnessDescriptor)
+                )
+            );
+        }
+
+        unitDetailEl.classList.add('visible');
+    }
+
+    hideUnitDetail() {
+        const unitDetailEl = this.$('#combatUnitDetail');
+        if (unitDetailEl) unitDetailEl.classList.remove('visible');
+    }
+
+    // ========== CLEANUP ==========
+
+    hide() {
+        super.hide();
+
         if (this._autoAdvanceTimer) {
             clearTimeout(this._autoAdvanceTimer);
             this._autoAdvanceTimer = null;
         }
 
-        // Clear DOM contents
-        this.clear(this.actionsEl);
-        this.clear(this.rewardsEl);
-        this.clear(this.threatFactorsEl);
-        this.clear(this.encounterChoicesEl);
-        this.clear(this.encounterFactorsEl);
-        this.clear(this.encounterOutcomeEl);
+        // Clear various elements
+        clear(this.$('#combatActions'));
+        clear(this.$('#combatRewards'));
+        clear(this.$('#combatThreatFactors'));
+        clear(this.$('#encounterChoices'));
+        clear(this.$('#encounterFactors'));
+        clear(this.$('#encounterOutcome'));
 
-        // Hide all sub-sections that might be visible
-        if (this.introSectionEl) hide(this.introSectionEl);
-        if (this.introActionsEl) hide(this.introActionsEl);
-        if (this.outcomeEl) hide(this.outcomeEl);
-        if (this.outcomeActionsEl) hide(this.outcomeActionsEl);
-        if (this.actionMessageEl) hide(this.actionMessageEl);
-        if (this.combatContentEl) hide(this.combatContentEl);
+        // Hide sections
+        hide(this.$('#combatIntroSection'));
+        hide(this.$('#combatIntroActions'));
+        hide(this.$('#combatOutcome'));
+        hide(this.$('#combatOutcomeActions'));
+        hide(this.$('#combatActionMessage'));
+        hide(this.$('#combatContent'));
+        hide(this.$('#encounterOverlay'));
 
-        // Hide encounter overlay
-        const encounterOverlay = document.getElementById('encounterOverlay');
-        if (encounterOverlay) hide(encounterOverlay);
+        // Reset marker
+        const playerMarkerEl = this.$('#combatPlayerMarker');
+        if (playerMarkerEl) playerMarkerEl.style.transition = 'none';
 
-        // Reset distance marker animation state
-        if (this.playerMarkerEl) {
-            this.playerMarkerEl.style.transition = 'none';
-        }
-
-        // Reset grid click state
+        // Reset grid state
         this.currentUnits = [];
         this.selectedUnit = null;
         this.lastCombatData = null;

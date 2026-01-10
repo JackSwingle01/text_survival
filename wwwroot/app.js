@@ -17,7 +17,8 @@ import { EatingOverlay } from './overlays/EatingOverlay.js';
 import { DiscoveryOverlay } from './overlays/DiscoveryOverlay.js';
 import { WeatherChangeOverlay } from './overlays/WeatherChangeOverlay.js';
 import { ConnectionOverlay } from './modules/connection.js';
-import { Utils, ICON_CLASS, createIcon, show, hide } from './modules/utils.js';
+import { show, hide, clear } from './lib/helpers.js';
+import { Icon, ICON_CLASS } from './lib/components/Icon.js';
 import { ProgressDisplay } from './modules/progress.js';
 import { FrameQueue } from './modules/frameQueue.js';
 import { NarrativeLog } from './modules/log.js';
@@ -295,7 +296,7 @@ class GameClient {
     renderGearSummary(summary) {
         // Tool pills
         const pillsContainer = document.getElementById('toolPills');
-        Utils.clearElement(pillsContainer);
+        clear(pillsContainer);
 
         // Weapon
         if (summary.weaponName) {
@@ -600,8 +601,8 @@ class GameClient {
         terrainEl.textContent = tileData.locationName ? tileData.terrain : '';
 
         // Clear sections
-        Utils.clearElement(glanceEl);
-        Utils.clearElement(featuresEl);
+        clear(glanceEl);
+        clear(featuresEl);
 
         // Build quick glance badges (for visible locations)
         const isExplored = tileData.visibility === 'visible';
@@ -617,7 +618,7 @@ class GameClient {
         const isPlayerHere = tileData.isPlayerHere;
 
         // Build actions
-        Utils.clearElement(actionsEl);
+        clear(actionsEl);
         // Travel blocked if there's a pending input without Travel option
         const hasBlockingInput = this.currentInput?.choices?.length > 0 &&
             !this.currentInput.choices.some(c => c.label.includes('Travel'));
@@ -832,7 +833,7 @@ class GameClient {
         const actionsEl = document.getElementById('popupActions');
         if (!actionsEl) return;
 
-        Utils.clearElement(actionsEl);
+        clear(actionsEl);
     }
 
     /**
@@ -909,7 +910,7 @@ class GameClient {
 
         // Show panel and populate actions
         show(panel);
-        Utils.clearElement(container);
+        clear(container);
 
         const inputId = this.currentInputId;
         workActions.forEach(choice => {
