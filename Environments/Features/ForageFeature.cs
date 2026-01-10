@@ -82,7 +82,7 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     private double ResourceDensity()
     {
         // Calculate base depleted density
-        double depletedDensity = BaseResourceDensity / (NumberOfHoursForaged + 1);
+        double depletedDensity = BaseResourceDensity / (1.0 + (NumberOfHoursForaged / 2));
 
         // Calculate respawn recovery if time has passed
         if (HasForagedBefore && NumberOfHoursForaged > 0)

@@ -594,7 +594,7 @@ public static class LocationFactory
             FirstVisitEvent = GameEventRegistry.FirstVisitAncientGrove
         };
 
-        location.Features.Add(FeatureFactory.CreateOldGrowthForage(density: 0.4));
+        location.Features.Add(FeatureFactory.CreateOldGrowthForage(density: 1));
 
         // Premium hardwood - requires axe (unique to this location, keep inline)
         var hardwood = new HarvestableFeature("ancient_hardwood", "Ancient Hardwood")

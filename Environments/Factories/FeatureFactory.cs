@@ -63,9 +63,9 @@ public static class FeatureFactory
 
     /// <summary>
     /// Old growth forage - sparse, fungi only.
-    /// Used by: Ancient Grove (0.4)
+    /// Used by: Ancient Grove
     /// </summary>
-    public static ForageFeature CreateOldGrowthForage(double density = 0.4)
+    public static ForageFeature CreateOldGrowthForage(double density = 1.0)
     {
         return new ForageFeature(density)
             .AddTinder(0.3, 0.01, 0.04)
@@ -107,7 +107,7 @@ public static class FeatureFactory
     public static ForageFeature CreateRockyForage(double density = 0.6)
     {
         return new ForageFeature(density)
-            .AddStone(1.5, 0.25, 0.7)
+            .AddStone(2, 0.25, 0.7)
             .AddTinder(0.2, 0.01, 0.04)
             .AddFlint(0.2, 0.1, 0.25);
     }
@@ -176,18 +176,18 @@ public static class FeatureFactory
     {
         var (baseDensity, factory) = terrain switch
         {
-            TerrainType.Forest => (0.6, (Func<double, ForageFeature>)CreateMixedForestForage),
-            TerrainType.Clearing => (0.5, (Func<double, ForageFeature>)CreateMixedForestForage),
+            TerrainType.Forest => (1.0, (Func<double, ForageFeature>)CreateMixedForestForage),
+            TerrainType.Clearing => (0.7, (Func<double, ForageFeature>)CreateMixedForestForage),
             TerrainType.Marsh => (0.5, (Func<double, ForageFeature>)CreateWetlandForage),
-            TerrainType.Water => (0.3, (Func<double, ForageFeature>)CreateFrozenCreekForage),
-            TerrainType.Plain => (0.25, (Func<double, ForageFeature>)CreateOpenForage),
-            TerrainType.Hills => (0.35, (Func<double, ForageFeature>)CreateRockyForage),
-            TerrainType.Rock => (0.4, (Func<double, ForageFeature>)CreateRockyForage),
+            TerrainType.Water => (0.5, (Func<double, ForageFeature>)CreateFrozenCreekForage),
+            TerrainType.Plain => (0.5, (Func<double, ForageFeature>)CreateOpenForage),
+            TerrainType.Hills => (0.4, (Func<double, ForageFeature>)CreateRockyForage),
+            TerrainType.Rock => (0.5, (Func<double, ForageFeature>)CreateRockyForage),
             _ => (0.3, (Func<double, ForageFeature>)CreateBarrenForage)
         };
 
-        double density = Utils.RandomNormal(baseDensity, 0.2);
-        density = Math.Clamp(density, 0.1, 1.0);
+        double density = Utils.RandomNormal(baseDensity, 0.3);
+        density = Math.Clamp(density, 0.1, 2.0);
 
         return factory(density);
     }
