@@ -119,11 +119,6 @@
             <option value="forage">Forage</option>
             <option value="huntStalking">Hunt (Stalking)</option>
             <option value="huntAlert">Hunt (Alert)</option>
-            <option value="encounter">Encounter</option>
-            <option value="combatIntro">Combat (Intro)</option>
-            <option value="combatChoice">Combat (Choice)</option>
-            <option value="combatNarrative">Combat (Narrative)</option>
-            <option value="combatOutcome">Combat (Outcome)</option>
             <option value="fireStarting">Fire (Starting)</option>
             <option value="fireTending">Fire (Tending)</option>
             <option value="cooking">Cooking</option>
@@ -151,8 +146,6 @@
         import { EventOverlay } from './overlays/EventOverlay.js';
         import { ForageOverlay } from './overlays/ForageOverlay.js';
         import { HuntOverlay } from './overlays/HuntOverlay.js';
-        import { EncounterOverlay } from './overlays/EncounterOverlay.js';
-        import { CombatOverlay } from './overlays/CombatOverlay.js';
         import { FireOverlay } from './overlays/FireOverlay.js';
         import { CookingOverlay } from './overlays/CookingOverlay.js';
         import { EatingOverlay } from './overlays/EatingOverlay.js';
@@ -178,8 +171,6 @@
         const eventOverlay = new EventOverlay(mockInputHandler);
         const forageOverlay = new ForageOverlay(mockInputHandler);
         const huntOverlay = new HuntOverlay(mockInputHandler);
-        const encounterOverlay = new EncounterOverlay(mockInputHandler);
-        const combatOverlay = new CombatOverlay(mockInputHandler);
         const fireOverlay = new FireOverlay(mockInputHandler);
         const cookingOverlay = new CookingOverlay(mockInputHandler);
         const eatingOverlay = new EatingOverlay(mockInputHandler);
@@ -232,11 +223,6 @@
             { key: 'forage', name: 'Forage', overlay: forageOverlay, fixture: fixtures.forage, input: null },
             { key: 'huntStalking', name: 'Hunt (Stalking)', overlay: huntOverlay, fixture: fixtures.huntStalking, input: null },
             { key: 'huntAlert', name: 'Hunt (Alert)', overlay: huntOverlay, fixture: fixtures.huntAlert, input: null },
-            { key: 'encounter', name: 'Encounter', overlay: encounterOverlay, fixture: fixtures.encounter, input: null },
-            { key: 'combatIntro', name: 'Combat (Intro)', overlay: combatOverlay, fixture: fixtures.combatIntro, input: null },
-            { key: 'combatChoice', name: 'Combat (Choice)', overlay: combatOverlay, fixture: fixtures.combatChoice, input: null },
-            { key: 'combatNarrative', name: 'Combat (Narrative)', overlay: combatOverlay, fixture: fixtures.combatNarrative, input: null },
-            { key: 'combatOutcome', name: 'Combat (Outcome)', overlay: combatOverlay, fixture: fixtures.combatOutcome, input: null },
             { key: 'fireStarting', name: 'Fire (Starting)', overlay: fireOverlay, fixture: fixtures.fireStarting, input: null },
             { key: 'fireTending', name: 'Fire (Tending)', overlay: fireOverlay, fixture: fixtures.fireTending, input: null },
             { key: 'cooking', name: 'Cooking', overlay: cookingOverlay, fixture: fixtures.cooking, input: null },

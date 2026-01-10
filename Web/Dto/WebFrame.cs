@@ -675,13 +675,13 @@ public record FireManagementDto(
 
         string phaseIcon = phase switch
         {
-            "Cold" => "ac_unit",
-            "Embers" => "fireplace",
-            "Igniting" => "local_fire_department",
-            "Building" => "local_fire_department",
-            "Steady" => "local_fire_department",
-            "Roaring" => "whatshot",
-            "Dying" => "whatshot",
+            // "Cold" => "ac_unit",
+            // "Embers" => "fireplace",
+            // "Igniting" => "local_fire_department",
+            // "Building" => "local_fire_department",
+            // "Steady" => "local_fire_department",
+            // "Roaring" => "whatshot",
+            // "Dying" => "whatshot",
             _ => "local_fire_department"
         };
 

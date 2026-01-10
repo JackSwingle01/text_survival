@@ -386,6 +386,7 @@ body {
     flex-direction: column;
     flex: 1;
     overflow: hidden;
+    padding: 1rem;
 }
 
 .pane__header {
