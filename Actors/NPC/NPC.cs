@@ -345,16 +345,17 @@ public class NPC : Actor
         double tempLoss = Math.Abs(tempChangePerHour) * hoursNeeded;
         double projectedTemp = Body.BodyTemperature - tempLoss;
 
-        // Calculate projected warmth percentage
-        double projectedWarmPct = (projectedTemp - SurvivalProcessor.HypothermiaThreshold)
-            / (Body.BASE_BODY_TEMP - SurvivalProcessor.HypothermiaThreshold);
+        // Calculate projected warmth percentage (clamped to 0-1 range)
+        double projectedWarmPct = Math.Clamp(
+            (projectedTemp - SurvivalProcessor.HypothermiaThreshold)
+            / (Body.BASE_BODY_TEMP - SurvivalProcessor.HypothermiaThreshold), 0, 1);
 
         // Require 30% warmth buffer
         bool canSurvive = projectedWarmPct > 0.3;
 
         if (!canSurvive)
         {
-            Console.WriteLine($"  [Survival] {durationMinutes}min away from fire would drop warmth to {projectedWarmPct:P0} - too dangerous");
+            Console.WriteLine($"  [Survival] {durationMinutes}min away from fire would drop warmth from {Body.WarmPct:P2} to {projectedWarmPct:P0} - too dangerous");
         }
 
         return canSurvive;

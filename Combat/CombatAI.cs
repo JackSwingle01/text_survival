@@ -1,11 +1,11 @@
-using Microsoft.AspNetCore.SignalR.Protocol;
+using System.Numerics;
 using text_survival;
 using text_survival.Combat;
 using text_survival.Environments.Grid;
-using text_survival.Web.Dto;
 
 public static class CombatAI
 {
+    private const int MOVE_DIST = 3;
 
     public static CombatActions DetermineAction(Unit unit, CombatScenario scenario)
     {
@@ -37,6 +37,12 @@ public static class CombatAI
     }
     public static GridPosition DetermineMovePosition(Unit unit)
     {
-        return unit.Position.Move(unit.GetMovementVector());
+        var movement = unit.GetMovementVector();
+        if (movement == Vector2.Zero) return unit.Position;
+
+        // Cap movement to MOVE_DIST like player
+        var direction = Vector2.Normalize(movement);
+        var cappedMagnitude = Math.Min(movement.Length(), MOVE_DIST);
+        return unit.Position.Move(direction, (float)cappedMagnitude);
     }
 }

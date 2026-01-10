@@ -108,7 +108,7 @@ public class SurvivalContext
             // Wetness context
             OverheadCoverLevel = overheadCover,
             PrecipitationPct = actor.CurrentLocation.Weather.Precipitation,
-            WindSpeedLevel = actor.CurrentLocation.Weather.WindSpeed,
+            WindSpeedLevel = CalculateEffectiveWindSpeed(actor.CurrentLocation),
             IsRaining = isRaining,
             IsSnowing = isSnowing,
             IsBlizzard = isBlizzard,
@@ -147,4 +147,19 @@ public class SurvivalContext
 
         _ => true // Default to stationary
     };
+
+    private static double CalculateEffectiveWindSpeed(Environments.Location location)
+    {
+        double baseWind = location.Weather.WindSpeed;
+        var fire = location.GetFeature<HeatSourceFeature>();
+
+        // Active fire with wind protection reduces effective wind
+        if (fire != null && fire.IsActive)
+        {
+            double protection = fire.WindProtectionFactor;
+            return baseWind * (1 - protection);
+        }
+
+        return baseWind;
+    }
 }

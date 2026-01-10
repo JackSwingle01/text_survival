@@ -401,45 +401,35 @@ public record CombatOverlay(CombatDto Data) : Overlay;
 
 /// <summary>
 /// Combat state data for the strategic combat overlay.
-/// Uses distance zones, animal behavior states, and descriptive health (no HP bars).
+/// All combatant info is in Grid.Units - click on grid actors to see details.
 /// </summary>
 public record CombatDto(
-    // Animal info
-    string AnimalName,
-    string AnimalHealthDescription,       // "wounded", "badly hurt", "staggering" (no HP bar)
-    string AnimalConditionNarrative,      // "Blood mats the wolf's fur."
-
-    // Distance and positioning
-    string DistanceZone,                  // "Melee", "Close", "Mid", "Far"
+    // Distance to nearest enemy (quick reference)
+    string DistanceZone,                  // "close", "near", "mid", "far"
     double DistanceMeters,
     double? PreviousDistanceMeters,       // For animation
 
-    // Animal behavior (readable tells)
-    string BehaviorState,                 // "Circling", "Threatening", "CHARGING!", etc.
-    string BehaviorDescription,           // The readable tell text
-
-    // Player state (for UI display)
-    double PlayerVitality,                // Still 0-1 for player's own HP display
-    double PlayerEnergy,                  // 0-1, affects action effectiveness
-    bool PlayerBraced,                    // Whether player has set a brace
-
-    // Aggression/boldness (for gauge display)
-    double BoldnessLevel,                 // 0-1 for fill bar width
-    string BoldnessDescriptor,            // "cautious", "wary", "bold", "aggressive"
+    // Player state (for status bar)
+    double PlayerVitality,
+    double PlayerEnergy,
+    bool PlayerBraced,
 
     // Phase and narrative
-    CombatPhase Phase,                    // Current combat phase for pacing
-    string? NarrativeMessage,             // Current narrative beat (replaces IntroMessage/LastActionMessage)
-    List<CombatActionDto> Actions,        // Available actions (only shown in PlayerChoice phase)
+    CombatPhase Phase,
+    string? NarrativeMessage,
+    List<CombatActionDto> Actions,        // Available actions (only in PlayerChoice phase)
 
-    // Threat factors (carried over from encounter, shown to player)
+    // Threat factors (observable reasons for predator boldness)
     List<ThreatFactorDto> ThreatFactors,
 
     // Outcome (null during combat)
     CombatOutcomeDto? Outcome,
 
-    // 2D Grid visualization (new)
-    CombatGridDto? Grid = null            // null if grid not initialized
+    // 2D Grid with all combatants
+    CombatGridDto? Grid = null,
+
+    // Auto-advance (for AI turns - frontend auto-responds after this delay)
+    int? AutoAdvanceMs = null
 );
 
 /// <summary>
@@ -482,16 +472,19 @@ public record CombatGridPositionDto(
 );
 
 /// <summary>
-/// An actor on the combat grid (player, enemy, ally).
+/// A combat unit on the grid. All fields required - no nullables.
+/// Based on Unit class which wraps Actor with combat state.
 /// </summary>
-public record CombatGridActorDto(
+public record CombatUnitDto(
     string Id,
     string Name,
-    string Team,                          // "player", "enemy", "ally"
+    string Team,                          // "player", "ally", "enemy"
     CombatGridPositionDto Position,
-    string? BehaviorState,                // null for player
-    double? Vitality,                     // 0-1, null if not shown
-    bool IsAlpha                          // Pack alpha (for visual indicator)
+    double Vitality,                      // 0-1
+    string HealthDescription,             // "healthy", "wounded", "badly hurt", etc.
+    double Boldness,                      // 0-1, from Unit.Boldness
+    string BoldnessDescriptor,            // "cautious", "wary", "bold", "aggressive"
+    string Icon                           // Emoji icon matching world map (e.g., "🐺", "🧑", "👤")
 );
 
 /// <summary>
@@ -500,7 +493,7 @@ public record CombatGridActorDto(
 public record CombatGridDto(
     int GridSize,                         // e.g., 25 for 25x25
     double CellSizeMeters,                // e.g., 1.0
-    List<CombatGridActorDto> Actors,
+    List<CombatUnitDto> Units,            // All combatants
     string? Terrain = null,               // e.g., "Forest", "Plain" for background
     int? LocationX = null,                // World X coordinate for seeded textures
     int? LocationY = null                 // World Y coordinate for seeded textures

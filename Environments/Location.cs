@@ -245,11 +245,15 @@ public class Location
         locationTemp += TemperatureDeltaF;
 
         // ------ STEP 2: Apply weather exposure effects ------
-        // Wind chill when windy
+        // Wind chill when windy (reduced by fire pit wind protection if present)
         double effectiveWindSpeed = 0;
         if (Weather.WindSpeed > 0.1) // Only significant wind
         {
-            effectiveWindSpeed = Weather.WindSpeed * WindFactor;
+            var fire = GetFeature<HeatSourceFeature>();
+            double fireWindProtection = (fire != null && fire.IsActive)
+                ? fire.WindProtectionFactor
+                : 0;
+            effectiveWindSpeed = Weather.WindSpeed * WindFactor * (1 - fireWindProtection);
             double windSpeedMph = effectiveWindSpeed * 45; // Scale 0-1 to approx mph
             locationTemp = CalculateWindChillNWS(locationTemp, windSpeedMph);
         }

@@ -1485,41 +1485,21 @@ public static class CombatRunner
         string? narrative = null,
         CombatOutcomeDto? outcome = null)
     {
-        // Build threat factors
         var factors = BuildThreatFactors(ctx, state);
 
-        // Only include actions when in PlayerChoice phase
         var actions = phase == CombatPhase.PlayerChoice
             ? BuildAvailableActions(ctx, state)
             : new List<CombatActionDto>();
 
-        // Get boldness level and descriptor
-        var boldness = state.Behavior.Boldness;
-        var boldnessDescriptor = boldness switch
-        {
-            >= 0.7 => "aggressive",
-            >= 0.5 => "bold",
-            >= 0.3 => "wary",
-            _ => "cautious"
-        };
-
-        // Build grid data if available
         var grid = BuildGridData(ctx, state);
 
         return new CombatDto(
-            AnimalName: state.Animal.Name,
-            AnimalHealthDescription: state.GetAnimalHealthDescription(),
-            AnimalConditionNarrative: state.GetAnimalConditionNarrative(),
             DistanceZone: DistanceZoneHelper.GetZoneName(state.Zone),
             DistanceMeters: state.DistanceMeters,
             PreviousDistanceMeters: prevDistance,
-            BehaviorState: state.Behavior.GetBehaviorStatus(),
-            BehaviorDescription: state.Behavior.GetBehaviorDescription(),
             PlayerVitality: ctx.player.Vitality,
-            PlayerEnergy: ctx.player.Body.Energy / 480.0, // Normalize to 0-1
+            PlayerEnergy: ctx.player.Body.Energy / 480.0,
             PlayerBraced: state.PlayerBraced,
-            BoldnessLevel: boldness,
-            BoldnessDescriptor: boldnessDescriptor,
             Phase: phase,
             NarrativeMessage: narrative,
             Actions: actions,
@@ -1536,12 +1516,11 @@ public static class CombatRunner
     {
         if (state.Map == null) return null;
 
-        // Get terrain info from current location
         var terrain = ctx.CurrentLocation?.Terrain.ToString();
         var locationX = ctx.Map?.CurrentPosition.X;
         var locationY = ctx.Map?.CurrentPosition.Y;
 
-        var actors = new List<CombatGridActorDto>();
+        var units = new List<CombatUnitDto>();
 
         foreach (var actor in state.Actors)
         {
@@ -1556,21 +1535,44 @@ public static class CombatRunner
                 _ => "unknown"
             };
 
-            actors.Add(new CombatGridActorDto(
+            var boldness = state.Behavior?.Boldness ?? 0.5;
+            var boldnessDesc = boldness switch
+            {
+                >= 0.7 => "aggressive",
+                >= 0.5 => "bold",
+                >= 0.3 => "wary",
+                _ => "cautious"
+            };
+
+            var healthDesc = actor.Vitality switch
+            {
+                >= 0.9 => "healthy",
+                >= 0.7 => "wounded",
+                >= 0.5 => "badly hurt",
+                >= 0.3 => "staggering",
+                _ => "near death"
+            };
+
+            // Get icon based on actor type (matching world map)
+            var icon = GetActorIcon(actor, team);
+
+            units.Add(new CombatUnitDto(
                 Id: actor.Id.ToString(),
                 Name: actor.Name,
                 Team: team,
                 Position: new CombatGridPositionDto(pos.Value.X, pos.Value.Y),
-                BehaviorState: actor.CurrentBehavior?.ToString(),
-                Vitality: actor.IsPlayer ? null : actor.Vitality,
-                IsAlpha: state.Alpha == actor
+                Vitality: actor.Vitality,
+                HealthDescription: healthDesc,
+                Boldness: boldness,
+                BoldnessDescriptor: boldnessDesc,
+                Icon: icon
             ));
         }
 
         return new CombatGridDto(
             GridSize: CombatMap.GridSize,
             CellSizeMeters: CombatMap.CellSizeMeters,
-            Actors: actors,
+            Units: units,
             Terrain: terrain,
             LocationX: locationX,
             LocationY: locationY
@@ -1892,6 +1894,29 @@ public static class CombatRunner
         animal.DistanceFromPlayer = config.InitialDistance;
         animal.EncounterBoldness = config.InitialBoldness;
         return animal;
+    }
+
+    private static string GetActorIcon(CombatActor actor, string team)
+    {
+        // Player gets person icon
+        if (team == "player") return "👤";
+
+        // Check underlying actor type
+        var actorRef = actor.Actor;
+
+        // NPCs (allies) get person icon
+        if (actorRef is NPC) return "🧑";
+
+        // Animals get their type-specific emoji
+        if (actorRef is Animal)
+        {
+            var animalType = AnimalTypes.Parse(actorRef.Name);
+            if (animalType.HasValue)
+                return animalType.Value.Emoji();
+        }
+
+        // Fallback
+        return "🐾";
     }
 
     #endregion

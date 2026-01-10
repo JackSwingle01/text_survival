@@ -54,15 +54,20 @@ public static class CombatOrchestrator
 
             if (scenario.IsOver) break;
 
-            // 4. AI turns
-            scenario.ProcessAITurns();
-
-            // 5. Show AI results (simplified - just show state change)
-            if (!scenario.IsOver)
+            // 4. AI turns - process each unit individually with 1-second auto-advance
+            foreach (var unit in scenario.Units.Where(u => u != playerUnit).ToList())
             {
-                var aiDto = BuildCombatDto(ctx, scenario, playerUnit, CombatPhase.AnimalAction);
-                WebIO.RenderCombat(ctx, aiDto);
-                WebIO.WaitForCombatContinue(ctx);
+                var aiNarrative = scenario.ProcessSingleAITurn(unit);
+                if (aiNarrative != null)
+                {
+                    var aiDto = BuildCombatDto(ctx, scenario, playerUnit, CombatPhase.AnimalAction,
+                        narrative: aiNarrative);
+                    // Set auto-advance so frontend responds after 1 second
+                    aiDto = aiDto with { AutoAdvanceMs = 1000 };
+                    WebIO.RenderCombat(ctx, aiDto);
+                    WebIO.WaitForCombatContinue(ctx);
+                }
+                if (scenario.IsOver) break;
             }
         }
 
@@ -311,43 +316,19 @@ public static class CombatOrchestrator
         double distance = nearest != null ? playerUnit.Position.DistanceTo(nearest.Position) : 99;
         var zone = CombatScenario.GetZone(distance);
 
-        // Get primary enemy info (for backwards compat with single-enemy UI)
-        string enemyName = nearest?.actor.Name ?? "Unknown";
-        string healthDesc = nearest != null ? GetHealthDescription(nearest.actor.Vitality) : "";
-        string conditionNarrative = "";
-
-        // Boldness from primary enemy
-        double boldness = nearest?.Boldness ?? 0.5;
-        string boldnessDesc = boldness switch
-        {
-            >= 0.7 => "aggressive",
-            >= 0.5 => "bold",
-            >= 0.3 => "wary",
-            _ => "cautious"
-        };
-
-        // Actions only in player choice phase
         var actions = phase == CombatPhase.PlayerChoice
             ? GetAvailableActions(scenario, playerUnit, ctx)
             : new List<CombatActionDto>();
 
-        // Build grid data
         var grid = BuildGridDto(scenario);
 
         return new CombatDto(
-            AnimalName: enemyName,
-            AnimalHealthDescription: healthDesc,
-            AnimalConditionNarrative: conditionNarrative,
             DistanceZone: zone.ToString(),
             DistanceMeters: distance,
             PreviousDistanceMeters: null,
-            BehaviorState: "engaged",
-            BehaviorDescription: "",
             PlayerVitality: ctx.player.Vitality,
             PlayerEnergy: ctx.player.Body.Energy / 480.0,
             PlayerBraced: false,
-            BoldnessLevel: boldness,
-            BoldnessDescriptor: boldnessDesc,
             Phase: phase,
             NarrativeMessage: narrative,
             Actions: actions,
@@ -396,32 +377,68 @@ public static class CombatOrchestrator
 
     private static CombatGridDto BuildGridDto(CombatScenario scenario)
     {
-        var actors = new List<CombatGridActorDto>();
+        var units = new List<CombatUnitDto>();
 
         foreach (var unit in scenario.Units)
         {
             string team = scenario.Team1.Contains(unit) ? "ally" : "enemy";
             if (unit == scenario.Player) team = "player";
 
-            actors.Add(new CombatGridActorDto(
+            // Get icon based on actor type
+            string icon = GetActorIcon(unit.actor, team);
+
+            units.Add(new CombatUnitDto(
                 Id: unit.GetHashCode().ToString(),
                 Name: unit.actor.Name,
                 Team: team,
                 Position: new CombatGridPositionDto(unit.Position.X, unit.Position.Y),
-                BehaviorState: null,
-                Vitality: unit == scenario.Player ? null : unit.actor.Vitality,
-                IsAlpha: false
+                Vitality: unit.actor.Vitality,
+                HealthDescription: GetHealthDescription(unit.actor.Vitality),
+                Boldness: unit.Boldness,
+                BoldnessDescriptor: GetBoldnessDescriptor(unit.Boldness),
+                Icon: icon
             ));
         }
 
         return new CombatGridDto(
             GridSize: 25,
             CellSizeMeters: 1.0,
-            Actors: actors,
+            Units: units,
             Terrain: null,
             LocationX: null,
             LocationY: null
         );
+    }
+
+    private static string GetActorIcon(Actor actor, string team)
+    {
+        // Player gets person icon
+        if (team == "player") return "👤";
+
+        // NPCs (allies) get person icon
+        if (actor is NPC) return "🧑";
+
+        // Animals get their type-specific emoji
+        if (actor is Animal)
+        {
+            var animalType = AnimalTypes.Parse(actor.Name);
+            if (animalType.HasValue)
+                return animalType.Value.Emoji();
+        }
+
+        // Fallback
+        return "🐾";
+    }
+
+    private static string GetBoldnessDescriptor(double boldness)
+    {
+        return boldness switch
+        {
+            >= 0.7 => "aggressive",
+            >= 0.5 => "bold",
+            >= 0.3 => "wary",
+            _ => "cautious"
+        };
     }
 
     private static string GetHealthDescription(double vitality)

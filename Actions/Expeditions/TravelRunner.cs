@@ -231,6 +231,9 @@ public class TravelRunner(GameContext ctx)
         int totalTime = exitTime + entryTime + edgeModifier;
         totalTime = Math.Max(5, totalTime);  // Minimum 5 minutes
 
+        // Capture first visit status BEFORE MoveTo marks the location explored
+        bool firstVisit = !destination.Explored;
+
         var (died, stayed) = RunTravelWithProgress(totalTime, destination, originPos);
         if (died) return false;
         if (stayed) return true;  // Player chose to stay at origin after event - travel "succeeded" but ended early
@@ -247,8 +250,6 @@ public class TravelRunner(GameContext ctx)
             TravelHandler.ApplyTravelInjury(_ctx, destination);
             if (!_ctx.player.IsAlive) return false;
         }
-
-        bool firstVisit = !destination.Explored;
 
         // Trigger first-visit event if one exists
         if (firstVisit && destination.FirstVisitEvent != null)

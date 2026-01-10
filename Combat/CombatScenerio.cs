@@ -33,36 +33,87 @@ public class CombatScenario
     public readonly List<Unit> Team1;
     public readonly List<Unit> Team2;
 
+    /// <summary>
+    /// Process all AI turns in batch (for NPC-vs-NPC combat).
+    /// </summary>
     public void ProcessAITurns()
     {
-        foreach (Unit unit in Units)
+        foreach (Unit unit in Units.ToList())
         {
-            if (unit == Player) continue;
-            if (unit.actor.IsAlive) // normally handled when killed by combat but the actor could die between turns via bleeding or hypothermia etc.
-            {
-                unit.ResetStateBeforeTurn();
-                var move = CombatAI.DetermineAction(unit, this);
-                if (move == CombatActions.Move)
-                {
-                    var newPosition = CombatAI.DetermineMovePosition(unit);
-                    Move(unit, newPosition);
-                }
-                else if (ActionNeedsTarget(move))
-                {
-                    var target = CombatAI.DetermineTarget(unit, this);
-                    ExecuteAction(move, unit, target);
-                }
-                else
-                {
-                    ExecuteAction(move, unit, null);
-                }
-                unit.ApplyBoldnessChange(MoraleEvent.RoundAdvanced, null);
-                unit.ResetStateAfterTurn();
-            }
-            if (!unit.actor.IsAlive) HandleUnitDeath(unit);
-            CheckIfOver();
+            ProcessSingleAITurn(unit);
             if (IsOver) return;
         }
+    }
+
+    /// <summary>
+    /// Process a single AI unit's turn. Returns narrative of the action taken, or null if skipped.
+    /// Used by CombatOrchestrator to show each turn individually.
+    /// </summary>
+    public string? ProcessSingleAITurn(Unit unit)
+    {
+        if (unit == Player) return null;
+        if (!Units.Contains(unit)) return null; // Already removed (fled/died)
+        if (!unit.actor.IsAlive) return null;
+
+        unit.ResetStateBeforeTurn();
+        var action = CombatAI.DetermineAction(unit, this);
+        string narrative;
+
+        if (action == CombatActions.Move)
+        {
+            var oldPos = unit.Position;
+            var newPosition = CombatAI.DetermineMovePosition(unit);
+            Move(unit, newPosition);
+            var nearestEnemy = GetNearestEnemy(unit);
+            if (nearestEnemy != null)
+            {
+                var oldDist = oldPos.DistanceTo(nearestEnemy.Position);
+                var newDist = unit.Position.DistanceTo(nearestEnemy.Position);
+                narrative = newDist < oldDist
+                    ? $"The {unit.actor.Name.ToLower()} advances."
+                    : $"The {unit.actor.Name.ToLower()} backs away.";
+            }
+            else
+            {
+                narrative = $"The {unit.actor.Name.ToLower()} moves.";
+            }
+        }
+        else if (ActionNeedsTarget(action))
+        {
+            var target = CombatAI.DetermineTarget(unit, this);
+            ExecuteAction(action, unit, target);
+            narrative = GetActionNarrative(action, unit, target);
+        }
+        else
+        {
+            ExecuteAction(action, unit, null);
+            narrative = GetActionNarrative(action, unit, null);
+        }
+
+        unit.ApplyBoldnessChange(MoraleEvent.RoundAdvanced, null);
+        unit.ResetStateAfterTurn();
+
+        if (!unit.actor.IsAlive) HandleUnitDeath(unit);
+        CheckIfOver();
+
+        return narrative;
+    }
+
+    private string GetActionNarrative(CombatActions action, Unit actor, Unit? target)
+    {
+        string actorName = $"The {actor.actor.Name.ToLower()}";
+        string targetName = target != null ? $"the {target.actor.Name.ToLower()}" : "";
+
+        return action switch
+        {
+            CombatActions.Attack => $"{actorName} attacks {targetName}!",
+            CombatActions.Throw => $"{actorName} throws at {targetName}!",
+            CombatActions.Dodge => $"{actorName} readies to dodge.",
+            CombatActions.Block => $"{actorName} raises its guard.",
+            CombatActions.Shove => $"{actorName} shoves {targetName}!",
+            CombatActions.Intimidate => $"{actorName} tries to intimidate.",
+            _ => $"{actorName} acts."
+        };
     }
 
     private void CheckIfOver()
@@ -79,9 +130,9 @@ public class CombatScenario
     }
     private void HandleUnitDeath(Unit unit)
     {
-        unit.allies.ForEach(u=>u.ApplyBoldnessChange(MoraleEvent.AllyKilled, unit));
-        unit.allies.ForEach(u=>u.allies.Remove(unit));
-        unit.enemies.ForEach(u=>u.enemies.Remove(unit));
+        unit.allies.ToList().ForEach(u=>u.ApplyBoldnessChange(MoraleEvent.AllyKilled, unit));
+        unit.allies.ToList().ForEach(u=>u.allies.Remove(unit));
+        unit.enemies.ToList().ForEach(u=>u.enemies.Remove(unit));
         Units.Remove(unit);
     }
 
@@ -90,7 +141,7 @@ public class CombatScenario
     {
         var moveDirection = unit.Position.DirectionTo(destination);
         unit.Position = destination;
-        foreach (var enemy in unit.enemies)
+        foreach (var enemy in unit.enemies.ToList())
         {
             var enemyDirection = unit.Position.DirectionTo(enemy.Position);
             float dot = Vector2.Dot(moveDirection, enemyDirection); // if positive - same direction, if negative - opposite
@@ -112,8 +163,7 @@ public class CombatScenario
     private bool IsAtMapEdge(Unit unit)
     {
         var pos = unit.Position;
-        if (pos.X >= MAP_SIZE || pos.Y >= MAP_SIZE || pos.X <= 0 || pos.Y <= 0) return true;
-        return false;
+        return pos.X < 0 || pos.X >= MAP_SIZE || pos.Y < 0 || pos.Y >= MAP_SIZE;
     }
     public void Attack(Unit attacker, Unit defender)
     {
@@ -230,12 +280,12 @@ public class CombatScenario
     private void Flee(Unit unit)
     {
         Units.Remove(unit);
-        foreach (Unit ally in unit.allies)
+        foreach (Unit ally in unit.allies.ToList())
         {
             ally.allies.Remove(unit);
             ally.ApplyBoldnessChange(MoraleEvent.AllyFled, unit);
         }
-        foreach (Unit enemy in unit.enemies)
+        foreach (Unit enemy in unit.enemies.ToList())
         {
             enemy.enemies.Remove(unit);
         }

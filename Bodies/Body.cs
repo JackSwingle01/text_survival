@@ -17,7 +17,8 @@ public class Body
     public double EnergyPct => Energy / SurvivalProcessor.MAX_ENERGY_MINUTES;
     public double FullPct => CalorieStore / SurvivalProcessor.MAX_CALORIES;
     public double HydratedPct => Hydration / SurvivalProcessor.MAX_HYDRATION;
-    public double WarmPct => (BodyTemperature - SurvivalProcessor.HypothermiaThreshold) / (BASE_BODY_TEMP - SurvivalProcessor.HypothermiaThreshold);
+    public double WarmPct => Math.Clamp(
+        (BodyTemperature - SurvivalProcessor.HypothermiaThreshold) / (BASE_BODY_TEMP - SurvivalProcessor.HypothermiaThreshold), 0, 1);
 
     // body properties
     public double _baseWeight;
@@ -26,7 +27,7 @@ public class Body
     public double BodyFatPercentage => BodyFatKG / WeightKG;
     public double MusclePercentage => MuscleKG / WeightKG;
     public double WeightKG => _baseWeight + BodyFatKG + MuscleKG;
-    public double BodyTemperature;
+    public double BodyTemperature = BASE_BODY_TEMP;
     public double LastTemperatureDelta { get; private set; }
     public double CalorieStore = 1500;
     public double Energy = 900;

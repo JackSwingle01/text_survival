@@ -2781,15 +2781,110 @@ body {
 .combat-grid-pane {
     flex: 0 0 auto;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     padding: var(--space-3);
+    position: relative;
 }
 
 .combat-grid-pane canvas {
     border-radius: var(--radius-sm);
     image-rendering: pixelated;
 }
+
+/* Unit Detail Panel - shows when clicking units on grid */
+.unit-detail-panel {
+    position: absolute;
+    bottom: var(--space-3);
+    left: var(--space-3);
+    right: var(--space-3);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+
+.unit-detail-panel.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.unit-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-1);
+}
+
+.unit-detail-name {
+    font-weight: 600;
+    color: var(--text-bright);
+}
+
+.unit-detail-team {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+}
+
+.unit-detail-team.player { color: hsl(210, 70%, 60%); }
+.unit-detail-team.ally { color: hsl(120, 50%, 50%); }
+.unit-detail-team.enemy { color: hsl(0, 70%, 55%); }
+
+.unit-detail-health {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
+}
+
+.unit-detail-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--bar-bg);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.unit-detail-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, hsl(0, 70%, 50%), hsl(45, 90%, 50%));
+    transition: width 0.3s ease;
+}
+
+.unit-detail-health-text {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    min-width: 80px;
+}
+
+.unit-detail-boldness {
+    display: flex;
+    gap: var(--space-2);
+    font-size: 0.85rem;
+}
+
+.unit-detail-boldness-label {
+    color: var(--text-dim);
+}
+
+.unit-detail-boldness-value {
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.unit-detail-boldness-value.aggressive { color: hsl(0, 70%, 55%); }
+.unit-detail-boldness-value.bold { color: hsl(30, 80%, 55%); }
+.unit-detail-boldness-value.wary { color: hsl(45, 80%, 55%); }
+.unit-detail-boldness-value.cautious { color: hsl(120, 50%, 50%); }
 
 .combat-health {
     font-size: 0.9em;

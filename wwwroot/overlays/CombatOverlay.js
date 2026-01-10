@@ -44,6 +44,19 @@ export class CombatOverlay extends OverlayManager {
         this.CELL_SIZE = 20;          // pixels per cell
         this.GRID_PADDING = 2;        // padding around grid
 
+        // Store current units for click detection
+        this.currentUnits = [];
+        this.selectedUnit = null;
+
+        // Unit detail panel
+        this.unitDetailEl = document.getElementById('combatUnitDetail');
+
+        // Set up grid click handler
+        if (this.gridCanvasEl) {
+            this.gridCanvasEl.addEventListener('click', (e) => this.handleGridClick(e));
+            this.gridCanvasEl.style.cursor = 'pointer';
+        }
+
         // Distance track elements
         this.distanceValueEl = document.getElementById('combatDistanceValue');
         this.playerMarkerEl = document.getElementById('combatPlayerMarker');
@@ -179,8 +192,12 @@ export class CombatOverlay extends OverlayManager {
         show(this.introActionsEl);
         hide(this.combatContentEl);
 
+        // Get enemy name from grid units if needed for fallback
+        const enemyUnit = combatData.grid?.units?.find(u => u.team?.toLowerCase() === 'enemy');
+        const enemyName = enemyUnit?.name?.toLowerCase() || 'enemy';
+
         // Set intro message
-        this.introMessageEl.textContent = combatData.narrativeMessage || `A ${combatData.animalName?.toLowerCase()} lunges at you!`;
+        this.introMessageEl.textContent = combatData.narrativeMessage || `A ${enemyName} lunges at you!`;
     }
 
     /**
@@ -193,17 +210,16 @@ export class CombatOverlay extends OverlayManager {
         hide(this.outcomeActionsEl);
         show(this.combatContentEl);
 
-        // Show elements that narrative phase hides
-        show(this.behaviorDescEl);
-        show(this.animalHealthEl);
+        // Hide legacy single-enemy header elements - info now via grid click
+        hide(this.behaviorDescEl);
+        hide(this.animalHealthEl);
+        hide(this.animalNameEl?.parentElement); // Hide the whole animal status row
 
         // Render 2D combat grid
         this.renderGrid(combatData);
 
         // Update combat state display
         this.updateDistanceBar(combatData);
-        this.updateAggression(combatData);
-        this.updateAnimalStatus(combatData);
         this.updateThreatFactors(combatData);
 
         // Braced indicator
@@ -236,14 +252,9 @@ export class CombatOverlay extends OverlayManager {
 
         // Update bars (keep visual context)
         this.updateDistanceBar(combatData);
-        this.updateAggression(combatData);
 
-        // Update animal name and behavior state
-        this.animalNameEl.textContent = combatData.animalName || 'Enemy';
-        this.behaviorStateEl.textContent = combatData.behaviorState || '';
-        this.behaviorStateEl.className = 'behavior-state ' + (combatData.behaviorState || '').toLowerCase();
-
-        // Hide the behavior description - the narrative message is the focus
+        // Hide legacy header elements
+        hide(this.animalNameEl?.parentElement);
         hide(this.behaviorDescEl);
         hide(this.animalHealthEl);
         hide(this.threatSectionEl);
@@ -268,6 +279,18 @@ export class CombatOverlay extends OverlayManager {
         continueBtn.onclick = () => this.respond('continue');
         this.actionsEl.appendChild(continueBtn);
         show(this.actionsEl);
+
+        // Auto-advance after delay if specified (for AI turns)
+        if (combatData.autoAdvanceMs) {
+            // Clear any existing auto-advance timer
+            if (this._autoAdvanceTimer) {
+                clearTimeout(this._autoAdvanceTimer);
+            }
+            this._autoAdvanceTimer = setTimeout(() => {
+                this._autoAdvanceTimer = null;
+                this.respond('continue');
+            }, combatData.autoAdvanceMs);
+        }
     }
 
     /**
@@ -516,7 +539,7 @@ export class CombatOverlay extends OverlayManager {
     }
 
     /**
-     * Render the 2D combat grid showing actor positions
+     * Render the 2D combat grid showing unit positions
      */
     renderGrid(combatData) {
         if (!this.gridCanvasEl || !this.gridCtx || !combatData.grid) {
@@ -527,6 +550,10 @@ export class CombatOverlay extends OverlayManager {
         const gridSize = grid.gridSize || this.GRID_SIZE;
         const canvasSize = gridSize * this.CELL_SIZE + this.GRID_PADDING * 2;
 
+        // Store data for click detection
+        this.currentUnits = grid.units || [];
+        this.lastCombatData = combatData;
+
         // Set canvas size
         this.gridCanvasEl.width = canvasSize;
         this.gridCanvasEl.height = canvasSize;
@@ -535,43 +562,35 @@ export class CombatOverlay extends OverlayManager {
 
         // Draw terrain background if available
         if (grid.terrain && grid.locationX != null && grid.locationY != null) {
-            // Fill with base terrain color
             const baseColor = TERRAIN_COLORS[grid.terrain] || TERRAIN_COLORS.Plain;
             ctx.fillStyle = baseColor;
             ctx.fillRect(0, 0, canvasSize, canvasSize);
 
-            // Tile terrain texture at world-map scale (120px tiles)
-            // This keeps texture elements (grass, trees) at their intended size
             const tileSize = 120;
             const tilesNeeded = Math.ceil(canvasSize / tileSize);
 
             for (let ty = 0; ty < tilesNeeded; ty++) {
                 for (let tx = 0; tx < tilesNeeded; tx++) {
-                    // Use different seed offsets for each tile to vary the pattern
                     const seedX = grid.locationX * 10 + tx;
                     const seedY = grid.locationY * 10 + ty;
                     renderTerrainTexture(ctx, grid.terrain, tx * tileSize, ty * tileSize, tileSize, seedX, seedY);
                 }
             }
         } else {
-            // Fallback: dark background
             ctx.fillStyle = 'hsl(215, 25%, 12%)';
             ctx.fillRect(0, 0, canvasSize, canvasSize);
         }
 
-        // Draw distance zone rings from player position (1m per cell)
+        // Draw distance zone rings from player position
         const cellSizeMeters = grid.cellSizeMeters || 1;
+        const playerUnit = this.currentUnits.find(u => u.team?.toLowerCase() === 'player');
+        if (playerUnit) {
+            const playerX = this.GRID_PADDING + playerUnit.position.x * this.CELL_SIZE + this.CELL_SIZE / 2;
+            const playerY = this.GRID_PADDING + playerUnit.position.y * this.CELL_SIZE + this.CELL_SIZE / 2;
 
-        // Find player position for zone rings
-        const playerActor = grid.actors?.find(a => a.team?.toLowerCase() === 'player');
-        if (playerActor) {
-            const playerX = this.GRID_PADDING + playerActor.position.x * this.CELL_SIZE + this.CELL_SIZE / 2;
-            const playerY = this.GRID_PADDING + playerActor.position.y * this.CELL_SIZE + this.CELL_SIZE / 2;
-
-            // Zone boundaries in meters: Melee (3m), Close (8m), Mid (15m)
             const zones = [
-                { radius: 3, color: 'rgba(255, 80, 80, 0.15)' },   // Melee - red
-                { radius: 8, color: 'rgba(255, 160, 80, 0.1)' },   // Close - orange
+                { radius: 3, color: 'rgba(255, 80, 80, 0.15)' },   // Close - red
+                { radius: 8, color: 'rgba(255, 160, 80, 0.1)' },   // Near - orange
                 { radius: 15, color: 'rgba(255, 220, 80, 0.05)' }  // Mid - yellow
             ];
 
@@ -584,49 +603,159 @@ export class CombatOverlay extends OverlayManager {
             });
         }
 
-        // Draw actors
-        if (grid.actors) {
-            grid.actors.forEach(actor => {
-                this.drawActor(ctx, actor, gridSize);
-            });
+        // Draw units
+        this.currentUnits.forEach(unit => {
+            const isSelected = this.selectedUnit && this.selectedUnit.id === unit.id;
+            this.drawUnit(ctx, unit, gridSize, isSelected);
+        });
+    }
+
+    /**
+     * Handle click on combat grid canvas
+     */
+    handleGridClick(event) {
+        const rect = this.gridCanvasEl.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const clickY = event.clientY - rect.top;
+
+        // Convert to grid coordinates
+        const gridX = (clickX - this.GRID_PADDING) / this.CELL_SIZE;
+        const gridY = (clickY - this.GRID_PADDING) / this.CELL_SIZE;
+
+        // Find unit at click position (within 1 cell tolerance)
+        const clickedUnit = this.currentUnits.find(unit => {
+            const dx = unit.position.x + 0.5 - gridX;
+            const dy = unit.position.y + 0.5 - gridY;
+            return Math.sqrt(dx * dx + dy * dy) < 0.7;
+        });
+
+        if (clickedUnit) {
+            this.selectedUnit = clickedUnit;
+            this.showUnitDetail(clickedUnit);
+            // Redraw grid to show selection
+            if (this.lastCombatData) {
+                this.renderGrid(this.lastCombatData);
+            }
+        } else {
+            this.selectedUnit = null;
+            this.hideUnitDetail();
         }
     }
 
     /**
-     * Draw a single actor on the combat grid
+     * Show detail panel for clicked unit (using safe DOM methods)
      */
-    drawActor(ctx, actor, gridSize) {
-        const x = this.GRID_PADDING + actor.position.x * this.CELL_SIZE + this.CELL_SIZE / 2;
-        const y = this.GRID_PADDING + actor.position.y * this.CELL_SIZE + this.CELL_SIZE / 2;
+    showUnitDetail(unit) {
+        if (!this.unitDetailEl) return;
+
+        // Clear existing content
+        this.clear(this.unitDetailEl);
+
+        const isEnemy = unit.team?.toLowerCase() === 'enemy';
+
+        // Header row
+        const header = document.createElement('div');
+        header.className = 'unit-detail-header';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'unit-detail-name';
+        nameSpan.textContent = unit.name;
+        header.appendChild(nameSpan);
+
+        const teamSpan = document.createElement('span');
+        teamSpan.className = 'unit-detail-team ' + unit.team;
+        teamSpan.textContent = unit.team;
+        header.appendChild(teamSpan);
+
+        this.unitDetailEl.appendChild(header);
+
+        // Health section
+        const healthDiv = document.createElement('div');
+        healthDiv.className = 'unit-detail-health';
+
+        const barDiv = document.createElement('div');
+        barDiv.className = 'unit-detail-bar';
+
+        const fillDiv = document.createElement('div');
+        fillDiv.className = 'unit-detail-bar-fill';
+        fillDiv.style.width = (unit.vitality * 100).toFixed(0) + '%';
+        barDiv.appendChild(fillDiv);
+        healthDiv.appendChild(barDiv);
+
+        const healthText = document.createElement('span');
+        healthText.className = 'unit-detail-health-text';
+        healthText.textContent = unit.healthDescription;
+        healthDiv.appendChild(healthText);
+
+        this.unitDetailEl.appendChild(healthDiv);
+
+        // Show boldness for enemies
+        if (isEnemy) {
+            const boldnessDiv = document.createElement('div');
+            boldnessDiv.className = 'unit-detail-boldness';
+
+            const boldnessLabel = document.createElement('span');
+            boldnessLabel.className = 'unit-detail-boldness-label';
+            boldnessLabel.textContent = 'Behavior:';
+            boldnessDiv.appendChild(boldnessLabel);
+
+            const boldnessValue = document.createElement('span');
+            boldnessValue.className = 'unit-detail-boldness-value ' + unit.boldnessDescriptor;
+            boldnessValue.textContent = unit.boldnessDescriptor;
+            boldnessDiv.appendChild(boldnessValue);
+
+            this.unitDetailEl.appendChild(boldnessDiv);
+        }
+
+        this.unitDetailEl.classList.add('visible');
+    }
+
+    /**
+     * Hide unit detail panel
+     */
+    hideUnitDetail() {
+        if (this.unitDetailEl) {
+            this.unitDetailEl.classList.remove('visible');
+        }
+    }
+
+    /**
+     * Draw a single unit on the combat grid
+     */
+    drawUnit(ctx, unit, gridSize, isSelected) {
+        const x = this.GRID_PADDING + unit.position.x * this.CELL_SIZE + this.CELL_SIZE / 2;
+        const y = this.GRID_PADDING + unit.position.y * this.CELL_SIZE + this.CELL_SIZE / 2;
         const radius = this.CELL_SIZE * 0.35;
 
-        // Color based on team
-        let fillColor, strokeColor, icon;
-        switch (actor.team?.toLowerCase()) {
+        // Color based on team, icon from DTO (matches world map)
+        let fillColor, strokeColor;
+        const icon = unit.icon || '🐾';  // Use icon from backend, fallback to paw
+        switch (unit.team?.toLowerCase()) {
             case 'player':
                 fillColor = 'hsl(210, 60%, 45%)';
                 strokeColor = 'hsl(210, 70%, 60%)';
-                icon = '👤';
                 break;
             case 'ally':
                 fillColor = 'hsl(120, 40%, 35%)';
                 strokeColor = 'hsl(120, 50%, 50%)';
-                icon = '🛡';
                 break;
             case 'enemy':
             default:
                 fillColor = 'hsl(0, 60%, 40%)';
                 strokeColor = 'hsl(0, 70%, 55%)';
-                icon = '🐺';
                 break;
         }
 
-        // Alpha indicator if actor is alpha
-        if (actor.isAlpha) {
-            strokeColor = 'hsl(45, 100%, 50%)';
+        // Selection highlight
+        if (isSelected) {
+            ctx.beginPath();
+            ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
+            ctx.strokeStyle = 'hsl(45, 100%, 60%)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
         }
 
-        // Draw actor circle
+        // Draw unit circle
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fillStyle = fillColor;
@@ -641,9 +770,9 @@ export class CombatOverlay extends OverlayManager {
         ctx.textBaseline = 'middle';
         ctx.fillText(icon, x, y);
 
-        // Draw behavior state indicator for enemies
-        if (actor.team?.toLowerCase() === 'enemy' && actor.behaviorState) {
-            const indicatorColor = this.getBehaviorColor(actor.behaviorState);
+        // Draw boldness indicator for enemies (color dot based on aggression)
+        if (unit.team?.toLowerCase() === 'enemy') {
+            const indicatorColor = this.getBoldnessColor(unit.boldnessDescriptor);
             ctx.beginPath();
             ctx.arc(x + radius * 0.7, y - radius * 0.7, 4, 0, Math.PI * 2);
             ctx.fillStyle = indicatorColor;
@@ -652,30 +781,30 @@ export class CombatOverlay extends OverlayManager {
     }
 
     /**
-     * Get color for behavior state indicator
+     * Get color for boldness descriptor
      */
-    getBehaviorColor(behaviorState) {
-        const state = (behaviorState || '').toLowerCase();
-        switch (state) {
-            case 'attacking':
-            case 'charging':
-                return '#ff4444';  // Red - danger
-            case 'threatening':
-            case 'approaching':
-                return '#ff8844';  // Orange - warning
-            case 'circling':
-                return '#ffcc44';  // Yellow - caution
-            case 'retreating':
-            case 'disengaging':
-                return '#44cc44';  // Green - backing off
-            case 'recovering':
-                return '#4488ff';  // Blue - vulnerable
+    getBoldnessColor(descriptor) {
+        switch ((descriptor || '').toLowerCase()) {
+            case 'aggressive':
+                return '#ff4444';  // Red
+            case 'bold':
+                return '#ff8844';  // Orange
+            case 'wary':
+                return '#ffcc44';  // Yellow
+            case 'cautious':
+                return '#44cc44';  // Green
             default:
-                return '#888888';  // Gray - unknown
+                return '#888888';  // Gray
         }
     }
 
     cleanup() {
+        // Clear auto-advance timer if running
+        if (this._autoAdvanceTimer) {
+            clearTimeout(this._autoAdvanceTimer);
+            this._autoAdvanceTimer = null;
+        }
+
         // Clear DOM contents
         this.clear(this.actionsEl);
         this.clear(this.rewardsEl);
@@ -700,5 +829,11 @@ export class CombatOverlay extends OverlayManager {
         if (this.playerMarkerEl) {
             this.playerMarkerEl.style.transition = 'none';
         }
+
+        // Reset grid click state
+        this.currentUnits = [];
+        this.selectedUnit = null;
+        this.lastCombatData = null;
+        this.hideUnitDetail();
     }
 }
