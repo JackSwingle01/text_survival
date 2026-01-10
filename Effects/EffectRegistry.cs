@@ -1,7 +1,4 @@
-using text_survival.Actors;
 using text_survival.Bodies;
-using text_survival.IO;
-using text_survival.UI;
 
 namespace text_survival.Effects;
 
@@ -44,7 +41,7 @@ public class EffectRegistry
         // if multiple are allowed or if no existing, then it's new -> apply it
         _effects.Add(effect);
         effect.IsActive = true;
-        return effect.ApplicationMessage;
+        return effect.Severity > .05 ? effect.ApplicationMessage : null; // only return if the severity is significant to avoid spam at threshold
     }
 
     /// <summary>
@@ -71,7 +68,7 @@ public class EffectRegistry
             // New effect - add it
             _effects.Add(effect);
             effect.IsActive = true;
-            return effect.ApplicationMessage;
+            return effect.Severity > .05 ? effect.ApplicationMessage : null; // only return if the severity is significant to avoid spam at threshold
         }
     }
 

@@ -562,7 +562,8 @@ public static class WebIO
             throw new ArgumentException("Choices cannot be empty", nameof(choices));
 
         // Generate choices with semantic IDs for reliable button identity
-        var choiceDtos = list.Select((item, i) => {
+        var choiceDtos = list.Select((item, i) =>
+        {
             var label = display(item);
             var semanticId = GenerateSemanticId(label, i);
             var disabled = isDisabled?.Invoke(item) ?? false;
@@ -577,7 +578,7 @@ public static class WebIO
         var overlays = GetCurrentOverlays(ctx.SessionId);
         if (isContinuePrompt)
         {
-            overlays = [..overlays, new ConfirmOverlay(prompt)];
+            overlays = [.. overlays, new ConfirmOverlay(prompt)];
         }
 
         int inputId = session.GenerateInputId();
@@ -1652,9 +1653,42 @@ public static class WebIO
     // Cooking UI
     // ============================================
 
-    private const int CookMeatTimeMinutes = 15;
-    private const int MeltSnowTimeMinutes = 10;
-    private const double MeltSnowWaterLiters = 1.0;
+
+    private static CookingDto BuildCookingDto(GameContext ctx, CookingResultDto? lastResult)
+    {
+        var inv = ctx.Inventory;
+        var options = new List<CookingOptionDto>();
+
+        // Cook meat option
+        double rawMeat = inv.Weight(Resource.RawMeat);
+        bool hasMeat = rawMeat > 0;
+        options.Add(new CookingOptionDto(
+            "cook_meat",
+            $"Cook raw meat ({rawMeat:F1}kg)",
+            "outdoor_grill",
+            CookingHandler.CookMeatTimeMinutes,
+            hasMeat,
+            hasMeat ? null : "No raw meat"
+        ));
+
+        // Melt snow option (always available)
+        options.Add(new CookingOptionDto(
+            "melt_snow",
+            $"Melt snow (+{CookingHandler.MeltSnowWaterLiters:F1}L water)",
+            "water_drop",
+            CookingHandler.MeltSnowTimeMinutes,
+            true,
+            null
+        ));
+
+        return new CookingDto(
+            options,
+            inv.WaterLiters,
+            inv.Weight(Resource.RawMeat),
+            inv.Weight(Resource.CookedMeat),
+            lastResult
+        );
+    }
 
     /// <summary>
     /// Run the web-based cooking UI overlay.
@@ -1671,12 +1705,18 @@ public static class WebIO
             lastResult = null; // Clear after displaying
 
             var choices = new List<ChoiceDto>
-            {
-                new("melt_snow", "Melt Snow"),
-                new("done", "Done")
-            };
+        {
+            new("done", "Done")
+        };
 
-            if (ctx.Inventory.Count(Resource.RawMeat) > 0)
+            // Only show melt snow if at active fire
+            if (CookingHandler.CanMeltSnow(ctx.CurrentLocation))
+            {
+                choices.Insert(0, new ChoiceDto("melt_snow", "Melt Snow"));
+            }
+
+            // Only show cook meat if has raw meat AND at active fire
+            if (CookingHandler.CanCookMeat(ctx.Inventory, ctx.CurrentLocation))
             {
                 choices.Insert(0, new ChoiceDto("cook_meat", "Cook Meat"));
             }
@@ -1708,83 +1748,57 @@ public static class WebIO
         ClearCooking(ctx);
     }
 
-    private static CookingDto BuildCookingDto(GameContext ctx, CookingResultDto? lastResult)
-    {
-        var inv = ctx.Inventory;
-        var options = new List<CookingOptionDto>();
-
-        // Cook meat option
-        double rawMeat = inv.Weight(Resource.RawMeat);
-        bool hasMeat = rawMeat > 0;
-        options.Add(new CookingOptionDto(
-            "cook_meat",
-            $"Cook raw meat ({rawMeat:F1}kg)",
-            "outdoor_grill",
-            CookMeatTimeMinutes,
-            hasMeat,
-            hasMeat ? null : "No raw meat"
-        ));
-
-        // Melt snow option (always available)
-        options.Add(new CookingOptionDto(
-            "melt_snow",
-            $"Melt snow (+{MeltSnowWaterLiters:F1}L water)",
-            "water_drop",
-            MeltSnowTimeMinutes,
-            true,
-            null
-        ));
-
-        return new CookingDto(
-            options,
-            inv.WaterLiters,
-            inv.Weight(Resource.RawMeat),
-            inv.Weight(Resource.CookedMeat),
-            lastResult
-        );
-    }
-
     private static CookingResultDto ExecuteCookMeat(GameContext ctx)
     {
-        var inv = ctx.Inventory;
-        if (inv.Count(Resource.RawMeat) <= 0)
-            return new CookingResultDto("No raw meat to cook!", "error", false);
+        // Pre-check using CookingHandler
+        if (!CookingHandler.CanCookMeat(ctx.Inventory, ctx.CurrentLocation))
+            return new CookingResultDto("Cannot cook - need raw meat and active fire!", "error", false);
 
         // Send a frame with current state BEFORE cooking
-        // This ensures FrameQueue.currentState is populated
         Render(ctx);
 
-        // Cook meat with progress display
-        int elapsed = ctx.Update(CookMeatTimeMinutes, ActivityType.Cooking);
+        // Time cost for cooking
+        int elapsed = ctx.Update(CookingHandler.CookMeatTimeMinutes, ActivityType.Cooking);
 
-        // Update state after cooking (overlay already provides progress feedback)
+        // Update state after cooking
         if (!ctx.LastEventAborted)
         {
             Render(ctx);
         }
 
-        double weight = inv.Pop(Resource.RawMeat);
-        inv.Add(Resource.CookedMeat, weight);
+        // Execute cooking via CookingHandler
+        var result = CookingHandler.CookMeat(ctx.Inventory, ctx.CurrentLocation);
 
-        return new CookingResultDto($"+{weight:F1}kg cooked meat", "outdoor_grill", true);
+        if (result.Success)
+            return new CookingResultDto($"+{result.Amount:F1}kg cooked meat", "outdoor_grill", true);
+        else
+            return new CookingResultDto(result.Message, "error", false);
     }
 
     private static CookingResultDto ExecuteMeltSnow(GameContext ctx)
     {
+        // Pre-check using CookingHandler
+        if (!CookingHandler.CanMeltSnow(ctx.CurrentLocation))
+            return new CookingResultDto("Cannot melt snow - need active fire!", "error", false);
+
         // Send a frame with current state BEFORE melting
-        // This ensures FrameQueue.currentState is populated
         Render(ctx);
 
-        int elapsed = ctx.Update(MeltSnowTimeMinutes, ActivityType.Cooking);
+        // Time cost for melting
+        int elapsed = ctx.Update(CookingHandler.MeltSnowTimeMinutes, ActivityType.Cooking);
 
-        // Update state after melting (overlay already provides progress feedback)
+        // Update state after melting
         if (!ctx.LastEventAborted)
         {
             Render(ctx);
         }
 
-        ctx.Inventory.WaterLiters += MeltSnowWaterLiters;
+        // Execute melting via CookingHandler
+        var result = CookingHandler.MeltSnow(ctx.Inventory, ctx.CurrentLocation);
 
-        return new CookingResultDto($"+{MeltSnowWaterLiters:F1}L water", "water_drop", true);
+        if (result.Success)
+            return new CookingResultDto($"+{result.Amount:F1}L water", "water_drop", true);
+        else
+            return new CookingResultDto(result.Message, "error", false);
     }
 }

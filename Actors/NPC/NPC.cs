@@ -137,138 +137,13 @@ public class NPC : Actor
         Console.WriteLine($"  [Warmth] Determining action for need: {CurrentNeed}");
         if (CurrentNeed == NeedType.Warmth)
         {
-            bool atActiveFire = CurrentLocation.HasActiveHeatSource();
-            bool atDeadFire = !atActiveFire && CurrentLocation.HasFeature<HeatSourceFeature>();
-            bool notAtFire = !(atActiveFire || atDeadFire);
-
-            bool isWarming = Body.LastTemperatureDelta > 0;
-            bool needToStartFire = atDeadFire;
-            bool needToTendFire = false;
-
-            // either at active fire
-            // at dead fire
-            // not at fire
-            if (notAtFire)
-            {
-                var knownActiveFire = GetKnownActiveFire();
-                Console.WriteLine($"  [Warmth] Known fire: {knownActiveFire?.Name ?? "none"}");
-                // known fire -> go there
-                if (knownActiveFire != null)
-                {
-                    Console.WriteLine($"  [Warmth] Going to fire at {knownActiveFire.Name}");
-                    var move = DecideToMove(knownActiveFire);
-                    if (move != null) return move;
-                }
-                else if (Camp != null) // if no known fire prefer to make it at camp
-                {
-                    Console.WriteLine($"  [Warmth] Going to camp");
-                    var move = DecideToMove(Camp, maxTiles: 4); // only if close
-                    if (move != null) return move;
-                }
-                // no known fire and camp is far
-                needToStartFire = true;
-            }
-
-            // if at fire then wait
-            if (atActiveFire)
-            {
-                if (isWarming)
-                {
-                    // Rest near fire to get fire proximity heat bonus
-                    Console.WriteLine($"  [Warmth] At fire, resting");
-                    return new NPCRest(Utils.RandInt(5, 15));
-                }
-                else
-                {
-                    needToTendFire = true;
-                }
-            }
-
-            if (needToTendFire)
-            {
-                // at fire but still cooling -> add fuel if you can
-                var fireFeature = CurrentLocation.GetFeature<HeatSourceFeature>()!;
-                if (FireHandler.CanTendFire(Inventory, fireFeature))
-                {
-                    Console.WriteLine($"  [Warmth] Tending fire");
-                    return new NPCTendFire();
-                }
-
-                if (!FireHandler.CanTendFire(Inventory, fireFeature))
-                {
-                    Console.WriteLine($"  [Warmth] Getting fuel");
-                    var get = DetermineGetResource(ResourceCategory.Fuel);
-                    if (get != null) return get;
-                }
-            }
-
-            // at fire but not lit -> light it
-            if (needToStartFire)
-            {
-                var hasTool = FireHandler.GetBestTool(Inventory) != null;
-                Console.WriteLine($"  [Warmth] Has fire tool: {hasTool}");
-                if (FireHandler.CanStartFire(Inventory))
-                {
-                    Console.WriteLine($"  [Warmth] Can start fire, starting");
-                    return new NPCStartFire();
-                }
-                // No fire-starting tool? Try to craft one before gathering resources
-                if (!hasTool)
-                {
-                    Console.WriteLine($"  [Warmth] No tool, trying to craft");
-                    var craft = DetermineCraft();
-                    if (craft != null)
-                    {
-                        Console.WriteLine($"  [Warmth] Crafting: {craft.Name}");
-                        return craft;
-                    }
-                    Console.WriteLine($"  [Warmth] Can't craft, skipping fire materials");
-                    // Can't craft tool - don't gather fire materials we can't use
-                }
-                else
-                {
-                    if (FireHandler.GetFireMaterials(Inventory).Tinders.Count < 1)
-                    {
-                        Console.WriteLine($"  [Warmth] Getting tinder");
-                        var get = DetermineGetResource(ResourceCategory.Tinder);
-                        if (get != null) return get;
-                    }
-                    if (!FireHandler.GetFireMaterials(Inventory).HasKindling)
-                    {
-                        Console.WriteLine($"  [Warmth] Getting fuel");
-                        var get = DetermineGetResource(ResourceCategory.Fuel);
-                        if (get != null) return get;
-                    }
-                }
-            }
-
-            // If we get here, warmth handling exhausted normal options
-            // (tried nearby fire, known fires, starting fire, crafting tools)
-            // Explore to find fire or materials
-            var exploreAction = TryExplore(context, "No known fire/tools");
-            if (exploreAction != null) return exploreAction;
-
-            // If even exploration fails (low boldness), fall through to idle as last resort
-            Console.WriteLine($"  [Warmth] Falling through to work/craft");
+            var warm = HandleWarmthNeed(context);
+            if (warm != null) return warm;
         }
         else if (CurrentNeed == NeedType.Water)
         {
-            if (HasResource(ResourceCategory.Water))
-            {
-                var water = Inventory.FindAnyResourceInCategory(ResourceCategory.Water);
-                return new NPCEat(water, Inventory.Pop(water));
-            }
-
-            var get = DetermineGetResource(ResourceCategory.Water);
-            if (get != null) return get;
-
-            // Check if blocked by cold prerequisite
-            var coldAction = HandleColdPrerequisite(context);
-            if (coldAction != null) return coldAction;
-
-            // Resource not found - explore to find it
-            var exploreAction = TryExplore(context, "Water not found");
-            if (exploreAction != null) return exploreAction;
+            var drink = HandleWaterNeed(context);
+            if (drink != null) return drink;
         }
         else if (CurrentNeed == NeedType.Rest)
         {
@@ -282,21 +157,8 @@ public class NPC : Actor
         }
         else if (CurrentNeed == NeedType.Food)
         {
-            if (HasResource(ResourceCategory.Food))
-            {
-                var food = Inventory.FindAnyResourceInCategory(ResourceCategory.Food);
-                return new NPCEat(food, Inventory.Pop(food));
-            }
-            var get = DetermineGetResource(ResourceCategory.Food);
-            if (get != null) return get;
-
-            // Check if blocked by cold prerequisite
-            var coldAction = HandleColdPrerequisite(context);
-            if (coldAction != null) return coldAction;
-
-            // Resource not found - explore to find it
-            var exploreAction = TryExplore(context, "Food not found");
-            if (exploreAction != null) return exploreAction;
+            var eat = HandleFoodNeed(context);
+            if (eat != null) return eat;
         }
 
         var action = DetermineWork();
@@ -304,6 +166,227 @@ public class NPC : Actor
         action ??= DetermineIdle(context);
 
         return action;
+    }
+    private NPCAction? HandleWarmthNeed(SurvivalContext context)
+    {
+        bool atActiveFire = CurrentLocation.HasActiveHeatSource();
+        bool atDeadFire = !atActiveFire && CurrentLocation.HasFeature<HeatSourceFeature>();
+        bool notAtFire = !(atActiveFire || atDeadFire);
+
+        bool isWarming = Body.LastTemperatureDelta > 0;
+        bool needToStartFire = atDeadFire;
+        bool needToTendFire = false;
+
+        // either at active fire
+        // at dead fire
+        // not at fire
+        if (notAtFire)
+        {
+            var knownActiveFire = GetKnownActiveFire();
+            Console.WriteLine($"  [Warmth] Known fire: {knownActiveFire?.Name ?? "none"}");
+            // known fire -> go there
+            if (knownActiveFire != null)
+            {
+                Console.WriteLine($"  [Warmth] Going to fire at {knownActiveFire.Name}");
+                var move = DecideToMove(knownActiveFire);
+                if (move != null) return move;
+            }
+            else if (Camp != null) // if no known fire prefer to make it at camp
+            {
+                Console.WriteLine($"  [Warmth] Going to camp");
+                var move = DecideToMove(Camp, maxTiles: 4); // only if close
+                if (move != null) return move;
+            }
+            // no known fire and camp is far
+            needToStartFire = true;
+        }
+
+        // if at fire then wait
+        if (atActiveFire)
+        {
+            if (isWarming)
+            {
+                // Rest near fire to get fire proximity heat bonus
+                Console.WriteLine($"  [Warmth] At fire, resting");
+                return new NPCRest(Utils.RandInt(5, 15));
+            }
+            else
+            {
+                needToTendFire = true;
+            }
+        }
+
+        if (needToTendFire)
+        {
+            // at fire but still cooling -> add fuel if you can
+            var fireFeature = CurrentLocation.GetFeature<HeatSourceFeature>()!;
+            if (FireHandler.CanTendFire(Inventory, fireFeature))
+            {
+                Console.WriteLine($"  [Warmth] Tending fire");
+                return new NPCTendFire();
+            }
+
+            if (!FireHandler.CanTendFire(Inventory, fireFeature))
+            {
+                Console.WriteLine($"  [Warmth] Getting fuel");
+                var get = DetermineGetResource(ResourceCategory.Fuel);
+                if (get != null) return get;
+            }
+        }
+
+        // at fire but not lit -> light it
+        if (needToStartFire)
+        {
+            var hasTool = FireHandler.GetBestTool(Inventory) != null;
+            Console.WriteLine($"  [Warmth] Has fire tool: {hasTool}");
+            if (FireHandler.CanStartFire(Inventory))
+            {
+                Console.WriteLine($"  [Warmth] Can start fire, starting");
+                return new NPCStartFire();
+            }
+            // No fire-starting tool? Try to craft one before gathering resources
+            if (!hasTool)
+            {
+                Console.WriteLine($"  [Warmth] No tool, trying to craft");
+                var craft = DetermineCraft();
+                if (craft != null)
+                {
+                    Console.WriteLine($"  [Warmth] Crafting: {craft.Name}");
+                    return craft;
+                }
+                Console.WriteLine($"  [Warmth] Can't craft, skipping fire materials");
+                // Can't craft tool - don't gather fire materials we can't use
+            }
+            else
+            {
+                if (FireHandler.GetFireMaterials(Inventory).Tinders.Count < 1)
+                {
+                    Console.WriteLine($"  [Warmth] Getting tinder");
+                    var get = DetermineGetResource(ResourceCategory.Tinder);
+                    if (get != null) return get;
+                }
+                if (!FireHandler.GetFireMaterials(Inventory).HasKindling)
+                {
+                    Console.WriteLine($"  [Warmth] Getting fuel");
+                    var get = DetermineGetResource(ResourceCategory.Fuel);
+                    if (get != null) return get;
+                }
+            }
+        }
+
+        // If we get here, warmth handling exhausted normal options
+        // (tried nearby fire, known fires, starting fire, crafting tools)
+        // Explore to find fire or materials
+        var exploreAction = TryExplore(context, "No known fire/tools");
+        if (exploreAction != null) return exploreAction;
+
+        // If even exploration fails (low boldness), fall through to idle as last resort
+        Console.WriteLine($"  [Warmth] Falling through to work/craft");
+        return null;
+    }
+    private NPCAction? HandleWaterNeed(SurvivalContext context)
+    {
+        Console.WriteLine($"  [Water] Determining action for water need");
+
+        // Check for water in inventory first - drink it
+        if (Inventory.WaterLiters > 0.1)
+        {
+            Console.WriteLine($"  [Water] Drinking from inventory ({Inventory.WaterLiters:F1}L)");
+            return new NPCDrinkWater();
+        }
+
+        // At active fire? Melt snow for water
+        if (CookingHandler.CanMeltSnow(CurrentLocation))
+        {
+            Console.WriteLine($"  [Water] Melting snow at fire");
+            return new NPCMeltSnow();
+        }
+
+        // Check for collectible water resources (streams, etc.)
+        if (HasResource(ResourceCategory.Water))
+        {
+            var water = Inventory.FindAnyResourceInCategory(ResourceCategory.Water);
+            return new NPCEat(water, Inventory.Pop(water));
+        }
+
+        // Try to get water from environment (water sources)
+        var get = DetermineGetResource(ResourceCategory.Water);
+        if (get != null) return get;
+
+        // No water source found - go to fire to melt snow
+        var knownActiveFire = GetKnownActiveFire();
+        if (knownActiveFire != null && knownActiveFire != CurrentLocation)
+        {
+            Console.WriteLine($"  [Water] Going to fire at {knownActiveFire.Name} to melt snow");
+            var move = DecideToMove(knownActiveFire);
+            if (move != null) return move;
+        }
+
+        // Check if blocked by cold prerequisite
+        var coldAction = HandleColdPrerequisite(context);
+        if (coldAction != null) return coldAction;
+
+        // No fire available - need to start one first, then melt snow
+        Console.WriteLine($"  [Water] Need fire to melt snow - switching to warmth");
+        CurrentNeed = NeedType.Warmth;
+        return DetermineActionForNeed(context);
+    }
+    private NPCAction? HandleFoodNeed(SurvivalContext context)
+    {
+        Console.WriteLine($"  [Food] Determining action for food need");
+
+        // Priority 1: Eat cooked meat (ready to consume)
+        if (Inventory.Count(Resource.CookedMeat) > 0)
+        {
+            Console.WriteLine($"  [Food] Eating cooked meat");
+            return new NPCEat(Resource.CookedMeat, Inventory.Pop(Resource.CookedMeat));
+        }
+
+        // Priority 2: Cook raw meat if at fire
+        if (Inventory.Count(Resource.RawMeat) > 0)
+        {
+            if (CookingHandler.CanCookMeat(Inventory, CurrentLocation))
+            {
+                Console.WriteLine($"  [Food] Cooking raw meat at fire");
+                return new NPCCookMeat();
+            }
+
+            // Have raw meat but need fire - go to known fire
+            var knownActiveFire = GetKnownActiveFire();
+            if (knownActiveFire != null && knownActiveFire != CurrentLocation)
+            {
+                Console.WriteLine($"  [Food] Going to fire at {knownActiveFire.Name} to cook meat");
+                var move = DecideToMove(knownActiveFire);
+                if (move != null) return move;
+            }
+
+            // No fire available - start one (warmth need handles fire creation)
+            Console.WriteLine($"  [Food] Need fire to cook - switching to warmth");
+            CurrentNeed = NeedType.Warmth;
+            return DetermineActionForNeed(context);
+        }
+
+        // Priority 3: Eat other ready food (berries, etc.)
+        if (HasResource(ResourceCategory.Food))
+        {
+            var food = Inventory.FindAnyResourceInCategory(ResourceCategory.Food);
+            Console.WriteLine($"  [Food] Eating {food}");
+            return new NPCEat(food, Inventory.Pop(food));
+        }
+
+        // Priority 4: Get food
+        var get = DetermineGetResource(ResourceCategory.Food);
+        if (get != null) return get;
+
+        // Check if blocked by cold prerequisite
+        var coldAction = HandleColdPrerequisite(context);
+        if (coldAction != null) return coldAction;
+
+        // Resource not found - explore to find it
+        var exploreAction = TryExplore(context, "Food not found");
+        if (exploreAction != null) return exploreAction;
+
+        return null;
     }
 
     private NPCMove? DecideToMove(Location destination, int maxTiles = 100)
@@ -446,7 +529,7 @@ public class NPC : Actor
     {
         bool canFight = Inventory.HasWeapon && Vitality > .5;
         double fightChance = Personality.Boldness;
-        double baseWillingness = ((threatTarget == this? 2 : Relationships[threatTarget]) + 1.0) / 2.0;
+        double baseWillingness = ((threatTarget == this ? 2 : Relationships[threatTarget]) + 1.0) / 2.0;
 
         return false;
     }
@@ -1168,18 +1251,6 @@ public class Personality
     public double Selfishness;
     public double Sociability;
 }
-
-public abstract class NPCAction(string name, int durationMin, ActivityType activityType)
-{
-    public string Name = name;
-    public int DurationMinutes = durationMin;
-    public int MinutesSpent = 0;
-    public bool IsComplete() => MinutesSpent >= DurationMinutes;
-    public abstract void Complete(NPC npc);
-    public virtual void Interrupt(NPC npc) => Complete(npc); // can override for partial completion
-    public ActivityType ActivityType = activityType;
-}
-
 public enum NeedType
 {
     Warmth = 0,
@@ -1188,306 +1259,3 @@ public enum NeedType
     Food = 3,
     None = 4,
 }
-
-
-public class NPCEat(Resource food, double amount) : NPCAction($"Eating {food.ToDisplayName()}", 5, ActivityType.Eating)
-{
-    public override void Complete(NPC npc)
-    {
-        ConsumptionHandler.EatDrink(npc, food, amount);
-    }
-}
-
-public class NPCMove(Location destination, NPC npc) :
-    NPCAction($"Traveling to {destination.Name}", TravelProcessor.GetTraversalMinutes(npc.CurrentLocation, destination, npc, npc.Inventory), ActivityType.Traveling)
-{
-    public override void Complete(NPC npc)
-    {
-        // first update destination memory as leaving
-        npc.ResourceMemory.RememberLocation(npc.CurrentLocation);
-        npc.CurrentLocation = destination;
-        npc.ResourceMemory.RememberLocation(destination);
-    }
-    public override void Interrupt(NPC npc)
-    {
-        if (MinutesSpent > (.5 * DurationMinutes)) // rough estimate
-        {
-            Complete(npc);
-        }
-        // otherwise they stay in the current location
-    }
-}
-
-public class NPCForage(int minutes) : NPCAction("Foraging", minutes, ActivityType.Foraging)
-{
-    public override void Complete(NPC npc)
-    {
-        bool hasLight = true; // todo
-        var found = WorkHandler.Forage(npc, npc.Inventory, npc.CurrentLocation, MinutesSpent, hasLight);
-        _ = npc.Inventory.CombineWithCapacity(found); // discard overflow
-    }
-}
-public class NPCHarvest : NPCAction
-{
-    public NPCHarvest(int minutes) : base("Harvesting", minutes, ActivityType.Foraging) { }
-
-    public override void Complete(NPC npc)
-    {
-        // Get first available harvestable (NPCs auto-select)
-        var feature = WorkHandler.GetAvailableHarvestable(npc.CurrentLocation);
-        if (feature == null)
-        {
-            Console.WriteLine($"[NPC:{npc.Name}] No harvestable at {npc.CurrentLocation.Name}");
-            return;
-        }
-
-        // Check tool requirements (some harvestables need tools)
-        if (feature.RequiredToolType != null)
-        {
-            var tool = npc.Inventory.GetTool(feature.RequiredToolType.Value);
-            if (!feature.MeetsToolRequirement(tool))
-            {
-                Console.WriteLine($"[NPC:{npc.Name}] Missing tool: {feature.GetToolRequirementDescription()}");
-                return;
-            }
-        }
-
-        // Execute harvest via WorkHandler
-        var found = WorkHandler.Harvest(npc.CurrentLocation, MinutesSpent);
-
-        // Add to NPC inventory (discard overflow)
-        _ = npc.Inventory.CombineWithCapacity(found);
-
-        Console.WriteLine($"[NPC:{npc.Name}] Harvested {found.GetDescription()} from {feature.DisplayName}");
-    }
-}
-public class NPCChopWood : NPCAction
-{
-    public NPCChopWood(int minutes) : base("Chopping wood", minutes, ActivityType.Chopping) { }
-
-    public override void Complete(NPC npc)
-    {
-        var feature = npc.CurrentLocation.GetFeature<WoodedAreaFeature>();
-        if (feature == null || !feature.HasTrees)
-        {
-            Console.WriteLine($"[NPC:{npc.Name}] No trees at {npc.CurrentLocation.Name}");
-            return;
-        }
-
-        // Check for working axe (required)
-        var axe = npc.Inventory.GetTool(ToolType.Axe);
-        if (axe == null || axe.IsBroken)
-        {
-            Console.WriteLine($"[NPC:{npc.Name}] No working axe");
-            return;
-        }
-
-        // Use axe (durability cost)
-        bool axeStillWorks = axe.Use();
-
-        // Add progress to feature (persists across sessions)
-        feature.AddProgress(MinutesSpent);
-
-        // Check if tree is ready to fell
-        if (feature.IsTreeReady)
-        {
-            var yield = feature.FellTree();
-            var overflow = npc.Inventory.CombineWithCapacity(yield);
-
-            if (!overflow.IsEmpty)
-                Console.WriteLine($"[NPC:{npc.Name}] Inventory overflow - dropped {overflow.GetDescription()}");
-
-            Console.WriteLine($"[NPC:{npc.Name}] Felled tree! Got {yield.GetDescription()}");
-        }
-        else
-        {
-            Console.WriteLine($"[NPC:{npc.Name}] Chopping: {feature.ProgressPct:P0}");
-        }
-
-        if (!axeStillWorks)
-            Console.WriteLine($"[NPC:{npc.Name}] Axe broke!");
-    }
-}
-public class NPCStartFire() : NPCAction("Starting Fire", 10, ActivityType.TendingFire)
-{
-    public override void Complete(NPC npc) => FireHandler.StartFire(npc, npc.Inventory, npc.CurrentLocation);
-}
-public class NPCTendFire() : NPCAction("Tending Fire", 1, ActivityType.TendingFire)
-{
-    public override void Complete(NPC npc)
-    {
-        if (!npc.CurrentLocation.HasFeature<HeatSourceFeature>())
-        {
-            Console.WriteLine("Looks like the AI is broke! Trying to tend a fire where there is none!");
-            return;
-        }
-        FireHandler.TendFire(npc.Inventory, npc.CurrentLocation.GetFeature<HeatSourceFeature>()!);
-    }
-}
-public class NPCRest(int minutes) : NPCAction("Resting", minutes, ActivityType.Resting)
-{
-    public override void Complete(NPC npc) { } // do nothing
-}
-
-public class NPCSleep(int minutes) : NPCAction("Sleeping", minutes, ActivityType.Sleeping)
-{
-    public override void Complete(NPC npc) => npc.Body.Rest(MinutesSpent, npc.CurrentLocation, null);
-}
-
-public class NPCStash(ResourceCategory resourceCategory) : NPCAction($"Storing {resourceCategory}", 2, ActivityType.Crafting)
-{
-    public override void Complete(NPC npc)
-    {
-        var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
-        if (cache == null)
-        {
-            Console.WriteLine("AI's BROKE. Trying to store items where there's no cache!");
-            return;
-        }
-        while (npc.Inventory.GetCount(resourceCategory) > 0)
-        {
-            var item = npc.Inventory.FindAnyResourceInCategory(resourceCategory);
-            cache.Storage.Add(item, npc.Inventory.Pop(item));
-        }
-    }
-}
-
-public class NPCStashWater() : NPCAction("Storing Water", 2, ActivityType.Crafting)
-{
-    public override void Complete(NPC npc)
-    {
-        var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
-        if (cache == null)
-        {
-            Console.WriteLine("AI's BROKE. Trying to store water where there's no cache!");
-            return;
-        }
-        var water = npc.Inventory.WaterLiters;
-        cache.Storage.WaterLiters += water;
-        npc.Inventory.WaterLiters = 0;
-    }
-}
-
-public class NPCTakeFromCache(ResourceCategory resourceCategory) : NPCAction($"Taking {resourceCategory}", 2, ActivityType.Crafting)
-{
-    public override void Complete(NPC npc)
-    {
-        var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
-        if (cache == null)
-        {
-            Console.WriteLine("AI's BROKE. Trying to take items where there's no cache!");
-            return;
-        }
-        // just take one and the action should get requeued if more needed
-        var item = cache.Storage.FindAnyResourceInCategory(resourceCategory);
-        npc.Inventory.Add(item, cache.Storage.Pop(item));
-    }
-}
-
-public class NPCTakeToolFromCache(ToolType toolType) : NPCAction($"Taking {toolType}", 2, ActivityType.Crafting)
-{
-    public override void Complete(NPC npc)
-    {
-        var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
-        if (cache == null) return;
-
-        var tool = cache.Storage.Tools.FirstOrDefault(t => t.ToolType == toolType && t.Works);
-        if (tool != null)
-        {
-            cache.Storage.Tools.Remove(tool);
-            npc.Inventory.Tools.Add(tool);
-        }
-    }
-}
-
-public class NPCCraft : NPCAction
-{
-    private readonly CraftOption _recipe;
-
-    public NPCCraft(CraftOption recipe) : base($"Crafting {recipe.Name}", recipe.CraftingTimeMinutes, ActivityType.Crafting)
-    {
-        _recipe = recipe;
-    }
-
-    public override void Complete(NPC npc)
-    {
-        var result = _recipe.Craft(npc.Inventory);
-        if (result != null)
-            npc.Inventory.Tools.Add(result);
-    }
-}
-
-#region Combat Actions
-
-public class NPCFight : NPCAction
-{
-    private readonly Animal _threat;
-
-    public NPCFight(Animal threat) : base($"Fighting {threat.Name}", 1, ActivityType.Fighting)
-    {
-        _threat = threat;
-    }
-
-    public override void Complete(NPC npc)
-    {
-        var outcome = ActorCombatResolver.ResolveCombat(_threat, npc, npc.CurrentLocation);
-
-        switch (outcome)
-        {
-            case ActorCombatResolver.CombatOutcome.DefenderKilled:
-                Console.WriteLine($"[NPC] {npc.Name} was killed by {_threat.Name}");
-                break;
-            case ActorCombatResolver.CombatOutcome.DefenderInjured:
-                Console.WriteLine($"[NPC] {npc.Name} was injured fighting {_threat.Name}");
-                break;
-            case ActorCombatResolver.CombatOutcome.AttackerRepelled:
-                Console.WriteLine($"[NPC] {npc.Name} drove off {_threat.Name}!");
-                break;
-            case ActorCombatResolver.CombatOutcome.DefenderEscaped:
-                Console.WriteLine($"[NPC] {npc.Name} escaped from {_threat.Name}");
-                break;
-        }
-    }
-
-    public Animal Threat => _threat;
-}
-
-public class NPCFlee : NPCAction
-{
-    private readonly Animal _threat;
-
-    public NPCFlee(Animal threat) : base($"Fleeing from {threat.Name}", 5, ActivityType.Traveling)
-    {
-        _threat = threat;
-    }
-
-    public override void Complete(NPC npc)
-    {
-        // Move toward camp if known, else random adjacent
-        Location? retreat = null;
-
-        if (npc.Camp != null && npc.CurrentLocation != npc.Camp)
-        {
-            retreat = npc.Map.GetNextInPath(npc.CurrentLocation, npc.Camp);
-        }
-
-        if (retreat == null)
-        {
-            var options = npc.Map.GetTravelOptionsFrom(npc.CurrentLocation).ToList();
-            if (options.Count > 0)
-                retreat = Utils.GetRandomFromList(options);
-        }
-
-        if (retreat != null)
-        {
-            Console.WriteLine($"[NPC:{npc.Name}] Fleeing to {retreat.Name}");
-            npc.CurrentLocation = retreat;
-        }
-        else
-        {
-            Console.WriteLine($"[NPC:{npc.Name}] Cannot flee - no escape route!");
-        }
-    }
-}
-
-#endregion
