@@ -245,7 +245,7 @@ public static class ConditionChecker
 
     // Use feature's HasCatch property
     private static bool HasSnareCatch(GameContext ctx) =>
-        AnyLocationHasSnare(ctx, s => s.HasCatch);
+        AnyLocationHasSnare(ctx, s => s.HasCatchWaiting);
 
     private static bool HasBaitedSnares(GameContext ctx) =>
         AnyLocationHasSnare(ctx, s => s.HasBaitedSnares);

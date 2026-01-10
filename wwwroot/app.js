@@ -277,9 +277,9 @@ class GameClient {
         document.getElementById('fuelReserve').textContent = `${state.fuelKg.toFixed(1)} kg`;
 
         // Gear summary (from inventory)
-        if (state.gearSummary) {
-            this.renderGearSummary(state.gearSummary);
-        }
+        // if (state.gearSummary) {
+        //     this.renderGearSummary(state.gearSummary);
+        // }
 
         // Storage button visibility - only show when at a location with storage
         const storageRow = document.getElementById('storageRow');
@@ -295,61 +295,61 @@ class GameClient {
         this.notificationRenderer.render(state.log);
     }
 
-    renderGearSummary(summary) {
-        // Tool pills
-        const pillsContainer = document.getElementById('toolPills');
-        clear(pillsContainer);
+    // renderGearSummary(summary) {
+    //     // Tool pills
+    //     const pillsContainer = document.getElementById('toolPills');
+    //     clear(pillsContainer);
 
-        // Weapon
-        if (summary.weaponName) {
-            this.addToolPill(pillsContainer, summary.weaponName);
-        }
+    //     // Weapon
+    //     if (summary.weaponName) {
+    //         this.addToolPill(pillsContainer, summary.weaponName);
+    //     }
 
-        // Cutting tools
-        if (summary.cuttingToolCount > 0) {
-            this.addToolPill(pillsContainer,
-                summary.cuttingToolCount > 1
-                    ? `${summary.cuttingToolCount} blades`
-                    : 'Blade');
-        }
+    //     // Cutting tools
+    //     if (summary.cuttingToolCount > 0) {
+    //         this.addToolPill(pillsContainer,
+    //             summary.cuttingToolCount > 1
+    //                 ? `${summary.cuttingToolCount} blades`
+    //                 : 'Blade');
+    //     }
 
-        // Fire starters
-        if (summary.fireStarterCount > 0) {
-            this.addToolPill(pillsContainer,
-                summary.fireStarterCount > 1
-                    ? `${summary.fireStarterCount} fire tools`
-                    : 'Fire tool');
-        }
+    //     // Fire starters
+    //     if (summary.fireStarterCount > 0) {
+    //         this.addToolPill(pillsContainer,
+    //             summary.fireStarterCount > 1
+    //                 ? `${summary.fireStarterCount} fire tools`
+    //                 : 'Fire tool');
+    //     }
 
-        // Other tools
-        if (summary.otherToolCount > 0) {
-            this.addToolPill(pillsContainer,
-                summary.otherToolCount > 1
-                    ? `${summary.otherToolCount} tools`
-                    : 'Tool');
-        }
+    //     // Other tools
+    //     if (summary.otherToolCount > 0) {
+    //         this.addToolPill(pillsContainer,
+    //             summary.otherToolCount > 1
+    //                 ? `${summary.otherToolCount} tools`
+    //                 : 'Tool');
+    //     }
 
-        // Food/Water combined summary
-        const foodWaterSummary = document.getElementById('foodWaterSummary');
-        if (foodWaterSummary) {
-            if (summary.foodPortions === 0 && summary.waterPortions === 0) {
-                foodWaterSummary.textContent = 'No food';
-                foodWaterSummary.className = 'gear-value';
-            } else {
-                let parts = [];
-                if (summary.foodPortions > 0) {
-                    let foodText = `${summary.foodPortions} portions`;
-                    if (summary.hasPreservedFood) foodText += ' +dried';
-                    parts.push(foodText);
-                }
-                if (summary.waterPortions > 0) {
-                    parts.push(`${summary.waterPortions}L water`);
-                }
-                foodWaterSummary.textContent = parts.join(', ');
-                foodWaterSummary.className = 'gear-value';
-            }
-        }
-    }
+        // // Food/Water combined summary
+        // const foodWaterSummary = document.getElementById('foodWaterSummary');
+        // if (foodWaterSummary) {
+        //     if (summary.foodPortions === 0 && summary.waterPortions === 0) {
+        //         foodWaterSummary.textContent = 'No food';
+        //         foodWaterSummary.className = 'gear-value';
+        //     } else {
+        //         let parts = [];
+        //         if (summary.foodPortions > 0) {
+        //             let foodText = `${summary.foodPortions} portions`;
+        //             if (summary.hasPreservedFood) foodText += ' +dried';
+        //             parts.push(foodText);
+        //         }
+        //         if (summary.waterPortions > 0) {
+        //             parts.push(`${summary.waterPortions}L water`);
+        //         }
+        //         foodWaterSummary.textContent = parts.join(', ');
+        //         foodWaterSummary.className = 'gear-value';
+        //     }
+        // }
+    // }
 
     addToolPill(container, text) {
         const pill = document.createElement('span');

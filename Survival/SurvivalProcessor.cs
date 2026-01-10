@@ -50,7 +50,7 @@ public static class SurvivalProcessor
 		result.Combine(ProcessDehydration(projectedHydration, minutesElapsed));
 		result.Combine(ProcessHypothermia(projectedTemp, minutesElapsed));
 		result.Combine(ProcessRegeneration(body, projectedCalories, projectedHydration, minutesElapsed));
-		result.Combine(ProcessWarningMessages(body, projectedCalories, projectedHydration));
+		// ProcessWarningMessages removed - stats panel shows this info
 
 		double projectedEnergy = body.Energy + result.StatsDelta.EnergyDelta;
 		result.Combine(ProcessSurvivalEffects(projectedCalories, projectedHydration, projectedEnergy));
@@ -124,6 +124,15 @@ public static class SurvivalProcessor
 
 		if (clothingCapacityF > 0)
 		{
+			if (context.FireProximityBonus > 0 && context.ClothingHeatBuffer < 1.0)
+			{
+				// NEAR FIRE: Fill buffer based on fire intensity
+				// Physics: 6.0 * FireProximityBonus kcal/hr heat transfer, 2% efficiency
+				double fillRate = (context.FireProximityBonus / 200.0) / clothingCapacityF;
+				bufferDelta = Math.Min(fillRate * minutes, 1.0 - context.ClothingHeatBuffer);
+				// bodyTempDelta unchanged (fire already reduces heat loss)
+			}
+
 			if (bodyTempDelta < 0)  // COOLING
 			{
 				if (context.ClothingHeatBuffer > 0)
@@ -145,15 +154,7 @@ public static class SurvivalProcessor
 				}
 				// else: buffer empty, normal cooling
 			}
-			else if (context.FireProximityBonus > 0 && context.ClothingHeatBuffer < 1.0)
-			{
-				// NEAR FIRE: Fill buffer based on fire intensity
-				// Physics: 6.0 * FireProximityBonus kcal/hr heat transfer, 2% efficiency
-				double fillRate = (context.FireProximityBonus / 200.0) / clothingCapacityF;
-				bufferDelta = Math.Min(fillRate * minutes, 1.0 - context.ClothingHeatBuffer);
-				// bodyTempDelta unchanged (fire already reduces heat loss)
-			}
-			else if (bodyTempDelta > 0)  // Actually gaining heat (rare)
+			else if (bodyTempDelta > 0) // WARMING
 			{
 				if (context.ClothingHeatBuffer < 1.0)
 				{
@@ -307,20 +308,11 @@ public static class SurvivalProcessor
 		var coreOrgans = new[] { BodyTarget.Heart, BodyTarget.Brain, BodyTarget.Lungs };
 		BodyTarget target = coreOrgans[Random.Shared.Next(coreOrgans.Length)];
 
-		// Escalating message based on severity - always shown so player knows they're dying
-		string urgency = severityFactor switch
-		{
-			>= 0.7 => "Your organs are shutting down!",
-			>= 0.4 => "You're dying from the cold...",
-			_ => "Your core is dangerously cold..."
-		};
-
 		return new SurvivalProcessorResult
 		{
 			DamageEvents = [
 				new DamageInfo(damage, DamageType.Internal, target)
-			],
-			Messages = [urgency],
+			]
 		};
 	}
 
@@ -370,37 +362,6 @@ public static class SurvivalProcessor
 		return result;
 	}
 
-	private static SurvivalProcessorResult ProcessWarningMessages(Body body, double projectedCalories, double projectedHydration)
-	{
-		var messages = new List<string>();
-
-		double caloriePercent = projectedCalories / MAX_CALORIES;
-		double hydrationPercent = projectedHydration / MAX_HYDRATION;
-		double energyPercent = body.Energy / MAX_ENERGY_MINUTES;
-
-		if (caloriePercent <= 0.01 && Utils.DetermineSuccess(0.1))
-			messages.Add("You are starving to death!");
-		else if (caloriePercent <= 0.20 && Utils.DetermineSuccess(0.05))
-			messages.Add("You're desperately hungry.");
-		else if (caloriePercent <= 0.50 && Utils.DetermineSuccess(0.02))
-			messages.Add("You're getting very hungry.");
-
-		if (hydrationPercent <= 0.01 && Utils.DetermineSuccess(0.1))
-			messages.Add("You are dying of thirst!");
-		else if (hydrationPercent <= 0.20 && Utils.DetermineSuccess(0.05))
-			messages.Add("You're desperately thirsty.");
-		else if (hydrationPercent <= 0.50 && Utils.DetermineSuccess(0.02))
-			messages.Add("You're getting quite thirsty.");
-
-		if (energyPercent <= 0.01 && Utils.DetermineSuccess(0.1))
-			messages.Add("You're so exhausted you can barely stay awake.");
-		else if (energyPercent <= 0.20 && Utils.DetermineSuccess(0.05))
-			messages.Add("You're extremely tired.");
-		else if (energyPercent <= 0.50 && Utils.DetermineSuccess(0.02))
-			messages.Add("You're getting tired.");
-
-		return new SurvivalProcessorResult { Messages = messages };
-	}
 
 	private const double SURVIVAL_EFFECT_THRESHOLD = 0.30;
 

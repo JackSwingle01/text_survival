@@ -218,7 +218,7 @@ public static partial class GameEventRegistry
                     new EventResult("It holds. Fire starts.", 0.40, 5),
                     new EventResult("Harder use, faster wear.", 0.40, 5)
                         .DamagesTool(variant.Tool ?? ToolType.HandDrill, 3),
-                    new EventResult("It breaks in your hands. No more fires from this.", 0.20, 3)
+                    new EventResult("It breaks in your hands.", 0.20, 3)
                         .DestroysTool(variant.Tool ?? ToolType.HandDrill)
                         .Frightening()
                 ])

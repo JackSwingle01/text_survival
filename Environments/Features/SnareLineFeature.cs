@@ -1,7 +1,6 @@
 using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Expeditions.WorkStrategies;
-using text_survival.Actors.Animals;
 
 namespace text_survival.Environments.Features;
 
@@ -11,13 +10,11 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class SnareLineFeature : LocationFeature, IWorkableFeature
 {
-    public override string? MapIcon => SnareCount > 0 ? (HasCatch ? "check_circle" : "circle") : null;
-    public override int IconPriority => HasCatch ? 8 : 2; // Catches are urgent
+    public override string? MapIcon => SnareCount > 0 ? (HasCatchWaiting ? "check_circle" : "circle") : null;
+    public override int IconPriority => HasCatchWaiting ? 8 : 2; // Catches are urgent
 
-    [System.Text.Json.Serialization.JsonInclude]
-    private readonly List<PlacedSnare> _snares = [];
-    [System.Text.Json.Serialization.JsonInclude]
-    private readonly AnimalTerritoryFeature? _territory;
+    public readonly List<PlacedSnare> _snares = [];
+    public readonly AnimalTerritoryFeature _territory;
 
     // Small game weight threshold (kg)
     private const double SmallGameMaxWeightKg = 10.0;
@@ -48,40 +45,16 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
         s.State == SnareState.Stolen ||
         s.State == SnareState.Destroyed);
 
-    /// <summary>
-    /// Check if any snares are baited.
-    /// </summary>
     public bool HasBaitedSnares => _snares.Any(s => s.IsBaited);
 
-    /// <summary>
-    /// Check if any snares have catches waiting.
-    /// </summary>
     public bool HasCatchWaiting => _snares.Any(s => s.State == SnareState.CatchReady);
 
-    /// <summary>
-    /// Check if snares can be checked (any active snares exist).
-    /// </summary>
     public bool CanBeChecked => SnareCount > 0;
 
-    /// <summary>
-    /// Check if any snares have catches ready for collection.
-    /// Alias for HasCatchWaiting for naming consistency.
-    /// </summary>
-    public bool HasCatch => HasCatchWaiting;
-
-    /// <summary>
-    /// Check if snares need attention (catches, stolen, or destroyed).
-    /// Alias for HasAnythingToCheck for naming consistency.
-    /// </summary>
-    public bool NeedsAttention => HasAnythingToCheck;
-
-    /// <summary>
-    /// Get work options for this feature.
-    /// </summary>
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
         if (!CanBeChecked) yield break;
-        string status = HasCatch ? $"{CatchCount} catches!" : $"{SnareCount} set";
+        string status = HasCatchWaiting ? $"{CatchCount} catches!" : $"{SnareCount} set";
         yield return new WorkOption(
             $"Check traps ({status})",
             "check_traps",
@@ -89,17 +62,11 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
         );
     }
 
-    /// <summary>
-    /// Place a new snare at this location.
-    /// </summary>
     public void PlaceSnare(int durability, bool reinforced = false)
     {
         _snares.Add(new PlacedSnare(durability, reinforced));
     }
 
-    /// <summary>
-    /// Place a new snare with bait.
-    /// </summary>
     public void PlaceSnareWithBait(int durability, BaitType bait, bool reinforced = false)
     {
         var snare = new PlacedSnare(durability, reinforced);
@@ -147,14 +114,6 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
         return destroyed;
     }
 
-    /// <summary>
-    /// Get all snares for inspection.
-    /// </summary>
-    public IReadOnlyList<PlacedSnare> GetSnares() => _snares.AsReadOnly();
-
-    /// <summary>
-    /// Update all snares for elapsed time.
-    /// </summary>
     public override void Update(int minutes)
     {
         var smallGame = GetSmallGameList();
@@ -164,8 +123,8 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
             snare.Update(minutes, GetGameDensity(), smallGame);
         }
 
-        // Remove broken snares
-        _snares.RemoveAll(s => !s.IsUsable && s.State != SnareState.CatchReady && s.State != SnareState.Stolen);
+        // Remove broken snares - handled in check
+        // _snares.RemoveAll(s => !s.IsUsable && s.State != SnareState.CatchReady && s.State != SnareState.Stolen);
     }
 
     /// <summary>
@@ -204,15 +163,7 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
         return results;
     }
 
-    /// <summary>
-    /// Get current game density from territory.
-    /// </summary>
-    private double GetGameDensity()
-    {
-        // Access via reflection or public method if available
-        // For now, assume moderate density
-        return 0.7;
-    }
+    private double GetGameDensity() => _territory.GameDensity;
 
     /// <summary>
     /// Get list of small game animals that can be caught.
@@ -231,9 +182,6 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
         return smallGame;
     }
 
-    /// <summary>
-    /// Get a summary description of the snare line.
-    /// </summary>
     public string GetDescription()
     {
         var usable = _snares.Count(s => s.IsUsable);
@@ -260,25 +208,6 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
     public override List<Resource> ProvidedResources() =>
         CanBeChecked ? [Resource.RawMeat] : [];
 
-    #region Save/Load Support
-
-    /// <summary>
-    /// Add a pre-created snare to the line (for save/load).
-    /// </summary>
-    internal void AddRestoredSnare(PlacedSnare snare)
-    {
-        _snares.Add(snare);
-    }
-
-    /// <summary>
-    /// Clear all snares (for save/load restoration).
-    /// </summary>
-    internal void ClearSnares()
-    {
-        _snares.Clear();
-    }
-
-    #endregion
 }
 
 /// <summary>
