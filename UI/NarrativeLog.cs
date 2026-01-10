@@ -43,8 +43,12 @@ public class NarrativeLog
             Add(text, level, timestamp);
     }
 
-    public IReadOnlyList<(string Text, LogLevel Level, string Timestamp)> GetVisible() =>
-        _entries.TakeLast(MAX_VISIBLE_LINES).ToList();
+    public IReadOnlyList<(string Text, LogLevel Level, string Timestamp)> GetVisible()
+    {
+        var visible = _entries.TakeLast(MAX_VISIBLE_LINES).ToList();
+        _entries.Clear();
+        return visible;
+    }
 
     public int TotalCount => _entries.Count;
 

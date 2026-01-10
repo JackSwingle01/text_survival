@@ -19,7 +19,7 @@ import { ConnectionOverlay } from './modules/connection.js';
 import { show, hide, clear } from './lib/helpers.js';
 import { ProgressDisplay } from './modules/progress.js';
 import { FrameQueue } from './modules/frameQueue.js';
-import { NarrativeLog } from './modules/log.js';
+import { NotificationRenderer } from './modules/notifications.js';
 import { TemperatureDisplay } from './modules/temperature.js';
 import { FireDisplay } from './modules/fire.js';
 import { SurvivalDisplay } from './modules/survival.js';
@@ -56,6 +56,9 @@ class GameClient {
         // Renderer state - only one renderer active at a time
         this.combatRenderer = null;
         this.activeRenderer = null;  // 'world' | 'combat'
+
+        // Notification renderer
+        this.notificationRenderer = new NotificationRenderer();
 
         // Overlay registry
         this.overlays = {
@@ -289,7 +292,7 @@ class GameClient {
         }
 
         // Narrative log
-        NarrativeLog.render(state.log);
+        this.notificationRenderer.render(state.log);
     }
 
     renderGearSummary(summary) {

@@ -385,7 +385,7 @@ public class ForageStrategy : IWorkStrategy
             if (currentFuel < 8.0)
             {
                 double needed = 8.0 - currentFuel;
-                GameDisplay.AddNarrative(ctx, $"You'll want about {needed:F0}kg more for tonight.");
+                GameDisplay.AddNarrative(ctx, $"You'll want about {needed:F0} more kg of fuel for tonight.");
             }
         }
 

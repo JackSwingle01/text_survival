@@ -2137,65 +2137,6 @@ body {
     max-height: 25vh;
 }
 
-.narrative-log {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    overflow-y: auto;
-    flex: 1;
-    font-size: 13px;
-    line-height: 1.6;
-}
-
-.log-entry {
-    width: 100%;
-    max-width: 700px;
-    padding: 6px var(--space-2);
-    background: rgba(255, 255, 255, 0.02);
-    border-left: 2px solid var(--border-dim);
-    flex-shrink: 0;
-}
-
-.log-entry.normal {
-    border-color: var(--fire-orange);
-}
-
-.log-entry.event {
-    border-color: var(--fire-orange);
-}
-
-.log-entry.info {
-    border-color: var(--tech-cyan);
-    color: var(--text-dim);
-}
-
-.log-entry.danger {
-    border-color: var(--vital-red);
-    color: var(--vital-red);
-}
-
-.log-entry.success {
-    border-color: var(--health-green);
-    color: var(--health-green);
-}
-
-.log-entry.warning {
-    border-color: var(--warning-amber);
-    color: var(--warning-amber);
-}
-
-.log-entry.system {
-    border-color: var(--border-dim);
-    color: var(--text-dim);
-}
-
-.log-entry .timestamp {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--text-dim);
-    margin-right: var(--space-2);
-}
 
 /* 
    TILE POPUP
@@ -3507,4 +3448,122 @@ body {
     .pane {
         max-height: 300px;
     }
+}
+
+/* ===== Notification System ===== */
+
+/* Toast Container */
+#toast-container {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 320px;
+}
+
+.notification-toast {
+    background: rgba(0, 0, 0, 0.95);
+    border-left: 4px solid var(--fire-orange);
+    padding: 12px 16px;
+    border-radius: 4px;
+    animation: slide-in-right 0.3s ease-out;
+    cursor: pointer;
+    color: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    font-size: 14px;
+}
+
+.notification-toast.success { border-left-color: var(--health-green); }
+.notification-toast.warning { border-left-color: var(--warning-amber); }
+.notification-toast.danger { border-left-color: var(--vital-red); }
+.notification-toast.fade-out { animation: fade-out 0.3s ease-out forwards; }
+.notification-toast:hover { background: rgba(20, 20, 20, 0.95); }
+
+/* Alert Banner */
+#alert-container {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    z-index: 900;
+}
+
+.alert-banner {
+    background: linear-gradient(to bottom, rgba(139, 0, 0, 0.95), rgba(100, 0, 0, 0.9));
+    border-bottom: 2px solid var(--vital-red);
+    padding: 16px 48px 16px 16px;
+    text-align: center;
+    animation: slide-down 0.3s ease-out, pulse 2s infinite;
+    color: white;
+    position: relative;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.alert-banner .dismiss-btn {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.alert-banner .dismiss-btn:hover { background: rgba(255, 255, 255, 0.3); }
+
+/* Contextual Notice */
+.contextual-notice {
+    position: fixed;
+    background: rgba(60, 50, 0, 0.95);
+    border: 2px solid var(--warning-amber);
+    color: var(--warning-amber);
+    padding: 12px 16px;
+    border-radius: 4px;
+    animation: fade-in 0.3s ease-in;
+    max-width: 320px;
+    z-index: 800;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-size: 14px;
+}
+
+.contextual-notice.center {
+    left: 50%;
+    top: 40%;
+    transform: translate(-50%, -50%);
+}
+
+.contextual-notice.fade-out { animation: fade-out 0.5s ease-out forwards; }
+
+/* Notification Animations */
+@keyframes slide-in-right {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slide-down {
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
+}
+
+@keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(139, 0, 0, 0.7); }
+    50% { box-shadow: 0 0 20px 4px rgba(139, 0, 0, 0.4); }
+}
+
+@keyframes fade-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
 }
