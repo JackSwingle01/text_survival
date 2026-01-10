@@ -190,17 +190,26 @@ export class CombatGridRenderer {
             ctx.fillStyle = baseColor;
             ctx.fillRect(0, 0, canvasSize, canvasSize);
 
-            // Render terrain texture across entire combat grid
-            // Use a single texture render at the grid origin for consistency
-            renderTerrainTexture(
-                ctx,
-                grid.terrain,
-                this.PADDING,
-                this.PADDING,
-                this.GRID_SIZE * this.CELL_SIZE,
-                grid.locationX,
-                grid.locationY
-            );
+            // Tile terrain texture across combat grid at normal resolution
+            const tileSize = this.CELL_SIZE * 5; // 5 meters per texture tile
+            const gridPixels = this.GRID_SIZE * this.CELL_SIZE;
+            const tilesNeeded = Math.ceil(gridPixels / tileSize);
+
+            for (let ty = 0; ty < tilesNeeded; ty++) {
+                for (let tx = 0; tx < tilesNeeded; tx++) {
+                    const px = this.PADDING + tx * tileSize;
+                    const py = this.PADDING + ty * tileSize;
+                    renderTerrainTexture(
+                        ctx,
+                        grid.terrain,
+                        px,
+                        py,
+                        tileSize,
+                        grid.locationX + tx,
+                        grid.locationY + ty
+                    );
+                }
+            }
         } else {
             // Fallback to solid background if no terrain data
             ctx.fillStyle = this.COLORS.background;
@@ -308,7 +317,7 @@ export class CombatGridRenderer {
     }
 
     /**
-     * Render a single unit
+     * Render a single unit with 3D shadow, vitality bar, and status badge
      */
     renderUnit(unit) {
         const ctx = this.ctx;
@@ -319,36 +328,26 @@ export class CombatGridRenderer {
         const isSelected = this.selectedUnit?.id === unit.id;
         const colors = this.COLORS[unit.team] || this.COLORS.enemy;
 
+        // 3D elliptical shadow beneath unit (wider than tall)
+        const shadowWidth = radius * 1.3;
+        ctx.save();
+        ctx.translate(x, y + radius * 0.6);
+        ctx.scale(1, 0.4);
+        ctx.beginPath();
+        ctx.arc(0, 0, shadowWidth, 0, Math.PI * 2);
+        const shadowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, shadowWidth);
+        shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.5)');
+        shadowGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.25)');
+        shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = shadowGradient;
+        ctx.fill();
+        ctx.restore();
+
         // Selection ring
         if (isSelected) {
             ctx.beginPath();
             ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
             ctx.strokeStyle = this.COLORS.selection;
-            ctx.lineWidth = 3;
-            ctx.stroke();
-        }
-
-        // Drop shadow
-        ctx.beginPath();
-        ctx.arc(x + 2, y + 2, radius, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.fill();
-
-        // Unit circle
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = colors.fill;
-        ctx.fill();
-        ctx.strokeStyle = colors.stroke;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Health arc (outer ring)
-        if (unit.vitality < 1) {
-            const healthAngle = unit.vitality * Math.PI * 2;
-            ctx.beginPath();
-            ctx.arc(x, y, radius + 2, -Math.PI / 2, -Math.PI / 2 + healthAngle);
-            ctx.strokeStyle = this.getHealthColor(unit.vitality);
             ctx.lineWidth = 3;
             ctx.stroke();
         }
@@ -359,16 +358,56 @@ export class CombatGridRenderer {
         ctx.textBaseline = 'middle';
         ctx.fillText(unit.icon || '?', x, y);
 
-        // Boldness indicator for enemies
-        if (unit.team === 'enemy') {
-            const boldnessColor = this.BOLDNESS_COLORS[unit.boldnessDescriptor] || '#888888';
-            ctx.beginPath();
-            ctx.arc(x + radius * 0.7, y - radius * 0.7, 5, 0, Math.PI * 2);
-            ctx.fillStyle = boldnessColor;
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        // Vitality bar above unit
+        if (unit.vitality < 1) {
+            const barWidth = radius * 1.6;
+            const barHeight = 5;
+            const barX = x - barWidth / 2;
+            const barY = y - radius - 12;
+
+            // Background bar
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(barX, barY, barWidth, barHeight);
+
+            // Health fill
+            const fillWidth = barWidth * unit.vitality;
+            const healthColor = this.getHealthColor(unit.vitality);
+            ctx.fillStyle = healthColor;
+            ctx.fillRect(barX, barY, fillWidth, barHeight);
+
+            // Border
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
             ctx.lineWidth = 1;
-            ctx.stroke();
+            ctx.strokeRect(barX, barY, barWidth, barHeight);
+        }
+
+        // Status badge (for enemies with boldness descriptor)
+        if (unit.team === 'enemy' && unit.boldnessDescriptor) {
+            const badgeText = unit.boldnessDescriptor.toUpperCase();
+            const boldnessColor = this.BOLDNESS_COLORS[unit.boldnessDescriptor] || '#888888';
+
+            // Measure text for badge sizing
+            ctx.font = "bold 9px 'JetBrains Mono', monospace";
+            const textMetrics = ctx.measureText(badgeText);
+            const badgeWidth = textMetrics.width + 12;
+            const badgeHeight = 14;
+            const badgeX = x - badgeWidth / 2;
+            const badgeY = y - radius - 28;
+
+            // Badge background
+            ctx.fillStyle = boldnessColor + 'e6';
+            ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
+
+            // Badge border
+            ctx.strokeStyle = boldnessColor;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(badgeX, badgeY, badgeWidth, badgeHeight);
+
+            // Badge text
+            ctx.fillStyle = '#d4cfc4';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(badgeText, x, badgeY + badgeHeight / 2);
         }
     }
 
