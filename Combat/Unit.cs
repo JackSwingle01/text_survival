@@ -47,7 +47,7 @@ public class Unit(Actor actor, GridPosition position)
             MoraleEvent.AllyFled => -1.0 * cohesion,
             MoraleEvent.EnemyAdvanced => -0.1 * enemyThreat,
             MoraleEvent.EnemyRetreated => +0.05,
-            MoraleEvent.RoundAdvanced => 0.01,
+            MoraleEvent.RoundAdvanced => -0.01,
             MoraleEvent.Intimidated => -CalculateIntimidation(other!),
             _ => throw new NotImplementedException(),
         };
@@ -115,16 +115,16 @@ public class Unit(Actor actor, GridPosition position)
             {
                 // advance if has advantage
                 var aggressionFactor = dist <= EngagementRange
-                    ? Math.Max(0, 1 - ((dist - EngagementRange) / 10))
-                    : 1.0;
+                    ? 1.0
+                    : Math.Max(0, 1 - ((dist - EngagementRange) / 10));
                 var advance = Math.Max(0, advantage + MIN_ADVANTAGE_THRESHOLD) * distWeight * aggressionFactor * ADVANCE_FACTOR;
                 enemyReaction += direction * (float)advance;
             }
             else
             {
                 // retreat if at a disadvantage
-                var retreat = (Math.Abs(dist) - MIN_ADVANTAGE_THRESHOLD) * distWeight * RETREAT_FACTOR;
-                enemyReaction += direction * (float)retreat;
+                var retreat = (Math.Abs(advantage) - MIN_ADVANTAGE_THRESHOLD) * distWeight * RETREAT_FACTOR;
+                enemyReaction -= direction * (float)retreat;
             }
         }
         var allyPull = new Vector2();
@@ -133,8 +133,8 @@ public class Unit(Actor actor, GridPosition position)
             var dist = (float)Position.DistanceTo(ally.Position);
             if (dist >= 2.0f)
             {
-                float allyPullFactor = 0.5f;
-                allyPull += dist * allyPullFactor * Position.DirectionTo(ally.Position);
+                float allyPullFactor = (float)(CohesionTowards(ally) * 0.5);
+                allyPull += allyPullFactor * Position.DirectionTo(ally.Position);
             }
         }
         return basePull + enemyReaction + allyPull;
@@ -142,8 +142,7 @@ public class Unit(Actor actor, GridPosition position)
 
     public bool DetermineAttack(Unit other)
     {
-        var threatPenalty = 1 - (PerceivedThreat(other) * 0.5);
-        var attackThreshold = threatPenalty * Aggression;
+        var attackThreshold = PerceivedThreat(other) * (1 - (Aggression * .5));
         return Boldness > attackThreshold;
     }
 
