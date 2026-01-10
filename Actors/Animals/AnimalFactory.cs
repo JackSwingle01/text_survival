@@ -42,7 +42,11 @@ public static class AnimalFactory
             attackDamage: 0.05, attackName: "teeth", attackType: DamageType.Pierce,
             location: location, map: map)
         {
-            TrackingDifficulty = 3
+            TrackingDifficulty = 3,
+            Threat = 0.05,
+            BaseBoldness = 0.3,
+            Aggression = 0.05,
+            Cohesion = 1
         };
         animal.GenerateTraits();
         return animal;
@@ -65,7 +69,11 @@ public static class AnimalFactory
             speedMps: 8.0, pursuitCommitment: 60.0,
             disengageAfterMaul: 0.2)  // Pack hunters tend to finish prey
         {
-            TrackingDifficulty = 6
+            TrackingDifficulty = 6,
+            Threat = 0.7,
+            BaseBoldness = 1.3,
+            Aggression = 0.8,
+            Cohesion = 2
         };
         animal.GenerateTraits();
         return animal;
@@ -88,7 +96,11 @@ public static class AnimalFactory
             speedMps: 5.0, pursuitCommitment: 30.0,
             disengageAfterMaul: 0.5)  // Often leaves after incapacitating (territorial defense)
         {
-            TrackingDifficulty = 5
+            TrackingDifficulty = 5,
+            Threat = 2.5,
+            BaseBoldness = 1.6,
+            Aggression = 0.4,
+            Cohesion = 0
         };
         animal.GenerateTraits();
         return animal;
@@ -111,7 +123,11 @@ public static class AnimalFactory
             speedMps: 4.5, pursuitCommitment: 25.0,
             disengageAfterMaul: 0.5)  // Often leaves after incapacitating (territorial defense)
         {
-            TrackingDifficulty = 4
+            TrackingDifficulty = 4,
+            Threat = 3.0,
+            BaseBoldness = 1.8,
+            Aggression = 0.4,
+            Cohesion = 0
         };
         animal.GenerateTraits();
         return animal;
@@ -138,7 +154,11 @@ public static class AnimalFactory
             [
                 (Resource.Ivory, 4),        // 2 tusks
                 (Resource.MammothHide, 15)  // Special thick hide
-            ]
+            ],
+            Threat = 3.5,
+            BaseBoldness = 1.0,
+            Aggression = 0.1,
+            Cohesion = 2
         };
         animal.GenerateTraits();
         return animal;
@@ -161,7 +181,11 @@ public static class AnimalFactory
             speedMps: 9.0, pursuitCommitment: 45.0,
             disengageAfterMaul: 0.15)  // Big cat, likely to finish kill
         {
-            TrackingDifficulty = 7
+            TrackingDifficulty = 7,
+            Threat = 3.0,
+            BaseBoldness = 2.0,
+            Aggression = 0.7,
+            Cohesion = 0
         };
         animal.GenerateTraits();
         return animal;
@@ -183,7 +207,11 @@ public static class AnimalFactory
             location: location, map: map,
             isHostile: false)
         {
-            TrackingDifficulty = 4
+            TrackingDifficulty = 4,
+            Threat = 0.3,
+            BaseBoldness = 0.3,
+            Aggression = 0.05,
+            Cohesion = 1
         };
         animal.GenerateTraits();
         return animal;
@@ -205,7 +233,11 @@ public static class AnimalFactory
             location: location, map: map,
             isHostile: false)
         {
-            TrackingDifficulty = 6
+            TrackingDifficulty = 6,
+            Threat = 0.05,
+            BaseBoldness = 0.1,
+            Aggression = 0.0,
+            Cohesion = 1
         };
         animal.GenerateTraits();
         return animal;
@@ -227,7 +259,11 @@ public static class AnimalFactory
             location: location, map: map,
             isHostile: false)
         {
-            TrackingDifficulty = 7
+            TrackingDifficulty = 7,
+            Threat = 0.02,
+            BaseBoldness = 0.1,
+            Aggression = 0.0,
+            Cohesion = 1
         };
         animal.GenerateTraits();
         return animal;
@@ -249,7 +285,11 @@ public static class AnimalFactory
             location: location, map: map,
             isHostile: false)
         {
-            TrackingDifficulty = 6
+            TrackingDifficulty = 6,
+            Threat = 0.15,
+            BaseBoldness = 0.4,
+            Aggression = 0.1,
+            Cohesion = 0
         };
         animal.GenerateTraits();
         return animal;
@@ -273,7 +313,11 @@ public static class AnimalFactory
             isHostile: false,
             disengageAfterMaul: 0.6)  // Defensive - leaves once threat neutralized
         {
-            TrackingDifficulty = 3
+            TrackingDifficulty = 3,
+            Threat = 0.5,
+            BaseBoldness = 0.4,
+            Aggression = 0.1,
+            Cohesion = 1
         };
         animal.GenerateTraits();
         return animal;
@@ -297,7 +341,11 @@ public static class AnimalFactory
             isHostile: false,
             disengageAfterMaul: 0.6)  // Defensive - leaves once threat neutralized
         {
-            TrackingDifficulty = 2
+            TrackingDifficulty = 2,
+            Threat = 1.8,
+            BaseBoldness = 0.5,
+            Aggression = 0.1,
+            Cohesion = 2
         };
         animal.GenerateTraits();
         return animal;
@@ -320,7 +368,11 @@ public static class AnimalFactory
             speedMps: 7.5, pursuitCommitment: 50.0,
             disengageAfterMaul: 0.3)  // Scavenger, may leave if prey plays dead
         {
-            TrackingDifficulty = 5
+            TrackingDifficulty = 5,
+            Threat = 0.4,
+            BaseBoldness = 0.7,
+            Aggression = 0.5,
+            Cohesion = 2
         };
         animal.GenerateTraits();
         return animal;
