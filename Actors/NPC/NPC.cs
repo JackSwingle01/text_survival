@@ -17,7 +17,6 @@ public class NPC : Actor
     private static readonly NeedCraftingSystem CraftingSystem = new();
 
     public Personality Personality { get; set; }
-    public Inventory Inventory { get; set; } = new();
     public Dictionary<Actor, double> Relationships { get; set; } = new();
     public ResourceMemory ResourceMemory { get; set; } = new();
     public Location? Camp { get; set; }
@@ -40,17 +39,20 @@ public class NPC : Actor
         WeaponClass.Blunt => DamageType.Blunt,
         _ => DamageType.Blunt
     };
+    public override double BaseCohesion => Personality.Sociability + 1;
 
     // For JSON deserialization
     public NPC() : base("", Body.BaselineHumanStats, null!, null!)
     {
         Personality = new Personality();
+        Inventory = new Inventory();
     }
 
     public NPC(string name, Personality personality, Location currentLocation, GameMap map)
         : base(name, Body.BaselineHumanStats, currentLocation, map)
     {
         Personality = personality;
+        Inventory = new Inventory();
     }
 
     // pending suggestion?
@@ -852,13 +854,52 @@ public class NPC : Actor
         _ => 0
     };
 
-    private static NeedCategory? GetCategoryForTool(ToolType toolType) => toolType switch
+    private NPCAction? TryCraftSpecificTool(ToolType toolType)
     {
-        ToolType.Knife => NeedCategory.CuttingTool,
-        ToolType.KnappingStone => NeedCategory.CuttingTool,
-        ToolType.Axe => NeedCategory.CuttingTool,
-        _ => null
-    };
+        Console.WriteLine($"    [Craft] TryCraftSpecificTool({toolType})");
+
+        // Get all craft options that produce this specific tool type
+        var options = CraftingSystem.AllOptions
+            .Where(o => o.GearFactory != null && o.GearFactory(1).ToolType == toolType)
+            .ToList();
+
+        Console.WriteLine($"    [Craft] Options for {toolType}: {options.Count}");
+
+        // Try to craft if we can
+        var craftable = options.FirstOrDefault(o => o.CanCraft(Inventory));
+        if (craftable != null)
+        {
+            Console.WriteLine($"    [Craft] Can craft: {craftable.Name}");
+            return new NPCCraft(craftable);
+        }
+
+        // Can't craft - find missing materials (but NOT tools - that causes recursion)
+        foreach (var option in options)
+        {
+            Console.WriteLine($"    [Craft] Checking option: {option.Name}");
+            foreach (var req in option.Requirements)
+            {
+                var needed = GetMissingCount(req);
+                Console.WriteLine($"    [Craft]   Req: {req.Material}, need {req.Count}, missing {needed}");
+                if (needed > 0)
+                {
+                    if (req.Material is MaterialSpecifier.Specific(var resource))
+                    {
+                        Console.WriteLine($"    [Craft]   Getting specific resource: {resource}");
+                        return DetermineGetSpecificResource(resource);
+                    }
+                    else if (req.Material is MaterialSpecifier.Category(var resCat))
+                    {
+                        Console.WriteLine($"    [Craft]   Getting category: {resCat}");
+                        return DetermineGetResource(resCat);
+                    }
+                }
+            }
+        }
+
+        Console.WriteLine($"    [Craft] No options found for {toolType}");
+        return null;
+    }
 
     private NPCAction? DetermineGetTool(ToolType toolType)
     {
@@ -880,13 +921,9 @@ public class NPC : Actor
             }
         }
 
-        // Not in cache, try to craft
-        var toolCategory = GetCategoryForTool(toolType);
-        Console.WriteLine($"    [GetTool] Not in cache, crafting category: {toolCategory}");
-        if (toolCategory != null)
-            return TryCraftFromCategory(toolCategory.Value);
-
-        return null;
+        // Not in cache, try to craft the specific tool type
+        Console.WriteLine($"    [GetTool] Not in cache, trying to craft {toolType}");
+        return TryCraftSpecificTool(toolType);
     }
 
     private NPCAction DetermineIdle(SurvivalContext context)

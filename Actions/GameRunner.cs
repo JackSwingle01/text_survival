@@ -38,7 +38,7 @@ public partial class GameRunner(GameContext ctx)
 
     public void Run()
     {
-        while (ctx.player.IsAlive && !ctx.HasWon)
+        while (ctx.player.IsAlive) // && !ctx.HasWon)
         {
             GameDisplay.Render(ctx, statusText: "Resting.");
             CheckFireWarning();
@@ -60,11 +60,11 @@ public partial class GameRunner(GameContext ctx)
             MainMenu();
         }
 
-        if (ctx.HasWon)
-        {
-            // Victory was already displayed in ExpeditionRunner
-            return;
-        }
+        // if (ctx.HasWon)
+        // {
+        //     // Victory was already displayed in ExpeditionRunner
+        //     return;
+        // }
 
         // Player died from survival conditions - show death message
         GameDisplay.AddDanger(ctx, "Your vision fades to black as you collapse...");

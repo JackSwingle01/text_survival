@@ -1,5 +1,6 @@
 using text_survival.Bodies;
 using text_survival.Effects;
+using text_survival.Items;
 using text_survival.Skills;
 using text_survival.Survival;
 
@@ -13,11 +14,23 @@ public class Player : Actor
     public SurvivalStatsDelta? LastSurvivalDelta { get; private set; }
     public int LastUpdateMinutes { get; private set; } = 1;
 
-    // Combat defaults (unarmed) - actual weapon passed to Attack()
-    public override double AttackDamage => .1;
-    public override double BlockChance => 0.05;
-    public override string AttackName => "fists";
-    public override DamageType AttackType => DamageType.Blunt;
+    // Combat - uses equipped weapon or unarmed defaults
+    public override double AttackDamage => Inventory?.Weapon?.Damage ?? 0.1;
+    public override double BlockChance => Inventory?.Weapon?.BlockChance ?? 0.05;
+    public override string AttackName => Inventory?.Weapon?.Name ?? "fists";
+    public override DamageType AttackType => Inventory?.Weapon?.WeaponClass switch
+    {
+        WeaponClass.Blade => DamageType.Sharp,
+        WeaponClass.Pierce => DamageType.Pierce,
+        _ => DamageType.Blunt
+    };
+
+    public override DamageInfo GetAttackDamage(BodyTarget target = BodyTarget.Random)
+    {
+        var damageInfo = base.GetAttackDamage(target);
+        damageInfo.Amount += Skills.Fighting.Level;
+        return damageInfo;
+    }
 
     public override void Update(int minutes, SurvivalContext context)
     {
@@ -62,5 +75,6 @@ public class Player : Actor
     {
         Name = "Player";
         Skills = new SkillRegistry();
+        Inventory = Inventory.CreatePlayerInventory(15.0);
     }
 }

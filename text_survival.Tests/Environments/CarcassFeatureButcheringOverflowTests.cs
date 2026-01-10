@@ -144,7 +144,7 @@ public class CarcassFeatureButcheringOverflowTests
             totalCollected += ctx.Inventory.CurrentWeightKg;
 
             // Empty inventory for next session (simulate returning to camp)
-            ctx.Inventory = Inventory.CreatePlayerInventory(2.0);
+            ctx.player.Inventory = Inventory.CreatePlayerInventory(2.0);
             ctx.Inventory.Tools.Add(Gear.Knife());
         }
 

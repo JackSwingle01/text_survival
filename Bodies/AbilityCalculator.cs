@@ -1,7 +1,6 @@
 using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Effects;
-using text_survival.Environments;
 
 namespace text_survival.Bodies;
 

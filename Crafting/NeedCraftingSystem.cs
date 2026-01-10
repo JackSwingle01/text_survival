@@ -7,6 +7,8 @@ public class NeedCraftingSystem
 {
     private readonly List<CraftOption> _options = [];
 
+    public IReadOnlyList<CraftOption> AllOptions => _options;
+
     public NeedCraftingSystem()
     {
         InitializeFireStartingOptions();

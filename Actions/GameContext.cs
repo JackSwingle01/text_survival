@@ -18,54 +18,31 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     [System.Text.Json.Serialization.JsonIgnore]
     public Location CurrentLocation => player.CurrentLocation;
-
     public Location Camp { get; set; } = camp;
-
-    [System.Text.Json.Serialization.JsonIgnore]
     public bool IsAtCamp => CurrentLocation == Camp;
+
+
 
     // Web session identifier for this game instance
     public string? SessionId { get; set; }
-
-    // Instance narrative log for this session
     public NarrativeLog Log { get; set; } = new();
 
-    // Player's carried inventory (aggregate-based)
-    public Inventory Inventory { get; set; } = Inventory.CreatePlayerInventory(15.0);
+    // Player's carried inventory - references player.Inventory
+    public Inventory Inventory => player.Inventory!;
 
     // Zone and location tracking
     public Weather Weather { get; init; } = weather;
-
     public GameMap? Map { get; set; }
-
     [System.Text.Json.Serialization.JsonIgnore]
     public (int X, int Y)? PendingTravelTarget { get; set; }
-
-    // Mountain pass tracking (not in standard location pool)
-    public List<Location> MountainPassLocations { get; private set; } = [];
-    public Location? WinLocation { get; private set; }
-
-    public bool HasWon { get; private set; }
-    public void TriggerVictory() => HasWon = true;
-
-    public bool IsWinLocation(Location location) => location == WinLocation;
-
     public int DaysSurvived => (int)(GameTime - new DateTime(2025, 1, 1, 9, 0, 0)).TotalDays;
-
-    public void SetupMountainPass(List<Location> passLocations, Location winLocation)
-    {
-        MountainPassLocations = passLocations;
-        WinLocation = winLocation;
-    }
 
     // Tension system for tracking building threats/opportunities
     public TensionRegistry Tensions { get; set; } = new();
 
     // Herd registry for tracking persistent animals
     public HerdRegistry Herds { get; set; } = new();
-
     public List<NPC> NPCs { get; set; } = new();
-
     public List<NPC> GetNPCsAt(GridPosition pos)
     {
         if (Map == null) return [];
@@ -117,7 +94,6 @@ public class GameContext(Player player, Location camp, Weather weather)
     {
         _pendingEncounter = config;
     }
-
     public bool HasPendingEncounter => _pendingEncounter != null;
 
     public void HandlePendingEncounter()
@@ -186,13 +162,6 @@ public class GameContext(Player player, Location camp, Weather weather)
     // Tutorial message tracking
     private HashSet<string> _shownTutorials = new();
 
-    // For JSON serialization
-    public HashSet<string> ShownTutorials
-    {
-        get => _shownTutorials;
-        set => _shownTutorials = value;
-    }
-
     public void ShowTutorialOnce(string message)
     {
         if (_shownTutorials.Contains(message))
@@ -214,25 +183,25 @@ public class GameContext(Player player, Location camp, Weather weather)
     // Parameterless constructor for JSON deserialization
     [System.Text.Json.Serialization.JsonConstructor]
     public GameContext() : this(null!, null!, null!) { }
-    public void RestoreAfterDeserialization()
-    {
-        // Map handles its own restoration via LocationData property
-        // Weather reference needs to be restored on the map
-        if (Map != null)
-        {
-            Map.Weather = Weather;
+    // public void RestoreAfterDeserialization()
+    // {
+    //     // Map handles its own restoration via LocationData property
+    //     // Weather reference needs to be restored on the map
+    //     if (Map != null)
+    //     {
+    //         Map.Weather = Weather;
 
-            // Restore actor Map references (CurrentLocation restored via $ref)
-            player.Map = Map;
-            foreach (var npc in NPCs)
-            {
-                npc.Map = Map;
-            }
-        }
+    //         // Restore actor Map references (CurrentLocation restored via $ref)
+    //         player.Map = Map;
+    //         foreach (var npc in NPCs)
+    //         {
+    //             npc.Map = Map;
+    //         }
+    //     }
 
-        // Recreate non-serialized animal members for herds
-        Herds.RecreateAllMembers(Map);
-    }
+    //     // Recreate non-serialized animal members for herds
+    //     Herds.RecreateAllMembers(Map);
+    // }
 
     public static GameContext CreateNewGame()
     {
@@ -304,8 +273,6 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     public DateTime GameTime { get; set; } = new DateTime(2025, 1, 1, 9, 0, 0); // Full date/time for resource respawn tracking
 
-
-
     public int Update(int targetMinutes, ActivityType activity, bool render = false)
     {
         EventOccurredLastUpdate = false;
@@ -368,7 +335,6 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     private void UpdateInternal(int minutes)
     {
-
         // Tick torch burn time and handle chaining logic
         Handlers.TorchHandler.UpdateTorchBurnTime(this, minutes, CurrentLocation.GetFeature<HeatSourceFeature>());
 

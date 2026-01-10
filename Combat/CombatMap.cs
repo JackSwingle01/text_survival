@@ -6,20 +6,11 @@ namespace text_survival.Combat;
 /// </summary>
 public class CombatMap
 {
-    /// <summary>Grid size in cells (25x25 = 25m x 25m combat area).</summary>
     public const int GridSize = 25;
-
-    /// <summary>Meters per grid cell.</summary>
     public const double CellSizeMeters = 1.0;
-
-    /// <summary>Maximum combat distance (diagonal of grid).</summary>
-    public static readonly double MaxDistanceMeters = Math.Sqrt(2) * GridSize * CellSizeMeters;
 
     private readonly Dictionary<object, CombatPosition> _positions = new();
 
-    /// <summary>
-    /// Place an actor on the grid at a specific position.
-    /// </summary>
     public void SetPosition(object actor, CombatPosition position)
     {
         _positions[actor] = ClampToGrid(position);
@@ -46,22 +37,13 @@ public class CombatMap
         _positions[actor] = ClampToGrid(newPos);
     }
 
-    /// <summary>
-    /// Get an actor's current position.
-    /// </summary>
     public CombatPosition? GetPosition(object actor)
     {
         return _positions.TryGetValue(actor, out var pos) ? pos : null;
     }
 
-    /// <summary>
-    /// Get all actor positions (for UI rendering).
-    /// </summary>
     public IReadOnlyDictionary<object, CombatPosition> GetAllPositions() => _positions;
 
-    /// <summary>
-    /// Remove an actor from the grid (fled, dead, etc.).
-    /// </summary>
     public void RemoveActor(object actor)
     {
         _positions.Remove(actor);

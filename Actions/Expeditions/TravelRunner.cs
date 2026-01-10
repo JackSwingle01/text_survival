@@ -262,12 +262,12 @@ public class TravelRunner(GameContext ctx)
 
         destination.Explore();
 
-        // Check for victory
-        if (_ctx.IsWinLocation(destination))
-        {
-            HandleVictory();
-            return true;
-        }
+        // // Check for victory
+        // if (_ctx.IsWinLocation(destination))
+        // {
+        //     HandleVictory();
+        //     return true;
+        // }
 
         // Show discovery popup if this is first visit and has discovery text
         // Only if FirstVisitEvent didn't already handle it
@@ -376,7 +376,7 @@ public class TravelRunner(GameContext ctx)
 
     private void HandleVictory()
     {
-        _ctx.TriggerVictory();
+        // _ctx.TriggerVictory();
 
         GameDisplay.ClearNarrative(_ctx);
         GameDisplay.AddSuccess(_ctx, "You made it.");

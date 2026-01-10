@@ -149,7 +149,7 @@ public class SerializationTests
         // Act
         string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
         var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
-        deserialized!.RestoreAfterDeserialization();
+        // deserialized!.RestoreAfterDeserialization();
 
         // Assert - Connections can be resolved
         var deserializedConnections = deserialized.Map!.GetTravelOptionsFrom(deserialized.Camp);
@@ -242,8 +242,8 @@ public class SerializationTests
         string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
         var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
 
-        // Restore transient state after deserialization
-        deserialized!.RestoreAfterDeserialization();
+        // // Restore transient state after deserialization
+        // deserialized!.RestoreAfterDeserialization();
 
         // Assert - Game can continue (functional API works)
 

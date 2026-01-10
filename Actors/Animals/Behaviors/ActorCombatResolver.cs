@@ -188,28 +188,8 @@ public static class ActorCombatResolver
 
     private static void ApplyAttack(Actor attacker, Actor defender)
     {
-        // Create damage info
-        var damageInfo = new DamageInfo(
-            attacker.AttackDamage,
-            attacker.AttackType);
-
-        // Apply armor if defender has inventory
-        if (defender is NPC npc)
-        {
-            damageInfo.ArmorCushioning = npc.Inventory.TotalCushioning;
-            damageInfo.ArmorToughness = npc.Inventory.TotalToughness;
-        }
-
-        // Apply damage to body (uses existing damage system)
-        var result = DamageProcessor.DamageBody(damageInfo, defender.Body);
-
-        // Apply triggered effects (bleeding, pain)
-        foreach (var effect in result.TriggeredEffects)
-        {
-            defender.EffectRegistry.AddEffect(effect);
-        }
-
-        // Log damage for console output
+        var damageInfo = attacker.GetAttackDamage();
+        var result = defender.Damage(damageInfo);
         Console.WriteLine($"[Combat] {attacker.Name} dealt {result.TotalDamageDealt:F1} damage to {defender.Name}");
     }
 }

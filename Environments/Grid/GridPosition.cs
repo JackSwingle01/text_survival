@@ -1,3 +1,5 @@
+using System.Numerics;
+
 namespace text_survival.Environments.Grid;
 
 /// <summary>
@@ -48,4 +50,32 @@ public readonly record struct GridPosition(int X, int Y)
     }
 
     public override string ToString() => $"({X}, {Y})";
+
+    // vector ops
+    public Vector2 ToVector() => new(X, Y);
+    public double DistanceTo(GridPosition other) => Vector2.Distance(ToVector(), other.ToVector());
+    public Vector2 DirectionTo(GridPosition other)
+    {
+        var delta = ToVector() - other.ToVector();
+        return delta == Vector2.Zero ? Vector2.Zero : delta;
+    }
+
+    public GridPosition Move(Vector2 direction, float magnitude)
+    {
+        if (direction == Vector2.Zero) return this;
+
+        var normalizedDir = Vector2.Normalize(direction);
+        var delta = normalizedDir * magnitude;
+        var result = this.ToVector() + delta;
+        return FromVector(result);
+    }
+    public GridPosition Move(Vector2 movementVector)
+    {
+        return FromVector(ToVector() + movementVector);
+    }
+
+    /// <summary>
+    /// Rounds to nearest tile
+    /// </summary>
+    public static GridPosition FromVector(Vector2 v) => new((int)Math.Round(v.X), (int)Math.Round(v.Y));
 }

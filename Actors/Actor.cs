@@ -1,5 +1,4 @@
 using text_survival.Bodies;
-using text_survival.Combat;
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
@@ -13,11 +12,53 @@ public abstract class Actor : IMovable
     public Location CurrentLocation { get; set; }
     public GameMap Map { get; set; }
 
+    // Inventory - set by subclasses that have one (Player, NPC). Animals leave null.
+    public Inventory? Inventory { get; set; }
+
     // Combat interface - subclasses provide these from their weapon/natural attacks
     public abstract double AttackDamage { get; }
     public abstract double BlockChance { get; }
     public abstract string AttackName { get; }
     public abstract DamageType AttackType { get; }
+
+    /// <summary>
+    /// Creates DamageInfo for this actor's attack, including strength/vitality/RNG modifiers.
+    /// </summary>
+    public virtual DamageInfo GetAttackDamage(BodyTarget target = BodyTarget.Random)
+    {
+        double baseDamage = AttackDamage;
+        double strengthMod = (Strength / 2) + 0.5;      // 50-100%
+        double vitalityMod = 0.7 + (0.3 * Vitality);    // 70-100%
+        double rngMod = 0.5 + Random.Shared.NextDouble(); // 50-150%
+
+        double damage = baseDamage * strengthMod * vitalityMod * rngMod;
+        return new DamageInfo(damage, AttackType, target);
+    }
+
+    /// <summary>
+    /// Applies damage to this actor, including armor if available.
+    /// </summary>
+    public DamageResult Damage(DamageInfo damageInfo)
+    {
+        if (Inventory != null)
+        {
+            damageInfo.ArmorCushioning = Inventory.TotalCushioning;
+            damageInfo.ArmorToughness = Inventory.TotalToughness;
+        }
+
+        var result = DamageProcessor.DamageBody(damageInfo, Body);
+        foreach (var effect in result.TriggeredEffects)
+        {
+            EffectRegistry.AddEffect(effect);
+        }
+        return result;
+    }
+
+    // not sure if these should be set manually set
+    public virtual double BaseThreat => Math.Log10(Strength * Body.WeightKG * AttackDamage); // todo - tune this
+    public virtual double StartingBoldness => 1.0;
+    public virtual double BaseAggression => 1.0;
+    public virtual double BaseCohesion => .5;
 
     public bool IsEngaged { get; set; }
     public bool IsAlive => Vitality > 0;
@@ -48,7 +89,6 @@ public abstract class Actor : IMovable
 
     public Body Body { get; init; }
     public EffectRegistry EffectRegistry { get; init; }
-    protected CombatManager combatManager { get; init; }
 
     public override string ToString() => Name;
 
@@ -56,7 +96,6 @@ public abstract class Actor : IMovable
     {
         Name = name;
         EffectRegistry = new EffectRegistry();
-        this.combatManager = new CombatManager(this);
         Body = new Body(stats);
         CurrentLocation = currentLocation;
         Map = map;
@@ -86,7 +125,6 @@ public abstract class Actor : IMovable
     // Non-context abilities (no environmental factors)
     public double Vitality => AbilityCalculator.CalculateVitality(Body, GetEffectModifiers());
     public double Strength => AbilityCalculator.CalculateStrength(Body, GetEffectModifiers());
-    public double ColdResistance => AbilityCalculator.CalculateColdResistance(Body);
 
     // Context-aware abilities - use these when you have AbilityContext
     public double GetSpeed(AbilityContext context)
@@ -100,7 +138,6 @@ public abstract class Actor : IMovable
 
     // Properties for backward compatibility (use Default context)
     public double Speed => GetSpeed(AbilityContext.Default);
-    public double Perception => GetPerception(AbilityContext.Default);
     public double Dexterity => GetDexterity(AbilityContext.Default);
 
     #endregion

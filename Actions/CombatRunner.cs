@@ -601,27 +601,15 @@ public static class CombatRunner
     {
         if (target == null) return "";
 
-        var weapon = npc.Inventory.Weapon;
-        double baseDamage = weapon?.Damage ?? npc.AttackDamage;
         double hitChance = 0.7 + (npc.Personality.Boldness * 0.2);
 
         if (_rng.NextDouble() < hitChance)
         {
-            // Apply damage to target (not state.Animal - that's the legacy single enemy)
-            DamageType damageType = weapon != null
-                ? GetDamageType(weapon.WeaponClass)
-                : DamageType.Blunt;
-
-            var damageInfo = new DamageInfo(baseDamage, damageType);
-            var result = DamageProcessor.DamageBody(damageInfo, target.Actor.Body);
-
-            foreach (var effect in result.TriggeredEffects)
-            {
-                target.Actor.EffectRegistry.AddEffect(effect);
-            }
+            var damageInfo = npc.GetAttackDamage();
+            target.Actor.Damage(damageInfo);
 
             // Decrement weapon durability
-            weapon?.Use();
+            npc.Inventory.Weapon?.Use();
 
             return $"{npc.Name} strikes the {target.Name}!";
         }
@@ -656,31 +644,19 @@ public static class CombatRunner
         // Use existing animal behavior
         if (state.Behavior.WillAttackThisTurn())
         {
-            // Attack the target
             bool targetIsPlayer = target == state.PlayerActor;
-            double damage = state.Animal.AttackDamage;
 
             if (targetIsPlayer)
             {
-                var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal, damage);
+                var damageResult = ApplyDamageToPlayer(ctx, state, state.Animal);
                 return CombatNarrator.DescribeAnimalAttackHit(state.Animal.Name, damageResult);
             }
             else
             {
                 // Attack an ally
-                var npcTarget = target.Actor as NPC;
-                if (npcTarget != null)
-                {
-                    var damageInfo = new DamageInfo(damage, state.Animal.AttackType)
-                    {
-                        ArmorCushioning = npcTarget.Inventory.TotalCushioning,
-                        ArmorToughness = npcTarget.Inventory.TotalToughness
-                    };
-                    var result = DamageProcessor.DamageBody(damageInfo, npcTarget.Body);
-                    foreach (var effect in result.TriggeredEffects)
-                        npcTarget.EffectRegistry.AddEffect(effect);
-                    return $"The {state.Animal.Name} attacks {npcTarget.Name}!";
-                }
+                var damageInfo = state.Animal.GetAttackDamage();
+                var result = target.Actor.Damage(damageInfo);
+                return $"The {state.Animal.Name} attacks {target.Actor.Name}!";
             }
         }
 
@@ -906,8 +882,6 @@ public static class CombatRunner
     private static (double damage, string narrative) ExecuteTargetedAttack(
         GameContext ctx, CombatState state, Gear weapon, AttackTarget target)
     {
-        DamageType damageType = GetDamageType(weapon.WeaponClass);
-
         // Hit chance based on target and animal state
         double hitChance = GetTargetHitChance(state, target);
 
@@ -926,56 +900,40 @@ public static class CombatRunner
 
         bool isCritical = _rng.NextDouble() < critChance;
 
-        // Calculate damage
-        double baseDamage = weapon.Damage ?? 10;
-        double damage = CalculatePlayerDamage(ctx, baseDamage);
+        // Calculate damage using consolidated method
+        var damageInfo = ctx.player.GetAttackDamage();
 
         if (isCritical)
         {
-            damage *= target == AttackTarget.Head ? 3.0 : 2.5; // Even more damage on crit headshot
+            damageInfo.Amount *= target == AttackTarget.Head ? 3.0 : 2.5; // Even more damage on crit headshot
         }
 
         // Apply damage to specific body region
-        var damageResult = ApplyTargetedDamageToAnimal(ctx, state, damage, weapon, target, isCritical);
+        var damageResult = ApplyTargetedDamageToAnimal(state, damageInfo, target);
 
         // Build narrative from actual damage result using CombatNarrator
         string hitNarrative = CombatNarrator.DescribePlayerAttackHit(
-            state.Animal.Name, weapon.Name, damageResult, damageType, isCritical);
+            state.Animal.Name, ctx.Inventory.Weapon?.Name ?? "attack", damageResult, damageInfo.Type, isCritical);
 
-        return (damage, hitNarrative);
+        return (damageInfo.Amount, hitNarrative);
     }
 
     private static DamageResult ApplyTargetedDamageToAnimal(
-        GameContext ctx, CombatState state, double damage, Gear weapon,
-        AttackTarget target, bool isCritical)
+        CombatState state, DamageInfo damageInfo, AttackTarget target)
     {
-        DamageType damageType = GetDamageType(weapon.WeaponClass);
-
         // Map target to body region
-        string bodyRegion = target switch
+        damageInfo.TargetPartName = target switch
         {
             AttackTarget.Legs => "Left Hind Leg", // Quadruped leg
             AttackTarget.Head => "Head",
-            AttackTarget.Torso => "Chest",
             _ => "Chest"
         };
 
-        var damageInfo = new DamageInfo(damage, damageType)
-        {
-            TargetPartName = bodyRegion
-        };
-
-        var result = DamageProcessor.DamageBody(damageInfo, state.Animal.Body);
-
-        foreach (var effect in result.TriggeredEffects)
-        {
-            state.Animal.EffectRegistry.AddEffect(effect);
-        }
+        var result = state.Animal.Damage(damageInfo);
 
         // Leg hits reduce animal speed for the encounter
-        if (target == AttackTarget.Legs && damage > 5)
+        if (target == AttackTarget.Legs && damageInfo.Amount > 5)
         {
-            // Crippling effect - reduces chase/charge effectiveness
             state.AddMessage($"The {state.Animal.Name} favors its wounded leg.");
         }
 
@@ -1108,11 +1066,6 @@ public static class CombatRunner
     private static (double damage, string narrative) ExecutePlayerAttack(
         GameContext ctx, CombatState state, Gear? weapon, bool isThrust = false)
     {
-        double baseDamage = weapon?.Damage ?? ctx.player.AttackDamage;
-        DamageType damageType = weapon != null
-            ? GetDamageType(weapon.WeaponClass)
-            : DamageType.Blunt;
-
         // Hit chance modified by animal behavior
         double hitModifier = state.Behavior.GetHitChanceModifier();
         double baseHitChance = 0.85;
@@ -1131,8 +1084,10 @@ public static class CombatRunner
         // Check for critical hit (vulnerability window)
         bool isCritical = _rng.NextDouble() < state.Behavior.GetCriticalChance();
 
-        // Calculate damage
-        double damage = CalculatePlayerDamage(ctx, baseDamage);
+        // Calculate damage using consolidated method
+        var damageInfo = ctx.player.GetAttackDamage();
+        double damage = damageInfo.Amount;
+
         if (isCritical)
         {
             damage *= 2.5;
@@ -1405,83 +1360,40 @@ public static class CombatRunner
 
     #region Damage Calculation
 
-    /// <summary>
-    /// Calculates damage dealt by player, accounting for strength, vitality, and skills.
-    /// </summary>
-    private static double CalculatePlayerDamage(GameContext ctx, double baseDamage)
-    {
-        double skillBonus = 0;
-        if (ctx.player is Actors.Player.Player player)
-        {
-            skillBonus = player.Skills.Fighting.Level;
-        }
-
-        // Modifiers
-        double strengthModifier = (ctx.player.Strength / 2) + 0.5; // strength determines up to 50%
-        double vitalityModifier = 0.7 + (0.3 * ctx.player.Vitality);
-        double randomModifier = 0.5 + _rng.NextDouble(); // 0.5 to 1.5
-
-        double totalModifier = strengthModifier * vitalityModifier * randomModifier;
-        double damage = (baseDamage + skillBonus) * totalModifier;
-
-        return Math.Max(0, damage);
-    }
-
     #endregion
 
     #region Damage Application
 
     private static void ApplyDamageToAnimal(GameContext ctx, CombatState state, double damage, Gear? weapon, bool targetVital = false)
     {
-        DamageType damageType = weapon != null
-            ? GetDamageType(weapon.WeaponClass)
-            : DamageType.Blunt;
-
-        var damageInfo = new DamageInfo(damage, damageType);
+        var damageInfo = new DamageInfo(damage, ctx.player.AttackType);
 
         if (targetVital)
         {
-            // Target vital organ for critical hits
             damageInfo.TargetPartName = "Chest"; // Heart/Lungs area
         }
 
-        var result = DamageProcessor.DamageBody(damageInfo, state.Animal.Body);
-
-        foreach (var effect in result.TriggeredEffects)
-        {
-            state.Animal.EffectRegistry.AddEffect(effect);
-        }
+        state.Animal.Damage(damageInfo);
     }
 
+    /// <summary>
+    /// Applies pre-calculated damage to player. Use when damage amount is modified by defensive actions.
+    /// </summary>
     private static DamageResult ApplyDamageToPlayer(GameContext ctx, CombatState state, Animal attacker, double damage)
     {
-        // Mark that animal has attacked
         state.RecordAnimalAttack();
-
-        var damageInfo = new DamageInfo(damage, attacker.AttackType)
-        {
-            ArmorCushioning = ctx.Inventory.TotalCushioning,
-            ArmorToughness = ctx.Inventory.TotalToughness
-        };
-
-        var result = DamageProcessor.DamageBody(damageInfo, ctx.player.Body);
-
-        foreach (var effect in result.TriggeredEffects)
-        {
-            ctx.player.AddLog(ctx.player.EffectRegistry.AddEffect(effect));
-        }
-
-        return result;
+        var damageInfo = new DamageInfo(damage, attacker.AttackType);
+        return ctx.player.Damage(damageInfo);
     }
 
-    private static DamageType GetDamageType(WeaponClass? weaponClass)
+    /// <summary>
+    /// Applies full attack damage from attacker to player (includes attacker's strength/vitality/RNG).
+    /// </summary>
+    private static DamageResult ApplyDamageToPlayer(GameContext ctx, CombatState state, Animal attacker)
     {
-        return weaponClass switch
-        {
-            WeaponClass.Blade or WeaponClass.Claw => DamageType.Sharp,
-            WeaponClass.Pierce => DamageType.Pierce,
-            _ => DamageType.Blunt
-        };
+        state.RecordAnimalAttack();
+        var damageInfo = attacker.GetAttackDamage();
+        return ctx.player.Damage(damageInfo);
     }
 
     #endregion

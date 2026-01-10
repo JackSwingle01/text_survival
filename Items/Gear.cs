@@ -87,7 +87,7 @@ public class Gear
 
     // === Combat (optional, for weapon-tools) ===
     public double? Damage { get; init; }
-    public double? BlockChance { get; init; }
+    public double? BlockChance { get; init; } // todo - remove - not used
     public WeaponClass? WeaponClass { get; init; }
     public bool IsWeapon => Damage.HasValue;
 
