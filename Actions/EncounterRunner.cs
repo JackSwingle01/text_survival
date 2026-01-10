@@ -1,4 +1,5 @@
 using text_survival.Actors.Animals;
+using text_survival.Combat;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Web;
@@ -222,7 +223,7 @@ public static class EncounterRunner
     /// </summary>
     private static EncounterOutcome TransitionToCombat(GameContext ctx, Animal predator)
     {
-        var combatResult = CombatRunner.RunCombat(ctx, predator);
+        var combatResult = CombatOrchestrator.RunCombat(ctx, predator);
 
         return combatResult switch
         {

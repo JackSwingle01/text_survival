@@ -3,6 +3,7 @@ using text_survival.Actions.Handlers;
 using text_survival.Actions.Variants;
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
+using text_survival.Combat;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
@@ -132,8 +133,8 @@ public static class HuntRunner
                 var transitionDto = BuildHuntDto(state);
                 WebIO.RenderHunt(ctx, transitionDto);
 
-                // Hand off to combat runner
-                var combatResult = CombatRunner.RunCombat(ctx, target);
+                // Hand off to combat orchestrator
+                var combatResult = CombatOrchestrator.RunCombat(ctx, target);
                 WebIO.ClearHunt(ctx);
 
                 return TranslateCombatResult(combatResult, state.MinutesSpent);

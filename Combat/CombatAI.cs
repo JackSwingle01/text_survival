@@ -14,7 +14,7 @@ public static class CombatAI
         
         var distance = unit.Position.DistanceTo(nearestEnemy.Position);
         bool wantsToAttack = unit.DetermineAttack(nearestEnemy);
-        var zone = scenario.GetZone(distance);
+        var zone = CombatScenario.GetZone(distance);
         switch (zone)
         {
             case Zone.close:

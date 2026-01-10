@@ -2,6 +2,7 @@ using text_survival.Actors.Animals;
 using text_survival.Actors.Player;
 using text_survival.Actions.Tensions;
 using text_survival.Bodies;
+using text_survival.Combat;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Environments.Factories;
@@ -110,26 +111,8 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         if (predator != null)
         {
-            // Check for NPC allies at player's location
-            var npcsHere = GetNPCsAt(Map?.CurrentPosition ?? new Environments.Grid.GridPosition(0, 0));
-            var joiningAllies = npcsHere
-                .Where(npc => npc.DecideToHelpInCombat(player, predator))
-                .ToList();
-
-            CombatResult outcome;
-            if (joiningAllies.Count > 0)
-            {
-                // Log allies joining combat
-                foreach (var ally in joiningAllies)
-                {
-                    Console.WriteLine($"[Combat] {ally.Name} joins the fight against {predator.Name}!");
-                }
-                outcome = CombatRunner.RunCombatWithAllies(this, predator, joiningAllies);
-            }
-            else
-            {
-                outcome = CombatRunner.RunCombat(this, predator);
-            }
+            // CombatOrchestrator handles allies automatically via SetupCombat
+            var outcome = CombatOrchestrator.RunCombat(this, predator);
 
             LastEventAborted = true;  // Encounters abort the current action
 

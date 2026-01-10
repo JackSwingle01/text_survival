@@ -446,10 +446,9 @@ public record CombatDto(
 /// An action available during combat. Actions vary by distance zone.
 /// </summary>
 public record CombatActionDto(
-    string Id,                            // "strike", "thrust", "dodge", "hold_ground", etc.
+    string Id,                            // "attack", "dodge", "advance", etc.
     string Label,
     string? Description,                  // Hover text / additional info
-    string Category,                      // "offensive", "defensive", "movement", "special"
     bool IsAvailable,
     string? DisabledReason,
     string? HitChance                     // e.g., "65% hit" for attacks, null for non-attacks

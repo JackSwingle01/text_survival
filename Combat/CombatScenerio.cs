@@ -67,6 +67,12 @@ public class CombatScenario
 
     private void CheckIfOver()
     {
+        // Player death ends combat immediately
+        if (Player != null && !Player.actor.IsAlive)
+        {
+            IsOver = true;
+            return;
+        }
         var team1Alive = Units.Any(u => Team1.Contains(u));
         var team2Alive = Units.Any(Team2.Contains);
         IsOver = !team1Alive || !team2Alive;
@@ -80,7 +86,7 @@ public class CombatScenario
     }
 
     // primary actions
-    private void Move(Unit unit, GridPosition destination)
+    public void Move(Unit unit, GridPosition destination)
     {
         var moveDirection = unit.Position.DirectionTo(destination);
         unit.Position = destination;
@@ -146,7 +152,11 @@ public class CombatScenario
         defender.ApplyBoldnessChange(MoraleEvent.TookDamage, attacker);
 
         defender.allies.ForEach(x => x.ApplyBoldnessChange(MoraleEvent.AllyDamaged, defender));
-        if (!defender.actor.IsAlive) ;
+        if (!defender.actor.IsAlive)
+        {
+            HandleUnitDeath(defender);
+            CheckIfOver();
+        }
     }
     public void Dodge(Unit unit) { unit.DodgeSet = true; }
     public void Block(Unit unit) { unit.BlockSet = true; }
@@ -229,6 +239,7 @@ public class CombatScenario
         {
             enemy.enemies.Remove(unit);
         }
+        CheckIfOver();
     }
 
     // Helpers
@@ -245,7 +256,7 @@ public class CombatScenario
         CombatActions.Shove => true,
         _ => false,
     };
-    public Zone GetZone(double dist) => dist switch
+    public static Zone GetZone(double dist) => dist switch
     {
         <= 1 => Zone.close,
         <= 3 => Zone.near,
@@ -255,6 +266,6 @@ public class CombatScenario
     private const int MAP_SIZE = 25;
 }
 
-public enum CombatActions { Move, Attack, Throw, Dodge, Block, Shove, Intimidate }
+public enum CombatActions { Move, Attack, Throw, Dodge, Block, Shove, Intimidate, Advance, Retreat }
 
 public enum Zone { close, near, mid, far }

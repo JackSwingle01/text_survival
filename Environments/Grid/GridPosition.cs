@@ -75,6 +75,26 @@ public readonly record struct GridPosition(int X, int Y)
     }
 
     /// <summary>
+    /// Move toward another position by the given distance.
+    /// </summary>
+    public GridPosition MoveToward(GridPosition target, float distance)
+    {
+        var direction = target.ToVector() - ToVector();
+        if (direction == Vector2.Zero) return this;
+        return Move(Vector2.Normalize(direction), distance);
+    }
+
+    /// <summary>
+    /// Move away from another position by the given distance.
+    /// </summary>
+    public GridPosition MoveAway(GridPosition target, float distance)
+    {
+        var direction = ToVector() - target.ToVector();
+        if (direction == Vector2.Zero) return this;
+        return Move(Vector2.Normalize(direction), distance);
+    }
+
+    /// <summary>
     /// Rounds to nearest tile
     /// </summary>
     public static GridPosition FromVector(Vector2 v) => new((int)Math.Round(v.X), (int)Math.Round(v.Y));

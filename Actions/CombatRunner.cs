@@ -150,7 +150,6 @@ public static class CombatRunner
                 Id: $"target_{target.ToString().ToLower()}",
                 Label: target.ToString(),
                 Description: description,
-                Category: "targeting",
                 IsAvailable: true,
                 DisabledReason: null,
                 HitChance: $"{hitChance * 100:F0}%"
@@ -1644,7 +1643,6 @@ public static class CombatRunner
             actions.Add(new CombatActionDto(
                 "retrieve_weapon", "Retrieve Weapon",
                 isRisky ? "RISKY: Animal will attack while you grab it" : "Recover your thrown weapon",
-                "special",
                 true, null, null
             ));
         }
@@ -1659,7 +1657,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "strike", "Strike",
             "Attack with your weapon",
-            "offensive",
             weapon != null || ctx.player.AttackDamage > 0,
             weapon == null ? "No weapon" : null,
             $"{hitChance * 100:F0}% hit"
@@ -1669,7 +1666,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "shove", "Shove",
             "Push the animal back to create distance",
-            "defensive",
             true, null, null
         ));
 
@@ -1679,7 +1675,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "grapple", "Grapple",
             "Risky but can be decisive - pin for a killing blow",
-            "offensive",
             canGrapple,
             canGrapple ? null : "Too injured to grapple",
             null
@@ -1689,7 +1684,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "go_down", "Play Dead",
             "Risky - the animal might lose interest",
-            "special",
             true, null, null
         ));
     }
@@ -1703,7 +1697,6 @@ public static class CombatRunner
             actions.Add(new CombatActionDto(
                 "thrust", "Thrust",
                 "Attack at range with your spear",
-                "offensive",
                 true, null,
                 $"{hitChance * 100:F0}% hit"
             ));
@@ -1713,7 +1706,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "hold_ground", "Hold Ground",
             "Maintain distance, face the animal down",
-            "movement",
             true, null, null
         ));
 
@@ -1723,7 +1715,6 @@ public static class CombatRunner
             actions.Add(new CombatActionDto(
                 "brace", "Set Brace",
                 "Ready your spear - devastating if it charges",
-                "defensive",
                 true, null, null
             ));
         }
@@ -1732,7 +1723,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "back_away", "Back Away",
             "Gain distance (animal may grow bolder)",
-            "movement",
             true, null, null
         ));
 
@@ -1740,7 +1730,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "close_distance", "Close In",
             "Move to melee range",
-            "movement",
             true, null, null
         ));
     }
@@ -1754,7 +1743,6 @@ public static class CombatRunner
             actions.Add(new CombatActionDto(
                 "throw", "Throw Weapon",
                 "Ranged attack - you'll lose your weapon",
-                "offensive",
                 true, null,
                 $"{hitChance * 100:F0}% hit"
             ));
@@ -1764,7 +1752,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "intimidate", "Intimidate",
             "Try to scare the animal off",
-            "special",
             true, null, null
         ));
 
@@ -1772,7 +1759,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "close_distance", "Close In",
             "Move to close range",
-            "movement",
             true, null, null
         ));
 
@@ -1780,7 +1766,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "careful_retreat", "Careful Retreat",
             "Back toward far range",
-            "movement",
             true, null, null
         ));
     }
@@ -1794,7 +1779,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "disengage", "Disengage",
             "Attempt to end the encounter",
-            "special",
             canDisengage,
             disengageReason,
             null
@@ -1804,7 +1788,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "hold_ground", "Hold Position",
             "Wait and see what the animal does",
-            "movement",
             true, null, null
         ));
 
@@ -1812,7 +1795,6 @@ public static class CombatRunner
         actions.Add(new CombatActionDto(
             "close_distance", "Re-engage",
             "Move to mid range",
-            "movement",
             true, null, null
         ));
 
@@ -1822,7 +1804,6 @@ public static class CombatRunner
             actions.Add(new CombatActionDto(
                 "drop_meat", "Drop Meat",
                 "Distract the animal and escape",
-                "special",
                 true, null, null
             ));
         }
@@ -1838,7 +1819,6 @@ public static class CombatRunner
             actions.Add(new CombatActionDto(
                 "dodge", "Dodge",
                 "Avoid the next attack (costs energy, pushes you back)",
-                "defensive",
                 true, null, null
             ));
         }
@@ -1847,7 +1827,6 @@ public static class CombatRunner
             actions.Add(new CombatActionDto(
                 "dodge", "Dodge",
                 "Avoid the next attack",
-                "defensive",
                 false, "Too injured to dodge", null
             ));
         }
@@ -1858,7 +1837,6 @@ public static class CombatRunner
             actions.Add(new CombatActionDto(
                 "block", "Block",
                 "Reduce incoming damage with your weapon",
-                "defensive",
                 true, null, null
             ));
         }
@@ -1869,7 +1847,6 @@ public static class CombatRunner
             actions.Add(new CombatActionDto(
                 "give_ground", "Give Ground",
                 "Retreat to avoid attack (shows weakness)",
-                "defensive",
                 true, null, null
             ));
         }
