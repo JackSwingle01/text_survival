@@ -18,7 +18,6 @@ import { DiscoveryOverlay } from './overlays/DiscoveryOverlay.js';
 import { WeatherChangeOverlay } from './overlays/WeatherChangeOverlay.js';
 import { ConnectionOverlay } from './modules/connection.js';
 import { show, hide, clear } from './lib/helpers.js';
-import { Icon, ICON_CLASS } from './lib/components/Icon.js';
 import { ProgressDisplay } from './modules/progress.js';
 import { FrameQueue } from './modules/frameQueue.js';
 import { NarrativeLog } from './modules/log.js';
@@ -27,7 +26,8 @@ import { FireDisplay } from './modules/fire.js';
 import { SurvivalDisplay } from './modules/survival.js';
 import { EffectsDisplay } from './modules/effects.js';
 import { getGridRenderer } from './modules/grid/CanvasGridRenderer.js';
-import { getWeatherIcon, getFeatureIconLabel, getFeatureTypeIcon } from './modules/icons.js';
+import { getWeatherIcon, getFeatureIconLabel } from './modules/icons.js';
+import { TilePopupRenderer } from './lib/ui/TilePopupRenderer.js';
 
 // Actions handled elsewhere (sidebar buttons, grid clicks) - hidden from popup
 // Work/exploration actions now go to sidebar instead
@@ -44,7 +44,7 @@ class GameClient {
         this.awaitingResponse = false;
         this.gridRenderer = null;
         this.gridInitialized = false;
-        this.tilePopup = null;
+        this.tilePopupRenderer = null;
         this.resumeBlockUntil = 0;
         this.currentInput = null;
 
@@ -123,9 +123,10 @@ class GameClient {
 
         // Update tile popup actions if it's currently shown (but not during progress/state-only frames)
         const tilePopupElement = document.getElementById('tilePopup');
-        if (this.tilePopup && tilePopupElement && !tilePopupElement.classList.contains('hidden')) {
+        const currentPopupTile = this.tilePopupRenderer?.getCurrentTile();
+        if (currentPopupTile && tilePopupElement && !tilePopupElement.classList.contains('hidden')) {
             if (!isProgressMode && frame.input?.choices) {
-                this.updateTilePopupActions();
+                this.tilePopupRenderer.updateActions();
             }
         }
 
@@ -421,11 +422,12 @@ class GameClient {
      */
     updateGrid(gridState) {
         // Only hide popup if player actually moved to a different tile
-        if (this.tilePopup) {
-            const playerMoved = this.tilePopup.x !== gridState.playerX ||
-                               this.tilePopup.y !== gridState.playerY;
+        const currentTile = this.tilePopupRenderer?.getCurrentTile();
+        if (currentTile) {
+            const playerMoved = currentTile.x !== gridState.playerX ||
+                               currentTile.y !== gridState.playerY;
             if (playerMoved) {
-                this.hideTilePopup();
+                this.tilePopupRenderer.hide();
             }
         }
 
@@ -435,6 +437,19 @@ class GameClient {
             this.gridRenderer.init('gridCanvas', (x, y, tileData, screenPos) => {
                 this.handleTileClick(x, y, tileData, screenPos);
             }, 'gridViewport');
+
+            // Initialize tile popup renderer
+            this.tilePopupRenderer = new TilePopupRenderer({
+                getVisualTileSize: () => this.gridRenderer.getVisualTileSize(),
+                onTravelTo: (x, y) => this.handleTravelToRequest(x, y),
+                canTravel: () => {
+                    // Travel blocked if there's a pending input without Travel option
+                    const hasBlockingInput = this.currentInput?.choices?.length > 0 &&
+                        !this.currentInput.choices.some(c => c.label.includes('Travel'));
+                    return !hasBlockingInput;
+                }
+            });
+
             this.gridInitialized = true;
         }
 
@@ -560,7 +575,7 @@ class GameClient {
                 // Check if click was on the canvas - those are handled separately
                 const canvas = document.getElementById('gridCanvas');
                 if (!canvas || !canvas.contains(e.target)) {
-                    this.hideTilePopup();
+                    this.tilePopupRenderer?.hide();
                 }
             }
         });
@@ -573,267 +588,12 @@ class GameClient {
         if (this.awaitingResponse) return;
 
         // Hide any existing popup first
-        this.hideTilePopup();
+        this.tilePopupRenderer.hide();
 
         // Only show new popup if tile data exists and is explored
         if (tileData && tileData.visibility !== 'unexplored') {
-            // Store current tile for actions
-            this.tilePopup = { x, y, tileData };
-
-            // Show the popup
-            this.showTilePopup(x, y, tileData, screenPos);
+            this.tilePopupRenderer.show(x, y, tileData, screenPos);
         }
-    }
-
-    /**
-     * Show tile popup at screen position
-     */
-    showTilePopup(x, y, tileData, screenPos) {
-        const popup = document.getElementById('tilePopup');
-        const nameEl = document.getElementById('popupName');
-        const terrainEl = document.getElementById('popupTerrain');
-        const glanceEl = document.getElementById('popupGlance');
-        const featuresEl = document.getElementById('popupFeatures');
-        const actionsEl = document.getElementById('popupActions');
-
-        // Set location info
-        nameEl.textContent = tileData.locationName || tileData.terrain;
-        terrainEl.textContent = tileData.locationName ? tileData.terrain : '';
-
-        // Clear sections
-        clear(glanceEl);
-        clear(featuresEl);
-
-        // Build quick glance badges (for visible locations)
-        const isExplored = tileData.visibility === 'visible';
-        if (isExplored) {
-            this.buildGlanceBar(glanceEl, tileData);
-        }
-
-        // Build features list - use detailed features if available
-        if (isExplored && tileData.featureDetails && tileData.featureDetails.length > 0) {
-            this.buildDetailedFeatures(featuresEl, tileData.featureDetails);
-        }
-
-        const isPlayerHere = tileData.isPlayerHere;
-
-        // Build actions
-        clear(actionsEl);
-        // Travel blocked if there's a pending input without Travel option
-        const hasBlockingInput = this.currentInput?.choices?.length > 0 &&
-            !this.currentInput.choices.some(c => c.label.includes('Travel'));
-        const canTravel = tileData.isAdjacent && tileData.isPassable && !isPlayerHere && !hasBlockingInput;
-
-        if (canTravel) {
-            const goBtn = document.createElement('button');
-            goBtn.className = 'btn btn--primary btn--full';
-
-            // Show travel time if available
-            if (tileData.travelTimeMinutes) {
-                goBtn.textContent = `Go (${tileData.travelTimeMinutes} min)`;
-            } else {
-                goBtn.textContent = 'Go';
-            }
-
-            goBtn.onclick = (e) => {
-                e.stopPropagation();
-                this.hideTilePopup();
-                this.handleTravelToRequest(x, y);
-            };
-            actionsEl.appendChild(goBtn);
-        }
-
-        // Don't show any actions in popup when player is at current tile
-        // All actions are now shown in the right sidebar instead
-
-        // Position popup horizontally (screenPos.x is already at tile's right edge)
-        popup.style.left = `${screenPos.x}px`;
-
-        // Show popup to measure its height
-        show(popup);
-        const rect = popup.getBoundingClientRect();
-
-        // Calculate vertically centered position (use visual tile size for screen positioning)
-        const tileSize = this.gridRenderer.getVisualTileSize();
-        const tileCenterY = screenPos.y + (tileSize / 2);
-        let topPos = tileCenterY - (rect.height / 2);
-
-        // Clamp to screen bounds
-        if (topPos < 10) {
-            topPos = 10;
-        }
-        if (topPos + rect.height > window.innerHeight - 10) {
-            topPos = window.innerHeight - rect.height - 10;
-        }
-
-        popup.style.top = `${topPos}px`;
-
-        // Adjust horizontal if popup would go off-screen (flip to left of tile)
-        if (rect.right > window.innerWidth - 10) {
-            popup.style.left = `${screenPos.x - rect.width - tileSize}px`;
-        }
-    }
-
-    /**
-     * Build quick glance bar with color-coded badges
-     * Uses pre-computed badges from server
-     */
-    buildGlanceBar(container, tileData) {
-        // Use pre-computed glance badges from server
-        if (!tileData.glanceBadges || tileData.glanceBadges.length === 0) {
-            return;
-        }
-
-        tileData.glanceBadges.forEach(badge => {
-            const badgeEl = document.createElement('span');
-            badgeEl.className = `badge badge--${badge.type}`;
-
-            const iconEl = document.createElement('span');
-            iconEl.className = ICON_CLASS;
-            iconEl.textContent = badge.icon;
-            badgeEl.appendChild(iconEl);
-
-            const labelEl = document.createElement('span');
-            labelEl.textContent = badge.label;
-            badgeEl.appendChild(labelEl);
-
-            container.appendChild(badgeEl);
-        });
-    }
-
-    /**
-     * Build detailed feature cards
-     */
-    buildDetailedFeatures(container, featureDetails) {
-        featureDetails.forEach(feature => {
-            // Special compact layout for NPCs with health bars
-            if (feature.type === 'npc' && feature.healthPct != null) {
-                const featureEl = document.createElement('div');
-                featureEl.className = 'popup-feature-npc';
-
-                // Header row: emoji + name + status (all inline)
-                const headerEl = document.createElement('div');
-                headerEl.className = 'npc-header';
-
-                const iconEl = document.createElement('span');
-                iconEl.className = 'feature-emoji';
-                iconEl.textContent = feature.details?.[0] || '🧑';
-                headerEl.appendChild(iconEl);
-
-                const nameEl = document.createElement('span');
-                nameEl.className = 'npc-name';
-                nameEl.textContent = feature.label;
-                headerEl.appendChild(nameEl);
-
-                if (feature.status) {
-                    const statusEl = document.createElement('span');
-                    statusEl.className = 'npc-status';
-                    statusEl.textContent = feature.status;
-                    headerEl.appendChild(statusEl);
-                }
-                featureEl.appendChild(headerEl);
-
-                // Health bar - reuse survival-stat structure
-                const healthRow = document.createElement('div');
-                healthRow.className = 'survival-stat';
-                healthRow.dataset.stat = 'health';
-
-                const heartIcon = document.createElement('span');
-                heartIcon.className = 'stat-icon material-symbols-outlined';
-                heartIcon.textContent = 'monitor_heart';
-                healthRow.appendChild(heartIcon);
-
-                const barContainer = document.createElement('div');
-                barContainer.className = 'bar bar--health';
-                const barFill = document.createElement('div');
-                const pct = Math.round(feature.healthPct * 100);
-                barFill.className = 'bar__fill';
-                if (pct < 30) barFill.classList.add('danger');
-                else if (pct < 60) barFill.classList.add('warning');
-                barFill.style.width = `${pct}%`;
-                barContainer.appendChild(barFill);
-                healthRow.appendChild(barContainer);
-
-                const tooltip = document.createElement('div');
-                tooltip.className = 'stat-tooltip';
-                const statName = document.createElement('span');
-                statName.className = 'stat-name';
-                statName.textContent = 'Health';
-                const statValue = document.createElement('span');
-                statValue.className = 'stat-value';
-                statValue.textContent = `${pct}%`;
-                tooltip.appendChild(statName);
-                tooltip.appendChild(statValue);
-                healthRow.appendChild(tooltip);
-
-                featureEl.appendChild(healthRow);
-                container.appendChild(featureEl);
-                return; // Skip normal rendering for this feature
-            }
-
-            // Standard feature rendering
-            const featureEl = document.createElement('div');
-            featureEl.className = 'popup-feature-detailed';
-
-            const iconEl = document.createElement('span');
-            // Herds use emoji from details[0], others use Material Icons
-            if (feature.type === 'herd' && feature.details && feature.details.length > 0) {
-                iconEl.className = 'feature-emoji';
-                iconEl.textContent = feature.details[0];
-            } else {
-                iconEl.className = ICON_CLASS;
-                iconEl.textContent = getFeatureTypeIcon(feature.type);
-            }
-            featureEl.appendChild(iconEl);
-
-            const contentEl = document.createElement('div');
-            contentEl.className = 'feature-content';
-
-            const labelEl = document.createElement('span');
-            labelEl.className = 'feature-label';
-            labelEl.textContent = feature.label;
-            contentEl.appendChild(labelEl);
-
-            if (feature.status) {
-                const statusEl = document.createElement('span');
-                statusEl.className = 'feature-status';
-                statusEl.textContent = feature.status;
-                contentEl.appendChild(statusEl);
-            }
-
-            // Don't show details for herds (emoji is in details[0])
-            if (feature.details && feature.details.length > 0 && feature.type !== 'herd') {
-                const detailsEl = document.createElement('span');
-                detailsEl.className = 'feature-details';
-                detailsEl.textContent = feature.details.slice(0, 3).join(', ');
-                contentEl.appendChild(detailsEl);
-            }
-
-            featureEl.appendChild(contentEl);
-            container.appendChild(featureEl);
-        });
-    }
-
-    /**
-     * Hide tile popup
-     */
-    hideTilePopup() {
-        const popup = document.getElementById('tilePopup');
-        hide(popup);
-        this.tilePopup = null;
-    }
-
-    /**
-     * Update just the action buttons in an already-visible tile popup
-     * Actions are now in sidebar, so this just clears the popup actions
-     */
-    updateTilePopupActions() {
-        if (!this.tilePopup) return;
-
-        const actionsEl = document.getElementById('popupActions');
-        if (!actionsEl) return;
-
-        clear(actionsEl);
     }
 
     /**
