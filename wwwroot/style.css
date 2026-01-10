@@ -70,9 +70,9 @@
 
     /* Spacing scale */
     --space-1: 4px;
-    --space-2: 8px;
+    --space-2: .5rem;
     --space-3: 12px;
-    --space-4: 16px;
+    --space-4: 1rem;
     --space-5: 20px;
     --space-6: 24px;
     --space-10: 40px;
@@ -80,7 +80,7 @@
     /* Border radius */
     --radius-sm: 3px;
     --radius-md: 6px;
-    --radius-lg: 8px;
+    --radius-lg: .5rem;
 
     /* Transitions */
     --transition-fast: 0.15s ease;
@@ -104,8 +104,8 @@
     --text-2xl: 1.4rem;
 
     /* Shadows */
-    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 2px .5rem rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 4px 1rem rgba(0, 0, 0, 0.5);
 }
 
 /* 
@@ -400,7 +400,7 @@ body {
 
 .pane__title {
     font-family: var(--font-display);
-    font-size: 16px;
+    font-size: 1rem;
     letter-spacing: 2px;
     color: var(--text-bright);
     margin: 0;
@@ -599,7 +599,7 @@ body {
 
 .pane-header__title {
     font-family: var(--font-display);
-    font-size: 16px;
+    font-size: 1rem;
     letter-spacing: 2px;
     color: var(--text-bright);
     margin: 0;
@@ -721,7 +721,7 @@ body {
 }
 
 .badge .material-symbols-outlined {
-    font-size: 16px;
+    font-size: 1rem;
 }
 
 .badge--lg .material-symbols-outlined {
@@ -767,7 +767,7 @@ body {
 .badge--requirement {
     font-family: var(--font-mono);
     font-size: 0.7rem;
-    padding: 3px 8px;
+    padding: 3px .5rem;
     border: 1px solid;
 }
 
@@ -974,7 +974,7 @@ body {
    PROGRESS BARS & GAUGES
    ============================================ */
 .bar {
-    height: 8px;
+    height: .5rem;
     background: var(--bar-bg);
     border-radius: var(--radius-sm);
     overflow: hidden;
@@ -990,7 +990,7 @@ body {
 }
 
 .bar--lg {
-    height: 16px;
+    height: 1rem;
 }
 
 .bar__fill {
@@ -1473,7 +1473,7 @@ body {
 }
 
 .divider .material-symbols-outlined {
-    font-size: 32px;
+    font-size: 2rem;
     color: var(--text-faint);
 }
 
@@ -1620,7 +1620,7 @@ body {
 
 .fire-status .material-symbols-outlined {
     color: var(--fire-orange);
-    font-size: 16px;
+    font-size: 1rem;
 }
 
 .fire-phase-text {
@@ -2067,7 +2067,7 @@ body {
 }
 
 .action-time {
-    font-size: 8px;
+    font-size: .5rem;
     color: var(--text-dim);
     margin-left: 6px;
     font-family: var(--font-mono);
@@ -2223,7 +2223,7 @@ body {
 }
 
 .popup-feature-detailed .feature-emoji {
-    font-size: 16px;
+    font-size: 1rem;
     width: 22px;
     text-align: center;
     margin-top: 2px;
@@ -2264,7 +2264,7 @@ body {
 }
 
 .npc-header .feature-emoji {
-    font-size: 16px;
+    font-size: 1rem;
 }
 
 .npc-name {
@@ -2692,7 +2692,7 @@ body {
 }
 
 .encounter-factor .material-symbols-outlined {
-    font-size: 16px;
+    font-size: 1rem;
 }
 
 /*
@@ -3134,7 +3134,7 @@ body {
 
 .fire-phase-icon {
     /* Material icon - don't override font-family */
-    font-size: 48px;
+    font-size: 3rem;
 }
 
 .fire-phase-icon[data-phase="cold"],
@@ -3173,7 +3173,7 @@ body {
 }
 
 .fire-phase-icon {
-    font-size: 48px;
+    font-size: 3rem;
     margin-bottom: var(--space-2);
 }
 
@@ -3461,14 +3461,14 @@ body {
     z-index: 1000;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: .5rem;
     max-width: 320px;
 }
 
 .notification-toast {
     background: rgba(0, 0, 0, 0.95);
     border-left: 4px solid var(--fire-orange);
-    padding: 12px 16px;
+    padding: 12px 1rem;
     border-radius: 4px;
     animation: slide-in-right 0.3s ease-out;
     cursor: pointer;
@@ -3483,85 +3483,10 @@ body {
 .notification-toast.fade-out { animation: fade-out 0.3s ease-out forwards; }
 .notification-toast:hover { background: rgba(20, 20, 20, 0.95); }
 
-/* Alert Banner */
-#alert-container {
-    position: fixed;
-    top: 60px;
-    left: 0;
-    right: 0;
-    z-index: 900;
-}
-
-.alert-banner {
-    background: linear-gradient(to bottom, rgba(139, 0, 0, 0.95), rgba(100, 0, 0, 0.9));
-    border-bottom: 2px solid var(--vital-red);
-    padding: 16px 48px 16px 16px;
-    text-align: center;
-    animation: slide-down 0.3s ease-out, pulse 2s infinite;
-    color: white;
-    position: relative;
-    font-size: 15px;
-    font-weight: 500;
-}
-
-.alert-banner .dismiss-btn {
-    position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: white;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 16px;
-}
-
-.alert-banner .dismiss-btn:hover { background: rgba(255, 255, 255, 0.3); }
-
-/* Contextual Notice */
-.contextual-notice {
-    position: fixed;
-    background: rgba(60, 50, 0, 0.95);
-    border: 2px solid var(--warning-amber);
-    color: var(--warning-amber);
-    padding: 12px 16px;
-    border-radius: 4px;
-    animation: fade-in 0.3s ease-in;
-    max-width: 320px;
-    z-index: 800;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    font-size: 14px;
-}
-
-.contextual-notice.center {
-    left: 50%;
-    top: 40%;
-    transform: translate(-50%, -50%);
-}
-
-.contextual-notice.fade-out { animation: fade-out 0.5s ease-out forwards; }
-
 /* Notification Animations */
 @keyframes slide-in-right {
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
-}
-
-@keyframes slide-down {
-    from { transform: translateY(-100%); }
-    to { transform: translateY(0); }
-}
-
-@keyframes pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(139, 0, 0, 0.7); }
-    50% { box-shadow: 0 0 20px 4px rgba(139, 0, 0, 0.4); }
-}
-
-@keyframes fade-in {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
 }
 
 @keyframes fade-out {

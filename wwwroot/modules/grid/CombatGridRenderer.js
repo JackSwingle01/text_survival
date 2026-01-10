@@ -15,6 +15,7 @@ export class CombatGridRenderer {
         this.GRID_SIZE = 25;  // 25x25 meter grid
         this.CELL_SIZE = 20;  // pixels per meter (calculated dynamically)
         this.PADDING = 40;    // padding around grid
+        this.dpr = window.devicePixelRatio || 1;
 
         // Bound resize handler
         this._boundResizeHandler = () => this.resizeCanvas();
@@ -96,12 +97,23 @@ export class CombatGridRenderer {
         if (!this.canvas) return;
 
         this.CELL_SIZE = this.calculateOptimalCellSize();
-        const canvasSize = this.GRID_SIZE * this.CELL_SIZE + this.PADDING * 2;
+        this.dpr = window.devicePixelRatio || 1;
 
-        // Always update canvas size (needed on init when switching from world grid)
-        if (this.canvas.width !== canvasSize || this.canvas.height !== canvasSize) {
-            this.canvas.width = canvasSize;
-            this.canvas.height = canvasSize;
+        // Calculate logical (display) size
+        const logicalSize = this.GRID_SIZE * this.CELL_SIZE + this.PADDING * 2;
+
+        // Set internal canvas resolution (scaled by DPR)
+        this.canvas.width = logicalSize * this.dpr;
+        this.canvas.height = logicalSize * this.dpr;
+
+        // Set CSS display size
+        this.canvas.style.width = logicalSize + 'px';
+        this.canvas.style.height = logicalSize + 'px';
+
+        // Scale context to match DPR
+        if (this.ctx) {
+            this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+            this.ctx.scale(this.dpr, this.dpr);
         }
     }
 
@@ -451,10 +463,9 @@ export class CombatGridRenderer {
         if (!this.combatState?.grid?.units) return;
 
         const rect = this.canvas.getBoundingClientRect();
-        const scaleX = this.canvas.width / rect.width;
-        const scaleY = this.canvas.height / rect.height;
-        const canvasX = (e.clientX - rect.left) * scaleX;
-        const canvasY = (e.clientY - rect.top) * scaleY;
+        // Mouse coordinates are already in display (logical) pixels
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
 
         // Check if clicked on a unit
         for (const unit of this.combatState.grid.units) {
@@ -506,6 +517,12 @@ export class CombatGridRenderer {
      */
     activate() {
         if (this.isActive) return;
+
+        // Reapply DPR scaling when reactivating (world grid may have changed it)
+        if (this.ctx) {
+            this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+            this.ctx.scale(this.dpr, this.dpr);
+        }
 
         this.canvas.addEventListener('click', this._boundHandleClick);
         this.startAnimation();

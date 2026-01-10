@@ -15,6 +15,7 @@ export class CanvasGridRenderer {
         this.TILE_SIZE = 120;
         this.GAP = 0;
         this.VIEW_SIZE = 7;
+        this.dpr = window.devicePixelRatio || 1;
 
         // State
         this.currentHover = null;
@@ -100,19 +101,35 @@ export class CanvasGridRenderer {
         if (!this.canvas || !this.container) return;
 
         const newTileSize = this.calculateOptimalTileSize();
-        if (newTileSize === this.TILE_SIZE) return; // No change needed
-
-        this.TILE_SIZE = newTileSize;
-        this.canvas.width = this.VIEW_SIZE * this.TILE_SIZE + (this.VIEW_SIZE - 1) * this.GAP;
-        this.canvas.height = this.canvas.width; // Square canvas
-
-        // Sync progress bar width to canvas width
-        const progressBar = document.querySelector('.progress-bar-container');
-        if (progressBar) {
-            progressBar.style.width = `${this.canvas.width * 0.8}px`;
+        const newDpr = window.devicePixelRatio || 1;
+        if (newTileSize === this.TILE_SIZE && this.dpr === newDpr) {
+            return; // No change needed
         }
 
-        // Reinitialize snow particles for new size
+        this.TILE_SIZE = newTileSize;
+        this.dpr = newDpr;
+
+        // Calculate logical (display) size
+        const logicalWidth = this.VIEW_SIZE * this.TILE_SIZE + (this.VIEW_SIZE - 1) * this.GAP;
+
+        // Set internal canvas resolution (scaled by DPR)
+        this.canvas.width = logicalWidth * this.dpr;
+        this.canvas.height = logicalWidth * this.dpr;
+
+        // Set CSS display size (logical size)
+        this.canvas.style.width = logicalWidth + 'px';
+        this.canvas.style.height = logicalWidth + 'px';
+
+        // Scale context to match DPR
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset any existing transform
+        this.ctx.scale(this.dpr, this.dpr);
+
+        // Sync progress bar width to canvas display width
+        const progressBar = document.querySelector('.progress-bar-container');
+        if (progressBar) {
+            progressBar.style.width = `${logicalWidth * 0.8}px`;
+        }
+
         this.initSnowParticles();
     }
 
@@ -151,13 +168,25 @@ export class CanvasGridRenderer {
         if (this.container) {
             this.TILE_SIZE = this.calculateOptimalTileSize();
         }
-        this.canvas.width = this.VIEW_SIZE * this.TILE_SIZE + (this.VIEW_SIZE - 1) * this.GAP;
-        this.canvas.height = this.VIEW_SIZE * this.TILE_SIZE + (this.VIEW_SIZE - 1) * this.GAP;
 
-        // Sync progress bar width to canvas width
+        // Calculate logical (display) size
+        const logicalWidth = this.VIEW_SIZE * this.TILE_SIZE + (this.VIEW_SIZE - 1) * this.GAP;
+
+        // Set internal canvas resolution (scaled by DPR)
+        this.canvas.width = logicalWidth * this.dpr;
+        this.canvas.height = logicalWidth * this.dpr;
+
+        // Set CSS display size (logical size)
+        this.canvas.style.width = logicalWidth + 'px';
+        this.canvas.style.height = logicalWidth + 'px';
+
+        // Scale context to match DPR
+        this.ctx.scale(this.dpr, this.dpr);
+
+        // Sync progress bar width to canvas display width
         const progressBar = document.querySelector('.progress-bar-container');
         if (progressBar) {
-            progressBar.style.width = `${this.canvas.width * 0.8}px`;
+            progressBar.style.width = `${logicalWidth * 0.8}px`;
         }
 
         // Initialize snow particles
@@ -923,11 +952,10 @@ export class CanvasGridRenderer {
         if (!this.gridState) return;
 
         const rect = this.canvas.getBoundingClientRect();
-        // Account for CSS scaling: convert screen coords to canvas coords
-        const scaleX = this.canvas.width / rect.width;
-        const scaleY = this.canvas.height / rect.height;
-        const mx = (e.clientX - rect.left) * scaleX;
-        const my = (e.clientY - rect.top) * scaleY;
+        // Mouse coordinates are already in display (logical) pixels
+        // No scaling needed since we work in logical coordinates
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
         const vx = Math.floor(mx / (this.TILE_SIZE + this.GAP));
         const vy = Math.floor(my / (this.TILE_SIZE + this.GAP));
 
@@ -959,11 +987,9 @@ export class CanvasGridRenderer {
         if (!this.gridState || !this.onTileClick) return;
 
         const rect = this.canvas.getBoundingClientRect();
-        // Account for CSS scaling: convert screen coords to canvas coords
-        const scaleX = this.canvas.width / rect.width;
-        const scaleY = this.canvas.height / rect.height;
-        const mx = (e.clientX - rect.left) * scaleX;
-        const my = (e.clientY - rect.top) * scaleY;
+        // Mouse coordinates are already in display (logical) pixels
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
         const vx = Math.floor(mx / (this.TILE_SIZE + this.GAP));
         const vy = Math.floor(my / (this.TILE_SIZE + this.GAP));
 
@@ -971,8 +997,8 @@ export class CanvasGridRenderer {
             const { x: worldX, y: worldY } = this.viewToWorld(vx, vy);
             const tile = this.findTile(worldX, worldY);
 
-            // Calculate popup position (screen coordinates, accounting for CSS scaling)
-            const cellSize = (this.TILE_SIZE + this.GAP) / scaleX;
+            // Calculate popup position (screen coordinates in logical pixels)
+            const cellSize = this.TILE_SIZE + this.GAP;
             const tileScreenX = rect.left + (vx + 1) * cellSize;
             const tileScreenY = rect.top + vy * cellSize;
 
@@ -1476,6 +1502,12 @@ export class CanvasGridRenderer {
      */
     activate() {
         if (this.isActive) return;
+
+        // Reapply DPR scaling when reactivating (combat may have changed it)
+        if (this.ctx) {
+            this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+            this.ctx.scale(this.dpr, this.dpr);
+        }
 
         this.canvas.addEventListener('click', this._boundHandleClick);
         this.canvas.addEventListener('mousemove', this._boundHandleMouseMove);
