@@ -75,6 +75,7 @@ public static class CombatOrchestrator
         var outcomeDto = BuildOutcomeDto(ctx, scenario, playerUnit, result);
         WebIO.RenderCombat(ctx, outcomeDto);
         WebIO.WaitForCombatContinue(ctx);
+        WebIO.ClearCombat(ctx);  // Clear combat mode - return to travel mode
 
         HandlePostCombat(ctx, scenario, result);
         return result;
@@ -393,7 +394,9 @@ public static class CombatOrchestrator
                 Position: new CombatGridPositionDto(unit.Position.X, unit.Position.Y),
                 Vitality: unit.actor.Vitality,
                 HealthDescription: GetHealthDescription(unit.actor.Vitality),
+                Threat: unit.Threat,
                 Boldness: unit.Boldness,
+                Aggression: unit.Aggression,
                 BoldnessDescriptor: GetBoldnessDescriptor(unit.Boldness),
                 Icon: icon
             ));

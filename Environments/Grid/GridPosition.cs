@@ -56,7 +56,7 @@ public readonly record struct GridPosition(int X, int Y)
     public double DistanceTo(GridPosition other) => Vector2.Distance(ToVector(), other.ToVector());
     public Vector2 DirectionTo(GridPosition other)
     {
-        var delta = ToVector() - other.ToVector();
+        var delta = other.ToVector() - ToVector();
         return delta == Vector2.Zero ? Vector2.Zero : delta;
     }
 

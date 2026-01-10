@@ -67,6 +67,9 @@ export class CanvasGridRenderer {
         this._boundHandleMouseMove = (e) => this.handleMouseMove(e);
         this._boundHandleMouseLeave = () => this.handleMouseLeave();
         this._boundHandleClick = (e) => this.handleClick(e);
+
+        // Activation state
+        this.isActive = false;
     }
 
     // seededRandom moved to TerrainRenderer.js
@@ -165,18 +168,8 @@ export class CanvasGridRenderer {
             this.setupResizeObserver();
         }
 
-        // Remove any existing handlers first (idempotent init)
-        this.canvas.removeEventListener('mousemove', this._boundHandleMouseMove);
-        this.canvas.removeEventListener('mouseleave', this._boundHandleMouseLeave);
-        this.canvas.removeEventListener('click', this._boundHandleClick);
-
-        // Set up event handlers using bound references
-        this.canvas.addEventListener('mousemove', this._boundHandleMouseMove);
-        this.canvas.addEventListener('mouseleave', this._boundHandleMouseLeave);
-        this.canvas.addEventListener('click', this._boundHandleClick);
-
-        // Start animation loop
-        this.startAnimation();
+        // Activate the renderer (adds handlers and starts animation)
+        this.activate();
     }
 
     /**
@@ -1452,6 +1445,34 @@ export class CanvasGridRenderer {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         }
+    }
+
+    /**
+     * Activate the renderer - add event handlers and start animation
+     */
+    activate() {
+        if (this.isActive) return;
+
+        this.canvas.addEventListener('click', this._boundHandleClick);
+        this.canvas.addEventListener('mousemove', this._boundHandleMouseMove);
+        this.canvas.addEventListener('mouseleave', this._boundHandleMouseLeave);
+        this.startAnimation();
+        this.isActive = true;
+    }
+
+    /**
+     * Deactivate the renderer - remove event handlers, stop animation, clear state
+     */
+    deactivate() {
+        if (!this.isActive) return;
+
+        this.canvas.removeEventListener('click', this._boundHandleClick);
+        this.canvas.removeEventListener('mousemove', this._boundHandleMouseMove);
+        this.canvas.removeEventListener('mouseleave', this._boundHandleMouseLeave);
+        this.stopAnimation();
+        this.gridState = null;
+        this.currentHover = null;
+        this.isActive = false;
     }
 
     /**

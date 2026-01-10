@@ -482,7 +482,9 @@ public record CombatUnitDto(
     CombatGridPositionDto Position,
     double Vitality,                      // 0-1
     string HealthDescription,             // "healthy", "wounded", "badly hurt", etc.
-    double Boldness,                      // 0-1, from Unit.Boldness
+    double Threat,                        // Unit.Threat (BaseThreat * Vitality)
+    double Boldness,                      // Unit.Boldness
+    double Aggression,                    // Unit.Aggression
     string BoldnessDescriptor,            // "cautious", "wary", "bold", "aggressive"
     string Icon                           // Emoji icon matching world map (e.g., "🐺", "🧑", "👤")
 );

@@ -388,14 +388,33 @@ public static class WebIO
     }
 
     /// <summary>
-    /// Render combat overlay and wait for player choice.
+    /// Convert CombatDto to CombatModeDto for mode-based rendering.
+    /// </summary>
+    private static CombatModeDto ToCombatModeDto(CombatDto dto)
+    {
+        return new CombatModeDto(
+            Grid: dto.Grid ?? new CombatGridDto(25, 1.0, new List<CombatUnitDto>()),
+            DistanceZone: dto.DistanceZone,
+            DistanceMeters: dto.DistanceMeters,
+            Phase: dto.Phase,
+            NarrativeMessage: dto.NarrativeMessage,
+            PlayerVitality: dto.PlayerVitality,
+            PlayerEnergy: dto.PlayerEnergy,
+            ThreatFactors: dto.ThreatFactors,
+            Outcome: dto.Outcome,
+            AutoAdvanceMs: dto.AutoAdvanceMs
+        );
+    }
+
+    /// <summary>
+    /// Render combat as a mode (replaces world map) and wait for player choice.
     /// Returns the choice ID selected by the player.
     /// </summary>
     public static string WaitForCombatChoice(GameContext ctx, CombatDto combatData)
     {
         var session = GetSession(ctx);
 
-        // Set combat overlay
+        // Store combat data for reference
         RenderCombat(ctx, combatData);
 
         // Build choice list from available combat actions
@@ -405,10 +424,14 @@ public static class WebIO
             .ToList();
 
         int inputId = session.GenerateInputId();
+
+        // Use CombatMode instead of overlay - combat grid replaces world map
+        var combatMode = new CombatMode(ToCombatModeDto(combatData));
+
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
-            GetCurrentMode(ctx),
-            GetCurrentOverlays(ctx.SessionId),
+            combatMode,
+            new List<Overlay>(),  // No overlays during combat mode
             new InputRequestDto(inputId, "combat", "Your move:", choices)
         );
 
@@ -433,10 +456,17 @@ public static class WebIO
             .ToList();
 
         int inputId = session.GenerateInputId();
+
+        // Use CombatMode - targeting happens during combat
+        var combatData = ctx.SessionId != null && _currentCombat.TryGetValue(ctx.SessionId, out var cd) ? cd : null;
+        FrameMode mode = combatData != null
+            ? new CombatMode(ToCombatModeDto(combatData))
+            : GetCurrentMode(ctx);
+
         var frame = new WebFrame(
             GameStateDto.FromContext(ctx),
-            GetCurrentMode(ctx),
-            GetCurrentOverlays(ctx.SessionId),
+            mode,
+            new List<Overlay>(),
             new InputRequestDto(inputId, "targeting", $"Where on the {animalName}?", choices)
         );
 
@@ -447,14 +477,38 @@ public static class WebIO
     }
 
     /// <summary>
-    /// Wait for user to acknowledge the combat outcome (Continue button).
-    /// The combat overlay must already be set via RenderCombat with an outcome.
+    /// Wait for user to acknowledge combat narrative (Continue button).
+    /// Uses CombatMode to keep the combat grid visible.
     /// </summary>
     public static void WaitForCombatContinue(GameContext ctx)
     {
-        WaitForEventContinue(ctx);
-        ClearCombat(ctx);
-        // Game loop handles the next frame - no need to send one here
+        var session = GetSession(ctx);
+
+        // Get current combat data for the mode
+        var combatData = ctx.SessionId != null && _currentCombat.TryGetValue(ctx.SessionId, out var cd) ? cd : null;
+        if (combatData == null)
+        {
+            // Fallback to generic continue if no combat data
+            WaitForEventContinue(ctx);
+            return;
+        }
+
+        int inputId = session.GenerateInputId();
+
+        // Use CombatMode - keep combat grid visible during narrative
+        var combatMode = new CombatMode(ToCombatModeDto(combatData));
+
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            combatMode,
+            new List<Overlay>(),
+            new InputRequestDto(inputId, "anykey", "Continue", null)
+        );
+
+        session.Send(frame);
+        session.WaitForResponse(inputId, ResponseTimeout);
+
+        // Don't clear combat here - CombatOrchestrator manages the lifecycle
     }
 
     /// <summary>
@@ -1533,10 +1587,10 @@ public static class WebIO
                 // Update game time (5 minutes for eating) with progress display
                 int elapsed = ctx.Update(5, ActivityType.Eating);
 
-                // Skip progress animation if eating was aborted by an event
+                // Update state after eating (overlay already provides progress feedback)
                 if (!ctx.LastEventAborted)
                 {
-                    RenderWithDuration(ctx, "Eating...", elapsed);
+                    Render(ctx);
                 }
             }
         }
@@ -1703,10 +1757,10 @@ public static class WebIO
         // Cook meat with progress display
         int elapsed = ctx.Update(CookMeatTimeMinutes, ActivityType.Cooking);
 
-        // Skip progress animation if cooking was aborted by an event
+        // Update state after cooking (overlay already provides progress feedback)
         if (!ctx.LastEventAborted)
         {
-            RenderWithDuration(ctx, "Cooking meat...", elapsed);
+            Render(ctx);
         }
 
         double weight = inv.Pop(Resource.RawMeat);
@@ -1723,10 +1777,10 @@ public static class WebIO
 
         int elapsed = ctx.Update(MeltSnowTimeMinutes, ActivityType.Cooking);
 
-        // Skip progress animation if melting was aborted by an event
+        // Update state after melting (overlay already provides progress feedback)
         if (!ctx.LastEventAborted)
         {
-            RenderWithDuration(ctx, "Melting snow...", elapsed);
+            Render(ctx);
         }
 
         ctx.Inventory.WaterLiters += MeltSnowWaterLiters;

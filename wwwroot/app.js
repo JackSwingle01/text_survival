@@ -2,7 +2,6 @@
 import { InputHandler } from './core/InputHandler.js';
 import { EventOverlay } from './overlays/EventOverlay.js';
 import { HuntOverlay } from './overlays/HuntOverlay.js';
-import { CombatOverlay } from './overlays/CombatOverlay.js';
 import { InventoryOverlay } from './overlays/InventoryOverlay.js';
 import { ConfirmOverlay } from './overlays/ConfirmOverlay.js';
 import { HazardOverlay } from './overlays/HazardOverlay.js';
@@ -26,6 +25,7 @@ import { FireDisplay } from './modules/fire.js';
 import { SurvivalDisplay } from './modules/survival.js';
 import { EffectsDisplay } from './modules/effects.js';
 import { getGridRenderer } from './modules/grid/CanvasGridRenderer.js';
+import { getCombatGridRenderer } from './modules/grid/CombatGridRenderer.js';
 import { getWeatherIcon, getFeatureIconLabel } from './modules/icons.js';
 import { TilePopupRenderer } from './lib/ui/TilePopupRenderer.js';
 
@@ -43,7 +43,6 @@ class GameClient {
         this.maxReconnectAttempts = 5;
         this.awaitingResponse = false;
         this.gridRenderer = null;
-        this.gridInitialized = false;
         this.tilePopupRenderer = null;
         this.resumeBlockUntil = 0;
         this.currentInput = null;
@@ -54,14 +53,14 @@ class GameClient {
             () => this.currentInputId
         );
 
-        // Create unified combat overlay (handles both encounter and combat phases)
-        const combatOverlay = new CombatOverlay(this.inputHandler);
+        // Renderer state - only one renderer active at a time
+        this.combatRenderer = null;
+        this.activeRenderer = null;  // 'world' | 'combat'
 
         // Overlay registry
         this.overlays = {
             event: new EventOverlay(this.inputHandler),
             hunt: new HuntOverlay(this.inputHandler),
-            combat: combatOverlay,
             inventory: new InventoryOverlay(this.inputHandler),
             crafting: new CraftingOverlay(this.inputHandler),
             fire: new FireOverlay(this.inputHandler),
@@ -71,7 +70,6 @@ class GameClient {
             transfer: new TransferOverlay(this.inputHandler),
             forage: new ForageOverlay(this.inputHandler),
             butcher: new ButcherOverlay(this.inputHandler),
-            encounter: combatOverlay,  // Route encounter to combat overlay
             hazard: new HazardOverlay(this.inputHandler),
             confirm: new ConfirmOverlay(this.inputHandler),
             deathScreen: new DeathOverlay(this.inputHandler),
@@ -175,7 +173,7 @@ class GameClient {
             // Clear all stale UI to prevent clicking old buttons with captured state
             this.hideAllOverlays();
             this.updateAvailableActions(null);
-            this.hideTilePopup();
+            this.tilePopupRenderer?.hide();
 
             ConnectionOverlay.hide();
         };
@@ -389,36 +387,265 @@ class GameClient {
 
         switch (mode.type) {
             case 'location':
+                this.deactivateCombatRenderer();
                 this.setUIMode('location');
                 break;
             case 'travel':
+                this.deactivateCombatRenderer();
                 this.setUIMode('travel');
-                this.updateGridFromMode(mode);
+                this.activateWorldRenderer(mode.grid);
                 break;
             case 'travel_progress':
                 // Travel progress: show grid and let FrameQueue handle animation
+                this.deactivateCombatRenderer();
                 this.setUIMode('travel');
-                if (mode.grid) {
-                    this.updateGrid(mode.grid);
-                }
+                this.activateWorldRenderer(mode.grid);
                 break;
             case 'progress':
                 // Progress animation is handled by FrameQueue
                 break;
+            case 'combat':
+                this.deactivateWorldRenderer();
+                this.setUIMode('combat');
+                this.activateCombatRenderer(mode.combat);
+                break;
         }
     }
 
     /**
-     * Update grid from TravelMode data
+     * Activate world renderer - deactivates combat renderer if active
      */
-    updateGridFromMode(mode) {
-        if (mode.grid) {
-            this.updateGrid(mode.grid);
+    activateWorldRenderer(gridState) {
+        if (this.activeRenderer === 'world' && this.gridRenderer) {
+            // Already active, just update state
+            if (gridState) {
+                this.updateGrid(gridState);
+            }
+            return;
+        }
+
+        // Initialize grid renderer if needed
+        if (!this.gridRenderer) {
+            this.gridRenderer = getGridRenderer();
+            this.gridRenderer.init('gridCanvas', (x, y, tileData, screenPos) => {
+                this.handleTileClick(x, y, tileData, screenPos);
+            }, 'gridViewport');
+
+            // Initialize tile popup renderer
+            this.tilePopupRenderer = new TilePopupRenderer({
+                getVisualTileSize: () => this.gridRenderer.getVisualTileSize(),
+                onTravelTo: (x, y) => this.handleTravelToRequest(x, y),
+                canTravel: () => {
+                    const hasBlockingInput = this.currentInput?.choices?.length > 0 &&
+                        !this.currentInput.choices.some(c => c.label.includes('Travel'));
+                    return !hasBlockingInput;
+                }
+            });
+        } else {
+            // Activate existing renderer
+            this.gridRenderer.activate();
+        }
+
+        if (gridState) {
+            this.gridRenderer.update(gridState);
+        }
+
+        this.activeRenderer = 'world';
+    }
+
+    /**
+     * Deactivate world renderer
+     */
+    deactivateWorldRenderer() {
+        if (this.activeRenderer !== 'world') return;
+
+        if (this.gridRenderer) {
+            this.gridRenderer.deactivate();
+        }
+        this.tilePopupRenderer?.hide();
+        this.activeRenderer = null;
+    }
+
+    /**
+     * Activate combat renderer - deactivates world renderer if active
+     */
+    activateCombatRenderer(combatState) {
+        if (this.activeRenderer === 'combat' && this.combatRenderer) {
+            // Already active, just update state
+            this.combatRenderer.update(combatState);
+            this.updateCombatNarrative(combatState);
+            return;
+        }
+
+        // Initialize combat renderer if needed
+        if (!this.combatRenderer) {
+            this.combatRenderer = getCombatGridRenderer();
+            this.combatRenderer.init(
+                document.getElementById('gridCanvas'),
+                (unit) => this.handleCombatUnitClick(unit)
+            );
+        }
+
+        // Activate and update
+        this.combatRenderer.activate();
+        this.combatRenderer.update(combatState);
+        this.updateCombatNarrative(combatState);
+        this.activeRenderer = 'combat';
+    }
+
+    /**
+     * Deactivate combat renderer
+     */
+    deactivateCombatRenderer() {
+        if (this.activeRenderer !== 'combat') return;
+
+        if (this.combatRenderer) {
+            this.combatRenderer.deactivate();
+        }
+        this.activeRenderer = null;
+    }
+
+    /**
+     * Update narrative log with combat message
+     */
+    updateCombatNarrative(combatState) {
+        if (combatState?.narrativeMessage) {
+            const logEl = document.getElementById('narrativeLog');
+            if (logEl) {
+                clear(logEl);
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.textContent = combatState.narrativeMessage;
+                logEl.appendChild(entry);
+            }
         }
     }
 
     /**
-     * Update grid with new state
+     * Handle combat unit click - show unit detail panel
+     */
+    handleCombatUnitClick(unit) {
+        const detailPanel = document.getElementById('combatUnitDetail');
+        if (!detailPanel) return;
+
+        if (!unit) {
+            detailPanel.classList.remove('visible');
+            return;
+        }
+
+        clear(detailPanel);
+
+        // Header with icon and name
+        const header = document.createElement('div');
+        header.className = 'unit-detail-header';
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'unit-detail-icon';
+        iconSpan.textContent = unit.icon;
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'unit-detail-name';
+        nameSpan.textContent = unit.name;
+        header.appendChild(iconSpan);
+        header.appendChild(nameSpan);
+        detailPanel.appendChild(header);
+
+        // Vitality gauge
+        const vitalityPct = (unit.vitality * 100).toFixed(0);
+        const vitalityDiv = document.createElement('div');
+        vitalityDiv.className = 'unit-detail-gauge';
+        const vitalityLabel = document.createElement('div');
+        vitalityLabel.className = 'unit-detail-gauge-label';
+        vitalityLabel.innerHTML = `<span>Vitality</span><span class="unit-detail-gauge-value">${vitalityPct}%</span>`;
+        const vitalityBar = document.createElement('div');
+        vitalityBar.className = 'unit-detail-gauge-bar';
+        const vitalityFill = document.createElement('div');
+        vitalityFill.className = 'unit-detail-gauge-fill unit-detail-gauge-fill--vitality';
+        vitalityFill.style.width = vitalityPct + '%';
+        vitalityBar.appendChild(vitalityFill);
+        vitalityDiv.appendChild(vitalityLabel);
+        vitalityDiv.appendChild(vitalityBar);
+        detailPanel.appendChild(vitalityDiv);
+
+        // Threat gauge (shown for all units - affects how others react)
+        const threatValue = unit.threat.toFixed(1);
+        const threatDiv = document.createElement('div');
+        threatDiv.className = 'unit-detail-gauge';
+        const threatLabel = document.createElement('div');
+        threatLabel.className = 'unit-detail-gauge-label';
+        threatLabel.innerHTML = `<span>Threat</span><span class="unit-detail-gauge-value">${threatValue}</span>`;
+        const threatBar = document.createElement('div');
+        threatBar.className = 'unit-detail-gauge-bar';
+        const threatFill = document.createElement('div');
+        threatFill.className = 'unit-detail-gauge-fill unit-detail-gauge-fill--threat';
+        threatFill.style.width = Math.min(100, unit.threat * 50) + '%';
+        threatBar.appendChild(threatFill);
+        threatDiv.appendChild(threatLabel);
+        threatDiv.appendChild(threatBar);
+        detailPanel.appendChild(threatDiv);
+
+        // Boldness and Aggression gauges for enemies
+        if (unit.team === 'enemy') {
+            // Boldness gauge
+            const boldnessValue = unit.boldness.toFixed(2);
+            const boldnessDiv = document.createElement('div');
+            boldnessDiv.className = 'unit-detail-gauge';
+            const boldnessLabel = document.createElement('div');
+            boldnessLabel.className = 'unit-detail-gauge-label';
+            boldnessLabel.innerHTML = `<span>Boldness</span><span class="unit-detail-gauge-value ${unit.boldnessDescriptor}">${boldnessValue}</span>`;
+            const boldnessBar = document.createElement('div');
+            boldnessBar.className = 'unit-detail-gauge-bar';
+            const boldnessFill = document.createElement('div');
+            boldnessFill.className = 'unit-detail-gauge-fill unit-detail-gauge-fill--boldness';
+            boldnessFill.style.width = Math.min(100, unit.boldness * 50) + '%';
+            boldnessBar.appendChild(boldnessFill);
+            boldnessDiv.appendChild(boldnessLabel);
+            boldnessDiv.appendChild(boldnessBar);
+            detailPanel.appendChild(boldnessDiv);
+
+            // Aggression gauge
+            const aggressionValue = unit.aggression.toFixed(2);
+            const aggressionDiv = document.createElement('div');
+            aggressionDiv.className = 'unit-detail-gauge';
+            const aggressionLabel = document.createElement('div');
+            aggressionLabel.className = 'unit-detail-gauge-label';
+            aggressionLabel.innerHTML = `<span>Aggression</span><span class="unit-detail-gauge-value">${aggressionValue}</span>`;
+            const aggressionBar = document.createElement('div');
+            aggressionBar.className = 'unit-detail-gauge-bar';
+            const aggressionFill = document.createElement('div');
+            aggressionFill.className = 'unit-detail-gauge-fill unit-detail-gauge-fill--aggression';
+            aggressionFill.style.width = Math.min(100, unit.aggression * 100) + '%';
+            aggressionBar.appendChild(aggressionFill);
+            aggressionDiv.appendChild(aggressionLabel);
+            aggressionDiv.appendChild(aggressionBar);
+            detailPanel.appendChild(aggressionDiv);
+
+            // Threat factors from combat state
+            const combatState = this.combatRenderer?.combatState;
+            if (combatState?.threatFactors?.length > 0) {
+                const threatDiv = document.createElement('div');
+                threatDiv.className = 'unit-detail-threats';
+                const threatLabel = document.createElement('div');
+                threatLabel.className = 'unit-detail-threats-label';
+                threatLabel.textContent = 'Threat factors:';
+                threatDiv.appendChild(threatLabel);
+
+                const threatList = document.createElement('div');
+                threatList.className = 'unit-detail-threats-list';
+                for (const factor of combatState.threatFactors) {
+                    const factorEl = document.createElement('div');
+                    factorEl.className = 'unit-detail-threat';
+                    factorEl.innerHTML = `<span class="material-symbols-outlined">${factor.icon}</span>${factor.description}`;
+                    threatList.appendChild(factorEl);
+                }
+                threatDiv.appendChild(threatList);
+                detailPanel.appendChild(threatDiv);
+            }
+        }
+
+        detailPanel.classList.add('visible');
+    }
+
+    /**
+     * Update grid with new state (called by activateWorldRenderer)
      */
     updateGrid(gridState) {
         // Only hide popup if player actually moved to a different tile
@@ -431,38 +658,18 @@ class GameClient {
             }
         }
 
-        // Initialize grid renderer if needed
-        if (!this.gridInitialized) {
-            this.gridRenderer = getGridRenderer();
-            this.gridRenderer.init('gridCanvas', (x, y, tileData, screenPos) => {
-                this.handleTileClick(x, y, tileData, screenPos);
-            }, 'gridViewport');
-
-            // Initialize tile popup renderer
-            this.tilePopupRenderer = new TilePopupRenderer({
-                getVisualTileSize: () => this.gridRenderer.getVisualTileSize(),
-                onTravelTo: (x, y) => this.handleTravelToRequest(x, y),
-                canTravel: () => {
-                    // Travel blocked if there's a pending input without Travel option
-                    const hasBlockingInput = this.currentInput?.choices?.length > 0 &&
-                        !this.currentInput.choices.some(c => c.label.includes('Travel'));
-                    return !hasBlockingInput;
-                }
-            });
-
-            this.gridInitialized = true;
-        }
-
         // Update grid with new state
-        this.gridRenderer.update(gridState);
+        if (this.gridRenderer) {
+            this.gridRenderer.update(gridState);
+        }
     }
 
     /**
-     * Toggle UI mode between location (buttons visible) and travel (map visible)
+     * Toggle UI mode between location, travel, and combat
      */
     setUIMode(mode) {
         const centerArea = document.querySelector('.center-area');
-        centerArea.classList.remove('location-mode', 'travel-mode');
+        centerArea.classList.remove('location-mode', 'travel-mode', 'combat-mode');
         centerArea.classList.add(`${mode}-mode`);
     }
 
@@ -651,6 +858,24 @@ class GameClient {
     updateAvailableActions(choices) {
         const panel = document.getElementById('availableActionsPanel');
         const container = document.getElementById('availableActions');
+        const inCombat = this.activeRenderer === 'combat';
+
+        // Handle combat mode Continue button when no choices (anykey input)
+        if (inCombat && (!choices || choices.length === 0)) {
+            if (this.currentInput?.type === 'anykey') {
+                show(panel);
+                clear(container);
+                const inputId = this.currentInputId;
+                const btn = document.createElement('button');
+                btn.className = 'btn btn--primary btn--full';
+                btn.textContent = this.currentInput.prompt || 'Continue';
+                btn.onclick = () => this.respond('continue', inputId);
+                container.appendChild(btn);
+                return;
+            }
+            hide(panel);
+            return;
+        }
 
         if (!choices || choices.length === 0) {
             hide(panel);

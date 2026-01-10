@@ -55,7 +55,7 @@ public abstract class Actor : IMovable
     }
 
     // Combat stats - animals override with set values, NPCs/players use defaults
-    public virtual double BaseThreat { get; set; }
+    public virtual double BaseThreat { get; set; } = 1.0;
     public virtual double StartingBoldness { get; set; } = 1.0;
     public virtual double BaseAggression { get; set; } = 1.0;
     public virtual double BaseCohesion { get; set; } = 0.5;

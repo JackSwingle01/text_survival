@@ -2105,6 +2105,15 @@ body {
     flex-shrink: 0;
 }
 
+/* Combat mode - grid replaces world map with combat grid */
+.center-area.combat-mode .grid-viewport {
+    display: inline-flex;
+}
+
+.center-area.combat-mode .actions-area {
+    flex-shrink: 0;
+}
+
 /*
    RIGHT SIDEBAR - Narrative Log
 */
@@ -2807,6 +2816,7 @@ body {
     transform: translateY(10px);
     transition: opacity 0.2s ease, transform 0.2s ease;
     pointer-events: none;
+    z-index: 100;
 }
 
 .unit-detail-panel.visible {
@@ -2885,6 +2895,89 @@ body {
 .unit-detail-boldness-value.bold { color: hsl(30, 80%, 55%); }
 .unit-detail-boldness-value.wary { color: hsl(45, 80%, 55%); }
 .unit-detail-boldness-value.cautious { color: hsl(120, 50%, 50%); }
+
+/* Unit detail gauges */
+.unit-detail-gauge {
+    margin-bottom: var(--space-2);
+}
+
+.unit-detail-gauge-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+}
+
+.unit-detail-gauge-value {
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.unit-detail-gauge-value.aggressive { color: hsl(0, 70%, 55%); }
+.unit-detail-gauge-value.bold { color: hsl(30, 80%, 55%); }
+.unit-detail-gauge-value.wary { color: hsl(45, 80%, 55%); }
+.unit-detail-gauge-value.cautious { color: hsl(120, 50%, 50%); }
+
+.unit-detail-gauge-bar {
+    height: 6px;
+    background: var(--bar-bg);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.unit-detail-gauge-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.unit-detail-gauge-fill--vitality {
+    background: linear-gradient(90deg, hsl(0, 70%, 50%), hsl(45, 90%, 50%), hsl(120, 60%, 45%));
+}
+
+.unit-detail-gauge-fill--threat {
+    background: linear-gradient(90deg, hsl(45, 80%, 50%), hsl(15, 80%, 50%), hsl(0, 70%, 45%));
+}
+
+.unit-detail-gauge-fill--boldness {
+    background: linear-gradient(90deg, hsl(120, 50%, 50%), hsl(45, 80%, 55%), hsl(30, 80%, 55%), hsl(0, 70%, 55%));
+}
+
+.unit-detail-gauge-fill--aggression {
+    background: linear-gradient(90deg, hsl(200, 50%, 50%), hsl(280, 60%, 55%), hsl(320, 70%, 50%));
+}
+
+/* Threat factors */
+.unit-detail-threats {
+    margin-top: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border-dim);
+}
+
+.unit-detail-threats-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: var(--space-1);
+}
+
+.unit-detail-threats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.unit-detail-threat {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: 0.8rem;
+    color: hsl(0, 60%, 60%);
+}
+
+.unit-detail-threat .material-symbols-outlined {
+    font-size: 14px;
+}
 
 .combat-health {
     font-size: 0.9em;
