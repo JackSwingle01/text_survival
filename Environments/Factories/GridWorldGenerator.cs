@@ -161,6 +161,16 @@ public class GridWorldGenerator
     ];
 
     /// <summary>
+    /// Get the count of unique location types that can be generated.
+    /// Used by Discovery Log to determine total discoverable locations.
+    /// </summary>
+    public static int GetUniqueLocationCount()
+    {
+        // Count distinct factory methods in LocationWeights
+        return LocationWeights.Select(w => w.Factory).Distinct().Count();
+    }
+
+    /// <summary>
     /// Generate a complete world map.
     /// Returns the map and the camp location.
     /// </summary>

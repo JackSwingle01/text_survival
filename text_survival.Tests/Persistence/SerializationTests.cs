@@ -609,6 +609,52 @@ public class SerializationTests
         Assert.True(deserializedHerd.HomeTerritory.Count > 0, "HomeTerritory should be preserved");
     }
 
+    [Fact]
+    public void SerializeDeserialize_DiscoveryLog_PreservesState()
+    {
+        // Arrange - Create game with discoveries
+        var ctx = GameContext.CreateNewGame();
+
+        // Add discoveries to each category
+        ctx.Discoveries.DiscoverLocation("Frozen Creek");
+        ctx.Discoveries.DiscoverLocation("Dense Birches");
+        ctx.Discoveries.EncounterAnimal(text_survival.Actors.Animals.AnimalType.Wolf);
+        ctx.Discoveries.EncounterAnimal(text_survival.Actors.Animals.AnimalType.Bear);
+        ctx.Discoveries.EatFood("Berries");
+        ctx.Discoveries.UseMedicine("Yarrow Tea");
+        ctx.Discoveries.CraftItem("Stone Knife");
+
+        // Record counts before serialization
+        int locationCount = ctx.Discoveries.DiscoveredLocations.Count;
+        int animalCount = ctx.Discoveries.EncounteredAnimals.Count;
+        int foodCount = ctx.Discoveries.FoodsEaten.Count;
+        int medicineCount = ctx.Discoveries.MedicinesUsed.Count;
+        int craftedCount = ctx.Discoveries.ItemsCrafted.Count;
+
+        // Act - Serialize and deserialize
+        string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
+        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+
+        // Assert - All discovery categories preserved
+        Assert.NotNull(deserialized);
+        Assert.NotNull(deserialized.Discoveries);
+
+        Assert.Equal(locationCount, deserialized.Discoveries.DiscoveredLocations.Count);
+        Assert.Equal(animalCount, deserialized.Discoveries.EncounteredAnimals.Count);
+        Assert.Equal(foodCount, deserialized.Discoveries.FoodsEaten.Count);
+        Assert.Equal(medicineCount, deserialized.Discoveries.MedicinesUsed.Count);
+        Assert.Equal(craftedCount, deserialized.Discoveries.ItemsCrafted.Count);
+
+        // Verify specific items preserved
+        Assert.Contains("Frozen Creek", deserialized.Discoveries.DiscoveredLocations);
+        Assert.Contains("Dense Birches", deserialized.Discoveries.DiscoveredLocations);
+        Assert.Contains(text_survival.Actors.Animals.AnimalType.Wolf, deserialized.Discoveries.EncounteredAnimals);
+        Assert.Contains(text_survival.Actors.Animals.AnimalType.Bear, deserialized.Discoveries.EncounteredAnimals);
+        Assert.Contains("Berries", deserialized.Discoveries.FoodsEaten);
+        Assert.Contains("Yarrow Tea", deserialized.Discoveries.MedicinesUsed);
+        Assert.Contains("Stone Knife", deserialized.Discoveries.ItemsCrafted);
+    }
+
     private static JsonSerializerOptions GetSerializerOptions()
     {
         return SaveManager.Options;

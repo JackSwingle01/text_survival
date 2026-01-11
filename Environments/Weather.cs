@@ -185,9 +185,11 @@ public class Weather
 
         _weatherDuration = TimeSpan.FromHours(6);
 
-        // Initialize weather fronts - guaranteed gentle start
+        // Initialize weather fronts - guaranteed gentle start for grace period
         CurrentFront = FrontPatterns.GenerateInitialFront();
-        NextFront = FrontPatterns.Generate(Season.Winter, CurrentCondition);
+        // BUG FIX: NextFront must also be gentle during grace period
+        // Previously used Generate() which could produce blizzards immediately after initial front
+        NextFront = FrontPatterns.GenerateGentleFront(Season.Winter, CurrentCondition);
 
         // Apply the initial state immediately (fixes bug where 6-hour legacy duration was used)
         ApplyWeatherState(CurrentFront.CurrentState);

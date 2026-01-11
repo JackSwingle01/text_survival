@@ -368,6 +368,10 @@ public class TravelRunner(GameContext ctx)
         // Move to destination
         _ctx.Map!.MoveTo(destination, _ctx.player);
 
+        // Record discovery for named locations
+        if (!destination.IsTerrainOnly)
+            _ctx.RecordLocationDiscovery(destination.Name);
+
         // Send combined frame for synchronized animation
         // Grid state shows destination, origin position enables camera pan from start
         WebIO.RenderTravelProgress(_ctx, "Traveling...", totalTime, originPos.X, originPos.Y);

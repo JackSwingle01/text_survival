@@ -62,8 +62,8 @@ public static class FrontPatterns
 
     /// <summary>
     /// Generate gentle front for early-game grace period
-    /// Excludes severe weather: Prolonged Blizzards, Cold Snaps, Ice Storms
-    /// Allows: Clear Spells (50%), Storm Systems (30%), Warming (20%)
+    /// Excludes severe weather: Blizzards, Cold Snaps, Ice Storms, Whiteouts
+    /// Allows: Clear Spells (50%), Mild Storm Systems (30%), Warming (20%)
     /// </summary>
     public static WeatherFront GenerateGentleFront(Weather.Season season, Weather.WeatherCondition currentCondition)
     {
@@ -71,10 +71,74 @@ public static class FrontPatterns
 
         if (roll < 0.50)       // 50% - Clear Spell
             return GenerateClearSpell(season);
-        else if (roll < 0.80)  // 30% - Storm System (still allows snow, just not extreme)
-            return GenerateStormSystem(season);
+        else if (roll < 0.80)  // 30% - Mild Storm (no blizzard peak)
+            return GenerateMildStormSystem(season);
         else                    // 20% - Warming
             return GenerateWarmingPeriod(season);
+    }
+
+    /// <summary>
+    /// Mild Storm System for grace period: HeavySnow at worst, no Blizzard or Whiteout
+    /// Building → Peak (HeavySnow) → Trailing → Clearing (12-36 hours total)
+    /// </summary>
+    private static WeatherFront GenerateMildStormSystem(Weather.Season season)
+    {
+        var states = new List<WeatherState>();
+        var (minTemp, maxTemp, _) = GetSeasonalRanges(season);
+
+        // Building phase (4-8 hours) - Light snow starting
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.LightSnow,
+            TempRange = (minTemp, maxTemp),
+            WindRange = (0.2, 0.4),
+            CloudRange = (0.5, 0.8),
+            PrecipRange = (0.2, 0.4),
+            Duration = GenerateTriangularDuration(4, 8),
+            SkipProbability = 0.0
+        });
+
+        // Peak phase (3-6 hours) - Heavy snow but NOT blizzard
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.HeavySnow,
+            TempRange = (minTemp - 2, maxTemp),
+            WindRange = (0.4, 0.6),  // Moderate wind, not severe
+            CloudRange = (0.8, 1.0),
+            PrecipRange = (0.5, 0.7),
+            Duration = GenerateTriangularDuration(3, 6),
+            SkipProbability = 0.0
+        });
+
+        // Trailing phase (4-8 hours) - Light snow
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.LightSnow,
+            TempRange = (minTemp - 1, maxTemp),
+            WindRange = (0.2, 0.4),
+            CloudRange = (0.6, 0.8),
+            PrecipRange = (0.1, 0.3),
+            Duration = GenerateTriangularDuration(4, 8),
+            SkipProbability = 0.2
+        });
+
+        // Clearing phase (3-6 hours)
+        states.Add(new WeatherState
+        {
+            Condition = Weather.WeatherCondition.Cloudy,
+            TempRange = (minTemp, maxTemp + 1),
+            WindRange = (0.2, 0.3),
+            CloudRange = (0.3, 0.6),
+            PrecipRange = (0, 0.1),
+            Duration = GenerateTriangularDuration(3, 6),
+            SkipProbability = 0.0
+        });
+
+        return new WeatherFront
+        {
+            Type = FrontType.StormSystem,
+            States = states
+        };
     }
 
     /// <summary>

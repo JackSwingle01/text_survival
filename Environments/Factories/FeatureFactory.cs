@@ -25,6 +25,7 @@ public static class FeatureFactory
             .AddTinder(2.0, 0.02, 0.08)
             .AddBerries(0.6, 0.05, 0.15)
             .AddPlantFiber(0.5, 0.05, 0.15)
+            .AddStone(0.3, 0.2, 0.4)  // Scattered rocks for early crafting
             .AddBirchPolypore(0.15)
             .AddChaga(0.1)
             .AddAmadou(0.12)

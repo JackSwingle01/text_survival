@@ -97,7 +97,7 @@ public static class FireHandler
         {
             ToolType.FireStriker => 0.90,
             ToolType.BowDrill => 0.50,
-            ToolType.HandDrill => 0.30,
+            ToolType.HandDrill => 0.35,  // Increased from 0.30 for better early game
             _ => 0.30
         };
     }
@@ -528,7 +528,23 @@ public static class FireHandler
                 GameDisplay.AddSuccess(ctx, result.Message);
                 ctx.player.Skills.GetSkill("Firecraft").GainExperience(3);
 
-                // Tutorial
+                // First Fire Celebration - special moment for the first successful fire
+                if (ctx.TryShowTutorial("first_fire_celebration"))
+                {
+                    GameDisplay.AddNarrative(ctx, "");
+                    GameDisplay.AddSuccess(ctx, "The bark catches. Flame spreads to the kindling.");
+                    GameDisplay.AddNarrative(ctx, "");
+                    GameDisplay.AddNarrative(ctx, "For a long moment, you just watch it burn.");
+                    GameDisplay.AddNarrative(ctx, "The heat hits your face. The darkness pulls back.");
+                    GameDisplay.AddNarrative(ctx, "You're still alive.");
+                    GameDisplay.AddNarrative(ctx, "");
+                    GameDisplay.AddSuccess(ctx, "Tomorrow's problems are for tomorrow. Tonight, you have fire.");
+
+                    // Brief psychological warmth bonus
+                    ctx.player.EffectRegistry.AddEffect(Effects.EffectFactory.Warmed(0.3, 30));
+                }
+
+                // Practical tutorial
                 if (ctx.DaysSurvived == 0 && ctx.TryShowTutorial("first_fire_started"))
                 {
                     GameDisplay.AddNarrative(ctx, "");

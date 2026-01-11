@@ -23,6 +23,17 @@ public static partial class GameEventRegistry
         return 1 - Math.Exp(-ratePerMinute);
     }
 
+    /// <summary>
+    /// Early game event scaling - reduces event frequency in first hours to let players learn.
+    /// </summary>
+    private static double GetEarlyGameMultiplier(GameContext ctx)
+    {
+        var hoursElapsed = ctx.TotalMinutesElapsed / 60.0;
+        if (hoursElapsed < 2) return 0.3;   // First 2 hours: 30% of normal
+        if (hoursElapsed < 6) return 0.6;   // Hours 2-6: 60% of normal
+        return 1.0;                          // After hour 6: full rate
+    }
+
     // Event cooldown tracking - persisted via save/load
     private static Dictionary<string, DateTime> EventTriggerTimes { get; } = new();
 
@@ -79,6 +90,8 @@ public static partial class GameEventRegistry
         // Spatial discovery events
         DistantSmoke,
         EdgeOfTheIce,
+        // Early game aspiration
+        TrackingSomething,
 
         // Water/Ice events (GameEventRegistry.Water.cs)
         FallThroughIce,
@@ -91,6 +104,7 @@ public static partial class GameEventRegistry
         EmbersScatter,
         RustleAtCampEdge,
         MeltingReveal,
+        MountainGlimpse,  // Early game goal-setting event
 
         // Threat events (GameEventRegistry.Threats.cs)
         // Wildlife
@@ -203,6 +217,7 @@ public static partial class GameEventRegistry
         BaitedTrapAttention,
 
         // Foraging events (GameEventRegistry.Foraging.cs)
+        LuckyFind,
         MushroomPatch,
         SquirrelCache,
         BeehiveSpotted,
@@ -276,8 +291,9 @@ public static partial class GameEventRegistry
     public static GameEvent? GetEventOnTick(GameContext ctx, double activityMultiplier = 1.0)
     {
         // Stage 1: Base roll - does ANY event trigger?
-        // Activity multiplier is now passed in from the activity config
-        double chance = BaseChancePerMinute * activityMultiplier;
+        // Activity multiplier from config + early game scaling to reduce events in first hours
+        double earlyGameMultiplier = GetEarlyGameMultiplier(ctx);
+        double chance = BaseChancePerMinute * activityMultiplier * earlyGameMultiplier;
         if (!Utils.DetermineSuccess(chance))
             return null;
 

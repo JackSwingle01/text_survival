@@ -24,6 +24,7 @@ namespace text_survival.Web.Dto;
 [JsonDerivedType(typeof(EatingOverlay), "eating")]
 [JsonDerivedType(typeof(DiscoveryOverlay), "discovery")]
 [JsonDerivedType(typeof(WeatherChangeOverlay), "weatherChange")]
+[JsonDerivedType(typeof(DiscoveryLogOverlay), "discoveryLog")]
 public abstract record Overlay;
 
 /// <summary>
@@ -489,4 +490,27 @@ public record CombatGridDto(
     string? Terrain = null,               // e.g., "Forest", "Plain" for background
     int? LocationX = null,                // World X coordinate for seeded textures
     int? LocationY = null                 // World Y coordinate for seeded textures
+);
+
+
+/// <summary>
+/// Discovery Log overlay: Shows all player discoveries organized by category.
+/// </summary>
+public record DiscoveryLogOverlay(DiscoveryLogDto Data) : Overlay;
+
+/// <summary>
+/// Data for the Discovery Log overlay.
+/// </summary>
+public record DiscoveryLogDto(
+    List<DiscoveryLogCategoryDto> Categories
+);
+
+/// <summary>
+/// A category in the Discovery Log with discovered and remaining items.
+/// </summary>
+public record DiscoveryLogCategoryDto(
+    string Name,           // "The Land", "Beasts", "Provisions", "Medicine", "Works"
+    string CountDisplay,   // "5 discovered" or "12 / ~25"
+    List<string> Discovered,   // Names of discovered items
+    int RemainingCount     // Number of "???" entries to show
 );

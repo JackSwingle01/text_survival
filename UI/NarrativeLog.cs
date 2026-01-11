@@ -6,7 +6,8 @@ public enum LogLevel
     Success,
     Warning,
     Danger,
-    System
+    System,
+    Discovery  // New discoveries in the Discovery Log
 }
 
 public class NarrativeLog

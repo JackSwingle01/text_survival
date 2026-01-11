@@ -2,7 +2,6 @@ using text_survival.Actions;
 using text_survival.Actions.Handlers;
 using text_survival.Actions.Variants;
 using text_survival.Crafting;
-using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
@@ -34,6 +33,7 @@ public static class WebIO
     private static readonly Dictionary<string, EatingOverlayDto> _currentEating = new();
     private static readonly Dictionary<string, DiscoveryDto> _currentDiscovery = new();
     private static readonly Dictionary<string, WeatherChangeDto> _currentWeatherChange = new();
+    private static readonly Dictionary<string, DiscoveryLogDto> _currentDiscoveryLog = new();
 
     private static WebGameSession GetSession(GameContext ctx) =>
         SessionRegistry.Get(ctx.SessionId)
@@ -109,6 +109,8 @@ public static class WebIO
                 overlays.Add(new DiscoveryOverlay(discovery));
             if (_currentWeatherChange.TryGetValue(sessionId, out var weatherChange))
                 overlays.Add(new WeatherChangeOverlay(weatherChange));
+            if (_currentDiscoveryLog.TryGetValue(sessionId, out var discoveryLog))
+                overlays.Add(new DiscoveryLogOverlay(discoveryLog));
         }
 
         return overlays;
@@ -250,6 +252,43 @@ public static class WebIO
     }
 
     /// <summary>
+    /// Clear the current discovery log display for a session.
+    /// </summary>
+    public static void ClearDiscoveryLog(GameContext ctx)
+    {
+        if (ctx.SessionId != null)
+            _currentDiscoveryLog.Remove(ctx.SessionId);
+    }
+
+    /// <summary>
+    /// Show discovery log overlay and wait for user to close it.
+    /// </summary>
+    public static void ShowDiscoveryLogAndWait(GameContext ctx)
+    {
+        if (ctx.SessionId == null) return;
+
+        var session = GetSession(ctx);
+
+        // Set discovery log overlay
+        _currentDiscoveryLog[ctx.SessionId] = ctx.Discoveries.ToDto();
+
+        // Send frame with close button
+        int inputId = session.GenerateInputId();
+        var frame = new WebFrame(
+            GameStateDto.FromContext(ctx),
+            GetCurrentMode(ctx),
+            GetCurrentOverlays(ctx.SessionId),
+            new InputRequestDto(inputId, "select", "Discovery Log", [new ChoiceDto("close", "Close")])
+        );
+
+        session.Send(frame);
+        var response = session.WaitForResponse(inputId, ResponseTimeout);
+
+        // Clear after user closes (accept "close" or "continue")
+        ClearDiscoveryLog(ctx);
+    }
+
+    /// <summary>
     /// Clear all overlays for a session. Used on reconnect to prevent stale overlays.
     /// </summary>
     public static void ClearAllOverlays(string sessionId)
@@ -268,6 +307,8 @@ public static class WebIO
         _currentEncounter.Remove(sessionId);
         _currentCombat.Remove(sessionId);
         _currentDiscovery.Remove(sessionId);
+        _currentWeatherChange.Remove(sessionId);
+        _currentDiscoveryLog.Remove(sessionId);
     }
 
     /// <summary>
@@ -627,6 +668,7 @@ public static class WebIO
                 "inventory" => "Inventory",
                 "crafting" => "Crafting",
                 "storage" => "Storage",
+                "discoveryLog" => "Discovery Log",
                 _ => null
             };
 
@@ -887,21 +929,6 @@ public static class WebIO
         session.Send(frame);
     }
 
-    /// <summary>
-    /// Add narrative text to the context's log for web display.
-    /// </summary>
-    public static void AddNarrative(GameContext ctx, string text, UI.LogLevel level = UI.LogLevel.Normal)
-    {
-        ctx.Log.Add(text, level);
-    }
-
-    /// <summary>
-    /// Add multiple narrative entries.
-    /// </summary>
-    public static void AddNarrative(GameContext ctx, IEnumerable<string> texts, UI.LogLevel level = UI.LogLevel.Normal)
-    {
-        ctx.Log.AddRange(texts, level);
-    }
 
     /// <summary>
     /// Set the inventory to display. Will be included in subsequent input frames.
@@ -912,9 +939,6 @@ public static class WebIO
         _currentInventory[ctx.SessionId] = InventoryDto.FromInventory(inventory, title);
     }
 
-    /// <summary>
-    /// Show inventory overlay and wait for user to close it.
-    /// </summary>
     public static void ShowInventoryAndWait(GameContext ctx, Inventory inventory, string title)
     {
         var session = GetSession(ctx);
@@ -960,9 +984,6 @@ public static class WebIO
         if (ctx.SessionId == null) return;
         _currentCrafting[ctx.SessionId] = CraftingDto.FromContext(ctx, crafting);
     }
-
-
-    // Grid Mode Methods //
 
     /// <summary>
     /// Render grid state and wait for player to click a tile.
@@ -1032,28 +1053,6 @@ public static class WebIO
             return response.QuickTravel.Value;
 
         return response.ChoiceId == "quick";
-    }
-
-    /// <summary>
-    /// Render grid state without waiting for input.
-    /// </summary>
-    public static void RenderGrid(GameContext ctx, string? statusText = null)
-    {
-        if (ctx.Map == null)
-            throw new InvalidOperationException("RenderGrid requires a map");
-
-        var session = SessionRegistry.Get(ctx.SessionId);
-        if (session == null) return;
-
-        var frame = new WebFrame(
-            GameStateDto.FromContext(ctx),
-            new TravelMode(GridStateDto.FromContext(ctx)),
-            GetCurrentOverlays(ctx.SessionId),
-            null,  // No input request
-            statusText
-        );
-
-        session.Send(frame);
     }
 
     /// <summary>
@@ -1377,11 +1376,8 @@ public static class WebIO
             {
                 choices.Insert(0, new ChoiceDto("start_fire", "Start Fire"));
             }
-            // Add wait button to watch fire catch/burn (in tending mode or when fire exists)
-            if (fire.IsActive || fire.HasEmbers)
-            {
-                choices.Insert(choices.Count - 1, new ChoiceDto("wait", "Wait (2 min)"));
-            }
+            // Add wait button - always available to watch fire catch/burn or just pass time
+            choices.Insert(choices.Count - 1, new ChoiceDto("wait", "Wait (2 min)"));
             // Add charcoal collection button when available
             if (fire.CharcoalAvailableKg > 0.01 && !fire.IsActive)
             {
@@ -1469,9 +1465,6 @@ public static class WebIO
         ClearFire(ctx);
     }
 
-    /// <summary>
-    /// Execute adding fuel to fire.
-    /// </summary>
     private static void ExecuteAddFuel(GameContext ctx, HeatSourceFeature fire, string fuelItemId, int count)
     {
         // Parse fuelItemId: "fuel_Pine", "fuel_Stick", etc.
@@ -1546,9 +1539,6 @@ public static class WebIO
     // Eating UI
     // ============================================
 
-    /// <summary>
-    /// Run the web-based eating/drinking UI overlay.
-    /// </summary>
     public static void RunEatingUI(GameContext ctx)
     {
         var session = GetSession(ctx);
@@ -1598,10 +1588,6 @@ public static class WebIO
 
         _currentEating.Remove(ctx.SessionId!);
     }
-
-    /// <summary>
-    /// Build EatingOverlayDto from current inventory state.
-    /// </summary>
     private static EatingOverlayDto BuildEatingDto(GameContext ctx)
     {
         var body = ctx.player.Body;
@@ -1690,9 +1676,6 @@ public static class WebIO
         );
     }
 
-    /// <summary>
-    /// Run the web-based cooking UI overlay.
-    /// </summary>
     public static void RunCookingUI(GameContext ctx)
     {
         var session = GetSession(ctx);

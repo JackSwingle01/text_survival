@@ -1998,6 +1998,7 @@ body {
 
 /* Grid Viewport */
 .grid-viewport {
+    position: relative;
     background: var(--bg-surface);
     border: 1px solid var(--border-dim);
     border-radius: var(--radius-md);
@@ -3492,4 +3493,104 @@ body {
 @keyframes fade-out {
     from { opacity: 1; }
     to { opacity: 0; }
+}
+
+/* Floating Button */
+.floating-btn {
+    position: fixed;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-dim);
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    z-index: 100;
+}
+
+.floating-btn:hover {
+    background: var(--bg-surface);
+    border-color: var(--border-bright);
+    color: var(--text-bright);
+}
+
+.floating-btn .material-symbols-outlined {
+    font-size: 22px;
+}
+
+.floating-btn--top-right {
+    top: var(--space-3);
+    right: var(--space-3);
+}
+
+.floating-btn--canvas {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+}
+
+/* Discovery Log Styles */
+.discovery-log-content {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.discovery-category {
+    margin-bottom: var(--space-4);
+}
+
+.discovery-category:last-child {
+    margin-bottom: 0;
+}
+
+.discovery-category__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border-dim);
+    margin-bottom: var(--space-2);
+}
+
+.discovery-category__name {
+    font-weight: 600;
+    color: var(--text-bright);
+}
+
+.discovery-category__count {
+    color: var(--text-dim);
+    font-size: 0.9em;
+}
+
+.discovery-category__items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.discovery-item {
+    padding: var(--space-1) var(--space-2);
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
+.discovery-item--known {
+    background: rgba(76, 175, 80, 0.15);
+    color: var(--health-green);
+}
+
+.discovery-item--unknown {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+.discovery-item--more {
+    background: transparent;
+    color: var(--text-faint);
+    font-style: italic;
 }

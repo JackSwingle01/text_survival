@@ -171,7 +171,32 @@ public class NeedCraftingSystem
 
     private void InitializeToolOptions()
     {
-        // Sharp Rock: 2 stones (crude, low durability)
+        // Crude Edge: Bootstrap knife - no tools needed, very fragile
+        // Enables early game progression before player has KnappingStone
+        _options.Add(new CraftOption
+        {
+            Name = "Crude Edge",
+            Description = "Bash a stone against a hard surface. Crude but cuts.",
+            Category = NeedCategory.CuttingTool,
+            CraftingTimeMinutes = 3,
+            Durability = 2,  // Very short lifespan - a stepping stone
+            Requirements = [new MaterialRequirement(Resource.Stone, 1)],
+            // No RequiredTools - this is the bootstrap
+            GearFactory = dur => new Gear
+            {
+                Name = "Crude Edge",
+                Category = GearCategory.Tool,
+                ToolType = ToolType.Knife,
+                Weight = 0.3,
+                Durability = dur,
+                MaxDurability = dur,
+                Damage = 3,
+                BlockChance = 0.01,
+                WeaponClass = WeaponClass.Blade
+            }
+        });
+
+        // Sharp Rock: Proper knapped edge (requires KnappingStone)
         _options.Add(new CraftOption
         {
             Name = "Sharp Rock",

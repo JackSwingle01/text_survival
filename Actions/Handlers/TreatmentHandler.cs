@@ -220,10 +220,14 @@ public static class TreatmentHandler
             gear.Use();
             if (gear.Durability <= 0)
                 inv.Tools.Remove(gear);
+            // Record medicine discovery for crafted treatments
+            ctx.RecordMedicineUsed(gear.Name);
         }
         else
         {
             inv.Pop(selected.DirectResource!.Value);
+            // Record medicine discovery for raw resource treatments
+            ctx.RecordMedicineUsed(selected.DirectResource.Value.ToString());
         }
 
         // Apply effect reduction if treating an effect

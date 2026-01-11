@@ -229,6 +229,10 @@
                 <canvas id="gridCanvas"></canvas>
                 <!-- Combat unit detail panel (shown when clicking units in combat) -->
                 <div id="combatUnitDetail" class="unit-detail-panel"></div>
+                <!-- Discovery Log Button -->
+                <button class="floating-btn floating-btn--canvas" id="discoveryLogBtn" title="Discovery Log">
+                    <span class="material-symbols-outlined">menu_book</span>
+                </button>
             </div>
 
             <!-- Progress Bar at bottom -->
@@ -468,6 +472,23 @@
             </div>
             <div class="modal-actions modal-actions--center">
                 <button class="btn btn--primary" id="weatherChangeOkBtn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discovery Log Overlay -->
+    <div class="overlay overlay--high hidden" id="discoveryLogOverlay">
+        <div class="modal-base modal-base--standard">
+            <div class="modal-header">
+                <h2 class="modal-header__title">
+                    <span class="material-symbols-outlined">explore</span> Discovery Log
+                </h2>
+            </div>
+            <div class="modal-content discovery-log-content" id="discoveryLogContent">
+                <!-- Categories rendered dynamically -->
+            </div>
+            <div class="modal-actions modal-actions--center">
+                <button class="btn" id="discoveryLogCloseBtn">Close</button>
             </div>
         </div>
     </div>

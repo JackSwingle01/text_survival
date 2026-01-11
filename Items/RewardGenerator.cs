@@ -21,7 +21,8 @@ public enum RewardPool
     TinderBundle,       // Just tinder
     BoneHarvest,        // Bones from carcass
     SmallGame,          // Small animal meat (rabbit, bird)
-    HideScrap           // Piece of usable hide
+    HideScrap,          // Piece of usable hide
+    FrozenBirdFind      // Lucky windfall - frozen ptarmigan with meat and feathers
 }
 
 public static class RewardGenerator
@@ -47,6 +48,7 @@ public static class RewardGenerator
             RewardPool.BoneHarvest => GenerateBoneHarvest(densityFactor),
             RewardPool.SmallGame => GenerateSmallGame(),
             RewardPool.HideScrap => GenerateHideScrap(),
+            RewardPool.FrozenBirdFind => GenerateFrozenBirdFind(),
             _ => new Inventory()
         };
     }
@@ -320,6 +322,19 @@ public static class RewardGenerator
     {
         var resources = new Inventory();
         resources.Add(Resource.Hide, RandomWeight(0.3, 0.6));
+        return resources;
+    }
+
+    private static Inventory GenerateFrozenBirdFind()
+    {
+        var resources = new Inventory();
+        // A frozen ptarmigan - generous early game windfall
+        // More meat than typical small game (0.5-0.8kg vs 0.2-0.4kg)
+        resources.Add(Resource.RawMeat, RandomWeight(0.5, 0.8));
+        // Feathers for tinder and insulation
+        resources.Add(Resource.Tinder, RandomWeight(0.08, 0.15));
+        // Some bone
+        resources.Add(Resource.Bone, RandomWeight(0.1, 0.2));
         return resources;
     }
 }

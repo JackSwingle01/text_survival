@@ -15,6 +15,7 @@ import { FireOverlay } from './overlays/FireOverlay.js';
 import { EatingOverlay } from './overlays/EatingOverlay.js';
 import { DiscoveryOverlay } from './overlays/DiscoveryOverlay.js';
 import { WeatherChangeOverlay } from './overlays/WeatherChangeOverlay.js';
+import { DiscoveryLogOverlay } from './overlays/DiscoveryLogOverlay.js';
 import { ConnectionOverlay } from './modules/connection.js';
 import { show, hide, clear } from './lib/helpers.js';
 import { ProgressDisplay } from './modules/progress.js';
@@ -70,6 +71,7 @@ class GameClient {
             eating: new EatingOverlay(this.inputHandler),
             discovery: new DiscoveryOverlay(this.inputHandler),
             weatherChange: new WeatherChangeOverlay(this.inputHandler),
+            discoveryLog: new DiscoveryLogOverlay(this.inputHandler),
             transfer: new TransferOverlay(this.inputHandler),
             forage: new ForageOverlay(this.inputHandler),
             butcher: new ButcherOverlay(this.inputHandler),
@@ -843,6 +845,7 @@ class GameClient {
         const inventoryBtn = document.getElementById('inventoryBtn');
         const craftingBtn = document.getElementById('craftingBtn');
         const storageBtn = document.getElementById('storageBtn');
+        const discoveryLogBtn = document.getElementById('discoveryLogBtn');
 
         if (inventoryBtn) {
             inventoryBtn.onclick = () => this.requestAction('inventory');
@@ -852,6 +855,9 @@ class GameClient {
         }
         if (storageBtn) {
             storageBtn.onclick = () => this.requestAction('storage');
+        }
+        if (discoveryLogBtn) {
+            discoveryLogBtn.onclick = () => this.requestAction('discoveryLog');
         }
     }
 
@@ -934,3 +940,4 @@ class GameClient {
 
 // Initialize game client
 const gameClient = new GameClient();
+window.game = gameClient;  // Expose for overlay close buttons

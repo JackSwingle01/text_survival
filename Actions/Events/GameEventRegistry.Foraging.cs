@@ -11,6 +11,27 @@ public static partial class GameEventRegistry
     // These only trigger while foraging and create meaningful mid-activity decisions.
 
     /// <summary>
+    /// Lucky Find - Early game windfall. A frozen ptarmigan.
+    /// Breaks the "all stick" pattern with a positive surprise that teaches exploration is rewarded.
+    /// </summary>
+    private static GameEvent LuckyFind(GameContext ctx)
+    {
+        return new GameEvent("Something Catches Your Eye",
+            "Feathers in the snow. You brush away the powder carefully.\n\nA ptarmigan, frozen solid. Must have been caught by a hawk and dropped. The meat is still good.", 8.0)  // High weight for early game
+            .Requires(EventCondition.Foraging, EventCondition.Awake)
+            .RequiresSituation(ctx => ctx.TotalMinutesElapsed < 45)  // Only in first 45 minutes
+            .WithCooldown(999999)  // One-time only
+            .Choice("Take It",
+                "The world just gave you a gift.",
+                [
+                    new EventResult(@"You tuck the bird into your pack. Meat, feathers, bone — all useful.
+
+Sometimes fortune smiles.", 1.0, 3)
+                        .Rewards(RewardPool.FrozenBirdFind)
+                ]);
+    }
+
+    /// <summary>
     /// Discover a patch of mushrooms with varying risk/reward.
     /// Knowledge test: experienced players learn which are safe vs risky.
     /// </summary>

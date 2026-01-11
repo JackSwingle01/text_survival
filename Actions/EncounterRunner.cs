@@ -55,6 +55,11 @@ public static class EncounterRunner
     /// </summary>
     public static EncounterOutcome HandlePredatorEncounter(Animal predator, GameContext ctx)
     {
+        // Record animal encounter in Discovery Log
+        var animalType = AnimalTypes.Parse(predator.Name);
+        if (animalType.HasValue)
+            ctx.RecordAnimalEncounter(animalType.Value);
+
         // Initialize boldness from observable context
         predator.EncounterBoldness = predator.CalculateBoldness(ctx.player, ctx.Inventory);
 

@@ -1056,4 +1056,41 @@ public static partial class GameEventRegistry
 
         return results;
     }
+
+    // === EARLY GAME ASPIRATION EVENTS ===
+
+    /// <summary>
+    /// Tracking Something - Early game aspiration marker.
+    /// Shows mammoth tracks to plant the idea of megafauna hunts as goals to work toward.
+    /// Creates "I want to come back when I'm stronger" feeling.
+    /// </summary>
+    private static GameEvent TrackingSomething(GameContext ctx)
+    {
+        return new GameEvent("Massive Prints",
+            @"You stop. The tracks ahead are enormous.
+
+Deeper than your whole hand. Wide as your shoulders. The snow is compacted by sheer weight.
+
+Mammoth. Fresh enough that the edges are still crisp.", 6.0)  // High weight for early game
+            .Requires(EventCondition.IsExpedition, EventCondition.Awake)
+            .RequiresSituation(ctx => ctx.TotalMinutesElapsed > 30 && ctx.TotalMinutesElapsed < 180)  // First 3 hours, after settling in
+            .WithCooldown(999999)  // One-time only
+            .Choice("Study the Tracks",
+                "Where there's mammoth, there's hide. Bone. Enough meat for a month.",
+                [
+                    new EventResult(@"You crouch beside the prints, running your fingers along the edge.
+
+One mammoth could change everything. Hide for warmth. Bone for tools. Fat for fuel. Meat to last weeks.
+
+But a mammoth hunt means preparation. Weapons. Allies, maybe. A plan.
+
+Something to think about.", 1.0, 8)
+                        .CreateTension("MarkedDiscovery", 0.3, description: "Mammoth tracks")
+                ])
+            .Choice("Note and Move On",
+                "Good to know they're in the area.",
+                [
+                    new EventResult("You mark the direction in your mind. Mammoths move in patterns. You might find them again.", 1.0, 2)
+                ]);
+    }
 }

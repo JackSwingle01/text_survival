@@ -151,6 +151,7 @@ public static partial class GameEventRegistry
             .Choice("Evacuate Temporarily",
                 "Leave shelter, wait for wind to shift.",
                 [
+                    // todo - the cold effect doesn't really make sense here - they are applied after the time duration - it would make more sense to have the time passage just have the shelter and fire bonus canceled out or have the effects be applied first
                     new EventResult("You wait outside. The wind shifts eventually.", 0.60, 30)
                         .WithCold(-8, 35),
                     new EventResult("Takes longer than expected. Severe cold exposure.", 0.40, 50)
@@ -426,6 +427,33 @@ public static partial class GameEventRegistry
                     new EventResult("Something hardens inside you. Not healthy, but effective.", 0.15, 5)
                         .Escalate("Disturbed", -0.15)
                         .WithEffects(EffectFactory.Hardened(0.1, 120))
+                ]);
+    }
+
+    /// <summary>
+    /// Mountain Glimpse - One-time early game event showing the goal.
+    /// Establishes the mountain pass as the win condition before survival pressure hits.
+    /// </summary>
+    private static GameEvent MountainGlimpse(GameContext ctx)
+    {
+        return new GameEvent("A Break in the Clouds", @"
+You pause. Through a break in the clouds, the mountain pass is visible.
+
+Snow-choked. Impossible. But beyond it... your people. Your life.
+
+That's where you're going. The question is how.", 10.0)  // High weight to ensure it triggers
+            .Requires(EventCondition.AtCamp, EventCondition.Awake)
+            .RequiresSituation(ctx => ctx.TotalMinutesElapsed < 15)  // Only in first 15 minutes
+            .WithCooldown(999999)  // Effectively one-time only
+            .Choice("Remember Why You're Here",
+                "The pass. That's the goal.",
+                [
+                    new EventResult(@"
+The clouds close. The pass vanishes.
+
+But you know it's there now. When the pass clears in midsummer — or when you're strong enough to attempt the crossing early — you'll be ready.
+
+First: survive. Then: prepare. Then: climb.", 1.0, 0)
                 ]);
     }
 }

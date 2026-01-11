@@ -4,6 +4,7 @@ using text_survival.Actions.Expeditions;
 using text_survival.Actions.Tensions;
 using text_survival.Bodies;
 using text_survival.Combat;
+using text_survival.Discovery;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Environments.Factories;
@@ -158,6 +159,9 @@ public class GameContext(Player player, Location camp, Weather weather)
     // Tutorial message tracking
     private HashSet<string> _shownTutorials = new();
 
+    // Discovery Log - tracks player discoveries for progression display
+    public DiscoveryLog Discoveries { get; set; } = new();
+
     public void ShowTutorialOnce(string message)
     {
         if (_shownTutorials.Contains(message))
@@ -174,6 +178,37 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         _shownTutorials.Add(key);
         return true;
+    }
+
+    // Discovery Log helper methods - record discovery and show notification if new
+    public void RecordLocationDiscovery(string locationName)
+    {
+        if (Discoveries.DiscoverLocation(locationName))
+            GameDisplay.AddDiscovery(this, $"New discovery: {locationName}");
+    }
+
+    public void RecordAnimalEncounter(AnimalType animalType)
+    {
+        if (Discoveries.EncounterAnimal(animalType))
+            GameDisplay.AddDiscovery(this, $"New discovery: {animalType.DisplayName()}");
+    }
+
+    public void RecordFoodEaten(string foodName)
+    {
+        if (Discoveries.EatFood(foodName))
+            GameDisplay.AddDiscovery(this, $"New discovery: {foodName}");
+    }
+
+    public void RecordMedicineUsed(string medicineName)
+    {
+        if (Discoveries.UseMedicine(medicineName))
+            GameDisplay.AddDiscovery(this, $"New discovery: {medicineName}");
+    }
+
+    public void RecordItemCrafted(string itemName)
+    {
+        if (Discoveries.CraftItem(itemName))
+            GameDisplay.AddDiscovery(this, $"New discovery: {itemName}");
     }
 
     // Parameterless constructor for JSON deserialization
@@ -247,6 +282,9 @@ public class GameContext(Player player, Location camp, Weather weather)
         ctx.Inventory.Add(Resource.Stick, 0.3);
         ctx.Inventory.Add(Resource.Stick, 0.25);
         ctx.Inventory.Add(Resource.Stick, 0.35);
+        // 4 pieces of tinder for ~4 fire-starting attempts (was 2)
+        ctx.Inventory.Add(Resource.Tinder, 0.05);
+        ctx.Inventory.Add(Resource.Tinder, 0.04);
         ctx.Inventory.Add(Resource.Tinder, 0.05);
         ctx.Inventory.Add(Resource.Tinder, 0.04);
 

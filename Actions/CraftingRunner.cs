@@ -313,6 +313,9 @@ public class CraftingRunner(GameContext ctx)
             }
         }
 
+        // Record crafting discovery
+        _ctx.RecordItemCrafted(option.Name);
+
         GameDisplay.Render(_ctx, statusText: "Satisfied.");
 
         return true;

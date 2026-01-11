@@ -138,6 +138,9 @@ public partial class GameRunner(GameContext ctx)
         if (HasItems())
             choice.AddOption("Inventory", RunInventoryMenu);
 
+        // Discovery Log - always available
+        choice.AddOption("Discovery Log", RunDiscoveryLog);
+
         // Storage - available at camp when player has items OR storage has items
         var storage = ctx.Camp.GetFeature<CacheFeature>();
         if (ctx.CurrentLocation == ctx.Camp && storage != null && (HasItems() || storage.Storage.CurrentWeightKg > 0))
@@ -177,99 +180,6 @@ public partial class GameRunner(GameContext ctx)
 
     private bool CanCamp() => ctx.CurrentLocation.HasFeature<BeddingFeature>();
     private void MakeCamp() => CampHandler.MakeCamp(ctx, ctx.CurrentLocation);
-    private void CampWork()
-    {
-        ctx.EstablishCamp(ctx.CurrentLocation);
-
-        while (true)
-        {
-            // Auto-save when at camp menu
-            var (saved, saveError) = SaveManager.Save(ctx);
-            if (!saved)
-                Console.WriteLine($"[GameRunner] Save failed: {saveError}");
-            CheckFireWarning();
-
-            var choice = new Choice<Action>();
-            var capacities = ctx.player.GetCapacities();
-            var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
-            var isClumsy = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
-
-            if (CanRestByFire())
-                choice.AddOption("Wait", Wait);
-
-            if (HasActiveFire())
-                choice.AddOption("Tend fire", TendFire);
-
-            if (CanStartFire())
-                choice.AddOption("Start fire", StartFire);
-
-            // Eat/Drink - consume food and water
-            if (ctx.Inventory.HasFood || ctx.Inventory.HasWater)
-                choice.AddOption("Eat/Drink", EatDrink);
-
-            // Cook/Melt - requires active fire (no fuel needed to use existing fire)
-            if (CanUseFireForCooking())
-                choice.AddOption("Cook/Melt", CookMelt);
-
-            // Torch management
-            if (CanLightTorch())
-                choice.AddOption("Light torch", LightTorch);
-            if (ctx.Inventory.HasLitTorch)
-            {
-                int mins = (int)ctx.Inventory.TorchBurnTimeRemainingMinutes;
-                choice.AddOption($"Extinguish torch ({mins} min remaining)", ExtinguishTorch);
-            }
-
-            // Crafting always available - menu shows what's craftable/uncraftable
-            string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
-            choice.AddOption(craftLabel, RunCrafting);
-
-            // Inventory - always available when player has items
-            if (HasItems())
-                choice.AddOption("Inventory", RunInventoryMenu);
-
-            // Storage - available when player has items OR storage has items
-            var storage = ctx.Camp.GetFeature<CacheFeature>();
-            if (storage != null && (HasItems() || storage.Storage.CurrentWeightKg > 0))
-                choice.AddOption("Storage", RunStorageMenu);
-
-            // Curing rack - if player has one at camp
-            var rack = ctx.Camp.GetFeature<CuringRackFeature>();
-            if (rack != null)
-            {
-                string rackLabel = rack.HasReadyItems
-                    ? "Curing rack (items ready!)"
-                    : rack.ItemCount > 0
-                        ? $"Curing rack ({rack.ItemCount} items curing)"
-                        : "Curing rack (empty)";
-                choice.AddOption(rackLabel, UseCuringRack);
-            }
-
-            // Direct treatments - when player has treatable conditions and materials
-            if (CanApplyDirectTreatment())
-                choice.AddOption("Treat wounds", ApplyDirectTreatment);
-
-            // Waterproofing - when player has resin and treatable equipment
-            if (CanApplyWaterproofing())
-                choice.AddOption("Waterproof equipment", ApplyWaterproofing);
-
-            // Sleep requires bedding at location
-            if (ctx.Camp.HasFeature<BeddingFeature>())
-            {
-                string sleepLabel = isImpaired ? "Sleep (you need rest)" : "Sleep";
-                choice.AddOption(sleepLabel, Sleep);
-            }
-
-            choice.AddOption("Done", BackAction);
-
-            var action = choice.GetPlayerChoice(ctx);
-            if (action == BackAction)
-                break;
-
-            action.Invoke();
-        }
-    }
-
 
     /// <summary>
     /// Execute a single work action by ID.
@@ -306,50 +216,6 @@ public partial class GameRunner(GameContext ctx)
             }
         }
     }
-
-
-
-
-
-    // private void WorkAroundCamp()
-    // {
-    //     var campLocation = ctx.Camp;
-    //     var work = new WorkRunner(ctx);
-
-    //     var choice = new Choice<string>("What do you want to do?");
-
-    //     if (campLocation.HasFeature<ForageFeature>())
-    //     {
-    //         var forage = campLocation.GetFeature<ForageFeature>()!;
-    //         choice.AddOption($"Forage nearby ({forage.GetQualityDescription()})", "forage");
-    //     }
-
-    //     if (ctx.HasUnrevealedLocations())
-    //         choice.AddOption("Scout the area (discover new locations)", "scout");
-
-    //     choice.AddOption("Cancel", "cancel");
-
-    //     string action = choice.GetPlayerChoice(ctx);
-
-    //     switch (action)
-    //     {
-    //         case "forage":
-    //             work.DoForage(campLocation);
-    //             break;
-    //         case "scout":
-    //             var result = work.DoExplore(campLocation);
-    //             if (result.DiscoveredLocation != null &&
-    //                 WorkRunner.PromptTravelToDiscovery(ctx, result.DiscoveredLocation))
-    //             {
-    //                 var expedition = new Expedition(ctx.Camp, ctx.player);
-    //                 ctx.Expedition = expedition;
-    //                 var runner = new ExpeditionRunner(ctx);
-    //                 runner.TravelToLocation(expedition, result.DiscoveredLocation);
-    //                 runner.Run();
-    //             }
-    //             break;
-    //     }
-    // }
 
     private void RunCrafting()
     {
@@ -577,6 +443,11 @@ public partial class GameRunner(GameContext ctx)
     private void RunInventoryMenu()
     {
         Web.WebIO.ShowInventoryAndWait(ctx, ctx.Inventory, "INVENTORY");
+    }
+
+    private void RunDiscoveryLog()
+    {
+        Web.WebIO.ShowDiscoveryLogAndWait(ctx);
     }
 
     private void RunStorageMenu()

@@ -175,6 +175,9 @@ public static class ConsumptionHandler
 
         double eaten = inv.Pop(resource);
 
+        // Record food discovery
+        ctx.RecordFoodEaten(resource.ToString());
+
         return resource switch
         {
             Resource.CookedMeat => Eat(body, eaten, CookedMeatCaloriesPerKg, 0, "You eat the cooked meat."),
