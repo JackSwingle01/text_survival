@@ -5,7 +5,8 @@ using text_survival.Environments.Grid;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -134,7 +135,7 @@ public class TrailMarkingStrategy : IWorkStrategy
             _fullCut ? "Cut trail created" : "Trail marker created"
         };
 
-        WebIO.ShowWorkResult(ctx, _fullCut ? "Cutting Trail" : "Marking Trail", message, collected);
+        DesktopIO.ShowWorkResult(ctx, _fullCut ? "Cutting Trail" : "Marking Trail", message, collected);
 
         return new WorkResult(collected, null, actualTime, false);
     }

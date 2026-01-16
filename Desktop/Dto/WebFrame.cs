@@ -5,7 +5,7 @@ using text_survival.Crafting;
 using text_survival.Environments.Features;
 using text_survival.Items;
 
-namespace text_survival.Web.Dto;
+namespace text_survival.Desktop.Dto;
 
 public record WebFrame(
     GameStateDto State,

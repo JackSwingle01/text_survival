@@ -5,7 +5,8 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -111,7 +112,7 @@ public class CraftingProjectStrategy : IWorkStrategy
         }
 
         // Show results in popup overlay
-        WebIO.ShowWorkResult(ctx, "Construction", resultMessage, collected);
+        DesktopIO.ShowWorkResult(ctx, "Construction", resultMessage, collected);
 
         return new WorkResult(collected, null, actualTime, false);
     }

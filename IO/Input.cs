@@ -1,5 +1,6 @@
 using text_survival.Actions;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.IO
 {
@@ -10,7 +11,7 @@ namespace text_survival.IO
         /// </summary>
         public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices) where T : notnull
         {
-            return WebIO.Select(ctx, prompt, choices, c => c.ToString()!);
+            return DesktopIO.Select(ctx, prompt, choices, c => c.ToString()!);
         }
 
         /// <summary>
@@ -18,7 +19,7 @@ namespace text_survival.IO
         /// </summary>
         public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices, Func<T, bool> isDisabled) where T : notnull
         {
-            return WebIO.Select(ctx, prompt, choices, c => c.ToString()!, isDisabled);
+            return DesktopIO.Select(ctx, prompt, choices, c => c.ToString()!, isDisabled);
         }
 
         /// <summary>
@@ -26,7 +27,7 @@ namespace text_survival.IO
         /// </summary>
         public static bool Confirm(GameContext ctx, string prompt, bool defaultValue = true)
         {
-            return WebIO.Confirm(ctx, prompt);
+            return DesktopIO.Confirm(ctx, prompt);
         }
 
         /// <summary>
@@ -35,7 +36,7 @@ namespace text_survival.IO
         /// </summary>
         public static int ReadInt(GameContext ctx, string prompt, int min, int max, bool allowCancel = false)
         {
-            return WebIO.ReadInt(ctx, prompt, min, max, allowCancel);
+            return DesktopIO.ReadInt(ctx, prompt, min, max, allowCancel);
         }
     }
 }

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace text_survival.Web.Dto;
+namespace text_survival.Desktop.Dto;
 
 /// <summary>
 /// Base class for UI overlays. Multiple overlays can be active simultaneously.

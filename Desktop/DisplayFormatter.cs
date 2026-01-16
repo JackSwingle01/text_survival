@@ -1,6 +1,6 @@
-using text_survival.Web.Dto;
+using text_survival.Desktop.Dto;
 
-namespace text_survival.Web;
+namespace text_survival.Desktop;
 
 /// <summary>
 /// Centralized display formatting logic.

@@ -3,7 +3,8 @@ using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions;
 
@@ -163,7 +164,7 @@ public class WorkRunner(GameContext ctx)
                 int remainingAfterEvent = workMinutes - totalElapsed;
                 GameDisplay.Render(_ctx, statusText: "Interrupted");
 
-                if (!WebIO.Confirm(_ctx, $"Continue {activityName}? ({remainingAfterEvent} min remaining)"))
+                if (!DesktopIO.Confirm(_ctx, $"Continue {activityName}? ({remainingAfterEvent} min remaining)"))
                     break;
             }
         }
@@ -235,7 +236,7 @@ public class WorkRunner(GameContext ctx)
         GameDisplay.AddNarrative(ctx, $"You've found a path to {discovered.Name}.");
         GameDisplay.Render(ctx, statusText: "Discovery!");
 
-        return WebIO.Confirm(ctx, $"Go to {discovered.Name} now? (~{travelMinutes} min)");
+        return DesktopIO.Confirm(ctx, $"Go to {discovered.Name} now? (~{travelMinutes} min)");
     }
 
     /// <summary>

@@ -1,7 +1,8 @@
 using text_survival.IO;
 using text_survival.UI;
-using text_survival.Web;
-using text_survival.Web.Dto;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
+using text_survival.Desktop.Dto;
 
 namespace text_survival.Actions;
 
@@ -377,7 +378,7 @@ public static partial class GameEventRegistry
             GameDisplay.AddNarrative(ctx, evt.Description);
 
             // Phase 1: Show event with choices
-            // Use same ID generation as WebIO.Select to ensure frontend/backend match
+            // Use same ID generation as DesktopIO.Select to ensure frontend/backend match
             var eventDto = new EventDto(
                 evt.Name,
                 evt.Description,
@@ -385,7 +386,7 @@ public static partial class GameEventRegistry
                     .Select((c, i) => BuildChoiceDto(ctx, c, i))
                     .ToList()
             );
-            WebIO.RenderEvent(ctx, eventDto);
+            DesktopIO.RenderEvent(ctx, eventDto);
 
             var choice = evt.GetChoice(ctx);
             GameDisplay.AddNarrative(ctx, choice.Description + "\n");
@@ -400,11 +401,11 @@ public static partial class GameEventRegistry
                 [],
                 outcomeData
             );
-            WebIO.RenderEvent(ctx, outcomeDto);
-            WebIO.WaitForEventContinue(ctx);
+            DesktopIO.RenderEvent(ctx, outcomeDto);
+            DesktopIO.WaitForEventContinue(ctx);
 
             // Clear event overlay after user acknowledges
-            WebIO.ClearEvent(ctx);
+            DesktopIO.ClearEvent(ctx);
 
             // Queue encounter if needed
             if (outcome.SpawnEncounter != null)
@@ -453,7 +454,7 @@ public static partial class GameEventRegistry
         var hasResources = maxCost == null || HasSufficientResources(ctx.Inventory, maxCost);
 
         return new EventChoiceDto(
-            WebIO.GenerateSemanticId(choice.Label, index),
+            DesktopIO.GenerateSemanticId(choice.Label, index),
             choice.Label,
             choice.Description,
             hasResources,

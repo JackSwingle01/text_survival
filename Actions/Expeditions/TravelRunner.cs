@@ -4,7 +4,8 @@ using text_survival.Environments.Grid;
 using text_survival.IO;
 using text_survival.Persistence;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions;
 
@@ -40,7 +41,7 @@ public class TravelRunner(GameContext ctx)
                     // Completely blocked
                     message = "You can barely move at all. Your injuries prevent travel.";
                     buttons = new() { { "ok", "OK" } };
-                    WebIO.PromptConfirm(_ctx, message, buttons);
+                    DesktopIO.PromptConfirm(_ctx, message, buttons);
                     return; // Don't allow travel
                 }
                 else if (moving <= 0.3)
@@ -59,7 +60,7 @@ public class TravelRunner(GameContext ctx)
                 }
 
                 // If we get here, show warning and get confirmation
-                string response = WebIO.PromptConfirm(_ctx, message, buttons);
+                string response = DesktopIO.PromptConfirm(_ctx, message, buttons);
                 if (response != "proceed")
                 {
                     return; // User cancelled
@@ -202,7 +203,7 @@ public class TravelRunner(GameContext ctx)
             // Combine hazard descriptions if both are hazardous with different types
             string hazardType = GetCombinedHazardDescription(origin, destination, originHazardous, destHazardous);
 
-            bool quickTravel = WebIO.PromptHazardChoice(
+            bool quickTravel = DesktopIO.PromptHazardChoice(
                 _ctx,
                 destination,
                 position.X,
@@ -274,7 +275,7 @@ public class TravelRunner(GameContext ctx)
         // Only if FirstVisitEvent didn't already handle it
         if (firstVisit && !string.IsNullOrEmpty(destination.DiscoveryText) && destination.FirstVisitEvent == null)
         {
-            WebIO.ShowDiscovery(_ctx, destination.Name, destination.DiscoveryText);
+            DesktopIO.ShowDiscovery(_ctx, destination.Name, destination.DiscoveryText);
         }
         else
         {
@@ -358,7 +359,7 @@ public class TravelRunner(GameContext ctx)
         {
             GameDisplay.Render(_ctx, statusText: "Interrupted");
 
-            if (!WebIO.Confirm(_ctx, $"Continue traveling to {destination.Name}?"))
+            if (!DesktopIO.Confirm(_ctx, $"Continue traveling to {destination.Name}?"))
             {
                 // Player chose to stay at origin - don't move
                 return (false, true);
@@ -374,7 +375,7 @@ public class TravelRunner(GameContext ctx)
 
         // Send combined frame for synchronized animation
         // Grid state shows destination, origin position enables camera pan from start
-        WebIO.RenderTravelProgress(_ctx, "Traveling...", totalTime, originPos.X, originPos.Y);
+        DesktopIO.RenderTravelProgress(_ctx, "Traveling...", totalTime, originPos.X, originPos.Y);
 
         return (PlayerDied, false);
     }

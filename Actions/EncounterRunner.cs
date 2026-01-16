@@ -2,8 +2,9 @@ using text_survival.Actors.Animals;
 using text_survival.Combat;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
-using text_survival.Web;
-using text_survival.Web.Dto;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
+using text_survival.Desktop.Dto;
 
 namespace text_survival.Actions.Expeditions;
 
@@ -72,7 +73,7 @@ public static class EncounterRunner
             var encounterDto = BuildEncounterDto(ctx, predator, prevDistance, statusMessage);
 
             // Get player choice
-            string action = WebIO.WaitForEncounterChoice(ctx, encounterDto);
+            string action = DesktopIO.WaitForEncounterChoice(ctx, encounterDto);
 
             // Save distance for next animation
             prevDistance = predator.DistanceFromPlayer;
@@ -88,8 +89,8 @@ public static class EncounterRunner
                         // Show retreat outcome
                         var retreatDto = BuildEncounterDto(ctx, predator, prevDistance, null,
                             new EncounterOutcomeDto("retreated", $"The {predator.Name} hesitates... then slinks away."));
-                        WebIO.RenderEncounter(ctx, retreatDto);
-                        WebIO.WaitForEncounterContinue(ctx);
+                        DesktopIO.RenderEncounter(ctx, retreatDto);
+                        DesktopIO.WaitForEncounterContinue(ctx);
                         return EncounterOutcome.PredatorRetreated;
                     }
                     statusMessage = $"The {predator.Name} moves closer, but seems less certain.";
@@ -109,8 +110,8 @@ public static class EncounterRunner
                     {
                         var escapeDto = BuildEncounterDto(ctx, predator, prevDistance, null,
                             new EncounterOutcomeDto("escaped", narrative));
-                        WebIO.RenderEncounter(ctx, escapeDto);
-                        WebIO.WaitForEncounterContinue(ctx);
+                        DesktopIO.RenderEncounter(ctx, escapeDto);
+                        DesktopIO.WaitForEncounterContinue(ctx);
                         return EncounterOutcome.PlayerEscaped;
                     }
 
@@ -118,18 +119,18 @@ public static class EncounterRunner
                     predator.DistanceFromPlayer = CaughtDistanceMeters;
                     var caughtDto = BuildEncounterDto(ctx, predator, prevDistance, null,
                         new EncounterOutcomeDto("fight", narrative + " It catches you!"));
-                    WebIO.RenderEncounter(ctx, caughtDto);
-                    WebIO.WaitForEncounterContinue(ctx);
-                    WebIO.ClearEncounter(ctx);
+                    DesktopIO.RenderEncounter(ctx, caughtDto);
+                    DesktopIO.WaitForEncounterContinue(ctx);
+                    DesktopIO.ClearEncounter(ctx);
 
                     return TransitionToCombat(ctx, predator);
 
                 case "fight":
                     var fightDto = BuildEncounterDto(ctx, predator, prevDistance, null,
                         new EncounterOutcomeDto("fight", "You ready yourself for combat."));
-                    WebIO.RenderEncounter(ctx, fightDto);
-                    WebIO.WaitForEncounterContinue(ctx);
-                    WebIO.ClearEncounter(ctx);
+                    DesktopIO.RenderEncounter(ctx, fightDto);
+                    DesktopIO.WaitForEncounterContinue(ctx);
+                    DesktopIO.ClearEncounter(ctx);
 
                     return TransitionToCombat(ctx, predator);
 
@@ -138,8 +139,8 @@ public static class EncounterRunner
                     var meatDto = BuildEncounterDto(ctx, predator, prevDistance, null,
                         new EncounterOutcomeDto("escaped",
                             $"You drop {meatDropped:F1}kg of meat and back away. The {predator.Name} goes for the meat."));
-                    WebIO.RenderEncounter(ctx, meatDto);
-                    WebIO.WaitForEncounterContinue(ctx);
+                    DesktopIO.RenderEncounter(ctx, meatDto);
+                    DesktopIO.WaitForEncounterContinue(ctx);
                     return EncounterOutcome.PlayerEscaped;
 
                 default:
@@ -159,9 +160,9 @@ public static class EncounterRunner
             {
                 var chargeDto = BuildEncounterDto(ctx, predator, prevDistance, null,
                     new EncounterOutcomeDto("fight", $"The {predator.Name} charges!"));
-                WebIO.RenderEncounter(ctx, chargeDto);
-                WebIO.WaitForEncounterContinue(ctx);
-                WebIO.ClearEncounter(ctx);
+                DesktopIO.RenderEncounter(ctx, chargeDto);
+                DesktopIO.WaitForEncounterContinue(ctx);
+                DesktopIO.ClearEncounter(ctx);
 
                 return TransitionToCombat(ctx, predator);
             }
@@ -169,7 +170,7 @@ public static class EncounterRunner
             ctx.Update(1, ActivityType.Encounter); // 1 minute per turn
         }
 
-        WebIO.ClearEncounter(ctx);
+        DesktopIO.ClearEncounter(ctx);
         return ctx.player.IsAlive ? EncounterOutcome.PredatorRetreated : EncounterOutcome.PlayerDied;
     }
 

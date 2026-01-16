@@ -4,8 +4,9 @@ using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 using text_survival.Items;
-using text_survival.Web;
-using text_survival.Web.Dto;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
+using text_survival.Desktop.Dto;
 
 namespace text_survival.Combat;
 
@@ -29,15 +30,15 @@ public static class CombatOrchestrator
         // Show intro
         var introDto = BuildCombatDto(ctx, scenario, playerUnit, CombatPhase.Intro,
             narrative: $"A {enemy.Name.ToLower()} attacks!");
-        WebIO.RenderCombat(ctx, introDto);
-        WebIO.WaitForCombatContinue(ctx);
+        DesktopIO.RenderCombat(ctx, introDto);
+        DesktopIO.WaitForCombatContinue(ctx);
 
         // === MAIN LOOP ===
         while (!scenario.IsOver)
         {
             // 1. Player choice
             var choiceDto = BuildCombatDto(ctx, scenario, playerUnit, CombatPhase.PlayerChoice);
-            string choice = WebIO.WaitForCombatChoice(ctx, choiceDto);
+            string choice = DesktopIO.WaitForCombatChoice(ctx, choiceDto);
 
             // 2. Execute player action
             var narrative = ExecutePlayerChoice(scenario, playerUnit, choice);
@@ -47,8 +48,8 @@ public static class CombatOrchestrator
             {
                 var actionDto = BuildCombatDto(ctx, scenario, playerUnit, CombatPhase.PlayerAction,
                     narrative: narrative);
-                WebIO.RenderCombat(ctx, actionDto);
-                WebIO.WaitForCombatContinue(ctx);
+                DesktopIO.RenderCombat(ctx, actionDto);
+                DesktopIO.WaitForCombatContinue(ctx);
             }
 
             if (scenario.IsOver) break;
@@ -63,8 +64,8 @@ public static class CombatOrchestrator
                         narrative: aiNarrative);
                     // Set auto-advance so frontend responds after 1 second
                     aiDto = aiDto with { AutoAdvanceMs = 1000 };
-                    WebIO.RenderCombat(ctx, aiDto);
-                    WebIO.WaitForCombatContinue(ctx);
+                    DesktopIO.RenderCombat(ctx, aiDto);
+                    DesktopIO.WaitForCombatContinue(ctx);
                 }
                 if (scenario.IsOver) break;
             }
@@ -73,9 +74,9 @@ public static class CombatOrchestrator
         // === CLEANUP ===
         var result = DetermineResult(scenario, playerUnit);
         var outcomeDto = BuildOutcomeDto(ctx, scenario, playerUnit, result);
-        WebIO.RenderCombat(ctx, outcomeDto);
-        WebIO.WaitForCombatContinue(ctx);
-        WebIO.ClearCombat(ctx);  // Clear combat mode - return to travel mode
+        DesktopIO.RenderCombat(ctx, outcomeDto);
+        DesktopIO.WaitForCombatContinue(ctx);
+        DesktopIO.ClearCombat(ctx);  // Clear combat mode - return to travel mode
 
         HandlePostCombat(ctx, scenario, result);
         return result;

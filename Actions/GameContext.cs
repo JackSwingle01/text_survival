@@ -390,7 +390,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         // Show weather change popup
         if (Weather.WeatherJustChanged && SessionId != null)
         {
-            Web.WebIO.ShowWeatherChange(this);
+            Desktop.DesktopIO.ShowWeatherChange(this);
         }
 
         if (Map != null)
@@ -457,7 +457,7 @@ public class GameContext(Player player, Location camp, Weather weather)
             {
                 body.IsDiscovered = true;
                 string text = $"{body.NPCName} collapses. {body.DeathCause}";
-                Web.WebIO.ShowDiscovery(this, body.NPCName, text);
+                Desktop.DesktopIO.ShowDiscovery(this, body.NPCName, text);
             }
             // Otherwise, they'll discover it when they return to this tile
         }
@@ -469,7 +469,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         {
             undiscoveredBody.IsDiscovered = true;
             string text = undiscoveredBody.DeathDiscoveryText();
-            Web.WebIO.ShowDiscovery(this, undiscoveredBody.NPCName, text);
+            Desktop.DesktopIO.ShowDiscovery(this, undiscoveredBody.NPCName, text);
         }
 
         // DeadlyCold auto-resolves when player reaches fire

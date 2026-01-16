@@ -9,8 +9,9 @@ using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web;
-using text_survival.Web.Dto;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
+using text_survival.Desktop.Dto;
 
 namespace text_survival.Actions;
 
@@ -124,7 +125,7 @@ public static class HuntRunner
         while (state.IsActive)
         {
             var huntDto = BuildHuntDto(state);
-            string choiceId = WebIO.WaitForHuntChoice(ctx, huntDto);
+            string choiceId = DesktopIO.WaitForHuntChoice(ctx, huntDto);
 
             // Clear animation flag after first frame
             state.JustApproached = false;
@@ -136,11 +137,11 @@ public static class HuntRunner
                 // Show transition message
                 state.StatusMessage = $"The {target.Name} attacks!";
                 var transitionDto = BuildHuntDto(state);
-                WebIO.RenderHunt(ctx, transitionDto);
+                DesktopIO.RenderHunt(ctx, transitionDto);
 
                 // Hand off to combat orchestrator
                 var combatResult = CombatOrchestrator.RunCombat(ctx, target);
-                WebIO.ClearHunt(ctx);
+                DesktopIO.ClearHunt(ctx);
 
                 return TranslateCombatResult(combatResult, state.MinutesSpent);
             }
@@ -149,7 +150,7 @@ public static class HuntRunner
             {
                 // Show outcome overlay
                 ShowHuntOutcome(state, result);
-                WebIO.ClearHunt(ctx);
+                DesktopIO.ClearHunt(ctx);
 
                 // Record successful hunt if applicable
                 if (result.Outcome == HuntOutcome.Success)
@@ -166,7 +167,7 @@ public static class HuntRunner
         }
 
         // Hunt ended due to state becoming invalid
-        WebIO.ClearHunt(ctx);
+        DesktopIO.ClearHunt(ctx);
 
         if (!ctx.player.IsAlive)
             return (HuntOutcome.PlayerDied, state.MinutesSpent);
@@ -210,8 +211,8 @@ public static class HuntRunner
             Outcome: null
         );
 
-        string choiceId = WebIO.WaitForHuntChoice(ctx, huntDto);
-        WebIO.ClearHunt(ctx);
+        string choiceId = DesktopIO.WaitForHuntChoice(ctx, huntDto);
+        DesktopIO.ClearHunt(ctx);
 
         return choiceId == "stalk";
     }
@@ -634,8 +635,8 @@ public static class HuntRunner
             Outcome: outcome
         );
 
-        WebIO.RenderHunt(ctx, huntDto);
-        WebIO.WaitForHuntContinue(ctx);
+        DesktopIO.RenderHunt(ctx, huntDto);
+        DesktopIO.WaitForHuntContinue(ctx);
     }
 
     /// <summary>

@@ -5,7 +5,8 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -84,7 +85,7 @@ public class SalvageStrategy : IWorkStrategy
             // Present moral choice
             GameDisplay.Render(ctx, statusText: "Deciding.");
 
-            if (!WebIO.Confirm(ctx, "Take their belongings?"))
+            if (!DesktopIO.Confirm(ctx, "Take their belongings?"))
             {
                 GameDisplay.AddNarrative(ctx, "You leave everything as you found it.");
                 return new WorkResult([], null, actualTime, false);
@@ -96,7 +97,7 @@ public class SalvageStrategy : IWorkStrategy
 
         if (loot.IsEmpty)
         {
-            WebIO.ShowWorkResult(ctx, "Salvaging", "You find nothing useful.", []);
+            DesktopIO.ShowWorkResult(ctx, "Salvaging", "You find nothing useful.", []);
             return new WorkResult([], null, actualTime, false);
         }
 
@@ -124,7 +125,7 @@ public class SalvageStrategy : IWorkStrategy
         }
 
         // Show results in popup overlay
-        WebIO.ShowWorkResult(ctx, "Salvaging", "You gather what you can find.", collected);
+        DesktopIO.ShowWorkResult(ctx, "Salvaging", "You gather what you can find.", collected);
 
         return new WorkResult(collected, null, actualTime, false);
     }

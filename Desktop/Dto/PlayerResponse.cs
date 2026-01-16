@@ -1,4 +1,4 @@
-namespace text_survival.Web.Dto;
+namespace text_survival.Desktop.Dto;
 
 /// <summary>
 /// Response from client to server via WebSocket.

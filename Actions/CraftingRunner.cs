@@ -4,7 +4,8 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions;
 
@@ -41,7 +42,7 @@ public class CraftingRunner(GameContext ctx)
         // {
         //     GameDisplay.AddNarrative(_ctx, "You don't have materials to make anything.");
         //     GameDisplay.Render(_ctx, statusText: "Thinking.");
-        //     Web.WebIO.ClearCrafting(_ctx);
+        //     Desktop.DesktopIO.ClearCrafting(_ctx);
         //     return;
         // }
 
@@ -59,7 +60,7 @@ public class CraftingRunner(GameContext ctx)
 
         var selected = choice.GetPlayerChoice(_ctx);
 
-        Web.WebIO.ClearCrafting(_ctx);
+        Desktop.DesktopIO.ClearCrafting(_ctx);
 
         if (selected == null)
             return;
@@ -88,7 +89,7 @@ public class CraftingRunner(GameContext ctx)
         GameDisplay.AddNarrative(_ctx, $"You could make {GetNeedDescription(need)}. Craft one now?");
         GameDisplay.Render(_ctx, statusText: "Thinking.");
 
-        if (!WebIO.Confirm(_ctx, "Craft now?"))
+        if (!DesktopIO.Confirm(_ctx, "Craft now?"))
             return false;
 
         // Show crafting screen for this category
@@ -96,7 +97,7 @@ public class CraftingRunner(GameContext ctx)
 
         var result = ShowOptionsForNeed(need);
 
-        Web.WebIO.ClearCrafting(_ctx);
+        Desktop.DesktopIO.ClearCrafting(_ctx);
         return result;
     }
 

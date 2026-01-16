@@ -5,7 +5,8 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -214,7 +215,7 @@ public class TrapStrategy : IWorkStrategy
         var collected = new List<string> { $"Set {_selectedSnare.Name}" };
 
         // Show results in popup overlay
-        WebIO.ShowWorkResult(ctx, "Setting Trap", resultMessage, collected);
+        DesktopIO.ShowWorkResult(ctx, "Setting Trap", resultMessage, collected);
 
         return new WorkResult(collected, null, actualTime, false);
     }
@@ -282,7 +283,7 @@ public class TrapStrategy : IWorkStrategy
             resultMessage = "A snare caught your hand! " + resultMessage;
 
         // Show results in popup overlay
-        WebIO.ShowWorkResult(ctx, "Checking Traps", resultMessage, collected);
+        DesktopIO.ShowWorkResult(ctx, "Checking Traps", resultMessage, collected);
 
         return new WorkResult(collected, null, actualTime, false);
     }

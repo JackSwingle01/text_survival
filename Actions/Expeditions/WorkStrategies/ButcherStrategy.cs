@@ -6,8 +6,9 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web;
-using text_survival.Web.Dto;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
+using text_survival.Desktop.Dto;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -96,7 +97,7 @@ public class ButcherStrategy : IWorkStrategy
         );
 
         // Show overlay and get selection
-        var selectedModeId = WebIO.SelectButcherOptions(ctx, butcherDto);
+        var selectedModeId = DesktopIO.SelectButcherOptions(ctx, butcherDto);
 
         if (selectedModeId == null)
         {
@@ -249,7 +250,7 @@ public class ButcherStrategy : IWorkStrategy
         }
 
         // Show results in popup overlay
-        WebIO.ShowWorkResult(ctx, "Butchering", resultMessage, collected);
+        DesktopIO.ShowWorkResult(ctx, "Butchering", resultMessage, collected);
 
         return new WorkResult(collected, null, actualTime, false);
     }

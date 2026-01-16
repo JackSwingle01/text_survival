@@ -1,6 +1,6 @@
 using text_survival.Items;
 
-namespace text_survival.Web.Dto;
+namespace text_survival.Desktop.Dto;
 
 /// <summary>
 /// Single source of truth for computing gear summary from inventory.

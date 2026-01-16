@@ -6,9 +6,9 @@ using text_survival.Environments.Features;
 using text_survival.Survival;
 using text_survival.Actors;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
 
-namespace text_survival.Web.Dto;
+namespace text_survival.Desktop.Dto;
 
 public record GameStateDto
 {

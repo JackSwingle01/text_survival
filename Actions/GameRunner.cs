@@ -8,7 +8,8 @@ using text_survival.Actions.Handlers;
 using text_survival.Persistence;
 using text_survival.UI;
 using text_survival.Environments;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions;
 
@@ -315,7 +316,7 @@ public partial class GameRunner(GameContext ctx)
         {
             message = "You can barely move at all. Your injuries prevent travel.";
             buttons = new() { { "ok", "OK" } };
-            WebIO.PromptConfirm(ctx, message, buttons);
+            DesktopIO.PromptConfirm(ctx, message, buttons);
             return false; // Blocked
         }
         else if (movingCapacity <= 0.3)
@@ -331,7 +332,7 @@ public partial class GameRunner(GameContext ctx)
             buttons = new() { { "proceed", "Proceed" }, { "cancel", "Cancel" } };
         }
 
-        return WebIO.PromptConfirm(ctx, message, buttons) == "proceed";
+        return DesktopIO.PromptConfirm(ctx, message, buttons) == "proceed";
     }
 
     private void TendFire() => FireHandler.ManageFire(ctx);
@@ -442,24 +443,24 @@ public partial class GameRunner(GameContext ctx)
 
     private void RunInventoryMenu()
     {
-        Web.WebIO.ShowInventoryAndWait(ctx, ctx.Inventory, "INVENTORY");
+        Desktop.DesktopIO.ShowInventoryAndWait(ctx, ctx.Inventory, "INVENTORY");
     }
 
     private void RunDiscoveryLog()
     {
-        Web.WebIO.ShowDiscoveryLogAndWait(ctx);
+        Desktop.DesktopIO.ShowDiscoveryLogAndWait(ctx);
     }
 
     private void RunStorageMenu()
     {
         var storage = ctx.Camp.GetFeature<CacheFeature>()!;
         // Start with storage view instead of player inventory
-        Web.WebIO.RunTransferUI(ctx, storage.Storage, "CAMP STORAGE");
+        Desktop.DesktopIO.RunTransferUI(ctx, storage.Storage, "CAMP STORAGE");
     }
 
     private void EatDrink()
     {
-        WebIO.RunEatingUI(ctx);
+        DesktopIO.RunEatingUI(ctx);
     }
 
     private void CookMelt() => CookingHandler.CookMelt(ctx);

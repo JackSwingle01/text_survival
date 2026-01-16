@@ -3,9 +3,9 @@ using text_survival.Actors.Animals;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Environments.Features;
-using text_survival.Web;
+using text_survival.Desktop;
 
-namespace text_survival.Web.Dto;
+namespace text_survival.Desktop.Dto;
 
 /// <summary>
 /// Complete grid state for rendering the tile map.

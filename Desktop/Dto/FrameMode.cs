@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace text_survival.Web.Dto;
+namespace text_survival.Desktop.Dto;
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(TravelMode), "travel")]

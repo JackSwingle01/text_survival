@@ -9,7 +9,7 @@ namespace text_survival.UI;
 
 public static class GameDisplay
 {
-    #region Context-aware overloads (route to WebIO when SessionId present)
+    #region Context-aware overloads (route to DesktopIO when SessionId present)
 
     /// <summary>
     /// Add narrative with context - routes to instance log for web sessions.
@@ -57,7 +57,7 @@ public static class GameDisplay
     {
         if (addSeparator)
             ctx.Log.AddSeparator();
-        Web.WebIO.Render(ctx, statusText);
+        Desktop.DesktopIO.Render(ctx, statusText);
         return;
     }
 
@@ -74,7 +74,7 @@ public static class GameDisplay
         // User's attention was on the event, not watching work progress.
         if (!ctx.LastEventAborted)
         {
-            Web.WebIO.RenderWithDuration(ctx, statusText, elapsed);
+            Desktop.DesktopIO.RenderWithDuration(ctx, statusText, elapsed);
         }
 
         return (elapsed, ctx.EventOccurredLastUpdate);
@@ -91,7 +91,7 @@ public static class GameDisplay
         // Route to web UI when session is active
         if (ctx.SessionId != null)
         {
-            Web.WebIO.RenderInventory(ctx, inv, headerTitle);
+            Desktop.DesktopIO.RenderInventory(ctx, inv, headerTitle);
             return;
         }
     }
@@ -103,7 +103,7 @@ public static class GameDisplay
     {
         var headerTitle = title ?? "CRAFTING";
 
-        Web.WebIO.RenderCrafting(ctx, crafting, headerTitle);
+        Desktop.DesktopIO.RenderCrafting(ctx, crafting, headerTitle);
         return;
 
     }
