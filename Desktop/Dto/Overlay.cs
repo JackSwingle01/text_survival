@@ -13,12 +13,10 @@ namespace text_survival.Desktop.Dto;
 [JsonDerivedType(typeof(HazardOverlay), "hazard")]
 [JsonDerivedType(typeof(ConfirmOverlay), "confirm")]
 [JsonDerivedType(typeof(ForageOverlay), "forage")]
-[JsonDerivedType(typeof(DeathScreenOverlay), "deathScreen")]
 [JsonDerivedType(typeof(HuntOverlay), "hunt")]
 [JsonDerivedType(typeof(TransferOverlay), "transfer")]
 [JsonDerivedType(typeof(FireOverlay), "fire")]
 [JsonDerivedType(typeof(CookingOverlay), "cooking")]
-[JsonDerivedType(typeof(ButcherOverlay), "butcher")]
 [JsonDerivedType(typeof(EncounterOverlay), "encounter")]
 [JsonDerivedType(typeof(CombatOverlay), "combat")]
 [JsonDerivedType(typeof(EatingOverlay), "eating")]
@@ -277,50 +275,6 @@ public record HuntOutcomeDto(
     List<string> ItemsGained,
     List<string> EffectsApplied,
     bool TransitionToCombat
-);
-
-/// <summary>
-/// Death screen overlay: Game over popup with restart option.
-/// </summary>
-public record DeathScreenOverlay(DeathScreenDto Data) : Overlay;
-
-/// <summary>
-/// Data for the death screen overlay.
-/// </summary>
-public record DeathScreenDto(
-    string CauseOfDeath,
-    string TimeSurvived,
-    double FinalVitality,
-    double FinalCalories,
-    double FinalHydration,
-    double FinalTemperature
-);
-
-/// <summary>
-/// Butcher overlay: Popup for butchering with mode and time selection.
-/// </summary>
-public record ButcherOverlay(ButcherDto Data) : Overlay;
-
-/// <summary>
-/// Data for the butcher overlay popup.
-/// </summary>
-public record ButcherDto(
-    string AnimalName,
-    string DecayStatus,
-    double RemainingKg,
-    bool IsFrozen,
-    List<ButcherModeDto> ModeOptions,
-    List<string> Warnings
-);
-
-/// <summary>
-/// A butchering mode option in the butcher overlay.
-/// </summary>
-public record ButcherModeDto(
-    string Id,
-    string Label,
-    string Description,
-    int EstimatedMinutes
 );
 
 // ============================================

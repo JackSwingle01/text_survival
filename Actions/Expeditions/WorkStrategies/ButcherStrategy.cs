@@ -8,7 +8,6 @@ using text_survival.Items;
 using text_survival.UI;
 using text_survival.Desktop;
 using DesktopIO = text_survival.Desktop.DesktopIO;
-using text_survival.Desktop.Dto;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -64,40 +63,8 @@ public class ButcherStrategy : IWorkStrategy
             warnings.Add("The carcass is frozen solid. This will take longer.");
         }
 
-        // Build mode options
-        var modeOptions = new List<ButcherModeDto>
-        {
-            new(
-                "quick",
-                "Quick Strip",
-                "Fast, meat-focused, messy - more scent",
-                _carcass.GetRemainingMinutes(ButcheringMode.QuickStrip)
-            ),
-            new(
-                "careful",
-                "Careful",
-                "Full yields - meat, hide, bone, sinew, fat",
-                _carcass.GetRemainingMinutes(ButcheringMode.Careful)
-            ),
-            new(
-                "full",
-                "Full Processing",
-                "+10% meat/fat, +20% sinew, less mess",
-                _carcass.GetRemainingMinutes(ButcheringMode.FullProcessing)
-            )
-        };
-
-        var butcherDto = new ButcherDto(
-            AnimalName: _carcass.AnimalName,
-            DecayStatus: _carcass.GetDecayDescription(),
-            RemainingKg: _carcass.GetTotalRemainingKg(),
-            IsFrozen: _carcass.IsFrozen,
-            ModeOptions: modeOptions,
-            Warnings: warnings
-        );
-
-        // Show overlay and get selection
-        var selectedModeId = DesktopIO.SelectButcherOptions(ctx, butcherDto);
+        // Show overlay and get selection - pass carcass directly
+        var selectedModeId = DesktopIO.SelectButcherOptions(ctx, _carcass, warnings);
 
         if (selectedModeId == null)
         {

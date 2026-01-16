@@ -802,22 +802,35 @@ public static class DesktopIO
     }
 
     // Butcher methods
-    public static string? SelectButcherOptions(GameContext ctx, ButcherDto butcherData)
+    public static string? SelectButcherOptions(GameContext ctx, CarcassFeature carcass, List<string>? warnings = null)
     {
         var choices = new List<(string id, string label)>
         {
             ("cancel", "Cancel")
         };
 
-        foreach (var mode in butcherData.ModeOptions)
+        // Build mode options from carcass
+        var modes = new[]
         {
-            string timeStr = mode.EstimatedMinutes > 0 ? $" ({mode.EstimatedMinutes}min)" : "";
-            choices.Add((mode.Id, $"{mode.Label}{timeStr}"));
+            ("quick", "Quick Strip", carcass.GetRemainingMinutes(ButcheringMode.QuickStrip)),
+            ("careful", "Careful", carcass.GetRemainingMinutes(ButcheringMode.Careful)),
+            ("full", "Full Processing", carcass.GetRemainingMinutes(ButcheringMode.FullProcessing))
+        };
+
+        foreach (var (id, label, minutes) in modes)
+        {
+            string timeStr = minutes > 0 ? $" ({minutes}min)" : "";
+            choices.Add((id, $"{label}{timeStr}"));
         }
 
-        string description = $"Butcher: {butcherData.AnimalName}\n" +
-            $"Condition: {butcherData.DecayStatus}\n" +
-            $"Remaining: {butcherData.RemainingKg:F1}kg";
+        string description = $"Butcher: {carcass.AnimalName}\n" +
+            $"Condition: {carcass.GetDecayDescription()}\n" +
+            $"Remaining: {carcass.GetTotalRemainingKg():F1}kg";
+
+        if (warnings != null && warnings.Count > 0)
+        {
+            description += "\n\n" + string.Join("\n", warnings);
+        }
 
         var selection = BlockingDialog.Select(ctx, description, choices, c => c.label);
 
@@ -833,18 +846,6 @@ public static class DesktopIO
             fullMessage += "\n\nGained:\n" + string.Join("\n", itemsGained.Select(i => $"  - {i}"));
         }
         BlockingDialog.ShowMessageAndWait(ctx, activityName, fullMessage);
-    }
-
-    // Death screen
-    public static void ShowDeathScreen(GameContext ctx, DeathScreenDto data)
-    {
-        string deathMessage = $"You have died.\n\n" +
-            $"Cause: {data.CauseOfDeath}\n" +
-            $"Time Survived: {data.TimeSurvived}\n" +
-            $"Final Vitality: {data.FinalVitality:P0}\n" +
-            $"Final Calories: {data.FinalCalories:F0}\n" +
-            $"Final Temperature: {data.FinalTemperature:F1}°C";
-        BlockingDialog.ShowMessageAndWait(ctx, "DEATH", deathMessage);
     }
 
     // Complex UI loops - blocking versions that handle their own result processing
