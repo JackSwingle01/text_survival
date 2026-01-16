@@ -144,14 +144,99 @@ public static class DesktopIO
     }
 
     // Encounter methods
+
+    // Persistent encounter overlay for the encounter sequence
+    private static EncounterOverlay? _encounterOverlay;
+
+    /// <summary>
+    /// Render encounter state (non-blocking, for intermediate states).
+    /// </summary>
     public static void RenderEncounter(GameContext ctx, EncounterDto encounterData)
-        => throw new NotImplementedException("Desktop encounter UI not yet implemented");
+    {
+        _encounterOverlay ??= new EncounterOverlay();
+        _encounterOverlay.Open(encounterData);
 
+        // Single frame render
+        Raylib.BeginDrawing();
+        Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+        DesktopRuntime.WorldRenderer?.Update(ctx, Raylib.GetFrameTime());
+        DesktopRuntime.WorldRenderer?.Render(ctx);
+
+        Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+            new Color(0, 0, 0, 128));
+
+        rlImGui.Begin();
+        _encounterOverlay.Render(ctx, Raylib.GetFrameTime());
+        rlImGui.End();
+
+        Raylib.EndDrawing();
+    }
+
+    /// <summary>
+    /// Show encounter UI and block until player makes a choice.
+    /// </summary>
     public static string WaitForEncounterChoice(GameContext ctx, EncounterDto encounterData)
-        => throw new NotImplementedException("Desktop encounter UI not yet implemented");
+    {
+        _encounterOverlay ??= new EncounterOverlay();
+        _encounterOverlay.Open(encounterData);
 
+        string? choice = null;
+
+        while (choice == null && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+            choice = _encounterOverlay.Render(ctx, deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+
+        return choice ?? "run";
+    }
+
+    /// <summary>
+    /// Wait for player to dismiss encounter outcome screen.
+    /// </summary>
     public static void WaitForEncounterContinue(GameContext ctx)
-        => throw new NotImplementedException("Desktop encounter UI not yet implemented");
+    {
+        if (_encounterOverlay == null || !_encounterOverlay.IsOpen) return;
+
+        string? choice = null;
+
+        while (choice != "continue" && _encounterOverlay.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+            choice = _encounterOverlay.Render(ctx, deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+
+        _encounterOverlay.Close();
+    }
 
     // Combat methods
     public static void RenderCombat(GameContext ctx, CombatDto combatData)
