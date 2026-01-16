@@ -7,12 +7,21 @@ Migrate from WebSocket-based web UI to native desktop using Raylib (rendering/in
 **Current state:** ~11,500 lines of web infrastructure (WebIO, DTOs, frontend JS)
 **Target state:** ~1,500-2,000 lines of desktop rendering code
 
+**Key Decisions:**
+- **Single-threaded** — Game logic and rendering on main thread (no background threads)
+- **Clean break** — Delete all web infrastructure in Phase 1, not after migration
+- **No dual mode** — Desktop only, git rollback if needed
+
 ---
 
 ## Architecture Comparison
 
 ### Current (Web)
 ```
+Main Thread: ASP.NET Core HTTP/WebSocket handling
+Game Thread: Task.Run(() => RunGame()) - blocking game logic
+Receive Thread: WebSocket receive loop
+
 GameRunner/Handlers
     ↓
 Input.cs / GameDisplay.cs (thin abstractions)
@@ -28,6 +37,8 @@ JavaScript frontend (4,700 lines)
 
 ### Target (Desktop)
 ```
+Single Thread: Raylib game loop (input → update → render)
+
 GameRunner/Handlers
     ↓
 Input.cs / GameDisplay.cs (same abstractions, new implementation)
@@ -39,6 +50,11 @@ Game loop renders directly from GameContext
 Raylib (window, input, world rendering)
 ImGui.NET (overlay UI)
 ```
+
+The single-threaded model works because:
+- Game is turn-based (no real-time simulation while waiting)
+- Raylib provides the game loop via `while (!WindowShouldClose())`
+- "Blocking" I/O becomes ImGui waiting for button clicks within the render loop
 
 ---
 
@@ -55,9 +71,10 @@ All game logic:
 
 ---
 
-## What Goes (Delete)
+## What Goes (Delete in Phase 1)
 
-After migration complete:
+Delete immediately at start of migration (no dual-mode period):
+
 - `Web/` directory entirely
   - `WebIO.cs` (1,787 lines)
   - `WebServer.cs`
@@ -65,7 +82,9 @@ After migration complete:
   - `SessionRegistry.cs`
 - `Web/Dto/` directory entirely (~5,300 lines)
 - `wwwroot/` directory entirely (~4,700 lines JS)
-- WebSocket dependencies
+- ASP.NET Core dependencies from `.csproj`
+
+**Rationale:** Clean break avoids confusion. Git provides rollback if needed. No point maintaining two UIs.
 
 ---
 
@@ -102,54 +121,112 @@ Desktop/
 
 ## Migration Phases
 
-### Phase 1: Project Setup (Day 1)
+### Phase 1: Project Setup & Web Removal
 
-**Goal:** Raylib window showing a colored rectangle, ImGui showing "Hello World"
+**Goal:** Raylib window running, web infrastructure deleted, project compiles
 
-1. Create new project or add to existing solution:
-   ```bash
-   dotnet add package Raylib-cs
-   dotnet add package ImGui.NET
-   dotnet add package rlImGui-cs  # Raylib-ImGui bridge
-   ```
+#### 1a. Delete Web Infrastructure
 
-2. Create minimal `Program.cs`:
-   ```csharp
-   using Raylib_cs;
-   using rlImGuiCs;
-   using ImGuiNET;
+Remove all web-related code immediately:
 
-   Raylib.InitWindow(1280, 720, "Text Survival");
-   Raylib.SetTargetFPS(60);
-   rlImGui.Setup(true);
+```bash
+# Delete directories
+rm -rf Web/
+rm -rf wwwroot/
 
-   while (!Raylib.WindowShouldClose())
-   {
-       Raylib.BeginDrawing();
-       Raylib.ClearBackground(Color.DarkGray);
+# These will cause compile errors - that's expected
+```
 
-       // Test world rendering
-       Raylib.DrawRectangle(100, 100, 50, 50, Color.Green);
+Update `.csproj` to remove ASP.NET:
+```xml
+<!-- REMOVE these lines -->
+<ItemGroup>
+  <FrameworkReference Include="Microsoft.AspNetCore.App" />
+</ItemGroup>
 
-       // Test ImGui
-       rlImGui.Begin();
-       ImGui.Begin("Test Panel");
-       ImGui.Text("Hello from ImGui!");
-       if (ImGui.Button("Click me"))
-           Console.WriteLine("Clicked!");
-       ImGui.End();
-       rlImGui.End();
+<!-- ADD these lines -->
+<PackageReference Include="Raylib-cs" Version="6.0.0" />
+<PackageReference Include="ImGui.NET" Version="1.90.1.1" />
+<PackageReference Include="rlImGui-cs" Version="2.0.3" />
+```
 
-       Raylib.EndDrawing();
-   }
+#### 1b. Stub Out Input.cs
 
-   rlImGui.Shutdown();
-   Raylib.CloseWindow();
-   ```
+The deletion will break `Input.cs` (calls WebIO). Create temporary stubs:
 
-3. Verify builds and runs on target platforms
+```csharp
+// IO/Input.cs - temporary stubs
+public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices, ...)
+{
+    throw new NotImplementedException("Desktop IO not yet implemented");
+}
+// ... stub all methods
+```
 
-**Deliverable:** Window with rectangle + ImGui panel
+This lets the project compile while we build the desktop layer.
+
+#### 1c. Create Desktop Entry Point
+
+Replace `Core/Program.cs`:
+
+```csharp
+using Raylib_cs;
+using rlImGuiCs;
+using ImGuiNET;
+using text_survival.Persistence;
+
+namespace text_survival;
+
+public static class Program
+{
+    public static void Main()
+    {
+        Raylib.InitWindow(1280, 720, "Text Survival");
+        Raylib.SetTargetFPS(60);
+        rlImGui.Setup(true);
+
+        // Load game (reuses existing save system)
+        var ctx = GameInitializer.LoadOrCreateNew();
+
+        while (!Raylib.WindowShouldClose())
+        {
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(Color.DarkGray);
+
+            // Test world rendering
+            Raylib.DrawRectangle(100, 100, 50, 50, Color.Green);
+
+            // Test ImGui
+            rlImGui.Begin();
+            ImGui.Begin("Game State");
+            ImGui.Text($"Location: {ctx.CurrentLocation?.Name ?? "Unknown"}");
+            ImGui.Text($"Energy: {ctx.player.Body.Energy:F0}");
+            ImGui.Text($"Game Time: {ctx.GameTime}");
+            if (ImGui.Button("Save & Quit"))
+            {
+                SaveManager.Save(ctx);
+                break;
+            }
+            ImGui.End();
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+
+        rlImGui.Shutdown();
+        Raylib.CloseWindow();
+    }
+}
+```
+
+#### 1d. Verify
+
+- Project compiles (with stub exceptions in Input.cs)
+- Window opens with test rectangle
+- ImGui panel shows real game state from GameContext
+- Save/load works
+
+**Deliverable:** Desktop window displaying live game state, web code gone
 
 ---
 
@@ -510,41 +587,14 @@ Progress bars can use elapsed time vs duration for smooth animation.
 
 ---
 
-### Phase 7: Blocking I/O Pattern (Day 10-11)
+### Phase 6: Blocking I/O Pattern (Day 10-11)
 
 **Goal:** Solve the "multi-step blocking flow" problem cleanly
 
-The current architecture has `WebIO.RunEatingUI()` blocking in a while loop. Desktop can do better.
+The current architecture has `WebIO.RunEatingUI()` blocking in a while loop. With single-threaded desktop, blocking calls become nested render loops.
 
-**Option A: Coroutine-style**
-```csharp
-// Game loop yields control to overlay
-public IEnumerator<WaitFor> EatingFlow(GameContext ctx)
-{
-    while (true)
-    {
-        var choice = yield return new WaitForOverlay<FoodItem>(eatingOverlay);
-        if (choice == null) break; // Closed
+**Chosen Approach: Message Pump (Nested Render Loop)**
 
-        ConsumptionHandler.Consume(ctx, choice);
-        ctx.Update(5, ActivityType.Eating);
-    }
-}
-```
-
-**Option B: State machine**
-```csharp
-enum GameState { Exploring, InMenu, InOverlay }
-
-// Overlay signals completion via callback
-eatingOverlay.OnItemSelected += item => {
-    ConsumptionHandler.Consume(ctx, item);
-    ctx.Update(5, ActivityType.Eating);
-};
-eatingOverlay.OnClosed += () => gameState = GameState.Exploring;
-```
-
-**Option C: Keep blocking with message pump**
 ```csharp
 public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices)
 {
@@ -575,13 +625,24 @@ public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices
 }
 ```
 
-Option C is closest to current architecture and requires least refactoring. Start there, optimize later if needed.
+This preserves the current game logic structure — handlers call `Input.Select()` and block until user chooses. The "blocking" is just a nested render loop that keeps the UI responsive.
+
+**Why not state machines or coroutines?**
+- Requires refactoring all handlers to be async/event-driven
+- Current blocking pattern works fine for turn-based game
+- Can refactor later if needed (e.g., for real-time elements)
+
+**Alternative approaches (for future consideration):**
+
+*Option A: Coroutine-style* — Game logic yields control, requires rewriting handlers as IEnumerator
+
+*Option B: State machine* — Overlays emit events, game logic becomes reactive. Better architecture but significant refactor.
 
 **Deliverable:** Blocking flows work without freezing the UI
 
 ---
 
-### Phase 8: Polish & Cleanup (Days 11-14)
+### Phase 7: Polish & Cleanup (Days 11-14)
 
 1. **Input refinement**
    - Keyboard shortcuts (I for inventory, F for fire, etc.)
@@ -601,11 +662,10 @@ Option C is closest to current architecture and requires least refactoring. Star
    - New game / continue
    - Manual save slots
 
-5. **Delete web infrastructure**
-   - Remove `Web/` directory
-   - Remove `wwwroot/`
-   - Remove WebSocket dependencies
-   - Update `.csproj`
+5. **Final cleanup**
+   - Remove any remaining WebIO stubs
+   - Delete unused DTOs if any were preserved for reference
+   - Clean up any TODO comments from migration
 
 **Deliverable:** Complete, polished desktop game
 
@@ -874,15 +934,17 @@ overlayManager.DrawAll(ctx);
 | `helpers.js` | (not needed) | DOM manipulation |
 | `OverlayBase.js` | `OverlayBase.cs` | Abstract base class |
 
-### Backend (Web/)
+### Backend (Web/) — Deleted in Phase 1
 
 | C# File | Action | Notes |
 |---------|--------|-------|
-| `WebIO.cs` | Replace with `DesktopIO.cs` | Keep method signatures |
-| `WebServer.cs` | Delete | Not needed |
-| `WebGameSession.cs` | Delete | Not needed |
-| `SessionRegistry.cs` | Delete | Not needed |
+| `WebIO.cs` | Delete, replace with `DesktopIO.cs` | Similar method signatures |
+| `WebServer.cs` | Delete | Session management not needed |
+| `WebGameSession.cs` | Delete | Session management not needed |
+| `SessionRegistry.cs` | Delete | Session management not needed |
 | `Web/Dto/*.cs` | Delete (~5,300 lines) | No serialization needed |
+
+All deleted at start of migration. `Input.cs` stubbed until `DesktopIO` is built.
 
 ### Data Access Changes
 
