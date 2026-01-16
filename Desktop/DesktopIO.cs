@@ -418,28 +418,314 @@ public static class DesktopIO
         BlockingDialog.ShowProgress(ctx, statusText, estimatedMinutes);
     }
 
+    /// <summary>
+    /// Render travel progress with animated camera pan and progress bar.
+    /// </summary>
     public static void RenderTravelProgress(
         GameContext ctx,
         string statusText,
         int estimatedMinutes,
         int startX,
         int startY)
-        => throw new NotImplementedException("Desktop travel render not yet implemented");
+    {
+        // Calculate animation duration (speed up for gameplay - 0.3 seconds per game minute, max 3 seconds)
+        float animDuration = Math.Min(estimatedMinutes * 0.3f, 3.0f);
+        float elapsed = 0f;
+
+        // Get destination (current position after travel)
+        var destPos = ctx.Map.CurrentPosition;
+
+        // Start camera transition from origin to destination
+        var camera = DesktopRuntime.WorldRenderer?.Camera;
+        if (camera != null)
+        {
+            // Set camera to start position without animation
+            camera.SetCenter(startX, startY, animate: false);
+        }
+
+        while (elapsed < animDuration && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+            elapsed += deltaTime;
+
+            // Calculate progress
+            float progress = Math.Min(elapsed / animDuration, 1.0f);
+            float easedProgress = EaseOutCubic(progress);
+
+            // Interpolate camera position
+            if (camera != null)
+            {
+                float interpX = startX + (destPos.X - startX) * easedProgress;
+                float interpY = startY + (destPos.Y - startY) * easedProgress;
+
+                // Smoothly move camera - we'll manually position it
+                camera.SetCenter((int)MathF.Round(interpX), (int)MathF.Round(interpY), animate: false);
+            }
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            // Render world
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            // Draw animated player trail (optional visual feedback)
+            if (camera != null)
+            {
+                // Draw a faint trail line from start to current interpolated position
+                var startScreen = camera.GetTileCenter(startX, startY);
+                var currentScreen = camera.GetTileCenter((int)MathF.Round(startX + (destPos.X - startX) * easedProgress),
+                                                          (int)MathF.Round(startY + (destPos.Y - startY) * easedProgress));
+                Raylib.DrawLineEx(startScreen, currentScreen, 3, new Color(100, 150, 200, 100));
+            }
+
+            // Draw progress bar at bottom
+            int screenWidth = Raylib.GetScreenWidth();
+            int screenHeight = Raylib.GetScreenHeight();
+            int barHeight = 40;
+            int barMargin = 20;
+
+            // Background
+            Raylib.DrawRectangle(barMargin, screenHeight - barHeight - barMargin,
+                screenWidth - barMargin * 2, barHeight, new Color(30, 35, 40, 220));
+
+            // Progress fill
+            int fillWidth = (int)((screenWidth - barMargin * 2 - 8) * progress);
+            Raylib.DrawRectangle(barMargin + 4, screenHeight - barHeight - barMargin + 4,
+                fillWidth, barHeight - 8, new Color(80, 140, 180, 255));
+
+            // Status text
+            int fontSize = 18;
+            int textWidth = Raylib.MeasureText(statusText, fontSize);
+            Raylib.DrawText(statusText, (screenWidth - textWidth) / 2,
+                screenHeight - barHeight - barMargin + (barHeight - fontSize) / 2,
+                fontSize, new Color(255, 255, 255, 255));
+
+            Raylib.EndDrawing();
+        }
+
+        // Ensure camera is at destination
+        if (camera != null)
+        {
+            camera.SetCenter(destPos.X, destPos.Y, animate: false);
+        }
+    }
+
+    private static float EaseOutCubic(float t) => 1 - MathF.Pow(1 - t, 3);
 
     // Inventory methods
-    public static void RenderInventory(GameContext ctx, Inventory inventory, string title)
-        => throw new NotImplementedException("Desktop inventory UI not yet implemented");
 
+    /// <summary>
+    /// Render inventory state (non-blocking, single frame).
+    /// </summary>
+    public static void RenderInventory(GameContext ctx, Inventory inventory, string title)
+    {
+        var overlays = DesktopRuntime.Overlays;
+        if (overlays == null) return;
+
+        // Open inventory overlay if not already open
+        if (!overlays.Inventory.IsOpen)
+        {
+            overlays.ToggleInventory();
+        }
+
+        // Single frame render
+        Raylib.BeginDrawing();
+        Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+        DesktopRuntime.WorldRenderer?.Update(ctx, Raylib.GetFrameTime());
+        DesktopRuntime.WorldRenderer?.Render(ctx);
+
+        rlImGui.Begin();
+        overlays.Render(ctx, Raylib.GetFrameTime());
+        rlImGui.End();
+
+        Raylib.EndDrawing();
+    }
+
+    /// <summary>
+    /// Show inventory and wait for user to close it.
+    /// </summary>
     public static void ShowInventoryAndWait(GameContext ctx, Inventory inventory, string title)
-        => throw new NotImplementedException("Desktop inventory UI not yet implemented");
+    {
+        var overlays = DesktopRuntime.Overlays;
+        if (overlays == null) return;
+
+        // Open inventory overlay
+        if (!overlays.Inventory.IsOpen)
+        {
+            overlays.ToggleInventory();
+        }
+
+        while (overlays.Inventory.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            // Handle escape to close
+            if (Raylib.IsKeyPressed(KeyboardKey.Escape) || Raylib.IsKeyPressed(KeyboardKey.I))
+            {
+                overlays.Inventory.Close();
+                break;
+            }
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            rlImGui.Begin();
+            overlays.Render(ctx, deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+    }
 
     // Crafting methods
+
+    /// <summary>
+    /// Render crafting state (non-blocking, single frame).
+    /// </summary>
     public static void RenderCrafting(GameContext ctx, NeedCraftingSystem crafting, string title = "CRAFTING")
-        => throw new NotImplementedException("Desktop crafting UI not yet implemented");
+    {
+        var overlays = DesktopRuntime.Overlays;
+        if (overlays == null) return;
+
+        // Open crafting overlay if not already open
+        if (!overlays.Crafting.IsOpen)
+        {
+            overlays.ToggleCrafting();
+        }
+
+        // Single frame render
+        Raylib.BeginDrawing();
+        Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+        DesktopRuntime.WorldRenderer?.Update(ctx, Raylib.GetFrameTime());
+        DesktopRuntime.WorldRenderer?.Render(ctx);
+
+        rlImGui.Begin();
+        overlays.Render(ctx, Raylib.GetFrameTime());
+        rlImGui.End();
+
+        Raylib.EndDrawing();
+    }
 
     // Grid/Map methods
+
+    /// <summary>
+    /// Render the grid and wait for player input.
+    /// Returns a PlayerResponse indicating what the player chose to do.
+    /// </summary>
     public static PlayerResponse RenderGridAndWaitForInput(GameContext ctx, string? statusText = null)
-        => throw new NotImplementedException("Desktop grid UI not yet implemented");
+    {
+        var worldRenderer = DesktopRuntime.WorldRenderer;
+        var actionPanel = DesktopRuntime.ActionPanel;
+        var overlays = DesktopRuntime.Overlays;
+        int inputId = 0; // Desktop doesn't need input IDs
+
+        while (!Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            // Check for keyboard input
+            if (Raylib.IsKeyPressed(KeyboardKey.W) || Raylib.IsKeyPressed(KeyboardKey.Up))
+            {
+                var pos = ctx.Map.CurrentPosition;
+                if (ctx.Map.CanMoveTo(pos.X, pos.Y - 1))
+                    return new PlayerResponse(null, inputId, "travel_to", pos.X, pos.Y - 1);
+            }
+            if (Raylib.IsKeyPressed(KeyboardKey.S) || Raylib.IsKeyPressed(KeyboardKey.Down))
+            {
+                var pos = ctx.Map.CurrentPosition;
+                if (ctx.Map.CanMoveTo(pos.X, pos.Y + 1))
+                    return new PlayerResponse(null, inputId, "travel_to", pos.X, pos.Y + 1);
+            }
+            if (Raylib.IsKeyPressed(KeyboardKey.A) || Raylib.IsKeyPressed(KeyboardKey.Left))
+            {
+                var pos = ctx.Map.CurrentPosition;
+                if (ctx.Map.CanMoveTo(pos.X - 1, pos.Y))
+                    return new PlayerResponse(null, inputId, "travel_to", pos.X - 1, pos.Y);
+            }
+            if (Raylib.IsKeyPressed(KeyboardKey.D) || Raylib.IsKeyPressed(KeyboardKey.Right))
+            {
+                var pos = ctx.Map.CurrentPosition;
+                if (ctx.Map.CanMoveTo(pos.X + 1, pos.Y))
+                    return new PlayerResponse(null, inputId, "travel_to", pos.X + 1, pos.Y);
+            }
+
+            // Check for action keyboard shortcuts
+            if (Raylib.IsKeyPressed(KeyboardKey.I))
+                return new PlayerResponse(null, inputId, "action", Action: "inventory");
+            if (Raylib.IsKeyPressed(KeyboardKey.C))
+                return new PlayerResponse(null, inputId, "action", Action: "crafting");
+            if (Raylib.IsKeyPressed(KeyboardKey.Space))
+                return new PlayerResponse(null, inputId, "action", Action: "wait");
+
+            // Check for tile click
+            if (worldRenderer != null)
+            {
+                var clicked = worldRenderer.HandleClick();
+                if (clicked.HasValue)
+                {
+                    var (x, y) = clicked.Value;
+                    var currentPos = ctx.Map.CurrentPosition;
+                    bool isAdjacent = Math.Abs(x - currentPos.X) <= 1 && Math.Abs(y - currentPos.Y) <= 1
+                        && (x != currentPos.X || y != currentPos.Y);
+
+                    if (isAdjacent && ctx.Map.CanMoveTo(x, y))
+                    {
+                        return new PlayerResponse(null, inputId, "travel_to", x, y);
+                    }
+                }
+            }
+
+            // Render frame
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            if (worldRenderer != null)
+            {
+                worldRenderer.Update(ctx, deltaTime);
+                worldRenderer.Render(ctx);
+            }
+
+            // Draw status text if provided
+            if (statusText != null)
+            {
+                int fontSize = 20;
+                int textWidth = Raylib.MeasureText(statusText, fontSize);
+                int screenWidth = Raylib.GetScreenWidth();
+                int screenHeight = Raylib.GetScreenHeight();
+                Raylib.DrawRectangle(10, screenHeight - 40, textWidth + 20, 30, new Color(30, 35, 40, 200));
+                Raylib.DrawText(statusText, 20, screenHeight - 35, fontSize, new Color(200, 220, 240, 255));
+            }
+
+            rlImGui.Begin();
+
+            // Render action panel and check for clicked actions
+            if (actionPanel != null)
+            {
+                var clickedAction = actionPanel.Render(ctx, deltaTime);
+                if (clickedAction != null)
+                {
+                    rlImGui.End();
+                    Raylib.EndDrawing();
+                    return new PlayerResponse(null, inputId, "action", Action: clickedAction);
+                }
+            }
+
+            // Render overlays
+            overlays?.Render(ctx, deltaTime);
+
+            rlImGui.End();
+            Raylib.EndDrawing();
+        }
+
+        // Window close - return a default response
+        return new PlayerResponse(null, inputId, "action", Action: "quit");
+    }
 
     // Hazard methods
     public static bool PromptHazardChoice(
