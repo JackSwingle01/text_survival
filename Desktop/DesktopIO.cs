@@ -14,8 +14,8 @@ using ForageFocus = text_survival.Actions.Events.Variants.ForageFocus;
 namespace text_survival.Desktop;
 
 /// <summary>
-/// Desktop I/O implementation. Stub for Phase 1 migration.
-/// All methods throw NotImplementedException until implemented.
+/// Desktop I/O implementation using Raylib + ImGui.
+/// All blocking methods use nested render loops to keep the UI responsive.
 /// </summary>
 public static class DesktopIO
 {
