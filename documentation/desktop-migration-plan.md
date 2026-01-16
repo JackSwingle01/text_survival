@@ -357,90 +357,156 @@ while (!Raylib.WindowShouldClose())
 
 ---
 
-### Phase 5: Core Overlays (Days 5-8)
+### Phase 5: Overlay System (Days 5-10)
 
-**Goal:** Port the main interactive overlays from WebIO
+**Goal:** Port all 16 overlay types from JavaScript to ImGui
 
-Priority order (most used first):
+The web frontend has **16 distinct overlay types** that can stack (multiple active simultaneously). Each needs an ImGui equivalent.
 
-#### 5a. Event Overlay
-- Modal dialog with event text
-- Choice buttons
-- Maps to `WebIO.ShowEvent()` / current `EventOverlay.js`
-- Critical: this is how events interrupt gameplay
+#### 5a. Complete Overlay Inventory
 
-#### 5b. Inventory Overlay
-- List of items with weights
-- Transfer to/from storage
-- Maps to `WebIO.RunTransferUI()`
+| Priority | Overlay | Lines | Complexity | Key Features |
+|----------|---------|-------|------------|--------------|
+| P0 | **EventOverlay** | 188 | High | Choices, outcomes, stat deltas, effect summaries |
+| P0 | **FireOverlay** | 313 | High | Dual-mode (starting/tending), tool selection, success %, fuel list |
+| P0 | **EatingOverlay** | 192 | Medium | Food/drink lists, calories/hydration bars, progress |
+| P0 | **CraftingOverlay** | 246 | High | Tabbed categories, recipes, requirements badges |
+| P1 | **InventoryOverlay** | 175 | Medium | Gear slots, tools, resources by category, weight |
+| P1 | **TransferOverlay** | 124 | Medium | Side-by-side inventory, click-to-move |
+| P1 | **HuntOverlay** | 181 | High | Distance animation, tracking states, outcome phases |
+| P1 | **CookingOverlay** | 180 | Medium | Options list, result display, time costs |
+| P2 | **ForageOverlay** | 143 | Medium | Focus selection (fuel/food/medicine), time options |
+| P2 | **ButcherOverlay** | 106 | Low | Mode selection, decay status, time estimates |
+| P2 | **HazardOverlay** | 54 | Low | Quick vs careful choice, injury risk display |
+| P2 | **DiscoveryOverlay** | 34 | Low | Location name popup |
+| P2 | **WeatherChangeOverlay** | 34 | Low | Weather transition notification |
+| P2 | **DiscoveryLogOverlay** | 79 | Medium | Categories, discovered vs remaining |
+| P2 | **ConfirmOverlay** | 42 | Low | Yes/no with custom message |
+| P2 | **DeathOverlay** | 62 | Low | Death cause, survival stats, restart |
 
-#### 5c. Fire Management Overlay
-- Fire status display
-- Add fuel, tend fire, start fire
-- Tool/tinder selection
-- Maps to `WebIO.RunFireUI()`
+**Total: 2,153 lines of overlay JS to port**
 
-#### 5d. Eating Overlay
-- Food/drink lists
-- Consumption buttons
-- Calorie/hydration feedback
-- Maps to `WebIO.RunEatingUI()`
+#### 5b. Combat Mode (Special Case)
 
-#### 5e. Crafting Overlay
-- Need categories
-- Recipe list with requirements
-- Craft button
-- Maps to `CraftingRunner` + current overlay
+Combat is NOT an overlay - it **replaces the entire rendering mode**. The grid renderer switches from world map to combat grid.
 
-**Pattern for each overlay:**
+**CombatGridRenderer.js features:**
+- 25x25 meter grid (vs 7x7 tile world grid)
+- Distance zone visualization (concentric rings)
+- Unit rendering with health colors
+- Boldness indicators (aggressive/bold/wary/cautious)
+- Selection highlighting
+- Unit position animation
+
+**Combat DTO structure:**
+- `CombatModeDto` - Full combat state
+- `CombatGridDto` - 25x25 grid cells, units, terrain
+- `CombatUnitDto` - ID, name, position, vitality, threat, icon
+
+**Combat WebIO methods:**
+- `RenderCombat()`, `WaitForCombatChoice()`
+- `WaitForTargetChoice()` - body part targeting
+- `WaitForCombatContinue()` - outcome display
+
+**Implementation:** Create `CombatRenderer.cs` separate from `WorldRenderer.cs`. Switch between them based on game mode.
+
+#### 5c. Tile Popup System
+
+The web version has a **tile popup** that appears when hovering/clicking tiles:
+
+**TilePopupRenderer.js features:**
+- Dynamic positioning (right of tile, vertically centered)
+- Quick glance badges (color-coded by type)
+- Feature detail cards
+- NPC stat bars (health, food, water, energy, temp)
+- Travel time display
+- "Go" button for travel
+
+**Implementation:** ImGui popup window positioned relative to hovered tile. Use `ImGui.SetNextWindowPos()` with screen coordinates from tile position.
+
+#### 5d. Overlay Pattern for ImGui
+
 ```csharp
-public class InventoryOverlay
+public abstract class OverlayBase
 {
-    private bool _isOpen;
-    private int _selectedIndex;
+    protected bool _isOpen;
+    public bool IsOpen => _isOpen;
 
     public void Open() => _isOpen = true;
+    public void Close() => _isOpen = false;
 
-    public void Draw(GameContext ctx)
+    public abstract void Draw(GameContext ctx);
+}
+
+public class FireOverlay : OverlayBase
+{
+    public enum Mode { Starting, Tending }
+    private Mode _mode = Mode.Starting;
+    private int _selectedTool;
+    private int _selectedTinder;
+    private int _selectedFuel;
+
+    public override void Draw(GameContext ctx)
     {
         if (!_isOpen) return;
 
-        ImGui.Begin("Inventory", ref _isOpen);
-
-        foreach (var item in ctx.Inventory.Items)
+        ImGui.SetNextWindowSize(new Vector2(400, 500), ImGuiCond.FirstUseEver);
+        if (!ImGui.Begin("Fire Management", ref _isOpen))
         {
-            if (ImGui.Selectable(item.Name, _selectedIndex == i))
-                _selectedIndex = i;
+            ImGui.End();
+            return;
         }
 
-        if (ImGui.Button("Use"))
-            OnUseItem?.Invoke(ctx.Inventory.Items[_selectedIndex]);
+        // Mode tabs
+        if (ImGui.BeginTabBar("FireTabs"))
+        {
+            if (ImGui.BeginTabItem("Start Fire"))
+            {
+                _mode = Mode.Starting;
+                DrawStartingMode(ctx);
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem("Tend Fire"))
+            {
+                _mode = Mode.Tending;
+                DrawTendingMode(ctx);
+                ImGui.EndTabItem();
+            }
+            ImGui.EndTabBar();
+        }
 
         ImGui.End();
     }
 
-    public event Action<Item>? OnUseItem;
+    private void DrawStartingMode(GameContext ctx) { /* ... */ }
+    private void DrawTendingMode(GameContext ctx) { /* ... */ }
+
+    public event Action<FireAction>? OnAction;
 }
 ```
 
-**Deliverable:** Can manage fire, eat, craft, handle events - core gameplay loop works
+#### 5e. Animation System
 
----
+The web version has an `Animator.js` with:
+- `tweenValue()` - cubic ease-out numeric animation
+- `progressBar()` - 0-100% progress
+- `distance()` - hunt distance meter
+- `distanceMask()` - hunt distance bar animation
 
-### Phase 6: Secondary Overlays (Days 8-10)
+**For desktop:** Use Raylib's frame timing:
+```csharp
+public class Animator
+{
+    public static float EaseOutCubic(float t) => 1 - MathF.Pow(1 - t, 3);
 
-Port remaining overlays:
+    public static float Tween(float from, float to, float progress)
+        => from + (to - from) * EaseOutCubic(progress);
+}
+```
 
-- **Cooking Overlay** - cook meat, melt snow
-- **Hunt Overlay** - track selection, approach options
-- **Combat Overlay** - distance zones, action buttons, animal state
-- **Butcher Overlay** - carcass processing
-- **Forage Overlay** - time selection, area display
-- **Discovery Overlay** - new location/feature reveals
-- **Weather Change Overlay** - weather transition display
-- **Death Overlay** - game over screen
+Progress bars can use elapsed time vs duration for smooth animation.
 
-**Deliverable:** All gameplay interactions work in desktop
+**Deliverable:** All 16 overlays work, combat mode renders, tile popup shows info
 
 ---
 
@@ -545,19 +611,188 @@ Option C is closest to current architecture and requires least refactoring. Star
 
 ---
 
+## Font & Icon Dependencies
+
+### Current Web Fonts
+The web version uses Google Fonts:
+- **Oswald** (400, 700) - Headings, location names
+- **JetBrains Mono** (400, 500, 600) - Stats, numbers, monospace
+- **Material Symbols Outlined** - All icons (variable weight 100-700)
+
+### Icon Usage Map
+| Category | Icons Used |
+|----------|------------|
+| Fire | `local_fire_department` (orange glow), `fireplace` (embers) |
+| Water | `water_drop` (cyan) |
+| Tools | `construction`, `handyman` |
+| Weapons | `shield`, `trip_origin` |
+| Food | `restaurant` |
+| Energy | `bolt` |
+| Health | `monitor_heart`, `favorite` |
+| Temperature | `thermostat`, `ac_unit` |
+| Wind | `air`, `wind_power` |
+| Visibility | `visibility`, `visibility_off` |
+| Storage | `backpack`, `inventory_2` |
+| Traps | `check_circle` (catch ready, yellow glow) |
+| Megafauna | `warning` (red glow) |
+
+**100+ icons used total from Material Icons library**
+
+### Desktop Font Strategy
+
+**Option A: Bundle TTF fonts**
+```csharp
+// Load fonts at startup
+var oswaldFont = Raylib.LoadFontEx("fonts/Oswald-Regular.ttf", 32, null, 0);
+var monoFont = Raylib.LoadFontEx("fonts/JetBrainsMono-Regular.ttf", 16, null, 0);
+
+// Use with DrawTextEx
+Raylib.DrawTextEx(oswaldFont, "FROZEN CREEK", pos, 24, 1, Color.White);
+```
+
+**Option B: System fonts with fallback**
+ImGui can use system fonts, but consistency across platforms is harder.
+
+**Recommendation:** Bundle TTF files. Download from Google Fonts, include in project.
+
+### Icon Strategy
+
+**Option A: Font icons (like web)**
+- Bundle Material Symbols TTF
+- Render icons as text characters
+- Requires Unicode codepoint mapping
+
+**Option B: Sprite atlas**
+- Pre-render needed icons to PNG
+- Load as texture atlas
+- Simpler, faster, no font complexity
+
+**Option C: ImGui icon font**
+- FontAwesome or similar
+- Limited icon set but well-supported
+
+**Recommendation:** Start with Option B (sprite atlas) for simplicity. Only ~30 unique icons actually used. Can switch to font icons later if needed.
+
+---
+
+## Data Flow Architecture
+
+### Current Web: DTO Serialization
+
+```
+GameContext (C#)
+    ↓
+GameStateDto.FromContext() - Pre-computes everything
+    ↓
+JSON serialization
+    ↓
+WebSocket
+    ↓
+JavaScript parses JSON
+    ↓
+Renders to DOM/Canvas
+```
+
+**Problem:** Every frame serializes ~50 fields of game state, even if only time changed.
+
+### Desktop: Direct Access
+
+```
+GameContext (C#)
+    ↓
+Renderer reads properties directly
+    ↓
+Raylib draws to screen
+```
+
+**Benefit:** No serialization overhead. Read exactly what you need.
+
+### What GameStateDto Currently Computes
+
+The backend pre-computes display values the frontend just renders:
+
+| Field | Type | Example |
+|-------|------|---------|
+| `StatSeverity` | string | "good", "caution", "critical" |
+| `TemperatureTrend` | string | "↑ warming", "↓ cooling", "→ stable" |
+| `FireUrgency` | string | "safe", "caution", "warning", "critical" |
+| `EffectBadges` | list | Pre-formatted effect display strings |
+| `CapacityWarnings` | list | "Movement impaired", "Hands numb" |
+
+**For desktop:** Move this display logic to the renderer or keep it in a `DisplayCalculator` utility class. Don't recompute every frame - cache and invalidate on state change.
+
+---
+
+## UI Mode System
+
+The web version has **4 mutually exclusive rendering modes**:
+
+| Mode | Grid Visible | What Renders |
+|------|--------------|--------------|
+| `TravelMode` | Yes | World map, stats panel, action buttons |
+| `ProgressMode` | No | Activity text, progress bar, timer |
+| `TravelProgressMode` | Yes (animated) | World map with camera pan + progress bar |
+| `CombatMode` | Combat grid | 25x25m combat grid, unit positions |
+
+**Desktop equivalent:**
+```csharp
+public enum RenderMode
+{
+    Travel,      // Normal exploration
+    Progress,    // Activity in progress
+    Combat       // Combat encounter
+}
+
+// In game loop:
+switch (currentMode)
+{
+    case RenderMode.Travel:
+        worldRenderer.Draw(ctx, camera);
+        statsPanel.Draw(ctx);
+        break;
+    case RenderMode.Progress:
+        progressDisplay.Draw(activityText, progress);
+        break;
+    case RenderMode.Combat:
+        combatRenderer.Draw(combatState);
+        break;
+}
+
+// Overlays draw on top of any mode
+overlayManager.DrawAll(ctx);
+```
+
+---
+
 ## Risk Mitigation
 
 ### Risk: ImGui doesn't feel right for the game aesthetic
 **Mitigation:** ImGui is highly skinnable. Custom fonts, colors, window styles. Can also mix: use ImGui for menus, custom Raylib rendering for in-world UI.
 
+**Fallback:** If ImGui feels too "debug tool", use Raylib's `DrawRectangle`/`DrawText` for custom UI components. More work but full control.
+
 ### Risk: Blocking I/O pattern causes issues
 **Mitigation:** Option C (message pump) preserves current architecture. Can refactor to state machine later if needed.
+
+**Note:** The current WebIO already blocks with `while(true)` loops. Desktop just replaces the render calls inside those loops.
 
 ### Risk: Performance issues with large maps
 **Mitigation:** Raylib is very fast for 2D. Only render visible tiles. Culling is trivial with camera bounds.
 
 ### Risk: Cross-platform issues
 **Mitigation:** Both Raylib and ImGui are well-tested cross-platform. Test on Mac/Linux early in Phase 1.
+
+### Risk: Material Icons dependency
+**Mitigation:** Only ~30 unique icons used. Pre-render to sprite atlas. No font loading complexity.
+
+### Risk: Combat renderer complexity
+**Mitigation:** Combat grid is simpler than world grid (no terrain textures, just zones and units). Port after world renderer is stable.
+
+### Risk: Animation timing differences
+**Mitigation:** Use Raylib's `GetFrameTime()` for delta-time animations. Match web easing curves exactly.
+
+### Risk: Overlay stacking complexity
+**Mitigation:** ImGui handles window stacking natively. Multiple windows can be open simultaneously. Z-order managed automatically.
 
 ---
 
@@ -569,23 +804,252 @@ Option C is closest to current architecture and requires least refactoring. Star
 <PackageReference Include="rlImGui-cs" Version="2.0.3" />
 ```
 
+**Font files to bundle:**
+- `Oswald-Regular.ttf`, `Oswald-Bold.ttf`
+- `JetBrainsMono-Regular.ttf`, `JetBrainsMono-Medium.ttf`
+
+**Optional:**
+- `MaterialSymbols-Outlined.ttf` (if using font icons)
+
 ---
 
 ## File-by-File Migration Map
 
-| Current (Web) | New (Desktop) | Notes |
-|--------------|---------------|-------|
-| `WebIO.Select()` | `DesktopIO.Select()` | Blocking with message pump |
-| `WebIO.RunFireUI()` | `FireOverlay.cs` | ImGui panel |
-| `WebIO.RunEatingUI()` | `EatingOverlay.cs` | ImGui panel |
-| `WebIO.RunTransferUI()` | `InventoryOverlay.cs` | ImGui panel |
-| `WebIO.RunCookingUI()` | `CookingOverlay.cs` | ImGui panel |
-| `WebIO.ShowEvent()` | `EventOverlay.cs` | Modal dialog |
-| `GameStateDto` | Direct reads | No serialization needed |
-| `CanvasGridRenderer.js` | `WorldRenderer.cs` | Port terrain logic |
-| `TerrainRenderer.js` | `WorldRenderer.cs` | Port texture rendering |
+### Renderers (wwwroot/modules/grid/)
+
+| JS File | C# File | Lines | Notes |
+|---------|---------|-------|-------|
+| `CanvasGridRenderer.js` | `WorldRenderer.cs` | 1,564 | Main world grid |
+| `TerrainRenderer.js` | `TerrainRenderer.cs` | 719 | Procedural textures |
+| `CombatGridRenderer.js` | `CombatRenderer.cs` | ~400 | Combat mode grid |
+| `TilePopupRenderer.js` | `TilePopup.cs` | ~200 | Hover info popup |
+
+### Overlays (wwwroot/overlays/)
+
+| JS File | C# File | Lines | Priority |
+|---------|---------|-------|----------|
+| `EventOverlay.js` | `EventOverlay.cs` | 188 | P0 |
+| `FireOverlay.js` | `FireOverlay.cs` | 313 | P0 |
+| `EatingOverlay.js` | `EatingOverlay.cs` | 192 | P0 |
+| `CraftingOverlay.js` | `CraftingOverlay.cs` | 246 | P0 |
+| `InventoryOverlay.js` | `InventoryOverlay.cs` | 175 | P1 |
+| `TransferOverlay.js` | `TransferOverlay.cs` | 124 | P1 |
+| `HuntOverlay.js` | `HuntOverlay.cs` | 181 | P1 |
+| `CookingOverlay.js` | `CookingOverlay.cs` | 180 | P1 |
+| `ForageOverlay.js` | `ForageOverlay.cs` | 143 | P2 |
+| `ButcherOverlay.js` | `ButcherOverlay.cs` | 106 | P2 |
+| `HazardOverlay.js` | `HazardOverlay.cs` | 54 | P2 |
+| `DiscoveryOverlay.js` | `DiscoveryOverlay.cs` | 34 | P2 |
+| `WeatherChangeOverlay.js` | `WeatherOverlay.cs` | 34 | P2 |
+| `DiscoveryLogOverlay.js` | `DiscoveryLogOverlay.cs` | 79 | P2 |
+| `ConfirmOverlay.js` | `ConfirmOverlay.cs` | 42 | P2 |
+| `DeathOverlay.js` | `DeathOverlay.cs` | 62 | P2 |
+
+### Core Modules (wwwroot/modules/)
+
+| JS File | C# Equivalent | Notes |
+|---------|---------------|-------|
 | `frameQueue.js` | (deleted) | Not needed - direct rendering |
 | `connection.js` | (deleted) | Not needed - local |
+| `progress.js` | `ProgressDisplay.cs` | Activity bar animation |
+| `survival.js` | Inline in `StatsPanel.cs` | Stat formatting |
+| `temperature.js` | Inline in `StatsPanel.cs` | Temp trend display |
+| `fire.js` | Inline in `StatsPanel.cs` | Fire mini-display |
+| `effects.js` | `EffectsPanel.cs` | Active effects list |
+| `icons.js` | `IconAtlas.cs` | Icon sprite mapping |
+| `location.js` | Inline in `StatsPanel.cs` | Location display |
+| `notifications.js` | `NotificationManager.cs` | Toast messages |
+
+### Components (wwwroot/lib/components/)
+
+| JS File | C# Equivalent | Notes |
+|---------|---------------|-------|
+| `Icon.js` | `IconAtlas.Draw()` | Sprite-based |
+| `Badge.js` | ImGui colored text | Use `ImGui.TextColored()` |
+| `Bar.js` | `ImGui.ProgressBar()` | Built-in |
+| `Gauge.js` | Custom render | Raylib circles |
+| `ActionButton.js` | `ImGui.Button()` | Built-in |
+| `RadioGroup.js` | `ImGui.RadioButton()` | Built-in |
+| `StatRow.js` | Custom ImGui layout | Table rows |
+| `helpers.js` | (not needed) | DOM manipulation |
+| `OverlayBase.js` | `OverlayBase.cs` | Abstract base class |
+
+### Backend (Web/)
+
+| C# File | Action | Notes |
+|---------|--------|-------|
+| `WebIO.cs` | Replace with `DesktopIO.cs` | Keep method signatures |
+| `WebServer.cs` | Delete | Not needed |
+| `WebGameSession.cs` | Delete | Not needed |
+| `SessionRegistry.cs` | Delete | Not needed |
+| `Web/Dto/*.cs` | Delete (~5,300 lines) | No serialization needed |
+
+### Data Access Changes
+
+| Current | New | Notes |
+|---------|-----|-------|
+| `GameStateDto.FromContext(ctx)` | `ctx.player.Body.Energy` | Direct property access |
+| `GridStateDto` | `ctx.Map.GetVisibleTiles()` | Direct method call |
+| JSON serialization | None | No network boundary |
+
+---
+
+## Detailed Scope Estimate
+
+| Category | JS Lines | Est. C# Lines | Notes |
+|----------|----------|---------------|-------|
+| Renderers | 2,883 | ~1,500 | Raylib API is more concise |
+| Overlays | 2,153 | ~1,800 | ImGui requires less boilerplate |
+| Modules | ~800 | ~400 | Much simpler without DOM |
+| Components | ~600 | ~200 | ImGui built-ins replace most |
+| **Total New** | - | **~4,000** | Desktop rendering layer |
+| **Web Deleted** | 15,000+ | - | WebIO, DTOs, JS, CSS |
+| **Net Change** | - | **-11,000** | Significant reduction |
+
+---
+
+## Potential Gotchas & Surprises
+
+### 1. WebIO Method Signatures Are Complex
+
+Many WebIO methods have multiple overloads and optional parameters:
+
+```csharp
+// Example: Select has 4+ overloads
+Select<T>(ctx, prompt, choices)
+Select<T>(ctx, prompt, choices, formatter)
+Select<T>(ctx, prompt, choices, formatter, isDisabled)
+Select<T>(ctx, prompt, choices, formatter, isDisabled, defaultChoice)
+```
+
+**Action:** Audit all WebIO public methods before starting. Document each signature.
+
+### 2. Overlay State Dictionaries
+
+WebIO has **17 static dictionaries** tracking overlay state:
+```csharp
+private static readonly Dictionary<string, InventoryDto> _currentInventory = new();
+private static readonly Dictionary<string, TransferDto> _currentTransfer = new();
+// ... 15 more
+```
+
+**Action:** Desktop doesn't need these (no session IDs). But understand what state each overlay needs before porting.
+
+### 3. Fire Overlay Has Two Modes
+
+`FireOverlay.js` (313 lines) handles BOTH:
+- Starting a new fire (tool + tinder selection, success chance)
+- Tending existing fire (add fuel, collect charcoal, light carriers)
+
+**Action:** Treat as one overlay with mode enum, not two separate overlays.
+
+### 4. Hunt/Encounter/Combat Are Three Different Systems
+
+- **Hunt** - Tracking animals, approach decisions
+- **Encounter** - Predator confrontations, distance management
+- **Combat** - Turn-based fighting with body targeting
+
+Each has its own WebIO methods, DTOs, and overlays. Don't conflate them.
+
+### 5. Events Can Have Delayed Outcomes
+
+`EventOutcomeDto` includes:
+- Immediate stat changes
+- Delayed effects (wounds, tensions)
+- Inventory changes
+- Spawned encounters
+
+The outcome display is animated and may trigger follow-up events.
+
+### 6. Progress Animations Sync With Game Time
+
+When `ctx.Update(N, activity)` runs, the web version shows a progress bar that advances over real-time seconds while game time advances N minutes.
+
+**Current flow:**
+1. Backend calls `RenderWithDuration(seconds)`
+2. Frontend animates progress bar
+3. Backend blocks waiting for completion signal
+4. Frontend signals done
+5. Backend continues
+
+**Desktop:** Need to replicate this timing. Can't just skip the animation.
+
+### 7. Grid State Includes Edge Data
+
+`GridStateDto` contains not just tiles but **edges** between tiles:
+- Rivers (wavy line)
+- Cliffs (descent only)
+- Climbs (hazardous)
+- Trails (travel bonus)
+
+Edges are rendered AFTER tiles but BEFORE player icon. Order matters.
+
+### 8. NPC Stat Bars in Tile Popup
+
+The tile popup shows NPC health bars:
+- Health (vitality)
+- Food (calories)
+- Water (hydration)
+- Energy
+- Temperature
+
+This data comes from `FeatureDetailDto` which includes NPC body state. Make sure NPC data is accessible from tile info.
+
+### 9. Crafting Categories Are Dynamic
+
+`CraftingDto` categories come from `NeedCategory` enum but the recipes within each are computed based on:
+- Available materials
+- Known recipes
+- Tool availability
+
+The crafting UI shows "can craft" vs "missing requirements" per recipe.
+
+### 10. Input.cs Already Abstracts I/O
+
+The good news: game logic calls `Input.Select()`, not `WebIO.Select()` directly. The abstraction layer exists:
+
+```csharp
+// IO/Input.cs
+public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices)
+{
+    return WebIO.Select(ctx, prompt, choices, c => c.ToString()!);
+}
+```
+
+**Action:** Replace the body of Input methods to call DesktopIO instead of WebIO. Game logic unchanged.
+
+### 11. Confirmation Dialogs Have Custom Buttons
+
+`Confirm()` vs `PromptConfirm()`:
+- `Confirm()` - Standard Yes/No
+- `PromptConfirm()` - Custom button labels
+
+Both need to block and return bool.
+
+### 12. Color Scheme From CSS Variables
+
+The web version uses CSS variables for theming:
+```css
+--bg-midnight: hsl(215, 30%, 5%);
+--bg-surface: hsl(215, 25%, 12%);
+--text-primary: rgba(255, 255, 255, 0.9);
+--accent-fire: #e08830;
+--accent-tech: #60a0b0;
+--danger: #a05050;
+```
+
+**Action:** Create a `Theme.cs` with equivalent Color constants for consistent styling.
+
+### 13. Time-of-Day Affects Everything
+
+The `timeFactor` (0=midnight, 1=noon) affects:
+- Background color lightness
+- Terrain color brightness
+- Vignette intensity
+- Night overlay alpha
+- Icon visibility
+
+All colors need to be adjustable, not hardcoded.
 
 ---
 
@@ -597,6 +1061,10 @@ Option C is closest to current architecture and requires least refactoring. Star
 4. Input feels responsive (no network latency)
 5. Multi-step flows (eating, fire management) feel natural
 6. Runs on Windows, Mac, Linux
+7. Visual parity with web version (terrain, icons, effects)
+8. All 16 overlay types functional
+9. Combat mode works with targeting
+10. Animations feel smooth (60fps target)
 
 ---
 
