@@ -1157,7 +1157,7 @@ After the desktop migration is stable:
 
 ## Current Progress & Remaining Work
 
-*Updated: Phase 6 Complete*
+*Updated: Phase 7 Complete*
 
 ### Completed
 
@@ -1180,179 +1180,73 @@ After the desktop migration is stable:
 - Activity prompts: SelectForageOptions, SelectButcherOptions, PromptHazardChoice
 - Display methods: ShowDiscovery, ShowWeatherChange, ShowDiscoveryLogAndWait
 
----
+**Phase 7a: Blocking UI Loop Wrappers** ✅
+- `RunTransferUI`, `RunFireUI`, `RunEatingUI`, `RunCookingUI`
+- Nested render loops with overlay result processing
 
-### Remaining Implementation
+**Phase 7b: Hunt Overlay** ✅
+- `Desktop/UI/HuntOverlay.cs` (~280 lines)
+- Animal info, distance tracking, approach options
+- Hunt outcome display with kill/escape results
+- DesktopIO methods: `RenderHunt`, `WaitForHuntChoice`, `WaitForHuntContinue`
 
-#### Phase 7a: Blocking UI Loop Wrappers
+**Phase 7c: Encounter Overlay** ✅
+- `Desktop/UI/EncounterOverlay.cs` (~300 lines)
+- Predator info with boldness indicator
+- Threat factors, distance zones, choice buttons
+- DesktopIO methods: `RenderEncounter`, `WaitForEncounterChoice`, `WaitForEncounterContinue`
 
-Implement `Run*UI` methods that wrap overlay interaction in blocking loops.
+**Phase 7d: Combat Overlay** ✅
+- `Desktop/UI/CombatOverlay.cs` (~380 lines)
+- Phase-based rendering (Intro, PlayerChoice, PlayerAction, AnimalAction, BehaviorChange, Outcome)
+- Distance zone visualization, player status, combat actions
+- Auto-advance timer for AI turns
+- DesktopIO methods: `RenderCombat`, `WaitForCombatChoice`, `WaitForTargetChoice`, `WaitForCombatContinue`
 
-**File:** `Desktop/DesktopIO.cs`
+**Phase 7e: Travel Progress Animation** ✅
+- Animated camera pan from origin to destination
+- Progress bar at bottom of screen
+- Visual trail line feedback
+- Eased animation (ease-out-cubic)
 
-```csharp
-// These need to open overlay, enter blocking loop, process results, exit when closed
-public static void RunTransferUI(GameContext ctx, Inventory storage, string storageName)
-public static void RunFireUI(GameContext ctx, HeatSourceFeature fire)
-public static void RunEatingUI(GameContext ctx)
-public static void RunCookingUI(GameContext ctx)
-```
+**Phase 7f: Grid/Map Interaction** ✅
+- `RenderGridAndWaitForInput` blocking method
+- WASD/Arrow keyboard movement
+- Click-to-travel for adjacent tiles
+- Action keyboard shortcuts (I=inventory, C=crafting, Space=wait)
 
-**Pattern:**
-1. Open overlay via `DesktopRuntime.Overlays`
-2. Enter nested render loop
-3. Process overlay results each frame
-4. Exit when overlay closes
-
----
-
-#### Phase 7b: Hunt Overlay
-
-Interactive hunting sequence with animal selection, approach options, and outcomes.
-
-**Create:** `Desktop/UI/HuntOverlay.cs`
-
-**Elements:**
-- Animal list with size/distance info
-- Approach options (stalk, charge, ambush)
-- Success/failure outcomes
-- Transition to combat or carcass creation
-
-**DesktopIO methods:**
-```csharp
-public static void RenderHunt(GameContext ctx, HuntDto huntData)
-public static string WaitForHuntChoice(GameContext ctx, HuntDto huntData)
-public static void WaitForHuntContinue(GameContext ctx)
-```
-
-**Reference:** `Actions/Handlers/HuntHandler.cs`, `Actions/HuntRunner.cs`
+**Phase 7g: Inventory/Crafting Display** ✅
+- `RenderInventory`, `ShowInventoryAndWait`
+- `RenderCrafting`
 
 ---
 
-#### Phase 7c: Encounter Overlay
+### Remaining Work
 
-Predator encounter with distance zones and behavioral options.
+The core desktop migration is complete. All DesktopIO methods are implemented. Remaining work is polish and integration:
 
-**Create:** `Desktop/UI/EncounterOverlay.cs`
+**Integration Testing:**
+- Test full game loops with new overlays
+- Verify hunt → encounter → combat flow
+- Test travel with events and hazards
+- Verify all blocking dialogs work correctly
 
-**Elements:**
-- Animal info (species, size, behavior state)
-- Distance zone indicator
-- Player options based on zone
-- Boldness/threat indicators
+**Polish (Optional):**
+- ImGui theme/styling improvements
+- Audio integration (Raylib has built-in audio)
+- Save/Load UI improvements
+- Additional keyboard shortcuts
 
-**DesktopIO methods:**
-```csharp
-public static void RenderEncounter(GameContext ctx, EncounterDto encounterData)
-public static string WaitForEncounterChoice(GameContext ctx, EncounterDto encounterData)
-public static void WaitForEncounterContinue(GameContext ctx)
-```
+**Files Created/Modified:**
+- `Desktop/UI/HuntOverlay.cs` (~280 lines)
+- `Desktop/UI/EncounterOverlay.cs` (~300 lines)
+- `Desktop/UI/CombatOverlay.cs` (~380 lines)
+- `Desktop/DesktopIO.cs` (~900 lines total)
 
-**Reference:** `Actions/EncounterRunner.cs`, `Combat/AnimalCombatBehavior.cs`
-
----
-
-#### Phase 7d: Combat Overlay
-
-Full combat system with distance zones, targeting, and defensive actions.
-
-**Create:** `Desktop/UI/CombatOverlay.cs`
-
-**Elements:**
-- Distance zone display (Far/Mid/Close/Melee)
-- Animal state and health
-- Player health and status effects
-- Action buttons by zone
-- Target selection for attacks
-- Defensive action preparation
-- Combat log/narrative
-
-**DesktopIO methods:**
-```csharp
-public static void RenderCombat(GameContext ctx, CombatDto combatData)
-public static string WaitForCombatChoice(GameContext ctx, CombatDto combatData)
-public static string WaitForTargetChoice(GameContext ctx, List<CombatActionDto> targetingOptions, string animalName)
-public static void WaitForCombatContinue(GameContext ctx)
-```
-
-**Reference:** `Actions/CombatRunner.cs`, `Combat/CombatState.cs`, `Combat/DefensiveActions.cs`
-
----
-
-#### Phase 7e: Travel Progress Animation
-
-Animated travel between grid locations with progress bar and event interruption.
-
-**File:** `Desktop/DesktopIO.cs`
-
-**Elements:**
-- Progress bar showing travel completion
-- Animated player position on grid
-- Status text updates
-- Event interruption handling
-
-**Method:**
-```csharp
-public static void RenderTravelProgress(
-    GameContext ctx,
-    string statusText,
-    int estimatedMinutes,
-    int startX,
-    int startY)
-```
-
----
-
-#### Phase 7f: Grid/Map Interaction
-
-Click-to-travel and full map rendering with tile visibility.
-
-**Files:** `Desktop/DesktopIO.cs`, `Desktop/Rendering/WorldRenderer.cs`
-
-**Method:**
-```csharp
-public static PlayerResponse RenderGridAndWaitForInput(GameContext ctx, string? statusText = null)
-```
-
-**Elements:**
-- Clickable tiles for travel
-- Visibility states (Hidden/Explored/Visible)
-- Hover information
-- Current position indicator
-
----
-
-#### Phase 7g: Inventory/Crafting Display Methods
-
-For cases where these are called directly rather than via overlay toggle.
-
-**Methods:**
-```csharp
-public static void RenderInventory(GameContext ctx, Inventory inventory, string title)
-public static void ShowInventoryAndWait(GameContext ctx, Inventory inventory, string title)
-public static void RenderCrafting(GameContext ctx, NeedCraftingSystem crafting, string title = "CRAFTING")
-```
-
----
-
-### DTOs Required
-
-The remaining overlays need corresponding DTO classes in `Desktop/Dto/`:
-
-- `HuntDto` - Hunt state, available animals, approach options
-- `EncounterDto` - Encounter state, animal info, player options
-- `CombatDto` - Combat state, distance, actions, health
-- `CombatActionDto` - Individual combat action with targeting info
-
----
-
-### Testing Checklist
-
-After each phase:
-1. `dotnet build` - Verify compilation
-2. Manual test of new overlay/interaction
-3. Verify existing functionality still works
-4. Check for memory leaks in render loops
+**DTOs Created:**
+- `HuntDto`, `HuntChoiceDto`, `HuntOutcomeDto`
+- `EncounterDto`, `EncounterChoiceDto`, `EncounterOutcomeDto`, `ThreatFactorDto`
+- `CombatDto`, `CombatActionDto`, `CombatOutcomeDto`, `CombatPhase` enum
 
 ---
 
