@@ -3,6 +3,7 @@ using rlImGuiCs;
 using ImGuiNET;
 using text_survival.Persistence;
 using text_survival.Actions;
+using text_survival.Desktop.Rendering;
 
 namespace text_survival.Core;
 
@@ -27,35 +28,22 @@ public static class Program
             loadError = ex.Message;
         }
 
+        // Create world renderer
+        var worldRenderer = new WorldRenderer();
+
         while (!Raylib.WindowShouldClose())
         {
+            float deltaTime = Raylib.GetFrameTime();
+
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
-            // Test world rendering - draw a simple grid placeholder
-            int gridStartX = 50;
-            int gridStartY = 50;
-            int tileSize = 80;
-            for (int x = 0; x < 7; x++)
+            // Render world if game loaded
+            if (ctx != null && loadError == null)
             {
-                for (int y = 0; y < 7; y++)
-                {
-                    var tileColor = (x == 3 && y == 3)
-                        ? new Color(80, 120, 80, 255)  // Player tile
-                        : new Color(40, 50, 40, 255);  // Other tiles
-                    Raylib.DrawRectangle(
-                        gridStartX + x * (tileSize + 2),
-                        gridStartY + y * (tileSize + 2),
-                        tileSize,
-                        tileSize,
-                        tileColor);
-                }
+                worldRenderer.Update(ctx, deltaTime);
+                worldRenderer.Render(ctx);
             }
-
-            // Draw player marker
-            int playerX = gridStartX + 3 * (tileSize + 2) + tileSize / 2;
-            int playerY = gridStartY + 3 * (tileSize + 2) + tileSize / 2;
-            Raylib.DrawCircle(playerX, playerY, 15, new Color(200, 180, 140, 255));
 
             // ImGui panels
             rlImGui.Begin();
@@ -122,14 +110,37 @@ public static class Program
             ImGui.SetNextWindowPos(new System.Numerics.Vector2(650, 470), ImGuiCond.FirstUseEver);
             ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 200), ImGuiCond.FirstUseEver);
             ImGui.Begin("Status");
-            ImGui.TextColored(new System.Numerics.Vector4(1, 0.8f, 0.3f, 1), "Desktop Migration - Phase 1");
+            ImGui.TextColored(new System.Numerics.Vector4(0.3f, 1f, 0.5f, 1), "Desktop Migration - Phase 2");
             ImGui.Separator();
-            ImGui.TextWrapped("This is a stub implementation. The game logic is loaded but UI interactions are not yet wired up.");
+            ImGui.TextWrapped("World rendering active. Terrain textures, fog of war, and effects are working.");
+            ImGui.Separator();
+
+            // Hover info
+            var hoveredTile = worldRenderer.GetHoveredTile();
+            if (hoveredTile.HasValue && ctx != null)
+            {
+                var (hx, hy) = hoveredTile.Value;
+                ImGui.Text($"Hovered: ({hx}, {hy})");
+                if (ctx.Map.IsValidPosition(hx, hy))
+                {
+                    var loc = ctx.Map.GetLocationAt(hx, hy);
+                    if (loc != null)
+                    {
+                        ImGui.Text($"  {loc.Name}");
+                        ImGui.Text($"  Terrain: {loc.Terrain}");
+                    }
+                }
+            }
+            else
+            {
+                ImGui.TextDisabled("Hover over a tile for info");
+            }
+
             ImGui.Separator();
             ImGui.Text("Next steps:");
-            ImGui.BulletText("Implement world renderer");
             ImGui.BulletText("Wire up DesktopIO methods");
             ImGui.BulletText("Port overlay UIs to ImGui");
+            ImGui.BulletText("Add click-to-travel");
             ImGui.End();
 
             rlImGui.End();
