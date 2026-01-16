@@ -239,17 +239,117 @@ public static class DesktopIO
     }
 
     // Combat methods
+
+    // Persistent combat overlay for the combat sequence
+    private static CombatOverlay? _combatOverlay;
+
+    /// <summary>
+    /// Render combat state (non-blocking, for intermediate states).
+    /// </summary>
     public static void RenderCombat(GameContext ctx, CombatDto combatData)
-        => throw new NotImplementedException("Desktop combat UI not yet implemented");
+    {
+        _combatOverlay ??= new CombatOverlay();
+        _combatOverlay.Update(combatData);
 
+        // Single frame render
+        Raylib.BeginDrawing();
+        Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+        DesktopRuntime.WorldRenderer?.Update(ctx, Raylib.GetFrameTime());
+        DesktopRuntime.WorldRenderer?.Render(ctx);
+
+        Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+            new Color(0, 0, 0, 128));
+
+        rlImGui.Begin();
+        _combatOverlay.Render(ctx, Raylib.GetFrameTime());
+        rlImGui.End();
+
+        Raylib.EndDrawing();
+    }
+
+    /// <summary>
+    /// Show combat UI and block until player makes a choice.
+    /// </summary>
     public static string WaitForCombatChoice(GameContext ctx, CombatDto combatData)
-        => throw new NotImplementedException("Desktop combat UI not yet implemented");
+    {
+        _combatOverlay ??= new CombatOverlay();
+        _combatOverlay.Open(combatData);
 
+        string? choice = null;
+
+        while (choice == null && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+            choice = _combatOverlay.Render(ctx, deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+
+        return choice ?? "disengage";
+    }
+
+    /// <summary>
+    /// Show target selection and block until player chooses a target.
+    /// </summary>
     public static string WaitForTargetChoice(GameContext ctx, List<CombatActionDto> targetingOptions, string animalName)
-        => throw new NotImplementedException("Desktop combat UI not yet implemented");
+    {
+        // Build a selection prompt from targeting options
+        string prompt = $"Select target on {animalName}:";
+        var choices = targetingOptions.Select(t => (t.Id, $"{t.Label} {(t.HitChance != null ? $"({t.HitChance})" : "")}")).ToList();
 
+        if (choices.Count == 0)
+        {
+            return "torso"; // Default target
+        }
+
+        var selection = BlockingDialog.Select(ctx, prompt, choices, c => c.Item2);
+        return selection.Id;
+    }
+
+    /// <summary>
+    /// Wait for player to dismiss combat outcome or auto-advance.
+    /// </summary>
     public static void WaitForCombatContinue(GameContext ctx)
-        => throw new NotImplementedException("Desktop combat UI not yet implemented");
+    {
+        if (_combatOverlay == null || !_combatOverlay.IsOpen) return;
+
+        string? choice = null;
+
+        while (choice != "continue" && _combatOverlay.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+            choice = _combatOverlay.Render(ctx, deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+
+        _combatOverlay.Close();
+    }
 
     // Discovery/Weather methods
     public static void ShowDiscovery(GameContext ctx, string locationName, string discoveryText)
