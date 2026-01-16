@@ -31,10 +31,11 @@ public static class Program
             loadError = ex.Message;
         }
 
-        // Create world renderer and input handler
+        // Create world renderer, input handler, and overlay manager
         var worldRenderer = new WorldRenderer();
         var inputHandler = new InputHandler(worldRenderer);
         var actionPanel = new ActionPanel();
+        var overlays = new OverlayManager();
 
         while (!Raylib.WindowShouldClose())
         {
@@ -43,6 +44,12 @@ public static class Program
             // Process input before rendering
             if (ctx != null && loadError == null)
             {
+                // Handle overlay keyboard shortcuts first
+                bool iPressed = Raylib.IsKeyPressed(KeyboardKey.I);
+                bool cPressed = Raylib.IsKeyPressed(KeyboardKey.C);
+                bool escPressed = Raylib.IsKeyPressed(KeyboardKey.Escape);
+                overlays.HandleKeyboardShortcuts(iPressed, cPressed, escPressed);
+
                 var inputResult = inputHandler.ProcessInput(ctx);
 
                 // Handle travel if initiated
@@ -152,7 +159,18 @@ public static class Program
                 var clickedAction = actionPanel.Render(ctx, deltaTime);
                 if (clickedAction != null)
                 {
-                    HandleAction(ctx, clickedAction, actionPanel);
+                    HandleAction(ctx, clickedAction, actionPanel, overlays);
+                }
+
+                // Render overlays
+                var overlayResults = overlays.Render(ctx, deltaTime);
+                if (overlayResults.CraftedItem != null)
+                {
+                    actionPanel.ShowMessage($"Crafted: {overlayResults.CraftedItem}");
+                }
+                if (overlayResults.EventChoice != null)
+                {
+                    actionPanel.ShowMessage($"Choice made: {overlayResults.EventChoice}");
                 }
             }
 
@@ -160,9 +178,9 @@ public static class Program
             ImGui.SetNextWindowPos(new System.Numerics.Vector2(650, 470), ImGuiCond.FirstUseEver);
             ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 200), ImGuiCond.FirstUseEver);
             ImGui.Begin("Status");
-            ImGui.TextColored(new System.Numerics.Vector4(0.5f, 0.8f, 1f, 1), "Desktop Migration - Phase 3");
+            ImGui.TextColored(new System.Numerics.Vector4(0.5f, 0.8f, 1f, 1), "Desktop Migration - Phase 4");
             ImGui.Separator();
-            ImGui.TextWrapped("Input active! Click tiles or use WASD to move. Actions panel shows available options.");
+            ImGui.TextWrapped("Overlays implemented! Press I for inventory, C for crafting. ESC to close overlays.");
             ImGui.Separator();
 
             // Hover info
@@ -213,7 +231,7 @@ public static class Program
     /// <summary>
     /// Handle an action from the action panel.
     /// </summary>
-    private static void HandleAction(GameContext ctx, string actionId, ActionPanel panel)
+    private static void HandleAction(GameContext ctx, string actionId, ActionPanel panel, OverlayManager overlays)
     {
         switch (actionId)
         {
@@ -223,11 +241,11 @@ public static class Program
                 break;
 
             case "inventory":
-                panel.ShowMessage("Inventory not yet implemented.");
+                overlays.ToggleInventory();
                 break;
 
             case "crafting":
-                panel.ShowMessage("Crafting not yet implemented.");
+                overlays.ToggleCrafting();
                 break;
 
             case "discovery_log":
