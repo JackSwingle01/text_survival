@@ -53,7 +53,7 @@ public static class EdgeRenderer
 
         var vis1 = map.GetVisibility(x, y);
         var vis2 = map.GetVisibility(nx, ny);
-        if (vis1 == TileVisibility.Hidden || vis2 == TileVisibility.Hidden)
+        if (vis1 == Environments.Grid.TileVisibility.Unexplored || vis2 == Environments.Grid.TileVisibility.Unexplored)
             return;
 
         // Get locations

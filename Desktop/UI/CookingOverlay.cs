@@ -76,7 +76,7 @@ public class CookingOverlay
 
                 if (rawMeatCount > 0)
                 {
-                    double rawMeatWeight = inv.GetTotalWeight(Resource.RawMeat);
+                    double rawMeatWeight = inv.Weight(Resource.RawMeat);
                     string meatLabel = $"Cook Raw Meat ({rawMeatWeight:F1}kg) - {CookingHandler.CookMeatTimeMinutes}min";
 
                     if (ImGui.Button(meatLabel, new Vector2(-1, 0)))

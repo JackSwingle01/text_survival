@@ -85,14 +85,14 @@ public class CraftingOverlay
             float contentHeight = ImGui.GetContentRegionAvail().Y - 30;
 
             // Left: Recipe list
-            ImGui.BeginChild("RecipeList", new Vector2(250, contentHeight), ImGuiChildFlags.Borders);
+            ImGui.BeginChild("RecipeList", new Vector2(250, contentHeight), ImGuiChildFlags.Border);
             RenderRecipeList(ctx, crafting);
             ImGui.EndChild();
 
             ImGui.SameLine();
 
             // Right: Selected recipe details
-            ImGui.BeginChild("RecipeDetails", new Vector2(0, contentHeight), ImGuiChildFlags.Borders);
+            ImGui.BeginChild("RecipeDetails", new Vector2(0, contentHeight), ImGuiChildFlags.Border);
             craftedItem = RenderRecipeDetails(ctx, crafting);
             ImGui.EndChild();
 
@@ -305,7 +305,7 @@ public class CraftingOverlay
                 _messageTimer = 3.0f;
 
                 // Advance game time
-                ctx.Update(option.CraftingTimeMinutes, ActivityType.Working);
+                ctx.Update(option.CraftingTimeMinutes, ActivityType.Crafting);
             }
         }
         else

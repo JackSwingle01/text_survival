@@ -59,7 +59,7 @@ public class InventoryOverlay
             }
 
             // Content based on selected category
-            ImGui.BeginChild("InventoryContent", new Vector2(0, -30), ImGuiChildFlags.Borders);
+            ImGui.BeginChild("InventoryContent", new Vector2(0, -30), ImGuiChildFlags.Border);
 
             switch (_selectedCategory)
             {
@@ -296,15 +296,15 @@ public class InventoryOverlay
         foreach (var tool in inv.Tools)
         {
             // Color based on condition
-            Vector4 color = tool.Condition > 0.5
+            Vector4 color = tool.ConditionPct > 0.5
                 ? new Vector4(0.8f, 0.8f, 0.7f, 1f)
-                : tool.Condition > 0.25
+                : tool.ConditionPct > 0.25
                     ? new Vector4(1f, 0.8f, 0.3f, 1f)
                     : new Vector4(1f, 0.4f, 0.4f, 1f);
 
             ImGui.TextColored(color, $"{tool.Name}");
             ImGui.SameLine();
-            ImGui.TextDisabled($"({tool.Weight:F1} kg, {tool.Condition * 100:F0}%)");
+            ImGui.TextDisabled($"({tool.Weight:F1} kg, {tool.ConditionPct * 100:F0}%)");
 
             // Tool properties
             if (tool.IsWeapon)
@@ -375,12 +375,12 @@ public class InventoryOverlay
         ImGui.SameLine();
         if (gear != null)
         {
-            Vector4 color = gear.Condition > 0.5
+            Vector4 color = gear.ConditionPct > 0.5
                 ? new Vector4(0.7f, 0.8f, 0.7f, 1f)
-                : gear.Condition > 0.25
+                : gear.ConditionPct > 0.25
                     ? new Vector4(1f, 0.8f, 0.3f, 1f)
                     : new Vector4(1f, 0.4f, 0.4f, 1f);
-            ImGui.TextColored(color, $"{gear.Name} ({gear.Condition * 100:F0}%)");
+            ImGui.TextColored(color, $"{gear.Name} ({gear.ConditionPct * 100:F0}%)");
         }
         else
         {

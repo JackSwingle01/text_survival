@@ -405,7 +405,7 @@ public class FireOverlay
         }
 
         // Torch lighting
-        bool hasUnlitTorch = inv.Tools.Any(t => t.ToolType == ToolType.Torch && !t.IsTorchLit);
+        bool hasUnlitTorch = inv.HasUnlitTorch;
         if (fire.IsActive && hasUnlitTorch)
         {
             if (ImGui.Button("Light Torch", new Vector2(-1, 0)))
@@ -446,7 +446,7 @@ public class FireOverlay
             int count = inv.Count(r);
             if (count > 0)
             {
-                double weight = inv.GetTotalWeight(r);
+                double weight = inv.Weight(r);
                 result.Add((r, ft, count, weight));
             }
         }

@@ -52,7 +52,7 @@ public class TransferOverlay
             float columnWidth = (ImGui.GetContentRegionAvail().X - 20) / 2;
 
             // Left column: Player inventory
-            ImGui.BeginChild("PlayerInv", new Vector2(columnWidth, -60), ImGuiChildFlags.Borders);
+            ImGui.BeginChild("PlayerInv", new Vector2(columnWidth, -60), ImGuiChildFlags.Border);
             ImGui.Text("Your Inventory");
 
             float playerWeightPct = (float)(playerInv.CurrentWeightKg / playerInv.MaxWeightKg);
@@ -73,7 +73,7 @@ public class TransferOverlay
             ImGui.SameLine();
 
             // Right column: Storage
-            ImGui.BeginChild("StorageInv", new Vector2(columnWidth, -60), ImGuiChildFlags.Borders);
+            ImGui.BeginChild("StorageInv", new Vector2(columnWidth, -60), ImGuiChildFlags.Border);
             ImGui.Text(_storageName);
 
             if (_storage.MaxWeightKg < double.MaxValue)
@@ -125,16 +125,23 @@ public class TransferOverlay
         // Resources
         foreach (var category in new[] { ResourceCategory.Fuel, ResourceCategory.Food, ResourceCategory.Medicine, ResourceCategory.Material })
         {
-            var resources = inv.GetResourcesByCategory(category);
-            if (resources.Count == 0) continue;
+            // Get all resources in this category
+            var categoryResources = ResourceCategories.Items[category];
+            bool hasAny = false;
 
-            hasItems = true;
-            ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), category.ToString());
-
-            foreach (var (resource, stacks) in resources)
+            foreach (Resource resource in categoryResources)
             {
-                int count = stacks.Count;
-                double weight = stacks.Sum(s => s.Weight);
+                int count = inv.Count(resource);
+                if (count == 0) continue;
+
+                if (!hasAny)
+                {
+                    hasAny = true;
+                    hasItems = true;
+                    ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), category.ToString());
+                }
+
+                double weight = inv.Weight(resource);
                 string label = $"  {GetResourceName(resource)} x{count} ({weight:F1}kg)";
 
                 if (ImGui.Selectable(label))
@@ -206,8 +213,10 @@ public class TransferOverlay
             hasItems = true;
             ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), "Equipment");
 
-            foreach (var equip in inv.Equipment.ToList())
+            foreach (var kvp in inv.Equipment.ToList())
             {
+                if (kvp.Value == null) continue;
+                var equip = kvp.Value;
                 string conditionStr = equip.ConditionPct < 0.3f ? " [worn]" : "";
                 string label = $"  {equip.Name}{conditionStr}";
 

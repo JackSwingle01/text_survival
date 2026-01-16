@@ -71,7 +71,7 @@ public class EffectsRenderer
             float px = offsetX + particle.X * width;
             float py = offsetY + particle.Y * height;
 
-            var color = new Color(255, 255, 255, (byte)(particle.Alpha * 255));
+            var color = new Color((byte)255, (byte)255, (byte)255, (byte)(particle.Alpha * 255));
             Raylib.DrawCircle((int)px, (int)py, particle.Size, color);
         }
     }
@@ -136,7 +136,7 @@ public class EffectsRenderer
 
         if (darkness > 0.01f)
         {
-            var nightColor = new Color(10, 15, 30, (byte)(darkness * 255));
+            var nightColor = new Color((byte)10, (byte)15, (byte)30, (byte)(darkness * 255));
             Raylib.DrawRectangle((int)offsetX, (int)offsetY, (int)width, (int)height, nightColor);
         }
     }
@@ -172,7 +172,7 @@ public class EffectsRenderer
             float rectX = topLeft ? x : x + size - rectSize;
             float rectY = flipY ? y + size - rectSize : y;
 
-            var color = new Color(0, 0, 0, (byte)alpha);
+            var color = new Color((byte)0, (byte)0, (byte)0, (byte)alpha);
             Raylib.DrawRectangle((int)rectX, (int)rectY, (int)rectSize, (int)rectSize, color);
         }
     }

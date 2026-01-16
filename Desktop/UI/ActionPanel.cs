@@ -184,7 +184,7 @@ public class ActionPanel
         {
             string phase = fire.GetFirePhase();
             int minutes = (int)(fire.BurningHoursRemaining * 60);
-            float tempC = fire.Temperature;
+            float tempC = (float)fire.GetCurrentFireTemperature();
 
             Vector4 fireColor = minutes <= 5
                 ? new Vector4(1f, 0.3f, 0.3f, 1f)  // Red - critical
@@ -202,7 +202,7 @@ public class ActionPanel
         }
         else if (fire.HasEmbers)
         {
-            int emberMinutes = (int)(fire.EmberHoursRemaining * 60);
+            int emberMinutes = (int)(fire.EmberTimeRemaining * 60);
             ImGui.TextColored(new Vector4(0.8f, 0.4f, 0.2f, 1f), "Embers glowing");
             ImGui.Text($"  {FormatTime(emberMinutes)} until cold");
             ImGui.Separator();
@@ -237,10 +237,10 @@ public class ActionPanel
     {
         // Check if player has treatable conditions and treatment items
         var effects = ctx.player.EffectRegistry;
-        bool hasTreatableWounds = effects.ActiveEffects.Any(e =>
-            e.Name == "Bleeding" || e.Name == "Burn" || e.Name == "Infected");
+        bool hasTreatableWounds = effects.GetAll().Any(e =>
+            e.EffectKind == "Bleeding" || e.EffectKind == "Burn" || e.EffectKind == "Infected");
 
-        bool hasTreatmentItems = ctx.Inventory.HasMedicine;
+        bool hasTreatmentItems = ctx.Inventory.GetCount(ResourceCategory.Medicine) > 0;
 
         return hasTreatableWounds && hasTreatmentItems;
     }

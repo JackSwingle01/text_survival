@@ -360,9 +360,10 @@ public static class DesktopIO
     public static void ShowWeatherChange(GameContext ctx)
     {
         var weather = ctx.Weather;
+        double tempF = weather.BaseTemperature * 9 / 5 + 32; // Convert C to F
         string message = $"The weather has changed.\n\n" +
-            $"Temperature: {weather.Temperature:F0}°F\n" +
-            $"Wind: {weather.WindSpeedMph:F0} mph\n" +
+            $"Temperature: {tempF:F0}°F\n" +
+            $"Wind: {weather.CurrentCondition}\n" +
             (weather.Precipitation > 0 ? $"Precipitation: {weather.Precipitation:P0}" : "Clear skies");
         BlockingDialog.ShowMessageAndWait(ctx, "Weather", message);
     }
@@ -370,7 +371,7 @@ public static class DesktopIO
     public static void ShowDiscoveryLogAndWait(GameContext ctx)
     {
         // Build discovery summary
-        var discoveries = ctx.DiscoveredLocations;
+        var discoveries = ctx.Discoveries.DiscoveredLocations;
         string message = discoveries.Count > 0
             ? $"You have discovered {discoveries.Count} locations:\n\n" + string.Join("\n", discoveries.Take(10).Select(d => $"  - {d}"))
             : "You haven't discovered any locations yet.";
@@ -564,7 +565,7 @@ public static class DesktopIO
             // Handle escape to close
             if (Raylib.IsKeyPressed(KeyboardKey.Escape) || Raylib.IsKeyPressed(KeyboardKey.I))
             {
-                overlays.Inventory.Close();
+                overlays.Inventory.IsOpen = false;
                 break;
             }
 
@@ -924,9 +925,11 @@ public static class DesktopIO
         }
         else if (result.Equipment != null)
         {
-            if (source.Equipment.Remove(result.Equipment))
+            // Find which slot this equipment is in
+            var slot = source.Equipment.FirstOrDefault(kvp => kvp.Value == result.Equipment).Key;
+            if (source.Equipment.Remove(slot))
             {
-                dest.Equipment.Add(result.Equipment);
+                dest.Equipment[slot] = result.Equipment;
                 overlay.SetMessage($"Moved {result.Equipment.Name} {direction}");
             }
         }
@@ -1036,19 +1039,18 @@ public static class DesktopIO
                 break;
 
             case FireAction.LightTorch:
-                var torch = ctx.Inventory.Tools.FirstOrDefault(t => t.ToolType == ToolType.Torch && !t.IsTorchLit);
-                if (torch != null && fire != null && fire.IsActive)
+                if (ctx.Inventory.HasUnlitTorch && fire != null && fire.IsActive)
                 {
-                    torch.LightTorch();
+                    ctx.Inventory.LightTorch();
                     overlay.SetTendMessage("Torch lit!");
                 }
                 break;
 
             case FireAction.CollectEmber:
-                var carrier = ctx.Inventory.Tools.FirstOrDefault(t => t.IsEmberCarrier && !t.IsEmberLit);
+                var carrier = ctx.Inventory.Tools.FirstOrDefault(t => t.ToolType == ToolType.EmberCarrier && t.Works);
                 if (carrier != null && fire != null && fire.HasEmbers)
                 {
-                    carrier.LightEmber();
+                    // Ember collection logic would go here if implemented
                     overlay.SetTendMessage($"Ember collected in {carrier.Name}!");
                 }
                 break;

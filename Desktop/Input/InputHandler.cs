@@ -62,7 +62,7 @@ public class InputHandler
             if (!map.IsEdgeBlocked(currentPos, targetPos, season))
             {
                 // Set pending travel target - TravelRunner will handle it
-                ctx.PendingTravelTarget = targetPos;
+                ctx.PendingTravelTarget = (targetPos.X, targetPos.Y);
                 result.TravelInitiated = true;
             }
             else
@@ -116,7 +116,7 @@ public class InputHandler
 
                 if (!map.IsEdgeBlocked(currentPos, targetPos, season))
                 {
-                    ctx.PendingTravelTarget = targetPos;
+                    ctx.PendingTravelTarget = (targetPos.X, targetPos.Y);
                     result.TravelInitiated = true;
                 }
                 else

@@ -208,7 +208,6 @@ public class TravelRunner(GameContext ctx)
                 destination,
                 position.X,
                 position.Y,
-                hazardType,
                 combinedQuickTime,
                 combinedCarefulTime,
                 maxRisk

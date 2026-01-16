@@ -141,7 +141,7 @@ public class WorldRenderer
 
         // Check for fire
         var fire = location.GetFeature<Environments.Features.HeatSourceFeature>();
-        if (fire != null && fire.IsLit)
+        if (fire != null && fire.IsActive)
         {
             TileRenderer.DrawFeatureIcon(x, y, Camera.TileSize, "local_fire_department", slot++, hasGlow: true);
         }
@@ -159,7 +159,7 @@ public class WorldRenderer
 
         // Check for traps with catches
         var traps = location.GetFeature<Environments.Features.SnareLineFeature>();
-        if (traps != null && traps.HasCatchReady)
+        if (traps != null && traps.HasCatchWaiting)
         {
             TileRenderer.DrawFeatureIcon(x, y, Camera.TileSize, "check_circle", slot++, hasGlow: true);
         }
@@ -243,7 +243,7 @@ public class WorldRenderer
             (byte)((r + m) * 255),
             (byte)((g + m) * 255),
             (byte)((b + m) * 255),
-            255);
+            (byte)255);
     }
 
     /// <summary>
