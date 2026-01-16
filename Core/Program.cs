@@ -4,9 +4,12 @@ using ImGuiNET;
 using text_survival.Persistence;
 using text_survival.Actions;
 using text_survival.Actions.Expeditions;
+using text_survival.Actions.Handlers;
 using text_survival.Desktop.Rendering;
 using text_survival.Desktop.Input;
 using text_survival.Desktop.UI;
+using text_survival.Environments.Features;
+using text_survival.Items;
 
 namespace text_survival.Core;
 
@@ -162,25 +165,18 @@ public static class Program
                     HandleAction(ctx, clickedAction, actionPanel, overlays);
                 }
 
-                // Render overlays
+                // Render overlays and process results
                 var overlayResults = overlays.Render(ctx, deltaTime);
-                if (overlayResults.CraftedItem != null)
-                {
-                    actionPanel.ShowMessage($"Crafted: {overlayResults.CraftedItem}");
-                }
-                if (overlayResults.EventChoice != null)
-                {
-                    actionPanel.ShowMessage($"Choice made: {overlayResults.EventChoice}");
-                }
+                ProcessOverlayResults(ctx, overlayResults, actionPanel, overlays);
             }
 
             // Status panel
             ImGui.SetNextWindowPos(new System.Numerics.Vector2(650, 470), ImGuiCond.FirstUseEver);
             ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 200), ImGuiCond.FirstUseEver);
             ImGui.Begin("Status");
-            ImGui.TextColored(new System.Numerics.Vector4(0.5f, 0.8f, 1f, 1), "Desktop Migration - Phase 4");
+            ImGui.TextColored(new System.Numerics.Vector4(0.5f, 0.8f, 1f, 1), "Desktop Migration - Phase 5");
             ImGui.Separator();
-            ImGui.TextWrapped("Overlays implemented! Press I for inventory, C for crafting. ESC to close overlays.");
+            ImGui.TextWrapped("Fire, eating, cooking, storage overlays. Use action panel buttons or keyboard shortcuts.");
             ImGui.Separator();
 
             // Hover info
@@ -253,20 +249,29 @@ public static class Program
                 break;
 
             case "storage":
-                panel.ShowMessage("Storage not yet implemented.");
+                var campStorage = ctx.CampStorage;
+                if (campStorage != null)
+                {
+                    overlays.OpenTransfer(campStorage, "Camp Storage");
+                }
+                else
+                {
+                    panel.ShowMessage("No storage available at this location.");
+                }
                 break;
 
             case "tend_fire":
             case "start_fire":
-                panel.ShowMessage("Fire management not yet implemented.");
+                var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+                overlays.OpenFire(fire);
                 break;
 
             case "eat_drink":
-                panel.ShowMessage("Eating/drinking not yet implemented.");
+                overlays.OpenEating();
                 break;
 
             case "cook":
-                panel.ShowMessage("Cooking not yet implemented.");
+                overlays.OpenCooking();
                 break;
 
             case "sleep":
@@ -296,6 +301,215 @@ public static class Program
                     panel.ShowMessage($"Unknown action: {actionId}");
                 }
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Process results from overlay interactions.
+    /// </summary>
+    private static void ProcessOverlayResults(GameContext ctx, OverlayResults results, ActionPanel panel, OverlayManager overlays)
+    {
+        if (results.CraftedItem != null)
+        {
+            panel.ShowMessage($"Crafted: {results.CraftedItem}");
+        }
+
+        if (results.EventChoice != null)
+        {
+            panel.ShowMessage($"Choice made: {results.EventChoice}");
+        }
+
+        // Fire overlay results
+        if (results.FireResult != null)
+        {
+            ProcessFireResult(ctx, results.FireResult, panel, overlays);
+        }
+
+        // Eating overlay results
+        if (results.ConsumedItemId != null)
+        {
+            var consumeResult = ConsumptionHandler.Consume(ctx, results.ConsumedItemId);
+            overlays.Eating.SetConsumeResult(consumeResult.Message, consumeResult.IsWarning);
+            panel.ShowMessage(consumeResult.Message);
+        }
+
+        // Cooking overlay results
+        if (results.CookingResult != null)
+        {
+            ProcessCookingResult(ctx, results.CookingResult, panel, overlays);
+        }
+
+        // Transfer overlay results
+        if (results.TransferResult != null)
+        {
+            ProcessTransferResult(ctx, results.TransferResult, panel, overlays);
+        }
+    }
+
+    /// <summary>
+    /// Process fire overlay action results.
+    /// </summary>
+    private static void ProcessFireResult(GameContext ctx, FireOverlayResult result, ActionPanel panel, OverlayManager overlays)
+    {
+        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+
+        switch (result.Action)
+        {
+            case FireAction.StartFire:
+                if (result.Tool != null && result.Tinder != null)
+                {
+                    int skillLevel = ctx.player.Skills.GetSkill("Firecraft").Level;
+                    var startResult = FireHandler.AttemptStartFire(
+                        ctx.player, ctx.Inventory, ctx.CurrentLocation,
+                        result.Tool, result.Tinder.Value, skillLevel, fire);
+
+                    ctx.Update(10, ActivityType.TendingFire);
+                    overlays.Fire.SetAttemptResult(startResult.Success, startResult.Message);
+                    panel.ShowMessage(startResult.Message);
+
+                    if (startResult.Success)
+                    {
+                        ctx.player.Skills.GetSkill("Firecraft").GainExperience(3);
+                    }
+                    else
+                    {
+                        ctx.player.Skills.GetSkill("Firecraft").GainExperience(1);
+                    }
+                }
+                break;
+
+            case FireAction.StartFromEmber:
+                if (result.EmberCarrier != null)
+                {
+                    FireHandler.StartFromEmber(ctx.player, ctx.Inventory, ctx.CurrentLocation, result.EmberCarrier, fire);
+                    ctx.Update(5, ActivityType.TendingFire);
+                    overlays.Fire.SetAttemptResult(true, "Fire started from ember!");
+                    panel.ShowMessage("Fire started from ember!");
+                }
+                break;
+
+            case FireAction.AddFuel:
+                if (result.FuelResource != null && fire != null)
+                {
+                    FireHandler.AddFuel(ctx.Inventory, fire, result.FuelResource.Value);
+                    overlays.Fire.SetTendMessage($"Added {result.FuelResource.Value} to fire.");
+                    panel.ShowMessage($"Added fuel to fire.");
+                }
+                break;
+
+            case FireAction.CollectCharcoal:
+                if (fire != null && fire.HasCharcoal)
+                {
+                    double collected = fire.CollectCharcoal();
+                    ctx.Inventory.Add(Resource.Charcoal, collected);
+                    overlays.Fire.SetTendMessage($"Collected {collected:F2}kg charcoal.");
+                    panel.ShowMessage($"Collected {collected:F2}kg charcoal.");
+                }
+                break;
+
+            case FireAction.LightTorch:
+                var torch = ctx.Inventory.Tools.FirstOrDefault(t => t.ToolType == Items.ToolType.Torch && !t.IsTorchLit);
+                if (torch != null && fire != null && fire.IsActive)
+                {
+                    torch.LightTorch();
+                    overlays.Fire.SetTendMessage("Torch lit!");
+                    panel.ShowMessage("Torch lit!");
+                }
+                break;
+
+            case FireAction.CollectEmber:
+                var carrier = ctx.Inventory.Tools.FirstOrDefault(t => t.IsEmberCarrier && !t.IsEmberLit);
+                if (carrier != null && fire != null && fire.HasEmbers)
+                {
+                    carrier.LightEmber();
+                    overlays.Fire.SetTendMessage($"Ember collected in {carrier.Name}!");
+                    panel.ShowMessage($"Ember collected in {carrier.Name}!");
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Process cooking overlay action results.
+    /// </summary>
+    private static void ProcessCookingResult(GameContext ctx, CookingOverlayResult result, ActionPanel panel, OverlayManager overlays)
+    {
+        switch (result.Action)
+        {
+            case CookingAction.CookMeat:
+                var cookResult = CookingHandler.CookMeat(ctx.Inventory, ctx.CurrentLocation);
+                if (cookResult.Success)
+                {
+                    ctx.Update(CookingHandler.CookMeatTimeMinutes, ActivityType.TendingFire);
+                }
+                overlays.Cooking.SetActionResult(cookResult.Success, cookResult.Message);
+                panel.ShowMessage(cookResult.Message);
+                break;
+
+            case CookingAction.MeltSnow:
+                var meltResult = CookingHandler.MeltSnow(ctx.Inventory, ctx.CurrentLocation);
+                if (meltResult.Success)
+                {
+                    ctx.Update(CookingHandler.MeltSnowTimeMinutes, ActivityType.TendingFire);
+                }
+                overlays.Cooking.SetActionResult(meltResult.Success, meltResult.Message);
+                panel.ShowMessage(meltResult.Message);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Process transfer overlay action results.
+    /// </summary>
+    private static void ProcessTransferResult(GameContext ctx, TransferResult result, ActionPanel panel, OverlayManager overlays)
+    {
+        var playerInv = ctx.Inventory;
+        var storage = ctx.CampStorage;
+        if (storage == null) return;
+
+        var source = result.FromPlayer ? playerInv : storage;
+        var dest = result.FromPlayer ? storage : playerInv;
+        string direction = result.FromPlayer ? "to storage" : "to inventory";
+
+        if (result.Resource != null)
+        {
+            if (source.Count(result.Resource.Value) > 0)
+            {
+                double weight = source.Pop(result.Resource.Value);
+                dest.Add(result.Resource.Value, weight);
+                overlays.Transfer.SetMessage($"Moved {result.Resource.Value} {direction}");
+            }
+        }
+        else if (result.IsWater)
+        {
+            double amount = Math.Min(result.WaterAmount, source.WaterLiters);
+            source.WaterLiters -= amount;
+            dest.WaterLiters += amount;
+            overlays.Transfer.SetMessage($"Transferred {amount:F1}L water {direction}");
+        }
+        else if (result.Tool != null)
+        {
+            if (source.Tools.Remove(result.Tool))
+            {
+                dest.Tools.Add(result.Tool);
+                overlays.Transfer.SetMessage($"Moved {result.Tool.Name} {direction}");
+            }
+        }
+        else if (result.Equipment != null)
+        {
+            if (source.Equipment.Remove(result.Equipment))
+            {
+                dest.Equipment.Add(result.Equipment);
+                overlays.Transfer.SetMessage($"Moved {result.Equipment.Name} {direction}");
+            }
+        }
+        else if (result.Accessory != null)
+        {
+            if (source.Accessories.Remove(result.Accessory))
+            {
+                dest.Accessories.Add(result.Accessory);
+                overlays.Transfer.SetMessage($"Moved {result.Accessory.Name} {direction}");
+            }
         }
     }
 }
