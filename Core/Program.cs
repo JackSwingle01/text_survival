@@ -7,6 +7,7 @@ using text_survival.Actions.Expeditions;
 using text_survival.Actions.Handlers;
 using text_survival.Desktop.Rendering;
 using text_survival.Desktop.Input;
+using text_survival.Desktop;
 using text_survival.Desktop.UI;
 using text_survival.Environments.Features;
 using text_survival.Items;
@@ -39,6 +40,9 @@ public static class Program
         var inputHandler = new InputHandler(worldRenderer);
         var actionPanel = new ActionPanel();
         var overlays = new OverlayManager();
+
+        // Initialize desktop runtime for blocking I/O
+        DesktopRuntime.Initialize(worldRenderer, overlays, actionPanel);
 
         while (!Raylib.WindowShouldClose())
         {
@@ -174,9 +178,9 @@ public static class Program
             ImGui.SetNextWindowPos(new System.Numerics.Vector2(650, 470), ImGuiCond.FirstUseEver);
             ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 200), ImGuiCond.FirstUseEver);
             ImGui.Begin("Status");
-            ImGui.TextColored(new System.Numerics.Vector4(0.5f, 0.8f, 1f, 1), "Desktop Migration - Phase 5");
+            ImGui.TextColored(new System.Numerics.Vector4(0.5f, 0.8f, 1f, 1), "Desktop Migration - Phase 6");
             ImGui.Separator();
-            ImGui.TextWrapped("Fire, eating, cooking, storage overlays. Use action panel buttons or keyboard shortcuts.");
+            ImGui.TextWrapped("Blocking I/O enabled! Select, Confirm, and progress dialogs now work.");
             ImGui.Separator();
 
             // Hover info

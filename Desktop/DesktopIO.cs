@@ -88,30 +88,39 @@ public static class DesktopIO
 
     // Core selection methods
     public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices, Func<T, string> display, Func<T, bool>? isDisabled = null)
-        => throw new NotImplementedException("Desktop selection UI not yet implemented");
+        => BlockingDialog.Select(ctx, prompt, choices, display, isDisabled);
 
     public static bool Confirm(GameContext ctx, string prompt)
-        => throw new NotImplementedException("Desktop confirm UI not yet implemented");
+        => BlockingDialog.Confirm(ctx, prompt);
 
     public static string PromptConfirm(GameContext ctx, string message, Dictionary<string, string> buttons)
-        => throw new NotImplementedException("Desktop confirm UI not yet implemented");
+        => BlockingDialog.PromptConfirm(ctx, message, buttons);
 
     public static int ReadInt(GameContext ctx, string prompt, int min, int max, bool allowCancel = false)
-        => throw new NotImplementedException("Desktop input UI not yet implemented");
+        => BlockingDialog.ReadInt(ctx, prompt, min, max, allowCancel);
 
     // Event methods
     public static void WaitForEventContinue(GameContext ctx)
-        => throw new NotImplementedException("Desktop event UI not yet implemented");
+        => BlockingDialog.ShowMessageAndWait(ctx, "Event", "Press continue to proceed.");
 
     public static void RenderEvent(GameContext ctx, EventDto eventData)
-        => throw new NotImplementedException("Desktop event UI not yet implemented");
+    {
+        // For now, just show a message with the event description
+        // Full event overlay integration would come later
+        BlockingDialog.ShowMessageAndWait(ctx, "Event", eventData.Description ?? "Something happened...");
+    }
 
     // Render methods
     public static void Render(GameContext ctx, string? statusText = null)
-        => throw new NotImplementedException("Desktop render not yet implemented");
+    {
+        // Single frame render - used for intermediate states
+        DesktopRuntime.RenderFrame(ctx);
+    }
 
     public static void RenderWithDuration(GameContext ctx, string statusText, int estimatedMinutes)
-        => throw new NotImplementedException("Desktop render not yet implemented");
+    {
+        // Show progress bar while time passes
+        BlockingDialog.ShowProgress(ctx, statusText, estimatedMinutes);
 
     public static void RenderTravelProgress(
         GameContext ctx,
@@ -157,11 +166,24 @@ public static class DesktopIO
 
     // Work result methods
     public static void ShowWorkResult(GameContext ctx, string activityName, string message, List<string> itemsGained)
-        => throw new NotImplementedException("Desktop work result UI not yet implemented");
+    {
+        string fullMessage = message;
+        if (itemsGained.Count > 0)
+        {
+            fullMessage += "\n\nGained:\n" + string.Join("\n", itemsGained.Select(i => $"  - {i}"));
+        }
+        BlockingDialog.ShowMessageAndWait(ctx, activityName, fullMessage);
+    }
 
     // Death screen
     public static void ShowDeathScreen(GameContext ctx, DeathScreenDto data)
-        => throw new NotImplementedException("Desktop death screen not yet implemented");
+    {
+        string deathMessage = $"You have died.\n\n" +
+            $"Cause: {data.CauseOfDeath}\n" +
+            $"Days Survived: {data.DaysSurvived}\n" +
+            $"Distance Traveled: {data.DistanceTraveled:F1} miles";
+        BlockingDialog.ShowMessageAndWait(ctx, "DEATH", deathMessage);
+    }
 
     // Complex UI loops
     public static void RunTransferUI(GameContext ctx, Inventory storage, string storageName)
