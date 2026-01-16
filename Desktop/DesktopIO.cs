@@ -809,15 +809,15 @@ public static class DesktopIO
             ("cancel", "Cancel")
         };
 
-        foreach (var mode in butcherData.Modes)
+        foreach (var mode in butcherData.ModeOptions)
         {
-            string timeStr = mode.TimeMinutes > 0 ? $" ({mode.TimeMinutes}min)" : "";
+            string timeStr = mode.EstimatedMinutes > 0 ? $" ({mode.EstimatedMinutes}min)" : "";
             choices.Add((mode.Id, $"{mode.Label}{timeStr}"));
         }
 
         string description = $"Butcher: {butcherData.AnimalName}\n" +
-            $"Condition: {butcherData.Condition}\n" +
-            $"Estimated yield: {butcherData.EstimatedYieldKg:F1}kg";
+            $"Condition: {butcherData.DecayStatus}\n" +
+            $"Remaining: {butcherData.RemainingKg:F1}kg";
 
         var selection = BlockingDialog.Select(ctx, description, choices, c => c.label);
 
@@ -840,8 +840,10 @@ public static class DesktopIO
     {
         string deathMessage = $"You have died.\n\n" +
             $"Cause: {data.CauseOfDeath}\n" +
-            $"Days Survived: {data.DaysSurvived}\n" +
-            $"Distance Traveled: {data.DistanceTraveled:F1} miles";
+            $"Time Survived: {data.TimeSurvived}\n" +
+            $"Final Vitality: {data.FinalVitality:P0}\n" +
+            $"Final Calories: {data.FinalCalories:F0}\n" +
+            $"Final Temperature: {data.FinalTemperature:F1}°C";
         BlockingDialog.ShowMessageAndWait(ctx, "DEATH", deathMessage);
     }
 
