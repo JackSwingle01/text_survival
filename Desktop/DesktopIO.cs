@@ -142,6 +142,7 @@ public static class DesktopIO
     {
         // Show progress bar while time passes
         BlockingDialog.ShowProgress(ctx, statusText, estimatedMinutes);
+    }
 
     public static void RenderTravelProgress(
         GameContext ctx,
