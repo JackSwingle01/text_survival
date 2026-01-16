@@ -1,7 +1,7 @@
 using Raylib_cs;
-using rlImGuiCs;
+using rlImGui_cs;
 using text_survival.Actions;
-using text_survival.Actions.Events.Variants;
+using text_survival.Actions.Variants;
 using text_survival.Actions.Handlers;
 using text_survival.Crafting;
 using text_survival.Desktop.Dto;
@@ -9,7 +9,7 @@ using text_survival.Desktop.UI;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
-using ForageFocus = text_survival.Actions.Events.Variants.ForageFocus;
+using ForageFocus = text_survival.Actions.Variants.ForageFocus;
 
 namespace text_survival.Desktop;
 
