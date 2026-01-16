@@ -5,6 +5,7 @@ using text_survival.Desktop.Dto;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
+using ForageFocus = text_survival.Actions.Events.Variants.ForageFocus;
 
 namespace text_survival.Desktop;
 
@@ -78,13 +79,33 @@ public static class DesktopIO
 
     // Discovery/Weather methods
     public static void ShowDiscovery(GameContext ctx, string locationName, string discoveryText)
-        => throw new NotImplementedException("Desktop discovery UI not yet implemented");
+    {
+        BlockingDialog.ShowMessageAndWait(ctx, "Discovery!", $"{locationName}\n\n{discoveryText}");
+    }
 
     public static void ShowWeatherChange(GameContext ctx)
-        => throw new NotImplementedException("Desktop weather UI not yet implemented");
+    {
+        var weather = ctx.Weather;
+        string message = $"The weather has changed.\n\n" +
+            $"Temperature: {weather.Temperature:F0}°F\n" +
+            $"Wind: {weather.WindSpeedMph:F0} mph\n" +
+            (weather.Precipitation > 0 ? $"Precipitation: {weather.Precipitation:P0}" : "Clear skies");
+        BlockingDialog.ShowMessageAndWait(ctx, "Weather", message);
+    }
 
     public static void ShowDiscoveryLogAndWait(GameContext ctx)
-        => throw new NotImplementedException("Desktop discovery log UI not yet implemented");
+    {
+        // Build discovery summary
+        var discoveries = ctx.DiscoveredLocations;
+        string message = discoveries.Count > 0
+            ? $"You have discovered {discoveries.Count} locations:\n\n" + string.Join("\n", discoveries.Take(10).Select(d => $"  - {d}"))
+            : "You haven't discovered any locations yet.";
+
+        if (discoveries.Count > 10)
+            message += $"\n  ... and {discoveries.Count - 10} more";
+
+        BlockingDialog.ShowMessageAndWait(ctx, "Discovery Log", message);
+    }
 
     // Core selection methods
     public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices, Func<T, string> display, Func<T, bool>? isDisabled = null)
@@ -154,15 +175,93 @@ public static class DesktopIO
         int quickTimeMinutes,
         int carefulTimeMinutes,
         double hazardLevel)
-        => throw new NotImplementedException("Desktop hazard UI not yet implemented");
+    {
+        int riskPercent = (int)(hazardLevel * 100);
+        string message = $"Hazardous terrain ahead: {targetLocation.Name}\n\n" +
+            $"Risk of injury: {riskPercent}%\n\n" +
+            $"Quick crossing: {quickTimeMinutes} minutes (full risk)\n" +
+            $"Careful crossing: {carefulTimeMinutes} minutes (reduced risk)";
+
+        var buttons = new Dictionary<string, string>
+        {
+            { "quick", $"Quick ({quickTimeMinutes}min)" },
+            { "careful", $"Careful ({carefulTimeMinutes}min)" },
+            { "cancel", "Turn back" }
+        };
+
+        string choice = BlockingDialog.PromptConfirm(ctx, message, buttons);
+        return choice == "quick";
+    }
 
     // Forage methods
     public static (ForageFocus? focus, int minutes) SelectForageOptions(GameContext ctx, ForageDto forageData)
-        => throw new NotImplementedException("Desktop forage UI not yet implemented");
+    {
+        // First select focus
+        var focusChoices = new List<(string id, string label)>
+        {
+            ("cancel", "Cancel")
+        };
+        foreach (var opt in forageData.FocusOptions)
+        {
+            focusChoices.Add((opt.Id, $"{opt.Label} ({opt.Description})"));
+        }
+
+        var focusSelection = BlockingDialog.Select(ctx, $"Foraging at {forageData.LocationQuality} location.\n\nSelect your focus:",
+            focusChoices, c => c.label);
+
+        if (focusSelection.id == "cancel")
+            return (null, 0);
+
+        ForageFocus focus = focusSelection.id switch
+        {
+            "fuel" => ForageFocus.Fuel,
+            "food" => ForageFocus.Food,
+            "medicine" => ForageFocus.Medicine,
+            "materials" => ForageFocus.Materials,
+            _ => ForageFocus.General
+        };
+
+        // Then select time
+        var timeChoices = new List<(string id, int minutes, string label)>
+        {
+            ("cancel", 0, "Cancel")
+        };
+        foreach (var opt in forageData.TimeOptions)
+        {
+            timeChoices.Add((opt.Id, opt.Minutes, opt.Label));
+        }
+
+        var timeSelection = BlockingDialog.Select(ctx, "How long will you forage?",
+            timeChoices, c => c.label);
+
+        if (timeSelection.id == "cancel")
+            return (null, 0);
+
+        return (focus, timeSelection.minutes);
+    }
 
     // Butcher methods
     public static string? SelectButcherOptions(GameContext ctx, ButcherDto butcherData)
-        => throw new NotImplementedException("Desktop butcher UI not yet implemented");
+    {
+        var choices = new List<(string id, string label)>
+        {
+            ("cancel", "Cancel")
+        };
+
+        foreach (var mode in butcherData.Modes)
+        {
+            string timeStr = mode.TimeMinutes > 0 ? $" ({mode.TimeMinutes}min)" : "";
+            choices.Add((mode.Id, $"{mode.Label}{timeStr}"));
+        }
+
+        string description = $"Butcher: {butcherData.AnimalName}\n" +
+            $"Condition: {butcherData.Condition}\n" +
+            $"Estimated yield: {butcherData.EstimatedYieldKg:F1}kg";
+
+        var selection = BlockingDialog.Select(ctx, description, choices, c => c.label);
+
+        return selection.id == "cancel" ? null : selection.id;
+    }
 
     // Work result methods
     public static void ShowWorkResult(GameContext ctx, string activityName, string message, List<string> itemsGained)
