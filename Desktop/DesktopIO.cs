@@ -49,14 +49,99 @@ public static class DesktopIO
     public static void ClearAllOverlays(string sessionId) { }
 
     // Hunt methods
+
+    // Persistent hunt overlay for the hunt sequence
+    private static HuntOverlay? _huntOverlay;
+
+    /// <summary>
+    /// Render hunt state (non-blocking, for intermediate states).
+    /// </summary>
     public static void RenderHunt(GameContext ctx, HuntDto huntData)
-        => throw new NotImplementedException("Desktop hunt UI not yet implemented");
+    {
+        _huntOverlay ??= new HuntOverlay();
+        _huntOverlay.Open(huntData);
 
+        // Single frame render
+        Raylib.BeginDrawing();
+        Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+        DesktopRuntime.WorldRenderer?.Update(ctx, Raylib.GetFrameTime());
+        DesktopRuntime.WorldRenderer?.Render(ctx);
+
+        Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+            new Color(0, 0, 0, 128));
+
+        rlImGui.Begin();
+        _huntOverlay.Render(ctx, Raylib.GetFrameTime());
+        rlImGui.End();
+
+        Raylib.EndDrawing();
+    }
+
+    /// <summary>
+    /// Show hunt UI and block until player makes a choice.
+    /// </summary>
     public static string WaitForHuntChoice(GameContext ctx, HuntDto huntData)
-        => throw new NotImplementedException("Desktop hunt UI not yet implemented");
+    {
+        _huntOverlay ??= new HuntOverlay();
+        _huntOverlay.Open(huntData);
 
+        string? choice = null;
+
+        while (choice == null && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+            choice = _huntOverlay.Render(ctx, deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+
+        return choice ?? "stop";
+    }
+
+    /// <summary>
+    /// Wait for player to dismiss hunt outcome screen.
+    /// </summary>
     public static void WaitForHuntContinue(GameContext ctx)
-        => throw new NotImplementedException("Desktop hunt UI not yet implemented");
+    {
+        if (_huntOverlay == null || !_huntOverlay.IsOpen) return;
+
+        string? choice = null;
+
+        while (choice != "continue" && _huntOverlay.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+            choice = _huntOverlay.Render(ctx, deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+
+        _huntOverlay.Close();
+    }
 
     // Encounter methods
     public static void RenderEncounter(GameContext ctx, EncounterDto encounterData)
