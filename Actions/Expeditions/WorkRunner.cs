@@ -1,6 +1,5 @@
 using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Environments;
-using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.UI;
 using text_survival.Web;
@@ -128,11 +127,6 @@ public class WorkRunner(GameContext ctx)
         return ExecuteWork(location, new HarvestStrategy());
     }
 
-    public WorkResult DoSalvage(Location location)
-    {
-        return ExecuteWork(location, new SalvageStrategy());
-    }
-
     // === PROGRESS AND TIME PASSAGE ===
 
     /// <summary>
@@ -204,14 +198,6 @@ public class WorkRunner(GameContext ctx)
         return ExecuteWork(location, new TrapStrategy(TrapStrategy.TrapMode.Check));
     }
 
-    /// <summary>
-    /// Access a cache at the location to store/retrieve items.
-    /// </summary>
-    public WorkResult DoCache(Location location)
-    {
-        return ExecuteWork(location, new CacheStrategy());
-    }
-
     // === WORK OPTIONS (used by ExpeditionRunner) ===
     
     /// <summary>
@@ -222,34 +208,6 @@ public class WorkRunner(GameContext ctx)
         var option = location.GetWorkOptions(_ctx).FirstOrDefault(o => o.Id == workId);
         if (option == null) return WorkResult.Empty(0);
         return ExecuteWork(location, option.Strategy);
-    }
-
-    // === HELPERS ===
-
-    /// <summary>
-    /// Prompts player to travel to a newly discovered location.
-    /// </summary>
-    public static bool PromptTravelToDiscovery(GameContext ctx, Location discovered)
-    {
-        int travelMinutes = TravelProcessor.GetTraversalMinutes(ctx.CurrentLocation, discovered, ctx.player, ctx.Inventory);
-        GameDisplay.AddNarrative(ctx, $"You've found a path to {discovered.Name}.");
-        GameDisplay.Render(ctx, statusText: "Discovery!");
-
-        return WebIO.Confirm(ctx, $"Go to {discovered.Name} now? (~{travelMinutes} min)");
-    }
-
-    /// <summary>
-    /// Calculate chance to discover a new location.
-    /// In grid mode, base chance with visibility bonus.
-    /// </summary>
-    public static double CalculateExploreChance(Location location)
-    {
-        double baseChance = 0.70;
-
-        // High visibility improves scouting (up to +20% at visibility 2.0)
-        double chance = baseChance + location.VisibilityFactor * 0.10;
-
-        return Math.Min(0.95, chance);
     }
 
     public static string GetForageFailureMessage(string quality)

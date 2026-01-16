@@ -10,6 +10,7 @@ namespace text_survival.Web.Dto;
 [JsonDerivedType(typeof(InventoryOverlay), "inventory")]
 [JsonDerivedType(typeof(CraftingOverlay), "crafting")]
 [JsonDerivedType(typeof(EventOverlay), "event")]
+[JsonDerivedType(typeof(EventOutcomeOverlay), "eventOutcome")]
 [JsonDerivedType(typeof(HazardOverlay), "hazard")]
 [JsonDerivedType(typeof(ConfirmOverlay), "confirm")]
 [JsonDerivedType(typeof(ForageOverlay), "forage")]
@@ -142,6 +143,11 @@ public record CraftingOverlay(CraftingDto Data) : Overlay;
 /// Event overlay: Popup for narrative events requiring player choice.
 /// </summary>
 public record EventOverlay(EventDto Data) : Overlay;
+
+/// <summary>
+/// Event outcome overlay: Shows the result after an event choice is made.
+/// </summary>
+public record EventOutcomeOverlay(EventOutcomeDto Data) : Overlay;
 
 /// <summary>
 /// Hazard overlay: Popup for hazardous terrain choice (quick vs careful).

@@ -39,6 +39,7 @@ public static partial class GameEventRegistry
 
     public static void ClearTriggerTimes() => EventTriggerTimes.Clear();
     public static Dictionary<string, DateTime> GetTriggerTimes() => new(EventTriggerTimes);
+    public static void RecordEventTrigger(string eventName, DateTime gameTime) => EventTriggerTimes[eventName] = gameTime;
     public static void LoadTriggerTimes(Dictionary<string, DateTime> times)
     {
         EventTriggerTimes.Clear();

@@ -2,6 +2,7 @@ using text_survival.Actors.Animals;
 using text_survival.Actors.Player;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Tensions;
+using text_survival.Api;
 using text_survival.Bodies;
 using text_survival.Combat;
 using text_survival.Discovery;
@@ -29,6 +30,13 @@ public class GameContext(Player player, Location camp, Weather weather)
     // Web session identifier for this game instance
     public string? SessionId { get; set; }
     public NarrativeLog Log { get; set; } = new();
+
+    /// <summary>
+    /// Pending activity state for stateless API.
+    /// When an event/hunt/encounter/combat triggers, we store the state here
+    /// and return immediately instead of blocking. The next request picks up where we left off.
+    /// </summary>
+    public PendingActivityState? PendingActivity { get; set; }
 
     // Player's carried inventory - references player.Inventory
     public Inventory Inventory => player.Inventory!;
@@ -153,8 +161,8 @@ public class GameContext(Player player, Location camp, Weather weather)
     }
 
     public bool IsHandlingEvent { get; set; } = false;
-    public bool EventOccurredLastUpdate { get; private set; } = false;
-    public bool LastEventAborted { get; private set; } = false;
+    public bool EventOccurredLastUpdate { get; internal set; } = false;
+    public bool LastEventAborted { get; internal set; } = false;
 
     // Tutorial message tracking
     private HashSet<string> _shownTutorials = new();
@@ -214,25 +222,65 @@ public class GameContext(Player player, Location camp, Weather weather)
     // Parameterless constructor for JSON deserialization
     [System.Text.Json.Serialization.JsonConstructor]
     public GameContext() : this(null!, null!, null!) { }
-    // public void RestoreAfterDeserialization()
-    // {
-    //     // Map handles its own restoration via LocationData property
-    //     // Weather reference needs to be restored on the map
-    //     if (Map != null)
-    //     {
-    //         Map.Weather = Weather;
 
-    //         // Restore actor Map references (CurrentLocation restored via $ref)
-    //         player.Map = Map;
-    //         foreach (var npc in NPCs)
-    //         {
-    //             npc.Map = Map;
-    //         }
-    //     }
+    /// <summary>
+    /// Restores non-serialized references after JSON deserialization.
+    /// Must be called after loading a saved game.
+    /// </summary>
+    public void RestoreAfterDeserialization()
+    {
+        if (Map == null) return;
 
-    //     // Recreate non-serialized animal members for herds
-    //     Herds.RecreateAllMembers(Map);
-    // }
+        // Restore Weather reference on map
+        Map.Weather = Weather;
+
+        // Restore player's CurrentLocation and Map from Map.CurrentPosition
+        player.CurrentLocation = Map.CurrentLocation;
+        player.Map = Map;
+
+        // Restore NPC CurrentLocation from serialized positions
+        foreach (var npc in NPCs)
+        {
+            npc.Map = Map;
+            if (npc.SerializedPosition != null)
+            {
+                var location = Map.GetLocationAt(npc.SerializedPosition.Value);
+                if (location != null)
+                    npc.CurrentLocation = location;
+            }
+        }
+
+        // Restore PendingActivity animal references
+        if (PendingActivity?.HuntTarget != null)
+        {
+            PendingActivity.HuntTarget.CurrentLocation = Map.CurrentLocation;
+            PendingActivity.HuntTarget.Map = Map;
+        }
+        if (PendingActivity?.EncounterPredator != null)
+        {
+            PendingActivity.EncounterPredator.CurrentLocation = Map.CurrentLocation;
+            PendingActivity.EncounterPredator.Map = Map;
+        }
+
+        // Recreate non-serialized animal members for herds
+        Herds.RecreateAllMembers(Map);
+    }
+
+    /// <summary>
+    /// Prepares context for serialization by storing non-serializable references.
+    /// Must be called before saving the game.
+    /// </summary>
+    public void PrepareForSerialization()
+    {
+        if (Map == null) return;
+
+        // Store NPC positions
+        foreach (var npc in NPCs)
+        {
+            if (npc.CurrentLocation != null && Map.Contains(npc.CurrentLocation))
+                npc.SerializedPosition = Map.GetPosition(npc.CurrentLocation);
+        }
+    }
 
     public static GameContext CreateNewGame()
     {
@@ -327,8 +375,8 @@ public class GameContext(Player player, Location camp, Weather weather)
             // Update survival/zone/tensions (always runs)
             UpdateInternal(1);
 
-            // Check for event (only if activity allows events AND not already handling an event)
-            if (config.EventMultiplier > 0 && !IsHandlingEvent)
+            // Check for event (only if activity allows events AND not already handling an event AND no pending activity)
+            if (config.EventMultiplier > 0 && !IsHandlingEvent && PendingActivity == null)
             {
                 evt = GameEventRegistry.GetEventOnTick(this, config.EventMultiplier);
                 if (evt != null)
@@ -346,8 +394,21 @@ public class GameContext(Player player, Location camp, Weather weather)
         if (evt is not null)
         {
             EventOccurredLastUpdate = true;
-            var result = GameEventRegistry.HandleEvent(this, evt);
-            LastEventAborted = result.AbortsAction;
+
+            // Store event in pending activity and return immediately instead of blocking.
+            // The event will be processed when the player makes a choice via EventChoiceAction.
+            PendingActivity = new PendingActivityState
+            {
+                Phase = ActivityPhase.EventPending,
+                Event = evt.ToSnapshot(this),
+                EventSource = evt
+            };
+
+            // Record trigger time for cooldown (normally done in HandleEvent)
+            GameEventRegistry.RecordEventTrigger(evt.Name, GameTime);
+
+            // Return early - event handling continues on next request
+            return elapsed;
         }
 
         // Clear visibility reveal flag after event check (transient state, resets each update)
@@ -387,10 +448,11 @@ public class GameContext(Player player, Location camp, Weather weather)
         // Update zone weather and all named locations (terrain-only don't need updates)
         Weather.Update(GameTime);
 
-        // Show weather change popup
+        // Add weather change notification to narrative
         if (Weather.WeatherJustChanged && SessionId != null)
         {
-            Web.WebIO.ShowWeatherChange(this);
+            var conditionLabel = Weather.GetConditionLabel().ToLower();
+            UI.GameDisplay.AddWarning(this, $"The weather changes. It's now {conditionLabel}.");
         }
 
         if (Map != null)
@@ -457,7 +519,7 @@ public class GameContext(Player player, Location camp, Weather weather)
             {
                 body.IsDiscovered = true;
                 string text = $"{body.NPCName} collapses. {body.DeathCause}";
-                Web.WebIO.ShowDiscovery(this, body.NPCName, text);
+                UI.GameDisplay.AddDanger(this, text);
             }
             // Otherwise, they'll discover it when they return to this tile
         }
@@ -469,7 +531,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         {
             undiscoveredBody.IsDiscovered = true;
             string text = undiscoveredBody.DeathDiscoveryText();
-            Web.WebIO.ShowDiscovery(this, undiscoveredBody.NPCName, text);
+            UI.GameDisplay.AddDanger(this, text);
         }
 
         // DeadlyCold auto-resolves when player reaches fire

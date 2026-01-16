@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
@@ -32,10 +33,10 @@ namespace text_survival.Actors.Animals
         private static readonly Random _rng = new();
         #region Combat Properties
 
-        public override double AttackDamage { get; }
-        public override double BlockChance { get; }
-        public override string AttackName { get; }
-        public override DamageType AttackType { get; }
+        public override double AttackDamage { get; set; }
+        public override double BlockChance { get; set; }
+        public override string AttackName { get; set; } = "";
+        public override DamageType AttackType { get; set; }
 
         #endregion
 
@@ -48,7 +49,7 @@ namespace text_survival.Actors.Animals
         public override double BaseCohesion { get; set; }
 
         public string Description { get; set; } = "";
-        public bool IsHostile { get; protected set; } = true;
+        public bool IsHostile { get; set; } = true;
 
         /// <summary>
         /// Defines how this animal responds to player detection.
@@ -112,12 +113,12 @@ namespace text_survival.Actors.Animals
         /// <summary>
         /// Speed in meters per second for pursuit calculations.
         /// </summary>
-        public double SpeedMps { get; }
+        public double SpeedMps { get; set; }
 
         /// <summary>
         /// How long this animal will chase before giving up (seconds).
         /// </summary>
-        public double PursuitCommitmentSeconds { get; }
+        public double PursuitCommitmentSeconds { get; set; }
 
         /// <summary>
         /// Base chance (0-1) that this animal disengages after incapacitating prey.
@@ -167,7 +168,7 @@ namespace text_survival.Actors.Animals
         /// <summary>
         /// Current activity the animal is engaged in.
         /// </summary>
-        public AnimalActivity CurrentActivity { get; private set; } = AnimalActivity.Resting;
+        public AnimalActivity CurrentActivity { get; set; } = AnimalActivity.Resting;
 
         /// <summary>
         /// Minutes until activity changes.
@@ -177,6 +178,12 @@ namespace text_survival.Actors.Animals
         #endregion
 
         #region Constructor
+
+        /// <summary>
+        /// Parameterless constructor for JSON deserialization.
+        /// </summary>
+        [JsonConstructor]
+        public Animal() : base() { }
 
         public Animal(
             string name,

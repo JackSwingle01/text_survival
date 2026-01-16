@@ -11,57 +11,6 @@ namespace text_survival.Actions.Handlers;
 /// </summary>
 public static class TorchHandler
 {
-    /// <summary>
-    /// Check if player can light a torch.
-    /// Requires: unlit torch AND (active fire OR lit torch OR tinder+firestarter)
-    /// </summary>
-    public static bool CanLightTorch(GameContext ctx)
-    {
-        if (!ctx.Inventory.HasUnlitTorch) return false;
-
-        // Can light from active fire (free)
-        if (ctx.CurrentLocation.HasActiveHeatSource()) return true;
-
-        // Can light from another lit torch (free)
-        if (ctx.Inventory.HasLitTorch) return true;
-
-        // Can light with tinder + firestarter (consumes tinder)
-        bool hasTinder = ctx.Inventory.Count(Resource.Tinder) > 0;
-        bool hasFirestarter = ctx.Inventory.Tools.Any(t =>
-            t.ToolType is ToolType.FireStriker or ToolType.HandDrill or ToolType.BowDrill);
-        return hasTinder && hasFirestarter;
-    }
-
-    /// <summary>
-    /// Light a torch from available flame source.
-    /// From fire/torch: FREE. From tinder+firestarter: consumes tinder.
-    /// </summary>
-    public static void LightTorch(GameContext ctx)
-    {
-        bool hasActiveFire = ctx.CurrentLocation.HasActiveHeatSource();
-        bool hasLitTorch = ctx.Inventory.HasLitTorch;
-
-        // Determine lighting method
-        if (hasActiveFire)
-        {
-            // Free lighting from fire
-            ctx.Inventory.LightTorch();
-            GameDisplay.AddSuccess(ctx, "You light a torch from the fire. It burns steadily.");
-            ctx.Update(1, ActivityType.Idle);
-        }
-        else if (hasLitTorch)
-        {
-            // Free lighting from existing torch
-            ctx.Inventory.LightTorch();
-            GameDisplay.AddSuccess(ctx, "You light a fresh torch from your dying flame.");
-            ctx.Update(1, ActivityType.Idle);
-        }
-        else
-        {
-            // Need to use firestarter + tinder (same mechanics as fire starting but simpler)
-            LightTorchWithFirestarter(ctx);
-        }
-    }
 
     /// <summary>
     /// Light a torch using firestarter and tinder (similar to fire starting but simpler).
@@ -138,18 +87,6 @@ public static class TorchHandler
                     LightTorchWithFirestarter(ctx);
             }
         }
-    }
-
-    /// <summary>
-    /// Extinguish an active torch. The torch is consumed (cannot be relit).
-    /// </summary>
-    public static void ExtinguishTorch(GameContext ctx)
-    {
-        if (ctx.Inventory.ActiveTorch == null) return;
-
-        GameDisplay.AddNarrative(ctx, "You snuff out the torch. It crumbles to ash.");
-        ctx.Inventory.ActiveTorch = null;
-        ctx.Inventory.TorchBurnTimeRemainingMinutes = 0;
     }
 
     /// <summary>

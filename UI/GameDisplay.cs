@@ -34,11 +34,6 @@ public static class GameDisplay
     public static void AddDanger(GameContext ctx, string text) => AddNarrative(ctx, text, LogLevel.Danger);
     public static void AddDiscovery(GameContext ctx, string text) => AddNarrative(ctx, text, LogLevel.Discovery);
 
-    public static void AddSeparator(GameContext ctx)
-    {
-        ctx.Log.AddSeparator();
-    }
-
     public static void ClearNarrative(GameContext ctx)
     {
         ctx.Log.Clear();
@@ -78,22 +73,6 @@ public static class GameDisplay
         }
 
         return (elapsed, ctx.EventOccurredLastUpdate);
-    }
-
-
-    // #region Inventory Screen
-
-    public static void RenderInventoryScreen(GameContext ctx, Inventory? inventory = null, string? title = null)
-    {
-        var inv = inventory ?? ctx.Inventory;
-        var headerTitle = title ?? "INVENTORY";
-
-        // Route to web UI when session is active
-        if (ctx.SessionId != null)
-        {
-            Web.WebIO.RenderInventory(ctx, inv, headerTitle);
-            return;
-        }
     }
 
     /// <summary>

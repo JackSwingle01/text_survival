@@ -56,6 +56,9 @@ public static class SaveManager
     {
         try
         {
+            // Store non-serializable references before serialization
+            ctx.PrepareForSerialization();
+
             string json = JsonSerializer.Serialize(ctx, Options);
             File.WriteAllText(GetSavePath(ctx.SessionId), json);
             return (true, null);
@@ -82,8 +85,8 @@ public static class SaveManager
             string json = File.ReadAllText(path);
             var ctx = JsonSerializer.Deserialize<GameContext>(json, Options);
 
-            // Post-load: recreate non-serialized data
-            ctx?.Herds.RecreateAllMembers(ctx.Map);
+            // Post-load: restore non-serialized references
+            ctx?.RestoreAfterDeserialization();
 
             return (ctx, null);
         }
@@ -120,14 +123,17 @@ public static class SaveManager
     {
         var ctx = GameContext.CreateNewGame();
 
+        // Prepare for serialization (store NPC positions, etc.)
+        ctx.PrepareForSerialization();
+
         // This will throw if serialization fails
         string json = JsonSerializer.Serialize(ctx, Options);
 
         // Try deserialization too
         var deserialized = JsonSerializer.Deserialize<GameContext>(json, Options);
 
-        // Post-load: recreate non-serialized data
-        deserialized?.Herds.RecreateAllMembers(deserialized.Map);
+        // Post-load: restore non-serialized references
+        deserialized?.RestoreAfterDeserialization();
 
         int locationCount = 0;
         if (deserialized?.Map != null)

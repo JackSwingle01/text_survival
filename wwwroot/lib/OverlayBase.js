@@ -114,8 +114,7 @@ export class OverlayBase {
      * @param {string} choiceId - Choice identifier
      */
     respond(choiceId) {
-        const currentInputId = this.inputHandler.getCurrentInputId();
-        return this.inputHandler.respond(choiceId, currentInputId);
+        return this.inputHandler.respond(choiceId);
     }
 
     /**
@@ -124,8 +123,7 @@ export class OverlayBase {
      * @param {Object} data - Action data
      */
     sendAction(type, data) {
-        const currentInputId = this.inputHandler.getCurrentInputId();
-        return this.inputHandler.sendAction(type, data, currentInputId);
+        return this.inputHandler.sendAction(type, data);
     }
 
     /**

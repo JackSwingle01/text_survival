@@ -1,5 +1,6 @@
-// modules/GameClient.js (simplified excerpt)
+// modules/GameClient.js - REST API version
 import { InputHandler } from './core/InputHandler.js';
+import { gameAPI } from './modules/api.js';
 import { EventOverlay } from './overlays/EventOverlay.js';
 import { HuntOverlay } from './overlays/HuntOverlay.js';
 import { InventoryOverlay } from './overlays/InventoryOverlay.js';
@@ -38,21 +39,14 @@ const POPUP_HIDDEN_ACTIONS = ['Inventory', 'Crafting', 'Travel', 'Storage',
 
 class GameClient {
     constructor() {
-        this.socket = null;
-        this.currentInputId = 0;
-        this.reconnectAttempts = 0;
-        this.maxReconnectAttempts = 5;
         this.awaitingResponse = false;
         this.gridRenderer = null;
         this.tilePopupRenderer = null;
         this.resumeBlockUntil = 0;
         this.currentInput = null;
 
-        // Core systems
-        this.inputHandler = new InputHandler(
-            () => this.socket,
-            () => this.currentInputId
-        );
+        // Core systems - InputHandler now manages its own API connection
+        this.inputHandler = new InputHandler();
 
         // Renderer state - only one renderer active at a time
         this.combatRenderer = null;
@@ -84,10 +78,39 @@ class GameClient {
         // Initialize frame queue with render callback
         FrameQueue.init((frame) => this.renderFrame(frame));
 
-        this.connect();
+        // Initialize REST API and other handlers
+        this.init();
         this.initQuickActions();
         this.initTilePopup();
         this.initVisibilityHandler();
+    }
+
+    /**
+     * Initialize REST API connection
+     */
+    async init() {
+        // Wire up API callbacks
+        gameAPI.onFrame = (frame) => this.handleFrame(frame);
+        gameAPI.onError = (message) => {
+            console.error('[GameClient] API error:', message);
+            ConnectionOverlay.show(message, true);
+        };
+        gameAPI.onConnectionChange = (state) => {
+            if (state === 'connecting') {
+                ConnectionOverlay.show('Connecting...');
+            } else if (state === 'connected') {
+                ConnectionOverlay.hide();
+            } else if (state === 'error') {
+                ConnectionOverlay.show('Connection error. Click to retry.', true);
+            }
+        };
+
+        try {
+            await gameAPI.init();
+        } catch (error) {
+            console.error('[GameClient] Failed to initialize:', error);
+            ConnectionOverlay.show('Failed to connect. Click to retry.', true);
+        }
     }
 
     /**
@@ -161,51 +184,6 @@ class GameClient {
         Object.values(this.overlays).forEach(handler => handler.hide());
     }
 
-    /**
-     * Establish WebSocket connection
-     */
-    connect() {
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        this.socket = new WebSocket(`${protocol}//${location.host}/ws`);
-
-        this.socket.onopen = () => {
-            this.reconnectAttempts = 0;
-            // Block clicks until first frame arrives to prevent stale button race condition
-            this.awaitingResponse = true;
-            // Reset inputId - the next frame from server will set the correct value
-            this.currentInputId = 0;
-
-            // Clear all stale UI to prevent clicking old buttons with captured state
-            this.hideAllOverlays();
-            this.updateAvailableActions(null);
-            this.tilePopupRenderer?.hide();
-
-            ConnectionOverlay.hide();
-        };
-
-        this.socket.onmessage = (event) => {
-            const frame = JSON.parse(event.data);
-            this.handleFrame(frame);
-        };
-
-        this.socket.onclose = () => {
-            ConnectionOverlay.show('Connection lost. Reconnecting...');
-            this.attemptReconnect();
-        };
-
-        this.socket.onerror = () => {
-            ConnectionOverlay.show('Connection error', true);
-        };
-    }
-
-    attemptReconnect() {
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.reconnectAttempts++;
-            setTimeout(() => this.connect(), 2000);
-        } else {
-            ConnectionOverlay.show('Failed to connect. Refresh to try again.', true);
-        }
-    }
 
     /**
      * Handle incoming frame - delegate to FrameQueue
@@ -679,52 +657,27 @@ class GameClient {
     }
 
     /**
-     * Send player choice to server
+     * Send player choice to server via REST API
      */
-    respond(choiceId, inputId) {
-        // Prevent duplicate responses or responses to stale buttons
+    respond(choiceId, inputId = null) {
+        // Prevent duplicate responses
         if (this.awaitingResponse) {
             return;
         }
 
-        // Block clicks briefly after page resumes from idle to prevent accidental selection
+        // Block clicks briefly after page resumes from idle
         if (Date.now() < this.resumeBlockUntil) {
             return;
         }
 
-        // Reject empty string choiceId - this indicates a bug in button creation
+        // Reject empty string choiceId
         if (choiceId === '') {
-            console.error('[respond] Empty choiceId rejected! Stack:', new Error().stack);
+            console.error('[respond] Empty choiceId rejected!');
             return;
         }
 
-        // Verify this click is for the current input set (prevents stale button clicks)
-        // Reject if inputId is missing/invalid OR doesn't match current
-        if (!inputId || inputId <= 0 || inputId !== this.currentInputId) {
-            console.log(`[respond] Rejecting stale click: button inputId=${inputId}, current=${this.currentInputId}`);
-            this.awaitingResponse = false;
-            return;
-        }
-
-        const validInputId = inputId;
-
-        // Don't send if we don't have a valid input ID yet
-        if (!validInputId || validInputId <= 0) {
-            console.warn('[respond] No valid inputId available, ignoring click');
-            this.awaitingResponse = false;
-            return;
-        }
-
-        this.awaitingResponse = true;
-
-        // Disable all action buttons immediately to prevent double-clicks
-        document.querySelectorAll('.btn').forEach(btn => {
-            btn.disabled = true;
-        });
-
-        if (this.socket.readyState === WebSocket.OPEN) {
-            this.socket.send(JSON.stringify({ choiceId, inputId: validInputId }));
-        }
+        // Use InputHandler to send the response (handles action conversion)
+        this.inputHandler.respond(choiceId, inputId);
     }
 
     /**
@@ -754,26 +707,25 @@ class GameClient {
     }
 
     /**
-     * Request a quick action (Inventory, Crafting, Storage)
+     * Request a quick action (Inventory, Crafting, Storage) via REST API
      */
     requestAction(action) {
         if (this.awaitingResponse) return;
-        if (Date.now() < this.resumeBlockUntil) return;  // Block clicks briefly after page resume
-        this.awaitingResponse = true;
+        if (Date.now() < this.resumeBlockUntil) return;
 
-        if (this.socket.readyState === WebSocket.OPEN) {
-            const inputId = this.currentInputId || 0;
-            if (inputId <= 0) {
-                console.warn('[requestAction] No valid inputId, ignoring');
-                this.awaitingResponse = false;
-                return;
-            }
-            this.socket.send(JSON.stringify({
-                type: 'action',
-                action: action,
-                inputId: inputId
-            }));
-        }
+        // Map action names to action types
+        const actionTypeMap = {
+            'inventory': 'openInventory',
+            'crafting': 'openCrafting',
+            'storage': 'openStorage',
+            'discoveryLog': 'openDiscoveryLog',
+            'eating': 'openEating',
+            'fire': 'manageFire',
+            'cooking': 'openCooking'
+        };
+
+        const actionType = actionTypeMap[action] || action;
+        this.inputHandler.sendAction(actionType);
     }
 
     /**
@@ -809,33 +761,19 @@ class GameClient {
     }
 
     /**
-     * Send travel_to request from map click
+     * Send travel_to request from map click via REST API
      */
     handleTravelToRequest(x, y) {
         if (this.awaitingResponse) return;
-        if (Date.now() < this.resumeBlockUntil) return;  // Block clicks briefly after page resume
-        this.awaitingResponse = true;
+        if (Date.now() < this.resumeBlockUntil) return;
 
         // Record move for footprint history
         if (this.gridRenderer) {
             this.gridRenderer.recordMove();
         }
 
-        if (this.socket.readyState === WebSocket.OPEN) {
-            // Ensure valid inputId
-            const inputId = this.currentInputId || 0;
-            if (inputId <= 0) {
-                console.warn('[handleTravelRequest] No valid inputId, ignoring');
-                this.awaitingResponse = false;
-                return;
-            }
-            this.socket.send(JSON.stringify({
-                type: 'travel_to',
-                targetX: x,
-                targetY: y,
-                inputId: inputId
-            }));
-        }
+        // Send move action via REST API
+        gameAPI.move(x, y);
     }
 
     /**

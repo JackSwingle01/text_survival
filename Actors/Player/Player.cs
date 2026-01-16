@@ -14,16 +14,20 @@ public class Player : Actor
     public SurvivalStatsDelta? LastSurvivalDelta { get; private set; }
     public int LastUpdateMinutes { get; private set; } = 1;
 
-    // Combat - uses equipped weapon or unarmed defaults
-    public override double AttackDamage => Inventory?.Weapon?.Damage ?? 0.1;
-    public override double BlockChance => Inventory?.Weapon?.BlockChance ?? 0.05;
-    public override string AttackName => Inventory?.Weapon?.Name ?? "fists";
-    public override DamageType AttackType => Inventory?.Weapon?.WeaponClass switch
+    // Combat - uses equipped weapon or unarmed defaults. Setters are no-ops for abstract override.
+    public override double AttackDamage { get => Inventory?.Weapon?.Damage ?? 0.1; set { } }
+    public override double BlockChance { get => Inventory?.Weapon?.BlockChance ?? 0.05; set { } }
+    public override string AttackName { get => Inventory?.Weapon?.Name ?? "fists"; set { } }
+    public override DamageType AttackType
     {
-        WeaponClass.Blade => DamageType.Sharp,
-        WeaponClass.Pierce => DamageType.Pierce,
-        _ => DamageType.Blunt
-    };
+        get => Inventory?.Weapon?.WeaponClass switch
+        {
+            WeaponClass.Blade => DamageType.Sharp,
+            WeaponClass.Pierce => DamageType.Pierce,
+            _ => DamageType.Blunt
+        };
+        set { }
+    }
 
     public override DamageInfo GetAttackDamage(BodyTarget target = BodyTarget.Random)
     {

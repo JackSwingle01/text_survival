@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments;
@@ -8,18 +9,22 @@ namespace text_survival.Actors;
 
 public abstract class Actor : IMovable
 {
-    public string Name;
-    public Location CurrentLocation { get; set; }
-    public GameMap Map { get; set; }
+    public string Name = "";
+
+    [JsonIgnore]
+    public Location CurrentLocation { get; set; } = null!;
+
+    [JsonIgnore]
+    public GameMap Map { get; set; } = null!;
 
     // Inventory - set by subclasses that have one (Player, NPC). Animals leave null.
     public Inventory? Inventory { get; set; }
 
     // Combat interface - subclasses provide these from their weapon/natural attacks
-    public abstract double AttackDamage { get; }
-    public abstract double BlockChance { get; }
-    public abstract string AttackName { get; }
-    public abstract DamageType AttackType { get; }
+    public abstract double AttackDamage { get; set; }
+    public abstract double BlockChance { get; set; }
+    public abstract string AttackName { get; set; }
+    public abstract DamageType AttackType { get; set; }
 
     /// <summary>
     /// Creates DamageInfo for this actor's attack, including strength/vitality/RNG modifiers.
@@ -91,6 +96,17 @@ public abstract class Actor : IMovable
     public EffectRegistry EffectRegistry { get; init; }
 
     public override string ToString() => Name;
+
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// Location and Map must be restored after load via RestoreReferences().
+    /// </summary>
+    [JsonConstructor]
+    protected Actor()
+    {
+        EffectRegistry = new EffectRegistry();
+        Body = new Body();
+    }
 
     protected Actor(string name, BodyCreationInfo stats, Location currentLocation, GameMap map)
     {

@@ -76,6 +76,26 @@ public class HerdRegistry
         return _herds.FirstOrDefault(h => h.Members.Contains(animal));
     }
 
+    /// <summary>
+    /// Gets the index of a herd in the registry. Returns -1 if not found.
+    /// Used for serialization when we need to store a reference.
+    /// </summary>
+    public int GetHerdIndex(Herd herd)
+    {
+        return _herds.IndexOf(herd);
+    }
+
+    /// <summary>
+    /// Gets a herd by its index. Returns null if index is invalid.
+    /// Used for deserialization when restoring references.
+    /// </summary>
+    public Herd? GetHerdByIndex(int? index)
+    {
+        if (index == null || index < 0 || index >= _herds.Count)
+            return null;
+        return _herds[index.Value];
+    }
+
     #endregion
 
     #region Mutations

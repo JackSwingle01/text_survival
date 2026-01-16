@@ -126,15 +126,4 @@ public static class CookingHandler
         return result.Success;
     }
 
-    // ============================================
-    // UI Entry Point (Player)
-    // ============================================
-
-    /// <summary>
-    /// Run the web-based cooking UI overlay.
-    /// </summary>
-    public static void CookMelt(GameContext ctx)
-    {
-        WebIO.RunCookingUI(ctx);
-    }
 }

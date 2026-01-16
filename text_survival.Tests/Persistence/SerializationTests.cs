@@ -238,12 +238,13 @@ public class SerializationTests
         // Arrange
         var ctx = GameContext.CreateNewGame();
 
-        // Act - Serialize and deserialize
+        // Act - Prepare and serialize
+        ctx.PrepareForSerialization();
         string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
         var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
 
-        // // Restore transient state after deserialization
-        // deserialized!.RestoreAfterDeserialization();
+        // Restore transient state after deserialization
+        deserialized!.RestoreAfterDeserialization();
 
         // Assert - Game can continue (functional API works)
 
