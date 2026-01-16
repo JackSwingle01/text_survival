@@ -153,39 +153,143 @@ Desktop/
 
 ---
 
-### Phase 2: World Rendering (Days 2-3)
+### Phase 2: World Rendering (Days 2-4)
 
-**Goal:** Render the game grid with terrain, player position, basic camera
+**Goal:** Port the canvas renderer from JavaScript to C#/Raylib
 
-1. Create `Camera.cs`:
-   - Track viewport center (player position)
-   - Convert world coords ↔ screen coords
-   - Handle zoom level
+The current JS canvas renderer is ~2,200 lines across two files:
+- `CanvasGridRenderer.js` (1,564 lines) - Grid, camera, tiles, icons, effects
+- `TerrainRenderer.js` (719 lines) - Procedural terrain textures
 
-2. Create `WorldRenderer.cs`:
-   - Port terrain rendering from `TerrainRenderer.js`
-   - Draw grid tiles based on `GameMap`
-   - Draw player marker
-   - Draw visible features (fires, caches, etc.)
+#### 2a. Core Structure
 
-3. Create `SpriteAtlas.cs`:
-   - Load terrain textures
-   - Load feature icons
-   - Simple sprite management
+Create `Desktop/Rendering/` with:
 
-4. Wire up to game state:
-   ```csharp
-   var ctx = SaveManager.Load(sessionId) ?? GameSetup.NewGame();
+```
+Rendering/
+├── WorldRenderer.cs      # Main renderer, coordinates all drawing
+├── Camera.cs             # Viewport tracking, world↔screen coords
+├── TerrainRenderer.cs    # Procedural terrain textures
+├── TileRenderer.cs       # Individual tile rendering
+├── EdgeRenderer.cs       # Rivers, cliffs, trails between tiles
+├── EffectsRenderer.cs    # Snow particles, vignette, night overlay
+└── RenderUtils.cs        # Seeded random, color helpers, drawing primitives
+```
 
-   while (!Raylib.WindowShouldClose())
-   {
-       Raylib.BeginDrawing();
-       WorldRenderer.Draw(ctx, camera);
-       Raylib.EndDrawing();
-   }
-   ```
+#### 2b. API Mapping (JS Canvas → Raylib)
 
-**Deliverable:** Game world renders from actual GameContext
+| JS Canvas | Raylib C# | Notes |
+|-----------|-----------|-------|
+| `fillRect(x,y,w,h)` | `DrawRectangle(x,y,w,h,color)` | Direct equivalent |
+| `arc(x,y,r,start,end)` | `DrawCircleSector()` | For partial arcs |
+| `beginPath()+moveTo()+lineTo()` | `DrawTriangle()` or `DrawLine()` | Build shapes |
+| `quadraticCurveTo()` | `DrawLineBezierQuad()` | Bezier curves |
+| `bezierCurveTo()` | `DrawLineBezierCubic()` | Cubic curves |
+| `ellipse()` | `DrawEllipse()` | Direct equivalent |
+| `createRadialGradient()` | Custom shader or layered circles | No direct equivalent |
+| `fillText()` | `DrawText()` or `DrawTextEx()` | Font handling differs |
+| `globalAlpha` | Color with alpha: `new Color(r,g,b,a)` | Per-call alpha |
+| `strokeStyle + stroke()` | `DrawRectangleLines()` / `DrawCircleLines()` | Outline variants |
+| `setTransform()/scale()` | `BeginMode2D(camera)` | Camera transforms |
+
+#### 2c. Terrain Textures to Port
+
+Each terrain type has procedural rendering (from `TerrainRenderer.js`):
+
+| Terrain | Elements | Complexity |
+|---------|----------|------------|
+| **Forest** | 5-7 triangle trees, snow highlights | Medium |
+| **Water/Ice** | Concentric pressure rings, cracks, shimmer patches | High |
+| **Plain** | Lichen clusters, snow drifts, tussock grass, shrubs | High |
+| **Clearing** | Dirt patches, grass tufts, stumps, fallen branches, edge trees | High |
+| **Hills** | 3 stacked mounds with snow caps, rock patches, contours | Medium |
+| **Rock** | 4 angular boulders with shadows, cracks, gravel | Medium |
+| **Mountain** | Peak silhouettes, snow caps, ridge lines | Low |
+| **Marsh** | Cattail clusters, dead reeds, ice cracks | Medium |
+
+All use seeded random for consistent per-tile patterns:
+```csharp
+// Port directly - same algorithm
+public static float SeededRandom(int worldX, int worldY, int seed)
+{
+    int h = (worldX * 73856093) ^ (worldY * 19349663) ^ (seed * 83492791);
+    return MathF.Abs(MathF.Sin(h)) % 1.0f;
+}
+```
+
+#### 2d. Grid Renderer Features to Port
+
+From `CanvasGridRenderer.js`:
+
+**Core rendering:**
+- 7x7 tile viewport centered on player
+- Tile size: 120px default, scales with window
+- Terrain base color + texture overlay
+- Fog of war (explored but not visible = dimmed)
+- Tile highlights (player tile glow, hover highlight, adjacent indicators)
+
+**Camera system:**
+- `worldToView()` / `viewToWorld()` coordinate conversion
+- Animated camera transitions (300ms ease-out-cubic)
+- `startAnimatedPan()` for synchronized travel animation
+
+**Feature icons:**
+- Material icon font rendering with glow effects
+- 4 icon positions per tile (corners)
+- Special styling for fire (orange glow), water, traps
+
+**Animal icons:**
+- Emoji rendering at cardinal positions
+- Shadow beneath each icon
+
+**Player rendering:**
+- Material icon with shadow
+- Animated position during travel
+
+**Edge rendering (between tiles):**
+- Rivers: wavy icy-blue lines
+- Cliffs: rocky texture with descent arrows
+- Climbs: hazard stripes
+- Trails: worn dirt paths (GameTrail, TrailMarker, CutTrail)
+
+**Effects:**
+- Snow particles (25 particles, drift + fall)
+- Night overlay (time-based darkness)
+- Vignette (radial darkening at edges)
+- Time-of-day color adjustment (HSL lightness scaling)
+
+#### 2e. Implementation Order
+
+1. **RenderUtils.cs** - Seeded random, color helpers
+2. **Camera.cs** - Viewport, coordinate conversion
+3. **TerrainRenderer.cs** - All 8 terrain textures
+4. **TileRenderer.cs** - Single tile with terrain, fog, highlights
+5. **WorldRenderer.cs** - Grid loop, render all visible tiles
+6. **EdgeRenderer.cs** - Rivers, cliffs, trails
+7. **EffectsRenderer.cs** - Snow, vignette, night
+8. **Icons** - Feature icons, animal icons, player
+
+#### 2f. Wire Up to Game State
+
+```csharp
+var ctx = SaveManager.Load(sessionId) ?? GameSetup.NewGame();
+var camera = new Camera(ctx.Map.CurrentPosition);
+var worldRenderer = new WorldRenderer();
+
+while (!Raylib.WindowShouldClose())
+{
+    camera.Update(ctx.Map.CurrentPosition);
+
+    Raylib.BeginDrawing();
+    Raylib.ClearBackground(worldRenderer.GetBackgroundColor());
+
+    worldRenderer.Draw(ctx, camera);
+
+    Raylib.EndDrawing();
+}
+```
+
+**Deliverable:** Full game world renders from GameContext with all terrain, edges, and effects
 
 ---
 
