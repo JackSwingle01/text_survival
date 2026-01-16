@@ -1,7 +1,11 @@
+using Raylib_cs;
+using rlImGuiCs;
 using text_survival.Actions;
 using text_survival.Actions.Events.Variants;
+using text_survival.Actions.Handlers;
 using text_survival.Crafting;
 using text_survival.Desktop.Dto;
+using text_survival.Desktop.UI;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
@@ -285,16 +289,317 @@ public static class DesktopIO
         BlockingDialog.ShowMessageAndWait(ctx, "DEATH", deathMessage);
     }
 
-    // Complex UI loops
+    // Complex UI loops - blocking versions that handle their own result processing
+
+    /// <summary>
+    /// Run the transfer UI in a blocking loop until user closes it.
+    /// </summary>
     public static void RunTransferUI(GameContext ctx, Inventory storage, string storageName)
-        => throw new NotImplementedException("Desktop transfer UI not yet implemented");
+    {
+        var overlays = DesktopRuntime.Overlays;
+        if (overlays == null) return;
 
-    public static void RunFireUI(GameContext ctx, HeatSourceFeature fire)
-        => throw new NotImplementedException("Desktop fire UI not yet implemented");
+        overlays.OpenTransfer(storage, storageName);
+        var playerInv = ctx.Inventory;
 
+        while (overlays.Transfer.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            // Render world in background
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            // Dim overlay
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+
+            // Render the transfer overlay
+            var result = overlays.Transfer.Render(ctx, deltaTime);
+
+            // Process transfer result immediately
+            if (result != null)
+            {
+                ProcessTransferResult(ctx, result, playerInv, storage, overlays.Transfer);
+            }
+
+            rlImGui.End();
+            Raylib.EndDrawing();
+        }
+    }
+
+    private static void ProcessTransferResult(GameContext ctx, TransferResult result, Inventory playerInv, Inventory storage, TransferOverlay overlay)
+    {
+        var source = result.FromPlayer ? playerInv : storage;
+        var dest = result.FromPlayer ? storage : playerInv;
+        string direction = result.FromPlayer ? "to storage" : "to inventory";
+
+        if (result.Resource != null)
+        {
+            if (source.Count(result.Resource.Value) > 0)
+            {
+                double weight = source.Pop(result.Resource.Value);
+                dest.Add(result.Resource.Value, weight);
+                overlay.SetMessage($"Moved {result.Resource.Value} {direction}");
+            }
+        }
+        else if (result.IsWater)
+        {
+            double amount = Math.Min(result.WaterAmount, source.WaterLiters);
+            source.WaterLiters -= amount;
+            dest.WaterLiters += amount;
+            overlay.SetMessage($"Transferred {amount:F1}L water {direction}");
+        }
+        else if (result.Tool != null)
+        {
+            if (source.Tools.Remove(result.Tool))
+            {
+                dest.Tools.Add(result.Tool);
+                overlay.SetMessage($"Moved {result.Tool.Name} {direction}");
+            }
+        }
+        else if (result.Equipment != null)
+        {
+            if (source.Equipment.Remove(result.Equipment))
+            {
+                dest.Equipment.Add(result.Equipment);
+                overlay.SetMessage($"Moved {result.Equipment.Name} {direction}");
+            }
+        }
+        else if (result.Accessory != null)
+        {
+            if (source.Accessories.Remove(result.Accessory))
+            {
+                dest.Accessories.Add(result.Accessory);
+                overlay.SetMessage($"Moved {result.Accessory.Name} {direction}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Run the fire UI in a blocking loop until user closes it.
+    /// </summary>
+    public static void RunFireUI(GameContext ctx, HeatSourceFeature? fire)
+    {
+        var overlays = DesktopRuntime.Overlays;
+        if (overlays == null) return;
+
+        overlays.OpenFire(fire);
+
+        while (overlays.Fire.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            // Render world in background
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            // Dim overlay
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+
+            // Render the fire overlay
+            var result = overlays.Fire.Render(ctx, deltaTime);
+
+            // Process fire result immediately
+            if (result != null)
+            {
+                ProcessFireResult(ctx, result, overlays.Fire);
+            }
+
+            rlImGui.End();
+            Raylib.EndDrawing();
+        }
+    }
+
+    private static void ProcessFireResult(GameContext ctx, FireOverlayResult result, FireOverlay overlay)
+    {
+        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+
+        switch (result.Action)
+        {
+            case FireAction.StartFire:
+                if (result.Tool != null && result.Tinder != null)
+                {
+                    int skillLevel = ctx.player.Skills.GetSkill("Firecraft").Level;
+                    var startResult = FireHandler.AttemptStartFire(
+                        ctx.player, ctx.Inventory, ctx.CurrentLocation,
+                        result.Tool, result.Tinder.Value, skillLevel, fire);
+
+                    ctx.Update(10, ActivityType.TendingFire);
+                    overlay.SetAttemptResult(startResult.Success, startResult.Message);
+
+                    if (startResult.Success)
+                    {
+                        ctx.player.Skills.GetSkill("Firecraft").GainExperience(3);
+                    }
+                    else
+                    {
+                        ctx.player.Skills.GetSkill("Firecraft").GainExperience(1);
+                    }
+                }
+                break;
+
+            case FireAction.StartFromEmber:
+                if (result.EmberCarrier != null)
+                {
+                    FireHandler.StartFromEmber(ctx.player, ctx.Inventory, ctx.CurrentLocation, result.EmberCarrier, fire);
+                    ctx.Update(5, ActivityType.TendingFire);
+                    overlay.SetAttemptResult(true, "Fire started from ember!");
+                }
+                break;
+
+            case FireAction.AddFuel:
+                if (result.FuelResource != null && fire != null)
+                {
+                    FireHandler.AddFuel(ctx.Inventory, fire, result.FuelResource.Value);
+                    overlay.SetTendMessage($"Added {result.FuelResource.Value} to fire.");
+                }
+                break;
+
+            case FireAction.CollectCharcoal:
+                if (fire != null && fire.HasCharcoal)
+                {
+                    double collected = fire.CollectCharcoal();
+                    ctx.Inventory.Add(Resource.Charcoal, collected);
+                    overlay.SetTendMessage($"Collected {collected:F2}kg charcoal.");
+                }
+                break;
+
+            case FireAction.LightTorch:
+                var torch = ctx.Inventory.Tools.FirstOrDefault(t => t.ToolType == ToolType.Torch && !t.IsTorchLit);
+                if (torch != null && fire != null && fire.IsActive)
+                {
+                    torch.LightTorch();
+                    overlay.SetTendMessage("Torch lit!");
+                }
+                break;
+
+            case FireAction.CollectEmber:
+                var carrier = ctx.Inventory.Tools.FirstOrDefault(t => t.IsEmberCarrier && !t.IsEmberLit);
+                if (carrier != null && fire != null && fire.HasEmbers)
+                {
+                    carrier.LightEmber();
+                    overlay.SetTendMessage($"Ember collected in {carrier.Name}!");
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Run the eating UI in a blocking loop until user closes it.
+    /// </summary>
     public static void RunEatingUI(GameContext ctx)
-        => throw new NotImplementedException("Desktop eating UI not yet implemented");
+    {
+        var overlays = DesktopRuntime.Overlays;
+        if (overlays == null) return;
 
+        overlays.OpenEating();
+
+        while (overlays.Eating.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            // Render world in background
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            // Dim overlay
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+
+            // Render the eating overlay
+            var consumedId = overlays.Eating.Render(ctx, deltaTime);
+
+            // Process consumption result immediately
+            if (consumedId != null)
+            {
+                var consumeResult = ConsumptionHandler.Consume(ctx, consumedId);
+                overlays.Eating.SetConsumeResult(consumeResult.Message, consumeResult.IsWarning);
+            }
+
+            rlImGui.End();
+            Raylib.EndDrawing();
+        }
+    }
+
+    /// <summary>
+    /// Run the cooking UI in a blocking loop until user closes it.
+    /// </summary>
     public static void RunCookingUI(GameContext ctx)
-        => throw new NotImplementedException("Desktop cooking UI not yet implemented");
+    {
+        var overlays = DesktopRuntime.Overlays;
+        if (overlays == null) return;
+
+        overlays.OpenCooking();
+
+        while (overlays.Cooking.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            // Render world in background
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            // Dim overlay
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+
+            // Render the cooking overlay
+            var result = overlays.Cooking.Render(ctx, deltaTime);
+
+            // Process cooking result immediately
+            if (result != null)
+            {
+                ProcessCookingResult(ctx, result, overlays.Cooking);
+            }
+
+            rlImGui.End();
+            Raylib.EndDrawing();
+        }
+    }
+
+    private static void ProcessCookingResult(GameContext ctx, CookingOverlayResult result, CookingOverlay overlay)
+    {
+        switch (result.Action)
+        {
+            case CookingAction.CookMeat:
+                var cookResult = CookingHandler.CookMeat(ctx.Inventory, ctx.CurrentLocation);
+                if (cookResult.Success)
+                {
+                    ctx.Update(CookingHandler.CookMeatTimeMinutes, ActivityType.TendingFire);
+                }
+                overlay.SetActionResult(cookResult.Success, cookResult.Message);
+                break;
+
+            case CookingAction.MeltSnow:
+                var meltResult = CookingHandler.MeltSnow(ctx.Inventory, ctx.CurrentLocation);
+                if (meltResult.Success)
+                {
+                    ctx.Update(CookingHandler.MeltSnowTimeMinutes, ActivityType.TendingFire);
+                }
+                overlay.SetActionResult(meltResult.Success, meltResult.Message);
+                break;
+        }
+    }
 }
