@@ -7,43 +7,14 @@ namespace text_survival.Desktop.Dto;
 /// Overlays stack on top of the base mode.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(InventoryOverlay), "inventory")]
-[JsonDerivedType(typeof(CraftingOverlay), "crafting")]
 [JsonDerivedType(typeof(EventOverlay), "event")]
-[JsonDerivedType(typeof(HazardOverlay), "hazard")]
 [JsonDerivedType(typeof(ConfirmOverlay), "confirm")]
 [JsonDerivedType(typeof(ForageOverlay), "forage")]
-[JsonDerivedType(typeof(HuntOverlay), "hunt")]
-[JsonDerivedType(typeof(TransferOverlay), "transfer")]
-[JsonDerivedType(typeof(FireOverlay), "fire")]
-[JsonDerivedType(typeof(CookingOverlay), "cooking")]
-[JsonDerivedType(typeof(EncounterOverlay), "encounter")]
-[JsonDerivedType(typeof(CombatOverlay), "combat")]
 [JsonDerivedType(typeof(EatingOverlay), "eating")]
 [JsonDerivedType(typeof(DiscoveryOverlay), "discovery")]
 [JsonDerivedType(typeof(WeatherChangeOverlay), "weatherChange")]
 [JsonDerivedType(typeof(DiscoveryLogOverlay), "discoveryLog")]
 public abstract record Overlay;
-
-/// <summary>
-/// Inventory overlay: Shows full inventory details.
-/// </summary>
-public record InventoryOverlay(InventoryDto Data) : Overlay;
-
-/// <summary>
-/// Transfer overlay: Side-by-side inventory transfer view for camp storage.
-/// </summary>
-public record TransferOverlay(TransferDto Data) : Overlay;
-
-/// <summary>
-/// Fire overlay: Combined fire starting and tending UI.
-/// </summary>
-public record FireOverlay(FireManagementDto Data) : Overlay;
-
-/// <summary>
-/// Cooking overlay: Cooking and snow melting at fire.
-/// </summary>
-public record CookingOverlay(CookingDto Data) : Overlay;
 
 /// <summary>
 /// Data for the cooking overlay.
@@ -132,19 +103,9 @@ public record WeatherChangeDto(
 );
 
 /// <summary>
-/// Crafting overlay: Shows crafting recipes organized by category.
-/// </summary>
-public record CraftingOverlay(CraftingDto Data) : Overlay;
-
-/// <summary>
 /// Event overlay: Popup for narrative events requiring player choice.
 /// </summary>
 public record EventOverlay(EventDto Data) : Overlay;
-
-/// <summary>
-/// Hazard overlay: Popup for hazardous terrain choice (quick vs careful).
-/// </summary>
-public record HazardOverlay(HazardPromptDto Data) : Overlay;
 
 /// <summary>
 /// Confirm overlay: Simple yes/no confirmation prompt.
@@ -233,11 +194,6 @@ public record ForageFocusDto(string Id, string Label, string Description);
 public record ForageTimeDto(string Id, string Label, int Minutes);
 
 /// <summary>
-/// Hunt overlay: Interactive hunting popup with distance tracking and choices.
-/// </summary>
-public record HuntOverlay(HuntDto Data) : Overlay;
-
-/// <summary>
 /// Hunt state data for the hunt overlay popup.
 /// </summary>
 public record HuntDto(
@@ -280,11 +236,6 @@ public record HuntOutcomeDto(
 // ============================================
 // ENCOUNTER OVERLAY
 // ============================================
-
-/// <summary>
-/// Encounter overlay: Predator encounter popup with distance and boldness tracking.
-/// </summary>
-public record EncounterOverlay(EncounterDto Data) : Overlay;
 
 /// <summary>
 /// Encounter state data for the predator encounter overlay popup.
@@ -347,12 +298,6 @@ public enum CombatPhase
     BehaviorChange,  // Animal behavior transition
     Outcome          // Combat ended
 }
-
-/// <summary>
-/// Combat overlay: Distance-based strategic combat with defensive options and readable tells.
-/// Unified system that handles both pre-combat (encounter) and active combat phases.
-/// </summary>
-public record CombatOverlay(CombatDto Data) : Overlay;
 
 /// <summary>
 /// Combat state data for the strategic combat overlay.
